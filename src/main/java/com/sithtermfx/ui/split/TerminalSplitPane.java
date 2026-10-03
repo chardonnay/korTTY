@@ -35,8 +35,11 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import de.kortty.core.KorttyClipboard;
 import de.kortty.ui.I18n;
+import de.kortty.ui.KorttyTermWidget;
 import de.kortty.ui.MirroredInputWriter;
+import de.kortty.ui.TerminalLinkContextMenu;
 import de.kortty.ui.TerminalNavigationKeys;
 import de.kortty.ui.TerminalPaneActions;
 import org.jetbrains.annotations.NotNull;
@@ -749,8 +752,31 @@ public class TerminalSplitPane extends StackPane {
         return widget instanceof TerminalPaneActions actions ? actions : null;
     }
 
+    /**
+     * <b>Open Link</b> and <b>Copy Link Address</b> when the menu was opened on a link korTTY opens,
+     * none otherwise. Copy goes through {@link KorttyClipboard}, so the enterprise policy's internal
+     * clipboard keeps the address inside korTTY.
+     */
+    static @NotNull List<TerminalMenuAction> linkActions(@NotNull SithTermFxWidget widget) {
+        if (!(widget instanceof KorttyTermWidget korttyWidget)) {
+            return List.of();
+        }
+        List<TerminalMenuAction> actions = new ArrayList<>(2);
+        for (TerminalLinkContextMenu.Entry entry : TerminalLinkContextMenu.entries(
+                korttyWidget.contextMenuLink(), korttyWidget::openLink, KorttyClipboard::setText)) {
+            actions.add(new TerminalMenuAction(entry.i18nKey(), entry.action()));
+        }
+        return actions;
+    }
+
     private @NotNull ContextMenu createFullContextMenu(@NotNull SithTermFxWidget widget) {
         ContextMenu menu = new ContextMenu();
+        // Right-clicked on a link: the link's own entries come first, as in other terminals.
+        List<MenuItem> linkItems = toMenuItems(linkActions(widget));
+        if (!linkItems.isEmpty()) {
+            menu.getItems().addAll(linkItems);
+            menu.getItems().add(new SeparatorMenuItem());
+        }
         TerminalPaneActions actions = paneActionsOf(widget);
         if (actions != null) {
             List<MenuItem> editItems = toMenuItems(editActions(actions));

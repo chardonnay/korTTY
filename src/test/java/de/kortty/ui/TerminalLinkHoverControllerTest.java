@@ -85,8 +85,10 @@ public class TerminalLinkHoverControllerTest {
         String widget = source("src/main/java/de/kortty/ui/KorttyTermWidget.java");
 
         int superCall = widget.indexOf("super(settingsProvider, terminalTextBuffer, styleState);");
-        int hover = widget.indexOf("linkHover = TerminalLinkHoverController.install(this, "
-            + "(buffer, cell) -> TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get()), "
+        // The pane's live link kinds, shared with the context menu's press filter.
+        assertThat(widget).contains("TerminalLinkHoverController.LinkFinder linkFinder = "
+            + "(buffer, cell) -> TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get());");
+        int hover = widget.indexOf("linkHover = TerminalLinkHoverController.install(this, linkFinder, "
             + "() -> linkOverlay.get());");
         assertThat(superCall).isAtLeast(0);
         assertThat(hover).isGreaterThan(superCall);

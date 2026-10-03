@@ -16,6 +16,9 @@ import javafx.geometry.Point2D;
 import javafx.scene.Node;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Region;
@@ -45,7 +48,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * pane's LINKS layer exactly under the URL's cells (to the right of a timestamp-style gutter), and
  * the target tooltip; resting on an OSC 8 link shows its real target; leaving, other text and new
  * output take everything away; and an OSC 8 link whose text names another host opens only after the
- * confirmation. Run via the {@code terminalLinksSmoke} Gradle task. Exit 0 = OK.
+ * confirmation. A right-click on a link starts the real context menu with Open Link and Copy Link
+ * Address, and Open Link opens it. Run via the {@code terminalLinksSmoke} Gradle task. Exit 0 = OK.
  */
 public final class TerminalLinksSmoke {
 
@@ -201,6 +205,7 @@ public final class TerminalLinksSmoke {
             check(List.of(TARGET, PLAIN_URL).equals(opened), "Cmd/Ctrl+click on a plain URL opened " + opened);
 
             verifyHover(splitPane, widget, panel, canvas, connector, onLink, onPlainText, onPlainUrl);
+            verifyContextMenu((KorttyTermWidget) widget, canvas, onLink, onPlainText, onPlainUrl, opened);
             verifyHostMismatch(panel, canvas, connector, opened, reachedHandlers);
 
             // A swallowed click on a link in another pane still moves the focused pane there.
@@ -308,6 +313,99 @@ public final class TerminalLinksSmoke {
                 && widget.getTerminalTextBuffer().getScreenLines().contains("visit " + PLAIN_URL + " now")));
         onFxThread(() -> {
             Event.fireEvent(canvas, mouse(canvas, MouseEvent.MOUSE_EXITED, onPlainText));
+            return null;
+        });
+    }
+
+    /**
+     * Right-click: the menu opened on a link starts with Open Link and Copy Link Address, and Open
+     * Link opens it like a Cmd/Ctrl+click; on plain text the menu starts with Copy as before, and any
+     * other press forgets the link.
+     */
+    private static void verifyContextMenu(KorttyTermWidget widget, Node canvas, Point2D onLink, Point2D onPlainText,
+                                          Point2D onPlainUrl, List<String> opened) throws Exception {
+        String openLabel = I18n.get(TerminalLinkContextMenu.OPEN_LINK_KEY);
+        String copyLabel = I18n.get(TerminalLinkContextMenu.COPY_LINK_KEY);
+
+        press(canvas, onLink, MouseButton.SECONDARY);
+        TerminalLinkResolver.Link link = onFxThread(widget::contextMenuLink);
+        check(link != null && TARGET.equals(String.valueOf(link.target())),
+            "a right-button press on the OSC 8 link remembered " + link);
+        List<MenuItem> items = openContextMenu(canvas, onLink);
+        check(items.size() > 3 && openLabel.equals(items.get(0).getText()) && copyLabel.equals(items.get(1).getText())
+                && items.get(2) instanceof SeparatorMenuItem,
+            "the menu on a link starts with " + labels(items));
+        int before = opened.size();
+        onFxThread(() -> {
+            items.get(0).fire();
+            return null;
+        });
+        await("Open Link did not open the link", () -> opened.size() == before + 1);
+        check(TARGET.equals(opened.get(before)), "Open Link opened " + opened);
+        closeContextMenus();
+
+        press(canvas, onPlainUrl, MouseButton.SECONDARY);
+        link = onFxThread(widget::contextMenuLink);
+        check(link != null && PLAIN_URL.equals(String.valueOf(link.target())),
+            "a right-button press on the plain URL remembered " + link);
+
+        press(canvas, onPlainText, MouseButton.SECONDARY);
+        check(onFxThread(widget::contextMenuLink) == null, "a right-button press on plain text kept a link");
+        List<MenuItem> plainItems = openContextMenu(canvas, onPlainText);
+        check(!plainItems.isEmpty() && I18n.get("terminal.contextMenu.copy").equals(plainItems.get(0).getText()),
+            "the menu on plain text starts with " + labels(plainItems));
+        closeContextMenus();
+
+        press(canvas, onLink, MouseButton.SECONDARY);
+        press(canvas, onLink, MouseButton.PRIMARY);
+        check(onFxThread(widget::contextMenuLink) == null, "a left-button press kept the link of the last right-click");
+        check(opened.size() == before + 1, "the right-clicks opened " + opened);
+    }
+
+    /** Fires a right-button MOUSE_CLICKED and returns the items of the context menu it shows. */
+    private static List<MenuItem> openContextMenu(Node canvas, Point2D point) throws Exception {
+        onFxThread(() -> {
+            Point2D scene = canvas.localToScene(point);
+            Point2D screen = canvas.localToScreen(point);
+            Event.fireEvent(canvas, new MouseEvent(MouseEvent.MOUSE_CLICKED, scene.getX(), scene.getY(),
+                screen.getX(), screen.getY(), MouseButton.SECONDARY, 1, false, false, false, false,
+                false, false, false, false, false, true, null));
+            return null;
+        });
+        AtomicReference<List<MenuItem>> items = new AtomicReference<>();
+        await("the context menu never showed", () -> {
+            items.set(onFxThread(() -> javafx.stage.Window.getWindows().stream()
+                .filter(window -> window instanceof ContextMenu && window.isShowing())
+                .map(window -> List.copyOf(((ContextMenu) window).getItems()))
+                .findFirst().orElse(null)));
+            return items.get() != null;
+        });
+        return items.get();
+    }
+
+    private static void closeContextMenus() throws Exception {
+        onFxThread(() -> {
+            for (javafx.stage.Window window : List.copyOf(javafx.stage.Window.getWindows())) {
+                if (window instanceof ContextMenu menu) {
+                    menu.hide();
+                }
+            }
+            return null;
+        });
+    }
+
+    private static List<String> labels(List<MenuItem> items) {
+        return items.stream().map(item -> item instanceof SeparatorMenuItem ? "---" : item.getText()).toList();
+    }
+
+    /** Fires a MOUSE_PRESSED of {@code button} at {@code point}. */
+    private static void press(Node canvas, Point2D point, MouseButton button) throws Exception {
+        onFxThread(() -> {
+            Point2D scene = canvas.localToScene(point);
+            Point2D screen = canvas.localToScreen(point);
+            Event.fireEvent(canvas, new MouseEvent(MouseEvent.MOUSE_PRESSED, scene.getX(), scene.getY(),
+                screen.getX(), screen.getY(), button, 1, false, false, false, false,
+                button == MouseButton.PRIMARY, false, button == MouseButton.SECONDARY, false, false, true, null));
             return null;
         });
     }

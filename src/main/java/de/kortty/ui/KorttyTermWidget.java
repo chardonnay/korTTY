@@ -38,7 +38,8 @@ import java.util.function.Supplier;
  * web or e-mail address printed as plain text, which {@link TerminalLinkResolver} finds on demand
  * for the kinds set with {@link #setPlainTextLinkKinds}; none until then. Resting the mouse on a link
  * shows its target ({@link TerminalLinkHoverController}), and an OSC 8 link whose text names another
- * host than it opens asks first ({@link TerminalLinkMismatchDialog}).
+ * host than it opens asks first ({@link TerminalLinkMismatchDialog}). A right-click on a link adds
+ * Open Link and Copy Link Address to the context menu ({@link #contextMenuLink()}).
  */
 public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneActions {
 
@@ -110,6 +111,25 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     }
 
     /**
+     * The link the terminal's context menu was opened on: the one under the last right-button press
+     * in this pane, as it was at that press, or {@code null} when that press was on no link or another
+     * press came after it. The menu offers Open Link and Copy Link Address for it, see
+     * {@link TerminalLinkContextMenu}. Call it on the JavaFX thread.
+     */
+    public @Nullable TerminalLinkResolver.Link contextMenuLink() {
+        return ((KorttyTerminalPanel) getTerminalPanel()).linkMenu.link();
+    }
+
+    /**
+     * Opens {@code link} exactly as a Cmd/Ctrl+click on it does: through {@link TerminalLinkOpener}'s
+     * allowlist, and for an OSC 8 link whose text names another host only after the user confirms.
+     * A link without a target does nothing. Call it on the JavaFX thread.
+     */
+    public void openLink(@NotNull TerminalLinkResolver.Link link) {
+        ((KorttyTerminalPanel) getTerminalPanel()).openLink(Objects.requireNonNull(link, "link").hit());
+    }
+
+    /**
      * The widget's terminal panel, korTTY's subclass of SithTermFX's {@link TerminalPanel}. korTTY's
      * overrides of the panel's methods belong here. It is an inner class because
      * {@code clearBuffer(boolean)} needs the widget's terminal.
@@ -130,18 +150,22 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
 
         private final TerminalLinkHoverController linkHover;
 
+        private final TerminalLinkContextMenu linkMenu;
+
         KorttyTerminalPanel(@NotNull SettingsProvider settingsProvider, @NotNull TerminalTextBuffer terminalTextBuffer,
                 @NotNull StyleState styleState) {
             super(settingsProvider, terminalTextBuffer, styleState);
             TerminalLinkResolver links = new TerminalLinkResolver(() -> plainTextLinkKinds.get());
+            TerminalLinkHoverController.LinkFinder linkFinder =
+                (buffer, cell) -> TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get());
             // Links open only on a single, still Cmd/Ctrl+click; SithTermFX's plain-click navigation
             // is a no-op in KorttyLinkInfo. A canvas filter, so it runs before SithTermFX's handler.
             TerminalLinkClickPolicy.install(this, links, this::openLink);
             // Hover: underline, cursor and target tooltip. Added after SithTermFX's own mouse handlers,
             // so the cursor it sets wins over SithTermFX's.
-            linkHover = TerminalLinkHoverController.install(this,
-                (buffer, cell) -> TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get()),
-                () -> linkOverlay.get());
+            linkHover = TerminalLinkHoverController.install(this, linkFinder, () -> linkOverlay.get());
+            // The link under a right-button press, for Open Link and Copy Link Address in the context menu.
+            linkMenu = TerminalLinkContextMenu.install(this, linkFinder);
         }
 
         void setPlainTextLinkKinds(@NotNull Supplier<Set<TerminalLinkDetector.Kind>> kinds) {
