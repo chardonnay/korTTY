@@ -1,4 +1,4 @@
-package de.kortty.control;
+package de.kortty.core;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;

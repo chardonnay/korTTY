@@ -180,32 +180,67 @@ public class TerminalTab extends Tab {
         
         // Handle tab close
         setOnCloseRequest(event -> {
-            // Only ask before closing when there is something to lose: multiple split panes, or a
-            // foreground command running in the single pane. An idle terminal at its prompt closes
-            // straight away. (Per-connection "close without confirmation" still suppresses it entirely.)
-            if (terminalView.isConnected() && !settings.isCloseWithoutConfirmation()
-                    && terminalView.shouldConfirmClose()) {
-                // Show confirmation dialog. Local shells are not network connections, so use
-                // dedicated wording instead of the SSH-flavored message.
-                boolean localShell = connection.isLocalShell();
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                DialogThemeHelper.applyTheme(alert);
-                alert.setTitle(I18n.get(localShell ? "dialog.closeLocalShell" : "dialog.closeConnection"));
-                alert.setHeaderText(I18n.get(localShell ? "dialog.closeLocalShellQuestion" : "dialog.closeConnectionQuestion"));
-                alert.setContentText(I18n.get(
-                    localShell ? "dialog.closeLocalShellMessage" : "dialog.closeConnectionMessage",
-                    connection.getDisplayName()));
-                
-                if (alert.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
-                    event.consume(); // Cancel the close
-                    return;
-                }
+            if (!confirmUserClose()) {
+                event.consume(); // Cancel the close
+                return;
             }
-            closeRecordingResources();
-            cancelAutoReconnectTimer();
-            terminalView.cleanup();
-        stopStatusBarTimer();
+            releaseResources();
         });
+    }
+
+    /**
+     * Releases what a closing tab holds: its recording, a pending automatic reconnect, every pane's
+     * session and the status-bar timeline, which would otherwise keep the closed tab alive. Shared by
+     * the close button, a tab that closes on its own and the main window's close paths (Cmd/Ctrl+W,
+     * the Dashboard's Close, Close All), which remove the tab without firing its close events.
+     * Idempotent.
+     */
+    void releaseResources() {
+        closeRecordingResources();
+        cancelAutoReconnectTimer();
+        // Idempotent; also stops the session journal and closes every pane's connector.
+        terminalView.cleanup();
+        stopStatusBarTimer();
+    }
+
+    /**
+     * Whether a close the user asked for has to be confirmed first. Only when there is something to
+     * lose: a connected tab with several split panes, or a foreground command running in its single
+     * pane. An idle terminal at its prompt closes straight away, and the per-connection "close
+     * without confirmation" suppresses the question entirely.
+     */
+    static boolean closeNeedsConfirmation(boolean connected, boolean closeWithoutConfirmation, boolean busy) {
+        return connected && !closeWithoutConfirmation && busy;
+    }
+
+    /** {@link #closeNeedsConfirmation} for this tab right now. */
+    boolean needsCloseConfirmation() {
+        return closeNeedsConfirmation(terminalView.isConnected(), settings.isCloseWithoutConfirmation(),
+            terminalView.shouldConfirmClose());
+    }
+
+    /**
+     * Asks before a close the user requested, when {@link #needsCloseConfirmation()} says so. Shared
+     * by the tab's close button and the main window's other close commands (Cmd/Ctrl+W, the
+     * Dashboard's Close), so they all ask the same question. Closes nothing itself.
+     *
+     * @return {@code true} when the tab may close
+     */
+    boolean confirmUserClose() {
+        if (!needsCloseConfirmation()) {
+            return true;
+        }
+        // Local shells are not network connections, so use dedicated wording instead of the
+        // SSH-flavored message.
+        boolean localShell = connection.isLocalShell();
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        DialogThemeHelper.applyTheme(alert);
+        alert.setTitle(I18n.get(localShell ? "dialog.closeLocalShell" : "dialog.closeConnection"));
+        alert.setHeaderText(I18n.get(localShell ? "dialog.closeLocalShellQuestion" : "dialog.closeConnectionQuestion"));
+        alert.setContentText(I18n.get(
+            localShell ? "dialog.closeLocalShellMessage" : "dialog.closeConnectionMessage",
+            connection.getDisplayName()));
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
     }
 
     private static ConnectionSettings resolveInitialSettings(ServerConnection connection) {
@@ -1422,11 +1457,7 @@ public class TerminalTab extends Tab {
     private void closeTabSilently() {
         TabPane tabPane = getTabPane();
         if (tabPane != null) {
-            closeRecordingResources();
-            cancelAutoReconnectTimer();
-            // Idempotent; also stops the session journal and closes every pane's connector.
-            terminalView.cleanup();
-            stopStatusBarTimer();
+            releaseResources();
             // Suppress QuickConnect if + tab might be selected after removal
             MainWindow.suppressNextQuickConnect();
             // Remove close request handler temporarily to avoid confirmation

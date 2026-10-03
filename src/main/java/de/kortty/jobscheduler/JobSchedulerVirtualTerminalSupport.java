@@ -94,7 +94,9 @@ final class JobSchedulerVirtualTerminalSupport {
                 ticker.shutdownNow();
                 ticker.awaitTermination(2, TimeUnit.SECONDS);
             }
-            terminal.awaitProcessed(2_000);
+            if (!terminal.awaitProcessed(2_000)) {
+                logger.debug("Virtual terminal still interpreting output after 2 s; the final screen may lag behind it");
+            }
             screenshots.finish();
             String screen = stripTrailingBlankLines(terminal.screenText());
             recorder.hashScreen(screen);
@@ -116,7 +118,9 @@ final class JobSchedulerVirtualTerminalSupport {
     private static void takeScreenshot(HeadlessTerminal terminal, AutomationJournalRecorder recorder, String label,
                                        boolean finalShot) {
         try {
-            terminal.awaitProcessed(500);
+            if (!terminal.awaitProcessed(500)) {
+                logger.debug("Virtual terminal still interpreting output; the screenshot may lag behind it");
+            }
             byte[] png = TerminalScreenRenderer.renderPng(terminal.snapshot(), true);
             String time = LocalTime.now().format(CAPTION_TIME);
             String caption = shorten(label) + " · " + time

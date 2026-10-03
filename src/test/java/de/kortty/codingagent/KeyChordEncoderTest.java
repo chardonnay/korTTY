@@ -101,6 +101,20 @@ class KeyChordEncoderTest {
     }
 
     @Test
+    void promptPayloadRemovesEmbeddedPasteMarkers() {
+        // An embedded end marker would close the paste early and submit "rm -rf ~" as typed input.
+        assertThat(KeyChordEncoder.promptPayload("fix\u001b[201~\nrm -rf ~", true))
+            .isEqualTo("\u001b[200~fix\rrm -rf ~\u001b[201~\r");
+        assertThat(KeyChordEncoder.promptPayload("fix\u001b[201~\nrm -rf ~", false)).isEqualTo("fix\rrm -rf ~\r");
+        assertThat(KeyChordEncoder.promptPayload("a\u009b200~\nb\u001b[20\u001b[201~1~", true))
+            .isEqualTo("\u001b[200~a\rb\u001b[201~\r");
+        assertThat(KeyChordEncoder.promptPayload("\u001b[201~", true)).isEmpty();
+        // A line break that only the marker kept from being trailing is trailing.
+        assertThat(KeyChordEncoder.promptPayload("fix the tests\n\u001b[201~", true)).isEqualTo("fix the tests\r");
+        assertThat(KeyChordEncoder.isMultiLine("fix the tests\n\u001b[201~")).isFalse();
+    }
+
+    @Test
     void isMultiLine() {
         assertThat(KeyChordEncoder.isMultiLine("one")).isFalse();
         assertThat(KeyChordEncoder.isMultiLine("one\n")).isFalse();
