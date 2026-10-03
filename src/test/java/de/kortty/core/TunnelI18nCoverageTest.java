@@ -12,7 +12,10 @@ import java.util.regex.Pattern;
 
 import static com.google.common.truth.Truth.assertWithMessage;
 
-/** Every runtime SSH tunnel text exists in every bundled locale and keeps its placeholders. */
+/**
+ * Every SSH tunnel text, at runtime and in the tunnel editor, exists in every bundled locale and
+ * keeps its placeholders.
+ */
 class TunnelI18nCoverageTest {
 
     private static final List<String> BUNDLES = List.of(
@@ -53,7 +56,22 @@ class TunnelI18nCoverageTest {
         "tunnel.approval.shared",
         "tunnel.approval.note",
         "tunnel.approval.open",
-        "tunnel.approval.skip");
+        "tunnel.approval.skip",
+        // The tunnel editor: type names, per-type field labels, the bind warnings and the
+        // connection editor's switch over every tunnel.
+        "tunnel.type.local",
+        "tunnel.type.remote",
+        "tunnel.type.dynamic",
+        "tunnel.localHost",
+        "tunnel.localPort",
+        "tunnel.remoteHost",
+        "tunnel.remotePort",
+        "tunnel.localBindAddress",
+        "tunnel.remoteBindAddress",
+        "tunnel.nonLoopbackWarning",
+        "tunnel.nonLoopbackWarning.remote",
+        "connEdit.enableTunnels",
+        "connEdit.enableTunnelsTooltip");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
@@ -90,6 +108,32 @@ class TunnelI18nCoverageTest {
         for (String bundle : BUNDLES) {
             assertWithMessage(bundle + " must name AllowTcpForwarding literally")
                 .that(loadBundle(bundle).getProperty("tunnel.error.serverRejected")).contains("AllowTcpForwarding");
+        }
+    }
+
+    @Test
+    void theBindWarningsNameTheRemedyAndTheServerSettingVerbatimEverywhere() throws Exception {
+        // localhost is what the user types into the field; GatewayPorts is the sshd_config keyword
+        // that decides whether the server honours a non-loopback remote bind.
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            assertWithMessage(bundle + " must name localhost in the local bind warning")
+                .that(localized.getProperty("tunnel.nonLoopbackWarning")).contains("localhost");
+            assertWithMessage(bundle + " must name localhost in the remote bind warning")
+                .that(localized.getProperty("tunnel.nonLoopbackWarning.remote")).contains("localhost");
+            assertWithMessage(bundle + " must name GatewayPorts literally")
+                .that(localized.getProperty("tunnel.nonLoopbackWarning.remote")).contains("GatewayPorts");
+        }
+    }
+
+    @Test
+    void theTypeNamesKeepTheOpenSshOptionLetters() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            assertWithMessage(bundle).that(localized.getProperty("tunnel.type.local")).contains("(-L)");
+            assertWithMessage(bundle).that(localized.getProperty("tunnel.type.remote")).contains("(-R)");
+            assertWithMessage(bundle).that(localized.getProperty("tunnel.type.dynamic")).contains("(-D)");
+            assertWithMessage(bundle).that(localized.getProperty("tunnel.type.dynamic")).contains("SOCKS");
         }
     }
 

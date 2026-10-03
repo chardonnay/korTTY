@@ -763,52 +763,42 @@
 <ol>
 <li>Open a connection for editing: <strong>Connections &gt; Manage Connections</strong> → select the connection → <strong>Edit</strong>.</li>
 <li>Navigate to the <strong>SSH Tunnels</strong> tab.</li>
-<li>Click <strong>Add</strong> and configure the tunnel.</li>
+<li>Click <strong>Add</strong>, choose the <strong>Type</strong> and fill in the fields. A new tunnel starts with <strong>Enable tunnel</strong> ticked.</li>
+<li>Click <strong>Save</strong> in the tunnel dialog, then <strong>Save</strong> in the connection editor. <strong>Cancel</strong> in the connection editor discards every tunnel you added, edited or removed since you opened it.</li>
 </ol>
 <h3 id="tunnel-configuration-fields">Tunnel Configuration Fields<a class="headerlink" href="#tunnel-configuration-fields" title="Permanent link">&para;</a></h3>
+<p>The tunnel dialog names its fields after the role they play for the chosen type and always lists the address that listens first, followed by the address the connections are forwarded to.</p>
 <table>
 <thead>
 <tr>
 <th>Field</th>
-<th>Local (<code>-L</code>)</th>
-<th>Remote (<code>-R</code>)</th>
-<th>Dynamic (<code>-D</code>)</th>
+<th><strong>Local (-L)</strong></th>
+<th><strong>Remote (-R)</strong></th>
+<th><strong>Dynamic SOCKS proxy (-D)</strong></th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Type</strong></td>
-<td><code>LOCAL</code></td>
-<td><code>REMOTE</code></td>
-<td><code>DYNAMIC</code></td>
+<td>Listens on</td>
+<td><strong>Local bind address</strong> and <strong>Local port</strong> on your computer</td>
+<td><strong>Remote bind address</strong> and <strong>Remote port</strong> on the SSH server</td>
+<td><strong>Local bind address</strong> and <strong>Local port</strong> on your computer</td>
 </tr>
 <tr>
-<td><strong>Local host</strong></td>
-<td>Address the listener binds to on your computer (<code>localhost</code> keeps it private)</td>
-<td>Host your computer forwards the connections to</td>
-<td>Address the SOCKS proxy binds to on your computer</td>
+<td>Forwards to</td>
+<td><strong>Remote host</strong> and <strong>Remote port</strong>, as seen from the SSH server</td>
+<td><strong>Local host</strong> and <strong>Local port</strong>, as seen from your computer</td>
+<td>Whatever destination the SOCKS client asks for</td>
 </tr>
 <tr>
-<td><strong>Local port</strong></td>
-<td>Port that listens on your computer</td>
-<td>Port of the service on your computer</td>
-<td>Port of the SOCKS proxy</td>
-</tr>
-<tr>
-<td><strong>Remote host</strong></td>
-<td>Target host, as seen from the SSH server</td>
-<td>Address the SSH server listens on (default <code>localhost</code>)</td>
-<td>Not used</td>
-</tr>
-<tr>
-<td><strong>Remote port</strong></td>
-<td>Target port</td>
-<td>Port the SSH server listens on</td>
-<td>Not used</td>
+<td>Default bind address</td>
+<td><code>localhost</code></td>
+<td><code>localhost</code></td>
+<td><code>localhost</code></td>
 </tr>
 <tr>
 <td><strong>Description</strong></td>
-<td>Optional label for the tunnel</td>
+<td>Optional label</td>
 <td>Optional label</td>
 <td>Optional label</td>
 </tr>
@@ -820,7 +810,11 @@
 </tr>
 </tbody>
 </table>
+<p>A bind address of <code>localhost</code> (or leaving it empty) keeps the listener private to the computer it runs on. As soon as you enter another address, such as <code>0.0.0.0</code> or a network interface, the dialog warns that other computers can reach the tunnel; for a remote tunnel the warning adds that the SSH server only accepts such an address when its <code>GatewayPorts</code> setting allows it.</p>
 <p>Multiple tunnels can be configured per connection. Disabled tunnels remain in the configuration but are not opened when the connection connects.</p>
+<h3 id="the-tunnel-list">The Tunnel List<a class="headerlink" href="#the-tunnel-list" title="Permanent link">&para;</a></h3>
+<p>The <strong>SSH Tunnels</strong> tab lists every tunnel the way <code>ssh</code> options read, listener first: <code>✓ L localhost:8080 -&gt; db:5432</code>, <code>✓ R localhost:9090 -&gt; localhost:3000</code> or <code>○ D localhost:1080 (SOCKS)</code>, followed by its description. <code>✓</code> marks an enabled tunnel and <code>○</code> a disabled one. A tunnel that other computers may reach is marked as such in the list, so a forgotten <code>0.0.0.0</code> stands out.</p>
+<p><strong>Enable SSH tunnels</strong> above the list switches every tunnel of the connection on or off at once. It is ticked when all tunnels are enabled and shows a dash when only some are; clicking the dash enables all of them. Switching a single tunnel is done with <strong>Enable tunnel</strong> in its own dialog.</p>
 <h2 id="tunnel-types">Tunnel Types<a class="headerlink" href="#tunnel-types" title="Permanent link">&para;</a></h2>
 <h3 id="local-port-forwarding-l">Local Port Forwarding (<code>-L</code>)<a class="headerlink" href="#local-port-forwarding-l" title="Permanent link">&para;</a></h3>
 <p>Forward a local port to a remote service through the SSH tunnel.</p>
@@ -828,7 +822,7 @@
 </span></code></pre></div>
 <p><strong>Example use case:</strong> Access a remote database server that is not directly reachable from your machine.</p>
 <ul>
-<li><strong>Local host:</strong> <code>localhost</code></li>
+<li><strong>Local bind address:</strong> <code>localhost</code></li>
 <li><strong>Local port:</strong> <code>8080</code></li>
 <li><strong>Remote host:</strong> <code>database-server</code> (or IP)</li>
 <li><strong>Remote port:</strong> <code>5432</code></li>
@@ -840,24 +834,25 @@
 </span></code></pre></div>
 <p><strong>Example use case:</strong> Let a program on the SSH server reach a development server on your machine.</p>
 <ul>
-<li><strong>Remote host:</strong> <code>localhost</code> (the address the SSH server listens on)</li>
+<li><strong>Remote bind address:</strong> <code>localhost</code> (the address the SSH server listens on)</li>
 <li><strong>Remote port:</strong> <code>9090</code> (the port the SSH server listens on)</li>
-<li><strong>Local host:</strong> <code>localhost</code></li>
+<li><strong>Local host:</strong> <code>localhost</code> (where your computer forwards each connection)</li>
 <li><strong>Local port:</strong> <code>3000</code> (your local service)</li>
 </ul>
-<p>After connecting, programs on the SSH server reach your service at <code>localhost:9090</code>. Like OpenSSH, korTTY asks the server to listen on its loopback address only. Setting <strong>Remote host</strong> to <code>0.0.0.0</code> asks the server to accept connections from its network as well; the server only does that when its <code>GatewayPorts</code> setting allows it, and korTTY marks such a tunnel in the status bar as reachable from other computers.</p>
+<p>After connecting, programs on the SSH server reach your service at <code>localhost:9090</code>. Like OpenSSH, korTTY asks the server to listen on its loopback address only. Setting <strong>Remote bind address</strong> to <code>0.0.0.0</code> asks the server to accept connections from its network as well; an OpenSSH server only does that when its <code>GatewayPorts</code> setting is <code>clientspecified</code>, and korTTY marks such a tunnel in the tunnel dialog, the tunnel list and the status bar as reachable from other computers. A server with <code>GatewayPorts yes</code> listens on all its addresses for every remote tunnel, whatever bind address you enter.</p>
 <h3 id="dynamic-port-forwarding-d">Dynamic Port Forwarding (<code>-D</code>)<a class="headerlink" href="#dynamic-port-forwarding-d" title="Permanent link">&para;</a></h3>
 <p>Create a SOCKS proxy for network traffic through the SSH tunnel.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Your machine:1080  --&gt;  SSH Server  --&gt;  (any destination)
 </span></code></pre></div>
 <p><strong>Example use case:</strong> Encrypt all traffic from your browser or application by routing it through the SSH tunnel.</p>
 <ul>
+<li><strong>Local bind address:</strong> <code>localhost</code></li>
 <li><strong>Local port:</strong> <code>1080</code> (or any available port)</li>
 </ul>
 <p>Configure your browser or application to use <code>localhost:1080</code> as a SOCKS5 (or SOCKS4) proxy. Host names are resolved by the SSH server.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>For Dynamic Port Forwarding, only the local host and local port are used. The remote host and remote port fields are ignored.</p>
+<p>A dynamic tunnel only uses the local bind address and the local port; the remote fields are disabled for this type.</p>
 </div>
 <h2 id="when-tunnels-open">When Tunnels Open<a class="headerlink" href="#when-tunnels-open" title="Permanent link">&para;</a></h2>
 <ul>
@@ -884,12 +879,14 @@
 <p>An administrator can forbid all tunnels with <code>allow-port-forwarding = false</code> in the <a href="../reference/enterprise-policy.html">enterprise policy</a>. The status bar then says that tunnels are disabled by your organization.</p>
 <h2 id="managing-tunnels">Managing Tunnels<a class="headerlink" href="#managing-tunnels" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Enable/Disable:</strong> Toggle <strong>Enable tunnel</strong> on a tunnel to activate or deactivate it without removing the configuration.</li>
-<li><strong>Edit:</strong> Select a tunnel and modify its settings.</li>
-<li><strong>Remove:</strong> Remove a tunnel from the connection.</li>
-<li><strong>Multiple Tunnels:</strong> Any number of tunnels can be configured on a single connection and opened together.</li>
+<li><strong>Enable/Disable:</strong> toggle <strong>Enable tunnel</strong> on a tunnel, or <strong>Enable SSH tunnels</strong> for all of them, to activate or deactivate tunnels without removing the configuration.</li>
+<li><strong>Edit:</strong> select a tunnel and click <strong>Edit</strong> to change its settings.</li>
+<li><strong>Remove:</strong> select a tunnel and click <strong>Remove</strong> to delete it from the connection.</li>
+<li><strong>Multiple tunnels:</strong> any number of tunnels can be configured on a single connection and opened together.</li>
 </ul>
-<p>Changes take effect the next time the tab connects or reconnects.</p>
+<p>Saving the connection applies the change to every open tab of that connection right away: switched-off or removed tunnels close, and a changed set of tunnels replaces the running one on the same session — after the one-time question unless you already allowed exactly that set. A tab whose tunnels did not change keeps them open, so editing only a description or another setting of the connection does not interrupt them. A tab that is disconnected or still logging in at that moment opens the saved tunnels once it is connected.</p>
+<h2 id="imported-tunnels">Imported Tunnels<a class="headerlink" href="#imported-tunnels" title="Permanent link">&para;</a></h2>
+<p>Tunnels imported from PuTTY Connection Manager keep their type, ports and target host. The CSV format names no bind address, so korTTY binds every imported listener to <code>localhost</code>, which is also PuTTY's default for remote tunnels. Remote tunnels that earlier versions imported were stored with the remote bind address <code>0.0.0.0</code>; the tunnel list, the tunnel dialog and the status bar mark them as reachable from other computers, so set their <strong>Remote bind address</strong> to <code>localhost</code> if the forwarded port should stay private to the server.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p>Ports below 1024 (such as 80 or 443) need elevated privileges: on your computer for local and dynamic tunnels, and a root login on the SSH server for remote tunnels. Use ports 1024 and above to avoid permission issues.</p>

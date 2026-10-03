@@ -314,6 +314,33 @@ public final class SshTunnelManager {
         return resolve(tunnel, sharedConnection).refusal() == Failure.NONE;
     }
 
+    /**
+     * Whether two tunnel lists open the same forwards in the same order: equal type, listener and
+     * target after defaults are applied ({@code null} and blank hosts mean {@code localhost}).
+     * Descriptions are ignored, so relabelling a running tunnel does not restart it.
+     */
+    public static boolean sameForwards(List<SSHTunnel> first, List<SSHTunnel> second) {
+        List<SSHTunnel> a = first == null ? List.of() : first.stream().filter(Objects::nonNull).toList();
+        List<SSHTunnel> b = second == null ? List.of() : second.stream().filter(Objects::nonNull).toList();
+        if (a.size() != b.size()) {
+            return false;
+        }
+        for (int i = 0; i < a.size(); i++) {
+            Endpoints x = resolve(a.get(i), false);
+            Endpoints y = resolve(b.get(i), false);
+            if (x.type() != y.type() || x.bindPort() != y.bindPort() || x.targetPort() != y.targetPort()
+                    || !x.bindHost().equalsIgnoreCase(y.bindHost())
+                    || !Objects.equals(lowerCase(x.targetHost()), lowerCase(y.targetHost()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String lowerCase(String host) {
+        return host == null ? null : host.toLowerCase(Locale.ROOT);
+    }
+
     private static String hostOrLocalhost(String host) {
         return host == null || host.isBlank() ? SshdSocketAddress.LOCALHOST_NAME : host.trim();
     }

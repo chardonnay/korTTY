@@ -97,6 +97,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     
     // Tunnel and Jump Server
     private CheckBox enableTunnelsCheck;
+    /** Working copies of the connection's tunnels, written back on Save. */
+    private javafx.collections.ObservableList<de.kortty.model.SSHTunnel> editedTunnels;
     private CheckBox enableJumpCheck;
     private TextField jumpHostField;
     private Spinner<Integer> jumpPortSpinner;
@@ -694,9 +696,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 }
                 saveTerminalEffectSettings();
                 
-                // Save tunnel settings (checkboxes control enabled state in models)
-                // Tunnels are managed through add/edit/remove buttons
-                // The enabled state is already reflected in the tunnel objects
+                // Store the edited tunnels; an open tab of this connection applies them when the
+                // connection manager has saved (MainWindow#refreshAllTerminalTabsConnectionSettings).
+                TunnelEditSupport.writeBack(connection, editedTunnels);
                 
                 // Save jump server settings
                 if (enableJumpCheck != null && enableJumpCheck.isSelected()) {
@@ -1394,39 +1396,40 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         VBox vbox = new VBox(15);
         vbox.setPadding(new Insets(20));
         
-        // Enable tunnel checkbox
+        // The tunnels are edited on copies and stored on Save; Cancel leaves them as they were.
+        editedTunnels = javafx.collections.FXCollections.observableArrayList(
+            TunnelEditSupport.workingCopies(connection.getSshTunnels()));
+
+        // Switches every tunnel of the connection at once; a dash means only some are enabled.
         enableTunnelsCheck = new CheckBox(I18n.get("connEdit.enableTunnels"));
-        enableTunnelsCheck.setSelected(!connection.getSshTunnels().isEmpty());
+        enableTunnelsCheck.setTooltip(new Tooltip(I18n.get("connEdit.enableTunnelsTooltip")));
         
         // Tunnel list with better display
         Label label = new Label(I18n.get("connEdit.configuredTunnels"));
-        ListView<de.kortty.model.SSHTunnel> tunnelList = new ListView<>();
+        ListView<de.kortty.model.SSHTunnel> tunnelList = new ListView<>(editedTunnels);
         tunnelList.setCellFactory(lv -> new ListCell<de.kortty.model.SSHTunnel>() {
             @Override
             protected void updateItem(de.kortty.model.SSHTunnel tunnel, boolean empty) {
                 super.updateItem(tunnel, empty);
-                if (empty || tunnel == null) {
-                    setText(null);
-                } else {
-                    String status = tunnel.isEnabled() ? "✓" : "○";
-                    String desc = tunnel.getDescription() != null && !tunnel.getDescription().trim().isEmpty() 
-                        ? " - " + tunnel.getDescription() 
-                        : "";
-                    
-                    if (tunnel.getType() == de.kortty.model.TunnelType.DYNAMIC) {
-                        setText(String.format("%s %s: SOCKS-Proxy auf %s:%d%s", 
-                            status, tunnel.getType(), tunnel.getLocalHost(), tunnel.getLocalPort(), desc));
-                    } else {
-                        setText(String.format("%s %s: %s:%d -> %s:%d%s", 
-                            status, tunnel.getType(), tunnel.getLocalHost(), tunnel.getLocalPort(),
-                            tunnel.getRemoteHost(), tunnel.getRemotePort(), desc));
-                    }
-                }
+                setText(empty || tunnel == null ? null : TunnelEditSupport.listText(tunnel));
             }
         });
-        
-        // Load existing tunnels
-        tunnelList.getItems().addAll(connection.getSshTunnels());
+
+        Runnable syncEnableTunnels = () -> {
+            TunnelEditSupport.SwitchState state = TunnelEditSupport.switchState(editedTunnels);
+            enableTunnelsCheck.setDisable(editedTunnels.isEmpty());
+            enableTunnelsCheck.setIndeterminate(state == TunnelEditSupport.SwitchState.SOME);
+            enableTunnelsCheck.setSelected(state == TunnelEditSupport.SwitchState.ALL);
+        };
+        editedTunnels.addListener((javafx.collections.ListChangeListener<de.kortty.model.SSHTunnel>) change ->
+            syncEnableTunnels.run());
+        enableTunnelsCheck.setOnAction(e -> {
+            // A click leaves the box ticked or unticked (from the dash it ticks); every tunnel follows.
+            TunnelEditSupport.setAllEnabled(editedTunnels, enableTunnelsCheck.isSelected());
+            tunnelList.refresh();
+            syncEnableTunnels.run();
+        });
+        syncEnableTunnels.run();
         
         // Buttons for add/edit/remove
         HBox buttonBox = new HBox(10);
@@ -1436,11 +1439,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         addButton.setOnAction(e -> {
             TunnelEditDialog dialog = new TunnelEditDialog((Stage) getDialogPane().getScene().getWindow(), null);
-            dialog.showAndWait().ifPresent(newTunnel -> {
-                connection.getSshTunnels().add(newTunnel);
-                tunnelList.getItems().add(newTunnel);
-                enableTunnelsCheck.setSelected(true);
-            });
+            dialog.showAndWait().ifPresent(editedTunnels::add);
         });
         
         editButton.setDisable(true);
@@ -1453,30 +1452,17 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         });
         
         editButton.setOnAction(e -> {
-            de.kortty.model.SSHTunnel selected = tunnelList.getSelectionModel().getSelectedItem();
-            if (selected != null) {
-                // Create a copy for editing
-                de.kortty.model.SSHTunnel copy = new de.kortty.model.SSHTunnel();
-                copy.setEnabled(selected.isEnabled());
-                copy.setType(selected.getType());
-                copy.setLocalHost(selected.getLocalHost());
-                copy.setLocalPort(selected.getLocalPort());
-                copy.setRemoteHost(selected.getRemoteHost());
-                copy.setRemotePort(selected.getRemotePort());
-                copy.setDescription(selected.getDescription());
-                
+            int index = tunnelList.getSelectionModel().getSelectedIndex();
+            if (index >= 0) {
+                de.kortty.model.SSHTunnel copy = de.kortty.core.SshTunnelManager.copyOf(editedTunnels.get(index));
                 TunnelEditDialog dialog = new TunnelEditDialog((Stage) getDialogPane().getScene().getWindow(), copy);
-                dialog.showAndWait().ifPresent(editedTunnel -> {
-                    int index = tunnelList.getSelectionModel().getSelectedIndex();
-                    connection.getSshTunnels().set(index, editedTunnel);
-                    tunnelList.getItems().set(index, editedTunnel);
-                });
+                dialog.showAndWait().ifPresent(editedTunnel -> editedTunnels.set(index, editedTunnel));
             }
         });
         
         removeButton.setOnAction(e -> {
-            de.kortty.model.SSHTunnel selected = tunnelList.getSelectionModel().getSelectedItem();
-            if (selected != null) {
+            int index = tunnelList.getSelectionModel().getSelectedIndex();
+            if (index >= 0) {
                 Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
                 confirm.setTitle(I18n.get("connEdit.removeTunnel.title"));
                 confirm.setHeaderText(I18n.get("connEdit.removeTunnel.header"));
@@ -1484,13 +1470,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 
                 confirm.showAndWait().ifPresent(buttonType -> {
                     if (buttonType == ButtonType.OK) {
-                        int index = tunnelList.getSelectionModel().getSelectedIndex();
-                        connection.getSshTunnels().remove(index);
-                        tunnelList.getItems().remove(index);
-                        
-                        if (connection.getSshTunnels().isEmpty()) {
-                            enableTunnelsCheck.setSelected(false);
-                        }
+                        editedTunnels.remove(index);
                     }
                 });
             }

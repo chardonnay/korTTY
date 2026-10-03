@@ -10,21 +10,30 @@ SSH tunnels securely forward traffic between local and remote ports through an e
 
 1. Open a connection for editing: **Connections > Manage Connections** → select the connection → **Edit**.
 2. Navigate to the **SSH Tunnels** tab.
-3. Click **Add** and configure the tunnel.
+3. Click **Add**, choose the **Type** and fill in the fields. A new tunnel starts with **Enable tunnel** ticked.
+4. Click **Save** in the tunnel dialog, then **Save** in the connection editor. **Cancel** in the connection editor discards every tunnel you added, edited or removed since you opened it.
 
 ### Tunnel Configuration Fields
 
-| Field | Local (`-L`) | Remote (`-R`) | Dynamic (`-D`) |
-|-------|--------------|---------------|----------------|
-| **Type** | `LOCAL` | `REMOTE` | `DYNAMIC` |
-| **Local host** | Address the listener binds to on your computer (`localhost` keeps it private) | Host your computer forwards the connections to | Address the SOCKS proxy binds to on your computer |
-| **Local port** | Port that listens on your computer | Port of the service on your computer | Port of the SOCKS proxy |
-| **Remote host** | Target host, as seen from the SSH server | Address the SSH server listens on (default `localhost`) | Not used |
-| **Remote port** | Target port | Port the SSH server listens on | Not used |
-| **Description** | Optional label for the tunnel | Optional label | Optional label |
+The tunnel dialog names its fields after the role they play for the chosen type and always lists the address that listens first, followed by the address the connections are forwarded to.
+
+| Field | **Local (-L)** | **Remote (-R)** | **Dynamic SOCKS proxy (-D)** |
+|-------|----------------|-----------------|------------------------------|
+| Listens on | **Local bind address** and **Local port** on your computer | **Remote bind address** and **Remote port** on the SSH server | **Local bind address** and **Local port** on your computer |
+| Forwards to | **Remote host** and **Remote port**, as seen from the SSH server | **Local host** and **Local port**, as seen from your computer | Whatever destination the SOCKS client asks for |
+| Default bind address | `localhost` | `localhost` | `localhost` |
+| **Description** | Optional label | Optional label | Optional label |
 | **Enable tunnel** | Only enabled tunnels are opened | Only enabled tunnels are opened | Only enabled tunnels are opened |
 
+A bind address of `localhost` (or leaving it empty) keeps the listener private to the computer it runs on. As soon as you enter another address, such as `0.0.0.0` or a network interface, the dialog warns that other computers can reach the tunnel; for a remote tunnel the warning adds that the SSH server only accepts such an address when its `GatewayPorts` setting allows it.
+
 Multiple tunnels can be configured per connection. Disabled tunnels remain in the configuration but are not opened when the connection connects.
+
+### The Tunnel List
+
+The **SSH Tunnels** tab lists every tunnel the way `ssh` options read, listener first: `✓ L localhost:8080 -> db:5432`, `✓ R localhost:9090 -> localhost:3000` or `○ D localhost:1080 (SOCKS)`, followed by its description. `✓` marks an enabled tunnel and `○` a disabled one. A tunnel that other computers may reach is marked as such in the list, so a forgotten `0.0.0.0` stands out.
+
+**Enable SSH tunnels** above the list switches every tunnel of the connection on or off at once. It is ticked when all tunnels are enabled and shows a dash when only some are; clicking the dash enables all of them. Switching a single tunnel is done with **Enable tunnel** in its own dialog.
 
 ## Tunnel Types
 
@@ -38,7 +47,7 @@ Your machine:8080  -->  SSH Server  -->  database-server:5432
 
 **Example use case:** Access a remote database server that is not directly reachable from your machine.
 
-- **Local host:** `localhost`
+- **Local bind address:** `localhost`
 - **Local port:** `8080`
 - **Remote host:** `database-server` (or IP)
 - **Remote port:** `5432`
@@ -55,12 +64,12 @@ SSH Server localhost:9090  -->  Your machine:3000
 
 **Example use case:** Let a program on the SSH server reach a development server on your machine.
 
-- **Remote host:** `localhost` (the address the SSH server listens on)
+- **Remote bind address:** `localhost` (the address the SSH server listens on)
 - **Remote port:** `9090` (the port the SSH server listens on)
-- **Local host:** `localhost`
+- **Local host:** `localhost` (where your computer forwards each connection)
 - **Local port:** `3000` (your local service)
 
-After connecting, programs on the SSH server reach your service at `localhost:9090`. Like OpenSSH, korTTY asks the server to listen on its loopback address only. Setting **Remote host** to `0.0.0.0` asks the server to accept connections from its network as well; the server only does that when its `GatewayPorts` setting allows it, and korTTY marks such a tunnel in the status bar as reachable from other computers.
+After connecting, programs on the SSH server reach your service at `localhost:9090`. Like OpenSSH, korTTY asks the server to listen on its loopback address only. Setting **Remote bind address** to `0.0.0.0` asks the server to accept connections from its network as well; an OpenSSH server only does that when its `GatewayPorts` setting is `clientspecified`, and korTTY marks such a tunnel in the tunnel dialog, the tunnel list and the status bar as reachable from other computers. A server with `GatewayPorts yes` listens on all its addresses for every remote tunnel, whatever bind address you enter.
 
 ### Dynamic Port Forwarding (`-D`)
 
@@ -72,12 +81,13 @@ Your machine:1080  -->  SSH Server  -->  (any destination)
 
 **Example use case:** Encrypt all traffic from your browser or application by routing it through the SSH tunnel.
 
+- **Local bind address:** `localhost`
 - **Local port:** `1080` (or any available port)
 
 Configure your browser or application to use `localhost:1080` as a SOCKS5 (or SOCKS4) proxy. Host names are resolved by the SSH server.
 
 !!! note
-    For Dynamic Port Forwarding, only the local host and local port are used. The remote host and remote port fields are ignored.
+    A dynamic tunnel only uses the local bind address and the local port; the remote fields are disabled for this type.
 
 ## When Tunnels Open
 
@@ -110,12 +120,16 @@ An administrator can forbid all tunnels with `allow-port-forwarding = false` in 
 
 ## Managing Tunnels
 
-- **Enable/Disable:** Toggle **Enable tunnel** on a tunnel to activate or deactivate it without removing the configuration.
-- **Edit:** Select a tunnel and modify its settings.
-- **Remove:** Remove a tunnel from the connection.
-- **Multiple Tunnels:** Any number of tunnels can be configured on a single connection and opened together.
+- **Enable/Disable:** toggle **Enable tunnel** on a tunnel, or **Enable SSH tunnels** for all of them, to activate or deactivate tunnels without removing the configuration.
+- **Edit:** select a tunnel and click **Edit** to change its settings.
+- **Remove:** select a tunnel and click **Remove** to delete it from the connection.
+- **Multiple tunnels:** any number of tunnels can be configured on a single connection and opened together.
 
-Changes take effect the next time the tab connects or reconnects.
+Saving the connection applies the change to every open tab of that connection right away: switched-off or removed tunnels close, and a changed set of tunnels replaces the running one on the same session — after the one-time question unless you already allowed exactly that set. A tab whose tunnels did not change keeps them open, so editing only a description or another setting of the connection does not interrupt them. A tab that is disconnected or still logging in at that moment opens the saved tunnels once it is connected.
+
+## Imported Tunnels
+
+Tunnels imported from PuTTY Connection Manager keep their type, ports and target host. The CSV format names no bind address, so korTTY binds every imported listener to `localhost`, which is also PuTTY's default for remote tunnels. Remote tunnels that earlier versions imported were stored with the remote bind address `0.0.0.0`; the tunnel list, the tunnel dialog and the status bar mark them as reachable from other computers, so set their **Remote bind address** to `localhost` if the forwarded port should stay private to the server.
 
 !!! warning
     Ports below 1024 (such as 80 or 443) need elevated privileges: on your computer for local and dynamic tunnels, and a root login on the SSH server for remote tunnels. Use ports 1024 and above to avoid permission issues.
