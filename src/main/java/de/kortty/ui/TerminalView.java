@@ -71,6 +71,7 @@ import de.kortty.plugin.terminaleffects.TerminalEffectSession;
 import de.kortty.shellintegration.BellCoalescer;
 import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.PromptNavigator;
+import de.kortty.shellintegration.RemoteNotificationText;
 import de.kortty.shellintegration.ShellIntegrationEvent;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
@@ -470,6 +471,11 @@ public class TerminalView extends BorderPane {
      * null once the tab is cleaned up.
      */
     private volatile BiConsumer<SithTermFxWidget, CommandStatus> commandFinishedListener;
+    /**
+     * Told on the FX thread which pane's program asked for a desktop notification (OSC 9, OSC 777),
+     * and its cleaned text; set by the tab, null once the tab is cleaned up.
+     */
+    private volatile BiConsumer<SithTermFxWidget, RemoteNotificationText> remoteNotificationListener;
 
     /** A bracketed-paste tracker together with the connector it listens on, so a rebind can detach it. */
     private record PasteTracking(BracketedPasteTracker tracker, ObservableTtyConnector connector) {}
@@ -564,6 +570,8 @@ public class TerminalView extends BorderPane {
         // A command the shell marked finished after at least a second: the tab decides whether to tell.
         shellIntegration.setCommandFinishedListener(
             (widget, status) -> Platform.runLater(() -> onPaneCommandFinished(widget, status)));
+        // A program asked for a desktop notification (OSC 9/777): the tab decides whether to show it.
+        shellIntegration.setRemoteNotificationListener(widget -> Platform.runLater(() -> onPaneRemoteNotification(widget)));
         // The session carrying the tunnels closed while it still owned them: if its pane is gone
         // (the user closed it or typed exit there), move them to another pane of the same server.
         tunnelManager.setOwnerClosedListener(session -> Platform.runLater(this::rehomeTunnelsIfOwnerGone));
@@ -2398,7 +2406,8 @@ public class TerminalView extends BorderPane {
 
     /**
      * Receives a pane's OSC 133/9/777 events on its emulator thread, at the point of the output
-     * where they stood: the OSC 133 marks go to {@link #shellIntegration}.
+     * where they stood: the OSC 133 marks and the notifications programs ask for (OSC 9/777) go to
+     * {@link #shellIntegration}.
      */
     private void onShellIntegrationEvent(SithTermFxWidget widget, ShellIntegrationEvent event) {
         if (logger.isTraceEnabled()) {
@@ -3532,6 +3541,34 @@ public class TerminalView extends BorderPane {
      */
     public void setCommandFinishedListener(BiConsumer<SithTermFxWidget, CommandStatus> listener) {
         commandFinishedListener = listener;
+    }
+
+    /**
+     * A program in {@code widget} asked for a desktop notification with OSC 9 or OSC 777 (see
+     * {@link ShellIntegrationController#setRemoteNotificationListener}); FX thread. The notification
+     * is taken in any case, which frees the pane for its next one; a pane closed or a tab cleaned up
+     * since then is ignored.
+     */
+    private void onPaneRemoteNotification(SithTermFxWidget widget) {
+        RemoteNotificationText notification = shellIntegration.takeRemoteNotification(widget);
+        BiConsumer<SithTermFxWidget, RemoteNotificationText> listener = remoteNotificationListener;
+        if (notification == null || listener == null || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        try {
+            listener.accept(widget, notification);
+        } catch (RuntimeException e) {
+            logger.debug("Handling a program's notification failed: {}", e.toString());
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that a program in one of this tab's panes asked for a
+     * desktop notification, with its text already cleaned of control and bidi characters and cut to
+     * length. A pane hands on one at a time; what it asks for meanwhile is dropped.
+     */
+    public void setRemoteNotificationListener(BiConsumer<SithTermFxWidget, RemoteNotificationText> listener) {
+        remoteNotificationListener = listener;
     }
 
     /**
@@ -7437,9 +7474,11 @@ public class TerminalView extends BorderPane {
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
     public void cleanup() {
-        // A bell or a finished command still on its way to the FX thread must not mark or announce a closed tab.
+        // A bell, a finished command or a program's notification still on its way to the FX thread
+        // must not mark or announce a closed tab.
         bellListener = null;
         commandFinishedListener = null;
+        remoteNotificationListener = null;
         pastePacer.cancelAll();
         releaseAllShellTitleListeners();
         cancelAllTerminalAgentRuns();

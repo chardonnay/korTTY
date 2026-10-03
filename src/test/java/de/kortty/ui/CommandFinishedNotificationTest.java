@@ -118,9 +118,11 @@ class CommandFinishedNotificationTest {
         settings.setCodingAgentNotificationsEnabled(false);
         settings.setCommandFinishedNotificationsEnabled(false);
         settings.setCommandFinishedNotificationSeconds(90);
-        assertThat(TerminalAttentionNotifier.toggles(settings)).isEqualTo(new Toggles(true, false, false, 90));
-        assertWithMessage("unreadable settings mean a fresh installation's: bell toasts off, long commands on at 30 s")
-            .that(TerminalAttentionNotifier.toggles(null)).isEqualTo(new Toggles(false, true, true, 30));
+        settings.setRemoteTerminalNotificationsEnabled(false);
+        assertThat(TerminalAttentionNotifier.toggles(settings)).isEqualTo(new Toggles(true, false, false, 90, false));
+        assertWithMessage("unreadable settings mean a fresh installation's: bell toasts off, long commands on at 30 s, "
+                + "programs' notifications on")
+            .that(TerminalAttentionNotifier.toggles(null)).isEqualTo(new Toggles(false, true, true, 30, true));
     }
 
     /**

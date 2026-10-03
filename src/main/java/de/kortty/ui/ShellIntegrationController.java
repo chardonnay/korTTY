@@ -12,6 +12,8 @@ import de.kortty.shellintegration.CommandBlockStore;
 import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.shellintegration.PromptNavigator.Direction;
+import de.kortty.shellintegration.RemoteNotificationSlot;
+import de.kortty.shellintegration.RemoteNotificationText;
 import de.kortty.shellintegration.ShellIntegrationEvent;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
 import javafx.scene.control.ScrollBar;
@@ -33,7 +35,8 @@ import java.util.function.Consumer;
 
 /**
  * Shell integration for the panes of one terminal tab: keeps each pane's {@code OSC 133} command
- * marks ({@link PaneCommandMarks}) and moves between its prompts.
+ * marks ({@link PaneCommandMarks}), moves between its prompts and passes on the notifications its
+ * programs ask for.
  *
  * <ul>
  *   <li>{@link #onEvent} receives a pane's events on its emulator thread, from
@@ -56,6 +59,12 @@ import java.util.function.Consumer;
  *   <li>A command that finished after running at least a second goes to the
  *       {@link #setCommandFinishedListener listener}, which hands it to
  *       {@link TerminalAttentionNotifier} for the long-command notification.</li>
+ *   <li>A notification a program asks for with {@code OSC 9} or {@code OSC 777;notify} is cleaned
+ *       ({@link RemoteNotificationText}) and waits in the pane's {@link RemoteNotificationSlot}; the
+ *       {@link #setRemoteNotificationListener listener} learns of it once and
+ *       {@link #takeRemoteNotification takes} it on the FX thread for {@link TerminalAttentionNotifier}.
+ *       These need no shell integration and do not depend on its setting; their own setting only
+ *       decides about the desktop notification.</li>
  * </ul>
  *
  * <p>The setting is read on every event and key press, so switching shell integration off stops
@@ -132,11 +141,13 @@ final class ShellIntegrationController {
 
     private final Map<SithTermFxWidget, PaneCommandMarks> panes = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, TerminalModelListener> modelListeners = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, RemoteNotificationSlot> remoteNotifications = new ConcurrentHashMap<>();
     private final BooleanSupplier enabled;
     private final KeyCombination previousPromptKey;
     private final KeyCombination nextPromptKey;
     private volatile @Nullable Consumer<SithTermFxWidget> statusesChanged;
     private volatile @Nullable BiConsumer<SithTermFxWidget, CommandStatus> commandFinished;
+    private volatile @Nullable Consumer<SithTermFxWidget> remoteNotificationArrived;
 
     /**
      * @param enabled           whether shell integration is on; asked on the emulator thread and the
@@ -153,6 +164,7 @@ final class ShellIntegrationController {
 
     /** Sets {@code widget} up for shell integration; once per pane, on the FX thread, before its session starts. */
     void attach(@NotNull SithTermFxWidget widget) {
+        remoteNotifications.putIfAbsent(widget, new RemoteNotificationSlot());
         TerminalTextBuffer buffer = widget.getTerminalTextBuffer();
         if (buffer == null) {
             return;
@@ -175,6 +187,7 @@ final class ShellIntegrationController {
         if (widget == null) {
             return;
         }
+        remoteNotifications.remove(widget);
         PaneCommandMarks marks = panes.remove(widget);
         TerminalModelListener listener = modelListeners.remove(widget);
         if (listener != null && marks != null) {
@@ -194,9 +207,14 @@ final class ShellIntegrationController {
 
     /**
      * A pane's event, on its emulator thread at the point of the output where it stood. Records the
-     * {@code OSC 133} marks while shell integration is on; everything else is left to others.
+     * {@code OSC 133} marks while shell integration is on and passes a program's notification on;
+     * everything else is left to others.
      */
     void onEvent(@NotNull SithTermFxWidget widget, @NotNull ShellIntegrationEvent event) {
+        if (event instanceof ShellIntegrationEvent.RemoteNotification notification) {
+            offerRemoteNotification(widget, notification);
+            return;
+        }
         if (!PaneCommandMarks.isMark(event) || !isEnabled()) {
             return;
         }
@@ -236,6 +254,44 @@ final class ShellIntegrationController {
             listener.accept(widget, status);
         } catch (RuntimeException e) {
             logger.debug("Could not report a finished command of a pane: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Sets who learns that a program in a pane asked for a desktop notification ({@code OSC 9} or
+     * {@code OSC 777;notify}): called on the pane's emulator thread, at most once until
+     * {@link #takeRemoteNotification} took the notification, so it only has to schedule that call on
+     * the FX thread. Requests that come before are dropped, so a program that prints notifications
+     * in a loop costs the FX thread one task at a time. A listener that throws frees the slot again.
+     */
+    void setRemoteNotificationListener(@Nullable Consumer<SithTermFxWidget> listener) {
+        this.remoteNotificationArrived = listener;
+    }
+
+    /**
+     * The notification a program in {@code widget} asked for, cleaned, and frees the pane's slot for
+     * the next one; {@code null} when there is none or the pane is gone. FX thread.
+     */
+    @Nullable RemoteNotificationText takeRemoteNotification(@Nullable SithTermFxWidget widget) {
+        RemoteNotificationSlot slot = widget != null ? remoteNotifications.get(widget) : null;
+        return slot != null ? slot.take() : null;
+    }
+
+    private void offerRemoteNotification(SithTermFxWidget widget, ShellIntegrationEvent.RemoteNotification event) {
+        RemoteNotificationSlot slot = remoteNotifications.get(widget);
+        Consumer<SithTermFxWidget> listener = remoteNotificationArrived;
+        if (slot == null || listener == null) {
+            return;
+        }
+        RemoteNotificationText notification = RemoteNotificationText.of(event);
+        if (notification == null || !slot.offer(notification)) {
+            return;
+        }
+        try {
+            listener.accept(widget);
+        } catch (RuntimeException e) {
+            slot.take();
+            logger.debug("Could not hand a program's notification of a pane on: {}", e.getMessage());
         }
     }
 

@@ -10,7 +10,7 @@ KorTTY recognises when a terminal-based coding agent — **Claude Code**, **Code
 
 ## What it detects
 
-Detection covers the three agents below, started from a **Local Shell** tab — directly, through a package-manager wrapper such as `npx`, or as a `node`, `bun` or `deno` script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process.
+Detection covers the three agents below, started from a **Local Shell** tab — directly, through a package-manager wrapper such as `npx`, or as a `node`, `bun` or `deno` script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process; an agent on a server can still tell you that it waits for you with a terminal notification, see [Notifications from programs](terminal-notifications.md#notifications-from-programs).
 
 | Agent | Recognised executables |
 |-------|------------------------|

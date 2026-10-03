@@ -182,6 +182,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox terminalBellNotificationsCheck;
     private final CheckBox commandFinishedNotificationsCheck;
     private final Spinner<Integer> commandFinishedSecondsSpinner;
+    private final CheckBox remoteTerminalNotificationsCheck;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
     private final CheckBox codingAgentDetectionCheck;
@@ -874,6 +875,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         };
         shellIntegrationCheck.selectedProperty().addListener((obs, was, now) -> syncCommandFinishedControls.run());
         syncCommandFinishedControls.run();
+        // ... and a program there asking for a notification (OSC 9, OSC 777); needs no shell integration.
+        remoteTerminalNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.remote"));
+        remoteTerminalNotificationsCheck.setSelected(globalSettings == null
+            || globalSettings.isRemoteTerminalNotificationsEnabled());
+        remoteTerminalNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.remote.tooltip")));
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -1048,6 +1054,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Label(I18n.get("settings.terminal.notify.commandFinishedSeconds.unit")));
         commandFinishedSecondsBox.setAlignment(Pos.CENTER_LEFT);
         terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);
+        terminalGrid.add(remoteTerminalNotificationsCheck, 0, terminalRow++, 2, 1);
         Label notificationsInfo = new Label(I18n.get("settings.terminal.notify.info"));
         notificationsInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         notificationsInfo.setWrapText(true);
@@ -3475,6 +3482,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCommandFinishedNotificationsEnabled(commandFinishedNotificationsCheck.isSelected());
             globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null
                 ? commandFinishedSecondsSpinner.getValue() : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS);
+            globalSettings.setRemoteTerminalNotificationsEnabled(remoteTerminalNotificationsCheck.isSelected());
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
@@ -3734,6 +3742,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::isCommandFinishedNotificationsEnabled, true));
             tracked.add(new TrackedSetting("terminal", "command_finished_notification_seconds",
                 gs::getCommandFinishedNotificationSeconds, true));
+            tracked.add(new TrackedSetting("terminal", "remote_notifications",
+                gs::isRemoteTerminalNotificationsEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
                 gs::isCodingAgentNotificationsEnabled, true));

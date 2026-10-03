@@ -17,11 +17,12 @@ import java.util.function.LongSupplier;
  *   <li>Otherwise the tab is always marked; the mark is silent and goes away when the tab is seen.</li>
  *   <li>A desktop notification needs its setting on, and comes at most once per notification slot
  *       within the kind's interval ({@link Kind#toastIntervalMillis()}); a request inside the
- *       interval only marks the tab. The slot is the pane for a bell, and the tab for a finished
- *       command (see {@link #decideCommandFinished}).</li>
- *   <li>No bell notification for a pane in which a coding agent was detected while the
- *       coding-agent notifications are on: the agent rings the bell when it waits for a decision,
- *       and its own notification already says so.</li>
+ *       interval only marks the tab. The slot is the pane for a bell and a program's notification,
+ *       and the tab for a finished command (see {@link #decideCommandFinished}).</li>
+ *   <li>No bell notification and no program's notification for a pane in which a coding agent was
+ *       detected while the coding-agent notifications are on: the agent rings the bell or asks for a
+ *       notification when it waits for a decision, and its own notification already says so
+ *       ({@link Kind#leftToCodingAgents()}).</li>
  * </ul>
  *
  * <p>A finished command ({@link Kind#COMMAND_FINISHED}) also has to have run at least the
@@ -54,7 +55,14 @@ public final class TerminalNotificationPolicy {
          * least the threshold. Its notification slot is the tab, so the same command finishing in
          * several panes that broadcast mirrors into notifies once.
          */
-        COMMAND_FINISHED(10_000L, false);
+        COMMAND_FINISHED(10_000L, false),
+        /**
+         * A program in the pane asked for a desktop notification with {@code OSC 9} or
+         * {@code OSC 777;notify}, typically a coding agent on a server that waits for an answer. Its
+         * text is the program's, so it gets a shorter interval than the others but drops what comes
+         * within it: a program cannot flood the desktop.
+         */
+        REMOTE(5_000L, true);
 
         private final long toastIntervalMillis;
         private final boolean leftToCodingAgents;
@@ -114,9 +122,11 @@ public final class TerminalNotificationPolicy {
      * @param commandFinishedSeconds   how long a command has to run before its end counts, in
      *                                 seconds ({@code GlobalSettings.commandFinishedNotificationSeconds});
      *                                 clamped to 1..3600 ({@link TerminalNotificationPolicy#clampCommandFinishedSeconds})
+     * @param remoteToasts             desktop notifications that programs ask for with OSC 9 or OSC 777
+     *                                 ({@code GlobalSettings.remoteTerminalNotificationsEnabled})
      */
     public record Toggles(boolean bellToasts, boolean codingAgentNotifications, boolean commandFinishedToasts,
-            int commandFinishedSeconds) {
+            int commandFinishedSeconds, boolean remoteToasts) {
 
         public Toggles {
             commandFinishedSeconds = clampCommandFinishedSeconds(commandFinishedSeconds);
@@ -157,8 +167,8 @@ public final class TerminalNotificationPolicy {
     }
 
     /**
-     * Decides about one request of a kind that needs nothing but the pane, such as
-     * {@link Kind#BELL}; the pane is its own notification slot. A decision with a toast counts as the
+     * Decides about one request of a kind that needs nothing but the pane, {@link Kind#BELL} or
+     * {@link Kind#REMOTE}; the pane is its own notification slot. A decision with a toast counts as the
      * slot's last notification of this kind, so call it only when the notification will really be
      * shown.
      *
@@ -176,6 +186,7 @@ public final class TerminalNotificationPolicy {
         Objects.requireNonNull(toggles, "toggles");
         boolean toastEnabled = switch (kind) {
             case BELL -> toggles.bellToasts();
+            case REMOTE -> toggles.remoteToasts();
             case COMMAND_FINISHED -> throw new IllegalArgumentException(
                 "A finished command needs its runtime and its tab: use decideCommandFinished");
         };

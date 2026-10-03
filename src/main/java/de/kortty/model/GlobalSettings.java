@@ -385,6 +385,15 @@ public class GlobalSettings {
     private Integer commandFinishedNotificationSeconds = TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS;
 
     /**
+     * Desktop notification when a program in a terminal tab the user is not looking at asks for one
+     * with OSC 9 or OSC 777, such as a coding agent on a server waiting for an answer. On by default
+     * (decision D4 a): the text is cleaned, follows the tab's name and comes at most once per pane
+     * every 5 seconds. The tab's mark does not depend on it.
+     */
+    @XmlElement
+    private boolean remoteTerminalNotificationsEnabled = true;
+
+    /**
      * When a terminal paste with line breaks asks for confirmation: the {@link PasteWarningMode#id()}
      * {@code off}, {@code unless-bracketed} or {@code always}. Missing, blank or unknown values mean
      * {@code unless-bracketed}, so a damaged file never switches paste protection off.
@@ -2150,6 +2159,18 @@ public class GlobalSettings {
     public void setCommandFinishedNotificationSeconds(int commandFinishedNotificationSeconds) {
         this.commandFinishedNotificationSeconds =
             TerminalNotificationPolicy.clampCommandFinishedSeconds(commandFinishedNotificationSeconds);
+    }
+
+    /**
+     * Whether a program's request for a desktop notification (OSC 9, OSC 777) in a terminal tab the
+     * user is not looking at is shown. Read on every request, so a change applies at once.
+     */
+    public boolean isRemoteTerminalNotificationsEnabled() {
+        return remoteTerminalNotificationsEnabled;
+    }
+
+    public void setRemoteTerminalNotificationsEnabled(boolean remoteTerminalNotificationsEnabled) {
+        this.remoteTerminalNotificationsEnabled = remoteTerminalNotificationsEnabled;
     }
 
     /** When a terminal paste with line breaks asks for confirmation; never null. */

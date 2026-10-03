@@ -9,6 +9,7 @@ import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.model.GlobalSettings;
 import de.kortty.shellintegration.CommandStatus;
+import de.kortty.shellintegration.RemoteNotificationText;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Decision;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Kind;
@@ -29,11 +30,13 @@ import java.util.function.Supplier;
  * Turns a terminal pane's request for attention into what {@link TerminalNotificationPolicy}
  * decides: the attention mark on the pane's tab ({@link TerminalTab#markAttention}) and a desktop
  * notification through the application's {@link DesktopNotifier}. The requests are a bell
- * ({@link #onBell}) and a long command the shell marked finished ({@link #onCommandFinished}).
+ * ({@link #onBell}), a long command the shell marked finished ({@link #onCommandFinished}) and a
+ * program asking for a notification with OSC 9 or OSC 777 ({@link #onRemoteNotification}).
  *
  * <p>The notification is titled {@code korTTY · <tab>}, as the Control API's notifications are, so
  * a program in a terminal can never make it look like a message from another application. It never
- * carries terminal text, and the one for a finished command never names the command. Everything
+ * carries terminal output, and the one for a finished command never names the command; the text a
+ * program asks for is shown below that title, cleaned ({@link RemoteNotificationText}). Everything
  * here runs on the JavaFX thread; the notifier delivers in the background.
  */
 public final class TerminalAttentionNotifier {
@@ -48,6 +51,9 @@ public final class TerminalAttentionNotifier {
 
     /** At most this many characters of the tab's name go into a notification's title. */
     static final int MAX_TAB_NAME_CHARS = 80;
+
+    /** At most this many characters of a program's notification go into the tab's tooltip. */
+    static final int MAX_REMOTE_TOOLTIP_CHARS = 100;
 
     private static @Nullable TerminalAttentionNotifier shared;
 
@@ -133,6 +139,39 @@ public final class TerminalAttentionNotifier {
     }
 
     /**
+     * A program in {@code widget}, a pane of {@code tab}, asked for a desktop notification with
+     * {@code OSC 9} or {@code OSC 777;notify}; {@code notification} is its text, already cleaned. In a
+     * tab the user is not looking at, the tab gets its mark with the text in its tooltip and, with the
+     * setting on, a desktop notification titled {@code korTTY · <tab>} shows the text, at most one per
+     * pane every 5 seconds. A pane with a detected coding agent leaves the notification to the agent's
+     * own while those are on. JavaFX thread.
+     */
+    public void onRemoteNotification(TerminalTab tab, SithTermFxWidget widget, RemoteNotificationText notification) {
+        if (tab == null || widget == null || notification == null) {
+            return;
+        }
+        PaneState state = new PaneState(seen.test(tab), hasCodingAgent(tab, widget), false);
+        Decision decision = policy.decide(Kind.REMOTE, widget, state, toggles(settings.get()));
+        if (decision.badge()) {
+            tab.markAttention(remoteTooltip(notification, I18n::get));
+        }
+        if (decision.toast()) {
+            show(toastTitle(tab.getEffectiveTitle()), notification.text());
+        }
+    }
+
+    /**
+     * The tooltip line of a tab a program's notification marked: the notification's text, cut to
+     * {@link #MAX_REMOTE_TOOLTIP_CHARS} characters so the tooltip stays narrow.
+     *
+     * @param i18n the translations, {@code I18n::get}
+     */
+    static String remoteTooltip(RemoteNotificationText notification, BiFunction<String, Object[], String> i18n) {
+        return i18n.apply("terminal.notify.remote.tooltip",
+            new Object[] {notification.summary(MAX_REMOTE_TOOLTIP_CHARS)});
+    }
+
+    /**
      * The text of a finished command's notification and tab tooltip: how it ended and how long it
      * ran, for example {@code Command failed (exit 1) after 2 min 14 sec.} Nothing else: no command,
      * no output.
@@ -159,7 +198,7 @@ public final class TerminalAttentionNotifier {
         GlobalSettings effective = current != null ? current : new GlobalSettings();
         return new Toggles(effective.isTerminalBellNotificationsEnabled(),
             effective.isCodingAgentNotificationsEnabled(), effective.isCommandFinishedNotificationsEnabled(),
-            effective.getCommandFinishedNotificationSeconds());
+            effective.getCommandFinishedNotificationSeconds(), effective.isRemoteTerminalNotificationsEnabled());
     }
 
     /**
@@ -190,7 +229,7 @@ public final class TerminalAttentionNotifier {
             Optional<PaneRef> pane = view.paneRefOf(widget);
             return pane.isPresent() && registry.entry(pane.get()).isPresent();
         } catch (RuntimeException e) {
-            logger.debug("Coding-agent lookup for a bell failed: {}", e.toString());
+            logger.debug("Coding-agent lookup for a pane's notification failed: {}", e.toString());
             return false;
         }
     }

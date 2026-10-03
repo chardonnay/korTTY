@@ -41,12 +41,15 @@ class TerminalNotificationsI18nCoverageTest {
         "settings.terminal.notify.commandFinishedSeconds",
         "settings.terminal.notify.commandFinishedSeconds.unit",
         "settings.terminal.notify.commandFinishedSeconds.tooltip",
+        "settings.terminal.notify.remote",
+        "settings.terminal.notify.remote.tooltip",
         "settings.terminal.notify.info",
         "terminal.notify.bell.body",
         "terminal.notify.bell.tooltip",
         "terminal.notify.commandFinished.succeeded",
         "terminal.notify.commandFinished.failed",
-        "terminal.notify.commandFinished.noStatus");
+        "terminal.notify.commandFinished.noStatus",
+        "terminal.notify.remote.tooltip");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
@@ -106,6 +109,18 @@ class TerminalNotificationsI18nCoverageTest {
             .containsExactly("{0}", "{1}");
         assertThat(placeholders(english.getProperty("terminal.notify.commandFinished.noStatus")))
             .containsExactly("{0}");
+    }
+
+    @Test
+    void aProgramsNotificationFillsTheTooltipThroughOnePlaceholder() throws Exception {
+        // {0} is the program's cleaned text; LanguageManager replaces placeholders one after another,
+        // so a second one could be filled from inside that text.
+        assertThat(placeholders(load("messages.properties").getProperty("terminal.notify.remote.tooltip")))
+            .containsExactly("{0}");
+        for (String bundle : BUNDLES) {
+            assertWithMessage(bundle + " names the sequences in the setting")
+                .that(load(bundle).getProperty("settings.terminal.notify.remote")).contains("OSC 9");
+        }
     }
 
     private static Set<String> placeholders(String value) {

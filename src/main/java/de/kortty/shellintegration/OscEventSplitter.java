@@ -72,8 +72,6 @@ public final class OscEventSplitter {
 
     private static final List<OwnedOsc> OWNED = List.of(OwnedOsc.values());
 
-    /** ConEmu reuses OSC 9 for numbered commands ({@code 9;4;st;pr} is progress), not text. */
-    private static final Pattern CONEMU_SUBCOMMAND = Pattern.compile("[0-9]+(;|$)");
     private static final Pattern STATUS = Pattern.compile("-?[0-9]{1,10}");
 
     private enum State {
@@ -413,10 +411,8 @@ public final class OscEventSplitter {
     static @Nullable ShellIntegrationEvent parse(OwnedOsc kind, String payload) {
         return switch (kind) {
             case SHELL_INTEGRATION -> parseMark(payload);
-            case NOTIFICATION -> payload.isEmpty() || CONEMU_SUBCOMMAND.matcher(payload).lookingAt()
-                    ? null
-                    : new ShellIntegrationEvent.RemoteNotification(kind, null, payload);
-            case NOTIFY -> parseNotify(payload);
+            case NOTIFICATION -> RemoteNotificationText.parseOsc9(payload);
+            case NOTIFY -> RemoteNotificationText.parseOsc777Notify(payload);
         };
     }
 
@@ -443,16 +439,5 @@ public final class OscEventSplitter {
             }
         }
         return null;
-    }
-
-    /** {@code title;body}, where the body is every remaining argument joined with {@code ;} again. */
-    private static @Nullable ShellIntegrationEvent parseNotify(String payload) {
-        int separator = payload.indexOf(';');
-        String title = separator < 0 ? payload : payload.substring(0, separator);
-        String body = separator < 0 ? "" : payload.substring(separator + 1);
-        if (body.isEmpty()) {
-            return title.isEmpty() ? null : new ShellIntegrationEvent.RemoteNotification(OwnedOsc.NOTIFY, null, title);
-        }
-        return new ShellIntegrationEvent.RemoteNotification(OwnedOsc.NOTIFY, title.isEmpty() ? null : title, body);
     }
 }

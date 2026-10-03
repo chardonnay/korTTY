@@ -15,10 +15,12 @@ import org.testng.annotations.Test;
  * the tab asks {@link TerminalAttentionNotifier}, and the window clears the mark once the tab is
  * seen. A long command's end takes the same way from its OSC 133 D mark: {@link PaneCommandMarks}
  * reports it, {@link ShellIntegrationController} drops commands under a second, and the view hands
- * the rest to the tab on the FX thread. The widget, the view, the tab and the window need a JavaFX
- * stage, so their wiring is pinned against the source; the decisions themselves are tested in
- * {@code TerminalNotificationPolicyTest}, {@code BellCoalescingTest} and
- * {@code CommandFinishedNotificationTest}.
+ * the rest to the tab on the FX thread. A program's notification (OSC 9, OSC 777) is cleaned on the
+ * emulator thread and waits in the pane's slot until the FX thread takes it for the tab. The widget,
+ * the view, the tab and the window need a JavaFX stage, so their wiring is pinned against the
+ * source; the decisions themselves are tested in {@code TerminalNotificationPolicyTest},
+ * {@code BellCoalescingTest}, {@code CommandFinishedNotificationTest},
+ * {@code RemoteNotificationTextTest} and {@code RemoteNotificationFlowTest}.
  */
 class TerminalAttentionWiringTest {
 
@@ -158,6 +160,65 @@ class TerminalAttentionWiringTest {
             + "            TerminalNotificationPolicy.MAX_COMMAND_FINISHED_SECONDS,");
         assertWithMessage("without shell integration no command ends, so its controls are greyed out")
             .that(dialog).contains("shellIntegrationCheck.selectedProperty().addListener((obs, was, now) -> syncCommandFinishedControls.run());");
+    }
+
+    @Test
+    void aProgramsNotificationTravelsFromTheOutputToTheTabOneAtATime() throws IOException {
+        String controller = source("ShellIntegrationController.java");
+        String onEvent = body(controller, "void onEvent(@NotNull SithTermFxWidget widget, @NotNull ShellIntegrationEvent event) {");
+        int remote = onEvent.indexOf("if (event instanceof ShellIntegrationEvent.RemoteNotification notification) {");
+        assertWithMessage("a notification needs no shell integration, so it comes before the marks' setting check")
+            .that(remote).isAtLeast(0);
+        assertThat(remote).isLessThan(onEvent.indexOf("if (!PaneCommandMarks.isMark(event) || !isEnabled()) {"));
+        String offer = body(controller,
+            "private void offerRemoteNotification(SithTermFxWidget widget, ShellIntegrationEvent.RemoteNotification event) {");
+        assertWithMessage("cleaned on the emulator thread, and only the first of a burst schedules the FX thread")
+            .that(offer).contains("RemoteNotificationText notification = RemoteNotificationText.of(event);\n"
+                + "        if (notification == null || !slot.offer(notification)) {\n            return;\n        }");
+        assertWithMessage("a failing listener frees the slot and never stops the emulator thread")
+            .that(offer).contains("} catch (RuntimeException e) {\n            slot.take();");
+        assertThat(body(controller, "void attach(@NotNull SithTermFxWidget widget) {"))
+            .contains("remoteNotifications.putIfAbsent(widget, new RemoteNotificationSlot());");
+        assertThat(body(controller, "void detach(@Nullable SithTermFxWidget widget) {"))
+            .contains("remoteNotifications.remove(widget);");
+
+        String view = source("TerminalView.java");
+        assertThat(view).contains(
+            "shellIntegration.setRemoteNotificationListener(widget -> Platform.runLater(() -> onPaneRemoteNotification(widget)));");
+        String onRemote = body(view, "private void onPaneRemoteNotification(SithTermFxWidget widget) {");
+        assertWithMessage("taken first, so the pane's next notification can come even when this one is ignored")
+            .that(onRemote.indexOf("shellIntegration.takeRemoteNotification(widget);"))
+            .isLessThan(onRemote.indexOf("if (notification == null || listener == null || !getOrderedWidgets().contains(widget)) {"));
+        assertWithMessage("a closed tab is neither marked nor announced")
+            .that(body(view, "public void cleanup() {")).contains("remoteNotificationListener = null;");
+
+        assertThat(source("TerminalTab.java")).contains(
+            "(widget, notification) -> TerminalAttentionNotifier.shared().onRemoteNotification(this, widget, notification));");
+    }
+
+    @Test
+    void theNotifierDecidesOnAProgramsNotificationPerPaneAndTitlesItWithTheTab() throws IOException {
+        String onRemote = body(source("TerminalAttentionNotifier.java"),
+            "public void onRemoteNotification(TerminalTab tab, SithTermFxWidget widget, RemoteNotificationText notification) {");
+        assertWithMessage("a coding agent's own notification wins")
+            .that(onRemote).contains("new PaneState(seen.test(tab), hasCodingAgent(tab, widget), false);");
+        assertWithMessage("the pane is the slot: one every 5 s per pane")
+            .that(onRemote).contains("policy.decide(Kind.REMOTE, widget, state, toggles(settings.get()));");
+        assertThat(onRemote).contains("tab.markAttention(remoteTooltip(notification, I18n::get));");
+        assertWithMessage("korTTY's own title with the tab's name, the program's text below it")
+            .that(onRemote).contains("show(toastTitle(tab.getEffectiveTitle()), notification.text());");
+    }
+
+    @Test
+    void theProgramsNotificationSettingIsShownSavedAndReported() throws IOException {
+        String dialog = source("SettingsDialog.java");
+        assertThat(dialog).contains(
+            "globalSettings.setRemoteTerminalNotificationsEnabled(remoteTerminalNotificationsCheck.isSelected());");
+        assertThat(dialog).contains("tracked.add(new TrackedSetting(\"terminal\", \"remote_notifications\",");
+        assertThat(dialog).contains("terminalGrid.add(remoteTerminalNotificationsCheck, 0, terminalRow++, 2, 1);");
+        assertWithMessage("on unless the settings say otherwise")
+            .that(dialog).contains("remoteTerminalNotificationsCheck.setSelected(globalSettings == null\n"
+                + "            || globalSettings.isRemoteTerminalNotificationsEnabled());");
     }
 
     @Test

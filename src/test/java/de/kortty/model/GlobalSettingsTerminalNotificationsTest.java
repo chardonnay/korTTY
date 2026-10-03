@@ -11,8 +11,8 @@ import java.io.StringWriter;
 import org.testng.annotations.Test;
 
 /**
- * The terminal notification settings (the bell, long commands): what a fresh installation and an
- * old settings file use, and that they survive the XML round trip.
+ * The terminal notification settings (the bell, long commands, programs' notifications): what a
+ * fresh installation and an old settings file use, and that they survive the XML round trip.
  */
 class GlobalSettingsTerminalNotificationsTest {
 
@@ -91,5 +91,25 @@ class GlobalSettingsTerminalNotificationsTest {
         assertWithMessage("a hand-edited file cannot get round the range")
             .that(unmarshal("<globalSettings><commandFinishedNotificationSeconds>-3</commandFinishedNotificationSeconds>"
                 + "</globalSettings>").getCommandFinishedNotificationSeconds()).isEqualTo(1);
+    }
+
+    @Test
+    void programsNotificationsAreOnOnAFreshInstallationAndForOldSettings() throws Exception {
+        assertWithMessage("decision D4 a: remote coding agents rely on OSC 9/777")
+            .that(new GlobalSettings().isRemoteTerminalNotificationsEnabled()).isTrue();
+        assertThat(GlobalSettings.forFreshInstall().isRemoteTerminalNotificationsEnabled()).isTrue();
+        assertThat(unmarshal("<globalSettings></globalSettings>").isRemoteTerminalNotificationsEnabled()).isTrue();
+    }
+
+    @Test
+    void theProgramsNotificationChoiceSurvivesAnXmlRoundTrip() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setRemoteTerminalNotificationsEnabled(false);
+        String xml = marshal(settings);
+        assertThat(xml).contains("<remoteTerminalNotificationsEnabled>false</remoteTerminalNotificationsEnabled>");
+        assertThat(unmarshal(xml).isRemoteTerminalNotificationsEnabled()).isFalse();
+
+        settings.setRemoteTerminalNotificationsEnabled(true);
+        assertThat(unmarshal(marshal(settings)).isRemoteTerminalNotificationsEnabled()).isTrue();
     }
 }

@@ -183,6 +183,9 @@ public class TerminalTab extends Tab {
         // So does a long command the shell marked (shell integration) finishing there.
         this.terminalView.setCommandFinishedListener(
             (widget, status) -> TerminalAttentionNotifier.shared().onCommandFinished(this, widget, status));
+        // And so does a program that asks for a desktop notification (OSC 9, OSC 777).
+        this.terminalView.setRemoteNotificationListener(
+            (widget, notification) -> TerminalAttentionNotifier.shared().onRemoteNotification(this, widget, notification));
 
         // Create status bar (connection duration / key validity)
         createStatusBar();

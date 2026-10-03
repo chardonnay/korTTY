@@ -54,7 +54,7 @@ public sealed interface ShellIntegrationEvent {
 
     /**
      * {@code OSC 9;text} or {@code OSC 777;notify;title;body}: a program asks for a desktop
-     * notification.
+     * notification. {@link RemoteNotificationText} reads the payload and cleans the text for showing.
      *
      * @param source which sequence carried it
      * @param title  the title of an OSC 777 notification, or {@code null} when there is none

@@ -23,7 +23,7 @@ import org.testng.annotations.Test;
  */
 class BellCoalescingTest {
 
-    private static final Toggles TOASTS_ON = new Toggles(true, true, true, 30);
+    private static final Toggles TOASTS_ON = new Toggles(true, true, true, 30, true);
     private static final PaneState UNSEEN = new PaneState(false, false, false);
 
     /** Stands in for {@code Platform::runLater}: tasks wait until the test runs them. */

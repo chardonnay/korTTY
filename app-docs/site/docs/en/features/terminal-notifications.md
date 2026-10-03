@@ -4,7 +4,7 @@ title: Terminal notifications
 
 # Terminal notifications
 
-A program in a terminal can ask for your attention while you are working somewhere else: a build script rings the bell when it is done, a prompt rings it when it waits for input, and in a shell set up for [shell integration](shell-integration.md) a long command tells korTTY when it has finished. KorTTY marks the tab such a request comes from, so you see it in the tab bar, and can also show a desktop notification. It never plays a sound.
+A program in a terminal can ask for your attention while you are working somewhere else: a build script rings the bell when it is done, a prompt rings it when it waits for input, a coding agent on a server asks for a notification when it needs your answer, and in a shell set up for [shell integration](shell-integration.md) a long command tells korTTY when it has finished. KorTTY marks the tab such a request comes from, so you see it in the tab bar, and can also show a desktop notification. It never plays a sound.
 
 ## When you are looking at a tab
 
@@ -44,5 +44,26 @@ In a shell set up for [shell integration](shell-integration.md#setting-it-up), t
 
 *Settings → Terminal → Notifications* has **Desktop notification when a long-running command finishes in a tab you are not looking at**, on by default, and **Minimum command runtime:**, from 1 to 3,600 seconds. Both are greyed out while shell integration is switched off, and a change applies to the open tabs as soon as you save. See [Terminal settings](../reference/settings/terminal.md#notes).
 
+## Notifications from programs
+
+A program can ask the terminal for a desktop notification with an escape sequence: `OSC 9` (the iTerm2 form, `ESC ] 9 ; text BEL`) or `OSC 777` (the urxvt and foot form, `ESC ] 777 ; notify ; title ; body BEL`). Coding agents such as Claude Code or Codex running on a server can use it to say that they wait for your answer or have finished, and so can your own scripts. Many agents and tools have a setting that sends their notifications this way, often called the iTerm2 style; korTTY understands both forms in local shells and SSH sessions alike, with nothing to install on the server. To try it, run this and switch to another tab within five seconds:
+
+```bash
+sleep 5; printf '\e]777;notify;%s;%s\a' 'Backup' 'Finished without errors'
+```
+
+When such a request comes from a tab you are not looking at, korTTY marks the tab with 🔔, and pointing at the tab shows *A program in this tab sent a notification:* with the text in its tooltip. A desktop notification titled `korTTY · ` and the name of the tab shows the text below that title, for example *Backup: Finished without errors*, so it always says which tab it came from and never passes for a message of another application.
+
+- The program chooses every character of the text, so korTTY cleans it first: control characters, line breaks and the invisible characters that change the reading direction are removed, the title is cut to 80 characters and the text to 200. The terminal never shows the sequence itself.
+- A pane shows at most one such notification every 5 seconds; what a program asks for in that time only keeps the mark on the tab and is dropped, so a program that prints notifications in a loop cannot flood your desktop.
+- A request in the tab you are looking at leads to nothing.
+- A pane in which korTTY detected a [coding agent](coding-agents.md) gets no notification of this kind while **Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane** is on, because the agent's own notification already says it. korTTY detects agents in local shell tabs only, so an agent on a server always notifies through its own request.
+- `OSC 9` with a number first, such as the `ESC ] 9 ; 4 ; 1 ; 50 BEL` progress report of ConEmu and Windows Terminal, is no notification and is ignored. Other `OSC 777` commands are no notifications either and are left alone.
+- It needs no [shell integration](shell-integration.md), and switching shell integration off does not stop it.
+- Inside `tmux` or `screen` the requests usually do not arrive: the multiplexer does not pass them on, and korTTY does not unwrap tmux's passthrough sequences. Mosh connections never carry them.
+- korTTY's own log never records the text; the tab's tooltip and the notification are the only places korTTY shows it. A [terminal log](terminal.md#terminal-logging) or [session journal](session-journal.md) of the pane records the output as it arrived and can therefore contain it.
+
+*Settings → Terminal → Notifications* has **Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777)**, on by default. Switched off, a request only marks the tab. A change applies to the open tabs as soon as you save. See [Terminal settings](../reference/settings/terminal.md#notes).
+
 !!! note "Privacy"
-    A desktop notification shows the tab's name, which can be a server name, and depending on your operating system's settings it can appear on the lock screen. Turn off the desktop notifications you do not want, or the notifications for korTTY in the operating system; the mark on the tab stays inside korTTY.
+    A desktop notification shows the tab's name, which can be a server name, and depending on your operating system's settings it can appear on the lock screen; a program's notification also shows the text the program sent. Turn off the desktop notifications you do not want, or the notifications for korTTY in the operating system; the mark on the tab stays inside korTTY.
