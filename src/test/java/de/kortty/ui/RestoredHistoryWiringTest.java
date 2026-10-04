@@ -52,8 +52,10 @@ class RestoredHistoryWiringTest {
 
     @Test
     void theReplayWritesNeitherToTheConnectorNorToTheJournal() throws IOException {
+        assertThat(region(source("TerminalView.java"), "private void replayPendingRestoredHistory(", "\n    }\n"))
+            .contains("replayRestoredOutput(widget, pending);");
         String body = region(source("TerminalView.java"),
-            "private void replayPendingRestoredHistory(", "\n    }\n");
+            "private void replayRestoredOutput(", "\n    }\n");
 
         assertThat(body).contains("RestoredHistoryReplay.replay(widget.getTerminal()");
         assertThat(body).doesNotContain("ttyConnector");
@@ -76,6 +78,29 @@ class RestoredHistoryWiringTest {
         assertThat(connect).isAtLeast(0);
         assertThat(queue).isLessThan(connect);
         assertWithMessage("the fixed-delay restore thread is back").that(open).doesNotContain("Thread.sleep(500)");
+    }
+
+    @Test
+    void savedPaneOutputIsLoadedOffTheFxThreadAndReplayedTheSameWay() throws IOException {
+        String view = source("TerminalView.java");
+        String connect = region(view, "public void connect() {", "connectThread.start();");
+        int load = connect.indexOf("loadPendingRestoredScrollback();");
+        int post = connect.indexOf("replayPendingRestoredHistory(terminalWidget);");
+        assertWithMessage("the primary pane's saved output is decrypted on the connect thread").that(load).isAtLeast(0);
+        assertWithMessage("and queued before the replay").that(load).isLessThan(post);
+
+        String attach = region(view, "private @Nullable SithTermFxWidget attachRestoredSplitPane(", "\n    }\n");
+        assertWithMessage("a split pane's saved output is written right before the pane starts")
+            .that(attach).contains("replayRestoredOutput(widget, restoredOutput);");
+        String restore = region(view, "public void restoreSplitLayout(", "\n    }\n");
+        assertWithMessage("a split pane's file is read on the restore worker, never on the FX thread")
+            .that(restore).contains("loadRestoredScrollback(scrollbackRef)");
+        assertWithMessage("the primary pane's own output is never shown twice")
+            .that(restore).contains("!scrollbackRef.equals(restoredPrimaryScrollbackRef)");
+
+        String load2 = region(view, "private @Nullable PendingRestoredHistory loadRestoredScrollback(", "\n    }\n");
+        assertWithMessage("saved output is sanitized like a saved screen").that(load2).contains("RestoredHistoryReplay.sanitize(");
+        assertThat(load2).doesNotContain("ttyConnector");
     }
 
     private static String source(String file) throws IOException {
