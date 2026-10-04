@@ -826,6 +826,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         osc52ClipboardWriteCheck = new CheckBox(I18n.get("settings.terminal.osc52.enabled"));
         osc52ClipboardWriteCheck.setSelected(globalSettings != null && globalSettings.isOsc52ClipboardWriteEnabled());
         osc52ClipboardWriteCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.osc52.enabled.tooltip")));
+        // After setTooltip: the lock replaces it with the managed-by-your-organization hint. Only a policy
+        // that forbids OSC 52 locks the box (off, as PolicyClamp keeps it); allowing it leaves the choice.
+        de.kortty.policy.PolicyUiSupport.lockIf(osc52ClipboardWriteCheck,
+            !de.kortty.policy.PolicyManager.effective().osc52ClipboardWriteAllowed());
 
         terminalLinkDetectionCheck = new CheckBox(I18n.get("settings.terminal.linkDetection"));
         terminalLinkDetectionCheck.setSelected(globalSettings == null || globalSettings.isTerminalLinkDetectionEnabled());
@@ -862,10 +866,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         );
 
         // Paste protection: when a terminal paste asks before it reaches the pane.
+        // [rule.terminal] paste-warning is a floor: only the modes that ask at least as often are offered.
+        PasteWarningMode pasteWarningFloor = de.kortty.policy.PolicyManager.effective().pasteWarningFloor();
         pasteWarningModeCombo = new ComboBox<>();
-        pasteWarningModeCombo.getItems().setAll(PasteWarningMode.values());
-        pasteWarningModeCombo.setValue(globalSettings != null
-            ? globalSettings.getPasteWarningMode() : PasteWarningMode.DEFAULT);
+        pasteWarningModeCombo.getItems().setAll(PasteWarningMode.atLeast(pasteWarningFloor));
+        pasteWarningModeCombo.setValue(PasteWarningMode.mostRestrictive(globalSettings != null
+            ? globalSettings.getPasteWarningMode() : PasteWarningMode.DEFAULT, pasteWarningFloor));
         pasteWarningModeCombo.setConverter(new javafx.util.StringConverter<>() {
             @Override
             public String toString(PasteWarningMode mode) {
@@ -878,6 +884,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
         pasteWarningModeCombo.setTooltip(new Tooltip(I18n.get("settings.terminal.paste.warningMode.tooltip")));
+        // After setTooltip: under [rule.terminal] paste-warning the combo carries the managed hint and
+        // offers only the floor and stricter modes; it is locked when nothing stricter is left (always).
+        if (de.kortty.policy.PolicyManager.effective().isManaged(de.kortty.policy.ManagedSetting.PASTE_WARNING)) {
+            if (!de.kortty.policy.PolicyUiSupport.lockIf(pasteWarningModeCombo,
+                    pasteWarningModeCombo.getItems().size() <= 1)) {
+                pasteWarningModeCombo.setTooltip(
+                    new Tooltip(de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+            }
+        }
         pasteLargeWarningSpinner = new Spinner<>(0, PasteProtectionSettings.MAX_LARGE_WARNING_KIB,
             globalSettings != null ? globalSettings.getPasteLargeWarningKiB()
                 : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);
@@ -1787,6 +1802,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
         sessionRestoreModeCombo.setTooltip(new Tooltip(I18n.get("settings.window.restore.mode.tooltip")));
+        // After setTooltip: [rule.terminal] session-restore sets the mode (PolicyClamp) and locks the combo.
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            sessionRestoreModeCombo, de.kortty.policy.ManagedSetting.SESSION_RESTORE);
         windowGrid.add(new Label(I18n.get("settings.window.restore.mode")), 0, windowRow);
         windowGrid.add(sessionRestoreModeCombo, 1, windowRow++);
 
@@ -1809,7 +1827,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         sessionRestoreScrollbackLinesSpinner.setPrefWidth(110);
         sessionRestoreScrollbackLinesSpinner.setTooltip(
             new Tooltip(I18n.get("settings.window.restore.scrollbackLines.tooltip")));
-        sessionRestoreScrollbackLinesSpinner.disableProperty().bind(sessionRestoreScrollbackCheck.selectedProperty().not());
+        // [rule.terminal] session-restore-output sets the switch (PolicyClamp) and locks it with the lines
+        // spinner; otherwise the spinner only follows the switch.
+        if (de.kortty.policy.PolicyUiSupport.lockIfManaged(
+                sessionRestoreScrollbackCheck, de.kortty.policy.ManagedSetting.SESSION_RESTORE_OUTPUT)) {
+            de.kortty.policy.PolicyUiSupport.lockIf(sessionRestoreScrollbackLinesSpinner, true);
+        } else {
+            sessionRestoreScrollbackLinesSpinner.disableProperty().bind(sessionRestoreScrollbackCheck.selectedProperty().not());
+        }
         windowGrid.add(new Label(I18n.get("settings.window.restore.scrollbackLines")), 0, windowRow);
         windowGrid.add(sessionRestoreScrollbackLinesSpinner, 1, windowRow++);
 
@@ -3980,6 +4005,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
             tracked.add(new TrackedSetting("terminal", "osc52_clipboard_write", gs::isOsc52ClipboardWriteEnabled, true));
             tracked.add(new TrackedSetting("terminal", "link_detection", gs::isTerminalLinkDetectionEnabled, true));
+            // Whether the user set label letters or patterns of their own, never the letters or patterns.
+            tracked.add(new TrackedSetting("terminal", "quick_select_alphabet_customized",
+                () -> gs.getTerminalQuickSelectAlphabet() != null, true));
+            tracked.add(new TrackedSetting("terminal", "quick_select_patterns_customized",
+                () -> !gs.getTerminalQuickSelectPatterns().isEmpty(), true));
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
             tracked.add(new TrackedSetting("terminal", "paste_warning_mode", () -> gs.getPasteWarningMode().id(), true));
@@ -4020,6 +4050,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("window", "tools_as_tabs", gs::isOpenToolWindowsAsTabs, true));
             tracked.add(new TrackedSetting("window", "fixed_geometry", gs::isUseFixedWindowGeometry, true));
             tracked.add(new TrackedSetting("window", "session_restore_mode", () -> gs.getSessionRestoreMode().id(), true));
+            tracked.add(new TrackedSetting("window", "session_restore_output", gs::isSessionRestoreScrollback, true));
+            tracked.add(new TrackedSetting("window", "session_restore_output_lines",
+                gs::getSessionRestoreScrollbackLines, true));
+            tracked.add(new TrackedSetting("window", "tab_title_from_shell", gs::isTabTitleFromShellEnabled, true));
+            tracked.add(new TrackedSetting("window", "tab_switch_most_recent_first", gs::isTabSwitchMostRecentFirst, true));
+            // Whether any shortcut was rebound, never which action or which keys.
+            tracked.add(new TrackedSetting("keyboard", "shortcuts_customized",
+                () -> !gs.getKeyBindingOverrides().isEmpty(), true));
             tracked.add(new TrackedSetting("security", "require_master_password_on_startup",
                 gs::isRequireMasterPasswordOnStartup, true));
             tracked.add(new TrackedSetting("security", "temporary_ssh_key_enabled", gs::isTemporarySshKeyEnabled, true));

@@ -27,6 +27,19 @@ korTTY kann **anonyme Nutzungsstatistiken** sammeln, um zu entscheiden, welche F
 
 Die Sitzungs-ID ist **keine** dauerhafte Kennung: Sie wird jedes Mal neu generiert und kann bei jedem Start nicht auf Sie zurückgeführt werden.
 
+### Terminalfunktionen
+
+Einige Terminalfunktionen melden, wie sie verwendet werden, und zwar nur mit Schaltern, groben Anzahlen und festen Namen. Anzahlen werden auf 0, 1, 2, 3, 5, 10 oder 20 abgerundet, sodass sieben Bereiche als 5 gemeldet werden.
+
+| Ereignis | Gesendet, wenn | Daten |
+| --- | --- | --- |
+| `command_palette_used` | eine Zeile der Befehlspalette ausgeführt wird | die Art der Zeile (`action`, `tab`, `connection` oder `snippet`) und ob die Suche mit einem Bereichspräfix wie `>` oder `@` begonnen hat |
+| `terminal_highlight_applied` | ein Bereich einen anderen Regelsatz für die Hervorhebung anzeigt | die ID eines eingebauten Regelsatzes oder `custom` bzw. `none` und woher die Auswahl kam (Menü, Tastenkürzel, Verbindung oder Standard) |
+| `multi_exec_changed` | Sie Bereiche zu Multi-Exec hinzufügen, sie entfernen oder Multi-Exec beenden | ob Multi-Exec noch aktiv ist, und die gerundete Anzahl der beteiligten Bereiche, Tabs und Fenster |
+| `session_restored` | die vorherige Sitzung wieder geöffnet wird | die Einstellung Sitzungswiederherstellung (`ask`, `auto` oder `off`), ob das Menü, die Leiste beim Start oder die automatische Wiederherstellung sie geöffnet hat, und die gerundete Anzahl der Fenster und Tabs |
+
+Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsätzen, die Muster und alles, was in die Bereiche eingegeben wird, werden nie gesendet. Änderungen auf den Einstellungsseiten werden als Name der Einstellung gemeldet, bei Schaltern und Auswahlfeldern mit dem neuen Wert; bei den Buchstaben und Mustern der Schnellauswahl und bei neu belegten Tastenkürzeln nur, ob Sie sie geändert haben.
+
 ## Was niemals gesammelt wird
 
 korTTY übermittelt niemals Folgendes:

@@ -238,7 +238,9 @@ final class PaneMenuSupport {
         paneMenu.previous().setDisable(focusDisabled);
         paneMenu.zoom().setDisable(!state.canToggleZoom());
         paneMenu.zoom().setSelected(state.terminal() && state.zoomed());
-        paneMenu.broadcast().setDisable(!state.canToggleBroadcast());
+        // Locked by the policy (multi-exec denied): it can still switch a broadcast mode off that is on.
+        paneMenu.broadcast().setDisable(!state.canToggleBroadcast()
+            || (ActionIds.isPolicyLocked(paneMenu.broadcast()) && !state.broadcast()));
         paneMenu.broadcast().setSelected(state.terminal() && state.broadcast());
     }
 }

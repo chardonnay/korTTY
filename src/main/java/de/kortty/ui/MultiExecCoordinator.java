@@ -15,6 +15,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -35,6 +36,10 @@ import java.util.function.Supplier;
  * <p>Every change to the members redraws the pane markers of every split pane that holds a
  * registered pane, then tells the listeners, which keep the tab markers, the status bar of every
  * window, the dashboard and the menus up to date. Use it on the FX thread only.
+ *
+ * <p>An organization's policy can deny multi-exec ({@code [rule.features] multi-exec = "deny"}): then
+ * no pane can join, whichever menu, palette entry or shortcut asks, while leaving and {@link #stop()}
+ * keep working.
  */
 public final class MultiExecCoordinator implements InputMirror {
 
@@ -47,7 +52,16 @@ public final class MultiExecCoordinator implements InputMirror {
     // owner's field, because a tab's first pane is set up before its split pane is assigned.
     private final Map<SithTermFxWidget, Supplier<? extends TerminalSplitPane>> owners = new IdentityHashMap<>();
 
+    // Asked at every join, so the policy is the gate rather than any one menu item.
+    private final BooleanSupplier joinAllowed;
+
     MultiExecCoordinator() {
+        this(() -> de.kortty.policy.PolicyManager.effective().multiExecAllowed());
+    }
+
+    /** @param joinAllowed whether panes may join now; the organization's policy in the application */
+    MultiExecCoordinator(@NotNull BooleanSupplier joinAllowed) {
+        this.joinAllowed = joinAllowed;
         // Registered first, so the pane markers are redrawn before any listener reads them.
         membership.addListener(this::refreshPaneMarkers);
     }
@@ -113,7 +127,13 @@ public final class MultiExecCoordinator implements InputMirror {
         if (pane == null || (!membership.contains(pane) && !owners.containsKey(pane))) {
             return false;
         }
-        return membership.toggle(pane);
+        if (!membership.contains(pane) && joinRefused()) {
+            // Joining is what the policy denies; leaving always works.
+            return false;
+        }
+        boolean member = membership.toggle(pane);
+        reportChange();
+        return member;
     }
 
     /**
@@ -122,6 +142,17 @@ public final class MultiExecCoordinator implements InputMirror {
      * @return whether any pane changed
      */
     public boolean setPanes(@NotNull Collection<SithTermFxWidget> panes, boolean included) {
+        boolean changed = changePanes(panes, included);
+        if (changed) {
+            reportChange();
+        }
+        return changed;
+    }
+
+    private boolean changePanes(@NotNull Collection<SithTermFxWidget> panes, boolean included) {
+        if (included && joinRefused()) {
+            return false;
+        }
         List<SithTermFxWidget> open = new ArrayList<>(panes.size());
         for (SithTermFxWidget pane : panes) {
             if (pane != null && (!included || owners.containsKey(pane))) {
@@ -133,21 +164,58 @@ public final class MultiExecCoordinator implements InputMirror {
 
     /**
      * Lets the panes of a tab take part when not all of them do yet, else none of them: what
-     * <i>Multi-exec: Include All Panes of This Tab</i> does.
+     * <i>Multi-exec: Include All Panes of This Tab</i> does. While the organization's policy denies
+     * multi-exec, the panes that take part leave instead, so the toggle can never get stuck on.
      *
      * @return whether all of them take part afterwards
      */
     public boolean toggleAll(@NotNull Collection<SithTermFxWidget> panes) {
-        boolean include = !membership.includesAll(panes);
+        boolean include = !membership.includesAll(panes) && joinAllowed();
         setPanes(panes, include);
+        // setPanes reported the change, if there was one.
         return include && membership.includesAll(panes);
+    }
+
+    /** Whether panes may join now; false while the organization's policy denies multi-exec. */
+    public boolean joinAllowed() {
+        return joinAllowed.getAsBoolean();
+    }
+
+    private boolean joinRefused() {
+        if (joinAllowed()) {
+            return false;
+        }
+        logger.info("Multi-exec join refused: denied by the organization's policy");
+        return true;
     }
 
     /** Stops multi-exec: no pane takes part any more. */
     public void stop() {
         if (membership.clear()) {
             logger.info("Multi-exec stopped");
+            reportChange();
         }
+    }
+
+    /**
+     * The anonymous {@code multi_exec_changed} event, once per user choice that changed the members
+     * (not when a pane leaves because it closed): whether multi-exec is on afterwards and how far it
+     * reaches, in coarse buckets. Never a host, a title or what is typed.
+     */
+    private void reportChange() {
+        try {
+            MultiExecMembership.Counts reach = counts(MultiExecCoordinator::windowOfSplitPane);
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.MULTI_EXEC_CHANGED,
+                de.kortty.telemetry.TerminalUxTelemetry.multiExecChanged(membership.size() > 0, reach));
+        } catch (RuntimeException e) {
+            logger.debug("Multi-exec change could not be reported: {}", e.toString());
+        }
+    }
+
+    /** The window that shows {@code splitPane}, or {@code null} while it is in no scene. */
+    private static @Nullable Object windowOfSplitPane(@NotNull TerminalSplitPane splitPane) {
+        javafx.scene.Scene scene = splitPane.getScene();
+        return scene != null ? scene.getWindow() : null;
     }
 
     // ---- what the markers show ----------------------------------------------------------------------

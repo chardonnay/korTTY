@@ -842,6 +842,40 @@
 </tbody>
 </table>
 <p>Die Sitzungs-ID ist <strong>keine</strong> dauerhafte Kennung: Sie wird jedes Mal neu generiert und kann bei jedem Start nicht auf Sie zurückgeführt werden.</p>
+<h3 id="terminalfunktionen">Terminalfunktionen<a class="headerlink" href="#terminalfunktionen" title="Permanent link">&para;</a></h3>
+<p>Einige Terminalfunktionen melden, wie sie verwendet werden, und zwar nur mit Schaltern, groben Anzahlen und festen Namen. Anzahlen werden auf 0, 1, 2, 3, 5, 10 oder 20 abgerundet, sodass sieben Bereiche als 5 gemeldet werden.</p>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command_palette_used</code></td>
+<td>eine Zeile der Befehlspalette ausgeführt wird</td>
+<td>die Art der Zeile (<code>action</code>, <code>tab</code>, <code>connection</code> oder <code>snippet</code>) und ob die Suche mit einem Bereichspräfix wie <code>&gt;</code> oder <code>@</code> begonnen hat</td>
+</tr>
+<tr>
+<td><code>terminal_highlight_applied</code></td>
+<td>ein Bereich einen anderen Regelsatz für die Hervorhebung anzeigt</td>
+<td>die ID eines eingebauten Regelsatzes oder <code>custom</code> bzw. <code>none</code> und woher die Auswahl kam (Menü, Tastenkürzel, Verbindung oder Standard)</td>
+</tr>
+<tr>
+<td><code>multi_exec_changed</code></td>
+<td>Sie Bereiche zu Multi-Exec hinzufügen, sie entfernen oder Multi-Exec beenden</td>
+<td>ob Multi-Exec noch aktiv ist, und die gerundete Anzahl der beteiligten Bereiche, Tabs und Fenster</td>
+</tr>
+<tr>
+<td><code>session_restored</code></td>
+<td>die vorherige Sitzung wieder geöffnet wird</td>
+<td>die Einstellung Sitzungswiederherstellung (<code>ask</code>, <code>auto</code> oder <code>off</code>), ob das Menü, die Leiste beim Start oder die automatische Wiederherstellung sie geöffnet hat, und die gerundete Anzahl der Fenster und Tabs</td>
+</tr>
+</tbody>
+</table>
+<p>Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsätzen, die Muster und alles, was in die Bereiche eingegeben wird, werden nie gesendet. Änderungen auf den Einstellungsseiten werden als Name der Einstellung gemeldet, bei Schaltern und Auswahlfeldern mit dem neuen Wert; bei den Buchstaben und Mustern der Schnellauswahl und bei neu belegten Tastenkürzeln nur, ob Sie sie geändert haben.</p>
 <h2 id="was-niemals-gesammelt-wird">Was niemals gesammelt wird<a class="headerlink" href="#was-niemals-gesammelt-wird" title="Permanent link">&para;</a></h2>
 <p>korTTY übermittelt niemals Folgendes:</p>
 <ul>

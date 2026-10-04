@@ -180,4 +180,30 @@ class MultiExecMenuSupportTest {
         assertThat(MultiExecMarkers.statusText(counts, 1)).isEqualTo(I18n.get(MultiExecMarkers.STATUS_ACTIVE_KEY, 4, 3, 2)
             + MultiExecMarkers.SEPARATOR + I18n.get(MultiExecMarkers.STATUS_SKIPPED_KEY, 1));
     }
+
+    @Test
+    void aPolicyThatDeniesMultiExecLocksTheIncludeItemsForGoodButLeavesStop() {
+        FakeWindow window = new FakeWindow();
+        MultiExecMenuSupport.MultiExecMenu menu = MultiExecMenuSupport.create(window, SEPARATORS);
+
+        MultiExecMenuSupport.lockByPolicy(menu);
+        // A sync that would enable everything: a terminal tab, a window with terminals, a member.
+        MultiExecMenuSupport.sync(menu, new MultiExecMenuSupport.State(true, false, false, true, 1));
+
+        for (MenuItem item : List.of(menu.includePane(), menu.includeTab(), menu.includeWindow())) {
+            assertWithMessage("%s stays disabled", ActionIds.idOf(item)).that(item.isDisable()).isTrue();
+            assertWithMessage("%s says the policy locked it, for the palette", ActionIds.idOf(item))
+                .that(ActionIds.isPolicyLocked(item)).isTrue();
+            assertWithMessage("%s cannot run from a shortcut or the palette", ActionIds.idOf(item))
+                .that(MenuItemActivation.activate(item)).isFalse();
+        }
+        assertThat(window.log).isEmpty();
+        assertWithMessage("Stop takes out what took part before, policy or not")
+            .that(menu.stop().isDisable()).isFalse();
+        assertThat(ActionIds.isPolicyLocked(menu.stop())).isFalse();
+        assertThat(MenuItemActivation.activate(menu.stop())).isTrue();
+        assertThat(window.log).containsExactly("stop");
+
+        MultiExecMenuSupport.lockByPolicy(null);
+    }
 }
