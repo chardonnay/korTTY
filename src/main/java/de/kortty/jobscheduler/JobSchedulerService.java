@@ -335,6 +335,16 @@ public class JobSchedulerService {
         runEventListeners.remove(listener);
     }
 
+    /**
+     * Records the result of a run notification (a skipped, blocked or failed webhook delivery) in
+     * the journal and saves it. Safe from any thread; never throws.
+     */
+    public void appendNotificationJournal(JobJournalEntry entry) {
+        if (entry != null) {
+            appendJournal(entry);
+        }
+    }
+
     private void tickSafely() {
         try {
             tick();

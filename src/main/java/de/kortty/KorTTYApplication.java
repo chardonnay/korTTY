@@ -132,6 +132,7 @@ public class KorTTYApplication extends Application {
     private TeamworkSyncService teamworkSyncService;
     private TeamworkRecycleBinService teamworkRecycleBinService;
     private JobSchedulerService jobSchedulerService;
+    private de.kortty.jobscheduler.WebhookSender jobWebhookSender;
     private UpdateCheckService updateCheckService;
     private TelemetryService telemetryService;
     private ScheduledExecutorService logMaintenanceExecutor;
@@ -535,11 +536,20 @@ public class KorTTYApplication extends Application {
                 schedulerPowerStateListener = this::syncSchedulerPowerState;
                 jobSchedulerService.addListener(schedulerPowerStateListener);
                 JobSchedulerService scheduler = jobSchedulerService;
+                jobWebhookSender = new de.kortty.jobscheduler.WebhookSender();
+                de.kortty.jobscheduler.JobWebhookNotifier webhooks = new de.kortty.jobscheduler.JobWebhookNotifier(
+                    targetId -> scheduler.getRepository().findWebhookTarget(targetId),
+                    new de.kortty.jobscheduler.WebhookTargetSecrets(masterPasswordManager.getEncryptionService()),
+                    () -> getMasterPasswordManager() != null ? getMasterPasswordManager().getMasterPassword() : null,
+                    new de.kortty.jobscheduler.WebhookPayloadFormatter(),
+                    jobWebhookSender,
+                    scheduler::appendNotificationJournal);
                 jobSchedulerService.addRunEventListener(new de.kortty.jobscheduler.JobNotificationDispatcher(
                     this::getDesktopNotifier, de.kortty.policy.PolicyManager::effective, java.time.Clock.systemUTC(),
                     jobId -> scheduler.findJob(jobId)
                         .map(de.kortty.jobscheduler.ScheduledJob::effectiveNotificationConfig)
-                        .orElse(null)));
+                        .orElse(null),
+                    webhooks));
                 syncSchedulerPowerState();
                 jobSchedulerService.start();
             } catch (Exception e) {
@@ -854,6 +864,10 @@ public class KorTTYApplication extends Application {
         }
         if (teamworkSyncService != null) {
             shutdownStep("stop teamwork sync", teamworkSyncService::stop);
+        }
+        if (jobWebhookSender != null) {
+            // Before the scheduler's final save, so a failed delivery's journal entry is kept.
+            shutdownStep("stop webhook sender", jobWebhookSender::shutdown);
         }
         if (jobSchedulerService != null) {
             shutdownStep("stop job scheduler", () -> jobSchedulerService.shutdownSchedulerThreads(saveStores));

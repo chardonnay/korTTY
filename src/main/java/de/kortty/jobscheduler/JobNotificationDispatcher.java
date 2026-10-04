@@ -31,8 +31,11 @@ import java.util.function.Supplier;
  * and a notification can show on the lock screen. A job notifies at most once every
  * {@link #THROTTLE}, so a job that fails every minute does not flood the desktop.
  *
+ * <p>A job's webhook targets get every matching run through {@link JobWebhookNotifier}, which
+ * decrypts, formats and delivers on the {@link WebhookSender}'s own executor.
+ *
  * <p>{@link #onJobRunFinished} runs on the job's worker thread and only hands the notification to
- * the notifier, which delivers it on its own daemon executor.
+ * the notifier and the webhook sender, which deliver on their own daemon executors.
  */
 public final class JobNotificationDispatcher implements JobRunEventListener {
 
@@ -63,6 +66,7 @@ public final class JobNotificationDispatcher implements JobRunEventListener {
     private final Clock clock;
     private final Function<String, JobNotificationConfig> configLookup;
     private final BiFunction<String, Object[], String> i18n;
+    private final @Nullable JobWebhookNotifier webhooks;
     private final Map<String, Instant> lastDesktopNotification = new ConcurrentHashMap<>();
 
     /**
@@ -74,11 +78,27 @@ public final class JobNotificationDispatcher implements JobRunEventListener {
      */
     public JobNotificationDispatcher(Supplier<DesktopNotifier> notifier, Supplier<EffectivePolicy> policy, Clock clock,
             Function<String, JobNotificationConfig> configLookup) {
-        this(notifier, policy, clock, configLookup, JobNotificationDispatcher::translate);
+        this(notifier, policy, clock, configLookup, (JobWebhookNotifier) null);
+    }
+
+    /**
+     * @param webhooks sends the run to the job's webhook targets; {@code null} for desktop
+     *                 notifications only
+     */
+    public JobNotificationDispatcher(Supplier<DesktopNotifier> notifier, Supplier<EffectivePolicy> policy, Clock clock,
+            Function<String, JobNotificationConfig> configLookup, @Nullable JobWebhookNotifier webhooks) {
+        this(notifier, policy, clock, configLookup, webhooks, JobNotificationDispatcher::translate);
     }
 
     JobNotificationDispatcher(Supplier<DesktopNotifier> notifier, Supplier<EffectivePolicy> policy, Clock clock,
             Function<String, JobNotificationConfig> configLookup, BiFunction<String, Object[], String> i18n) {
+        this(notifier, policy, clock, configLookup, null, i18n);
+    }
+
+    JobNotificationDispatcher(Supplier<DesktopNotifier> notifier, Supplier<EffectivePolicy> policy, Clock clock,
+            Function<String, JobNotificationConfig> configLookup, @Nullable JobWebhookNotifier webhooks,
+            BiFunction<String, Object[], String> i18n) {
+        this.webhooks = webhooks;
         this.notifier = Objects.requireNonNull(notifier, "notifier");
         this.policy = Objects.requireNonNull(policy, "policy");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -97,6 +117,11 @@ public final class JobNotificationDispatcher implements JobRunEventListener {
         }
         if (config.isDesktop()) {
             notifyDesktop(event);
+        }
+        if (webhooks != null && !config.getWebhookTargetIds().isEmpty()) {
+            // Webhooks are not throttled: every matching run is a separate message in the channel,
+            // and the sender's bounded queue caps the load.
+            webhooks.notify(event, config.getWebhookTargetIds());
         }
     }
 
