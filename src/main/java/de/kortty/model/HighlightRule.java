@@ -21,9 +21,10 @@ import java.util.UUID;
  * normalizes blank text to {@code null}.
  *
  * <p>A rule can also be a <em>trigger</em> ({@link #getAction()}): besides, or instead of, changing how
- * the match looks, it acts when the pattern appears in new output — for now a desktop notification
- * ({@link Action#NOTIFY}). The notification says the rule's {@link #getName() name}; the matched text
- * only when {@link #isNotifyWithText()} is set.
+ * the match looks, it acts when the pattern appears in new output — a desktop notification
+ * ({@link Action#NOTIFY}) or running one of the user's snippets ({@link Action#RUN_SNIPPET}, the one
+ * {@link #getSnippetId()} names). The notification says the rule's {@link #getName() name}; the matched
+ * text only when {@link #isNotifyWithText()} is set.
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "HighlightRule")
@@ -41,8 +42,10 @@ public class HighlightRule {
 
     /**
      * What a rule does, besides changing how its match looks, when its pattern appears in output that
-     * arrives in a terminal pane. Never anything that types into the terminal: a server decides what it
-     * prints, so an action must not turn its output into keystrokes.
+     * arrives in a terminal pane. Never anything that types text taken from the output, and never an
+     * answer to a prompt: a server decides what it prints, so an action must not turn its output into
+     * keystrokes. The one action that types, {@link #RUN_SNIPPET}, types a snippet the user chose and
+     * confirmed for the connection.
      */
     @XmlType(name = "HighlightRuleAction")
     @XmlEnum
@@ -50,7 +53,12 @@ public class HighlightRule {
         /** Only highlight. */
         NONE,
         /** Also show a desktop notification (and mark the tab) while the pane is not in view. */
-        NOTIFY
+        NOTIFY,
+        /**
+         * Also run the snippet {@link HighlightRule#getSnippetId()} names in the pane, as Send to
+         * Terminal does — after a confirmation per connection, with a cooldown and a loop guard.
+         */
+        RUN_SNIPPET
     }
 
     @XmlElement
@@ -102,6 +110,10 @@ public class HighlightRule {
     @XmlElement
     private boolean notifyWithText;
 
+    /** The id of the snippet {@link Action#RUN_SNIPPET} runs; ignored for every other action. */
+    @XmlElement
+    private String snippetId;
+
     public HighlightRule() {
         this.id = UUID.randomUUID().toString();
     }
@@ -131,6 +143,7 @@ public class HighlightRule {
             this.underline = other.underline;
             this.action = other.action;
             this.notifyWithText = other.notifyWithText;
+            this.snippetId = other.snippetId;
         }
     }
 
@@ -265,6 +278,22 @@ public class HighlightRule {
 
     public void setNotifyWithText(boolean notifyWithText) {
         this.notifyWithText = notifyWithText;
+    }
+
+    /**
+     * The id of the snippet the rule runs ({@link Action#RUN_SNIPPET}), or {@code null} when it names
+     * none (blank counts as none). Kept when the action changes, so switching back restores the choice.
+     */
+    public String getSnippetId() {
+        if (snippetId == null) {
+            return null;
+        }
+        String trimmed = snippetId.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public void setSnippetId(String snippetId) {
+        this.snippetId = snippetId;
     }
 
     /** True when the rule changes how its match looks: a color or one of bold, italic, underline. */

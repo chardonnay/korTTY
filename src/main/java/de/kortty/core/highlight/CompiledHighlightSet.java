@@ -44,23 +44,26 @@ public final class CompiledHighlightSet {
      * @param notifyWithText whether a notification of the rule carries the matched text
      * @param label what a notification calls the rule: its name, or its pattern when it has none. The
      *              user's own text, but it may quote what they watch for, so it is never logged
+     * @param snippetId the snippet {@link HighlightRule.Action#RUN_SNIPPET} runs, {@code null} for every
+     *                  other action
      */
     public record Rule(int index, String ruleId, Pattern pattern, HighlightRule.Scope scope,
                        TerminalColor foreground, TerminalColor background,
                        boolean bold, boolean italic, boolean underline,
-                       HighlightRule.Action action, boolean notifyWithText, String label) {
+                       HighlightRule.Action action, boolean notifyWithText, String label, String snippetId) {
 
         /** A rule without an action, as every rule was before triggers existed. */
         public Rule(int index, String ruleId, Pattern pattern, HighlightRule.Scope scope,
                     TerminalColor foreground, TerminalColor background,
                     boolean bold, boolean italic, boolean underline) {
             this(index, ruleId, pattern, scope, foreground, background, bold, italic, underline,
-                HighlightRule.Action.NONE, false, "");
+                HighlightRule.Action.NONE, false, "", null);
         }
 
         public Rule {
             action = action != null ? action : HighlightRule.Action.NONE;
             label = label != null ? label : "";
+            snippetId = action == HighlightRule.Action.RUN_SNIPPET ? snippetId : null;
         }
 
         /**
@@ -112,7 +115,7 @@ public final class CompiledHighlightSet {
             compiled.add(new Rule(compiled.size(), rule.getId(), patternFor(rule), rule.getScope(),
                 parseColor(rule.getForeground()), parseColor(rule.getBackground()),
                 rule.isBold(), rule.isItalic(), rule.isUnderline(),
-                rule.getAction(), rule.isNotifyWithText(), labelOf(rule)));
+                rule.getAction(), rule.isNotifyWithText(), labelOf(rule), rule.getSnippetId()));
         }
         return new CompiledHighlightSet(set.getId(), compiled);
     }

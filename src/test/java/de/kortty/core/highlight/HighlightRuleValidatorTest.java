@@ -130,6 +130,25 @@ class HighlightRuleValidatorTest {
     }
 
     @Test
+    void aRuleThatRunsASnippetNeedsOneButNoLook() {
+        HighlightRule trigger = new HighlightRule("BUILD FAILED", false);
+        trigger.setAction(HighlightRule.Action.RUN_SNIPPET);
+        assertThat(HighlightRuleValidator.validateRule(trigger)).containsExactly(HighlightRuleValidator.KEY_SNIPPET_REQUIRED);
+
+        trigger.setSnippetId("   ");
+        assertWithMessage("a blank id names no snippet").that(HighlightRuleValidator.validateRule(trigger))
+            .containsExactly(HighlightRuleValidator.KEY_SNIPPET_REQUIRED);
+
+        trigger.setSnippetId("snippet-1");
+        assertThat(HighlightRuleValidator.validateRule(trigger)).isEmpty();
+
+        trigger.setAction(HighlightRule.Action.NOTIFY);
+        trigger.setSnippetId(null);
+        assertWithMessage("only running a snippet needs one").that(HighlightRuleValidator.validateRule(trigger)).isEmpty();
+        assertThat(HighlightRuleValidator.MESSAGE_KEYS).contains(HighlightRuleValidator.KEY_SNIPPET_REQUIRED);
+    }
+
+    @Test
     void aNotificationIsAnEffectOfItsOwn() {
         HighlightRule trigger = new HighlightRule("No space left", false);
         trigger.setAction(HighlightRule.Action.NOTIFY);

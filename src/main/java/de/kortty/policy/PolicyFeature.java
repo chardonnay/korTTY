@@ -21,7 +21,7 @@ public enum PolicyFeature {
     CONTROL_API("control-api"),
     /**
      * Highlight-rule triggers: actions a rule takes when its pattern appears in terminal output (a
-     * desktop notification). Highlighting itself is not affected.
+     * desktop notification, running a snippet). Highlighting itself is not affected.
      */
     TERMINAL_TRIGGERS("terminal-triggers");
 

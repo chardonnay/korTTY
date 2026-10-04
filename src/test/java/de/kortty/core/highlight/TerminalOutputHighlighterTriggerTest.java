@@ -18,7 +18,7 @@ import org.testng.annotations.Test;
  * The highlight engine's triggers against a real SithTermFX buffer and emulator, without JavaFX: a rule
  * with an action fires for output that arrives after the baseline, once per new hit on a line, never for
  * output that was already there (a restored screen, a set switch, a resize) and never in the alternate
- * screen.
+ * screen. A hit on the line the cursor is on is reported as such, so an action that types can leave it alone.
  */
 class TerminalOutputHighlighterTriggerTest {
 
@@ -356,6 +356,79 @@ class TerminalOutputHighlighterTriggerTest {
 
         assertThat(fired).isEmpty();
         assertThat(HeadlessTerminalSession.isHighlighted(session.line(0), 0)).isTrue();
+    }
+
+    /** Attaches with a sink that reads the emulator's cursor, as a terminal pane's does, and runs the first pass. */
+    private TerminalOutputHighlighter attachWithCursor(HeadlessTerminalSession session, CompiledHighlightSet set) {
+        highlighter = new TerminalOutputHighlighter(session.buffer, set, () -> { }, () -> { }, () -> false,
+            alternateAllowed::get, scheduler,
+            TerminalOutputHighlighter.TriggerSink.of(fired::addAll, () -> session.terminal.getCursorY() - 1));
+        highlighter.runPassNow();
+        return highlighter;
+    }
+
+    @Test
+    void aCommandTypedAtThePromptIsReportedAsTheCursorLineAndNotAgainAfterEnter() {
+        HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
+        attachWithCursor(session, errors());
+
+        session.print("$ grep ERROR app.log");
+        highlighter.runPassNow();
+
+        assertThat(fired).hasSize(1);
+        assertWithMessage("the line is still being typed").that(fired.getFirst().cursorLine()).isTrue();
+        fired.clear();
+
+        session.terminal.carriageReturn();
+        session.terminal.newLine();
+        highlighter.runPassNow();
+        assertWithMessage("pressing Enter does not make the typed line new output").that(fired).isEmpty();
+
+        session.println("ERROR disk full");
+        highlighter.runPassNow();
+        assertThat(fired).hasSize(1);
+        assertWithMessage("the command's output is no cursor line").that(fired.getFirst().cursorLine()).isFalse();
+    }
+
+    @Test
+    void whenTheCursorLineAndAnOutputLineHitInOnePassTheOutputLineIsReported() {
+        HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
+        attachWithCursor(session, errors());
+
+        session.println("ERROR from the server");
+        session.print("$ echo ERROR");
+        highlighter.runPassNow();
+
+        assertThat(fired).hasSize(1);
+        assertThat(fired.getFirst().cursorLine()).isFalse();
+    }
+
+    @Test
+    void aSinkThatDoesNotKnowTheCursorReportsNoCursorLine() {
+        HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
+        attachEmpty(session, errors());
+
+        session.print("$ grep ERROR app.log");
+        highlighter.runPassNow();
+
+        assertThat(fired).hasSize(1);
+        assertThat(fired.getFirst().cursorLine()).isFalse();
+    }
+
+    @Test
+    void aCursorOffTheScreenOrAFailingCursorReadMarksNothing() {
+        HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
+        highlighter = new TerminalOutputHighlighter(session.buffer, errors(), () -> { }, () -> { }, () -> false,
+            alternateAllowed::get, scheduler, TerminalOutputHighlighter.TriggerSink.of(fired::addAll, () -> {
+                throw new IllegalStateException("no emulator");
+            }));
+        highlighter.runPassNow();
+
+        session.print("ERROR");
+        highlighter.runPassNow();
+
+        assertThat(fired).hasSize(1);
+        assertThat(fired.getFirst().cursorLine()).isFalse();
     }
 
     @Test

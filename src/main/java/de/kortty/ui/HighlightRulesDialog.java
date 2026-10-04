@@ -2,12 +2,14 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.SnippetManager;
 import de.kortty.core.highlight.HighlightPreview;
 import de.kortty.core.highlight.TerminalHighlightService;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.HighlightRule;
 import de.kortty.model.HighlightRuleSet;
+import de.kortty.model.Snippet;
 import javafx.animation.PauseTransition;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -53,7 +55,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
@@ -68,9 +72,10 @@ import java.util.function.Consumer;
  *
  * <p>A rule can also be a trigger: <b>Action</b> makes it show a desktop notification when its pattern
  * appears in new output ({@link HighlightRule.Action#NOTIFY}), named by its <b>Rule name</b>; the
- * matched text only with <b>Include the matched text</b>. While the organization's policy forbids
- * triggers the action controls are locked; while the user's switch in Settings → Terminal is off a hint
- * says the rule only highlights.
+ * matched text only with <b>Include the matched text</b>. Or it runs the <b>Snippet</b> picked from the
+ * library in the matching pane ({@link HighlightRule.Action#RUN_SNIPPET}; {@link HighlightSnippetTrigger}).
+ * While the organization's policy forbids triggers the action controls are locked; while the user's
+ * switch in Settings → Terminal is off a hint says the rule only highlights.
  *
  * <p>All editing happens on working copies ({@link HighlightRulesEditorModel}); OK stores them in
  * {@link GlobalSettings} and is disabled, with the first problem named in the footer, while any rule or
@@ -123,9 +128,16 @@ public final class HighlightRulesDialog {
     static final String PREVIEW_INCOMPLETE_KEY = "highlight.editor.previewIncomplete";
     static final String COLUMN_ACTION_KEY = "highlight.editor.column.action";
     static final String COLUMN_ACTION_NOTIFY_KEY = "highlight.editor.column.action.notify";
+    static final String COLUMN_ACTION_RUN_SNIPPET_KEY = "highlight.editor.column.action.runSnippet";
     static final String ACTION_KEY = "highlight.editor.action";
     static final String ACTION_NONE_KEY = "highlight.editor.action.none";
     static final String ACTION_NOTIFY_KEY = "highlight.editor.action.notify";
+    static final String ACTION_RUN_SNIPPET_KEY = "highlight.editor.action.runSnippet";
+    static final String SNIPPET_KEY = "highlight.editor.snippet";
+    static final String SNIPPET_PROMPT_KEY = "highlight.editor.snippet.prompt";
+    static final String SNIPPET_TOOLTIP_KEY = "highlight.editor.snippet.tooltip";
+    /** A rule's snippet that is no longer in the library. */
+    static final String SNIPPET_MISSING_KEY = "highlight.editor.snippet.missing";
     static final String NOTIFY_WITH_TEXT_KEY = "highlight.editor.notifyWithText";
     static final String NOTIFY_WITH_TEXT_TOOLTIP_KEY = "highlight.editor.notifyWithText.tooltip";
     static final String RULE_NAME_KEY = "highlight.editor.ruleName";
@@ -143,7 +155,17 @@ public final class HighlightRulesDialog {
         SCOPE_LINE_KEY, FOREGROUND_KEY, BACKGROUND_KEY, STYLE_KEY, BOLD_KEY, ITALIC_KEY, UNDERLINE_KEY, SAMPLE_KEY,
         PREVIEW_KEY, PREVIEW_TRUNCATED_KEY, PREVIEW_INCOMPLETE_KEY, COLUMN_ACTION_KEY, COLUMN_ACTION_NOTIFY_KEY,
         ACTION_KEY, ACTION_NONE_KEY, ACTION_NOTIFY_KEY, NOTIFY_WITH_TEXT_KEY, NOTIFY_WITH_TEXT_TOOLTIP_KEY,
-        RULE_NAME_KEY, RULE_NAME_PROMPT_KEY, TRIGGERS_OFF_KEY, TRIGGERS_FORBIDDEN_KEY);
+        RULE_NAME_KEY, RULE_NAME_PROMPT_KEY, TRIGGERS_OFF_KEY, TRIGGERS_FORBIDDEN_KEY, COLUMN_ACTION_RUN_SNIPPET_KEY,
+        ACTION_RUN_SNIPPET_KEY, SNIPPET_KEY, SNIPPET_PROMPT_KEY, SNIPPET_TOOLTIP_KEY, SNIPPET_MISSING_KEY);
+
+    /**
+     * A snippet the <b>Snippet</b> dropdown offers.
+     *
+     * @param id    the snippet's id, what the rule stores
+     * @param label its name, with its folder in parentheses when it is in one
+     */
+    record SnippetChoice(String id, String label) {
+    }
 
     /** Where the dialog's size and position are remembered. */
     static final String GEOMETRY_KEY = "highlight.rules";
@@ -214,6 +236,7 @@ public final class HighlightRulesDialog {
     private final ComboBox<HighlightRule.Action> actionCombo =
         new ComboBox<>(FXCollections.observableArrayList(HighlightRule.Action.values()));
     private final CheckBox notifyWithTextCheck = new CheckBox(I18n.get(NOTIFY_WITH_TEXT_KEY));
+    private final ComboBox<SnippetChoice> snippetCombo = new ComboBox<>();
     private final TextField ruleNameField = new TextField();
     private final Label triggerHint = new Label();
     private final Label ruleMessage = new Label();
@@ -240,10 +263,53 @@ public final class HighlightRulesDialog {
     private final boolean triggersEnabled;
 
     private HighlightRulesDialog(GlobalSettings settings) {
+        this(settings, librarySnippets());
+    }
+
+    private HighlightRulesDialog(GlobalSettings settings, List<SnippetChoice> snippets) {
         this.model = new HighlightRulesEditorModel(settings.getHighlightRuleSets());
         this.terminalColors = settings.getDefaultTerminalSettings();
         this.triggersForbidden = !de.kortty.policy.PolicyManager.effective().terminalTriggersAllowed();
         this.triggersEnabled = settings.isTerminalTriggersEnabled();
+        this.snippetCombo.getItems().setAll(snippets);
+    }
+
+    /** The snippets of the application's library, for the <b>Snippet</b> dropdown; none without one. */
+    private static List<SnippetChoice> librarySnippets() {
+        KorTTYApplication app = KorTTYApplication.getInstance();
+        SnippetManager manager = app != null ? app.getSnippetManager() : null;
+        if (manager == null) {
+            return List.of();
+        }
+        try {
+            return snippetChoices(manager.getAllSnippets(), snippet -> manager.folderPath(snippet.getFolderId()));
+        } catch (RuntimeException e) {
+            logger.warn("Could not list the snippets for the highlight rule editor: {}", e.toString());
+            return List.of();
+        }
+    }
+
+    /**
+     * The dropdown's entries for {@code snippets}: each snippet's name (the unnamed ones by
+     * {@code snippets.insertTerminal.unnamed}), with its folder in parentheses, sorted by that label.
+     *
+     * @param folderPath the folder path of a snippet, blank for one at the top
+     */
+    static List<SnippetChoice> snippetChoices(List<Snippet> snippets, java.util.function.Function<Snippet, String> folderPath) {
+        List<SnippetChoice> choices = new ArrayList<>();
+        for (Snippet snippet : snippets) {
+            if (snippet == null || snippet.getId() == null || snippet.getId().isBlank()) {
+                continue;
+            }
+            String name = snippet.getName() != null && !snippet.getName().isBlank() ? snippet.getName().strip()
+                : I18n.get(HighlightSnippetTrigger.UNNAMED_SNIPPET_KEY);
+            String folder = folderPath != null ? folderPath.apply(snippet) : null;
+            String label = folder != null && !folder.isBlank() ? name + " (" + folder.strip() + ")" : name;
+            choices.add(new SnippetChoice(snippet.getId(), label));
+        }
+        choices.sort(Comparator.comparing((SnippetChoice choice) -> choice.label().toLowerCase(Locale.ROOT))
+            .thenComparing(SnippetChoice::id));
+        return List.copyOf(choices);
     }
 
     /**
@@ -319,7 +385,13 @@ public final class HighlightRulesDialog {
 
     /** The built, unshown dialog with a set and a rule selected — the manual's screenshot uses it. */
     static Dialog<ButtonType> buildForCapture(GlobalSettings settings, String setId, int ruleIndex, String sample) {
-        HighlightRulesDialog editor = new HighlightRulesDialog(settings);
+        return buildForCapture(settings, List.of(), setId, ruleIndex, sample);
+    }
+
+    /** As {@link #buildForCapture(GlobalSettings, String, int, String)}, with {@code snippets} to pick from. */
+    static Dialog<ButtonType> buildForCapture(GlobalSettings settings, List<SnippetChoice> snippets, String setId,
+                                              int ruleIndex, String sample) {
+        HighlightRulesDialog editor = new HighlightRulesDialog(settings, snippets);
         editor.sampleArea.setText(sample);
         Dialog<ButtonType> dialog = editor.buildDialog(null, setId);
         if (ruleIndex >= 0 && ruleIndex < editor.rules.size()) {
@@ -357,7 +429,7 @@ public final class HighlightRulesDialog {
         problemLabel.managedProperty().bind(problemLabel.textProperty().isNotEmpty());
         problemLabel.visibleProperty().bind(problemLabel.managedProperty());
         VBox content = new VBox(6, split, problemLabel);
-        content.setPrefSize(980, 760);
+        content.setPrefSize(980, 820);
         dialog.getDialogPane().setContent(content);
 
         if (sampleArea.getText() == null || sampleArea.getText().isEmpty()) {
@@ -518,8 +590,11 @@ public final class HighlightRulesDialog {
         hitsColumn.setSortable(false);
 
         TableColumn<HighlightRule, String> actionColumn = new TableColumn<>(I18n.get(COLUMN_ACTION_KEY));
-        actionColumn.setCellValueFactory(cell -> new SimpleObjectProperty<>(
-            cell.getValue().getAction() == HighlightRule.Action.NOTIFY ? I18n.get(COLUMN_ACTION_NOTIFY_KEY) : ""));
+        actionColumn.setCellValueFactory(cell -> new SimpleObjectProperty<>(switch (cell.getValue().getAction()) {
+            case NOTIFY -> I18n.get(COLUMN_ACTION_NOTIFY_KEY);
+            case RUN_SNIPPET -> I18n.get(COLUMN_ACTION_RUN_SNIPPET_KEY);
+            case NONE -> "";
+        }));
         actionColumn.setMinWidth(80);
         actionColumn.setSortable(false);
 
@@ -562,6 +637,13 @@ public final class HighlightRulesDialog {
         notifyWithTextCheck.setTooltip(new Tooltip(I18n.get(NOTIFY_WITH_TEXT_TOOLTIP_KEY)));
         notifyWithTextCheck.selectedProperty().addListener(
             (obs, old, value) -> editRule(rule -> rule.setNotifyWithText(value)));
+        snippetCombo.setCellFactory(view -> new SnippetCell(false));
+        snippetCombo.setButtonCell(new SnippetCell(true));
+        snippetCombo.setPromptText(I18n.get(SNIPPET_PROMPT_KEY));
+        snippetCombo.setTooltip(new Tooltip(I18n.get(SNIPPET_TOOLTIP_KEY)));
+        snippetCombo.setMaxWidth(Double.MAX_VALUE);
+        snippetCombo.valueProperty().addListener(
+            (obs, old, value) -> editRule(rule -> rule.setSnippetId(value != null ? value.id() : null)));
         ruleNameField.setPromptText(I18n.get(RULE_NAME_PROMPT_KEY));
         ruleNameField.textProperty().addListener((obs, old, text) -> editRule(rule -> rule.setName(text)));
         triggerHint.setWrapText(true);
@@ -592,6 +674,8 @@ public final class HighlightRulesDialog {
         HBox actionRow = new HBox(14, actionCombo, notifyWithTextCheck);
         actionRow.setAlignment(Pos.CENTER_LEFT);
         details.add(actionRow, 1, row++);
+        details.add(new Label(I18n.get(SNIPPET_KEY)), 0, row);
+        details.add(snippetCombo, 1, row++);
         details.add(new Label(I18n.get(RULE_NAME_KEY)), 0, row);
         details.add(ruleNameField, 1, row++);
         details.add(triggerHint, 1, row);
@@ -692,6 +776,7 @@ public final class HighlightRulesDialog {
             underlineCheck.setSelected(rule != null && rule.isUnderline());
             actionCombo.setValue(rule != null ? rule.getAction() : HighlightRule.Action.NONE);
             notifyWithTextCheck.setSelected(rule != null && rule.isNotifyWithText());
+            snippetCombo.setValue(snippetChoice(rule != null ? rule.getSnippetId() : null));
             ruleNameField.setText(rule != null && rule.getName() != null ? rule.getName() : "");
         } finally {
             loading = false;
@@ -708,16 +793,31 @@ public final class HighlightRulesDialog {
         updateButtons();
     }
 
+    /** The dropdown entry of {@code snippetId}: its library entry, else one that says it is missing. */
+    private @Nullable SnippetChoice snippetChoice(@Nullable String snippetId) {
+        if (snippetId == null) {
+            return null;
+        }
+        for (SnippetChoice choice : snippetCombo.getItems()) {
+            if (choice.id().equals(snippetId)) {
+                return choice;
+            }
+        }
+        return new SnippetChoice(snippetId, I18n.get(SNIPPET_MISSING_KEY));
+    }
+
     /**
      * The action controls: locked while the policy forbids triggers (with the organization's hint),
-     * otherwise editable for a rule of the user's; the matched-text option and the name only matter for a
-     * rule with an action.
+     * otherwise editable for a rule of the user's; the matched-text option only matters for a rule that
+     * notifies, the snippet only for one that runs a snippet, and the name for a rule with an action.
      */
     private void updateTriggerControls() {
         boolean editable = currentRule != null && !model.isReadOnly(currentSet);
         boolean acting = currentRule != null && currentRule.hasAction();
+        HighlightRule.Action action = currentRule != null ? currentRule.getAction() : HighlightRule.Action.NONE;
         actionCombo.setDisable(!editable || (triggersForbidden && !acting));
-        notifyWithTextCheck.setDisable(!editable || !acting || triggersForbidden);
+        notifyWithTextCheck.setDisable(!editable || action != HighlightRule.Action.NOTIFY || triggersForbidden);
+        snippetCombo.setDisable(!editable || action != HighlightRule.Action.RUN_SNIPPET || triggersForbidden);
         ruleNameField.setEditable(editable);
         ruleNameField.setDisable(currentRule == null);
         if (triggersForbidden) {
@@ -918,8 +1018,31 @@ public final class HighlightRulesDialog {
         @Override
         protected void updateItem(HighlightRule.Action action, boolean empty) {
             super.updateItem(action, empty);
-            setText(empty || action == null ? null
-                : I18n.get(action == HighlightRule.Action.NOTIFY ? ACTION_NOTIFY_KEY : ACTION_NONE_KEY));
+            setText(empty || action == null ? null : I18n.get(switch (action) {
+                case NOTIFY -> ACTION_NOTIFY_KEY;
+                case RUN_SNIPPET -> ACTION_RUN_SNIPPET_KEY;
+                case NONE -> ACTION_NONE_KEY;
+            }));
+        }
+    }
+
+    /** A snippet entry; the button cell shows the prompt while no snippet is picked. */
+    private final class SnippetCell extends ListCell<SnippetChoice> {
+
+        private final boolean button;
+
+        private SnippetCell(boolean button) {
+            this.button = button;
+        }
+
+        @Override
+        protected void updateItem(SnippetChoice choice, boolean empty) {
+            super.updateItem(choice, empty);
+            if (empty || choice == null) {
+                setText(button ? snippetCombo.getPromptText() : null);
+            } else {
+                setText(choice.label());
+            }
         }
     }
 

@@ -1,6 +1,7 @@
 package de.kortty.core.highlight;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.testng.Assert.expectThrows;
 
 import ch.qos.logback.classic.Level;
@@ -139,6 +140,29 @@ class CompiledHighlightSetTest {
             logger.detachAppender(appender);
             logger.setLevel(previous);
         }
+    }
+
+    @Test
+    void aRuleThatRunsASnippetCarriesItsSnippetAndOnlyThatOne() {
+        HighlightRule runs = new HighlightRule("BUILD FAILED", false);
+        runs.setAction(HighlightRule.Action.RUN_SNIPPET);
+        runs.setSnippetId(" snippet-1 ");
+        HighlightRule notifies = new HighlightRule("ERROR", false);
+        notifies.setAction(HighlightRule.Action.NOTIFY);
+        notifies.setSnippetId("left-over");
+        HighlightRule withoutSnippet = new HighlightRule("oops", false);
+        withoutSnippet.setAction(HighlightRule.Action.RUN_SNIPPET);
+
+        CompiledHighlightSet set = CompiledHighlightSet.compile(
+            new HighlightRuleSet("s", "S", List.of(runs, notifies, withoutSnippet)));
+
+        assertThat(set.size()).isEqualTo(2);
+        assertThat(set.hasTriggers()).isTrue();
+        assertThat(set.rule(0).action()).isEqualTo(HighlightRule.Action.RUN_SNIPPET);
+        assertThat(set.rule(0).snippetId()).isEqualTo("snippet-1");
+        assertThat(set.rule(0).trigger()).isTrue();
+        assertWithMessage("a snippet kept from an earlier action is not the notification's")
+            .that(set.rule(1).snippetId()).isNull();
     }
 
     @Test

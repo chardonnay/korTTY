@@ -176,8 +176,11 @@ class GlobalSettingsManagerTest {
             line.setName("Fatal <errors>");
             line.setAction(de.kortty.model.HighlightRule.Action.NOTIFY);
             line.setNotifyWithText(true);
+            de.kortty.model.HighlightRule build = new de.kortty.model.HighlightRule("BUILD FAILED", false);
+            build.setAction(de.kortty.model.HighlightRule.Action.RUN_SNIPPET);
+            build.setSnippetId("snippet-<1>");
             manager.getSettings().getHighlightRuleSets().add(
-                new de.kortty.model.HighlightRuleSet("ops", "Ops <&> \"alerts\"", List.of(match, line)));
+                new de.kortty.model.HighlightRuleSet("ops", "Ops <&> \"alerts\"", List.of(match, line, build)));
             manager.getSettings().setTerminalHighlightingEnabled(false);
             manager.getSettings().setDefaultHighlightRuleSetId("builtin.network");
             manager.getSettings().setTerminalHighlightAlternateScreen(true);
@@ -191,7 +194,7 @@ class GlobalSettingsManagerTest {
             de.kortty.model.HighlightRuleSet set = settings.getHighlightRuleSets().get(0);
             assertThat(set.getId()).isEqualTo("ops");
             assertThat(set.getName()).isEqualTo("Ops <&> \"alerts\"");
-            assertThat(set.getRules()).hasSize(2);
+            assertThat(set.getRules()).hasSize(3);
             de.kortty.model.HighlightRule first = set.getRules().get(0);
             assertThat(first.getId()).isEqualTo(match.getId());
             assertThat(first.getPattern()).isEqualTo(" disk full ");
@@ -208,6 +211,7 @@ class GlobalSettingsManagerTest {
             assertThat(first.getName()).isNull();
             assertThat(first.getAction()).isEqualTo(de.kortty.model.HighlightRule.Action.NONE);
             assertThat(first.isNotifyWithText()).isFalse();
+            assertThat(first.getSnippetId()).isNull();
             de.kortty.model.HighlightRule second = set.getRules().get(1);
             assertThat(second.getPattern()).isEqualTo("^FATAL\\b.*");
             assertThat(second.isRegex()).isTrue();
@@ -219,6 +223,10 @@ class GlobalSettingsManagerTest {
             assertThat(second.getName()).isEqualTo("Fatal <errors>");
             assertThat(second.getAction()).isEqualTo(de.kortty.model.HighlightRule.Action.NOTIFY);
             assertThat(second.isNotifyWithText()).isTrue();
+            de.kortty.model.HighlightRule third = set.getRules().get(2);
+            assertThat(third.getAction()).isEqualTo(de.kortty.model.HighlightRule.Action.RUN_SNIPPET);
+            assertThat(third.getSnippetId()).isEqualTo("snippet-<1>");
+            assertThat(new de.kortty.model.HighlightRule(third).getSnippetId()).isEqualTo("snippet-<1>");
             assertThat(settings.isTerminalTriggersEnabled()).isFalse();
             assertThat(settings.isTerminalHighlightingEnabled()).isFalse();
             assertThat(settings.getDefaultHighlightRuleSetId()).isEqualTo("builtin.network");

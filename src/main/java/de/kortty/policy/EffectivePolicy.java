@@ -338,7 +338,7 @@ public final class EffectivePolicy {
 
     /**
      * Whether highlight rules may act when their pattern appears in terminal output (a desktop
-     * notification). Only the policy leg: the user's own switch ({@code GlobalSettings.terminalTriggersEnabled},
+     * notification, running a snippet). Only the policy leg: the user's own switch ({@code GlobalSettings.terminalTriggersEnabled},
      * on by default) has to be on as well. Highlighting itself is never affected. A policy that mentions
      * the key locks the switch in the position it chose ({@link PolicyClamp}).
      */

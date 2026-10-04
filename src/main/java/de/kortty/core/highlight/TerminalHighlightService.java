@@ -484,7 +484,8 @@ public final class TerminalHighlightService implements AutoCloseable {
                 .append(rule.getBackground()).append('\u0001')
                 .append(rule.isBold()).append(rule.isItalic()).append(rule.isUnderline()).append('\u0001')
                 .append(rule.getAction()).append(rule.isNotifyWithText()).append('\u0001')
-                .append(rule.getName()).append('\u0002');
+                .append(rule.getName()).append('\u0001')
+                .append(rule.getSnippetId()).append('\u0002');
         }
         return signature.toString();
     }

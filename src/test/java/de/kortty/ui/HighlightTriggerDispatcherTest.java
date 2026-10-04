@@ -213,6 +213,18 @@ class HighlightTriggerDispatcherTest {
     }
 
     @Test
+    void aRuleThatRunsASnippetIsLeftToTheSnippetRunner() {
+        HighlightRule runs = new HighlightRule("BUILD FAILED", false);
+        runs.setAction(HighlightRule.Action.RUN_SNIPPET);
+        runs.setSnippetId("snippet-1");
+        CompiledHighlightSet.Rule snippetRule =
+            CompiledHighlightSet.compile(new HighlightRuleSet("s", "S", List.of(runs))).rule(0);
+
+        assertWithMessage("no notification and no mark: HighlightSnippetTrigger handles it")
+            .that(dispatch(UNSEEN, new LineMatch(snippetRule, null))).isEmpty();
+    }
+
+    @Test
     void triggersNeedTheUsersSwitchAndThePolicy() {
         GlobalSettings settings = new GlobalSettings();
         assertWithMessage("on for a fresh installation").that(settings.isTerminalTriggersEnabled()).isTrue();

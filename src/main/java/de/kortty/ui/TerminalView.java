@@ -4495,7 +4495,9 @@ public class TerminalView extends BorderPane {
                     panel != null ? panel::repaint : () -> { },
                     () -> recordRestyledTerminalRecordingSnapshot(pane),
                     () -> panel != null && panel.getFindResult() != null,
-                    matches -> Platform.runLater(() -> onPaneHighlightTrigger(pane, matches)));
+                    TerminalOutputHighlighter.TriggerSink.of(
+                        matches -> Platform.runLater(() -> onPaneHighlightTrigger(pane, matches)),
+                        () -> cursorRowOf(pane)));
                 attached[0] = highlighter != null;
                 return highlighter;
             });
@@ -4654,9 +4656,22 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * Sets who is told, on the FX thread, that highlight rules with an action (a desktop notification)
-     * matched output that arrived in one of this tab's panes — never output written locally, such as a
-     * project's restored screen.
+     * The screen row of {@code pane}'s cursor, 0 for the top row, or -1 when it is not known. The pane's
+     * highlighter calls it while it holds the buffer lock, which is where the cursor may be read.
+     */
+    private static int cursorRowOf(SithTermFxWidget pane) {
+        try {
+            Terminal terminal = pane.getTerminal();
+            return terminal != null ? terminal.getCursorY() - 1 : -1; // the cursor is 1-based
+        } catch (RuntimeException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that highlight rules with an action (a desktop notification or a
+     * snippet to run) matched output that arrived in one of this tab's panes — never output written
+     * locally, such as a project's restored screen or korTTY's own messages.
      */
     public void setHighlightTriggerListener(
             BiConsumer<SithTermFxWidget, List<TerminalOutputHighlighter.LineMatch>> listener) {
@@ -7641,6 +7656,8 @@ public class TerminalView extends BorderPane {
             if (targetWidget != null && targetWidget.getTerminal() != null) {
                 targetWidget.getTerminal().writeCharacters("\r\n*** " + message + " ***\r\n");
                 forwardLocalOutputToJournal("\r\n*** " + message + " ***\r\n");
+                // korTTY's own text, not the session's: a highlight trigger must not fire on it.
+                markHighlightBaseline(targetWidget);
             }
         });
     }
@@ -7653,6 +7670,7 @@ public class TerminalView extends BorderPane {
             SithTermFxWidget targetWidget = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
             if (targetWidget != null && targetWidget.getTerminal() != null) {
                 writeLocalMessageToTerminal(targetWidget.getTerminal(), message);
+                markHighlightBaseline(targetWidget);
             }
         });
     }
@@ -7670,8 +7688,21 @@ public class TerminalView extends BorderPane {
                 String prompt = resolvePromptForLocalRedisplay(targetWidget);
                 writeLocalMessageToTerminal(targetWidget.getTerminal(), message);
                 writePromptForLocalRedisplay(targetWidget.getTerminal(), prompt);
+                markHighlightBaseline(targetWidget);
             }
         });
+    }
+
+    /**
+     * Writes korTTY's own {@code message} on a new line of {@code widget}, a pane of this tab, as
+     * {@link #showMessage} does for the focused pane; a highlight trigger does not fire on it. FX thread.
+     */
+    public void showMessageInPane(SithTermFxWidget widget, String message) {
+        if (widget == null || widget.getTerminal() == null || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        writeLocalMessageToTerminal(widget.getTerminal(), message);
+        markHighlightBaseline(widget);
     }
 
     private void writeLocalMessageToTerminal(Terminal terminal, String message) {
@@ -8211,6 +8242,47 @@ public class TerminalView extends BorderPane {
         Thread sender = new Thread(() -> sendGeneratedInputLineHidden(connector, text), "terminal-hidden-input-sender");
         sender.setDaemon(true);
         sender.start();
+    }
+
+    /**
+     * Runs {@code line} in {@code widget}, a pane of this tab, as Send to Terminal does for the tab: the
+     * text plus a newline, written to that pane's session only (broadcast and multi-exec never mirror
+     * it). A generated one-liner ({@code generatedOneLiner}) goes to an SSH session without the remote
+     * echo of its base64 text. FX thread.
+     *
+     * @return whether the line was handed to a connected session; false for a pane that is gone or not
+     *         connected
+     */
+    public boolean sendInputLineToPane(SithTermFxWidget widget, String line, boolean generatedOneLiner) {
+        if (widget == null || line == null || !getOrderedWidgets().contains(widget)) {
+            return false;
+        }
+        TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        if (connector == null || !connector.isConnected()) {
+            return false;
+        }
+        if (generatedOneLiner && connector instanceof SshTtyConnector) {
+            Thread sender = new Thread(() -> sendGeneratedInputLineHidden(connector, line),
+                "terminal-hidden-input-sender");
+            sender.setDaemon(true);
+            sender.start();
+            return true;
+        }
+        try {
+            connector.write(line + "\n");
+            return true;
+        } catch (IOException | RuntimeException e) {
+            logger.warn("Failed to send a line to a terminal pane: {}", e.toString());
+            return false;
+        }
+    }
+
+    /**
+     * The connection {@code widget}'s session was opened for: a split to another server has its own,
+     * every other pane belongs to the tab's connection. {@code null} only for a tab without one.
+     */
+    public @Nullable ServerConnection connectionOfPane(@Nullable SithTermFxWidget widget) {
+        return highlightConnectionOf(widget);
     }
 
     private void sendGeneratedInputLineHidden(TtyConnector connector, String text) {

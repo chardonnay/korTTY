@@ -100,6 +100,24 @@ class TerminalHighlightServiceTest {
     }
 
     @Test
+    void anotherSnippetRecompilesTheSet() {
+        HighlightRuleSet base = userSet("user-1", "BUILD FAILED");
+        base.getRules().getFirst().setAction(HighlightRule.Action.RUN_SNIPPET);
+        base.getRules().getFirst().setSnippetId("snippet-1");
+        HighlightRuleSet other = new HighlightRuleSet(base);
+        other.getRules().getFirst().setSnippetId("snippet-2");
+
+        assertThat(TerminalHighlightService.signature(other)).isNotEqualTo(TerminalHighlightService.signature(base));
+
+        service.reload(settingsWith(base));
+        CompiledHighlightSet first = service.resolve(() -> "user-1");
+        service.reload(settingsWith(other));
+        CompiledHighlightSet second = service.resolve(() -> "user-1");
+        assertThat(second).isNotSameInstanceAs(first);
+        assertThat(second.rule(0).snippetId()).isEqualTo("snippet-2");
+    }
+
+    @Test
     void attachHandsTheTriggerSinkToTheHighlighter() throws Exception {
         HighlightRuleSet set = userSet("user-1", "ERROR");
         set.getRules().getFirst().setAction(HighlightRule.Action.NOTIFY);

@@ -349,6 +349,14 @@ public final class TerminalAttentionNotifier {
         }
     }
 
+    /**
+     * Whether a coding agent was detected in {@code widget}, a pane of {@code tab}: what is typed there goes
+     * to the agent, so a highlight rule's snippet does not run there ({@link HighlightSnippetTrigger}).
+     */
+    boolean codingAgentIn(TerminalTab tab, SithTermFxWidget widget) {
+        return tab != null && widget != null && hasCodingAgent(tab, widget);
+    }
+
     /** Whether a coding agent was detected in the pane, so its own notifications speak for it. */
     private boolean hasCodingAgent(TerminalTab tab, SithTermFxWidget widget) {
         CodingAgentRegistry registry = codingAgents.get();

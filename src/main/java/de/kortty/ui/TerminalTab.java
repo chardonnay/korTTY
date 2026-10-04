@@ -193,9 +193,12 @@ public class TerminalTab extends Tab {
         // And so does a program that asks for a desktop notification (OSC 9, OSC 777).
         this.terminalView.setRemoteNotificationListener(
             (widget, notification) -> TerminalAttentionNotifier.shared().onRemoteNotification(this, widget, notification));
-        // And so does a highlight rule with the notification action that matches new output.
-        this.terminalView.setHighlightTriggerListener(
-            (widget, matches) -> TerminalAttentionNotifier.shared().onHighlightTrigger(this, widget, matches));
+        // And so does a highlight rule with the notification action that matches new output; a rule that
+        // runs a snippet runs it in the matching pane.
+        this.terminalView.setHighlightTriggerListener((widget, matches) -> {
+            TerminalAttentionNotifier.shared().onHighlightTrigger(this, widget, matches);
+            HighlightSnippetTrigger.shared().onHighlightTrigger(this, widget, matches);
+        });
         // A program that asks to put text on the clipboard (OSC 52) needs the setting to do so.
         this.terminalView.setClipboardWriteListener(
             (widget, write) -> TerminalClipboardWriter.shared().onClipboardWrite(this, write));

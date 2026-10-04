@@ -45,7 +45,7 @@ final class HighlightSettingsSupport {
     /** The button next to the default-set dropdown that opens the rule-set editor. */
     static final String EDIT_RULES_KEY = "settings.terminal.highlighting.editRules";
     static final String EDIT_RULES_TOOLTIP_KEY = "settings.terminal.highlighting.editRules.tooltip";
-    /** The switch for what rules with an action do (a desktop notification); the policy can lock it. */
+    /** The switch for what rules with an action do (a desktop notification, a snippet); the policy can lock it. */
     static final String TRIGGERS_KEY = "settings.terminal.highlighting.triggers";
     static final String TRIGGERS_TOOLTIP_KEY = "settings.terminal.highlighting.triggers.tooltip";
 

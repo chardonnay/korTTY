@@ -12,10 +12,13 @@ import org.testng.annotations.Test;
 /**
  * A highlight trigger's way from the pane to the desktop: the pane's highlighter reports it on its own
  * thread, {@link TerminalView} hands it to the FX thread and on to the tab, the tab asks
- * {@link TerminalAttentionNotifier}, which lets {@link HighlightTriggerDispatcher} decide. A project's
- * restored screen is made old output right after it is written. The view, the tab and the dialogs need a
- * JavaFX stage, so their wiring is pinned against the source; the decisions are tested in
- * {@code HighlightTriggerDispatcherTest} and {@code TerminalOutputHighlighterTriggerTest}.
+ * {@link TerminalAttentionNotifier}, which lets {@link HighlightTriggerDispatcher} decide, and
+ * {@link HighlightSnippetTrigger}, which runs a rule's snippet in the matching pane once
+ * {@link HighlightSnippetTriggerGuard} agrees. A project's restored screen and korTTY's own messages are
+ * made old output right after they are written. The view, the tab and the dialogs need a JavaFX stage, so
+ * their wiring is pinned against the source; the decisions are tested in
+ * {@code HighlightTriggerDispatcherTest}, {@code HighlightSnippetTriggerGuardTest},
+ * {@code HighlightSnippetTriggerTest} and {@code TerminalOutputHighlighterTriggerTest}.
  */
 class HighlightTriggerWiringTest {
 
@@ -23,7 +26,12 @@ class HighlightTriggerWiringTest {
     void everyPaneReportsItsTriggersOnTheFxThread() throws IOException {
         String view = source("TerminalView.java");
         String attach = body(view, "private void attachTerminalHighlighter(SithTermFxWidget widget) {");
-        assertThat(attach).contains("matches -> Platform.runLater(() -> onPaneHighlightTrigger(pane, matches)));");
+        assertThat(attach).contains("TerminalOutputHighlighter.TriggerSink.of(\n"
+            + "                        matches -> Platform.runLater(() -> onPaneHighlightTrigger(pane, matches)),\n"
+            + "                        () -> cursorRowOf(pane)));");
+        assertWithMessage("the cursor is read where the highlighter holds the buffer lock, 1-based in the emulator")
+            .that(body(view, "private static int cursorRowOf(SithTermFxWidget pane) {"))
+            .contains("return terminal != null ? terminal.getCursorY() - 1 : -1;");
         String onTrigger = body(view,
             "private void onPaneHighlightTrigger(SithTermFxWidget widget, List<TerminalOutputHighlighter.LineMatch> matches) {");
         assertWithMessage("a pane that closed while its trigger was on the way is ignored")
@@ -46,9 +54,69 @@ class HighlightTriggerWiringTest {
     }
 
     @Test
-    void theTabAsksTheNotifier() throws IOException {
-        assertThat(source("TerminalTab.java")).contains("this.terminalView.setHighlightTriggerListener(\n"
-            + "            (widget, matches) -> TerminalAttentionNotifier.shared().onHighlightTrigger(this, widget, matches));");
+    void theTabAsksTheNotifierAndTheSnippetRunner() throws IOException {
+        assertThat(source("TerminalTab.java")).contains("this.terminalView.setHighlightTriggerListener((widget, matches) -> {\n"
+            + "            TerminalAttentionNotifier.shared().onHighlightTrigger(this, widget, matches);\n"
+            + "            HighlightSnippetTrigger.shared().onHighlightTrigger(this, widget, matches);\n"
+            + "        });");
+    }
+
+    @Test
+    void korttysOwnMessagesInAPaneAreMadeOldOutput() throws IOException {
+        String view = source("TerminalView.java");
+        for (String signature : java.util.List.of("public void showError(String message) {",
+                "public void showMessage(String message) {",
+                "public void showAgentMessage(@Nullable TerminalAgentRunContext runContext, String message) {",
+                "public void showMessageInPane(SithTermFxWidget widget, String message) {")) {
+            String method = body(view, signature);
+            int baseline = method.indexOf("markHighlightBaseline(");
+            assertWithMessage(signature + " makes what it wrote old output").that(baseline).isAtLeast(0);
+            assertWithMessage(signature + " takes the baseline after writing")
+                .that(baseline).isGreaterThan(Math.max(method.indexOf("writeCharacters("), method.indexOf("writeLocalMessageToTerminal(")));
+        }
+    }
+
+    @Test
+    void theSnippetRunnerAsksTheGuardAndTypesIntoTheMatchingPaneOnly() throws IOException {
+        String runner = source("HighlightSnippetTrigger.java");
+        String onTrigger = body(runner, "void onHighlightTrigger(TerminalTab tab, SithTermFxWidget widget, List<LineMatch> matches) {");
+        assertThat(onTrigger).contains("rule.action() != HighlightRule.Action.RUN_SNIPPET");
+        assertWithMessage("the cursor line, mirrored keys and agents reach the guard")
+            .that(onTrigger).contains("match.cursorLine(),\n                mirroredInput(widget), agentBusy(tab, widget));");
+        assertThat(onTrigger).contains("handle(tab, widget, rule, request, guard.decide(request));");
+        String run = body(runner, "private void run(TerminalTab tab, SithTermFxWidget widget, CompiledHighlightSet.Rule rule) {");
+        assertThat(run).contains("view.sendInputLineToPane(widget, preparation.line(), preparation.generatedOneLiner())");
+        assertWithMessage("the cooldown and the loop guard count only a run that reached the pane")
+            .that(run.indexOf("guard.ran(widget, rule.ruleId());"))
+            .isGreaterThan(run.indexOf("sendInputLineToPane("));
+        assertThat(run).contains("guard.tellOnce(widget, rule.ruleId() + '\\u0000' + preparation.problemKey())");
+        String confirm = body(runner, "private void confirm(TerminalTab tab, SithTermFxWidget widget, CompiledHighlightSet.Rule rule,");
+        assertWithMessage("the answer is recorded before anything runs, and a failed dialog asks again later")
+            .that(confirm).contains("guard.answer(request, allowed);");
+        assertThat(confirm).contains("guard.withdraw(request);");
+        assertWithMessage("the toolkit's event loop is not nested: the answer arrives when the dialog closes")
+            .that(confirm).contains("alert.show();");
+        assertThat(confirm).doesNotContain("showAndWait");
+        assertThat(runner).contains("() -> HighlightTriggerDispatcher.triggersAllowed(\n"
+            + "                        TerminalAttentionNotifier.currentSettings(), PolicyManager.effective())),");
+
+        String send = body(source("TerminalView.java"),
+            "public boolean sendInputLineToPane(SithTermFxWidget widget, String line, boolean generatedOneLiner) {");
+        assertWithMessage("a pane that closed meanwhile gets nothing").that(send).contains("!getOrderedWidgets().contains(widget)");
+        assertWithMessage("straight to the pane's own session, so broadcast and multi-exec never mirror it")
+            .that(send).contains("unwrapTerminalEffectConnector(widget.getTtyConnector())");
+        assertThat(send).doesNotContain("MirroredInputWriter");
+    }
+
+    @Test
+    void theRuleEditorOffersTheSnippetOnlyForARuleThatRunsOne() throws IOException {
+        String editor = source("HighlightRulesDialog.java");
+        String controls = body(editor, "private void updateTriggerControls() {");
+        assertThat(controls).contains(
+            "snippetCombo.setDisable(!editable || action != HighlightRule.Action.RUN_SNIPPET || triggersForbidden);");
+        assertThat(controls).contains(
+            "notifyWithTextCheck.setDisable(!editable || action != HighlightRule.Action.NOTIFY || triggersForbidden);");
+        assertThat(editor).contains("editRule(rule -> rule.setSnippetId(value != null ? value.id() : null)));");
     }
 
     @Test

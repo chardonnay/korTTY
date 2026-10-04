@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.IntSupplier;
 
 /**
  * Restyles one terminal pane's output with a {@link CompiledHighlightSet}: every character a rule
@@ -96,6 +98,12 @@ import java.util.function.BooleanSupplier;
  *       written again fires again.</li>
  *   <li>Never on a history sweep, never in the alternate screen (full-screen programs redraw constantly),
  *       and never for a pass that started before the latest baseline.</li>
+ *   <li>A hit on the line the cursor is on ({@link TriggerSink#cursorRow()}) is reported as such
+ *       ({@link LineMatch#cursorLine()}): that line is still being written — the command the user types at
+ *       the prompt, or a program's question waiting for an answer — so an action that types into the pane
+ *       must not take it as output. It counts as seen all the same, so it does not fire again once the
+ *       user presses Enter. When a rule hits the cursor line and another line in the same pass, the other
+ *       line is the one reported.</li>
  * </ul>
  *
  * <p>Thread-safety: {@link #markDirty()}, {@link #setRuleSet}, {@link #markBaseline()} and
@@ -139,11 +147,19 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
      * @param matchedText the text of its first hit on the line, at most {@link #MAX_MATCHED_TEXT_CHARS}
      *                    characters and not yet cleaned, or {@code null} unless the rule asks for it
      *                    ({@link CompiledHighlightSet.Rule#notifyWithText()})
+     * @param cursorLine whether the hit is on the logical line the terminal's cursor was on when the pass
+     *                   read the pane: a line still being written, such as the command the user types at
+     *                   the prompt or a program's question waiting for an answer
      */
-    public record LineMatch(CompiledHighlightSet.Rule rule, String matchedText) {
+    public record LineMatch(CompiledHighlightSet.Rule rule, String matchedText, boolean cursorLine) {
 
         public LineMatch {
             Objects.requireNonNull(rule, "rule");
+        }
+
+        /** A hit on a line the cursor has left (or in a pane whose cursor is not known). */
+        public LineMatch(CompiledHighlightSet.Rule rule, String matchedText) {
+            this(rule, matchedText, false);
         }
     }
 
@@ -155,6 +171,35 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
     public interface TriggerSink {
 
         void linesMatched(List<LineMatch> matches);
+
+        /**
+         * The screen row the terminal's cursor is on, 0 for the top row, or {@code -1} when it is not
+         * known (then no hit counts as {@link LineMatch#cursorLine()}). Called on the highlighter thread
+         * while it holds the buffer lock, so it must only read the cursor.
+         */
+        default int cursorRow() {
+            return -1;
+        }
+
+        /**
+         * A sink that hands the triggers to {@code receiver} and reads the cursor with {@code cursorRow}
+         * (see {@link #cursorRow()}).
+         */
+        static TriggerSink of(Consumer<List<LineMatch>> receiver, IntSupplier cursorRow) {
+            Objects.requireNonNull(receiver, "receiver");
+            Objects.requireNonNull(cursorRow, "cursorRow");
+            return new TriggerSink() {
+                @Override
+                public void linesMatched(List<LineMatch> matches) {
+                    receiver.accept(matches);
+                }
+
+                @Override
+                public int cursorRow() {
+                    return cursorRow.getAsInt();
+                }
+            };
+        }
     }
 
     /**
@@ -259,6 +304,9 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
 
         /** Whether a trigger may fire for this line: new output, neither a sweep nor a baseline history line. */
         private boolean triggerEligible;
+
+        /** Whether the terminal's cursor was on this line when the pass read the pane. */
+        private boolean cursorLine;
 
         private HighlightMatcher.Result result;
 
@@ -1061,13 +1109,26 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
                 }
                 baselineHistoryIndex = index;
             }
+            int cursor = cursorIndex(view);
             for (Work item : work) {
                 boolean sweep = item.range != null && item.range.sweep;
                 boolean oldHistory = item.start < view.historyRows() && item.start <= baselineHistoryIndex;
                 item.triggerEligible = !sweep && !oldHistory;
+                item.cursorLine = cursor >= item.start && cursor < item.start + item.lines.length;
             }
             return triggerEpoch;
         }
+    }
+
+    /** Under the buffer lock: the cursor's row in the pass's {@link View}, or -1 when it is not known. */
+    private int cursorIndex(View view) {
+        int row;
+        try {
+            row = triggerSink.cursorRow();
+        } catch (RuntimeException e) {
+            return -1;
+        }
+        return row >= 0 && row < view.screenRows() ? view.historyRows() + row : -1;
     }
 
     /** Under the buffer lock and {@link #triggerLock}: everything the pane holds now is old output. */
@@ -1093,12 +1154,12 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
 
     /**
      * Decides which trigger rules fire on the matched lines of this pass: a rule whose first hit on a new
-     * line is new (see the class comment), at most once per rule. A baseline screen row whose text is
-     * unchanged only records its hits.
+     * line is new (see the class comment), at most once per rule, preferring a line the cursor is not on.
+     * A baseline screen row whose text is unchanged only records its hits.
      */
     private List<LineMatch> evaluateTriggers(CompiledHighlightSet set, List<Work> work, int completed, int epoch) {
         List<LineMatch> matches = new ArrayList<>();
-        BitSet fired = new BitSet(set.size());
+        LineMatch[] fired = new LineMatch[set.size()];
         synchronized (triggerLock) {
             if (epoch != triggerEpoch) {
                 return matches; // a baseline was taken while this pass ran: its lines are old output now
@@ -1128,11 +1189,11 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
                     }
                     current[index] = hitKey;
                     boolean repeated = previous != null && index < previous.length && previous[index] == hitKey;
-                    if (!seedOnly && !repeated && !fired.get(index)) {
-                        fired.set(index);
+                    boolean unclaimed = fired[index] == null || (fired[index].cursorLine() && !item.cursorLine);
+                    if (!seedOnly && !repeated && unclaimed) {
                         String matched = rule.notifyWithText()
                             ? hit.substring(0, Math.min(hit.length(), MAX_MATCHED_TEXT_CHARS)) : null;
-                        matches.add(new LineMatch(rule, matched));
+                        fired[index] = new LineMatch(rule, matched, item.cursorLine);
                     }
                 }
                 if (current == null) {
@@ -1142,7 +1203,11 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
                 }
             }
         }
-        matches.sort((a, b) -> Integer.compare(a.rule().index(), b.rule().index()));
+        for (LineMatch match : fired) {
+            if (match != null) {
+                matches.add(match); // in rule order
+            }
+        }
         return matches;
     }
 

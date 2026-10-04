@@ -15,8 +15,8 @@ import org.testng.annotations.Test;
 /**
  * Every keyword-highlighting string exists, translated, in all eight bundles: the built-in set names,
  * the validator's messages, the menu and status texts, the Settings → Terminal section, the rule-set
- * editor with its color names, the connection editor's rule-set dropdown and the texts of a trigger's
- * notification. Placeholders must survive translation, and
+ * editor with its color names, the connection editor's rule-set dropdown, the texts of a trigger's
+ * notification and those of a rule that runs a snippet. Placeholders must survive translation, and
  * an apostrophe is written once, because LanguageManager fills {0} with String.replace rather than
  * MessageFormat (a doubled apostrophe would show up doubled).
  */
@@ -42,14 +42,15 @@ class TerminalHighlightingI18nCoverageTest {
         HighlightMenuSupport.MANAGE_KEY);
 
     /**
-     * Keys whose text may legitimately read the same as in English: "{0}: {1}", and color names such as
-     * Magenta and Cyan that several languages borrow unchanged.
+     * Keys whose text may legitimately read the same as in English: "{0}: {1}", "Snippet:", which several
+     * languages borrow unchanged, and color names such as Magenta and Cyan, for the same reason.
      */
     private static final List<String> MAY_EQUAL_ENGLISH;
 
     static {
         List<String> keys = new ArrayList<>(List.of(HighlightRulesEditorModel.PROBLEM_SET_KEY,
-            HighlightTriggerDispatcher.BODY_WITH_TEXT_KEY));
+            HighlightTriggerDispatcher.BODY_WITH_TEXT_KEY, HighlightRulesDialog.SNIPPET_KEY,
+            HighlightSnippetTrigger.CONFIRM_PREVIEW_KEY));
         keys.addAll(HighlightColorChoices.NAME_KEYS);
         MAY_EQUAL_ENGLISH = List.copyOf(keys);
     }
@@ -68,6 +69,7 @@ class TerminalHighlightingI18nCoverageTest {
         keys.addAll(HighlightSettingsSupport.KEYS);
         keys.addAll(HighlightConnectionSupport.KEYS);
         keys.addAll(HighlightTriggerDispatcher.KEYS);
+        keys.addAll(HighlightSnippetTrigger.KEYS);
         keys.addAll(editorKeys());
         keys.removeAll(MAY_EQUAL_ENGLISH);
         return keys;
@@ -78,6 +80,7 @@ class TerminalHighlightingI18nCoverageTest {
         keys.addAll(HighlightSettingsSupport.KEYS);
         keys.addAll(HighlightConnectionSupport.KEYS);
         keys.addAll(HighlightTriggerDispatcher.KEYS);
+        keys.addAll(HighlightSnippetTrigger.KEYS);
         keys.addAll(editorKeys());
         for (String id : HighlightBuiltinSets.IDS) {
             keys.add(HighlightBuiltinSets.nameKey(id));
@@ -136,6 +139,27 @@ class TerminalHighlightingI18nCoverageTest {
             Properties localized = loadBundle(bundle);
             assertWithMessage(bundle).that(localized.getProperty(HighlightTriggerDispatcher.BODY_WITH_TEXT_KEY))
                 .containsMatch("\\{0\\}.*\\{1\\}");
+        }
+    }
+
+    @Test
+    void theSnippetTriggerTextsKeepEveryPlaceholder() throws Exception {
+        java.util.Map<String, Integer> placeholders = java.util.Map.of(
+            HighlightSnippetTrigger.CONFIRM_TEXT_KEY, 3,
+            HighlightSnippetTrigger.CONFIRM_DETAILS_KEY, 2,
+            HighlightSnippetTrigger.RAN_KEY, 1,
+            HighlightSnippetTrigger.LOOP_STOPPED_KEY, 2,
+            HighlightSnippetTrigger.MISSING_KEY, 1,
+            HighlightSnippetTrigger.NEEDS_VALUE_KEY, 2,
+            HighlightSnippetTrigger.UNSUPPORTED_KEY, 1);
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            placeholders.forEach((key, count) -> {
+                for (int i = 0; i < count; i++) {
+                    assertWithMessage(bundle + " lost the {" + i + "} of " + key)
+                        .that(localized.getProperty(key)).contains("{" + i + "}");
+                }
+            });
         }
     }
 

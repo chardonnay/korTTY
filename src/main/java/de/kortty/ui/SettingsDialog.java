@@ -975,7 +975,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // With the master switch off, neither of the other two has any effect.
         terminalHighlightAlternateScreenCheck.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
         defaultHighlightSetCombo.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
-        // Triggers: what a highlight rule may do besides coloring (a desktop notification). The policy
+        // Triggers: what a highlight rule may do besides coloring (a desktop notification, a snippet). The policy
         // key terminal-triggers locks the box; otherwise it follows the master switch, as rules only run
         // while highlighting is on.
         terminalTriggersEnabledCheck = new CheckBox(I18n.get(HighlightSettingsSupport.TRIGGERS_KEY));
