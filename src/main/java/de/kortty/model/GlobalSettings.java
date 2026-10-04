@@ -1056,6 +1056,14 @@ public class GlobalSettings {
      */
     @XmlElement(name = "sftpSudoEditStoredPasswordConnection")
     private java.util.List<String> sftpSudoEditStoredPasswordConnections;
+
+    /** {@link TerminalRemoteSidebarPosition#name()} of the terminal's remote files sidebar; null = hidden. */
+    @XmlElement
+    private String terminalRemoteSidebarPosition;
+
+    /** Width of the terminal's remote files sidebar; null = default. */
+    @XmlElement
+    private Double terminalRemoteSidebarWidth;
     
     // Editor defaults (FileEditor)
     @XmlElement
@@ -4122,6 +4130,37 @@ public class GlobalSettings {
                 sftpSudoEditStoredPasswordConnections = null;
             }
         }
+    }
+
+    /** Allowed range and default of the terminal's remote files sidebar width. */
+    public static final double TERMINAL_REMOTE_SIDEBAR_MIN_WIDTH = 200.0;
+    public static final double TERMINAL_REMOTE_SIDEBAR_MAX_WIDTH = 1200.0;
+    public static final double TERMINAL_REMOTE_SIDEBAR_DEFAULT_WIDTH = 300.0;
+
+    /** Where terminal tabs show the remote files sidebar; hidden by default (D10). */
+    public TerminalRemoteSidebarPosition getTerminalRemoteSidebarPosition() {
+        return TerminalRemoteSidebarPosition.parse(terminalRemoteSidebarPosition);
+    }
+
+    public void setTerminalRemoteSidebarPosition(TerminalRemoteSidebarPosition position) {
+        this.terminalRemoteSidebarPosition = position == null || position == TerminalRemoteSidebarPosition.HIDDEN
+            ? null : position.name();
+    }
+
+    /** The remote files sidebar width, clamped to the allowed range (default 300). */
+    public double getTerminalRemoteSidebarWidth() {
+        double value = terminalRemoteSidebarWidth != null && !terminalRemoteSidebarWidth.isNaN()
+            ? terminalRemoteSidebarWidth : TERMINAL_REMOTE_SIDEBAR_DEFAULT_WIDTH;
+        return clampTerminalRemoteSidebarWidth(value);
+    }
+
+    public void setTerminalRemoteSidebarWidth(double width) {
+        this.terminalRemoteSidebarWidth = Double.isNaN(width) ? null : clampTerminalRemoteSidebarWidth(width);
+    }
+
+    /** {@code width} within the allowed range of the remote files sidebar. */
+    public static double clampTerminalRemoteSidebarWidth(double width) {
+        return Math.max(TERMINAL_REMOTE_SIDEBAR_MIN_WIDTH, Math.min(width, TERMINAL_REMOTE_SIDEBAR_MAX_WIDTH));
     }
     
     /**

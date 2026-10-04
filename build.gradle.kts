@@ -4149,6 +4149,15 @@ tasks.register<JavaExec>("generateSftpTransferScreenshots") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateRemoteSidebarScreenshot") {
+    group = "build"
+    description = "Renders the remote files sidebar beside a terminal pane with demo data for the manual " +
+        "(app-docs/screenshots/terminal/remote-sidebar.png) via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.RemoteSidebarScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateShellIntegrationSetupScreenshot") {
     group = "build"
     description = "Renders the Set Up Shell Integration window screenshot for the manual " +

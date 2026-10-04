@@ -35,6 +35,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 /**
@@ -84,12 +85,16 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private DisconnectListener disconnectListener;
     private Thread connectionMonitorThread;
     private Thread livenessProbeThread;
+    /** Raw inbound bytes of this connector's SSH sessions; the liveness probe compares differences. */
+    private final AtomicLong inboundBytes = new AtomicLong();
     private final CopyOnWriteArrayList<DataListener> dataListeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<InputActivityListener> inputActivityListeners = new CopyOnWriteArrayList<>();
     private volatile InputInterceptor inputInterceptor;
     private volatile String shellStartupCommand;
     private volatile boolean shellStartupCleanupPending;
     private volatile String currentRemoteDirectory = "~";
+    /** Where {@link #currentRemoteDirectory} came from; null until the first tracked change. */
+    private volatile RemoteDirectoryChange.Source currentRemoteDirectorySource;
     private volatile String homeRemoteDirectory = "~";
     private volatile String previousRemoteDirectory = "~";
     private final Deque<String> directoryStack = new ArrayDeque<>();
@@ -98,6 +103,19 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private final StringBuilder osc7Buffer = new StringBuilder();
     private final StringBuilder agentOscBuffer = new StringBuilder();
     private final Object directoryLock = new Object();
+    /**
+     * The OSC 7 host learned while the session was native, compared on its short name; {@code null}
+     * until the first such report. Guarded by {@link #directoryLock}.
+     */
+    private String osc7BaselineHost;
+    /**
+     * Sticky: an OSC 7 named a host other than the baseline. Cleared only by an OSC 7 with the
+     * baseline host or by a reconnect, never by the prompt heuristic, so the verdict cannot flip
+     * back and forth with every prompt. Guarded by {@link #directoryLock}.
+     */
+    private boolean osc7Foreign;
+    private final CopyOnWriteArrayList<RemoteDirectoryChange.Listener> remoteDirectoryListeners =
+        new CopyOnWriteArrayList<>();
     private boolean tabCompletionPending;
     
     public SshTtyConnector(ServerConnection connection, String password) {
@@ -211,6 +229,10 @@ public class SshTtyConnector implements ObservableTtyConnector {
         lastFailureMessage = null;
         replayedAccessReasonPrompts.clear();
         sessionChangeTracker.reset();
+        synchronized (directoryLock) {
+            osc7BaselineHost = null;
+            osc7Foreign = false;
+        }
         try {
             logger.info("Connecting to {}@{}:{}", connection.getUsername(), connection.getHost(), connection.getPort());
             
@@ -220,6 +242,9 @@ public class SshTtyConnector implements ObservableTtyConnector {
             // connection a remote tunnel delivers. Splits register no remote forwards, so for them
             // the filter admits nothing either.
             client.setForwardingFilter(SshTunnelManager.clientForwardingFilter());
+            // Counts inbound bytes so the liveness probe can tell a reply queued behind bulk data
+            // (an SFTP transfer sharing this session) from a dead link.
+            client.setSessionFactory(SshLivenessProbe.inboundCountingSessionFactory(client, inboundBytes));
             configureKeepAlive(client, connection.getSettings());
             
             // Configure supported auth methods explicitly.
@@ -612,8 +637,9 @@ public class SshTtyConnector implements ObservableTtyConnector {
 
     /**
      * How quickly a dead transport is noticed: a probe runs every {@link #LIVENESS_PROBE_INTERVAL_MS}
-     * and a missing reply is confirmed by a second probe, so the worst case is
-     * interval + 2 * timeout. Both values are chosen so that stays within 10 seconds.
+     * and a missing reply is confirmed by a second probe right away, so the worst case is
+     * interval + 2 * timeout (or 3 * timeout when the link dies while a probe waits). Both values
+     * are chosen so that stays within 10 seconds; see {@link SshLivenessProbe}.
      */
     static final long LIVENESS_PROBE_INTERVAL_MS = 3_000;
     static final long LIVENESS_PROBE_TIMEOUT_MS = 3_000;
@@ -626,44 +652,53 @@ public class SshTtyConnector implements ObservableTtyConnector {
      * which is detected within seconds; TCP alone would take minutes to notice. On a confirmed
      * death the transport is closed, which wakes the connection monitor and reports the loss.
      *
+     * <p>The session may be shared with bulk traffic (an SFTP transfer borrowing the terminal's
+     * session, a large paste). A missed reply only counts while the session received no inbound
+     * byte during that probe, counted by {@link #inboundBytes} through the
+     * {@linkplain SshLivenessProbe#inboundCountingSessionFactory counting session factory}; queued
+     * transfer data on a slow link therefore never kills a live terminal, while a dead link (which
+     * delivers no inbound bytes) is still detected within 10 seconds. The decision rules live in
+     * {@link SshLivenessProbe}.</p>
+     *
      * <p>The kill-switch only arms after the server answered one probe: a server that never
      * replies to global requests (violating RFC 4254) must not have healthy sessions killed.</p>
      */
     private void startLivenessProbe() {
+        ClientSession probedSession = session;
+        if (probedSession == null) {
+            return;
+        }
+        SshLivenessProbe.Transport transport = new SshLivenessProbe.Transport() {
+            @Override
+            public boolean isOpen() {
+                return probedSession.isOpen() && !probedSession.isClosing();
+            }
+
+            @Override
+            public boolean probe() {
+                return probeServer(probedSession);
+            }
+
+            @Override
+            public long inboundBytes() {
+                return inboundBytes.get();
+            }
+        };
         livenessProbeThread = new Thread(() -> {
-            boolean armed = false;
-            while (connected.get()) {
-                try {
-                    Thread.sleep(LIVENESS_PROBE_INTERVAL_MS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-                if (!connected.get()) {
-                    return;
-                }
-                ClientSession currentSession = session;
-                if (currentSession == null || !currentSession.isOpen()) {
-                    return; // already closing: the connection monitor reports it
-                }
-                if (probeServer(currentSession)) {
-                    armed = true;
-                    continue;
-                }
-                if (!armed || !connected.get()) {
-                    continue;
-                }
-                if (probeServer(currentSession)) {
-                    continue; // single missed reply: not yet a death
-                }
-                if (!connected.get()) {
-                    return;
-                }
-                logger.warn("SSH liveness probe got no reply twice for {} - treating connection as lost",
-                    connection.getDisplayName());
-                forceCloseDeadTransport(currentSession);
+            SshLivenessProbe.Outcome outcome;
+            try {
+                outcome = new SshLivenessProbe(LIVENESS_PROBE_INTERVAL_MS, Thread::sleep)
+                    .run(transport, connected::get);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 return;
             }
+            if (outcome != SshLivenessProbe.Outcome.DEAD || !connected.get()) {
+                return; // stopped, or already closing: the connection monitor reports it
+            }
+            logger.warn("SSH liveness probe got no reply twice on a silent transport for {} - "
+                + "treating connection as lost", connection.getDisplayName());
+            forceCloseDeadTransport(probedSession);
         }, "SSH-Liveness-" + connection.getDisplayName());
         livenessProbeThread.setDaemon(true);
         livenessProbeThread.start();
@@ -1098,6 +1133,17 @@ public class SshTtyConnector implements ObservableTtyConnector {
         }
     }
 
+    /**
+     * Where the {@linkplain #getCurrentRemoteDirectory() tracked directory} came from, or null while
+     * it is still the initial {@code ~}. A {@link RemoteDirectoryChange.Source#TYPED_CD} value is
+     * low-confidence: it was recorded before the shell ran the line.
+     */
+    public RemoteDirectoryChange.Source getCurrentRemoteDirectorySource() {
+        synchronized (directoryLock) {
+            return currentRemoteDirectorySource;
+        }
+    }
+
     public String getHomeRemoteDirectory() {
         synchronized (directoryLock) {
             return homeRemoteDirectory;
@@ -1105,15 +1151,57 @@ public class SshTtyConnector implements ObservableTtyConnector {
     }
 
     public void updateCurrentRemoteDirectoryHint(String directory) {
+        updateCurrentRemoteDirectoryHint(directory, RemoteDirectoryChange.Source.HOME_HINT);
+    }
+
+    private void updateCurrentRemoteDirectoryHint(String directory, RemoteDirectoryChange.Source source) {
         String resolved = resolveRemoteDirectoryHint(directory, getHomeRemoteDirectory());
         if (resolved != null) {
-            setCurrentRemoteDirectory(resolved);
+            setCurrentRemoteDirectory(resolved, source, null);
         }
     }
 
+    /**
+     * True when typed input suggests a nested login ({@code su}, {@code ssh}, a shell-opening
+     * {@code sudo}) or an OSC 7 report named a host other than the session's baseline OSC 7 host.
+     */
     @Override
     public boolean isForeignSessionSuspected() {
-        return sessionChangeTracker.isForeignSessionSuspected();
+        if (sessionChangeTracker.isForeignSessionSuspected()) {
+            return true;
+        }
+        synchronized (directoryLock) {
+            return osc7Foreign;
+        }
+    }
+
+    /**
+     * Registers a listener for changes of the tracked directory. It runs on the thread that saw the
+     * change (output reader or input path), after the directory lock is released and only for an
+     * actual change; it must hand off and never block. A throwing listener is logged and skipped.
+     */
+    @Override
+    public RemoteDirectoryChange.Subscription addRemoteDirectoryListener(RemoteDirectoryChange.Listener listener) {
+        if (listener == null) {
+            return RemoteDirectoryChange.Subscription.NONE;
+        }
+        remoteDirectoryListeners.add(listener);
+        AtomicBoolean closed = new AtomicBoolean();
+        return () -> {
+            if (closed.compareAndSet(false, true)) {
+                remoteDirectoryListeners.remove(listener);
+            }
+        };
+    }
+
+    private void notifyRemoteDirectoryListeners(RemoteDirectoryChange change) {
+        for (RemoteDirectoryChange.Listener listener : remoteDirectoryListeners) {
+            try {
+                listener.onRemoteDirectoryChanged(change);
+            } catch (RuntimeException e) {
+                logger.warn("Remote directory listener error: {}", e.toString());
+            }
+        }
     }
 
     @Override
@@ -1136,18 +1224,25 @@ public class SshTtyConnector implements ObservableTtyConnector {
         if (resolved == null) {
             return;
         }
+        boolean currentChanged = false;
         synchronized (directoryLock) {
             homeRemoteDirectory = resolved;
             if (currentRemoteDirectory == null
                     || currentRemoteDirectory.isBlank()
                     || "~".equals(currentRemoteDirectory)) {
+                currentChanged = !resolved.equals(currentRemoteDirectory);
                 currentRemoteDirectory = resolved;
+                currentRemoteDirectorySource = RemoteDirectoryChange.Source.HOME_HINT;
             }
             if (previousRemoteDirectory == null
                     || previousRemoteDirectory.isBlank()
                     || "~".equals(previousRemoteDirectory)) {
                 previousRemoteDirectory = resolved;
             }
+        }
+        if (currentChanged) {
+            notifyRemoteDirectoryListeners(
+                new RemoteDirectoryChange(resolved, RemoteDirectoryChange.Source.HOME_HINT, null));
         }
     }
 
@@ -1226,7 +1321,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
                 agentOscBuffer.delete(0, end + terminatorLength);
                 String cwd = extractWorkingDirectoryFromAgentOscPayload(payload);
                 if (cwd != null && !cwd.isBlank()) {
-                    setCurrentRemoteDirectory(cwd);
+                    setCurrentRemoteDirectory(cwd, RemoteDirectoryChange.Source.AGENT_HOOK, null);
                     logger.debug("Updated remote directory from terminal agent hook: {}", cwd);
                 }
             }
@@ -1234,13 +1329,68 @@ public class SshTtyConnector implements ObservableTtyConnector {
     }
 
     private void updateCurrentDirectoryFromOsc7(String uriText) {
-        String path = extractWorkingDirectoryFromOsc7Uri(uriText);
-        if (path != null && !path.isBlank()) {
-            setCurrentRemoteDirectory(path);
-            logger.debug("Updated remote directory from OSC 7: {}", path);
-        } else {
+        Osc7Location location = parseOsc7Uri(uriText);
+        if (location == null || location.path().isBlank()) {
             logger.debug("Failed to parse OSC 7 URI '{}'", uriText);
+            return;
         }
+        if (!adoptOsc7Host(location.host())) {
+            logger.debug("Ignored OSC 7 from host '{}': not the session's host", location.host());
+            return;
+        }
+        setCurrentRemoteDirectory(location.path(), RemoteDirectoryChange.Source.OSC7, location.host());
+        logger.debug("Updated remote directory from OSC 7: {}", location.path());
+    }
+
+    /**
+     * Decides whether an OSC 7 report with {@code host} may move the tracked directory, and keeps
+     * the sticky foreign flag. {@code ServerConnection.getHost()} cannot serve as the reference: it
+     * is often an IP, an ssh alias, a jump or CyberArk proxy, or an FQDN where {@code hostname}
+     * prints a short name. The first OSC 7 host seen while the session is native becomes the
+     * baseline instead. An empty or localhost host is always adopted and never changes the
+     * verdict; another host than the baseline is refused and marks the session foreign until an OSC
+     * 7 with the baseline host arrives or the connector reconnects.
+     */
+    private boolean adoptOsc7Host(String host) {
+        if (isLocalOsc7Host(host)) {
+            return true;
+        }
+        synchronized (directoryLock) {
+            if (osc7BaselineHost == null) {
+                if (!sessionChangeTracker.isForeignSessionSuspected()) {
+                    osc7BaselineHost = host;
+                }
+                return true;
+            }
+            if (sameOsc7Host(osc7BaselineHost, host)) {
+                osc7Foreign = false;
+                return true;
+            }
+            osc7Foreign = true;
+            return false;
+        }
+    }
+
+    static boolean isLocalOsc7Host(String host) {
+        if (host == null || host.isBlank()) {
+            return true;
+        }
+        String key = osc7HostKey(host);
+        return key.equals("localhost") || key.equals("127.0.0.1") || key.equals("::1") || key.equals("[::1]");
+    }
+
+    /** Case-insensitive comparison on the short name, so {@code web01} matches {@code web01.example.com}. */
+    static boolean sameOsc7Host(String left, String right) {
+        return osc7HostKey(left).equals(osc7HostKey(right));
+    }
+
+    private static String osc7HostKey(String host) {
+        String lower = host == null ? "" : host.trim().toLowerCase(java.util.Locale.ROOT);
+        if (lower.isEmpty() || lower.contains(":") || lower.matches("[0-9.]+")) {
+            return lower; // IP literals compare whole
+        }
+        int dot = lower.indexOf('.');
+        return dot > 0 ? lower.substring(0, dot) : lower;
     }
 
     private void trimOsc7Buffer() {
@@ -1456,27 +1606,27 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private void applyCdCommand(String segment) {
         String arg = segment.length() <= 2 ? "" : segment.substring(2).trim();
         if (arg.isEmpty()) {
-            updateCurrentRemoteDirectoryHint("~");
+            updateCurrentRemoteDirectoryHint("~", RemoteDirectoryChange.Source.TYPED_CD);
             return;
         }
         String target = unquote(arg);
         if ("-".equals(target)) {
-            setCurrentRemoteDirectory(previousRemoteDirectory);
+            setCurrentRemoteDirectory(previousRemoteDirectory, RemoteDirectoryChange.Source.TYPED_CD, null);
             return;
         }
         String homeResolved = resolveRemoteDirectoryHint(target, getHomeRemoteDirectory());
         if (homeResolved != null) {
-            setCurrentRemoteDirectory(homeResolved);
+            setCurrentRemoteDirectory(homeResolved, RemoteDirectoryChange.Source.TYPED_CD, null);
             return;
         }
         if (isTildeRemoteDirectoryHint(target)) {
             return;
         }
         if (target.startsWith("/")) {
-            setCurrentRemoteDirectory(normalizeRemotePath(target));
+            setCurrentRemoteDirectory(normalizeRemotePath(target), RemoteDirectoryChange.Source.TYPED_CD, null);
             return;
         }
-        setCurrentRemoteDirectory(normalizeRemotePath(currentRemoteDirectory + "/" + target));
+        setCurrentRemoteDirectory(normalizeRemotePath(currentRemoteDirectory + "/" + target), RemoteDirectoryChange.Source.TYPED_CD, null);
     }
 
     private void applyPushdCommand(String segment) {
@@ -1485,7 +1635,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
             String stacked = directoryStack.pollFirst();
             if (stacked != null) {
                 directoryStack.addFirst(currentRemoteDirectory);
-                setCurrentRemoteDirectory(stacked);
+                setCurrentRemoteDirectory(stacked, RemoteDirectoryChange.Source.TYPED_CD, null);
             }
             return;
         }
@@ -1493,24 +1643,24 @@ public class SshTtyConnector implements ObservableTtyConnector {
         String target = unquote(arg);
         String homeResolved = resolveRemoteDirectoryHint(target, getHomeRemoteDirectory());
         if (homeResolved != null) {
-            setCurrentRemoteDirectory(homeResolved);
+            setCurrentRemoteDirectory(homeResolved, RemoteDirectoryChange.Source.TYPED_CD, null);
         } else if (isTildeRemoteDirectoryHint(target)) {
             return;
         } else if (target.startsWith("/")) {
-            setCurrentRemoteDirectory(normalizeRemotePath(target));
+            setCurrentRemoteDirectory(normalizeRemotePath(target), RemoteDirectoryChange.Source.TYPED_CD, null);
         } else {
-            setCurrentRemoteDirectory(normalizeRemotePath(currentRemoteDirectory + "/" + target));
+            setCurrentRemoteDirectory(normalizeRemotePath(currentRemoteDirectory + "/" + target), RemoteDirectoryChange.Source.TYPED_CD, null);
         }
     }
 
     private void applyPopdCommand() {
         String stacked = directoryStack.pollFirst();
         if (stacked != null) {
-            setCurrentRemoteDirectory(stacked);
+            setCurrentRemoteDirectory(stacked, RemoteDirectoryChange.Source.TYPED_CD, null);
         }
     }
 
-    private void setCurrentRemoteDirectory(String newDirectory) {
+    private void setCurrentRemoteDirectory(String newDirectory, RemoteDirectoryChange.Source source, String osc7Host) {
         if (newDirectory == null || newDirectory.isBlank()) {
             return;
         }
@@ -1518,12 +1668,19 @@ public class SshTtyConnector implements ObservableTtyConnector {
         if (normalized.isBlank()) {
             return;
         }
+        boolean changed = false;
         synchronized (directoryLock) {
             if (!normalized.equals(currentRemoteDirectory)) {
                 previousRemoteDirectory = currentRemoteDirectory;
                 currentRemoteDirectory = normalized;
+                currentRemoteDirectorySource = source;
+                changed = true;
                 logger.debug("Tracked remote directory updated to {}", normalized);
             }
+        }
+        // Listeners run outside the directory lock, so one that reads the directory back cannot deadlock.
+        if (changed) {
+            notifyRemoteDirectoryListeners(new RemoteDirectoryChange(normalized, source, osc7Host));
         }
     }
 
@@ -1636,19 +1793,38 @@ public class SshTtyConnector implements ObservableTtyConnector {
     }
 
     static String extractWorkingDirectoryFromOsc7Uri(String uriText) {
+        Osc7Location location = parseOsc7Uri(uriText);
+        return location != null ? location.path() : null;
+    }
+
+    /**
+     * The host and path of an OSC 7 {@code file://host/path} report.
+     *
+     * @param host the authority, lower-case; empty when the URI named none
+     * @param path the decoded absolute path
+     */
+    record Osc7Location(String host, String path) {
+    }
+
+    /** Parses an OSC 7 URI into host and path; {@code null} when it is not a {@code file:} URI with an absolute path. */
+    static Osc7Location parseOsc7Uri(String uriText) {
         if (uriText == null || uriText.isBlank()) {
             return null;
         }
+        String filePrefix = "file://";
         try {
             URI uri = URI.create(uriText);
             if (!"file".equalsIgnoreCase(uri.getScheme())) {
                 return null;
             }
             String path = uri.getPath();
-            return path != null && path.startsWith("/") ? path : null;
+            if (path == null || !path.startsWith("/")) {
+                return null;
+            }
+            String authority = uri.getRawAuthority();
+            return new Osc7Location(normalizeOsc7Host(authority), path);
         } catch (IllegalArgumentException e) {
-            String filePrefix = "file://";
-            if (!uriText.startsWith(filePrefix)) {
+            if (!uriText.regionMatches(true, 0, filePrefix, 0, filePrefix.length())) {
                 return null;
             }
             int pathStart = uriText.indexOf('/', filePrefix.length());
@@ -1656,8 +1832,27 @@ public class SshTtyConnector implements ObservableTtyConnector {
                 return null;
             }
             String path = uriText.substring(pathStart);
-            return path.startsWith("/") ? path : null;
+            return new Osc7Location(normalizeOsc7Host(uriText.substring(filePrefix.length(), pathStart)), path);
         }
+    }
+
+    /** Lower-cases the authority and drops any user info and port; never {@code null}. */
+    private static String normalizeOsc7Host(String authority) {
+        if (authority == null) {
+            return "";
+        }
+        String host = authority;
+        int at = host.lastIndexOf('@');
+        if (at >= 0) {
+            host = host.substring(at + 1);
+        }
+        if (!host.startsWith("[")) {
+            int colon = host.indexOf(':');
+            if (colon >= 0 && host.indexOf(':', colon + 1) < 0) {
+                host = host.substring(0, colon);
+            }
+        }
+        return host.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
     private String unquote(String text) {

@@ -33,6 +33,7 @@ import de.kortty.core.SshTtyConnector;
 import de.kortty.core.SshTunnelApprovals;
 import de.kortty.core.SshTunnelManager;
 import de.kortty.core.ObservableTtyConnector;
+import de.kortty.core.RemoteDirectoryChange;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.core.LocalShellTtyConnector;
 import de.kortty.core.QuickSelectSettings;
@@ -48,6 +49,8 @@ import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingStyleRun;
 import de.kortty.core.TerminalColorControlSequenceFilter;
 import de.kortty.core.TerminalPaletteSupport;
+import de.kortty.core.sftp.LocalUploadTree;
+import de.kortty.core.sftp.TerminalSftpLease;
 import de.kortty.core.highlight.HighlightTelemetry;
 import de.kortty.core.highlight.HighlightToggle;
 import de.kortty.core.highlight.TerminalHighlightService;
@@ -149,7 +152,6 @@ import javafx.stage.Window;
 import javafx.scene.layout.VBox;
 import javafx.scene.Scene;
 import org.apache.sshd.sftp.client.SftpClient;
-import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.apache.sshd.sftp.common.SftpConstants;
 import org.apache.sshd.sftp.common.SftpException;
 
@@ -434,6 +436,19 @@ public class TerminalView extends BorderPane {
     private java.util.function.BooleanSupplier menuBarHiddenSupplier;
     private Runnable menuBarRestoreHandler;
     private TerminalTextFileLoadHandler terminalTextFileLoadHandler;
+    /** Opens SFTP on a pane's session in its folder ("Open SFTP here"); null hides the pane item. */
+    private java.util.function.@Nullable Consumer<SithTermFxWidget> sftpHereHandler;
+    /** Opens the SFTP manager on a pane's session in a given folder (the remote files sidebar). */
+    private java.util.function.@Nullable BiConsumer<SithTermFxWidget, String> sftpOpenAtHandler;
+    /** The remote files sidebar and the slot it is docked in; null while hidden. */
+    private @Nullable TerminalRemoteSidebar remoteSidebar;
+    private volatile javafx.scene.layout.@Nullable HBox remoteSidebarDock;
+    private de.kortty.model.TerminalRemoteSidebarPosition remoteSidebarPosition =
+        de.kortty.model.TerminalRemoteSidebarPosition.HIDDEN;
+    /** Told on the emulator thread of each OSC 133 prompt-start mark of a pane. */
+    private final List<Consumer<SithTermFxWidget>> promptMarkListeners = new CopyOnWriteArrayList<>();
+    /** Told on the FX thread when a pane's connector connected or disconnected. */
+    private final List<Runnable> paneSessionListeners = new CopyOnWriteArrayList<>();
     // Read on the emulator thread too, when an OSC 8 file: link arrives.
     private volatile TerminalPathOpenHandler terminalPathOpenHandler;
     private TerminalAgentContextHandler aiAgentHandler;
@@ -646,6 +661,12 @@ public class TerminalView extends BorderPane {
         shellIntegration.setRemoteNotificationListener(widget -> Platform.runLater(() -> onPaneRemoteNotification(widget)));
         // A program asked to put text on the clipboard (OSC 52): the tab's setting decides.
         shellIntegration.setClipboardWriteListener(widget -> Platform.runLater(() -> onPaneClipboardWrite(widget)));
+        // OSC 133 prompt marks, for the remote files sidebar (emulator thread; listeners hand off).
+        shellIntegration.setPromptMarkListener(widget -> {
+            for (Consumer<SithTermFxWidget> listener : promptMarkListeners) {
+                listener.accept(widget);
+            }
+        });
         // The session carrying the tunnels closed while it still owned them: if its pane is gone
         // (the user closed it or typed exit there), move them to another pane of the same server.
         tunnelManager.setOwnerClosedListener(session -> Platform.runLater(this::rehomeTunnelsIfOwnerGone));
@@ -764,6 +785,15 @@ public class TerminalView extends BorderPane {
                     loadTextFileItem.setDisable(true);
                 }
                 items.add(loadTextFileItem);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
+            // SFTP on this pane's own SSH session, in its folder; SSH panes only (not Mosh or local).
+            if (sftpHereHandler != null && fileDropConnector(widget) != null) {
+                javafx.scene.control.MenuItem sftpHereItem =
+                    new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.sftpHere"));
+                java.util.function.Consumer<SithTermFxWidget> handler = sftpHereHandler;
+                sftpHereItem.setOnAction(e -> handler.accept(widget));
+                items.add(sftpHereItem);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
             }
             if (shouldShowAiContextMenu(aiProfiles, hasSelectedText, hasAgentActions)) {
@@ -986,6 +1016,11 @@ public class TerminalView extends BorderPane {
 
     public void setTerminalTextFileLoadHandler(@Nullable TerminalTextFileLoadHandler terminalTextFileLoadHandler) {
         this.terminalTextFileLoadHandler = terminalTextFileLoadHandler;
+    }
+
+    /** Adds "Open SFTP here" to the context menu of every SSH pane; null removes it. */
+    public void setSftpHereHandler(java.util.function.@Nullable Consumer<SithTermFxWidget> handler) {
+        this.sftpHereHandler = handler;
     }
 
     /**
@@ -2204,30 +2239,421 @@ public class TerminalView extends BorderPane {
 
     /** Returns true if the event was handled (caller should consume). */
     private boolean handleFileDragOver(DragEvent event) {
-        TtyConnector conn = getFocusedConnector();
-        if (conn instanceof SshTtyConnector ssh && ssh.isConnected() && ssh.getSession() != null) {
-            event.acceptTransferModes(TransferMode.COPY);
+        if (fileDropConnector(fileDropPane(event)) != null) {
+            // A policy that denies file transfer rejects the drag while it is still over the pane
+            // (no copy cursor), and nothing below the pane takes the files either.
+            if (TerminalTransferGuard.allowedByPolicy(TerminalTransferGuard.Transfer.DROP)) {
+                event.acceptTransferModes(TransferMode.COPY);
+            }
             return true;
         }
         return false;
     }
 
-    /** Returns true if the event was handled (caller should consume). */
+    /**
+     * Copies dropped files to the server of the pane under the drop point, which becomes the
+     * focused pane. The copy starts once the drag has ended (its dialogs are windows and should not
+     * open inside the platform's drag loop), and only while that pane still runs as the identity it
+     * was opened with: after su or a nested ssh the target directory belongs to another user or
+     * host, so the drop is refused with a message. Returns true if the event was handled.
+     */
     private boolean handleFileDragDropped(DragEvent event) {
         Dragboard db = event.getDragboard();
-        TtyConnector conn = getFocusedConnector();
-        if (!(conn instanceof SshTtyConnector ssh) || !ssh.isConnected() || ssh.getSession() == null) {
+        SithTermFxWidget pane = fileDropPane(event);
+        if (fileDropConnector(pane) == null) {
             event.setDropCompleted(false);
             return false;
         }
+        if (!TerminalTransferGuard.allowedByPolicy(TerminalTransferGuard.Transfer.DROP)) {
+            event.setDropCompleted(false);
+            return true;
+        }
         List<java.io.File> dropped = db.getFiles();
-        if (dropped.isEmpty()) {
+        if (dropped == null || dropped.isEmpty()) {
             event.setDropCompleted(false);
             return false;
         }
         event.setDropCompleted(true);
-        copyDroppedFilesToServer(ssh, dropped);
+        List<Path> paths = dropped.stream().map(java.io.File::toPath).toList();
+        Platform.runLater(() -> startDroppedFileCopy(pane, paths));
         return true;
+    }
+
+    /** FX thread: focuses the drop pane, checks the session identity there, then starts the upload. */
+    private void startDroppedFileCopy(SithTermFxWidget pane, List<Path> paths) {
+        if (!terminalPanes().contains(pane)) {
+            logger.debug("Dropped files not copied: the pane closed first ({} items)", paths.size());
+            return;
+        }
+        SshTtyConnector ssh = fileDropConnector(pane);
+        if (ssh == null) {
+            return;
+        }
+        if (splitPane != null) {
+            splitPane.focusWidget(pane);
+        }
+        Optional<String> denied = TerminalTransferGuard.policyRefusal(
+            TerminalTransferGuard.Transfer.DROP, de.kortty.policy.PolicyManager.effective());
+        if (denied.isPresent()) {
+            logger.info("Dropped files not copied: file transfer is disabled by policy");
+            showDropRefusal(denied.get());
+            return;
+        }
+        boolean foreignSession = isForeignSessionActive(createTerminalAgentRunContext(pane));
+        Optional<String> refusal = TerminalTransferGuard.refusalKey(
+            TerminalTransferGuard.Transfer.DROP, foreignSession);
+        if (refusal.isPresent()) {
+            logger.info("Dropped files not copied: a different session is active in the pane");
+            showDropRefusal(I18n.get(refusal.get()));
+            return;
+        }
+        copyDroppedFilesToServer(ssh, paths);
+    }
+
+    private void showDropRefusal(String message) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+            javafx.scene.control.Alert.AlertType.WARNING, message, javafx.scene.control.ButtonType.OK);
+        alert.setTitle(I18n.get("terminal.dragDrop.title"));
+        alert.setHeaderText(null);
+        if (getScene() != null && getScene().getWindow() != null) {
+            alert.initOwner(getScene().getWindow());
+        }
+        alert.show();
+    }
+
+    /**
+     * The pane a file drop lands on: the one under the pointer, else the focused pane (a drop next
+     * to the panes, for example on the tab's border).
+     */
+    private @Nullable SithTermFxWidget fileDropPane(DragEvent event) {
+        if (isInsideRemoteSidebarDock(event.getTarget())) {
+            // The sidebar (and its divider) takes its own drops into the folder it shows; never the shell's.
+            return null;
+        }
+        for (SithTermFxWidget widget : terminalPanes()) {
+            if (widget != null && isUnderPointer(widget.getPane(), event.getSceneX(), event.getSceneY())) {
+                return widget;
+            }
+        }
+        return splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+    }
+
+    private boolean isInsideRemoteSidebarDock(@Nullable Object target) {
+        javafx.scene.layout.HBox dock = remoteSidebarDock;
+        if (dock == null || !(target instanceof Node node)) {
+            return false;
+        }
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current == dock) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The pane's connected SSH connector with an open session, or null (local, Mosh, Telnet, closed). */
+    private @Nullable SshTtyConnector fileDropConnector(@Nullable SithTermFxWidget pane) {
+        if (pane == null) {
+            return null;
+        }
+        TtyConnector connector = unwrapTerminalEffectConnector(pane.getTtyConnector());
+        return connector instanceof SshTtyConnector ssh && ssh.isConnected() && ssh.getSession() != null
+            ? ssh : null;
+    }
+
+    /**
+     * A supplier of {@code pane}'s SSH session for SFTP that borrows it ({@code SFTPSession.attach}),
+     * or null when the pane runs no connected SSH session (local shell, Mosh, Telnet, closed). The
+     * supplier holds this view and the pane weakly, remembers the pane's {@link PaneOrigin}
+     * identity as it is now, and returns the pane's current session only while that identity
+     * still matches. Call it on the FX thread; the supplier itself may be used from any thread.
+     */
+    public de.kortty.core.sftp.@Nullable BorrowedSessionSupplier borrowedSessionSupplier(@Nullable SithTermFxWidget pane) {
+        if (pane == null || fileDropConnector(pane) == null) {
+            return null;
+        }
+        PaneOrigin origin = paneOrigins.resolve(pane, tabOrigin());
+        return new PaneSessionSupplier<>(this, pane, PaneSessionSupplier.Identity.of(origin.connection()),
+            TerminalView::currentPaneSession);
+    }
+
+    /**
+     * What "Open SFTP here" needs from {@code pane}, gathered on the FX thread: a supplier of its
+     * SSH session, the connection it runs, its dedupe key and where the SFTP tab starts. Null for a
+     * pane without a connected SSH session (local shell, Mosh, Telnet, closed).
+     */
+    public @Nullable SftpOpenRequest captureSftpOpenRequest(@Nullable SithTermFxWidget pane) {
+        de.kortty.core.sftp.BorrowedSessionSupplier supplier = borrowedSessionSupplier(pane);
+        SshTtyConnector ssh = fileDropConnector(pane);
+        if (supplier == null || ssh == null) {
+            return null;
+        }
+        ServerConnection connection = paneConnection(pane);
+        // FX thread: the verdict reads the screen; only plain values leave this method.
+        boolean foreign = isForeignSessionActive(pane, ssh);
+        String promptDirectory = resolveWorkingDirectoryFromPrompt(pane, ssh);
+        de.kortty.ui.sftp.SftpOpenTargetResolver.OpenTarget target = de.kortty.ui.sftp.SftpOpenTargetResolver.resolve(
+            new de.kortty.ui.sftp.SftpOpenTargetResolver.Inputs(foreign, ssh.getCurrentRemoteDirectory(),
+                ssh.getCurrentRemoteDirectorySource(), promptDirectory, ssh.getHomeRemoteDirectory(),
+                ssh.hasShellStartupCommandConfigured()));
+        String key = de.kortty.ui.sftp.SftpTabKeys.borrowed(terminalViewId,
+            de.kortty.codingagent.TerminalScreenCapture.paneIdOf(pane));
+        String label = connection != null ? connection.getHost() + ":" + connection.getPort() : "terminal";
+        return new SftpOpenRequest(supplier, connection, key, target, label);
+    }
+
+    /**
+     * "Open SFTP here" for one pane, see {@link #captureSftpOpenRequest}.
+     *
+     * @param supplier       resolves the pane's current SSH session, identity-checked
+     * @param paneConnection the connection the pane runs (for the attach and the fallback login)
+     * @param dedupeKey      one SFTP tab per pane ({@link de.kortty.ui.sftp.SftpTabKeys#borrowed})
+     * @param target         where the SFTP tab starts
+     * @param label          a log label ({@code host:port}), never a secret
+     */
+    public record SftpOpenRequest(de.kortty.core.sftp.BorrowedSessionSupplier supplier, ServerConnection paneConnection,
+            String dedupeKey, de.kortty.ui.sftp.SftpOpenTargetResolver.OpenTarget target, String label) {
+    }
+
+    // ---- Remote files sidebar (SFTP-15) -------------------------------------------------------------
+
+    /**
+     * Docks the remote files sidebar at {@code position} (or removes it for HIDDEN). Its SFTP
+     * session opens lazily, once the tab is shown; hiding closes it. FX thread.
+     *
+     * @param width          the width to start with
+     * @param onWidthChanged told of the width the user dragged to (for the settings)
+     * @param onHideRequested the sidebar's own close button
+     */
+    public void setRemoteSidebar(de.kortty.model.TerminalRemoteSidebarPosition position, double width,
+            java.util.function.@Nullable DoubleConsumer onWidthChanged, @Nullable Runnable onHideRequested) {
+        de.kortty.model.TerminalRemoteSidebarPosition target = position != null
+            ? position : de.kortty.model.TerminalRemoteSidebarPosition.HIDDEN;
+        if (cleanedUp) {
+            return;
+        }
+        if (target == de.kortty.model.TerminalRemoteSidebarPosition.HIDDEN) {
+            disposeRemoteSidebar();
+            return;
+        }
+        if (remoteSidebar == null) {
+            remoteSidebar = new TerminalRemoteSidebar(this);
+        }
+        remoteSidebar.setOnHideRequested(onHideRequested);
+        remoteSidebar.setPrefWidth(de.kortty.model.GlobalSettings.clampTerminalRemoteSidebarWidth(width));
+        remoteSidebar.setMinWidth(de.kortty.model.GlobalSettings.TERMINAL_REMOTE_SIDEBAR_MIN_WIDTH);
+        remoteSidebar.setMaxWidth(de.kortty.model.GlobalSettings.TERMINAL_REMOTE_SIDEBAR_MAX_WIDTH);
+        if (target == remoteSidebarPosition && remoteSidebarDock != null) {
+            return;
+        }
+        unmountRemoteSidebar();
+        ResizableDivider divider = new ResizableDivider(javafx.geometry.Orientation.VERTICAL);
+        TerminalRemoteSidebar sidebar = remoteSidebar;
+        boolean right = target == de.kortty.model.TerminalRemoteSidebarPosition.RIGHT;
+        divider.setResizeListener(delta -> {
+            double next = de.kortty.model.GlobalSettings.clampTerminalRemoteSidebarWidth(
+                sidebar.getPrefWidth() + (right ? -delta : delta));
+            sidebar.setPrefWidth(next);
+            if (onWidthChanged != null) {
+                onWidthChanged.accept(next);
+            }
+            return next;
+        });
+        javafx.scene.layout.HBox dock = right
+            ? new javafx.scene.layout.HBox(divider, sidebar)
+            : new javafx.scene.layout.HBox(sidebar, divider);
+        dock.setFillHeight(true);
+        remoteSidebarDock = dock;
+        remoteSidebarPosition = target;
+        if (right) {
+            setRight(dock);
+        } else {
+            setLeft(dock);
+        }
+        updateRemoteSidebarDockVisibility();
+        sidebar.mounted();
+    }
+
+    /** A tab without a connected SSH pane (local shell, Mosh, not yet connected) shows no sidebar. */
+    private void updateRemoteSidebarDockVisibility() {
+        javafx.scene.layout.HBox dock = remoteSidebarDock;
+        if (dock == null) {
+            return;
+        }
+        boolean shown = hasRemoteSidebarPane();
+        dock.setVisible(shown);
+        dock.setManaged(shown);
+    }
+
+    /** Where the remote files sidebar is docked in this tab. */
+    public de.kortty.model.TerminalRemoteSidebarPosition getRemoteSidebarPosition() {
+        return remoteSidebarPosition;
+    }
+
+    /** The docked sidebar, or null. */
+    @Nullable TerminalRemoteSidebar remoteSidebar() {
+        return remoteSidebar;
+    }
+
+    /** Hides the sidebar for good (the tab closes or the position is HIDDEN); closes its SFTP session. */
+    private void disposeRemoteSidebar() {
+        unmountRemoteSidebar();
+        TerminalRemoteSidebar sidebar = remoteSidebar;
+        remoteSidebar = null;
+        remoteSidebarPosition = de.kortty.model.TerminalRemoteSidebarPosition.HIDDEN;
+        if (sidebar != null) {
+            sidebar.dispose();
+        }
+    }
+
+    private void unmountRemoteSidebar() {
+        javafx.scene.layout.HBox dock = remoteSidebarDock;
+        remoteSidebarDock = null;
+        if (dock == null) {
+            return;
+        }
+        if (getRight() == dock) {
+            setRight(null);
+        }
+        if (getLeft() == dock) {
+            setLeft(null);
+        }
+        dock.getChildren().clear();
+    }
+
+    /** Whether any pane of this tab runs a connected SSH session the sidebar can follow. FX thread. */
+    public boolean hasRemoteSidebarPane() {
+        for (SithTermFxWidget pane : terminalPanes()) {
+            if (fileDropConnector(pane) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The panes of this tab, in layout order. */
+    List<SithTermFxWidget> remoteSidebarPanes() {
+        return terminalPanes();
+    }
+
+    /** A stable key of {@code pane} within this tab, for the sidebar's follow state. */
+    static String remoteSidebarPaneKey(SithTermFxWidget pane) {
+        return de.kortty.codingagent.TerminalScreenCapture.paneIdOf(pane);
+    }
+
+    /**
+     * The identity the pane's prompt shows now, and its last visible line (to tell a new prompt
+     * from the line a {@code cd} was typed on). Reads the screen: FX thread only.
+     */
+    RemoteSidebarProbe probeRemoteSidebarPrompt(@Nullable SithTermFxWidget pane) {
+        SshTtyConnector ssh = fileDropConnector(pane);
+        if (ssh == null) {
+            return new RemoteSidebarProbe(de.kortty.ui.sftp.RemoteFollowController.Verdict.UNKNOWN, "");
+        }
+        String screenLines;
+        try {
+            screenLines = pane.getTerminalTextBuffer() != null ? pane.getTerminalTextBuffer().getScreenLines() : "";
+        } catch (RuntimeException e) {
+            screenLines = "";
+        }
+        String lastLine = lastNonBlankVisibleLine(screenLines);
+        if (isForeignSessionActive(pane, ssh)) {
+            return new RemoteSidebarProbe(de.kortty.ui.sftp.RemoteFollowController.Verdict.FOREIGN,
+                lastLine != null ? lastLine : "");
+        }
+        SessionIdentityVerdict verdict = evaluatePromptSessionIdentity(
+            screenLines, ssh.getExpectedSessionUser(), ssh.getExpectedSessionHost());
+        return new RemoteSidebarProbe(verdict == SessionIdentityVerdict.NATIVE_CONFIRMED
+            ? de.kortty.ui.sftp.RemoteFollowController.Verdict.NATIVE
+            : de.kortty.ui.sftp.RemoteFollowController.Verdict.UNKNOWN, lastLine != null ? lastLine : "");
+    }
+
+    /** The pane's last non-blank visible line, without judging it. FX thread only. */
+    String remoteSidebarLastLine(@Nullable SithTermFxWidget pane) {
+        try {
+            String screenLines = pane != null && pane.getTerminalTextBuffer() != null
+                ? pane.getTerminalTextBuffer().getScreenLines() : "";
+            String lastLine = lastNonBlankVisibleLine(screenLines);
+            return lastLine != null ? lastLine : "";
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /** What {@link #probeRemoteSidebarPrompt} saw. */
+    record RemoteSidebarProbe(de.kortty.ui.sftp.RemoteFollowController.Verdict verdict, String lastLine) {
+    }
+
+    /** Subscribes to the OSC 133 prompt-start marks of every pane (emulator thread; hand off). */
+    RemoteDirectoryChange.Subscription promptMarks(Consumer<SithTermFxWidget> listener) {
+        if (listener == null) {
+            return RemoteDirectoryChange.Subscription.NONE;
+        }
+        Consumer<SithTermFxWidget> registered = listener::accept;
+        promptMarkListeners.add(registered);
+        return () -> promptMarkListeners.remove(registered);
+    }
+
+    /** Subscribes to pane connects and disconnects (FX thread). */
+    RemoteDirectoryChange.Subscription paneSessionChanges(Runnable listener) {
+        if (listener == null) {
+            return RemoteDirectoryChange.Subscription.NONE;
+        }
+        Runnable registered = listener::run;
+        paneSessionListeners.add(registered);
+        return () -> paneSessionListeners.remove(registered);
+    }
+
+    private void firePaneSessionChanged() {
+        if (paneSessionListeners.isEmpty() && remoteSidebarDock == null) {
+            return;
+        }
+        Platform.runLater(() -> {
+            updateRemoteSidebarDockVisibility();
+            for (Runnable listener : paneSessionListeners) {
+                try {
+                    listener.run();
+                } catch (RuntimeException e) {
+                    logger.debug("Pane session listener failed: {}", e.toString());
+                }
+            }
+        });
+    }
+
+    /** Sets who opens the SFTP manager on a pane's session in a given folder; null hides the sidebar's button. */
+    public void setSftpOpenAtHandler(java.util.function.@Nullable BiConsumer<SithTermFxWidget, String> handler) {
+        this.sftpOpenAtHandler = handler;
+    }
+
+    java.util.function.@Nullable BiConsumer<SithTermFxWidget, String> sftpOpenAtHandler() {
+        return sftpOpenAtHandler;
+    }
+
+    /** The pane that has the keyboard focus, or the only pane. */
+    public @Nullable SithTermFxWidget focusedPane() {
+        return splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+    }
+
+    /** The connection {@code pane} runs: its own {@link PaneOrigin}'s, else the tab's. */
+    public ServerConnection paneConnection(@Nullable SithTermFxWidget pane) {
+        return paneOrigins.resolve(pane, tabOrigin()).connection();
+    }
+
+    /**
+     * What {@code pane} runs right now, for {@link PaneSessionSupplier}. Static, so the supplier's
+     * resolver does not hold the view; touches no scene graph, so it is safe off the FX thread.
+     */
+    private static PaneSessionSupplier.@Nullable PaneSession currentPaneSession(TerminalView view, SithTermFxWidget pane) {
+        PaneOrigin origin = view.paneOrigins.resolve(pane, view.tabOrigin());
+        TtyConnector connector = unwrapTerminalEffectConnector(pane.getTtyConnector());
+        if (!(connector instanceof SshTtyConnector ssh)) {
+            return null;
+        }
+        ServerConnection running = ssh.getConnection();
+        return new PaneSessionSupplier.PaneSession(
+            PaneSessionSupplier.Identity.of(origin.connection()),
+            running != null ? PaneSessionSupplier.Identity.of(running) : null,
+            ssh.isConnected() ? ssh.getSession() : null);
     }
 
     private TtyConnector getFocusedConnector() {
@@ -2872,13 +3298,13 @@ public class TerminalView extends BorderPane {
             && sshConnector.hasShellStartupCommandConfigured();
     }
 
-    private void copyDroppedFilesToServer(SshTtyConnector sshConnector, List<java.io.File> dropped) {
-        List<PathPair> toUpload = new ArrayList<>();
-        for (java.io.File f : dropped) {
-            collectFiles(f.toPath(), "", toUpload);
-        }
-        if (toUpload.isEmpty()) return;
-        int total = toUpload.size();
+    /**
+     * Uploads dropped files and folders into the pane's tracked remote directory over one SFTP
+     * channel leased from the terminal's session ({@link TerminalSftpLease}), closed when the copy
+     * ends, fails or is aborted. The local tree is listed on the worker thread without following
+     * links into folders ({@link LocalUploadTree}); skipped linked folders are reported.
+     */
+    private void copyDroppedFilesToServer(SshTtyConnector sshConnector, List<Path> dropped) {
         AtomicBoolean aborted = new AtomicBoolean(false);
         AtomicLong startTime = new AtomicLong(System.currentTimeMillis());
         javafx.scene.control.ProgressBar progressBar = new javafx.scene.control.ProgressBar(0);
@@ -2888,13 +3314,16 @@ public class TerminalView extends BorderPane {
         targetLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #888888;");
         javafx.scene.control.Label timeLabel = new javafx.scene.control.Label("0s");
         timeLabel.setStyle("-fx-font-size: 0.8462em;");
-        javafx.scene.control.Label statusLabel = new javafx.scene.control.Label(
-            I18n.get("terminal.dragDrop.count", 0, total));
+        javafx.scene.control.Label statusLabel = new javafx.scene.control.Label("");
         javafx.scene.control.Label currentFileLabel = new javafx.scene.control.Label("");
         currentFileLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: #aaaaaa;");
+        javafx.scene.control.Label skippedLabel = new javafx.scene.control.Label("");
+        skippedLabel.setWrapText(true);
+        skippedLabel.setManaged(false);
+        skippedLabel.setVisible(false);
         javafx.scene.control.Button abortButton = new javafx.scene.control.Button(I18n.get("terminal.dragDrop.abort"));
         javafx.scene.layout.VBox vbox = new javafx.scene.layout.VBox(8,
-            targetLabel, timeLabel, statusLabel, currentFileLabel, progressBar, abortButton);
+            targetLabel, timeLabel, statusLabel, currentFileLabel, skippedLabel, progressBar, abortButton);
         vbox.setPadding(new javafx.geometry.Insets(15));
         javafx.scene.control.Dialog<Void> dialog = new javafx.scene.control.Dialog<>();
         dialog.setTitle(I18n.get("terminal.dragDrop.title"));
@@ -2906,8 +3335,30 @@ public class TerminalView extends BorderPane {
             dialog.close();
         });
         Thread worker = new Thread(() -> {
-            try {
-                SftpClient sftp = SftpClientFactory.instance().createSftpClient(sshConnector.getSession());
+            LocalUploadTree.Result tree = LocalUploadTree.collect(dropped);
+            List<LocalUploadTree.Entry> toUpload = tree.entries();
+            int total = toUpload.size();
+            int skippedLinks = tree.skippedLinkedFolders().size();
+            if (!tree.skippedLinkedFolders().isEmpty()) {
+                logger.info("Drag-drop skips {} linked folder(s)", skippedLinks);
+            }
+            Platform.runLater(() -> {
+                statusLabel.setText(I18n.get("terminal.dragDrop.count", 0, total));
+                if (skippedLinks > 0) {
+                    skippedLabel.setText(I18n.get("terminal.dragDrop.skippedLinks", skippedLinks));
+                    skippedLabel.setManaged(true);
+                    skippedLabel.setVisible(true);
+                }
+            });
+            if (toUpload.isEmpty()) {
+                Platform.runLater(() -> {
+                    statusLabel.setText(I18n.get("terminal.dragDrop.done"));
+                    progressBar.setProgress(1.0);
+                });
+                return;
+            }
+            try (TerminalSftpLease lease = TerminalSftpLease.open(sshConnector.getSession())) {
+                SftpClient sftp = lease.client();
                 String trackedDir = sshConnector.getCurrentRemoteDirectory();
                 String sftpStartDir = needsSftpStartDirectory(trackedDir) ? resolveSftpStartDirectory(sftp) : null;
                 String remoteTargetDir = resolveDragDropRemoteDirectory(trackedDir, sftpStartDir);
@@ -2917,21 +3368,17 @@ public class TerminalView extends BorderPane {
                     trackedDir,
                     sftpStartDir);
                 final String remoteHome = remoteTargetDir;
-                logger.debug("Drag-drop will upload to remote directory: {}", remoteHome);
-                // Update target label with destination directory
-                Platform.runLater(() -> {
-                    targetLabel.setText(I18n.get("terminal.dragDrop.target", remoteHome));
-                });
+                Platform.runLater(() -> targetLabel.setText(I18n.get("terminal.dragDrop.target", remoteHome)));
                 int copied = 0;
                 for (int i = 0; i < toUpload.size() && !aborted.get(); i++) {
-                    PathPair p = toUpload.get(i);
-                    String fullRemote = appendRemotePath(remoteHome, p.remote);
-                    final String fileName = p.remote;
+                    LocalUploadTree.Entry entry = toUpload.get(i);
+                    String fullRemote = appendRemotePath(remoteHome, entry.remoteRelative());
+                    final String fileName = entry.remoteRelative();
                     Platform.runLater(() -> {
                         long elapsed = (System.currentTimeMillis() - startTime.get()) / 1000;
                         timeLabel.setText(elapsed + "s");
                     });
-                    uploadOne(sftp, p, fullRemote);
+                    uploadOne(sftp, entry, fullRemote);
                     if (aborted.get()) break;
                     copied++;
                     final int done = copied;
@@ -2945,9 +3392,12 @@ public class TerminalView extends BorderPane {
                     Platform.runLater(() -> {
                         statusLabel.setText(I18n.get("terminal.dragDrop.done"));
                         progressBar.setProgress(1.0);
-                        javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1.2));
-                        pause.setOnFinished(e -> dialog.close());
-                        pause.play();
+                        if (skippedLinks == 0) {
+                            // Leave the dialog open when it reports skipped folders, so the note can be read.
+                            javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1.2));
+                            pause.setOnFinished(e -> dialog.close());
+                            pause.play();
+                        }
                     });
                 }
             } catch (Exception ex) {
@@ -2963,46 +3413,13 @@ public class TerminalView extends BorderPane {
         dialog.show();
     }
 
-    private static class PathPair {
-        final Path local;
-        final String remote;
-        final boolean isDir;
-
-        PathPair(Path local, String remote, boolean isDir) {
-            this.local = local;
-            this.remote = remote;
-            this.isDir = isDir;
-        }
-    }
-
-    private void collectFiles(Path local, String remoteDir, List<PathPair> out) {
-        if (Files.isRegularFile(local)) {
-            String name = local.getFileName().toString();
-            String remote = remoteDir.isEmpty() ? name : remoteDir + "/" + name;
-            out.add(new PathPair(local, remote, false));
-        } else if (Files.isDirectory(local)) {
-            String dirName = local.getFileName().toString();
-            String subRemote = remoteDir.isEmpty() ? dirName : remoteDir + "/" + dirName;
-            out.add(new PathPair(local, subRemote, true));
-            try {
-                try (var stream = Files.list(local)) {
-                    for (Path child : stream.toList()) {
-                        collectFiles(child, subRemote, out);
-                    }
-                }
-            } catch (Exception e) {
-                logger.debug("List dir failed: {}", e.getMessage());
-            }
-        }
-    }
-
-    private void uploadOne(SftpClient sftp, PathPair p, String fullRemotePath) throws java.io.IOException {
-        if (p.isDir) {
+    private void uploadOne(SftpClient sftp, LocalUploadTree.Entry entry, String fullRemotePath) throws java.io.IOException {
+        if (entry.directory()) {
             mkdirsRemote(sftp, fullRemotePath);
             return;
         }
         mkdirsRemote(sftp, parentRemotePath(fullRemotePath));
-        try (InputStream in = Files.newInputStream(p.local);
+        try (InputStream in = Files.newInputStream(entry.local());
              OutputStream out = sftp.write(fullRemotePath, java.util.EnumSet.of(
                  SftpClient.OpenMode.Write, SftpClient.OpenMode.Create, SftpClient.OpenMode.Truncate))) {
             byte[] buf = new byte[8192];
@@ -3245,6 +3662,7 @@ public class TerminalView extends BorderPane {
      * with {@link #reportTerminalDisconnected}; both are idempotent per connector.
      */
     private void reportTerminalConnected(TtyConnector connector) {
+        firePaneSessionChanged();
         ActiveConnectionRegistry.shared().terminalConnected(connector);
         var app = KorTTYApplication.getInstance();
         if (app != null && app.getPowerManagementCoordinator() != null) {
@@ -3253,6 +3671,7 @@ public class TerminalView extends BorderPane {
     }
 
     private void reportTerminalDisconnected(TtyConnector connector) {
+        firePaneSessionChanged();
         ActiveConnectionRegistry.shared().terminalDisconnected(connector);
         var app = KorTTYApplication.getInstance();
         if (app != null && app.getPowerManagementCoordinator() != null) {
@@ -4211,6 +4630,39 @@ public class TerminalView extends BorderPane {
         if (listener != null) {
             focusedWidgetListeners.remove(listener);
         }
+    }
+
+    /**
+     * Follows the pane focus of this tab's split pane: {@code listener} runs on the FX thread with
+     * the pane that gained keyboard focus. Closing the returned subscription stops it.
+     */
+    public RemoteDirectoryChange.Subscription focusedPaneChanges(Consumer<SithTermFxWidget> listener) {
+        if (listener == null) {
+            return RemoteDirectoryChange.Subscription.NONE;
+        }
+        Consumer<SithTermFxWidget> registered = listener::accept; // a fresh identity per subscription
+        focusedWidgetListeners.add(registered);
+        return () -> focusedWidgetListeners.remove(registered);
+    }
+
+    /**
+     * Subscribes to the tracked working-directory changes of {@code widget}'s connector (terminal
+     * effect wrappers unwrapped). The listener runs on the connector's reader or input thread and
+     * must hand off (see {@link RemoteDirectoryChange.Listener}). The subscription is bound to the
+     * connector the pane holds now; a reconnect brings a new connector, so callers resubscribe.
+     * Panes whose connector does not track a directory return
+     * {@link RemoteDirectoryChange.Subscription#NONE}.
+     */
+    public RemoteDirectoryChange.Subscription paneRemoteDirectoryChanges(
+            @Nullable SithTermFxWidget widget, RemoteDirectoryChange.Listener listener) {
+        if (widget == null || listener == null) {
+            return RemoteDirectoryChange.Subscription.NONE;
+        }
+        TtyConnector base = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        if (base instanceof ObservableTtyConnector observable) {
+            return observable.addRemoteDirectoryListener(listener);
+        }
+        return RemoteDirectoryChange.Subscription.NONE;
     }
 
     /** The coding-agent pane reference of {@code widget}, empty when it has no monitor in this tab. */
@@ -8127,6 +8579,7 @@ public class TerminalView extends BorderPane {
     public void cleanup() {
         // A split layout still being restored stops before its next pane and attaches nothing more.
         cleanedUp = true;
+        disposeRemoteSidebar();
         onSessionStateChanged = null;
         paneWorkingDirectories.clear();
         // A bell, a finished command or a program's notification still on its way to the FX thread

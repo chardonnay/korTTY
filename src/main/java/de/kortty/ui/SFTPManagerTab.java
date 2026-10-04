@@ -34,6 +34,7 @@ import de.kortty.ui.sftp.SftpRemoteEdits;
 import de.kortty.ui.sftp.SftpDragPayload;
 import de.kortty.ui.sftp.SftpFileItem;
 import de.kortty.ui.sftp.SftpFileItemComparators;
+import de.kortty.ui.sftp.SftpTabKeys;
 import de.kortty.ui.sftp.FxConflictResolver;
 import de.kortty.ui.sftp.SftpConflictDialog;
 import de.kortty.ui.sftp.SftpTransferQueueHost;
@@ -163,6 +164,27 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
      */
     private final List<Path> dragOutDirectories = new ArrayList<>();
 
+    /**
+     * Borrows a terminal pane's SSH session again ({@link SFTPSession#attach}); called off the FX
+     * thread. Throws when the pane's session is gone, no longer matches the pane, or refuses SFTP.
+     */
+    @FunctionalInterface
+    public interface SessionFactory {
+        SFTPSession open() throws Exception;
+    }
+
+    /** Non-null for a tab on a terminal pane's session: Connect and Reconnect go through it. */
+    private final SessionFactory borrowedSessions;
+    /** The session a borrowed tab was opened with, until its first connect took it (FX thread). */
+    private SFTPSession pendingAttached;
+    /** {@link SftpTabKeys}: which tab an "open" request reuses; null when never reused. */
+    private final String dedupeKey;
+    /** Shown once after the first connect: why the tab starts in the login folder; or null. */
+    private String startHint;
+    /** Opens a standalone tab with its own login when the pane's session is gone; or null. */
+    private final Runnable ownLogin;
+    private Button ownLoginButton;
+
     private enum RemoteState { CONNECTING, CONNECTED, DISCONNECTED }
 
     /** A remote folder listed off the FX thread: its absolute path and its entries. */
@@ -244,11 +266,65 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             MainWindow ownerWindow,
             String initialLocalPath,
             String initialRemotePath) {
+        this(app, connection, password, temporarySSHKey, autoCloseTimeoutMinutes, ownerWindow,
+            initialLocalPath, initialRemotePath, null, null, SftpTabKeys.standalone(connection), null, null);
+    }
+
+    /**
+     * Opens SFTP on a terminal pane's SSH session instead of logging in again (D7). The tab starts
+     * with {@code attached}, a session already {@linkplain SFTPSession#attach attached} off the FX
+     * thread; Reconnect asks {@code reattach} for a new one, which borrows the pane's session again.
+     * When that fails (the pane closed, or now runs as another user or host), the tab offers a
+     * separate login through {@code ownLogin}. The tab never closes the terminal's session.
+     *
+     * @param paneConnection the connection the pane runs (its own, not necessarily the tab's)
+     * @param attached       the session attached to the pane, owned by this tab from now on
+     * @param reattach       borrows the pane's session again, for Reconnect
+     * @param dedupeKey      {@link SftpTabKeys#borrowed}, one tab per pane (D9)
+     * @param startPath      the folder to start in, or null for the login folder
+     * @param startHint      a status hint on why the tab starts where it does, or null
+     * @param ownLogin       opens a standalone SFTP tab for {@code paneConnection} with its own login
+     */
+    public SFTPManagerTab(
+            KorTTYApplication app,
+            ServerConnection paneConnection,
+            SFTPSession attached,
+            SessionFactory reattach,
+            String dedupeKey,
+            String startPath,
+            String startHint,
+            Runnable ownLogin,
+            int autoCloseTimeoutMinutes,
+            MainWindow ownerWindow) {
+        this(app, paneConnection, null, null, autoCloseTimeoutMinutes, ownerWindow, null, startPath,
+            java.util.Objects.requireNonNull(reattach, "reattach"),
+            java.util.Objects.requireNonNull(attached, "attached"), dedupeKey, startHint, ownLogin);
+    }
+
+    private SFTPManagerTab(
+            KorTTYApplication app,
+            ServerConnection connection,
+            String password,
+            TemporarySSHKey temporarySSHKey,
+            int autoCloseTimeoutMinutes,
+            MainWindow ownerWindow,
+            String initialLocalPath,
+            String initialRemotePath,
+            SessionFactory borrowedSessions,
+            SFTPSession attached,
+            String dedupeKey,
+            String startHint,
+            Runnable ownLogin) {
         this.app = app;
         this.ownerWindow = ownerWindow;
         this.connection = connection;
         this.password = password;
         this.temporarySSHKey = temporarySSHKey;
+        this.borrowedSessions = borrowedSessions;
+        this.pendingAttached = attached;
+        this.dedupeKey = dedupeKey;
+        this.startHint = startHint;
+        this.ownLogin = ownLogin;
         String listThreadName = "SFTP-List-" + connection.getHost();
         this.remoteListExecutor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, listThreadName);
@@ -264,6 +340,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
 
         setText("SFTP: " + connection.getDisplayName());
         setClosable(true);
+        if (isBorrowed()) {
+            setTooltip(new Tooltip(I18n.get("sftp.borrowed.tooltip")));
+        }
         
         // Initialize paths: the saved folders of a restored tab, otherwise the home folders.
         currentLocalPath = SftpSessionRestoreSupport.initialLocalPath(
@@ -411,7 +490,14 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         timeoutLabel = new Label("");
         timeoutLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         
-        statusBox.getChildren().addAll(statusLabel, reconnectButton, statusProgressBar, spacer, timeoutLabel);
+        // A borrowed tab whose terminal session is gone can log in on its own instead.
+        ownLoginButton = new Button(I18n.get("sftp.borrowed.ownLogin"));
+        styleToolbarButton(ownLoginButton, FileBrowserIcons.REFRESH);
+        ownLoginButton.setVisible(false);
+        ownLoginButton.setManaged(false);
+        ownLoginButton.setOnAction(e -> switchToOwnLogin());
+
+        statusBox.getChildren().addAll(statusLabel, reconnectButton, ownLoginButton, statusProgressBar, spacer, timeoutLabel);
         
         // Split pane for local and remote
         SplitPane splitPane = new SplitPane();
@@ -456,7 +542,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
      * Renders the Type column as a shared file-browser type glyph instead of the emoji from
      * {@link SftpFileItem#getType()}. Sorting is unaffected (it keys off isFile()+name, not this cell).
      */
-    private static void installTypeIconCell(TableColumn<SftpFileItem, String> column) {
+    static void installTypeIconCell(TableColumn<SftpFileItem, String> column) {
         column.setCellFactory(col -> new javafx.scene.control.TableCell<SftpFileItem, String>() {
             @Override
             protected void updateItem(String value, boolean empty) {
@@ -1028,6 +1114,10 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         setReconnectVisible(false);
         statusLabel.setText(I18n.get("sftp.connecting"));
         refreshActionStates();
+        if (borrowedSessions != null) {
+            connectBorrowed(previous);
+            return;
+        }
         new Thread(() -> {
             if (previous != null) {
                 closeQuietly(previous);
@@ -1079,13 +1169,84 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         }, "SFTP-Connect").start();
     }
 
+    /**
+     * Connect and Reconnect of a tab on a terminal pane's session: the first time with the session
+     * attached before the tab opened, later by borrowing the pane's session again, off the FX
+     * thread. A previous session is closed there first; closing a borrowed session never closes
+     * the terminal's.
+     */
+    private void connectBorrowed(SFTPSession previous) {
+        SFTPSession initial = pendingAttached;
+        pendingAttached = null;
+        new Thread(() -> {
+            if (previous != null) {
+                closeQuietly(previous);
+            }
+            SFTPSession session = initial;
+            try {
+                if (session == null) {
+                    session = borrowedSessions.open();
+                }
+                SFTPSession connecting = session;
+                session.setDisconnectListener(() -> Platform.runLater(() -> onConnectionLost(connecting)));
+                sftpSession = session;
+                if (closing) {
+                    closeQuietly(session);
+                    return;
+                }
+                if (!session.isConnected()) {
+                    // The terminal's session ended before the listener was registered.
+                    Platform.runLater(() -> onConnectionLost(connecting));
+                    return;
+                }
+                Platform.runLater(() -> onConnected(connecting));
+            } catch (Exception e) {
+                logger.info("Could not borrow the terminal session for SFTP: {}", e.getMessage());
+                if (session != null) {
+                    closeQuietly(session);
+                }
+                Platform.runLater(() -> onConnectFailed(e));
+            }
+        }, "SFTP-Attach").start();
+    }
+
+    /** Whether this tab works on a terminal pane's SSH session rather than a login of its own. */
+    public boolean isBorrowed() {
+        return borrowedSessions != null;
+    }
+
+    /** Which tab an "open" request for the same connection or pane reuses ({@link SftpTabKeys}); may be null. */
+    public String getDedupeKey() {
+        return dedupeKey;
+    }
+
+    /** Closes this borrowed tab (asking first while transfers run) and opens one with its own login. */
+    private void switchToOwnLogin() {
+        if (ownLogin == null || closing || !confirmHostedClose()) {
+            return;
+        }
+        Runnable openStandalone = ownLogin;
+        cleanup();
+        if (getTabPane() != null) {
+            removeTabSafely();
+        }
+        if (onCloseCallback != null) {
+            onCloseCallback.run();
+        }
+        openStandalone.run();
+    }
+
     private void onConnected(SFTPSession session) {
         if (closing || session != sftpSession) {
             return;
         }
         remoteState = RemoteState.CONNECTED;
         setReconnectVisible(false);
-        statusLabel.setText(I18n.get("sftp.connectedTo", connection.getHost()));
+        String hint = startHint;
+        startHint = null;
+        statusLabel.setText(hint == null
+            ? I18n.get("sftp.connectedTo", connection.getHost())
+            : I18n.get("sftp.connectedTo", connection.getHost()) + " \u2014 " + hint);
         transferQueueHost.onSessionReady(session);
         refreshActionStates();
         refreshLocal();
@@ -1179,6 +1340,11 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         if (reconnectButton != null) {
             reconnectButton.setVisible(visible);
             reconnectButton.setManaged(visible);
+        }
+        if (ownLoginButton != null) {
+            boolean offerOwnLogin = visible && isBorrowed() && ownLogin != null;
+            ownLoginButton.setVisible(offerOwnLogin);
+            ownLoginButton.setManaged(offerOwnLogin);
         }
     }
 

@@ -34,6 +34,7 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | Pause nach jeder eingefügten Zeile: | Nummer | 0–1.000 ms (0 = aus) | 0 | `pasteLineDelayMs` |
 | Befehlsmarkierungen von Shells mit eingerichteter Shell-Integration nutzen (OSC 133) | umschalten | – | Ein | `shellIntegrationEnabled` |
 | Shell-Integration einrichten… | Schaltfläche | öffnet das Fenster mit den Shell-Snippets | – | – |
+| Seitenleiste Remote-Dateien: | Dropdown | Ausgeblendet, Links, Rechts | Ausgeblendet | `terminalRemoteSidebarPosition` (Breite: `terminalRemoteSidebarWidth`, 200–1.200, Standard 300) — siehe [Seitenleiste Remote-Dateien](../../features/terminal.md#seitenleiste-remote-dateien) |
 | Desktop-Benachrichtigung, wenn die Glocke in einem Tab läutet, den Sie gerade nicht ansehen | umschalten | – | Aus | `terminalBellNotificationsEnabled` |
 | Desktop-Benachrichtigung, wenn ein lang laufender Befehl in einem Tab endet, den Sie gerade nicht ansehen | umschalten | – | Ein | `commandFinishedNotificationsEnabled` |
 | Mindestlaufzeit eines Befehls: | Nummer | 1–3.600 Sekunden | 30 | `commandFinishedNotificationSeconds` |

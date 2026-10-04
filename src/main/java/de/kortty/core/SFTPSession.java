@@ -1,6 +1,8 @@
 package de.kortty.core;
 
+import de.kortty.core.sftp.BorrowedSessionSupplier;
 import de.kortty.core.sftp.SftpChannelSource;
+import de.kortty.core.sftp.SftpSubsystemUnavailableException;
 import de.kortty.core.sftp.transfer.SftpStreamCopier;
 import de.kortty.core.sftp.transfer.TransferCancellation;
 import de.kortty.core.sftp.transfer.TransferProgressListener;
@@ -12,12 +14,16 @@ import org.apache.sshd.client.auth.UserAuthFactory;
 import org.apache.sshd.client.auth.keyboard.UserAuthKeyboardInteractiveFactory;
 import org.apache.sshd.client.auth.password.UserAuthPasswordFactory;
 import org.apache.sshd.client.auth.pubkey.UserAuthPublicKeyFactory;
+import org.apache.sshd.client.channel.ChannelExec;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.future.CloseFuture;
+import org.apache.sshd.common.future.SshFutureListener;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.apache.sshd.common.keyprovider.FileKeyPairProvider;
 import org.apache.sshd.common.keyprovider.KeyIdentityProvider;
 import org.apache.sshd.common.signature.BuiltinSignatures;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,21 +35,52 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Manages SFTP connections for file transfer.
  *
- * <p>As a {@link SftpChannelSource} it owns its SSH session; transfer workers may open further
- * SFTP channels on it with {@link #openChannel()}.
+ * <p>As a {@link SftpChannelSource} it either owns its SSH session (a standalone login with
+ * {@link #connect()}) or borrows the session of a terminal pane ({@link #attach}). Transfer workers
+ * may open further SFTP channels on it with {@link #openChannel()}.
+ *
+ * <p>A borrowed session never closes the terminal's {@link ClientSession}, its client or a jump
+ * tunnel: {@link #close()} closes only the SFTP channels this object opened. The session is
+ * re-resolved through the {@link BorrowedSessionSupplier} for every new channel, so a terminal
+ * reconnect is picked up and a pane that now runs another user or host is never used. Extra
+ * channels on a borrowed session (parallel transfers and remote commands) share the terminal's
+ * {@code MaxSessions} budget with the shell and the agent, so at most
+ * {@link #BORROWED_CHANNEL_BUDGET} of them are open at once.
  */
 public class SFTPSession implements SftpChannelSource {
     
     private static final Logger logger = LoggerFactory.getLogger(SFTPSession.class);
+
+    /**
+     * Extra channels (beyond the primary SFTP channel) a borrowed session may hold open at once:
+     * the terminal's shell, its agent commands and the sidebar share the server's
+     * {@code MaxSessions} with them, and bulk traffic delays the terminal's liveness probe.
+     */
+    public static final int BORROWED_CHANNEL_BUDGET = 2;
     
     private final ServerConnection connection;
     private final String password;
+    /** Null for a borrowed session: it never connects or verifies a host key itself. */
     private final SshHostKeyTrustManager hostKeyTrustManager;
+    /** False when the SSH session belongs to a terminal pane. */
+    private final boolean owning;
+    /** Resolves the terminal pane's current session; null for an owning session. */
+    private final @Nullable BorrowedSessionSupplier borrowedSupplier;
+    /** A log label for a borrowed session (never a secret); null for an owning one. */
+    private final @Nullable String label;
+    /** Extra channels a borrowed session opened and has not seen closed yet. */
+    private final Set<Object> extraChannels = ConcurrentHashMap.newKeySet();
+    private final Object channelBudgetLock = new Object();
+    /** Registered on a borrowed session so it can be removed again on {@link #close()}. */
+    private volatile @Nullable SshFutureListener<CloseFuture> sessionCloseListener;
     private volatile SshHostKeyTrustManager.ReplacePolicy hostKeyReplacePolicy =
         SshHostKeyTrustManager.ReplacePolicy.NEVER;
     private SSHKeyManager sshKeyManager;
@@ -73,6 +110,76 @@ public class SFTPSession implements SftpChannelSource {
         this.connection = connection;
         this.password = password;
         this.hostKeyTrustManager = java.util.Objects.requireNonNull(hostKeyTrustManager, "hostKeyTrustManager");
+        this.owning = true;
+        this.borrowedSupplier = null;
+        this.label = null;
+    }
+
+    private SFTPSession(ServerConnection paneConnection, BorrowedSessionSupplier supplier, @Nullable String label) {
+        this.connection = Objects.requireNonNull(paneConnection, "paneConnection");
+        this.password = null;
+        this.hostKeyTrustManager = null;
+        this.owning = false;
+        this.borrowedSupplier = Objects.requireNonNull(supplier, "supplier");
+        this.label = label;
+    }
+
+    /**
+     * Opens SFTP on a terminal pane's SSH session instead of logging in again. The result does not
+     * own the session: {@link #close()} closes only its own SFTP channels, and a disconnect of the
+     * terminal's session (or of the SFTP channel alone) is reported once to the
+     * {@linkplain #setDisconnectListener disconnect listener}. Network I/O: never call this on the
+     * FX thread.
+     *
+     * @param supplier resolves the pane's current session; checked at every use
+     * @param paneConnection the connection the pane runs (its own, not necessarily the tab's)
+     * @param label a short log label such as {@code host:port}; never a secret
+     * @throws de.kortty.policy.PolicyRestrictionException when the policy blocks the pane's target
+     * @throws SftpSubsystemUnavailableException when the server or a proxy refuses the SFTP
+     *     subsystem on that session; the caller may fall back to a separate login
+     * @throws IOException when the pane's session is gone or no longer matches the pane
+     */
+    public static SFTPSession attach(BorrowedSessionSupplier supplier, ServerConnection paneConnection, String label)
+            throws IOException {
+        Objects.requireNonNull(supplier, "supplier");
+        Objects.requireNonNull(paneConnection, "paneConnection");
+        de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(paneConnection).ifPresent(target -> {
+            logger.warn("Blocked SFTP on a terminal session to {} by enterprise policy", target);
+            throw new de.kortty.policy.PolicyRestrictionException(
+                "Connection to " + target + " is blocked by your organization's policy");
+        });
+        SFTPSession attached = new SFTPSession(paneConnection, supplier, label);
+        attached.attachToBorrowedSession();
+        return attached;
+    }
+
+    private void attachToBorrowedSession() throws IOException {
+        ClientSession borrowed = resolveBorrowedSession();
+        try {
+            sftpClient = SftpClientFactory.instance().createSftpClient(borrowed);
+        } catch (IOException | RuntimeException e) {
+            throw new SftpSubsystemUnavailableException(sftpSubsystemFailureMessage(e), e);
+        }
+        session = borrowed;
+        SshFutureListener<CloseFuture> onSessionClosed = future -> reportDisconnect();
+        sessionCloseListener = onSessionClosed;
+        borrowed.addCloseFutureListener(onSessionClosed);
+        sftpClient.getClientChannel().addCloseFutureListener(future -> reportDisconnect());
+        try {
+            currentRemotePath = sftpClient.canonicalPath(".");
+        } catch (IOException e) {
+            currentRemotePath = "~";
+        }
+        logger.info("SFTP attached to the terminal session of {}", describe());
+    }
+
+    /** The pane's open session right now, or an {@link IOException} with the readable message. */
+    private ClientSession resolveBorrowedSession() throws IOException {
+        ClientSession current = borrowedSupplier != null ? borrowedSupplier.get() : null;
+        if (current == null || !current.isOpen() || current.isClosing()) {
+            throw new IOException(I18n.get("terminal.sftp.sessionUnavailable"));
+        }
+        return current;
     }
     
     /**
@@ -130,6 +237,9 @@ public class SFTPSession implements SftpChannelSource {
      * Establishes the SFTP connection.
      */
     public void connect() throws Exception {
+        if (!owning) {
+            throw new IllegalStateException("A borrowed SFTP session is attached, not connected");
+        }
         de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection).ifPresent(target -> {
             logger.warn("Blocked SFTP session to {} by enterprise policy", target);
             throw new de.kortty.policy.PolicyRestrictionException(
@@ -266,7 +376,7 @@ public class SFTPSession implements SftpChannelSource {
             try {
                 sftpClient = SftpClientFactory.instance().createSftpClient(session);
             } catch (IOException | RuntimeException e) {
-                throw new IOException(sftpSubsystemFailureMessage(e), e);
+                throw new SftpSubsystemUnavailableException(sftpSubsystemFailureMessage(e), e);
             }
             // Both: the server can end the SFTP channel alone and keep the SSH session open.
             session.addCloseFutureListener(future -> reportDisconnect());
@@ -699,6 +809,10 @@ public class SFTPSession implements SftpChannelSource {
     public void close() {
         // First, so the close futures below never report this as a lost connection.
         closingDeliberately = true;
+        if (!owning) {
+            closeBorrowed();
+            return;
+        }
         try {
             if (sftpClient != null) {
                 sftpClient.close();
@@ -720,6 +834,36 @@ public class SFTPSession implements SftpChannelSource {
         }
     }
     
+    /** Closes this object's own channels; the terminal's session, client and jump tunnel stay open. */
+    private void closeBorrowed() {
+        for (Object open : List.copyOf(extraChannels)) {
+            if (!(open instanceof java.io.Closeable channel)) {
+                continue; // a budget placeholder
+            }
+            try {
+                channel.close();
+            } catch (IOException | RuntimeException e) {
+                logger.debug("Closing an SFTP channel on a terminal session failed: {}", e.getMessage());
+            }
+        }
+        extraChannels.clear();
+        try {
+            if (sftpClient != null) {
+                sftpClient.close();
+            }
+        } catch (IOException | RuntimeException e) {
+            logger.debug("Closing the SFTP channel on a terminal session failed: {}", e.getMessage());
+        }
+        ClientSession borrowed = session;
+        SshFutureListener<CloseFuture> listener = sessionCloseListener;
+        if (borrowed != null && listener != null) {
+            // The terminal's session outlives this object: do not leave a listener behind on it.
+            borrowed.removeCloseFutureListener(listener);
+            sessionCloseListener = null;
+        }
+        logger.info("SFTP on the terminal session of {} closed", describe());
+    }
+
     public boolean isConnected() {
         SftpClient client = sftpClient;
         ClientSession current = session;
@@ -738,11 +882,116 @@ public class SFTPSession implements SftpChannelSource {
     /** Opens another SFTP channel on this session's SSH connection; the caller closes it. */
     @Override
     public SftpClient openChannel() throws IOException {
+        if (!owning) {
+            return openBorrowedChannel();
+        }
         ClientSession current = session;
         if (current == null || !current.isOpen()) {
             throw new IOException("SFTP session is not connected");
         }
         return SftpClientFactory.instance().createSftpClient(current);
+    }
+
+    /**
+     * An extra SFTP channel on the pane's current session, within {@link #BORROWED_CHANNEL_BUDGET}.
+     * A refusal over budget is an {@link IOException}, which the transfer pool treats like a server
+     * that refuses a channel: it shrinks and carries on with what it has.
+     */
+    private SftpClient openBorrowedChannel() throws IOException {
+        if (closingDeliberately) {
+            throw new IOException(I18n.get("terminal.sftp.sessionUnavailable"));
+        }
+        ClientSession current = resolveBorrowedSession();
+        BudgetSlot slot = reserveBorrowedChannel();
+        try {
+            SftpClient extra;
+            try {
+                extra = SftpClientFactory.instance().createSftpClient(current);
+            } catch (IOException | RuntimeException e) {
+                throw new SftpSubsystemUnavailableException(sftpSubsystemFailureMessage(e), e);
+            }
+            slot.bind(extra);
+            extra.getClientChannel().addCloseFutureListener(future -> extraChannels.remove(extra));
+            if (!extra.isOpen()) {
+                extraChannels.remove(extra);
+            }
+            return extra;
+        } finally {
+            slot.releaseIfUnbound();
+        }
+    }
+
+    /** How many extra channels this borrowed session holds open now; for tests. */
+    int openExtraChannelCount() {
+        return extraChannels.size();
+    }
+
+    /** A reserved place in the borrowed channel budget until a channel takes it over. */
+    private final class BudgetSlot {
+        /** A fresh identity per reservation, so two reservations never collapse into one entry. */
+        private final Object placeholder = new Object();
+        private boolean bound;
+
+        BudgetSlot() {
+            extraChannels.add(placeholder);
+        }
+
+        void bind(java.io.Closeable channel) {
+            extraChannels.add(channel);
+            extraChannels.remove(placeholder);
+            bound = true;
+        }
+
+        void releaseIfUnbound() {
+            if (!bound) {
+                extraChannels.remove(placeholder);
+            }
+        }
+    }
+
+    private BudgetSlot reserveBorrowedChannel() throws IOException {
+        synchronized (channelBudgetLock) {
+            if (extraChannels.size() >= BORROWED_CHANNEL_BUDGET) {
+                throw new IOException(I18n.get("sftp.error.channelBudget", BORROWED_CHANNEL_BUDGET));
+            }
+            return new BudgetSlot();
+        }
+    }
+
+    /**
+     * The session remote commands run on: this object's own, or for a borrowed one the pane's
+     * current session. Null when there is none.
+     */
+    private @Nullable ClientSession commandSession() {
+        if (owning) {
+            ClientSession current = session;
+            return current != null && current.isOpen() ? current : null;
+        }
+        ClientSession current = borrowedSupplier != null ? borrowedSupplier.get() : null;
+        return current != null && current.isOpen() && !current.isClosing() ? current : null;
+    }
+
+    /**
+     * Opens an exec channel for {@code command}. On a borrowed session it takes a place in the
+     * channel budget until it is closed.
+     */
+    private ChannelExec openExecChannel(String command) throws Exception {
+        ClientSession current = commandSession();
+        if (current == null) {
+            throw new Exception("Not connected");
+        }
+        if (owning) {
+            return current.createExecChannel(command);
+        }
+        BudgetSlot slot = reserveBorrowedChannel();
+        try {
+            ChannelExec channel = current.createExecChannel(command);
+            slot.bind(channel);
+            channel.addCloseFutureListener(future -> extraChannels.remove(channel));
+            return channel;
+        } finally {
+            slot.releaseIfUnbound();
+        }
     }
 
     @Override
@@ -752,11 +1001,14 @@ public class SFTPSession implements SftpChannelSource {
 
     @Override
     public boolean ownsSession() {
-        return true;
+        return owning;
     }
 
     @Override
     public String describe() {
+        if (label != null && !label.isBlank()) {
+            return label;
+        }
         // host:port only, like the connect log: no getter that could carry a user name.
         return connection == null ? "sftp" : connection.getHost() + ":" + connection.getPort();
     }
@@ -777,11 +1029,7 @@ public class SFTPSession implements SftpChannelSource {
      * @throws Exception If the command fails
      */
     public String executeCommand(String command) throws Exception {
-        if (session == null || !session.isOpen()) {
-            throw new Exception("Not connected");
-        }
-        
-        try (org.apache.sshd.client.channel.ChannelExec channel = session.createExecChannel(command)) {
+        try (ChannelExec channel = openExecChannel(command)) {
             java.io.ByteArrayOutputStream stdout = new java.io.ByteArrayOutputStream();
             java.io.ByteArrayOutputStream stderr = new java.io.ByteArrayOutputStream();
             channel.setOut(stdout);
@@ -812,11 +1060,7 @@ public class SFTPSession implements SftpChannelSource {
      * @throws Exception If the command fails to execute
      */
     public CommandResult executeCommandWithProgress(String command, java.util.function.Consumer<String> outputConsumer) throws Exception {
-        if (session == null || !session.isOpen()) {
-            throw new Exception("Not connected");
-        }
-        
-        try (org.apache.sshd.client.channel.ChannelExec channel = session.createExecChannel(command)) {
+        try (ChannelExec channel = openExecChannel(command)) {
             java.io.PipedInputStream stdoutPipedIn = new java.io.PipedInputStream();
             java.io.PipedOutputStream stdoutPipedOut = new java.io.PipedOutputStream(stdoutPipedIn);
             java.io.ByteArrayOutputStream stderrStream = new java.io.ByteArrayOutputStream();

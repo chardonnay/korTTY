@@ -49,6 +49,7 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 | Import… | Import connections from other clients |
 | Export… | Export connections |
 | SFTP-Client… | Open the dual-panel SFTP file manager |
+| Open SFTP Here | Open the SFTP file manager on the focused terminal pane's own SSH session, in the folder its shell is in |
 
 ## Security
 
@@ -145,6 +146,8 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Coding Agents ▸ Dock Left / Dock Right | | Dock the [Coding Agents panel](../features/coding-agents.md#the-coding-agents-panel) beside the terminal; selecting the active side hides it |
 | Coding Agents ▸ Show/Hide | ++ctrl+alt+g++ | Toggle the Coding Agents panel on its last-used side (right by default) |
 | Coding Agents ▸ Next Blocked Agent | ++ctrl+alt+n++ | Bring the next coding agent that is waiting for a decision to the front, across windows |
+| Remote Files Sidebar ▸ Dock Left / Dock Right | | Dock the [remote files sidebar](../features/terminal.md#remote-files-sidebar) beside the panes of every terminal tab; unchecking the active side hides it. Offered while the active tab has an SSH pane or the sidebar is on |
+| Remote Files Sidebar ▸ Show/Hide Remote Files Sidebar | | Show the remote files sidebar on the right, or hide it; hiding asks first while sidebar transfers are running |
 
 ## Teamwork
 
