@@ -64,6 +64,12 @@ class OscSplitterDifferentialTest {
             ESC + "[" + C1_OSC + "m" + ESC + "]133;A" + BEL + "after\r\nmore",
             // A stray ESC in a CSI, then a mark that SithTermFX prints as text.
             ESC + "[1" + ESC + "]133;A" + BEL + "after",
+            // The last stray U+009D that still fits into SithTermFX's 1024-char push-back beside
+            // ESC [, the marker and the final char, and the first one dropped.
+            ESC + "[" + "\0".repeat(1_020) + C1_OSC + "m" + ESC + "]133;A" + BEL + "after\r\nmore",
+            ESC + "[" + "\0".repeat(1_021) + C1_OSC + "m" + ESC + "]133;A" + BEL + "after\r\nmore",
+            ESC + "[?" + "\0".repeat(1_019) + C1_OSC + "h" + ESC + "]133;A" + BEL + "after\r\nmore",
+            ESC + "[?" + "\0".repeat(1_020) + C1_OSC + "h" + ESC + "]133;A" + BEL + "after\r\nmore",
             // tmux passthrough: the DCS ends at the first BEL.
             "x" + ESC + "Ptmux;" + ESC + ESC + "]133;A" + BEL + ESC + "\\y",
             // A bare ESC ] inside a title is part of the title.

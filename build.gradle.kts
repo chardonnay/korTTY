@@ -503,13 +503,16 @@ val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
 // Applied in order. Every patch ships its own marker resource so each one stays independently
 // forward/reverse-checkable against the vendor tree regardless of which patches are present.
 val sithtermfxPatchFiles = listOf(
+    layout.projectDirectory.file("patches/sithtermfx/1.2.2-control-sequence-bounds.patch"),
     layout.projectDirectory.file("patches/sithtermfx/1.2.2-terminal-panel-bottom-row.patch"),
     layout.projectDirectory.file("patches/sithtermfx/1.2.2-terminal-panel-meta-shortcut-key-typed.patch"),
 )
-// Jar entry -> line that entry must contain for the installed artifact to count as patched.
+// Artifact, jar entry, and the line that entry must contain for the installed artifact to count
+// as patched. A marker ships in the module its patch changes.
 val sithtermfxPatchMarkers = listOf(
-    "META-INF/kortty-patches.properties" to "terminal-panel-bottom-row-hyperlink-boundary=1",
-    "META-INF/kortty-patch-meta-shortcut-key-typed.properties" to "terminal-panel-meta-shortcut-key-typed=1",
+    Triple("sithtermfx-core", "META-INF/kortty-patch-control-sequence-bounds.properties", "control-sequence-push-back-bounds=1"),
+    Triple("sithtermfx-ui", "META-INF/kortty-patches.properties", "terminal-panel-bottom-row-hyperlink-boundary=1"),
+    Triple("sithtermfx-ui", "META-INF/kortty-patch-meta-shortcut-key-typed.properties", "terminal-panel-meta-shortcut-key-typed=1"),
 )
 
 tasks.register("cloneSithtermfx") {
@@ -586,14 +589,15 @@ val applySithtermfxPatches = tasks.register("applySithtermfxPatches") {
     }
 }
 
-val mavenLocalSithtermfxCore = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-core/$sithtermfxVersion/sithtermfx-core-$sithtermfxVersion.jar")
-val mavenLocalSithtermfxUi = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/sithtermfx-ui/$sithtermfxVersion/sithtermfx-ui-$sithtermfxVersion.jar")
+fun mavenLocalSithtermfxJar(artifactId: String) = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/$artifactId/$sithtermfxVersion/$artifactId-$sithtermfxVersion.jar")
+val mavenLocalSithtermfxCore = mavenLocalSithtermfxJar("sithtermfx-core")
+val mavenLocalSithtermfxUi = mavenLocalSithtermfxJar("sithtermfx-ui")
 
 fun installedSithtermfxHasRequiredPatches(): Boolean {
     if (!mavenLocalSithtermfxCore.isFile || !mavenLocalSithtermfxUi.isFile) return false
     return try {
-        ZipFile(mavenLocalSithtermfxUi).use { archive ->
-            sithtermfxPatchMarkers.all { (entryName, requiredLine) ->
+        sithtermfxPatchMarkers.all { (artifactId, entryName, requiredLine) ->
+            ZipFile(mavenLocalSithtermfxJar(artifactId)).use { archive ->
                 val marker = archive.getEntry(entryName) ?: return false
                 archive.getInputStream(marker).bufferedReader().use { reader ->
                     reader.readText().lineSequence().any { it.trim() == requiredLine }
