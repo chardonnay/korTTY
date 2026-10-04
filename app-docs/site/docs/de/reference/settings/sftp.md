@@ -41,6 +41,17 @@ Wie Uploads und Downloads in der [Übertragungsliste](../../features/sftp.md#ube
 !!! note "Von Ihrer Organisation verwaltet"
     Eine Organisation kann mit [`[rule.sftp]`](../enterprise-policy.md#rulesftp) **Parallele Übertragungen** begrenzen sowie **Wenn das Ziel bereits existiert** festlegen und sperren und mit `file-transfer = "deny"` die Dateiübertragung ganz abschalten; die Seite weist dann unterhalb der Übertragungseinstellungen darauf hin.
 
+## Externer Editor
+
+Der Editor, mit dem **In externem Editor bearbeiten** im [SFTP-Manager](../../features/sftp.md#im-eigenen-editor-bearbeiten) Dateien vom Server öffnet.
+
+| Einstellung | Typ | Werte | Standard | Gespeichert als |
+| --- | --- | --- | --- | --- |
+| Editor-Befehl | Text | Ein Programm und seine Argumente; `{file}` steht für die Datei | leer (Texteditor des Systems) | `sftpExternalEditorCommand` |
+
+!!! note "Editor-Befehl"
+    Beispiele: `code --wait {file}`, `subl -w {file}`, `"C:\Program Files\Notepad++\notepad++.exe" -multiInst {file}`. Wörter werden durch Leerzeichen getrennt; setzen Sie einen Pfad mit Leerzeichen in doppelte oder einfache Anführungszeichen. `{file}` wird als ein Argument durch den vollständigen Pfad der lokalen Kopie ersetzt, und ohne `{file}` wird der Pfad am Ende angehängt. Der Befehl läuft direkt, nie über eine Shell, daher haben `$VAR`, `%VAR%`, `;` und `|` keine besondere Bedeutung. Ein Befehl mit einem nicht geschlossenen Anführungszeichen wird rot markiert und nicht gespeichert. Lassen Sie das Feld leer, um Dateien als Text mit dem Editor des Systems zu öffnen: unter macOS TextEdit (oder Ihr Standard-Texteditor), unter Windows die Aktion **Bearbeiten** (meist Notepad) und unter Linux die Standardanwendung für Textdateien; unter Linux fragt eine Datei, die kein reiner Text ist, zuerst nach einem Editor-Befehl, der dann hier gespeichert wird.
+
 ## ZIP-Erstellungseinstellungen
 
 Dies sind die Standardeinstellungen für die Erstellung eines ZIP-Archivs **auf dem Remote-Server** über den SFTP-Manager.
