@@ -142,8 +142,10 @@ public class TerminalLinkClickPolicyTest {
 
         assertThat(policy).contains("panel.getCanvas().addEventFilter(MouseEvent.MOUSE_CLICKED,");
         assertThat(policy).doesNotContain("addEventHandler(");
+        // korTTY notes only a single, still gesture click itself, independent of SithTermFX's own rule.
         assertThat(policy).contains("if (hit.kind() == HitKind.OSC8) { if (!event.isPopupTrigger() "
-            + "&& isFollowLinkGesture(event.isShortcutDown(), event.isAltDown())) { osc8Clicked.accept(cell, hit); } return; }");
+            + "&& isFollowLinkGesture(event.isShortcutDown(), event.isAltDown()) "
+            + "&& event.getClickCount() == 1 && event.isStillSincePress()) { osc8Clicked.accept(cell, hit); } return; }");
         assertThat(policy).contains("event.consume();");
         assertThat(policy).contains("panel.getCanvas().requestFocus();");
     }

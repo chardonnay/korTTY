@@ -24,9 +24,9 @@ import java.util.function.Consumer;
  * release of a drag act as on other text (the click does nothing, the multi-clicks select a word or a
  * line, the drag selects), and a Cmd/Ctrl+click navigates the link's {@link KorttyLinkInfo}, which
  * hands it back to the pane ({@code KorttyTerminalPanel.followLink}). The pane opens it only when
- * this class saw the same click arrive on the same link with the open gesture, so the gesture holds
- * even under a settings provider that follows every click, and the host-mismatch question and the
- * file handler apply as for every other link.
+ * this class saw the same click arrive on the same link as a single, still click with the open
+ * gesture, so D2 holds even under a settings provider or a SithTermFX that follows other clicks,
+ * and the host-mismatch question and the file handler apply as for every other link.
  *
  * <p>A link korTTY finds in plain text ({@link HitKind#AUTO}) is ordinary text to SithTermFX, so
  * this class opens it itself, as a {@code MOUSE_CLICKED} event filter on the canvas of
@@ -153,8 +153,9 @@ public final class TerminalLinkClickPolicy {
      * @param opener      opens the plain-text link of an {@link Action#OPEN} click, one that
      *                    {@link Hit#opens()}, normally through {@link TerminalLinkOpener#open} or the
      *                    pane's file handler
-     * @param osc8Clicked told about every primary click with the open gesture on an OSC 8 link, with
-     *                    the clicked cell and its link, before SithTermFX's own click handler runs
+     * @param osc8Clicked told about every single, still primary click with the open gesture on an
+     *                    OSC 8 link, with the clicked cell and its link, before SithTermFX's own click
+     *                    handler runs
      */
     static void install(@NotNull KorttyTermWidget.KorttyTerminalPanel panel, @NotNull HitResolver resolver,
             @NotNull Consumer<Hit> opener, @NotNull BiConsumer<Point, Hit> osc8Clicked) {
@@ -176,7 +177,10 @@ public final class TerminalLinkClickPolicy {
         }
         Hit hit = resolver.hitAt(panel.getTerminalTextBuffer(), cell);
         if (hit.kind() == HitKind.OSC8) {
-            if (!event.isPopupTrigger() && isFollowLinkGesture(event.isShortcutDown(), event.isAltDown())) {
+            // Only a single, still click is noted, so a double click or a drag release never opens
+            // an OSC 8 link even if a SithTermFX upgrade navigated on one.
+            if (!event.isPopupTrigger() && isFollowLinkGesture(event.isShortcutDown(), event.isAltDown())
+                    && event.getClickCount() == 1 && event.isStillSincePress()) {
                 osc8Clicked.accept(cell, hit);
             }
             return;
