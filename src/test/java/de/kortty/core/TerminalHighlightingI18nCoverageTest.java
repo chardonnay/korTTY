@@ -55,7 +55,8 @@ class TerminalHighlightingI18nCoverageTest {
         for (String bundle : BUNDLES) {
             Properties localized = loadBundle(bundle);
             for (String key : HighlightRuleValidator.MESSAGE_KEYS) {
-                if (HighlightRuleValidator.messageArguments(key).length > 0) {
+                if (HighlightRuleValidator.messageArguments(key).length > 0
+                        || HighlightRuleValidator.UNSTORABLE_KEYS.contains(key)) {
                     assertWithMessage(bundle + " " + key).that(localized.getProperty(key)).contains("{0}");
                 }
             }

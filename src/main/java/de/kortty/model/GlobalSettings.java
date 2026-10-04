@@ -2178,9 +2178,36 @@ public class GlobalSettings {
         return highlightRuleSets;
     }
 
+    /**
+     * Stores the user's sets in order, each as this file can hold it ({@link HighlightRuleSet#storable()}):
+     * a rule whose pattern holds a character the file cannot store ({@link XmlStorableText}) is left out,
+     * and such a name is not kept. Written anyway, one such character would keep every setting from loading.
+     */
     public void setHighlightRuleSets(java.util.List<HighlightRuleSet> sets) {
-        this.highlightRuleSets = sets != null
-            ? new java.util.ArrayList<>(sets) : new java.util.ArrayList<>();
+        this.highlightRuleSets = storableHighlightRuleSets(sets);
+    }
+
+    private static java.util.List<HighlightRuleSet> storableHighlightRuleSets(java.util.List<HighlightRuleSet> sets) {
+        java.util.List<HighlightRuleSet> kept = new java.util.ArrayList<>();
+        if (sets != null) {
+            for (HighlightRuleSet set : sets) {
+                kept.add(set != null ? set.storable() : null);
+            }
+        }
+        return kept;
+    }
+
+    /**
+     * Applies {@link #setHighlightRuleSets}' guard once more right before the file is written: the list
+     * {@link #getHighlightRuleSets()} returns is live, so a set can reach it without the setter. The list
+     * is replaced only when something had to go, so a reader iterating it is not disturbed.
+     */
+    @SuppressWarnings("unused")
+    private void beforeMarshal(jakarta.xml.bind.Marshaller marshaller) {
+        if (highlightRuleSets != null
+                && highlightRuleSets.stream().anyMatch(set -> set != null && !set.isStorable())) {
+            highlightRuleSets = storableHighlightRuleSets(highlightRuleSets);
+        }
     }
 
     public boolean isTerminalHighlightingEnabled() {
@@ -3642,10 +3669,12 @@ public class GlobalSettings {
     }
     
     /**
-     * Adds a new access reason to the history (keeps max 5 entries).
+     * Adds a new access reason to the history (keeps max 5 entries). Like every history adder, it skips
+     * text this file cannot hold ({@link XmlStorableText}): the entry is merely not remembered, where
+     * written it would keep every setting from loading.
      */
     public void addAccessReason(String reason) {
-        if (reason == null || reason.trim().isEmpty()) {
+        if (reason == null || reason.trim().isEmpty() || !XmlStorableText.isStorable(reason)) {
             return;
         }
         java.util.List<String> history = getAccessReasonHistory();
@@ -3670,8 +3699,9 @@ public class GlobalSettings {
         this.aiPromptHistory = aiPromptHistory;
     }
 
+    /** Records an AI prompt: deduplicated, newest first, capped at 10; text this file cannot hold is skipped. */
     public void addAiPromptHistoryEntry(String prompt) {
-        if (prompt == null || prompt.trim().isEmpty()) {
+        if (prompt == null || prompt.trim().isEmpty() || !XmlStorableText.isStorable(prompt)) {
             return;
         }
         java.util.List<String> history = getAiPromptHistory();
@@ -3698,9 +3728,12 @@ public class GlobalSettings {
         this.guideAskHistory = guideAskHistory;
     }
 
-    /** Records a guide AI-search question: deduplicated, newest first, capped at 10 entries. */
+    /**
+     * Records a guide AI-search question: deduplicated, newest first, capped at 10 entries; text this
+     * file cannot hold ({@link XmlStorableText}) is skipped.
+     */
     public void addGuideAskHistoryEntry(String question) {
-        if (question == null || question.trim().isEmpty()) {
+        if (question == null || question.trim().isEmpty() || !XmlStorableText.isStorable(question)) {
             return;
         }
         java.util.List<String> history = getGuideAskHistory();
@@ -3751,9 +3784,12 @@ public class GlobalSettings {
         this.workflowInstructionsHistory = workflowInstructionsHistory;
     }
 
-    /** Records a workflow-generator instruction: deduplicated, newest first, capped at 10 entries. */
+    /**
+     * Records a workflow-generator instruction: deduplicated, newest first, capped at 10 entries; text
+     * this file cannot hold ({@link XmlStorableText}) is skipped.
+     */
     public void addWorkflowInstructionsHistoryEntry(String instructions) {
-        if (instructions == null || instructions.trim().isEmpty()) {
+        if (instructions == null || instructions.trim().isEmpty() || !XmlStorableText.isStorable(instructions)) {
             return;
         }
         java.util.List<String> history = getWorkflowInstructionsHistory();
@@ -3811,10 +3847,12 @@ public class GlobalSettings {
      * Adds a terminal agent prompt to the front of the history, recording {@code whenMillis} as its
      * last-used time. Entries are de-duplicated by prompt text only: running the same prompt again
      * moves it to the front and refreshes its timestamp instead of creating a duplicate. The list is
-     * capped at the configured size.
+     * capped at the configured size. A prompt this file cannot hold ({@link XmlStorableText}) is not
+     * remembered: unlike a text field, a bracketed paste or the shell hook's OSC sequence (which a remote
+     * host can print) hands over control characters as they are.
      */
     public void addTerminalAgentInput(String prompt, long whenMillis) {
-        if (prompt == null || prompt.trim().isEmpty()) {
+        if (prompt == null || prompt.trim().isEmpty() || !XmlStorableText.isStorable(prompt)) {
             return;
         }
         String normalized = prompt.trim();
