@@ -119,7 +119,7 @@ If **Auto-Reconnect** is disabled, terminal tabs are not restored: opening the p
 With **Auto-Reconnect**, opening a project asks you nothing while it opens the tabs. Each terminal, SFTP Manager and remote file tab signs in like **Connect** in the Connection Manager (see [Signing in](connections.md#signing-in)), but only with what is stored, and your organization's [server access policy](../reference/enterprise-policy.md#server-access-control) is checked first:
 
 - **Opens right away** — a local shell, SSH key authentication, a password saved in the connection or in its credential, and a temporary SSH key that is still valid. A local shell opens whatever its authentication field says.
-- **Waits for you** — a password that is not saved, a temporary SSH key that has expired, and a password that is in the locked vault. An expired temporary key is never renewed without asking.
+- **Waits for you** — a password that is not saved, a temporary SSH key that has expired or that the locked vault still keeps encrypted, and a password that is in the locked vault. A temporary key is never renewed without asking.
 - **Listed only** — a server or jump server the server access policy blocks, a connection that was deleted or never saved (a Quick Connect session), and a local file that no longer exists.
 
 The tabs that do not open are listed in one bar above the status line of their window, for example *Tabs not reopened: sign-in needed (2) · vault locked (1) · blocked by policy (1)*, instead of a dialog for each tab. The bar never blocks the window, so you can work in the tabs that opened and come back to it later.
