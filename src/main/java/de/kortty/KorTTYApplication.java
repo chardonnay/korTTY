@@ -145,6 +145,8 @@ public class KorTTYApplication extends Application {
      * to the old master key, so the shutdown must not write them over the restored files.
      */
     private volatile boolean restoredBackupAwaitsRestart = false;
+    /** Keeps ~/.kortty/session/ current while korTTY runs; null when it could not start. */
+    private de.kortty.ui.SessionAutosaveCoordinator sessionAutosave;
     private de.kortty.policy.PolicyManager policyManager;
     
     public static void main(String[] args) {
@@ -584,6 +586,16 @@ public class KorTTYApplication extends Application {
                     de.kortty.policy.PolicyUiSupport::showMalformedPolicyDialog);
             }
 
+            // The session snapshot: makes the last run's session the previous one and keeps the
+            // Recently Closed list, before the first window can change either.
+            try {
+                sessionAutosave = MainWindow.startSessionAutosave(
+                    de.kortty.core.SessionSnapshotStore.open(getConfigDirectory()),
+                    () -> !restoredBackupAwaitsRestart);
+            } catch (RuntimeException e) {
+                logger.warn("The session snapshot could not start; the session will not be saved", e);
+            }
+
             // Create and show main window
             MainWindow mainWindow = new MainWindow(primaryStage);
             mainWindow.show();
@@ -615,6 +627,18 @@ public class KorTTYApplication extends Application {
             if (!testMode) {
                 Platform.runLater(() -> de.kortty.ui.TelemetryConsentDialog.maybeShow(this, primaryStage));
             }
+
+            // The session before this start: offered in a bar, or restored once no dialog is open.
+            // Posted after the consent prompt, so its connections never ask on top of that dialog.
+            de.kortty.model.SessionRestoreMode sessionRestoreMode =
+                globalSettingsManager.getSettings().getSessionRestoreMode();
+            Platform.runLater(() -> {
+                try {
+                    mainWindow.startSessionRestore(sessionRestoreMode);
+                } catch (RuntimeException e) {
+                    logger.warn("The previous session could not be offered at startup", e);
+                }
+            });
 
             trackUsageSnapshot("startup");
             trackAiProfileSnapshots();
@@ -706,6 +730,13 @@ public class KorTTYApplication extends Application {
         // A geometry save scheduled by a dialog that closed just now must land before halt(0).
         if (globalSettingsManager != null && saveStores) {
             globalSettingsManager.flushPendingSave();
+        }
+
+        // Quit and the last window sealed the session snapshot already; every other way out (the
+        // force quit while scheduled jobs drain, the Dock) writes it here, before halt(0). The
+        // coordinator writes nothing while a restored backup awaits the restart.
+        if (sessionAutosave != null) {
+            shutdownStep("seal session snapshot", sessionAutosave::sealOnShutdown);
         }
 
         // Save configuration

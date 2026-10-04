@@ -114,6 +114,10 @@ public class TerminalTab extends Tab {
     /** True when the red disconnected bar was shown due to mosh network interruption (so we hide it on recovery). */
     private boolean moshInterruptedBarVisible = false;
     private Runnable externalConnectedCallback;
+    /** Waits for the first successful connect only; see {@link #addOnFirstConnected}. */
+    private final OneShotRunnables firstConnectedActions = new OneShotRunnables(Platform::runLater);
+    /** The split layout a restored tab rebuilds once it is connected; see {@link #setPendingSplitLayout}. */
+    private de.kortty.model.SplitPaneState pendingSplitLayout;
     private Runnable journalStateListener;
     /** Told when the user closes the tab with its close button; see {@link #setOnUserCloseApproved}. */
     private java.util.function.Consumer<TerminalTab> onUserCloseApproved;
@@ -278,6 +282,8 @@ public class TerminalTab extends Tab {
      * Idempotent.
      */
     void releaseResources() {
+        firstConnectedActions.clear();
+        pendingSplitLayout = null;
         // A closed tab is no longer watched; the poll timer stops with the last watched tab.
         TerminalActivityWatcher.shared().forget(this);
         closeRecordingResources();
@@ -1510,6 +1516,8 @@ public class TerminalTab extends Tab {
                 if (externalConnectedCallback != null) {
                     externalConnectedCallback.run();
                 }
+                // Only the first connect; every reconnect after it runs nothing here.
+                firstConnectedActions.fire();
             });
         });
         
@@ -1527,6 +1535,31 @@ public class TerminalTab extends Tab {
 
     public void setOnConnectedCallback(Runnable callback) {
         this.externalConnectedCallback = callback;
+    }
+
+    /**
+     * Runs {@code action} once, on the JavaFX thread, after this tab's first successful connect —
+     * never again on a reconnect, unlike {@link #setOnConnectedCallback}, which runs on every connect.
+     * A tab that has connected before runs it on the next pulse. A tab that closes before it ever
+     * connects drops it. Opening a project uses it to rebuild a tab's split panes once the tab's own
+     * session is up, so they are not made again after an automatic reconnect. JavaFX thread.
+     */
+    public void addOnFirstConnected(Runnable action) {
+        firstConnectedActions.add(action);
+    }
+
+    /**
+     * The split layout this restored tab rebuilds once it is connected, until the rebuild is done:
+     * a project or session saved in the meantime keeps it rather than the single pane the tab shows
+     * while it waits. {@code null} when the tab waits for no layout. JavaFX thread.
+     */
+    void setPendingSplitLayout(de.kortty.model.SplitPaneState layout) {
+        this.pendingSplitLayout = layout;
+    }
+
+    /** See {@link #setPendingSplitLayout}. */
+    de.kortty.model.SplitPaneState getPendingSplitLayout() {
+        return pendingSplitLayout;
     }
     
     /**

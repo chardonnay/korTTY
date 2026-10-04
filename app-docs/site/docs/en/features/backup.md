@@ -121,6 +121,8 @@ Both `.zip` and `.zip.gpg` backups contain the same files:
 * `rag/stores.json` — Knowledge-store and source configuration (vector snapshots are not included)
 * `projects/` — All saved project workspace files (`.kortty`)
 
+The session snapshots in `~/.kortty/session/`, which *File → Restore Previous Session* opens, are not included: they describe the windows and tabs of this computer, and the Recently Closed list they keep stays on this computer with them. After a restore, *Restore Previous Session* still opens the session of this computer, and its tabs open with the restored connections. See [Previous session](projects.md#previous-session).
+
 !!! note
     All passwords and credentials inside the backup remain encrypted with your master password. When you import a backup, you must unlock the master password for KorTTY to decrypt the credentials.
 

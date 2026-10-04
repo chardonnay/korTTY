@@ -802,7 +802,7 @@ public class TerminalSplitPane extends StackPane {
     }
 
     private @NotNull SithTermFxWidget createWidget(@Nullable SplitRequest request) {
-        return createWidget(request, null);
+        return createWidget(request, null, null);
     }
 
     /**
@@ -810,9 +810,12 @@ public class TerminalSplitPane extends StackPane {
      *     {@link SplitConnectorFactory} is <strong>not consulted at all</strong>, which is what keeps
      *     a caller that prepared its own connector off the FX thread out of the factory's modal
      *     connect dialog
+     * @param beforeStart called with the new pane right before its session starts, after the
+     *     connector is set; {@code null} for nothing. It is not called when there is no connector
      */
     private @NotNull SithTermFxWidget createWidget(@Nullable SplitRequest request,
-                                                   @Nullable TtyConnector preparedConnector) {
+                                                   @Nullable TtyConnector preparedConnector,
+                                                   @Nullable Consumer<SithTermFxWidget> beforeStart) {
         // KorttyTermWidget routes terminal copy/paste through the policy-aware clipboard handler
         // (enterprise internal-clipboard mode).
         de.kortty.ui.KorttyTermWidget korttyWidget =
@@ -828,6 +831,14 @@ public class TerminalSplitPane extends StackPane {
         if (connector != null) {
             TtyConnector decoratedConnector = connectorDecorator.apply(widget, connector);
             widget.setTtyConnector(decoratedConnector != null ? decoratedConnector : connector);
+            if (beforeStart != null) {
+                try {
+                    beforeStart.accept(widget);
+                } catch (RuntimeException e) {
+                    // What runs before the session is a convenience; it never keeps the pane from starting.
+                    logger.warn("A pane's before-start step failed: {}", e.toString());
+                }
+            }
             widget.start();
         }
         return widget;
@@ -1631,17 +1642,22 @@ public class TerminalSplitPane extends StackPane {
      *     which asks the user for a new connection
      * @param orientation where the new pane goes
      * @param preparedConnector an already-connected connector, or null to use the factory
+     * @param beforeStart called with the new pane once its connector is set and right before its
+     *     session starts, for output that has to be in the pane before the session's own (a restored
+     *     pane's saved screen); {@code null} for nothing. A failure in it is logged and the pane
+     *     starts anyway
      * @return the new pane, or null when the split did not happen
      */
     public @Nullable SithTermFxWidget splitWidget(@NotNull SithTermFxWidget widget,
                                                   @NotNull SplitRequest.SplitMode mode,
                                                   @NotNull Orientation orientation,
-                                                  @Nullable TtyConnector preparedConnector) {
+                                                  @Nullable TtyConnector preparedConnector,
+                                                  @Nullable Consumer<SithTermFxWidget> beforeStart) {
         if (!getAllWidgets().contains(widget)) {
             return null;
         }
         SplitRequest request = new SplitRequest(mode, widget);
-        SithTermFxWidget newWidget = createWidget(request, preparedConnector);
+        SithTermFxWidget newWidget = createWidget(request, preparedConnector, beforeStart);
         TtyConnector connector = newWidget.getTtyConnector();
         if (connector == null || !connector.isConnected()) {
             releaseUnattachedWidget(newWidget);
@@ -1667,6 +1683,72 @@ public class TerminalSplitPane extends StackPane {
         refreshSplitCloseButtons();
         notifyWidgetSplitCreated(newWidget, request);
         return newWidget;
+    }
+
+    /**
+     * {@link #splitWidget(SithTermFxWidget, SplitRequest.SplitMode, Orientation, TtyConnector, Consumer)}
+     * with nothing to run before the new pane's session starts.
+     */
+    public @Nullable SithTermFxWidget splitWidget(@NotNull SithTermFxWidget widget,
+                                                  @NotNull SplitRequest.SplitMode mode,
+                                                  @NotNull Orientation orientation,
+                                                  @Nullable TtyConnector preparedConnector) {
+        return splitWidget(widget, mode, orientation, preparedConnector, null);
+    }
+
+    /**
+     * A picture of the tree of panes as it is with every pane shown, for saving it in a project:
+     * while a pane is zoomed the dividers are the ones from before the zoom (see
+     * {@link #dividerPositionsOf(SplitPane)}), so the layout the tab returns to is stored. JavaFX
+     * thread.
+     *
+     * @return the layout, or {@code null} once the split pane has no pane
+     */
+    public @Nullable PaneLayout<SithTermFxWidget> snapshotLayout() {
+        return rootCell != null ? snapshotOf(rootCell) : null;
+    }
+
+    private @NotNull PaneLayout<SithTermFxWidget> snapshotOf(@NotNull SplitCell cell) {
+        if (cell.widget != null) {
+            return PaneLayout.leaf(cell.widget);
+        }
+        double[] positions = dividerPositionsOf(cell.splitPane);
+        return PaneLayout.split(cell.splitPane.getOrientation(), positions.length > 0 ? positions[0] : 0.5,
+            snapshotOf(cell.leftCell), snapshotOf(cell.rightCell));
+    }
+
+    /**
+     * Moves every divider to its place in {@code target}, as a restored layout needs. Nothing moves
+     * unless the live tree has the shape of {@code target} (the same panes in the same leaves, the
+     * same orientation in every branch; see {@link PaneLayout#sameShapeAs}), so a pane the user
+     * closed or moved in the meantime leaves the layout alone, and nothing moves while a pane is
+     * zoomed. JavaFX thread.
+     *
+     * <p>Every split rebuilds the split controls above the new pane, and each new control sets its
+     * divider to the middle once more in a {@code Platform.runLater}. Call this after those, two
+     * pulses after the last split, or the reset overwrites it.
+     *
+     * @return the number of dividers set
+     */
+    public int applyDividerPositions(@NotNull PaneLayout<SithTermFxWidget> target) {
+        if (rootCell == null || zoom != null) {
+            return 0;
+        }
+        PaneLayout<SithTermFxWidget> live = snapshotOf(rootCell);
+        if (!live.sameShapeAs(target)) {
+            logger.debug("The panes changed since the layout was planned; its dividers are not applied");
+            return 0;
+        }
+        return applyDividers(rootCell, target);
+    }
+
+    private int applyDividers(@NotNull SplitCell cell, @NotNull PaneLayout<SithTermFxWidget> target) {
+        if (cell.splitPane == null || target.isLeaf()) {
+            return 0;
+        }
+        double divider = target.divider();
+        cell.splitPane.setDividerPositions(Double.isFinite(divider) ? Math.max(0.0, Math.min(1.0, divider)) : 0.5);
+        return 1 + applyDividers(cell.leftCell, target.first()) + applyDividers(cell.rightCell, target.second());
     }
 
     /**
