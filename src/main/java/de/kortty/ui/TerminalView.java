@@ -33,6 +33,7 @@ import de.kortty.core.SshTtyConnector;
 import de.kortty.core.SshTunnelApprovals;
 import de.kortty.core.SshTunnelManager;
 import de.kortty.core.ObservableTtyConnector;
+import de.kortty.core.RemoteDirectoryChange;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.core.LocalShellTtyConnector;
 import de.kortty.core.QuickSelectSettings;
@@ -4267,6 +4268,39 @@ public class TerminalView extends BorderPane {
         if (listener != null) {
             focusedWidgetListeners.remove(listener);
         }
+    }
+
+    /**
+     * Follows the pane focus of this tab's split pane: {@code listener} runs on the FX thread with
+     * the pane that gained keyboard focus. Closing the returned subscription stops it.
+     */
+    public RemoteDirectoryChange.Subscription focusedPaneChanges(Consumer<SithTermFxWidget> listener) {
+        if (listener == null) {
+            return RemoteDirectoryChange.Subscription.NONE;
+        }
+        Consumer<SithTermFxWidget> registered = listener::accept; // a fresh identity per subscription
+        focusedWidgetListeners.add(registered);
+        return () -> focusedWidgetListeners.remove(registered);
+    }
+
+    /**
+     * Subscribes to the tracked working-directory changes of {@code widget}'s connector (terminal
+     * effect wrappers unwrapped). The listener runs on the connector's reader or input thread and
+     * must hand off (see {@link RemoteDirectoryChange.Listener}). The subscription is bound to the
+     * connector the pane holds now; a reconnect brings a new connector, so callers resubscribe.
+     * Panes whose connector does not track a directory return
+     * {@link RemoteDirectoryChange.Subscription#NONE}.
+     */
+    public RemoteDirectoryChange.Subscription paneRemoteDirectoryChanges(
+            @Nullable SithTermFxWidget widget, RemoteDirectoryChange.Listener listener) {
+        if (widget == null || listener == null) {
+            return RemoteDirectoryChange.Subscription.NONE;
+        }
+        TtyConnector base = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        if (base instanceof ObservableTtyConnector observable) {
+            return observable.addRemoteDirectoryListener(listener);
+        }
+        return RemoteDirectoryChange.Subscription.NONE;
     }
 
     /** The coding-agent pane reference of {@code widget}, empty when it has no monitor in this tab. */
