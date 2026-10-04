@@ -129,6 +129,28 @@ class TerminalOutputHighlighterTriggerTest {
     }
 
     @Test
+    void aProgressLineStaysQuietAfterKorttyWroteAMessageIntoThePane() {
+        HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
+        attachEmpty(session, errors());
+        session.print("ERROR count: 1");
+        highlighter.runPassNow();
+        assertThat(fired).hasSize(1);
+
+        // korTTY's own message makes what the pane holds old output (TerminalView.showMessage and friends).
+        highlighter.markBaseline();
+        session.terminal.carriageReturn();
+        session.print("ERROR count: 2");
+        highlighter.runPassNow();
+
+        assertWithMessage("the line keeps its first hit, so it is the same line rewritten, not a new one")
+            .that(fired).hasSize(1);
+        session.println("");
+        session.print("ERROR on a new line");
+        highlighter.runPassNow();
+        assertThat(fired).hasSize(2);
+    }
+
+    @Test
     void aLineWrittenInPiecesFiresWhenTheMatchIsComplete() {
         HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
         attachEmpty(session, errors());

@@ -91,7 +91,8 @@ import java.util.function.IntSupplier;
  *       rule, highlighting switched back on), when the pane's size changes (a reflow rebuilds every line)
  *       and when {@link #markBaseline()} is called — right after korTTY wrote a project's saved screen
  *       into the pane, which is old output and must not fire. A baseline screen row whose text changes
- *       later (a program redraws it) counts as new from then on.</li>
+ *       later (a program redraws it) is judged like any other line from then on, by its first hit (next
+ *       point); the hits seen before a baseline that keeps the rules are remembered for that.</li>
  *   <li>A rule fires on a line when its first hit there is new: the line did not match before, or now
  *       matches somewhere else or with other text. A progress line that keeps rewriting
  *       {@code ERROR count: 3} therefore fires once, not on every redraw, and a line that is cleared and
@@ -558,7 +559,8 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
         try {
             View view = View.of(buffer, buffer.isUsingAlternateBuffer());
             synchronized (triggerLock) {
-                captureBaseline(view);
+                // The rules are the same: the hits seen so far still tell a rewritten line from a new one.
+                captureBaseline(view, false);
             }
         } finally {
             buffer.unlock();
@@ -1098,7 +1100,8 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
         synchronized (triggerLock) {
             if (triggerRebaselinePending || buffer.getWidth() != baselineWidth
                 || buffer.getHeight() != baselineHeight) {
-                captureBaseline(view);
+                // A new generation numbers its rules anew, so the hits recorded so far mean nothing to it.
+                captureBaseline(view, triggerRebaselinePending);
                 triggerRebaselinePending = false;
             } else if (baselineHistoryLine != null) {
                 int from = Math.min(baselineHistoryIndex, view.historyRows() - 1);
@@ -1131,8 +1134,15 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
         return row >= 0 && row < view.screenRows() ? view.historyRows() + row : -1;
     }
 
-    /** Under the buffer lock and {@link #triggerLock}: everything the pane holds now is old output. */
-    private void captureBaseline(View view) {
+    /**
+     * Under the buffer lock and {@link #triggerLock}: everything the pane holds now is old output.
+     *
+     * @param forgetHits whether the first hits recorded per line are dropped as well: only for a new
+     *                   generation, whose rule indexes differ. Otherwise they stay, so a progress line that
+     *                   keeps its hit stays quiet after korTTY wrote a message into the pane, as it would
+     *                   without one.
+     */
+    private void captureBaseline(View view, boolean forgetHits) {
         IdentityHashMap<TerminalLine, Long> screen = new IdentityHashMap<>();
         for (int y = 0; y < view.screenRows(); y++) {
             TerminalLine line = view.screen().getLine(y);
@@ -1148,7 +1158,9 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
         }
         baselineWidth = buffer.getWidth();
         baselineHeight = buffer.getHeight();
-        lastHits.clear();
+        if (forgetHits) {
+            lastHits.clear();
+        }
         triggerEpoch++;
     }
 
