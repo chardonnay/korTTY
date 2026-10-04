@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">SFTP edit as root flow</title>
   <desc id="desc">Editing a server file as root from the SFTP manager: sudo runs over an exec channel without a terminal; the file is read with sudo cat into a private local copy, edited in the user's editor, and each save is checked for conflicts, sent over stdin into a root-owned staging folder, verified by size and SHA-256, written into the target in place and the stage is removed; stopping deletes the local copy and wipes the password.</desc>
-  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:16}.guard{stroke:#f59e0b}.out{stroke:#34d399}.clean{stroke:#f472b6}.lane{fill:#0b1a2b;stroke:#1e3a5f;stroke-width:1;stroke-dasharray:6 6;rx:20}.title{font-size:28px;font-weight:700;fill:#f8fafc}.lanelabel{font-size:14px;font-weight:700;fill:#7dd3fc}.small{font-size:13px;fill:#b9c8da}.label{font-size:12px;fill:#67e8f9}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}</style></defs>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:16}.guard{stroke:#f59e0b}.out{stroke:#34d399}.clean{stroke:#f472b6}.lane{fill:#0b1a2b;stroke:#1e3a5f;stroke-width:1;stroke-dasharray:6 6;rx:20}.title{font-size:28px;font-weight:700;fill:#f8fafc}.lanelabel{font-size:14px;font-weight:700;fill:#7dd3fc}.small{font-size:13px;fill:#b9c8da}.label{font-size:12px;fill:#67e8f9}.line{stroke:#67e8f9;stroke-width:2;fill:none;stroke-linejoin:round;marker-end:url(#arrow)}</style></defs>
   <rect class="bg" width="1280" height="720"/>
   <text class="title" x="40" y="54">SFTP Edit as Root</text>
   <text class="small" x="40" y="82">Read via sudo, edit locally, send each save over stdin to a root-owned stage, verify, write in place, clean up.</text>
@@ -57,13 +57,13 @@
   <text class="small" x="1050" y="502">Stop wipes copy, password</text>
 
   <path class="line" d="M145 246 V420"/>
-  <path class="line" d="M250 450 C310 450 480 340 480 246"/>
-  <text class="label" x="300" y="336">content over stdout</text>
+  <path class="line" d="M220 420 V300 H480 V246"/>
+  <text class="label" x="232" y="292">content over stdout</text>
   <path class="line" d="M610 191 H660"/>
   <path class="line" d="M920 191 H970"/>
-  <text class="label" x="930" y="180">save</text>
-  <path class="line" d="M1100 246 C1100 350 392 320 392 420"/>
-  <text class="label" x="760" y="318">new content over stdin</text>
+  <text class="label" x="945" y="180" text-anchor="middle">save</text>
+  <path class="line" d="M1100 246 V350 H392 V420"/>
+  <text class="label" x="1088" y="342" text-anchor="end">new content over stdin</text>
   <path class="line" d="M497 475 H534"/>
   <path class="line" d="M744 475 H781"/>
   <path class="line" d="M991 475 H1028"/>
