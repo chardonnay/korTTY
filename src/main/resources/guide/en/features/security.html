@@ -1006,6 +1006,16 @@
 <td>AI profile API keys, translation API keys, optional Hugging Face token</td>
 <td>AES-256-GCM</td>
 </tr>
+<tr>
+<td><code>session/last-session.xml</code>, <code>session/previous-session.xml</code></td>
+<td>The open windows and tabs, with the ids of their saved connections and the folder each local shell was in; no passwords, keys or screen text</td>
+<td>Not encrypted; owner-only file permissions, not part of backups</td>
+</tr>
+<tr>
+<td><code>session/scrollback/*.enc</code></td>
+<td>Only when <a href="projects.html#restoring-the-output">restoring the output</a> is switched on (off by default): the newest output of each terminal pane, which can hold anything a terminal showed</td>
+<td>AES-256-GCM with the master-password key; never written while the vault is locked, owner-only, not part of backups, deleted when the master password changes, a backup is restored or the option is turned off</td>
+</tr>
 </tbody>
 </table>
 <p>korTTY does not rewrite these files in place: a save goes to a temporary file in <code>~/.kortty</code> that is then renamed over the old file, for the connections, credentials, SSH keys, scheduled jobs and <code>master.key</code> after flushing it to the disk, so a crash, a full disk or a killed process leaves the previous version intact. On macOS and Linux, korTTY keeps <code>~/.kortty</code> at <code>rwx------</code> and writes <code>connections.xml</code>, <code>credentials.xml</code>, <code>ssh-keys.xml</code>, <code>job-scheduler.xml</code> and <code>master.key</code> owner-only (<code>rw-------</code>), also when an older version left them readable by other users; on Windows they are protected by the permissions of your user profile.</p>
