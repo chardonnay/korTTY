@@ -14,6 +14,8 @@ import org.apache.sshd.sftp.SftpModuleProperties;
 import org.apache.sshd.sftp.client.SftpClient;
 import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.apache.sshd.sftp.client.SftpVersionSelector;
+import org.apache.sshd.sftp.server.FileHandle;
+import org.apache.sshd.sftp.server.Handle;
 import org.apache.sshd.sftp.server.SftpEventListener;
 import org.apache.sshd.sftp.server.SftpFileSystemAccessor;
 import org.apache.sshd.sftp.server.SftpSubsystem;
@@ -203,6 +205,8 @@ public final class SftpLoopbackFixture implements AutoCloseable {
         private final AtomicInteger reads = new AtomicInteger();
         private final AtomicInteger writes = new AtomicInteger();
         private final AtomicReference<Integer> negotiatedVersion = new AtomicReference<>();
+        private final AtomicInteger openFiles = new AtomicInteger();
+        private final AtomicInteger maxOpenFiles = new AtomicInteger();
 
         /** SFTP channels currently open on the server. */
         public int openChannels() {
@@ -239,6 +243,30 @@ public final class SftpLoopbackFixture implements AutoCloseable {
 
         public int writes() {
             return writes.get();
+        }
+
+        /** File (not directory) handles open right now, over all channels. */
+        public int openFiles() {
+            return openFiles.get();
+        }
+
+        /** The most file handles that were open at once: how many files were transferred in parallel. */
+        public int maxOpenFiles() {
+            return maxOpenFiles.get();
+        }
+
+        @Override
+        public void open(ServerSession session, String remoteHandle, Handle localHandle) {
+            if (localHandle instanceof FileHandle) {
+                maxOpenFiles.accumulateAndGet(openFiles.incrementAndGet(), Math::max);
+            }
+        }
+
+        @Override
+        public void closed(ServerSession session, String remoteHandle, Handle localHandle, Throwable thrown) {
+            if (localHandle instanceof FileHandle) {
+                openFiles.decrementAndGet();
+            }
         }
 
         /** The version the last channel settled on, or {@code null} before any. */

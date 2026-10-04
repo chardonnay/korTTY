@@ -148,6 +148,7 @@ public final class FxConflictResolver implements ConflictResolver, AutoCloseable
      * Cancels one batch: its open prompt is answered with CANCEL_ALL and its waiting workers
      * return CANCEL_ALL. Prompts of other batches are not touched.
      */
+    @Override
     public void cancelBatch(ConflictPolicy policy) {
         policy.cancel();
         lock.lock();

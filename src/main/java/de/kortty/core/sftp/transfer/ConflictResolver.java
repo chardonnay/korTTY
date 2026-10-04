@@ -33,6 +33,14 @@ public interface ConflictResolver {
      */
     Resolution resolve(ConflictInfo info, ConflictPolicy policy) throws InterruptedException;
 
+    /**
+     * Stops asking for the batch governed by {@code policy}: the policy is cancelled, and a resolver
+     * with an open prompt for that batch answers it with {@link ConflictAction#CANCEL_ALL}.
+     */
+    default void cancelBatch(ConflictPolicy policy) {
+        policy.cancel();
+    }
+
     /** A resolver that always gives {@code action} without asking (headless callers, tests). */
     static ConflictResolver always(ConflictAction action) {
         Resolution fixed = new Resolution(action, false);
