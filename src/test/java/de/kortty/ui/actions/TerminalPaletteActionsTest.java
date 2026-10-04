@@ -15,9 +15,10 @@ import static com.google.common.truth.Truth.assertWithMessage;
 /**
  * The command palette's terminal and tab commands, run against a stub terminal tab in a registry as
  * MainWindow builds it: enabled only while a terminal tab is selected, every command acting on the
- * tab selected when it runs, the right-click menus' labels under Terminal and Tabs, and no second
- * row for a command the menu bar has (Find, the same-server splits and broadcast mode, which come
- * from Edit and View → Panes).
+ * tab selected when it runs, the right-click menus' labels under Terminal and Tabs, the tab's watch
+ * switches (Monitor for Activity, Monitor for Silence) with their check marks, and no second row for
+ * a command the menu bar has (Find, the same-server splits and broadcast mode, which come from Edit
+ * and View → Panes).
  */
 class TerminalPaletteActionsTest {
 
@@ -39,10 +40,40 @@ class TerminalPaletteActionsTest {
         public void reconnect() {
             calls.add("reconnect");
         }
+
+        boolean activity;
+        boolean silence;
+
+        @Override
+        public boolean isMonitoringActivity() {
+            return activity;
+        }
+
+        @Override
+        public void toggleMonitoringActivity() {
+            activity = !activity;
+            calls.add("monitorActivity");
+        }
+
+        @Override
+        public boolean isMonitoringSilence() {
+            return silence;
+        }
+
+        @Override
+        public void toggleMonitoringSilence() {
+            silence = !silence;
+            calls.add("monitorSilence");
+        }
     }
 
     private static final List<String> IDS = List.of(
-        TerminalPaletteActions.CLEAR_BUFFER, TerminalPaletteActions.DUPLICATE, TerminalPaletteActions.RECONNECT);
+        TerminalPaletteActions.CLEAR_BUFFER, TerminalPaletteActions.DUPLICATE, TerminalPaletteActions.RECONNECT,
+        TerminalPaletteActions.MONITOR_ACTIVITY, TerminalPaletteActions.MONITOR_SILENCE);
+
+    /** The commands that are switches, with a check mark. */
+    private static final List<String> SWITCHES = List.of(
+        TerminalPaletteActions.MONITOR_ACTIVITY, TerminalPaletteActions.MONITOR_SILENCE);
 
     /** The key itself in brackets, so a test sees which key a text came from. */
     private static String text(String key) {
@@ -73,12 +104,42 @@ class TerminalPaletteActionsTest {
             assertThat(action.label()).isEqualTo(text(action.id()));
             assertThat(action.stableId()).isTrue();
             assertThat(action.policyLocked()).isFalse();
-            assertThat(action.isCheckable()).isFalse();
+            assertWithMessage(action.id()).that(action.isCheckable()).isEqualTo(SWITCHES.contains(action.id()));
         }
         assertThat(find(registry, "terminal.contextMenu.clearBuffer").category())
             .isEqualTo("[palette.category.terminal]");
         assertThat(find(registry, "tab.contextMenu.duplicate").category()).isEqualTo("[palette.category.tab]");
         assertThat(find(registry, "dashboard.reconnect").category()).isEqualTo("[palette.category.tab]");
+        assertThat(find(registry, "tab.contextMenu.monitorActivity").category()).isEqualTo("[palette.category.tab]");
+        assertThat(find(registry, "tab.contextMenu.monitorSilence").category()).isEqualTo("[palette.category.tab]");
+    }
+
+    @Test
+    void theWatchSwitchesShowAndToggleTheStateOfTheSelectedTab() {
+        StubTerminal first = new StubTerminal();
+        StubTerminal second = new StubTerminal();
+        AtomicReference<TerminalPaletteActions.Target> selected = new AtomicReference<>(first);
+        ActionRegistry registry = registry(selected, null);
+        AppAction activity = find(registry, TerminalPaletteActions.MONITOR_ACTIVITY);
+        AppAction silence = find(registry, TerminalPaletteActions.MONITOR_SILENCE);
+
+        assertWithMessage("off until switched on").that(activity.isChecked()).isFalse();
+        assertThat(silence.isChecked()).isFalse();
+        assertThat(ActionRegistry.runIfEnabled(activity)).isTrue();
+        assertThat(activity.isChecked()).isTrue();
+        assertThat(silence.isChecked()).isFalse();
+        assertThat(ActionRegistry.runIfEnabled(silence)).isTrue();
+        assertThat(ActionRegistry.runIfEnabled(activity)).isTrue();
+        assertThat(activity.isChecked()).isFalse();
+        assertThat(silence.isChecked()).isTrue();
+
+        selected.set(second);
+        assertWithMessage("each tab has its own switches").that(silence.isChecked()).isFalse();
+        selected.set(null);
+        assertThat(activity.isChecked()).isFalse();
+        assertThat(ActionRegistry.runIfEnabled(activity)).isFalse();
+        assertThat(first.calls).containsExactly("monitorActivity", "monitorSilence", "monitorActivity").inOrder();
+        assertThat(second.calls).isEmpty();
     }
 
     /**
@@ -96,8 +157,8 @@ class TerminalPaletteActionsTest {
             assertThat(TerminalPaletteActions.KEYS).doesNotContain(duplicate);
         }
         assertThat(TerminalPaletteActions.KEYS).containsExactly(TerminalPaletteActions.CLEAR_BUFFER,
-            TerminalPaletteActions.DUPLICATE, TerminalPaletteActions.RECONNECT, "palette.category.terminal",
-            "palette.category.tab").inOrder();
+            TerminalPaletteActions.DUPLICATE, TerminalPaletteActions.RECONNECT, TerminalPaletteActions.MONITOR_ACTIVITY,
+            TerminalPaletteActions.MONITOR_SILENCE, "palette.category.terminal", "palette.category.tab").inOrder();
     }
 
     @Test
@@ -123,7 +184,8 @@ class TerminalPaletteActionsTest {
             assertThat(registry.run(id)).isTrue();
         }
 
-        assertThat(terminal.calls).containsExactly("clearBuffer", "duplicate", "reconnect").inOrder();
+        assertThat(terminal.calls).containsExactly("clearBuffer", "duplicate", "reconnect", "monitorActivity",
+            "monitorSilence").inOrder();
     }
 
     @Test

@@ -8,8 +8,9 @@ import java.util.function.Consumer;
 /**
  * A terminal tab as the command palette's terminal and tab commands see it
  * ({@link TerminalPaletteActions}): Clear Buffer goes to the tab's {@link TerminalView}, which acts
- * on the focused pane, and Duplicate and Reconnect do what the tab's right-click menu does. The
- * splits and broadcast mode come from <i>View → Panes</i>, which the palette harvests.
+ * on the focused pane, and Duplicate, Reconnect and the two watch switches (Monitor for Activity,
+ * Monitor for Silence) do what the tab's right-click menu does. The splits and broadcast mode come
+ * from <i>View → Panes</i>, which the palette harvests.
  */
 final class TerminalPaletteTarget implements TerminalPaletteActions.Target {
 
@@ -38,5 +39,25 @@ final class TerminalPaletteTarget implements TerminalPaletteActions.Target {
     @Override
     public void reconnect() {
         tab.triggerReconnect();
+    }
+
+    @Override
+    public boolean isMonitoringActivity() {
+        return tab.isMonitoringActivity();
+    }
+
+    @Override
+    public void toggleMonitoringActivity() {
+        tab.setMonitoringActivity(!tab.isMonitoringActivity());
+    }
+
+    @Override
+    public boolean isMonitoringSilence() {
+        return tab.isMonitoringSilence();
+    }
+
+    @Override
+    public void toggleMonitoringSilence() {
+        tab.setMonitoringSilence(!tab.isMonitoringSilence());
     }
 }

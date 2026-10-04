@@ -219,6 +219,33 @@ class PolicyLoaderTest {
     }
 
     @Test
+    void parsesTheTerminalTriggersFeature() throws IOException {
+        PolicyLoadResult result = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+            [rule.features]
+            terminal-triggers = "deny"
+            """));
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.warnings()).isEmpty();
+        assertThat(result.file().rules().get(0).features().get(PolicyFeature.TERMINAL_TRIGGERS))
+            .isEqualTo(PolicyDecision.DENY);
+
+        PolicyLoadResult invalid = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+            [rule.features]
+            terminal-triggers = "notify-only"
+            """));
+        assertThat(invalid.isValid()).isFalse();
+        assertThat(invalid.errors().get(0)).contains("terminal-triggers must be \"allow\" or \"deny\"");
+    }
+
+    @Test
     void oneInvalidValueRejectsTheWholeFile() throws IOException {
         PolicyLoadResult result = PolicyLoader.load(write("""
             [meta]

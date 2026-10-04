@@ -100,6 +100,13 @@ public final class PolicyClamp {
             // with no way for the user to correct it. Both reference pages promise the opposite.
             settings.setControlApiEnabled(true);
         }
+        if (!policy.terminalTriggersAllowed()) {
+            settings.setTerminalTriggersEnabled(false);
+        } else if (policy.isManaged(ManagedSetting.TERMINAL_TRIGGERS)) {
+            // terminal-triggers = "allow" locks the switch: on, as the policy said, even when the user had
+            // switched it off before.
+            settings.setTerminalTriggersEnabled(true);
+        }
         if (policy.requireMasterPassword()) {
             settings.setRequireMasterPasswordOnStartup(true);
             // A forced master password rules out the insecure auto-unlock path.

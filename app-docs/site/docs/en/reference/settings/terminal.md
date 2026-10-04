@@ -25,6 +25,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Also highlight in full-screen programs (vim, less, htop) | toggle | — | Off | `terminalHighlightAlternateScreen` |
 | Default rule set: | dropdown | None, Errors and warnings, Network addresses, Network devices, or a set of your own | None | `defaultHighlightRuleSetId` |
 | Edit Rules… | button | opens the rule-set editor | — | `highlightRuleSets` |
+| Run actions of highlight rules (notifications, snippets) | toggle | — | On | `terminalTriggersEnabled` |
 | Detect web addresses, e-mail addresses and file paths in terminal text | toggle | — | On | `terminalLinkDetectionEnabled` |
 | Warn about multi-line pastes: | dropdown | Off, Unless the program uses bracketed paste, Always | Unless the program uses bracketed paste | `pasteWarningMode` |
 | Warn about pastes larger than: | number | 0–10,240 KiB (0 = off) | 5 | `pasteLargeWarningKiB` |
@@ -35,6 +36,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Desktop notification when a long-running command finishes in a tab you are not looking at | toggle | — | On | `commandFinishedNotificationsEnabled` |
 | Minimum command runtime: | number | 1–3,600 seconds | 30 | `commandFinishedNotificationSeconds` |
 | Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777) | toggle | — | On | `remoteTerminalNotificationsEnabled` |
+| Monitor for Silence reports after: | number | 5–3,600 seconds | 30 | `terminalSilenceSeconds` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
@@ -75,6 +77,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
     **Edit Rules…** opens the [rule-set editor](../../features/highlighting.md#your-own-rule-sets), where you create your own rule sets and look at the built-in ones. It stays available while the master switch is off, so you can prepare sets before switching highlighting on. The editor saves its changes when you confirm it, whether or not you then save the settings dialog, and afterwards the **Default rule set** dropdown lists your sets as they are now. If you delete the set the dropdown shows, it falls back to **None**.
 
+    **Run actions of highlight rules (notifications, snippets)** lets rules whose action is **Desktop notification** mark their tab and notify when their pattern appears in new output in a tab you are not looking at (see [Notifications for matching output](../../features/highlighting.md#notifications-for-matching-output)), and rules whose action is **Run a snippet** run their snippet in the pane where the pattern appears, after asking you once per connection (see [Running a snippet when output matches](../../features/highlighting.md#running-a-snippet-when-output-matches)). It is on by default, because a rule only gets an action when you give it one; switched off, such rules only highlight. It is greyed out while the master switch is off, and it is read on every match, so a change applies to open terminals as soon as you save. The enterprise policy key `terminal-triggers` locks it in the position the policy chose (see [Enterprise policy](../enterprise-policy.md#rulefeatures)).
+
 !!! note "Links"
     With **Detect web addresses, e-mail addresses and file paths in terminal text** on, ++cmd++ + click (macOS) or ++ctrl++ + click (Windows, Linux) opens a web address, an e-mail address or a file path that a program printed as plain text: a web address in your default browser, an e-mail address as a new mail in your mail program, and in SSH and local-shell tabs a file path as text in the Snippet Editor. A plain click still only selects text. A change applies to the open terminals at once. Links that a program marks up itself with OSC 8 open with the same click either way. See [Links in terminal output](../../features/terminal.md#links-in-terminal-output).
 
@@ -94,6 +98,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
     In a shell set up for shell integration, a command that ran at least **Minimum command runtime:** (30 seconds by default) and finishes in a tab you are not looking at marks that tab with 🔔 too, and **Desktop notification when a long-running command finishes in a tab you are not looking at**, on by default, adds a desktop notification saying how the command ended and how long it ran, never the command itself, at most one per tab every 10 seconds. Commands of korTTY's AI Agent never notify. Both are greyed out while **Use the command marks of shells set up for shell integration (OSC 133)** is off, and both are read on every finished command. See [Terminal notifications](../../features/terminal-notifications.md#long-running-commands).
 
     A program that asks for a desktop notification with OSC 9 or OSC 777, such as a coding agent on a server waiting for your answer, marks its tab with 🔔 too when you are not looking at it, and **Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777)**, on by default, shows the program's text below a title with the tab's name, cleaned of control and bidi characters and cut to 80 characters for the title and 200 for the text, at most one per pane every 5 seconds; what comes in between is dropped. A pane with a detected coding agent gets none while the coding-agent notifications are on. It needs no shell integration and is read on every request. See [Notifications from programs](../../features/terminal-notifications.md#notifications-from-programs).
+
+    **Monitor for Silence reports after:** is how long a pane has to stay without output, after printing something, before a tab you watch with **Monitor for Silence** in its right-click menu is marked with 🔔 and shows a desktop notification, 30 seconds by default. The watch itself, like **Monitor for Activity**, which reports new output after 10 seconds of quiet, is switched per tab, off until you switch it on, and never saved. The threshold is read every second, so a change applies to the watched tabs as soon as you save. See [Watching a tab for activity or silence](../../features/terminal-notifications.md#watching-a-tab-for-activity-or-silence).
 
 !!! note "SSH Keep-Alive"
     When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.

@@ -40,6 +40,8 @@ The palette also offers the commands of the terminal's and the tab's right-click
 | **Clear Buffer** | Terminal | Clears the scrollback and the screen of the focused pane but keeps the prompt line, like **Clear Buffer** in the terminal's right-click menu. While a full-screen program such as `vim` or `less` runs, it does nothing. On macOS the row shows the terminal's own key, ++cmd+k++. |
 | **Duplicate** | Tabs | Opens a copy of the tab next to it and signs in like **Duplicate** in the tab's right-click menu. |
 | **Reconnect** | Tabs | Connects the tab again, like **Reconnect** in its right-click menu. |
+| **Monitor for Activity** | Tabs | Watches the tab for new output after a quiet spell, or stops watching it, like the entry in its right-click menu; the row shows a check mark while the tab is watched. See [Watching a tab for activity or silence](terminal-notifications.md#watching-a-tab-for-activity-or-silence). |
+| **Monitor for Silence** | Tabs | Watches the tab for output that stops, or stops watching it, like the entry in its right-click menu; the row shows a check mark while the tab is watched. |
 
 In any other kind of tab, such as a snippet editor, these rows are greyed out. **Find** is not listed a second time: type `find` for **Edit → Find…**, which opens the search of the focused pane.
 

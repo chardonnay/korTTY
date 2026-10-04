@@ -72,6 +72,7 @@ import de.kortty.plugin.terminaleffects.TerminalEffectPlugin;
 import de.kortty.plugin.terminaleffects.TerminalEffectSession;
 import de.kortty.shellintegration.BellCoalescer;
 import de.kortty.shellintegration.CommandStatus;
+import de.kortty.shellintegration.PaneOutputClock;
 import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.shellintegration.RemoteNotificationText;
 import de.kortty.shellintegration.ShellIntegrationEvent;
@@ -450,6 +451,13 @@ public class TerminalView extends BorderPane {
     /** DECSET 2004 trackers per pane, registered on the pane's base connector data stream. */
     private final Map<SithTermFxWidget, PasteTracking> codingAgentPasteTrackers = new ConcurrentHashMap<>();
     /**
+     * When each pane last received output, stamped by its colour filter on the emulator thread
+     * (output only, never what is typed); read by the activity and silence monitoring of the tab
+     * ({@link TerminalActivityWatcher}). One clock per pane, kept across re-decorations of its
+     * connector, so a Mosh recovery that re-decorates a live pane keeps its quiet spell.
+     */
+    private final Map<SithTermFxWidget, PaneOutputClock> paneOutputClocks = new ConcurrentHashMap<>();
+    /**
      * Sends a paste line by line when Settings → Terminal → Paste protection sets a line delay. While
      * a pane is pacing a paste, {@link #pasteInputHold} holds its keys (Esc stops the paste), broadcast
      * mode skips it, and its corner shows the progress.
@@ -495,6 +503,11 @@ public class TerminalView extends BorderPane {
      * the still undecoded write; set by the tab, null once the tab is cleaned up.
      */
     private volatile BiConsumer<SithTermFxWidget, ShellIntegrationEvent.ClipboardWrite> clipboardWriteListener;
+    /**
+     * Told on the FX thread which pane's highlight rules with an action matched new output (one pass's
+     * worth, at most one per rule); set by the tab, null once the tab is cleaned up.
+     */
+    private volatile BiConsumer<SithTermFxWidget, List<TerminalOutputHighlighter.LineMatch>> highlightTriggerListener;
 
     /** A bracketed-paste tracker together with the connector it listens on, so a rebind can detach it. */
     private record PasteTracking(BracketedPasteTracker tracker, ObservableTtyConnector connector) {}
@@ -1147,6 +1160,22 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * The output clocks of this view's panes in split order, for the tab's activity and silence
+     * monitoring ({@link TerminalActivityWatcher}); a pane that never had a session has none yet.
+     * JavaFX thread.
+     */
+    Map<SithTermFxWidget, PaneOutputClock> paneOutputClocks() {
+        Map<SithTermFxWidget, PaneOutputClock> clocks = new java.util.LinkedHashMap<>();
+        for (SithTermFxWidget widget : getOrderedWidgets()) {
+            PaneOutputClock clock = widget != null ? paneOutputClocks.get(widget) : null;
+            if (clock != null) {
+                clocks.put(widget, clock);
+            }
+        }
+        return clocks;
+    }
+
+    /**
      * All agent-capable connectors across this view's split widgets (terminal-effect wrappers
      * unwrapped). Used by the AI swarm to enumerate every open server in this tab.
      */
@@ -1307,6 +1336,7 @@ public class TerminalView extends BorderPane {
         }
         gutterMap.remove(widget);
         paneOrigins.forget(widget);
+        paneOutputClocks.remove(widget);
         // A closed pane leaves multi-exec and is never mirrored into again.
         MultiExecCoordinator.shared().forget(widget);
         lastTimestampLineByWidget.remove(widget);
@@ -2556,10 +2586,14 @@ public class TerminalView extends BorderPane {
                 decorated = baseConnector;
             }
         }
+        PaneOutputClock outputClock = widget != null
+            ? paneOutputClocks.computeIfAbsent(widget, unused -> new PaneOutputClock())
+            : new PaneOutputClock();
         return withShellIntegration(widget, new TerminalColorFilteringTtyConnector(
             decorated,
             () -> settings == null || settings.isTerminalColorsEnabled(),
-            this::reportTerminalActivity));
+            this::reportTerminalActivity,
+            outputClock::outputArrived));
     }
 
     /**
@@ -4461,7 +4495,10 @@ public class TerminalView extends BorderPane {
                     highlightSelection(pane),
                     panel != null ? panel::repaint : () -> { },
                     () -> recordRestyledTerminalRecordingSnapshot(pane),
-                    () -> panel != null && panel.getFindResult() != null);
+                    () -> panel != null && panel.getFindResult() != null,
+                    TerminalOutputHighlighter.TriggerSink.of(
+                        matches -> Platform.runLater(() -> onPaneHighlightTrigger(pane, matches)),
+                        () -> cursorRowOf(pane)));
                 attached[0] = highlighter != null;
                 return highlighter;
             });
@@ -4600,6 +4637,62 @@ public class TerminalView extends BorderPane {
             paneConnection = local.getConnection();
         }
         return paneConnection != null ? paneConnection : connection;
+    }
+
+    /**
+     * Highlight rules with an action matched new output in {@code widget} (see
+     * {@link TerminalOutputHighlighter.TriggerSink}); FX thread. A pane closed or a tab cleaned up since
+     * then is ignored.
+     */
+    private void onPaneHighlightTrigger(SithTermFxWidget widget, List<TerminalOutputHighlighter.LineMatch> matches) {
+        BiConsumer<SithTermFxWidget, List<TerminalOutputHighlighter.LineMatch>> listener = highlightTriggerListener;
+        if (listener == null || matches == null || matches.isEmpty() || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        try {
+            listener.accept(widget, matches);
+        } catch (RuntimeException e) {
+            logger.debug("Handling a highlight trigger failed: {}", e.toString());
+        }
+    }
+
+    /**
+     * The screen row of {@code pane}'s cursor, 0 for the top row, or -1 when it is not known. The pane's
+     * highlighter calls it while it holds the buffer lock, which is where the cursor may be read.
+     */
+    private static int cursorRowOf(SithTermFxWidget pane) {
+        try {
+            Terminal terminal = pane.getTerminal();
+            return terminal != null ? terminal.getCursorY() - 1 : -1; // the cursor is 1-based
+        } catch (RuntimeException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that highlight rules with an action (a desktop notification or a
+     * snippet to run) matched output that arrived in one of this tab's panes — never output written
+     * locally, such as a project's restored screen or korTTY's own messages.
+     */
+    public void setHighlightTriggerListener(
+            BiConsumer<SithTermFxWidget, List<TerminalOutputHighlighter.LineMatch>> listener) {
+        highlightTriggerListener = listener;
+    }
+
+    /**
+     * Makes everything {@code widget} shows now old output for the highlight triggers, after korTTY wrote
+     * something into it that did not come from the session.
+     */
+    private void markHighlightBaseline(SithTermFxWidget widget) {
+        TerminalOutputHighlighter highlighter = widget != null ? terminalHighlighters.get(widget) : null;
+        if (highlighter == null) {
+            return;
+        }
+        try {
+            highlighter.markBaseline();
+        } catch (RuntimeException e) {
+            logger.warn("Keyword highlighting could not mark restored output as old: {}", e.toString());
+        }
     }
 
     /**
@@ -7564,6 +7657,8 @@ public class TerminalView extends BorderPane {
             if (targetWidget != null && targetWidget.getTerminal() != null) {
                 targetWidget.getTerminal().writeCharacters("\r\n*** " + message + " ***\r\n");
                 forwardLocalOutputToJournal("\r\n*** " + message + " ***\r\n");
+                // korTTY's own text, not the session's: a highlight trigger must not fire on it.
+                markHighlightBaseline(targetWidget);
             }
         });
     }
@@ -7576,6 +7671,7 @@ public class TerminalView extends BorderPane {
             SithTermFxWidget targetWidget = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
             if (targetWidget != null && targetWidget.getTerminal() != null) {
                 writeLocalMessageToTerminal(targetWidget.getTerminal(), message);
+                markHighlightBaseline(targetWidget);
             }
         });
     }
@@ -7593,8 +7689,21 @@ public class TerminalView extends BorderPane {
                 String prompt = resolvePromptForLocalRedisplay(targetWidget);
                 writeLocalMessageToTerminal(targetWidget.getTerminal(), message);
                 writePromptForLocalRedisplay(targetWidget.getTerminal(), prompt);
+                markHighlightBaseline(targetWidget);
             }
         });
+    }
+
+    /**
+     * Writes korTTY's own {@code message} on a new line of {@code widget}, a pane of this tab, as
+     * {@link #showMessage} does for the focused pane; a highlight trigger does not fire on it. FX thread.
+     */
+    public void showMessageInPane(SithTermFxWidget widget, String message) {
+        if (widget == null || widget.getTerminal() == null || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        writeLocalMessageToTerminal(widget.getTerminal(), message);
+        markHighlightBaseline(widget);
     }
 
     private void writeLocalMessageToTerminal(Terminal terminal, String message) {
@@ -7752,6 +7861,7 @@ public class TerminalView extends BorderPane {
         commandFinishedListener = null;
         remoteNotificationListener = null;
         clipboardWriteListener = null;
+        highlightTriggerListener = null;
         pastePacer.cancelAll();
         releaseAllShellTitleListeners();
         cancelAllTerminalAgentRuns();
@@ -7805,6 +7915,7 @@ public class TerminalView extends BorderPane {
         commandEnterNanosByWidget.clear();
         scrollbackTrimTrackerByWidget.clear();
         agentShortcutBuffers.clear();
+        paneOutputClocks.clear();
         terminalWidget = null;
     }
     
@@ -8132,6 +8243,75 @@ public class TerminalView extends BorderPane {
         Thread sender = new Thread(() -> sendGeneratedInputLineHidden(connector, text), "terminal-hidden-input-sender");
         sender.setDaemon(true);
         sender.start();
+    }
+
+    /**
+     * Runs {@code line} in {@code widget}, a pane of this tab, as Send to Terminal does for the tab: the
+     * text plus a newline, written to that pane's session only (broadcast and multi-exec never mirror
+     * it). A generated one-liner ({@code generatedOneLiner}) goes to an SSH session without the remote
+     * echo of its base64 text. FX thread.
+     *
+     * @return whether the line was handed to a connected session; false for a pane that is gone or not
+     *         connected
+     */
+    public boolean sendInputLineToPane(SithTermFxWidget widget, String line, boolean generatedOneLiner) {
+        if (widget == null || line == null || !getOrderedWidgets().contains(widget)) {
+            return false;
+        }
+        if (pastePacer.isPacing(widget)) {
+            // The line would land between the lines of the paste the pane is still sending.
+            return false;
+        }
+        TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        if (connector == null || !connector.isConnected()) {
+            return false;
+        }
+        if (generatedOneLiner && connector instanceof SshTtyConnector) {
+            Thread sender = new Thread(() -> sendGeneratedInputLineHidden(connector, line),
+                "terminal-hidden-input-sender");
+            sender.setDaemon(true);
+            sender.start();
+            return true;
+        }
+        try {
+            connector.write(line + "\n");
+            return true;
+        } catch (IOException | RuntimeException e) {
+            logger.warn("Failed to send a line to a terminal pane: {}", e.toString());
+            return false;
+        }
+    }
+
+    /**
+     * Whether {@code widget}, a pane of this tab, is busy with input korTTY must not type into on its own: a
+     * full-screen program such as {@code vim} or {@code less} has it (the alternate screen), which would take a
+     * line as keystrokes, or it is still sending a paste line by line. FX thread.
+     */
+    public boolean isPaneBusyWithInput(SithTermFxWidget widget) {
+        if (widget == null) {
+            return false;
+        }
+        if (pastePacer.isPacing(widget)) {
+            return true;
+        }
+        com.sithtermfx.core.model.TerminalTextBuffer buffer = widget.getTerminalTextBuffer();
+        if (buffer == null) {
+            return false;
+        }
+        buffer.lock();
+        try {
+            return buffer.isUsingAlternateBuffer();
+        } finally {
+            buffer.unlock();
+        }
+    }
+
+    /**
+     * The connection {@code widget}'s session was opened for: a split to another server has its own,
+     * every other pane belongs to the tab's connection. {@code null} only for a tab without one.
+     */
+    public @Nullable ServerConnection connectionOfPane(@Nullable SithTermFxWidget widget) {
+        return highlightConnectionOf(widget);
     }
 
     private void sendGeneratedInputLineHidden(TtyConnector connector, String text) {
@@ -8706,6 +8886,9 @@ public class TerminalView extends BorderPane {
         } catch (RuntimeException e) {
             // Old output is a convenience; it must never keep the live session from starting.
             logger.warn("Could not show the restored screen output: {}", e.getMessage());
+        } finally {
+            // The restored rows are old output: a highlight trigger must not fire on them.
+            markHighlightBaseline(widget);
         }
     }
 
@@ -8933,16 +9116,31 @@ public class TerminalView extends BorderPane {
         private final TtyConnector delegate;
         private final BooleanSupplier terminalColorsEnabled;
         private final Runnable activityCallback;
+        private final Runnable outputCallback;
         private final TerminalColorControlSequenceFilter filter = new TerminalColorControlSequenceFilter();
         private final StringBuilder pendingOutput = new StringBuilder();
 
+        /**
+         * @param activityCallback runs for every read that returned output and every write, on the
+         *                         thread doing it (power management's activity)
+         * @param outputCallback   runs for every read that returned output only, on the emulator
+         *                         thread; never for a write (the tab's activity and silence monitoring)
+         */
         TerminalColorFilteringTtyConnector(
                 TtyConnector delegate,
                 BooleanSupplier terminalColorsEnabled,
-                Runnable activityCallback) {
+                Runnable activityCallback,
+                Runnable outputCallback) {
             this.delegate = Objects.requireNonNull(delegate, "delegate");
             this.terminalColorsEnabled = Objects.requireNonNull(terminalColorsEnabled, "terminalColorsEnabled");
             this.activityCallback = Objects.requireNonNull(activityCallback, "activityCallback");
+            this.outputCallback = Objects.requireNonNull(outputCallback, "outputCallback");
+        }
+
+        /** Output arrived from the session. */
+        private void outputArrived() {
+            activityCallback.run();
+            outputCallback.run();
         }
 
         TtyConnector delegate() {
@@ -8959,7 +9157,7 @@ public class TerminalView extends BorderPane {
                 pendingOutput.setLength(0);
                 int count = delegate.read(buf, offset, length);
                 if (count > 0) {
-                    activityCallback.run();
+                    outputArrived();
                 }
                 return count;
             }
@@ -8969,7 +9167,7 @@ public class TerminalView extends BorderPane {
                 if (count <= 0) {
                     return count;
                 }
-                activityCallback.run();
+                outputArrived();
                 pendingOutput.append(filter.filter(source, 0, count));
             }
 

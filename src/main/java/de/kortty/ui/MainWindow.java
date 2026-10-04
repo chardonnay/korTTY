@@ -3165,8 +3165,9 @@ public class MainWindow {
      * the palette opens (the menus that are rebuilt while they open are excluded), among them
      * <i>View → Panes</i> (the splits, the pane focus, Zoom Pane and broadcast mode) and <i>View →
      * Multi-exec</i>; then the tab actions that have no menu item, and then the right-click commands
-     * of the selected terminal tab that have none either (Clear Buffer of its focused pane, Duplicate
-     * and Reconnect), enabled only while a terminal tab is selected.
+     * of the selected terminal tab that have none either (Clear Buffer of its focused pane, Duplicate,
+     * Reconnect and the switches Monitor for Activity and Monitor for Silence), enabled only while a
+     * terminal tab is selected.
      */
     private ActionRegistry actionRegistry() {
         if (actionRegistry == null) {
@@ -12899,6 +12900,18 @@ public class MainWindow {
         });
         contextMenu.getItems().add(multiExecItem);
 
+        // Activity and silence monitoring: runtime switches of this tab, off until switched on. The
+        // tab's state decides, never the check mark, which JavaFX has already flipped when the
+        // action runs.
+        contextMenu.getItems().add(new SeparatorMenuItem());
+        CheckMenuItem monitorActivityItem = new CheckMenuItem(I18n.get(TerminalActivityWatcher.MONITOR_ACTIVITY_KEY));
+        monitorActivityItem.setSelected(terminalTab.isMonitoringActivity());
+        monitorActivityItem.setOnAction(e -> terminalTab.setMonitoringActivity(!terminalTab.isMonitoringActivity()));
+        CheckMenuItem monitorSilenceItem = new CheckMenuItem(I18n.get(TerminalActivityWatcher.MONITOR_SILENCE_KEY));
+        monitorSilenceItem.setSelected(terminalTab.isMonitoringSilence());
+        monitorSilenceItem.setOnAction(e -> terminalTab.setMonitoringSilence(!terminalTab.isMonitoringSilence()));
+        contextMenu.getItems().addAll(monitorActivityItem, monitorSilenceItem);
+
         contextMenu.getItems().add(new SeparatorMenuItem());
         MenuItem closeOthersItem = new MenuItem(I18n.get("tab.contextMenu.closeOthers"));
         closeOthersItem.setOnAction(e -> closeOtherTabs(terminalTab));
@@ -12915,6 +12928,8 @@ public class MainWindow {
             TerminalView multiExecView = terminalTab.getTerminalView();
             multiExecItem.setSelected(multiExecView != null
                 && MultiExecCoordinator.shared().includesAll(multiExecView.getOrderedWidgets()));
+            monitorActivityItem.setSelected(terminalTab.isMonitoringActivity());
+            monitorSilenceItem.setSelected(terminalTab.isMonitoringSilence());
         });
 
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {

@@ -11,9 +11,9 @@ import java.io.StringWriter;
 import org.testng.annotations.Test;
 
 /**
- * The terminal notification settings (the bell, long commands, programs' notifications) and whether
- * programs may write the clipboard (OSC 52): what a fresh installation and an old settings file use,
- * and that they survive the XML round trip.
+ * The terminal notification settings (the bell, long commands, programs' notifications, the silence
+ * threshold of watched tabs) and whether programs may write the clipboard (OSC 52): what a fresh
+ * installation and an old settings file use, and that they survive the XML round trip.
  */
 class GlobalSettingsTerminalNotificationsTest {
 
@@ -132,5 +132,29 @@ class GlobalSettingsTerminalNotificationsTest {
 
         settings.setRemoteTerminalNotificationsEnabled(true);
         assertThat(unmarshal(marshal(settings)).isRemoteTerminalNotificationsEnabled()).isTrue();
+    }
+
+    @Test
+    void theSilenceThresholdIsThirtySecondsOnAFreshInstallationAndForOldSettings() throws Exception {
+        assertThat(new GlobalSettings().getTerminalSilenceSeconds()).isEqualTo(30);
+        assertThat(GlobalSettings.forFreshInstall().getTerminalSilenceSeconds()).isEqualTo(30);
+        assertThat(unmarshal("<globalSettings></globalSettings>").getTerminalSilenceSeconds()).isEqualTo(30);
+    }
+
+    @Test
+    void theSilenceThresholdSurvivesAnXmlRoundTripAndStaysBetweenFiveSecondsAndOneHour() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setTerminalSilenceSeconds(120);
+        String xml = marshal(settings);
+        assertThat(xml).contains("<terminalSilenceSeconds>120</terminalSilenceSeconds>");
+        assertThat(unmarshal(xml).getTerminalSilenceSeconds()).isEqualTo(120);
+
+        settings.setTerminalSilenceSeconds(1);
+        assertThat(settings.getTerminalSilenceSeconds()).isEqualTo(5);
+        settings.setTerminalSilenceSeconds(7200);
+        assertThat(settings.getTerminalSilenceSeconds()).isEqualTo(3600);
+        assertWithMessage("a hand-edited file cannot get round the range")
+            .that(unmarshal("<globalSettings><terminalSilenceSeconds>0</terminalSilenceSeconds></globalSettings>")
+                .getTerminalSilenceSeconds()).isEqualTo(5);
     }
 }

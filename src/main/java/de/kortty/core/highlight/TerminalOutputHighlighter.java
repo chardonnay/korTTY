@@ -16,12 +16,16 @@ import java.util.BitSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.WeakHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.IntSupplier;
 
 /**
  * Restyles one terminal pane's output with a {@link CompiledHighlightSet}: every character a rule
@@ -78,8 +82,33 @@ import java.util.function.BooleanSupplier;
  * {@value #OVERRUNS_BEFORE_DISABLE} lines is switched off for this pane until the set changes, and
  * logged once — by rule id, never by pattern or matched text.
  *
- * <p>Thread-safety: {@link #markDirty()}, {@link #setRuleSet} and {@link #close()} may be called from
- * any thread; passes are serialised.
+ * <p><b>Triggers.</b> A rule with an action ({@link CompiledHighlightSet.Rule#trigger()}) is reported
+ * to the {@link TriggerSink} when its pattern appears in <em>new</em> output, at most once per rule and
+ * pass ({@link LineMatch}):
+ * <ul>
+ *   <li>Only lines that appeared after the <em>baseline</em> count. The baseline is everything the pane
+ *       holds when the highlighter is attached, when a new generation starts (another set, an edited
+ *       rule, highlighting switched back on), when the pane's size changes (a reflow rebuilds every line)
+ *       and when {@link #markBaseline()} is called — right after korTTY wrote a project's saved screen
+ *       into the pane, which is old output and must not fire. A baseline screen row whose text changes
+ *       later (a program redraws it) is judged like any other line from then on, by its first hit (next
+ *       point); the hits seen before a baseline that keeps the rules are remembered for that.</li>
+ *   <li>A rule fires on a line when its first hit there is new: the line did not match before, or now
+ *       matches somewhere else or with other text. A progress line that keeps rewriting
+ *       {@code ERROR count: 3} therefore fires once, not on every redraw, and a line that is cleared and
+ *       written again fires again.</li>
+ *   <li>Never on a history sweep, never in the alternate screen (full-screen programs redraw constantly),
+ *       and never for a pass that started before the latest baseline.</li>
+ *   <li>A hit on the line the cursor is on ({@link TriggerSink#cursorRow()}) is reported as such
+ *       ({@link LineMatch#cursorLine()}): that line is still being written — the command the user types at
+ *       the prompt, or a program's question waiting for an answer — so an action that types into the pane
+ *       must not take it as output. It counts as seen all the same, so it does not fire again once the
+ *       user presses Enter. When a rule hits the cursor line and another line in the same pass, the other
+ *       line is the one reported.</li>
+ * </ul>
+ *
+ * <p>Thread-safety: {@link #markDirty()}, {@link #setRuleSet}, {@link #markBaseline()} and
+ * {@link #close()} may be called from any thread; passes are serialised.
  */
 public final class TerminalOutputHighlighter implements AutoCloseable {
 
@@ -108,6 +137,71 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
 
     /** Budget overruns after which a rule is switched off for the pane. */
     public static final int OVERRUNS_BEFORE_DISABLE = 3;
+
+    /** Most characters of a matched text a {@link LineMatch} carries (before it is cleaned for display). */
+    public static final int MAX_MATCHED_TEXT_CHARS = 512;
+
+    /**
+     * A trigger rule whose pattern appeared in new output of the pane.
+     *
+     * @param rule the rule, with its action and the label a notification uses
+     * @param matchedText the text of its first hit on the line, at most {@link #MAX_MATCHED_TEXT_CHARS}
+     *                    characters and not yet cleaned, or {@code null} unless the rule asks for it
+     *                    ({@link CompiledHighlightSet.Rule#notifyWithText()})
+     * @param cursorLine whether the hit is on the logical line the terminal's cursor was on when the pass
+     *                   read the pane: a line still being written, such as the command the user types at
+     *                   the prompt or a program's question waiting for an answer
+     */
+    public record LineMatch(CompiledHighlightSet.Rule rule, String matchedText, boolean cursorLine) {
+
+        public LineMatch {
+            Objects.requireNonNull(rule, "rule");
+        }
+
+        /** A hit on a line the cursor has left (or in a pane whose cursor is not known). */
+        public LineMatch(CompiledHighlightSet.Rule rule, String matchedText) {
+            this(rule, matchedText, false);
+        }
+    }
+
+    /**
+     * Receives the triggers of one pass, at most one {@link LineMatch} per rule, in rule order. Called on
+     * the highlighter thread outside the buffer lock; it must hand the work on rather than block.
+     */
+    @FunctionalInterface
+    public interface TriggerSink {
+
+        void linesMatched(List<LineMatch> matches);
+
+        /**
+         * The screen row the terminal's cursor is on, 0 for the top row, or {@code -1} when it is not
+         * known (then no hit counts as {@link LineMatch#cursorLine()}). Called on the highlighter thread
+         * while it holds the buffer lock, so it must only read the cursor.
+         */
+        default int cursorRow() {
+            return -1;
+        }
+
+        /**
+         * A sink that hands the triggers to {@code receiver} and reads the cursor with {@code cursorRow}
+         * (see {@link #cursorRow()}).
+         */
+        static TriggerSink of(Consumer<List<LineMatch>> receiver, IntSupplier cursorRow) {
+            Objects.requireNonNull(receiver, "receiver");
+            Objects.requireNonNull(cursorRow, "cursorRow");
+            return new TriggerSink() {
+                @Override
+                public void linesMatched(List<LineMatch> matches) {
+                    receiver.accept(matches);
+                }
+
+                @Override
+                public int cursorRow() {
+                    return cursorRow.getAsInt();
+                }
+            };
+        }
+    }
 
     /**
      * Where passes run. The application backs it with the one {@code kortty-highlighter} thread and a
@@ -206,6 +300,17 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
 
         private final TerminalLine[] lines;
 
+        /** Index of the first row in the pass's {@link View}. */
+        private int start;
+
+        /** Whether a trigger may fire for this line: new output, neither a sweep nor a baseline history line. */
+        private boolean triggerEligible;
+
+        /** Whether the terminal's cursor was on this line when the pass read the pane. */
+        private boolean cursorLine;
+
+        private HighlightMatcher.Result result;
+
         private final String[] texts;
 
         private final boolean[] onScreen;
@@ -240,6 +345,9 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
     private final BooleanSupplier alternateScreenAllowed;
 
     private final PassScheduler scheduler;
+
+    /** Where triggers go, or {@code null} for a pane that only highlights. */
+    private final TriggerSink triggerSink;
 
     private final TerminalModelListener modelListener = this::markDirty;
 
@@ -285,6 +393,35 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
 
     private boolean passFailureLogged;
 
+    /** True when the next pass with triggers has to take a new baseline (a generation started). */
+    private boolean triggerRebaselinePending;
+
+    // ---- Trigger state: guarded by triggerLock. Taken after the buffer lock, never before it. ----
+
+    private final Object triggerLock = new Object();
+
+    /** The screen rows of the latest baseline and the hash of their text at that moment. */
+    private IdentityHashMap<TerminalLine, Long> baselineScreen = new IdentityHashMap<>();
+
+    /** The newest history line of the latest baseline: it and every line above it are old output. */
+    private TerminalLine baselineHistoryLine;
+
+    private int baselineHistoryIndex = -1;
+
+    private int baselineWidth = -1;
+
+    private int baselineHeight = -1;
+
+    /** Counts baselines, so a pass that straddles one fires nothing. */
+    private int triggerEpoch;
+
+    /**
+     * For each new line on which a trigger rule hit, keyed by the line's first row: the first hit of each
+     * rule as {@link #hitKey}, 0 where a rule did not hit. Lines without a hit have no entry; trimmed lines
+     * drop out on their own (TerminalLine keeps identity equality).
+     */
+    private final Map<TerminalLine, long[]> lastHits = new WeakHashMap<>();
+
     /**
      * Creates the highlighter and registers it as a model listener of {@code buffer}.
      *
@@ -299,15 +436,32 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
     public TerminalOutputHighlighter(TerminalTextBuffer buffer, CompiledHighlightSet initial, Runnable repaint,
                                      Runnable onRestyled, BooleanSupplier findActive,
                                      BooleanSupplier alternateScreenAllowed, PassScheduler scheduler) {
+        this(buffer, initial, repaint, onRestyled, findActive, alternateScreenAllowed, scheduler, null);
+    }
+
+    /**
+     * Creates the highlighter with a receiver for triggers; what the pane holds now is the first
+     * baseline, so only output that arrives later can fire.
+     *
+     * @param triggerSink where triggers go, or {@code null} for a pane that only highlights
+     */
+    public TerminalOutputHighlighter(TerminalTextBuffer buffer, CompiledHighlightSet initial, Runnable repaint,
+                                     Runnable onRestyled, BooleanSupplier findActive,
+                                     BooleanSupplier alternateScreenAllowed, PassScheduler scheduler,
+                                     TriggerSink triggerSink) {
         this.buffer = Objects.requireNonNull(buffer, "buffer");
         this.repaint = Objects.requireNonNull(repaint, "repaint");
         this.onRestyled = Objects.requireNonNull(onRestyled, "onRestyled");
         this.findActive = Objects.requireNonNull(findActive, "findActive");
         this.alternateScreenAllowed = Objects.requireNonNull(alternateScreenAllowed, "alternateScreenAllowed");
         this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
+        this.triggerSink = triggerSink;
         CompiledHighlightSet start = initial != null ? initial : CompiledHighlightSet.NONE;
         this.selection = new AtomicReference<>(new Selection(start, 1));
         this.observedWidth = buffer.getWidth();
+        if (triggerSink != null) {
+            markBaseline();
+        }
         buffer.addModelListener(modelListener);
         if (!start.isEmpty()) {
             requestPass(0L);
@@ -391,6 +545,28 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
         return closed.get();
     }
 
+    /**
+     * Makes everything the pane holds now old output: no trigger fires for it, only for lines that
+     * arrive later (and for a screen row that is later written anew). Call it right after writing
+     * output into the pane that did not come from the session, such as a project's saved screen. Any
+     * thread; takes the buffer lock briefly.
+     */
+    public void markBaseline() {
+        if (triggerSink == null || closed.get()) {
+            return;
+        }
+        buffer.lock();
+        try {
+            View view = View.of(buffer, buffer.isUsingAlternateBuffer());
+            synchronized (triggerLock) {
+                // The rules are the same: the hits seen so far still tell a rewritten line from a new one.
+                captureBaseline(view, false);
+            }
+        } finally {
+            buffer.unlock();
+        }
+    }
+
     /** Unregisters the model listener; queued passes become no-ops. The cells keep their styles. */
     @Override
     public void close() {
@@ -470,6 +646,8 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
             IdentityHashMap<TerminalLine, Long> prints = new IdentityHashMap<>();
             boolean screenPending;
             boolean alternate;
+            boolean triggers = false;
+            int epoch = 0;
             buffer.lock();
             try {
                 alternate = buffer.isUsingAlternateBuffer();
@@ -490,6 +668,10 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
                 if (!alternate) {
                     collectBacklog(view, work, find, rowsLeft);
                 }
+                triggers = triggerSink != null && !alternate && set.hasTriggers();
+                if (triggers) {
+                    epoch = prepareTriggers(view, work);
+                }
             } finally {
                 buffer.unlock();
             }
@@ -503,6 +685,7 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
 
             int[] written = new int[2]; // [rows written, rows that got a highlight]
             boolean stale = apply(set, generation, work, completed, prints, written);
+            List<LineMatch> matches = triggers ? evaluateTriggers(set, work, completed, epoch) : List.of();
             for (int i = 0; i < work.size(); i++) {
                 Work item = work.get(i);
                 if (i >= completed) {
@@ -547,11 +730,17 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
             if (written[0] > 0) {
                 notifyRestyled();
             }
+            if (!matches.isEmpty()) {
+                deliver(matches);
+            }
             return new PassStats(rowsEvaluated, written[0], followUp);
         }
     }
 
     private void beginGeneration(CompiledHighlightSet set, int generation) {
+        // The first generation's baseline was taken when the highlighter was attached; every later one
+        // (another set, an edited rule, highlighting switched back on) only colors what is there.
+        triggerRebaselinePending = generation != 1;
         passGeneration = generation;
         screenPrints = new IdentityHashMap<>();
         ranges.clear();
@@ -745,6 +934,7 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
             end++;
         }
         Work item = new Work(end - start + 1);
+        item.start = start;
         for (int row = start; row <= end; row++) {
             TerminalLine line = view.line(row);
             item.lines[row - start] = line;
@@ -784,6 +974,7 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
             noteOverruns(set, result.overrunRules());
             item.projection = projection;
             item.owners = result.owners();
+            item.result = result;
             completed++;
         }
         return completed;
@@ -896,6 +1087,162 @@ public final class TerminalOutputHighlighter implements AutoCloseable {
             }
         }
         return result;
+    }
+
+    // ---- Triggers ----
+
+    /**
+     * Under the buffer lock: takes a new baseline when one is due (a new generation, another size) or
+     * finds the old one's history line again, and marks which queued lines may fire. Returns the epoch the
+     * pass belongs to.
+     */
+    private int prepareTriggers(View view, List<Work> work) {
+        synchronized (triggerLock) {
+            if (triggerRebaselinePending || buffer.getWidth() != baselineWidth
+                || buffer.getHeight() != baselineHeight) {
+                // A new generation numbers its rules anew, so the hits recorded so far mean nothing to it.
+                captureBaseline(view, triggerRebaselinePending);
+                triggerRebaselinePending = false;
+            } else if (baselineHistoryLine != null) {
+                int from = Math.min(baselineHistoryIndex, view.historyRows() - 1);
+                int index = from >= 0 ? find(view.history(), baselineHistoryLine, from) : -1;
+                if (index < 0) {
+                    // Lines only leave the history from the top: the baseline's newest gone means all of it.
+                    baselineHistoryLine = null;
+                }
+                baselineHistoryIndex = index;
+            }
+            int cursor = cursorIndex(view);
+            for (Work item : work) {
+                boolean sweep = item.range != null && item.range.sweep;
+                boolean oldHistory = item.start < view.historyRows() && item.start <= baselineHistoryIndex;
+                item.triggerEligible = !sweep && !oldHistory;
+                item.cursorLine = cursor >= item.start && cursor < item.start + item.lines.length;
+            }
+            return triggerEpoch;
+        }
+    }
+
+    /** Under the buffer lock: the cursor's row in the pass's {@link View}, or -1 when it is not known. */
+    private int cursorIndex(View view) {
+        int row;
+        try {
+            row = triggerSink.cursorRow();
+        } catch (RuntimeException e) {
+            return -1;
+        }
+        return row >= 0 && row < view.screenRows() ? view.historyRows() + row : -1;
+    }
+
+    /**
+     * Under the buffer lock and {@link #triggerLock}: everything the pane holds now is old output.
+     *
+     * @param forgetHits whether the first hits recorded per line are dropped as well: only for a new
+     *                   generation, whose rule indexes differ. Otherwise they stay, so a progress line that
+     *                   keeps its hit stays quiet after korTTY wrote a message into the pane, as it would
+     *                   without one.
+     */
+    private void captureBaseline(View view, boolean forgetHits) {
+        IdentityHashMap<TerminalLine, Long> screen = new IdentityHashMap<>();
+        for (int y = 0; y < view.screenRows(); y++) {
+            TerminalLine line = view.screen().getLine(y);
+            screen.put(line, textHash(cellText(line)));
+        }
+        baselineScreen = screen;
+        if (view.history() != null && view.historyRows() > 0) {
+            baselineHistoryIndex = view.historyRows() - 1;
+            baselineHistoryLine = view.history().getLine(baselineHistoryIndex);
+        } else {
+            baselineHistoryIndex = -1;
+            baselineHistoryLine = null;
+        }
+        baselineWidth = buffer.getWidth();
+        baselineHeight = buffer.getHeight();
+        if (forgetHits) {
+            lastHits.clear();
+        }
+        triggerEpoch++;
+    }
+
+    /**
+     * Decides which trigger rules fire on the matched lines of this pass: a rule whose first hit on a new
+     * line is new (see the class comment), at most once per rule, preferring a line the cursor is not on.
+     * A baseline screen row whose text is unchanged only records its hits.
+     */
+    private List<LineMatch> evaluateTriggers(CompiledHighlightSet set, List<Work> work, int completed, int epoch) {
+        List<LineMatch> matches = new ArrayList<>();
+        LineMatch[] fired = new LineMatch[set.size()];
+        synchronized (triggerLock) {
+            if (epoch != triggerEpoch) {
+                return matches; // a baseline was taken while this pass ran: its lines are old output now
+            }
+            for (int i = 0; i < completed; i++) {
+                Work item = work.get(i);
+                if (!item.triggerEligible || item.result == null || item.projection == null) {
+                    continue;
+                }
+                TerminalLine key = item.lines[0];
+                Long baselineText = baselineScreen.remove(key);
+                boolean seedOnly = baselineText != null && baselineText == textHash(item.texts[0]);
+                long[] previous = lastHits.get(key);
+                long[] current = null;
+                String text = item.projection.text();
+                for (CompiledHighlightSet.Rule rule : set.rules()) {
+                    int index = rule.index();
+                    int start = rule.trigger() ? item.result.firstHitStart(index) : -1;
+                    if (start < 0) {
+                        continue;
+                    }
+                    int end = Math.min(item.result.firstHitEnd(index), text.length());
+                    String hit = start < end ? text.substring(start, end) : "";
+                    long hitKey = hitKey(start, hit);
+                    if (current == null) {
+                        current = new long[set.size()];
+                    }
+                    current[index] = hitKey;
+                    boolean repeated = previous != null && index < previous.length && previous[index] == hitKey;
+                    boolean unclaimed = fired[index] == null || (fired[index].cursorLine() && !item.cursorLine);
+                    if (!seedOnly && !repeated && unclaimed) {
+                        String matched = rule.notifyWithText()
+                            ? hit.substring(0, Math.min(hit.length(), MAX_MATCHED_TEXT_CHARS)) : null;
+                        fired[index] = new LineMatch(rule, matched, item.cursorLine);
+                    }
+                }
+                if (current == null) {
+                    lastHits.remove(key);
+                } else {
+                    lastHits.put(key, current);
+                }
+            }
+        }
+        for (LineMatch match : fired) {
+            if (match != null) {
+                matches.add(match); // in rule order
+            }
+        }
+        return matches;
+    }
+
+    private void deliver(List<LineMatch> matches) {
+        try {
+            triggerSink.linesMatched(List.copyOf(matches));
+        } catch (RuntimeException e) {
+            logger.debug("Highlight trigger delivery failed: {}", e.toString());
+        }
+    }
+
+    /** Where and what a rule's first hit on a line is, as one never-zero number. */
+    static long hitKey(int start, String hit) {
+        return ((long) start << 32 ^ (hit.hashCode() & 0xFFFF_FFFFL)) | 1L;
+    }
+
+    /** A row's characters as one number, to tell whether a baseline row was written anew. */
+    static long textHash(String cellText) {
+        long hash = 1125899906842597L;
+        for (int i = 0; i < cellText.length(); i++) {
+            hash = 31L * hash + cellText.charAt(i);
+        }
+        return hash;
     }
 
     private void notifyRestyled() {

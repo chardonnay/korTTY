@@ -8,7 +8,9 @@ import de.kortty.codingagent.PaneRef;
 import de.kortty.codingagent.desktop.DesktopNotifier;
 import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.highlight.TerminalOutputHighlighter.LineMatch;
 import de.kortty.model.GlobalSettings;
+import de.kortty.policy.PolicyManager;
 import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.RemoteNotificationText;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
@@ -22,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -33,8 +36,11 @@ import java.util.function.Supplier;
  * Turns a terminal pane's request for attention into what {@link TerminalNotificationPolicy}
  * decides: the attention mark on the pane's tab ({@link TerminalTab#markAttention}) and a desktop
  * notification through the application's {@link DesktopNotifier}. The requests are a bell
- * ({@link #onBell}), a long command the shell marked finished ({@link #onCommandFinished}) and a
- * program asking for a notification with OSC 9 or OSC 777 ({@link #onRemoteNotification}).
+ * ({@link #onBell}), a long command the shell marked finished ({@link #onCommandFinished}), a
+ * program asking for a notification with OSC 9 or OSC 777 ({@link #onRemoteNotification}),
+ * activity or silence in a tab the user asked to watch ({@link #onActivity}, {@link #onSilence};
+ * {@link TerminalActivityWatcher} reports them), and a highlight rule with the notification action
+ * matching new output ({@link #onHighlightTrigger}; {@link HighlightTriggerDispatcher} decides).
  *
  * <p>The notification is titled {@code korTTY · <tab>}, as the Control API's notifications are, so
  * a program in a terminal can never make it look like a message from another application. It never
@@ -47,8 +53,10 @@ import java.util.function.Supplier;
  * finished command therefore use its multi-exec session as the notification slot, which every member
  * shares: a command typed once notifies once ({@link MultiExecRun}), and the members' bells notify at
  * most once per interval together. A bell right after mirrored keys reached the pane is its answer to
- * them and leads to nothing ({@link PaneState#mirroredInput()}). A program's own notification keeps
- * the pane as its slot: its text is the program's, and another member's may say something else.
+ * them and leads to nothing ({@link PaneState#mirroredInput()}), and so does the echo of those keys
+ * as activity; a member's activity and silence share the session's slot as its bell does. A
+ * program's own notification keeps the pane as its slot: its text is the program's, and another
+ * member's may say something else.
  */
 public final class TerminalAttentionNotifier {
 
@@ -82,6 +90,8 @@ public final class TerminalAttentionNotifier {
 
     private final Predicate<SithTermFxWidget> mirroredInput;
 
+    private final HighlightTriggerDispatcher triggers;
+
     /**
      * @param multiExecSession the multi-exec session a pane takes part in, or {@code null}
      *                         ({@link MultiExecCoordinator#sessionOf})
@@ -99,6 +109,8 @@ public final class TerminalAttentionNotifier {
         this.codingAgents = Objects.requireNonNull(codingAgents, "codingAgents");
         this.multiExecSession = Objects.requireNonNull(multiExecSession, "multiExecSession");
         this.mirroredInput = Objects.requireNonNull(mirroredInput, "mirroredInput");
+        this.triggers = new HighlightTriggerDispatcher(policy, () -> HighlightTriggerDispatcher.triggersAllowed(
+            this.settings.get(), PolicyManager.effective()));
     }
 
     /** The notifier of the running application, for every window. JavaFX thread. */
@@ -192,6 +204,94 @@ public final class TerminalAttentionNotifier {
     }
 
     /**
+     * Output arrived after a quiet spell in {@code widget}, a pane of {@code tab}, which the user asked
+     * to watch for activity ({@link PaneActivityMonitor}). In a tab the user is not looking at, the tab
+     * gets its mark and a desktop notification titled {@code korTTY · <tab>} says so, at most once
+     * every 10 seconds per pane, or per multi-exec session for its members; the notification never
+     * carries the output. The echo of keys mirrored into the pane moments ago is no activity. JavaFX
+     * thread.
+     */
+    public void onActivity(TerminalTab tab, SithTermFxWidget widget) {
+        if (tab == null || widget == null) {
+            return;
+        }
+        PaneState state = new PaneState(seen.test(tab), false, false, mirroredInputIn(widget));
+        Object session = multiExecSessionOf(widget);
+        Decision decision = policy.decide(Kind.ACTIVITY, session != null ? session : widget, state,
+            toggles(settings.get()));
+        if (decision.badge()) {
+            tab.markAttention(I18n.get("terminal.notify.activity.tooltip"));
+        }
+        if (decision.toast()) {
+            show(toastTitle(tab.getEffectiveTitle()), I18n.get("terminal.notify.activity.body"));
+        }
+    }
+
+    /**
+     * {@code widget}, a pane of {@code tab} that the user asked to watch for silence, printed nothing
+     * for {@code silence} after printing ({@link PaneActivityMonitor}). In a tab the user is not looking
+     * at, the tab gets its mark and a desktop notification titled {@code korTTY · <tab>} says how long
+     * the pane has been silent, at most once every 10 seconds per pane, or per multi-exec session for
+     * its members. JavaFX thread.
+     */
+    public void onSilence(TerminalTab tab, SithTermFxWidget widget, Duration silence) {
+        if (tab == null || widget == null || silence == null) {
+            return;
+        }
+        PaneState state = new PaneState(seen.test(tab), false, false);
+        Object session = multiExecSessionOf(widget);
+        Decision decision = policy.decide(Kind.SILENCE, session != null ? session : widget, state,
+            toggles(settings.get()));
+        if (!decision.badge() && !decision.toast()) {
+            return;
+        }
+        String text = silenceText(TimestampGutter.currentFormats().verboseRuntime(silence), I18n::get);
+        if (decision.badge()) {
+            tab.markAttention(text);
+        }
+        if (decision.toast()) {
+            show(toastTitle(tab.getEffectiveTitle()), text);
+        }
+    }
+
+    /**
+     * Highlight rules with the notification action matched new output in {@code widget}, a pane of
+     * {@code tab} ({@link de.kortty.core.highlight.TerminalOutputHighlighter.TriggerSink}). While the
+     * policy and the user's switch allow triggers, a tab the user is not looking at gets its mark with
+     * the rule's name in the tooltip, and a desktop notification titled {@code korTTY · <tab>} names the
+     * rule, at most once per rule and pane every 30 seconds, or per multi-exec session for its members.
+     * Output right after mirrored keys reached the pane answers them and leads to nothing. JavaFX thread.
+     */
+    public void onHighlightTrigger(TerminalTab tab, SithTermFxWidget widget, List<LineMatch> matches) {
+        if (tab == null || widget == null || matches == null || matches.isEmpty()) {
+            return;
+        }
+        PaneState state = new PaneState(seen.test(tab), false, false, mirroredInputIn(widget));
+        Object session = multiExecSessionOf(widget);
+        for (HighlightTriggerDispatcher.Notice notice : triggers.dispatch(session != null ? session : widget, state,
+                tab.getEffectiveTitle(), matches, I18n::get)) {
+            if (notice.badge()) {
+                tab.markAttention(notice.tooltip());
+            }
+            if (notice.toast()) {
+                show(notice.title(), notice.body());
+            }
+        }
+    }
+
+    /**
+     * The text of a silence notification and tab tooltip, for example {@code No output in this tab
+     * for 30 sec.}
+     *
+     * @param silence how long the pane has been silent, already worded
+     *                ({@link TimestampGutterFormats#verboseRuntime})
+     * @param i18n    the translations, {@code I18n::get}
+     */
+    static String silenceText(String silence, BiFunction<String, Object[], String> i18n) {
+        return i18n.apply("terminal.notify.silence.body", new Object[] {silence});
+    }
+
+    /**
      * The tooltip line of a tab a program's notification marked: the notification's text, cut to
      * {@link #MAX_REMOTE_TOOLTIP_CHARS} characters so the tooltip stays narrow.
      *
@@ -247,6 +347,14 @@ public final class TerminalAttentionNotifier {
         if (desktop != null) {
             desktop.notify(title, body);
         }
+    }
+
+    /**
+     * Whether a coding agent was detected in {@code widget}, a pane of {@code tab}: what is typed there goes
+     * to the agent, so a highlight rule's snippet does not run there ({@link HighlightSnippetTrigger}).
+     */
+    boolean codingAgentIn(TerminalTab tab, SithTermFxWidget widget) {
+        return tab != null && widget != null && hasCodingAgent(tab, widget);
     }
 
     /** Whether a coding agent was detected in the pane, so its own notifications speak for it. */

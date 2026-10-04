@@ -75,6 +75,7 @@ import de.kortty.model.WindowGeometry;
 import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteWarningMode;
+import de.kortty.shellintegration.PaneActivityMonitor;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
 import de.kortty.security.PasswordStrengthChecker;
 import de.kortty.security.MasterPasswordManager;
@@ -184,6 +185,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox commandFinishedNotificationsCheck;
     private final Spinner<Integer> commandFinishedSecondsSpinner;
     private final CheckBox remoteTerminalNotificationsCheck;
+    private final Spinner<Integer> terminalSilenceSecondsSpinner;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
     private final CheckBox codingAgentDetectionCheck;
@@ -195,6 +197,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox terminalHighlightingEnabledCheck;
     private final CheckBox terminalHighlightAlternateScreenCheck;
     private final ComboBox<HighlightSettingsSupport.DefaultSetChoice> defaultHighlightSetCombo;
+    private final CheckBox terminalTriggersEnabledCheck;
 
     // Appearance settings
     private final ComboBox<AppDesign> appDesignCombo;
@@ -891,6 +894,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         remoteTerminalNotificationsCheck.setSelected(globalSettings == null
             || globalSettings.isRemoteTerminalNotificationsEnabled());
         remoteTerminalNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.remote.tooltip")));
+        // ... and how long a tab watched for silence (its right-click menu) has to stay silent.
+        terminalSilenceSecondsSpinner = new Spinner<>(PaneActivityMonitor.MIN_SILENCE_SECONDS,
+            PaneActivityMonitor.MAX_SILENCE_SECONDS,
+            globalSettings != null ? globalSettings.getTerminalSilenceSeconds()
+                : PaneActivityMonitor.DEFAULT_SILENCE_SECONDS);
+        terminalSilenceSecondsSpinner.setEditable(true);
+        terminalSilenceSecondsSpinner.setPrefWidth(100);
+        terminalSilenceSecondsSpinner.setTooltip(
+            new Tooltip(I18n.get("settings.terminal.notify.silenceSeconds.tooltip")));
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -968,6 +980,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // With the master switch off, neither of the other two has any effect.
         terminalHighlightAlternateScreenCheck.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
         defaultHighlightSetCombo.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
+        // Triggers: what a highlight rule may do besides coloring (a desktop notification, a snippet). The policy
+        // key terminal-triggers locks the box; otherwise it follows the master switch, as rules only run
+        // while highlighting is on.
+        terminalTriggersEnabledCheck = new CheckBox(I18n.get(HighlightSettingsSupport.TRIGGERS_KEY));
+        terminalTriggersEnabledCheck.setSelected(globalSettings == null || globalSettings.isTerminalTriggersEnabled());
+        terminalTriggersEnabledCheck.setTooltip(new Tooltip(I18n.get(HighlightSettingsSupport.TRIGGERS_TOOLTIP_KEY)));
+        // After setTooltip: lockIfManaged replaces it with the managed-by-your-organization hint. A locked
+        // box must not be bound as well, or setDisable(true) would fail on the bound property.
+        if (!de.kortty.policy.PolicyUiSupport.lockIfManaged(
+                terminalTriggersEnabledCheck, de.kortty.policy.ManagedSetting.TERMINAL_TRIGGERS)) {
+            terminalTriggersEnabledCheck.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
+        }
 
         // Rows are numbered by a counter, as on the Window tab, so a section can be inserted
         // anywhere without renumbering every row below it.
@@ -1009,6 +1033,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox defaultHighlightSetRow = new HBox(8, defaultHighlightSetCombo, editHighlightRulesButton);
         defaultHighlightSetRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         terminalGrid.add(defaultHighlightSetRow, 1, terminalRow++);
+        terminalGrid.add(terminalTriggersEnabledCheck, 0, terminalRow++, 2, 1);
         Label highlightingInfo = new Label(I18n.get(HighlightSettingsSupport.INFO_KEY));
         highlightingInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         highlightingInfo.setWrapText(true);
@@ -1073,6 +1098,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         commandFinishedSecondsBox.setAlignment(Pos.CENTER_LEFT);
         terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);
         terminalGrid.add(remoteTerminalNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.notify.silenceSeconds")), 0, terminalRow);
+        HBox terminalSilenceSecondsBox = new HBox(10, terminalSilenceSecondsSpinner,
+            new Label(I18n.get("settings.terminal.notify.silenceSeconds.unit")));
+        terminalSilenceSecondsBox.setAlignment(Pos.CENTER_LEFT);
+        terminalGrid.add(terminalSilenceSecondsBox, 1, terminalRow++);
         Label notificationsInfo = new Label(I18n.get("settings.terminal.notify.info"));
         notificationsInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         notificationsInfo.setWrapText(true);
@@ -3521,6 +3551,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null
                 ? commandFinishedSecondsSpinner.getValue() : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS);
             globalSettings.setRemoteTerminalNotificationsEnabled(remoteTerminalNotificationsCheck.isSelected());
+            globalSettings.setTerminalSilenceSeconds(terminalSilenceSecondsSpinner.getValue() != null
+                ? terminalSilenceSecondsSpinner.getValue() : PaneActivityMonitor.DEFAULT_SILENCE_SECONDS);
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
@@ -3534,6 +3566,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalHighlightAlternateScreen(terminalHighlightAlternateScreenCheck.isSelected());
             globalSettings.setDefaultHighlightRuleSetId(
                 HighlightSettingsSupport.storedValue(defaultHighlightSetCombo.getValue()));
+            globalSettings.setTerminalTriggersEnabled(terminalTriggersEnabledCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             boolean skipPrompt = skipMasterPasswordPromptCheck.isSelected();
             // Only touch the remembered-password file when the option actually changes — or when it
@@ -3790,6 +3823,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::getCommandFinishedNotificationSeconds, true));
             tracked.add(new TrackedSetting("terminal", "remote_notifications",
                 gs::isRemoteTerminalNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "silence_seconds", gs::getTerminalSilenceSeconds, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
                 gs::isCodingAgentNotificationsEnabled, true));
@@ -3801,6 +3835,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             // The set's class only (a built-in id, "custom" or "none"), never the name of a user's set.
             tracked.add(new TrackedSetting("terminal", "highlighting_default_set",
                 () -> HighlightSettingsSupport.telemetryValue(gs.getDefaultHighlightRuleSetId()), true));
+            tracked.add(new TrackedSetting("terminal", "highlighting_triggers", gs::isTerminalTriggersEnabled, true));
             tracked.add(new TrackedSetting("video", "recording_enabled", gs::isTerminalRecordingEnabled, true));
             tracked.add(new TrackedSetting("video", "capture_colors", gs::isTerminalRecordingCaptureColorsEnabled, true));
             tracked.add(new TrackedSetting("backup", "max_count", gs::getMaxBackupCount, true));

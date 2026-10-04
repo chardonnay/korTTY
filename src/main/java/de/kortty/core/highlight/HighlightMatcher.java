@@ -18,6 +18,12 @@ import java.util.regex.Matcher;
  *   <li>{@link HighlightRule.Scope#MATCH} claims each hit {@code [start, end)};
  *       {@link HighlightRule.Scope#LINE} claims the whole line once anything hits. A zero-length
  *       hit claims nothing and does not count.</li>
+ *   <li>A rule that only acts — a trigger without a color or style
+ *       ({@link CompiledHighlightSet.Rule#visual()} false) — claims nothing: it does not restyle text
+ *       and does not take characters away from a rule further down.</li>
+ *   <li>Independently of who owns what, every rule's first hit on the line is reported
+ *       ({@link Result#firstHitStart(int)}), so a trigger fires where its pattern appears even if a rule
+ *       above it colors those characters.</li>
  * </ul>
  *
  * <p>Bounded, because the patterns are the user's and the text is whatever a server prints:
@@ -46,11 +52,33 @@ public final class HighlightMatcher {
      *               compiled set, or {@link #NO_OWNER}
      * @param overrunRules indexes of the rules that ran out of their own budget, ascending
      * @param complete false when the pass deadline cut the evaluation short
+     * @param firstHits for each rule index {@code i}, the start ({@code [2i]}) and end ({@code [2i + 1]})
+     *                  of the rule's first hit on the line, or -1 for both when it did not hit
      */
-    public record Result(int[] owners, int[] overrunRules, boolean complete) {
+    public record Result(int[] owners, int[] overrunRules, boolean complete, int[] firstHits) {
+
+        /** A result without hit positions. */
+        public Result(int[] owners, int[] overrunRules, boolean complete) {
+            this(owners, overrunRules, complete, new int[0]);
+        }
 
         public int owner(int index) {
             return owners[index];
+        }
+
+        /** Start of the first hit of the rule at {@code ruleIndex}, or -1 when it did not hit the line. */
+        public int firstHitStart(int ruleIndex) {
+            return ruleIndex >= 0 && 2 * ruleIndex + 1 < firstHits.length ? firstHits[2 * ruleIndex] : -1;
+        }
+
+        /** End (exclusive) of the first hit of the rule at {@code ruleIndex}, or -1 when it did not hit. */
+        public int firstHitEnd(int ruleIndex) {
+            return ruleIndex >= 0 && 2 * ruleIndex + 1 < firstHits.length ? firstHits[2 * ruleIndex + 1] : -1;
+        }
+
+        /** True when the rule at {@code ruleIndex} hit the line, whether or not it owns any character. */
+        public boolean hit(int ruleIndex) {
+            return firstHitStart(ruleIndex) >= 0;
         }
 
         /** True when at least one character is owned by a rule. */
@@ -85,8 +113,10 @@ public final class HighlightMatcher {
         int length = text != null ? text.length() : 0;
         int[] owners = new int[length];
         Arrays.fill(owners, NO_OWNER);
+        int[] firstHits = new int[set != null ? 2 * set.size() : 0];
+        Arrays.fill(firstHits, -1);
         if (set == null || set.isEmpty() || length == 0) {
-            return new Result(owners, new int[0], true);
+            return new Result(owners, new int[0], true, firstHits);
         }
         CharSequence input = length > LogicalLineProjection.MAX_CHARS
             ? text.subSequence(0, LogicalLineProjection.MAX_CHARS) : text;
@@ -123,8 +153,8 @@ public final class HighlightMatcher {
                     hits[hitCount * 2] = start;
                     hits[hitCount * 2 + 1] = end;
                     hitCount++;
-                    if (rule.scope() == HighlightRule.Scope.LINE) {
-                        break;
+                    if (rule.scope() == HighlightRule.Scope.LINE || !rule.visual()) {
+                        break; // the first hit is all a whole-line rule or a trigger without a look needs
                     }
                 }
             } catch (DeadlineCharSequence.DeadlineExceeded | StackOverflowError e) {
@@ -138,6 +168,11 @@ public final class HighlightMatcher {
             if (hitCount == 0) {
                 continue;
             }
+            firstHits[2 * rule.index()] = hits[0];
+            firstHits[2 * rule.index() + 1] = hits[1];
+            if (!rule.visual()) {
+                continue; // a trigger without a look: reported as hit, claims nothing
+            }
             if (rule.scope() == HighlightRule.Scope.LINE) {
                 claim(owners, 0, length, rule.index());
             } else {
@@ -146,7 +181,7 @@ public final class HighlightMatcher {
                 }
             }
         }
-        return new Result(owners, overruns.stream().toArray(), complete);
+        return new Result(owners, overruns.stream().toArray(), complete, firstHits);
     }
 
     private static void claim(int[] owners, int start, int end, int owner) {
