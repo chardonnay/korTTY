@@ -64,6 +64,7 @@ import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteRules;
 import de.kortty.paste.PasteSource;
+import de.kortty.paste.PasteTarget;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.plugin.terminaleffects.TerminalEffectAppearance;
 import de.kortty.plugin.terminaleffects.TerminalEffectConnectorWrapper;
@@ -470,11 +471,13 @@ public class TerminalView extends BorderPane {
      * middle-click and text dropped onto a pane. It asks first when Settings → Terminal → Paste
      * protection says so (line breaks, control characters, a large paste), removes bracketed-paste
      * markers from the text, brackets the paste itself when the program in the pane has bracketed
-     * paste enabled, and paces it when a line delay is set.
+     * paste enabled, and paces it when a line delay is set. A pane whose connection sets its own
+     * paste warning or line delay follows that instead ({@link #pasteConnectionOf}).
      */
-    private final PasteGuard pasteGuard = new PasteGuard(() -> pasteRules(TerminalView::readGlobalSettings),
+    private final PasteGuard pasteGuard = new PasteGuard(
+        target -> pasteRules(TerminalView::readGlobalSettings, pasteConnectionOf(target)),
         new PasteConfirmationDialog(this::pasteConfirmationOwner), pastePacer,
-        () -> pasteLineDelayMs(TerminalView::readGlobalSettings));
+        target -> pasteLineDelayMs(TerminalView::readGlobalSettings, pasteConnectionOf(target)));
     private final List<Consumer<SithTermFxWidget>> focusedWidgetListeners = new CopyOnWriteArrayList<>();
     /** The pane whose canvas most recently gained keyboard focus (null before the first focus). */
     private volatile SithTermFxWidget lastFocusedWidget;
@@ -6216,13 +6219,27 @@ public class TerminalView extends BorderPane {
      * @param settings reads the global settings; may return null or throw
      */
     static PasteRules pasteRules(Supplier<GlobalSettings> settings) {
-        PasteProtectionSettings protection;
+        return pasteRules(settings, null);
+    }
+
+    /**
+     * The paste protection rules for the next paste into a pane of {@code connection}: its own warning
+     * mode when it sets one that applies ({@link PasteProtectionSettings#resolve}), else the global
+     * settings as they are now. Without readable settings the defaults stand in for them, never "off".
+     *
+     * @param settings reads the global settings; may return null or throw
+     * @param connection the connection whose paste protection applies; null follows the global settings
+     */
+    static PasteRules pasteRules(Supplier<GlobalSettings> settings, @Nullable ServerConnection connection) {
+        GlobalSettings global = readOrNull(settings);
         try {
-            protection = PasteProtectionSettings.from(settings.get());
+            PasteProtectionSettings protection = PasteProtectionSettings.resolve(global, connection);
+            boolean setByConnection = PasteProtectionSettings.connectionWarningMode(
+                PasteProtectionSettings.from(global).mode(), connection) != null;
+            return new PasteDecision(protection, setByConnection);
         } catch (RuntimeException e) {
-            protection = PasteProtectionSettings.DEFAULTS;
+            return new PasteDecision(PasteProtectionSettings.DEFAULTS);
         }
-        return new PasteDecision(protection);
     }
 
     /**
@@ -6232,12 +6249,65 @@ public class TerminalView extends BorderPane {
      * @param settings reads the global settings; may return null or throw
      */
     static int pasteLineDelayMs(Supplier<GlobalSettings> settings) {
+        return pasteLineDelayMs(settings, null);
+    }
+
+    /**
+     * The pause after each line pasted into a pane of {@code connection}: its own pause when it sets one,
+     * else the global settings as they are now; 0, which pastes at once, when neither can be read.
+     *
+     * @param settings reads the global settings; may return null or throw
+     * @param connection the connection whose line delay applies; null follows the global settings
+     */
+    static int pasteLineDelayMs(Supplier<GlobalSettings> settings, @Nullable ServerConnection connection) {
         try {
-            GlobalSettings current = settings.get();
-            return current != null ? current.getPasteLineDelayMs() : 0;
+            return PasteProtectionSettings.resolveLineDelayMs(readOrNull(settings), connection);
         } catch (RuntimeException e) {
             return 0;
         }
+    }
+
+    private static @Nullable GlobalSettings readOrNull(Supplier<GlobalSettings> settings) {
+        try {
+            return settings.get();
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * The connection whose paste protection applies to a paste into this pane: the pane's own
+     * connection (a split to another server has its own, every other pane runs the tab's), and of that
+     * the saved connection with the same id when there is one, so a change saved in the Connection
+     * Manager applies to the next paste into an open pane. A teamwork connection is not among the saved
+     * ones and keeps the values it connected with.
+     */
+    private @Nullable ServerConnection pasteConnectionOf(@Nullable PasteTarget target) {
+        SithTermFxWidget pane = target != null && target.key() instanceof SithTermFxWidget widget ? widget : null;
+        ServerConnection own = pane != null ? connectionOf(unwrapTerminalEffectConnector(pane.getTtyConnector())) : null;
+        ServerConnection paneConnection = own != null ? own : connection;
+        try {
+            KorTTYApplication app = KorTTYApplication.getInstance();
+            de.kortty.core.ConfigurationManager configManager = app != null ? app.getConfigManager() : null;
+            return savedConnectionOr(paneConnection, configManager != null ? configManager::getConnectionById : null);
+        } catch (RuntimeException e) {
+            return paneConnection;
+        }
+    }
+
+    /**
+     * The saved connection with {@code connection}'s id, or {@code connection} itself when none is saved
+     * (a teamwork or Quick Connect connection) or there is nothing to look in.
+     *
+     * @param savedById looks up a saved connection by id; may be null
+     */
+    static @Nullable ServerConnection savedConnectionOr(@Nullable ServerConnection connection,
+            @Nullable java.util.function.Function<String, ServerConnection> savedById) {
+        if (connection == null || connection.getId() == null || savedById == null) {
+            return connection;
+        }
+        ServerConnection saved = savedById.apply(connection.getId());
+        return saved != null ? saved : connection;
     }
 
     /** Where a pane shows the progress of a paced paste: the pane's own wrapper in the split pane. */

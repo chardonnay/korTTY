@@ -71,6 +71,7 @@ Contains all saved SSH connections with their settings.
 - Group/folder organization
 - Optional free-text tag (used for search, bulk tagging and tag-based export)
 - Optional keyword highlighting rule set (`highlightRuleSetId`): the id of a built-in or your own rule set, `none` for no highlighting, or missing to follow the default rule set (see [Rule set per connection](../features/highlighting.md#rule-set-per-connection)). Connections from a [teamwork](../features/teamwork.md) file can carry it as well; the id of a rule set that does not exist on your computer is ignored.
+- Optional paste protection that overrides *Settings → Terminal → Paste protection* for this connection: `pasteWarningMode` (`off`, `unless-bracketed` or `always`) and `pasteLineDelayMs` (0 to 1000; 0 pastes at once). Missing means the global setting, and an unknown warning mode counts as missing (see [Paste protection](../features/connections.md#paste-protection)). Connections from a [teamwork](../features/teamwork.md) file can carry both, but their warning mode applies only when it asks more often than your own setting.
 - Optional tab color (`tabColor`, `#RRGGBB`) that marks the connection's terminal tabs with a colored dot; anything that is not a hex color is ignored (see [Tab color](../features/connections.md#tab-color)). Connections from a [teamwork](../features/teamwork.md) file can carry it as well, so the file's maintainer decides how those tabs are marked.
 
 **Security:** Connection passwords are encrypted with AES-256-GCM using the master password.

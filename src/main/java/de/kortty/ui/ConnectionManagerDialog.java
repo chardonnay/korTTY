@@ -1379,6 +1379,10 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 imported.setTerminalEffectPluginId(conn.getTerminalEffectPluginId());
                 imported.setTerminalEffectAnimationSpeed(conn.getTerminalEffectAnimationSpeed());
                 imported.setHighlightRuleSetId(conn.getHighlightRuleSetId());
+                // Paste protection travels with the connection like the export writes it; the editor
+                // shows an imported warning mode and line delay under Terminal behavior.
+                imported.setPasteWarningMode(conn.getPasteWarningMode());
+                imported.setPasteLineDelayMs(conn.getPasteLineDelayMs());
                 
                 // SSH Key (conditional or replaced)
                 if (result.replaceSSHKey && result.replacementSSHKey != null) {

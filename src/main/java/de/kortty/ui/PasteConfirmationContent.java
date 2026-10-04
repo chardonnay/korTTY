@@ -23,7 +23,8 @@ import java.util.Objects;
  * @param previewText the start of the text, with hidden characters made visible
  * @param previewLegend how hidden characters are shown, or null when the text has none
  * @param previewTruncated that the preview is shortened, or null when it shows the whole text
- * @param settingsHint where paste protection is configured
+ * @param settingsHint where paste protection is configured: Settings → Terminal, or the connection's
+ *     settings when the pane's connection sets its own paste warning
  * @param pasteButton the label of the button that pastes
  * @param cancelButton the label of the default button, which drops the paste
  */
@@ -115,7 +116,7 @@ record PasteConfirmationContent(String title, String header, String summary, Lis
             preview.text(),
             showsHiddenCharacters ? text(translator, "previewLegend") : null,
             preview.truncated() ? text(translator, "previewTruncated") : null,
-            text(translator, "settingsHint"),
+            text(translator, request.setByConnection() ? "settingsHint.connection" : "settingsHint"),
             text(translator, "paste"),
             translator.get("dialog.cancel"));
     }

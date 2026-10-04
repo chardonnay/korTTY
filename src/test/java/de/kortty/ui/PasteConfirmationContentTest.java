@@ -61,6 +61,21 @@ class PasteConfirmationContentTest {
     }
 
     @Test
+    void aConnectionWithItsOwnPasteWarningPointsToTheConnectionInsteadOfSettings() {
+        PasteConfirmationRequest request = new PasteConfirmationRequest("prod-db", "a\nb",
+            EnumSet.of(PasteReason.MULTI_LINE), true, PasteSource.CLIPBOARD, false, true);
+
+        PasteConfirmationContent content = PasteConfirmationContent.of(request, PasteInspection.of("a\nb"),
+            translator, Locale.ENGLISH);
+
+        assertThat(content.settingsHint()).isEqualTo("terminal.paste.confirm.settingsHint.connection");
+        assertWithMessage("a request without the flag comes from Settings → Terminal")
+            .that(new PasteConfirmationRequest("x", "a", Set.of(PasteReason.LARGE), false, PasteSource.CLIPBOARD,
+                false).setByConnection())
+            .isFalse();
+    }
+
+    @Test
     void aPaneWithoutANameIsCalledTheTerminal() {
         assertThat(content("a\nb", EnumSet.of(PasteReason.MULTI_LINE), false, PasteSource.CLIPBOARD, false, "  ")
             .header()).isEqualTo("terminal.paste.confirm.header.unnamed");
@@ -190,6 +205,8 @@ class PasteConfirmationContentTest {
                 content("line\n".repeat(40), EnumSet.of(PasteReason.MULTI_LINE), bracketed, source, false, "x");
             }
         }
+        PasteConfirmationContent.of(new PasteConfirmationRequest("x", "a\nb", EnumSet.of(PasteReason.MULTI_LINE),
+            false, PasteSource.CLIPBOARD, false, true), PasteInspection.of("a\nb"), translator, Locale.ENGLISH);
         PasteConfirmationContent.formatSize(10, translator, Locale.ENGLISH);
         PasteConfirmationContent.formatSize(10_000, translator, Locale.ENGLISH);
 

@@ -22,4 +22,12 @@ public interface PasteRules {
      * @return the reasons; never null, empty when the paste needs no confirmation
      */
     Set<PasteReason> reasons(String text, boolean bracketed);
+
+    /**
+     * Whether these rules are the paste protection the pane's connection sets for itself rather than the
+     * one of Settings → Terminal, so a confirmation points to the connection's settings instead.
+     */
+    default boolean setByConnection() {
+        return false;
+    }
 }

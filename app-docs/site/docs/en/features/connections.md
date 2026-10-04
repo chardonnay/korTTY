@@ -31,7 +31,7 @@ The connection editor has these tabs:
 | Tab | Contents |
 | --- | --- |
 | Connection | Host, port, username, protocol (SSH / Mosh / Local Shell), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment and an optional free-text [tag](#tags). For **Local Shell** connections host, port, username and authentication are not required and are disabled. See [Character encoding](#character-encoding). |
-| Terminal Settings | Per-connection colors, font, ANSI/TrueColor handling, the **Terminal behavior** section with the [tab color](#tab-color) and the [keyword highlighting](#keyword-highlighting) rule set, terminal effect |
+| Terminal Settings | Per-connection colors, font, ANSI/TrueColor handling, the **Terminal behavior** section with the [tab color](#tab-color), the [keyword highlighting](#keyword-highlighting) rule set and the [paste protection](#paste-protection), terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
 | Terminal Logging | Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See [Terminal logging](terminal.md#terminal-logging). |
@@ -46,6 +46,18 @@ The connection editor has these tabs:
 ### Keyword highlighting
 
 The **Terminal behavior** section of the *Terminal Settings* tab picks the [keyword highlighting](highlighting.md#rule-set-per-connection) rule set this connection's terminals show: **Use the default** follows the default rule set of *Settings → Terminal*, **None** keeps them plain, or pick a built-in set or one of your own, for example **Network devices** for switches. The section applies whether or not the connection uses its own terminal settings, and also while terminal effects are switched off. The choice is stored with the connection, survives duplicating, exporting and importing, and saving in the Connection Manager applies it to the connection's open terminals at once. A set chosen for a single pane in a menu or with ++ctrl+shift+h++ (++cmd+shift+h++ on macOS) still wins for that pane.
+
+### Paste protection
+
+The **Terminal behavior** section of the *Terminal Settings* tab can give a connection a [paste protection](terminal.md#paste-protection) of its own, for example so that a production server asks before every paste with a line break while your other connections keep the default:
+
+- **Warn about multi-line pastes** — **Use the default** follows *Settings → Terminal → Paste protection* and names its current choice; or pick **Off**, **Unless the program uses bracketed paste** or **Always**. **Always** is the choice for production servers: whether a program uses bracketed paste is what the server says, and any output can claim it. **Off** also turns off the warning about control characters for this connection.
+- **Pause after each pasted line** — tick **Own pause instead of the default** and set 0 to 1,000 ms to send this connection's pastes one line at a time, for a switch or console server that loses input arriving too fast (see [Pasting into slow devices](terminal.md#pasting-into-slow-devices)). With the tick, 0 pastes into this connection at once even when *Settings → Terminal* sets a pause; without it, the pause of *Settings → Terminal* applies, and the box names it.
+
+The size check, **Warn about pastes larger than**, always comes from *Settings → Terminal*. Each pane follows its own connection, so a pane that **Split Right (new connection)** or **Split Down (new connection)** opened to another server uses that server's paste protection. Saving in the Connection Manager applies to the next paste into the connection's open terminals in every window. When a connection's own warning asks, the paste confirmation says that the connection sets it instead of pointing to *Settings → Terminal*. The choice is stored with the connection and survives duplicating, exporting and importing; an imported connection brings the values of the file it comes from, so check them in the editor.
+
+!!! warning "Shared connections can only make the warning stricter"
+    A [teamwork](teamwork.md) connection can carry a paste protection of its own in the shared file. Its warning applies only when it asks more often than your own setting, so whoever maintains the file can make a production server ask before every multi-line paste but can never switch off a warning you chose; the connection editor says so for such a connection. Its pause after each pasted line applies as written, because a pause only slows a paste down and ++esc++ stops it. A teamwork connection keeps the values it had when its terminal was opened.
 
 ## Tags
 
