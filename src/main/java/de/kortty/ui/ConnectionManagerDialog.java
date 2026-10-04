@@ -3,6 +3,8 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
+import de.kortty.core.HostKeyCheckGroupExemptions;
+import de.kortty.model.GlobalSettings;
 import de.kortty.model.GroupPath;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SSHKey;
@@ -27,6 +29,7 @@ import javax.crypto.SecretKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -907,6 +910,41 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         }
     }
 
+    /**
+     * The folders whose host-key verification is relaxed once {@code change} is applied to the stored
+     * ones, or null without global settings.
+     */
+    private List<String> hostKeyCheckExemptionsAfter(UnaryOperator<List<String>> change) {
+        var gsm = app.getGlobalSettingsManager();
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        return settings != null ? change.apply(new ArrayList<>(settings.getHostKeyCheckDisabledGroups())) : null;
+    }
+
+    /**
+     * Makes {@code exempt} the folders whose host-key verification is relaxed and saves the global
+     * settings; unchanged exemptions are not saved again. A failed save keeps them in memory, since
+     * after a rename or delete they relax no connection that was verified before, and says so.
+     */
+    private void storeHostKeyCheckExemptions(List<String> exempt) {
+        var gsm = app.getGlobalSettingsManager();
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        if (settings == null || exempt == null || exempt.equals(settings.getHostKeyCheckDisabledGroups())) {
+            return;
+        }
+        settings.setHostKeyCheckDisabledGroups(new ArrayList<>(exempt));
+        try {
+            gsm.save();
+        } catch (Exception e) {
+            logger.error("Could not save the folders without host-key verification", e);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            DialogThemeHelper.applyTheme(alert);
+            alert.setTitle(I18n.get("error.title"));
+            alert.setHeaderText(I18n.get("error.saveFailed"));
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+        }
+    }
+
     private void renameGroup(GroupPath oldPath) {
         TextInputDialog dialog = new TextInputDialog(oldPath.getName());
         dialog.setTitle(I18n.get("connManager.renameFolder"));
@@ -920,6 +958,9 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 GroupPath parentPath = oldPath.getParent();
                 GroupPath newPath = parentPath == null || parentPath.isRoot() ? 
                     new GroupPath(newName) : parentPath.append(newName);
+                // Host-key exemptions move with the folders; worked out while the groups are still the old ones.
+                List<String> exemptionsAfter = hostKeyCheckExemptionsAfter(exempt -> HostKeyCheckGroupExemptions.renamed(
+                    exempt, oldPath.getPath(), newPath.getPath(), connections.stream().map(ServerConnection::getGroup).toList()));
                 
                 // Update all connections in this group and sub-groups
                 for (ServerConnection conn : connections) {
@@ -944,6 +985,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 
                 treeView.refreshTree();
                 saveConnections();
+                storeHostKeyCheckExemptions(exemptionsAfter);
             }
         });
     }
@@ -981,6 +1023,9 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 
                 treeView.refreshTree();
                 saveConnections();
+                // A new folder of the same name starts with host-key verification on.
+                storeHostKeyCheckExemptions(hostKeyCheckExemptionsAfter(
+                    exempt -> HostKeyCheckGroupExemptions.deleted(exempt, groupPath.getPath())));
             }
         });
     }
