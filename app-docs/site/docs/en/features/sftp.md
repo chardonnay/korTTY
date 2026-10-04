@@ -220,6 +220,18 @@ An organization can restrict editing server files with the `load-into-snippet-ed
 
 ![SFTP dual-panel file manager](../assets/screenshots/sftp/sftp-manager.png)
 
+### Editing in your own editor
+
+**Edit in External Editor** (in the right-click menu of a server file and in the remote **Edit** menu) opens the selected server file in your own text editor and copies every save back to the server. Choose the editor under [*Settings → SFTP Manager → External editor*](../reference/settings/sftp.md#external-editor); without one, the file opens as text in the system's editor.
+
+- **Local copy** — the file is downloaded into a private folder named `kortty-remote-edit-…` in the system temp folder that only you can open, under a cleaned-up name: characters other than letters, digits, `.`, `_`, `-` and spaces become `_`, and Windows device names such as `CON` get a `_` in front. A symbolic link is followed once and the file it points to is edited.
+- **Auto-upload** — korTTY checks the copy every second. About a second after you save, the new content is uploaded and the status bar says **Uploaded** with the file name; saving the same content again uploads nothing. The upload works like any other: through a `.kortty-part` file that keeps the file's permissions, or written in place when the file belongs to another user, so its owner stays.
+- **Remote edits** — the list below the transfer list shows each file being edited, whether it waits for saves, uploads or was uploaded (with the time), and offers **Upload now** for editors whose saves are not noticed, and **Stop**.
+- **Conflicts** — before each upload korTTY checks that the server file is still the one it downloaded (size, time, owner and, up to 10 MB, the content). If someone else changed or deleted it, it asks: **Overwrite server file**, **Save local copy as...** (keeps your version on this computer and stops watching), **Stop watching** or **Decide later** (keeps watching; nothing is uploaded until the next save or **Upload now**).
+- **Cleanup** — **Stop**, closing the SFTP tab and quitting korTTY delete the local copy. When the connection is lost before your last save was uploaded, korTTY first offers **Save copy as...**. Folders a crash left behind are removed at the next start once they are a day old.
+
+The editor is always started directly, never through a shell or as the file's default application, so a downloaded script never runs. With the [enterprise policy](../reference/enterprise-policy.md)'s `load-into-snippet-editor = "read-only"` the file opens but saves stay on your computer and the list says so; `load-into-snippet-editor = "deny"` or `file-transfer = "deny"` grey out **Edit in External Editor**.
+
 ## Search
 
 The search field above each list filters the folder shown as you type, without leaving it; the parent entry `..` stays visible. korTTY evaluates the wildcards itself, the same way for local and remote names. A pattern with a wildcard has to match the whole name, ignoring case:

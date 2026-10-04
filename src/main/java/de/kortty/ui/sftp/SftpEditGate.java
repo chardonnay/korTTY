@@ -12,9 +12,10 @@ import de.kortty.policy.PolicyRestrictionException;
  *   <li>{@link LoadIntoEditorMode#ALLOW} — remote files open in the snippet editor with
  *       <b>Overwrite remote file</b> and <b>Save as</b>, and remote images open in the viewer.</li>
  *   <li>{@link LoadIntoEditorMode#READ_ONLY} — remote files and images still open, but the editor
- *       has no action that writes back to the server; saving as a snippet stays available.</li>
- *   <li>{@link LoadIntoEditorMode#DENY} — <b>Edit with Snippet Editor</b> and <b>Open image</b>
- *       are disabled for remote files.</li>
+ *       has no action that writes back to the server; saving as a snippet stays available. A file
+ *       opened in an external editor is not uploaded when it is saved.</li>
+ *   <li>{@link LoadIntoEditorMode#DENY} — <b>Edit with Snippet Editor</b>, <b>Edit in External
+ *       Editor</b> and <b>Open image</b> are disabled for remote files.</li>
  * </ul>
  *
  * <p>Files of the local pane are on the user's own computer, not the target system, so the gate
@@ -62,6 +63,22 @@ public final class SftpEditGate {
     /** Whether a remote image may be downloaded into the image viewer. */
     public boolean remoteImageAvailable() {
         return mode != LoadIntoEditorMode.DENY;
+    }
+
+    /**
+     * Whether a remote file may be opened in an external editor: the editor needs a local copy, so
+     * the file-transfer policy must allow downloads, and this gate must not deny editing.
+     */
+    public boolean externalEditAvailable(boolean downloadAllowed) {
+        return remoteEditorAvailable() && downloadAllowed;
+    }
+
+    /**
+     * Whether saves in the external editor go back to the server. Under {@code read-only}, or when
+     * the file-transfer policy refuses uploads, the file still opens but nothing is uploaded.
+     */
+    public boolean externalEditUploads(boolean uploadAllowed) {
+        return remoteWriteBackAllowed() && uploadAllowed;
     }
 
     /** Local files are the user's own; the policy never restricts editing them here. */

@@ -66,6 +66,53 @@ class SftpEditGateTest {
     }
 
     @Test
+    void externalEditFollowsTheSnippetEditorModeAndTheFileTransferPolicy() {
+        SftpEditGate allow = SftpEditGate.of(LoadIntoEditorMode.ALLOW);
+        SftpEditGate readOnly = SftpEditGate.of(LoadIntoEditorMode.READ_ONLY);
+        SftpEditGate deny = SftpEditGate.of(LoadIntoEditorMode.DENY);
+
+        // Opening needs the download of the local copy and an editor mode that is not deny.
+        assertThat(allow.externalEditAvailable(true)).isTrue();
+        assertThat(readOnly.externalEditAvailable(true)).isTrue();
+        assertThat(deny.externalEditAvailable(true)).isFalse();
+        assertThat(allow.externalEditAvailable(false)).isFalse();
+        // Uploads on save need write-back and the upload route.
+        assertThat(allow.externalEditUploads(true)).isTrue();
+        assertThat(allow.externalEditUploads(false)).isFalse();
+        assertThat(readOnly.externalEditUploads(true)).isFalse();
+        assertThat(deny.externalEditUploads(true)).isFalse();
+        // The snippet editor and the external editor agree on every mode.
+        for (LoadIntoEditorMode mode : LoadIntoEditorMode.values()) {
+            SftpEditGate gate = SftpEditGate.of(mode);
+            assertThat(gate.externalEditAvailable(true)).isEqualTo(gate.remoteEditorAvailable());
+            assertThat(gate.externalEditUploads(true)).isEqualTo(gate.remoteWriteBackAllowed());
+        }
+    }
+
+    @Test
+    void sftpManagerGreysOutTheExternalEditUpFrontAndChecksAgainOnUse() throws IOException {
+        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/SFTPManagerTab.java"),
+            StandardCharsets.UTF_8).replace("\r\n", "\n");
+
+        assertThat(source).contains(
+            "editRemoteExternalItem.setDisable(!editableFile || !externalEditAvailable(editGate));");
+        assertThat(source).contains(
+            "editExternalItem.setDisable(!isSingleFile || !externalEditAvailable(editGate));");
+        String open = source.substring(source.indexOf("private void openSelectedRemoteFileInExternalEditor("));
+        open = open.substring(0, open.indexOf("remoteEdits.open("));
+        assertThat(open).contains("remoteEditAllowedByPolicy(editGate.remoteEditorAvailable())");
+        assertThat(open).contains("refuseTransfer(de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD)");
+        assertThat(open).contains("editGate.externalEditUploads(");
+        // Leaving the tab or losing the connection stops the watching and deletes the copies.
+        assertThat(source).contains("remoteEdits.dispose();");
+        assertThat(source).contains("remoteEdits.onDisconnected();");
+        // The leftover-parts item stays the last entry of the remote context menu.
+        String menu = source.substring(source.indexOf("private ContextMenu createRemoteContextMenu()"));
+        menu = menu.substring(0, menu.indexOf("return menu;"));
+        assertThat(menu.indexOf("editExternalItem")).isLessThan(menu.indexOf("addRemovePartsItem(menu, true);"));
+    }
+
+    @Test
     void noPolicyValueMeansAllow() {
         assertThat(SftpEditGate.of(null).mode()).isEqualTo(LoadIntoEditorMode.ALLOW);
         for (LoadIntoEditorMode mode : LoadIntoEditorMode.values()) {
@@ -84,7 +131,8 @@ class SftpEditGateTest {
         String source = Files.readString(Path.of("src/main/java/de/kortty/ui/SFTPManagerTab.java"),
             StandardCharsets.UTF_8).replace("\r\n", "\n");
 
-        assertThat(source).contains("|| !SftpEditGate.current().remoteEditorAvailable());");
+        assertThat(source).contains(
+            "editRemoteSnippetItem.setDisable(!editableFile || !editGate.remoteEditorAvailable());");
         assertThat(source).contains(
             "editWithSnippetEditorItem.setDisable(!isSingleFile || !editGate.remoteEditorAvailable());");
         assertThat(source).contains(

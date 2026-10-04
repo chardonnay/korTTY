@@ -403,6 +403,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<de.kortty.model.SftpConflictDefault> sftpConflictDefaultCombo;
     private final CheckBox sftpResumePartialTransfersCheck;
     private final CheckBox sftpKeepPartialOnCancelCheck;
+    private final TextField sftpExternalEditorCommandField;
     
     // Editor settings
     private final ComboBox<String> editorCursorStyleCombo;
@@ -3242,6 +3243,32 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         transfersInfo.setMaxWidth(400);
         sftpGrid.add(transfersInfo, 0, sftpRow++, 2, 1);
 
+        sftpGrid.add(new Separator(), 0, sftpRow++, 2, 1);
+
+        // External editor for remote files ("Edit in External Editor").
+        Label externalEditorTitle = new Label(I18n.get("settings.sftp.externalEditorTitle"));
+        externalEditorTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
+        sftpGrid.add(externalEditorTitle, 0, sftpRow++, 2, 1);
+
+        Label externalEditorLabel = new Label(I18n.get("settings.sftp.externalEditorCommand"));
+        sftpExternalEditorCommandField = new TextField(globalSettings.getSftpExternalEditorCommand());
+        sftpExternalEditorCommandField.setPromptText(I18n.get("settings.sftp.externalEditorCommand.prompt"));
+        sftpExternalEditorCommandField.setPrefWidth(320);
+        sftpExternalEditorCommandField.setTooltip(new Tooltip(I18n.get("settings.sftp.externalEditorCommand.tooltip")));
+        // A command that cannot be parsed (an unclosed quote) is marked red and not saved.
+        sftpExternalEditorCommandField.textProperty().addListener((obs, old, value) ->
+            sftpExternalEditorCommandField.setStyle(
+                de.kortty.core.remote.edit.ExternalEditorLauncher.isValidTemplate(value) ? "" : "-fx-border-color: #e06c75;"));
+        HBox externalEditorBox = new HBox(10, externalEditorLabel, sftpExternalEditorCommandField);
+        HBox.setHgrow(sftpExternalEditorCommandField, Priority.ALWAYS);
+        sftpGrid.add(externalEditorBox, 0, sftpRow++, 2, 1);
+
+        Label externalEditorInfo = new Label(I18n.get("settings.sftp.externalEditorInfo"));
+        externalEditorInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        externalEditorInfo.setWrapText(true);
+        externalEditorInfo.setMaxWidth(400);
+        sftpGrid.add(externalEditorInfo, 0, sftpRow++, 2, 1);
+
         // Separator
         sftpGrid.add(new Separator(), 0, sftpRow++, 2, 1);
         
@@ -4013,6 +4040,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
             globalSettings.setSftpResumePartialTransfers(sftpResumePartialTransfersCheck.isSelected());
             globalSettings.setSftpKeepPartialOnCancel(sftpKeepPartialOnCancelCheck.isSelected());
+            String editorCommand = sftpExternalEditorCommandField.getText();
+            if (de.kortty.core.remote.edit.ExternalEditorLauncher.isValidTemplate(editorCommand)) {
+                globalSettings.setSftpExternalEditorCommand(editorCommand);
+            }
             globalSettings.setJobSchedulerRsyncBinaryPath(jobSchedulerRsyncBinaryPathField.getText());
             
             // Save Editor settings
@@ -4164,6 +4195,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("sftp", "conflict_default", () -> gs.getSftpConflictDefault().id(), true));
             tracked.add(new TrackedSetting("sftp", "resume_partial_transfers", gs::isSftpResumePartialTransfers, true));
             tracked.add(new TrackedSetting("sftp", "keep_partial_on_cancel", gs::isSftpKeepPartialOnCancel, true));
+            tracked.add(new TrackedSetting("sftp", "external_editor_command_set",
+                () -> !gs.getSftpExternalEditorCommand().isBlank(), true));
             tracked.add(new TrackedSetting("snippet_editor", "analysis_history_max",
                 gs::getSnippetAnalysisHistoryMaxSize, true));
             tracked.add(new TrackedSetting("snippet_editor", "analysis_content_limit_bytes",

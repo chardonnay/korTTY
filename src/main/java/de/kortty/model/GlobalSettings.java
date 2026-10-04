@@ -1042,6 +1042,13 @@ public class GlobalSettings {
     /** Whether a cancelled SFTP transfer keeps its partial file for a later resume; null = off. */
     @XmlElement
     private Boolean sftpKeepPartialOnCancel;
+
+    /**
+     * The editor command the SFTP manager opens remote files with, such as {@code code --wait {file}};
+     * null or blank = open as text through the operating system.
+     */
+    @XmlElement
+    private String sftpExternalEditorCommand;
     
     // Editor defaults (FileEditor)
     @XmlElement
@@ -4072,6 +4079,16 @@ public class GlobalSettings {
 
     public void setSftpKeepPartialOnCancel(boolean value) {
         this.sftpKeepPartialOnCancel = value;
+    }
+
+    /** The external editor command for remote files; empty = the system's text editor. */
+    public String getSftpExternalEditorCommand() {
+        return sftpExternalEditorCommand != null ? sftpExternalEditorCommand : "";
+    }
+
+    /** @param value the editor command template; null or blank stores none */
+    public void setSftpExternalEditorCommand(String value) {
+        this.sftpExternalEditorCommand = value == null || value.isBlank() ? null : value.strip();
     }
     
     /**

@@ -30,6 +30,7 @@ import de.kortty.ui.sftp.RemoteExtractMessages;
 import de.kortty.ui.sftp.RemoteSearchResultsPane;
 import de.kortty.ui.sftp.SftpDragOutPolicy;
 import de.kortty.ui.sftp.SftpEditGate;
+import de.kortty.ui.sftp.SftpRemoteEdits;
 import de.kortty.ui.sftp.SftpDragPayload;
 import de.kortty.ui.sftp.SftpFileItem;
 import de.kortty.ui.sftp.SftpFileItemComparators;
@@ -194,6 +195,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
 
     /** The transfer list at the bottom of the tab and the queue behind it (FX thread). */
     private SftpTransferQueuePane transferQueuePane;
+    /** Files opened in an external editor, with their auto-upload ("Remote edits"); FX thread. */
+    private SftpRemoteEdits remoteEdits;
     private SftpTransferQueueHost transferQueueHost;
     /** The drag-out download that may still run on its worker; FX thread. */
     private TransferCancellation dragOutCancel;
@@ -427,8 +430,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         
         // Transfer list: appears with the first upload or download, collapsible to its header.
         createTransferQueue();
+        createRemoteEdits();
 
-        mainBox.getChildren().addAll(splitPane, buttonBox, transferQueuePane, statusBox);
+        mainBox.getChildren().addAll(splitPane, buttonBox, transferQueuePane, remoteEdits, statusBox);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
         
         return mainBox;
@@ -625,7 +629,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             resetAutoCloseTimer();
             openSelectedRemoteFileInSnippetEditor();
         });
-        editRemoteButton.getItems().add(editRemoteSnippetItem);
+        MenuItem editRemoteExternalItem = new MenuItem(I18n.get("sftp.edit.externalEditor"));
+        editRemoteExternalItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openSelectedRemoteFileInExternalEditor();
+        });
+        editRemoteButton.getItems().addAll(editRemoteSnippetItem, editRemoteExternalItem);
         
         remoteButtons.getChildren().addAll(remoteLabel, refreshRemoteButton, newFolderRemoteButton, deleteRemoteButton,
                 ownerRemoteButton,
@@ -656,9 +665,13 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             archiveButton.setDisable(!usable);
             deleteRemoteButton.setDisable(!usable);
             ownerRemoteButton.setDisable(!usable);
-            // The organization's load-into-snippet-editor policy can deny editing server files.
-            editRemoteButton.setDisable(!isRemoteConnected() || !isSingleEditableFileSelection(remoteTable)
-                || !SftpEditGate.current().remoteEditorAvailable());
+            // The organization's load-into-snippet-editor policy can deny editing server files, and
+            // the file-transfer policy the local copy an external editor needs: both grey out up front.
+            SftpEditGate editGate = SftpEditGate.current();
+            boolean editableFile = isRemoteConnected() && isSingleEditableFileSelection(remoteTable);
+            editRemoteSnippetItem.setDisable(!editableFile || !editGate.remoteEditorAvailable());
+            editRemoteExternalItem.setDisable(!editableFile || !externalEditAvailable(editGate));
+            editRemoteButton.setDisable(editRemoteSnippetItem.isDisable() && editRemoteExternalItem.isDisable());
             // A new folder goes into the absolute folder a listing returned, not the unexpanded '~'.
             newFolderRemoteButton.setDisable(!isRemoteConnected() || !remotePathResolved);
         };
@@ -1087,6 +1100,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         // A replaced session (after Reconnect) is ignored.
         if (session == sftpSession) {
             transferQueueHost.onSessionLost();
+            if (!closing) {
+                remoteEdits.onDisconnected();
+            }
             showDisconnectedState();
         }
     }
@@ -1203,6 +1219,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         if (remoteExtractCancellation != null) {
             remoteExtractCancellation.cancel();
         }
+        // Stops watching externally edited files and deletes their local copies.
+        remoteEdits.dispose();
         // Cancels the transfers and closes their channels before the session goes.
         boolean transfersRan = transferQueueHost.needsCloseConfirmation();
         transferQueueHost.close();
@@ -2764,6 +2782,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             openSelectedRemoteFileInSnippetEditor();
         });
         
+        MenuItem editExternalItem = new MenuItem(I18n.get("sftp.contextMenu.editExternal"));
+        editExternalItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openSelectedRemoteFileInExternalEditor();
+        });
+
         MenuItem openImageItem = new MenuItem(I18n.get("sftp.contextMenu.openImage"));
         openImageItem.setOnAction(e -> {
             resetAutoCloseTimer();
@@ -2779,7 +2803,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             new SeparatorMenuItem(), 
             archiveItem, extractItem,
             new SeparatorMenuItem(),
-            editWithSnippetEditorItem, openImageItem
+            editWithSnippetEditorItem, editExternalItem, openImageItem
         );
         
         // Disable items when nothing is selected
@@ -2800,6 +2824,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 || RemoteArchiveExtractor.detect(selected.get(0).getName()).isEmpty());
             SftpEditGate editGate = SftpEditGate.current();
             editWithSnippetEditorItem.setDisable(!isSingleFile || !editGate.remoteEditorAvailable());
+            editExternalItem.setDisable(!isSingleFile || !externalEditAvailable(editGate));
             openImageItem.setDisable(!isImageFile || !editGate.remoteImageAvailable());
         });
 
@@ -4890,6 +4915,75 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 });
             }
         }, "sftp-remote-snippet-loader").start();
+    }
+
+    /**
+     * Whether "Edit in External Editor" is offered: the load-into-snippet-editor policy must not
+     * deny editing server files, and the file-transfer policy must allow the download of the local
+     * copy. Read-only policies still open the file, without uploads.
+     */
+    private boolean externalEditAvailable(SftpEditGate editGate) {
+        return editGate.externalEditAvailable(
+            de.kortty.policy.FileTransferGate.current(de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD).allowed());
+    }
+
+    /** Downloads the selected server file and opens it in the external editor (see {@link SftpRemoteEdits}). */
+    private void openSelectedRemoteFileInExternalEditor() {
+        SftpFileItem selected = getSingleEditableFileSelection(remoteTable);
+        if (selected == null) {
+            return;
+        }
+        SftpEditGate editGate = SftpEditGate.current();
+        if (!remoteEditAllowedByPolicy(editGate.remoteEditorAvailable())
+                || refuseTransfer(de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD)
+                || !requireConnected()) {
+            return;
+        }
+        boolean uploads = editGate.externalEditUploads(
+            de.kortty.policy.FileTransferGate.current(de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD).allowed());
+        remoteEdits.open(selected.getPath(), selected.getName(), uploads);
+    }
+
+    /** The "Remote edits" list below the transfer list; hidden while nothing is edited. */
+    private void createRemoteEdits() {
+        remoteEdits = new SftpRemoteEdits(new SftpRemoteEdits.Host() {
+            @Override
+            public de.kortty.core.remote.edit.RemoteEditSession.ClientSource clientSource() {
+                return () -> connectedSession().primaryClient();
+            }
+
+            @Override
+            public javafx.stage.Window ownerWindow() {
+                return ownerWindowOrNull();
+            }
+
+            @Override
+            public void status(String text) {
+                if (!closing) {
+                    statusLabel.setText(text);
+                }
+            }
+
+            @Override
+            public String editorCommand() {
+                return app != null && app.getGlobalSettingsManager() != null
+                    ? app.getGlobalSettingsManager().getSettings().getSftpExternalEditorCommand()
+                    : "";
+            }
+
+            @Override
+            public void saveEditorCommand(String command) {
+                if (app != null && app.getGlobalSettingsManager() != null) {
+                    app.getGlobalSettingsManager().getSettings().setSftpExternalEditorCommand(command);
+                    app.getGlobalSettingsManager().scheduleSave();
+                }
+            }
+
+            @Override
+            public void styleDialog(Dialog<?> dialog) {
+                applyDarkTheme(dialog);
+            }
+        }, "SFTP-RemoteEdit-" + connection.getHost());
     }
 
     private void openSelectedLocalFileInSnippetEditor() {

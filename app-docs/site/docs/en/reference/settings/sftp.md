@@ -41,6 +41,17 @@ How uploads and downloads in the [transfer list](../../features/sftp.md#transfer
 !!! note "Managed by your organization"
     An organization can cap **Parallel transfers** and set and lock **When the target already exists** with [`[rule.sftp]`](../enterprise-policy.md#rulesftp), and switch file transfer off entirely with `file-transfer = "deny"`; the page then says so below the transfer settings.
 
+## External editor
+
+The editor that **Edit in External Editor** in the [SFTP file manager](../../features/sftp.md#editing-in-your-own-editor) opens server files with.
+
+| Setting | Type | Values | Default | Stored as |
+| --- | --- | --- | --- | --- |
+| Editor command | text | A program and its arguments; `{file}` stands for the file | empty (System text editor) | `sftpExternalEditorCommand` |
+
+!!! note "Editor command"
+    Examples: `code --wait {file}`, `subl -w {file}`, `"C:\Program Files\Notepad++\notepad++.exe" -multiInst {file}`. Words are separated by spaces; put a path with spaces in double or single quotes. `{file}` is replaced by the full path of the local copy as one argument, and without `{file}` the path is added at the end. The command runs directly, never through a shell, so `$VAR`, `%VAR%`, `;` and `|` have no special meaning. A command with an unclosed quote is marked red and not saved. Leave the field empty to open files as text with the system's editor: TextEdit (or your default text editor) on macOS, the **Edit** action (usually Notepad) on Windows, and on Linux the default application for text files; on Linux a file that is not plain text asks for an editor command first, which is then stored here.
+
 ## ZIP Creation Settings
 
 These are the defaults for creating a ZIP archive **on the remote server** from the SFTP manager.

@@ -38,6 +38,8 @@ public final class TelemetryEvents {
     public static final String SFTP_OPENED = "sftp_opened";
     /** One finished SFTP manager batch; props from {@link SftpTransferTelemetry}. */
     public static final String SFTP_TRANSFER_BATCH = "sftp_transfer_batch";
+    /** One remote edit session ended; props from {@link RemoteEditTelemetry}. */
+    public static final String SFTP_REMOTE_EDIT = "sftp_remote_edit";
     public static final String DASHBOARD_TOGGLED = "dashboard_toggled";
     public static final String DASHBOARD_ACTION = "dashboard_action";
     public static final String FILE_BROWSER_TOGGLED = "file_browser_toggled";

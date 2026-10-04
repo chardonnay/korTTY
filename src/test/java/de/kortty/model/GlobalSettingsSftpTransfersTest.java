@@ -73,6 +73,21 @@ class GlobalSettingsSftpTransfersTest {
         return writer.toString();
     }
 
+    @Test
+    void theExternalEditorCommandSurvivesTheRoundTripAndBlankStoresNone() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        assertThat(settings.getSftpExternalEditorCommand()).isEmpty();
+        settings.setSftpExternalEditorCommand("  code --wait {file} ");
+
+        String xml = marshal(settings);
+        GlobalSettings restored = unmarshal(xml);
+
+        assertThat(restored.getSftpExternalEditorCommand()).isEqualTo("code --wait {file}");
+        restored.setSftpExternalEditorCommand("   ");
+        assertThat(marshal(restored)).doesNotContain("sftpExternalEditorCommand");
+        assertThat(restored.getSftpExternalEditorCommand()).isEmpty();
+    }
+
     private static GlobalSettings unmarshal(String xml) throws Exception {
         return (GlobalSettings) JAXBContext.newInstance(GlobalSettings.class)
                 .createUnmarshaller().unmarshal(new StringReader(xml));
