@@ -117,6 +117,41 @@ class RemoteEditSessionIntegrationTest {
     }
 
     @Test
+    void aSaveDuringTheUploadIsNotMistakenForAChangeOnTheServer() throws Exception {
+        Path remote = Files.writeString(fixture.root().resolve("busy.txt"), "v0\n");
+        java.util.concurrent.atomic.AtomicReference<Runnable> onClient = new java.util.concurrent.atomic.AtomicReference<>();
+        RemoteEditSession.ClientSource source = () -> {
+            Runnable hook = onClient.getAndSet(null);
+            if (hook != null) {
+                hook.run();
+            }
+            return client;
+        };
+
+        try (RemoteEditSession session = RemoteEditSession.open(source, "/busy.txt", tempRoot)) {
+            Files.writeString(session.localFile(), "v1\n");
+            // The editor saves again while v1 is on its way: right before the transfer starts.
+            onClient.set(() -> onClient.set(() -> {
+                try {
+                    Files.writeString(session.localFile(), "v2\n");
+                } catch (IOException e) {
+                    throw new java.io.UncheckedIOException(e);
+                }
+            }));
+            assertThat(session.upload()).isEqualTo(RemoteEditSession.UploadResult.UPLOADED);
+            assertThat(Files.readString(remote)).isEqualTo("v1\n");
+            assertThat(session.hasUnsyncedChanges()).isTrue();
+
+            // The next save goes up: the server still has exactly what korTTY sent.
+            assertThat(session.upload()).isEqualTo(RemoteEditSession.UploadResult.UPLOADED);
+            assertThat(Files.readString(remote)).isEqualTo("v2\n");
+            try (var entries = Files.list(session.folder())) {
+                assertThat(entries.toList()).containsExactly(session.localFile());
+            }
+        }
+    }
+
+    @Test
     void aDeletedServerFileIsAConflict() throws Exception {
         Path remote = Files.writeString(fixture.root().resolve("gone.txt"), "x\n");
         try (RemoteEditSession session = RemoteEditSession.open(() -> client, "/gone.txt", tempRoot)) {

@@ -143,6 +143,8 @@ public final class SftpRemoteEdits extends VBox {
         final RemoteEditTelemetry.Mode mode;
         final ObjectProperty<State> state = new SimpleObjectProperty<>();
         String detail = "";
+        /** The conflict question is open: a further save while it shows asks no second time. */
+        boolean askingConflict;
 
         Entry(RemoteEdit session, boolean uploads, String name, RemoteEditTelemetry.Mode mode) {
             this.session = session;
@@ -517,7 +519,9 @@ public final class SftpRemoteEdits extends VBox {
                 entry.detail);
             case CONFLICT -> {
                 setState(entry, State.CONFLICT, "");
-                askAboutConflict(entry);
+                if (!entry.askingConflict) {
+                    askAboutConflict(entry);
+                }
             }
         }
     }
@@ -542,7 +546,17 @@ public final class SftpRemoteEdits extends VBox {
         host.styleDialog(alert);
         // Nothing destructive is the default: Enter decides later.
         ((Button) alert.getDialogPane().lookupButton(later)).setDefaultButton(true);
-        ButtonType answer = alert.showAndWait().orElse(later);
+        ButtonType answer;
+        entry.askingConflict = true;
+        try {
+            answer = alert.showAndWait().orElse(later);
+        } finally {
+            entry.askingConflict = false;
+        }
+        if (!entries.contains(entry)) {
+            // Stopped or disconnected while the question was open.
+            return;
+        }
         if (answer == overwrite) {
             upload(entry, true);
         } else if (answer == saveCopy) {

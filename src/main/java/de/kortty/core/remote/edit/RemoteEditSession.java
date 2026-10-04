@@ -229,30 +229,38 @@ public final class RemoteEditSession implements RemoteEdit {
         if (!Files.isRegularFile(localFile, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException(I18n.get("sftp.remoteEdit.error.localMissing", localFile.getFileName()));
         }
-        String hash = RemoteEditHashes.sha256(localFile);
-        if (!force && hash.equals(baseline.sha256())) {
-            return UploadResult.UNCHANGED;
-        }
-        if (!force) {
-            Conflict found = checkRemote();
-            if (found != null) {
-                conflict = found;
-                return UploadResult.CONFLICT;
+        // One snapshot of the bytes, next to the copy in the private folder: the editor may save
+        // again while they are on their way, and the baseline hash must be that of what the server
+        // got, or the next save would look like a change on the server.
+        Path snapshot = Files.createTempFile(folder, ".upload-", ".snapshot");
+        try {
+            Files.copy(localFile, snapshot, StandardCopyOption.REPLACE_EXISTING, LinkOption.NOFOLLOW_LINKS);
+            String hash = RemoteEditHashes.sha256(snapshot);
+            if (!force && hash.equals(baseline.sha256())) {
+                return UploadResult.UNCHANGED;
             }
+            if (!force) {
+                Conflict found = checkRemote();
+                if (found != null) {
+                    conflict = found;
+                    return UploadResult.CONFLICT;
+                }
+            }
+            SftpClient client = source.client();
+            PartTransfers.upload(client, null, snapshot, remotePath, null, PartRetention.DISCARD,
+                TransferProgressListener.NONE, TransferCancellation.create());
+            SftpClient.Attributes after = RemoteFinalizer.lstatOrNull(client, remotePath);
+            if (after == null) {
+                throw new IOException(I18n.get("sftp.remoteEdit.error.gone", remotePath));
+            }
+            baseline = baselineOf(after, hash);
+            conflict = null;
+            uploads++;
+            lastUpload = Instant.now();
+            return UploadResult.UPLOADED;
+        } finally {
+            Files.deleteIfExists(snapshot);
         }
-        SftpClient client = source.client();
-        PartTransfers.upload(client, null, localFile, remotePath, null, PartRetention.DISCARD,
-            TransferProgressListener.NONE, TransferCancellation.create());
-        SftpClient.Attributes after = RemoteFinalizer.lstatOrNull(client, remotePath);
-        if (after == null) {
-            throw new IOException(I18n.get("sftp.remoteEdit.error.gone", remotePath));
-        }
-        // The hash taken before the upload: if the editor saved again meanwhile, the next save differs.
-        baseline = baselineOf(after, hash);
-        conflict = null;
-        uploads++;
-        lastUpload = Instant.now();
-        return UploadResult.UPLOADED;
     }
 
     /** Copies the local copy to {@code target}, replacing a file there. */
