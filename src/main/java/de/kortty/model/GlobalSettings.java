@@ -2675,6 +2675,12 @@ public class GlobalSettings {
         return aiSkills;
     }
 
+    /**
+     * Stores the user's skills, normalized: among other repairs, every character {@code global-settings.xml}
+     * cannot hold ({@link XmlStorableText}) is removed from their text ({@link AiSkill#stripUnstorableText()}).
+     * The AI-skills editor refuses such text with a message; this keeps every other way in from writing a
+     * file that no longer loads, which would put every setting back to its default.
+     */
     public void setAiSkills(java.util.List<AiSkill> aiSkills) {
         this.aiSkills = aiSkills != null ? aiSkills : new java.util.ArrayList<>();
         normalizeAiSkills();
@@ -3445,6 +3451,7 @@ public class GlobalSettings {
             if (skill == null) {
                 continue;
             }
+            skill.stripUnstorableText();
             skill.ensureId();
             AiSkillTarget target = skill.getTarget();
             skill.setTarget(target != null ? target : AiSkillTarget.BOTH);

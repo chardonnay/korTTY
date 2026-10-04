@@ -78,6 +78,12 @@ public final class AiSkillMarkdownCodec {
         }
     }
 
+    /**
+     * Reads a skill from a Markdown file the user picked. Characters {@code global-settings.xml} cannot
+     * hold — a control character such as BEL, U+FFFE, U+FFFF or a lone surrogate — are removed from the
+     * name, description, tags and content: they are invisible, and kept they would be refused when the
+     * skills are saved.
+     */
     public static AiSkill importFromMarkdown(Path file) throws IOException {
         if (file == null) {
             throw new IOException("No AI skill Markdown file selected.");
@@ -90,7 +96,7 @@ public final class AiSkillMarkdownCodec {
             skill.setEnabled(false);
             skill.setTarget(AiSkillTarget.BOTH);
             skill.setContent(text);
-            return skill;
+            return storable(skill);
         }
 
         Map<String, String> frontMatter = parsed.frontMatter();
@@ -101,7 +107,7 @@ public final class AiSkillMarkdownCodec {
             skill.setEnabled(false);
             skill.setTarget(AiSkillTarget.BOTH);
             skill.setContent(parsed.body());
-            return skill;
+            return storable(skill);
         }
         skill.setName(nonBlank(frontMatter.get("name"), nameFromFile(file)));
         skill.setDescription(frontMatter.get("description"));
@@ -109,6 +115,11 @@ public final class AiSkillMarkdownCodec {
         skill.setEnabled(parseEnabled(frontMatter.get("enabled")));
         skill.setTarget(parseTarget(frontMatter.get("target")));
         skill.setContent(parsed.body());
+        return storable(skill);
+    }
+
+    private static AiSkill storable(AiSkill skill) {
+        skill.stripUnstorableText();
         return skill;
     }
 
