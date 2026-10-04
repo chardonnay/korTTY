@@ -847,7 +847,7 @@
 <tr>
 <td>Recently Closed ▸</td>
 <td></td>
-<td>What you closed in this session, newest first: a tab, the tabs one command closed together, or <em>Window: …</em> for the tabs of a closed window. Choose an entry to reopen it; <strong>Clear List</strong> empties the list</td>
+<td>What you closed, newest first, also before korTTY last quit: a tab, the tabs one command closed together, or <em>Window: …</em> for the tabs of a closed window. Choose an entry to reopen it; <strong>Clear List</strong> empties the list</td>
 </tr>
 <tr>
 <td>New Window</td>
@@ -862,12 +862,22 @@
 <tr>
 <td>Open Project…</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
-<td>Restore a saved project (windows, tabs, layout)</td>
+<td>Restore a saved project: its first window replaces the tabs of this window, each further window opens in a new window, and every window gets its position, size, tabs and active tab back. See <a href="../features/projects.html#windows">Windows</a></td>
+</tr>
+<tr>
+<td>Open Recent ▸</td>
+<td></td>
+<td>Under <strong>Connections</strong>, the saved connections you used last (up to 10, newest first, as at the top of Quick Connect), each opening a tab that signs in like <strong>Connect</strong> in the Connection Manager; under <strong>Projects</strong>, the projects you opened or saved last (up to 10), followed by the other projects in <code>~/.kortty/projects</code>, each opening like <em>Open Project…</em>. Files that no longer exist are left out. <strong>Clear List</strong> empties the menu without deleting a connection or a project file. See <a href="../features/projects.html#open-recent">Open Recent</a></td>
 </tr>
 <tr>
 <td>Save Project…</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span></td>
-<td>Save the current session as a project (<code>.kortty</code>)</td>
+<td>Save every open window with its position, size and tabs as a project (<code>.kortty</code>)</td>
+</tr>
+<tr>
+<td>Restore Previous Session</td>
+<td></td>
+<td>Reopen the windows and tabs korTTY had open before this start, which it saves on its own while it runs: the first window opens in this window when it has no tabs, otherwise in a new window, and every further window in a new window; tabs that need a password, a new temporary SSH key or the locked vault wait in the restore bar. Greyed out while there is no previous session and after you restored it once. See <a href="../features/projects.html#previous-session">Previous session</a></td>
 </tr>
 <tr>
 <td>Create Backup…</td>

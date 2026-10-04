@@ -226,8 +226,11 @@ class FileEditorTabCloseGuardTest {
             .contains("HostedCloseGuards.confirmTabs(tabPane.getTabs(),");
         String closeAll = body(window, "private boolean closeAllTabsGuarded()");
         assertThat(closeAll.indexOf("confirmHostedTabsClose()")).isLessThan(closeAll.indexOf("closeAllTabs();"));
-        String openProject = body(window, "private void openProject()");
-        assertThat(openProject.indexOf("confirmHostedTabsClose()")).isLessThan(openProject.indexOf("loadProject(project);"));
+        // File > Open Project... and File > Open Recent both open a project file through openProjectFile.
+        assertThat(body(window, "private void openProject()")).contains("openProjectFile(file.toPath());");
+        String openProject = body(window, "private void openProjectFile(Path path)");
+        assertThat(openProject.indexOf("confirmHostedTabsClose()")).isAtLeast(0);
+        assertThat(openProject.indexOf("confirmHostedTabsClose()")).isLessThan(openProject.indexOf("restoreProject(project, this);"));
         assertThat(body(window, "private boolean confirmClose()")).contains("return confirmSnippetEditorsClose(");
         assertThat(body(window, "private boolean confirmSnippetEditorsClose(boolean includeUnownedEditors)"))
             .contains("if (!confirmHostedTabsClose()) {");

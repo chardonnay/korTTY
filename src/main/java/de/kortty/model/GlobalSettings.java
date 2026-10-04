@@ -945,6 +945,29 @@ public class GlobalSettings {
     @XmlElement(name = "question")
     private java.util.List<String> guideAskHistory;
 
+    /**
+     * File → Open Recent → Projects: the project files opened or saved last, as absolute paths, newest
+     * first (at most 10, see {@code de.kortty.core.RecentProjects}). Part of configuration backups.
+     */
+    @XmlElementWrapper(name = "recentProjectPaths")
+    @XmlElement(name = "path")
+    private java.util.List<String> recentProjectPaths;
+
+    /**
+     * When File → Open Recent → Clear List was chosen last, in epoch milliseconds; 0 for never.
+     * Connections used and project-folder files changed before then stay out of File → Open Recent.
+     */
+    @XmlElement
+    private long openRecentClearedAt = 0L;
+
+    /**
+     * Settings → Window → Session Restore: what korTTY does at startup with the session before this
+     * start, the {@link SessionRestoreMode#id()} {@code ask}, {@code auto} or {@code off}. Missing,
+     * blank or unknown values mean {@code ask}, so a damaged file never opens connections by itself.
+     */
+    @XmlElement
+    private String sessionRestoreMode = SessionRestoreMode.DEFAULT.id();
+
     /** Recent extra instructions from the workflow-script generator (max 10, newest first). */
     @XmlElementWrapper(name = "workflowInstructionsHistory")
     @XmlElement(name = "entry")
@@ -3628,6 +3651,34 @@ public class GlobalSettings {
         while (history.size() > 10) {
             history.remove(history.size() - 1);
         }
+    }
+
+    /** The project files File → Open Recent remembers, newest first; never {@code null}, a copy. */
+    public java.util.List<String> getRecentProjectPaths() {
+        return recentProjectPaths == null ? java.util.List.of()
+                : recentProjectPaths.stream().filter(java.util.Objects::nonNull).toList();
+    }
+
+    public void setRecentProjectPaths(java.util.List<String> recentProjectPaths) {
+        this.recentProjectPaths = recentProjectPaths == null ? null : new java.util.ArrayList<>(recentProjectPaths);
+    }
+
+    public long getOpenRecentClearedAt() {
+        return openRecentClearedAt;
+    }
+
+    public void setOpenRecentClearedAt(long openRecentClearedAt) {
+        this.openRecentClearedAt = Math.max(0L, openRecentClearedAt);
+    }
+
+    /** What korTTY does at startup with the previous session; never null. */
+    public SessionRestoreMode getSessionRestoreMode() {
+        return SessionRestoreMode.fromId(sessionRestoreMode);
+    }
+
+    /** @param sessionRestoreMode the mode to store; null stores the default ({@code ask}) */
+    public void setSessionRestoreMode(SessionRestoreMode sessionRestoreMode) {
+        this.sessionRestoreMode = (sessionRestoreMode != null ? sessionRestoreMode : SessionRestoreMode.DEFAULT).id();
     }
 
     public java.util.List<String> getWorkflowInstructionsHistory() {

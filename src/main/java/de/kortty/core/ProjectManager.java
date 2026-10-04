@@ -56,6 +56,9 @@ public class ProjectManager {
     public void saveProject(Project project, Path filePath) throws Exception {
         project.setLastModified(LocalDateTime.now());
         project.setProjectFilePath(filePath.toString());
+        // A project file is shareable: a pane's working directory and scrollback file belong to the
+        // session snapshot of this device only.
+        ProjectLeafFieldSanitizer.sanitize(project, ProjectLeafFieldSanitizer.Source.PROJECT_FILE);
         
         // Save terminal histories to separate files
         for (WindowState window : project.getWindows()) {
@@ -64,7 +67,12 @@ public class ProjectManager {
                     if (!HistoryStorage.isValidSessionId(session.getSessionId())) {
                         // A project loaded from a crafted file must not choose where its history
                         // is written; a fresh id names a file inside history/ like any other.
+                        String replaced = session.getSessionId();
                         session.setSessionId(UUID.randomUUID().toString());
+                        if (replaced != null && replaced.equals(window.getActiveSessionId())) {
+                            // The window still names its active tab by the id it now has.
+                            window.setActiveSessionId(session.getSessionId());
+                        }
                     }
                     String historyFile = historyStorage.saveHistory(
                             session.getSessionId(), 
@@ -101,6 +109,10 @@ public class ProjectManager {
             project = (Project) unmarshaller.unmarshal(in);
         }
         
+        // A shared project must not choose the directory a local shell starts in or point a pane at
+        // a scrollback file: those fields are only honoured from this device's session snapshot.
+        ProjectLeafFieldSanitizer.sanitize(project, ProjectLeafFieldSanitizer.Source.PROJECT_FILE);
+
         // Load terminal histories
         for (WindowState window : project.getWindows()) {
             for (SessionState session : window.getTabs()) {

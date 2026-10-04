@@ -42,6 +42,15 @@ public class TerminalWidgetReflectionGuardTest {
     /** A reflective lookup of a font-size method by name; the public SithTermFX API is called directly. */
     private static final Pattern FONT_METHOD_BY_NAME = Pattern.compile("\"(?:increase|decrease|reset)FontSize\"");
 
+    /**
+     * A reflective field read or write. Saving and restoring split layouts used to read the split
+     * pane's private {@code rootCell}, {@code focusedWidget} and cell fields this way; a renamed field
+     * only failed at runtime, into a log line, and the project silently lost its panes. The split pane
+     * offers {@code snapshotLayout()}, {@code applyDividerPositions(...)} and the prepared-connector
+     * {@code splitWidget(...)} instead.
+     */
+    private static final Pattern DECLARED_FIELD_LOOKUP = Pattern.compile("getDeclaredFields?\\(");
+
     @Test
     public void terminalSourcesDoNotLookUpDeclaredMethodsOnTheRuntimeClass() throws IOException {
         assertThat(findings(RUNTIME_CLASS_DECLARED_LOOKUP)).isEmpty();
@@ -51,6 +60,20 @@ public class TerminalWidgetReflectionGuardTest {
     public void terminalSourcesDoNotLookUpFontMethodsReflectively() throws IOException {
         assertThat(findings(INT_PARAMETER_LOOKUP)).isEmpty();
         assertThat(findings(FONT_METHOD_BY_NAME)).isEmpty();
+    }
+
+    @Test
+    public void terminalSourcesDoNotReachIntoPrivateFieldsReflectively() throws IOException {
+        assertThat(findings(DECLARED_FIELD_LOOKUP)).isEmpty();
+    }
+
+    @Test
+    public void splitLayoutsAreSavedAndRestoredThroughTheSplitPanesOwnApi() throws IOException {
+        String view = Files.readString(SOURCES.get(1), StandardCharsets.UTF_8);
+        assertThat(view).contains("splitPane.snapshotLayout()");
+        assertThat(view).contains("tree.applyDividerPositions(target)");
+        assertThat(view).doesNotContain("\"rootCell\"");
+        assertThat(view).doesNotContain("\"focusedWidget\"");
     }
 
     @Test

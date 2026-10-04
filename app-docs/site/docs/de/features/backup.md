@@ -121,6 +121,8 @@ Sowohl `.zip`- als auch `.zip.gpg`-Backups enthalten dieselben Dateien:
 * `rag/stores.json` – Wissensspeicher- und Quellkonfiguration (Vektor-Snapshots sind nicht enthalten)
 * `projects/` – Alle gespeicherten Projektarbeitsbereichsdateien (`.kortty`)
 
+Die Sitzungs-Snapshots in `~/.kortty/session/`, die *Datei → Vorherige Sitzung wiederherstellen* öffnet, sind nicht enthalten: Sie beschreiben die Fenster und Tabs dieses Computers, und die Liste „Zuletzt geschlossen“, die sie enthalten, bleibt mit ihnen auf diesem Computer. Nach dem Wiederherstellen eines Backups öffnet *Vorherige Sitzung wiederherstellen* weiterhin die Sitzung dieses Computers, und ihre Tabs öffnen sich mit den wiederhergestellten Verbindungen. Siehe [Vorherige Sitzung](projects.md#vorherige-sitzung).
+
 !!! note
     Alle Passwörter und Anmeldeinformationen im Backup bleiben mit Ihrem Master-Passwort verschlüsselt. Wenn Sie ein Backup importieren, müssen Sie das Hauptkennwort für KorTTY entsperren, um die Anmeldeinformationen zu entschlüsseln.
 

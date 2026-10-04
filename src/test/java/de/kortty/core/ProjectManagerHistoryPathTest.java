@@ -103,6 +103,22 @@ class ProjectManagerHistoryPathTest {
     }
 
     @Test
+    void aReplacedSessionIdStaysTheActiveTabOfItsWindow() throws Exception {
+        Project project = new Project("crafted-active");
+        WindowState window = new WindowState(UUID.randomUUID().toString());
+        SessionState session = new SessionState("../escaped", "connection-id");
+        session.setTerminalHistory("screen text");
+        window.addTab(session);
+        window.setActiveSessionId("../escaped");
+        project.addWindow(window);
+
+        projectManager.saveProject(project, configDir.resolve("projects").resolve("crafted-active.kortty"));
+
+        assertThat(session.getSessionId()).isNotEqualTo("../escaped");
+        assertThat(window.getActiveSessionId()).isEqualTo(session.getSessionId());
+    }
+
+    @Test
     void aPlainHistoryReferenceStillRoundTrips() throws Exception {
         Project project = new Project("plain");
         WindowState window = new WindowState(UUID.randomUUID().toString());

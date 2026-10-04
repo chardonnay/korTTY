@@ -48,6 +48,7 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 ├── plugins/                           # Imported terminal-effect plugin JARs
 ├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
 ├── projects/                          # Project files (.kortty)
+├── session/                           # Session snapshots for Restore Previous Session (owner-only; not backed up)
 ├── i18n/                              # Generated language files (messages_*.properties)
 └── ssh-keys/                          # Optional copied SSH keys (included in backups)
 ```
@@ -154,6 +155,8 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - `connectionGroupColors`: die [Tab-Farben der Connection-Manager-Ordner](../features/connections.md#tab-farbe), ein Eintrag `<group path="Work/Production" color="#D32F2F"/>` pro Ordner mit eigener Farbe; ein Eintrag, dessen Farbe keine Hex-Farbe ist, wird ignoriert, und ohne das Element hat kein Ordner eine Farbe
 - `tabTitleFromShellEnabled`: ob ein Terminal-Tab statt des Verbindungsnamens den [Titel anzeigt, den seine Shell setzt](../features/terminal.md#titel-aus-der-shell) (standardmäßig aktiviert)
 - `tabSwitchMostRecentFirst`: ob ++ctrl+tab++ die Tabs in der Reihenfolge ihrer letzten Nutzung wechselt statt in ihrer [Reihenfolge in der Tab-Leiste](settings/window.md#tabs) (standardmäßig aus)
+- `recentProjectPaths`: die absoluten Pfade der Projektdateien, die Sie zuletzt geöffnet oder gespeichert haben, die neueste zuerst, höchstens 10, die [*Datei → Zuletzt verwendet*](../features/projects.md#zuletzt-verwendet) auflistet; `openRecentClearedAt`: wann Sie dort zuletzt **Liste leeren** gewählt haben (Millisekunden seit 1970, `0` für nie)
+- `sessionRestoreMode`: was korTTY beim Start mit der [vorherigen Sitzung](../features/projects.md#beim-start) macht: `ask` bietet sie in einer Leiste an (der Standard, auch bei fehlendem oder unbekanntem Wert), `auto` stellt sie wieder her, sobald kein Dialog offen ist, `off` tut nichts
 - `keyBindingOverrides`: Ihre eigenen [Tastaturkürzel](settings/keyboard.md), ein `binding`-Eintrag pro geändertem Befehl, z. B. `menu.view.commandPalette=Shortcut+Alt+P` oder `menu.view.dashboard=none`; ohne diesen Eintrag behält jeder Befehl sein Standardkürzel
 - Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite
 - JobScheduler-Statusanzeigeeinstellung
@@ -411,6 +414,23 @@ Projektdateien zum Speichern und Laden von Verbindungssätzen.
 **Zweck:** Öffnen Sie schnell einen vorkonfigurierten Satz von Verbindungen für ein bestimmtes Projekt oder einen bestimmten Workflow.
 
 **Verwendung:** Speichern Sie ein Projekt über *Datei > Projekt speichern*, stellen Sie es über *Datei > Projekt öffnen* oder das Projektverlaufsmenü wieder her.
+
+### session/
+Die Sitzungs-Snapshots, die korTTY während des Betriebs schreibt, damit *Datei > Vorherige Sitzung wiederherstellen* Ihre Fenster und Tabs nach einem Neustart oder Absturz wieder öffnen kann (siehe [Vorherige Sitzung](../features/projects.md#vorherige-sitzung)).
+
+**Dateien:**
+
+- `last-session.xml` — die offenen Fenster und Tabs des laufenden korTTY, ein paar Sekunden nach jeder Änderung und noch einmal beim Beenden von korTTY neu geschrieben, zusammen mit der Liste „Zuletzt geschlossen“
+- `previous-session.xml` — die Sitzung vor diesem Start, die *Vorherige Sitzung wiederherstellen* öffnet; bei jedem Start verschiebt korTTY `last-session.xml` hierher, aber nur, wenn diese Sitzung mindestens einen Tab hatte
+- `session.lock` — wird von dem korTTY gesperrt gehalten, das die Snapshots schreibt; ein zweites korTTY, das inzwischen gestartet wird, liest sie, schreibt aber nie
+
+**Format:** XML. Die Fenster und Tabs werden wie ein [Projekt](#projekte) mit Auto-Reconnect geschrieben; die Liste „Zuletzt geschlossen“ behält die ID der gespeicherten Verbindung jedes geschlossenen Tabs, seine Tab-Gruppe, seinen Namen und seinen Terminal-Effekt. Jeder Snapshot vermerkt außerdem, ob korTTY normal beendet wurde, ob dieser Lauf seine vorherige Sitzung wiederhergestellt hat und ob er danach noch eine Minute weiterlief; daran erkennt der nächste Start, dass korTTY direkt nach einer Wiederherstellung beendet wurde (siehe [Beim Start](../features/projects.md#beim-start)). Solange das Angebot beim Start auf eine Antwort wartet, behält `last-session.xml` die angebotene Sitzung, sodass sie erneut angeboten wird, wenn korTTY beendet wird oder abstürzt, bevor Sie wählen.
+
+**Enthält keine** Bildschirmtexte, Scrollback-Inhalte, Befehlszeitstempel, Passwörter oder temporären SSH-Schlüssel. Das Arbeitsverzeichnis eines geteilten Bereichs und ein Verweis auf gespeicherten Scrollback, die Projektdateien nie enthalten, können hier vorkommen; korTTY akzeptiert einen Scrollback-Verweis nur als reinen Namen.
+
+**Sicherheit:** Das Verzeichnis und seine Dateien sind nur für den Eigentümer zugänglich (`rwx------` und `rw-------`) und werden atomar ersetzt. Ein Snapshot, der sich nicht parsen lässt, wird als `<name>.corrupt-<timestamp>` beiseitegelegt; einer, der sich nicht lesen lässt, bleibt an Ort und Stelle und wird bis zum nächsten Start nicht überschrieben.
+
+**Backup:** Nicht in Konfigurationssicherungen enthalten: Die Snapshots beschreiben die Fenster dieses Computers.
 
 ### i18n/
 Dynamisch generierte Sprachübersetzungsdateien.

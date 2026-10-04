@@ -1175,6 +1175,37 @@
     -fx-border-width: 0;
 }
 
+/*
+ * The restore bar above the status line: the tabs of an opened project that wait for a password, a
+ * new temporary SSH key or the vault, or that the policy blocks. A sky-blue strip with light text,
+ * readable on every theme; the selectors carry the status bar's class so a theme's label colour does
+ * not win.
+ */
+.status-bar .kortty-restore-attention {
+    -fx-background-color: #0c4a6e;
+    -fx-border-color: #38bdf8;
+    -fx-border-width: 0 0 0 3;
+    -fx-background-radius: 3;
+    -fx-border-radius: 3;
+    -fx-padding: 2 6 2 8;
+}
+
+.status-bar .kortty-restore-attention .kortty-restore-attention-text {
+    -fx-text-fill: #f0f9ff;
+}
+
+.status-bar .kortty-restore-attention .kortty-restore-attention-action {
+    -fx-text-fill: #bae6fd;
+    -fx-underline: true;
+    -fx-font-weight: bold;
+    -fx-padding: 0 2 0 2;
+    -fx-border-width: 0;
+}
+
+.status-bar .kortty-restore-attention .kortty-restore-attention-action:hover {
+    -fx-text-fill: #ffffff;
+}
+
 /* Dialog Pane */
 .dialog-pane {
     -fx-background-color: #2d2d2d;

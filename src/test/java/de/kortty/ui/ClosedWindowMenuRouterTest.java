@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import de.kortty.core.RecentProjects;
+import de.kortty.model.ServerConnection;
 import de.kortty.ui.ClosedWindowMenuRouter.WindowNeed;
 import de.kortty.ui.actions.MenuItemActivation;
 import javafx.event.Event;
@@ -29,6 +31,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
 class ClosedWindowMenuRouterTest {
 
     private static final Path UI_ROOT = Path.of("src/main/java/de/kortty/ui");
+    /** What File &gt; Open Recent lists in every test window. */
+    private static final ServerConnection RECENT_CONNECTION = new ServerConnection("prod", "db1.example", 22, "admin");
+    private static final Path RECENT_PROJECT = Path.of("/work/ops.kortty");
 
     // ---- decisions ---------------------------------------------------------------------------
 
@@ -410,6 +415,38 @@ class ClosedWindowMenuRouterTest {
         assertThat(multiExec.split("ClosedWindowMenuRouter\\.ownWindowOnly\\(", -1)).hasLength(4);
         assertThat(methodBody(window, "private Menu createViewMenu(MenuBarTarget target) {"))
             .contains("Menu multiExecMenu = createMultiExecMenu(target);");
+        // File > Open Recent: Clear List needs no window; a connection or project opens in the
+        // frontmost open window, like New Tab and Open Project.
+        String openRecent = source("OpenRecentMenuSupport.java");
+        assertThat(openRecent).contains("ClosedWindowMenuRouter.noWindowNeeded(clear);");
+        assertThat(openRecent).doesNotContain("ownWindowOnly(");
+        assertThat(openRecent.split("ClosedWindowMenuRouter\\.noWindowNeeded\\(", -1)).hasLength(2);
+        assertThat(methodBody(window, "private Menu createFileMenu() {")).doesNotContain("ownWindowOnly(openRecent)");
+        // File > Restore Previous Session opens the previous session in the frontmost open window, or a
+        // new one when none is open, like Open Project (the default need).
+        assertThat(file).contains("MenuItem restorePreviousSession = menuItem(\"menu.file.restorePreviousSession\");");
+        assertThat(file).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(restorePreviousSession)");
+        assertThat(file).doesNotContain("ClosedWindowMenuRouter.noWindowNeeded(restorePreviousSession)");
+    }
+
+    @Test
+    void openRecentOfAClosedWindowOpensInTheFrontmostWindowAndClearsWithoutOne() {
+        Desktop desktop = new Desktop();
+        Win closed = desktop.open("A");
+        desktop.open("B");
+        closed.open = false;
+        // Filled while the File menu opens, as MainWindow does.
+        showing(closed.menu("File"));
+        String openRecent = I18n.get(OpenRecentMenuSupport.MENU_KEY);
+
+        click(closed.item("File", openRecent, OpenRecentMenuSupport.connectionLabel(RECENT_CONNECTION)));
+        click(closed.item("File", openRecent, RecentProjects.label(RECENT_PROJECT, null)));
+        click(closed.item("File", openRecent, I18n.get(OpenRecentMenuSupport.CLEAR_KEY)));
+
+        assertWithMessage("the entries open in B, which comes to the front; Clear List changes no window")
+            .that(desktop.log).containsExactly("front B", "Connect prod in B", "front B", "Open ops in B",
+                "Clear Open Recent in A").inOrder();
+        assertThat(desktop.opened).isEmpty();
     }
 
     // ---- helpers ------------------------------------------------------------------------------
@@ -480,6 +517,26 @@ class ClosedWindowMenuRouterTest {
                 ClosedWindowMenuRouter.noWindowNeeded(action("New Window", log)),
                 ClosedWindowMenuRouter.ownWindowOnly(action("Close Window", log)),
                 ClosedWindowMenuRouter.noWindowNeeded(action("Quit", log)));
+            // File > Open Recent as MainWindow fills it whenever the File menu opens.
+            Menu openRecent = new Menu(I18n.get(OpenRecentMenuSupport.MENU_KEY));
+            file.getItems().add(openRecent);
+            file.setOnShowing(e -> openRecent.getItems().setAll(OpenRecentMenuSupport.items(
+                List.of(RECENT_CONNECTION), List.of(RECENT_PROJECT), null, new OpenRecentMenuSupport.Commands() {
+                    @Override
+                    public void connect(ServerConnection connection) {
+                        log.add("Connect " + connection.getName() + " in " + name);
+                    }
+
+                    @Override
+                    public void openProject(Path project) {
+                        log.add("Open " + RecentProjects.label(project, null).split(" ")[0] + " in " + name);
+                    }
+
+                    @Override
+                    public void clear() {
+                        log.add("Clear Open Recent in " + name);
+                    }
+                }, MenuItem::new)));
             Menu edit = new Menu("Edit");
             edit.getItems().addAll(ClosedWindowMenuRouter.ownWindowOnly(action("Paste", log)), action("Find", log));
             Menu connections = new Menu("Connections");

@@ -11,6 +11,7 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Method;
 import java.security.CodeSource;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -24,7 +25,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
  * still compile against its own source, but the vendor class would load at runtime, and every
  * korTTY-only call ({@code getWidgetOverlayHost}, {@code paneOverlay}, {@code closeSplitPane}, the
  * prepared-connector split, the focused-pane tracking, the pane focus keys, the input mirror) would
- * fail with {@code NoSuchMethodError} or silently lose korTTY's fixes. This test fails first.
+ * fail with {@code NoSuchMethodError} or silently lose korTTY's fixes, and so would saving and
+ * restoring a project's split layout. This test fails first.
  *
  * <p>Toolkit-free: reflection loads the classes without initializing any JavaFX control.
  */
@@ -61,6 +63,16 @@ public class TerminalSplitPaneShadowGuardTest {
         assertThat(focusNeighbor.getReturnType()).isEqualTo(boolean.class);
         Method focusNext = TerminalSplitPane.class.getDeclaredMethod("focusNext", boolean.class);
         assertThat(focusNext.getReturnType()).isEqualTo(boolean.class);
+
+        // Saving and restoring a project's split layout.
+        Method preparedSplitBeforeStart = TerminalSplitPane.class.getDeclaredMethod("splitWidget",
+            SithTermFxWidget.class, SplitRequest.SplitMode.class, Orientation.class, TtyConnector.class,
+            Consumer.class);
+        assertThat(preparedSplitBeforeStart.getReturnType()).isEqualTo(SithTermFxWidget.class);
+        Method snapshotLayout = TerminalSplitPane.class.getDeclaredMethod("snapshotLayout");
+        assertThat(snapshotLayout.getReturnType()).isEqualTo(PaneLayout.class);
+        Method applyDividers = TerminalSplitPane.class.getDeclaredMethod("applyDividerPositions", PaneLayout.class);
+        assertThat(applyDividers.getReturnType()).isEqualTo(int.class);
     }
 
     @Test

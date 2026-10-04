@@ -10,6 +10,7 @@ import com.sithtermfx.core.model.TerminalModelListener;
 import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
+import com.sithtermfx.ui.split.PaneLayout;
 import com.sithtermfx.ui.split.SplitConnectorFactory;
 import com.sithtermfx.ui.split.SplitRequest;
 import com.sithtermfx.ui.split.TerminalSplitPane;
@@ -125,8 +126,10 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -343,6 +346,9 @@ public class TerminalView extends BorderPane {
     private PaneConnectionColors.Scheme paneColorScheme;
     // Told the tab tooltip's line about such panes (null for none) whenever it may have changed. FX thread.
     private Consumer<String> paneConnectionsListener;
+
+    /** Set once {@link #cleanup()} ran: the tab is closed, and a split layout restore stops. */
+    private volatile boolean cleanedUp;
 
     private TerminalSplitPane splitPane;
     // Quick select (Edit > Quick Select): its key filters are the split pane's first.
@@ -7999,6 +8005,8 @@ public class TerminalView extends BorderPane {
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
     public void cleanup() {
+        // A split layout still being restored stops before its next pane and attaches nothing more.
+        cleanedUp = true;
         // A bell, a finished command or a program's notification still on its way to the FX thread
         // must not mark or announce a closed tab, nor may a program's clipboard write still change
         // the clipboard.
@@ -8900,85 +8908,23 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Gets the split pane structure for saving to project.
-     * Returns null if there are no splits (single terminal).
+     * The tab's split layout for saving in a project, or {@code null} with a single pane. The panes
+     * are numbered from left to right and top to bottom; a pane that runs another saved connection
+     * than the tab's (one split to another server, and the panes split from it on the same server)
+     * names that connection, so a restore opens it there and not on the tab's server. While a pane is
+     * zoomed, the layout without the zoom is saved. JavaFX thread.
      */
     public de.kortty.model.SplitPaneState getSplitState() {
-        if (splitPane == null) {
+        if (splitPane == null || splitPane.getWidgetCount() <= 1) {
             return null;
         }
-        
-        int widgetCount = splitPane.getWidgetCount();
-        if (widgetCount <= 1) {
-            return null; // No splits
-        }
-        
-        // Build state from rootCell
-        return buildSplitState(getRootCell(), splitPane.getAllWidgets());
+        return SplitLayoutRestorePlan.capture(splitPane.snapshotLayout(), this::savedConnectionIdOf);
     }
-    
-    /**
-     * Recursively builds SplitPaneState from the cell tree structure.
-     */
-    private de.kortty.model.SplitPaneState buildSplitState(Object cell, List<SithTermFxWidget> allWidgets) {
-        // Use reflection to access private SplitCell fields
-        try {
-            Class<?> cellClass = cell.getClass();
-            
-            // Check if it's a leaf (has widget)
-            var widgetField = cellClass.getDeclaredField("widget");
-            widgetField.setAccessible(true);
-            SithTermFxWidget widget = (SithTermFxWidget) widgetField.get(cell);
-            
-            if (widget != null) {
-                // Leaf node - find widget index
-                int index = allWidgets.indexOf(widget);
-                return de.kortty.model.SplitPaneState.createLeaf(index);
-            }
-            
-            // Split node - get orientation, divider, and children
-            var splitPaneField = cellClass.getDeclaredField("splitPane");
-            splitPaneField.setAccessible(true);
-            javafx.scene.control.SplitPane splitPaneObj = (javafx.scene.control.SplitPane) splitPaneField.get(cell);
-            
-            var leftCellField = cellClass.getDeclaredField("leftCell");
-            leftCellField.setAccessible(true);
-            Object leftCell = leftCellField.get(cell);
-            
-            var rightCellField = cellClass.getDeclaredField("rightCell");
-            rightCellField.setAccessible(true);
-            Object rightCell = rightCellField.get(cell);
-            
-            if (splitPaneObj != null && leftCell != null && rightCell != null) {
-                Orientation ori = splitPaneObj.getOrientation();
-                // Through the split pane: while a pane is zoomed, the control may show a reset divider.
-                double[] positions = splitPane.dividerPositionsOf(splitPaneObj);
-                double dividerPos = positions.length > 0 ? positions[0] : 0.5;
-                
-                de.kortty.model.SplitPaneState leftState = buildSplitState(leftCell, allWidgets);
-                de.kortty.model.SplitPaneState rightState = buildSplitState(rightCell, allWidgets);
-                
-                return de.kortty.model.SplitPaneState.createSplit(ori, dividerPos, leftState, rightState);
-            }
-        } catch (Exception e) {
-            logger.error("Failed to build split state: {}", e.getMessage(), e);
-        }
-        
-        return null;
-    }
-    
-    /**
-     * Gets the rootCell from TerminalSplitPane using reflection.
-     */
-    private Object getRootCell() {
-        try {
-            var rootCellField = splitPane.getClass().getDeclaredField("rootCell");
-            rootCellField.setAccessible(true);
-            return rootCellField.get(splitPane);
-        } catch (Exception e) {
-            logger.error("Failed to get rootCell: {}", e.getMessage(), e);
-            return null;
-        }
+
+    /** The saved connection a pane runs when it is not the tab's, or null for the tab's own. */
+    private @Nullable String savedConnectionIdOf(SithTermFxWidget pane) {
+        PaneOrigin own = paneOrigins.recorded(pane);
+        return own != null ? own.connection().getId() : null;
     }
     
     /**
@@ -9067,189 +9013,263 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * Restores split pane structure from saved state.
-     * Recreates the split tree with new SSH connections for each widget.
+     * Rebuilds a saved split layout around this tab's first pane, as opening a project does once the
+     * tab's first session is up ({@link TerminalTab#addOnFirstConnected}); JavaFX thread.
+     *
+     * <p>The panes open one after the other on a background thread, so the window stays responsive
+     * and nothing waits on the JavaFX thread: each new pane's connector is built and connected there
+     * and then attached beside its pane in one hop to the JavaFX thread
+     * ({@link #attachSplitPane}), without the modal "Connecting" stage of an interactive split. A
+     * host-key question and keyboard-interactive prompts still appear, because the SSH connector
+     * shows them on the JavaFX thread itself, and an access reason this tab was already asked for
+     * (a CyberArk-style server) is replayed from the tab's {@link de.kortty.core.AccessReasonMemory}.
+     * A pane on the tab's connection signs in like the tab; a pane that ran another saved
+     * connection opens on that one when it can sign in without asking ({@link ConnectionAuthResolver},
+     * never interactive). Both pass the enterprise server policy ({@link SplitConnectionPolicy}). A
+     * pane that cannot open leaves out the panes split from it; {@code onDone} hears how many and
+     * why. The saved dividers are applied two pulses after the last split.
+     *
+     * @param state  the saved layout; nothing happens for a single pane
+     * @param onDone called on the JavaFX thread once every pane was tried, unless the tab closed
+     *     first; may be null
      */
-    public void restoreSplitState(de.kortty.model.SplitPaneState splitState) {
-        if (splitState == null || !splitState.isSplit()) {
-            logger.debug("No split structure to restore");
+    public void restoreSplitLayout(@Nullable de.kortty.model.SplitPaneState state,
+                                   @Nullable Consumer<SplitLayoutRestorePlan.Summary> onDone) {
+        SplitLayoutRestorePlan plan = SplitLayoutRestorePlan.plan(state);
+        if (plan.steps().isEmpty() || splitPane == null) {
             return;
         }
-        
-        logger.info("Restoring split structure: {}", splitState);
-        
-        // We need to restore splits after the initial connection is established
-        // Schedule split restoration for after the current terminal is connected
-        Platform.runLater(() -> {
+        if (plan.truncated()) {
+            logger.warn("The saved split layout has more than {} panes or {} levels; only that much is restored",
+                SplitLayoutRestorePlan.MAX_PANES, SplitLayoutRestorePlan.MAX_DEPTH);
+        }
+        List<SithTermFxWidget> panes = splitPane.getAllWidgets();
+        SithTermFxWidget firstPane = panes.contains(terminalWidget) ? terminalWidget : panes.isEmpty() ? null : panes.get(0);
+        if (firstPane == null) {
+            return;
+        }
+        logger.info("Restoring a split layout of {} panes", plan.paneCount());
+        // Read on the JavaFX thread now: the tab's connection, password and key as the panes inherit them.
+        PaneOrigin tab = tabOrigin();
+        String tabConnectionId = connection != null ? connection.getId() : null;
+        Map<Integer, SithTermFxWidget> opened = new ConcurrentHashMap<>();
+        opened.put(0, firstPane);
+        Map<Integer, SplitLayoutRestorePlan.SkipReason> skipped = new ConcurrentHashMap<>();
+        Thread worker = new Thread(() -> {
             try {
-                // Start with the currently focused widget (the initial one)
-                SithTermFxWidget initialWidget = splitPane.getFocusedWidget();
-                if (initialWidget == null) {
-                    logger.warn("No initial widget to start split restoration");
-                    return;
-                }
-                
-                // Rebuild the split structure directly from the saved state
-                restoreSplitRecursive(splitState, initialWidget);
-                
-            } catch (Exception e) {
-                logger.error("Failed to restore split structure: {}", e.getMessage(), e);
-            }
-        });
-    }
-    
-    /**
-     * Sets the focusedWidget field in TerminalSplitPane using reflection.
-     * This is necessary because split() always uses getFocusedWidget().
-     */
-    private void setFocusedWidget(SithTermFxWidget widget) {
-        try {
-            var focusedWidgetField = splitPane.getClass().getDeclaredField("focusedWidget");
-            focusedWidgetField.setAccessible(true);
-            focusedWidgetField.set(splitPane, widget);
-            logger.debug("Set focusedWidget to: {}", widget.hashCode());
-        } catch (Exception e) {
-            logger.error("Failed to set focusedWidget: {}", e.getMessage());
-        }
-    }
-    
-    /**
-     * Recursively restores the split structure by creating splits as needed.
-     * This method traverses the split tree and creates splits in the correct order and orientation.
-     * 
-     * @param state The split state to restore
-     * @param widgetToSplit The specific widget that should be split
-     */
-    private void restoreSplitRecursive(de.kortty.model.SplitPaneState state, SithTermFxWidget widgetToSplit) {
-        if (state == null || state.isLeaf()) {
-            return; // Leaf node - nothing to do
-        }
-        
-        if (widgetToSplit == null) {
-            logger.warn("Widget to split is null");
-            return;
-        }
-        
-        // This is a split node - we need to create the split
-        Orientation orientation = state.getOrientationEnum();
-        if (orientation == null) {
-            logger.warn("Invalid orientation in split state: {}", state.getOrientation());
-            return;
-        }
-        
-        logger.info("Creating split: orientation={}, dividerPos={} on widget {}", 
-                     orientation, state.getDividerPosition(), widgetToSplit.hashCode());
-        
-        // CRITICAL: Set the focusedWidget directly using reflection
-        // because split() uses getFocusedWidget() internally
-        setFocusedWidget(widgetToSplit);
-        
-        // Remember the number of widgets before split
-        int widgetCountBefore = splitPane.getAllWidgets().size();
-        
-        // Perform the split with the CORRECT orientation from saved state
-        splitPane.split(SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, orientation);
-        
-        // Wait for split to complete and connection to establish
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        
-        // Get all widgets after the split
-        List<SithTermFxWidget> allWidgets = splitPane.getAllWidgets();
-        int widgetCountAfter = allWidgets.size();
-        
-        if (widgetCountAfter <= widgetCountBefore) {
-            logger.warn("Split did not create new widget (before: {}, after: {})", widgetCountBefore, widgetCountAfter);
-            return;
-        }
-        
-        // The new widget is the last one in the list
-        SithTermFxWidget newWidget = allWidgets.get(allWidgets.size() - 1);
-        
-        logger.info("Split created: leftWidget={}, rightWidget={}, totalWidgets={}", 
-                     widgetToSplit.hashCode(), newWidget.hashCode(), widgetCountAfter);
-        
-        // Set divider position for this split
-        setDividerPositionForLastSplit(state.getDividerPosition());
-        
-        // Process left child (the original widget that was split)
-        if (state.getLeftChild() != null && state.getLeftChild().isSplit()) {
-            logger.debug("Processing left child");
-            restoreSplitRecursive(state.getLeftChild(), widgetToSplit);
-        }
-        
-        // Process right child (the newly created widget)
-        if (state.getRightChild() != null && state.getRightChild().isSplit()) {
-            logger.debug("Processing right child");
-            restoreSplitRecursive(state.getRightChild(), newWidget);
-        }
-    }
-    
-    
-    /**
-     * Sets the divider position for the most recently created split.
-     */
-    private void setDividerPositionForLastSplit(double position) {
-        Platform.runLater(() -> {
-            try {
-                // Get rootCell from TerminalSplitPane
-                var rootCellField = splitPane.getClass().getDeclaredField("rootCell");
-                rootCellField.setAccessible(true);
-                Object rootCell = rootCellField.get(splitPane);
-                
-                if (rootCell != null) {
-                    // Find all SplitPanes in the tree and set the last one
-                    List<javafx.scene.control.SplitPane> splitPanes = new java.util.ArrayList<>();
-                    collectSplitPanes(rootCell, splitPanes);
-                    
-                    if (!splitPanes.isEmpty()) {
-                        javafx.scene.control.SplitPane lastSplit = splitPanes.get(splitPanes.size() - 1);
-                        lastSplit.setDividerPositions(position);
-                        logger.debug("Set divider position to: {}", position);
+                for (SplitLayoutRestorePlan.SplitStep step : plan.steps()) {
+                    if (cleanedUp) {
+                        return;
                     }
+                    SithTermFxWidget source = opened.get(step.sourceLeafId());
+                    if (source == null) {
+                        // The pane it splits did not open: the step's reason is already recorded there.
+                        continue;
+                    }
+                    PreparedSplitPane prepared;
+                    try {
+                        prepared = prepareRestoredSplitPane(step, tab, tabConnectionId);
+                    } catch (RuntimeException e) {
+                        // One pane that fails unexpectedly (the saved connections changing under the
+                        // sign-in lookup, for instance) costs that pane, not the panes after it.
+                        logger.warn("A restored split pane could not be prepared: {}", e.toString());
+                        prepared = PreparedSplitPane.skipped(SplitLayoutRestorePlan.SkipReason.FAILED);
+                    }
+                    if (prepared.connector() == null) {
+                        skipped.put(step.newLeafId(), prepared.skipReason());
+                        continue;
+                    }
+                    SithTermFxWidget pane = attachRestoredSplitPane(source, step.orientation(), prepared);
+                    if (pane == null) {
+                        skipped.put(step.newLeafId(), SplitLayoutRestorePlan.SkipReason.FAILED);
+                        continue;
+                    }
+                    opened.put(step.newLeafId(), pane);
                 }
-            } catch (Exception e) {
-                logger.debug("Could not set divider position: {}", e.getMessage());
+            } finally {
+                // Always: the tab stops waiting for its layout (a later save keeps what it has) and the
+                // status bar hears about the panes that stayed out. Nothing happens for a closed tab.
+                runOnFxThread(() -> finishSplitLayoutRestore(plan, opened, skipped, onDone));
+            }
+        }, "Split-Layout-Restore");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    /**
+     * A connected connector for one restored pane, or why there is none.
+     *
+     * @param connector  the connected connector, or null
+     * @param ownOrigin  the pane's origin when it is not the tab's, recorded once it is attached
+     * @param skipReason why there is no connector, or null
+     */
+    private record PreparedSplitPane(@Nullable TtyConnector connector, @Nullable PaneOrigin ownOrigin,
+                                     SplitLayoutRestorePlan.SkipReason skipReason) {
+
+        static PreparedSplitPane skipped(SplitLayoutRestorePlan.SkipReason reason) {
+            return new PreparedSplitPane(null, null, reason);
+        }
+    }
+
+    /**
+     * Builds and connects the connector of one restored pane, off the JavaFX thread and without
+     * asking anything: no password prompt, no vault unlock and no new temporary key.
+     */
+    private PreparedSplitPane prepareRestoredSplitPane(SplitLayoutRestorePlan.SplitStep step, PaneOrigin tab,
+                                                       @Nullable String tabConnectionId) {
+        PaneOrigin origin = tab;
+        PaneOrigin ownOrigin = null;
+        String connectionId = step.connectionId();
+        if (connectionId != null && !connectionId.equals(tabConnectionId)) {
+            KorTTYApplication app = KorTTYApplication.getInstance();
+            if (app == null) {
+                return PreparedSplitPane.skipped(SplitLayoutRestorePlan.SkipReason.MISSING);
+            }
+            ConnectionAuthResolver.Resolution auth = new ConnectionAuthResolver(
+                ConnectionAuthResolver.forApplication(app), ConnectionAuthResolver.NO_PROMPTS)
+                .resolveById(connectionId, false);
+            if (!auth.isReady()) {
+                logger.info("A restored split pane stays closed: {}", auth.status());
+                return PreparedSplitPane.skipped(SplitLayoutRestorePlan.reasonFor(auth.status()));
+            }
+            ownOrigin = new PaneOrigin(auth.connection(), auth.password(), auth.temporaryKey());
+            origin = ownOrigin;
+        }
+        // The policy again: the connection editor changes a saved connection in place, so the host or
+        // jump server may be a blocked one by now, and the tab's own passed it when the tab opened.
+        if (SplitConnectionPolicy.blockedTarget(origin.connection()).isPresent()) {
+            return PreparedSplitPane.skipped(SplitLayoutRestorePlan.SkipReason.BLOCKED);
+        }
+        // A temporary SSH key that expired is never renewed here; that needs the user.
+        if (origin.temporaryKey() != null && !origin.temporaryKey().isValid()) {
+            return PreparedSplitPane.skipped(SplitLayoutRestorePlan.SkipReason.SIGN_IN);
+        }
+        TtyConnector connector;
+        try {
+            connector = createConnectorForConnection(origin.connection(), origin.password());
+        } catch (RuntimeException e) {
+            logger.warn("A restored split pane could not be prepared: {}", e.getMessage());
+            return PreparedSplitPane.skipped(SplitLayoutRestorePlan.SkipReason.FAILED);
+        }
+        try {
+            if (connectConnector(connector)) {
+                return new PreparedSplitPane(connector, ownOrigin, null);
+            }
+            logger.warn("A restored split pane did not connect");
+        } catch (Exception e) {
+            logger.warn("A restored split pane did not connect: {}", e.getMessage());
+        }
+        discardRestoredSplitConnector(connector);
+        return PreparedSplitPane.skipped(SplitLayoutRestorePlan.SkipReason.FAILED);
+    }
+
+    /**
+     * Attaches a prepared connector as a new pane beside {@code source} in one hop to the JavaFX
+     * thread and waits for it there; the worker thread only. A tab that closed, or a source pane the
+     * user closed meanwhile, attaches nothing, and the connector is closed.
+     *
+     * @return the new pane, or null
+     */
+    private @Nullable SithTermFxWidget attachRestoredSplitPane(SithTermFxWidget source, Orientation orientation,
+                                                               PreparedSplitPane prepared) {
+        TtyConnector connector = prepared.connector();
+        CompletableFuture<SithTermFxWidget> attached = new CompletableFuture<>();
+        boolean posted = runOnFxThread(() -> {
+            try {
+                SithTermFxWidget pane = null;
+                if (!cleanedUp && splitPane != null && splitPane.getAllWidgets().contains(source)) {
+                    // Recorded against the base connector first, so the decorator binds it to the new pane.
+                    paneOrigins.expect(connector, prepared.ownOrigin());
+                    pane = attachSplitPane(source, orientation, connector).orElse(null);
+                }
+                attached.complete(pane);
+            } catch (RuntimeException e) {
+                attached.completeExceptionally(e);
             }
         });
-    }
-    
-    /**
-     * Collects all SplitPane instances from the cell tree.
-     */
-    private void collectSplitPanes(Object cell, List<javafx.scene.control.SplitPane> splitPanes) {
-        try {
-            Class<?> cellClass = cell.getClass();
-            
-            // Check if this cell has a splitPane
-            var splitPaneField = cellClass.getDeclaredField("splitPane");
-            splitPaneField.setAccessible(true);
-            javafx.scene.control.SplitPane sp = (javafx.scene.control.SplitPane) splitPaneField.get(cell);
-            
-            if (sp != null) {
-                splitPanes.add(sp);
-                
-                // Recurse into children
-                var leftCellField = cellClass.getDeclaredField("leftCell");
-                leftCellField.setAccessible(true);
-                Object leftCell = leftCellField.get(cell);
-                
-                var rightCellField = cellClass.getDeclaredField("rightCell");
-                rightCellField.setAccessible(true);
-                Object rightCell = rightCellField.get(cell);
-                
-                if (leftCell != null) {
-                    collectSplitPanes(leftCell, splitPanes);
-                }
-                if (rightCell != null) {
-                    collectSplitPanes(rightCell, splitPanes);
-                }
+        SithTermFxWidget pane = null;
+        if (posted) {
+            try {
+                pane = attached.get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (ExecutionException e) {
+                logger.warn("A restored split pane could not be attached: {}", e.getCause() != null
+                    ? e.getCause().toString() : e.toString());
             }
-        } catch (Exception e) {
-            // Ignore - might be a leaf cell
+        }
+        if (pane == null) {
+            paneOrigins.expect(connector, null);
+            discardRestoredSplitConnector(connector);
+        }
+        return pane;
+    }
+
+    /** Applies the saved dividers to the panes that opened and reports the outcome; JavaFX thread. */
+    private void finishSplitLayoutRestore(SplitLayoutRestorePlan plan, Map<Integer, SithTermFxWidget> opened,
+                                          Map<Integer, SplitLayoutRestorePlan.SkipReason> skipped,
+                                          @Nullable Consumer<SplitLayoutRestorePlan.Summary> onDone) {
+        TerminalSplitPane tree = splitPane;
+        if (cleanedUp || tree == null) {
+            return;
+        }
+        PaneLayout<SithTermFxWidget> target = plan.realized(opened::containsKey).map(opened::get);
+        // Every split rebuilt the split controls above its new pane, and each new control resets its
+        // divider to the middle in a runLater of its own: set the saved positions after those.
+        Platform.runLater(() -> Platform.runLater(() -> {
+            if (!cleanedUp && splitPane == tree) {
+                int applied = tree.applyDividerPositions(target);
+                logger.debug("Applied {} saved divider positions", applied);
+            }
+        }));
+        keepFocusedPaneAfterRestore(tree);
+        SplitLayoutRestorePlan.Summary summary = plan.summarize(opened::containsKey, skipped);
+        logger.info("Split layout restored: {} of {} panes{}", summary.restoredPanes(), summary.plannedPanes(),
+            summary.reasons().isEmpty() ? "" : ", left out: " + summary.reasons());
+        if (onDone != null) {
+            onDone.accept(summary);
+        }
+    }
+
+    /**
+     * Every restored pane became the split pane's focused pane as it joined, without the keyboard,
+     * so the focus ring and the menu commands would follow the last one. When the keyboard is in a
+     * pane of this tab, that pane is the focused one again; the keyboard itself does not move.
+     */
+    private void keepFocusedPaneAfterRestore(TerminalSplitPane tree) {
+        Node owner = tree.getScene() != null ? tree.getScene().getFocusOwner() : null;
+        if (owner == null) {
+            return;
+        }
+        for (SithTermFxWidget pane : tree.getAllWidgets()) {
+            com.sithtermfx.ui.TerminalPanel panel = pane.getTerminalPanel();
+            if (panel != null && panel.getCanvas() == owner) {
+                tree.focusWidget(pane);
+                return;
+            }
+        }
+    }
+
+    /** Closes a connector that never became a pane and takes it off the connected count. */
+    private void discardRestoredSplitConnector(@Nullable TtyConnector connector) {
+        if (connector == null) {
+            return;
+        }
+        try {
+            connector.close();
+        } catch (RuntimeException e) {
+            logger.debug("A restored split connector could not be closed: {}", e.toString());
+        }
+        reportTerminalDisconnected(connector);
+    }
+
+    /** Posts {@code action} to the JavaFX thread; false once the toolkit has exited. */
+    private static boolean runOnFxThread(Runnable action) {
+        try {
+            Platform.runLater(action);
+            return true;
+        } catch (IllegalStateException e) {
+            return false;
         }
     }
     

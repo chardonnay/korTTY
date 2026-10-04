@@ -847,7 +847,7 @@
 <tr>
 <td>Zuletzt geschlossen ▸</td>
 <td></td>
-<td>Was Sie in dieser Sitzung geschlossen haben, das Neueste zuerst: ein Tab, die Tabs, die ein Befehl gemeinsam geschlossen hat, oder <em>Fenster: …</em> für die Tabs eines geschlossenen Fensters. Wählen Sie einen Eintrag, um ihn wieder zu öffnen; <strong>Liste leeren</strong> leert die Liste</td>
+<td>Was Sie geschlossen haben, das Neueste zuerst, auch vor dem letzten Beenden von korTTY: ein Tab, die Tabs, die ein Befehl gemeinsam geschlossen hat, oder <em>Fenster: …</em> für die Tabs eines geschlossenen Fensters. Wählen Sie einen Eintrag, um ihn wieder zu öffnen; <strong>Liste leeren</strong> leert die Liste</td>
 </tr>
 <tr>
 <td>Neues Fenster</td>
@@ -862,12 +862,22 @@
 <tr>
 <td>Projekt öffnen…</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
-<td>Ein gespeichertes Projekt wiederherstellen (Fenster, Registerkarten, Layout)</td>
+<td>Ein gespeichertes Projekt wiederherstellen: Sein erstes Fenster ersetzt die Tabs dieses Fensters, jedes weitere Fenster öffnet sich in einem neuen Fenster, und jedes Fenster erhält seine Position, Größe, Tabs und seinen aktiven Tab zurück. Siehe <a href="../features/projects.html#fenster">Fenster</a></td>
+</tr>
+<tr>
+<td>Zuletzt verwendet ▸</td>
+<td></td>
+<td>Unter <strong>Verbindungen</strong> die gespeicherten Verbindungen, die Sie zuletzt verwendet haben (bis zu 10, die neueste zuerst, wie oben in der Schnellverbindung), die jeweils einen Tab öffnen, der sich wie <strong>Verbinden</strong> im Connection-Manager anmeldet; unter <strong>Projekte</strong> die Projekte, die Sie zuletzt geöffnet oder gespeichert haben (bis zu 10), gefolgt von den übrigen Projekten in <code>~/.kortty/projects</code>, die sich jeweils wie <em>Projekt öffnen…</em> öffnen. Dateien, die nicht mehr existieren, werden ausgelassen. <strong>Liste leeren</strong> leert das Menü, ohne eine Verbindung oder eine Projektdatei zu löschen. Siehe <a href="../features/projects.html#zuletzt-verwendet">Zuletzt verwendet</a></td>
 </tr>
 <tr>
 <td>Projekt speichern…</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span></td>
-<td>Speichern Sie die aktuelle Sitzung als Projekt (<code>.kortty</code>)</td>
+<td>Speichern Sie jedes offene Fenster mit seiner Position, Größe und seinen Tabs als Projekt (<code>.kortty</code>)</td>
+</tr>
+<tr>
+<td>Vorherige Sitzung wiederherstellen</td>
+<td></td>
+<td>Öffnen Sie die Fenster und Tabs wieder, die korTTY vor diesem Start geöffnet hatte und die es während des Betriebs selbst speichert: Das erste Fenster öffnet sich in diesem Fenster, wenn es keine Tabs hat, sonst in einem neuen Fenster, und jedes weitere Fenster in einem neuen Fenster; Tabs, die ein Passwort, einen neuen temporären SSH-Schlüssel oder den gesperrten Tresor brauchen, warten in der Wiederherstellungsleiste. Ausgegraut, solange es keine vorherige Sitzung gibt und nachdem Sie sie einmal wiederhergestellt haben. Siehe <a href="../features/projects.html#vorherige-sitzung">Vorherige Sitzung</a></td>
 </tr>
 <tr>
 <td>Backup erstellen…</td>

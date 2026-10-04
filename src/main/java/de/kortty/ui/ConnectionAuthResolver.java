@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
+import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.TemporarySSHKeyManager;
@@ -35,7 +36,8 @@ import java.util.function.Supplier;
  *   <li>applies the teamwork default authentication to a shared connection that names neither a
  *       credential nor an SSH key;</li>
  *   <li>reuses a temporary SSH key that is still valid, and asks for a new one when it expired
- *       ({@link Status#NEEDS_TEMP_KEY}) — also for a shared connection set to use a temporary key;</li>
+ *       ({@link Status#NEEDS_TEMP_KEY}) — also for a shared connection set to use a temporary key,
+ *       and for one whose key the locked vault still keeps encrypted;</li>
  *   <li>opens a local shell and SSH key auth without a password;</li>
  *   <li>uses the stored password (credential store first, then the connection's own encrypted
  *       password), asks to unlock the vault when that password is in the locked vault
@@ -154,6 +156,15 @@ final class ConnectionAuthResolver {
 
         /** The connection's own stored password, decrypted, or {@code null} when it has none. */
         @Nullable String password(ServerConnection connection);
+
+        /**
+         * Whether korTTY loaded {@code connection} while the vault was locked and therefore cleared its
+         * temporary SSH key in memory: the key stays stored encrypted, but the connection has none to
+         * sign in with.
+         */
+        default boolean holdsLockedTemporaryKey(ServerConnection connection) {
+            return false;
+        }
     }
 
     /**
@@ -276,6 +287,13 @@ final class ConnectionAuthResolver {
                 logger.info("Using the registered temporary SSH key (valid for {} more seconds)", key.getRemainingSeconds());
                 return Resolution.ready(connection, null, key);
             }
+            return Resolution.needs(Status.NEEDS_TEMP_KEY, connection);
+        }
+        if (seams.vault().holdsLockedTemporaryKey(original)) {
+            // Loaded with the vault locked: the key was cleared in memory and stays encrypted on disk
+            // until the vault is unlocked, so there is no key to sign in with now; like an expired key,
+            // it needs a new one. Otherwise the connection would look like key authentication
+            // without a key and fail on the server.
             return Resolution.needs(Status.NEEDS_TEMP_KEY, connection);
         }
         if (connection.isTeamworkConnection() && connection.getCredentialId() == null
@@ -456,6 +474,12 @@ final class ConnectionAuthResolver {
                     MasterPasswordManager passwords = app.getMasterPasswordManager();
                     return new PasswordVault(passwords.getEncryptionService(), passwords.getMasterPassword())
                         .retrievePassword(connection);
+                }
+
+                @Override
+                public boolean holdsLockedTemporaryKey(ServerConnection connection) {
+                    ConfigurationManager config = app.getConfigManager();
+                    return config != null && config.hasLockedTemporaryKey(connection.getId());
                 }
             });
     }

@@ -3716,6 +3716,30 @@ tasks.register<JavaExec>("connectionGroupColorSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("splitLayoutRestoreSmoke") {
+    group = "verification"
+    description = "Connects a local-shell tab and, once its first session is up, rebuilds a saved four-pane split layout around its first pane, the panes connecting in the background without a dialog, and checks that every pane opened, that the live layout has the saved tree with every saved divider and that the FX thread kept answering; pass a PNG path via --args to save a snapshot (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SplitLayoutRestoreSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("restoreAttentionBarSmoke") {
+    group = "verification"
+    description = "Shows the restore bar in a window's status bar as an opened project leaves it (tabs waiting for a password and the vault, one blocked, one gone) and checks its counts, its Connect, Unlock Vault, Details and Dismiss actions, the greyed-out actions while Connect asks and that a hidden bar takes no room; pass a PNG path via --args to save a snapshot (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.RestoreAttentionBarSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("sessionRestoreOfferBarSmoke") {
+    group = "verification"
+    description = "Shows the startup offer of the previous session above a window's status line and checks its prompt with the window and tab counts, its Restore and Dismiss actions, the note after a crash and that a hidden offer takes no room; pass a PNG path via --args to save a snapshot (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SessionRestoreOfferBarSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("multiExecSmoke") {
     group = "verification"
     description = "Lets three panes of two tabs take part in multi-exec, one of them with a connection whose writes never return, and checks that typed keys and Enter reach the member in the other tab while the FX thread keeps answering, that a pane outside multi-exec and one its tab's guard holds back get nothing, that the members show the badge and the status chip counts panes and tabs, and that Stop and closing a pane take panes out; pass a PNG path via --args to save a snapshot (needs a display)."

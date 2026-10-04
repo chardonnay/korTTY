@@ -21,8 +21,22 @@ public class WindowState {
     @XmlElement(name = "tab")
     private List<SessionState> tabs = new ArrayList<>();
     
+    /**
+     * The position of the active tab in {@link #tabs}, or -1 when the active tab was not saved (an
+     * AI or tool tab). Only files without {@link #activeSessionId} rely on it: the order of the
+     * restored tabs differs from the saved one once tab groups sort them or a remote file arrives
+     * late, so an index alone may point at another tab.
+     */
     @XmlElement
     private int activeTabIndex = 0;
+
+    /**
+     * The {@link SessionState#getSessionId() session id} of the tab that was active, so opening the
+     * project selects that tab wherever it ends up. Null in files saved before it existed, and when
+     * the active tab was not saved.
+     */
+    @XmlElement
+    private String activeSessionId;
     
     /** Dashboard visibility when project was saved. */
     @XmlElement
@@ -77,6 +91,14 @@ public class WindowState {
     
     public void setActiveTabIndex(int activeTabIndex) {
         this.activeTabIndex = activeTabIndex;
+    }
+    
+    public String getActiveSessionId() {
+        return activeSessionId;
+    }
+
+    public void setActiveSessionId(String activeSessionId) {
+        this.activeSessionId = activeSessionId;
     }
     
     public Boolean getDashboardVisible() {

@@ -201,6 +201,37 @@ class ConnectionAuthResolverTest {
         assertThat(cancelled.status()).isEqualTo(Status.NEEDS_TEMP_KEY);
     }
 
+    @Test
+    void aTemporaryKeyTheLockedVaultStillKeepsNeedsANewKeyInsteadOfKeyAuthWithoutAKey() {
+        Fake fake = new Fake();
+        fake.locked = true;
+        // What a start with the vault locked leaves: key auth, but the key text and path cleared.
+        ServerConnection web = connection("web", ConnectionProtocol.SSH_TCP, AuthMethod.PUBLIC_KEY);
+        assertThat(fake.resolver(Prompts.failing()).resolve(web, false).status()).isEqualTo(Status.READY);
+
+        fake.lockedTemporaryKeys.add(web.getId());
+        Resolution waiting = fake.resolver(Prompts.failing()).resolve(web, false);
+        assertThat(waiting.status()).isEqualTo(Status.NEEDS_TEMP_KEY);
+        assertThat(waiting.temporaryKey()).isNull();
+
+        Prompts prompts = new Prompts();
+        prompts.key = new TemporarySSHKey("NEW", 30);
+        Resolution auth = fake.resolver(prompts).resolve(web, true);
+        assertThat(auth.status()).isEqualTo(Status.READY);
+        assertThat(auth.temporaryKey()).isSameInstanceAs(prompts.key);
+        assertThat(prompts.asked).containsExactly("temporaryKey:web");
+    }
+
+    @Test
+    void theServerPolicyStillComesBeforeALockedTemporaryKey() {
+        Fake fake = new Fake();
+        fake.blockedHosts.add("web");
+        ServerConnection web = connection("web", ConnectionProtocol.SSH_TCP, AuthMethod.PUBLIC_KEY);
+        fake.lockedTemporaryKeys.add(web.getId());
+
+        assertThat(fake.resolver(Prompts.failing()).resolve(web, true).status()).isEqualTo(Status.BLOCKED);
+    }
+
     // ---- NEEDS_UNLOCK ------------------------------------------------------------------------
 
     @Test
@@ -509,6 +540,8 @@ class ConnectionAuthResolverTest {
         boolean locked;
         boolean vaultFails;
         final List<ServerConnection> vaultReads = new ArrayList<>();
+        /** The ids of connections whose temporary key a locked load cleared and the file still keeps encrypted. */
+        final Set<String> lockedTemporaryKeys = new HashSet<>();
 
         ConnectionAuthResolver resolver(ConnectionAuthResolver.Prompts prompts) {
             ConnectionAuthResolver.Seams seams = new ConnectionAuthResolver.Seams(
@@ -551,6 +584,11 @@ class ConnectionAuthResolverTest {
                             throw new RuntimeException("Failed to decrypt password");
                         }
                         return encrypted.substring("enc:".length());
+                    }
+
+                    @Override
+                    public boolean holdsLockedTemporaryKey(ServerConnection connection) {
+                        return lockedTemporaryKeys.contains(connection.getId());
                     }
                 });
             return new ConnectionAuthResolver(seams, prompts);
