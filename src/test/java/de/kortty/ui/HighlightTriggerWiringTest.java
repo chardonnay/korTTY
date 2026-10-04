@@ -42,7 +42,11 @@ class HighlightTriggerWiringTest {
 
     @Test
     void aRestoredScreenIsMadeOldOutputRightAfterItIsWritten() throws IOException {
-        String replay = body(source("TerminalView.java"), "private void replayPendingRestoredHistory(SithTermFxWidget widget) {");
+        assertWithMessage("the queued block goes through the shared replay")
+            .that(body(source("TerminalView.java"), "private void replayPendingRestoredHistory(SithTermFxWidget widget) {"))
+            .contains("replayRestoredOutput(widget, pending);");
+        String replay = body(source("TerminalView.java"),
+            "private void replayRestoredOutput(SithTermFxWidget widget, PendingRestoredHistory pending) {");
         int write = replay.indexOf("RestoredHistoryReplay.replay(widget.getTerminal()");
         int baseline = replay.indexOf("markHighlightBaseline(widget);");
         assertThat(write).isAtLeast(0);

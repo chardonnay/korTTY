@@ -96,6 +96,8 @@ public class MasterPasswordManager {
         storedHash = encryptionService.hashPassword(password, salt);
         
         writeKeyFile(salt, storedHash);
+        // A new master key: saved terminal output encrypted with an earlier one is of no use.
+        purgeSessionScrollback();
 
         // Derive and store the key
         derivedKey = encryptionService.deriveKey(password, salt);
@@ -199,6 +201,9 @@ public class MasterPasswordManager {
     public void commitPasswordChange(PendingPasswordChange pending) throws Exception {
         Objects.requireNonNull(pending, "pending");
         writeKeyFile(pending.newSalt, pending.newHash);
+        // The saved terminal output of the session snapshot is encrypted with the old key; it is
+        // deleted rather than migrated (it is a convenience, and it may hold secrets).
+        purgeSessionScrollback();
 
         logger.info("Master password changed successfully");
     }
@@ -233,6 +238,15 @@ public class MasterPasswordManager {
         props.store(text, "KorTTY Master Password");
         AtomicFileWriter.writeStoreAtomically(configDir.resolve(MASTER_KEY_FILE), text.toString(),
             AtomicFileWriter.FileMode.OWNER_ONLY);
+    }
+
+    /** Deletes the session snapshot's saved terminal output; never fails the key change. */
+    private void purgeSessionScrollback() {
+        try {
+            de.kortty.core.SessionScrollbackStore.purge(configDir);
+        } catch (RuntimeException e) {
+            logger.warn("Could not delete the saved terminal output after the master key changed: {}", e.toString());
+        }
     }
 
     /**

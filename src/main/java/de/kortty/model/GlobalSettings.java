@@ -985,6 +985,18 @@ public class GlobalSettings {
     @XmlElement
     private String sessionRestoreMode = SessionRestoreMode.DEFAULT.id();
 
+    /**
+     * Settings → Window → Session Restore: also keep the newest output of every terminal pane, so a
+     * restored session shows it again. Off by default; when on, the output is written only encrypted
+     * with the master-password key ({@code de.kortty.core.SessionScrollbackStore}).
+     */
+    @XmlElement
+    private boolean sessionRestoreScrollback = false;
+
+    /** The lines of output kept per pane when {@link #sessionRestoreScrollback} is on (100 to 5000). */
+    @XmlElement
+    private Integer sessionRestoreScrollbackLines;
+
     /** Recent extra instructions from the workflow-script generator (max 10, newest first). */
     @XmlElementWrapper(name = "workflowInstructionsHistory")
     @XmlElement(name = "entry")
@@ -3771,6 +3783,25 @@ public class GlobalSettings {
     /** @param sessionRestoreMode the mode to store; null stores the default ({@code ask}) */
     public void setSessionRestoreMode(SessionRestoreMode sessionRestoreMode) {
         this.sessionRestoreMode = (sessionRestoreMode != null ? sessionRestoreMode : SessionRestoreMode.DEFAULT).id();
+    }
+
+    /** Whether a restored session also shows the saved output of each terminal pane. Off by default. */
+    public boolean isSessionRestoreScrollback() {
+        return sessionRestoreScrollback;
+    }
+
+    public void setSessionRestoreScrollback(boolean sessionRestoreScrollback) {
+        this.sessionRestoreScrollback = sessionRestoreScrollback;
+    }
+
+    /** The lines of output kept per pane, within 100 to 5000; 1000 when never set. */
+    public int getSessionRestoreScrollbackLines() {
+        return de.kortty.core.ScrollbackSnapshotCodec.clampLines(sessionRestoreScrollbackLines != null
+            ? sessionRestoreScrollbackLines : de.kortty.core.ScrollbackSnapshotCodec.DEFAULT_LINES);
+    }
+
+    public void setSessionRestoreScrollbackLines(int lines) {
+        this.sessionRestoreScrollbackLines = de.kortty.core.ScrollbackSnapshotCodec.clampLines(lines);
     }
 
     public java.util.List<String> getWorkflowInstructionsHistory() {

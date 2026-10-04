@@ -32,6 +32,14 @@ public class SessionState {
     @XmlElement
     private String currentDirectory;
     
+    /**
+     * Session-only: the name of the encrypted file in {@code session/scrollback/} that holds the
+     * output of the tab's first pane ({@code de.kortty.core.SessionScrollbackStore}). Only korTTY's own
+     * session snapshot keeps it; a project file never does.
+     */
+    @XmlElement
+    private String scrollbackRef;
+
     @XmlElement
     private String currentApplication;
     
@@ -140,6 +148,14 @@ public class SessionState {
         this.currentDirectory = currentDirectory;
     }
     
+    public String getScrollbackRef() {
+        return scrollbackRef;
+    }
+
+    public void setScrollbackRef(String scrollbackRef) {
+        this.scrollbackRef = scrollbackRef;
+    }
+
     public String getCurrentApplication() {
         return currentApplication;
     }
