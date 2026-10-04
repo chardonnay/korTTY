@@ -109,7 +109,11 @@ class ShellIntegrationSnippetsTest {
     void theSetupWindowLinksToTheSectionWithTheSnippets() throws IOException {
         assertThat(ShellIntegrationSetupDialog.GUIDE_LOCATION).isEqualTo("features/shell-integration.html#setting-it-up");
         String page = Files.readString(GUIDE_PAGE, StandardCharsets.UTF_8).replace("\r\n", "\n");
-        assertThat(page).contains("\n## Setting it up\n");
+        assertThat(page).contains("\n## Setting it up { #setting-it-up }\n");
+        // The German heading is translated, so the anchor the window links to is spelled out on both.
+        String germanPage = Files.readString(Path.of("app-docs/site/docs/de/features/shell-integration.md"),
+            StandardCharsets.UTF_8).replace("\r\n", "\n");
+        assertWithMessage("the German page keeps the anchor").that(germanPage).containsMatch("\n## [^\n]+ \\{ #setting-it-up \\}\n");
     }
 
     @Test
