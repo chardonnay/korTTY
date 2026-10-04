@@ -383,4 +383,23 @@ class PaneMenuSupportTest {
         }
         throw new AssertionError("unbalanced method: " + signature);
     }
+
+    @Test
+    void aPolicyLockedBroadcastItemCannotSwitchBroadcastOnButCanSwitchItOff() {
+        FakeTab tab = new FakeTab();
+        PaneMenuSupport.PaneMenu menu = PaneMenuSupport.create(tab, SEPARATORS);
+        // What MainWindow.lockByPolicy does when [rule.features] multi-exec = "deny".
+        menu.broadcast().setDisable(true);
+        de.kortty.ui.actions.ActionIds.markPolicyLocked(menu.broadcast());
+
+        PaneMenuSupport.sync(menu, tab.state());
+        assertThat(menu.broadcast().isDisable()).isTrue();
+        assertThat(de.kortty.ui.actions.MenuItemActivation.activate(menu.broadcast())).isFalse();
+        assertThat(tab.log).isEmpty();
+        assertWithMessage("the other pane items are not affected").that(menu.next().isDisable()).isFalse();
+
+        PaneMenuSupport.sync(menu, new PaneMenuSupport.State(true, 2, true, false));
+        assertWithMessage("a broadcast mode that is on can always be switched off")
+            .that(menu.broadcast().isDisable()).isFalse();
+    }
 }

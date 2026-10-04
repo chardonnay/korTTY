@@ -35,7 +35,7 @@ public final class EffectivePolicy {
         new EnumMap<>(PolicyFeature.class), AgentExecutionMode.ALLOW, false, false,
         ClipboardMode.SYSTEM, true, true, true,
         true, true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
-        EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, null,
+        EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, null, TerminalPolicy.NONE,
         List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of());
 
     private final boolean fromPolicyFile;
@@ -63,6 +63,7 @@ public final class EffectivePolicy {
     private final PolicyRule.LoggingRule logging;
     private final PolicyRule.SessionJournalRule sessionJournal;
     private final Long snippetAnalysisMaxStoredContentBytes;
+    private final TerminalPolicy terminal;
     private final List<ServerRestriction> serverRestrictions;
     private final Set<ManagedSetting> managedSettings;
     private final List<PolicyFile.ScriptHeader> scriptHeaders;
@@ -85,6 +86,7 @@ public final class EffectivePolicy {
                             PolicyRule.LoggingRule logging,
                             PolicyRule.SessionJournalRule sessionJournal,
                             Long snippetAnalysisMaxStoredContentBytes,
+                            TerminalPolicy terminal,
                             List<ServerRestriction> serverRestrictions,
                             Set<ManagedSetting> managedSettings,
                             List<PolicyFile.ScriptHeader> scriptHeaders,
@@ -116,6 +118,7 @@ public final class EffectivePolicy {
         this.logging = logging;
         this.sessionJournal = sessionJournal;
         this.snippetAnalysisMaxStoredContentBytes = snippetAnalysisMaxStoredContentBytes;
+        this.terminal = terminal;
         this.serverRestrictions = List.copyOf(serverRestrictions);
         this.managedSettings = managedSettings;
         this.scriptHeaders = List.copyOf(scriptHeaders);
@@ -141,7 +144,7 @@ public final class EffectivePolicy {
         return new EffectivePolicy(true, true, null, denied, AgentExecutionMode.READ_ONLY,
             true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false, false,
             false, false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, 0L,
-            List.of(), EnumSet.allOf(ManagedSetting.class),
+            TerminalPolicy.LOCKDOWN, List.of(), EnumSet.allOf(ManagedSetting.class),
             List.of(), List.of(), List.of(), List.of());
     }
 
@@ -177,6 +180,7 @@ public final class EffectivePolicy {
                     case SESSION_JOURNAL -> ManagedSetting.SESSION_JOURNAL;
                     case CONTROL_API -> ManagedSetting.CONTROL_API;
                     case TERMINAL_TRIGGERS -> ManagedSetting.TERMINAL_TRIGGERS;
+                    case MULTI_EXEC -> ManagedSetting.MULTI_EXEC;
                 });
             }
         }
@@ -244,6 +248,21 @@ public final class EffectivePolicy {
             managed.add(ManagedSetting.LOAD_INTO_SNIPPET_EDITOR);
         }
 
+        de.kortty.paste.PasteWarningMode pasteWarningFloor = resolver.resolve(
+            PolicyRule::pasteWarningFloor, de.kortty.paste.PasteWarningMode::mostRestrictive);
+        if (pasteWarningFloor != null) {
+            managed.add(ManagedSetting.PASTE_WARNING);
+        }
+        Boolean allowOsc52ClipboardWrite = resolver.resolveAllow(PolicyRule::allowOsc52ClipboardWrite);
+        markManaged(managed, ManagedSetting.CLIPBOARD, allowOsc52ClipboardWrite);
+        de.kortty.model.SessionRestoreMode sessionRestoreMode = resolver.resolve(
+            PolicyRule::sessionRestoreMode, de.kortty.model.SessionRestoreMode::leastAutomatic);
+        if (sessionRestoreMode != null) {
+            managed.add(ManagedSetting.SESSION_RESTORE);
+        }
+        TerminalPolicy terminal = new TerminalPolicy(pasteWarningFloor,
+            orDefault(allowOsc52ClipboardWrite, true), sessionRestoreMode);
+
         List<ServerRestriction> serverRestrictions = resolver.resolveServerRestrictions();
         if (!serverRestrictions.isEmpty()) {
             managed.add(ManagedSetting.SERVER_ACCESS);
@@ -271,7 +290,7 @@ public final class EffectivePolicy {
             orDefault(allowRuntimeDownloads, true), orDefault(allowModelDownloads, true),
             orDefault(allowUserModels, true), orDefault(updatesEnabled, true), updateFeedUrl,
             orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), logging, sessionJournal,
-            analysisMaxStoredContentBytes, serverRestrictions, managed,
+            analysisMaxStoredContentBytes, terminal, serverRestrictions, managed,
             file.scriptHeaders(), file.aiProfiles(), file.runtimeModels(), file.teamworkSources());
     }
 
@@ -344,6 +363,15 @@ public final class EffectivePolicy {
      */
     public boolean terminalTriggersAllowed() {
         return decision(PolicyFeature.TERMINAL_TRIGGERS) != PolicyDecision.DENY;
+    }
+
+    /**
+     * Whether panes may take part in multi-exec or a tab's broadcast mode: typing into several terminals
+     * at once. Denied, the include items and the broadcast switches are locked and no pane can join;
+     * leaving and Stop Multi-exec keep working, so nothing can get stuck on.
+     */
+    public boolean multiExecAllowed() {
+        return decision(PolicyFeature.MULTI_EXEC) != PolicyDecision.DENY;
     }
 
     /** Session journals are NOT chained through {@link #aiAllowed()}: capture works without AI. */
@@ -509,6 +537,33 @@ public final class EffectivePolicy {
         return loadIntoSnippetEditor;
     }
 
+    /** The terminal dimensions of the policy: paste warning floor, OSC 52 and session restore. */
+    public TerminalPolicy terminal() {
+        return terminal;
+    }
+
+    /**
+     * The least a paste warning may ask, or null when the policy leaves it to the user. Applied with
+     * {@link de.kortty.paste.PasteWarningMode#mostRestrictive} on top of whatever Settings, the
+     * connection or a teamwork connection chose, so no level below it can apply.
+     */
+    public de.kortty.paste.PasteWarningMode pasteWarningFloor() {
+        return terminal.pasteWarningFloor();
+    }
+
+    /**
+     * False when the policy forbids programs in a terminal to put text on the clipboard with OSC 52,
+     * whatever Settings → Terminal says. True leaves the choice (off by default) to the user.
+     */
+    public boolean osc52ClipboardWriteAllowed() {
+        return terminal.osc52ClipboardWriteAllowed();
+    }
+
+    /** The startup session restore mode the policy sets and locks, or null when it leaves it to the user. */
+    public de.kortty.model.SessionRestoreMode sessionRestoreMode() {
+        return terminal.sessionRestoreMode();
+    }
+
     /**
      * The admin's upper bound in bytes of UTF-8 for the script text stored with each Full-code
      * analysis, or {@code null} when no policy sets one; {@code 0} forbids storing script text. The
@@ -554,6 +609,26 @@ public final class EffectivePolicy {
 
     public List<PolicyFile.TeamworkSourceDef> teamworkSources() {
         return teamworkSources;
+    }
+
+    /**
+     * The terminal dimensions of a policy, grouped so that a new one changes this record rather than
+     * every positional constructor call of {@link EffectivePolicy}.
+     *
+     * @param pasteWarningFloor          the least a paste warning may ask; null = left to the user
+     * @param osc52ClipboardWriteAllowed false forbids OSC 52 clipboard writes
+     * @param sessionRestoreMode         the forced startup session restore mode; null = left to the user
+     */
+    public record TerminalPolicy(de.kortty.paste.PasteWarningMode pasteWarningFloor,
+                                 boolean osc52ClipboardWriteAllowed,
+                                 de.kortty.model.SessionRestoreMode sessionRestoreMode) {
+
+        /** Nothing set: the user decides everything. */
+        static final TerminalPolicy NONE = new TerminalPolicy(null, true, null);
+
+        /** The fail-safe: every paste with a line break asks, no OSC 52 writes, nothing reopens by itself. */
+        static final TerminalPolicy LOCKDOWN = new TerminalPolicy(
+            de.kortty.paste.PasteWarningMode.ALWAYS, false, de.kortty.model.SessionRestoreMode.OFF);
     }
 
     // ---- resolution internals --------------------------------------------------------------

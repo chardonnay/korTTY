@@ -2456,6 +2456,10 @@ public class MainWindow {
         panes.focusItem(PaneNavigator.PaneDirection.RIGHT).setAccelerator(PANE_FOCUS_RIGHT_ACCELERATOR);
         panes.focusItem(PaneNavigator.PaneDirection.UP).setAccelerator(PANE_FOCUS_UP_ACCELERATOR);
         panes.focusItem(PaneNavigator.PaneDirection.DOWN).setAccelerator(PANE_FOCUS_DOWN_ACCELERATOR);
+        if (!de.kortty.policy.PolicyManager.effective().multiExecAllowed()) {
+            // Broadcast mode types into several panes at once, which the policy denies with multi-exec.
+            lockByPolicy(panes.broadcast());
+        }
         panes.menu().setOnShowing(event -> syncPaneMenuItems());
         panes.menu().setOnMenuValidation(event -> syncPaneMenuItems());
         if (target == MenuBarTarget.WINDOW) {
@@ -6701,6 +6705,9 @@ public class MainWindow {
                 syncMultiExecMenuItems();
             }
         });
+        if (!de.kortty.policy.PolicyManager.effective().multiExecAllowed()) {
+            MultiExecMenuSupport.lockByPolicy(menu);
+        }
         menu.menu().setOnShowing(event -> syncMultiExecMenuItems());
         menu.menu().setOnMenuValidation(event -> syncMultiExecMenuItems());
         if (target == MenuBarTarget.WINDOW) {
@@ -14131,6 +14138,9 @@ public class MainWindow {
             TerminalView multiExecView = terminalTab.getTerminalView();
             multiExecItem.setSelected(multiExecView != null
                 && MultiExecCoordinator.shared().includesAll(multiExecView.getOrderedWidgets()));
+            // Denied by the organization's policy: panes that take part can still leave, none can join.
+            multiExecItem.setDisable(!MultiExecCoordinator.shared().joinAllowed()
+                && (multiExecView == null || MultiExecCoordinator.shared().countIn(multiExecView.getOrderedWidgets()) == 0));
             monitorActivityItem.setSelected(terminalTab.isMonitoringActivity());
             monitorSilenceItem.setSelected(terminalTab.isMonitoringSilence());
         });

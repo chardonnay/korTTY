@@ -43,8 +43,18 @@ public enum SessionRestoreMode {
      * file), so a damaged file never makes korTTY open connections by itself.
      */
     public static SessionRestoreMode fromId(String id) {
+        SessionRestoreMode mode = parseId(id);
+        return mode != null ? mode : DEFAULT;
+    }
+
+    /**
+     * The mode with this id, compared without regard to case or surrounding blanks.
+     *
+     * @return the mode, or null for null, blank or unknown input
+     */
+    public static SessionRestoreMode parseId(String id) {
         if (id == null) {
-            return DEFAULT;
+            return null;
         }
         String value = id.trim().toLowerCase(Locale.ROOT);
         for (SessionRestoreMode mode : values()) {
@@ -52,6 +62,28 @@ public enum SessionRestoreMode {
                 return mode;
             }
         }
-        return DEFAULT;
+        return null;
+    }
+
+    /**
+     * The mode that opens fewer connections by itself: {@link #OFF} before {@link #ASK} before
+     * {@link #AUTO}; null stands for "no opinion". How an organization's policy merges two rules.
+     */
+    public static SessionRestoreMode leastAutomatic(SessionRestoreMode a, SessionRestoreMode b) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        return automation(a) <= automation(b) ? a : b;
+    }
+
+    private static int automation(SessionRestoreMode mode) {
+        return switch (mode) {
+            case OFF -> 0;
+            case ASK -> 1;
+            case AUTO -> 2;
+        };
     }
 }

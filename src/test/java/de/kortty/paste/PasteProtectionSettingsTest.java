@@ -186,4 +186,34 @@ class PasteProtectionSettingsTest {
         assertThat(PasteProtectionSettings.resolveLineDelayMs(global(PasteWarningMode.OFF, 5, 300),
             teamwork(null, 0))).isEqualTo(0);
     }
+
+    @Test
+    void thePolicyFloorRaisesEveryLevelBelowIt() {
+        GlobalSettings off = global(PasteWarningMode.OFF, 64, 0);
+        assertThat(PasteProtectionSettings.resolve(off, null, PasteWarningMode.UNLESS_BRACKETED))
+            .isEqualTo(new PasteProtectionSettings(PasteWarningMode.UNLESS_BRACKETED, 64));
+        // A connection of your own cannot go below the floor either, in either direction.
+        assertThat(PasteProtectionSettings.resolve(global(PasteWarningMode.ALWAYS, 5, 0),
+            connection(PasteWarningMode.OFF, null), PasteWarningMode.ALWAYS).mode()).isEqualTo(PasteWarningMode.ALWAYS);
+        assertThat(PasteProtectionSettings.resolve(off, connection(PasteWarningMode.OFF, null),
+            PasteWarningMode.UNLESS_BRACKETED).mode()).isEqualTo(PasteWarningMode.UNLESS_BRACKETED);
+        // Nor a teamwork connection, nor missing settings.
+        assertThat(PasteProtectionSettings.resolve(off, teamwork(PasteWarningMode.OFF, null),
+            PasteWarningMode.ALWAYS).mode()).isEqualTo(PasteWarningMode.ALWAYS);
+        assertThat(PasteProtectionSettings.resolve(null, null, PasteWarningMode.ALWAYS))
+            .isEqualTo(new PasteProtectionSettings(PasteWarningMode.ALWAYS, PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB));
+    }
+
+    @Test
+    void thePolicyFloorNeverLowersAStricterChoiceAndNullMeansNoFloor() {
+        GlobalSettings always = global(PasteWarningMode.ALWAYS, 64, 0);
+        assertThat(PasteProtectionSettings.resolve(always, null, PasteWarningMode.OFF))
+            .isEqualTo(PasteProtectionSettings.resolve(always, null));
+        assertThat(PasteProtectionSettings.resolve(global(PasteWarningMode.OFF, 64, 0),
+            connection(PasteWarningMode.ALWAYS, null), PasteWarningMode.UNLESS_BRACKETED).mode())
+            .isEqualTo(PasteWarningMode.ALWAYS);
+        GlobalSettings off = global(PasteWarningMode.OFF, 0, 0);
+        assertThat(PasteProtectionSettings.resolve(off, connection(PasteWarningMode.OFF, null), null))
+            .isEqualTo(PasteProtectionSettings.resolve(off, connection(PasteWarningMode.OFF, null)));
+    }
 }

@@ -51,8 +51,8 @@ public record PasteProtectionSettings(PasteWarningMode mode, int largeWarningKiB
     /**
      * The paste protection for a paste into a terminal of {@code connection}: the connection's own warning
      * mode when it sets one that applies ({@link #connectionWarningMode}), else the mode of Settings →
-     * Terminal → Paste protection; the size check always comes from Settings. An enterprise policy floor
-     * is not part of this yet.
+     * Terminal → Paste protection; the size check always comes from Settings. The enterprise policy's
+     * floor is applied by {@link #resolve(GlobalSettings, ServerConnection, PasteWarningMode)}.
      *
      * @param global the global settings; null means {@link #DEFAULTS}
      * @param connection the connection the pane runs; null follows the global settings
@@ -61,6 +61,22 @@ public record PasteProtectionSettings(PasteWarningMode mode, int largeWarningKiB
         PasteProtectionSettings base = from(global);
         PasteWarningMode own = connectionWarningMode(base.mode(), connection);
         return own != null && own != base.mode() ? new PasteProtectionSettings(own, base.largeWarningKiB()) : base;
+    }
+
+    /**
+     * {@link #resolve(GlobalSettings, ServerConnection)} with the organization's floor on top
+     * ({@code [rule.terminal] paste-warning}): whichever of the two asks more often applies, so neither
+     * Settings, a connection of your own nor a teamwork connection can go below what the policy demands.
+     *
+     * @param global the global settings; null means {@link #DEFAULTS}
+     * @param connection the connection the pane runs; null follows the global settings
+     * @param floor the least the policy lets a paste warning ask; null when the policy sets none
+     */
+    public static PasteProtectionSettings resolve(GlobalSettings global, ServerConnection connection,
+                                                  PasteWarningMode floor) {
+        PasteProtectionSettings resolved = resolve(global, connection);
+        PasteWarningMode mode = PasteWarningMode.mostRestrictive(resolved.mode(), floor);
+        return mode != resolved.mode() ? new PasteProtectionSettings(mode, resolved.largeWarningKiB()) : resolved;
     }
 
     /**

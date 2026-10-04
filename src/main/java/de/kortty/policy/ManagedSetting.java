@@ -22,11 +22,22 @@ public enum ManagedSetting {
     AI_RUNTIME,
     LOAD_INTO_SNIPPET_EDITOR,
     SERVER_ACCESS,
+    /**
+     * The clipboard group: {@code clipboard-mode} and {@code allow-osc52-clipboard-write}. The OSC 52
+     * switch in Settings → Terminal is locked only while the policy forbids it
+     * ({@link EffectivePolicy#osc52ClipboardWriteAllowed()}).
+     */
     CLIPBOARD,
     LOGGING,
     SESSION_JOURNAL,
     CONTROL_API,
     SNIPPET_ANALYSIS_CONTENT,
     /** The "Run highlight trigger actions" switch in Settings → Terminal ({@link PolicyFeature#TERMINAL_TRIGGERS}). */
-    TERMINAL_TRIGGERS
+    TERMINAL_TRIGGERS,
+    /** The paste warning in Settings → Terminal → Paste protection ({@code [rule.terminal] paste-warning}). */
+    PASTE_WARNING,
+    /** Multi-exec and broadcast mode ({@link PolicyFeature#MULTI_EXEC}); no Settings control of its own. */
+    MULTI_EXEC,
+    /** The startup session restore in Settings → Window ({@code [rule.terminal] session-restore}). */
+    SESSION_RESTORE
 }

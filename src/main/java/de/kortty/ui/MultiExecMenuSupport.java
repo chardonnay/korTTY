@@ -31,6 +31,11 @@ import java.util.function.Supplier;
  * nothing with them ({@link ClosedWindowMenuRouter#ownWindowOnly}); Stop needs no window and acts
  * from any menu bar ({@link ClosedWindowMenuRouter#noWindowNeeded}).
  *
+ * <p>While the organization's policy denies multi-exec, {@link #lockByPolicy} disables the include
+ * items for good and marks them policy-locked ({@link ActionIds#markPolicyLocked}), so {@link #sync}
+ * never switches them back on and the command palette and the keyboard shortcuts cannot run them;
+ * Stop stays available.
+ *
  * <p>Menu items are not nodes, so this runs in a unit test without the JavaFX toolkit, except
  * {@link SeparatorMenuItem}, which holds a {@code Separator} control; the package-private builder
  * therefore takes the separator factory.
@@ -133,16 +138,38 @@ final class MultiExecMenuSupport {
         return multiExecMenu;
     }
 
-    /** Shows {@code state} on the items: what can act now, and the check marks of the pane and the tab. */
+    /**
+     * Disables the include items for good, because the organization's policy denies multi-exec
+     * ({@code [rule.features] multi-exec = "deny"}); Stop stays, so panes that took part before can
+     * always be taken out.
+     */
+    static void lockByPolicy(@Nullable MultiExecMenu multiExecMenu) {
+        if (multiExecMenu == null) {
+            return;
+        }
+        for (MenuItem item : List.of(multiExecMenu.includePane(), multiExecMenu.includeTab(),
+                multiExecMenu.includeWindow())) {
+            item.setDisable(true);
+            ActionIds.markPolicyLocked(item);
+        }
+    }
+
+    /**
+     * Shows {@code state} on the items: what can act now, and the check marks of the pane and the tab.
+     * An item {@link #lockByPolicy locked by the policy} stays disabled.
+     */
     static void sync(@Nullable MultiExecMenu multiExecMenu, @NotNull State state) {
         if (multiExecMenu == null) {
             return;
         }
-        multiExecMenu.includePane().setDisable(!state.canIncludePane());
+        multiExecMenu.includePane().setDisable(!state.canIncludePane()
+            || ActionIds.isPolicyLocked(multiExecMenu.includePane()));
         multiExecMenu.includePane().setSelected(state.terminal() && state.paneIncluded());
-        multiExecMenu.includeTab().setDisable(!state.canIncludeTab());
+        multiExecMenu.includeTab().setDisable(!state.canIncludeTab()
+            || ActionIds.isPolicyLocked(multiExecMenu.includeTab()));
         multiExecMenu.includeTab().setSelected(state.terminal() && state.tabIncluded());
-        multiExecMenu.includeWindow().setDisable(!state.canIncludeWindow());
+        multiExecMenu.includeWindow().setDisable(!state.canIncludeWindow()
+            || ActionIds.isPolicyLocked(multiExecMenu.includeWindow()));
         multiExecMenu.stop().setDisable(!state.canStop());
     }
 }

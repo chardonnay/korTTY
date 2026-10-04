@@ -824,6 +824,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         osc52ClipboardWriteCheck = new CheckBox(I18n.get("settings.terminal.osc52.enabled"));
         osc52ClipboardWriteCheck.setSelected(globalSettings != null && globalSettings.isOsc52ClipboardWriteEnabled());
         osc52ClipboardWriteCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.osc52.enabled.tooltip")));
+        // After setTooltip: the lock replaces it with the managed-by-your-organization hint. Only a policy
+        // that forbids OSC 52 locks the box (off, as PolicyClamp keeps it); allowing it leaves the choice.
+        de.kortty.policy.PolicyUiSupport.lockIf(osc52ClipboardWriteCheck,
+            !de.kortty.policy.PolicyManager.effective().osc52ClipboardWriteAllowed());
 
         terminalLinkDetectionCheck = new CheckBox(I18n.get("settings.terminal.linkDetection"));
         terminalLinkDetectionCheck.setSelected(globalSettings == null || globalSettings.isTerminalLinkDetectionEnabled());
@@ -876,6 +880,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
         pasteWarningModeCombo.setTooltip(new Tooltip(I18n.get("settings.terminal.paste.warningMode.tooltip")));
+        // After setTooltip: [rule.terminal] paste-warning locks the combo at the value PolicyClamp raised
+        // to the organization's floor.
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            pasteWarningModeCombo, de.kortty.policy.ManagedSetting.PASTE_WARNING);
         pasteLargeWarningSpinner = new Spinner<>(0, PasteProtectionSettings.MAX_LARGE_WARNING_KIB,
             globalSettings != null ? globalSettings.getPasteLargeWarningKiB()
                 : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);
@@ -1785,6 +1793,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
         sessionRestoreModeCombo.setTooltip(new Tooltip(I18n.get("settings.window.restore.mode.tooltip")));
+        // After setTooltip: [rule.terminal] session-restore sets the mode (PolicyClamp) and locks the combo.
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(
+            sessionRestoreModeCombo, de.kortty.policy.ManagedSetting.SESSION_RESTORE);
         windowGrid.add(new Label(I18n.get("settings.window.restore.mode")), 0, windowRow);
         windowGrid.add(sessionRestoreModeCombo, 1, windowRow++);
 

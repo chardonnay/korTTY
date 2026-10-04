@@ -65,7 +65,10 @@ class Osc52ClipboardWiringTest {
             .that(writer).contains("KorttyClipboard::setText");
         String onWrite = body(writer, "public void onClipboardWrite(TerminalTab tab, ClipboardWrite write) {");
         assertThat(onWrite).contains(
-            "write(write, current != null && current.isOsc52ClipboardWriteEnabled(), clipboard);");
+            "write(write, allowed(current, de.kortty.policy.PolicyManager.effective()), clipboard);");
+        assertWithMessage("the setting and the organization's policy both have to allow it")
+            .that(body(writer, "static boolean allowed(GlobalSettings settings, de.kortty.policy.EffectivePolicy policy) {"))
+            .contains("settings != null && settings.isOsc52ClipboardWriteEnabled()");
         assertThat(onWrite).contains("statusText(outcome, tab.getEffectiveTitle(), I18n::get);");
         assertWithMessage("the log records the size of a write, never its text")
             .that(onWrite).doesNotContain("text()");

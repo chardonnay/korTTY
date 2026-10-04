@@ -21,7 +21,7 @@ korTTY loads the policy exclusively from the `policy/` folder of its installatio
 
 The enforcement model relies on the operating system's file permissions: the installation directory must be writable only by administrators, which is the default for the locations above. korTTY additionally logs a warning when the active policy file is writable by the current user. During development (never in a packaged installation) a policy can be tested with `-Dkortty.policy.file=/path/to/policy.toml`.
 
-If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version.
+If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, every terminal paste with a line break asks for confirmation, programs cannot put text on the clipboard with OSC 52, the previous session is not reopened at startup, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version.
 
 ## Users, groups and rule precedence
 
@@ -124,6 +124,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `session-journal` | string | `allow`, `deny` | The [session journal](../features/session-journal.md): capture, journal bar, manager, viewer and exports. Not chained to `ai` — with AI denied the journal still records raw activity |
 | `control-api` | string | `allow`, `deny` | The [control API](control-api.md) and its `kortty-cli` client: `deny` stops the listener, locks the Settings checkbox and forces the setting off. Not chained to `ai` — the API is local automation, not an AI capability |
 | `terminal-triggers` | string | `allow`, `deny` | [Highlight rules that act](../features/highlighting.md#notifications-for-matching-output) when their pattern appears in terminal output (a desktop notification, or [running a snippet](../features/highlighting.md#running-a-snippet-when-output-matches) in the pane): `deny` stops every such action, also a snippet the user already allowed for a connection, locks **Run actions of highlight rules (notifications, snippets)** in *Settings → Terminal* in the off position and keeps the rule editor from giving a rule an action. Keyword highlighting itself is not affected. `allow` locks the setting on |
+| `multi-exec` | string | `allow`, `deny` | Typing into several terminals at once: [multi-exec](../features/terminal.md#multi-exec) across tabs and windows and a tab's broadcast mode. `deny` locks the include items of *View → Multi-exec*, *View → Panes → Broadcast*, the Multi-exec and Broadcast Mode entries of the tab, pane and Dashboard context menus, and their command palette and shortcut entries; no pane can join from anywhere. **Stop Multi-exec** and switching broadcast mode off keep working. There is no Settings control, so `allow` changes nothing |
 | `ai-agent-execution` | string | `allow`, `confirm`, `read-only` | `confirm` forces interactive approval of every mutating command set and defeats the auto-approve option; `read-only` lets the agent plan and chat but never execute commands |
 
 !!! note "Naming a feature takes it over, whichever way you decide it"
@@ -139,6 +140,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `allow-terminal-recording` | boolean | `false` | Forbids terminal session recording, including the session-level toggle |
 | `allow-port-forwarding` | boolean | `false` | Never opens the [SSH tunnels](../features/tunnels.md) configured on connections (local, remote and dynamic port forwarding); the tab's status bar says they are disabled by your organization. A jump server hop is not affected |
 | `clipboard-mode` | string | `system`, `internal` | `internal` confines korTTY to its own in-memory clipboard — see below |
+| `allow-osc52-clipboard-write` | boolean | `false` | Programs in a terminal can never put text on the clipboard with OSC 52, whatever *Settings → Terminal* says: the setting is forced off and **Let programs in the terminal copy text to the clipboard (OSC 52)** is locked with the "Managed by your organization" hint, and korTTY checks the policy again on every write. `true` leaves the choice, which is off by default, to the user and locks nothing |
 
 ### `[rule.teamwork]`, `[rule.snippets]`, `[rule.ai-profiles]`
 
@@ -212,6 +214,21 @@ groups = ["compliance"]
 | Key | Type | Values | Effect |
 | --- | --- | --- | --- |
 | `load-into-snippet-editor` | string | `allow`, `read-only`, `deny` | `read-only` keeps loading remote files into the snippet editor but forbids writing back to the target system; `deny` removes the feature entirely, including opening file paths and `file:` links from terminal output ([Links in terminal output](../features/terminal.md#links-in-terminal-output)) |
+| `paste-warning` | string | `off`, `unless-bracketed`, `always` | The least a [paste warning](../features/terminal.md#paste-protection) may ask. It is a floor, applied on top of *Settings → Terminal → Paste protection*, a connection's own paste warning and the paste warning of a teamwork connection, so none of them can ask less often; one that asks more often keeps doing so. The stored setting is raised to the floor and the dropdown is locked. When several rules of the same tier set it, the stricter value wins (`always` over `unless-bracketed` over `off`) |
+| `session-restore` | string | `off`, `ask`, `auto` | Sets what korTTY does at startup with the previous session's windows and tabs (*Settings → Window → [Session Restore](settings/window.md#session-restore)*) and locks the dropdown. `off` reopens nothing by itself; **File → Restore Previous Session** stays available. When several rules of the same tier set it, the value that opens fewer connections by itself wins (`off` over `ask` over `auto`) |
+
+```toml
+[[rule]]
+  [rule.features]
+  multi-exec = "deny"
+
+  [rule.security]
+  allow-osc52-clipboard-write = false
+
+  [rule.terminal]
+  paste-warning = "always"
+  session-restore = "ask"
+```
 
 ### `[rule.logging]`
 

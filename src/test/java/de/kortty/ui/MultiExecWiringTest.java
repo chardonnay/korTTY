@@ -78,7 +78,7 @@ class MultiExecWiringTest {
     @Test
     void theCoordinatorRedrawsThePaneMarkersBeforeTellingTheWindows() throws IOException {
         String coordinator = source(UI.resolve("MultiExecCoordinator.java"));
-        assertThat(methodBody(coordinator, "MultiExecCoordinator() {"))
+        assertThat(methodBody(coordinator, "MultiExecCoordinator(@NotNull BooleanSupplier joinAllowed) {"))
             .contains("membership.addListener(this::refreshPaneMarkers);");
         assertThat(methodBody(coordinator, "private void refreshPaneMarkers() {"))
             .contains("owner.refreshMirrorMarkers();");

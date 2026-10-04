@@ -67,6 +67,7 @@ import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteRules;
 import de.kortty.paste.PasteSource;
 import de.kortty.paste.PasteTarget;
+import de.kortty.paste.PasteWarningMode;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.plugin.terminaleffects.TerminalEffectAppearance;
 import de.kortty.plugin.terminaleffects.TerminalEffectConnectorWrapper;
@@ -2339,6 +2340,8 @@ public class TerminalView extends BorderPane {
             new javafx.scene.control.CheckMenuItem(I18n.get(MultiExecMarkers.PANE_TOGGLE_KEY));
         include.setSelected(multiExec.isMember(widget));
         include.setOnAction(event -> multiExec.togglePane(widget));
+        // Denied by the organization's policy: a pane can leave, never join.
+        include.setDisable(!multiExec.isMember(widget) && !multiExec.joinAllowed());
         return List.of(include);
     }
 
@@ -6315,14 +6318,35 @@ public class TerminalView extends BorderPane {
      * @param connection the connection whose paste protection applies; null follows the global settings
      */
     static PasteRules pasteRules(Supplier<GlobalSettings> settings, @Nullable ServerConnection connection) {
+        PasteWarningMode floor;
+        try {
+            floor = de.kortty.policy.PolicyManager.effective().pasteWarningFloor();
+        } catch (RuntimeException e) {
+            floor = null;
+        }
+        return pasteRules(settings, connection, floor);
+    }
+
+    /**
+     * {@link #pasteRules(Supplier, ServerConnection)} with the organization's paste warning floor on top
+     * ({@link PasteProtectionSettings#resolve(GlobalSettings, ServerConnection, PasteWarningMode)}).
+     * The connection counts as the one that chose the warning only while its own mode is the one that
+     * applies, not when the floor raised it.
+     *
+     * @param floor the least the policy lets a paste warning ask; null when it sets none
+     */
+    static PasteRules pasteRules(Supplier<GlobalSettings> settings, @Nullable ServerConnection connection,
+                                 @Nullable PasteWarningMode floor) {
         GlobalSettings global = readOrNull(settings);
         try {
-            PasteProtectionSettings protection = PasteProtectionSettings.resolve(global, connection);
-            boolean setByConnection = PasteProtectionSettings.connectionWarningMode(
-                PasteProtectionSettings.from(global).mode(), connection) != null;
-            return new PasteDecision(protection, setByConnection);
+            PasteProtectionSettings protection = PasteProtectionSettings.resolve(global, connection, floor);
+            PasteWarningMode own = PasteProtectionSettings.connectionWarningMode(
+                PasteProtectionSettings.from(global).mode(), connection);
+            return new PasteDecision(protection, own != null && own == protection.mode());
         } catch (RuntimeException e) {
-            return new PasteDecision(PasteProtectionSettings.DEFAULTS);
+            PasteProtectionSettings defaults = PasteProtectionSettings.DEFAULTS;
+            PasteWarningMode mode = PasteWarningMode.mostRestrictive(defaults.mode(), floor);
+            return new PasteDecision(new PasteProtectionSettings(mode, defaults.largeWarningKiB()));
         }
     }
 
