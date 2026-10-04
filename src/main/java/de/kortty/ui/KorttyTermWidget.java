@@ -313,6 +313,27 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     }
 
     /**
+     * Whether {@code action} is one of korTTY's own key actions for this pane
+     * ({@link #setLeadingTerminalActions}) rather than one of SithTermFX's. Compared by identity: the
+     * pane's action list hands out the instances that were set. Any thread.
+     */
+    public boolean isLeadingTerminalAction(@Nullable TerminalAction action) {
+        if (action == null) {
+            return false;
+        }
+        List<TerminalAction> own = ((KorttyTerminalPanel) getTerminalPanel()).leadingActions;
+        if (own == null) {
+            return false;
+        }
+        for (TerminalAction candidate : own) {
+            if (candidate == action) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * The link the terminal's context menu was opened on: the one under the last right-button press
      * in this pane, as it was at that press, or {@code null} when that press was on no link or another
      * press came after it. The menu offers Open Link and Copy Link Address for it (Open File in Snippet

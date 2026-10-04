@@ -63,6 +63,27 @@ public final class TerminalNavigationKeys {
     }
 
     /**
+     * Whether the pane's first key action that matches a navigation key may keep the key from the
+     * program, when it can run now ({@code TerminalSplitPane.routeKeyPressed}).
+     *
+     * <ul>
+     *   <li>In an emulation korTTY encodes ({@link #isKorttyEncoded}) every action may, SithTermFX's
+     *       scrollback keys included.</li>
+     *   <li>The other emulations keep the fixed sequences of {@link #legacySequence}, and with them
+     *       the program gets SithTermFX's scrollback keys, as before. korTTY's own actions still come
+     *       first there: shell integration reads the prompt marks of a SCO ANSI pane too
+     *       ({@code ShellIntegrationTtyConnector.appliesTo}), and its prompt jumps can run only while
+     *       the pane has them.</li>
+     * </ul>
+     *
+     * @param korttysOwnAction whether the action is one of korTTY's own key actions for the pane
+     *                         ({@code KorttyTermWidget.setLeadingTerminalActions})
+     */
+    public static boolean mayKeepKeyLocal(@Nullable EmulationType emulationType, boolean korttysOwnAction) {
+        return korttysOwnAction || isKorttyEncoded(emulationType);
+    }
+
+    /**
      * Encodes a navigation key with its modifiers.
      *
      * <ul>

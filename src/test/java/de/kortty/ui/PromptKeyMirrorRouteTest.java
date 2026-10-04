@@ -144,11 +144,16 @@ class PromptKeyMirrorRouteTest {
         assertThat(local).isAtLeast(0);
         assertWithMessage("a key that stays local is neither sent nor mirrored").that(send).isGreaterThan(local);
         assertThat(mirror).isGreaterThan(send);
+        assertWithMessage("asked in every emulation, so a SCO ANSI pane, whose marks shell integration reads, jumps too")
+            .that(route).contains("if (performsLocalScrollAction(widget, event)) {");
 
         String decision = body(splitPane, "private static boolean performsLocalScrollAction(");
         assertWithMessage("the first matching key action of the pane decides, korTTY's prompt actions first")
             .that(decision).contains("TerminalAction action = alternateScreen ? null : firstMatchingAction(panel, event);");
         assertThat(decision).contains("BooleanSupplier paneAction = action != null ? () -> action.isEnabled(event) : null;");
+        assertWithMessage("an emulation with fixed key sequences lets only korTTY's own actions keep a key local")
+            .that(decision).contains("if (action != null && !TerminalNavigationKeys.mayKeepKeyLocal(widget.getEmulationType(),\n"
+                + "            widget instanceof KorttyTermWidget kortty && kortty.isLeadingTerminalAction(action))) {");
 
         String targets = body(splitPane, "private @NotNull List<SithTermFxWidget> mirrorTargetsOf(@NotNull SithTermFxWidget source) {");
         assertWithMessage("broadcast mode's panes and the multi-exec members are the targets of the same key")

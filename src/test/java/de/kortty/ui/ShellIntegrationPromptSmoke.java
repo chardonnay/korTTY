@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import com.sithtermfx.core.TtyConnector;
+import com.sithtermfx.core.emulator.EmulationType;
 import com.sithtermfx.core.model.TerminalTextBuffer;
 import com.sithtermfx.core.util.TermSize;
 import com.sithtermfx.ui.SithTermFxWidget;
@@ -33,8 +34,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * and Cmd/Ctrl+Shift+Up and Down, pressed on the pane, scroll it so the previous or next prompt is
  * the top line, without the keys reaching the program. A jump as the Edit menu makes it does the
  * same; scrolling by hand moves the start of the next jump; and on the alternate screen, or with
- * shell integration switched off, the keys reach the program as before. Run via the
- * {@code shellIntegrationPromptSmoke} Gradle task. Exit 0 = OK.
+ * shell integration switched off, the keys reach the program as before. A SCO ANSI pane, which keeps
+ * korTTY's fixed key sequences, jumps as well, while its scrollback keys still reach the program.
+ * Run via the {@code shellIntegrationPromptSmoke} Gradle task. Exit 0 = OK.
  */
 public final class ShellIntegrationPromptSmoke {
 
@@ -103,7 +105,8 @@ public final class ShellIntegrationPromptSmoke {
             System.exit(1);
         }
         System.out.println("SMOKE OK: Cmd/Ctrl+Shift+Up/Down jump between OSC 133 prompts in a real pane, and the"
-            + " keys reach the program without marks, on the alternate screen and with shell integration off");
+            + " keys reach the program without marks, on the alternate screen and with shell integration off; a SCO ANSI"
+            + " pane jumps too");
         System.exit(0);
     }
 
@@ -195,6 +198,35 @@ public final class ShellIntegrationPromptSmoke {
             await("switched off, the key never reached the program", () -> !connector.written().isEmpty());
             check(onFxThread(() -> controller.jump(widget, Direction.PREVIOUS)) == ShellIntegrationController.JumpResult.DISABLED,
                 "the menu jump did not report shell integration as off");
+
+            // A SCO ANSI pane keeps korTTY's fixed key sequences (TerminalNavigationKeys.legacySequence),
+            // but shell integration reads its marks, so the prompt keys jump there as well.
+            enabled.set(true);
+            onFxThread(() -> {
+                widget.setEmulationType(EmulationType.SCOANSI);
+                return null;
+            });
+            check(onFxThread(() -> controller.canNavigate(widget)), "the SCO ANSI pane lost its marks");
+            connector.clearWritten();
+            String beforeScoJump = topLine(panel);
+            press(canvas, KeyCode.UP);
+            await("Previous Prompt did not jump in a SCO ANSI pane", () -> {
+                String top = topLine(panel);
+                return top.startsWith("$ c") && !top.equals(beforeScoJump);
+            });
+            String afterScoJump = topLine(panel);
+            press(canvas, KeyCode.DOWN);
+            await("Next Prompt did not jump in a SCO ANSI pane", () -> !afterScoJump.equals(topLine(panel)));
+            check(connector.written().isEmpty(), "a prompt key reached the program of a SCO ANSI pane: "
+                + connector.written());
+            // Its scrollback keys still send the fixed sequence to the program, as before shell integration.
+            onFxThread(() -> {
+                Event.fireEvent(canvas, new KeyEvent(KeyEvent.KEY_PRESSED, KeyEvent.CHAR_UNDEFINED, "", KeyCode.PAGE_UP,
+                    true, false, false, false));
+                return null;
+            });
+            await("Shift+Page Up in a SCO ANSI pane no longer reached the program",
+                () -> connector.written().equals(ESC + "[5~"));
         } catch (Throwable error) {
             failure.compareAndSet(null, stack(error));
         } finally {

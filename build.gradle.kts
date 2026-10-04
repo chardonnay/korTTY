@@ -3668,7 +3668,7 @@ tasks.register<JavaExec>("terminalLinksSmoke") {
 
 tasks.register<JavaExec>("shellIntegrationPromptSmoke") {
     group = "verification"
-    description = "Feeds shell output with OSC 133 marks into a real terminal pane and checks that Cmd/Ctrl+Shift+Up and Down jump between its prompts without reaching the program, that a jump starts from a view scrolled by hand, and that the keys reach the program without marks, on the alternate screen and with shell integration off (needs a display)."
+    description = "Feeds shell output with OSC 133 marks into a real terminal pane and checks that Cmd/Ctrl+Shift+Up and Down jump between its prompts without reaching the program, that a jump starts from a view scrolled by hand, and that the keys reach the program without marks, on the alternate screen and with shell integration off, and that a SCO ANSI pane jumps too while its scrollback keys still reach the program (needs a display)."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.ShellIntegrationPromptSmoke")
     classpath = sourceSets.test.get().runtimeClasspath
