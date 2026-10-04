@@ -43,17 +43,35 @@ final class SnippetTerminalTransfer {
     private SnippetTerminalTransfer() {
     }
 
-    /** Whether the tab's focused pane is an SSH session or a local shell (Telnet/serial cannot receive files). */
+    /**
+     * Whether the tab's focused pane can take the files now: an SSH session the organization's
+     * file-transfer policy lets korTTY copy to, or a local shell (Telnet/serial cannot receive files).
+     * The snippet menus grey out their "copy to terminal" items with it, so a denied copy is visible
+     * before it is chosen.
+     */
     static boolean supports(TerminalTab tab) {
         if (tab == null || tab.getTerminalView() == null) {
             return false;
         }
         SshTtyConnector ssh = tab.getTerminalView().getActiveSshConnector();
         if (ssh != null) {
-            return ssh.isConnected() && ssh.getSession() != null;
+            return ssh.isConnected() && ssh.getSession() != null
+                && TerminalTransferGuard.allowedByPolicy(TerminalTransferGuard.Transfer.SNIPPET_COPY);
         }
         ObservableTtyConnector connector = tab.getTerminalView().getActiveAgentConnector();
         return connector instanceof LocalShellTtyConnector local && local.isConnected();
+    }
+
+    /**
+     * The policy's refusal of a copy into the tab's focused pane, or empty. Only a copy to a server
+     * is a file transfer; a local shell's folder is on this computer.
+     */
+    static Optional<String> policyRefusal(TerminalTab tab) {
+        if (tab == null || tab.getTerminalView() == null || tab.getTerminalView().getActiveSshConnector() == null) {
+            return Optional.empty();
+        }
+        return TerminalTransferGuard.policyRefusal(TerminalTransferGuard.Transfer.SNIPPET_COPY,
+            de.kortty.policy.PolicyManager.effective());
     }
 
     /**
@@ -75,6 +93,15 @@ final class SnippetTerminalTransfer {
     static void start(Window owner, TerminalTab tab, SnippetFolderLayout layout, String label, Runnable onFinished) {
         TerminalView view = tab.getTerminalView();
         SshTtyConnector ssh = view.getActiveSshConnector();
+        if (ssh != null) {
+            Optional<String> denied = TerminalTransferGuard.policyRefusal(
+                TerminalTransferGuard.Transfer.SNIPPET_COPY, de.kortty.policy.PolicyManager.effective());
+            if (denied.isPresent()) {
+                logger.info("Snippets not copied to the terminal directory: file transfer is disabled by policy");
+                showError(owner, denied.get());
+                return;
+            }
+        }
         TerminalView.TerminalAgentRunContext context = view.captureTerminalAgentRunContext();
         // FX thread: the verdict reads the screen; only the plain result reaches the worker.
         Optional<String> refusal = TerminalTransferGuard.refusalKey(

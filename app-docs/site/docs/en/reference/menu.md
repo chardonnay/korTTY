@@ -49,6 +49,7 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 | Import… | Import connections from other clients |
 | Export… | Export connections |
 | SFTP-Client… | Open the dual-panel SFTP file manager |
+| Open SFTP Here | Open the SFTP file manager on the focused terminal pane's own SSH session, in the folder its shell is in |
 
 ## Security
 

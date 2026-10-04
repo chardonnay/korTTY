@@ -388,6 +388,11 @@ class ClosedWindowMenuRouterTest {
         }
         assertThat(methodBody(window, "private Menu createConfigurationMenu() {"))
             .contains("ClosedWindowMenuRouter.noWindowNeeded(preventSleep);");
+        // Connections › Open SFTP Here borrows the session of this window's focused pane.
+        String connections = methodBody(window, "private Menu createConnectionsMenu() {");
+        assertThat(connections).contains("MenuItem sftpHere = menuItem(\"menu.connections.sftpHere\");");
+        assertThat(connections).contains("ClosedWindowMenuRouter.ownWindowOnly(sftpHere);");
+        assertThat(connections).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(sftpClient)");
         // Like Find, the command palette opens in the frontmost open window (the default need).
         String view = methodBody(window, "private Menu createViewMenu(MenuBarTarget target) {");
         assertThat(view).contains("MenuItem commandPalette = menuItem(\"menu.view.commandPalette\");");

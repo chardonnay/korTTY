@@ -8,7 +8,17 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+
+import de.kortty.policy.EffectivePolicy;
+import de.kortty.policy.FileTransferGate;
+import de.kortty.policy.PolicyDecision;
+import de.kortty.policy.PolicyFeature;
+import de.kortty.policy.PolicyFile;
+import de.kortty.policy.PolicyIdentity;
+import de.kortty.policy.PolicyRule;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -36,6 +46,68 @@ class TerminalTransferGuardTest {
         for (TerminalTransferGuard.Transfer transfer : TerminalTransferGuard.Transfer.values()) {
             assertThat(TerminalTransferGuard.refusalKey(transfer, false)).isEmpty();
         }
+    }
+
+    @Test
+    void aFileTransferDenyRefusesTerminalDropAndSnippetCopy() {
+        EffectivePolicy deny = policy(PolicyDecision.DENY);
+        for (TerminalTransferGuard.Transfer transfer : TerminalTransferGuard.Transfer.values()) {
+            assertWithMessage(transfer.name()).that(TerminalTransferGuard.policyRefusal(transfer, deny)).isPresent();
+            assertThat(TerminalTransferGuard.policyRefusal(transfer, deny).get()).contains("ACME");
+        }
+        assertThat(TerminalTransferGuard.Transfer.DROP.route()).isEqualTo(FileTransferGate.Route.TERMINAL_DROP);
+        assertThat(TerminalTransferGuard.Transfer.SNIPPET_COPY.route())
+            .isEqualTo(FileTransferGate.Route.SNIPPET_COPY_TO_TERMINAL);
+    }
+
+    @Test
+    void anAllowingPolicyLetsTerminalDropAndSnippetCopyThrough() {
+        for (EffectivePolicy allowing : List.of(policy(PolicyDecision.ALLOW), EffectivePolicy.unrestricted())) {
+            for (TerminalTransferGuard.Transfer transfer : TerminalTransferGuard.Transfer.values()) {
+                assertThat(TerminalTransferGuard.policyRefusal(transfer, allowing)).isEmpty();
+            }
+        }
+    }
+
+    @Test
+    void aDeniedDropIsRejectedWhileDraggingAndADeniedSnippetCopyIsGreyedOut() throws IOException {
+        String view = source("src/main/java/de/kortty/ui/TerminalView.java");
+        String over = method(view, "private boolean handleFileDragOver(");
+        int gate = over.indexOf("TerminalTransferGuard.allowedByPolicy(TerminalTransferGuard.Transfer.DROP)");
+        assertThat(gate).isAtLeast(0);
+        assertThat(gate).isLessThan(over.indexOf("event.acceptTransferModes(TransferMode.COPY)"));
+        assertThat(method(view, "private boolean handleFileDragDropped("))
+            .contains("TerminalTransferGuard.allowedByPolicy(TerminalTransferGuard.Transfer.DROP)");
+        String start = method(view, "private void startDroppedFileCopy(");
+        assertThat(start.indexOf("TerminalTransferGuard.policyRefusal(")).isLessThan(start.indexOf("copyDroppedFilesToServer("));
+
+        String transfer = source("src/main/java/de/kortty/ui/SnippetTerminalTransfer.java");
+        assertThat(method(transfer, "static boolean supports("))
+            .contains("TerminalTransferGuard.allowedByPolicy(TerminalTransferGuard.Transfer.SNIPPET_COPY)");
+        String snippetStart = method(transfer, "static void start(");
+        assertThat(snippetStart.indexOf("TerminalTransferGuard.policyRefusal(")).isLessThan(snippetStart.indexOf("new Thread("));
+        // Both snippet menus grey their "copy to terminal" items through supports().
+        assertThat(source("src/main/java/de/kortty/ui/SnippetLibraryPane.java"))
+            .contains("return tab != null && SnippetTerminalTransfer.supports(tab);");
+        assertThat(source("src/main/java/de/kortty/ui/SnippetFolderTreePane.java"))
+            .contains("copyToTerminal.setDisable(!folder || !actions.canCopyToTerminal());");
+    }
+
+    private static EffectivePolicy policy(PolicyDecision fileTransfer) {
+        PolicyIdentity user = new PolicyIdentity() {
+            @Override
+            public String userName() {
+                return "u";
+            }
+
+            @Override
+            public Set<String> osGroups() {
+                return Set.of();
+            }
+        };
+        PolicyRule rule = PolicyRule.builder().features(Map.of(PolicyFeature.FILE_TRANSFER, fileTransfer)).build();
+        return EffectivePolicy.resolve(new PolicyFile(1, "ACME", Map.of(), List.of(rule),
+            List.of(), List.of(), List.of(), List.of()), user);
     }
 
     @Test

@@ -42,10 +42,11 @@ The search text, the names of commands, tabs, connections, snippets and rule set
 
 ### SFTP transfers
 
-When an upload or download in the SFTP Manager finishes, one event says how it went. File counts are rounded down to 0, 1, 2, 5, 10, 50, 100 or 1000.
+When an SFTP Manager tab opens, one event says whether it shares a terminal's session. When an upload or download in the SFTP Manager finishes, one event says how it went. File counts are rounded down to 0, 1, 2, 5, 10, 50, 100 or 1000.
 
 | Event | Sent when | Data |
 | --- | --- | --- |
+| `sftp_opened` | an SFTP Manager tab opens | whether it uses a terminal pane's SSH session or a login of its own |
 | `sftp_transfer_batch` | an upload or download batch (one button press or one drop) is finished | `upload` or `download`, the rounded number of files, whether it ended `done`, `partial`, `failed` or `cancelled`, whether a file continued a partial file, and how many files were copied at once |
 
 File and folder names, paths, server names and file sizes are never sent.

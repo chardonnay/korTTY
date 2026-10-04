@@ -436,6 +436,8 @@ public class TerminalView extends BorderPane {
     private java.util.function.BooleanSupplier menuBarHiddenSupplier;
     private Runnable menuBarRestoreHandler;
     private TerminalTextFileLoadHandler terminalTextFileLoadHandler;
+    /** Opens SFTP on a pane's session in its folder ("Open SFTP here"); null hides the pane item. */
+    private java.util.function.@Nullable Consumer<SithTermFxWidget> sftpHereHandler;
     // Read on the emulator thread too, when an OSC 8 file: link arrives.
     private volatile TerminalPathOpenHandler terminalPathOpenHandler;
     private TerminalAgentContextHandler aiAgentHandler;
@@ -768,6 +770,15 @@ public class TerminalView extends BorderPane {
                 items.add(loadTextFileItem);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
             }
+            // SFTP on this pane's own SSH session, in its folder; SSH panes only (not Mosh or local).
+            if (sftpHereHandler != null && fileDropConnector(widget) != null) {
+                javafx.scene.control.MenuItem sftpHereItem =
+                    new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.sftpHere"));
+                java.util.function.Consumer<SithTermFxWidget> handler = sftpHereHandler;
+                sftpHereItem.setOnAction(e -> handler.accept(widget));
+                items.add(sftpHereItem);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
             if (shouldShowAiContextMenu(aiProfiles, hasSelectedText, hasAgentActions)) {
                 javafx.scene.control.Menu aiMenu = new javafx.scene.control.Menu(I18n.get("terminal.contextMenu.ai"));
                 if (hasExecutableAgentAction) {
@@ -988,6 +999,11 @@ public class TerminalView extends BorderPane {
 
     public void setTerminalTextFileLoadHandler(@Nullable TerminalTextFileLoadHandler terminalTextFileLoadHandler) {
         this.terminalTextFileLoadHandler = terminalTextFileLoadHandler;
+    }
+
+    /** Adds "Open SFTP here" to the context menu of every SSH pane; null removes it. */
+    public void setSftpHereHandler(java.util.function.@Nullable Consumer<SithTermFxWidget> handler) {
+        this.sftpHereHandler = handler;
     }
 
     /**
@@ -2207,7 +2223,11 @@ public class TerminalView extends BorderPane {
     /** Returns true if the event was handled (caller should consume). */
     private boolean handleFileDragOver(DragEvent event) {
         if (fileDropConnector(fileDropPane(event)) != null) {
-            event.acceptTransferModes(TransferMode.COPY);
+            // A policy that denies file transfer rejects the drag while it is still over the pane
+            // (no copy cursor), and nothing below the pane takes the files either.
+            if (TerminalTransferGuard.allowedByPolicy(TerminalTransferGuard.Transfer.DROP)) {
+                event.acceptTransferModes(TransferMode.COPY);
+            }
             return true;
         }
         return false;
@@ -2226,6 +2246,10 @@ public class TerminalView extends BorderPane {
         if (fileDropConnector(pane) == null) {
             event.setDropCompleted(false);
             return false;
+        }
+        if (!TerminalTransferGuard.allowedByPolicy(TerminalTransferGuard.Transfer.DROP)) {
+            event.setDropCompleted(false);
+            return true;
         }
         List<java.io.File> dropped = db.getFiles();
         if (dropped == null || dropped.isEmpty()) {
@@ -2250,6 +2274,13 @@ public class TerminalView extends BorderPane {
         }
         if (splitPane != null) {
             splitPane.focusWidget(pane);
+        }
+        Optional<String> denied = TerminalTransferGuard.policyRefusal(
+            TerminalTransferGuard.Transfer.DROP, de.kortty.policy.PolicyManager.effective());
+        if (denied.isPresent()) {
+            logger.info("Dropped files not copied: file transfer is disabled by policy");
+            showDropRefusal(denied.get());
+            return;
         }
         boolean foreignSession = isForeignSessionActive(createTerminalAgentRunContext(pane));
         Optional<String> refusal = TerminalTransferGuard.refusalKey(
@@ -2310,6 +2341,49 @@ public class TerminalView extends BorderPane {
         PaneOrigin origin = paneOrigins.resolve(pane, tabOrigin());
         return new PaneSessionSupplier<>(this, pane, PaneSessionSupplier.Identity.of(origin.connection()),
             TerminalView::currentPaneSession);
+    }
+
+    /**
+     * What "Open SFTP here" needs from {@code pane}, gathered on the FX thread: a supplier of its
+     * SSH session, the connection it runs, its dedupe key and where the SFTP tab starts. Null for a
+     * pane without a connected SSH session (local shell, Mosh, Telnet, closed).
+     */
+    public @Nullable SftpOpenRequest captureSftpOpenRequest(@Nullable SithTermFxWidget pane) {
+        de.kortty.core.sftp.BorrowedSessionSupplier supplier = borrowedSessionSupplier(pane);
+        SshTtyConnector ssh = fileDropConnector(pane);
+        if (supplier == null || ssh == null) {
+            return null;
+        }
+        ServerConnection connection = paneConnection(pane);
+        // FX thread: the verdict reads the screen; only plain values leave this method.
+        boolean foreign = isForeignSessionActive(pane, ssh);
+        String promptDirectory = resolveWorkingDirectoryFromPrompt(pane, ssh);
+        de.kortty.ui.sftp.SftpOpenTargetResolver.OpenTarget target = de.kortty.ui.sftp.SftpOpenTargetResolver.resolve(
+            new de.kortty.ui.sftp.SftpOpenTargetResolver.Inputs(foreign, ssh.getCurrentRemoteDirectory(),
+                ssh.getCurrentRemoteDirectorySource(), promptDirectory, ssh.getHomeRemoteDirectory(),
+                ssh.hasShellStartupCommandConfigured()));
+        String key = de.kortty.ui.sftp.SftpTabKeys.borrowed(terminalViewId,
+            de.kortty.codingagent.TerminalScreenCapture.paneIdOf(pane));
+        String label = connection != null ? connection.getHost() + ":" + connection.getPort() : "terminal";
+        return new SftpOpenRequest(supplier, connection, key, target, label);
+    }
+
+    /**
+     * "Open SFTP here" for one pane, see {@link #captureSftpOpenRequest}.
+     *
+     * @param supplier       resolves the pane's current SSH session, identity-checked
+     * @param paneConnection the connection the pane runs (for the attach and the fallback login)
+     * @param dedupeKey      one SFTP tab per pane ({@link de.kortty.ui.sftp.SftpTabKeys#borrowed})
+     * @param target         where the SFTP tab starts
+     * @param label          a log label ({@code host:port}), never a secret
+     */
+    public record SftpOpenRequest(de.kortty.core.sftp.BorrowedSessionSupplier supplier, ServerConnection paneConnection,
+            String dedupeKey, de.kortty.ui.sftp.SftpOpenTargetResolver.OpenTarget target, String label) {
+    }
+
+    /** The pane that has the keyboard focus, or the only pane. */
+    public @Nullable SithTermFxWidget focusedPane() {
+        return splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
     }
 
     /** The connection {@code pane} runs: its own {@link PaneOrigin}'s, else the tab's. */

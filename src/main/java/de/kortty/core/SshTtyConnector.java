@@ -93,6 +93,8 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private volatile String shellStartupCommand;
     private volatile boolean shellStartupCleanupPending;
     private volatile String currentRemoteDirectory = "~";
+    /** Where {@link #currentRemoteDirectory} came from; null until the first tracked change. */
+    private volatile RemoteDirectoryChange.Source currentRemoteDirectorySource;
     private volatile String homeRemoteDirectory = "~";
     private volatile String previousRemoteDirectory = "~";
     private final Deque<String> directoryStack = new ArrayDeque<>();
@@ -1131,6 +1133,17 @@ public class SshTtyConnector implements ObservableTtyConnector {
         }
     }
 
+    /**
+     * Where the {@linkplain #getCurrentRemoteDirectory() tracked directory} came from, or null while
+     * it is still the initial {@code ~}. A {@link RemoteDirectoryChange.Source#TYPED_CD} value is
+     * low-confidence: it was recorded before the shell ran the line.
+     */
+    public RemoteDirectoryChange.Source getCurrentRemoteDirectorySource() {
+        synchronized (directoryLock) {
+            return currentRemoteDirectorySource;
+        }
+    }
+
     public String getHomeRemoteDirectory() {
         synchronized (directoryLock) {
             return homeRemoteDirectory;
@@ -1219,6 +1232,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
                     || "~".equals(currentRemoteDirectory)) {
                 currentChanged = !resolved.equals(currentRemoteDirectory);
                 currentRemoteDirectory = resolved;
+                currentRemoteDirectorySource = RemoteDirectoryChange.Source.HOME_HINT;
             }
             if (previousRemoteDirectory == null
                     || previousRemoteDirectory.isBlank()
@@ -1659,6 +1673,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
             if (!normalized.equals(currentRemoteDirectory)) {
                 previousRemoteDirectory = currentRemoteDirectory;
                 currentRemoteDirectory = normalized;
+                currentRemoteDirectorySource = source;
                 changed = true;
                 logger.debug("Tracked remote directory updated to {}", normalized);
             }
