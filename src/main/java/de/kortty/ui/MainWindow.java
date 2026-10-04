@@ -7489,7 +7489,8 @@ public class MainWindow {
                                 : de.kortty.core.ScrollbackSnapshotCodec.DEFAULT_LINES,
                         () -> application.getMasterPasswordManager() != null
                                 ? application.getMasterPasswordManager().getDerivedKey() : null,
-                        writesAllowed,
+                        // Only the korTTY that writes the session snapshot writes or deletes its output files.
+                        () -> writesAllowed.getAsBoolean() && store.canWrite(),
                         MainWindow::openTerminalViews,
                         () -> {
                             SessionSnapshot saved = sessionAutosave != null ? sessionAutosave.savedSnapshot() : null;

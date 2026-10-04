@@ -34,6 +34,15 @@ class SessionScrollbackRecorderTest {
     }
 
     @Test
+    void existingRefNeverNamesANewFile() {
+        assertWithMessage("a locked vault names no new file").that(recorder.existingRef("a")).isNull();
+        assertThat(recorder.hasRef("a")).isFalse();
+        String ref = recorder.refOf("a", 10L);
+        assertWithMessage("a pane keeps its file while the vault is locked").that(recorder.existingRef("a"))
+            .isEqualTo(ref);
+    }
+
+    @Test
     void aPaneWithoutOutputGetsNoFile() {
         assertThat(recorder.refOf("quiet", PaneOutputClock.NEVER)).isNull();
         assertThat(recorder.hasRef("quiet")).isFalse();

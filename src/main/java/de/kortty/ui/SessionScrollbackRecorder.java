@@ -80,6 +80,12 @@ final class SessionScrollbackRecorder<P> {
         return entry.ref;
     }
 
+    /** The file name {@code pane} already has, or {@code null}; never assigns one. */
+    synchronized @Nullable String existingRef(@Nullable P pane) {
+        Entry entry = pane != null ? entries.get(pane) : null;
+        return entry != null ? entry.ref : null;
+    }
+
     /** Whether {@code pane} has a file name already. */
     synchronized boolean hasRef(@Nullable P pane) {
         return pane != null && entries.containsKey(pane);

@@ -95,26 +95,32 @@ final class SessionScrollbackCoordinator {
      */
     void start() {
         boolean enabled = environment.enabled().getAsBoolean();
-        submit(() -> {
-            if (!enabled) {
-                store.purge();
-            } else {
-                store.retainOnly(startupRefs);
-            }
-        });
+        if (!environment.writesAllowed().getAsBoolean()) {
+            // Another korTTY writes the session snapshot (or a restored backup waits for the
+            // restart): the files are its files, and this one deletes none of them.
+            logger.info("Saved terminal output is left to the korTTY that writes the session snapshot");
+        } else {
+            submit(() -> {
+                if (!enabled) {
+                    store.purge();
+                } else {
+                    store.retainOnly(startupRefs);
+                }
+            });
+        }
         worker.scheduleWithFixedDelay(() -> environment.fxPost().accept(this::writeChangedPanes),
             INTERVAL_SECONDS, INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
-    /** Whether panes' output is saved now: the setting is on and the vault is open. FX thread. */
-    boolean isActive() {
-        return !stopped && environment.enabled().getAsBoolean() && environment.key().get() != null;
-    }
-
     /** The file name the session snapshot names for {@code pane}, or null. FX thread. */
     @Nullable String refOf(TerminalView view, @Nullable SithTermFxWidget pane) {
-        if (pane == null || !isActive()) {
+        if (pane == null || stopped || !environment.enabled().getAsBoolean()) {
             return null;
+        }
+        if (environment.key().get() == null) {
+            // The vault is locked now: no new file is named, but a pane keeps the file it already
+            // has, so a snapshot saved while locked still leads the next start to its output.
+            return recorder.existingRef(pane);
         }
         return recorder.refOf(pane, view.lastPaneOutputNanos(pane));
     }
