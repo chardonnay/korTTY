@@ -133,6 +133,22 @@ public class ControlApiMcpGateTest {
         }
     }
 
+    @Test(timeOut = 60_000)
+    void aMalformedMcpSessionIdIsRefusedAtAuth() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            JsonObject frame = wire.call(ControlConnection.AUTH_METHOD, ControlApiScenarioFixtures.params(
+                "token", endpoint.token(), "client", "gate-test", "client_kind", "mcp",
+                "mcp_session", "short\nid"));
+            JsonObject data = assertRefused(frame, ControlErrorCode.INVALID_PARAMS);
+            assertThat(data.get("param").getAsString()).isEqualTo(ControlConnection.MCP_SESSION_PARAM);
+        }
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            assertThat(wire.call(ControlConnection.AUTH_METHOD, ControlApiScenarioFixtures.params(
+                "token", endpoint.token(), "client", "gate-test", "client_kind", "mcp",
+                "mcp_session", "0b6f2f0e-6c1d-4a59-9a8e-3a1c2b4d5e6f")).has("result")).isTrue();
+        }
+    }
+
     // --- refusals after the handshake ------------------------------------------------------------
 
     @Test(timeOut = 60_000)

@@ -76,6 +76,18 @@ public interface ControlSurface {
     }
 
     /**
+     * What stands between an MCP client and typing into the pane: a pacing paste, a full-screen
+     * program, a suspected foreign session, broadcast or multi-exec, a coding agent — plus the label
+     * the consent prompt shows. The default describes nothing, and an unknown pane state is always
+     * refused, so a surface that does not implement this never lets an MCP client type.
+     *
+     * @throws ControlApiException {@link ControlErrorCode#PANE_NOT_FOUND}
+     */
+    default McpPaneWriteState mcpWriteStateOf(String paneId) throws ControlApiException {
+        return McpPaneWriteState.unknown(paneId);
+    }
+
+    /**
      * Writes raw bytes to the pane's pty, with the same visibility and ordering guarantees as a user
      * keystroke because it happens on this thread.
      *

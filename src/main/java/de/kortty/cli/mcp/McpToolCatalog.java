@@ -304,7 +304,8 @@ public final class McpToolCatalog {
         tools.add(new McpTool("pane_send_text", "Type text into a pane", "pane.send_text",
             "Types text into a pane as if the user typed it; with submit it also presses Enter, which"
                 + " runs whatever the text says on that host. Only offered while the user allows MCP"
-                + " write tools in korTTY. korTTY may refuse it." + UNTRUSTED,
+                + " write tools in korTTY. korTTY asks the user before it types, and may refuse."
+                + UNTRUSTED,
             schema(props(
                 "pane", string(PANE_DOC),
                 "text", string("The text; a newline becomes Enter."),
@@ -315,8 +316,8 @@ public final class McpToolCatalog {
             true));
         tools.add(new McpTool("pane_run", "Run a command in a pane", "pane.run",
             "Types one single-line command into a pane and presses Enter, so it runs on that host."
-                + " Only offered while the user allows MCP write tools in korTTY. korTTY may refuse"
-                + " it." + UNTRUSTED,
+                + " Only offered while the user allows MCP write tools in korTTY. korTTY asks the user"
+                + " before every command, and may refuse." + UNTRUSTED,
             schema(props(
                 "pane", string(PANE_DOC),
                 "command", string("One command line without line breaks.")),
@@ -324,7 +325,8 @@ public final class McpToolCatalog {
             true));
         tools.add(new McpTool("pane_send_keys", "Send keys to a pane", "pane.send_keys",
             "Sends named keys to a pane, for example [\"ctrl+c\"] or [\"up\", \"enter\"]. Only offered"
-                + " while the user allows MCP write tools in korTTY. korTTY may refuse it." + UNTRUSTED,
+                + " while the user allows MCP write tools in korTTY. korTTY asks the user before every"
+                + " call, and may refuse." + UNTRUSTED,
             schema(props(
                 "pane", string(PANE_DOC),
                 "keys", stringArray("Key names such as enter, tab, escape, up, ctrl+c.")),

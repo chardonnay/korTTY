@@ -71,7 +71,11 @@ final class BaseVerbs {
                         "A name for this client, for the korTTY log."),
                     new ParamSpec("client_kind", "string", false, "cli",
                         "cli for scripts and kortty-cli; mcp for the MCP server facade, which is held "
-                            + "to the MCP allowlist. Any other value is refused.")),
+                            + "to the MCP allowlist. Any other value is refused."),
+                    new ParamSpec(ControlConnection.MCP_SESSION_PARAM, "string", false, null,
+                        "mcp only: a random id, 16 to 64 letters, digits or dashes, that one MCP server "
+                            + "process sends with every connection; it scopes the 'allow for this pane "
+                            + "in this session' write consent.")),
                 "{api, protocol_version, app_version, pid, transport, instance_id, "
                     + "server_time_millis, ids_survive_restart, capabilities, methods}",
                 List.of(ControlErrorCode.UNAUTHORIZED, ControlErrorCode.INVALID_PARAMS),

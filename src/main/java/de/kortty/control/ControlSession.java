@@ -18,10 +18,14 @@ import java.util.function.Consumer;
  * @param client the client name the caller passed to {@code auth}, or null
  * @param clientKind what kind of client the caller declared in {@code auth}'s {@code client_kind};
  *     {@link ClientKind#CLI} until then
+ * @param mcpSession the {@code mcp_session} id an MCP client sent with {@code auth}, or null; it
+ *     scopes the "allow for this pane in this session" consent grants of {@link McpWriteConsent}
+ *     across the several connections one MCP server process opens
  * @param notifier accepts event frames for this connection
  */
 public record ControlSession(String connectionId, String transport, boolean authenticated,
-                             String client, ClientKind clientKind, Consumer<ControlFrame> notifier) {
+                             String client, ClientKind clientKind, String mcpSession,
+                             Consumer<ControlFrame> notifier) {
 
     /**
      * The kind of client a connection declared in {@code auth}.
@@ -64,7 +68,13 @@ public record ControlSession(String connectionId, String transport, boolean auth
     /** A {@link ClientKind#CLI} session, the shape every connection had before {@code client_kind}. */
     public ControlSession(String connectionId, String transport, boolean authenticated, String client,
                           Consumer<ControlFrame> notifier) {
-        this(connectionId, transport, authenticated, client, ClientKind.CLI, notifier);
+        this(connectionId, transport, authenticated, client, ClientKind.CLI, null, notifier);
+    }
+
+    /** A session without an {@code mcp_session} id. */
+    public ControlSession(String connectionId, String transport, boolean authenticated, String client,
+                          ClientKind clientKind, Consumer<ControlFrame> notifier) {
+        this(connectionId, transport, authenticated, client, clientKind, null, notifier);
     }
 
     /** Whether this connection arrived over the POSIX unix-domain socket. */

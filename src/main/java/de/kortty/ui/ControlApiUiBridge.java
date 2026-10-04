@@ -15,6 +15,7 @@ import de.kortty.control.ControlApiException;
 import de.kortty.control.ControlErrorCode;
 import de.kortty.control.ControlIds;
 import de.kortty.control.ControlSurface;
+import de.kortty.control.McpPaneWriteState;
 import de.kortty.control.PaneAddress;
 import de.kortty.control.PaneInfo;
 import de.kortty.control.PaneReader;
@@ -268,6 +269,51 @@ public final class ControlApiUiBridge implements ControlSurface, UiDispatcher {
     }
 
     // ---- writing ------------------------------------------------------------------------------
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Reuses the guards the terminal applies before it types on its own — paste pacing, the
+     * alternate screen, the foreign-session suspicion, broadcast and multi-exec, and a coding agent
+     * or agent run — rather than re-deriving any of them.
+     */
+    @Override
+    public McpPaneWriteState mcpWriteStateOf(String paneId) throws ControlApiException {
+        requireUiThread("mcpWriteStateOf");
+        Located located = requireLocated(paneId);
+        TerminalView view = located.view();
+        SithTermFxWidget widget = located.widget();
+        PaneRef ref = view.paneRefOf(widget).orElse(null);
+        boolean detected = ref != null && registry.entry(ref).isPresent();
+        return new McpPaneWriteState(paneLabelOf(located, paneId), true,
+            view.isPanePastePacing(widget), geometryOf(widget).alternateScreen(),
+            view.isPaneInForeignSession(widget), view.isBroadcastMode(),
+            MultiExecCoordinator.shared().isMember(widget),
+            detected || view.isPaneDrivenByAgent(widget));
+    }
+
+    /** "Tab title — user@host — pane id", what the consent prompt names the pane by. */
+    private static String paneLabelOf(Located located, String paneId) {
+        StringBuilder label = new StringBuilder();
+        TerminalTab tab = located.window()
+            .findTerminalTabByViewId(located.view().getTerminalViewId()).orElse(null);
+        String title = tab == null ? null : CodingAgentUiBridge.tabTitleOf(tab);
+        if (title != null && !title.isBlank()) {
+            label.append(title.strip());
+        }
+        ServerConnection connection = located.view().getConnection();
+        if (connection != null && connection.getHost() != null && !connection.getHost().isBlank()) {
+            if (!label.isEmpty()) {
+                label.append(" \u2014 ");
+            }
+            String user = connection.getUsername();
+            label.append(user == null || user.isBlank() ? "" : user + "@").append(connection.getHost());
+        }
+        if (!label.isEmpty()) {
+            label.append(" \u2014 ");
+        }
+        return label.append(paneId).toString();
+    }
 
     @Override
     public int write(String paneId, byte[] bytes) throws ControlApiException {

@@ -39,7 +39,24 @@ class ControlApiI18nCoverageTest {
         "settings.controlApi.status.failed",
         // Runtime: the one desktop notification per run that makes a takeover impossible to miss
         "controlApi.notify.takeover.title",
-        "controlApi.notify.takeover.body");
+        "controlApi.notify.takeover.body",
+        // Runtime: the consent modal before every MCP client write (McpWriteConsentDialog)
+        "controlApi.mcpConsent.title",
+        "controlApi.mcpConsent.header",
+        "controlApi.mcpConsent.client",
+        "controlApi.mcpConsent.pane",
+        "controlApi.mcpConsent.action",
+        "controlApi.mcpConsent.action.sendText",
+        "controlApi.mcpConsent.action.run",
+        "controlApi.mcpConsent.action.sendKeys",
+        "controlApi.mcpConsent.submits",
+        "controlApi.mcpConsent.submits.yes",
+        "controlApi.mcpConsent.submits.no",
+        "controlApi.mcpConsent.text",
+        "controlApi.mcpConsent.warning",
+        "controlApi.mcpConsent.deny",
+        "controlApi.mcpConsent.allowOnce",
+        "controlApi.mcpConsent.allowSession");
 
     @Test
     void allControlApiKeysExistInEveryBundledLocaleAndKeepPlaceholderCounts() throws Exception {

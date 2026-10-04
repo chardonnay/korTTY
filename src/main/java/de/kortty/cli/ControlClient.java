@@ -171,6 +171,17 @@ public final class ControlClient implements AutoCloseable {
      */
     public JsonObject authenticate(String client, String clientKind)
             throws IOException, CliServerException {
+        return authenticate(client, clientKind, null);
+    }
+
+    /**
+     * The same, with the {@code mcp_session} id one {@code kortty-cli mcp} process sends with every
+     * connection, so korTTY can keep an "allow for this pane in this session" consent across them.
+     *
+     * @param mcpSession a random id of 16 to 64 letters, digits or dashes, or null
+     */
+    public JsonObject authenticate(String client, String clientKind, String mcpSession)
+            throws IOException, CliServerException {
         JsonObject params = new JsonObject();
         params.addProperty("token", endpoint.token());
         if (client != null && !client.isBlank()) {
@@ -178,6 +189,9 @@ public final class ControlClient implements AutoCloseable {
         }
         if (clientKind != null && !clientKind.isBlank()) {
             params.addProperty("client_kind", clientKind);
+        }
+        if (mcpSession != null && !mcpSession.isBlank()) {
+            params.addProperty("mcp_session", mcpSession);
         }
         JsonElement result = call("auth", params);
         return result != null && result.isJsonObject() ? result.getAsJsonObject() : new JsonObject();

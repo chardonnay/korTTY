@@ -137,7 +137,7 @@ final class PaneIoVerbs {
                 boolean submit = ControlJson.optBool(params, "submit", false);
                 String bracketed = ControlJson.optString(params, "bracketed", "auto");
                 boolean allow = ControlJson.optBool(params, "allow_shortcut_conflict", false);
-                return BaseVerbs.tree(writer.sendText(pane.paneId(), text, submit, bracketed, allow));
+                return BaseVerbs.tree(writer.sendText(session, pane.paneId(), text, submit, bracketed, allow));
             });
     }
 
@@ -163,7 +163,7 @@ final class PaneIoVerbs {
                 BaseVerbs.requireInstance(params, instanceId);
                 PaneInfo pane = BaseVerbs.requirePane(surface, ui, params);
                 String command = ControlJson.requireString(params, "command");
-                return BaseVerbs.tree(writer.run(pane.paneId(), command));
+                return BaseVerbs.tree(writer.run(session, pane.paneId(), command));
             });
     }
 
@@ -189,7 +189,7 @@ final class PaneIoVerbs {
             (session, params) -> {
                 BaseVerbs.requireInstance(params, instanceId);
                 PaneInfo pane = BaseVerbs.requirePane(surface, ui, params);
-                return BaseVerbs.tree(writer.sendKeys(pane.paneId(), keys(params)));
+                return BaseVerbs.tree(writer.sendKeys(session, pane.paneId(), keys(params)));
             });
     }
 

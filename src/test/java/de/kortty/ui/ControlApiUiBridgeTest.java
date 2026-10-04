@@ -66,6 +66,8 @@ class ControlApiUiBridgeTest {
         assertThat(refusal(() -> bridge.readerFor("p1"))).hasMessageThat().contains("readerFor");
         assertThat(refusal(() -> bridge.secretRedactorFor("p1"))).hasMessageThat()
             .contains("secretRedactorFor");
+        assertThat(refusal(() -> bridge.mcpWriteStateOf("p1"))).hasMessageThat()
+            .contains("mcpWriteStateOf");
         assertThat(refusal(() -> bridge.write("p1", new byte[] {1}))).hasMessageThat().contains("write");
         assertThat(refusal(() -> bridge.isBracketedPasteEnabled("p1"))).hasMessageThat()
             .contains("isBracketedPasteEnabled");

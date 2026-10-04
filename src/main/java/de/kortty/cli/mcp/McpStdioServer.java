@@ -13,6 +13,7 @@ import de.kortty.control.ControlErrorCode;
 import de.kortty.control.ControlJson;
 import de.kortty.control.ControlSession;
 import de.kortty.control.EndpointDescriptor;
+import de.kortty.control.McpWriteConsent;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -145,12 +146,15 @@ public final class McpStdioServer {
 
     /** The production backend: {@code endpoint.json} below {@code configDir}, then {@link ControlClient}. */
     public static Backend controlBackend(Path configDir) {
+        // One id per MCP server process: korTTY scopes "allow for this pane in this session" to it,
+        // so a grant outlives the connection each tool call opens but not this process.
+        String mcpSession = java.util.UUID.randomUUID().toString();
         return (name, timeoutMillis) -> {
             EndpointDescriptor endpoint = ControlDiscovery.read(configDir);
             ControlClient client = ControlClient.connect(endpoint, timeoutMillis);
             JsonObject hello;
             try {
-                hello = client.authenticate(name, ControlSession.ClientKind.MCP.wire());
+                hello = client.authenticate(name, ControlSession.ClientKind.MCP.wire(), mcpSession);
             } catch (IOException | CliServerException | RuntimeException e) {
                 client.close();
                 throw e;
@@ -357,8 +361,14 @@ public final class McpStdioServer {
         send(result(id, outcome));
     }
 
-    /** The client deadline: a fixed one, or a waiting tool's own wait plus slack. */
+    /**
+     * The client deadline: a fixed one; for a write tool, the time the user has to answer korTTY's
+     * consent prompt plus slack; or a waiting tool's own wait plus slack.
+     */
     static long timeoutFor(McpToolCatalog.McpTool tool, JsonObject wire) {
+        if (tool.write()) {
+            return McpWriteConsent.PROMPT_TIMEOUT_MILLIS + CALL_TIMEOUT_MILLIS;
+        }
         if (!"pane.wait_output".equals(tool.method())) {
             return CALL_TIMEOUT_MILLIS;
         }

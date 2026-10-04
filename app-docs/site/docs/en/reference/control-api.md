@@ -144,6 +144,33 @@ Everything an `mcp` client reads is masked, always, because its model usually ru
 
 `pane.read` and `pane.wait_output` give an `mcp` client at most 2000 rows and 64,000 characters, the newest ones kept, and set `truncated` when anything was left out; a `cli` client keeps the protocol's own limits. `pane.read` adds `masked_count`, the number of secrets masked in what it returned. `pane.wait_output` searches the masked text, so a pattern cannot confirm a guessed password by whether it matched. A `cli` client reads the raw text exactly as before.
 
+### Writes by an MCP client
+
+When **Allow write tools** is on, korTTY still asks you before every write an `mcp` client wants to make. `pane.send_text`, `pane.run` and `pane.send_keys` open a prompt in korTTY that shows the client's name, marked as reported by the client because nothing proves it, the target pane with its tab title and host, whether the write submits a line, and the exact text or key names. Control characters and invisible characters are shown as symbols, such as `␊` for a line break, `␛` for Escape and `<U+202E>` for a direction override, so nothing reaches the pane that you could not see.
+
+| Answer | What it allows |
+| --- | --- |
+| **Deny** (the default button) | Nothing; the call answers `mcp_write_denied` with `data.reason` `denied` |
+| **Allow once** | This one write |
+| **Allow for this pane in this session** | This write, and every later `pane.send_text` into the same pane from the same MCP server process without another question, as long as the text submits nothing |
+
+The third answer is offered only for `pane.send_text` whose text contains no line break and no other control character and does not set `submit`. `pane.run`, `pane.send_keys` and any text that submits a line always ask, because one click must never let an assistant run whatever it wants afterwards. The session is the `kortty-cli mcp` process: it sends a random `mcp_session` id with every connection, so the answer lasts until the assistant's host stops that process or korTTY quits. A client that sends no `mcp_session` keeps the answer for one connection only.
+
+A prompt that is not answered within 60 seconds counts as Deny (`data.reason` `timeout`), and so does a korTTY that cannot show one (`no_prompt`). Only one prompt is open at a time; a second write waits for the first, within the same 60 seconds. The call waits on its own connection while you decide, never on korTTY's user interface.
+
+korTTY refuses some writes without asking, with `mcp_write_refused` and a `data.reason`, because it would not type into such a pane on its own either:
+
+| `data.reason` | The pane |
+| --- | --- |
+| `paste_pacing` | is still sending a paste line by line |
+| `alternate_screen` | shows a full-screen program such as `vim` or `less` |
+| `foreign_session` | is suspected to run as another user or host, after `su` or a nested `ssh` |
+| `broadcast` | is in a tab with broadcast mode on |
+| `multi_exec` | takes part in multi-exec |
+| `coding_agent` | shows a detected coding agent, or a korTTY agent run drives it |
+
+These checks run again right before the text is typed, so a pane that opens `vim` while you read the prompt is still refused. Every decision, including each refusal and each write a session answer allowed, is written to korTTY's log as an `mcp.consent` line with the method, the decision, the reason, the number of characters and the client name, but never the text.
+
 !!! warning "A narrower surface, not a sandbox"
     `client_kind` is declared by the client, not proven. The list limits what an MCP server exposes to an AI assistant; it does not protect korTTY from an assistant that can also run shell commands as you, because any program of yours can read the token and connect as `cli`. Treat every MCP client as a cloud model and everything it reads from a terminal as untrusted text.
 

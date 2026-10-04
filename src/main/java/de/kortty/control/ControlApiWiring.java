@@ -109,12 +109,29 @@ public final class ControlApiWiring {
                                           PaneAccess panes, DesktopNotifier notifier,
                                           Supplier<ControlApiGate.Verdict> gate,
                                           Supplier<McpGate.Verdict> mcpGate, String appVersion) {
+        return create(configDir, probe, surface, ui, registry, panes, notifier, gate, mcpGate,
+            McpWriteConsent.NO_PROMPT, appVersion);
+    }
+
+    /**
+     * The same, plus the prompt that asks the user before each write of an MCP client.
+     *
+     * @param mcpPrompter shows the consent modal, normally {@code de.kortty.ui.McpWriteConsentDialog};
+     *     {@link McpWriteConsent#NO_PROMPT} denies every MCP write
+     */
+    public static ControlApiServer create(Path configDir, PlatformProbe probe, ControlSurface surface,
+                                          UiDispatcher ui, CodingAgentRegistry registry,
+                                          PaneAccess panes, DesktopNotifier notifier,
+                                          Supplier<ControlApiGate.Verdict> gate,
+                                          Supplier<McpGate.Verdict> mcpGate,
+                                          McpWriteConsent.Prompter mcpPrompter, String appVersion) {
         String instanceId = UUID.randomUUID().toString();
         ControlEventBus events = new ControlEventBus(eventTimer(), System::currentTimeMillis);
         ControlAuditSink sink = auditSink(notifier);
         CodingAgentActions controlActions = new CodingAgentActions(registry, panes, agentAuditSink(sink));
         MethodRegistry methods = ControlVerbs.build(surface, ui, registry, controlActions, events,
-            sink, notifier, System::currentTimeMillis, appVersion, instanceId);
+            sink, notifier, System::currentTimeMillis, appVersion, instanceId,
+            new McpWriteConsent(mcpPrompter, sink));
         ControlApiServer server = new ControlApiServer(configDir, probe, methods, gate, mcpGate,
             System::currentTimeMillis, appVersion, instanceId, events);
         BUSES.put(server, events);

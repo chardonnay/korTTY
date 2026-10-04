@@ -33,6 +33,8 @@ final class FakeControlSurface implements ControlSurface {
 
     private final Map<String, Boolean> bracketedPaste = new LinkedHashMap<>();
 
+    private final Map<String, McpPaneWriteState> mcpWriteStates = new java.util.concurrent.ConcurrentHashMap<>();
+
     private final Map<String, Charset> charsets = new LinkedHashMap<>();
 
     private final List<String> focusedPanes = new ArrayList<>();
@@ -97,6 +99,11 @@ final class FakeControlSurface implements ControlSurface {
 
     void setSecrets(String paneId, SessionJournalRedactor redactor) {
         secrets.put(paneId, redactor);
+    }
+
+    /** What {@link #mcpWriteStateOf} answers for the pane; a clear state when never set. */
+    void setMcpWriteState(String paneId, McpPaneWriteState state) {
+        mcpWriteStates.put(paneId, state);
     }
 
     void setBracketedPaste(String paneId, boolean enabled) {
@@ -253,6 +260,12 @@ final class FakeControlSurface implements ControlSurface {
     public Optional<SessionJournalRedactor> secretRedactorFor(String paneId) {
         record("secretRedactorFor");
         return Optional.ofNullable(secrets.get(paneId));
+    }
+
+    @Override
+    public McpPaneWriteState mcpWriteStateOf(String paneId) {
+        record("mcpWriteStateOf");
+        return mcpWriteStates.getOrDefault(paneId, McpPaneWriteState.clear("tab \u2014 " + paneId));
     }
 
     @Override

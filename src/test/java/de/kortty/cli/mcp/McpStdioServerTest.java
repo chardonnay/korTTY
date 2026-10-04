@@ -277,6 +277,14 @@ class McpStdioServerTest {
             .isEqualTo(McpStdioServer.CALL_TIMEOUT_MILLIS);
     }
 
+    @Test
+    void aWriteToolWaitsLongerThanTheUserHasToAnswerKorttysConsentPrompt() {
+        for (String write : List.of("pane_send_text", "pane_run", "pane_send_keys")) {
+            assertThat(McpStdioServer.timeoutFor(McpToolCatalog.find(write), new JsonObject()))
+                .isGreaterThan(de.kortty.control.McpWriteConsent.PROMPT_TIMEOUT_MILLIS);
+        }
+    }
+
     // --- harness -------------------------------------------------------------------------------
 
     private record Exchange(List<JsonObject> responses, String stdout, String stderr, int exitCode) {

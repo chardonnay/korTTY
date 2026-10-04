@@ -46,6 +46,16 @@ public final class ControlConnection implements Runnable, AutoCloseable {
     /** The only verb accepted before the handshake has succeeded. */
     public static final String AUTH_METHOD = "auth";
 
+    /**
+     * The optional {@code auth} parameter with which an MCP server process names its session, so the
+     * "allow for this pane in this session" consent outlives the one connection each tool call opens.
+     */
+    public static final String MCP_SESSION_PARAM = "mcp_session";
+
+    /** What an {@code mcp_session} id may look like: a UUID or any similar random token. */
+    private static final java.util.regex.Pattern MCP_SESSION_PATTERN =
+        java.util.regex.Pattern.compile("[A-Za-z0-9-]{16,64}");
+
     /** How long {@link #run()} waits for the writer to drain before it drops the socket. */
     private static final long FLUSH_BUDGET_MILLIS = 1_000L;
 
@@ -358,9 +368,16 @@ public final class ControlConnection implements Runnable, AutoCloseable {
         ControlSession.ClientKind kind = ControlSession.ClientKind.forWire(kindWire).orElseThrow(
             () -> new ControlApiException(ControlErrorCode.INVALID_PARAMS,
                 "client_kind must be 'cli' or 'mcp'", Map.of("param", "client_kind")));
+        String mcpSession = ControlJson.optString(params, MCP_SESSION_PARAM, null);
+        if (mcpSession != null && !MCP_SESSION_PATTERN.matcher(mcpSession).matches()) {
+            throw new ControlApiException(ControlErrorCode.INVALID_PARAMS,
+                "mcp_session must be 16 to 64 letters, digits or dashes",
+                Map.of("param", MCP_SESSION_PARAM));
+        }
         McpGate.Verdict mcpVerdict = kind == ControlSession.ClientKind.MCP ? requireMcpOpen() : null;
         authenticated = true;
-        session = new ControlSession(connectionId, transportKind, true, client, kind, this::enqueue);
+        session = new ControlSession(connectionId, transportKind, true, client, kind,
+            kind == ControlSession.ClientKind.MCP ? mcpSession : null, this::enqueue);
         ScheduledFuture<?> deadline = authDeadline;
         if (deadline != null) {
             deadline.cancel(false);
