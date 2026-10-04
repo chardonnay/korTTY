@@ -931,6 +931,20 @@
 <td><code>terminalLinkDetectionEnabled</code></td>
 </tr>
 <tr>
+<td>Quick select label letters:</td>
+<td>text</td>
+<td>2–26 different lowercase letters <code>a</code>–<code>z</code>; empty for the default</td>
+<td>empty (<code>asdfqwerzxcvjklmiuopghtybn</code>)</td>
+<td><code>terminalQuickSelectAlphabet</code></td>
+</tr>
+<tr>
+<td>Quick select patterns:</td>
+<td>text, one per line</td>
+<td>up to 16 regular expressions of up to 512 characters each</td>
+<td>none</td>
+<td><code>terminalQuickSelectPatterns</code></td>
+</tr>
+<tr>
 <td>Warn about multi-line pastes:</td>
 <td>dropdown</td>
 <td>Off, Unless the program uses bracketed paste, Always</td>
@@ -1099,6 +1113,7 @@
 <div class="admonition note">
 <p class="admonition-title">Links</p>
 <p>With <strong>Detect web addresses, e-mail addresses and file paths in terminal text</strong> on, <span class="keys"><kbd class="key-command">Cmd</kbd></span> + click (macOS) or <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + click (Windows, Linux) opens a web address, an e-mail address or a file path that a program printed as plain text: a web address in your default browser, an e-mail address as a new mail in your mail program, and in SSH and local-shell tabs a file path as text in the Snippet Editor. A plain click still only selects text. A change applies to the open terminals at once. Links that a program marks up itself with OSC 8 open with the same click either way. See <a href="../../features/terminal.html#links-in-terminal-output">Links in terminal output</a>.</p>
+<p><strong>Quick select label letters</strong> and <strong>Quick select patterns</strong> adjust <a href="../../features/terminal.html#quick-select">quick select</a> (<em>Edit → Quick Select</em>): the letters its labels are made of, in the order they are used, and regular expressions, one per line, whose matches it labels too, such as ticket numbers or host names. The letters must be at least two different lowercase letters from <code>a</code> to <code>z</code>, because <span class="keys"><kbd class="key-shift">Shift</kbd></span> with a label opens its match and every other key ends quick select; leave the field empty for the default. Up to 16 patterns of up to 512 characters each are accepted, and blank lines are skipped. A problem, such as a pattern that is not a valid regular expression, one that also matches empty text or holds an invisible control character, a repeated letter or an uppercase one, is explained in red under its field, with the line number for a pattern, and <strong>Save</strong> keeps the dialog open until it is corrected. A pattern that takes too long on what the screen shows is skipped for that quick select instead of holding up the window. Both apply the next time quick select starts; see <a href="../../features/terminal.html#your-own-patterns-and-label-letters">Your own patterns and label letters</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Paste protection</p>
@@ -1109,6 +1124,7 @@
 <div class="admonition note">
 <p class="admonition-title">Shell integration</p>
 <p>With <strong>Use the command marks of shells set up for shell integration (OSC 133)</strong> on, korTTY reads the invisible marks that a shell with korTTY's snippet in its startup file prints around every prompt and command, and <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> / <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span> on Windows and Linux), <em>Edit → Previous Prompt / Next Prompt</em> and the terminal's right-click menu jump between the prompts. The snippets for bash, zsh and fish are on the <a href="../../features/shell-integration.html#setting-it-up">Shell integration</a> page, and <strong>Set Up Shell Integration…</strong> opens a window with them and a <strong>Copy</strong> button, also while the setting is off. Without a snippet in the shell's startup file nothing changes. The marks also tell korTTY that an SSH session is at its prompt, for the AI Agent's <code>agent</code> commands and the question before closing a busy tab; this setting replaces <strong>Use OSC 133 prompt markers when the shell already provides them</strong>, which <em>Settings → AI</em> used to show and which changed nothing. Switched off, the prompt keys reach the program in the terminal, the right-click menu has no shell-integration entries, and korTTY tells that a session is at its prompt from the prompt's text alone. The setting is read on every mark and key press, so a change applies to open tabs as soon as you save.</p>
+<p>For local shell tabs, a connection can also add the snippet by itself: <strong>Add shell integration automatically</strong> in the connection editor starts bash, zsh or fish with korTTY's shell integration and leaves your startup files unchanged. It needs this setting on; see <a href="../../features/shell-integration.html#local-shells">Adding it to local shells automatically</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Notifications</p>

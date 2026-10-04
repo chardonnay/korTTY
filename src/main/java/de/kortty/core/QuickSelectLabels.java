@@ -27,7 +27,73 @@ public final class QuickSelectLabels {
      */
     public static final String DEFAULT_ALPHABET = "asdfqwerzxcvjklmiuopghtybn";
 
+    public static final String KEY_ALPHABET_TOO_SHORT = "settings.terminal.quickSelect.alphabet.tooShort";
+    public static final String KEY_ALPHABET_UPPERCASE = "settings.terminal.quickSelect.alphabet.uppercase";
+    public static final String KEY_ALPHABET_INVALID_CHARACTER = "settings.terminal.quickSelect.alphabet.invalidCharacter";
+    public static final String KEY_ALPHABET_DUPLICATE = "settings.terminal.quickSelect.alphabet.duplicate";
+
+    /** Every key {@link #alphabetProblem(String)} can return. */
+    public static final List<String> ALPHABET_MESSAGE_KEYS = List.of(KEY_ALPHABET_TOO_SHORT, KEY_ALPHABET_UPPERCASE,
+        KEY_ALPHABET_INVALID_CHARACTER, KEY_ALPHABET_DUPLICATE);
+
     private QuickSelectLabels() {
+    }
+
+    /**
+     * What is wrong with {@code alphabet} as the user's label letters, or {@code null} when it can be
+     * used. Quick select decides by the key pressed, not the character typed, so a label letter must
+     * be a key that no quick-select control already means:
+     * <ul>
+     *   <li>only the letters {@code a} to {@code z}: every other key (a digit, punctuation, Space,
+     *       Enter, a letter of another script) ends quick select;</li>
+     *   <li>lowercase: an uppercase letter needs Shift, and Shift with a label opens its match;</li>
+     *   <li>each letter once, and at least two, so the labels stay prefix-free.</li>
+     * </ul>
+     * The first problem from the left is reported, quoting the character. {@code null} and blank are
+     * no problem: they mean {@link #DEFAULT_ALPHABET}.
+     */
+    public static QuickSelectSettings.Problem alphabetProblem(String alphabet) {
+        if (alphabet == null || alphabet.isBlank()) {
+            return null;
+        }
+        for (int i = 0; i < alphabet.length(); ) {
+            int letter = alphabet.codePointAt(i);
+            String shown = new String(Character.toChars(letter));
+            if (letter >= 'A' && letter <= 'Z') {
+                return QuickSelectSettings.Problem.of(KEY_ALPHABET_UPPERCASE, shown);
+            }
+            if (letter < 'a' || letter > 'z') {
+                return QuickSelectSettings.Problem.of(KEY_ALPHABET_INVALID_CHARACTER, visible(letter, shown));
+            }
+            if (alphabet.indexOf(letter) != i) {
+                return QuickSelectSettings.Problem.of(KEY_ALPHABET_DUPLICATE, shown);
+            }
+            i += Character.charCount(letter);
+        }
+        if (alphabet.length() < 2) {
+            return QuickSelectSettings.Problem.of(KEY_ALPHABET_TOO_SHORT);
+        }
+        return null;
+    }
+
+    /**
+     * The alphabet quick select labels with for the stored {@code alphabet}: the stored one when
+     * {@link #alphabetProblem} accepts it, otherwise (blank, or broken by hand) {@link #DEFAULT_ALPHABET}.
+     */
+    public static String effectiveAlphabet(String alphabet) {
+        if (alphabet == null || alphabet.isBlank() || alphabetProblem(alphabet) != null) {
+            return DEFAULT_ALPHABET;
+        }
+        return alphabet;
+    }
+
+    /** A character a message can quote: a space or a control character by its code, never raw. */
+    private static String visible(int codePoint, String shown) {
+        if (Character.isWhitespace(codePoint) || Character.isSpaceChar(codePoint) || Character.isISOControl(codePoint)
+                || Character.getType(codePoint) == Character.FORMAT) {
+            return String.format(java.util.Locale.ROOT, "U+%04X", codePoint);
+        }
+        return shown;
     }
 
     /**

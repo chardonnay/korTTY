@@ -54,7 +54,14 @@ public final class TerminalLinkDetector {
         /** 7 to 40 lowercase hex characters with at least one digit and one letter. */
         GIT_HASH,
         /** 4 or more digits. */
-        NUMBER
+        NUMBER,
+        /**
+         * A match of one of the user's own quick-select patterns ({@link QuickSelectPatterns}). Only
+         * {@link #find(CharSequence, Set, boolean, boolean, QuickSelectPatterns.Matching)} given those
+         * patterns reports it; asking for this kind alone finds nothing. Its overlaps are not settled
+         * by this order: see that method.
+         */
+        CUSTOM
     }
 
     /**
@@ -178,10 +185,44 @@ public final class TerminalLinkDetector {
      */
     public static List<Match> find(CharSequence line, Set<Kind> kinds, boolean continuesBefore,
             boolean continuesAfter) {
-        if (line == null || line.isEmpty() || kinds == null || kinds.isEmpty()) {
+        return find(line, kinds, continuesBefore, continuesAfter, null);
+    }
+
+    /**
+     * Like {@link #find(CharSequence, Set, boolean, boolean)}, plus the matches of the user's own
+     * quick-select patterns as {@link Kind#CUSTOM}. The patterns run over the same scanned text the
+     * built-in kinds see, so a match never contains a {@link CharUtils#DWC} cell or runs on into a
+     * cut-off token, and the whitespace at its ends is left out. Their time is bounded by
+     * {@code custom} ({@link QuickSelectPatterns}).
+     *
+     * <p>Overlaps among the patterns go to the longer match, then the pattern earlier in the list.
+     * A pattern's match that overlaps built-in matches wins when it is at least as long as each of
+     * them, which then are dropped; otherwise it is dropped. So {@code JIRA-1234} from a ticket
+     * pattern is offered whole instead of the number in it, while the URL that contains it stays a URL.
+     *
+     * @param custom the running matching of one quick select, or {@code null} for none
+     */
+    public static List<Match> find(CharSequence line, Set<Kind> kinds, boolean continuesBefore,
+            boolean continuesAfter, QuickSelectPatterns.Matching custom) {
+        boolean builtIn = kinds != null && !kinds.isEmpty();
+        boolean withCustom = custom != null && !custom.isEmpty();
+        if (line == null || line.isEmpty() || (!builtIn && !withCustom)) {
             return List.of();
         }
         Scan scan = Scan.of(line, continuesBefore, continuesAfter);
+        TreeMap<Integer, Candidate> accepted = builtIn ? builtInMatches(scan, kinds) : new TreeMap<>();
+        if (withCustom) {
+            addCustomMatches(accepted, custom.spans(scan.text));
+        }
+        List<Match> matches = new ArrayList<>(accepted.size());
+        for (Candidate candidate : accepted.values()) {
+            matches.add(scan.toMatch(candidate));
+        }
+        return List.copyOf(matches);
+    }
+
+    /** The built-in matches of the requested kinds in {@code scan}, keyed by start and never overlapping. */
+    private static TreeMap<Integer, Candidate> builtInMatches(Scan scan, Set<Kind> kinds) {
         Set<Kind> requested = EnumSet.copyOf(kinds);
         List<Candidate> candidates = new ArrayList<>();
         for (Kind kind : requested) {
@@ -207,11 +248,54 @@ public final class TerminalLinkDetector {
                 accepted.put(candidate.start, candidate);
             }
         }
-        List<Match> matches = new ArrayList<>(accepted.size());
-        for (Candidate candidate : accepted.values()) {
-            matches.add(scan.toMatch(candidate));
+        return accepted;
+    }
+
+    /**
+     * Adds the pattern matches to the built-in ones in {@code accepted}: among themselves the longer
+     * match wins, then the earlier pattern; against built-in matches see
+     * {@link #find(CharSequence, Set, boolean, boolean, QuickSelectPatterns.Matching)}.
+     */
+    private static void addCustomMatches(TreeMap<Integer, Candidate> accepted, List<QuickSelectPatterns.Span> spans) {
+        if (spans.isEmpty()) {
+            return;
         }
-        return List.copyOf(matches);
+        List<QuickSelectPatterns.Span> ordered = new ArrayList<>(spans);
+        ordered.sort(Comparator.comparingInt((QuickSelectPatterns.Span span) -> span.start() - span.end())
+            .thenComparingInt(QuickSelectPatterns.Span::pattern)
+            .thenComparingInt(QuickSelectPatterns.Span::start));
+        TreeMap<Integer, Candidate> custom = new TreeMap<>();
+        for (QuickSelectPatterns.Span span : ordered) {
+            Candidate candidate = new Candidate(Kind.CUSTOM, span.start(), span.end());
+            if (!overlapsAny(custom, candidate)) {
+                custom.put(candidate.start, candidate);
+            }
+        }
+        for (Candidate candidate : custom.values()) {
+            List<Integer> beaten = new ArrayList<>();
+            boolean wins = true;
+            // Built-in matches never overlap each other, so the ones overlapping this match are the
+            // one starting at or before it (if it reaches in) and those starting inside it.
+            Map.Entry<Integer, Candidate> before = accepted.floorEntry(candidate.start);
+            if (before != null && before.getValue().end > candidate.start) {
+                wins = length(before.getValue()) <= length(candidate);
+                beaten.add(before.getKey());
+            }
+            for (Map.Entry<Integer, Candidate> inside = accepted.higherEntry(candidate.start);
+                    wins && inside != null && inside.getKey() < candidate.end;
+                    inside = accepted.higherEntry(inside.getKey())) {
+                wins = length(inside.getValue()) <= length(candidate);
+                beaten.add(inside.getKey());
+            }
+            if (wins) {
+                beaten.forEach(accepted::remove);
+                accepted.put(candidate.start, candidate);
+            }
+        }
+    }
+
+    private static int length(Candidate candidate) {
+        return candidate.end - candidate.start;
     }
 
     /** Whether {@code candidate} overlaps one of the non-overlapping spans, keyed by their start. */
@@ -233,6 +317,7 @@ public final class TerminalLinkDetector {
             case IPV6 -> text.indexOf(':') >= 0;
             case IPV4 -> text.indexOf('.') >= 0;
             case GIT_HASH, NUMBER -> containsAsciiDigit(text);
+            case CUSTOM -> false; // the user's patterns run separately (addCustomMatches)
         };
     }
 
@@ -248,6 +333,7 @@ public final class TerminalLinkDetector {
                 case IPV4 -> ipv4End(m);
                 case GIT_HASH -> hasDigitAndLetter(text, m.start(), m.end()) ? m.end() : -1;
                 case NUMBER -> m.end();
+                case CUSTOM -> -1;
             };
             if (end > m.start()) {
                 out.add(new Candidate(kind, m.start(), end));
@@ -265,6 +351,7 @@ public final class TerminalLinkDetector {
             case IPV4 -> IPV4;
             case GIT_HASH -> GIT_HASH;
             case NUMBER -> NUMBER;
+            case CUSTOM -> throw new IllegalArgumentException("The user's patterns are no built-in kind");
         };
     }
 
@@ -528,6 +615,16 @@ public final class TerminalLinkDetector {
             letter |= c >= 'a' && c <= 'f';
         }
         return digit && letter;
+    }
+
+    /**
+     * The character a cell holding {@code c} stands for in {@link Match#text()}: a space for every
+     * cell that ends a token (an empty cell, whitespace, a control or an invisible format character),
+     * otherwise {@code c}. Only a match of the user's patterns can contain such a cell; this lets the
+     * caller compare its text with the cells again.
+     */
+    public static char asMatched(char c) {
+        return isDelimiter(c) ? ' ' : c;
     }
 
     /** Whether a cell ends a token: an empty cell (NUL), whitespace, a control or an invisible format character. */

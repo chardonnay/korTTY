@@ -35,6 +35,7 @@ import de.kortty.core.SshTunnelManager;
 import de.kortty.core.ObservableTtyConnector;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.core.LocalShellTtyConnector;
+import de.kortty.core.QuickSelectSettings;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentCommandRunners;
 import de.kortty.core.NativeMoshTtyConnector;
@@ -848,8 +849,10 @@ public class TerminalView extends BorderPane {
 
         // Quick select's key filters go first: while it runs, every key, its typed character and any
         // input-method text stay out of the panes (agent lock, broadcast mirror and shell included).
-        // The chord is the one in effect, which the user may rebind while the tab is open.
-        quickSelect = TerminalQuickSelectController.install(splitPane, MainWindow::effectiveQuickSelectAccelerator);
+        // The chord is the one in effect, which the user may rebind while the tab is open; the label
+        // letters and the user's own patterns are read each time it starts, so a change applies at once.
+        quickSelect = TerminalQuickSelectController.install(splitPane, MainWindow::effectiveQuickSelectAccelerator,
+            () -> quickSelectSettings(TerminalView::readGlobalSettings));
 
         // Key handling at split-pane level runs before every pane: the agent input lock, the agent
         // shortcut and Ctrl+D come first. Navigation keys are encoded below, in each pane's own
@@ -6406,6 +6409,21 @@ public class TerminalView extends BorderPane {
             pastePacer.cancel(widget);
         } else {
             Platform.runLater(() -> pastePacer.cancel(widget));
+        }
+    }
+
+    /**
+     * Quick select's label letters and the user's own patterns from {@code settings}; the defaults
+     * while there are no settings or they cannot be read.
+     */
+    static QuickSelectSettings quickSelectSettings(Supplier<GlobalSettings> settings) {
+        try {
+            GlobalSettings current = settings.get();
+            return current != null
+                ? QuickSelectSettings.from(current.getTerminalQuickSelectAlphabet(), current.getTerminalQuickSelectPatterns())
+                : QuickSelectSettings.DEFAULTS;
+        } catch (RuntimeException e) {
+            return QuickSelectSettings.DEFAULTS;
         }
     }
 

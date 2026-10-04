@@ -35,6 +35,21 @@ public final class FlatpakSupport {
         String workingDirectory,
         Map<String, String> environment
     ) {
+        return hostCommand(command, workingDirectory, environment, List.of());
+    }
+
+    /**
+     * Like {@link #hostCommand(List, String, Map)}, and also hands the host shell the variables
+     * named in {@code forwardedVariables} that {@code environment} sets, such as the {@code ZDOTDIR}
+     * of korTTY's shell-integration wrapper for zsh: {@code flatpak-spawn --host} passes nothing of
+     * the sandbox's environment on by itself.
+     */
+    public static List<String> hostCommand(
+        List<String> command,
+        String workingDirectory,
+        Map<String, String> environment,
+        List<String> forwardedVariables
+    ) {
         Objects.requireNonNull(command, "command");
         if (!isFlatpakEnvironment(environment)) {
             return List.copyOf(command);
@@ -49,6 +64,14 @@ public final class FlatpakSupport {
         copyEnvironment(wrapped, environment, "TERM");
         copyEnvironment(wrapped, environment, "COLORTERM");
         copyEnvironment(wrapped, environment, "LANG");
+        if (forwardedVariables != null) {
+            for (String name : forwardedVariables) {
+                if (name != null && name.matches("[A-Za-z_][A-Za-z0-9_]*")
+                    && !List.of("TERM", "COLORTERM", "LANG").contains(name)) {
+                    copyEnvironment(wrapped, environment, name);
+                }
+            }
+        }
         wrapped.addAll(command);
         return List.copyOf(wrapped);
     }

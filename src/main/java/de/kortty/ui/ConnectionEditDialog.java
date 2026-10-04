@@ -29,6 +29,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -91,6 +92,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private ComboBox<String> shellPresetCombo;
     private TextField customShellCommandField;
     private TextField shellWorkingDirField;
+    /** Add shell integration automatically; see {@link LocalShellIntegrationOption}. */
+    private CheckBox shellIntegrationAutoInjectCheck;
+    private Label shellIntegrationAutoInjectHint;
     
     // Connection-specific settings
     private CheckBox useCustomSettingsCheck;
@@ -434,6 +438,20 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         connectionGrid.add(new Label(I18n.get("connEdit.shellWorkingDir")), 0, row);
         connectionGrid.add(shellWorkingDirField, 1, row++);
 
+        shellIntegrationAutoInjectCheck = new CheckBox(I18n.get("connEdit.shellIntegration.autoInject"));
+        shellIntegrationAutoInjectCheck.setSelected(connection.isShellIntegrationAutoInject());
+        shellIntegrationAutoInjectCheck.setTooltip(new Tooltip(I18n.get("connEdit.shellIntegration.autoInject.tooltip")));
+        shellIntegrationAutoInjectHint = new Label();
+        shellIntegrationAutoInjectHint.setStyle(MutedTextStyle.HINT);
+        shellIntegrationAutoInjectHint.setWrapText(true);
+        shellIntegrationAutoInjectHint.setMaxWidth(UiFontScaleSupport.scaleDimension(420, true));
+        shellIntegrationAutoInjectHint.setMinHeight(Region.USE_PREF_SIZE);
+        customShellCommandField.textProperty().addListener((obs, oldVal, newVal) -> updateShellIntegrationOption());
+        Label shellIntegrationLabel = new Label(I18n.get("connEdit.shellIntegration"));
+        shellIntegrationLabel.setLabelFor(shellIntegrationAutoInjectCheck);
+        connectionGrid.add(shellIntegrationLabel, 0, row);
+        connectionGrid.add(new VBox(4, shellIntegrationAutoInjectCheck, shellIntegrationAutoInjectHint), 1, row++);
+
         connectionGrid.add(new Label(I18n.get("connEdit.terminalEmulation")), 0, row);
         connectionGrid.add(terminalEmulationCombo, 1, row++);
 
@@ -604,6 +622,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     connection.setLocalShellCommand(effectiveShellCommand());
                     String workingDir = shellWorkingDirField.getText() != null ? shellWorkingDirField.getText().trim() : "";
                     connection.setLocalShellWorkingDirectory(workingDir.isEmpty() ? null : workingDir);
+                    connection.setShellIntegrationAutoInject(shellIntegrationAutoInjectCheck.isSelected());
                 }
                 connection.setTerminalEmulationType(TerminalEmulationSupport.storedValue(
                     TerminalEmulationComboBoxSupport.selectedEmulation(terminalEmulationCombo)));
@@ -2079,6 +2098,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         shellWorkingDirField.setDisable(!local);
         customShellCommandField.setDisable(!local || !LocalShellPresetSupport.CUSTOM.equals(shellPresetCombo.getValue()));
 
+        updateShellIntegrationOption();
+
         hostField.setDisable(local);
         portSpinner.setDisable(local);
         usernameField.setDisable(local);
@@ -2105,6 +2126,35 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         }
     }
     
+    /**
+     * Whether <b>Add shell integration automatically</b> can be ticked for the protocol and shell the
+     * editor shows, and the line under it; the choice itself stays as ticked.
+     */
+    private void updateShellIntegrationOption() {
+        if (shellIntegrationAutoInjectCheck == null || protocolCombo == null || shellPresetCombo == null) {
+            return;
+        }
+        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+        LocalShellIntegrationOption.State state = LocalShellIntegrationOption.state(
+            local,
+            connection.isTeamworkConnection(),
+            local ? de.kortty.core.LocalShellTtyConnector.shellIntegrationSupport(effectiveShellCommand()) : null,
+            isShellIntegrationSwitchedOn());
+        shellIntegrationAutoInjectCheck.setDisable(!state.editable());
+        shellIntegrationAutoInjectHint.setText(I18n.get(state.hintKey()));
+    }
+
+    /** Settings → Terminal → Shell integration; on, its default, when the settings cannot be read. */
+    private static boolean isShellIntegrationSwitchedOn() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            return settings == null || settings.isShellIntegrationEnabled();
+        } catch (RuntimeException e) {
+            return true;
+        }
+    }
+
     private Tab createGeometryTab() {
         Tab tab = new Tab(I18n.get("connEdit.tab.geometry"));
         tab.setClosable(false);
