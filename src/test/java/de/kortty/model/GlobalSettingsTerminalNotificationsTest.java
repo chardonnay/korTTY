@@ -11,8 +11,9 @@ import java.io.StringWriter;
 import org.testng.annotations.Test;
 
 /**
- * The terminal notification settings (the bell, long commands, programs' notifications): what a
- * fresh installation and an old settings file use, and that they survive the XML round trip.
+ * The terminal notification settings (the bell, long commands, programs' notifications) and whether
+ * programs may write the clipboard (OSC 52): what a fresh installation and an old settings file use,
+ * and that they survive the XML round trip.
  */
 class GlobalSettingsTerminalNotificationsTest {
 
@@ -99,6 +100,26 @@ class GlobalSettingsTerminalNotificationsTest {
             .that(new GlobalSettings().isRemoteTerminalNotificationsEnabled()).isTrue();
         assertThat(GlobalSettings.forFreshInstall().isRemoteTerminalNotificationsEnabled()).isTrue();
         assertThat(unmarshal("<globalSettings></globalSettings>").isRemoteTerminalNotificationsEnabled()).isTrue();
+    }
+
+    @Test
+    void programsMayNotWriteTheClipboardOnAFreshInstallationOrWithOldSettings() throws Exception {
+        assertWithMessage("decision D4 a: OSC 52 lets any program in the terminal replace what you copied")
+            .that(new GlobalSettings().isOsc52ClipboardWriteEnabled()).isFalse();
+        assertThat(GlobalSettings.forFreshInstall().isOsc52ClipboardWriteEnabled()).isFalse();
+        assertThat(unmarshal("<globalSettings></globalSettings>").isOsc52ClipboardWriteEnabled()).isFalse();
+    }
+
+    @Test
+    void theClipboardWriteChoiceSurvivesAnXmlRoundTrip() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setOsc52ClipboardWriteEnabled(true);
+        String xml = marshal(settings);
+        assertThat(xml).contains("<osc52ClipboardWriteEnabled>true</osc52ClipboardWriteEnabled>");
+        assertThat(unmarshal(xml).isOsc52ClipboardWriteEnabled()).isTrue();
+
+        settings.setOsc52ClipboardWriteEnabled(false);
+        assertThat(unmarshal(marshal(settings)).isOsc52ClipboardWriteEnabled()).isFalse();
     }
 
     @Test

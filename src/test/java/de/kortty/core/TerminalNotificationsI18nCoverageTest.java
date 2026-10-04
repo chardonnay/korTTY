@@ -16,7 +16,8 @@ import org.testng.annotations.Test;
 
 /**
  * Every text of the terminal notifications, in Settings → Terminal and in the notifications and tab
- * tooltips themselves, exists in all eight bundled languages with the placeholders of the English text.
+ * tooltips themselves, and of programs writing the clipboard (OSC 52), exists in all eight bundled
+ * languages with the placeholders of the English text.
  */
 class TerminalNotificationsI18nCoverageTest {
 
@@ -30,7 +31,8 @@ class TerminalNotificationsI18nCoverageTest {
         "messages_hr.properties",
         "messages_nl.properties");
 
-    private static final List<String> PREFIXES = List.of("settings.terminal.notify.", "terminal.notify.");
+    private static final List<String> PREFIXES = List.of("settings.terminal.notify.", "terminal.notify.",
+        "settings.terminal.osc52.", "terminal.osc52.");
 
     private static final List<String> REQUIRED_KEYS = List.of(
         "settings.terminal.notify.header",
@@ -49,7 +51,12 @@ class TerminalNotificationsI18nCoverageTest {
         "terminal.notify.commandFinished.succeeded",
         "terminal.notify.commandFinished.failed",
         "terminal.notify.commandFinished.noStatus",
-        "terminal.notify.remote.tooltip");
+        "terminal.notify.remote.tooltip",
+        "settings.terminal.osc52.enabled",
+        "settings.terminal.osc52.enabled.tooltip",
+        "terminal.osc52.copied",
+        "terminal.osc52.blocked",
+        "terminal.osc52.rejected");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
@@ -120,6 +127,20 @@ class TerminalNotificationsI18nCoverageTest {
         for (String bundle : BUNDLES) {
             assertWithMessage(bundle + " names the sequences in the setting")
                 .that(load(bundle).getProperty("settings.terminal.notify.remote")).contains("OSC 9");
+        }
+    }
+
+    @Test
+    void theTabsNameIsTheLastPlaceholderOfEveryClipboardMessage() throws Exception {
+        // The tab's name can come from the server (OSC 0/2); LanguageManager replaces placeholders one
+        // after another, so a placeholder after the name could be filled from inside the name.
+        Properties english = load("messages.properties");
+        assertThat(placeholders(english.getProperty("terminal.osc52.copied"))).containsExactly("{0}", "{1}");
+        assertThat(placeholders(english.getProperty("terminal.osc52.blocked"))).containsExactly("{0}");
+        assertThat(placeholders(english.getProperty("terminal.osc52.rejected"))).containsExactly("{0}");
+        for (String bundle : BUNDLES) {
+            assertWithMessage(bundle + " names the sequence in the setting")
+                .that(load(bundle).getProperty("settings.terminal.osc52.enabled")).contains("OSC 52");
         }
     }
 

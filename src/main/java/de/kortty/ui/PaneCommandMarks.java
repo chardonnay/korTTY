@@ -120,6 +120,9 @@ final class PaneCommandMarks {
                 case ShellIntegrationEvent.RemoteNotification notification -> {
                     // Not a mark; isMark filtered it out.
                 }
+                case ShellIntegrationEvent.ClipboardWrite write -> {
+                    // Not a mark; isMark filtered it out.
+                }
                 case ShellIntegrationEvent.Oversize oversize -> {
                     // Not a mark; isMark filtered it out.
                 }
@@ -138,6 +141,7 @@ final class PaneCommandMarks {
             case ShellIntegrationEvent.OutputStart output -> true;
             case ShellIntegrationEvent.CommandFinished finished -> true;
             case ShellIntegrationEvent.RemoteNotification notification -> false;
+            case ShellIntegrationEvent.ClipboardWrite write -> false;
             case ShellIntegrationEvent.Oversize oversize -> false;
             case null -> false;
         };

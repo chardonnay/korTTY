@@ -245,7 +245,8 @@ public final class TerminalAttentionNotifier {
         }
     }
 
-    private static @Nullable GlobalSettings currentSettings() {
+    /** The settings of the running application, or {@code null} when they cannot be read. */
+    static @Nullable GlobalSettings currentSettings() {
         try {
             KorTTYApplication app = KorTTYApplication.getInstance();
             GlobalSettingsManager manager = app != null ? app.getGlobalSettingsManager() : null;

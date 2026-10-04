@@ -186,6 +186,9 @@ public class TerminalTab extends Tab {
         // And so does a program that asks for a desktop notification (OSC 9, OSC 777).
         this.terminalView.setRemoteNotificationListener(
             (widget, notification) -> TerminalAttentionNotifier.shared().onRemoteNotification(this, widget, notification));
+        // A program that asks to put text on the clipboard (OSC 52) needs the setting to do so.
+        this.terminalView.setClipboardWriteListener(
+            (widget, write) -> TerminalClipboardWriter.shared().onClipboardWrite(this, write));
 
         // Create status bar (connection duration / key validity)
         createStatusBar();

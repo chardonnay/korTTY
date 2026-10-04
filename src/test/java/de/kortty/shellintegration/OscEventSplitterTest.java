@@ -3,6 +3,7 @@ package de.kortty.shellintegration;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import de.kortty.shellintegration.ShellIntegrationEvent.ClipboardWrite;
 import de.kortty.shellintegration.ShellIntegrationEvent.CommandFinished;
 import de.kortty.shellintegration.ShellIntegrationEvent.CommandStart;
 import de.kortty.shellintegration.ShellIntegrationEvent.Oversize;
@@ -188,13 +189,50 @@ class OscEventSplitterTest {
     }
 
     @Test
-    void osc52IsNotOwnedYet() {
-        for (String selection : List.of("", "c", "p", "s", "0")) {
-            String write = ESC + "]52;" + selection + ";" + base64("copied") + BEL;
-            assertWithMessage(selection).that(split(write).text()).isEqualTo(write);
+    void osc52WritesAreTakenOutWithTheirDataAsSent() {
+        for (String selection : List.of("", "c", "p", "q", "s", "0", "7", "cs")) {
+            for (String terminator : List.of(BEL, ST, C1_ST)) {
+                String write = ESC + "]52;" + selection + ";" + base64("copied") + terminator;
+                assertWithMessage(selection + visible(terminator)).that(split("a" + write + "b").parts)
+                    .containsExactly("a", new ClipboardWrite(selection, base64("copied")), "b").inOrder();
+            }
         }
-        String query = ESC + "]52;c;?" + ST;
-        assertThat(split(query).text()).isEqualTo(query);
+        String wrapped = "Y29w\naWVk\r\n";
+        assertWithMessage("line breaks of MIME-wrapped base64 stay in the data; Osc52Support removes them")
+            .that(events(ESC + "]52;c;" + wrapped + BEL)).containsExactly(new ClipboardWrite("c", wrapped));
+    }
+
+    @Test
+    void osc52QueriesAndWritesKorttyCannotTakeAreTakenOutWithoutAnEvent() {
+        // SithTermFX ignores OSC 52 as it ignores every OSC it does not know, so taking these out
+        // changes nothing on screen; none of them may reach the clipboard, and a query is never answered.
+        for (String output : List.of(
+                ESC + "]52;c;?" + ST,
+                ESC + "]52;;?" + BEL,
+                ESC + "]52;c;" + BEL,
+                ESC + "]52;x;" + base64("copied") + BEL,
+                ESC + "]52;c+;" + base64("copied") + BEL,
+                ESC + "]52;" + base64("copied") + BEL)) {
+            assertWithMessage(visible(output)).that(split(output + "x").parts).containsExactly(TAKEN_OUT, "x").inOrder();
+        }
+        assertWithMessage("OSC 5, 520 and an OSC 52 without its separator are no clipboard writes")
+            .that(split(ESC + "]5;1" + BEL + ESC + "]520;c;x" + BEL + ESC + "]52" + BEL).text())
+            .isEqualTo(ESC + "]5;1" + BEL + ESC + "]520;c;x" + BEL + ESC + "]52" + BEL);
+    }
+
+    @Test
+    void aClipboardWriteMayBeAsLongAsTheBase64OfItsCapWithLineBreaks() {
+        // base64 without -w0 breaks its output every 76 chars; with CRLF that is the longest form.
+        String encoded = Base64.getMimeEncoder().encodeToString(new byte[Osc52Support.MAX_DECODED_BYTES]);
+        String payload = "c;" + encoded;
+        assertThat(payload.length()).isAtMost(OwnedOsc.CLIPBOARD.maxPayloadLength());
+
+        Split split = split(ESC + "]52;" + payload.substring(0, 100_000), payload.substring(100_000) + BEL + "after");
+        assertThat(split.parts).containsExactly(new ClipboardWrite("c", encoded), "after").inOrder();
+
+        String tooLong = "c;" + "A".repeat(OwnedOsc.CLIPBOARD.maxPayloadLength());
+        assertThat(split(ESC + "]52;" + tooLong + BEL + "after").parts)
+            .containsExactly(new Oversize(OwnedOsc.CLIPBOARD), "after").inOrder();
     }
 
     @Test
@@ -307,6 +345,7 @@ class OscEventSplitterTest {
         RemoteNotification notification = new RemoteNotification(OwnedOsc.NOTIFY, "secret title", "secret body");
 
         assertThat(notification.summary()).doesNotContain("secret");
+        assertThat(new ClipboardWrite("c", base64("secret")).summary()).isEqualTo("ClipboardWrite(8 chars)");
         assertThat(new CommandFinished(2).summary()).isEqualTo("CommandFinished(exit=2)");
         assertThat(new Oversize(OwnedOsc.SHELL_INTEGRATION).summary()).isEqualTo("Oversize(SHELL_INTEGRATION)");
     }

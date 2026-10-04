@@ -173,6 +173,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox commandTimestampsCheck;
     private final CheckBox terminalDragDropCheck;
     private final CheckBox terminalCopyOnSelectCheck;
+    private final CheckBox osc52ClipboardWriteCheck;
     private final CheckBox terminalLinkDetectionCheck;
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final ComboBox<PasteWarningMode> pasteWarningModeCombo;
@@ -803,6 +804,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalCopyOnSelectCheck.setSelected(globalSettings != null ? globalSettings.isTerminalCopyOnSelectEnabled() : true);
         terminalCopyOnSelectCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.copyOnSelect.tooltip")));
 
+        // Programs copying to the clipboard with OSC 52 (vim, tmux on a server): off unless allowed.
+        osc52ClipboardWriteCheck = new CheckBox(I18n.get("settings.terminal.osc52.enabled"));
+        osc52ClipboardWriteCheck.setSelected(globalSettings != null && globalSettings.isOsc52ClipboardWriteEnabled());
+        osc52ClipboardWriteCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.osc52.enabled.tooltip")));
+
         terminalLinkDetectionCheck = new CheckBox(I18n.get("settings.terminal.linkDetection"));
         terminalLinkDetectionCheck.setSelected(globalSettings == null || globalSettings.isTerminalLinkDetectionEnabled());
         terminalLinkDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.linkDetection.tooltip")));
@@ -979,6 +985,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(commandTimestampsCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalDragDropCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalCopyOnSelectCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(osc52ClipboardWriteCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(closeActiveTerminalWindowsWithoutConfirmationCheck, 0, terminalRow++, 2, 1);
 
         // Keyword highlighting section
@@ -3471,6 +3478,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setShowTerminalScrollbar(showTerminalScrollbarCheck.isSelected());
             globalSettings.setTerminalDragDropEnabled(terminalDragDropCheck.isSelected());
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
+            globalSettings.setOsc52ClipboardWriteEnabled(osc52ClipboardWriteCheck.isSelected());
             globalSettings.setTerminalLinkDetectionEnabled(terminalLinkDetectionCheck.isSelected());
             globalSettings.setPasteWarningMode(pasteWarningModeCombo.getValue());
             globalSettings.setPasteLargeWarningKiB(pasteLargeWarningSpinner.getValue() != null
@@ -3730,6 +3738,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "scrollbar_visible", gs::isShowTerminalScrollbar, true));
             tracked.add(new TrackedSetting("terminal", "drag_drop_enabled", gs::isTerminalDragDropEnabled, true));
             tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "osc52_clipboard_write", gs::isOsc52ClipboardWriteEnabled, true));
             tracked.add(new TrackedSetting("terminal", "link_detection", gs::isTerminalLinkDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));

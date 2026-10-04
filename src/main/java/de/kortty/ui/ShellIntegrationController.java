@@ -8,6 +8,7 @@ import com.sithtermfx.ui.TerminalAction;
 import com.sithtermfx.ui.TerminalActionPresentation;
 import com.sithtermfx.ui.TerminalPanel;
 import de.kortty.core.KorttyClipboard;
+import de.kortty.shellintegration.ClipboardWriteSlot;
 import de.kortty.shellintegration.CommandBlockStore;
 import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.PromptNavigator;
@@ -35,8 +36,8 @@ import java.util.function.Consumer;
 
 /**
  * Shell integration for the panes of one terminal tab: keeps each pane's {@code OSC 133} command
- * marks ({@link PaneCommandMarks}), moves between its prompts and passes on the notifications its
- * programs ask for.
+ * marks ({@link PaneCommandMarks}), moves between its prompts and passes on the notifications and
+ * clipboard writes its programs ask for.
  *
  * <ul>
  *   <li>{@link #onEvent} receives a pane's events on its emulator thread, from
@@ -65,6 +66,12 @@ import java.util.function.Consumer;
  *       {@link #takeRemoteNotification takes} it on the FX thread for {@link TerminalAttentionNotifier}.
  *       These need no shell integration and do not depend on its setting; their own setting only
  *       decides about the desktop notification.</li>
+ *   <li>A clipboard write a program asks for with {@code OSC 52} waits in the pane's
+ *       {@link ClipboardWriteSlot}, where a newer write replaces an older one; the
+ *       {@link #setClipboardWriteListener listener} learns of it once and
+ *       {@link #takeClipboardWrite takes} it on the FX thread for {@link TerminalClipboardWriter},
+ *       which decides with its own setting whether the clipboard changes. It needs no shell
+ *       integration either.</li>
  * </ul>
  *
  * <p>The setting is read on every event and key press, so switching shell integration off stops
@@ -142,12 +149,14 @@ final class ShellIntegrationController {
     private final Map<SithTermFxWidget, PaneCommandMarks> panes = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, TerminalModelListener> modelListeners = new ConcurrentHashMap<>();
     private final Map<SithTermFxWidget, RemoteNotificationSlot> remoteNotifications = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, ClipboardWriteSlot> clipboardWrites = new ConcurrentHashMap<>();
     private final BooleanSupplier enabled;
     private final KeyCombination previousPromptKey;
     private final KeyCombination nextPromptKey;
     private volatile @Nullable Consumer<SithTermFxWidget> statusesChanged;
     private volatile @Nullable BiConsumer<SithTermFxWidget, CommandStatus> commandFinished;
     private volatile @Nullable Consumer<SithTermFxWidget> remoteNotificationArrived;
+    private volatile @Nullable Consumer<SithTermFxWidget> clipboardWriteArrived;
 
     /**
      * @param enabled           whether shell integration is on; asked on the emulator thread and the
@@ -165,6 +174,7 @@ final class ShellIntegrationController {
     /** Sets {@code widget} up for shell integration; once per pane, on the FX thread, before its session starts. */
     void attach(@NotNull SithTermFxWidget widget) {
         remoteNotifications.putIfAbsent(widget, new RemoteNotificationSlot());
+        clipboardWrites.putIfAbsent(widget, new ClipboardWriteSlot());
         TerminalTextBuffer buffer = widget.getTerminalTextBuffer();
         if (buffer == null) {
             return;
@@ -188,6 +198,7 @@ final class ShellIntegrationController {
             return;
         }
         remoteNotifications.remove(widget);
+        clipboardWrites.remove(widget);
         PaneCommandMarks marks = panes.remove(widget);
         TerminalModelListener listener = modelListeners.remove(widget);
         if (listener != null && marks != null) {
@@ -207,12 +218,16 @@ final class ShellIntegrationController {
 
     /**
      * A pane's event, on its emulator thread at the point of the output where it stood. Records the
-     * {@code OSC 133} marks while shell integration is on and passes a program's notification on;
-     * everything else is left to others.
+     * {@code OSC 133} marks while shell integration is on and passes a program's notification and
+     * clipboard write on; everything else is left to others.
      */
     void onEvent(@NotNull SithTermFxWidget widget, @NotNull ShellIntegrationEvent event) {
         if (event instanceof ShellIntegrationEvent.RemoteNotification notification) {
             offerRemoteNotification(widget, notification);
+            return;
+        }
+        if (event instanceof ShellIntegrationEvent.ClipboardWrite write) {
+            offerClipboardWrite(widget, write);
             return;
         }
         if (!PaneCommandMarks.isMark(event) || !isEnabled()) {
@@ -292,6 +307,40 @@ final class ShellIntegrationController {
         } catch (RuntimeException e) {
             slot.take();
             logger.debug("Could not hand a program's notification of a pane on: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Sets who learns that a program in a pane asked to put text on the clipboard ({@code OSC 52}):
+     * called on the pane's emulator thread, at most once until {@link #takeClipboardWrite} took the
+     * write, so it only has to schedule that call on the FX thread. A write that comes before
+     * replaces the one waiting, so a program that copies in a loop costs the FX thread one task at a
+     * time and the clipboard gets its last text. A listener that throws frees the slot again.
+     */
+    void setClipboardWriteListener(@Nullable Consumer<SithTermFxWidget> listener) {
+        this.clipboardWriteArrived = listener;
+    }
+
+    /**
+     * The newest clipboard write a program in {@code widget} asked for, still undecoded, and frees
+     * the pane's slot for the next one; {@code null} when there is none or the pane is gone. FX thread.
+     */
+    @Nullable ShellIntegrationEvent.ClipboardWrite takeClipboardWrite(@Nullable SithTermFxWidget widget) {
+        ClipboardWriteSlot slot = widget != null ? clipboardWrites.get(widget) : null;
+        return slot != null ? slot.take() : null;
+    }
+
+    private void offerClipboardWrite(SithTermFxWidget widget, ShellIntegrationEvent.ClipboardWrite write) {
+        ClipboardWriteSlot slot = clipboardWrites.get(widget);
+        Consumer<SithTermFxWidget> listener = clipboardWriteArrived;
+        if (slot == null || listener == null || !slot.offer(write)) {
+            return;
+        }
+        try {
+            listener.accept(widget);
+        } catch (RuntimeException e) {
+            slot.take();
+            logger.debug("Could not hand a program's clipboard write of a pane on: {}", e.getMessage());
         }
     }
 

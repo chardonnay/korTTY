@@ -71,6 +71,23 @@ public sealed interface ShellIntegrationEvent {
         }
     }
 
+    /**
+     * {@code OSC 52;Pc;data}: a program asks to put text on the clipboard. Only writes are events:
+     * a query ({@code data} is {@code ?}) is never one, so the clipboard is never read back to the
+     * remote side. {@link Osc52Support#decode} checks and decodes {@code data}; whether anything is
+     * written is up to the setting.
+     *
+     * @param selection the {@code Pc} parameter as sent: empty or made of {@code c p q s 0-7}, all of
+     *                  which mean the one clipboard korTTY has
+     * @param data      the base64 text as sent, line breaks and all; never empty
+     */
+    record ClipboardWrite(String selection, String data) implements ShellIntegrationEvent {
+        @Override
+        public String summary() {
+            return "ClipboardWrite(" + data.length() + " chars)";
+        }
+    }
+
     /** An owned sequence longer than {@link OwnedOsc#maxPayloadLength()}: dropped unread. */
     record Oversize(OwnedOsc kind) implements ShellIntegrationEvent {
         @Override

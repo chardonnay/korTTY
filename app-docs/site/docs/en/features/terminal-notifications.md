@@ -6,6 +6,8 @@ title: Terminal notifications
 
 A program in a terminal can ask for your attention while you are working somewhere else: a build script rings the bell when it is done, a prompt rings it when it waits for input, a coding agent on a server asks for a notification when it needs your answer, and in a shell set up for [shell integration](shell-integration.md) a long command tells korTTY when it has finished. KorTTY marks the tab such a request comes from, so you see it in the tab bar, and can also show a desktop notification. It never plays a sound.
 
+A program can also ask to put text on your clipboard. KorTTY allows that only when you switch it on, and the status bar tells you each time; see [Programs copying to the clipboard](#programs-copying-to-the-clipboard-osc-52).
+
 ## When you are looking at a tab
 
 KorTTY only asks for your attention in tabs you are not looking at. A tab counts as seen while it is the selected tab of the window in front, that is the window that has the keyboard focus and is not minimised. Which pane of a tab with [split panes](terminal.md#split-screen-with-broadcast) has the focus does not matter: the tab is seen as a whole. A tab that is not selected, the tabs of a korTTY window behind another one, and every tab while another application is in front are not seen.
@@ -61,9 +63,28 @@ When such a request comes from a tab you are not looking at, korTTY marks the ta
 - `OSC 9` with a number first, such as the `ESC ] 9 ; 4 ; 1 ; 50 BEL` progress report of ConEmu and Windows Terminal, is no notification and is ignored. Other `OSC 777` commands are no notifications either and are left alone.
 - It needs no [shell integration](shell-integration.md), and switching shell integration off does not stop it.
 - Inside `tmux` or `screen` the requests usually do not arrive: the multiplexer does not pass them on, and korTTY does not unwrap tmux's passthrough sequences. Mosh connections never carry them.
-- korTTY's own log never records the text; the tab's tooltip and the notification are the only places korTTY shows it. A [terminal log](terminal.md#terminal-logging) or [session journal](session-journal.md) of the pane records the output as it arrived and can therefore contain it.
+- korTTY's own log never records the text; the tab's tooltip and the notification are the only places korTTY shows it. A [terminal log](terminal.md#terminal-logging) or [session journal](session-journal.md) of the pane leaves escape sequences out, so the text does not reach them either, except when a program uses the rare 8-bit form of the sequence.
 
 *Settings → Terminal → Notifications* has **Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777)**, on by default. Switched off, a request only marks the tab. A change applies to the open tabs as soon as you save. See [Terminal settings](../reference/settings/terminal.md#notes).
 
 !!! note "Privacy"
     A desktop notification shows the tab's name, which can be a server name, and depending on your operating system's settings it can appear on the lock screen; a program's notification also shows the text the program sent. Turn off the desktop notifications you do not want, or the notifications for korTTY in the operating system; the mark on the tab stays inside korTTY.
+
+## Programs copying to the clipboard (OSC 52)
+
+Programs such as vim, Neovim and tmux can copy text into the clipboard of the terminal they run in with the OSC 52 escape sequence (`ESC ] 52 ; c ; <base64 text> BEL`). Over SSH this is the only way for them to reach the clipboard of the computer in front of you: you copy in vim on the server, and the text is on your clipboard. KorTTY allows it only when you switch on **Let programs in the terminal copy text to the clipboard (OSC 52)** in *Settings → Terminal*; it is off by default. To try it, switch it on and run:
+
+```bash
+printf '\e]52;c;%s\a' "$(printf 'copied from the server' | base64)"
+```
+
+- Each time a program copies, the status bar of its window says so and names the tab, for example *A program in the tab “web-01” copied 22 characters to the clipboard (OSC 52).* While the setting is off, the status bar says that a program tried, and the clipboard stays as it was.
+- Programs can only write the clipboard, never read it: korTTY never answers the OSC 52 query, so nothing you copied elsewhere reaches a program in the terminal. A program's own paste command that reads the clipboard this way, such as Neovim's OSC 52 paste, therefore gets nothing; paste with korTTY's paste shortcut instead, which goes through [paste protection](terminal.md#paste-protection).
+- One write can carry up to 256 KiB of text. A write that is larger, that is not valid base64 or whose text is not UTF-8 changes nothing, and the status bar says so. Line breaks in the base64, as `base64` without `-w0` writes it, are fine.
+- Every selection a program names (`c`, `p`, `q`, `s`, the cut buffers `0` to `7`, or none) goes to the same clipboard; on Linux that is the clipboard, not the primary selection. When a program copies several times in quick succession, the clipboard ends up with the last text.
+- With the enterprise policy's [internal clipboard mode](../reference/enterprise-policy.md#internal-clipboard-mode), what programs copy lands in korTTY's internal clipboard and never reaches the operating system's clipboard.
+- It needs no [shell integration](shell-integration.md) and works in local shells and SSH sessions alike. Inside `tmux`, `set -g set-clipboard on` in `~/.tmux.conf` passes the copies of tmux and of the programs in it on to korTTY. Mosh connections may not carry the sequence.
+- Apart from the status bar, nothing tells you that the clipboard changed. Text a program put there and you paste into korTTY still goes through paste protection, which asks about line breaks and control characters, but other applications paste it as it is. Leave the setting off while you work on servers whose programs you do not trust.
+- korTTY's own log records only how many bytes a program copied, never the text. A [terminal log](terminal.md#terminal-logging) or [session journal](session-journal.md) of the pane leaves escape sequences out, so the copied text does not reach them either, except when a program uses the rare 8-bit form of the sequence: then the file holds the text base64-encoded.
+
+The setting is read on every write, so a change applies to open tabs as soon as you save. See [Terminal settings](../reference/settings/terminal.md#notes).

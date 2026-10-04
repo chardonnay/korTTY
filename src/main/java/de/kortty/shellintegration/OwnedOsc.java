@@ -16,7 +16,13 @@ public enum OwnedOsc {
     /** {@code OSC 9 ; text}: the iTerm2/ConEmu desktop notification. */
     NOTIFICATION("9;", 4096),
     /** {@code OSC 777 ; notify ; title ; body}: the urxvt/foot desktop notification. */
-    NOTIFY("777;notify;", 4096);
+    NOTIFY("777;notify;", 4096),
+    /**
+     * {@code OSC 52 ; Pc ; base64}: a program puts text on the clipboard (xterm). The cap fits the
+     * base64 of {@link Osc52Support#MAX_DECODED_BYTES} with a line break every 76 chars, as
+     * {@code base64} without {@code -w0} writes it, and leaves room for the selection parameter.
+     */
+    CLIPBOARD("52;", 384 * 1024);
 
     private final String prefix;
     private final int maxPayloadLength;

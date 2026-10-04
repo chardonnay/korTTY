@@ -476,6 +476,11 @@ public class TerminalView extends BorderPane {
      * and its cleaned text; set by the tab, null once the tab is cleaned up.
      */
     private volatile BiConsumer<SithTermFxWidget, RemoteNotificationText> remoteNotificationListener;
+    /**
+     * Told on the FX thread which pane's program asked to put text on the clipboard (OSC 52), with
+     * the still undecoded write; set by the tab, null once the tab is cleaned up.
+     */
+    private volatile BiConsumer<SithTermFxWidget, ShellIntegrationEvent.ClipboardWrite> clipboardWriteListener;
 
     /** A bracketed-paste tracker together with the connector it listens on, so a rebind can detach it. */
     private record PasteTracking(BracketedPasteTracker tracker, ObservableTtyConnector connector) {}
@@ -572,6 +577,8 @@ public class TerminalView extends BorderPane {
             (widget, status) -> Platform.runLater(() -> onPaneCommandFinished(widget, status)));
         // A program asked for a desktop notification (OSC 9/777): the tab decides whether to show it.
         shellIntegration.setRemoteNotificationListener(widget -> Platform.runLater(() -> onPaneRemoteNotification(widget)));
+        // A program asked to put text on the clipboard (OSC 52): the tab's setting decides.
+        shellIntegration.setClipboardWriteListener(widget -> Platform.runLater(() -> onPaneClipboardWrite(widget)));
         // The session carrying the tunnels closed while it still owned them: if its pane is gone
         // (the user closed it or typed exit there), move them to another pane of the same server.
         tunnelManager.setOwnerClosedListener(session -> Platform.runLater(this::rehomeTunnelsIfOwnerGone));
@@ -2405,9 +2412,9 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * Receives a pane's OSC 133/9/777 events on its emulator thread, at the point of the output
-     * where they stood: the OSC 133 marks and the notifications programs ask for (OSC 9/777) go to
-     * {@link #shellIntegration}.
+     * Receives a pane's OSC 133/9/777/52 events on its emulator thread, at the point of the output
+     * where they stood: the OSC 133 marks, the notifications programs ask for (OSC 9/777) and their
+     * clipboard writes (OSC 52) go to {@link #shellIntegration}.
      */
     private void onShellIntegrationEvent(SithTermFxWidget widget, ShellIntegrationEvent event) {
         if (logger.isTraceEnabled()) {
@@ -3569,6 +3576,34 @@ public class TerminalView extends BorderPane {
      */
     public void setRemoteNotificationListener(BiConsumer<SithTermFxWidget, RemoteNotificationText> listener) {
         remoteNotificationListener = listener;
+    }
+
+    /**
+     * A program in {@code widget} asked to put text on the clipboard with OSC 52 (see
+     * {@link ShellIntegrationController#setClipboardWriteListener}); FX thread. The write is taken in
+     * any case, which frees the pane for its next one; a pane closed or a tab cleaned up since then
+     * is ignored, so a closed tab never changes the clipboard.
+     */
+    private void onPaneClipboardWrite(SithTermFxWidget widget) {
+        ShellIntegrationEvent.ClipboardWrite write = shellIntegration.takeClipboardWrite(widget);
+        BiConsumer<SithTermFxWidget, ShellIntegrationEvent.ClipboardWrite> listener = clipboardWriteListener;
+        if (write == null || listener == null || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        try {
+            listener.accept(widget, write);
+        } catch (RuntimeException e) {
+            logger.debug("Handling a program's clipboard write failed: {}", e.toString());
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that a program in one of this tab's panes asked to put
+     * text on the clipboard (OSC 52). The write comes as the program sent it, base64 and unchecked;
+     * a pane hands on one at a time, and a newer write replaces one still waiting.
+     */
+    public void setClipboardWriteListener(BiConsumer<SithTermFxWidget, ShellIntegrationEvent.ClipboardWrite> listener) {
+        clipboardWriteListener = listener;
     }
 
     /**
@@ -7475,10 +7510,12 @@ public class TerminalView extends BorderPane {
      */
     public void cleanup() {
         // A bell, a finished command or a program's notification still on its way to the FX thread
-        // must not mark or announce a closed tab.
+        // must not mark or announce a closed tab, nor may a program's clipboard write still change
+        // the clipboard.
         bellListener = null;
         commandFinishedListener = null;
         remoteNotificationListener = null;
+        clipboardWriteListener = null;
         pastePacer.cancelAll();
         releaseAllShellTitleListeners();
         cancelAllTerminalAgentRuns();

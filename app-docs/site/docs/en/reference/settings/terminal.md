@@ -19,6 +19,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Show command timestamps | toggle | — | Off | `commandTimestampsEnabled` |
 | Allow drag and drop into the terminal (files copy over SFTP, text is pasted) | toggle | — | On | `terminalDragDropEnabled` |
 | Copy selection to clipboard automatically | toggle | — | On | `terminalCopyOnSelectEnabled` |
+| Let programs in the terminal copy text to the clipboard (OSC 52) | toggle | — | Off | `osc52ClipboardWriteEnabled` |
 | Close active terminal windows without confirmation | toggle | — | Off | `closeActiveTerminalWindowsWithoutConfirmation` |
 | Highlight keywords in terminal output | toggle | — | On | `terminalHighlightingEnabled` |
 | Also highlight in full-screen programs (vim, less, htop) | toggle | — | Off | `terminalHighlightAlternateScreen` |
@@ -58,6 +59,9 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 !!! note "Copy selection to clipboard automatically"
     When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode) the selection stays inside korTTY on every platform.
+
+!!! note "Programs copying to the clipboard (OSC 52)"
+    With **Let programs in the terminal copy text to the clipboard (OSC 52)** on, programs such as vim, Neovim and tmux, also on a server over SSH, can put up to 256 KiB of text at a time on your clipboard with the OSC 52 escape sequence, and the status bar names the tab each time. They can never read the clipboard, because korTTY never answers the OSC 52 query. It is off by default, because any program whose output reaches the terminal could replace what you copied; while it is off, the status bar says when a program tried. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode) what programs copy stays inside korTTY. The setting is read on every write, so a change applies to open tabs as soon as you save. See [Programs copying to the clipboard](../../features/terminal-notifications.md#programs-copying-to-the-clipboard-osc-52).
 
 !!! note "Keyword highlighting"
     **Highlight keywords in terminal output** is the master switch of [keyword highlighting](../../features/highlighting.md). While it is off, no pane is highlighted, whatever was chosen in a menu, with ++ctrl+shift+h++ (++cmd+shift+h++ on macOS), for a connection or as the default rule set, and the highlighting menus are greyed out. It is on by default, but nothing is highlighted until a rule set is chosen.

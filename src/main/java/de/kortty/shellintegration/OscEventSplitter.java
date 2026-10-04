@@ -67,6 +67,12 @@ public final class OscEventSplitter {
     static final char C1_ST = '\u009C';
     static final char C1_OSC = '\u009D';
 
+    /**
+     * The payload buffer keeps at most this capacity between sequences, so the few hundred KiB of a
+     * large {@code OSC 52} write are not held for the life of the pane.
+     */
+    private static final int RETAINED_PAYLOAD_CAPACITY = 8 * 1024;
+
     /** SithTermFX pushes a CSI's stray chars back through a 1024-char array; it fails beyond that. */
     private static final int MAX_CSI_STRAY_CHARS = 1_000;
 
@@ -379,7 +385,7 @@ public final class OscEventSplitter {
             completed = ownedOversize || ownedPayload.length() > kind.maxPayloadLength()
                     ? new ShellIntegrationEvent.Oversize(kind)
                     : parse(kind, ownedPayload.toString());
-            ownedPayload.setLength(0);
+            clearOwnedPayload();
             ownedOversize = false;
             owned = null;
             afterEscape = false;
@@ -394,10 +400,18 @@ public final class OscEventSplitter {
                 ownedPayload.append(c);
             } else {
                 ownedOversize = true;
-                ownedPayload.setLength(0);
+                clearOwnedPayload();
             }
         }
         return SWALLOW;
+    }
+
+    /** Empties the payload buffer, and gives back the memory a large clipboard write grew it to. */
+    private void clearOwnedPayload() {
+        ownedPayload.setLength(0);
+        if (ownedPayload.capacity() > RETAINED_PAYLOAD_CAPACITY) {
+            ownedPayload.trimToSize();
+        }
     }
 
     /**
@@ -406,13 +420,15 @@ public final class OscEventSplitter {
      *
      * @return the event, or {@code null} for a sequence that announces nothing korTTY acts on: an
      *         unknown OSC 133 mark, a ConEmu {@code OSC 9;<number>} subcommand such as the
-     *         {@code 9;4} progress report, or an empty notification
+     *         {@code 9;4} progress report, an empty notification, or an {@code OSC 52} query, empty
+     *         write or unknown selection
      */
     static @Nullable ShellIntegrationEvent parse(OwnedOsc kind, String payload) {
         return switch (kind) {
             case SHELL_INTEGRATION -> parseMark(payload);
             case NOTIFICATION -> RemoteNotificationText.parseOsc9(payload);
             case NOTIFY -> RemoteNotificationText.parseOsc777Notify(payload);
+            case CLIPBOARD -> Osc52Support.parse(payload);
         };
     }
 

@@ -347,6 +347,14 @@ public class GlobalSettings {
     @XmlElement
     private boolean terminalCopyOnSelectEnabled = true; // Copy selected text to clipboard automatically
 
+    /**
+     * Whether a program in a terminal may put text on the clipboard with OSC 52, as vim, Neovim and
+     * tmux on a server do. Off by default (decision D4 a): any program whose output reaches the
+     * terminal could replace what the user copied. Programs can only write, never read.
+     */
+    @XmlElement
+    private boolean osc52ClipboardWriteEnabled = false;
+
     @XmlElement
     private boolean terminalLinkDetectionEnabled = true; // Cmd/Ctrl+click opens web/e-mail addresses and file paths in plain text
 
@@ -2089,6 +2097,18 @@ public class GlobalSettings {
 
     public void setTerminalCopyOnSelectEnabled(boolean terminalCopyOnSelectEnabled) {
         this.terminalCopyOnSelectEnabled = terminalCopyOnSelectEnabled;
+    }
+
+    /**
+     * Whether programs in a terminal may put text on the clipboard with OSC 52, at most 256 KiB at a
+     * time. Read on every write, so a change applies at once.
+     */
+    public boolean isOsc52ClipboardWriteEnabled() {
+        return osc52ClipboardWriteEnabled;
+    }
+
+    public void setOsc52ClipboardWriteEnabled(boolean osc52ClipboardWriteEnabled) {
+        this.osc52ClipboardWriteEnabled = osc52ClipboardWriteEnabled;
     }
 
     /**
