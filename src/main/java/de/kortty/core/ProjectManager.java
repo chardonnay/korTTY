@@ -67,7 +67,12 @@ public class ProjectManager {
                     if (!HistoryStorage.isValidSessionId(session.getSessionId())) {
                         // A project loaded from a crafted file must not choose where its history
                         // is written; a fresh id names a file inside history/ like any other.
+                        String replaced = session.getSessionId();
                         session.setSessionId(UUID.randomUUID().toString());
+                        if (replaced != null && replaced.equals(window.getActiveSessionId())) {
+                            // The window still names its active tab by the id it now has.
+                            window.setActiveSessionId(session.getSessionId());
+                        }
                     }
                     String historyFile = historyStorage.saveHistory(
                             session.getSessionId(), 

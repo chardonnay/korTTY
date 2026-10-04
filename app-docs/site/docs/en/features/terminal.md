@@ -74,6 +74,7 @@ Open additional windows to organize connections by project or environment:
 - **New Window**: ++ctrl+shift+n++ (Cmd+Shift+N on macOS) opens a new KorTTY window. Each window can have its own set of tabs and connections.
 - **Move tabs between windows**: Drag a tab from the tab bar and drop it onto another KorTTY window's tab bar to move that tab (and its session, including any split terminals) into the other window.
 - **Reorder tabs**: Drag a tab within the same window to change its order; the "+" tab stays at the end.
+- **Save and reopen windows**: *File → Save Project* keeps every open window with its position, size and tabs, and *File → Open Project* opens them again in as many windows, see [Windows](projects.md#windows).
 
 ## Terminal context menu
 

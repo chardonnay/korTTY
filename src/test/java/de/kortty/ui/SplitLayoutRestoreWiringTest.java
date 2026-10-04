@@ -27,7 +27,7 @@ class SplitLayoutRestoreWiringTest {
 
     @Test
     void openingAProjectRestoresTheSplitsOnTheFirstConnectWithoutSleeping() throws IOException {
-        String loadProject = methodBody(read(MAIN_WINDOW), "private void loadProject(Project project)");
+        String loadProject = methodBody(read(MAIN_WINDOW), "private void restoreSavedTab(");
 
         assertThat(loadProject).doesNotContain("Thread.sleep");
         assertThat(loadProject).contains("restoredTab.addOnFirstConnected(() -> restoredTab.getTerminalView()");

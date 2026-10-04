@@ -12,27 +12,36 @@ Projects save and restore your complete workspace state—all open windows, tabs
 2. Enter a **name** and optional **description** for the project.
 3. Configure **Auto-Reconnect**:
    - When enabled, opening the project automatically reconnects every saved terminal and SFTP tab.
-   - When disabled, opening the project restores the window geometry and the local file editor and image viewer tabs only; terminal, SFTP and remote file tabs are skipped.
+   - When disabled, opening the project restores the windows with their position and size and the local file editor and image viewer tabs only; terminal, SFTP and remote file tabs are skipped.
 4. Click *Save*.
 
 Projects are `.kortty` files saved wherever you choose in the save dialog, for example in `~/.kortty/projects/`.
+
+A project keeps every korTTY window that is open, not only the one you choose *Save Project* in; that window is saved first. A window that holds nothing but AI result and tool tabs, which projects do not keep, is left out, so it does not come back empty; the window you save from is always kept, for its position and size.
 
 ## Opening a Project
 
 1. Open *File > Open Project* or press ++ctrl+o++ (++cmd+o++ on macOS).
 2. Select a `.kortty` project file from the file browser.
-3. The **Project Preview** dialog appears, showing:
-   - Number of windows to be restored
-   - Tabs and connections in each window
-   - Project metadata (name, description, last modified)
-4. Click *Open* to load the project.
+3. The project opens right away. File and snippet editors with unsaved changes in the window ask first; then the project replaces the tabs of the window, and every further window saved in the project opens in a new window, see [Windows](#windows).
+
+### Windows
+
+Opening a project gives its first window to the window you open it from and opens each further window it holds in a new window. Windows that are already open keep their tabs. Projects saved by earlier versions hold only the window they were saved from and open in one window, as before.
+
+- **Position and size** — each window comes back where it was, with its size, and maximized if it was maximized. When the screen a window was on is no longer attached, the window opens centred on the main screen with its saved size, shrunk to fit if needed. A maximized window keeps the size it had before you maximized it, so un-maximizing it later gives you that size back. Fullscreen is not saved, and the window you open the project from stays in fullscreen if it is.
+- **Tabs** — the tabs come back in their saved order, sorted into their [tab groups](terminal.md#working-with-tabs) as usual.
+- **Active tab** — each window selects the tab that was active when you saved. A remote file editor or image viewer tab opens only once its file has been downloaded; when it was the active tab, the window selects it as soon as it is there, unless you have chosen another tab in the meantime or the download takes longer than 10 seconds. When the active tab does not come back, for example because its connection was deleted or you cancelled its password, the window keeps the tab it shows.
+- **Dashboard** — each window shows or hides the dashboard as it did when you saved.
+- **Without Auto-Reconnect** the windows open as well, with their local file editor and image viewer tabs; a window whose tabs were all skipped opens empty.
+- A project opens at most 32 windows; a project file with more, which korTTY writes only when that many windows were open, opens its first 32.
 
 ## Open Recent
 
 *File → Open Recent* takes you back to what you used last without the file dialog or the Connection Manager:
 
 - **Connections** — the saved connections you used last, up to 10, the one used last first: the same connections as the buttons at the top of Quick Connect, which count what you open from Quick Connect, the [command palette](command-palette.md), **Open Group** and this menu (a connection opened from the Connection Manager is not counted). Each entry shows the connection's name and `user@host`. Choosing one opens a tab for it that signs in like **Connect** in the Connection Manager (see [Signing in](connections.md#signing-in)), with the [server access policy](../reference/enterprise-policy.md#server-access-control) checked first, and counts as a use, so the connection moves to the top.
-- **Projects** — the project files you opened or saved last, up to 10, newest first, followed by the other `.kortty` files in `~/.kortty/projects`, the one changed last first. Each entry shows the file name and its folder, with your home folder written as `~`. Choosing one opens the project like *File → Open Project…*: editors with unsaved changes ask first, and the project replaces the tabs of the window. A project file that was moved or deleted is left out of the menu.
+- **Projects** — the project files you opened or saved last, up to 10, newest first, followed by the other `.kortty` files in `~/.kortty/projects`, the one changed last first. Each entry shows the file name and its folder, with your home folder written as `~`. Choosing one opens the project like *File → Open Project…*: editors with unsaved changes ask first, the project replaces the tabs of the window, and further windows saved in it open in new windows. A project file that was moved or deleted is left out of the menu.
 - **Clear List** empties the menu. It deletes no connection and no project file: a connection comes back once you use it again, a project once you open or save it.
 
 The menu is rebuilt every time you open the *File* menu. On macOS, where korTTY keeps running after you close its last window, choosing an entry from the menu bar opens it in a new window.
@@ -45,11 +54,11 @@ A project captures the complete state of your workspace:
 
 | Component | Details |
 |-----------|---------|
-| **Windows** | All open KorTTY windows and their positions/sizes |
+| **Windows** | Every open korTTY window with its position and size, and whether it was maximized (see [Windows](#windows)) |
 | **Tabs** | All terminal tabs in each window, including their [split panes](#split-panes) with the server of each pane and the position of every divider, and the name of a [renamed tab](terminal.md#working-with-tabs), plus SFTP Manager tabs with the local and remote folders they show, and file editor and image viewer tabs |
 | **Connections** | A reference to the saved connection of each tab, by the connection's internal id, so renaming a connection does not break the project |
-| **Dashboard** | Dashboard visibility and divider position |
-| **Active Tab** | Which tab was active in each window |
+| **Dashboard** | Whether the dashboard was shown, in each window |
+| **Active Tab** | Which tab was active in each window, by the tab's session id, so it is found again after the tabs were sorted into their groups |
 | **Terminal Sessions** | The last visible screen of each terminal tab's primary pane — not its scrollback and not the cursor position; the screens of further split panes are not saved |
 
 !!! note
@@ -59,15 +68,15 @@ A project captures the complete state of your workspace:
 
 When **Auto-Reconnect** is enabled, KorTTY automatically:
 
-- Restores all windows with their saved geometry (position and size)
+- Restores all windows with their saved position and size, see [Windows](#windows)
 - Reconnects each SSH tab using the original connection settings
 - Gives each renamed terminal tab its name back; a tab you never renamed shows the connection's current name
 - Shows each terminal tab's saved screen dimmed above the new session, framed by a *Restored output from* row with the date the project was saved and an *End of restored output* row. The text is written into the local terminal only and is never sent to the server: it does not reach the remote shell or its command history, and a session journal that starts with the connection does not record it (a journal you switch on later imports the scrollback, which then includes the restored rows). Control characters and escape sequences are removed from it before it is shown.
 - Brings back each terminal tab's split panes once the tab is connected, see [Split panes](#split-panes)
 - Reopens each SFTP Manager tab at the local and remote folders it showed when the project was saved
-- Restores the active tab and dashboard state
+- Selects the active tab of each window and shows or hides its dashboard as saved
 
-If **Auto-Reconnect** is disabled, terminal tabs are not restored: opening the project applies the saved window geometry and reopens local file editor and image viewer tabs, while terminal, SFTP and remote file tabs are skipped. Open those connections again from the Connection Manager.
+If **Auto-Reconnect** is disabled, terminal tabs are not restored: opening the project opens the saved windows at their position and size and reopens local file editor and image viewer tabs, while terminal, SFTP and remote file tabs are skipped. Open those connections again from the Connection Manager.
 
 ### Split panes
 
@@ -101,9 +110,9 @@ A file editor tab with unsaved changes shows `*` after its name, and every way o
 A project is a plain XML file with the `.kortty` extension. Each project includes:
 
 - Metadata (name, description, creation/modification timestamps)
-- Complete window and tab state
+- Every window with its position, size and tabs, and the session id of its active tab
 - Connection references (by connection id, so the connection must exist in your Connection Manager)
-- Dashboard visibility and layout
+- Dashboard visibility of each window
 
 The saved screen text is not part of the `.kortty` file. It is stored separately as one gzip file per terminal tab, `~/.kortty/history/<session-id>.history.gz`, which the project references by file name — a project file you share therefore carries the layout but not the screen text. korTTY only ever reads, writes or deletes plain file names inside `~/.kortty/history/`; a project whose reference points anywhere else opens without that screen text.
 

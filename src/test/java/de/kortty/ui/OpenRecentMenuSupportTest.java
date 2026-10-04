@@ -175,7 +175,7 @@ class OpenRecentMenuSupportTest {
     @Test
     void aProjectIsRememberedOnceItOpenedOrWasSaved() throws IOException {
         String open = methodBody(source(), "private void openProjectFile(Path path) {");
-        assertThat(open.indexOf("rememberRecentProject(path);")).isGreaterThan(open.indexOf("loadProject(project);"));
+        assertThat(open.indexOf("rememberRecentProject(path);")).isGreaterThan(open.indexOf("restoreProject(project, this);"));
         assertWithMessage("a cancelled open is not remembered")
             .that(open.indexOf("rememberRecentProject(path);"))
             .isGreaterThan(open.indexOf("if (!confirmHostedTabsClose()) {"));

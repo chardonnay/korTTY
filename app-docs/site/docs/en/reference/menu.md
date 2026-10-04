@@ -16,9 +16,9 @@ Every item in korTTY's menu bar, with its shortcut (where defined) and what it d
 | Recently Closed ▸ | | What you closed in this session, newest first: a tab, the tabs one command closed together, or *Window: …* for the tabs of a closed window. Choose an entry to reopen it; **Clear List** empties the list |
 | New Window | ++ctrl+shift+n++ | Open an additional, independent main window |
 | Close Window | ++ctrl+shift+w++ | Close the current window |
-| Open Project… | ++ctrl+o++ | Restore a saved project (windows, tabs, layout) |
+| Open Project… | ++ctrl+o++ | Restore a saved project: its first window replaces the tabs of this window, each further window opens in a new window, and every window gets its position, size, tabs and active tab back. See [Windows](../features/projects.md#windows) |
 | Open Recent ▸ | | Under **Connections**, the saved connections you used last (up to 10, newest first, as at the top of Quick Connect), each opening a tab that signs in like **Connect** in the Connection Manager; under **Projects**, the projects you opened or saved last (up to 10), followed by the other projects in `~/.kortty/projects`, each opening like *Open Project…*. Files that no longer exist are left out. **Clear List** empties the menu without deleting a connection or a project file. See [Open Recent](../features/projects.md#open-recent) |
-| Save Project… | ++ctrl+s++ | Save the current session as a project (`.kortty`) |
+| Save Project… | ++ctrl+s++ | Save every open window with its position, size and tabs as a project (`.kortty`) |
 | Create Backup… | ++ctrl+shift+b++ | Create an encrypted backup (ZIP password or GPG) |
 | Import Backup… | | Restore from a backup file |
 | Quit | ++ctrl+q++ | Exit korTTY |

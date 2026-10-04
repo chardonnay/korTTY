@@ -307,7 +307,7 @@ class TerminalTabTitleTest {
     void projectsSaveTheCustomTitleInTheTabTitleAndRestoreIt() throws IOException {
         String window = source("MainWindow.java");
 
-        String save = methodBody(window, "private Project createProjectFromCurrentState() {");
+        String save = methodBody(window, "private SessionState captureTabState(Tab tab, CaptureOptions options) {");
         String terminal = save.substring(save.indexOf("if (tab instanceof TerminalTab terminalTab) {"),
             save.indexOf("} else if (tab instanceof SFTPManagerTab"));
         assertWithMessage("only a name the user gave is saved, so an unrenamed tab keeps following its connection")
@@ -316,7 +316,7 @@ class TerminalTabTitleTest {
             .that(terminal).doesNotContain("getShellTitle()");
         assertThat(terminal).doesNotContain("getEffectiveTitle()");
 
-        String load = methodBody(window, "private void loadProject(Project project) {");
+        String load = methodBody(window, "private void restoreSavedTab(");
         String restore = load.substring(load.indexOf("case TERMINAL -> {"), load.indexOf("case SFTP_MANAGER -> {"));
         assertThat(restore).contains("restoredTab.setCustomTitle(sessionState.getTabTitle());");
     }
