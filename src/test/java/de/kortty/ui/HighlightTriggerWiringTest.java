@@ -81,8 +81,9 @@ class HighlightTriggerWiringTest {
         String runner = source("HighlightSnippetTrigger.java");
         String onTrigger = body(runner, "void onHighlightTrigger(TerminalTab tab, SithTermFxWidget widget, List<LineMatch> matches) {");
         assertThat(onTrigger).contains("rule.action() != HighlightRule.Action.RUN_SNIPPET");
-        assertWithMessage("the cursor line, mirrored keys and agents reach the guard")
-            .that(onTrigger).contains("match.cursorLine(),\n                mirroredInput(widget), agentBusy(tab, widget));");
+        assertWithMessage("the cursor line, mirrored keys, agents, full-screen programs and paced pastes reach the guard")
+            .that(onTrigger).contains("match.cursorLine(),\n"
+                + "                mirroredInput(widget), agentBusy(tab, widget), inputBusy(tab, widget));");
         assertThat(onTrigger).contains("handle(tab, widget, rule, request, guard.decide(request));");
         String run = body(runner, "private void run(TerminalTab tab, SithTermFxWidget widget, CompiledHighlightSet.Rule rule) {");
         assertThat(run).contains("view.sendInputLineToPane(widget, preparation.line(), preparation.generatedOneLiner())");
@@ -97,6 +98,18 @@ class HighlightTriggerWiringTest {
         assertWithMessage("the toolkit's event loop is not nested: the answer arrives when the dialog closes")
             .that(confirm).contains("alert.show();");
         assertThat(confirm).doesNotContain("showAndWait");
+        assertWithMessage("the question can appear while the user types: Enter or Space must refuse, not allow")
+            .that(confirm).contains("Button denyButton = refuseByDefault(alert, allow, deny);");
+        assertThat(confirm).contains("alert.setOnShown(event -> denyButton.requestFocus());");
+        String refuse = body(runner, "private static @Nullable Button refuseByDefault(Alert alert, ButtonType allow, ButtonType deny) {");
+        assertThat(refuse).contains("allowButton.setDefaultButton(false);");
+        assertThat(refuse).contains("denyButton.setDefaultButton(true);");
+        assertWithMessage("an allow is checked against the pane as it is when the question closes")
+            .that(confirm).contains("request.withPaneFacts(mirroredInput(widget),\n"
+                + "                        agentBusy(tab, widget), inputBusy(tab, widget));");
+        assertThat(confirm).contains("handle(tab, widget, rule, now, guard.decide(now));");
+        assertThat(body(runner, "private static boolean inputBusy(TerminalTab tab, SithTermFxWidget widget) {"))
+            .contains("view != null && view.isPaneBusyWithInput(widget)");
         assertThat(runner).contains("() -> HighlightTriggerDispatcher.triggersAllowed(\n"
             + "                        TerminalAttentionNotifier.currentSettings(), PolicyManager.effective())),");
 
@@ -106,6 +119,12 @@ class HighlightTriggerWiringTest {
         assertWithMessage("straight to the pane's own session, so broadcast and multi-exec never mirror it")
             .that(send).contains("unwrapTerminalEffectConnector(widget.getTtyConnector())");
         assertThat(send).doesNotContain("MirroredInputWriter");
+        assertWithMessage("never between the lines of a paste the pane is still sending")
+            .that(send).contains("if (pastePacer.isPacing(widget)) {");
+        String busy = body(source("TerminalView.java"), "public boolean isPaneBusyWithInput(SithTermFxWidget widget) {");
+        assertThat(busy).contains("pastePacer.isPacing(widget)");
+        assertWithMessage("a full-screen program would take the snippet as keystrokes")
+            .that(busy).contains("return buffer.isUsingAlternateBuffer();");
     }
 
     @Test

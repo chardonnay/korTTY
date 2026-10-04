@@ -26,7 +26,11 @@ import java.util.function.LongSupplier;
  *   <li>Nothing for output that answers keys mirrored into the pane by broadcast mode or multi-exec
  *       moments ago ({@link Verdict#MIRRORED_INPUT}), and nothing while a korTTY terminal-agent run or a
  *       coding agent works in the pane, which would read the snippet as its own input
- *       ({@link Verdict#AGENT_BUSY}).</li>
+ *       ({@link Verdict#AGENT_BUSY}), and nothing while a full-screen program such as {@code vim} or
+ *       {@code less} has the pane, which would take the snippet as keystrokes, or while a paste is being
+ *       sent into it line by line, whose lines the snippet would land between ({@link Verdict#INPUT_BUSY}).
+ *       The output that matched never comes from a full-screen program, but the program can start before
+ *       the snippet runs: while the confirmation is open, say.</li>
  *   <li><b>Loop guard.</b> When rules ran snippets {@value #MAX_RUNS_IN_A_ROW} times in a row in a pane,
  *       each within {@link #LOOP_WINDOW_MILLIS} of the one before — a snippet whose output matches its own
  *       rule, or two rules that keep setting each other off — the next match stops all snippet runs in
@@ -80,6 +84,8 @@ final class HighlightSnippetTriggerGuard {
         MIRRORED_INPUT,
         /** A terminal-agent run or a coding agent works in the pane. */
         AGENT_BUSY,
+        /** A full-screen program has the pane, or a paste is being sent into it line by line. */
+        INPUT_BUSY,
         /** The loop guard keeps snippet runs in the pane stopped. */
         STOPPED,
         /** The rule ran its snippet in the pane less than {@link #COOLDOWN_MILLIS} ago. */
@@ -108,15 +114,32 @@ final class HighlightSnippetTriggerGuard {
      * @param mirroredInput whether keys mirrored into the pane by broadcast mode or multi-exec reached it
      *                      moments ago
      * @param agentBusy     whether a korTTY terminal-agent run or a coding agent works in the pane
+     * @param inputBusy     whether a full-screen program has the pane (the alternate screen) or a paste is
+     *                      being sent into it line by line
      */
     record Request(Object pane, String connectionKey, String ruleId, String snippetId, boolean cursorLine,
-            boolean mirroredInput, boolean agentBusy) {
+            boolean mirroredInput, boolean agentBusy, boolean inputBusy) {
 
         Request {
             Objects.requireNonNull(pane, "pane");
             Objects.requireNonNull(connectionKey, "connectionKey");
             Objects.requireNonNull(ruleId, "ruleId");
             Objects.requireNonNull(snippetId, "snippetId");
+        }
+
+        /** A match in a pane that neither a full-screen program nor a paced paste has. */
+        Request(Object pane, String connectionKey, String ruleId, String snippetId, boolean cursorLine,
+                boolean mirroredInput, boolean agentBusy) {
+            this(pane, connectionKey, ruleId, snippetId, cursorLine, mirroredInput, agentBusy, false);
+        }
+
+        /**
+         * The same match with what is known about the pane now: after the confirmation was open for a while,
+         * keys may have been mirrored into it, an agent may work there or a full-screen program may have it.
+         */
+        Request withPaneFacts(boolean mirroredInputNow, boolean agentBusyNow, boolean inputBusyNow) {
+            return new Request(pane, connectionKey, ruleId, snippetId, cursorLine, mirroredInputNow, agentBusyNow,
+                inputBusyNow);
         }
 
         /** What the confirmation is remembered under. */
@@ -187,6 +210,9 @@ final class HighlightSnippetTriggerGuard {
         if (request.agentBusy()) {
             return Verdict.AGENT_BUSY;
         }
+        if (request.inputBusy()) {
+            return Verdict.INPUT_BUSY;
+        }
         long now = clockMillis.getAsLong();
         PaneRuns runs = panes.computeIfAbsent(request.pane(), unused -> new PaneRuns());
         if (runs.stopped) {
@@ -236,8 +262,9 @@ final class HighlightSnippetTriggerGuard {
 
     /**
      * The user answered the question {@link Verdict#ASK} asked for {@code request}: {@code allowed} holds for
-     * its connection, rule and snippet until korTTY quits. Ask {@link #decide} again before running, as the
-     * pane may have changed while the question was open.
+     * its connection, rule and snippet until korTTY quits. Ask {@link #decide} again before running, with what
+     * is known about the pane now ({@link Request#withPaneFacts}), as it may have changed while the question
+     * was open.
      */
     void answer(Request request, boolean allowed) {
         String key = request.approvalKey();

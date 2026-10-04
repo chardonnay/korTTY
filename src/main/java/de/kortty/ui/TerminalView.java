@@ -8257,6 +8257,10 @@ public class TerminalView extends BorderPane {
         if (widget == null || line == null || !getOrderedWidgets().contains(widget)) {
             return false;
         }
+        if (pastePacer.isPacing(widget)) {
+            // The line would land between the lines of the paste the pane is still sending.
+            return false;
+        }
         TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
         if (connector == null || !connector.isConnected()) {
             return false;
@@ -8274,6 +8278,30 @@ public class TerminalView extends BorderPane {
         } catch (IOException | RuntimeException e) {
             logger.warn("Failed to send a line to a terminal pane: {}", e.toString());
             return false;
+        }
+    }
+
+    /**
+     * Whether {@code widget}, a pane of this tab, is busy with input korTTY must not type into on its own: a
+     * full-screen program such as {@code vim} or {@code less} has it (the alternate screen), which would take a
+     * line as keystrokes, or it is still sending a paste line by line. FX thread.
+     */
+    public boolean isPaneBusyWithInput(SithTermFxWidget widget) {
+        if (widget == null) {
+            return false;
+        }
+        if (pastePacer.isPacing(widget)) {
+            return true;
+        }
+        com.sithtermfx.core.model.TerminalTextBuffer buffer = widget.getTerminalTextBuffer();
+        if (buffer == null) {
+            return false;
+        }
+        buffer.lock();
+        try {
+            return buffer.isUsingAlternateBuffer();
+        } finally {
+            buffer.unlock();
         }
     }
 

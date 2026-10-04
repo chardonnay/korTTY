@@ -15,6 +15,7 @@ import de.kortty.policy.PolicyManager;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
@@ -35,8 +36,9 @@ import java.util.function.Supplier;
 /**
  * Runs the snippet of a highlight rule whose action is {@link HighlightRule.Action#RUN_SNIPPET} when its
  * pattern appears in new output of a pane: in that pane, as Send to Terminal would, once
- * {@link HighlightSnippetTriggerGuard} agrees — triggers allowed, not the cursor line, no mirrored keys or
- * agent at work, outside the cooldown and the loop guard, and confirmed for the connection.
+ * {@link HighlightSnippetTriggerGuard} agrees — triggers allowed, not the cursor line, no mirrored keys,
+ * agent, full-screen program or paced paste at work, outside the cooldown and the loop guard, and confirmed
+ * for the connection.
  *
  * <ul>
  *   <li>The first time a rule wants to run a snippet in a connection, a confirmation names the rule, the
@@ -169,7 +171,7 @@ final class HighlightSnippetTrigger {
             }
             HighlightSnippetTriggerGuard.Request request = new HighlightSnippetTriggerGuard.Request(widget,
                 connectionKey(tab, widget), rule.ruleId(), rule.snippetId(), match.cursorLine(),
-                mirroredInput(widget), agentBusy(tab, widget));
+                mirroredInput(widget), agentBusy(tab, widget), inputBusy(tab, widget));
             handle(tab, widget, rule, request, guard.decide(request));
         }
     }
@@ -215,6 +217,11 @@ final class HighlightSnippetTrigger {
     /**
      * Asks whether the rule may run its snippet in the pane's connection. Not modal for the toolkit: the
      * answer arrives when the dialog closes, and closing it without a choice refuses.
+     *
+     * <p>The question appears when the server prints the pattern, possibly while the user types into the
+     * terminal, so <b>Don't allow</b> is the default button and has the focus: an Enter or a space meant for
+     * the shell refuses rather than allows. After an allow the pane is looked at again, as it may have changed
+     * while the question was open.
      */
     private void confirm(TerminalTab tab, SithTermFxWidget widget, CompiledHighlightSet.Rule rule,
             HighlightSnippetTriggerGuard.Request request) {
@@ -230,6 +237,7 @@ final class HighlightSnippetTrigger {
             ButtonType deny = new ButtonType(I18n.get(CONFIRM_DENY_KEY), ButtonBar.ButtonData.CANCEL_CLOSE);
             Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "", allow, deny);
             DialogThemeHelper.applyTheme(alert);
+            Button denyButton = refuseByDefault(alert, allow, deny);
             alert.setTitle(I18n.get(CONFIRM_TITLE_KEY));
             alert.setHeaderText(I18n.get(CONFIRM_TEXT_KEY, HighlightTriggerDispatcher.label(rule, I18n::get),
                 snippetName(snippet, I18n::get), connectionName(tab, widget)));
@@ -254,14 +262,35 @@ final class HighlightSnippetTrigger {
                 logger.info("Highlight rule {} {} to run snippet {} in a connection", rule.ruleId(),
                     allowed ? "allowed" : "not allowed", rule.snippetId());
                 if (allowed) {
-                    handle(tab, widget, rule, request, guard.decide(request));
+                    // The question may have been open for a while: what holds for the pane now decides.
+                    HighlightSnippetTriggerGuard.Request now = request.withPaneFacts(mirroredInput(widget),
+                        agentBusy(tab, widget), inputBusy(tab, widget));
+                    handle(tab, widget, rule, now, guard.decide(now));
                 }
             });
+            if (denyButton != null) {
+                alert.setOnShown(event -> denyButton.requestFocus());
+            }
             alert.show();
         } catch (RuntimeException e) {
             guard.withdraw(request);
             logger.warn("Could not ask whether highlight rule {} may run its snippet: {}", rule.ruleId(), e.toString());
         }
+    }
+
+    /**
+     * Makes {@code deny} the confirmation's default button and {@code allow} an ordinary one, so the key that
+     * confirms a dialog refuses. Returns the deny button, or {@code null} when the dialog has none.
+     */
+    private static @Nullable Button refuseByDefault(Alert alert, ButtonType allow, ButtonType deny) {
+        if (alert.getDialogPane().lookupButton(allow) instanceof Button allowButton) {
+            allowButton.setDefaultButton(false);
+        }
+        if (alert.getDialogPane().lookupButton(deny) instanceof Button denyButton) {
+            denyButton.setDefaultButton(true);
+            return denyButton;
+        }
+        return null;
     }
 
     /** korTTY's own line in the pane, and the tab's mark when the user is not looking at it. */
@@ -392,6 +421,20 @@ final class HighlightSnippetTrigger {
                 || TerminalAttentionNotifier.shared().codingAgentIn(tab, widget);
         } catch (RuntimeException e) {
             // Unknown counts as busy: typing into an agent's prompt is worse than a skipped run.
+            return true;
+        }
+    }
+
+    /**
+     * Whether a full-screen program has the pane or a paste is being sent into it line by line, so a snippet
+     * typed now would become the program's keystrokes or land inside the paste.
+     */
+    private static boolean inputBusy(TerminalTab tab, SithTermFxWidget widget) {
+        try {
+            TerminalView view = tab.getTerminalView();
+            return view != null && view.isPaneBusyWithInput(widget);
+        } catch (RuntimeException e) {
+            // Unknown counts as busy, as for agents.
             return true;
         }
     }

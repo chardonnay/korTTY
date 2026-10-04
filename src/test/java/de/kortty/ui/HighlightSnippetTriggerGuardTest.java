@@ -14,7 +14,8 @@ import org.testng.annotations.Test;
 
 /**
  * When a highlight rule that runs a snippet may run it: never while triggers are off, never for the
- * cursor line, for output answering mirrored keys or while an agent works in the pane; at most once every
+ * cursor line, for output answering mirrored keys, while an agent works in the pane or while a full-screen
+ * program or a paced paste has it; at most once every
  * 30 seconds per rule and pane, never within 5 seconds of the pane's last run, and never more than three
  * times in a row — the loop guard then stops the pane until two minutes pass without a match; and only
  * after the user allowed the rule's snippet for the connection, asked once.
@@ -198,6 +199,32 @@ class HighlightSnippetTriggerGuardTest {
         assertThat(guard.decide(new Request(pane, "id:web01", "rule-1", "snippet-1", false, false, true)))
             .isEqualTo(Verdict.AGENT_BUSY);
         assertWithMessage("a skipped match takes no slot").that(guard.decide(match())).isEqualTo(Verdict.RUN);
+    }
+
+    @Test
+    void aFullScreenProgramOrAPacedPasteKeepsTheSnippetFromBeingTyped() {
+        guard.answer(match(), true);
+
+        assertWithMessage("vim or less would take the snippet as keystrokes; a paced paste would be split by it")
+            .that(guard.decide(new Request(pane, "id:web01", "rule-1", "snippet-1", false, false, false, true)))
+            .isEqualTo(Verdict.INPUT_BUSY);
+        assertWithMessage("a skipped match takes no slot").that(guard.decide(match())).isEqualTo(Verdict.RUN);
+    }
+
+    @Test
+    void anAllowIsCheckedAgainstWhatHoldsForThePaneWhenTheQuestionCloses() {
+        Request atMatch = match();
+        assertThat(guard.decide(atMatch)).isEqualTo(Verdict.ASK);
+        guard.answer(atMatch, true);
+
+        Request now = atMatch.withPaneFacts(false, false, true);
+        assertThat(now.approvalKey()).isEqualTo(atMatch.approvalKey());
+        assertThat(now.cursorLine()).isEqualTo(atMatch.cursorLine());
+        assertWithMessage("a full-screen program started while the question was open")
+            .that(guard.decide(now)).isEqualTo(Verdict.INPUT_BUSY);
+        assertThat(guard.decide(atMatch.withPaneFacts(false, true, false))).isEqualTo(Verdict.AGENT_BUSY);
+        assertThat(guard.decide(atMatch.withPaneFacts(true, false, false))).isEqualTo(Verdict.MIRRORED_INPUT);
+        assertThat(guard.decide(atMatch.withPaneFacts(false, false, false))).isEqualTo(Verdict.RUN);
     }
 
     @Test
