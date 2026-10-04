@@ -7429,11 +7429,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     /**
-     * The Control API status line, rendered from the server's own state rather than from the
-     * checkbox: the two can legitimately disagree — policy can deny the feature, and a start can fail
-     * because another korTTY already owns the socket — and the user needs to see which it is.
-     */
-    /**
      * Greys out the MCP switches that cannot take effect and says why; reads the boxes as shown, so
      * unticking the Control API greys them out before anything is saved.
      */
@@ -7451,6 +7446,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         mcpHintLabel.setText(hint);
     }
 
+    /**
+     * The Control API status line, rendered from the server's own state rather than from the
+     * checkbox: the two can legitimately disagree — policy can deny the feature, and a start can fail
+     * because another korTTY already owns the socket — and the user needs to see which it is.
+     */
     private String controlApiStatusText() {
         de.kortty.KorTTYApplication application = de.kortty.KorTTYApplication.getInstance();
         de.kortty.control.ControlApiServer server =

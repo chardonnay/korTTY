@@ -124,6 +124,28 @@ class McpToolCatalogTest {
         assertThat(McpToolCatalog.find("agent_prompt")).isNull();
     }
 
+    @Test
+    void theReadToolsAdvertiseTheMcpRowCapNotTheProtocolLimit() throws Exception {
+        for (String name : List.of("pane_read", "pane_wait_output")) {
+            McpToolCatalog.McpTool tool = McpToolCatalog.find(name);
+            JsonObject lines = tool.inputSchema().getAsJsonObject("properties").getAsJsonObject("lines");
+            assertWithMessage("%s.lines maximum", name).that(lines.get("maximum").getAsInt())
+                .isEqualTo(McpToolCatalog.MCP_MAX_READ_LINES);
+            JsonObject args = new JsonObject();
+            args.addProperty("pane", "p1");
+            args.addProperty("lines", McpToolCatalog.MCP_MAX_READ_LINES + 1);
+            if (name.equals("pane_wait_output")) {
+                args.addProperty("contains", "x");
+            }
+            try {
+                McpToolCatalog.toParams(tool, args);
+                throw new AssertionError(name + " accepted more rows than korTTY returns");
+            } catch (McpToolCatalog.ArgumentException expected) {
+                assertThat(expected.getMessage()).contains("at most " + McpToolCatalog.MCP_MAX_READ_LINES);
+            }
+        }
+    }
+
     @Test(timeOut = 60_000)
     void theProductionBackendReadsThroughKorttyAndHidesTheWriteToolsWhileTheyAreOff() throws Exception {
         List<JsonObject> responses = serveMcp(

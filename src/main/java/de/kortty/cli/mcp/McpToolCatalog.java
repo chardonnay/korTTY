@@ -255,13 +255,14 @@ public final class McpToolCatalog {
         tools.add(new McpTool("pane_read", "Read a korTTY pane", "pane.read",
             "Reads a pane's visible screen, its recent scrollback, or the coding-agent detection."
                 + " korTTY masks secrets it knows about and returns at most " + MCP_MAX_READ_LINES
-                + " rows; masked_count says how many returned rows were masked." + UNTRUSTED,
+                + " rows and 64,000 characters; masked_count says how many secrets were masked in"
+                + " what it returned." + UNTRUSTED,
             schema(props(
                 "pane", string(PANE_DOC),
                 "mode", choice("visible (default): the screen; recent: the last rows of scrollback;"
                     + " detection: the coding-agent detection.", "visible", "recent", "detection"),
                 "lines", integer("Rows for recent mode (default "
-                    + ControlApiProtocol.DEFAULT_READ_LINES + ").", 1, ControlApiProtocol.MAX_READ_LINES)),
+                    + ControlApiProtocol.DEFAULT_READ_LINES + ").", 1, MCP_MAX_READ_LINES)),
                 List.of("pane")),
             false));
         tools.add(new McpTool("pane_wait_output", "Wait for pane output", "pane.wait_output",
@@ -276,7 +277,7 @@ public final class McpToolCatalog {
                 "mode", choice("recent (default) searches the last rows; visible searches the screen.",
                     "visible", "recent"),
                 "lines", integer("Rows to search (default " + ControlApiProtocol.DEFAULT_READ_LINES
-                    + ").", 1, ControlApiProtocol.MAX_READ_LINES),
+                    + ").", 1, MCP_MAX_READ_LINES),
                 "timeout_ms", integer("How long to wait (default "
                     + ControlApiProtocol.WAIT_DEFAULT_MILLIS + ").", 1,
                     ControlApiProtocol.WAIT_HARD_CAP_MILLIS),
