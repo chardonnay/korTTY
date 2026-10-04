@@ -213,6 +213,15 @@ class MainWindowAcceleratorUniquenessTest {
         assertWithMessage("a shown window's scene accelerators get the changed items' actions back")
             .that(apply).contains("KeymapSupport.reinstallAccelerators(menuBarScene.getAccelerators(), rechorded);");
         assertThat(apply).contains("for (RoutedChord chord : routedChords()) {\n            chord.bind(keymap);");
+        assertWithMessage("the other menu commands on a chord the user chose")
+            .that(apply).contains("reboundMenuChords = KeymapSupport.reboundItems(menuBar.getMenus(), routedIds);");
+        assertWithMessage("run over a focused terminal, which would encode the key for the shell, residue swallowed")
+            .that(body(source, "    private SceneShortcutRouter createSceneShortcutRouter() {"))
+            .contains(".consume(this::matchReboundMenuChord, this::isKeyboardInSelectedTerminal,\n"
+                + "                this::runReboundMenuChord, Residue.anyCharacter())");
+        assertWithMessage("after the key event, the way the accelerator runs the item")
+            .that(body(source, "    private void runReboundMenuChord() {"))
+            .contains("Platform.runLater(() -> de.kortty.ui.actions.MenuItemActivation.activate(item));");
 
         String setup = body(source, "    private void setupMenuBar() {");
         assertWithMessage("after the macOS system bar lost its accelerators, which it keeps losing")

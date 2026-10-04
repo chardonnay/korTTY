@@ -309,6 +309,10 @@ public class MainWindow {
     private final RoutedChord quickSelectChord =
         new RoutedChord("menu.edit.quickSelect", QUICK_SELECT_ACCELERATOR, QUICK_SELECT_RESIDUE);
     private final Map<PaneShortcuts.PaneAction, RoutedChord> paneChords = createPaneChords();
+    // The other menu commands whose shortcut the user chose, by that chord (applyKeymap), which the
+    // router runs while the keyboard is in a terminal; and the one the current key press matched.
+    private Map<KeyCombination, MenuItem> reboundMenuChords = Map.of();
+    private MenuItem pressedReboundMenuItem;
 
     private final Stage stage;
     private final BorderPane root;
@@ -2877,6 +2881,13 @@ public class MainWindow {
             // that uses the chord keeps it, and the Edit menu item still starts quick select there.
             .consume(quickSelectChord::matches, this::isKeyboardInSelectedTerminal,
                 this::quickSelectInCurrentTab, quickSelectChord::residue)
+            // A shortcut the user chose for any other menu command runs it while the keyboard is in
+            // the terminal, which would otherwise encode the key for the shell (a function key's
+            // sequence, a control character) before the menu accelerator sees it; elsewhere the
+            // accelerator runs it. After the key event, as the command may open a dialog; whatever
+            // the chord types is swallowed.
+            .consume(this::matchReboundMenuChord, this::isKeyboardInSelectedTerminal,
+                this::runReboundMenuChord, Residue.anyCharacter())
             // Not consumed: the terminal pastes on its own, and the timestamp keeps the Paste menu
             // accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
             .observe(press -> press.matches(PASTE_ACCELERATOR), terminalSelected,
@@ -2933,6 +2944,21 @@ public class MainWindow {
         return chords;
     }
 
+    /** Whether {@code press} is a chord the user chose for a menu command without a router entry of its own. */
+    private boolean matchReboundMenuChord(SceneShortcutRouter.KeyPress press) {
+        pressedReboundMenuItem = KeymapSupport.reboundItemFor(reboundMenuChords, press);
+        return pressedReboundMenuItem != null;
+    }
+
+    /** Runs the menu command {@link #matchReboundMenuChord} found, the way its accelerator does, after the key event. */
+    private void runReboundMenuChord() {
+        MenuItem item = pressedReboundMenuItem;
+        pressedReboundMenuItem = null;
+        if (item != null) {
+            Platform.runLater(() -> de.kortty.ui.actions.MenuItemActivation.activate(item));
+        }
+    }
+
     /** Every rebindable chord of this window's scene shortcut router. */
     private List<RoutedChord> routedChords() {
         List<RoutedChord> chords = new ArrayList<>(List.of(commandPaletteChord, menuBarToggleChord,
@@ -2970,9 +2996,12 @@ public class MainWindow {
         if (menuBarScene != null) {
             KeymapSupport.reinstallAccelerators(menuBarScene.getAccelerators(), rechorded);
         }
+        java.util.Set<String> routedIds = new java.util.HashSet<>();
         for (RoutedChord chord : routedChords()) {
             chord.bind(keymap);
+            routedIds.add(chord.actionId());
         }
+        reboundMenuChords = KeymapSupport.reboundItems(menuBar.getMenus(), routedIds);
         sharedKeymap = keymap;
         List<String> rejections = KeymapSupport.describeRejections(keymap);
         if (!rejections.isEmpty() && !rejections.equals(loggedKeymapRejections)) {

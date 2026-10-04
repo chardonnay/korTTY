@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.IntSupplier;
 import java.util.function.Predicate;
 
@@ -182,6 +183,37 @@ class KeymapSupportTest {
             .containsExactly("New Tab", "Command Palette", "Dashboard").inOrder();
         assertThat(bar.dashboard.isSelected()).isTrue();
         assertThat(scene).doesNotContainKey(shiftR);
+    }
+
+    /**
+     * A focused terminal encodes a key for the shell before a menu accelerator sees it, so the
+     * router runs the menu commands whose chord the user chose; the ones with a router entry of
+     * their own, the fixed ones and those on their default are left out.
+     */
+    @Test
+    void theReboundItemsAreTheMenuCommandsOnAChordTheUserChose() {
+        Bar bar = new Bar();
+        KeymapSupport.Defaults defaults = KeymapSupport.defaults(bar.menus, Os.MAC);
+        KeymapSupport.applyToMenus(bar.menus, KeymapOverrides.parse(List.of("menu.file.newTab=Shortcut+Alt+N",
+            "menu.file.renameTab=F2", "menu.view.commandPalette=Shortcut+Alt+P", "menu.view.dashboard=none"))
+            .resolve(defaults.rebindable(), KeymapSupport.rules(Os.MAC, defaults.fixed())));
+
+        Map<KeyCombination, MenuItem> rebound = KeymapSupport.reboundItems(bar.menus, Set.of("menu.view.commandPalette"));
+
+        KeyCombination newTab = new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+        assertThat(rebound).containsExactly(newTab, bar.newTab, new KeyCodeCombination(KeyCode.F2), bar.renameTab);
+        assertThat(KeymapSupport.reboundItemFor(rebound, press(KeyCode.F2, false, false, false, false, true)))
+            .isSameInstanceAs(bar.renameTab);
+        assertThat(KeymapSupport.reboundItemFor(rebound, press(KeyCode.N, false, false, true, true, true)))
+            .isSameInstanceAs(bar.newTab);
+        assertWithMessage("New Tab's old chord").that(
+            KeymapSupport.reboundItemFor(rebound, press(KeyCode.T, false, false, false, true, true))).isNull();
+        assertWithMessage("the palette has its own router entry").that(
+            KeymapSupport.reboundItemFor(rebound, press(KeyCode.P, false, false, true, true, true))).isNull();
+
+        KeymapSupport.applyToMenus(bar.menus, KeymapOverrides.empty().resolve(defaults.rebindable(),
+            KeymapSupport.rules(Os.MAC, defaults.fixed())));
+        assertThat(KeymapSupport.reboundItems(bar.menus, Set.of())).isEmpty();
     }
 
     @Test

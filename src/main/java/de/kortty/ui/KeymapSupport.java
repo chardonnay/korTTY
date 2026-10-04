@@ -295,6 +295,37 @@ final class KeymapSupport {
         }
     }
 
+    /**
+     * The action items of a menu bar that run on a chord the user chose, by that chord: every item
+     * whose accelerator, after {@link #applyToMenus}, is not the one its menu builder set, except
+     * {@code routedIds}, the actions the scene shortcut router has entries of its own for
+     * ({@link RoutedChord}). The router runs them while the keyboard is in a terminal, which would
+     * otherwise encode the key for the shell before the menu accelerator sees it.
+     */
+    static @NotNull Map<KeyCombination, MenuItem> reboundItems(@NotNull List<Menu> menus,
+                                                               @NotNull Set<String> routedIds) {
+        Map<KeyCombination, MenuItem> rebound = new LinkedHashMap<>();
+        for (Map.Entry<String, MenuItem> entry : actionItems(menus).entrySet()) {
+            MenuItem item = entry.getValue();
+            KeyCombination accelerator = item.getAccelerator();
+            if (accelerator != null && !routedIds.contains(entry.getKey())
+                && !accelerator.equals(defaultAccelerator(item))) {
+                rebound.put(accelerator, item);
+            }
+        }
+        return Map.copyOf(rebound);
+    }
+
+    /** The item of {@code rebound} whose chord {@code press} is, or {@code null}. */
+    static @Nullable MenuItem reboundItemFor(@NotNull Map<KeyCombination, MenuItem> rebound, @NotNull KeyPress press) {
+        for (Map.Entry<KeyCombination, MenuItem> entry : rebound.entrySet()) {
+            if (press.matches(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
     /** One line per override that is not in effect, for the log: the action, the chord and why. */
     static @NotNull List<String> describeRejections(@NotNull Resolution resolution) {
         Set<String> lines = new LinkedHashSet<>();
