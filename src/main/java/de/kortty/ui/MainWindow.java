@@ -9681,10 +9681,12 @@ public class MainWindow {
         updateStatusWithMaskedSecrets(
             I18n.get("ai.status.running", getAiActionLabel(action)), unreportedMasks + maskedAttachment.count());
 
+        // The chat shows the answer live while it streams; the final rendering replaces the preview.
+        AiRequest streamedRequest = request.withStreamListener(resultTab.beginStreaming());
         Task<AiExecutionResult> task = new Task<>() {
             @Override
             protected AiExecutionResult call() throws Exception {
-                return aiService.execute(request);
+                return aiService.execute(streamedRequest);
             }
         };
         Thread thread = new Thread(task, "ai-selection-" + action.name().toLowerCase(Locale.ROOT));
@@ -11654,10 +11656,11 @@ public class MainWindow {
         insertTemporaryTab(resultTab);
 
         AiService aiService = createAiServiceForProfile(profile, connection);
+        AiRequest streamedRequest = request.withStreamListener(resultTab.beginStreaming());
         Task<AiExecutionResult> task = new Task<>() {
             @Override
             protected AiExecutionResult call() throws Exception {
-                return aiService.execute(request);
+                return aiService.execute(streamedRequest);
             }
         };
         Thread thread = new Thread(task, "ai-agent-ask");

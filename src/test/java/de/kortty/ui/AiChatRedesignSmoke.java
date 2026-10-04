@@ -34,6 +34,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * It also builds the Insert and Run buttons of a code block ({@link AiCodeBlockTerminalButtons}) against stub
  * policies and checks which buttons render and which are greyed out with which reason, writing
  * {@code build/smoke/ai-chat-code-block-buttons.png}.
+ * Finally it streams a stubbed answer through {@link AiChatStreamingView} and checks that the live preview is plain
+ * text without Insert/Run buttons, that the final answer replaces it exactly once and that a late drain cannot bring
+ * the preview back ({@code build/smoke/ai-chat-streaming.png}).
  * Run via the {@code aiChatRedesignSmoke} Gradle task. Exit 0 = OK.
  */
 public final class AiChatRedesignSmoke {
@@ -71,6 +74,7 @@ public final class AiChatRedesignSmoke {
                     renderProfile(profile);
                 }
                 checkCodeBlockTerminalButtons();
+                checkStreamingPreview();
             } catch (Exception e) {
                 failure.compareAndSet(null, "Setup failed: " + e);
             } finally {
@@ -200,6 +204,115 @@ public final class AiChatRedesignSmoke {
         }
         new Stage().setScene(scene);
         snapshot(scene, "ai-chat-code-block-buttons.png");
+    }
+
+    private static final String STREAM_FINAL = "Check the load:\n\n```bash\nuptime\n```\n\nThen **compare** it.";
+
+    /**
+     * A stubbed streaming service sends growing snapshots (answer with a code fence, plus reasoning) through the real
+     * {@link AiChatStreamingView} and {@link AiStreamCoalescer}; drains are queued by a manual scheduler and run here
+     * on the FX thread. The preview must be plain text with no code block and no Insert/Run button; ending the request
+     * removes it, the final answer is rendered once, and a drain still queued after the end changes nothing.
+     */
+    private static void checkStreamingPreview() throws Exception {
+        VBox messagesBox = new VBox(16);
+        messagesBox.getStyleClass().add("ai-chat-messages");
+        messagesBox.setFillWidth(true);
+        messagesBox.setPadding(new Insets(14, 16, 14, 16));
+        java.util.List<Runnable> drains = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        java.util.concurrent.atomic.AtomicInteger firstSnapshots = new java.util.concurrent.atomic.AtomicInteger();
+        AiChatStreamingView view = new AiChatStreamingView(
+            messagesBox, () -> FONT, () -> "KI · Stub", firstSnapshots::incrementAndGet, (drain, delay) -> drains.add(drain));
+
+        de.kortty.core.AiService streaming = new de.kortty.core.AiService() {
+            @Override
+            public de.kortty.core.AiExecutionResult execute(de.kortty.core.AiRequest request) {
+                de.kortty.core.AiStreamListener listener = request.streamListener();
+                listener.onProgress("", "Thinking about");
+                listener.onProgress("Ignore this first try", "Thinking about");
+                listener.onRestart();
+                StringBuilder answer = new StringBuilder();
+                for (char c : STREAM_FINAL.substring(0, STREAM_FINAL.indexOf("```", 20)).toCharArray()) {
+                    answer.append(c);
+                    listener.onProgress(answer.toString(), "Thinking about the load");
+                }
+                return null;
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+        de.kortty.core.AiRequest request = new de.kortty.core.AiRequest(
+            de.kortty.core.AiAction.ASK, "", "stub", "en", "load?").withStreamListener(view.begin());
+        Thread worker = new Thread(() -> {
+            try {
+                streaming.execute(request);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }, "smoke-stream");
+        worker.start();
+        worker.join(10_000);
+        requireStream(!worker.isAlive(), "the stubbed stream finished");
+        requireStream(drains.size() == 1, "one drain is queued for the whole burst of snapshots");
+        new java.util.ArrayList<>(drains).forEach(Runnable::run);
+        drains.clear();
+
+        javafx.scene.Node preview = view.node();
+        requireStream(preview != null && messagesBox.getChildren().size() == 1, "the preview block is shown");
+        requireStream(firstSnapshots.get() == 1, "the chat is told once that the answer started arriving");
+        String shown = ((Label) preview.lookup(".ai-chat-streaming-text")).getText();
+        requireStream(shown.contains("```bash") && shown.contains("uptime") && !shown.contains("first try"),
+            "the preview shows the latest snapshot as raw text, the restarted attempt is gone");
+        requireStream(preview.lookupAll(".ai-chat-code-area").isEmpty(), "the preview renders no code block");
+        String insert = I18n.get("ai.result.terminal.insert");
+        String run = I18n.get("ai.result.terminal.run");
+        boolean actionButton = preview.lookupAll(".button").stream()
+            .map(node -> ((javafx.scene.control.Button) node).getText())
+            .anyMatch(text -> text != null && (text.contains(insert) || text.contains(run)));
+        requireStream(!actionButton, "no Insert or Run button while the answer streams");
+
+        ScrollPane streamScroll = new ScrollPane(messagesBox);
+        streamScroll.getStyleClass().add("ai-chat-scroll");
+        streamScroll.setFitToWidth(true);
+        Scene scene = new Scene(streamScroll, 700, 260);
+        ChatColorProfile profile = ChatColorProfileSupport.all().get(0);
+        ThemeCssSupport.ChatPalette palette = ChatColorProfileSupport.resolvePalette(profile, null);
+        scene.setFill(Color.web(palette.background()));
+        String stylesheet = ThemeCssSupport.getChatStylesheetUrl(palette);
+        if (stylesheet != null) {
+            scene.getStylesheets().add(stylesheet);
+        }
+        new Stage().setScene(scene);
+        snapshot(scene, "ai-chat-streaming.png");
+
+        // A snapshot that arrives just before the task ends still queues a drain.
+        request.streamListener().onProgress(STREAM_FINAL, "Thinking about the load");
+        request.streamListener().onComplete();
+        // Task succeeded: the tab ends the preview and renders the final answer the normal way.
+        view.end();
+        VBox finalBlock = assistantBlock(STREAM_FINAL, false, null);
+        AiCodeBlockTerminalButtons finalButtons = buttons("bash", "uptime\n",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN,
+            new AiCodeBlockTerminalAction.Policy(true, de.kortty.policy.AgentExecutionMode.ALLOW));
+        finalBlock.getChildren().add(new HBox(8, finalButtons.nodes().toArray(new javafx.scene.Node[0])));
+        messagesBox.getChildren().add(finalBlock);
+        new java.util.ArrayList<>(drains).forEach(Runnable::run);
+
+        requireStream(view.node() == null && messagesBox.lookupAll(".ai-chat-streaming").isEmpty(),
+            "ending the request removes the preview and a late drain does not bring it back");
+        requireStream(messagesBox.lookupAll(".ai-chat-assistant").size() == 1, "the final answer is rendered once");
+        requireStream(!finalBlock.lookupAll(".ai-chat-code-area").isEmpty() && finalButtons.insertButton() != null
+            && finalButtons.runButton() != null, "the final answer carries the code block with Insert and Run");
+    }
+
+    private static void requireStream(boolean condition, String what) {
+        if (!condition) {
+            throw new IllegalStateException("Streaming preview: " + what);
+        }
+        System.out.println("ok: " + what);
     }
 
     private static AiCodeBlockTerminalButtons buttons(String language, String code,

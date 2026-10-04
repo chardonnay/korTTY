@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiAction;
+import de.kortty.core.AiStreamListener;
 import de.kortty.core.AiChatContentSupport;
 import de.kortty.core.AiChatDiagramSupport;
 import de.kortty.core.AiChatRenderPageSupport;
@@ -188,6 +189,8 @@ public class AiResultTab extends Tab {
     // release the native WebKit engines instead of orphaning them (each holds tens of MB).
     private final ChatRenderDisposables renderDisposables = new ChatRenderDisposables();
     private final ChatAutoScrollSupport autoScroll;
+    /** Live plain-text preview of a streamed answer; replaced by the final rendering (see {@link #beginStreaming}). */
+    private final AiChatStreamingView streamingView;
     private HBox searchBar;
     private TextField searchField;
     private Label searchCountLabel;
@@ -238,6 +241,11 @@ public class AiResultTab extends Tab {
         messagesBox.getStyleClass().add("ai-chat-messages");
         messagesBox.setPadding(new Insets(14, 16, 14, 16));
         autoScroll = new ChatAutoScrollSupport(messagesScrollPane, messagesBox);
+        streamingView = new AiChatStreamingView(
+            messagesBox,
+            () -> currentFontSize,
+            this::streamingRoleLabel,
+            this::onStreamingStarted);
 
         profileComboBox = new ComboBox<>();
         profileComboBox.setPrefWidth(240);
@@ -645,6 +653,33 @@ public class AiResultTab extends Tab {
         thread.start();
     }
 
+    /**
+     * Starts the live preview for the request this chat is about to send and returns the listener
+     * to set on it ({@code AiRequest.withStreamListener}). Snapshots appear as plain text in a
+     * transient block; when the request ends ({@link #showResult}, {@link #showError},
+     * {@link #showCancelled}) the preview is removed and the final answer is rendered as usual, so
+     * code-block actions only ever appear on the finished answer. A provider that does not stream
+     * never calls the listener and the chat keeps its waiting status. FX thread.
+     */
+    AiStreamListener beginStreaming() {
+        return streamingView.begin();
+    }
+
+    private String streamingRoleLabel() {
+        AiProfile profile = profileComboBox.getSelectionModel().getSelectedItem();
+        SavedAiChatMessage entry = new SavedAiChatMessage();
+        entry.setRole(SavedAiChatMessage.ROLE_ASSISTANT);
+        entry.setAiProfileName(profile != null ? getAiProfileDisplayName(profile) : activeProfileName);
+        return resolveRoleLabel(entry);
+    }
+
+    private void onStreamingStarted() {
+        if (busy) {
+            waitingBaseText = I18n.get("ai.result.streaming");
+            refreshWaitingStatus();
+        }
+    }
+
     public void attachRunningTask(Task<?> task, Thread thread, String waitingText) {
         this.activeTask = task;
         this.activeThread = thread;
@@ -1026,15 +1061,18 @@ public class AiResultTab extends Tab {
             prompt,
             outbound.conversation())
             .withFileAttachment(outbound.attachment());
+        AiRequest streamedRequest = request.withStreamListener(beginStreaming());
 
         Task<AiExecutionResult> task = new Task<>() {
             @Override
             protected AiExecutionResult call() throws Exception {
-                return aiService.execute(request);
+                return aiService.execute(streamedRequest);
             }
         };
         task.setOnSucceeded(event -> {
             AiExecutionResult result = task.getValue();
+            // The final answer replaces the live preview.
+            streamingView.end();
             appendAssistantMessage(
                 result != null ? result.content() : "",
                 result != null ? result.reasoning() : null,
@@ -1201,6 +1239,9 @@ public class AiResultTab extends Tab {
     }
 
     private void stopWaiting() {
+        if (streamingView != null) {
+            streamingView.end();
+        }
         waitingTimeline.stop();
         busy = false;
         waitingSinceMillis = 0L;
@@ -1311,6 +1352,7 @@ public class AiResultTab extends Tab {
         for (SavedAiChatMessage entry : messageEntries) {
             renderMessage(entry);
         }
+        streamingView.reattach();
         if (searchBar != null && searchBar.isVisible()) {
             runChatSearch();
         }
