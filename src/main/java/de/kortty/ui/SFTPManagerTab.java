@@ -19,6 +19,16 @@ import de.kortty.ui.sftp.SftpDragOutPolicy;
 import de.kortty.ui.sftp.SftpDragPayload;
 import de.kortty.ui.sftp.SftpFileItem;
 import de.kortty.ui.sftp.SftpFileItemComparators;
+import de.kortty.ui.sftp.FxConflictResolver;
+import de.kortty.ui.sftp.SftpConflictDialog;
+import de.kortty.ui.sftp.SftpTransferQueueHost;
+import de.kortty.ui.sftp.SftpTransferQueuePane;
+import de.kortty.ui.sftp.SftpTransferRowModel;
+import de.kortty.core.sftp.transfer.PartFiles;
+import de.kortty.core.sftp.transfer.RemoteEntryRef;
+import de.kortty.core.sftp.transfer.TransferBatch;
+import de.kortty.core.sftp.transfer.TransferDirection;
+import de.kortty.core.sftp.transfer.TransferItem;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -150,6 +160,14 @@ public class SFTPManagerTab extends Tab {
     private Label timeoutLabel;
     private ProgressBar statusProgressBar;
     private Runnable onCloseCallback;
+
+    /** The transfer list at the bottom of the tab and the queue behind it (FX thread). */
+    private SftpTransferQueuePane transferQueuePane;
+    private SftpTransferQueueHost transferQueueHost;
+    /** Folders to list again shortly after transfers into them finished (FX thread). */
+    private boolean transferRefreshLocal;
+    private boolean transferRefreshRemote;
+    private javafx.animation.PauseTransition transferRefreshDelay;
     
     public SFTPManagerTab(KorTTYApplication app, ServerConnection connection, String password) {
         this(app, connection, password, null, 0, null);
@@ -359,7 +377,10 @@ public class SFTPManagerTab extends Tab {
         // Transfer buttons
         HBox buttonBox = createButtonBox();
         
-        mainBox.getChildren().addAll(splitPane, buttonBox, statusBox);
+        // Transfer list: appears with the first upload or download, collapsible to its header.
+        createTransferQueue();
+
+        mainBox.getChildren().addAll(splitPane, buttonBox, transferQueuePane, statusBox);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
         
         return mainBox;
@@ -964,6 +985,7 @@ public class SFTPManagerTab extends Tab {
         remoteState = RemoteState.CONNECTED;
         setReconnectVisible(false);
         statusLabel.setText(I18n.get("sftp.connectedTo", connection.getHost()));
+        transferQueueHost.onSessionReady(session);
         refreshActionStates();
         refreshLocal();
         refreshRemote();
@@ -983,6 +1005,7 @@ public class SFTPManagerTab extends Tab {
     private void onConnectionLost(SFTPSession session) {
         // A replaced session (after Reconnect) is ignored.
         if (session == sftpSession) {
+            transferQueueHost.onSessionLost();
             showDisconnectedState();
         }
     }
@@ -1091,6 +1114,9 @@ public class SFTPManagerTab extends Tab {
         }
         remoteListExecutor.shutdownNow();
         deleteDragOutDirectories();
+        // Cancels the transfers and closes their channels before the session goes.
+        transferQueueHost.close();
+        transferQueuePane.dispose();
         SFTPSession session = sftpSession;
         if (session != null) {
             closeQuietly(session);
@@ -1412,10 +1438,9 @@ public class SFTPManagerTab extends Tab {
     }
 
     /**
-     * Uploads local files and folders into {@code targetDir}, one after another on one thread: the
-     * Upload button, local rows dragged onto the remote panel and files dropped there from the
-     * desktop. {@code targetDir} is the folder shown or the folder row dropped on, taken on the FX
-     * thread.
+     * Uploads local files and folders into {@code targetDir} through the transfer queue: the Upload
+     * button, local rows dragged onto the remote panel and files dropped there from the desktop.
+     * {@code targetDir} is the folder shown or the folder row dropped on, taken on the FX thread.
      */
     private void uploadPaths(List<Path> paths, String targetDir) {
         if (paths == null || paths.isEmpty()) return;
@@ -1425,74 +1450,9 @@ public class SFTPManagerTab extends Tab {
 
         List<Path> toUpload = paths.stream().filter(path -> path.getFileName() != null).toList();
         if (toUpload.isEmpty()) return;
-        SFTPSession session = sftpSession;
-
-        // One thread for the whole batch, one file after another. MINA's SFTP client tags every
-        // request with an id, so a listing or another transfer may share the session meanwhile.
-        new Thread(() -> {
-            int total = toUpload.size();
-            int current = 0;
-            int failed = 0;
-
-            for (Path path : toUpload) {
-                current++;
-                final int num = current;
-                String name = path.getFileName().toString();
-                Platform.runLater(() -> statusLabel.setText(
-                    I18n.get("sftp.uploading", name) + " (" + num + "/" + total + ")"));
-
-                try {
-                    uploadPath(session, path, targetDir);
-                } catch (Exception e) {
-                    failed++;
-                    if (!session.isConnected()) {
-                        // The connection is gone: the rest fails too, and the tab shows Disconnected.
-                        logger.warn("Upload stopped, the SFTP connection was lost: {}", name, e);
-                        failed += total - current;
-                        break;
-                    }
-                    logger.error("Upload failed: {}", name, e);
-                    final String errorMsg = failureMessage(e);
-                    Platform.runLater(() -> showError(I18n.get("sftp.error.upload"), name + ": " + errorMsg));
-                }
-            }
-            
-            final int successCount = total - failed;
-            final int failCount = failed;
-            Platform.runLater(() -> {
-                if (failCount == 0) {
-                    statusLabel.setText(I18n.get("sftp.uploadComplete", String.valueOf(successCount)));
-                } else {
-                    statusLabel.setText(I18n.get("sftp.uploadComplete", successCount + "/" + total));
-                }
-                refreshRemote();
-            });
-        }, "SFTP-Upload").start();
-    }
-    
-    private void uploadPath(SFTPSession session, Path localPath, String targetDir) throws Exception {
-        String remotePath = RemotePathSupport.appendRemotePath(targetDir, localPath.getFileName().toString());
-
-        if (Files.isDirectory(localPath)) {
-            // Upload directory recursively
-            uploadDirectoryRecursive(session, localPath, remotePath);
-        } else {
-            session.uploadFile(localPath, remotePath);
-        }
-    }
-
-    private void uploadDirectoryRecursive(SFTPSession session, Path localDir, String remotePath) throws Exception {
-        // An existing remote folder is kept, so uploading a folder again merges into it.
-        session.createDirectoryIfMissing(remotePath);
-        try (var stream = Files.list(localDir)) {
-            for (Path entry : stream.toList()) {
-                String remoteEntry = RemotePathSupport.appendRemotePath(remotePath, entry.getFileName().toString());
-                if (Files.isDirectory(entry)) {
-                    uploadDirectoryRecursive(session, entry, remoteEntry);
-                } else {
-                    session.uploadFile(entry, remoteEntry);
-                }
-            }
+        // Whether a path is a folder is checked by a transfer worker, never here on the FX thread.
+        if (transferQueueHost.enqueueUpload(toUpload, targetDir).isPresent()) {
+            transferQueuePane.reveal();
         }
     }
 
@@ -1512,85 +1472,241 @@ public class SFTPManagerTab extends Tab {
     }
 
     /**
-     * Downloads remote files and folders into {@code targetDir}, one after another on one thread:
-     * the Download button and remote rows dragged onto the local panel, into the folder shown or the
+     * Downloads remote files and folders into {@code targetDir} through the transfer queue: the
+     * Download button and remote rows dragged onto the local panel, into the folder shown or the
      * folder row dropped on.
      */
     private void downloadItems(List<SftpFileItem> itemsToDownload, Path targetDir) {
         if (itemsToDownload == null || itemsToDownload.isEmpty()) return;
+        downloadEntries(itemsToDownload.stream()
+            .filter(item -> !item.isParentEntry())
+            .map(SFTPManagerTab::remoteEntryRef)
+            .toList(), targetDir);
+    }
+
+    private void downloadEntries(List<RemoteEntryRef> entries, Path targetDir) {
+        if (entries.isEmpty()) return;
         if (!requireConnected()) return;
+        if (transferQueueHost.enqueueDownload(entries, targetDir).isPresent()) {
+            transferQueuePane.reveal();
+        }
+    }
+
+    /** The queue's view of a listed remote row; the queue checks the entry again before it acts. */
+    static RemoteEntryRef remoteEntryRef(SftpFileItem item) {
+        RemoteEntryRef.Type type = item.isFile() ? RemoteEntryRef.Type.FILE : RemoteEntryRef.Type.DIRECTORY;
+        return new RemoteEntryRef(item.getPath(), item.getName(), type, item.isFile() ? item.getSizeBytes() : -1, null);
+    }
+
+    /** The queue's view of a remote row dragged from this tab. */
+    static RemoteEntryRef remoteEntryRef(SftpDragPayload.Entry entry) {
+        return new RemoteEntryRef(entry.path(), entry.name(),
+            entry.directory() ? RemoteEntryRef.Type.DIRECTORY : RemoteEntryRef.Type.FILE, -1, null);
+    }
+
+    // ---------- Transfer queue ----------
+
+    /** The transfer list and its queue; the queue itself is made once the first session is ready. */
+    private void createTransferQueue() {
+        transferQueuePane = new SftpTransferQueuePane();
+        String resumeScope = connection.getId() != null && !connection.getId().isBlank()
+            ? connection.getId()
+            : connection.getUsername() + "@" + connection.getHost() + ":" + connection.getPort();
+        transferQueueHost = new SftpTransferQueueHost(
+            () -> SftpTransferQueueHost.defaultSettings(resumeScope),
+            () -> new FxConflictResolver(SftpConflictDialog.presenter(this::ownerWindowOrNull)),
+            transferQueuePane.listener(),
+            () -> transferQueueHost.queue().ifPresent(transferQueuePane::setQueue));
+        transferQueuePane.setOnStatus(text -> {
+            if (!closing) {
+                statusLabel.setText(text);
+            }
+        });
+        transferQueuePane.setOnItemFinished(this::refreshAfterTransfer);
+        transferQueuePane.setOnBatchFinished(this::onTransferBatchFinished);
+        transferRefreshDelay = new javafx.animation.PauseTransition(Duration.millis(300));
+        transferRefreshDelay.setOnFinished(event -> {
+            boolean local = transferRefreshLocal;
+            boolean remote = transferRefreshRemote;
+            transferRefreshLocal = false;
+            transferRefreshRemote = false;
+            if (closing) {
+                return;
+            }
+            if (local) {
+                refreshLocal();
+            }
+            if (remote && isRemoteConnected()) {
+                refreshRemote();
+            }
+        });
+    }
+
+    private javafx.stage.Window ownerWindowOrNull() {
+        TabPane pane = getTabPane();
+        return pane != null && pane.getScene() != null ? pane.getScene().getWindow() : null;
+    }
+
+    /**
+     * A transfer finished: lists the folder it wrote into again, but only while that folder is the
+     * one shown, and at most once per burst of finished items.
+     */
+    private void refreshAfterTransfer(TransferItem item) {
+        if (closing) {
+            return;
+        }
+        if (item.direction() == TransferDirection.UPLOAD) {
+            String folder = item.remoteFolder();
+            if (remotePathResolved && folder != null
+                    && java.util.Objects.equals(RemotePathSupport.normalizeAbsolutePath(folder),
+                        RemotePathSupport.normalizeAbsolutePath(currentRemotePath))) {
+                transferRefreshRemote = true;
+            }
+        } else {
+            Path folder = item.localFolder();
+            if (folder != null && currentLocalPath != null
+                    && folder.toAbsolutePath().normalize().equals(currentLocalPath.toAbsolutePath().normalize())) {
+                transferRefreshLocal = true;
+            }
+        }
+        if (transferRefreshLocal || transferRefreshRemote) {
+            transferRefreshDelay.playFromStart();
+        }
+    }
+
+    /**
+     * A batch finished: the status bar says how much arrived, and failed files or linked folders
+     * that were not followed are summed up once, in a window that does not block the tab.
+     */
+    private void onTransferBatchFinished(TransferBatch batch) {
+        if (closing) {
+            return;
+        }
+        statusLabel.setText(SftpTransferRowModel.batchFinished(batch));
+        if (batch.policy().isCancelled()) {
+            return;
+        }
+        String summary = SftpTransferRowModel.batchSummary(batch);
+        if (summary == null) {
+            return;
+        }
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.initModality(javafx.stage.Modality.NONE);
+        javafx.stage.Window owner = ownerWindowOrNull();
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
+        alert.setTitle(I18n.get("sftp.queue.summary.title"));
+        alert.setHeaderText(batch.direction() == TransferDirection.UPLOAD
+            ? I18n.get("sftp.error.upload")
+            : I18n.get("sftp.error.download"));
+        alert.setContentText(summary);
+        alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        applyDarkTheme(alert);
+        alert.show();
+    }
+
+    /**
+     * "Remove leftover partial files" at the end of a panel's context menu: deletes the
+     * {@code *.kortty-part} files in the folder shown, except those a running transfer writes.
+     */
+    private void addRemovePartsItem(ContextMenu menu, boolean remote) {
+        MenuItem item = new MenuItem(I18n.get("sftp.contextMenu.removeParts"));
+        item.setOnAction(e -> {
+            resetAutoCloseTimer();
+            removeLeftoverParts(remote);
+        });
+        menu.addEventHandler(javafx.stage.WindowEvent.WINDOW_SHOWING,
+            e -> item.setDisable(leftoverParts(remote).isEmpty()));
+        menu.getItems().addAll(new SeparatorMenuItem(), item);
+    }
+
+    /** The part files listed in the folder shown that no running transfer writes (FX thread). */
+    private List<SftpFileItem> leftoverParts(boolean remote) {
+        if (remote && (!isRemoteConnected() || !remotePathResolved)) {
+            return List.of();
+        }
+        List<SftpFileItem> listed = remote ? remoteItems : localItems;
+        String folder = remote ? currentRemotePath : currentLocalPath.toAbsolutePath().normalize().toString();
+        java.util.Set<String> active = transferQueueHost.activePartNames(
+            remote ? TransferDirection.UPLOAD : TransferDirection.DOWNLOAD, folder);
+        return listed.stream()
+            .filter(entry -> entry.isFile() && !entry.isParentEntry() && PartFiles.isPartName(entry.getName()))
+            .filter(entry -> !active.contains(entry.getName()))
+            .toList();
+    }
+
+    private void removeLeftoverParts(boolean remote) {
+        List<SftpFileItem> parts = leftoverParts(remote);
+        if (parts.isEmpty()) {
+            return;
+        }
+        String folder = remote ? currentRemotePath : currentLocalPath.toString();
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("sftp.parts.confirm.title"));
+        confirm.setHeaderText(I18n.get("sftp.parts.confirm.header", String.valueOf(parts.size()), folder));
+        confirm.setContentText(I18n.get("sftp.parts.confirm.content"));
+        applyDarkTheme(confirm);
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
         SFTPSession session = sftpSession;
-
-        // One thread for the whole batch, one file after another (see uploadPaths).
+        Path localFolder = currentLocalPath;
         new Thread(() -> {
-            int total = itemsToDownload.size();
-            int current = 0;
-            int failed = 0;
-
-            for (var item : itemsToDownload) {
-                current++;
-                final int num = current;
-                Platform.runLater(() -> statusLabel.setText(
-                    I18n.get("sftp.downloading", item.getName()) + " (" + num + "/" + total + ")"));
-
+            int removed = 0;
+            List<String> failures = new ArrayList<>();
+            for (SftpFileItem part : parts) {
                 try {
-                    downloadSingleFile(session, item, targetDir);
-                } catch (Exception e) {
-                    failed++;
-                    if (!session.isConnected()) {
-                        logger.warn("Download stopped, the SFTP connection was lost: {}", item.getName(), e);
-                        failed += total - current;
-                        break;
+                    if (remote) {
+                        removeRemotePart(session, part.getPath());
+                    } else {
+                        removeLocalPart(localChild(localFolder, part.getName()));
                     }
-                    logger.error("Download failed: {}", item.getName(), e);
-                    final String errorMsg = failureMessage(e);
-                    Platform.runLater(() -> showError(I18n.get("sftp.error.download"), item.getName() + ": " + errorMsg));
+                    removed++;
+                } catch (Exception e) {
+                    logger.warn("Could not remove the partial file {}", part.getName(), e);
+                    failures.add(I18n.get("sftp.parts.removeFailed", part.getName(), failureMessage(e)));
                 }
             }
-
-            final int successCount = total - failed;
-            final int failCount = failed;
+            int count = removed;
             Platform.runLater(() -> {
-                if (failCount == 0) {
-                    statusLabel.setText(I18n.get("sftp.downloadComplete", String.valueOf(successCount)));
-                } else {
-                    statusLabel.setText(I18n.get("sftp.downloadComplete", successCount + "/" + total));
+                if (closing) {
+                    return;
                 }
-                refreshLocal();
-                if (!session.isConnected()) {
-                    requireConnected();
+                statusLabel.setText(I18n.get("sftp.parts.removed", String.valueOf(count)));
+                if (remote) {
+                    if (isRemoteConnected()) {
+                        refreshRemote();
+                    }
+                } else {
+                    refreshLocal();
+                }
+                if (!failures.isEmpty()) {
+                    showError(I18n.get("sftp.parts.confirm.title"), String.join("\n", failures));
                 }
             });
-        }, "SFTP-Download").start();
+        }, "SFTP-RemoveParts").start();
     }
 
-    private void downloadSingleFile(SFTPSession session, SftpFileItem item, Path targetDir) throws Exception {
-        Path localPath = localChild(targetDir, item.getName());
-
-        if (item.isFile()) {
-            session.downloadFile(item.getPath(), localPath);
-        } else {
-            // Download directory recursively
-            downloadDirectoryRecursive(session, item.getPath(), localPath);
+    /** Deletes a remote part file; a link at its name is removed itself, never followed. */
+    private static void removeRemotePart(SFTPSession session, String path) throws IOException {
+        if (session == null || !session.isConnected()) {
+            throw new IOException(I18n.get("sftp.notConnected"));
         }
+        SftpClient client = session.primaryClient();
+        SftpClient.Attributes attributes = client.lstat(path);
+        if (attributes.isDirectory()) {
+            throw new IOException(I18n.get("sftp.error.targetIsDirectory", path));
+        }
+        client.remove(path);
     }
 
-    private void downloadDirectoryRecursive(SFTPSession session, String remotePath, Path localDir) throws Exception {
-        Files.createDirectories(localDir);
-        List<SftpClient.DirEntry> entries = session.listFiles(remotePath);
-        for (SftpClient.DirEntry entry : entries) {
-            String name = entry.getFilename();
-            if (name.equals(".") || name.equals("..")) continue;
-
-            String remoteEntry = RemotePathSupport.appendRemotePath(remotePath, name);
-            Path localEntry = localChild(localDir, name);
-
-            if (entry.getAttributes().isDirectory()) {
-                downloadDirectoryRecursive(session, remoteEntry, localEntry);
-            } else {
-                session.downloadFile(remoteEntry, localEntry);
-            }
+    /** Deletes a local part file; a link at its name is removed itself, never followed. */
+    private static void removeLocalPart(Path path) throws IOException {
+        if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException(I18n.get("sftp.error.targetIsDirectory", path.toString()));
         }
+        Files.deleteIfExists(path);
     }
 
     /**
@@ -1820,6 +1936,7 @@ public class SFTPManagerTab extends Tab {
 
     /** A local row starts a drag of the selection as files and takes drops when it is a folder. */
     private void installLocalRowDrag(TableRow<SftpFileItem> row) {
+        SftpTransferQueuePane.markPartRows(row);
         row.setOnDragDetected(event -> startLocalDrag(row, event));
         row.setOnDragOver(event -> onLocalDragOver(event, row));
         row.setOnDragExited(event -> row.getStyleClass().remove(DROP_TARGET));
@@ -1830,6 +1947,7 @@ public class SFTPManagerTab extends Tab {
 
     /** A remote row starts a drag of the selection and takes drops when it is a folder. */
     private void installRemoteRowDrag(TableRow<SftpFileItem> row) {
+        SftpTransferQueuePane.markPartRows(row);
         row.setOnDragDetected(event -> startRemoteDrag(row, event));
         row.setOnDragOver(event -> onRemoteDragOver(event, row));
         row.setOnDragExited(event -> row.getStyleClass().remove(DROP_TARGET));
@@ -2099,10 +2217,7 @@ public class SFTPManagerTab extends Tab {
             Optional<List<SftpDragPayload.Entry>> remote = ownRemoteEntries(dragboard);
             if (remote.isPresent() && isRemoteConnected()) {
                 // Downloaded again in the background, folders included; the prepared copies are for the desktop.
-                downloadItems(remote.get().stream()
-                    .map(entry -> SftpFileItem.fromDetails(entry.name(), entry.path(), !entry.directory(),
-                        "", "", "", "", "", -1))
-                    .toList(), target);
+                downloadEntries(remote.get().stream().map(SFTPManagerTab::remoteEntryRef).toList(), target);
             } else {
                 copyIntoLocal(dragboard.getFiles(), target);
             }
@@ -2231,6 +2346,7 @@ public class SFTPManagerTab extends Tab {
             openImageItem.setDisable(!isImageFile);
         });
 
+        addRemovePartsItem(menu, false);
         return menu;
     }
 
@@ -2315,6 +2431,7 @@ public class SFTPManagerTab extends Tab {
             openImageItem.setDisable(!isImageFile);
         });
 
+        addRemovePartsItem(menu, true);
         return menu;
     }
 

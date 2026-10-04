@@ -118,8 +118,26 @@ Upload copies the selected local files and folders into the remote folder that w
 
 - **Uploading a folder again merges** into the existing remote folder: other remote files are kept, and for each file that already exists korTTY asks what to do (see below).
 - **Files are streamed**, so their size is not limited by memory; files larger than 2 GB upload like any other.
-- If the connection drops during an upload or download, the rest of the batch stops with one **Disconnected** state rather than an error per file.
+- If the connection drops during an upload or download, the unfinished items fail as **Connection lost** with one **Disconnected** state rather than an error dialog per file; after **Reconnect**, select them in the [transfer list](#transfer-list) and click **Retry**.
+- **Linked folders are not followed.** A symbolic link to a file is transferred with the file's content; a link to a folder is skipped and named in the summary at the end, so a link loop cannot make a transfer run forever.
 - **Downloaded names stay inside the target folder.** A server name such as `..` or `a/b` is refused. On Windows, names that Windows reserves for devices (`CON`, `PRN`, `AUX`, `NUL`, `COM1` to `COM9`, `LPT1` to `LPT9`, also with an extension such as `nul.txt`) and names that end in a dot or a space or contain `:` are refused too, because Windows would write them somewhere else or change them.
+
+### Transfer list
+
+Uploads and downloads run in the background, up to three files at a time, each over its own SFTP channel. The first transfer opens the **Transfers** list at the bottom of the tab; the arrow on its left collapses it to its header. Each row is a file or folder you transferred, with its direction, a progress bar, the bytes so far, the speed and the time left; a folder row adds up the files in it. The status bar shows how many files of all running transfers are done and the overall speed, and says **Upload complete** or **Download complete** when a batch is finished.
+
+| Button | Action |
+|--------|--------|
+| **Cancel** | Stops the selected rows; a cancelled file leaves no partial file behind |
+| **Retry** | Starts the selected failed or cancelled rows again; for a folder, only what did not arrive |
+| **Cancel all** | Stops every transfer, including an open **File already exists** question |
+| **Clear finished** | Removes the rows that are done, skipped or cancelled; failed rows stay for a retry |
+
+- **Failures no longer open one error dialog per file.** A failed file gets a red row of its own (also when it is inside a folder you transferred), the reason is in its **State** column, and once the batch is finished one summary window lists the failed files and the linked folders that were not followed. The summary does not block the tab.
+- **The lists follow the transfers.** When files arrive in the folder a panel shows, that panel is listed again shortly afterwards; a folder you browsed away from is not.
+- **Files arrive complete or not at all.** A file is first written as `name.kortty-part` next to the target and gets its real name only once it is complete, so an interrupted transfer never leaves a half-written file under the real name.
+- **Interrupted transfers continue where they stopped.** After a failure or a lost connection the `.kortty-part` file is kept, and **Retry** continues it instead of starting over, as long as the source has not changed since; korTTY re-checks the last 64 KB before it continues. A cancelled transfer deletes its partial file.
+- **Leftover partial files** are shown in italics, with a tooltip. **Remove leftover partial files** at the end of either panel's context menu deletes the `.kortty-part` files in the folder shown after a confirmation; partial files of transfers that are still running are left alone.
 
 ### When a file already exists
 
