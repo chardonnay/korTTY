@@ -29,6 +29,13 @@ of the lines in each request. A line that cannot be translated keeps its English
 reported as FAILED and its page is NOT marked done, so a plain re-run retries it.
 scripts/translate_benchmark.py compares backends and models on a fixed sample.
 
+Changed-lines mode (default with --changed-since, --no-only-changed-lines to disable): the
+English of the base ref is aligned with the current English (difflib) and every unchanged
+English line keeps its existing German line verbatim; only new/edited lines are translated.
+The line memory alone re-translated every line with an anchored link, because its German
+anchor never matches the English one. Anchors are then repointed line by line over the whole
+German tree (sync_anchors_linewise).
+
 Usage:
   scripts/translate_docs.py            # translate changed pages, copy assets
   scripts/translate_docs.py --force    # re-translate everything
@@ -561,17 +568,45 @@ def finish_line(source_line: str, translated: str) -> str:
 
 
 def translate_md(
-    md: str, translator, memory: dict[str, str] | None = None
+    md: str, translator, memory: dict[str, str] | None = None,
+    keep: dict[int, str] | None = None,
 ) -> tuple[str, int, int, list[str]]:
     """Translate a page, reusing memory (masked EN line -> masked DE line) for
     unchanged lines. Returns (german_markdown, reused_lines, translated_lines,
     still_english) — the last being the masked source text of every line that
     kept its English wording after translation genuinely failed (as opposed to
-    a line that is legitimately identical, e.g. a bare product name)."""
+    a line that is legitimately identical, e.g. a bare product name).
+
+    `keep` (line index -> German line, from changed_line_keep) switches to the
+    changed-lines mode: those lines are copied verbatim — no translator call, no
+    glossary pass — and only the remaining lines are translated. A kept line counts as
+    reused."""
     memory = dict(memory) if memory else {}
     lines, jobs = translatable_lines(md)
+    if keep is not None:
+        kept_jobs = sum(1 for idx, _m, _s in jobs if idx in keep)
+        jobs = [j for j in jobs if j[0] not in keep]
+        fresh_idx = {idx for idx, _m, _s in jobs}
+        for idx, german in keep.items():
+            if idx < len(lines):
+                lines[idx] = german
+        german_md, reused, translated, failed = _translate_jobs(lines, jobs, translator, memory)
+        out = german_md.split("\n")
+        for idx in fresh_idx:
+            out[idx] = apply_glossary(out[idx])
+        return "\n".join(out), reused + kept_jobs, translated, failed
     if not jobs:
         return apply_glossary(md), 0, 0, []
+    german_md, reused, translated, failed = _translate_jobs(lines, jobs, translator, memory)
+    return apply_glossary(german_md), reused, translated, failed
+
+
+def _translate_jobs(lines: list[str], jobs: list[tuple[int, str, list[str]]], translator,
+                    memory: dict[str, str]) -> tuple[str, int, int, list[str]]:
+    """Translates `jobs` into `lines` (in place) and returns the joined page WITHOUT the
+    glossary pass, plus (reused, translated, still_english) as translate_md reports them."""
+    if not jobs:
+        return "\n".join(lines), 0, 0, []
     for _idx, masked, _store in jobs:
         if masked not in memory and is_identifier_line(masked):
             memory[masked] = masked
@@ -618,7 +653,7 @@ def translate_md(
             # Capture the English line before it is overwritten: `masked` has already had its
             # heading marker replaced by a placeholder, so it cannot tell us the line was a heading.
             lines[idx] = finish_line(lines[idx], translated)
-    return apply_glossary("\n".join(lines)), len(jobs) - len(misses), len(misses), failed
+    return "\n".join(lines), len(jobs) - len(misses), len(misses), failed
 
 
 def remask(text: str, store: list[str]) -> str | None:
@@ -688,6 +723,152 @@ def build_page_memory(old_en_md: str | None, de_md: str | None) -> dict[str, str
         if remasked is not None and placeholders_intact(remasked, store, masked):
             memory[masked] = remasked
     return memory
+
+
+# ---------------------------------------------------------------------------
+# Changed-lines mode (--only-changed-lines, the default with --changed-since)
+#
+# The line memory above cannot reuse a line that carries an anchored link (its German
+# anchor differs from the English one), so a branch that edited a few lines on a page
+# used to re-translate every linked line of that page as well — often 5-10x the really
+# changed lines, with new (and different) German for text nobody touched. This mode
+# aligns the English the German page was generated from with the current English
+# (difflib, line by line) and copies the existing German line for every unchanged
+# English line; only inserted/replaced lines are translated. Deleted lines drop out with
+# their English, so en/de stay line-aligned. Anchors of kept lines are fixed afterwards
+# by sync_anchors_linewise.
+# ---------------------------------------------------------------------------
+
+
+def git_show(ref: str, path: Path) -> str | None:
+    """`git show <ref>:<path>` of a repo file, or None if it does not exist there."""
+    try:
+        rel = path.relative_to(REPO).as_posix()
+        result = subprocess.run(
+            ["git", "-C", str(REPO), "show", f"{ref}:{rel}"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
+        return result.stdout if result.returncode == 0 else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def en_alignment(base_en: str, md: str) -> list[tuple[str, int, int, int, int]]:
+    """difflib opcodes from the base English lines to the current English lines."""
+    import difflib
+    return difflib.SequenceMatcher(None, base_en.split("\n"), md.split("\n"),
+                                   autojunk=False).get_opcodes()
+
+
+def changed_line_keep(base_en: str, base_de: str, md: str) -> dict[int, str] | None:
+    """Current line index -> German line to keep, for every English line that is unchanged
+    against `base_en` (the English `base_de` was generated from). None when the base pair is
+    not line-aligned (no safe reuse).
+
+    A kept German line that is still the English text (a line a previous run failed on and
+    shipped in English) is NOT kept, so it is translated again."""
+    en_old = base_en.split("\n")
+    de_old = base_de.split("\n")
+    if len(en_old) != len(de_old):
+        return None
+    jobs = {idx: masked for idx, masked, _s in translatable_lines(md)[1]}
+    keep: dict[int, str] = {}
+    for tag, i1, i2, j1, _j2 in en_alignment(base_en, md):
+        if tag != "equal":
+            continue
+        for k in range(i2 - i1):
+            german = de_old[i1 + k]
+            masked = jobs.get(j1 + k)
+            if masked is not None and german.strip() == en_old[i1 + k].strip() \
+                    and looks_untranslated(masked, masked) and not is_identifier_line(masked):
+                continue  # shipped in English by an earlier failed run: translate it now
+            keep[j1 + k] = german
+    return keep
+
+
+def changed_lines_base(src: Path, dst: Path, md: str, cached: str | None, digest: str,
+                       base_ref: str | None, memory_from_git: bool) -> tuple[str, str] | None:
+    """The (English, German) pair the German page on disk was generated from, or None.
+
+    In order: the page this tool wrote in an earlier run (cache entry for the current
+    English, also a partial one); the German of `base_ref` when the page on disk is still
+    that German (the usual feature branch: English edited, German not yet regenerated) —
+    paired with the English of `base_ref`; with --memory-from-git, the English version
+    git_aligned_english picks for the committed German page. Never the English at HEAD on
+    its own: on a branch that committed English edits, that pairs every edited line with
+    the German of the line it replaced."""
+    if not dst.is_file():
+        return None
+    de_md = dst.read_text(encoding="utf-8")
+    if cached in (digest, PARTIAL + digest):
+        return md, de_md
+    if base_ref:
+        if git_show(base_ref, dst) == de_md:
+            base_en = git_show(base_ref, src)
+            if base_en is not None and len(base_en.split("\n")) == len(de_md.split("\n")):
+                return base_en, de_md
+    if memory_from_git and git_head_version(dst) == de_md:
+        base_en = git_aligned_english(src)
+        if base_en is not None and len(base_en.split("\n")) == len(de_md.split("\n")):
+            return base_en, de_md
+    return None
+
+
+_ATX_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}(?:\s|$)")
+
+
+def heading_line_indices(md: str) -> list[int]:
+    """Line index of every ATX heading outside fences and front matter, in order."""
+    out: list[int] = []
+    in_fence = False
+    lines = md.split("\n")
+    start = 0
+    if lines and lines[0].strip() == "---":
+        for i in range(1, len(lines)):
+            if lines[i].strip() == "---":
+                start = i + 1
+                break
+    for i in range(start, len(lines)):
+        line = lines[i]
+        if FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if not in_fence and _ATX_HEADING_RE.match(line):
+            out.append(i)
+    return out
+
+
+def heading_alias_map(old_de: str, new_de: str, opcodes, renderer) -> dict[str, str]:
+    """Old German heading id -> new German heading id for one page, by heading LINE.
+
+    `opcodes` align the English the old German page was generated from with the current
+    English; old and new German are line-aligned with those, so a heading keeps its
+    identity across a re-translation (its own text changed, a heading above it was added or
+    removed and shifted a duplicate counter, ...). Headings inside a replaced block are
+    paired in order when the block has as many headings before as after. When the
+    heading scan does not agree with the rendered ids (or there are no opcodes), falls
+    back to pairing by order if both pages have the same number of headings."""
+    old_ids, new_ids = heading_ids(old_de, renderer), heading_ids(new_de, renderer)
+    old_pos, new_pos = heading_line_indices(old_de), heading_line_indices(new_de)
+    if opcodes is None or len(old_ids) != len(old_pos) or len(new_ids) != len(new_pos):
+        if old_ids and len(old_ids) == len(new_ids):
+            return {o: n for o, n in zip(old_ids, new_ids) if o != n}
+        return {}
+    old_at = dict(zip(old_pos, old_ids))
+    new_at = dict(zip(new_pos, new_ids))
+    alias: dict[str, str] = {}
+    for tag, i1, i2, j1, j2 in opcodes:
+        if tag == "equal":
+            pairs = [(i1 + k, j1 + k) for k in range(i2 - i1)]
+        elif tag == "replace":
+            olds = [p for p in range(i1, i2) if p in old_at]
+            news = [p for p in range(j1, j2) if p in new_at]
+            pairs = list(zip(olds, news)) if len(olds) == len(news) else []
+        else:
+            pairs = []
+        for o, n in pairs:
+            if o in old_at and n in new_at and old_at[o] != new_at[n]:
+                alias[old_at[o]] = new_at[n]
+    return alias
 
 
 # ---------------------------------------------------------------------------
@@ -884,6 +1065,115 @@ def sync_anchors(pages: list[Path]) -> None:
             total_hits += hits
     print(f"  anchors: {total_hits} link(s) repointed at translated headings "
           f"across {changed_pages} page(s)")
+
+
+def make_heading_renderer():
+    """A python-markdown renderer with the site's extension set (see heading_ids), or None."""
+    names, configs = load_markdown_extensions()
+    if not names:
+        return None
+    try:
+        return markdown.Markdown(extensions=names, extension_configs=configs)
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ! cannot load the site's Markdown extensions ({exc}); anchors left untouched")
+        return None
+
+
+def sync_anchors_linewise(pages: list[Path], translated: dict[str, dict], renderer=None) -> int:
+    """Anchor pass of the changed-lines mode, over every line of every German page.
+
+    `translated` maps each EN-relative page written in this run to
+    {"old_de": German before the run, "fresh": line indices that are new translations,
+    "opcodes": en_alignment of the base English with the current English (None when the
+    page was translated without a base)}.
+
+    A fresh line carries the ENGLISH anchors the translator copied, so it goes through the
+    English-id -> German-id map of the target page (build_anchor_map). Every other line —
+    kept lines of translated pages and all lines of untouched pages — already carries a
+    German anchor, which goes stale when the heading it names was re-translated or a
+    duplicate counter shifted; it goes through the old-German -> new-German map of the
+    target page (heading_alias_map). A kept anchor that matches no heading of the target
+    page is tried against the English map as well (a leftover English anchor). Explicit
+    `{ #id }` heading ids are identical in every map side and therefore never rewritten.
+
+    Prints every anchor that still names no heading and returns their number."""
+    if renderer is None:
+        renderer = make_heading_renderer()
+        if renderer is None:
+            return 0
+    en_maps: dict[str, dict[str, str]] = {}
+    aliases: dict[str, dict[str, str]] = {}
+    ids: dict[str, set[str]] = {}
+    for src in pages:
+        rel = src.relative_to(EN).as_posix()
+        dst = DE / src.relative_to(EN)
+        if not dst.is_file():
+            continue
+        current_de = dst.read_text(encoding="utf-8")
+        ids[rel] = set(heading_ids(current_de, renderer))
+        en_maps[rel] = build_anchor_map(src.read_text(encoding="utf-8"), current_de, renderer, rel)
+        info = translated.get(rel)
+        if info and info.get("old_de"):
+            aliases[rel] = heading_alias_map(info["old_de"], current_de, info.get("opcodes"),
+                                             renderer)
+
+    total_hits = changed_pages = 0
+    dangling: list[tuple[str, str]] = []
+    for src in pages:
+        rel = src.relative_to(EN).as_posix()
+        dst = DE / src.relative_to(EN)
+        if not dst.is_file():
+            continue
+        fresh = translated.get(rel, {}).get("fresh") or set()
+        original = dst.read_text(encoding="utf-8")
+        lines = original.split("\n")
+        hits = 0
+        in_fence = False
+        for i, line in enumerate(lines):
+            if FENCE_RE.match(line):
+                in_fence = not in_fence
+                continue
+            if in_fence or "](" not in line:
+                continue
+            is_fresh = i in fresh
+
+            def rewrite_target(target: str, is_fresh=is_fresh) -> str:
+                nonlocal hits
+                core, space, title = target.partition(" ")
+                path_part, hashed, anchor = core.partition("#")
+                if not hashed or not anchor:
+                    return target
+                if "://" in path_part or path_part.startswith(("mailto:", "/")):
+                    return target
+                target_rel = (
+                    posixpath.normpath(posixpath.join(posixpath.dirname(rel), path_part))
+                    if path_part else rel)
+                if target_rel not in ids:
+                    return target
+                if is_fresh:
+                    new = en_maps.get(target_rel, {}).get(anchor)
+                else:
+                    new = aliases.get(target_rel, {}).get(anchor)
+                    if not new and anchor not in ids[target_rel]:
+                        new = en_maps.get(target_rel, {}).get(anchor)
+                if new and new != anchor:
+                    hits += 1
+                    anchor = new
+                if anchor not in ids[target_rel]:
+                    dangling.append((rel, f"{path_part}#{anchor}"))
+                return f"{path_part}#{anchor}{space}{title}"
+
+            lines[i] = _MD_LINK_RE.sub(lambda m: "](" + rewrite_target(m.group(1)) + ")", line)
+        rewritten = "\n".join(lines)
+        if rewritten != original:
+            dst.write_text(rewritten, encoding="utf-8")
+            changed_pages += 1
+            total_hits += hits
+    print(f"  anchors: {total_hits} link(s) repointed at translated headings "
+          f"across {changed_pages} page(s)")
+    for rel, link in dangling:
+        print(f"  ! {rel}: link anchor {link} names no heading of its target page")
+    return len(dangling)
 
 
 # ---------------------------------------------------------------------------
@@ -1557,10 +1847,15 @@ def save_cache(cache: dict[str, str]) -> None:
 
 
 def plan_pages(pages: list[str] | None = None, force: bool = False,
-               memory_from_git: bool = False) -> list[dict]:
+               memory_from_git: bool = False, only_changed_lines: bool = False,
+               base_ref: str | None = None) -> list[dict]:
     """The Markdown pages a run would translate, with their line memory and the
     number of (unique) lines that would go to the translator. Shared by the real run,
-    --dry-run and scripts/translate_benchmark.py."""
+    --dry-run and scripts/translate_benchmark.py.
+
+    With `only_changed_lines` (ignored with `force`) every page that has a line-aligned
+    base (changed_lines_base) also gets "keep" (line index -> German line kept verbatim),
+    "opcodes" and "old_de"; a page without one is translated as before."""
     stored_cache = load_cache()
     selected = {item.replace("\\", "/") for item in (pages or [])}
     plan: list[dict] = []
@@ -1596,11 +1891,30 @@ def plan_pages(pages: list[str] | None = None, force: bool = False,
                     and len(old_en.split("\n")) != len(de_md.split("\n")):
                 print(f"  (memory: {rel} — HEAD English is not line-aligned with the German page; "
                       f"--memory-from-git reuses the lines that did not change)")
+        keep = opcodes = old_de = None
+        if only_changed_lines and not force:
+            base = changed_lines_base(src, dst, md, cached, digest, base_ref, memory_from_git)
+            if base is not None:
+                keep = changed_line_keep(base[0], base[1], md)
+                if keep is not None:
+                    opcodes = en_alignment(base[0], md)
+                    old_de = base[1]
+                    # The memory must pair the same base: HEAD English (which may already hold
+                    # the branch's committed edits) with the base German would hand an edited
+                    # line the German of the line it replaced.
+                    memory = build_page_memory(base[0], base[1])
+            if keep is None and dst.exists():
+                print(f"  (changed lines: no line-aligned base for {rel}; translating the page "
+                      f"with the line memory)")
         _lines, jobs = translatable_lines(md)
-        misses = {masked for _i, masked, _s in jobs
-                  if masked not in memory and not is_identifier_line(masked)}
+        misses = {masked for i, masked, _s in jobs
+                  if (keep is None or i not in keep)
+                  and masked not in memory and not is_identifier_line(masked)}
         plan.append({"rel": rel, "src": src, "dst": dst, "md": md, "digest": digest,
-                     "memory": memory, "jobs": len(jobs), "misses": len(misses)})
+                     "memory": memory, "jobs": len(jobs), "misses": len(misses),
+                     "keep": keep, "opcodes": opcodes,
+                     "old_de": old_de if old_de is not None
+                     else (dst.read_text(encoding="utf-8") if dst.exists() else None)})
     return plan
 
 
@@ -1628,8 +1942,40 @@ def all_translatable_lines() -> int:
     return len(unique)
 
 
+def set_repo(repo: Path) -> None:
+    """Point every repo-derived path at another checkout (see --repo)."""
+    global REPO, SITE, EN, DE, CACHE, MKDOCS_YAML, I18N_DIR, GLOSSARY_PATH
+    REPO = repo.resolve()
+    SITE = REPO / "app-docs" / "site"
+    EN = SITE / "docs" / "en"
+    DE = SITE / "docs" / "de"
+    CACHE = SITE / ".docs-translate-cache"
+    MKDOCS_YAML = SITE / "mkdocs.yml"
+    I18N_DIR = REPO / "src" / "main" / "resources" / "i18n"
+    GLOSSARY_PATH = I18N_DIR / "glossary" / f"{TARGET}.json"
+
+
+def default_repo() -> Path:
+    """The korTTY checkout the current directory is in, else the one holding this script —
+    so `<other-worktree>/scripts/translate_docs.py` run from a checkout works on that
+    checkout."""
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True,
+                             text=True, timeout=10)
+        if top.returncode == 0:
+            path = Path(top.stdout.strip())
+            if (path / "app-docs" / "site" / "docs" / "en").is_dir():
+                return path
+    except Exception:  # noqa: BLE001
+        pass
+    return REPO
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Generate docs/de from docs/en.")
+    ap.add_argument("--repo", type=Path,
+                    help="checkout to work on (default: the git checkout of the current "
+                         "directory, else the one holding this script)")
     ap.add_argument("--force", action="store_true", help="re-translate all pages")
     ap.add_argument("--page", action="append", default=[],
                     help="translate only this EN-relative Markdown path (repeatable)")
@@ -1640,10 +1986,22 @@ def main() -> int:
     ap.add_argument("--memory-from-git", action="store_true",
                     help="build the line memory from the English of the commit that last wrote "
                          "each German page (for a branch that edited English without regenerating)")
+    ap.add_argument("--only-changed-lines", action=argparse.BooleanOptionalAction, default=None,
+                    help="translate only the English lines that are new or changed against the "
+                         "English the German page was generated from and keep the existing German "
+                         "of every other line (default: on with --changed-since, whose ref is the "
+                         "base; --no-only-changed-lines translates every line the memory cannot "
+                         "reuse, as before)")
     ap.add_argument("--dry-run", action="store_true",
                     help="only report how many lines each page would send to the translator")
     add_backend_arguments(ap)
     args = ap.parse_args()
+    repo = args.repo or default_repo()
+    if repo.resolve() != REPO:
+        set_repo(repo)
+        print(f"  (working on {REPO})")
+    only_changed = bool(args.changed_since) if args.only_changed_lines is None \
+        else args.only_changed_lines
 
     if not EN.is_dir():
         sys.exit(f"missing {EN}")
@@ -1653,12 +2011,13 @@ def main() -> int:
         if not pages:
             print(f"No English page changed since {args.changed_since}.")
             return 0
-    plan = plan_pages(pages, args.force, args.memory_from_git)
+    plan = plan_pages(pages, args.force, args.memory_from_git, only_changed, args.changed_since)
     if args.dry_run:
         total = 0
         for item in plan:
             total += item["misses"]
-            print(f"  {item['rel']}: {item['misses']} of {item['jobs']} line(s) to translate")
+            kept = f", {len(item['keep'])} kept" if item.get("keep") is not None else ""
+            print(f"  {item['rel']}: {item['misses']} of {item['jobs']} line(s) to translate{kept}")
         print(f"\nDry run: {len(plan)} page(s), {total} line(s) would be translated.")
         return 0
 
@@ -1668,13 +2027,20 @@ def main() -> int:
     md_pages = [src for src in sorted(EN.rglob("*.md"))
                 if not any(part in SKIP_DIRS for part in src.relative_to(EN).parts)]
     md_done = md_lines_fresh = md_lines_reused = 0
+    written: dict[str, dict] = {}  # EN-relative page -> what sync_anchors_linewise needs
     all_failed: list[tuple[str, str]] = []  # (page, masked source text) that stayed English
     started = time.perf_counter()
     for item in plan:
         rel, dst = item["rel"], item["dst"]
         dst.parent.mkdir(parents=True, exist_ok=True)
-        translated, reused, fresh, failed = translate_md(item["md"], translator, item["memory"])
+        keep = item.get("keep")
+        translated, reused, fresh, failed = translate_md(item["md"], translator, item["memory"],
+                                                         keep=keep)
         dst.write_text(translated, encoding="utf-8")
+        line_count = len(item["md"].split("\n"))
+        written[rel.as_posix()] = {
+            "old_de": item.get("old_de"), "opcodes": item.get("opcodes"),
+            "fresh": set(range(line_count)) - set(keep or {})}
         # A page with a failed line is NOT recorded as done: the next run translates it
         # again, reusing every good line (the memory is aligned with the current English)
         # and retrying only the lines that kept their English text.
@@ -1690,7 +2056,11 @@ def main() -> int:
     save_cache(new_cache)
     # After every page exists in its final German wording — a link can point into a
     # page that this run skipped, so the anchors are only knowable at the end.
-    sync_anchors(md_pages)
+    dangling = 0
+    if only_changed:
+        dangling = sync_anchors_linewise(md_pages, written)
+    else:
+        sync_anchors(md_pages)
     elapsed = time.perf_counter() - started
     print(f"\nDone in {elapsed:.0f}s. translated {md_done} page(s) ({md_lines_fresh} line(s) "
           f"translated, {md_lines_reused} reused) with {args.backend}"
@@ -1704,6 +2074,9 @@ def main() -> int:
             print(f"    {rel}: {preview!r}")
         print("  These pages are not marked as translated — re-run the same command to retry "
               "only the failed lines.")
+        return 1
+    if dangling:
+        print(f"\n! {dangling} link anchor(s) name no heading of their target page (see above).")
         return 1
     return 0
 

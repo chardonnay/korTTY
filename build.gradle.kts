@@ -3281,6 +3281,19 @@ val translateDocsBackendTest = tasks.register<Exec>("translateDocsBackendTest") 
     }
 }
 
+val translateDocsChangedLinesTest = tasks.register<Exec>("translateDocsChangedLinesTest") {
+    group = "verification"
+    description = "Runs the docs translator's changed-lines mode tests (kept German, anchors, alignment)."
+    inputs.files("scripts/translate_docs.py", "scripts/test_translate_docs_changed_lines.py")
+    workingDir(projectDir)
+    val tests = listOf("-m", "unittest", "scripts.test_translate_docs_changed_lines")
+    if (isWindows) {
+        commandLine(listOf("py", "-3") + tests)
+    } else {
+        commandLine(listOf("python3") + tests)
+    }
+}
+
 val backfillI18nKeysTest = tasks.register<Exec>("backfillI18nKeysTest") {
     group = "verification"
     description = "Runs the i18n backfill script's additions-only regression tests."
@@ -3321,7 +3334,8 @@ val pacmanWorkflowContractTest = tasks.register<Exec>("pacmanWorkflowContractTes
 
 tasks.named("check") {
     dependsOn(verifyJpackageStaging, "slimNativeRuntimeSmoke", packageSizeReportTest,
-        guideSegmentExtractorTest, translateDocsMaskingTest, translateDocsBackendTest, backfillI18nKeysTest,
+        guideSegmentExtractorTest, translateDocsMaskingTest, translateDocsBackendTest, translateDocsChangedLinesTest,
+        backfillI18nKeysTest,
         pacmanWorkflowContractTest, verifyJavaFxDependencyAlignment)
 }
 
