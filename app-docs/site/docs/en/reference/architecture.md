@@ -53,6 +53,7 @@ KorTTY uses **SithTermFX 1.2.2** as its primary terminal emulator, built from so
 - **Color support**: Configurable ANSI and TrueColor handling with per-connection overrides
 - **Reviewed boundary fix**: A pinned korTTY patch rejects the non-existent row at `line == height` during hyperlink hit-testing, preventing bottom-row `TerminalTextBuffer` range errors
 - **Reviewed shortcut-chord fix**: A second pinned korTTY patch stops shortcut-chord `KEY_TYPED` characters (for example ++cmd+shift+d++) from reaching the pty or broadcast panes
+- **Reviewed control-sequence bounds fix**: A third pinned korTTY patch bounds the 1024-character push-back through which `ControlSequence` re-reads the characters it cannot place in a CSI ahead of the sequence: stray characters and then whole parameters that do not fit are dropped, and the re-emitted sequence always keeps its final character, so an overlong sequence in remote output no longer throws `ArrayIndexOutOfBoundsException` on the emulator thread and ends the session. `OscEventSplitter` replays the same stray characters, and the fix waits for an upstream release as `vendor-patches/0003-control-sequence-push-back-bounds.patch`
 - **Scroll-region correctness**: The scrolling region does not confine the cursor while origin mode (DECOM) is off. Text addressed above the top margin or below the bottom one stays on that line instead of being pulled into the region, and only a line feed or autowrap that actually crosses the bottom margin scrolls — so tmux's first pane row, its status line and the cursor all land where the application put them. Carried as a korTTY patch until it shipped upstream in SithTermFX 1.2.2
 
 ### Build Integration
@@ -60,9 +61,9 @@ KorTTY uses **SithTermFX 1.2.2** as its primary terminal emulator, built from so
 The build process automatically:
 
 1. Clones SithTermFX at tag `v1.2.2` into `vendor/sithtermfx` (no GitHub token required)
-2. Applies the reviewed patches in `patches/sithtermfx/` — `1.2.2-terminal-panel-bottom-row.patch` and `1.2.2-terminal-panel-meta-shortcut-key-typed.patch` — in order, failing if a patch neither applies nor already matches the source
+2. Applies the reviewed patches in `patches/sithtermfx/` — `1.2.2-control-sequence-bounds.patch`, `1.2.2-terminal-panel-bottom-row.patch` and `1.2.2-terminal-panel-meta-shortcut-key-typed.patch` — in order, failing if a patch neither applies nor already matches the source
 3. Builds it locally using Maven via the `installSithtermfxLocal` task
-4. Installs artifacts to the local Maven repo (`mavenLocal()`), including one marker resource per patch that lets Gradle reject an unpatched cached UI JAR
+4. Installs artifacts to the local Maven repo (`mavenLocal()`), including one marker resource per patch that lets Gradle reject an unpatched cached core or UI JAR
 5. Links SithTermFX core and UI modules into the korTTY JAR
 
 No network access is needed after cloning; all build steps are deterministic and reproducible.
@@ -242,7 +243,7 @@ KorTTY relies on carefully curated, production-tested dependencies:
 |---|---|---|---|
 | **SSH** | Apache SSHD (core, common, sftp) | 2.19.0 | SSH protocol implementation |
 | | BouncyCastle (bcprov, bcpkix) | 1.86 | Cryptographic provider, SSH key parsing and Ed25519/EdDSA key support |
-| **Terminal** | SithTermFX (core, ui) | 1.2.2 plus pinned korTTY boundary and shortcut-chord patches | Terminal emulator engine |
+| **Terminal** | SithTermFX (core, ui) | 1.2.2 plus pinned korTTY boundary, shortcut-chord and control-sequence bounds patches | Terminal emulator engine |
 | | Lanterna | 3.1.5 | Text-based UI components |
 | | pty4j (JetBrains) | 0.12.25 | PTY allocation for Mosh |
 | **Platform** | JNA (jna, jna-platform) | 5.19.1 | Native desktop power-management integration |

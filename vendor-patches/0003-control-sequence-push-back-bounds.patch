@@ -1,0 +1,175 @@
+From 3462eaf73d731706bf6aeccce1466ca8f9e5e8b6 Mon Sep 17 00:00:00 2001
+From: Daniel Mengel <daniel.mengel@gmail.com>
+Date: Sun, 4 Oct 2026 09:34:33 +0200
+Subject: [PATCH] Fix CSI push-back overrunning its 1024-char array
+
+The chars a CSI cannot place -- an intermediate byte, a control character, a
+misplaced '?' or ':' -- are pushed back to be read again ahead of the
+sequence itself. pushBackReordered() copied them, then ESC '[' the marker,
+the parameters and the final char, into a fixed 1024-char array without a
+bounds check, on the assumption that a sequence cannot be longer than the
+read buffer. It can: readControlSequence() reads across buffer refills, so a
+sequence is as long as whoever writes to the terminal makes it.
+
+A sequence with more than about a thousand stray chars, or with one stray
+char and a few hundred parameters, threw ArrayIndexOutOfBoundsException on
+the emulator thread. TerminalStarter rethrows it, the widget's EmulatorTask
+closes the TtyConnector, and the session ends. Any remote output can carry
+such a sequence: a malicious server, a file shown with cat, a log line.
+
+Cap the copy instead. ESC, '[', the marker and the final char always keep
+their room, so the sequence is pushed back terminated and cannot swallow the
+output that follows. Stray chars fill the rest first; those that do not fit
+are dropped, and so are the parameters from the first one that does not fit,
+whole, as xterm drops the parameters beyond its limit. addUnhandled() stops
+collecting stray chars beyond what can ever be pushed back, so an
+unterminated run of them no longer grows a boxed list without bound.
+
+A sequence that fits is pushed back exactly as before.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../core/emulator/ControlSequence.java        | 24 +++++-
+ .../core/emulator/ControlSequenceTest.java    | 74 +++++++++++++++++++
+ 2 files changed, 95 insertions(+), 3 deletions(-)
+ create mode 100644 sithtermfx-core/src/test/java/com/sithtermfx/core/emulator/ControlSequenceTest.java
+
+diff --git a/sithtermfx-core/src/main/java/com/sithtermfx/core/emulator/ControlSequence.java b/sithtermfx-core/src/main/java/com/sithtermfx/core/emulator/ControlSequence.java
+index fc76b1b..3158846 100644
+--- a/sithtermfx-core/src/main/java/com/sithtermfx/core/emulator/ControlSequence.java
++++ b/sithtermfx-core/src/main/java/com/sithtermfx/core/emulator/ControlSequence.java
+@@ -9,6 +9,13 @@ import java.util.ArrayList;
+ 
+ public class ControlSequence {
+ 
++    /**
++     * {@link #pushBackReordered} hands the stray characters and the re-emitted sequence back in one
++     * array of this size. How long a sequence gets is up to whoever writes to the terminal, so what
++     * does not fit is dropped.
++     */
++    private static final int MAX_PUSH_BACK_LENGTH = 1024;
++
+     private int myArgc;
+ 
+     private int[] myArgv;
+@@ -78,14 +85,24 @@ public class ControlSequence {
+         if (myUnhandledChars == null) {
+             myUnhandledChars = new ArrayList<>();
+         }
+-        myUnhandledChars.add(b);
++        // More stray characters than fit into the push-back are never read again: don't keep them.
++        if (myUnhandledChars.size() < MAX_PUSH_BACK_LENGTH) {
++            myUnhandledChars.add(b);
++        }
+     }
+ 
+     public boolean pushBackReordered(final TerminalDataStream channel) throws IOException {
+         if (myUnhandledChars == null) return false;
+-        final char[] bytes = new char[1024]; // can't be more than the whole buffer...
++        final char[] bytes = new char[MAX_PUSH_BACK_LENGTH];
++        // The sequence is always pushed back terminated: ESC, '[', the marker and the final char
++        // keep their room. Stray characters that do not fit are dropped, and so are the parameters
++        // from the first one that does not fit, as xterm drops the parameters beyond its limit.
++        final int markerLength =
++                myStartsWithExclamationMark || myStartsWithQuestionMark || myStartsWithMoreMark ? 1 : 0;
++        final int maxStrayChars = MAX_PUSH_BACK_LENGTH - 3 - markerLength;
+         int i = 0;
+         for (final char b : myUnhandledChars) {
++            if (i == maxStrayChars) break;
+             bytes[i++] = b;
+         }
+         bytes[i++] = (byte) Ascii.ESC;
+@@ -100,8 +117,9 @@ public class ControlSequence {
+             bytes[i++] = (byte) '>';
+         }
+         for (int argi = 0; argi < myArgc; argi++) {
+-            if (argi != 0) bytes[i++] = ';';
+             String s = Integer.toString(myArgv[argi]);
++            if (i + (argi != 0 ? 1 : 0) + s.length() >= MAX_PUSH_BACK_LENGTH) break;
++            if (argi != 0) bytes[i++] = ';';
+             for (int j = 0; j < s.length(); j++) {
+                 bytes[i++] = s.charAt(j);
+             }
+diff --git a/sithtermfx-core/src/test/java/com/sithtermfx/core/emulator/ControlSequenceTest.java b/sithtermfx-core/src/test/java/com/sithtermfx/core/emulator/ControlSequenceTest.java
+new file mode 100644
+index 0000000..b2aae01
+--- /dev/null
++++ b/sithtermfx-core/src/test/java/com/sithtermfx/core/emulator/ControlSequenceTest.java
+@@ -0,0 +1,74 @@
++package com.sithtermfx.core.emulator;
++
++import com.sithtermfx.core.ArrayTerminalDataStream;
++import org.junit.jupiter.api.Test;
++
++import java.io.IOException;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++/**
++ * The chars a CSI cannot place — an intermediate byte, a control character, a misplaced {@code ?} —
++ * are pushed back to be read again before the sequence itself, through a 1024-char array. What does
++ * not fit is dropped, so an overlong sequence in the output cannot overrun it.
++ */
++public class ControlSequenceTest {
++
++    private static final String ESC = "\u001B";
++    private static final int PUSH_BACK_LENGTH = 1024;
++
++    @Test
++    public void pushesBackStrayCharsAheadOfTheSequence() throws IOException {
++        assertEquals("\b" + ESC + "[2C", pushedBack("2\bC"));
++        assertEquals("$" + ESC + "[?25p", pushedBack("?25$p"));
++        assertEquals(" " + ESC + "[1;22;333q", pushedBack("1;22;333 q"));
++    }
++
++    @Test
++    public void doesNotPushBackASequenceWithoutStrayChars() throws IOException {
++        ArrayTerminalDataStream stream = new ArrayTerminalDataStream("1;2H".toCharArray());
++        ControlSequence sequence = new ControlSequence(stream);
++
++        assertFalse(sequence.pushBackReordered(stream));
++        assertTrue(stream.isEmpty());
++    }
++
++    @Test
++    public void keepsEveryCharOfASequenceThatExactlyFillsThePushBack() throws IOException {
++        String stray = "\0".repeat(PUSH_BACK_LENGTH - "\u001B[5A".length());
++
++        assertEquals(stray + ESC + "[5A", pushedBack(stray + "5A"));
++    }
++
++    @Test
++    public void dropsStrayCharsThatDoNotFitAndKeepsTheSequenceTerminated() throws IOException {
++        assertEquals("\0".repeat(PUSH_BACK_LENGTH - 3) + ESC + "[A", pushedBack("\0".repeat(5_000) + "A"));
++        assertEquals("\0".repeat(PUSH_BACK_LENGTH - 4) + ESC + "[?h", pushedBack("?" + "\0".repeat(5_000) + "h"));
++    }
++
++    @Test
++    public void dropsWholeParametersThatDoNotFit() throws IOException {
++        String replay = pushedBack("123;".repeat(600) + "123\bm");
++
++        assertTrue(replay.length() <= PUSH_BACK_LENGTH, "pushed back " + replay.length() + " chars");
++        assertTrue(replay.length() > PUSH_BACK_LENGTH - ";123".length(), "pushed back " + replay.length() + " chars");
++        assertTrue(replay.matches("\b\u001B\\[123(;123)*m"), replay);
++    }
++
++    /** The chars a CSI body (everything after {@code ESC [}) is pushed back as. */
++    private static String pushedBack(String body) throws IOException {
++        ArrayTerminalDataStream stream = new ArrayTerminalDataStream(body.toCharArray());
++        ControlSequence sequence = new ControlSequence(stream);
++        assertTrue(stream.isEmpty());
++
++        assertTrue(sequence.pushBackReordered(stream));
++
++        StringBuilder replay = new StringBuilder();
++        while (!stream.isEmpty()) {
++            replay.append(stream.getChar());
++        }
++        return replay.toString();
++    }
++}
+-- 
+2.54.0 (Apple Git-157)
+

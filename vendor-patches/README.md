@@ -79,3 +79,53 @@ are gone, and the two surviving patches were renamed to the `1.2.2-` base they n
 behaviour from korTTY's own suite regardless of where the fix lives, and would catch a downgrade or a
 regression in a later SithTermFX release. The patch file is kept here as the record of what 1.2.2
 contains.
+
+## `0003-control-sequence-push-back-bounds.patch` → SithTermFX **1.2.3** (pending)
+
+Tracked upstream as [chardonnay/SithTermFX#5](https://github.com/chardonnay/SithTermFX/issues/5).
+
+A SithTermFX bug inherited from JediTerm, and a remote-triggerable one: the chars a CSI cannot place
+(an intermediate byte, a control character, a misplaced `?` or `:`) are pushed back to be read again
+ahead of the sequence, and `ControlSequence.pushBackReordered()` copied them, plus `ESC [`, the
+marker, the parameters and the final char, into a fixed 1024-char array without a bounds check. A
+sequence is as long as the sender makes it, since `readControlSequence()` reads across buffer
+refills. More than about a thousand stray chars, or one stray char beside a few hundred parameters,
+threw `ArrayIndexOutOfBoundsException` on the emulator thread; `SithTermFxWidget.EmulatorTask` then
+closed the `TtyConnector` and the session ended. A malicious server, a `cat`-ed file or a log line
+was enough.
+
+The patch caps the copy. `ESC`, `[`, the marker and the final char always keep their room, so the
+sequence is pushed back terminated and cannot swallow the output after it; stray chars fill the rest
+first, those that do not fit are dropped, and so are the parameters from the first one that does not
+fit, whole, as xterm drops the parameters beyond its limit. `addUnhandled()` stops collecting beyond
+what can be pushed back. A sequence that fits is pushed back exactly as before. The patch adds
+`ControlSequenceTest` (five cases, two of which fail without the fix).
+
+Until 1.2.3 ships, korTTY carries the same change as
+`patches/sithtermfx/1.2.2-control-sequence-bounds.patch`, with a `META-INF` marker in the **core** jar
+(`sithtermfxPatchMarkers` now names the artifact each marker lives in). Two korTTY tests pin the
+behaviour regardless of where the fix lives: `ControlSequenceBoundsPatchTest` (the push-back itself
+and the emulator) and `HeadlessTerminalTest.anOverlongControlSequenceDoesNotStopTheEmulator`.
+`OscEventSplitter` replays a CSI's stray chars the way SithTermFX does, so its `CSI_PUSH_BACK_LENGTH`
+budget (1024 minus `ESC [`, the marker and the final char) must follow any change to this limit;
+`OscSplitterDifferentialTest` checks it at the boundary against the real emulator.
+
+Not in this patch, worth doing upstream in the same release: an unterminated CSI still grows `myArgv`
+(one `int` per parameter) and the raw `mySequenceString` debug copy without bound, and a parameter
+value silently overflows `int` (xterm caps both the number of parameters and each value). Neither
+throws; both only cost memory or produce a wrong parameter.
+
+### Releasing it (SithTermFX repo, `github.com/chardonnay/SithTermFX`)
+
+```sh
+git checkout v1.2.2            # base the patch was cut from
+git am /path/to/0003-control-sequence-push-back-bounds.patch
+mvn versions:set -DnewVersion=1.2.3 -DgenerateBackupPoms=false
+git commit -am "Release 1.2.3"
+git tag v1.2.3 && git push origin main --tags
+```
+
+Then move korTTY to 1.2.3: bump `sithtermfxVersion` and the two `com.sithtermfx` dependencies in
+`build.gradle.kts` and the clone tag in `.github/workflows/test.yml` and `build-release.yml`; delete
+`patches/sithtermfx/1.2.2-control-sequence-bounds.patch` and its `sithtermfxPatchMarkers` entry;
+rename the surviving patches to the `1.2.3-` base.
