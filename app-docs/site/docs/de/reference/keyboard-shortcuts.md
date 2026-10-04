@@ -95,7 +95,25 @@ Auf Windows und Linux haben **Puffer löschen** und **Suchen** keine eigenen Tas
 
 Die Einfügen-Tasten laufen über den [Einfügeschutz](../features/terminal.md#einfugeschutz): Eingefügter Text mit Zeilenumbrüchen, mit Steuerzeichen oder von großem Umfang kann zuerst eine Bestätigung öffnen. In diesem Dialog ist **Abbrechen** die Standardschaltfläche, sodass ++enter++, ++space++ und ++esc++ das Einfügen verwerfen; klicken Sie auf **Einfügen**, oder wechseln Sie mit ++tab++ dorthin und lösen Sie die Schaltfläche mit ++space++ aus. Während eingefügter Text Zeile für Zeile gesendet wird ([Pause nach jeder eingefügten Zeile](../features/terminal.md#einfugen-in-langsame-gerate)), nimmt der Bereich keine anderen Tasten an, und ++esc++ bricht das Einfügen ab.
 
-Jede andere Kombination von ++shift++, ++ctrl++ und ++alt++ mit den Pfeiltasten, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ und ++f1++ bis ++f11++ wird so gesendet, wie xterm es sendet (++f12++ schaltet immer den Vollbildmodus um), zum Beispiel ++ctrl+page-up++ als `ESC [ 5 ; 5 ~` und ++shift+f1++ als `ESC [ 1 ; 2 P`. Die Pfeiltasten folgen dem Cursor-Key-Modus des Programms: `mc` und `vim` schalten ihn ein und dann empfangen sie `ESC O A`, während eine Shell `ESC [ A` erhält. Verbindungen mit einer Nicht-xterm-Terminalemulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) senden weiterhin feste Sequenzen ohne Modifikatoren.
+Jede andere Kombination von ++shift++, ++ctrl++ und ++alt++ mit den Pfeiltasten, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ und ++f1++ bis ++f11++ wird so gesendet, wie xterm es sendet (++f12++ schaltet immer den Vollbildmodus um, und in einem Tab mit zwei oder mehr Bereichen setzt ++ctrl+alt++ mit einer Pfeiltaste stattdessen den Fokus auf einen anderen Bereich, siehe [Bereiche](#bereiche)), zum Beispiel ++ctrl+page-up++ als `ESC [ 5 ; 5 ~` und ++shift+f1++ als `ESC [ 1 ; 2 P`. Die Pfeiltasten folgen dem Cursor-Key-Modus des Programms: `mc` und `vim` schalten ihn ein und dann empfangen sie `ESC O A`, während eine Shell `ESC [ A` erhält. Verbindungen mit einer Nicht-xterm-Terminalemulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) senden weiterhin feste Sequenzen ohne Modifikatoren.
+
+## Bereiche
+
+Diese Tasten teilen den aktiven Terminal-Tab, verschieben den Tastaturfokus zwischen seinen Bereichen und maximieren einen davon; siehe [Vorgänge aufteilen](../features/terminal.md#vorgange-aufteilen).
+
+| Verknüpfung | Aktion |
+| --- | --- |
+| ++ctrl+shift+o++ | Den fokussierten Bereich auf dessen eigenem Server teilen: nach rechts, wenn der Bereich breit ist, nach unten, wenn er hoch ist; der neue Bereich erhält den Fokus (++cmd+shift+o++ auf macOS) |
+| ++ctrl+alt+left++ / ++ctrl+alt+right++ | Fokus auf den Bereich links / rechts setzen (++cmd+option+left++ / ++cmd+option+right++ auf macOS) |
+| ++ctrl+alt+up++ / ++ctrl+alt+down++ | Fokus auf den Bereich darüber / darunter setzen (++cmd+option+up++ / ++cmd+option+down++ auf macOS) |
+| ++ctrl+shift+enter++ | Den fokussierten Bereich maximieren, sodass er den Tab ausfüllt, oder wieder alle Bereiche anzeigen (++cmd+shift+enter++ auf macOS) |
+
+Die Teilen-Taste funktioniert in jedem Terminal-Tab, solange sich die Tastatur darin befindet. Unter Windows und Linux erreicht sie die Shell nicht mehr, die sie als ++ctrl+o++ erhielt; ++ctrl+o++ selbst erreicht sie weiterhin, sodass `nano` damit weiterhin speichert.
+
+Die Fokustasten und die Maximieren-Taste wirken nur, solange ein Terminal-Tab mit zwei oder mehr Bereichen aktiv ist und sich die Tastatur in diesem Tab befindet; bei einem einzelnen Bereich erreichen sie wie bisher das Programm im Terminal, ++ctrl+shift+enter++ als ++enter++. Am Rand des Tabs bleibt der Fokus, wo er ist. Liegen auf dieser Seite mehrere Bereiche, geht der Fokus zu dem, der neben dem fokussierten Bereich liegt, statt nur dessen Ecke zu berühren, und unter diesen zum nächstgelegenen. Wird der Fokus gewechselt, während ein Bereich maximiert ist, werden wieder alle Bereiche angezeigt. *Ansicht → Bereiche* enthält dieselben Befehle, **Rechts teilen** und **Unten teilen**, um die Seite einer Teilung zu wählen, **Bereich schließen**, **Bereich maximieren** sowie **Nächster Bereich** und **Vorheriger Bereich**, die alle Bereiche des Tabs durchlaufen und nach dem letzten von vorn beginnen.
+
+!!! note "Ein Tastaturkürzel des Desktops kann diese Tasten zuerst abfangen"
+    Einige Linux-Desktops wie GNOME, Xfce und Cinnamon wechseln mit ++ctrl+alt++ und einer Pfeiltaste den Arbeitsbereich, und einige Windows-Grafiktreiber (Intel) drehen damit den Bildschirm, bevor korTTY die Taste sieht. Verwenden Sie dort *Ansicht → Bereiche*, oder schalten Sie das Tastaturkürzel des Desktops aus.
 
 ## SFTP-Manager
 

@@ -327,7 +327,7 @@ agent -plan <task>
 
 Der Basisbefehlsname kann unter **Einstellungen > AI** konfiguriert werden. Wenn Sie `agent` umbenennen, leitet korTTY automatisch die passenden Befehle `-ask` und `-plan` ab. Auf derselben Einstellungsseite kann die Groß-/Kleinschreibung des Befehlsnamens nicht beachtet werden, und der Setup-Dialog pro Lauf kann deaktiviert werden. Wenn der Dialog deaktiviert ist, verwendet korTTY das konfigurierte Standardprofil.
 
-Nur ein Agent-Befehl, den Sie eingeben oder einfügen, wird erkannt. Text, den der Server ausgibt, z. B. eine Datei, die mit `cat` angezeigt wird und eine präparierte Escape-Sequenz enthält, kann keinen Agentenlauf starten.
+Nur ein Agent-Befehl, den Sie eingeben oder einfügen, wird erkannt. Text, den der Server ausgibt, z. B. eine Datei, die mit `cat` angezeigt wird und eine präparierte Escape-Sequenz enthält, kann keinen Agentenlauf starten. Im [Broadcast-Modus](terminal.md#broadcast-modus) startet der Befehl einen Lauf nur in dem Bereich, in dem Sie ihn eingeben; die anderen Bereiche erhalten ihn als gewöhnliche Befehlszeile, und der Broadcast-Modus sendet keine Tasten in einen Bereich, solange dort ein Agentenlauf aktiv ist.
 
 ### TAB Abschluss- und Eingabeaufforderungsverlauf
 
