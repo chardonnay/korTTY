@@ -33,6 +33,7 @@ public final class HighlightRuleValidator {
     public static final String KEY_FOREGROUND_INVALID = "highlight.validation.foregroundInvalid";
     public static final String KEY_BACKGROUND_INVALID = "highlight.validation.backgroundInvalid";
     public static final String KEY_NO_EFFECT = "highlight.validation.noEffect";
+    public static final String KEY_SNIPPET_REQUIRED = "highlight.validation.snippetRequired";
     public static final String KEY_NAME_REQUIRED = "highlight.validation.nameRequired";
     public static final String KEY_TOO_MANY_RULES = "highlight.validation.tooManyRules";
     public static final String KEY_RESERVED_ID = "highlight.validation.reservedId";
@@ -42,7 +43,7 @@ public final class HighlightRuleValidator {
     /** Every key this class can return; the i18n coverage test checks each exists in every bundle. */
     public static final List<String> MESSAGE_KEYS = List.of(
         KEY_PATTERN_REQUIRED, KEY_PATTERN_TOO_LONG, KEY_PATTERN_INVALID, KEY_PATTERN_MATCHES_EMPTY,
-        KEY_FOREGROUND_INVALID, KEY_BACKGROUND_INVALID, KEY_NO_EFFECT, KEY_NAME_REQUIRED,
+        KEY_FOREGROUND_INVALID, KEY_BACKGROUND_INVALID, KEY_NO_EFFECT, KEY_SNIPPET_REQUIRED, KEY_NAME_REQUIRED,
         KEY_TOO_MANY_RULES, KEY_RESERVED_ID, KEY_TOO_MANY_SETS, KEY_DUPLICATE_ID);
 
     private HighlightRuleValidator() {
@@ -75,8 +76,13 @@ public final class HighlightRuleValidator {
         if (!CompiledHighlightSet.isValidColor(rule.getBackground())) {
             problems.add(KEY_BACKGROUND_INVALID);
         }
-        if (!rule.hasVisualEffect()) {
+        if (!rule.hasVisualEffect() && !rule.hasAction()) {
+            // A trigger (a notification when the pattern appears) may leave the text as it is.
             problems.add(KEY_NO_EFFECT);
+        }
+        if (rule.getAction() == HighlightRule.Action.RUN_SNIPPET && rule.getSnippetId() == null) {
+            // Whether the snippet still exists is checked when the rule fires: the library can change at any time.
+            problems.add(KEY_SNIPPET_REQUIRED);
         }
         return problems;
     }

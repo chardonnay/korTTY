@@ -250,13 +250,25 @@ public final class TerminalHighlightService implements AutoCloseable {
      */
     public TerminalOutputHighlighter attach(TerminalTextBuffer buffer, PaneSelection selection, Runnable repaint,
                                             Runnable onRestyled, BooleanSupplier findActive) {
+        return attach(buffer, selection, repaint, onRestyled, findActive, null);
+    }
+
+    /**
+     * Attaches a highlighter as {@link #attach(TerminalTextBuffer, PaneSelection, Runnable, Runnable,
+     * BooleanSupplier)} does, reporting the pane's triggers to {@code triggerSink}.
+     *
+     * @param triggerSink where the pane's triggers go (on the highlighter thread), or {@code null}
+     */
+    public TerminalOutputHighlighter attach(TerminalTextBuffer buffer, PaneSelection selection, Runnable repaint,
+                                            Runnable onRestyled, BooleanSupplier findActive,
+                                            TerminalOutputHighlighter.TriggerSink triggerSink) {
         Objects.requireNonNull(buffer, "buffer");
         Objects.requireNonNull(selection, "selection");
         if (closed.get()) {
             return null;
         }
         TerminalOutputHighlighter highlighter = new TerminalOutputHighlighter(buffer, resolve(selection),
-            repaint, onRestyled, findActive, () -> catalog.get().alternateScreen(), passScheduler);
+            repaint, onRestyled, findActive, () -> catalog.get().alternateScreen(), passScheduler, triggerSink);
         panes.put(highlighter, selection);
         if (closed.get()) {
             panes.remove(highlighter);
@@ -452,7 +464,10 @@ public final class TerminalHighlightService implements AutoCloseable {
         }
     }
 
-    /** Everything about a set's rules that changes how it matches or looks; equal signatures compile alike. */
+    /**
+     * Everything about a set's rules that changes how it matches, looks or acts; equal signatures compile
+     * alike.
+     */
     public static String signature(HighlightRuleSet set) {
         StringBuilder signature = new StringBuilder();
         for (HighlightRule rule : set.getRules()) {
@@ -467,7 +482,10 @@ public final class TerminalHighlightService implements AutoCloseable {
                 .append(rule.getScope()).append('\u0001')
                 .append(rule.getForeground()).append('\u0001')
                 .append(rule.getBackground()).append('\u0001')
-                .append(rule.isBold()).append(rule.isItalic()).append(rule.isUnderline()).append('\u0002');
+                .append(rule.isBold()).append(rule.isItalic()).append(rule.isUnderline()).append('\u0001')
+                .append(rule.getAction()).append(rule.isNotifyWithText()).append('\u0001')
+                .append(rule.getName()).append('\u0001')
+                .append(rule.getSnippetId()).append('\u0002');
         }
         return signature.toString();
     }

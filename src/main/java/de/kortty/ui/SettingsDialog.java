@@ -76,6 +76,7 @@ import de.kortty.model.WindowGeometry;
 import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteWarningMode;
+import de.kortty.shellintegration.PaneActivityMonitor;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
 import de.kortty.security.PasswordStrengthChecker;
 import de.kortty.security.MasterPasswordManager;
@@ -185,6 +186,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox commandFinishedNotificationsCheck;
     private final Spinner<Integer> commandFinishedSecondsSpinner;
     private final CheckBox remoteTerminalNotificationsCheck;
+    private final Spinner<Integer> terminalSilenceSecondsSpinner;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
     private final CheckBox codingAgentDetectionCheck;
@@ -196,6 +198,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox terminalHighlightingEnabledCheck;
     private final CheckBox terminalHighlightAlternateScreenCheck;
     private final ComboBox<HighlightSettingsSupport.DefaultSetChoice> defaultHighlightSetCombo;
+    private final CheckBox terminalTriggersEnabledCheck;
 
     // Appearance settings
     private final ComboBox<AppDesign> appDesignCombo;
@@ -376,6 +379,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private AiProfile selectedAiProfile;
 
     private TabPane mainTabPane;
+
+    // Keyboard page: built on first selection from the actions of the window that opened the dialog.
+    private Tab keyboardTab;
+    private KeyboardSettingsPage keyboardPage;
+    private Supplier<KeyboardSettingsModel.Catalog> keymapCatalogSource = () -> null;
 
     // SFTP settings
     private final CheckBox sftpAutoCloseEnabledCheck;
@@ -888,6 +896,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         remoteTerminalNotificationsCheck.setSelected(globalSettings == null
             || globalSettings.isRemoteTerminalNotificationsEnabled());
         remoteTerminalNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.remote.tooltip")));
+        // ... and how long a tab watched for silence (its right-click menu) has to stay silent.
+        terminalSilenceSecondsSpinner = new Spinner<>(PaneActivityMonitor.MIN_SILENCE_SECONDS,
+            PaneActivityMonitor.MAX_SILENCE_SECONDS,
+            globalSettings != null ? globalSettings.getTerminalSilenceSeconds()
+                : PaneActivityMonitor.DEFAULT_SILENCE_SECONDS);
+        terminalSilenceSecondsSpinner.setEditable(true);
+        terminalSilenceSecondsSpinner.setPrefWidth(100);
+        terminalSilenceSecondsSpinner.setTooltip(
+            new Tooltip(I18n.get("settings.terminal.notify.silenceSeconds.tooltip")));
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -965,6 +982,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // With the master switch off, neither of the other two has any effect.
         terminalHighlightAlternateScreenCheck.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
         defaultHighlightSetCombo.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
+        // Triggers: what a highlight rule may do besides coloring (a desktop notification, a snippet). The policy
+        // key terminal-triggers locks the box; otherwise it follows the master switch, as rules only run
+        // while highlighting is on.
+        terminalTriggersEnabledCheck = new CheckBox(I18n.get(HighlightSettingsSupport.TRIGGERS_KEY));
+        terminalTriggersEnabledCheck.setSelected(globalSettings == null || globalSettings.isTerminalTriggersEnabled());
+        terminalTriggersEnabledCheck.setTooltip(new Tooltip(I18n.get(HighlightSettingsSupport.TRIGGERS_TOOLTIP_KEY)));
+        // After setTooltip: lockIfManaged replaces it with the managed-by-your-organization hint. A locked
+        // box must not be bound as well, or setDisable(true) would fail on the bound property.
+        if (!de.kortty.policy.PolicyUiSupport.lockIfManaged(
+                terminalTriggersEnabledCheck, de.kortty.policy.ManagedSetting.TERMINAL_TRIGGERS)) {
+            terminalTriggersEnabledCheck.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
+        }
 
         // Rows are numbered by a counter, as on the Window tab, so a section can be inserted
         // anywhere without renumbering every row below it.
@@ -1006,6 +1035,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox defaultHighlightSetRow = new HBox(8, defaultHighlightSetCombo, editHighlightRulesButton);
         defaultHighlightSetRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         terminalGrid.add(defaultHighlightSetRow, 1, terminalRow++);
+        terminalGrid.add(terminalTriggersEnabledCheck, 0, terminalRow++, 2, 1);
         Label highlightingInfo = new Label(I18n.get(HighlightSettingsSupport.INFO_KEY));
         highlightingInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         highlightingInfo.setWrapText(true);
@@ -1070,6 +1100,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         commandFinishedSecondsBox.setAlignment(Pos.CENTER_LEFT);
         terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);
         terminalGrid.add(remoteTerminalNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.notify.silenceSeconds")), 0, terminalRow);
+        HBox terminalSilenceSecondsBox = new HBox(10, terminalSilenceSecondsSpinner,
+            new Label(I18n.get("settings.terminal.notify.silenceSeconds.unit")));
+        terminalSilenceSecondsBox.setAlignment(Pos.CENTER_LEFT);
+        terminalGrid.add(terminalSilenceSecondsBox, 1, terminalRow++);
         Label notificationsInfo = new Label(I18n.get("settings.terminal.notify.info"));
         notificationsInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         notificationsInfo.setWrapText(true);
@@ -3303,7 +3338,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Resources tab (opt-in JVM heap/GC profile)
         Tab resourcesTab = createResourcesTab();
 
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, exportTab, updatesTab, windowTab, resourcesTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
+        // Keyboard tab (rebind korTTY's shortcuts)
+        keyboardTab = createKeyboardTab();
+
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, exportTab, updatesTab, windowTab, keyboardTab, resourcesTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
         
         // These are fixed pixel sizes rather than content-derived ones, so they have to grow with
         // the UI font scale or the tabs would crowd inside an unchanged frame. scaleDimension caps
@@ -3327,6 +3365,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Buttons
         ButtonType saveButtonType = new ButtonType(I18n.get("settings.save"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+        // Two actions on one shortcut cannot be saved: Save stays in the dialog and shows the
+        // Keyboard page, whose tab carries a red badge while a conflict lasts.
+        if (getDialogPane().lookupButton(saveButtonType) instanceof Button saveButton) {
+            saveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                if (keyboardPage != null && !keyboardPage.canSave()) {
+                    event.consume();
+                    mainTabPane.getSelectionModel().select(keyboardTab);
+                    keyboardPage.revealConflicts();
+                }
+            });
+        }
         
         setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
@@ -3535,6 +3584,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null
                 ? commandFinishedSecondsSpinner.getValue() : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS);
             globalSettings.setRemoteTerminalNotificationsEnabled(remoteTerminalNotificationsCheck.isSelected());
+            globalSettings.setTerminalSilenceSeconds(terminalSilenceSecondsSpinner.getValue() != null
+                ? terminalSilenceSecondsSpinner.getValue() : PaneActivityMonitor.DEFAULT_SILENCE_SECONDS);
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
@@ -3548,6 +3599,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalHighlightAlternateScreen(terminalHighlightAlternateScreenCheck.isSelected());
             globalSettings.setDefaultHighlightRuleSetId(
                 HighlightSettingsSupport.storedValue(defaultHighlightSetCombo.getValue()));
+            globalSettings.setTerminalTriggersEnabled(terminalTriggersEnabledCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             boolean skipPrompt = skipMasterPasswordPromptCheck.isSelected();
             // Only touch the remembered-password file when the option actually changes — or when it
@@ -3682,6 +3734,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTabTitleFromShellEnabled(tabTitleFromShellCheck.isSelected());
             globalSettings.setTabSwitchMostRecentFirst(tabSwitchMostRecentFirstCheck.isSelected());
             globalSettings.setSessionRestoreMode(sessionRestoreModeCombo.getValue());
+
+            // Save the shortcut overrides, only when the Keyboard page changed them: stored entries
+            // it does not show (another platform's, a newer version's) are kept as they are.
+            if (keyboardPage != null && keyboardPage.hasChanges()) {
+                globalSettings.setKeyBindingOverrides(keyboardPage.overrides().toEntries());
+            }
             
             // Save fixed geometry settings
             globalSettings.setUseFixedWindowGeometry(useFixedGeometryCheck.isSelected());
@@ -3799,6 +3857,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::getCommandFinishedNotificationSeconds, true));
             tracked.add(new TrackedSetting("terminal", "remote_notifications",
                 gs::isRemoteTerminalNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "silence_seconds", gs::getTerminalSilenceSeconds, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
                 gs::isCodingAgentNotificationsEnabled, true));
@@ -3810,6 +3869,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             // The set's class only (a built-in id, "custom" or "none"), never the name of a user's set.
             tracked.add(new TrackedSetting("terminal", "highlighting_default_set",
                 () -> HighlightSettingsSupport.telemetryValue(gs.getDefaultHighlightRuleSetId()), true));
+            tracked.add(new TrackedSetting("terminal", "highlighting_triggers", gs::isTerminalTriggersEnabled, true));
             tracked.add(new TrackedSetting("video", "recording_enabled", gs::isTerminalRecordingEnabled, true));
             tracked.add(new TrackedSetting("video", "capture_colors", gs::isTerminalRecordingCaptureColorsEnabled, true));
             tracked.add(new TrackedSetting("backup", "max_count", gs::getMaxBackupCount, true));
@@ -4084,7 +4144,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Runnable update = () -> {
             int index = tabPane.getSelectionModel().getSelectedIndex();
             int count = tabPane.getTabs().size();
-            Tab selected = tabPane.getSelectionModel().getSelectedItem();
+            // The tab at the selected index, not the selected item: selecting a tab sets the index
+            // first, and this runs from the index listener while the item is still the old tab.
+            Tab selected = index >= 0 && index < count ? tabPane.getTabs().get(index) : null;
             String title = selected != null ? selected.getText() : "";
             positionLabel.setText(SettingsSectionNavigation.positionLabel(title, index, count));
             previousButton.setDisable(!SettingsSectionNavigation.canGoPrevious(index));
@@ -4259,6 +4321,37 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         vbox.getChildren().addAll(themeList, buttons);
         
         LazyTabContent.defer(tab, () -> vbox);
+        return tab;
+    }
+
+    /**
+     * Where the Keyboard page takes its actions from: the menu bar of the window that opens the
+     * dialog ({@link KeymapSupport#catalog}). Read when the page is first shown, so it is set right
+     * after construction; without one the page says that shortcuts cannot be changed here.
+     */
+    void setKeymapCatalogSource(Supplier<KeyboardSettingsModel.Catalog> source) {
+        this.keymapCatalogSource = source != null ? source : () -> null;
+    }
+
+    /**
+     * Builds the Keyboard tab: korTTY's actions with their shortcuts, a recorder to rebind one,
+     * Remove, Reset and Reset All. The overrides are stored in the global settings on saving and
+     * applied to every open window at once (MainWindow.refreshKeymapInAllWindows).
+     */
+    private Tab createKeyboardTab() {
+        Tab tab = new Tab(I18n.get("settings.tab.keyboard"));
+        tab.setClosable(false);
+        LazyTabContent.defer(tab, () -> {
+            KeyboardSettingsModel.Catalog catalog = keymapCatalogSource.get();
+            if (catalog == null) {
+                return KeyboardSettingsPage.unavailable();
+            }
+            de.kortty.core.KeymapOverrides stored = de.kortty.core.KeymapOverrides.parse(
+                globalSettings != null ? globalSettings.getKeyBindingOverrides() : List.of());
+            keyboardPage = new KeyboardSettingsPage(new KeyboardSettingsModel(catalog, stored));
+            tab.setGraphic(keyboardPage.badge());
+            return keyboardPage.node();
+        });
         return tab;
     }
 

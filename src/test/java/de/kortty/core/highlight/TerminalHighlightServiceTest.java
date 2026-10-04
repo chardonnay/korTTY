@@ -73,6 +73,68 @@ class TerminalHighlightServiceTest {
     }
 
     @Test
+    void aChangedActionNameOrTextOptionRecompilesTheSet() {
+        HighlightRuleSet base = userSet("user-1", "deploy");
+        String plain = TerminalHighlightService.signature(base);
+
+        HighlightRuleSet notify = new HighlightRuleSet(base);
+        notify.getRules().getFirst().setAction(HighlightRule.Action.NOTIFY);
+        HighlightRuleSet named = new HighlightRuleSet(notify);
+        named.getRules().getFirst().setName("Deploys");
+        HighlightRuleSet withText = new HighlightRuleSet(named);
+        withText.getRules().getFirst().setNotifyWithText(true);
+
+        assertThat(TerminalHighlightService.signature(notify)).isNotEqualTo(plain);
+        assertThat(TerminalHighlightService.signature(named)).isNotEqualTo(TerminalHighlightService.signature(notify));
+        assertThat(TerminalHighlightService.signature(withText)).isNotEqualTo(TerminalHighlightService.signature(named));
+
+        service.reload(settingsWith(base));
+        CompiledHighlightSet first = service.resolve(() -> "user-1");
+        service.reload(settingsWith(withText));
+        CompiledHighlightSet second = service.resolve(() -> "user-1");
+        assertThat(second).isNotSameInstanceAs(first);
+        assertThat(first.hasTriggers()).isFalse();
+        assertThat(second.hasTriggers()).isTrue();
+        assertThat(second.rule(0).label()).isEqualTo("Deploys");
+        assertThat(second.rule(0).notifyWithText()).isTrue();
+    }
+
+    @Test
+    void anotherSnippetRecompilesTheSet() {
+        HighlightRuleSet base = userSet("user-1", "BUILD FAILED");
+        base.getRules().getFirst().setAction(HighlightRule.Action.RUN_SNIPPET);
+        base.getRules().getFirst().setSnippetId("snippet-1");
+        HighlightRuleSet other = new HighlightRuleSet(base);
+        other.getRules().getFirst().setSnippetId("snippet-2");
+
+        assertThat(TerminalHighlightService.signature(other)).isNotEqualTo(TerminalHighlightService.signature(base));
+
+        service.reload(settingsWith(base));
+        CompiledHighlightSet first = service.resolve(() -> "user-1");
+        service.reload(settingsWith(other));
+        CompiledHighlightSet second = service.resolve(() -> "user-1");
+        assertThat(second).isNotSameInstanceAs(first);
+        assertThat(second.rule(0).snippetId()).isEqualTo("snippet-2");
+    }
+
+    @Test
+    void attachHandsTheTriggerSinkToTheHighlighter() throws Exception {
+        HighlightRuleSet set = userSet("user-1", "ERROR");
+        set.getRules().getFirst().setAction(HighlightRule.Action.NOTIFY);
+        service.reload(settingsWith(set));
+        HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
+        java.util.concurrent.CountDownLatch fired = new java.util.concurrent.CountDownLatch(1);
+        TerminalOutputHighlighter highlighter = service.attach(session.buffer, () -> "user-1", () -> { }, () -> { },
+            () -> false, matches -> fired.countDown());
+        executor.submit(() -> { }).get(5, TimeUnit.SECONDS); // the attach pass, on the still empty pane
+
+        session.println("ERROR disk full");
+
+        assertThat(fired.await(5, TimeUnit.SECONDS)).isTrue();
+        service.detach(highlighter);
+    }
+
+    @Test
     void userSetsWithAReservedOrDuplicateIdAreIgnored() {
         service.reload(settingsWith(
             userSet("builtin.mine", "a"),

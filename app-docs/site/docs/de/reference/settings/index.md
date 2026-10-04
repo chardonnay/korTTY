@@ -20,6 +20,7 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | [Farben](colors.md) | Farbprofil, Text/Hintergrund/Cursor/Selection-Farben, Cursor-Blinken, die 16-Farben ANSI-Palette|
 | [Terminal](terminal.md) | Spalten/Zeilen, Scrollback, Kodierung, SSH Keep-Alive, SSH-Host-Key-Prüfung, Verbindungsversuche, Drag-&-Drop, Zeitstempel|
 | [Fenster](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |
+| [Tastatur](keyboard.md) | Eigene Tastaturkürzel für die Befehle von korTTY: ändern, entfernen oder zurücksetzen, mit einer Prüfung auf Tasten, die die Shell braucht, und auf Konflikte |
 | [Ressourcen](resources.md) | Opt-in JVM Heap/GC-Profil (Balanced / High / Maximum) für größere Workloads|
 | [Protokollierung](logging.md) | Terminal log directory and retention; session journal storage, AI summaries, interval and profile |
 | [Export](export.md) | PDF-Wasserzeichen und Dokumentenfußzeile für exportierte Sitzungsjournale, KI-Chats und Code-Analyseberichte |

@@ -26,7 +26,7 @@ class TerminalConnectorUnwrapTest {
 
     private static final List<UnaryOperator<TtyConnector>> WRAPPERS = List.of(
         connector -> new ShellIntegrationTtyConnector(connector, event -> { }),
-        connector -> new TerminalView.TerminalColorFilteringTtyConnector(connector, () -> true, () -> { }),
+        connector -> new TerminalView.TerminalColorFilteringTtyConnector(connector, () -> true, () -> { }, () -> { }),
         EffectWrapper::new);
 
     @Test

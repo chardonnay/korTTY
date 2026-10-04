@@ -39,6 +39,7 @@ import de.kortty.core.AiInternetAccessConfiguration;
 import de.kortty.core.AiProfileSelectionSupport;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.highlight.HighlightTelemetry;
+import de.kortty.core.KeymapOverrides;
 import de.kortty.core.highlight.HighlightToggle;
 import de.kortty.core.highlight.TerminalHighlightService;
 import de.kortty.core.swarm.SwarmCallback;
@@ -165,6 +166,7 @@ import java.util.zip.ZipEntry;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.HashMap;
@@ -276,6 +278,11 @@ public class MainWindow {
         PaneShortcuts.PaneAction.SPLIT, PANE_SPLIT_ACCELERATOR,
         PaneShortcuts.PaneAction.ZOOM, PANE_ZOOM_ACCELERATOR));
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
+    // The keymap in effect in every window (the defaults with the user's shortcut overrides), for the
+    // terminal views' quick select; null until the first window applied it (applyKeymap).
+    private static volatile KeymapOverrides.Resolution sharedKeymap;
+    // What the log last said about overrides that are not in effect, so each window does not repeat it.
+    private static volatile List<String> loggedKeymapRejections = List.of();
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
     private static final int JOB_SCHEDULER_STATUS_LEFT_PADDING = 14;
@@ -285,7 +292,33 @@ public class MainWindow {
     private static final String JOB_SCHEDULER_QUEUE_NEXT_RUN_PROPERTY = "kortty.jobscheduler.queue.nextRun";
     private static final DateTimeFormatter JOB_SCHEDULER_MENU_TIME_FORMAT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
-    
+
+    // The scene shortcut router's chords the user can rebind: each knows its action (the i18n key of
+    // the menu item that shows it), its default (the constant above) and the residue that default
+    // types; applyKeymap() puts it on the user's shortcut override. The router reads them per key.
+    private final RoutedChord commandPaletteChord =
+        new RoutedChord("menu.view.commandPalette", COMMAND_PALETTE_ACCELERATOR, PaletteKeys.RESIDUE);
+    private final RoutedChord menuBarToggleChord =
+        new RoutedChord("menu.view.menuBar", MENU_BAR_TOGGLE_ACCELERATOR, Residue.ofLetter('L'));
+    private final RoutedChord terminalOnlyFullscreenChord = new RoutedChord(
+        "menu.view.terminalOnlyFullscreen", TERMINAL_ONLY_FULLSCREEN_ACCELERATOR, Residue.ofLetter('F'));
+    // Its default residue includes U+0008, which Ctrl turns H into: a backspace for the shell.
+    private final RoutedChord highlightingToggleChord =
+        new RoutedChord(HighlightMenuSupport.TOGGLE_KEY, HIGHLIGHTING_TOGGLE_ACCELERATOR, Residue.ofLetter('H'));
+    private final RoutedChord credentialsChord =
+        new RoutedChord("menu.security.credentials", CREDENTIALS_ACCELERATOR, Residue.ofLetter('M'));
+    // Ctrl+Alt+Shift+T is AltGr+Shift+T on Windows, which types a character on some layouts: whatever
+    // it types is swallowed.
+    private final RoutedChord reopenClosedTabChord =
+        new RoutedChord("menu.file.reopenClosedTab", REOPEN_CLOSED_TAB_ACCELERATOR, Residue.anyCharacter());
+    private final RoutedChord quickSelectChord =
+        new RoutedChord("menu.edit.quickSelect", QUICK_SELECT_ACCELERATOR, QUICK_SELECT_RESIDUE);
+    private final Map<PaneShortcuts.PaneAction, RoutedChord> paneChords = createPaneChords();
+    // The other menu commands whose shortcut the user chose, by that chord (applyKeymap), which the
+    // router runs while the keyboard is in a terminal; and the one the current key press matched.
+    private Map<KeyCombination, MenuItem> reboundMenuChords = Map.of();
+    private MenuItem pressedReboundMenuItem;
+
     private final Stage stage;
     private final BorderPane root;
     // Scene root: hosts `root` and, in terminal-only fullscreen, centers it on an empty backdrop.
@@ -1154,6 +1187,8 @@ public class MainWindow {
         if (systemMenuBar != null) {
             ClosedWindowMenuRouter.install(this, MainWindow::systemMenus, MENU_BAR_WINDOWS);
         }
+        // The user's shortcut overrides: on the in-window menu bar and the scene shortcut router.
+        applyKeymap();
         // The menu bar always starts visible; hiding it is session-only and never persisted.
         applyMenuBarVisibility(true);
         syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
@@ -2904,7 +2939,9 @@ public class MainWindow {
      * The window's scene shortcuts, in the order they are tried; the first consuming entry whose
      * chord and scope hold wins (observers run and let the search go on). Every new window-wide
      * chord registers here, with its KeyCodeCombination constant declared at the top of this class
-     * and also set on its menu item.
+     * and also set on its menu item. A chord the user can rebind goes through its {@link RoutedChord}
+     * field, which {@link #applyKeymap()} puts on the user's override; the fixed ones (Paste, F12,
+     * the zoom keys, Ctrl+Tab and Cmd/Ctrl+1..9) cannot be given to another action.
      */
     private SceneShortcutRouter createSceneShortcutRouter() {
         BooleanSupplier terminalSelected =
@@ -2916,30 +2953,35 @@ public class MainWindow {
             // The command palette, in every tab and over a focused terminal. Pressed while the palette
             // shows, the chord gets past its key firewall and closes it here. Shown at once, so the
             // chord's KEY_TYPED goes to the palette, which drops it; on closing, the guard swallows it.
-            .consume(press -> PaletteKeys.isChord(press, COMMAND_PALETTE_ACCELERATOR), SceneShortcutRouter.ALWAYS,
-                this::toggleCommandPalette, PaletteKeys.RESIDUE)
-            .consume(press -> press.matches(MENU_BAR_TOGGLE_ACCELERATOR), SceneShortcutRouter.ALWAYS,
-                () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), Residue.ofLetter('L'))
-            .consume(press -> press.matches(TERMINAL_ONLY_FULLSCREEN_ACCELERATOR), SceneShortcutRouter.ALWAYS,
-                this::toggleTerminalOnlyFullscreen, Residue.ofLetter('F'))
-            // Highlighting acts on the focused pane, so only while a terminal tab is selected. The
-            // residue includes U+0008, which Ctrl turns H into: it would reach the shell as a backspace.
-            .consume(press -> press.matches(HIGHLIGHTING_TOGGLE_ACCELERATOR), terminalSelected,
-                () -> toggleHighlightingInActiveTerminal(HighlightTelemetry.SOURCE_SHORTCUT), Residue.ofLetter('H'))
+            .consume(commandPaletteChord::matches, SceneShortcutRouter.ALWAYS,
+                this::toggleCommandPalette, commandPaletteChord::residue)
+            .consume(menuBarToggleChord::matches, SceneShortcutRouter.ALWAYS,
+                () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), menuBarToggleChord::residue)
+            .consume(terminalOnlyFullscreenChord::matches, SceneShortcutRouter.ALWAYS,
+                this::toggleTerminalOnlyFullscreen, terminalOnlyFullscreenChord::residue)
+            // Highlighting acts on the focused pane, so only while a terminal tab is selected.
+            .consume(highlightingToggleChord::matches, terminalSelected,
+                () -> toggleHighlightingInActiveTerminal(HighlightTelemetry.SOURCE_SHORTCUT),
+                highlightingToggleChord::residue)
             // Routed so a focused terminal cannot take Ctrl+Shift+M (a carriage return) on Windows
             // and Linux. Opened after the key event, since the dialog may run a nested event loop.
-            .consume(press -> press.matches(CREDENTIALS_ACCELERATOR), SceneShortcutRouter.ALWAYS,
-                () -> Platform.runLater(this::showCredentialManagement), Residue.ofLetter('M'))
+            .consume(credentialsChord::matches, SceneShortcutRouter.ALWAYS,
+                () -> Platform.runLater(this::showCredentialManagement), credentialsChord::residue)
             // Also with the menu bar hidden, the history empty (a status line says so) and a terminal
-            // focused. Ctrl+Alt+Shift+T is AltGr+Shift+T on Windows, which types a character on some
-            // layouts: whatever it types is swallowed. Reopened after the key event, as it may ask
-            // for a password.
-            .consume(press -> press.matches(REOPEN_CLOSED_TAB_ACCELERATOR), SceneShortcutRouter.ALWAYS,
-                () -> Platform.runLater(this::reopenClosedTab), Residue.anyCharacter())
+            // focused. Reopened after the key event, as it may ask for a password.
+            .consume(reopenClosedTabChord::matches, SceneShortcutRouter.ALWAYS,
+                () -> Platform.runLater(this::reopenClosedTab), reopenClosedTabChord::residue)
             // Quick select only while the keyboard is in the selected terminal tab: a side panel
             // that uses the chord keeps it, and the Edit menu item still starts quick select there.
-            .consume(press -> press.matches(QUICK_SELECT_ACCELERATOR), this::isKeyboardInSelectedTerminal,
-                this::quickSelectInCurrentTab, QUICK_SELECT_RESIDUE)
+            .consume(quickSelectChord::matches, this::isKeyboardInSelectedTerminal,
+                this::quickSelectInCurrentTab, quickSelectChord::residue)
+            // A shortcut the user chose for any other menu command runs it while the keyboard is in
+            // the terminal, which would otherwise encode the key for the shell (a function key's
+            // sequence, a control character) before the menu accelerator sees it; elsewhere the
+            // accelerator runs it. After the key event, as the command may open a dialog; whatever
+            // the chord types is swallowed.
+            .consume(this::matchReboundMenuChord, this::isKeyboardInSelectedTerminal,
+                this::runReboundMenuChord, Residue.anyCharacter())
             // Not consumed: the terminal pastes on its own, and the timestamp keeps the Paste menu
             // accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
             .observe(press -> press.matches(PASTE_ACCELERATOR), terminalSelected,
@@ -2979,16 +3021,134 @@ public class MainWindow {
         // U+000F Ctrl turns it into, is swallowed. Cmd/Ctrl+Shift+Enter zooms the focused pane with two
         // or more panes; the carriage return or line feed it can still type is swallowed.
         for (PaneShortcuts.PaneAction paneAction : PaneShortcuts.PaneAction.values()) {
-            router.consume(press -> PANE_SHORTCUTS.isChordOf(press, paneAction),
+            RoutedChord paneChord = paneChords.get(paneAction);
+            router.consume(paneChord::matches,
                 () -> isKeyboardInSelectedTerminal() && PaneShortcuts.applies(paneAction, activeTerminalPaneCount()),
-                () -> runPaneShortcut(paneAction), paneAction.residue());
+                () -> runPaneShortcut(paneAction), paneChord::residue);
         }
         return router;
     }
 
-    /** The chord that starts quick select, for the terminal view that ignores it while quick select runs. */
+    /** The router chords of the pane actions, on the defaults of {@link #PANE_SHORTCUTS}. */
+    private static Map<PaneShortcuts.PaneAction, RoutedChord> createPaneChords() {
+        Map<PaneShortcuts.PaneAction, RoutedChord> chords = new EnumMap<>(PaneShortcuts.PaneAction.class);
+        for (PaneShortcuts.PaneAction action : PaneShortcuts.PaneAction.values()) {
+            chords.put(action, new RoutedChord(action.actionId(), PANE_SHORTCUTS.chordOf(action), action.residue()));
+        }
+        return chords;
+    }
+
+    /** Whether {@code press} is a chord the user chose for a menu command without a router entry of its own. */
+    private boolean matchReboundMenuChord(SceneShortcutRouter.KeyPress press) {
+        pressedReboundMenuItem = KeymapSupport.reboundItemFor(reboundMenuChords, press);
+        return pressedReboundMenuItem != null;
+    }
+
+    /** Runs the menu command {@link #matchReboundMenuChord} found, the way its accelerator does, after the key event. */
+    private void runReboundMenuChord() {
+        MenuItem item = pressedReboundMenuItem;
+        pressedReboundMenuItem = null;
+        if (item != null) {
+            Platform.runLater(() -> de.kortty.ui.actions.MenuItemActivation.activate(item));
+        }
+    }
+
+    /** Every rebindable chord of this window's scene shortcut router. */
+    private List<RoutedChord> routedChords() {
+        List<RoutedChord> chords = new ArrayList<>(List.of(commandPaletteChord, menuBarToggleChord,
+            terminalOnlyFullscreenChord, highlightingToggleChord, credentialsChord, reopenClosedTabChord,
+            quickSelectChord));
+        chords.addAll(paneChords.values());
+        return chords;
+    }
+
+    /**
+     * Puts this window's shortcuts on the keymap in effect: the default chords of the in-window menu
+     * bar's actions with the user's overrides from the global settings applied
+     * ({@link KeymapOverrides#resolve}, which drops an override that breaks a rule or takes another
+     * action's chord). The menu items show the chords, so the command palette does too, and the
+     * scene shortcut router's {@link RoutedChord}s follow them. The macOS system menu bar shows no
+     * accelerators (see {@link #setupMenuBar()}), so it is left alone.
+     */
+    void applyKeymap() {
+        if (menuBar == null) {
+            return;
+        }
+        // Not imported: de.kortty.codingagent.KeyChord is a different class.
+        de.kortty.core.KeyChord.Os os = de.kortty.core.KeyChord.Os.current();
+        KeymapSupport.Defaults defaults = KeymapSupport.defaults(menuBar.getMenus(), os);
+        GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+            ? app.getGlobalSettingsManager().getSettings() : null;
+        KeymapOverrides overrides = settings != null
+            ? KeymapOverrides.parse(settings.getKeyBindingOverrides()) : KeymapOverrides.empty();
+        KeymapOverrides.Resolution keymap = overrides.resolve(defaults.rebindable(),
+            KeymapSupport.rules(os, defaults.fixed()));
+        List<MenuItem> rechorded = KeymapSupport.applyToMenus(menuBar.getMenus(), keymap);
+        // In a window that is already shown, JavaFX loses the actions of menu items whose chord
+        // changed (a new chord, a swap), so they are put back; at startup there is no scene yet.
+        Scene menuBarScene = menuBar.getScene();
+        if (menuBarScene != null) {
+            KeymapSupport.reinstallAccelerators(menuBarScene.getAccelerators(), rechorded);
+        }
+        java.util.Set<String> routedIds = new java.util.HashSet<>();
+        for (RoutedChord chord : routedChords()) {
+            chord.bind(keymap);
+            routedIds.add(chord.actionId());
+        }
+        reboundMenuChords = KeymapSupport.reboundItems(menuBar.getMenus(), routedIds);
+        sharedKeymap = keymap;
+        List<String> rejections = KeymapSupport.describeRejections(keymap);
+        if (!rejections.isEmpty() && !rejections.equals(loggedKeymapRejections)) {
+            logger.info("Shortcut overrides not in effect: {}", rejections);
+        }
+        loggedKeymapRejections = rejections;
+    }
+
+    /**
+     * The actions of this window's in-window menu bar for the Settings → Keyboard page, with their
+     * default chords and the rules on this platform; {@code null} before the menu bar is built.
+     */
+    @Nullable KeyboardSettingsModel.Catalog keymapCatalog() {
+        if (menuBar == null) {
+            return null;
+        }
+        // Not imported: de.kortty.codingagent.KeyChord is a different class.
+        return KeymapSupport.catalog(menuBar.getMenus(), de.kortty.core.KeyChord.Os.current());
+    }
+
+    /** {@link #applyKeymap()} in every open window, after the shortcut overrides changed; no restart needed. */
+    static void refreshKeymapInAllWindows() {
+        for (MainWindow window : List.copyOf(openWindows)) {
+            window.applyKeymap();
+        }
+    }
+
+    /** The chord that starts quick select by default, for tests and the docs. */
     static KeyCombination quickSelectAccelerator() {
         return QUICK_SELECT_ACCELERATOR;
+    }
+
+    /**
+     * The chord that starts quick select in effect, which the user may have rebound; {@code null}
+     * without one. For the terminal view, whose quick select ignores the chord while it runs.
+     */
+    static @Nullable KeyCombination effectiveQuickSelectAccelerator() {
+        return effectiveAccelerator("menu.edit.quickSelect", QUICK_SELECT_ACCELERATOR);
+    }
+
+    /**
+     * The chord of {@code actionId} in effect in every window, which the user may have rebound, for
+     * places outside the menu bar that show or match it: {@code defaultChord} until a window applied
+     * the keymap or when the keymap does not know the action, {@code null} when the user removed
+     * the action's shortcut.
+     */
+    static @Nullable KeyCombination effectiveAccelerator(String actionId, KeyCombination defaultChord) {
+        KeymapOverrides.Resolution keymap = sharedKeymap;
+        if (keymap == null || !keymap.knows(actionId)) {
+            return defaultChord;
+        }
+        KeyCombination chord = KeymapSupport.combinationOf(keymap.chord(actionId));
+        return chord != null && chord.equals(defaultChord) ? defaultChord : chord;
     }
 
     /** The key of Previous Prompt, for the terminal panes' own key action (ShellIntegrationController). */
@@ -3001,7 +3161,7 @@ public class MainWindow {
         return NEXT_PROMPT_ACCELERATOR;
     }
 
-    /** The chord that opens and closes the command palette. */
+    /** The chord that opens and closes the command palette by default. */
     static KeyCombination commandPaletteAccelerator() {
         return COMMAND_PALETTE_ACCELERATOR;
     }
@@ -3037,7 +3197,7 @@ public class MainWindow {
                     ConnectionPaletteRows.source(app,
                         connection -> connectSavedConnection(connection, true, tab -> { })),
                     SnippetPaletteRows.source(app, this)),
-                PaletteKeys.passThrough(COMMAND_PALETTE_ACCELERATOR, isMacOs()));
+                PaletteKeys.passThrough(commandPaletteChord::chord, isMacOs()));
         }
         commandPalette.show(sceneRoot);
     }
@@ -3099,8 +3259,9 @@ public class MainWindow {
      * the palette opens (the menus that are rebuilt while they open are excluded), among them
      * <i>View → Panes</i> (the splits, the pane focus, Zoom Pane and broadcast mode) and <i>View →
      * Multi-exec</i>; then the tab actions that have no menu item, and then the right-click commands
-     * of the selected terminal tab that have none either (Clear Buffer of its focused pane, Duplicate
-     * and Reconnect), enabled only while a terminal tab is selected.
+     * of the selected terminal tab that have none either (Clear Buffer of its focused pane, Duplicate,
+     * Reconnect and the switches Monitor for Activity and Monitor for Silence), enabled only while a
+     * terminal tab is selected.
      */
     private ActionRegistry actionRegistry() {
         if (actionRegistry == null) {
@@ -3983,6 +4144,8 @@ public class MainWindow {
         SettingsDialog dialog = new SettingsDialog(stage, app, app.getConfigManager(),
                 app.getGlobalSettingsManager().getSettings(),
                 app.getCredentialManager(), app.getGpgKeyManager());
+        // The Keyboard page lists the actions of this window's menu bar.
+        dialog.setKeymapCatalogSource(this::keymapCatalog);
 
         // Add listener to apply settings changes immediately to all open terminals
         dialog.addChangeListener(() -> {
@@ -4002,8 +4165,10 @@ public class MainWindow {
                 refreshShellTitlesInAllWindows();
                 refreshTerminalRecordingControlsVisibility();
                 refreshOpenChatColorProfiles();
+                // The shortcut overrides may have changed: menu accelerators and router chords.
+                refreshKeymapInAllWindows();
                 if (menuBar != null && !menuBar.isVisible()) {
-                    updateStatus(I18n.get("menu.view.menuBar.hiddenHint", MENU_BAR_TOGGLE_SHORTCUT_LABEL));
+                    updateStatus(I18n.get("menu.view.menuBar.hiddenHint", menuBarToggleShortcutLabel()));
                 } else {
                     updateStatus(I18n.get("status.globalSettingsSaved"));
                 }
@@ -5664,8 +5829,15 @@ public class MainWindow {
         if (visible) {
             updateStatus(I18n.get("menu.view.menuBar.shown"));
         } else {
-            updateStatus(I18n.get("menu.view.menuBar.hiddenHint", MENU_BAR_TOGGLE_SHORTCUT_LABEL));
+            updateStatus(I18n.get("menu.view.menuBar.hiddenHint", menuBarToggleShortcutLabel()));
         }
+    }
+
+    /** The menu bar toggle's chord for the status hint: Cmd/Ctrl+Shift+L, or the one the user chose. */
+    private String menuBarToggleShortcutLabel() {
+        KeyCombination chord = menuBarToggleChord.chord();
+        return chord == null || chord.equals(MENU_BAR_TOGGLE_ACCELERATOR)
+            ? MENU_BAR_TOGGLE_SHORTCUT_LABEL : chord.getDisplayText();
     }
     
     private void zoomTerminal(int delta) {
@@ -13896,6 +14068,18 @@ public class MainWindow {
         });
         contextMenu.getItems().add(multiExecItem);
 
+        // Activity and silence monitoring: runtime switches of this tab, off until switched on. The
+        // tab's state decides, never the check mark, which JavaFX has already flipped when the
+        // action runs.
+        contextMenu.getItems().add(new SeparatorMenuItem());
+        CheckMenuItem monitorActivityItem = new CheckMenuItem(I18n.get(TerminalActivityWatcher.MONITOR_ACTIVITY_KEY));
+        monitorActivityItem.setSelected(terminalTab.isMonitoringActivity());
+        monitorActivityItem.setOnAction(e -> terminalTab.setMonitoringActivity(!terminalTab.isMonitoringActivity()));
+        CheckMenuItem monitorSilenceItem = new CheckMenuItem(I18n.get(TerminalActivityWatcher.MONITOR_SILENCE_KEY));
+        monitorSilenceItem.setSelected(terminalTab.isMonitoringSilence());
+        monitorSilenceItem.setOnAction(e -> terminalTab.setMonitoringSilence(!terminalTab.isMonitoringSilence()));
+        contextMenu.getItems().addAll(monitorActivityItem, monitorSilenceItem);
+
         contextMenu.getItems().add(new SeparatorMenuItem());
         MenuItem closeOthersItem = new MenuItem(I18n.get("tab.contextMenu.closeOthers"));
         closeOthersItem.setOnAction(e -> closeOtherTabs(terminalTab));
@@ -13912,6 +14096,8 @@ public class MainWindow {
             TerminalView multiExecView = terminalTab.getTerminalView();
             multiExecItem.setSelected(multiExecView != null
                 && MultiExecCoordinator.shared().includesAll(multiExecView.getOrderedWidgets()));
+            monitorActivityItem.setSelected(terminalTab.isMonitoringActivity());
+            monitorSilenceItem.setSelected(terminalTab.isMonitoringSilence());
         });
 
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {

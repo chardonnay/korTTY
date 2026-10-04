@@ -21,7 +21,7 @@ Geben Sie einen Teil des Befehlsnamens ein. Die Buchstaben müssen in dieser Rei
 - ein **Befehl**-Badge;
 - den Namen des Befehls, wie ihn sein Menü anzeigt, gefolgt von seinem Menüpfad in Grau, zum Beispiel **Links andocken** Ansicht › Live-Journal;
 - ein Häkchen, wenn der Befehl eine aktivierte Einstellung ist, etwa **Dashboard anzeigen**;
-- sein Tastaturkürzel, falls er eines hat.
+- sein Tastaturkürzel, falls er eines hat, auch eines, das Sie selbst unter [Einstellungen → Tastatur](../reference/settings/keyboard.md) gewählt haben.
 
 Der Menüpfad wird ebenfalls durchsucht, wodurch gleichnamige Befehle unterscheidbar bleiben: `journal links` findet **Ansicht › Live-Journal › Links andocken**, und `datei links` findet **Ansicht › Dateibrowser › Links anzeigen**. Ein Treffer im Namen rangiert vor einem Treffer im Pfad, und unter gleich guten Treffern kommen die zuletzt gewählten Befehle zuerst.
 
@@ -40,6 +40,8 @@ Die Palette bietet außerdem die Befehle der Rechtsklickmenüs des Terminals und
 | **Puffer löschen** | Terminal | Löscht den Scrollback und den Bildschirm des fokussierten Bereichs, behält aber die Prompt-Zeile bei, wie **Puffer löschen** im Rechtsklickmenü des Terminals. Während ein Vollbildprogramm wie `vim` oder `less` läuft, tut es nichts. Unter macOS zeigt die Zeile die eigene Taste des Terminals, ++cmd+k++. |
 | **Duplizieren** | Tabs | Öffnet eine Kopie des Tabs daneben und meldet sich an wie **Duplizieren** im Rechtsklickmenü des Tabs. |
 | **Neu verbinden** | Tabs | Verbindet den Tab erneut, wie **Neu verbinden** in seinem Rechtsklickmenü. |
+| **Auf Aktivität überwachen** | Tabs | Überwacht den Tab auf neue Ausgabe nach einer Ruhephase oder beendet die Überwachung, wie der Eintrag in seinem Rechtsklickmenü; die Zeile zeigt ein Häkchen, solange der Tab überwacht wird. Siehe [Einen Tab auf Aktivität oder Stille überwachen](terminal-notifications.md#einen-tab-auf-aktivitat-oder-stille-uberwachen). |
+| **Auf Stille überwachen** | Tabs | Überwacht den Tab darauf, dass seine Ausgabe aufhört, oder beendet die Überwachung, wie der Eintrag in seinem Rechtsklickmenü; die Zeile zeigt ein Häkchen, solange der Tab überwacht wird. |
 
 In allen anderen Arten von Tabs, etwa einem Snippet-Editor, sind diese Zeilen ausgegraut. **Suchen** wird nicht ein zweites Mal aufgeführt: Geben Sie `suchen` für **Bearbeiten → Suchen…** ein, das die Suche des fokussierten Bereichs öffnet.
 

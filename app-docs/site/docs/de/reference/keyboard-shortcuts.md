@@ -2,6 +2,8 @@
 
 Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 
+Dies sind die Standardkürzel. Unter [Einstellungen → Tastatur](settings/keyboard.md) können Sie den meisten Befehlen der Menüs andere Tasten zuweisen, ein Kürzel entfernen oder einem Befehl ohne Kürzel eines geben; die Menüs und die Befehlspalette zeigen immer das gerade geltende Kürzel an. **Ausschneiden**, **Kopieren**, **Einfügen**, **Vorheriger Prompt**, **Nächster Prompt**, die Zoom-Tasten, ++f12++, ++ctrl+tab++, ++ctrl+shift+tab++ und die Tasten zum Springen zu einem Tab bleiben fest.
+
 ## Allgemein
 
 | Verknüpfung | Aktion |

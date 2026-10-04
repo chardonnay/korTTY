@@ -229,6 +229,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/keyboard.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyboard
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/resources.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -804,7 +812,7 @@
 <li>a <strong>Command</strong> badge;</li>
 <li>the command's name as its menu shows it, followed by its menu path in grey, for example <strong>Dock Left</strong> View › Live Journal;</li>
 <li>a check mark when the command is a setting that is on, such as <strong>Show Dashboard</strong>;</li>
-<li>its keyboard shortcut, if it has one.</li>
+<li>its keyboard shortcut, if it has one, also one you chose yourself in <a href="../reference/settings/keyboard.html">Settings → Keyboard</a>.</li>
 </ul>
 <p>The menu path is searched as well, which keeps the commands with the same name apart: <code>journal left</code> finds <strong>View › Live Journal › Dock Left</strong>, and <code>file left</code> finds <strong>View › File Browser › Show on Left</strong>. A match in the name ranks above a match in the path, and among equally good matches the commands you chose recently come first.</p>
 <p>With nothing typed, the palette lists the commands and connections you chose recently, up to eight and newest first, then the <a href="#switching-tabs">open tabs</a>, and then every command, menu by menu. Other connections only appear once you type. <a href="#running-snippets">Snippets</a> never appear before you type, not even the ones you ran recently, because a snippet runs a command in the terminal. Next to the menu commands it offers <strong>Next Tab</strong> and <strong>Previous Tab</strong>, which switch tabs like <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span>, and the <a href="#terminal-and-tab-commands">terminal and tab commands</a>.</p>
@@ -835,6 +843,16 @@
 <td><strong>Reconnect</strong></td>
 <td>Tabs</td>
 <td>Connects the tab again, like <strong>Reconnect</strong> in its right-click menu.</td>
+</tr>
+<tr>
+<td><strong>Monitor for Activity</strong></td>
+<td>Tabs</td>
+<td>Watches the tab for new output after a quiet spell, or stops watching it, like the entry in its right-click menu; the row shows a check mark while the tab is watched. See <a href="terminal-notifications.html#watching-a-tab-for-activity-or-silence">Watching a tab for activity or silence</a>.</td>
+</tr>
+<tr>
+<td><strong>Monitor for Silence</strong></td>
+<td>Tabs</td>
+<td>Watches the tab for output that stops, or stops watching it, like the entry in its right-click menu; the row shows a check mark while the tab is watched.</td>
 </tr>
 </tbody>
 </table>

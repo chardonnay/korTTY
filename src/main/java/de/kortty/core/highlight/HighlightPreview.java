@@ -75,7 +75,8 @@ public final class HighlightPreview {
      *                  rule limit of a set
      * @param hits the places the rule highlights in the test text, after the rules above it have claimed
      *             theirs (so a rule that is always beaten shows 0): for a matched-text rule the runs of
-     *             characters it owns, for a whole-line rule the lines it colors
+     *             characters it owns, for a whole-line rule the lines it colors; for a trigger that
+     *             changes no look (it claims nothing) the lines it would act on
      * @param slowestLineNanos the most time the rule needed on one line
      */
     public record RuleStats(boolean evaluated, int hits, long slowestLineNanos, Speed speed) {
@@ -259,6 +260,11 @@ public final class HighlightPreview {
                 spans.add(new Span(start, i,
                     owner != HighlightMatcher.NO_OWNER ? sourceIndex.get(owner) : HighlightMatcher.NO_OWNER));
                 start = i;
+            }
+        }
+        for (CompiledHighlightSet.Rule rule : compiled.rules()) {
+            if (!rule.visual() && result.hit(rule.index())) {
+                hits[rule.index()]++;
             }
         }
         return new Line(text, spans);

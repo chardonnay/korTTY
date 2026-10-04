@@ -3969,6 +3969,14 @@ tasks.register<JavaExec>("resourcesTabSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("keyboardTabSmoke") {
+    group = "verification"
+    description = "Drives Settings > Keyboard on the real dialog: recorder key presses, Escape, a conflict that blocks Save, and the overrides reaching the global settings."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.KeyboardTabSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("quickConnectScrollSmoke") {
     group = "verification"
     description = "Expands Quick Connect's collapsible sections in a short window and asserts the content scroll bar engages; snapshots build/smoke/quick-connect-scroll.png."
@@ -4158,6 +4166,14 @@ tasks.register<JavaExec>("generateWindowTabScreenshot") {
     description = "Renders the Settings > Window tab screenshot for the manual via Scene.snapshot."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.WindowTabScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateKeyboardTabScreenshot") {
+    group = "build"
+    description = "Renders the Settings > Keyboard tab screenshot for the manual via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.KeyboardTabScreenshotGenerator")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

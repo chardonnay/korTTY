@@ -43,12 +43,15 @@ class HighlightToggleWiringTest {
 
     @Test
     void theRouterHandlesTheChordWhileATerminalTabIsSelected() throws IOException {
-        String router = region(source("MainWindow.java"), "private SceneShortcutRouter createSceneShortcutRouter() {",
-            "\n    }\n");
+        String mainWindow = source("MainWindow.java");
+        String router = region(mainWindow, "private SceneShortcutRouter createSceneShortcutRouter() {", "\n    }\n");
 
-        assertThat(router).contains(".consume(press -> press.matches(HIGHLIGHTING_TOGGLE_ACCELERATOR), terminalSelected,\n"
-            + "                () -> toggleHighlightingInActiveTerminal(HighlightTelemetry.SOURCE_SHORTCUT), "
-            + "Residue.ofLetter('H'))");
+        // The chord in effect: HIGHLIGHTING_TOGGLE_ACCELERATOR unless the user rebound it.
+        assertThat(mainWindow).contains("private final RoutedChord highlightingToggleChord =\n"
+            + "        new RoutedChord(HighlightMenuSupport.TOGGLE_KEY, HIGHLIGHTING_TOGGLE_ACCELERATOR, Residue.ofLetter('H'));");
+        assertThat(router).contains(".consume(highlightingToggleChord::matches, terminalSelected,\n"
+            + "                () -> toggleHighlightingInActiveTerminal(HighlightTelemetry.SOURCE_SHORTCUT),\n"
+            + "                highlightingToggleChord::residue)");
     }
 
     @Test

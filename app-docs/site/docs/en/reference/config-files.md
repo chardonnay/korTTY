@@ -155,6 +155,7 @@ Global application preferences and defaults.
 - `tabSwitchMostRecentFirst`: whether ++ctrl+tab++ switches tabs in the order they were last used instead of their [tab bar order](settings/window.md#tabs) (off by default)
 - `recentProjectPaths`: the absolute paths of the project files you opened or saved last, newest first, at most 10, which [*File → Open Recent*](../features/projects.md#open-recent) lists; `openRecentClearedAt`: when you last chose **Clear List** there (milliseconds since 1970, `0` for never)
 - `sessionRestoreMode`: what korTTY does at startup with the [previous session](../features/projects.md#at-startup): `ask` offers it in a bar (the default, also for a missing or unknown value), `auto` restores it once no dialog is open, `off` does nothing
+- `keyBindingOverrides`: your own [keyboard shortcuts](settings/keyboard.md), one `binding` entry per changed command, such as `menu.view.commandPalette=Shortcut+Alt+P` or `menu.view.dashboard=none`; without it every command keeps its default shortcut
 - Docked live session-journal panel: placement (hidden/left/right) and width
 - JobScheduler status display preference
 - Last ASCII Art dialog preview zoom level
@@ -171,8 +172,8 @@ Global application preferences and defaults.
 
 #### Keyword highlighting
 
-- The master switch (`terminalHighlightingEnabled`), highlighting in full-screen programs (`terminalHighlightAlternateScreen`) and the default rule set (`defaultHighlightRuleSetId`, the id of a built-in or your own set; empty means none)
-- Your own rule sets (`highlightRuleSets`), as edited in the [rule-set editor](../features/highlighting.md#your-own-rule-sets): each set has a stable id, a name and its rules in priority order, and each rule its id, whether it is on, the pattern, whether it is a regular expression, ignore case, whole word, whether it colors the match or the whole line, the text and background colors (`#RRGGBB`, a theme color `ansi:0` to `ansi:15`, or empty to keep the program's color) and bold, italic and underline
+- The master switch (`terminalHighlightingEnabled`), highlighting in full-screen programs (`terminalHighlightAlternateScreen`), the default rule set (`defaultHighlightRuleSetId`, the id of a built-in or your own set; empty means none) and whether rules with an action may notify or run their snippet (`terminalTriggersEnabled`)
+- Your own rule sets (`highlightRuleSets`), as edited in the [rule-set editor](../features/highlighting.md#your-own-rule-sets): each set has a stable id, a name and its rules in priority order, and each rule its id, whether it is on, the pattern, whether it is a regular expression, ignore case, whole word, whether it colors the match or the whole line, the text and background colors (`#RRGGBB`, a theme color `ansi:0` to `ansi:15`, or empty to keep the program's color), bold, italic and underline, and its action (`NONE`, `NOTIFY` or `RUN_SNIPPET`), its optional name, whether a notification carries the matched text and the id of the snippet it runs (`snippetId`; see [Notifications for matching output](../features/highlighting.md#notifications-for-matching-output) and [Running a snippet when output matches](../features/highlighting.md#running-a-snippet-when-output-matches)). Which connections you allowed a rule's snippet for is not saved: korTTY asks again after a restart
 - The built-in rule sets are not stored: they come with korTTY, so a new version can improve them, and their ids start with `builtin.`, which your own sets cannot use
 
 #### AI, models and knowledge stores

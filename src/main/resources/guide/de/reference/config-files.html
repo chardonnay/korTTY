@@ -229,6 +229,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="settings/keyboard.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Tastatur
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="settings/resources.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -914,6 +922,7 @@
 <li><code>connectionColorBorderEnabled</code>: ob das Terminal einer Verbindung mit einer <a href="../features/connections.html#tab-farbe">Tab-Farbe</a> einen Rahmen in dieser Farbe erhält (standardmäßig aktiviert)</li>
 <li><code>tabTitleFromShellEnabled</code>: ob ein Terminal-Tab statt des Verbindungsnamens den <a href="../features/terminal.html#titel-aus-der-shell">Titel anzeigt, den seine Shell setzt</a> (standardmäßig aktiviert)</li>
 <li><code>tabSwitchMostRecentFirst</code>: ob <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> die Tabs in der Reihenfolge ihrer letzten Nutzung wechselt statt in ihrer <a href="settings/window.html#tabs">Reihenfolge in der Tab-Leiste</a> (standardmäßig aus)</li>
+<li><code>keyBindingOverrides</code>: Ihre eigenen <a href="settings/keyboard.html">Tastaturkürzel</a>, ein <code>binding</code>-Eintrag pro geändertem Befehl, z. B. <code>menu.view.commandPalette=Shortcut+Alt+P</code> oder <code>menu.view.dashboard=none</code>; ohne diesen Eintrag behält jeder Befehl sein Standardkürzel</li>
 <li>Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite</li>
 <li>JobScheduler-Statusanzeigeeinstellung</li>
 <li>Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds</li>
@@ -930,8 +939,8 @@
 </ul>
 <h4 id="hervorhebung-von-schlusselwortern">Hervorhebung von Schlüsselwörtern<a class="headerlink" href="#hervorhebung-von-schlusselwortern" title="Permanent link">&para;</a></h4>
 <ul>
-<li>Der Hauptschalter (<code>terminalHighlightingEnabled</code>), die Hervorhebung in Vollbildprogrammen (<code>terminalHighlightAlternateScreen</code>) und der Standard-Regelsatz (<code>defaultHighlightRuleSetId</code>, die ID eines mitgelieferten oder eigenen Regelsatzes; leer bedeutet keiner)</li>
-<li>Ihre eigenen Regelsätze (<code>highlightRuleSets</code>), wie sie im <a href="../features/highlighting.html#ihre-eigenen-regelsatze">Regelsatz-Editor</a> bearbeitet werden: Jeder Regelsatz hat eine stabile ID, einen Namen und seine Regeln in Prioritätsreihenfolge, und jede Regel hat ihre ID, ob sie eingeschaltet ist, das Muster, ob es ein regulärer Ausdruck ist, Groß-/Kleinschreibung ignorieren, ganzes Wort, ob sie den Treffer oder die ganze Zeile färbt, die Text- und Hintergrundfarbe (<code>#RRGGBB</code>, eine Themenfarbe von <code>ansi:0</code> bis <code>ansi:15</code> oder leer, um die Farbe des Programms beizubehalten) sowie fett, kursiv und unterstrichen</li>
+<li>Der Hauptschalter (<code>terminalHighlightingEnabled</code>), die Hervorhebung in Vollbildprogrammen (<code>terminalHighlightAlternateScreen</code>), der Standard-Regelsatz (<code>defaultHighlightRuleSetId</code>, die ID eines mitgelieferten oder eigenen Regelsatzes; leer bedeutet keiner) und ob Regeln mit einer Aktion benachrichtigen oder ihr Snippet ausführen dürfen (<code>terminalTriggersEnabled</code>)</li>
+<li>Ihre eigenen Regelsätze (<code>highlightRuleSets</code>), wie sie im <a href="../features/highlighting.html#ihre-eigenen-regelsatze">Regelsatz-Editor</a> bearbeitet werden: Jeder Regelsatz hat eine stabile ID, einen Namen und seine Regeln in Prioritätsreihenfolge, und jede Regel hat ihre ID, ob sie eingeschaltet ist, das Muster, ob es ein regulärer Ausdruck ist, Groß-/Kleinschreibung ignorieren, ganzes Wort, ob sie den Treffer oder die ganze Zeile färbt, die Text- und Hintergrundfarbe (<code>#RRGGBB</code>, eine Themenfarbe von <code>ansi:0</code> bis <code>ansi:15</code> oder leer, um die Farbe des Programms beizubehalten), fett, kursiv und unterstrichen sowie ihre Aktion (<code>NONE</code>, <code>NOTIFY</code> oder <code>RUN_SNIPPET</code>), ihren optionalen Namen, ob eine Benachrichtigung den gefundenen Text enthält, und die ID des Snippets, das sie ausführt (<code>snippetId</code>; siehe <a href="../features/highlighting.html#benachrichtigungen-bei-passender-ausgabe">Benachrichtigungen bei passender Ausgabe</a> und <a href="../features/highlighting.html#ein-snippet-ausfuhren-wenn-die-ausgabe-passt">Ein Snippet ausführen, wenn die Ausgabe passt</a>). Für welche Verbindungen Sie das Snippet einer Regel erlaubt haben, wird nicht gespeichert: korTTY fragt nach einem Neustart erneut</li>
 <li>Die mitgelieferten Regelsätze werden nicht gespeichert: Sie werden mit korTTY ausgeliefert, sodass eine neue Version sie verbessern kann, und ihre IDs beginnen mit <code>builtin.</code>, was Ihre eigenen Regelsätze nicht verwenden können</li>
 </ul>
 <h4 id="ai-modelle-und-wissensspeicher">AI, Modelle und Wissensspeicher<a class="headerlink" href="#ai-modelle-und-wissensspeicher" title="Permanent link">&para;</a></h4>

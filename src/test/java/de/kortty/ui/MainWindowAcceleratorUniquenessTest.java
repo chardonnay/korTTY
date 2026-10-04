@@ -1,5 +1,8 @@
 package de.kortty.ui;
 
+import de.kortty.core.KeyChord;
+import de.kortty.core.KeyChord.Os;
+import de.kortty.core.KeymapOverrides;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -16,6 +19,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Every menu item of the main window's menu bar is installed on the same scene (and again on the
@@ -144,6 +148,163 @@ class MainWindowAcceleratorUniquenessTest {
         assertThat(shortcutM).hasSize(1);
         assertThat(source).contains(
             "manageConnections.setAccelerator(new KeyCodeCombination(KeyCode.M, KeyCombination.SHORTCUT_DOWN));");
+    }
+
+    /**
+     * The user's shortcut overrides go through {@link KeymapOverrides}, which compares chords by the
+     * keys they press on each platform (Shortcut is Ctrl on Windows and Linux, Cmd on macOS). The
+     * default keymap must already be unique by that measure on every platform, or resolving the
+     * overrides could not end with a keymap that holds no chord twice.
+     */
+    @Test
+    void theDefaultKeymapHoldsNoChordTwiceOnAnyPlatform() throws IOException {
+        Map<String, KeyChord> defaults = defaultKeymap();
+        assertThat(defaults.size()).isAtLeast(40);
+        for (Os os : Os.values()) {
+            assertWithMessage("default chords colliding on %s", os)
+                .that(KeymapOverrides.conflicts(defaults, os)).isEmpty();
+        }
+    }
+
+    /**
+     * The effective keymap, not just the source, is what has to be unique: an override that takes
+     * another action's chord (or a fixed one, or a key of the terminal) is dropped, so the menu items
+     * never end up sharing an accelerator.
+     */
+    @Test
+    void theEffectiveKeymapHoldsNoChordTwiceWhateverTheOverrides() throws IOException {
+        Map<String, KeyChord> defaults = defaultKeymap();
+        assertThat(defaults).containsEntry("menu.view.commandPalette", KeyChord.parse("Shortcut+Shift+P"));
+        assertThat(defaults).containsEntry("menu.file.newTab", KeyChord.parse("Shortcut+T"));
+        Map<String, KeyChord> fixed = new LinkedHashMap<>();
+        Map<String, KeyChord> rebindable = new LinkedHashMap<>();
+        defaults.forEach((id, chord) -> (KeymapSupport.FIXED_ACTION_IDS.contains(id) ? fixed : rebindable).put(id, chord));
+        assertThat(fixed.keySet()).containsAtLeast("menu.edit.cut", "menu.edit.copy", "menu.edit.paste",
+            "menu.view.zoomIn", "menu.view.fullscreen");
+
+        List<String> overrides = List.of("menu.file.newTab=Shortcut+Shift+P", "menu.view.dashboard=Shortcut+V",
+            "menu.file.renameTab=Shortcut+Shift+R", "menu.view.commandPalette=Shortcut+Shift+J");
+        for (Os os : Os.values()) {
+            KeymapOverrides.Resolution keymap = KeymapOverrides.parse(overrides)
+                .resolve(rebindable, KeymapSupport.rules(os, fixed));
+            Map<String, KeyChord> effective = new LinkedHashMap<>(keymap.effective());
+            effective.putAll(fixed);
+            assertWithMessage("effective keymap on %s", os).that(KeymapOverrides.conflicts(effective, os)).isEmpty();
+            assertWithMessage("Paste's Shortcut+V cannot be taken on %s", os)
+                .that(keymap.chord("menu.view.dashboard")).isEqualTo(defaults.get("menu.view.dashboard"));
+        }
+    }
+
+    /**
+     * MainWindow applies the keymap in effect to the in-window menu bar (so the menus and the command
+     * palette show it) and to the scene shortcut router, when the window is built and whenever the
+     * settings change, in every open window.
+     */
+    @Test
+    void mainWindowAppliesTheEffectiveKeymapToTheMenuBarAndTheRouter() throws IOException {
+        String source = Files.readString(SOURCE, StandardCharsets.UTF_8).replace("\r\n", "\n");
+
+        String apply = body(source, "    void applyKeymap() {");
+        assertThat(apply).contains("KeymapOverrides.parse(settings.getKeyBindingOverrides())");
+        assertThat(apply).contains("KeymapSupport.defaults(menuBar.getMenus(), os)");
+        assertThat(apply).contains("overrides.resolve(defaults.rebindable(),\n"
+            + "            KeymapSupport.rules(os, defaults.fixed()));");
+        assertThat(apply).contains("List<MenuItem> rechorded = KeymapSupport.applyToMenus(menuBar.getMenus(), keymap);");
+        assertWithMessage("a shown window's scene accelerators get the changed items' actions back")
+            .that(apply).contains("KeymapSupport.reinstallAccelerators(menuBarScene.getAccelerators(), rechorded);");
+        assertThat(apply).contains("for (RoutedChord chord : routedChords()) {\n            chord.bind(keymap);");
+        assertWithMessage("the other menu commands on a chord the user chose")
+            .that(apply).contains("reboundMenuChords = KeymapSupport.reboundItems(menuBar.getMenus(), routedIds);");
+        assertWithMessage("run over a focused terminal, which would encode the key for the shell, residue swallowed")
+            .that(body(source, "    private SceneShortcutRouter createSceneShortcutRouter() {"))
+            .contains(".consume(this::matchReboundMenuChord, this::isKeyboardInSelectedTerminal,\n"
+                + "                this::runReboundMenuChord, Residue.anyCharacter())");
+        assertWithMessage("after the key event, the way the accelerator runs the item")
+            .that(body(source, "    private void runReboundMenuChord() {"))
+            .contains("Platform.runLater(() -> de.kortty.ui.actions.MenuItemActivation.activate(item));");
+
+        String setup = body(source, "    private void setupMenuBar() {");
+        assertWithMessage("after the macOS system bar lost its accelerators, which it keeps losing")
+            .that(setup.indexOf("applyKeymap();")).isGreaterThan(setup.indexOf("clearMenuBarAccelerators(systemMenuBar);"));
+        assertThat(source).contains("// The shortcut overrides may have changed: menu accelerators and router chords.\n"
+            + "                refreshKeymapInAllWindows();");
+        assertThat(body(source, "    static void refreshKeymapInAllWindows() {")).contains("window.applyKeymap();");
+
+        String routed = body(source, "    private List<RoutedChord> routedChords() {");
+        for (String field : List.of("commandPaletteChord", "menuBarToggleChord", "terminalOnlyFullscreenChord",
+            "highlightingToggleChord", "credentialsChord", "reopenClosedTabChord", "quickSelectChord")) {
+            assertWithMessage(field).that(routed).contains(field);
+            assertWithMessage(field + " in the router").that(body(source,
+                "    private SceneShortcutRouter createSceneShortcutRouter() {")).contains(field + "::matches");
+        }
+        assertThat(routed).contains("chords.addAll(paneChords.values());");
+    }
+
+    /**
+     * Every accelerator MainWindow sets on a menu item, keyed by the item's action id where the item is
+     * built with {@code menuItem}, {@code checkMenuItem} or {@code ActionIds.tag}, else by its source line.
+     */
+    private static Map<String, KeyChord> defaultKeymap() throws IOException {
+        String source = Files.readString(SOURCE, StandardCharsets.UTF_8).replace("\r\n", "\n");
+        Map<String, String> constants = new LinkedHashMap<>();
+        Matcher constantMatcher = CONSTANT.matcher(source);
+        while (constantMatcher.find()) {
+            constants.put(constantMatcher.group(1), normalize(constantMatcher.group(2)));
+        }
+        Map<String, String> idsByVariable = new LinkedHashMap<>();
+        Matcher declaration = Pattern.compile("(\\w+) = (?:menuItem|checkMenuItem)\\(\"([^\"]+)\"\\)"
+            + "|(\\w+) = ActionIds\\.tag\\(new (?:Check)?MenuItem\\(I18n\\.get\\(\"[^\"]+\"\\)\\),\\s*\"([^\"]+)\"\\)")
+            .matcher(source);
+        while (declaration.find()) {
+            if (declaration.group(1) != null) {
+                idsByVariable.put(declaration.group(1), declaration.group(2));
+            } else {
+                idsByVariable.put(declaration.group(3), declaration.group(4));
+            }
+        }
+        Map<String, KeyChord> keymap = new LinkedHashMap<>();
+        Matcher usage = Pattern.compile("([\\w.()]+)\\.setAccelerator\\(\\s*(?:new KeyCodeCombination\\(([^)]*)\\)|(\\w+))\\s*\\)")
+            .matcher(source);
+        while (usage.find()) {
+            String combination = usage.group(2) != null ? normalize(usage.group(2)) : constants.get(usage.group(3));
+            if (combination == null) {
+                continue; // setAccelerator(null) on the macOS system bar, or a variable outside the menus
+            }
+            String id = idsByVariable.getOrDefault(usage.group(1), "line " + lineOf(source, usage.start()));
+            if (usage.group(1).equals("toggle")) {
+                id = "menu.view.highlighting.toggle";
+            }
+            KeyChord chord = chordOf(combination);
+            assertWithMessage("%s = %s", id, combination).that(chord).isNotNull();
+            keymap.put(id, chord);
+        }
+        return keymap;
+    }
+
+    /** The chord of a normalized KeyCodeCombination argument list such as {@code M+SHIFT_DOWN+SHORTCUT_DOWN}. */
+    private static KeyChord chordOf(String combination) {
+        boolean shortcut = false;
+        boolean control = false;
+        boolean shift = false;
+        boolean alt = false;
+        String key = null;
+        for (String part : combination.split("\\+")) {
+            switch (part) {
+                case "SHORTCUT_DOWN", "META_DOWN" -> shortcut = true;
+                case "CONTROL_DOWN" -> control = true;
+                case "SHIFT_DOWN" -> shift = true;
+                case "ALT_DOWN" -> alt = true;
+                default -> key = KeyChord.keyForJavaFxName(part);
+            }
+        }
+        return key == null ? null : new KeyChord(shortcut, control, shift, alt, key);
+    }
+
+    private static String body(String source, String signature) {
+        int start = source.indexOf(signature);
+        assertWithMessage(signature).that(start).isAtLeast(0);
+        int end = source.indexOf("\n    }\n", start);
+        return source.substring(start, end);
     }
 
     /** Turns a KeyCodeCombination argument list into a canonical, order-independent key. */

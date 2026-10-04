@@ -229,6 +229,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="settings/keyboard.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyboard
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="settings/resources.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -1065,6 +1073,12 @@
 <td>string</td>
 <td><code>allow</code>, <code>deny</code></td>
 <td>The <a href="control-api.html">control API</a> and its <code>kortty-cli</code> client: <code>deny</code> stops the listener, locks the Settings checkbox and forces the setting off. Not chained to <code>ai</code> — the API is local automation, not an AI capability</td>
+</tr>
+<tr>
+<td><code>terminal-triggers</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td><a href="../features/highlighting.html#notifications-for-matching-output">Highlight rules that act</a> when their pattern appears in terminal output (a desktop notification, or <a href="../features/highlighting.html#running-a-snippet-when-output-matches">running a snippet</a> in the pane): <code>deny</code> stops every such action, also a snippet the user already allowed for a connection, locks <strong>Run actions of highlight rules (notifications, snippets)</strong> in <em>Settings → Terminal</em> in the off position and keeps the rule editor from giving a rule an action. Keyword highlighting itself is not affected. <code>allow</code> locks the setting on</td>
 </tr>
 <tr>
 <td><code>ai-agent-execution</code></td>

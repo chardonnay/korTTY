@@ -34,18 +34,25 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>Builds the REAL {@link HighlightRulesDialog} headless against an isolated {@code user.home}, with a
  * demo rule set ("Web servers") and the editor's own test text, which uses documentation addresses
  * only — no real host ends up in the manual. One rule is switched off so the Check column shows a
- * state, and the regular-expression rule is selected so the details show a theme background color.
+ * state, the regular-expression rule also notifies, and the selected whole-line rule runs a demo snippet,
+ * so the Action column shows both actions and the details a custom background and the snippet.
  *
  * <p>Run via the {@code generateHighlightRulesScreenshot} Gradle task. Exit 0 = OK.
  */
 public final class HighlightRulesScreenshotGenerator {
 
     private static final double WIDTH = 980;
-    private static final double HEIGHT = 700;
+    private static final double HEIGHT = 880;
 
     private static final String OUTPUT_FILE = "app-docs/screenshots/highlighting/rules-dialog.png";
 
     private static final String DEMO_SET_ID = "demo-web-servers";
+
+    /** The library the Snippet dropdown offers: made-up names, no real script. */
+    private static final List<HighlightRulesDialog.SnippetChoice> DEMO_SNIPPETS = List.of(
+        new HighlightRulesDialog.SnippetChoice("demo-collect", "Collect diagnostics (ops)"),
+        new HighlightRulesDialog.SnippetChoice("demo-restart", "Restart web service (ops)"),
+        new HighlightRulesDialog.SnippetChoice("demo-disk", "Show disk usage"));
 
     private HighlightRulesScreenshotGenerator() {
     }
@@ -63,8 +70,8 @@ public final class HighlightRulesScreenshotGenerator {
             try {
                 GlobalSettings settings = demoSettings();
                 LanguageManager.getInstance().initialize(settings);
-                capture(HighlightRulesDialog.buildForCapture(settings, DEMO_SET_ID, 1, HighlightRulesDialog.DEFAULT_SAMPLE),
-                    settings);
+                capture(HighlightRulesDialog.buildForCapture(settings, DEMO_SNIPPETS, DEMO_SET_ID, 4,
+                    HighlightRulesDialog.DEFAULT_SAMPLE), settings);
             } catch (Throwable t) {
                 failure.compareAndSet(null, stack(t));
             } finally {
@@ -91,13 +98,21 @@ public final class HighlightRulesScreenshotGenerator {
         settings.setLanguage("en");
         List<HighlightRule> rules = new ArrayList<>();
         rules.add(rule("nginx", false, "ansi:6", null, true, false, false));
-        rules.add(rule("HTTP/1\\.1 5\\d\\d", true, "ansi:15", "ansi:1", true, false, false));
+        HighlightRule serverErrors = rule("HTTP/1\\.1 5\\d\\d", true, "ansi:15", "ansi:1", true, false, false);
+        // A rule that also notifies, so the Action column and the action details show something.
+        serverErrors.setAction(HighlightRule.Action.NOTIFY);
+        serverErrors.setName("Server errors");
+        rules.add(serverErrors);
         rules.add(rule("(?:\\d{1,3}\\.){3}\\d{1,3}(?::\\d+)?", true, "ansi:5", null, false, false, true));
         HighlightRule warning = rule("WARNING", false, "ansi:11", null, true, false, false);
         warning.setEnabled(false);
         rules.add(warning);
         HighlightRule timedOut = rule("timed out", false, null, "#4A1C1C", false, false, false);
         timedOut.setScope(HighlightRule.Scope.LINE);
+        // A rule that runs a snippet: the selected one, so the details show the Snippet dropdown in use.
+        timedOut.setAction(HighlightRule.Action.RUN_SNIPPET);
+        timedOut.setSnippetId("demo-collect");
+        timedOut.setName("Upstream timeouts");
         rules.add(timedOut);
         rules.add(rule("deprecated", false, "ansi:3", null, false, true, false));
         settings.setHighlightRuleSets(new ArrayList<>(List.of(new HighlightRuleSet(DEMO_SET_ID, "Web servers", rules))));

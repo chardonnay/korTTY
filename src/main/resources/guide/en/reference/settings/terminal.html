@@ -229,6 +229,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="keyboard.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyboard
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="resources.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -909,6 +917,13 @@
 <td><code>highlightRuleSets</code></td>
 </tr>
 <tr>
+<td>Run actions of highlight rules (notifications, snippets)</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>terminalTriggersEnabled</code></td>
+</tr>
+<tr>
 <td>Detect web addresses, e-mail addresses and file paths in terminal text</td>
 <td>toggle</td>
 <td>—</td>
@@ -977,6 +992,13 @@
 <td>—</td>
 <td>On</td>
 <td><code>remoteTerminalNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Monitor for Silence reports after:</td>
+<td>number</td>
+<td>5–3,600 seconds</td>
+<td>30</td>
+<td><code>terminalSilenceSeconds</code></td>
 </tr>
 <tr>
 <td>Enable SSH Keep-Alive</td>
@@ -1072,6 +1094,7 @@
 <p><strong>Also highlight in full-screen programs</strong> extends highlighting to programs that use the terminal's alternate screen, such as <code>vim</code>, <code>less</code> and <code>htop</code>. It is off by default because these programs redraw their screen constantly and bring their own colors, so highlights can flicker there and fight the program's colors. Switching it off leaves the highlights a running program already shows until it redraws them.</p>
 <p>All three apply to open terminals as soon as you save.</p>
 <p><strong>Edit Rules…</strong> opens the <a href="../../features/highlighting.html#your-own-rule-sets">rule-set editor</a>, where you create your own rule sets and look at the built-in ones. It stays available while the master switch is off, so you can prepare sets before switching highlighting on. The editor saves its changes when you confirm it, whether or not you then save the settings dialog, and afterwards the <strong>Default rule set</strong> dropdown lists your sets as they are now. If you delete the set the dropdown shows, it falls back to <strong>None</strong>.</p>
+<p><strong>Run actions of highlight rules (notifications, snippets)</strong> lets rules whose action is <strong>Desktop notification</strong> mark their tab and notify when their pattern appears in new output in a tab you are not looking at (see <a href="../../features/highlighting.html#notifications-for-matching-output">Notifications for matching output</a>), and rules whose action is <strong>Run a snippet</strong> run their snippet in the pane where the pattern appears, after asking you once per connection (see <a href="../../features/highlighting.html#running-a-snippet-when-output-matches">Running a snippet when output matches</a>). It is on by default, because a rule only gets an action when you give it one; switched off, such rules only highlight. It is greyed out while the master switch is off, and it is read on every match, so a change applies to open terminals as soon as you save. The enterprise policy key <code>terminal-triggers</code> locks it in the position the policy chose (see <a href="../enterprise-policy.html#rulefeatures">Enterprise policy</a>).</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Links</p>
@@ -1092,6 +1115,7 @@
 <p>A program that rings the terminal bell in a tab you are not looking at always marks that tab with 🔔 until you look at it; this needs no setting. <strong>Desktop notification when the bell rings in a tab you are not looking at</strong> adds a desktop notification titled <code>korTTY ·</code> and the tab's name, at most one per pane every 10 seconds. It is off by default because shells ring the bell on every failed Tab completion, and a pane with a detected coding agent gets none while the coding-agent notifications are on. The setting is read on every bell, so a change applies to open tabs as soon as you save.</p>
 <p>In a shell set up for shell integration, a command that ran at least <strong>Minimum command runtime:</strong> (30 seconds by default) and finishes in a tab you are not looking at marks that tab with 🔔 too, and <strong>Desktop notification when a long-running command finishes in a tab you are not looking at</strong>, on by default, adds a desktop notification saying how the command ended and how long it ran, never the command itself, at most one per tab every 10 seconds. Commands of korTTY's AI Agent never notify. Both are greyed out while <strong>Use the command marks of shells set up for shell integration (OSC 133)</strong> is off, and both are read on every finished command. See <a href="../../features/terminal-notifications.html#long-running-commands">Terminal notifications</a>.</p>
 <p>A program that asks for a desktop notification with OSC 9 or OSC 777, such as a coding agent on a server waiting for your answer, marks its tab with 🔔 too when you are not looking at it, and <strong>Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777)</strong>, on by default, shows the program's text below a title with the tab's name, cleaned of control and bidi characters and cut to 80 characters for the title and 200 for the text, at most one per pane every 5 seconds; what comes in between is dropped. A pane with a detected coding agent gets none while the coding-agent notifications are on. It needs no shell integration and is read on every request. See <a href="../../features/terminal-notifications.html#notifications-from-programs">Notifications from programs</a>.</p>
+<p><strong>Monitor for Silence reports after:</strong> is how long a pane has to stay without output, after printing something, before a tab you watch with <strong>Monitor for Silence</strong> in its right-click menu is marked with 🔔 and shows a desktop notification, 30 seconds by default. The watch itself, like <strong>Monitor for Activity</strong>, which reports new output after 10 seconds of quiet, is switched per tab, off until you switch it on, and never saved. The threshold is read every second, so a change applies to the watched tabs as soon as you save. See <a href="../../features/terminal-notifications.html#watching-a-tab-for-activity-or-silence">Watching a tab for activity or silence</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">SSH Keep-Alive</p>
