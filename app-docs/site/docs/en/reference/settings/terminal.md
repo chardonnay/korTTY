@@ -34,6 +34,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Pause after each pasted line: | number | 0–1,000 ms (0 = off) | 0 | `pasteLineDelayMs` |
 | Use the command marks of shells set up for shell integration (OSC 133) | toggle | — | On | `shellIntegrationEnabled` |
 | Set Up Shell Integration… | button | opens the window with the shell snippets | — | — |
+| Remote files sidebar: | dropdown | Hidden, Left, Right | Hidden | `terminalRemoteSidebarPosition` (width: `terminalRemoteSidebarWidth`, 200–1,200, default 300) — see [Remote files sidebar](../../features/terminal.md#remote-files-sidebar) |
 | Desktop notification when the bell rings in a tab you are not looking at | toggle | — | Off | `terminalBellNotificationsEnabled` |
 | Desktop notification when a long-running command finishes in a tab you are not looking at | toggle | — | On | `commandFinishedNotificationsEnabled` |
 | Minimum command runtime: | number | 1–3,600 seconds | 30 | `commandFinishedNotificationSeconds` |

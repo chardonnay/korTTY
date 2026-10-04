@@ -398,6 +398,14 @@ class ClosedWindowMenuRouterTest {
         assertThat(view).contains("MenuItem commandPalette = menuItem(\"menu.view.commandPalette\");");
         assertThat(view).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(commandPalette)");
         assertThat(view).doesNotContain("ClosedWindowMenuRouter.noWindowNeeded(commandPalette)");
+        // View › Remote Files Sidebar moves a global setting that every window applies: no window needed.
+        assertThat(view).contains("CheckMenuItem remoteSidebarLeft = checkMenuItem(\"menu.view.remoteSidebar.left\");");
+        assertThat(view).contains("CheckMenuItem remoteSidebarRight = checkMenuItem(\"menu.view.remoteSidebar.right\");");
+        assertThat(view).contains("MenuItem remoteSidebarToggle = menuItem(\"menu.view.remoteSidebar.toggle\");");
+        for (String item : List.of("remoteSidebarLeft", "remoteSidebarRight", "remoteSidebarToggle")) {
+            assertThat(view).contains("ClosedWindowMenuRouter.noWindowNeeded(" + item + ");");
+            assertThat(view).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(" + item + ")");
+        }
         assertThat(edit).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(find)");
         assertThat(methodBody(window, "private void rebuildJobSchedulerStatusMenuItems(Menu menu) {"))
             .contains("ClosedWindowMenuRouter.noWindowNeeded(cancel);");

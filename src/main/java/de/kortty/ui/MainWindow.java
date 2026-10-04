@@ -2328,6 +2328,30 @@ public class MainWindow {
         journalLivePanelMenu.getItems().addAll(journalLiveLeftItem, journalLiveRightItem,
             new SeparatorMenuItem(), journalLiveToggleItem);
 
+        // Remote files sidebar (D10): hidden by default, docked right or left in every terminal tab.
+        // A global setting, so it needs no particular window; offered while the active tab has an
+        // SSH pane or the sidebar is on (so it can always be turned off again).
+        Menu remoteSidebarMenu = new Menu(I18n.get("menu.view.remoteSidebar"));
+        CheckMenuItem remoteSidebarLeft = checkMenuItem("menu.view.remoteSidebar.left");
+        remoteSidebarLeft.setOnAction(e -> setTerminalRemoteSidebarPosition(remoteSidebarLeft.isSelected()
+            ? TerminalRemoteSidebarPosition.LEFT : TerminalRemoteSidebarPosition.HIDDEN));
+        CheckMenuItem remoteSidebarRight = checkMenuItem("menu.view.remoteSidebar.right");
+        remoteSidebarRight.setOnAction(e -> setTerminalRemoteSidebarPosition(remoteSidebarRight.isSelected()
+            ? TerminalRemoteSidebarPosition.RIGHT : TerminalRemoteSidebarPosition.HIDDEN));
+        MenuItem remoteSidebarToggle = menuItem("menu.view.remoteSidebar.toggle");
+        remoteSidebarToggle.setOnAction(e -> toggleTerminalRemoteSidebar());
+        ClosedWindowMenuRouter.noWindowNeeded(remoteSidebarLeft);
+        ClosedWindowMenuRouter.noWindowNeeded(remoteSidebarRight);
+        ClosedWindowMenuRouter.noWindowNeeded(remoteSidebarToggle);
+        remoteSidebarMenu.getItems().addAll(remoteSidebarLeft, remoteSidebarRight,
+            new SeparatorMenuItem(), remoteSidebarToggle);
+        remoteSidebarMenu.setOnShowing(e -> {
+            TerminalRemoteSidebarPosition position = terminalRemoteSidebarPosition();
+            remoteSidebarLeft.setSelected(position == TerminalRemoteSidebarPosition.LEFT);
+            remoteSidebarRight.setSelected(position == TerminalRemoteSidebarPosition.RIGHT);
+        });
+        viewMenu.setOnShowing(e -> remoteSidebarMenu.setVisible(remoteSidebarMenuOffered()));
+
         // Coding Agents panel: hidden by default, dockable left/right beside the terminal tabs, plus
         // the cross-window "next blocked agent" jump.
         Menu codingAgentPanelMenu = new Menu(I18n.get("menu.codingAgent.panel"));
@@ -2412,7 +2436,7 @@ public class MainWindow {
 
         viewMenu.getItems().addAll(commandPalette, new SeparatorMenuItem(),
             dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
-            journalLivePanelMenu, codingAgentPanelMenu,
+            journalLivePanelMenu, codingAgentPanelMenu, remoteSidebarMenu,
             new SeparatorMenuItem(),
             zoomIn, zoomOut, resetZoom);
         // The background-transparency slider is a CustomMenuItem, which the macOS native system menu
@@ -4249,6 +4273,7 @@ public class MainWindow {
                 refreshTerminalTabsUsingGlobalDefaults();
                 refreshConnectionColorsInAllWindows();
                 refreshShellTitlesInAllWindows();
+                applyRemoteSidebarToAllWindows();
                 refreshTerminalRecordingControlsVisibility();
                 refreshOpenChatColorProfiles();
                 // The shortcut overrides may have changed: menu accelerators and router chords.
@@ -10266,6 +10291,8 @@ public class MainWindow {
                 handleAiSelectionAction(terminalTab, action, profile, selectedText, runContext));
         }
         terminalTab.getTerminalView().setSftpHereHandler(pane -> openSftpHere(terminalTab, pane));
+        terminalTab.getTerminalView().setSftpOpenAtHandler((pane, path) -> openSftpHere(terminalTab, pane, path));
+        applyRemoteSidebar(terminalTab);
         if (policy.loadIntoSnippetEditor() != de.kortty.policy.LoadIntoEditorMode.DENY) {
             terminalTab.getTerminalView().setTerminalTextFileLoadHandler((runContext, selectedText) ->
                 loadTerminalSelectionAsTextFile(terminalTab, runContext, selectedText));
@@ -13655,6 +13682,116 @@ public class MainWindow {
      * @param connection The connection to use
      * @param temporarySSHKey Optional temporary SSH key (only when opened from tab that used temp key)
      */
+    // ---------------------------------------------------------------- Remote files sidebar (SFTP-15)
+
+    private javafx.animation.PauseTransition remoteSidebarWidthSaveDelay;
+
+    /** Settings: where terminal tabs show the remote files sidebar. */
+    private TerminalRemoteSidebarPosition terminalRemoteSidebarPosition() {
+        var gsm = app != null ? app.getGlobalSettingsManager() : null;
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        return settings != null ? settings.getTerminalRemoteSidebarPosition() : TerminalRemoteSidebarPosition.HIDDEN;
+    }
+
+    /** Whether View › Remote Files Sidebar is offered: an SSH pane in the active tab, or the sidebar is on. */
+    private boolean remoteSidebarMenuOffered() {
+        if (terminalRemoteSidebarPosition() != TerminalRemoteSidebarPosition.HIDDEN) {
+            return true;
+        }
+        TerminalTab active = getActiveTerminalTab();
+        return active != null && active.getTerminalView() != null && active.getTerminalView().hasRemoteSidebarPane();
+    }
+
+    /** Docks (or removes) the remote files sidebar of {@code terminalTab} as the settings say. FX thread. */
+    private void applyRemoteSidebar(TerminalTab terminalTab) {
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        if (view == null) {
+            return;
+        }
+        var gsm = app != null ? app.getGlobalSettingsManager() : null;
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        if (settings == null) {
+            return;
+        }
+        view.setRemoteSidebar(settings.getTerminalRemoteSidebarPosition(), settings.getTerminalRemoteSidebarWidth(),
+            this::persistRemoteSidebarWidth,
+            () -> setTerminalRemoteSidebarPosition(TerminalRemoteSidebarPosition.HIDDEN));
+    }
+
+    /** Applies the remote files sidebar setting to every terminal tab of every window. FX thread. */
+    private static void applyRemoteSidebarToAllWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            for (TerminalTab terminalTab : window.terminalTabs()) {
+                window.applyRemoteSidebar(terminalTab);
+            }
+        }
+    }
+
+    /** View › Remote Files Sidebar › Show/Hide: on the right (D10) when hidden, else hidden. */
+    private void toggleTerminalRemoteSidebar() {
+        setTerminalRemoteSidebarPosition(terminalRemoteSidebarPosition() == TerminalRemoteSidebarPosition.HIDDEN
+            ? TerminalRemoteSidebarPosition.RIGHT : TerminalRemoteSidebarPosition.HIDDEN);
+    }
+
+    /**
+     * Moves the remote files sidebar of all terminal tabs and remembers it. Hiding asks first when
+     * sidebar transfers are still running, since hiding closes the sidebar's SFTP channels.
+     */
+    private void setTerminalRemoteSidebarPosition(TerminalRemoteSidebarPosition position) {
+        var gsm = app != null ? app.getGlobalSettingsManager() : null;
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        if (settings == null) {
+            return;
+        }
+        if (position == TerminalRemoteSidebarPosition.HIDDEN) {
+            int running = 0;
+            for (MainWindow window : new ArrayList<>(openWindows)) {
+                for (TerminalTab terminalTab : window.terminalTabs()) {
+                    TerminalRemoteSidebar sidebar = terminalTab.getTerminalView() != null
+                        ? terminalTab.getTerminalView().remoteSidebar() : null;
+                    running += sidebar != null ? sidebar.activeTransferCount() : 0;
+                }
+            }
+            if (running > 0) {
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                    I18n.get("terminal.remoteSidebar.hideConfirm", String.valueOf(running)), ButtonType.OK, ButtonType.CANCEL);
+                confirm.setHeaderText(null);
+                confirm.initOwner(stage);
+                if (confirm.showAndWait().filter(ButtonType.OK::equals).isEmpty()) {
+                    return;
+                }
+            }
+        }
+        settings.setTerminalRemoteSidebarPosition(position);
+        try {
+            gsm.save();
+        } catch (Exception e) {
+            logger.debug("Could not persist the remote files sidebar position: {}", e.getMessage());
+        }
+        applyRemoteSidebarToAllWindows();
+    }
+
+    /** The width the user dragged the sidebar to; saved debounced, like the live journal panel. */
+    private void persistRemoteSidebarWidth(double width) {
+        var gsm = app != null ? app.getGlobalSettingsManager() : null;
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        if (settings == null) {
+            return;
+        }
+        settings.setTerminalRemoteSidebarWidth(width);
+        if (remoteSidebarWidthSaveDelay == null) {
+            remoteSidebarWidthSaveDelay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(350));
+            remoteSidebarWidthSaveDelay.setOnFinished(event -> {
+                try {
+                    gsm.save();
+                } catch (Exception e) {
+                    logger.debug("Could not persist the remote files sidebar width: {}", e.getMessage());
+                }
+            });
+        }
+        remoteSidebarWidthSaveDelay.playFromStart();
+    }
+
     /**
      * "Open SFTP here": an SFTP tab on {@code pane}'s own SSH session (its {@link PaneOrigin}, not
      * the tab's connection), starting in the folder its shell is in (D7). The verdict, folder and
@@ -13666,13 +13803,26 @@ public class MainWindow {
      * @param pane the pane, or null for the tab's focused pane
      */
     void openSftpHere(TerminalTab terminalTab, SithTermFxWidget pane) {
+        openSftpHere(terminalTab, pane, null);
+    }
+
+    /**
+     * {@link #openSftpHere(TerminalTab, SithTermFxWidget)}, starting in {@code startPath} instead of
+     * the shell's folder when given (the remote files sidebar's "Open in SFTP Manager").
+     */
+    void openSftpHere(TerminalTab terminalTab, SithTermFxWidget pane, String startPath) {
         TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
         if (view == null) {
             updateStatus(I18n.get("sftp.openHere.noTerminal"));
             return;
         }
         SithTermFxWidget target = pane != null ? pane : view.focusedPane();
-        TerminalView.SftpOpenRequest request = view.captureSftpOpenRequest(target);
+        TerminalView.SftpOpenRequest captured = view.captureSftpOpenRequest(target);
+        TerminalView.SftpOpenRequest request = captured != null && startPath != null && !startPath.isBlank()
+            ? new TerminalView.SftpOpenRequest(captured.supplier(), captured.paneConnection(), captured.dedupeKey(),
+                new de.kortty.ui.sftp.SftpOpenTargetResolver.OpenTarget(startPath,
+                    de.kortty.ui.sftp.SftpOpenTargetResolver.Reason.TRACKED_DIRECTORY), captured.label())
+            : captured;
         if (request == null) {
             if (terminalTab.isConnected()) {
                 openSftpHereFallback(terminalTab, view.paneConnection(target));

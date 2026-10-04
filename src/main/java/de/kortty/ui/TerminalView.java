@@ -438,6 +438,17 @@ public class TerminalView extends BorderPane {
     private TerminalTextFileLoadHandler terminalTextFileLoadHandler;
     /** Opens SFTP on a pane's session in its folder ("Open SFTP here"); null hides the pane item. */
     private java.util.function.@Nullable Consumer<SithTermFxWidget> sftpHereHandler;
+    /** Opens the SFTP manager on a pane's session in a given folder (the remote files sidebar). */
+    private java.util.function.@Nullable BiConsumer<SithTermFxWidget, String> sftpOpenAtHandler;
+    /** The remote files sidebar and the slot it is docked in; null while hidden. */
+    private @Nullable TerminalRemoteSidebar remoteSidebar;
+    private volatile javafx.scene.layout.@Nullable HBox remoteSidebarDock;
+    private de.kortty.model.TerminalRemoteSidebarPosition remoteSidebarPosition =
+        de.kortty.model.TerminalRemoteSidebarPosition.HIDDEN;
+    /** Told on the emulator thread of each OSC 133 prompt-start mark of a pane. */
+    private final List<Consumer<SithTermFxWidget>> promptMarkListeners = new CopyOnWriteArrayList<>();
+    /** Told on the FX thread when a pane's connector connected or disconnected. */
+    private final List<Runnable> paneSessionListeners = new CopyOnWriteArrayList<>();
     // Read on the emulator thread too, when an OSC 8 file: link arrives.
     private volatile TerminalPathOpenHandler terminalPathOpenHandler;
     private TerminalAgentContextHandler aiAgentHandler;
@@ -650,6 +661,12 @@ public class TerminalView extends BorderPane {
         shellIntegration.setRemoteNotificationListener(widget -> Platform.runLater(() -> onPaneRemoteNotification(widget)));
         // A program asked to put text on the clipboard (OSC 52): the tab's setting decides.
         shellIntegration.setClipboardWriteListener(widget -> Platform.runLater(() -> onPaneClipboardWrite(widget)));
+        // OSC 133 prompt marks, for the remote files sidebar (emulator thread; listeners hand off).
+        shellIntegration.setPromptMarkListener(widget -> {
+            for (Consumer<SithTermFxWidget> listener : promptMarkListeners) {
+                listener.accept(widget);
+            }
+        });
         // The session carrying the tunnels closed while it still owned them: if its pane is gone
         // (the user closed it or typed exit there), move them to another pane of the same server.
         tunnelManager.setOwnerClosedListener(session -> Platform.runLater(this::rehomeTunnelsIfOwnerGone));
@@ -2381,6 +2398,220 @@ public class TerminalView extends BorderPane {
             String dedupeKey, de.kortty.ui.sftp.SftpOpenTargetResolver.OpenTarget target, String label) {
     }
 
+    // ---- Remote files sidebar (SFTP-15) -------------------------------------------------------------
+
+    /**
+     * Docks the remote files sidebar at {@code position} (or removes it for HIDDEN). Its SFTP
+     * session opens lazily, once the tab is shown; hiding closes it. FX thread.
+     *
+     * @param width          the width to start with
+     * @param onWidthChanged told of the width the user dragged to (for the settings)
+     * @param onHideRequested the sidebar's own close button
+     */
+    public void setRemoteSidebar(de.kortty.model.TerminalRemoteSidebarPosition position, double width,
+            java.util.function.@Nullable DoubleConsumer onWidthChanged, @Nullable Runnable onHideRequested) {
+        de.kortty.model.TerminalRemoteSidebarPosition target = position != null
+            ? position : de.kortty.model.TerminalRemoteSidebarPosition.HIDDEN;
+        if (cleanedUp) {
+            return;
+        }
+        if (target == de.kortty.model.TerminalRemoteSidebarPosition.HIDDEN) {
+            disposeRemoteSidebar();
+            return;
+        }
+        if (remoteSidebar == null) {
+            remoteSidebar = new TerminalRemoteSidebar(this);
+        }
+        remoteSidebar.setOnHideRequested(onHideRequested);
+        remoteSidebar.setPrefWidth(de.kortty.model.GlobalSettings.clampTerminalRemoteSidebarWidth(width));
+        remoteSidebar.setMinWidth(de.kortty.model.GlobalSettings.TERMINAL_REMOTE_SIDEBAR_MIN_WIDTH);
+        remoteSidebar.setMaxWidth(de.kortty.model.GlobalSettings.TERMINAL_REMOTE_SIDEBAR_MAX_WIDTH);
+        if (target == remoteSidebarPosition && remoteSidebarDock != null) {
+            return;
+        }
+        unmountRemoteSidebar();
+        ResizableDivider divider = new ResizableDivider(javafx.geometry.Orientation.VERTICAL);
+        TerminalRemoteSidebar sidebar = remoteSidebar;
+        boolean right = target == de.kortty.model.TerminalRemoteSidebarPosition.RIGHT;
+        divider.setResizeListener(delta -> {
+            double next = de.kortty.model.GlobalSettings.clampTerminalRemoteSidebarWidth(
+                sidebar.getPrefWidth() + (right ? -delta : delta));
+            sidebar.setPrefWidth(next);
+            if (onWidthChanged != null) {
+                onWidthChanged.accept(next);
+            }
+            return next;
+        });
+        javafx.scene.layout.HBox dock = right
+            ? new javafx.scene.layout.HBox(divider, sidebar)
+            : new javafx.scene.layout.HBox(sidebar, divider);
+        dock.setFillHeight(true);
+        remoteSidebarDock = dock;
+        remoteSidebarPosition = target;
+        if (right) {
+            setRight(dock);
+        } else {
+            setLeft(dock);
+        }
+        updateRemoteSidebarDockVisibility();
+        sidebar.mounted();
+    }
+
+    /** A tab without a connected SSH pane (local shell, Mosh, not yet connected) shows no sidebar. */
+    private void updateRemoteSidebarDockVisibility() {
+        javafx.scene.layout.HBox dock = remoteSidebarDock;
+        if (dock == null) {
+            return;
+        }
+        boolean shown = hasRemoteSidebarPane();
+        dock.setVisible(shown);
+        dock.setManaged(shown);
+    }
+
+    /** Where the remote files sidebar is docked in this tab. */
+    public de.kortty.model.TerminalRemoteSidebarPosition getRemoteSidebarPosition() {
+        return remoteSidebarPosition;
+    }
+
+    /** The docked sidebar, or null. */
+    @Nullable TerminalRemoteSidebar remoteSidebar() {
+        return remoteSidebar;
+    }
+
+    /** Hides the sidebar for good (the tab closes or the position is HIDDEN); closes its SFTP session. */
+    private void disposeRemoteSidebar() {
+        unmountRemoteSidebar();
+        TerminalRemoteSidebar sidebar = remoteSidebar;
+        remoteSidebar = null;
+        remoteSidebarPosition = de.kortty.model.TerminalRemoteSidebarPosition.HIDDEN;
+        if (sidebar != null) {
+            sidebar.dispose();
+        }
+    }
+
+    private void unmountRemoteSidebar() {
+        javafx.scene.layout.HBox dock = remoteSidebarDock;
+        remoteSidebarDock = null;
+        if (dock == null) {
+            return;
+        }
+        if (getRight() == dock) {
+            setRight(null);
+        }
+        if (getLeft() == dock) {
+            setLeft(null);
+        }
+        dock.getChildren().clear();
+    }
+
+    /** Whether any pane of this tab runs a connected SSH session the sidebar can follow. FX thread. */
+    public boolean hasRemoteSidebarPane() {
+        for (SithTermFxWidget pane : terminalPanes()) {
+            if (fileDropConnector(pane) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The panes of this tab, in layout order. */
+    List<SithTermFxWidget> remoteSidebarPanes() {
+        return terminalPanes();
+    }
+
+    /** A stable key of {@code pane} within this tab, for the sidebar's follow state. */
+    static String remoteSidebarPaneKey(SithTermFxWidget pane) {
+        return de.kortty.codingagent.TerminalScreenCapture.paneIdOf(pane);
+    }
+
+    /**
+     * The identity the pane's prompt shows now, and its last visible line (to tell a new prompt
+     * from the line a {@code cd} was typed on). Reads the screen: FX thread only.
+     */
+    RemoteSidebarProbe probeRemoteSidebarPrompt(@Nullable SithTermFxWidget pane) {
+        SshTtyConnector ssh = fileDropConnector(pane);
+        if (ssh == null) {
+            return new RemoteSidebarProbe(de.kortty.ui.sftp.RemoteFollowController.Verdict.UNKNOWN, "");
+        }
+        String screenLines;
+        try {
+            screenLines = pane.getTerminalTextBuffer() != null ? pane.getTerminalTextBuffer().getScreenLines() : "";
+        } catch (RuntimeException e) {
+            screenLines = "";
+        }
+        String lastLine = lastNonBlankVisibleLine(screenLines);
+        if (isForeignSessionActive(pane, ssh)) {
+            return new RemoteSidebarProbe(de.kortty.ui.sftp.RemoteFollowController.Verdict.FOREIGN,
+                lastLine != null ? lastLine : "");
+        }
+        SessionIdentityVerdict verdict = evaluatePromptSessionIdentity(
+            screenLines, ssh.getExpectedSessionUser(), ssh.getExpectedSessionHost());
+        return new RemoteSidebarProbe(verdict == SessionIdentityVerdict.NATIVE_CONFIRMED
+            ? de.kortty.ui.sftp.RemoteFollowController.Verdict.NATIVE
+            : de.kortty.ui.sftp.RemoteFollowController.Verdict.UNKNOWN, lastLine != null ? lastLine : "");
+    }
+
+    /** The pane's last non-blank visible line, without judging it. FX thread only. */
+    String remoteSidebarLastLine(@Nullable SithTermFxWidget pane) {
+        try {
+            String screenLines = pane != null && pane.getTerminalTextBuffer() != null
+                ? pane.getTerminalTextBuffer().getScreenLines() : "";
+            String lastLine = lastNonBlankVisibleLine(screenLines);
+            return lastLine != null ? lastLine : "";
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /** What {@link #probeRemoteSidebarPrompt} saw. */
+    record RemoteSidebarProbe(de.kortty.ui.sftp.RemoteFollowController.Verdict verdict, String lastLine) {
+    }
+
+    /** Subscribes to the OSC 133 prompt-start marks of every pane (emulator thread; hand off). */
+    RemoteDirectoryChange.Subscription promptMarks(Consumer<SithTermFxWidget> listener) {
+        if (listener == null) {
+            return RemoteDirectoryChange.Subscription.NONE;
+        }
+        Consumer<SithTermFxWidget> registered = listener::accept;
+        promptMarkListeners.add(registered);
+        return () -> promptMarkListeners.remove(registered);
+    }
+
+    /** Subscribes to pane connects and disconnects (FX thread). */
+    RemoteDirectoryChange.Subscription paneSessionChanges(Runnable listener) {
+        if (listener == null) {
+            return RemoteDirectoryChange.Subscription.NONE;
+        }
+        Runnable registered = listener::run;
+        paneSessionListeners.add(registered);
+        return () -> paneSessionListeners.remove(registered);
+    }
+
+    private void firePaneSessionChanged() {
+        if (paneSessionListeners.isEmpty() && remoteSidebarDock == null) {
+            return;
+        }
+        Platform.runLater(() -> {
+            updateRemoteSidebarDockVisibility();
+            for (Runnable listener : paneSessionListeners) {
+                try {
+                    listener.run();
+                } catch (RuntimeException e) {
+                    logger.debug("Pane session listener failed: {}", e.toString());
+                }
+            }
+        });
+    }
+
+    /** Sets who opens the SFTP manager on a pane's session in a given folder; null hides the sidebar's button. */
+    public void setSftpOpenAtHandler(java.util.function.@Nullable BiConsumer<SithTermFxWidget, String> handler) {
+        this.sftpOpenAtHandler = handler;
+    }
+
+    java.util.function.@Nullable BiConsumer<SithTermFxWidget, String> sftpOpenAtHandler() {
+        return sftpOpenAtHandler;
+    }
+
     /** The pane that has the keyboard focus, or the only pane. */
     public @Nullable SithTermFxWidget focusedPane() {
         return splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
@@ -3414,6 +3645,7 @@ public class TerminalView extends BorderPane {
      * with {@link #reportTerminalDisconnected}; both are idempotent per connector.
      */
     private void reportTerminalConnected(TtyConnector connector) {
+        firePaneSessionChanged();
         ActiveConnectionRegistry.shared().terminalConnected(connector);
         var app = KorTTYApplication.getInstance();
         if (app != null && app.getPowerManagementCoordinator() != null) {
@@ -3422,6 +3654,7 @@ public class TerminalView extends BorderPane {
     }
 
     private void reportTerminalDisconnected(TtyConnector connector) {
+        firePaneSessionChanged();
         ActiveConnectionRegistry.shared().terminalDisconnected(connector);
         var app = KorTTYApplication.getInstance();
         if (app != null && app.getPowerManagementCoordinator() != null) {
@@ -8329,6 +8562,7 @@ public class TerminalView extends BorderPane {
     public void cleanup() {
         // A split layout still being restored stops before its next pane and attaches nothing more.
         cleanedUp = true;
+        disposeRemoteSidebar();
         onSessionStateChanged = null;
         paneWorkingDirectories.clear();
         // A bell, a finished command or a program's notification still on its way to the FX thread

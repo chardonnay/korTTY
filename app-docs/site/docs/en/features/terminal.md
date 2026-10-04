@@ -206,6 +206,21 @@ Because a see-through window uses a different window style that the operating sy
 
 The slider lives in the in-window menu bar only (the native macOS menu bar cannot host a slider).
 
+## Remote files sidebar
+
+**View → Remote Files Sidebar** docks a narrow file list beside the panes of every terminal tab, on the right or the left. It shows the folder the shell of the focused SSH pane is in and follows it as you `cd` around. It is off by default; the position and the width you drag it to are remembered (**Settings → Terminal → Remote files sidebar**). Tabs with only local-shell or Mosh panes show no sidebar.
+
+The sidebar lists over an SFTP channel of the pane's own SSH session, like **Open SFTP Here**, so there is no second login, MFA prompt or access reason. The channel opens the first time the sidebar is shown in that tab and closes when you hide the sidebar or close the tab. A split pane connected elsewhere is followed with its own session when you click into it; clicking into a local or Mosh pane leaves the sidebar where it is.
+
+How it follows the shell:
+
+- **Folders the shell reports** (OSC 7 from a prompt hook, or korTTY's agent hook) are followed after a quarter of a second, so a burst of `cd`s lists only the last folder.
+- **A typed `cd`** is followed only once the next prompt shows the session's own user and host, or once a shell with [shell integration](shell-integration.md) marks its next prompt. A `cd` typed inside an editor, a container or a nested login, or one that fails, is never listed.
+- **Another user or host** (after `su`, `sudo -i`, an inner `ssh` or a container prompt) pauses the sidebar: the banner says **Not following: another user or host is active** and the last listing stays. It follows again once the prompt shows the original user.
+- **The pin** button stops following and keeps the folder shown; unpinning lists the folder the shell was last followed to.
+
+The sidebar only browses: double-click a folder or click a part of the path above the list to look around, and type in the filter box to narrow the list by name. It never types into the terminal. A folder that has gone away keeps the last listing and shows **Folder not found** under it. Buttons in its header refresh the list, open the folder in the [SFTP manager](sftp.md) on the same session, upload files into the folder shown, download the selection, and hide the sidebar. Uploads and downloads go through the SFTP transfer list at the bottom of the sidebar after a confirmation that names the folder on the server, because the sidebar can lag behind the shell. Dropping files from the desktop onto the list uploads them the same way, and dragging a few small files out of the list copies them to the desktop. When your organization's policy switches file transfer off, the upload and download buttons are greyed out, drops are refused while you drag, and rows cannot be dragged out; browsing still works.
+
 ## Local shell tabs
 
 Besides SSH and Mosh, a terminal tab can host a **Local Shell** — the local machine's own shell, opened via a pseudo-terminal (see [Local Shell](connections.md#local-shell)). A few terminal behaviors are local-shell aware:
