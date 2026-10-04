@@ -2,6 +2,8 @@
 
 On macOS, use ++cmd++ where ++ctrl++ is shown.
 
+These are the default shortcuts. You can give most commands of the menus other keys, remove a shortcut or give a command without one a shortcut in [Settings → Keyboard](settings/keyboard.md); the menus and the command palette always show the shortcut in effect. **Cut**, **Copy**, **Paste**, **Previous Prompt**, **Next Prompt**, the zoom keys, ++f12++, ++ctrl+tab++, ++ctrl+shift+tab++ and the tab jump keys stay fixed.
+
 ## General
 
 | Shortcut | Action |

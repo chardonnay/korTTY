@@ -29,28 +29,38 @@ final class PaneShortcuts {
 
     /** What a pane shortcut does. */
     enum PaneAction {
-        FOCUS_LEFT(PaneDirection.LEFT, Residue.NONE),
-        FOCUS_RIGHT(PaneDirection.RIGHT, Residue.NONE),
-        FOCUS_UP(PaneDirection.UP, Residue.NONE),
-        FOCUS_DOWN(PaneDirection.DOWN, Residue.NONE),
+        FOCUS_LEFT(PaneDirection.LEFT, Residue.NONE, PaneMenuSupport.FOCUS_LEFT_KEY),
+        FOCUS_RIGHT(PaneDirection.RIGHT, Residue.NONE, PaneMenuSupport.FOCUS_RIGHT_KEY),
+        FOCUS_UP(PaneDirection.UP, Residue.NONE, PaneMenuSupport.FOCUS_UP_KEY),
+        FOCUS_DOWN(PaneDirection.DOWN, Residue.NONE, PaneMenuSupport.FOCUS_DOWN_KEY),
         /**
          * Splits the focused pane on that pane's own server, to the right or below. Its KEY_TYPED
          * can still carry the O, or the U+000F that Ctrl turns it into, so that is swallowed.
          */
-        SPLIT(null, Residue.ofLetter('O')),
+        SPLIT(null, Residue.ofLetter('O'), PaneMenuSupport.SPLIT_AUTO_KEY),
         /**
          * Zooms the focused pane, so it fills the tab alone, or shows every pane again. Its KEY_TYPED
          * can still carry the carriage return of Enter, or the line feed Ctrl turns it into on
          * Windows, which would run the shell's command line, so that is swallowed.
          */
-        ZOOM(null, Residue.of("\r", "\n"));
+        ZOOM(null, Residue.of("\r", "\n"), PaneMenuSupport.ZOOM_KEY);
 
         private final @Nullable PaneDirection direction;
         private final Residue residue;
+        private final String actionId;
 
-        PaneAction(@Nullable PaneDirection direction, @NotNull Residue residue) {
+        PaneAction(@Nullable PaneDirection direction, @NotNull Residue residue, @NotNull String actionId) {
             this.direction = direction;
             this.residue = residue;
+            this.actionId = actionId;
+        }
+
+        /**
+         * The keymap id of the action: the i18n key of its <i>View → Panes</i> item, which shows the
+         * chord and whose shortcut the user can rebind.
+         */
+        @NotNull String actionId() {
+            return actionId;
         }
 
         /** The direction the focus moves in; {@code null} for {@link #SPLIT} and {@link #ZOOM}. */

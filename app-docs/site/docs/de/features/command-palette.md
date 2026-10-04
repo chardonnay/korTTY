@@ -21,7 +21,7 @@ Geben Sie einen Teil des Befehlsnamens ein. Die Buchstaben müssen in dieser Rei
 - ein **Befehl**-Badge;
 - den Namen des Befehls, wie ihn sein Menü anzeigt, gefolgt von seinem Menüpfad in Grau, zum Beispiel **Links andocken** Ansicht › Live-Journal;
 - ein Häkchen, wenn der Befehl eine aktivierte Einstellung ist, etwa **Dashboard anzeigen**;
-- sein Tastaturkürzel, falls er eines hat.
+- sein Tastaturkürzel, falls er eines hat, auch eines, das Sie selbst unter [Einstellungen → Tastatur](../reference/settings/keyboard.md) gewählt haben.
 
 Der Menüpfad wird ebenfalls durchsucht, wodurch gleichnamige Befehle unterscheidbar bleiben: `journal links` findet **Ansicht › Live-Journal › Links andocken**, und `datei links` findet **Ansicht › Dateibrowser › Links anzeigen**. Ein Treffer im Namen rangiert vor einem Treffer im Pfad, und unter gleich guten Treffern kommen die zuletzt gewählten Befehle zuerst.
 

@@ -145,6 +145,13 @@ public class GlobalSettings {
     @XmlElement
     private boolean tabSwitchMostRecentFirst = false;
 
+    // The user's own shortcuts for korTTY's actions, one "actionId=chord" or "actionId=none" entry per
+    // rebound action (the id is the action's menu i18n key). Parsed by KeymapOverrides, which skips
+    // unusable entries and ignores unknown actions; a settings file without it keeps every default.
+    @XmlElementWrapper(name = "keyBindingOverrides")
+    @XmlElement(name = "binding")
+    private java.util.List<String> keyBindingOverrides = new java.util.ArrayList<>();
+
     @XmlElement
     private boolean jobSchedulerMenuStatusEnabled = true; // Show JobScheduler status in the menu bar
 
@@ -1562,6 +1569,23 @@ public class GlobalSettings {
 
     public void setTabSwitchMostRecentFirst(boolean tabSwitchMostRecentFirst) {
         this.tabSwitchMostRecentFirst = tabSwitchMostRecentFirst;
+    }
+
+    /**
+     * The user's shortcut overrides as stored, {@code actionId=chord} or {@code actionId=none}
+     * (never null). Read them through {@code KeymapOverrides.parse}.
+     */
+    public java.util.List<String> getKeyBindingOverrides() {
+        if (keyBindingOverrides == null) {
+            keyBindingOverrides = new java.util.ArrayList<>();
+        }
+        return keyBindingOverrides;
+    }
+
+    public void setKeyBindingOverrides(java.util.List<String> keyBindingOverrides) {
+        this.keyBindingOverrides = keyBindingOverrides != null
+            ? new java.util.ArrayList<>(keyBindingOverrides)
+            : new java.util.ArrayList<>();
     }
 
     public boolean isJobSchedulerMenuStatusEnabled() {

@@ -378,6 +378,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
     private TabPane mainTabPane;
 
+    // Keyboard page: built on first selection from the actions of the window that opened the dialog.
+    private Tab keyboardTab;
+    private KeyboardSettingsPage keyboardPage;
+    private Supplier<KeyboardSettingsModel.Catalog> keymapCatalogSource = () -> null;
+
     // SFTP settings
     private final CheckBox sftpAutoCloseEnabledCheck;
     private final Spinner<Integer> sftpAutoCloseMinutesSpinner;
@@ -3300,7 +3305,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Resources tab (opt-in JVM heap/GC profile)
         Tab resourcesTab = createResourcesTab();
 
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, exportTab, updatesTab, windowTab, resourcesTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
+        // Keyboard tab (rebind korTTY's shortcuts)
+        keyboardTab = createKeyboardTab();
+
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, exportTab, updatesTab, windowTab, keyboardTab, resourcesTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
         
         // These are fixed pixel sizes rather than content-derived ones, so they have to grow with
         // the UI font scale or the tabs would crowd inside an unchanged frame. scaleDimension caps
@@ -3324,6 +3332,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Buttons
         ButtonType saveButtonType = new ButtonType(I18n.get("settings.save"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+        // Two actions on one shortcut cannot be saved: Save stays in the dialog and shows the
+        // Keyboard page, whose tab carries a red badge while a conflict lasts.
+        if (getDialogPane().lookupButton(saveButtonType) instanceof Button saveButton) {
+            saveButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+                if (keyboardPage != null && !keyboardPage.canSave()) {
+                    event.consume();
+                    mainTabPane.getSelectionModel().select(keyboardTab);
+                    keyboardPage.revealConflicts();
+                }
+            });
+        }
         
         setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
@@ -3681,6 +3700,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setConnectionColorBorderEnabled(connectionColorBorderCheck.isSelected());
             globalSettings.setTabTitleFromShellEnabled(tabTitleFromShellCheck.isSelected());
             globalSettings.setTabSwitchMostRecentFirst(tabSwitchMostRecentFirstCheck.isSelected());
+
+            // Save the shortcut overrides, only when the Keyboard page changed them: stored entries
+            // it does not show (another platform's, a newer version's) are kept as they are.
+            if (keyboardPage != null && keyboardPage.hasChanges()) {
+                globalSettings.setKeyBindingOverrides(keyboardPage.overrides().toEntries());
+            }
             
             // Save fixed geometry settings
             globalSettings.setUseFixedWindowGeometry(useFixedGeometryCheck.isSelected());
@@ -4084,7 +4109,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Runnable update = () -> {
             int index = tabPane.getSelectionModel().getSelectedIndex();
             int count = tabPane.getTabs().size();
-            Tab selected = tabPane.getSelectionModel().getSelectedItem();
+            // The tab at the selected index, not the selected item: selecting a tab sets the index
+            // first, and this runs from the index listener while the item is still the old tab.
+            Tab selected = index >= 0 && index < count ? tabPane.getTabs().get(index) : null;
             String title = selected != null ? selected.getText() : "";
             positionLabel.setText(SettingsSectionNavigation.positionLabel(title, index, count));
             previousButton.setDisable(!SettingsSectionNavigation.canGoPrevious(index));
@@ -4259,6 +4286,37 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         vbox.getChildren().addAll(themeList, buttons);
         
         LazyTabContent.defer(tab, () -> vbox);
+        return tab;
+    }
+
+    /**
+     * Where the Keyboard page takes its actions from: the menu bar of the window that opens the
+     * dialog ({@link KeymapSupport#catalog}). Read when the page is first shown, so it is set right
+     * after construction; without one the page says that shortcuts cannot be changed here.
+     */
+    void setKeymapCatalogSource(Supplier<KeyboardSettingsModel.Catalog> source) {
+        this.keymapCatalogSource = source != null ? source : () -> null;
+    }
+
+    /**
+     * Builds the Keyboard tab: korTTY's actions with their shortcuts, a recorder to rebind one,
+     * Remove, Reset and Reset All. The overrides are stored in the global settings on saving and
+     * applied to every open window at once (MainWindow.refreshKeymapInAllWindows).
+     */
+    private Tab createKeyboardTab() {
+        Tab tab = new Tab(I18n.get("settings.tab.keyboard"));
+        tab.setClosable(false);
+        LazyTabContent.defer(tab, () -> {
+            KeyboardSettingsModel.Catalog catalog = keymapCatalogSource.get();
+            if (catalog == null) {
+                return KeyboardSettingsPage.unavailable();
+            }
+            de.kortty.core.KeymapOverrides stored = de.kortty.core.KeymapOverrides.parse(
+                globalSettings != null ? globalSettings.getKeyBindingOverrides() : List.of());
+            keyboardPage = new KeyboardSettingsPage(new KeyboardSettingsModel(catalog, stored));
+            tab.setGraphic(keyboardPage.badge());
+            return keyboardPage.node();
+        });
         return tab;
     }
 

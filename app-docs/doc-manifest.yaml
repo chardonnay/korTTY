@@ -90,7 +90,7 @@ pages:
     last_synced_ref: "a4a2351c"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/monaco/completion.js, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/ui/TerminalNavigationKeys.java, src/main/java/de/kortty/ui/SceneShortcutRouter.java, src/main/java/de/kortty/ui/SceneShortcutKeys.java, src/main/java/de/kortty/ui/KeyTypedResidueGuard.java, src/main/java/de/kortty/ui/TabKeyboardShortcuts.java, src/main/java/de/kortty/ui/PaneShortcuts.java, src/main/java/de/kortty/ui/PaneNavigator.java]
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/monaco/completion.js, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/ui/TerminalNavigationKeys.java, src/main/java/de/kortty/ui/SceneShortcutRouter.java, src/main/java/de/kortty/ui/SceneShortcutKeys.java, src/main/java/de/kortty/ui/KeyTypedResidueGuard.java, src/main/java/de/kortty/ui/TabKeyboardShortcuts.java, src/main/java/de/kortty/ui/PaneShortcuts.java, src/main/java/de/kortty/ui/PaneNavigator.java, src/main/java/de/kortty/core/KeyChord.java, src/main/java/de/kortty/core/KeymapOverrides.java, src/main/java/de/kortty/ui/KeymapSupport.java, src/main/java/de/kortty/ui/RoutedChord.java]
     last_synced_ref: "a4a2351c"
 
   # ---- Reference: settings (one page per tab; each owns its settings.<tab>.) --
@@ -131,6 +131,12 @@ pages:
     screenshots:
       - settings/window.png
     last_synced_ref: "a4a2351c"
+  - path: app-docs/site/docs/en/reference/settings/keyboard.md
+    owns_i18n: [settings.keyboard.]
+    owns_code: [src/main/java/de/kortty/ui/KeyboardSettingsModel.java, src/main/java/de/kortty/ui/KeyboardSettingsPage.java, src/main/java/de/kortty/ui/KeymapSupport.java, src/main/java/de/kortty/core/KeymapOverrides.java, src/main/java/de/kortty/core/KeyChord.java, src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    screenshots:
+      - settings/keyboard.png
+    last_synced_ref: "e4cc14e2"
   - path: app-docs/site/docs/en/reference/settings/resources.md
     owns_i18n: [settings.resources.]
     owns_code: [src/main/java/de/kortty/model/JvmResourceProfile.java, src/main/java/de/kortty/JvmRelauncher.java]

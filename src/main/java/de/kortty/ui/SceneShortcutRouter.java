@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * The main window's one scene-level keyboard shortcut router.
@@ -33,7 +34,9 @@ import java.util.function.Predicate;
  * <p>Every new window-wide chord registers here. Its KeyCodeCombination constant stays in
  * MainWindow and is also set on its menu item for display, so MainWindowAcceleratorUniquenessTest
  * covers it. Chord predicates are pure functions of a {@link KeyPress}, which carries an explicit
- * macOS flag, so they are unit-tested without the JavaFX toolkit.
+ * macOS flag, so they are unit-tested without the JavaFX toolkit. A chord the user can rebind
+ * (a {@code KeymapOverrides} entry) is a {@link RoutedChord} instance field of MainWindow: its entry reads
+ * the chord in effect, and the residue that goes with it, on every key press.
  */
 final class SceneShortcutRouter {
 
@@ -55,6 +58,16 @@ final class SceneShortcutRouter {
      */
     SceneShortcutRouter consume(@NotNull Predicate<KeyPress> chord, @NotNull BooleanSupplier scope,
                                 @NotNull Runnable action, @NotNull Residue residue) {
+        Objects.requireNonNull(residue, "residue");
+        return consume(chord, scope, action, () -> residue);
+    }
+
+    /**
+     * {@link #consume(Predicate, BooleanSupplier, Runnable, Residue)} for a chord the user can rebind
+     * ({@link RoutedChord}): its residue is asked for each time the chord is consumed.
+     */
+    SceneShortcutRouter consume(@NotNull Predicate<KeyPress> chord, @NotNull BooleanSupplier scope,
+                                @NotNull Runnable action, @NotNull Supplier<Residue> residue) {
         entries.add(new Entry(chord, scope, action, Objects.requireNonNull(residue, "residue")));
         return this;
     }
@@ -100,7 +113,7 @@ final class SceneShortcutRouter {
                 continue;
             }
             event.consume();
-            residueGuard.arm(entry.residue());
+            residueGuard.arm(Objects.requireNonNull(entry.residue().get(), "residue"));
             return;
         }
     }
@@ -125,7 +138,7 @@ final class SceneShortcutRouter {
 
     /** A registered chord; a {@code null} residue marks an observer that does not consume. */
     private record Entry(Predicate<KeyPress> chord, BooleanSupplier scope, Runnable action,
-                         @Nullable Residue residue) {
+                         @Nullable Supplier<Residue> residue) {
     }
 
     /**

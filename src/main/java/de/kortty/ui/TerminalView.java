@@ -831,7 +831,8 @@ public class TerminalView extends BorderPane {
 
         // Quick select's key filters go first: while it runs, every key, its typed character and any
         // input-method text stay out of the panes (agent lock, broadcast mirror and shell included).
-        quickSelect = TerminalQuickSelectController.install(splitPane, MainWindow.quickSelectAccelerator());
+        // The chord is the one in effect, which the user may rebind while the tab is open.
+        quickSelect = TerminalQuickSelectController.install(splitPane, MainWindow::effectiveQuickSelectAccelerator);
 
         // Key handling at split-pane level runs before every pane: the agent input lock, the agent
         // shortcut and Ctrl+D come first. Navigation keys are encoded below, in each pane's own

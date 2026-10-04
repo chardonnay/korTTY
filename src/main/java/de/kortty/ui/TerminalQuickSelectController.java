@@ -46,6 +46,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Quick select for the panes of one terminal tab: on request it marks every URL, path, e-mail
@@ -85,14 +86,15 @@ final class TerminalQuickSelectController {
     private static final boolean MAC = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
 
     private final TerminalSplitPane splitPane;
-    private final @Nullable KeyCombination trigger;
+    private final Supplier<KeyCombination> trigger;
     private final QuickSelectInputGuard input = new QuickSelectInputGuard();
     private Consumer<String> copier = KorttyClipboard::setText;
     private @Nullable Shown shown;
 
-    private TerminalQuickSelectController(@NotNull TerminalSplitPane splitPane, @Nullable KeyCombination trigger) {
+    private TerminalQuickSelectController(@NotNull TerminalSplitPane splitPane,
+            @NotNull Supplier<KeyCombination> trigger) {
         this.splitPane = Objects.requireNonNull(splitPane, "splitPane");
-        this.trigger = trigger;
+        this.trigger = Objects.requireNonNull(trigger, "trigger");
     }
 
     /**
@@ -104,6 +106,15 @@ final class TerminalQuickSelectController {
      */
     static @NotNull TerminalQuickSelectController install(@NotNull TerminalSplitPane splitPane,
             @Nullable KeyCombination trigger) {
+        return install(splitPane, () -> trigger);
+    }
+
+    /**
+     * {@link #install(TerminalSplitPane, KeyCombination)} for the chord in effect, which the user can
+     * rebind while the pane is open: asked each time quick select starts; {@code null} for none.
+     */
+    static @NotNull TerminalQuickSelectController install(@NotNull TerminalSplitPane splitPane,
+            @NotNull Supplier<KeyCombination> trigger) {
         TerminalQuickSelectController controller = new TerminalQuickSelectController(splitPane, trigger);
         splitPane.addEventFilter(KeyEvent.KEY_PRESSED, controller::onKeyPressed);
         splitPane.addEventFilter(KeyEvent.KEY_TYPED, controller::onKeyTyped);
@@ -140,7 +151,7 @@ final class TerminalQuickSelectController {
             return false;
         }
         List<Hit> hits = QuickSelectScreen.capture(panel.getTerminalTextBuffer(), geometry.scrollOrigin(), geometry.rows());
-        QuickSelectSession session = QuickSelectSession.of(hits, QuickSelectLabels.DEFAULT_ALPHABET, trigger);
+        QuickSelectSession session = QuickSelectSession.of(hits, QuickSelectLabels.DEFAULT_ALPHABET, trigger.get());
         if (session.targets().isEmpty()) {
             showFeedback(panel, layer, null, I18n.get("terminal.quickSelect.noMatches"));
             return false;

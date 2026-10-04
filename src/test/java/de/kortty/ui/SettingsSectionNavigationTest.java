@@ -2,7 +2,13 @@ package de.kortty.ui;
 
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 class SettingsSectionNavigationTest {
 
@@ -47,5 +53,24 @@ class SettingsSectionNavigationTest {
         // Out-of-range index must not produce a nonsensical position like "9/3".
         assertThat(SettingsSectionNavigation.positionLabel("X", 8, 3)).isEqualTo("X");
         assertThat(SettingsSectionNavigation.positionLabel("X", 18, 18)).isEqualTo("X");
+    }
+
+    /**
+     * TabPane's selection model sets the selected index before the selected item, and the label is
+     * updated from the index listener: read from the selected item, it named the tab selected
+     * before ("Font (12/21)" on the Keyboard tab).
+     */
+    @Test
+    void theLabelNamesTheTabAtTheSelectedIndex() throws IOException {
+        String dialog = Files.readString(Path.of("src/main/java/de/kortty/ui/SettingsDialog.java"),
+            StandardCharsets.UTF_8).replace("\r\n", "\n");
+        int start = dialog.indexOf("private static Region buildSectionNavigationContent(TabPane tabPane) {");
+        assertThat(start).isAtLeast(0);
+        String body = dialog.substring(start, dialog.indexOf("\n    }\n", start));
+
+        assertThat(body).contains("Tab selected = index >= 0 && index < count ? tabPane.getTabs().get(index) : null;");
+        assertWithMessage("the selected item lags behind the index").that(body)
+            .doesNotContain("getSelectionModel().getSelectedItem()");
+        assertThat(body).contains("tabPane.getSelectionModel().selectedIndexProperty().addListener(");
     }
 }

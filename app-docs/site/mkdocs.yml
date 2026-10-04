@@ -132,6 +132,7 @@ nav:
           - reference/settings/colors.md
           - reference/settings/terminal.md
           - reference/settings/window.md
+          - reference/settings/keyboard.md
           - reference/settings/resources.md
           - reference/settings/logging.md
           - reference/settings/export.md
