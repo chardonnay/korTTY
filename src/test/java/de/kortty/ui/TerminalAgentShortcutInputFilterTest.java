@@ -3,6 +3,7 @@ package de.kortty.ui;
 import org.testng.annotations.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -153,6 +154,78 @@ class TerminalAgentShortcutInputFilterTest {
         filter.filter(bytes("\r"));
 
         assertThat(dispatched).containsExactly("agent price 5€");
+    }
+
+    @Test
+    void aMirroredAgentLineIsForwardedAndJournaledButStartsNoRun() throws IOException {
+        List<String> dispatched = new ArrayList<>();
+        List<String> intercepted = new ArrayList<>();
+        List<String> journaled = new ArrayList<>();
+        TerminalAgentShortcutInputFilter filter = new TerminalAgentShortcutInputFilter(
+            value -> value != null ? value.trim() : "",
+            raw -> false,
+            raw -> {
+                intercepted.add(raw);
+                return isAgentShortcut(raw);
+            },
+            dispatched::add,
+            journaled::add);
+
+        // Broadcast mode mirrors the keys one by one, the way they were typed in the source pane.
+        ByteArrayOutputStream forwarded = new ByteArrayOutputStream();
+        for (byte value : bytes("agent restart nginx\r")) {
+            forwarded.writeBytes(mirrored(filter, new byte[] {value}));
+        }
+
+        assertThat(forwarded.toByteArray()).isEqualTo(bytes("agent restart nginx\r"));
+        assertThat(dispatched).isEmpty();
+        assertThat(intercepted).isEmpty();
+        assertThat(journaled).containsExactly("agent restart nginx");
+    }
+
+    @Test
+    void aMirroredEnterLeavesTheNextTypedAgentLineToStartItsRun() throws IOException {
+        List<String> dispatched = new ArrayList<>();
+        TerminalAgentShortcutInputFilter filter = newFilter(false, dispatched);
+
+        assertThat(mirrored(filter, bytes("agent check disk\r\n"))).isEqualTo(bytes("agent check disk\r\n"));
+        assertThat(dispatched).isEmpty();
+
+        // Typed in this pane itself, the shortcut works as before.
+        filter.filter(bytes("agent check memory"));
+        assertThat(filter.filter(bytes("\r")))
+            .isEqualTo(new byte[] {TerminalAgentShortcutInputFilter.CLEAR_INPUT_LINE});
+        assertThat(dispatched).containsExactly("agent check memory");
+    }
+
+    @Test
+    void anAgentLineTypedHereButSubmittedByAMirroredEnterStartsNoRun() throws IOException {
+        List<String> dispatched = new ArrayList<>();
+        TerminalAgentShortcutInputFilter filter = newFilter(false, dispatched);
+
+        assertThat(filter.filter(bytes("agent explain"))).isEqualTo(bytes("agent explain"));
+        assertThat(mirrored(filter, bytes("\r"))).isEqualTo(bytes("\r"));
+
+        assertThat(dispatched).isEmpty();
+    }
+
+    @Test
+    void mirroredInputNeverStartsARunWhateverItCarries() throws IOException {
+        List<String> dispatched = new ArrayList<>();
+        TerminalAgentShortcutInputFilter filter = newFilter(false, dispatched);
+        // Bracketed-paste markers, an OSC sequence and the shortcut, all arriving mirrored.
+        String input = "agent \u001B[200~deploy\u001B[201~ now\u001B]0;title\u0007\r"
+            + "agent rollback\n";
+
+        assertThat(mirrored(filter, bytes(input))).isEqualTo(bytes(input));
+        assertThat(dispatched).isEmpty();
+    }
+
+    private static byte[] mirrored(TerminalAgentShortcutInputFilter filter, byte[] bytes) throws IOException {
+        byte[][] out = new byte[1][];
+        MirroredInput.run(() -> out[0] = filter.filter(bytes));
+        assertThat(MirroredInput.active()).isFalse();
+        return out[0];
     }
 
     private static TerminalAgentShortcutInputFilter newFilter(

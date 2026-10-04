@@ -89,7 +89,7 @@ class TerminalViewTunnelWiringTest {
         String view = source("TerminalView.java");
 
         for (String splitPath : new String[] {
-                "private @Nullable TtyConnector doCreateSameServerConnection() {",
+                "private @Nullable TtyConnector doCreateSameServerConnection(PaneOrigin origin) {",
                 "private @Nullable TtyConnector doCreateNewConnectionForSplit() {",
                 "private TtyConnector createConnectorForConnection("}) {
             String body = methodBody(view, splitPath);

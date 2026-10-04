@@ -688,3 +688,121 @@
 .list-cell.ai-skill-muted:selected {
     -fx-opacity: 0.75;
 }
+
+/*
+ * Split panes: a ring around the pane the keyboard is in, drawn by a region in the pane's
+ * DECORATION overlay layer (TerminalSplitPane), only while the tab has two or more panes. The
+ * region is unmanaged and draws its border inside its own bounds, so the terminal never resizes
+ * for it. The pane the menu commands act on keeps a dimmer ring while the keyboard is elsewhere,
+ * for example in another window. A design can override both colours on .kortty-pane-cell.
+ */
+.kortty-pane-cell {
+    -kortty-pane-focus-color: #38bdf8;
+    -kortty-pane-last-focus-color: rgba(56, 189, 248, 0.4);
+    -kortty-pane-badge-background: rgba(0, 0, 0, 0.72);
+    -kortty-pane-badge-text: #ffffff;
+    -kortty-pane-badge-mirror-color: #f59e0b;
+}
+
+.kortty-pane-focus-ring {
+    -fx-border-color: transparent;
+    -fx-border-width: 2;
+}
+
+.kortty-pane-cell:last-focused .kortty-pane-focus-ring {
+    -fx-border-color: -kortty-pane-last-focus-color;
+}
+
+.kortty-pane-cell:focus-within .kortty-pane-focus-ring {
+    -fx-border-color: -kortty-pane-focus-color;
+}
+
+/*
+ * A zoomed pane fills the tab alone and shows a badge at its top right, left of its close button:
+ * an icon and how many panes are hidden. While broadcast mode sends what you type on to hidden
+ * panes, the badge says how many and turns amber (:mirroring). It sits in the same DECORATION layer
+ * as the ring, so it never resizes the terminal and never takes a click.
+ */
+.kortty-pane-zoom-badge {
+    -fx-background-color: -kortty-pane-badge-background;
+    -fx-background-radius: 4;
+    -fx-border-color: transparent;
+    -fx-border-radius: 4;
+    -fx-border-width: 1;
+    -fx-text-fill: -kortty-pane-badge-text;
+    -fx-padding: 2 8 2 6;
+    -fx-graphic-text-gap: 6;
+    -fx-font-size: 0.8462em;
+}
+
+.kortty-pane-zoom-badge .kortty-pane-zoom-badge-icon {
+    -fx-fill: -kortty-pane-focus-color;
+}
+
+.kortty-pane-zoom-badge:mirroring {
+    -fx-border-color: -kortty-pane-badge-mirror-color;
+}
+
+.kortty-pane-zoom-badge:mirroring .kortty-pane-zoom-badge-icon {
+    -fx-fill: -kortty-pane-badge-mirror-color;
+}
+
+/*
+ * Multi-exec and broadcast mode: a pane whose typing goes to other panes shows an amber outline,
+ * just inside the focus ring so both show, and a badge at its top right ("Multi-exec" or
+ * "Broadcast"), left of the zoom badge on a zoomed pane. Both sit in the pane's DECORATION layer,
+ * so they never resize the terminal and never take a click.
+ */
+.kortty-pane-mirror-outline {
+    -fx-border-color: -kortty-pane-badge-mirror-color;
+    -fx-border-width: 2;
+    -fx-border-insets: 2;
+}
+
+.kortty-pane-mirror-badge {
+    -fx-background-color: -kortty-pane-badge-background;
+    -fx-background-radius: 4;
+    -fx-border-color: -kortty-pane-badge-mirror-color;
+    -fx-border-radius: 4;
+    -fx-border-width: 1;
+    -fx-text-fill: -kortty-pane-badge-text;
+    -fx-padding: 2 8 2 6;
+    -fx-graphic-text-gap: 6;
+    -fx-font-size: 0.8462em;
+}
+
+.kortty-pane-mirror-badge .kortty-pane-mirror-badge-icon {
+    -fx-fill: -kortty-pane-badge-mirror-color;
+}
+
+/*
+ * The same marker outside the panes: the icon in a tab's header, on a dashboard row, and the chip in
+ * every window's status bar while panes take part in multi-exec. The chip is amber with dark text on
+ * every theme; the selectors carry the status bar's class so a theme's label colour does not win.
+ */
+.tab-mirror-marker,
+.dashboard-multi-exec-mark {
+    -fx-fill: #f59e0b;
+}
+
+.status-bar .kortty-multi-exec-status {
+    -fx-background-color: #f59e0b;
+    -fx-background-radius: 4;
+    -fx-padding: 0 4 0 6;
+}
+
+.status-bar .kortty-multi-exec-status .kortty-multi-exec-status-icon {
+    -fx-fill: #1a1a1a;
+}
+
+.status-bar .kortty-multi-exec-status .kortty-multi-exec-status-text {
+    -fx-text-fill: #1a1a1a;
+}
+
+.status-bar .kortty-multi-exec-status .kortty-multi-exec-status-stop {
+    -fx-text-fill: #1a1a1a;
+    -fx-underline: true;
+    -fx-font-weight: bold;
+    -fx-padding: 0 2 0 2;
+    -fx-border-width: 0;
+}

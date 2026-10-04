@@ -1130,6 +1130,61 @@
 <td>Schieberegler (0–100 %), der den Terminalhintergrund auf dem Desktop durchscheinen lässt, während der Text scharf bleibt; Jeder geteilte Bereich erbt den Wert. Der Wert bleibt über Neustarts hinweg gespeichert; Der Vollbildmodus macht den Hintergrund des Terminals vorübergehend undurchsichtig und stellt den Wert wieder her, wenn Sie ihn verlassen. Das Ein- und Ausschalten erfordert einen Neustart. Die Statusleiste zeigt daher einen Hinweis an, wenn Sie diesen Schwellenwert überschreiten. Wird nur in der Menüleiste im Fenster angezeigt.</td>
 </tr>
 <tr>
+<td>Bereiche ▸ Bereich teilen</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
+<td>Teilen Sie den fokussierten Bereich des aktiven Terminal-Tabs auf dem eigenen Server dieses Bereichs, wie es <strong>Rechts teilen (gleicher Server)</strong> oder <strong>Unten teilen (gleicher Server)</strong> in seinem Rechtsklickmenü tut: Der neue Bereich kommt nach rechts, wenn der Bereich breit ist, und nach unten, wenn er hoch ist, und erhält den Tastaturfokus (siehe <a href="../features/terminal.html#vorgange-aufteilen">Vorgänge aufteilen</a>). Unter macOS ist die Taste <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
+</tr>
+<tr>
+<td>Bereiche ▸ Rechts teilen / Unten teilen</td>
+<td></td>
+<td>Teilen Sie den fokussierten Bereich auf dem eigenen Server dieses Bereichs, wobei der neue Bereich immer rechts / unten erscheint</td>
+</tr>
+<tr>
+<td>Bereiche ▸ Bereich schließen</td>
+<td></td>
+<td>Schließen Sie den fokussierten Bereich des aktiven Tabs ohne Nachfrage; die Tastatur wechselt in den ersten verbleibenden Bereich. Deaktiviert, solange der Tab nur einen Bereich hat</td>
+</tr>
+<tr>
+<td>Bereiche ▸ Zum Bereich links / rechts / darüber / darunter</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-arrow-left">Left</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-arrow-right">Right</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span></td>
+<td>Setzen Sie den Tastaturfokus auf den <a href="../features/terminal.html#vorgange-aufteilen">geteilten Bereich</a> auf dieser Seite des fokussierten Bereichs im aktiven Tab; am Rand des Tabs geschieht nichts. Verfügbar, solange der aktive Tab zwei oder mehr Bereiche hat. Unter macOS sind die Tasten <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-option">Option</kbd></span> mit einer Pfeiltaste</td>
+</tr>
+<tr>
+<td>Bereiche ▸ Nächster Bereich / Vorheriger Bereich</td>
+<td></td>
+<td>Setzen Sie den Tastaturfokus auf den nächsten oder vorherigen Bereich des aktiven Tabs; nach dem letzten geht es wieder von vorn los</td>
+</tr>
+<tr>
+<td>Bereiche ▸ Bereich maximieren</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span></td>
+<td>Lassen Sie den fokussierten Bereich des aktiven Tabs den ganzen Tab ausfüllen, oder zeigen Sie wieder alle seine Bereiche; das Häkchen zeigt, ob ein Bereich maximiert ist. Teilen, Schließen oder Verschieben eines Bereichs und das Wechseln des Fokus in einen anderen Bereich zeigen ebenfalls wieder alle Bereiche (siehe <a href="../features/terminal.html#vorgange-aufteilen">Vorgänge aufteilen</a>). Verfügbar, solange der aktive Tab zwei oder mehr Bereiche hat. Unter macOS ist die Taste <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span></td>
+</tr>
+<tr>
+<td>Bereiche ▸ Broadcast an alle Bereiche dieses Tabs</td>
+<td></td>
+<td>Schalten Sie den <a href="../features/terminal.html#broadcast-modus">Broadcast-Modus</a> des aktiven Tabs ein oder aus, wie es <em>Extras → Broadcast-Modus</em> im Rechtsklickmenü eines Bereichs tut; das Häkchen zeigt, ob er eingeschaltet ist. Zum Einschalten sind zwei oder mehr Bereiche nötig</td>
+</tr>
+<tr>
+<td>Multi-Exec ▸ Diesen Bereich einbeziehen</td>
+<td></td>
+<td>Lassen Sie den fokussierten Bereich des aktiven Terminal-Tabs an <a href="../features/terminal.html#multi-exec">Multi-Exec</a> teilnehmen, sodass das, was Sie darin tippen, auch an die anderen teilnehmenden Bereiche in jedem Tab und Fenster geht, oder nehmen Sie ihn wieder heraus; das Häkchen zeigt, ob er teilnimmt. <em>Extras → Multi-Exec: Diesen Bereich einbeziehen</em> im Rechtsklickmenü eines Bereichs tut dasselbe für diesen Bereich</td>
+</tr>
+<tr>
+<td>Multi-Exec ▸ Alle Bereiche dieses Tabs einbeziehen</td>
+<td></td>
+<td>Lassen Sie jeden Bereich des aktiven Terminal-Tabs an Multi-Exec teilnehmen, oder nehmen Sie alle heraus, wenn bereits alle teilnehmen; das Häkchen zeigt, ob sie teilnehmen. Das Rechtsklickmenü des Tabs hat denselben Eintrag</td>
+</tr>
+<tr>
+<td>Multi-Exec ▸ Alle Terminals dieses Fensters einbeziehen</td>
+<td></td>
+<td>Lassen Sie jeden Bereich jedes Terminal-Tabs dieses Fensters an Multi-Exec teilnehmen</td>
+</tr>
+<tr>
+<td>Multi-Exec ▸ Multi-Exec beenden</td>
+<td></td>
+<td>Nehmen Sie jeden Bereich jedes Fensters aus Multi-Exec heraus, wie es <strong>Beenden</strong> in der Statusleiste tut. Verfügbar, solange ein Bereich teilnimmt</td>
+</tr>
+<tr>
 <td>Hervorhebung ▸ Hervorhebung ein</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span></td>
 <td>Schalten Sie die <a href="../features/highlighting.html">Hervorhebung von Schlüsselwörtern</a> für den fokussierten Bereich des aktiven Tabs ein oder aus; beim Wiedereinschalten kehrt der Regelsatz zurück, den der Bereich zuletzt gezeigt hat. Gilt nur für die laufende Sitzung</td>
@@ -1237,7 +1292,7 @@
 <li><strong>Menüleisten-(Status-)Symbol</strong> – ein Taskleistensymbol mit <strong>Neues Fenster</strong> und <strong>Beenden</strong>; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.</li>
 </ul>
 <p>Beide bieten ein zuverlässiges <strong>Beenden</strong>, selbst wenn jedes Fenster geschlossen ist.</p>
-<p>Die Menüleiste oben auf dem Bildschirm bleibt ebenfalls bestehen, wenn Sie das letzte Fenster schließen, und solange kein korTTY-Fenster den Fokus hat, kann sie noch die Menüleiste eines Fensters sein, das Sie geschlossen haben. Ihre Einträge wirken dann im zuletzt verwendeten korTTY-Fenster, das in den Vordergrund kommt, oder öffnen zuerst ein neues Fenster, wenn keines geöffnet ist: <strong>Neuer Tab</strong> öffnet dort die Schnellverbindung, <strong>Verbindungen verwalten...</strong> den Connection-Manager. <strong>Neues Fenster</strong>, <strong>Beenden</strong>, <strong>Ruhezustand verhindern</strong> und das Abbrechen eines laufenden Jobs brauchen kein Fenster. <strong>Tab schließen</strong>, <strong>Alle Tabs schließen</strong>, <strong>Fenster schließen</strong>, <strong>Ausschneiden</strong>, <strong>Kopieren</strong> und <strong>Einfügen</strong> bewirken aus der Menüleiste eines geschlossenen Fensters nichts, sodass sie nie einen Tab schließen oder in ein Fenster einfügen, das Sie gerade nicht sehen.</p></p>
+<p>Die Menüleiste oben auf dem Bildschirm bleibt ebenfalls bestehen, wenn Sie das letzte Fenster schließen, und solange kein korTTY-Fenster den Fokus hat, kann sie noch die Menüleiste eines Fensters sein, das Sie geschlossen haben. Ihre Einträge wirken dann im zuletzt verwendeten korTTY-Fenster, das in den Vordergrund kommt, oder öffnen zuerst ein neues Fenster, wenn keines geöffnet ist: <strong>Neuer Tab</strong> öffnet dort die Schnellverbindung, <strong>Verbindungen verwalten...</strong> den Connection-Manager. <strong>Neues Fenster</strong>, <strong>Beenden</strong>, <strong>Ruhezustand verhindern</strong>, <strong>Multi-Exec beenden</strong> und das Abbrechen eines laufenden Jobs brauchen kein Fenster. <strong>Tab schließen</strong>, <strong>Alle Tabs schließen</strong>, <strong>Fenster schließen</strong>, <strong>Bereich schließen</strong>, <strong>Ausschneiden</strong>, <strong>Kopieren</strong>, <strong>Einfügen</strong>, <strong>Broadcast an alle Bereiche dieses Tabs</strong> und die drei Einträge <strong>… einbeziehen</strong> von <em>Ansicht → Multi-Exec</em> bewirken aus der Menüleiste eines geschlossenen Fensters nichts, sodass sie in einem Fenster, das Sie gerade nicht sehen, nie einen Tab oder Bereich schließen, nichts einfügen und nicht ändern, wohin Ihre Eingabe geht.</p></p>
     </article>
 </section>
             <!-- endblock -->

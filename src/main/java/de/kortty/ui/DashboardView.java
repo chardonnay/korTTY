@@ -24,6 +24,7 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
@@ -133,7 +134,9 @@ public class DashboardView extends VBox {
         CLOSE,
         FOCUS,
         SFTP_MANAGER,
-        DUPLICATE
+        DUPLICATE,
+        /** Every pane of the tab joins multi-exec, or leaves when all of them take part. */
+        TOGGLE_MULTI_EXEC
     }
 
     /** Pane-level actions of agent rows; routed through {@link PaneActionHandler}. */
@@ -142,7 +145,9 @@ public class DashboardView extends VBox {
         OPEN_PANEL,
         SEND_ENTER,
         SEND_ESC,
-        INTERRUPT
+        INTERRUPT,
+        /** The pane joins multi-exec, or leaves it. */
+        TOGGLE_MULTI_EXEC
     }
 
     /**
@@ -971,6 +976,8 @@ public class DashboardView extends VBox {
         private final Label agentChipDuration = new Label();
         private final HBox agentChip = new HBox(4, agentChipLabel, agentChipDuration);
         private final Label rollupChip = new Label();
+        /** Marks a pane row that takes part in multi-exec, or a connection row with such a pane. */
+        private final SVGPath multiExecMark = new SVGPath();
         private final HBox rowBox = new HBox(6);
         private final Tooltip rowTooltip = new Tooltip();
 
@@ -990,6 +997,11 @@ public class DashboardView extends VBox {
             agentChipDuration.setVisible(false);
             agentChipDuration.setManaged(false);
             rollupChip.getStyleClass().add("dashboard-rollup-chip");
+            multiExecMark.setContent(com.sithtermfx.ui.split.TerminalSplitPane.MIRROR_ICON_PATH);
+            multiExecMark.getStyleClass().add(MULTI_EXEC_MARK_STYLE_CLASS);
+            multiExecMark.setAccessibleText(I18n.get(com.sithtermfx.ui.split.TerminalSplitPane.MULTI_EXEC_BADGE_KEY));
+            multiExecMark.setVisible(false);
+            multiExecMark.setManaged(false);
             rowBox.setAlignment(Pos.CENTER_LEFT);
             rowBox.getStyleClass().add("dashboard-row");
         }
@@ -1059,7 +1071,8 @@ public class DashboardView extends VBox {
                     setAccentClass(accentClassOf(chip));
 
                     rowBox.getStyleClass().remove("dashboard-node-header");
-                    rowBox.getChildren().setAll(iconPane, statusDot, nameLabel, protocolBadge, agentBadge, agentChip);
+                    rowBox.getChildren().setAll(iconPane, statusDot, nameLabel, protocolBadge, multiExecMark,
+                            agentBadge, agentChip);
                     rowTooltip.setText(tooltipTextFor(item, state, entry));
                     setTooltip(rowTooltip);
                 } else {
@@ -1089,6 +1102,14 @@ public class DashboardView extends VBox {
                 lastState = state;
                 lastLegacy = legacy;
                 lastDuration = null;
+            }
+
+            // Multi-exec membership changes without a new item; checked on every pass (the 1s tick and
+            // refreshRows), and the node is touched only when it changed.
+            boolean multiExec = leaf && multiExecMarked(item);
+            if (multiExecMark.isVisible() != multiExec) {
+                multiExecMark.setVisible(multiExec);
+                multiExecMark.setManaged(multiExec);
             }
 
             // 1s tick: only the cached duration String is compared (by identity) and set on change.
@@ -1172,6 +1193,22 @@ public class DashboardView extends VBox {
                 focusPane.setOnAction(e -> firePaneAction(item, PaneAction.FOCUS));
                 contextMenu.getItems().add(focusPane);
             }
+            // Multi-exec from the dashboard: any pane of any window, without switching to it. The
+            // check mark is read when the menu opens; the members decide what the action does.
+            if (item.getType() == NodeType.PANE || item.getType() == NodeType.CONNECTION) {
+                boolean paneRow = item.getType() == NodeType.PANE;
+                CheckMenuItem multiExec = new CheckMenuItem(I18n.get(paneRow
+                        ? MultiExecMarkers.DASHBOARD_PANE_TOGGLE_KEY : MultiExecMarkers.TAB_TOGGLE_KEY));
+                multiExec.setOnAction(e -> {
+                    if (paneRow) {
+                        firePaneAction(item, PaneAction.TOGGLE_MULTI_EXEC);
+                    } else {
+                        actionHandler.accept(item.getTerminalTab(), DashboardAction.TOGGLE_MULTI_EXEC);
+                    }
+                });
+                contextMenu.getItems().addAll(new SeparatorMenuItem(), multiExec);
+                contextMenu.setOnShowing(e -> multiExec.setSelected(multiExecSelected(item)));
+            }
             if (entry != null) {
                 if (item.getType() != NodeType.PANE && !singleAgentConnection) {
                     contextMenu.getItems().add(new SeparatorMenuItem());
@@ -1205,6 +1242,40 @@ public class DashboardView extends VBox {
             }
             accentClass = styleClass;
         }
+    }
+
+    /** Style class of the multi-exec mark on a row. */
+    static final String MULTI_EXEC_MARK_STYLE_CLASS = "dashboard-multi-exec-mark";
+
+    /**
+     * Whether a row shows the multi-exec mark: a pane row whose pane takes part, a connection row of a
+     * tab with a pane that does.
+     */
+    private static boolean multiExecMarked(DashboardItem item) {
+        MultiExecCoordinator multiExec = MultiExecCoordinator.shared();
+        if (multiExec.memberCount() == 0) {
+            return false;
+        }
+        if (item.getType() == NodeType.PANE) {
+            return item.getWidget() != null && multiExec.isMember(item.getWidget());
+        }
+        TerminalTab tab = item.getTerminalTab();
+        return item.getType() == NodeType.CONNECTION && tab != null && tab.getTerminalView() != null
+                && tab.getTerminalView().multiExecMemberCount() > 0;
+    }
+
+    /**
+     * The check mark of a row's multi-exec item: whether the pane takes part, or for a connection row
+     * whether every pane of its tab does.
+     */
+    private static boolean multiExecSelected(DashboardItem item) {
+        MultiExecCoordinator multiExec = MultiExecCoordinator.shared();
+        if (item.getType() == NodeType.PANE) {
+            return item.getWidget() != null && multiExec.isMember(item.getWidget());
+        }
+        TerminalTab tab = item.getTerminalTab();
+        return tab != null && tab.getTerminalView() != null
+                && multiExec.includesAll(tab.getTerminalView().getOrderedWidgets());
     }
 
     /** Accent class matching a chip's variant; none for legacy, idle or absent chips. */
@@ -1354,6 +1425,16 @@ public class DashboardView extends VBox {
             return javafx.scene.paint.Color.web(cssColor).getBrightness() > 0.55;
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /**
+     * Redraws the rows in place, without rebuilding the tree, so selection and expansion stay: what
+     * a row marks besides its tree position changed, such as which panes take part in multi-exec.
+     */
+    public void refreshRows() {
+        if (!disposed) {
+            treeView.refresh();
         }
     }
 
