@@ -7,6 +7,9 @@ import de.kortty.core.AiPromptService;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiRequestTimeoutAware;
 import de.kortty.core.AiSkillPromptSupport;
+import de.kortty.core.AiStreamListener;
+import de.kortty.core.AiStreamProgress;
+import de.kortty.core.ThinkTagStreamSplitter;
 import de.kortty.core.LocalAiReplySupport;
 import de.kortty.core.AiSkillUsageTracker;
 import de.kortty.core.OpenAiCompatibleAiService;
@@ -88,9 +91,16 @@ public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsa
 
     @Override
     public AiExecutionResult execute(AiRequest request) throws Exception {
+        // The final reply is split after the delegate returns; streamed snapshots must be split
+        // before they reach the listener, or leaked thoughts would flash up as answer text.
+        AiStreamListener listener = request != null ? request.streamListener() : null;
+        AiRequest streamed = listener != null
+            ? request.withStreamListener(ThinkTagStreamSplitter.wrap(listener))
+            : request;
         return withDelegate(
-            delegate -> separateInlineReasoning(delegate.execute(request)),
-            request == null || request.action() != AiAction.GENERATE_SNIPPET_MERMAID);
+            delegate -> separateInlineReasoning(delegate.execute(streamed)),
+            request == null || request.action() != AiAction.GENERATE_SNIPPET_MERMAID,
+            listener);
     }
 
     @Override
@@ -162,10 +172,17 @@ public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsa
     }
 
     private <T> T withDelegate(DelegateCall<T> call) throws Exception {
-        return withDelegate(call, true);
+        return withDelegate(call, true, null);
     }
 
-    private <T> T withDelegate(DelegateCall<T> call, boolean retryReplyShapeFailures) throws Exception {
+    /**
+     * @param streamListener told to discard its snapshot before the one-shot retry; {@code null}
+     *     for the prompt paths, which never stream to a listener
+     */
+    private <T> T withDelegate(
+        DelegateCall<T> call,
+        boolean retryReplyShapeFailures,
+        AiStreamListener streamListener) throws Exception {
         LlamaRuntimeManager manager = runtimeManagerSupplier.get();
         if (manager == null) {
             throw new LlamaRuntimeException("llama.cpp runtime manager is not available.");
@@ -183,6 +200,7 @@ public final class EmbeddedLlamaAiService implements AiPromptService, AiSkillUsa
                 throw e;
             }
             logger.warn("Local llama-server request failed ({}); retrying once.", e.getMessage());
+            AiStreamProgress.restartQuietly(streamListener);
             return callWithLease(manager, call);
         }
     }

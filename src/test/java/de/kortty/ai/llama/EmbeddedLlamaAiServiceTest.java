@@ -7,6 +7,7 @@ import de.kortty.core.AiAction;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiSkillPromptSupport;
+import de.kortty.core.AiStreamListener;
 import de.kortty.core.OpenAiCompatibleAiService;
 import de.kortty.model.AiReasoningEffort;
 import org.testng.annotations.Test;
@@ -17,6 +18,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -366,6 +370,112 @@ class EmbeddedLlamaAiServiceTest {
 
             assertThat(failure.statusCode()).isEqualTo(400);
             assertThat(requests.get()).isEqualTo(1);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void localServerErrorRetryRestartsTheStreamListener() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        AtomicInteger requests = new AtomicInteger();
+        server.createContext("/v1/chat/completions", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            int attempt = requests.incrementAndGet();
+            if (attempt == 1) {
+                byte[] error = """
+                    {"error":{"code":500,"type":"server_error","message":"peg-native format"}}
+                    """.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "application/json");
+                exchange.sendResponseHeaders(500, error.length);
+                exchange.getResponseBody().write(error);
+            } else {
+                byte[] stream = ("data: {\"choices\":[{\"delta\":{\"content\":\"retried\"},"
+                    + "\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n").getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
+                exchange.sendResponseHeaders(200, stream.length);
+                exchange.getResponseBody().write(stream);
+            }
+            exchange.close();
+        });
+        server.start();
+
+        try (LlamaRuntimeManager manager = newManagerFor(server)) {
+            EmbeddedLlamaAiService service = new EmbeddedLlamaAiService(
+                "test-model", AiReasoningEffort.DISABLED, null, AiSkillPromptSupport.disabled(), manager);
+            List<String> events = Collections.synchronizedList(new ArrayList<>());
+            AiStreamListener listener = new AiStreamListener() {
+                @Override
+                public void onProgress(String contentSoFar, String reasoningSoFar) {
+                    events.add("progress:" + contentSoFar);
+                }
+
+                @Override
+                public void onRestart() {
+                    events.add("restart");
+                }
+
+                @Override
+                public void onComplete() {
+                    events.add("complete");
+                }
+            };
+
+            AiExecutionResult result = service.execute(
+                new AiRequest(AiAction.ASK, "sample", "terminal", "en").withStreamListener(listener));
+
+            assertThat(result.content()).isEqualTo("retried");
+            assertThat(requests.get()).isEqualTo(2);
+            assertThat(events).containsExactly("restart", "progress:retried", "complete").inOrder();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void inlineThinkTextNeverReachesTheStreamedContent() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/v1/chat/completions", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
+            exchange.sendResponseHeaders(200, 0);
+            for (String piece : new String[] {"<thi", "nk>weighing ", "the options</th", "ink>final ", "answer"}) {
+                exchange.getResponseBody().write(("data: {\"choices\":[{\"delta\":{\"content\":"
+                    + new com.google.gson.Gson().toJson(piece) + "}}]}\n\n").getBytes(StandardCharsets.UTF_8));
+                exchange.getResponseBody().flush();
+                try {
+                    Thread.sleep(60);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            exchange.getResponseBody().write(
+                "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+                    .getBytes(StandardCharsets.UTF_8));
+            exchange.close();
+        });
+        server.start();
+
+        try (LlamaRuntimeManager manager = newManagerFor(server)) {
+            EmbeddedLlamaAiService service = new EmbeddedLlamaAiService(
+                "test-model", AiReasoningEffort.DISABLED, null, AiSkillPromptSupport.disabled(), manager);
+            List<String> contents = Collections.synchronizedList(new ArrayList<>());
+            List<String> reasoning = Collections.synchronizedList(new ArrayList<>());
+
+            AiExecutionResult result = service.execute(
+                new AiRequest(AiAction.ASK, "sample", "terminal", "en").withStreamListener((content, thoughts) -> {
+                    contents.add(content);
+                    reasoning.add(thoughts);
+                }));
+
+            assertThat(result.content()).isEqualTo("final answer");
+            assertThat(contents.size()).isAtLeast(2);
+            for (String content : contents) {
+                assertThat(content).doesNotContain("weighing");
+                assertThat(content).doesNotContain("<");
+            }
+            assertThat(contents.get(contents.size() - 1)).isEqualTo("final answer");
+            assertThat(reasoning.get(reasoning.size() - 1)).isEqualTo("weighing the options");
         } finally {
             server.stop(0);
         }
