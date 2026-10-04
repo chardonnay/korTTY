@@ -95,7 +95,25 @@ On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so
 
 The paste keys go through [paste protection](../features/terminal.md#paste-protection): a paste with line breaks, with control characters or of a large size can open a confirmation first. In that dialog **Cancel** is the default button, so ++enter++, ++space++ and ++esc++ drop the paste; click **Paste**, or press ++tab++ to reach it and ++space++ to press it. While a paste is sent line by line ([Pause after each pasted line](../features/terminal.md#pasting-into-slow-devices)), the pane takes no other keys and ++esc++ stops the paste.
 
-Every other combination of ++shift++, ++ctrl++ and ++alt++ with the arrow keys, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ and ++f1++ to ++f11++ is sent the way xterm sends it (++f12++ always toggles fullscreen), for example ++ctrl+page-up++ as `ESC [ 5 ; 5 ~` and ++shift+f1++ as `ESC [ 1 ; 2 P`. The arrow keys follow the program's cursor-key mode: `mc` and `vim` switch it on and then receive `ESC O A`, while a shell receives `ESC [ A`. Connections with a non-xterm terminal emulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) keep sending fixed sequences without modifiers.
+Every other combination of ++shift++, ++ctrl++ and ++alt++ with the arrow keys, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ and ++f1++ to ++f11++ is sent the way xterm sends it (++f12++ always toggles fullscreen, and in a tab with two or more panes ++ctrl+alt++ with an arrow key moves the focus to another pane instead, see [Panes](#panes)), for example ++ctrl+page-up++ as `ESC [ 5 ; 5 ~` and ++shift+f1++ as `ESC [ 1 ; 2 P`. The arrow keys follow the program's cursor-key mode: `mc` and `vim` switch it on and then receive `ESC O A`, while a shell receives `ESC [ A`. Connections with a non-xterm terminal emulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) keep sending fixed sequences without modifiers.
+
+## Panes
+
+These keys split the active terminal tab, move the keyboard focus between its panes and zoom one of them; see [Split operations](../features/terminal.md#split-operations).
+
+| Shortcut | Action |
+| --- | --- |
+| ++ctrl+shift+o++ | Split the focused pane on that pane's own server: to the right when the pane is wide, below it when it is tall; the new pane gets the focus (++cmd+shift+o++ on macOS) |
+| ++ctrl+alt+left++ / ++ctrl+alt+right++ | Move the focus to the pane on the left / right (++cmd+option+left++ / ++cmd+option+right++ on macOS) |
+| ++ctrl+alt+up++ / ++ctrl+alt+down++ | Move the focus to the pane above / below (++cmd+option+up++ / ++cmd+option+down++ on macOS) |
+| ++ctrl+shift+enter++ | Zoom the focused pane so it fills the tab, or show all panes again (++cmd+shift+enter++ on macOS) |
+
+The split key works in every terminal tab while the keyboard is in it. On Windows and Linux it no longer reaches the shell, which received it as ++ctrl+o++; ++ctrl+o++ itself still does, so `nano` still saves with it.
+
+The focus keys and the zoom key act only while a terminal tab with two or more panes is active and the keyboard is in that tab; with a single pane they reach the program in the terminal as before, ++ctrl+shift+enter++ as ++enter++. At the edge of the tab the focus stays where it is. When several panes lie on that side, the focus goes to the one that lies beside the focused pane rather than only touching its corner, and among those to the nearest one. Moving the focus while a pane is zoomed shows all panes again. *View → Panes* has the same commands, **Split Right** and **Split Down** to choose the side of a split, **Close Pane**, **Zoom Pane**, and **Next Pane** and **Previous Pane**, which go through all panes of the tab and start over after the last one.
+
+!!! note "A desktop shortcut can take these keys first"
+    Some Linux desktops, such as GNOME, Xfce and Cinnamon, switch workspaces with ++ctrl+alt++ and an arrow key, and some Windows graphics drivers (Intel) rotate the screen with it, before korTTY sees the key. Use *View → Panes* there, or switch off the desktop's shortcut.
 
 ## SFTP Manager
 

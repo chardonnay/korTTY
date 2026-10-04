@@ -17,6 +17,8 @@ import de.kortty.KorTTYApplication;
 import de.kortty.codingagent.BracketedPasteTracker;
 import de.kortty.codingagent.CodingAgentMonitor;
 import de.kortty.codingagent.CodingAgentService;
+import de.kortty.codingagent.CodingAgentState;
+import de.kortty.codingagent.DetectionResult;
 import de.kortty.codingagent.LocalProcessInspector;
 import de.kortty.codingagent.PaneRef;
 import de.kortty.codingagent.TerminalScreenCapture;
@@ -166,10 +168,18 @@ public class TerminalView extends BorderPane {
     public static class ConnectionResult {
         public final ServerConnection connection;
         public final String password;
-        
+        /** The temporary SSH key the connection signs in with, or null. */
+        public final de.kortty.model.TemporarySSHKey temporarySSHKey;
+
         public ConnectionResult(ServerConnection connection, String password) {
+            this(connection, password, null);
+        }
+
+        public ConnectionResult(ServerConnection connection, String password,
+                                de.kortty.model.TemporarySSHKey temporarySSHKey) {
             this.connection = connection;
             this.password = password;
+            this.temporarySSHKey = temporarySSHKey;
         }
     }
 
@@ -315,7 +325,10 @@ public class TerminalView extends BorderPane {
     private final ConnectionSettings settings;
     private final String password;
     private de.kortty.model.TemporarySSHKey temporarySSHKey;  // For split connections with temporary key
-    
+    // The connection each split pane runs when it is not the tab's (a "new connection" split and
+    // the same-server splits made from it), so a same-server split opens on the pane's own server.
+    private final PaneOrigins<SithTermFxWidget, TtyConnector> paneOrigins = new PaneOrigins<>();
+
     private TerminalSplitPane splitPane;
     // Quick select (Edit > Quick Select): its key filters are the split pane's first.
     private TerminalQuickSelectController quickSelect;
@@ -591,6 +604,9 @@ public class TerminalView extends BorderPane {
         // Right-click context menu will show: Font size options + Split right/down + Close split
         splitPane = new TerminalSplitPane(providerFactory, connectorFactory, widget -> {
             registerPaneProvider(widget);
+            // Multi-exec can take in every pane; the supplier reads the field, because the first
+            // pane is set up inside the constructor, before splitPane is assigned.
+            MultiExecCoordinator.shared().register(widget, () -> splitPane);
             setupWidgetEventHandlers(widget);
             configurePlainTextLinks(widget);
             applyCursorShape(widget);
@@ -617,10 +633,13 @@ public class TerminalView extends BorderPane {
             }
         });
         // Telemetry: count broadcast toggles (never keystrokes — the data path stays uninstrumented).
-        splitPane.setOnBroadcastModeChanged(enabled ->
+        splitPane.setOnBroadcastModeChanged(enabled -> {
             de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.BROADCAST_TOGGLED, Map.of(
                 "enabled", enabled,
-                "split_count", splitPane != null ? splitPane.getWidgetCount() : 0)));
+                "split_count", splitPane != null ? splitPane.getWidgetCount() : 0));
+            // The tab marker and the status bars show broadcast mode next to multi-exec.
+            MultiExecCoordinator.shared().refreshMarkers();
+        });
         splitPane.setResetZoomCallback(this::resetZoom); // Reset zoom to connection or global default (not hardcoded 14)
         
         // Register extra context menu items: Theme, Reconnect, Timestamp toggle
@@ -759,8 +778,19 @@ public class TerminalView extends BorderPane {
         // filter (TerminalSplitPane.routeKeyPressed), which needs the real connector type.
         splitPane.setConnectorUnwrapper(this::unwrapTerminalEffectConnector);
         // A pane that is pacing a paste takes no keys, not even mirrored ones from broadcast mode,
-        // so none lands between two pasted lines; Esc stops the paste (PasteInputHold).
-        splitPane.setMirrorTargetGuard(widget -> !pastePacer.isPacing(widget));
+        // so none lands between two pasted lines; Esc stops the paste (PasteInputHold). Broadcast
+        // mode also leaves out a pane an AI agent run drives and one whose coding agent waits for a
+        // decision, where a mirrored "y" and Enter would answer it (MirrorTargetGuard), and sends a
+        // key typed at a password prompt only to the panes at one too (MirrorPasswordRule).
+        splitPane.setMirrorTargetGuard(MirrorTargetGuard.accepting(
+            pastePacer::isPacing, this::hasTerminalAgentRuns, this::codingAgentStateOf));
+        splitPane.setMirrorInputRule(source -> MirrorPasswordRule.receiversOf(
+            cursorLineOf(source), TerminalView::cursorLineOf));
+        // Multi-exec: the keys typed in a member pane go to the other members of every tab and
+        // window too, through the same guard (of the tab holding each target), password rule and
+        // per-pane encoding; Extras in a pane's context menu lets the pane join or leave.
+        splitPane.setInputMirror(MultiExecCoordinator.shared());
+        splitPane.setMirrorMenuItemsFactory(this::multiExecMenuItems);
         splitPane.addEventFilter(KeyEvent.KEY_TYPED, this::holdKeyWhilePacingPaste);
         splitPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.isConsumed() || holdKeyWhilePacingPaste(event)) {
@@ -1228,6 +1258,9 @@ public class TerminalView extends BorderPane {
             return;
         }
         gutterMap.remove(widget);
+        paneOrigins.forget(widget);
+        // A closed pane leaves multi-exec and is never mirrored into again.
+        MultiExecCoordinator.shared().forget(widget);
         lastTimestampLineByWidget.remove(widget);
         timestampHistoryByWidget.remove(widget);
         awaitingCommandCompletionByWidget.remove(widget);
@@ -2083,6 +2116,128 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * Moves the keyboard focus to the pane on {@code direction}'s side of the focused pane
+     * (Cmd+Option / Ctrl+Alt with an arrow key, <i>View → Panes</i>). FX thread.
+     *
+     * @return true when the focus moved; false at the edge or with a single pane
+     */
+    public boolean focusPane(PaneNavigator.PaneDirection direction) {
+        return splitPane != null && direction != null && splitPane.focusNeighbor(direction);
+    }
+
+    /**
+     * Moves the keyboard focus to the next ({@code forward}) or the previous pane of this tab,
+     * wrapping around (<i>View → Panes → Next Pane / Previous Pane</i>). FX thread.
+     *
+     * @return true when the focus moved; false with a single pane
+     */
+    public boolean focusNextPane(boolean forward) {
+        return splitPane != null && splitPane.focusNext(forward);
+    }
+
+    /**
+     * Zooms the focused pane so it fills the tab alone, or shows every pane again while one is zoomed
+     * (Cmd/Ctrl+Shift+Enter, <i>View → Panes → Zoom Pane</i>). Needs two or more panes. Splitting,
+     * closing or moving a pane and moving the focus to another pane show every pane again. FX thread.
+     *
+     * @return whether a pane is zoomed afterwards
+     */
+    public boolean toggleZoomPane() {
+        return splitPane != null && splitPane.toggleZoom();
+    }
+
+    /** Whether a pane of this tab is zoomed, filling the tab while the others are hidden. */
+    public boolean isPaneZoomed() {
+        return splitPane != null && splitPane.isZoomed();
+    }
+
+    /**
+     * Splits the focused pane on that pane's own server (Cmd/Ctrl+Shift+O, <i>View → Panes → Split
+     * Pane / Split Right / Split Down</i>), the same way as <i>Split Right (same server)</i> in its
+     * context menu: through the split connector factory, with its connect dialog and the tab's
+     * access-reason memory, to the server {@link PaneOrigins} recorded for the pane, else the tab's.
+     * The new pane gets the keyboard focus. FX thread; the connect dialog runs a nested event loop.
+     *
+     * @param side where the new pane goes, or null to choose from the focused pane's columns and rows
+     *     ({@link SplitOrientationChooser})
+     * @return the new pane, or empty when nothing was split (the connect failed or was cancelled)
+     */
+    Optional<SithTermFxWidget> splitFocusedPane(@Nullable SplitOrientationChooser.SplitSide side) {
+        SithTermFxWidget focused = getFocusedWidget();
+        if (splitPane == null || focused == null) {
+            return Optional.empty();
+        }
+        SplitOrientationChooser.SplitSide chosen = side != null ? side : automaticSplitSide(focused);
+        SithTermFxWidget created = splitPane.splitWidget(focused, SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL,
+            chosen.orientation(), null);
+        if (created != null) {
+            splitPane.focusWidget(created);
+        }
+        return Optional.ofNullable(created);
+    }
+
+    /** The side the automatic split puts a new pane on, from the pane's size in cells. */
+    private static SplitOrientationChooser.SplitSide automaticSplitSide(SithTermFxWidget pane) {
+        com.sithtermfx.core.model.TerminalTextBuffer buffer = pane.getTerminalTextBuffer();
+        return buffer != null
+            ? SplitOrientationChooser.choose(buffer.getWidth(), buffer.getHeight())
+            : SplitOrientationChooser.SplitSide.DOWN;
+    }
+
+    /**
+     * Closes the focused pane (<i>View → Panes → Close Pane</i>) as its × does, and gives the keyboard
+     * focus to the pane that is the focused one afterwards. FX thread.
+     *
+     * @return false when the tab has a single pane, which is never closed this way
+     */
+    boolean closeFocusedPane() {
+        if (!closePane(getFocusedWidget())) {
+            return false;
+        }
+        SithTermFxWidget next = getFocusedWidget();
+        if (next != null) {
+            splitPane.focusWidget(next);
+        }
+        return true;
+    }
+
+    /** Whether this tab's broadcast mode is on: keys typed in one pane go to its other panes too. */
+    public boolean isBroadcastMode() {
+        return splitPane != null && splitPane.isBroadcastMode();
+    }
+
+    /** Switches this tab's broadcast mode, as <i>Extras → Broadcast Mode</i> in a pane's context menu does. */
+    public void setBroadcastMode(boolean enabled) {
+        if (splitPane != null) {
+            splitPane.setBroadcastMode(enabled);
+        }
+    }
+
+    /** Whether {@code pane} is this tab's split pane; multi-exec counts the windows its members are in. */
+    boolean holdsSplitPane(@Nullable TerminalSplitPane pane) {
+        return pane != null && pane == splitPane;
+    }
+
+    /** How many of this tab's panes take part in {@link MultiExecCoordinator multi-exec}. */
+    public int multiExecMemberCount() {
+        return MultiExecCoordinator.shared().countIn(getOrderedWidgets());
+    }
+
+    /**
+     * <i>Extras → Multi-exec: Include This Pane</i> in a pane's context menu, below <b>Broadcast
+     * Mode</b>: its check mark shows whether the pane takes part, and choosing it lets the pane join or
+     * leave, decided from the members, not from the item, which JavaFX has already flipped.
+     */
+    private List<javafx.scene.control.MenuItem> multiExecMenuItems(SithTermFxWidget widget) {
+        MultiExecCoordinator multiExec = MultiExecCoordinator.shared();
+        javafx.scene.control.CheckMenuItem include =
+            new javafx.scene.control.CheckMenuItem(I18n.get(MultiExecMarkers.PANE_TOGGLE_KEY));
+        include.setSelected(multiExec.isMember(widget));
+        include.setOnAction(event -> multiExec.togglePane(widget));
+        return List.of(include);
+    }
+
+    /**
      * Whether the current session's transport died (network drop, server gone) rather than ending
      * through a normal remote exit. Drives keeping the tab open and the auto-reconnect trigger.
      */
@@ -2327,6 +2482,9 @@ public class TerminalView extends BorderPane {
             return null;
         }
         TtyConnector baseConnector = unwrapTerminalEffectConnector(connector);
+        // A connector built for a split on another server than the tab's brings that origin along;
+        // keyed by the base connector, so a later re-decoration of the same session keeps it.
+        paneOrigins.bind(widget, baseConnector);
         applyTerminalEmulation(widget, baseConnector);
         installAgentShortcutInputInterceptor(widget, baseConnector);
         installTerminalRecordingInputListener(baseConnector);
@@ -2695,8 +2853,10 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Creates a new SSH TtyConnector for a split terminal.
-     * Each split gets its own independent SSH session to the same server.
+     * Creates a new TtyConnector for a split terminal.
+     * Each split gets its own independent session: NEW_CONNECTION to a connection the user picks,
+     * SAME_SERVER_NEW_SHELL to the server of the pane being split, which for a pane opened with
+     * "new connection" is that pane's server rather than the tab's.
      * For the initial terminal (request == null), returns null - connection is made later via connect().
      */
     private @Nullable TtyConnector createSplitConnector(@Nullable SplitRequest request) {
@@ -2704,18 +2864,35 @@ public class TerminalView extends BorderPane {
         if (request == null) {
             return null;
         }
-        
+
         // NEW_CONNECTION asks the user for a new connection; SAME_SERVER_NEW_SHELL
-        // opens a new session to the same server.
-        TtyConnector connector = request.getSplitMode() == SplitRequest.SplitMode.NEW_CONNECTION
-            ? createNewConnectionForSplit()
-            : createSameServerConnection();
+        // opens a new session to the server of the pane being split.
+        TtyConnector connector;
+        if (request.getSplitMode() == SplitRequest.SplitMode.NEW_CONNECTION) {
+            connector = createNewConnectionForSplit();
+        } else {
+            // The new pane inherits the parent's origin: null (the tab's) records nothing, so it
+            // follows the tab like its parent.
+            PaneOrigin inherited = paneOrigins.recorded(request.getParentWidget());
+            connector = createSameServerConnection(PaneOrigin.resolve(inherited, tabOrigin()));
+            if (connector != null) {
+                paneOrigins.expect(connector, inherited);
+            }
+        }
         if (connector != null) {
             de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_SPLIT_CREATED, Map.of(
                 "mode", request.getSplitMode().name().toLowerCase(Locale.ROOT),
                 "split_count", (splitPane != null ? splitPane.getWidgetCount() : 0) + 1));
         }
         return connector;
+    }
+
+    /**
+     * The origin of every pane without one of its own: the tab's connection, password and temporary
+     * key as they are now.
+     */
+    private PaneOrigin tabOrigin() {
+        return new PaneOrigin(connection, password, temporarySSHKey);
     }
 
     private TtyConnector createConnectorForConnection(ServerConnection targetConnection, String targetPassword) {
@@ -2897,20 +3074,21 @@ public class TerminalView extends BorderPane {
     }
     
     /**
-     * Creates a new SSH connection to the same server (for same-server splits).
+     * Creates a new connection to the server of the pane being split (for same-server splits):
+     * {@code origin} is that pane's, which is the tab's unless the pane was split to another server.
      * Runs connect() in a background thread so the JavaFX thread stays responsive for
      * keyboard-interactive auth dialogs (e.g. CyberArk "reason for operation").
      * Ensures Stage/Label/ProgressIndicator and showAndWait() run on the FX Application Thread.
      */
-    private @Nullable TtyConnector createSameServerConnection() {
+    private @Nullable TtyConnector createSameServerConnection(PaneOrigin origin) {
         if (Platform.isFxApplicationThread()) {
-            return doCreateSameServerConnection();
+            return doCreateSameServerConnection(origin);
         }
         final TtyConnector[] result = new TtyConnector[1];
         try {
             java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
             Platform.runLater(() -> {
-                result[0] = doCreateSameServerConnection();
+                result[0] = doCreateSameServerConnection(origin);
                 latch.countDown();
             });
             latch.await();
@@ -2925,23 +3103,25 @@ public class TerminalView extends BorderPane {
      * Must be called on the JavaFX Application Thread. Creates UI (Stage, progress dialog),
      * starts connect() in a background thread, shows the dialog and waits for completion.
      */
-    private @Nullable TtyConnector doCreateSameServerConnection() {
+    private @Nullable TtyConnector doCreateSameServerConnection(PaneOrigin origin) {
+        ServerConnection target = origin.connection();
+        de.kortty.model.TemporarySSHKey targetKey = origin.temporaryKey();
         try {
             logger.info("Creating new SSH connection for split to {}@{}:{}",
-                    connection.getUsername(), connection.getHost(), connection.getPort());
+                    target.getUsername(), target.getHost(), target.getPort());
 
-            // Enterprise server policy. The tab passed it when it opened, but the connection
-            // editor changes a saved connection in place, so the host or jump server this tab now
+            // Enterprise server policy. The pane passed it when it opened, but the connection
+            // editor changes a saved connection in place, so the host or jump server this pane now
             // points at may have been edited to a blocked one since.
-            java.util.Optional<String> blocked = SplitConnectionPolicy.blockedTarget(connection);
+            java.util.Optional<String> blocked = SplitConnectionPolicy.blockedTarget(target);
             if (blocked.isPresent()) {
                 de.kortty.policy.PolicyUiSupport.showBlockedServerDialog(blocked.get());
                 return null;
             }
 
             // Check if using temporary SSH key and if it's still valid
-            if (temporarySSHKey != null) {
-                if (!temporarySSHKey.isValid()) {
+            if (targetKey != null) {
+                if (!targetKey.isValid()) {
                     logger.error("Temporary SSH key has expired - cannot create split connection");
                     javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
                         javafx.scene.control.Alert.AlertType.ERROR);
@@ -2951,11 +3131,11 @@ public class TerminalView extends BorderPane {
                     alert.showAndWait();
                     return null;
                 }
-                logger.debug("Using temporary SSH key for split (valid for {} more seconds)", 
-                    temporarySSHKey.getRemainingSeconds());
+                logger.debug("Using temporary SSH key for split (valid for {} more seconds)",
+                    targetKey.getRemainingSeconds());
             }
-            
-            TtyConnector newConnector = createConnectorForConnection(connection, password);
+
+            TtyConnector newConnector = createConnectorForConnection(target, origin.password());
             
             // Run connect() in background thread so JavaFX can show keyboard-interactive dialogs
             AtomicReference<Boolean> connectSuccess = new AtomicReference<>(false);
@@ -3139,6 +3319,9 @@ public class TerminalView extends BorderPane {
                 }
                 return null;
             }
+            // The new pane runs this connection, not the tab's: a same-server split of it opens here.
+            paneOrigins.expect(newConnector,
+                    new PaneOrigin(connResult.connection, connResult.password, connResult.temporarySSHKey));
             return newConnector;
         } catch (Exception e) {
             logger.error("Failed to create new connection for split: {}", e.getMessage(), e);
@@ -3913,6 +4096,20 @@ public class TerminalView extends BorderPane {
             return Optional.empty();
         }
         return Optional.ofNullable(codingAgentMonitors.get(widget));
+    }
+
+    /**
+     * The state of the coding agent {@code widget} shows, from its monitor's latest detection, or
+     * null when it shows none. The monitor publishes before the registry hears of it, so a pane is
+     * known to be blocked as early as possible.
+     */
+    private @Nullable CodingAgentState codingAgentStateOf(@Nullable SithTermFxWidget widget) {
+        CodingAgentMonitor monitor = widget != null ? codingAgentMonitors.get(widget) : null;
+        if (monitor == null) {
+            return null;
+        }
+        DetectionResult detection = monitor.current();
+        return detection != null && detection.agentDetected() ? detection.state() : null;
     }
 
     /** The widget whose monitor is identified by {@code pane}, if it belongs to this tab. */
@@ -6119,6 +6316,31 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * The text of the screen line the cursor of {@code widget} is on, read under the buffer lock, or
+     * null when there is none to read. Broadcast mode reads it per key to tell a password prompt
+     * ({@link MirrorPasswordRule}); it is one line, so the lock is held only briefly.
+     */
+    static @Nullable String cursorLineOf(@Nullable SithTermFxWidget widget) {
+        try {
+            Terminal terminal = widget != null ? widget.getTerminal() : null;
+            com.sithtermfx.core.model.TerminalTextBuffer buffer = widget != null ? widget.getTerminalTextBuffer() : null;
+            if (terminal == null || buffer == null) {
+                return null;
+            }
+            buffer.lock();
+            try {
+                int row = terminal.getCursorY() - 1; // the cursor is 1-based
+                return row >= 0 && row < buffer.getHeight() ? buffer.getLine(row).getText() : null;
+            } finally {
+                buffer.unlock();
+            }
+        } catch (RuntimeException e) {
+            logger.trace("Could not read the cursor line: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * Returns the current absolute cursor line (0-based over full history+screen buffer),
      * with bounds clamped to valid terminal rows to avoid transient out-of-bounds states.
      */
@@ -7984,7 +8206,8 @@ public class TerminalView extends BorderPane {
             
             if (splitPaneObj != null && leftCell != null && rightCell != null) {
                 Orientation ori = splitPaneObj.getOrientation();
-                double[] positions = splitPaneObj.getDividerPositions();
+                // Through the split pane: while a pane is zoomed, the control may show a reset divider.
+                double[] positions = splitPane.dividerPositionsOf(splitPaneObj);
                 double dividerPos = positions.length > 0 ? positions[0] : 0.5;
                 
                 de.kortty.model.SplitPaneState leftState = buildSplitState(leftCell, allWidgets);

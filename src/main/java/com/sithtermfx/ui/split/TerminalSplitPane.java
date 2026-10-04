@@ -11,12 +11,17 @@ import com.sithtermfx.ui.TerminalPanel;
 import com.sithtermfx.ui.TerminalWidgetListener;
 import com.sithtermfx.ui.settings.SettingsProvider;
 import javafx.application.Platform;
+import javafx.beans.binding.DoubleBinding;
+import javafx.beans.value.ChangeListener;
+import javafx.css.PseudoClass;
+import javafx.geometry.Bounds;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollBar;
@@ -35,10 +40,12 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.SVGPath;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KorttyTermWidget;
 import de.kortty.ui.MirroredInputWriter;
+import de.kortty.ui.PaneNavigator;
 import de.kortty.ui.TerminalLinkContextMenu;
 import de.kortty.ui.TerminalNavigationKeys;
 import de.kortty.ui.TerminalPaneActions;
@@ -52,8 +59,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
@@ -81,21 +90,121 @@ public class TerminalSplitPane extends StackPane {
 
     /**
      * The layers korTTY draws over one pane, from bottom to top, each one a {@link Pane} that
-     * {@link #paneOverlay} adds to the pane's wrapper on first use. A layer is unmanaged, so the
-     * wrapper never lays it out and the terminal never resizes because of it, and mouse-transparent,
-     * so every click and hover still reaches the terminal. Its {@link Node#getViewOrder() view order}
-     * keeps it above the terminal, the timestamp gutter, the agent panel and the effect overlays
-     * (all at view order 0), whenever any of them was added. It goes away with the pane.
+     * {@link #paneOverlay} adds to the pane's wrapper on first use. Below every layer, at view
+     * order 0, are the wrapper's own children: the terminal with its timestamp gutter and agent
+     * panel, the effect overlays and the close button. A layer is unmanaged, so the wrapper never
+     * lays it out and the terminal never resizes because of it, but it always has the wrapper's
+     * size; it is mouse-transparent, so every click, hover and drag still reaches the terminal and
+     * the wrapper's own handlers. Its {@link Node#getViewOrder() view order} keeps it above the
+     * wrapper's children and the layers declared before it, whatever was added to the wrapper
+     * later. It goes away with the pane.
      */
     public enum PaneOverlayLayer {
         /** The underline under a hovered terminal link, and quick select's boxes and labels. */
-        LINKS;
+        LINKS,
+        /**
+         * The ring around the pane the keyboard is in (with two or more panes), a zoomed pane's badge,
+         * and the outline and badge of a pane whose typing goes to other panes (multi-exec or
+         * broadcast mode).
+         */
+        DECORATION,
+        /** The drop zones shown while a pane is dragged onto this one to move it. */
+        DROP_ZONES;
 
         /** Below 0, and lower for a later layer, because JavaFX draws a lower view order on top. */
         public double viewOrder() {
             return -1.0 - ordinal();
         }
     }
+
+    /** Style class of every pane's wrapper, the node {@code :focus-within} is checked on. */
+    static final String PANE_CELL_STYLE_CLASS = "kortty-pane-cell";
+
+    /** Style class of the focus ring in a pane's {@link PaneOverlayLayer#DECORATION} layer. */
+    static final String FOCUS_RING_STYLE_CLASS = "kortty-pane-focus-ring";
+
+    /**
+     * Set on the wrapper of {@link #getFocusedWidget()}: the pane the menu commands act on keeps a
+     * dimmer ring while the keyboard is elsewhere, for example in another window.
+     */
+    static final PseudoClass LAST_FOCUSED = PseudoClass.getPseudoClass("last-focused");
+
+    /** A pane's accessible name with two or more panes: "Pane {0} of {1}". */
+    static final String PANE_ACCESSIBLE_NAME_KEY = "terminal.pane.accessibleName";
+
+    /** The zoom badge while no hidden pane gets the keys typed: "Zoomed · hidden panes: {0}". */
+    static final String ZOOMED_BADGE_KEY = "terminal.pane.zoomedBadge";
+
+    /**
+     * The zoom badge while broadcast mode sends the keys typed in the zoomed pane on to hidden panes:
+     * "Zoomed · hidden panes: {0}, receiving your input: {1}".
+     */
+    static final String ZOOMED_MIRROR_BADGE_KEY = "terminal.pane.zoomedMirrorBadge";
+
+    /**
+     * The note below <b>Broadcast Mode</b> in the context menu while the mirror guard holds panes:
+     * "Panes left out right now: {0} of {1}".
+     */
+    static final String BROADCAST_HELD_KEY = "terminal.contextMenu.broadcastHeld";
+
+    /** Style class of the badge in a zoomed pane's {@link PaneOverlayLayer#DECORATION} layer. */
+    static final String ZOOM_BADGE_STYLE_CLASS = "kortty-pane-zoom-badge";
+
+    /** Style class of the badge's icon, four corners pointing out. */
+    static final String ZOOM_BADGE_ICON_STYLE_CLASS = "kortty-pane-zoom-badge-icon";
+
+    /** Style class of the empty region that keeps a zoomed pane's place in its split control. */
+    static final String ZOOM_PLACEHOLDER_STYLE_CLASS = "kortty-pane-zoom-placeholder";
+
+    /** Set on the zoom badge while hidden panes receive the keys typed in the zoomed pane. */
+    static final PseudoClass MIRRORING = PseudoClass.getPseudoClass("mirroring");
+
+    /** The badge of a pane that takes part in multi-exec: "Multi-exec"; the dashboard's mark reads it too. */
+    public static final String MULTI_EXEC_BADGE_KEY = "terminal.pane.multiExecBadge";
+
+    /** The badge of each pane of a tab in broadcast mode: "Broadcast". */
+    static final String BROADCAST_BADGE_KEY = "terminal.pane.broadcastBadge";
+
+    /** Style class of the badge of a pane whose typing goes to other panes, in its DECORATION layer. */
+    static final String MIRROR_BADGE_STYLE_CLASS = "kortty-pane-mirror-badge";
+
+    /** Style class of that badge's icon. */
+    static final String MIRROR_BADGE_ICON_STYLE_CLASS = "kortty-pane-mirror-badge-icon";
+
+    /** Style class of the amber outline of a pane whose typing goes to other panes. */
+    static final String MIRROR_OUTLINE_STYLE_CLASS = "kortty-pane-mirror-outline";
+
+    /**
+     * A block that forks into three lines to its right, 10 by 10: what you type in one pane goes on to
+     * others. The pane badge, the tab marker, the dashboard and the status bar of multi-exec show it,
+     * so none of them is text and colour alone.
+     */
+    public static final String MIRROR_ICON_PATH =
+        "M0 3.5H3V6.5H0Z M3 4.4H5V5.6H3Z M5 0.8H6.2V9.2H5Z M6.2 0.8H10V2H6.2Z M6.2 4.4H10V5.6H6.2Z M6.2 8H10V9.2H6.2Z";
+
+    /** The gap between the mirror badge and a zoomed pane's badge right of it. */
+    private static final double MIRROR_BADGE_GAP = 6;
+
+    /** Four corners pointing out, 10 by 10: the badge's icon, so the badge is not text and colour alone. */
+    private static final String ZOOM_BADGE_ICON_PATH =
+        "M0 0H4V1.5H1.5V4H0Z M6 0H10V4H8.5V1.5H6Z M0 6H1.5V8.5H4V10H0Z M8.5 6H10V10H6V8.5H8.5Z";
+
+    /** The badge's distance from the right edge: it stays left of the pane's 18 px × and its 4 px margin. */
+    private static final double ZOOM_BADGE_RIGHT_INSET = 28;
+    private static final double ZOOM_BADGE_TOP_INSET = 4;
+
+    /** Reads and writes a JavaFX split control's dividers for {@link PaneZoom}. */
+    private static final PaneZoom.Dividers<SplitPane> SPLIT_PANE_DIVIDERS = new PaneZoom.Dividers<>() {
+        @Override
+        public double @NotNull [] positions(@NotNull SplitPane split) {
+            return split.getDividerPositions();
+        }
+
+        @Override
+        public void setPositions(@NotNull SplitPane split, double @NotNull [] positions) {
+            split.setDividerPositions(positions);
+        }
+    };
 
     private static final class ExtractResult {
         final SplitCell extracted;
@@ -118,6 +227,11 @@ public class TerminalSplitPane extends StackPane {
     private SplitCell rootCell;
     private SithTermFxWidget focusedWidget;
     private boolean broadcastMode = false;
+    // The zoomed pane and how to show the others again; both null while no pane is zoomed.
+    private @Nullable PaneZoom<Node, SplitPane> zoom;
+    private @Nullable SithTermFxWidget zoomedWidget;
+    // The badge in the zoomed pane's DECORATION layer, reused from one zoom to the next.
+    private @Nullable Label zoomBadge;
     // JavaFX creates a new themed SplitPane for every split level. Remember see-through mode so both
     // existing and future nested controls stay transparent instead of restoring the opaque theme.
     private boolean backgroundTransparent = false;
@@ -140,6 +254,10 @@ public class TerminalSplitPane extends StackPane {
     // Optional supplier of extra menu items to add to the context menu (e.g. timestamp toggle)
     private Function<SithTermFxWidget, List<MenuItem>> extraMenuItemsFactory;
 
+    // Optional supplier of the items below Broadcast Mode in the context menu's Extras submenu
+    // (the host app's multi-exec toggle).
+    private Function<SithTermFxWidget, List<MenuItem>> mirrorMenuItemsFactory;
+
     // Optional hook invoked when a widget is closed (split close or close-all) so owners can release
     // per-widget resources such as terminal-agent runs/panels.
     private Consumer<SithTermFxWidget> onWidgetClosed;
@@ -159,8 +277,23 @@ public class TerminalSplitPane extends StackPane {
     private UnaryOperator<TtyConnector> connectorUnwrapper = UnaryOperator.identity();
 
     // Mirror guard: decides whether a pane may receive broadcast input; the host app skips panes
-    // that must not get keys from other panes, such as one that is sending a paced paste.
+    // that must not get keys from other panes, such as one that is sending a paced paste or one an
+    // AI agent drives.
     private Predicate<SithTermFxWidget> mirrorTargetGuard = widget -> true;
+
+    // Mirror input rule: for one key typed in a pane, which of the panes the guard accepts may get
+    // it; the host app sends a key typed at a password prompt only to the panes at one too.
+    private Function<SithTermFxWidget, Predicate<SithTermFxWidget>> mirrorInputRule = source -> widget -> true;
+
+    // Input mirror: mirrors the keys typed in its member panes into its other members, in this tab
+    // and in other tabs and windows (multi-exec); null while there is none.
+    private @Nullable InputMirror inputMirror;
+
+    // The pane the last key was pressed in, and what the character of that key's KEY_TYPED may still
+    // mirror (BroadcastTargets.TypedMirror): set by routeKeyPressed, refined once the terminal saw
+    // the key, used up by the KEY_TYPED. One key at a time on the FX thread.
+    private @Nullable SithTermFxWidget typedMirrorPane;
+    private BroadcastTargets.TypedMirror typedMirror = BroadcastTargets.TypedMirror.PRINTABLE_ONLY;
 
     /** If set, called when user chooses "Reset" font size in context menu (e.g. to reset to connection/global default). */
     private Runnable resetZoomCallback;
@@ -207,34 +340,38 @@ public class TerminalSplitPane extends StackPane {
         getChildren().add(rootCell.getNode());
         refreshSplitCloseButtons();
         VBox.setVgrow(this, Priority.ALWAYS);
-        // Only allow pane-move drag with Shift+Alt/Option.
+        // Only allow pane-move drag with Shift+Alt/Option. A pane move needs the other panes to drop
+        // onto, so it shows a zoomed tab's panes again first.
         addEventFilter(MouseEvent.DRAG_DETECTED, event -> {
             if (rootCell == null || rootCell.countWidgets() <= 1) return;
             if (!(event.isShiftDown() && event.isAltDown())) {
                 event.consume();
+                return;
             }
+            unzoom();
         });
         refreshDragAndDrop();
     }
     
     /**
-     * Broadcasts input to all OTHER widgets (not the source widget) that the mirror guard accepts
-     * ({@link #setMirrorTargetGuard}). The writes are queued on
-     * {@link MirroredInputWriter}, so a pane whose connection stalls never blocks the FX thread.
+     * Mirrors input to the panes that receive it ({@link #mirrorReceivers}): in broadcast mode the
+     * tab's other panes, and for a member of the {@link InputMirror} its other members, also in other
+     * tabs and windows. The writes are queued on {@link MirroredInputWriter}, so a pane whose
+     * connection stalls never blocks the FX thread.
      */
     private void broadcastToOthers(@NotNull SithTermFxWidget sourceWidget, @NotNull String data) {
-        if (!broadcastMode) return;
-        
-        for (SithTermFxWidget widget : mirrorTargets(getAllWidgets(), sourceWidget, this::acceptsMirroredInput)) {
+        if (!isMirroring(sourceWidget)) return;
+
+        for (SithTermFxWidget widget : mirrorReceivers(sourceWidget)) {
             TtyConnector connector = widget.getTtyConnector();
-            if (connector != null && connector.isConnected()) {
+            if (connector != null) {
                 MirroredInputWriter.shared().write(connector, data);
             }
         }
     }
     
     /**
-     * Broadcasts input that each pane encodes for itself, e.g. an arrow key that one pane's
+     * Mirrors input that each pane encodes for itself, e.g. an arrow key that one pane's
      * application wants as {@code ESC O A} and another's as {@code ESC [ A}. A pane for which
      * {@code bytesFor} returns {@code null} gets nothing. The bytes are encoded here on the FX
      * thread, from each pane's state at the moment of the key press, and then queued on
@@ -244,11 +381,11 @@ public class TerminalSplitPane extends StackPane {
      */
     private void broadcastToOthers(@NotNull SithTermFxWidget sourceWidget,
                                    @NotNull Function<SithTermFxWidget, byte[]> bytesFor) {
-        if (!broadcastMode) return;
+        if (!isMirroring(sourceWidget)) return;
 
-        for (SithTermFxWidget widget : mirrorTargets(getAllWidgets(), sourceWidget, this::acceptsMirroredInput)) {
+        for (SithTermFxWidget widget : mirrorReceivers(sourceWidget)) {
             TtyConnector connector = widget.getTtyConnector();
-            if (connector == null || !connector.isConnected()) {
+            if (connector == null) {
                 continue;
             }
             byte[] bytes = bytesFor.apply(widget);
@@ -260,18 +397,106 @@ public class TerminalSplitPane extends StackPane {
     }
 
     /**
-     * The panes that get the input broadcast from {@code source}: every other pane the guard accepts,
-     * in the order given.
+     * Whether the keys typed in {@code widget} go to other panes as well: while this tab's broadcast
+     * mode is on, and while the pane is a member of the {@link InputMirror}.
      */
-    static <W> @NotNull List<W> mirrorTargets(@NotNull List<W> panes, @Nullable W source,
-                                              @NotNull Predicate<? super W> guard) {
-        List<W> targets = new ArrayList<>();
-        for (W pane : panes) {
-            if (pane != source && guard.test(pane)) {
-                targets.add(pane);
+    private boolean isMirroring(@NotNull SithTermFxWidget widget) {
+        return broadcastMode || isMirrorMember(widget);
+    }
+
+    /**
+     * The panes that get a key typed in {@code source} now: {@link #mirrorTargetsOf its targets},
+     * less those the source's mirror input rule ({@link #setMirrorInputRule}) keeps this key from.
+     * The rule is asked once per key, and only when there is a pane to send to.
+     */
+    private @NotNull List<SithTermFxWidget> mirrorReceivers(@NotNull SithTermFxWidget source) {
+        return BroadcastTargets.admit(mirrorTargetsOf(source), () -> {
+            Predicate<SithTermFxWidget> admitted = mirrorInputRuleFor(source);
+            return target -> admitsMirroredInput(admitted, target);
+        });
+    }
+
+    /**
+     * The panes the keys typed in {@code source} go to before any key rule ({@link BroadcastTargets}):
+     * the tab's other panes while broadcast mode is on, then the input mirror's other members while
+     * the source is one, each once, if it is connected and the guard of the split pane that holds it
+     * accepts it ({@link #setMirrorTargetGuard}).
+     */
+    private @NotNull List<SithTermFxWidget> mirrorTargetsOf(@NotNull SithTermFxWidget source) {
+        return BroadcastTargets.resolve(source, broadcastMode ? getAllWidgets() : List.of(),
+            mirrorMembersBesides(source), TerminalSplitPane::isConnected, this::acceptedByOwner);
+    }
+
+    /** Whether {@code widget} is a member of the input mirror; a failing mirror says no. */
+    private boolean isMirrorMember(@NotNull SithTermFxWidget widget) {
+        InputMirror mirror = inputMirror;
+        if (mirror == null) {
+            return false;
+        }
+        try {
+            return mirror.isMember(widget);
+        } catch (RuntimeException e) {
+            logger.debug("Input mirror failed, the pane's keys are not mirrored: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * The input mirror's members besides {@code source} while the source is one, else none; a failing
+     * mirror names none.
+     */
+    private @NotNull List<SithTermFxWidget> mirrorMembersBesides(@NotNull SithTermFxWidget source) {
+        InputMirror mirror = inputMirror;
+        if (mirror == null || !isMirrorMember(source)) {
+            return List.of();
+        }
+        try {
+            List<SithTermFxWidget> members = mirror.otherMembers(source);
+            return members != null ? members : List.of();
+        } catch (RuntimeException e) {
+            logger.debug("Input mirror failed, the key goes to no other member: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * The split pane that holds {@code widget}: this one for its own panes, else the one the input
+     * mirror names for a pane of another tab or window, or {@code null} when neither knows the pane.
+     */
+    private @Nullable TerminalSplitPane ownerOf(@NotNull SithTermFxWidget widget) {
+        if (holdsWidget(widget)) {
+            return this;
+        }
+        InputMirror mirror = inputMirror;
+        if (mirror == null) {
+            return null;
+        }
+        try {
+            return mirror.ownerOf(widget);
+        } catch (RuntimeException e) {
+            logger.debug("Input mirror failed, the pane's split pane is unknown: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /** Whether {@code widget} is one of this split pane's panes, by reference. */
+    private boolean holdsWidget(@NotNull SithTermFxWidget widget) {
+        for (SithTermFxWidget pane : getAllWidgets()) {
+            if (pane == widget) {
+                return true;
             }
         }
-        return targets;
+        return false;
+    }
+
+    /**
+     * Whether the mirror guard of the split pane that holds {@code widget} lets it receive mirrored
+     * input, so a pane of another tab is held back by its own tab's guard, such as while it paces a
+     * paste. A pane no split pane is known to hold gets nothing.
+     */
+    private boolean acceptedByOwner(@NotNull SithTermFxWidget widget) {
+        TerminalSplitPane owner = ownerOf(widget);
+        return owner != null && owner.acceptsMirroredInput(widget);
     }
 
     /** Whether the mirror guard lets {@code widget} receive broadcast input; a failing guard says no. */
@@ -282,6 +507,50 @@ public class TerminalSplitPane extends StackPane {
             logger.debug("Mirror guard failed, the pane gets no broadcast input: {}", e.getMessage());
             return false;
         }
+    }
+
+    /** The mirror input rule's answer for one key typed in {@code source}; a failing rule admits no pane. */
+    private @NotNull Predicate<SithTermFxWidget> mirrorInputRuleFor(@NotNull SithTermFxWidget source) {
+        try {
+            Predicate<SithTermFxWidget> admitted = mirrorInputRule.apply(source);
+            return admitted != null ? admitted : widget -> false;
+        } catch (RuntimeException e) {
+            logger.debug("Mirror input rule failed, the key goes to no other pane: {}", e.getMessage());
+            return widget -> false;
+        }
+    }
+
+    /** Whether {@code admitted} lets the key reach {@code target}; a failing answer says no. */
+    private static boolean admitsMirroredInput(@NotNull Predicate<SithTermFxWidget> admitted,
+                                               @NotNull SithTermFxWidget target) {
+        try {
+            return admitted.test(target);
+        } catch (RuntimeException e) {
+            logger.debug("Mirror input rule failed, the pane gets no broadcast input: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * How many panes of this tab broadcast mode leaves out now because the mirror guard holds them,
+     * such as a pane an AI agent drives; disconnected panes are not counted.
+     */
+    public int countHeldMirrorTargets() {
+        return BroadcastTargets.countHeld(getAllWidgets(), TerminalSplitPane::isConnected, this::acceptsMirroredInput);
+    }
+
+    /**
+     * Whether the mirror guard holds back {@code widget}, one of this split pane's panes, now: it is
+     * connected but gets no keys from other panes, as a pane does that paces a paste. False for a
+     * pane of another split pane. Multi-exec counts its members this way for the status bar.
+     */
+    public boolean isHeldMirrorTarget(@NotNull SithTermFxWidget widget) {
+        return holdsWidget(widget) && isConnected(widget) && !acceptsMirroredInput(widget);
+    }
+
+    private static boolean isConnected(@NotNull SithTermFxWidget widget) {
+        TtyConnector connector = widget.getTtyConnector();
+        return connector != null && connector.isConnected();
     }
 
     /** Broadcast bytes of the keys that are neither typed characters nor navigation keys. */
@@ -313,6 +582,9 @@ public class TerminalSplitPane extends StackPane {
      * </ul>
      */
     private void routeKeyPressed(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
+        // Until this key is known to reach the pane's program, its KEY_TYPED mirrors no control character.
+        typedMirrorPane = widget;
+        typedMirror = BroadcastTargets.TypedMirror.PRINTABLE_ONLY;
         if (event.isConsumed()) {
             return;
         }
@@ -321,24 +593,70 @@ public class TerminalSplitPane extends StackPane {
             return;
         }
         if (!TerminalNavigationKeys.isNavigationKey(event.getCode())) {
-            if (broadcastMode) {
-                String sequence = getControlSequence(event);
-                if (sequence != null) {
+            String sequence = getControlSequence(event);
+            if (sequence != null) {
+                // Enter, Backspace and Esc are mirrored here; whatever their KEY_TYPED carries is not.
+                typedMirror = BroadcastTargets.TypedMirror.NONE;
+                if (isMirroring(widget)) {
                     broadcastToOthers(widget, sequence);
                 }
+            } else if (isMirroring(widget)) {
+                // Copy and paste run in this pane only: the control character their KEY_TYPED still
+                // carries on Windows and Linux must not reach the other panes.
+                typedMirror = BroadcastTargets.TypedMirror.ofPress(runsPaneAction(widget, event));
             }
             return;
         }
+        typedMirror = BroadcastTargets.TypedMirror.NONE;
         if (TerminalNavigationKeys.isKorttyEncoded(widget.getEmulationType())
             && performsLocalScrollAction(widget, event)) {
             return;
         }
-        byte[] bytes = encodeNavigationKey(widget, event);
+        byte[] bytes = encodeKeyFor(widget, event);
         if (bytes == null || !sendToPane(widget, bytes)) {
             return;
         }
-        broadcastToOthers(widget, target -> encodeNavigationKey(target, event));
+        broadcastToOthers(widget, target -> encodeKeyFor(target, event));
         event.consume();
+    }
+
+    /**
+     * Records what the terminal did with a key pressed in {@code widget}. Runs on the canvas after
+     * SithTermFX's own key filter, which consumes a key it sent to the program (or ran an action on),
+     * so the key's KEY_TYPED mirrors a control character only when the pane sent one itself.
+     */
+    private void noteTerminalHandledKey(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
+        if (typedMirrorPane == widget) {
+            typedMirror = typedMirror.afterTerminal(event.isConsumed());
+        }
+    }
+
+    /**
+     * Whether the character of a KEY_TYPED event in {@code widget} goes to the panes that mirror it
+     * ({@link BroadcastTargets.TypedMirror}); the decision for the key pressed before it is used up.
+     */
+    private boolean mirrorsTypedCharacter(@NotNull SithTermFxWidget widget, char character) {
+        BroadcastTargets.TypedMirror decision = typedMirrorPane == widget
+            ? typedMirror : BroadcastTargets.TypedMirror.PRINTABLE_ONLY;
+        typedMirrorPane = null;
+        typedMirror = BroadcastTargets.TypedMirror.PRINTABLE_ONLY;
+        return decision.mirrors(character);
+    }
+
+    /**
+     * Whether SithTermFX runs an action of the pane on this key instead of sending it, such as copy or
+     * paste: the first action whose key combination matches decides, as in
+     * {@code TerminalAction.processEvent}, and it runs when it is enabled.
+     */
+    private static boolean runsPaneAction(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
+        try {
+            TerminalPanel panel = widget.getTerminalPanel();
+            TerminalAction action = panel != null ? firstMatchingAction(panel, event) : null;
+            return action != null && action.isEnabled(event);
+        } catch (RuntimeException e) {
+            logger.debug("Could not look up the pane action of a key: {}", e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -360,8 +678,9 @@ public class TerminalSplitPane extends StackPane {
     /**
      * Mirrors SithTermFX's key-action lookup ({@code TerminalAction.processEvent}): the first action
      * whose key combination matches decides. An enabled one (scrolling the scrollback) runs locally
-     * and the key is not sent. On the canvas SithTermFX's own key filter runs it; for a key aimed at
-     * the pane or the scroll bar that filter never runs, so it is performed here.
+     * and the key is neither sent nor mirrored ({@link BroadcastTargets#routeOf}). On the canvas
+     * SithTermFX's own key filter runs it; for a key aimed at the pane or the scroll bar that filter
+     * never runs, so it is performed here.
      *
      * @return true when the key was used for a local action and must not reach the application
      */
@@ -371,11 +690,10 @@ public class TerminalSplitPane extends StackPane {
             return false;
         }
         TerminalTextBuffer buffer = widget.getTerminalTextBuffer();
-        if (buffer != null && buffer.isUsingAlternateBuffer()) {
-            return false;
-        }
-        TerminalAction action = firstMatchingAction(panel, event);
-        if (action == null || !action.isEnabled(event)) {
+        boolean alternateScreen = buffer != null && buffer.isUsingAlternateBuffer();
+        TerminalAction action = alternateScreen ? null : firstMatchingAction(panel, event);
+        BooleanSupplier paneAction = action != null ? () -> action.isEnabled(event) : null;
+        if (BroadcastTargets.routeOf(alternateScreen, paneAction) != BroadcastTargets.KeyRoute.LOCAL_ACTION) {
             return false;
         }
         if (event.getTarget() == panel.getCanvas()) {
@@ -407,10 +725,22 @@ public class TerminalSplitPane extends StackPane {
     }
 
     /**
-     * The bytes a navigation key sends to one pane, from that pane's own emulation, cursor-key mode
-     * and connector, or {@code null} when the key is not sent to it.
+     * The bytes a navigation key sends to {@code target}, encoded for that pane's own program: from
+     * its emulation, its cursor-key mode and its connector, so an arrow reaches vim in application
+     * cursor mode as {@code ESC O A} and a shell as {@code ESC [ A}. A pane of another tab or window,
+     * which the {@link InputMirror} mirrors keys into, is encoded by the split pane that holds it,
+     * because only that one knows the decorators around its connector.
+     *
+     * @return the bytes, or {@code null} when the key is not sent to the pane, also for a pane that
+     *     neither this split pane nor the input mirror knows
      */
-    private byte @Nullable [] encodeNavigationKey(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
+    public byte @Nullable [] encodeKeyFor(@NotNull SithTermFxWidget target, @NotNull KeyEvent event) {
+        TerminalSplitPane owner = ownerOf(target);
+        return owner != null ? owner.encodeOwnPaneKey(target, event) : null;
+    }
+
+    /** {@link #encodeKeyFor} for one of this split pane's own panes, with its connector unwrapper. */
+    private byte @Nullable [] encodeOwnPaneKey(@NotNull SithTermFxWidget widget, @NotNull KeyEvent event) {
         KeyCode code = event.getCode();
         if (!TerminalNavigationKeys.isKorttyEncoded(widget.getEmulationType())) {
             return TerminalNavigationKeys.legacySequence(code);
@@ -539,23 +869,31 @@ public class TerminalSplitPane extends StackPane {
         var widgetPane = widget.getPane();
         
         widgetPane.addEventFilter(KeyEvent.KEY_TYPED, event -> {
-            if (!broadcastMode) return;
+            String character = event.getCharacter();
+            // Used up by every KEY_TYPED, mirrored or not, so it never applies to a later key.
+            boolean typedByPane = character != null && !character.isEmpty()
+                && mirrorsTypedCharacter(widget, character.charAt(0));
+            if (!isMirroring(widget)) return;
             // Meta/Cmd chords are shortcuts, not text (menu accelerators such as Cmd+Shift+D only
             // consume KEY_PRESSED; macOS still delivers the paired KEY_TYPED character here).
             if (event.isMetaDown()) return;
             // Search text typed into the find bar is not shell input.
             if (!isTerminalKeyTarget(widget, event.getTarget())) return;
-            String character = event.getCharacter();
-            if (character != null && !character.isEmpty()) {
-                char c = character.charAt(0);
-                if (c == '\r' || c == '\t' || c == '\u001B' || c == '\u007F') {
-                    return;
-                }
-                broadcastToOthers(widget, character);
+            // Only what this pane sends to its own program: not the control character that copy,
+            // paste or a menu shortcut leaves in the KEY_TYPED (BroadcastTargets.TypedMirror).
+            if (!typedByPane) return;
+            char c = character.charAt(0);
+            if (c == '\r' || c == '\t' || c == '\u001B' || c == '\u007F') {
+                return;
             }
+            broadcastToOthers(widget, character);
         });
-        
+
         widgetPane.addEventFilter(KeyEvent.KEY_PRESSED, event -> routeKeyPressed(widget, event));
+        if (panel != null && panel.getCanvas() != null) {
+            // After SithTermFX's key filter on the canvas, added when the widget was built.
+            panel.getCanvas().addEventFilter(KeyEvent.KEY_PRESSED, event -> noteTerminalHandledKey(widget, event));
+        }
     }
 
     private void requestWidgetFocus(@NotNull SithTermFxWidget widget) {
@@ -573,6 +911,14 @@ public class TerminalSplitPane extends StackPane {
 
     public void setExtraMenuItemsFactory(@Nullable Function<SithTermFxWidget, List<MenuItem>> factory) {
         this.extraMenuItemsFactory = factory;
+    }
+
+    /**
+     * Sets the items the context menu's <i>Extras</i> submenu shows below <b>Broadcast Mode</b> for a
+     * pane, built each time the menu opens; korTTY's multi-exec toggle goes there.
+     */
+    public void setMirrorMenuItemsFactory(@Nullable Function<SithTermFxWidget, List<MenuItem>> factory) {
+        this.mirrorMenuItemsFactory = factory;
     }
 
     /** Sets a hook invoked for each widget being closed (split close or close-all). */
@@ -605,16 +951,37 @@ public class TerminalSplitPane extends StackPane {
      */
     public @Nullable Pane paneOverlay(@Nullable SithTermFxWidget widget, @NotNull PaneOverlayLayer layer) {
         StackPane host = wrapperOf(widget);
-        if (host == null) {
-            return null;
-        }
-        if (host.getProperties().get(layer) instanceof Pane existing && existing.getParent() == host) {
+        return host != null ? overlayLayerOf(host, layer) : null;
+    }
+
+    /** The layer if the pane already has it; never creates one. */
+    private @Nullable Pane existingPaneOverlay(@Nullable SithTermFxWidget widget, @NotNull PaneOverlayLayer layer) {
+        StackPane host = wrapperOf(widget);
+        return host != null ? existingOverlayLayer(host, layer) : null;
+    }
+
+    /**
+     * The layer in {@code host}, a pane's wrapper, added on first use. It follows the wrapper's size,
+     * so a node of the layer can fill the pane; it is unmanaged, so that never resizes the terminal.
+     */
+    static @NotNull Pane overlayLayerOf(@NotNull StackPane host, @NotNull PaneOverlayLayer layer) {
+        Pane existing = existingOverlayLayer(host, layer);
+        if (existing != null) {
             return existing;
         }
         Pane created = createOverlayLayer(layer);
+        Bounds bounds = host.getLayoutBounds();
+        created.resize(bounds.getWidth(), bounds.getHeight());
+        host.layoutBoundsProperty().addListener((obs, oldBounds, newBounds) ->
+            created.resize(newBounds.getWidth(), newBounds.getHeight()));
         host.getProperties().put(layer, created);
         host.getChildren().add(created);
         return created;
+    }
+
+    private static @Nullable Pane existingOverlayLayer(@NotNull StackPane host, @NotNull PaneOverlayLayer layer) {
+        return host.getProperties().get(layer) instanceof Pane existing && existing.getParent() == host
+            ? existing : null;
     }
 
     /**
@@ -647,6 +1014,295 @@ public class TerminalSplitPane extends StackPane {
         return pane;
     }
 
+    /**
+     * The focus ring in a pane's {@link PaneOverlayLayer#DECORATION} layer, added on first use: a
+     * region as large as the layer, so as large as the pane, whose border the stylesheets draw while
+     * the pane has the keyboard focus ({@code .kortty-pane-cell:focus-within}) or is the pane the
+     * menu commands act on ({@code :last-focused}). Unmanaged and without padding, so showing it
+     * never resizes the terminal; mouse-transparent and not focusable.
+     */
+    static @NotNull Region focusRingOf(@NotNull Pane decorationLayer) {
+        return layerFillingRegion(decorationLayer, FOCUS_RING_STYLE_CLASS);
+    }
+
+    /** The focus ring of a decoration layer, or {@code null} while it has none. */
+    static @Nullable Region findFocusRing(@NotNull Pane decorationLayer) {
+        return findStyledRegion(decorationLayer, FOCUS_RING_STYLE_CLASS);
+    }
+
+    /**
+     * The amber outline in a pane's {@link PaneOverlayLayer#DECORATION} layer, added on first use:
+     * shown while what you type in the pane goes to other panes, through multi-exec or broadcast
+     * mode. Like the focus ring it is as large as the pane, unmanaged, without padding,
+     * mouse-transparent and not focusable; the stylesheets draw it just inside the ring, so both show.
+     */
+    static @NotNull Region mirrorOutlineOf(@NotNull Pane decorationLayer) {
+        return layerFillingRegion(decorationLayer, MIRROR_OUTLINE_STYLE_CLASS);
+    }
+
+    /** The mirror outline of a decoration layer, or {@code null} while it has none. */
+    static @Nullable Region findMirrorOutline(@NotNull Pane decorationLayer) {
+        return findStyledRegion(decorationLayer, MIRROR_OUTLINE_STYLE_CLASS);
+    }
+
+    /**
+     * The region with {@code styleClass} in {@code layer}, added on first use: as large as the layer
+     * and following its size, unmanaged, without padding, mouse-transparent and not focusable, so
+     * the stylesheets can draw a border over the pane's edge that never resizes the terminal.
+     */
+    private static @NotNull Region layerFillingRegion(@NotNull Pane layer, @NotNull String styleClass) {
+        Region existing = findStyledRegion(layer, styleClass);
+        if (existing != null) {
+            return existing;
+        }
+        Region region = new Region();
+        region.getStyleClass().add(styleClass);
+        region.setManaged(false);
+        region.setMouseTransparent(true);
+        region.setPickOnBounds(false);
+        region.setFocusTraversable(false);
+        region.resize(layer.getWidth(), layer.getHeight());
+        ChangeListener<Number> fit = (obs, oldSize, newSize) -> region.resize(layer.getWidth(), layer.getHeight());
+        layer.widthProperty().addListener(fit);
+        layer.heightProperty().addListener(fit);
+        layer.getChildren().add(region);
+        return region;
+    }
+
+    private static @Nullable Region findStyledRegion(@NotNull Pane layer, @NotNull String styleClass) {
+        for (Node child : layer.getChildren()) {
+            if (child instanceof Region region && region.getStyleClass().contains(styleClass)) {
+                return region;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A pane's accessible name: "Pane 2 of 3" with two or more panes, numbered in
+     * {@link #getAllWidgets()} order as the dashboard numbers them; {@code null} for a single pane.
+     *
+     * @param index the pane's position, from 0
+     */
+    static @Nullable String paneAccessibleName(int index, int paneCount) {
+        return paneCount > 1 ? I18n.get(PANE_ACCESSIBLE_NAME_KEY, index + 1, paneCount) : null;
+    }
+
+    /**
+     * Brings every pane's focus ring and accessible name up to date with the number of panes: both
+     * only with two or more panes, where they tell the panes apart. A zoomed pane fills the tab alone,
+     * so no pane shows a ring, the zoomed one shows the zoom badge instead, and its name says it is
+     * zoomed. A pane whose typing goes to other panes, as a member of the input mirror (multi-exec)
+     * or in a tab whose broadcast mode is on, shows an amber outline and a badge that says which, and
+     * its name says it too. Runs after every change to the tree, to the zoom, to broadcast mode and
+     * to the input mirror's members ({@link #refreshMirrorMarkers}), so a pane that joined gets them,
+     * the numbers follow a moved pane and the badges count the right panes.
+     */
+    private void refreshPaneDecorations() {
+        List<SithTermFxWidget> panes = getAllWidgets();
+        boolean several = panes.size() > 1;
+        int hiddenReceivers = zoomedWidget != null ? hiddenMirrorReceivers(zoomedWidget, panes) : 0;
+        String badgeText = zoomedWidget != null ? zoomBadgeText(panes.size() - 1, hiddenReceivers) : null;
+        List<String> mirrorTexts = new ArrayList<>(panes.size());
+        for (int i = 0; i < panes.size(); i++) {
+            SithTermFxWidget pane = panes.get(i);
+            String mirrorText = mirrorBadgeText(isMirrorMember(pane), broadcastMode && several);
+            mirrorTexts.add(mirrorText);
+            Pane decoration = several
+                ? paneOverlay(pane, PaneOverlayLayer.DECORATION)
+                : existingPaneOverlay(pane, PaneOverlayLayer.DECORATION);
+            Region ring = decoration == null ? null
+                : several ? focusRingOf(decoration) : findFocusRing(decoration);
+            if (ring != null) {
+                ring.setVisible(several && zoomedWidget == null);
+            }
+            TerminalPanel panel = pane.getTerminalPanel();
+            if (panel != null && panel.getCanvas() != null) {
+                String name = paneAccessibleName(i, panes.size());
+                String text = pane == zoomedWidget && name != null ? name + ", " + badgeText : name;
+                panel.getCanvas().setAccessibleText(joinAccessibleText(text, mirrorText));
+            }
+        }
+        refreshLastFocusedMarks();
+        refreshZoomBadge(badgeText, hiddenReceivers > 0);
+        // After the zoom badge, so a zoomed pane's mirror badge can sit left of it.
+        for (int i = 0; i < panes.size(); i++) {
+            refreshMirrorMarker(panes.get(i), mirrorTexts.get(i));
+        }
+    }
+
+    /**
+     * Redraws the outline and badge of every pane whose typing goes to other panes, and the zoom
+     * badge's count; the input mirror calls it when its members changed.
+     */
+    public void refreshMirrorMarkers() {
+        refreshPaneDecorations();
+    }
+
+    /**
+     * The badge of a pane whose typing goes to other panes: "Multi-exec" for a member of the input
+     * mirror, else "Broadcast" in a tab whose broadcast mode reaches other panes; {@code null} for a
+     * pane whose typing stays in it.
+     */
+    static @Nullable String mirrorBadgeText(boolean multiExecMember, boolean broadcasting) {
+        if (multiExecMember) {
+            return I18n.get(MULTI_EXEC_BADGE_KEY);
+        }
+        return broadcasting ? I18n.get(BROADCAST_BADGE_KEY) : null;
+    }
+
+    /** A pane's accessible text: its name, then its mirror badge, each left out when there is none. */
+    static @Nullable String joinAccessibleText(@Nullable String name, @Nullable String mirrorText) {
+        if (mirrorText == null) {
+            return name;
+        }
+        return name != null ? name + ", " + mirrorText : mirrorText;
+    }
+
+    /**
+     * Shows the outline and the badge with {@code text} on {@code pane}, or hides them for a
+     * {@code null} text. The badge sits at the top right, left of the pane's × or, on a zoomed pane,
+     * left of the zoom badge. Like the ring both are mouse-transparent and never resize the terminal.
+     */
+    private void refreshMirrorMarker(@NotNull SithTermFxWidget pane, @Nullable String text) {
+        Pane decoration = text != null
+            ? paneOverlay(pane, PaneOverlayLayer.DECORATION)
+            : existingPaneOverlay(pane, PaneOverlayLayer.DECORATION);
+        if (decoration == null) {
+            return;
+        }
+        Region outline = text != null ? mirrorOutlineOf(decoration) : findMirrorOutline(decoration);
+        if (outline != null) {
+            outline.setVisible(text != null);
+        }
+        Label badge = findMirrorBadge(decoration);
+        if (text == null) {
+            if (badge != null) {
+                badge.setVisible(false);
+            }
+            return;
+        }
+        if (badge == null) {
+            badge = createMirrorBadge();
+            decoration.getChildren().add(badge);
+        }
+        badge.setText(text);
+        badge.setVisible(true);
+        Label zoomed = pane == zoomedWidget ? zoomBadge : null;
+        DoubleBinding right = zoomed != null && zoomed.getParent() == decoration
+            ? zoomed.layoutXProperty().subtract(MIRROR_BADGE_GAP)
+            : decoration.widthProperty().subtract(ZOOM_BADGE_RIGHT_INSET);
+        badge.layoutXProperty().bind(right.subtract(badge.widthProperty()));
+    }
+
+    /** The mirror badge of a decoration layer, or {@code null} while it has none. */
+    private static @Nullable Label findMirrorBadge(@NotNull Pane decorationLayer) {
+        for (Node child : decorationLayer.getChildren()) {
+            if (child instanceof Label label && label.getStyleClass().contains(MIRROR_BADGE_STYLE_CLASS)) {
+                return label;
+            }
+        }
+        return null;
+    }
+
+    /** The mirror badge: an icon and a text, mouse-transparent and not focusable, styled by the stylesheets. */
+    private static @NotNull Label createMirrorBadge() {
+        SVGPath icon = new SVGPath();
+        icon.setContent(MIRROR_ICON_PATH);
+        icon.getStyleClass().add(MIRROR_BADGE_ICON_STYLE_CLASS);
+        Label badge = new Label();
+        badge.setGraphic(icon);
+        badge.getStyleClass().add(MIRROR_BADGE_STYLE_CLASS);
+        badge.setMouseTransparent(true);
+        badge.setFocusTraversable(false);
+        badge.setLayoutY(ZOOM_BADGE_TOP_INSET);
+        return badge;
+    }
+
+    /**
+     * The zoom badge's text: "Zoomed · hidden panes: 2", or while hidden panes receive the keys
+     * typed in the zoomed pane "Zoomed · hidden panes: 2, receiving your input: 2", so typing that
+     * reaches panes you cannot see never goes unnoticed.
+     */
+    static @NotNull String zoomBadgeText(int hiddenPanes, int hiddenReceivers) {
+        return hiddenReceivers > 0
+            ? I18n.get(ZOOMED_MIRROR_BADGE_KEY, hiddenPanes, hiddenReceivers)
+            : I18n.get(ZOOMED_BADGE_KEY, hiddenPanes);
+    }
+
+    /**
+     * How many of this tab's {@code panes} get the keys typed in the {@code zoomed} pane now, all of
+     * them hidden behind it: in broadcast mode, and as members of the input mirror while the zoomed
+     * pane is one ({@link #mirrorTargetsOf}). Panes the guard holds back are not counted, nor the
+     * mirror's members in other tabs, which the badge does not speak of.
+     */
+    private int hiddenMirrorReceivers(@NotNull SithTermFxWidget zoomed, @NotNull List<SithTermFxWidget> panes) {
+        int receivers = 0;
+        for (SithTermFxWidget target : mirrorTargetsOf(zoomed)) {
+            if (panes.contains(target)) {
+                receivers++;
+            }
+        }
+        return receivers;
+    }
+
+    /**
+     * Shows the zoom badge with {@code text} at the top right of the zoomed pane, left of its ×, or
+     * removes it while no pane is zoomed. Like the ring it is mouse-transparent and never resizes
+     * the terminal: the DECORATION layer is unmanaged.
+     *
+     * @param mirroring whether hidden panes receive the keys typed in the zoomed pane, which the
+     *     stylesheets mark with the {@link #MIRRORING} pseudo-class
+     */
+    private void refreshZoomBadge(@Nullable String text, boolean mirroring) {
+        Label badge = zoomBadge;
+        Pane decoration = zoomedWidget != null && text != null
+            ? paneOverlay(zoomedWidget, PaneOverlayLayer.DECORATION)
+            : null;
+        if (badge != null && badge.getParent() instanceof Pane parent && parent != decoration) {
+            badge.layoutXProperty().unbind();
+            parent.getChildren().remove(badge);
+        }
+        if (decoration == null) {
+            return;
+        }
+        if (badge == null) {
+            badge = createZoomBadge();
+            zoomBadge = badge;
+        }
+        badge.setText(text);
+        badge.pseudoClassStateChanged(MIRRORING, mirroring);
+        if (badge.getParent() != decoration) {
+            badge.layoutXProperty().bind(decoration.widthProperty().subtract(badge.widthProperty())
+                .subtract(ZOOM_BADGE_RIGHT_INSET));
+            decoration.getChildren().add(badge);
+        }
+    }
+
+    /** The zoom badge: an icon and a text, mouse-transparent and not focusable, styled by the stylesheets. */
+    private static @NotNull Label createZoomBadge() {
+        SVGPath icon = new SVGPath();
+        icon.setContent(ZOOM_BADGE_ICON_PATH);
+        icon.getStyleClass().add(ZOOM_BADGE_ICON_STYLE_CLASS);
+        Label badge = new Label();
+        badge.setGraphic(icon);
+        badge.getStyleClass().add(ZOOM_BADGE_STYLE_CLASS);
+        badge.setMouseTransparent(true);
+        badge.setFocusTraversable(false);
+        badge.setLayoutY(ZOOM_BADGE_TOP_INSET);
+        return badge;
+    }
+
+    /** Marks the wrapper of {@link #focusedWidget}, and only that one, {@link #LAST_FOCUSED}. */
+    private void refreshLastFocusedMarks() {
+        for (SithTermFxWidget pane : getAllWidgets()) {
+            StackPane wrapper = wrapperOf(pane);
+            if (wrapper != null) {
+                wrapper.pseudoClassStateChanged(LAST_FOCUSED, pane == focusedWidget);
+            }
+        }
+    }
+
     private void notifyWidgetSplitCreated(@Nullable SithTermFxWidget widget, @NotNull SplitRequest request) {
         if (onWidgetSplitCreated != null && widget != null) {
             try {
@@ -676,6 +1332,29 @@ public class TerminalSplitPane extends StackPane {
      */
     public void setMirrorTargetGuard(@Nullable Predicate<SithTermFxWidget> guard) {
         this.mirrorTargetGuard = guard != null ? guard : widget -> true;
+    }
+
+    /**
+     * Sets the mirror input rule: for a key typed in a pane, {@code rule} returns which of the other
+     * panes the mirror guard accepts may get that key. It is asked once per key, on the FX thread,
+     * before the key reaches the pane it was typed in. Null lets every such pane get every key, the
+     * default.
+     */
+    public void setMirrorInputRule(@Nullable Function<SithTermFxWidget, Predicate<SithTermFxWidget>> rule) {
+        this.mirrorInputRule = rule != null ? rule : source -> widget -> true;
+    }
+
+    /**
+     * Sets the input mirror: the keys typed in one of its members go to its other members as well,
+     * in this tab and in other tabs and windows, through the same guards, key rule and per-pane
+     * encoding as broadcast mode. Null, the default, mirrors nothing beyond broadcast mode.
+     */
+    public void setInputMirror(@Nullable InputMirror mirror) {
+        this.inputMirror = mirror;
+        if (zoomedWidget != null) {
+            // The zoom badge says whether the hidden panes get the keys typed in the zoomed one.
+            refreshPaneDecorations();
+        }
     }
 
     /**
@@ -869,7 +1548,32 @@ public class TerminalSplitPane extends StackPane {
         broadcastToggle.setOnAction(e -> setBroadcastMode(broadcastToggle.isSelected()));
         broadcastToggle.setDisable(rootCell.countWidgets() <= 1);
         extrasMenu.getItems().addAll(splitMenu, fontMenu, new SeparatorMenuItem(), broadcastToggle);
+        String held = broadcastMode ? heldMirrorTargetsText(countHeldMirrorTargets(), getWidgetCount()) : null;
+        if (held != null) {
+            // Information, not a command: why what you type does not show up in some panes.
+            MenuItem heldInfo = new MenuItem(held);
+            heldInfo.setDisable(true);
+            extrasMenu.getItems().add(heldInfo);
+        }
+        if (mirrorMenuItemsFactory != null) {
+            try {
+                List<MenuItem> mirrorItems = mirrorMenuItemsFactory.apply(widget);
+                if (mirrorItems != null) {
+                    extrasMenu.getItems().addAll(mirrorItems);
+                }
+            } catch (RuntimeException e) {
+                logger.debug("Mirror menu items failed: {}", e.getMessage());
+            }
+        }
         return extrasMenu;
+    }
+
+    /**
+     * The note below <b>Broadcast Mode</b> while broadcast mode leaves panes out, such as
+     * "Panes left out right now: 1 of 3", or null while it leaves none out.
+     */
+    static @Nullable String heldMirrorTargetsText(int heldPanes, int paneCount) {
+        return heldPanes > 0 ? I18n.get(BROADCAST_HELD_KEY, heldPanes, paneCount) : null;
     }
     
     public void split(@NotNull SplitRequest.SplitMode mode, @NotNull Orientation orientation) {
@@ -933,6 +1637,9 @@ public class TerminalSplitPane extends StackPane {
             releaseUnattachedWidget(newWidget);
             return null;
         }
+        // The new pane goes beside its source, so a zoomed tab shows all its panes again first. A
+        // split that failed or was cancelled above leaves the zoom alone.
+        unzoom();
         setupWidget(newWidget);
         applyLeftPanel(newWidget);
         applyBottomPanel(newWidget);
@@ -995,6 +1702,8 @@ public class TerminalSplitPane extends StackPane {
     }
 
     private void closeSplit(@NotNull SithTermFxWidget widget) {
+        // The tree is rebuilt around the gap, with every pane in its place: no pane stays zoomed.
+        unzoom();
         notifyWidgetClosed(widget);
         try {
             widget.close();
@@ -1047,6 +1756,7 @@ public class TerminalSplitPane extends StackPane {
      */
     private void setFocusedWidgetInternal(@Nullable SithTermFxWidget widget) {
         focusedWidget = widget;
+        refreshLastFocusedMarks();
     }
 
     /**
@@ -1065,8 +1775,195 @@ public class TerminalSplitPane extends StackPane {
             logger.debug("focusWidget ignored a widget that does not belong to this split pane");
             return;
         }
+        // A hidden pane is out of the scene and cannot take the keyboard: show the panes again first
+        // (the Control API's pane.focus and the Coding Agents panel come through here as well).
+        if (zoomedWidget != null && widget != zoomedWidget) {
+            unzoom();
+        }
         setFocusedWidgetInternal(widget);
         requestWidgetFocus(widget);
+    }
+
+    /**
+     * Moves the keyboard focus to the pane on {@code direction}'s side of the focused pane, as
+     * Cmd+Option / Ctrl+Alt with an arrow key and <i>View → Panes</i> do. The panes are measured in
+     * scene coordinates, the wrapper with its timestamp gutter and agent panel being the pane; see
+     * {@link PaneNavigator} for how a neighbour is chosen. A zoomed tab shows all its panes again
+     * first, laid out at once so they can be measured.
+     *
+     * @return true when the focus moved; false at the edge, with a single pane, or before layout
+     */
+    public boolean focusNeighbor(@NotNull PaneNavigator.PaneDirection direction) {
+        List<SithTermFxWidget> panes = getAllWidgets();
+        if (panes.size() < 2) {
+            return false;
+        }
+        if (unzoom()) {
+            applyCss();
+            layout();
+        }
+        SithTermFxWidget origin = panes.contains(focusedWidget) ? focusedWidget : panes.get(0);
+        Optional<SithTermFxWidget> target = PaneNavigator.neighbor(origin, panes, this::sceneBoundsOf, direction);
+        target.ifPresent(this::focusWidget);
+        return target.isPresent();
+    }
+
+    /**
+     * Moves the keyboard focus to the next ({@code forward}) or the previous pane in
+     * {@link #getAllWidgets()} order, wrapping around, as <i>View → Panes → Next Pane</i> and
+     * <i>Previous Pane</i> do.
+     *
+     * @return true when the focus moved; false with a single pane
+     */
+    public boolean focusNext(boolean forward) {
+        if (getWidgetCount() > 1) {
+            unzoom();
+        }
+        Optional<SithTermFxWidget> target = PaneNavigator.next(getAllWidgets(), focusedWidget, forward);
+        target.ifPresent(this::focusWidget);
+        return target.isPresent();
+    }
+
+    /** Whether a pane is zoomed: it fills the tab alone and the others are hidden. */
+    public boolean isZoomed() {
+        return zoomedWidget != null;
+    }
+
+    /** The zoomed pane, or {@code null} while every pane shows. */
+    public @Nullable SithTermFxWidget getZoomedWidget() {
+        return zoomedWidget;
+    }
+
+    /**
+     * Zooms the focused pane, or shows every pane again while one is zoomed, as Cmd/Ctrl+Shift+Enter
+     * and <i>View → Panes → Zoom Pane</i> do.
+     *
+     * @return whether a pane is zoomed afterwards
+     */
+    public boolean toggleZoom() {
+        if (zoomedWidget != null) {
+            unzoom();
+            return false;
+        }
+        return focusedWidget != null && zoomWidget(focusedWidget);
+    }
+
+    /**
+     * Zooms {@code widget}: it fills the tab alone until {@link #unzoom()}, which every change to the
+     * panes, every move of the focus to another pane and a pane drag run first. The other panes leave
+     * the scene with the split controls that hold them and keep their size, so their programs get no
+     * resize; they keep running, and in broadcast mode they still receive the keys typed in the
+     * zoomed pane, which its badge counts. No split control is rebuilt, and the divider positions
+     * come back as they were. Quick select and the hover underline of a link end, as they do when a
+     * pane changes size. The zoomed pane gets the keyboard focus.
+     *
+     * @param widget a pane of this split pane
+     * @return true when {@code widget} is zoomed now; false with a single pane or a widget that is
+     *     not a pane here
+     */
+    public boolean zoomWidget(@NotNull SithTermFxWidget widget) {
+        if (widget == zoomedWidget) {
+            return true;
+        }
+        if (getWidgetCount() < 2 || !getAllWidgets().contains(widget)) {
+            return false;
+        }
+        unzoom();
+        SplitCell parent = rootCell.parentOf(widget);
+        StackPane wrapper = wrapperOf(widget);
+        if (parent == null || parent.splitPane == null || wrapper == null) {
+            return false;
+        }
+        List<SplitPane> splits = new ArrayList<>();
+        rootCell.collectSplitPanes(splits);
+        PaneZoom<Node, SplitPane> zoomed = PaneZoom.zoom(wrapper, parent.splitPane.getItems(), getChildren(),
+            createZoomPlaceholder(), splits, SPLIT_PANE_DIVIDERS);
+        if (zoomed == null) {
+            return false;
+        }
+        zoom = zoomed;
+        zoomedWidget = widget;
+        setFocusedWidgetInternal(widget);
+        refreshPaneDecorations();
+        requestWidgetFocus(widget);
+        return true;
+    }
+
+    /**
+     * Shows every pane again if one is zoomed: the zoomed pane goes back to its place and every split
+     * control gets back its divider positions, once now and once more after the layout passes that
+     * follow its return to the scene. The keyboard stays in the zoomed pane if it was there.
+     *
+     * @return whether a pane was zoomed
+     */
+    public boolean unzoom() {
+        PaneZoom<Node, SplitPane> zoomed = zoom;
+        if (zoomed == null) {
+            return false;
+        }
+        SithTermFxWidget widget = zoomedWidget;
+        boolean keyboardInPane = isFocusWithin(zoomed.pane());
+        zoom = null;
+        zoomedWidget = null;
+        zoomed.restore();
+        SplitCell tree = rootCell;
+        // Two pulses later: after the split controls' first layout back in the scene and after the
+        // divider reset any SplitCell built meanwhile schedules; skipped once the tree changed.
+        Platform.runLater(() -> Platform.runLater(() -> {
+            if (rootCell == tree && zoom == null) {
+                zoomed.reapplyDividers();
+            }
+        }));
+        refreshPaneDecorations();
+        if (keyboardInPane && widget != null && getAllWidgets().contains(widget)) {
+            requestWidgetFocus(widget);
+        }
+        return true;
+    }
+
+    /**
+     * The divider positions of one of this split pane's split controls as they are with every pane
+     * shown: while a pane is zoomed, the positions from before the zoom, which the control itself may
+     * have reset when the zoomed pane left it. Saving a project while a pane is zoomed thus stores the
+     * layout the tab returns to.
+     */
+    public double @NotNull [] dividerPositionsOf(@NotNull SplitPane control) {
+        double[] saved = zoom != null ? zoom.savedPositions(control) : null;
+        return saved != null ? saved : control.getDividerPositions();
+    }
+
+    /** An empty region that keeps a zoomed pane's place in its split control. */
+    static @NotNull Region createZoomPlaceholder() {
+        Region placeholder = new Region();
+        placeholder.getStyleClass().add(ZOOM_PLACEHOLDER_STYLE_CLASS);
+        placeholder.setMinSize(0, 0);
+        placeholder.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+        placeholder.setFocusTraversable(false);
+        return placeholder;
+    }
+
+    /** Whether the scene's keyboard focus is in {@code node} or one of its descendants. */
+    private boolean isFocusWithin(@NotNull Node node) {
+        Node owner = getScene() != null ? getScene().getFocusOwner() : null;
+        for (Node current = owner; current != null; current = current.getParent()) {
+            if (current == node) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** A pane's bounds in scene coordinates, or {@code null} while it is not laid out in a scene. */
+    private @Nullable PaneNavigator.Rect sceneBoundsOf(@NotNull SithTermFxWidget widget) {
+        StackPane host = wrapperOf(widget);
+        if (host == null || host.getScene() == null) {
+            return null;
+        }
+        Bounds bounds = host.localToScene(host.getLayoutBounds());
+        if (bounds == null || bounds.isEmpty()) {
+            return null;
+        }
+        return new PaneNavigator.Rect(bounds.getMinX(), bounds.getMinY(), bounds.getWidth(), bounds.getHeight());
     }
 
     public @NotNull List<SithTermFxWidget> getAllWidgets() {
@@ -1096,6 +1993,10 @@ public class TerminalSplitPane extends StackPane {
         boolean changed = this.broadcastMode != enabled;
         this.broadcastMode = enabled;
         logger.info("Broadcast mode {}", enabled ? "enabled" : "disabled");
+        if (changed && zoomedWidget != null) {
+            // The zoom badge says whether the hidden panes get the keys typed in the zoomed one.
+            refreshPaneDecorations();
+        }
         if (changed && onBroadcastModeChanged != null) {
             try {
                 onBroadcastModeChanged.accept(enabled);
@@ -1114,6 +2015,7 @@ public class TerminalSplitPane extends StackPane {
         if (rootCell == null || getWidgetCount() <= 1 || source == target) {
             return;
         }
+        unzoom();
         ExtractResult er = rootCell.extractWidget(source);
         if (er == null || er.replacement == null) {
             return;
@@ -1136,6 +2038,8 @@ public class TerminalSplitPane extends StackPane {
         getChildren().add(rootCell.getNode());
         VBox.setVgrow(rootCell.getNode(), Priority.ALWAYS);
         refreshDragAndDrop();
+        // The panes are numbered in tree order, which the move changed.
+        refreshPaneDecorations();
     }
 
     private void forEachLeafCell(@Nullable SplitCell cell, @NotNull java.util.function.Consumer<SplitCell> action) {
@@ -1254,6 +2158,8 @@ public class TerminalSplitPane extends StackPane {
         if (this.bottomPanelsDetached == detached) {
             return;
         }
+        // A side dock shows the agent panels of the panes, which a zoom would hide.
+        unzoom();
         this.bottomPanelsDetached = detached;
         for (SithTermFxWidget widget : getAllWidgets()) {
             if (detached) {
@@ -1287,6 +2193,7 @@ public class TerminalSplitPane extends StackPane {
     }
 
     public void closeAll() {
+        unzoom();
         for (SithTermFxWidget widget : getAllWidgets()) {
             notifyWidgetClosed(widget);
         }
@@ -1309,6 +2216,7 @@ public class TerminalSplitPane extends StackPane {
             button.setVisible(showButtons);
             button.setManaged(showButtons);
         }
+        refreshPaneDecorations();
     }
 
     private class SplitCell {
@@ -1352,6 +2260,8 @@ public class TerminalSplitPane extends StackPane {
             wrapper.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
             VBox.setVgrow(wrapper, Priority.ALWAYS);
             wrapper.setUserData(widget);
+            // The stylesheets draw the focus ring from this cell's :focus-within and :last-focused.
+            wrapper.getStyleClass().add(PANE_CELL_STYLE_CLASS);
             widgetOverlayHosts.put(widget, wrapper);
             Button closeButton = new Button("x");
             closeButton.getStyleClass().add("split-close-button");
@@ -1480,6 +2390,28 @@ public class TerminalSplitPane extends StackPane {
             return this;
         }
 
+        /** The branch cell whose split control holds {@code target}'s leaf, or {@code null}. */
+        @Nullable
+        SplitCell parentOf(@NotNull SithTermFxWidget target) {
+            if (leftCell == null || rightCell == null) {
+                return null;
+            }
+            if (leftCell.widget == target || rightCell.widget == target) {
+                return this;
+            }
+            SplitCell found = leftCell.parentOf(target);
+            return found != null ? found : rightCell.parentOf(target);
+        }
+
+        /** Adds the split control of this cell and of every cell below it to {@code splits}. */
+        void collectSplitPanes(@NotNull List<SplitPane> splits) {
+            if (splitPane != null) {
+                splits.add(splitPane);
+            }
+            if (leftCell != null) leftCell.collectSplitPanes(splits);
+            if (rightCell != null) rightCell.collectSplitPanes(splits);
+        }
+
         int countWidgets() {
             if (widget != null) return 1;
             return (leftCell != null ? leftCell.countWidgets() : 0)
@@ -1509,12 +2441,20 @@ public class TerminalSplitPane extends StackPane {
 
     private static final String DROP_ZONE_OVERLAY_KEY = "sithtermfx.dropZoneOverlay";
 
+    /**
+     * The four drop zones shown while a pane is dragged onto another one, in the target pane's
+     * {@link PaneOverlayLayer#DROP_ZONES} layer, above its focus ring. Like the layer it is
+     * mouse-transparent: the wrapper's own drag filters (see {@code attachDragAndDropToCell}) accept
+     * the drag, track the placement and drop the pane.
+     */
     private static final class DropZoneOverlay {
         private final Pane pane;
+        private final Pane layer;
         private final Region wrapper;
         private final SithTermFxWidget targetWidget;
         private final String sourceId;
         private final TerminalSplitPane splitPane;
+        private final ChangeListener<Number> fitToLayer;
         private Placement currentPlacement;
         private final Region zoneAbove;
         private final Region zoneBelow;
@@ -1524,15 +2464,17 @@ public class TerminalSplitPane extends StackPane {
         private static final String STYLE_ZONE = "-fx-background-color: rgba(64,128,255,0.25);";
         private static final String STYLE_ZONE_HIGHLIGHT = "-fx-background-color: rgba(64,128,255,0.5);";
 
-        DropZoneOverlay(Region wrapper, SithTermFxWidget targetWidget, String sourceId, TerminalSplitPane splitPane) {
+        DropZoneOverlay(Region wrapper, Pane layer, SithTermFxWidget targetWidget, String sourceId,
+                        TerminalSplitPane splitPane) {
             this.wrapper = wrapper;
+            this.layer = layer;
             this.targetWidget = targetWidget;
             this.sourceId = sourceId;
             this.splitPane = splitPane;
             this.pane = new Pane();
-            pane.setMinSize(0, 0);
-            pane.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-            pane.setPickOnBounds(true);
+            pane.setManaged(false);
+            pane.setMouseTransparent(true);
+            pane.setPickOnBounds(false);
             zoneAbove = new Region();
             zoneBelow = new Region();
             zoneLeft = new Region();
@@ -1545,6 +2487,27 @@ public class TerminalSplitPane extends StackPane {
             currentPlacement = null;
             pane.widthProperty().addListener((o, a, b) -> layoutZones());
             pane.heightProperty().addListener((o, a, b) -> layoutZones());
+            fitToLayer = (o, a, b) -> fit();
+        }
+
+        /** Adds the zones to the layer, as large as the layer and so as the pane. */
+        void attach() {
+            layer.widthProperty().addListener(fitToLayer);
+            layer.heightProperty().addListener(fitToLayer);
+            layer.getChildren().add(pane);
+            fit();
+        }
+
+        /** Removes the zones; the layer stays with the pane for the next drag. */
+        void detach() {
+            layer.widthProperty().removeListener(fitToLayer);
+            layer.heightProperty().removeListener(fitToLayer);
+            layer.getChildren().remove(pane);
+        }
+
+        private void fit() {
+            pane.resize(layer.getWidth(), layer.getHeight());
+            layoutZones();
         }
 
         private void layoutZones() {
@@ -1590,30 +2553,19 @@ public class TerminalSplitPane extends StackPane {
 
         static void show(Region wrapper, SithTermFxWidget targetWidget, String sourceId, TerminalSplitPane splitPane) {
             hide(wrapper);
-            DropZoneOverlay overlay = new DropZoneOverlay(wrapper, targetWidget, sourceId, splitPane);
-            wrapper.getProperties().put(DROP_ZONE_OVERLAY_KEY, overlay);
-            if (wrapper instanceof StackPane) {
-                overlay.pane.setOnDragOver(e -> {
-                    if (e.getDragboard().hasContent(DRAG_TERMINAL_FORMAT)) {
-                        e.acceptTransferModes(TransferMode.ANY);
-                        updatePlacement(wrapper, e.getX(), e.getY());
-                    }
-                    e.consume();
-                });
-                overlay.pane.setOnDragDropped(e -> {
-                    boolean done = tryDrop(wrapper, splitPane);
-                    e.setDropCompleted(done);
-                    e.consume();
-                });
-                ((StackPane) wrapper).getChildren().add(overlay.pane);
-                Platform.runLater(overlay::layoutZones);
+            Pane layer = splitPane.paneOverlay(targetWidget, PaneOverlayLayer.DROP_ZONES);
+            if (layer == null) {
+                return;
             }
+            DropZoneOverlay overlay = new DropZoneOverlay(wrapper, layer, targetWidget, sourceId, splitPane);
+            wrapper.getProperties().put(DROP_ZONE_OVERLAY_KEY, overlay);
+            overlay.attach();
         }
 
         static void hide(Region wrapper) {
             Object old = wrapper.getProperties().remove(DROP_ZONE_OVERLAY_KEY);
-            if (old instanceof DropZoneOverlay && wrapper instanceof StackPane) {
-                ((StackPane) wrapper).getChildren().remove(((DropZoneOverlay) old).pane);
+            if (old instanceof DropZoneOverlay overlay) {
+                overlay.detach();
             }
         }
 
