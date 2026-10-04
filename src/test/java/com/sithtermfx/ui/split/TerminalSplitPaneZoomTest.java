@@ -123,9 +123,14 @@ public class TerminalSplitPaneZoomTest {
     public void aProjectSavedWhileZoomedStoresTheDividersWithoutTheZoom() throws IOException {
         assertThat(methodBody(source(), "public double @NotNull [] dividerPositionsOf("))
             .contains("zoom != null ? zoom.savedPositions(control) : null");
-        String view = Files.readString(Path.of("src/main/java/de/kortty/ui/TerminalView.java"), StandardCharsets.UTF_8);
-        assertThat(view).contains("double[] positions = splitPane.dividerPositionsOf(splitPaneObj);");
-        assertThat(view).doesNotContain("splitPaneObj.getDividerPositions()");
+        // The saved layout is the split pane's own snapshot, which reads every divider through it.
+        assertThat(methodBody(source(), "private @NotNull PaneLayout<SithTermFxWidget> snapshotOf("))
+            .contains("double[] positions = dividerPositionsOf(cell.splitPane);");
+        String view = Files.readString(Path.of("src/main/java/de/kortty/ui/TerminalView.java"), StandardCharsets.UTF_8)
+            .replace("\r\n", "\n");
+        assertThat(methodBody(view, "public de.kortty.model.SplitPaneState getSplitState("))
+            .contains("splitPane.snapshotLayout()");
+        assertThat(view).doesNotContain("getDividerPositions()");
     }
 
     @Test

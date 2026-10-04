@@ -4,8 +4,10 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +27,8 @@ import org.slf4j.LoggerFactory;
  *       confirmed it for. Whether to bracket it is decided when it is sent.</li>
  *   <li>With a {@link PastePacer} and a line delay above 0, a paste of several lines is sent line by
  *       line. A paste into a pane that is still pacing an earlier one is dropped.</li>
+ *   <li>The rules and the line delay are read for the pane pasted into, so a pane whose connection
+ *       sets its own paste protection follows it while the other panes of the tab follow theirs.</li>
  *   <li>Only sizes, sources and reason codes are logged, at DEBUG; never the text.</li>
  * </ul>
  *
@@ -34,14 +38,14 @@ public final class PasteGuard {
 
     private static final Logger logger = LoggerFactory.getLogger(PasteGuard.class);
 
-    private final Supplier<PasteRules> rules;
+    private final Function<? super PasteTarget, PasteRules> rules;
 
     private final PasteConfirmer confirmer;
 
     /** Sends pastes line by line when {@link #lineDelayMs} asks for it; null sends every paste at once. */
     private final PastePacer pacer;
 
-    private final IntSupplier lineDelayMs;
+    private final ToIntFunction<? super PasteTarget> lineDelayMs;
 
     /** The keys of the panes with a confirmation on screen, compared by reference. */
     private final Set<Object> pending = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -63,10 +67,32 @@ public final class PasteGuard {
      */
     public PasteGuard(Supplier<PasteRules> rules, PasteConfirmer confirmer, PastePacer pacer,
             IntSupplier lineDelayMs) {
+        this(perTarget(Objects.requireNonNull(rules, "rules")), confirmer, pacer,
+            perTarget(Objects.requireNonNull(lineDelayMs, "lineDelayMs")));
+    }
+
+    /**
+     * @param rules the rules for the pane pasted into, read on every paste, so a settings change applies
+     *     to the next one
+     * @param confirmer asks the user when the rules want confirmation
+     * @param pacer sends a paste line by line; null sends every paste at once
+     * @param lineDelayMs the pause after each pasted line in milliseconds for the pane pasted into, read
+     *     when a paste is sent; 0 sends it at once
+     */
+    public PasteGuard(Function<? super PasteTarget, PasteRules> rules, PasteConfirmer confirmer, PastePacer pacer,
+            ToIntFunction<? super PasteTarget> lineDelayMs) {
         this.rules = Objects.requireNonNull(rules, "rules");
         this.confirmer = Objects.requireNonNull(confirmer, "confirmer");
         this.pacer = pacer;
         this.lineDelayMs = Objects.requireNonNull(lineDelayMs, "lineDelayMs");
+    }
+
+    private static Function<PasteTarget, PasteRules> perTarget(Supplier<PasteRules> rules) {
+        return target -> rules.get();
+    }
+
+    private static ToIntFunction<PasteTarget> perTarget(IntSupplier lineDelayMs) {
+        return target -> lineDelayMs.getAsInt();
     }
 
     /**
@@ -87,7 +113,8 @@ public final class PasteGuard {
             return;
         }
         boolean bracketed = target.bracketedPasteMode();
-        Set<PasteReason> reasons = reasonsFor(text, bracketed);
+        PasteRules current = rules.apply(target);
+        Set<PasteReason> reasons = reasonsFor(current, text, bracketed);
         if (reasons.isEmpty()) {
             send(target, text, from);
             return;
@@ -100,7 +127,7 @@ public final class PasteGuard {
         }
         Object session = target.session();
         PasteConfirmationRequest request = new PasteConfirmationRequest(target.label(), text, reasons, bracketed,
-            from, target.broadcastActive());
+            from, target.broadcastActive(), current != null && current.setByConnection());
         logger.debug("Paste needs confirmation ({} chars, {}, {})", text.length(), from, reasons);
         boolean[] answered = {false};
         try {
@@ -131,8 +158,7 @@ public final class PasteGuard {
         return pending.contains(key);
     }
 
-    private Set<PasteReason> reasonsFor(String text, boolean bracketed) {
-        PasteRules current = rules.get();
+    private static Set<PasteReason> reasonsFor(PasteRules current, String text, boolean bracketed) {
         Set<PasteReason> reasons = current != null ? current.reasons(text, bracketed) : null;
         return reasons != null ? reasons : Set.of();
     }
@@ -148,7 +174,7 @@ public final class PasteGuard {
             return;
         }
         try {
-            int delayMs = pacer != null ? currentLineDelayMs() : 0;
+            int delayMs = pacer != null ? currentLineDelayMs(target) : 0;
             if (delayMs > 0) {
                 pacer.send(target, payload, delayMs);
             } else {
@@ -159,10 +185,10 @@ public final class PasteGuard {
         }
     }
 
-    /** The line delay as it is now; unreadable means 0, so the paste still goes out at once. */
-    private int currentLineDelayMs() {
+    /** The pane's line delay as it is now; unreadable means 0, so the paste still goes out at once. */
+    private int currentLineDelayMs(PasteTarget target) {
         try {
-            return PastePacer.clampLineDelayMs(lineDelayMs.getAsInt());
+            return PastePacer.clampLineDelayMs(lineDelayMs.applyAsInt(target));
         } catch (RuntimeException e) {
             logger.debug("Paste line delay unreadable, pasting at once: {}", e.toString());
             return 0;

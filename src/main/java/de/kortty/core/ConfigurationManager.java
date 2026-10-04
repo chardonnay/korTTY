@@ -175,6 +175,24 @@ public class ConfigurationManager {
     }
 
     /**
+     * Whether the temporary SSH key of the connection {@code connectionId} is still stored only in
+     * encrypted form: the connections were loaded with the vault locked, which cleared the key in
+     * memory, and the connection has not been given a new authentication since. Such a connection
+     * looks like SSH key authentication without a key, so signing in to it needs a new temporary key.
+     */
+    public boolean hasLockedTemporaryKey(String connectionId) {
+        if (connectionId == null) {
+            return false;
+        }
+        LockedTemporaryKey loaded = lockedTemporaryKeys.get(connectionId);
+        if (loaded == null) {
+            return false;
+        }
+        ServerConnection connection = getConnectionById(connectionId);
+        return connection != null && stillAsLoaded(connection, loaded);
+    }
+
+    /**
      * The encrypted temporary keys a save must write back unchanged: those of connections the
      * locked load cleared and nobody has re-configured since.
      */

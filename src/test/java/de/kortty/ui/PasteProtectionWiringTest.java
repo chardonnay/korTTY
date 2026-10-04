@@ -3,7 +3,9 @@ package de.kortty.ui;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import de.kortty.model.ConnectionSource;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.ServerConnection;
 import de.kortty.paste.PasteDecision;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteReason;
@@ -57,13 +59,101 @@ class PasteProtectionWiringTest {
     }
 
     @Test
+    void aConnectionWithItsOwnWarningModeDecidesForItsPanes() {
+        GlobalSettings settings = new GlobalSettings();
+        ServerConnection production = new ServerConnection("prod", "db.example.com", 22, "root");
+        production.setPasteWarningMode(PasteWarningMode.ALWAYS);
+
+        PasteRules rules = TerminalView.pasteRules(() -> settings, production);
+
+        assertThat(((PasteDecision) rules).settings()).isEqualTo(
+            new PasteProtectionSettings(PasteWarningMode.ALWAYS, PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB));
+        assertThat(rules.setByConnection()).isTrue();
+        assertThat(rules.reasons("echo one\necho two", true)).containsExactly(PasteReason.MULTI_LINE);
+        assertWithMessage("a connection without a mode of its own follows Settings")
+            .that(TerminalView.pasteRules(() -> settings, new ServerConnection()).setByConnection()).isFalse();
+        assertThat(TerminalView.pasteRules(() -> settings).setByConnection()).isFalse();
+    }
+
+    @Test
+    void aTeamworkConnectionCannotSwitchTheWarningOff() {
+        GlobalSettings settings = new GlobalSettings();
+        ServerConnection shared = new ServerConnection("shared", "db.example.com", 22, "root");
+        shared.setConnectionSource(ConnectionSource.TEAMWORK);
+        shared.setPasteWarningMode(PasteWarningMode.OFF);
+
+        PasteRules rules = TerminalView.pasteRules(() -> settings, shared);
+
+        assertThat(((PasteDecision) rules).settings()).isEqualTo(PasteProtectionSettings.DEFAULTS);
+        assertThat(rules.setByConnection()).isFalse();
+    }
+
+    @Test
+    void withoutReadableSettingsTheConnectionStillDecides() {
+        ServerConnection production = new ServerConnection("prod", "db.example.com", 22, "root");
+        production.setPasteWarningMode(PasteWarningMode.ALWAYS);
+        production.setPasteLineDelayMs(40);
+
+        PasteRules rules = TerminalView.pasteRules(() -> {
+            throw new IllegalStateException("no application");
+        }, production);
+
+        assertThat(((PasteDecision) rules).settings().mode()).isEqualTo(PasteWarningMode.ALWAYS);
+        assertThat(TerminalView.pasteLineDelayMs(() -> null, production)).isEqualTo(40);
+        assertThat(TerminalView.pasteLineDelayMs(() -> {
+            throw new IllegalStateException("no application");
+        }, new ServerConnection())).isEqualTo(0);
+    }
+
+    @Test
+    void theLineDelayIsThePanesConnectionsOwnElseTheGlobalOne() {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setPasteLineDelayMs(200);
+        ServerConnection console = new ServerConnection("console", "con.example.com", 22, "admin");
+        console.setPasteLineDelayMs(0);
+
+        assertThat(TerminalView.pasteLineDelayMs(() -> settings)).isEqualTo(200);
+        assertThat(TerminalView.pasteLineDelayMs(() -> settings, null)).isEqualTo(200);
+        assertThat(TerminalView.pasteLineDelayMs(() -> settings, new ServerConnection())).isEqualTo(200);
+        assertThat(TerminalView.pasteLineDelayMs(() -> settings, console)).isEqualTo(0);
+    }
+
+    @Test
+    void theSavedConnectionWinsSoAChangeAppliesToOpenPanes() {
+        ServerConnection atConnect = new ServerConnection("prod", "db.example.com", 22, "root");
+        ServerConnection saved = ServerConnection.copyForAuth(atConnect);
+        saved.setPasteWarningMode(PasteWarningMode.ALWAYS);
+
+        assertThat(TerminalView.savedConnectionOr(atConnect, id -> id.equals(atConnect.getId()) ? saved : null))
+            .isSameInstanceAs(saved);
+        assertWithMessage("a connection that is not saved (teamwork, Quick Connect) keeps its own values")
+            .that(TerminalView.savedConnectionOr(atConnect, id -> null)).isSameInstanceAs(atConnect);
+        assertThat(TerminalView.savedConnectionOr(atConnect, null)).isSameInstanceAs(atConnect);
+        assertThat(TerminalView.savedConnectionOr(null, id -> saved)).isNull();
+    }
+
+    @Test
+    void thePanesOwnConnectionIsLookedUpForEveryPaste() throws IOException {
+        String view = source(TERMINAL_VIEW);
+        String connectionOf = body(view,
+            "private @Nullable ServerConnection pasteConnectionOf(@Nullable PasteTarget target) {");
+
+        assertWithMessage("a split to another server follows its own connection")
+            .that(connectionOf).contains("connectionOf(unwrapTerminalEffectConnector(pane.getTtyConnector()))");
+        assertThat(connectionOf).contains("ServerConnection paneConnection = own != null ? own : connection;");
+        assertThat(connectionOf).contains("configManager::getConnectionById");
+        assertWithMessage("a failing lookup must never break a paste")
+            .that(connectionOf).contains("catch (RuntimeException e)");
+    }
+
+    @Test
     void everyTabsGuardAsksThroughTheConfirmationDialog() throws IOException {
         String view = source(TERMINAL_VIEW);
 
-        assertThat(view).contains("private final PasteGuard pasteGuard = new PasteGuard("
-            + "() -> pasteRules(TerminalView::readGlobalSettings),\n"
+        assertThat(view).contains("private final PasteGuard pasteGuard = new PasteGuard(\n"
+            + "        target -> pasteRules(TerminalView::readGlobalSettings, pasteConnectionOf(target)),\n"
             + "        new PasteConfirmationDialog(this::pasteConfirmationOwner), pastePacer,\n"
-            + "        () -> pasteLineDelayMs(TerminalView::readGlobalSettings));");
+            + "        target -> pasteLineDelayMs(TerminalView::readGlobalSettings, pasteConnectionOf(target)));");
         assertWithMessage("the placeholder that declined every confirmation is gone")
             .that(view).doesNotContain("answer.accept(false)");
         assertThat(body(view, "private static GlobalSettings readGlobalSettings() {"))

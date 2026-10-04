@@ -2,7 +2,9 @@ package de.kortty.paste;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import de.kortty.model.ConnectionSource;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.ServerConnection;
 import org.testng.annotations.Test;
 
 class PasteProtectionSettingsTest {
@@ -67,5 +69,121 @@ class PasteProtectionSettingsTest {
         settings.setPasteWarningMode(PasteWarningMode.OFF);
         settings.setPasteLargeWarningKiB(0);
         assertThat(PasteProtectionSettings.from(settings)).isEqualTo(PasteProtectionSettings.DISABLED);
+    }
+
+    private static GlobalSettings global(PasteWarningMode mode, int largeKiB, int lineDelayMs) {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setPasteWarningMode(mode);
+        settings.setPasteLargeWarningKiB(largeKiB);
+        settings.setPasteLineDelayMs(lineDelayMs);
+        return settings;
+    }
+
+    private static ServerConnection connection(PasteWarningMode mode, Integer lineDelayMs) {
+        ServerConnection connection = new ServerConnection("prod", "db.example.com", 22, "root");
+        connection.setPasteWarningMode(mode);
+        connection.setPasteLineDelayMs(lineDelayMs);
+        return connection;
+    }
+
+    private static ServerConnection teamwork(PasteWarningMode mode, Integer lineDelayMs) {
+        ServerConnection connection = connection(mode, lineDelayMs);
+        connection.setConnectionSource(ConnectionSource.TEAMWORK);
+        return connection;
+    }
+
+    @Test
+    void aConnectionWithoutItsOwnModeFollowsTheGlobalSettings() {
+        GlobalSettings settings = global(PasteWarningMode.ALWAYS, 64, 0);
+
+        assertThat(PasteProtectionSettings.resolve(settings, null)).isEqualTo(PasteProtectionSettings.from(settings));
+        assertThat(PasteProtectionSettings.resolve(settings, connection(null, null)))
+            .isEqualTo(new PasteProtectionSettings(PasteWarningMode.ALWAYS, 64));
+        assertThat(PasteProtectionSettings.connectionWarningMode(PasteWarningMode.ALWAYS, connection(null, null)))
+            .isNull();
+        assertThat(PasteProtectionSettings.resolve(null, null)).isEqualTo(PasteProtectionSettings.DEFAULTS);
+    }
+
+    @Test
+    void aProductionConnectionAsksForEveryMultiLinePasteWhileTheDefaultsStayGlobal() {
+        GlobalSettings settings = global(PasteWarningMode.UNLESS_BRACKETED, 5, 0);
+
+        PasteProtectionSettings resolved = PasteProtectionSettings.resolve(settings,
+            connection(PasteWarningMode.ALWAYS, null));
+
+        assertThat(resolved).isEqualTo(new PasteProtectionSettings(PasteWarningMode.ALWAYS, 5));
+        assertThat(PasteProtectionSettings.from(settings).mode()).isEqualTo(PasteWarningMode.UNLESS_BRACKETED);
+        assertThat(new PasteDecision(resolved).reasons("echo one\necho two", true))
+            .containsExactly(PasteReason.MULTI_LINE);
+    }
+
+    @Test
+    void aConnectionOfYourOwnAppliesItsModeInBothDirections() {
+        GlobalSettings strict = global(PasteWarningMode.ALWAYS, 5, 0);
+
+        assertThat(PasteProtectionSettings.resolve(strict, connection(PasteWarningMode.OFF, null)))
+            .isEqualTo(new PasteProtectionSettings(PasteWarningMode.OFF, 5));
+        assertThat(PasteProtectionSettings.connectionWarningMode(PasteWarningMode.ALWAYS,
+            connection(PasteWarningMode.OFF, null))).isEqualTo(PasteWarningMode.OFF);
+        assertThat(PasteProtectionSettings.connectionWarningMode(PasteWarningMode.ALWAYS,
+            connection(PasteWarningMode.ALWAYS, null))).isEqualTo(PasteWarningMode.ALWAYS);
+    }
+
+    @Test
+    void aTeamworkConnectionCanOnlyMakeTheWarningStricter() {
+        GlobalSettings unlessBracketed = global(PasteWarningMode.UNLESS_BRACKETED, 5, 0);
+
+        assertThat(PasteProtectionSettings.resolve(unlessBracketed, teamwork(PasteWarningMode.ALWAYS, null)).mode())
+            .isEqualTo(PasteWarningMode.ALWAYS);
+        assertThat(PasteProtectionSettings.resolve(unlessBracketed, teamwork(PasteWarningMode.OFF, null)).mode())
+            .isEqualTo(PasteWarningMode.UNLESS_BRACKETED);
+        assertThat(PasteProtectionSettings.connectionWarningMode(PasteWarningMode.UNLESS_BRACKETED,
+            teamwork(PasteWarningMode.OFF, null))).isNull();
+        assertThat(PasteProtectionSettings.connectionWarningMode(PasteWarningMode.UNLESS_BRACKETED,
+            teamwork(PasteWarningMode.UNLESS_BRACKETED, null))).isNull();
+        assertThat(PasteProtectionSettings.connectionWarningMode(null, teamwork(PasteWarningMode.ALWAYS, null)))
+            .isEqualTo(PasteWarningMode.ALWAYS);
+        assertThat(PasteProtectionSettings.connectionWarningMode(PasteWarningMode.OFF,
+            teamwork(PasteWarningMode.UNLESS_BRACKETED, null))).isEqualTo(PasteWarningMode.UNLESS_BRACKETED);
+    }
+
+    @Test
+    void theSizeCheckAlwaysComesFromTheGlobalSettings() {
+        GlobalSettings settings = global(PasteWarningMode.UNLESS_BRACKETED, 0, 0);
+
+        assertThat(PasteProtectionSettings.resolve(settings, connection(PasteWarningMode.ALWAYS, null))
+            .largeWarningKiB()).isEqualTo(0);
+        assertThat(PasteProtectionSettings.resolve(global(PasteWarningMode.OFF, 64, 0),
+            connection(PasteWarningMode.OFF, null))).isEqualTo(new PasteProtectionSettings(PasteWarningMode.OFF, 64));
+    }
+
+    @Test
+    void withoutGlobalSettingsTheConnectionsModeStillApplies() {
+        assertThat(PasteProtectionSettings.resolve(null, connection(PasteWarningMode.ALWAYS, null)))
+            .isEqualTo(new PasteProtectionSettings(PasteWarningMode.ALWAYS,
+                PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB));
+    }
+
+    @Test
+    void theLineDelayIsTheConnectionsOwnElseTheGlobalOne() {
+        GlobalSettings paced = global(PasteWarningMode.UNLESS_BRACKETED, 5, 200);
+
+        assertThat(PasteProtectionSettings.resolveLineDelayMs(paced, null)).isEqualTo(200);
+        assertThat(PasteProtectionSettings.resolveLineDelayMs(paced, connection(null, null))).isEqualTo(200);
+        assertThat(PasteProtectionSettings.resolveLineDelayMs(paced, connection(null, 50))).isEqualTo(50);
+        assertThat(PasteProtectionSettings.resolveLineDelayMs(paced, connection(null, 0)))
+            .isEqualTo(0);
+        assertThat(PasteProtectionSettings.resolveLineDelayMs(global(PasteWarningMode.OFF, 5, 0),
+            connection(null, 120))).isEqualTo(120);
+        assertThat(PasteProtectionSettings.resolveLineDelayMs(null, null)).isEqualTo(0);
+        assertThat(PasteProtectionSettings.resolveLineDelayMs(null, connection(null, 80))).isEqualTo(80);
+    }
+
+    @Test
+    void aTeamworkConnectionsLineDelayAppliesBecauseItOnlySlowsAPasteDown() {
+        assertThat(PasteProtectionSettings.resolveLineDelayMs(global(PasteWarningMode.OFF, 5, 0),
+            teamwork(null, 150))).isEqualTo(150);
+        assertThat(PasteProtectionSettings.resolveLineDelayMs(global(PasteWarningMode.OFF, 5, 300),
+            teamwork(null, 0))).isEqualTo(0);
     }
 }

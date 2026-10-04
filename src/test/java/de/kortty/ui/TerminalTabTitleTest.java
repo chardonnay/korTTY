@@ -165,6 +165,22 @@ class TerminalTabTitleTest {
     }
 
     @Test
+    void splitPanesOfAnotherColorAreListedAfterTheTabColorAndMakeATooltipOnTheirOwn() {
+        String panes = "Split panes with a different color: db-prod – red (#D32F2F)";
+
+        assertWithMessage("a production pane in an uncolored tab is named when you point at the tab")
+            .that(TerminalTab.tooltipText("Connection: anna@dev1", null, null, panes, null))
+            .isEqualTo("Connection: anna@dev1\n" + panes);
+        assertThat(TerminalTab.tooltipText("Connection: root@db7", "Title set by the shell", "Tab color: green", panes,
+                "The bell rang"))
+            .isEqualTo("Connection: root@db7\nTitle set by the shell\nTab color: green\n" + panes + "\nThe bell rang");
+        assertThat(TerminalTab.tooltipText("Connection: root@db7", null, null, " ", null)).isNull();
+        assertWithMessage("the four-line form is the five-line one without panes")
+            .that(TerminalTab.tooltipText("Connection: root@db7", null, "Tab color: red", "The bell rang"))
+            .isEqualTo(TerminalTab.tooltipText("Connection: root@db7", null, "Tab color: red", null, "The bell rang"));
+    }
+
+    @Test
     void confirmingTheConnectionNameKeepsFollowingTheConnection() {
         assertThat(TerminalTab.customTitleFromInput("db-07", "db-07")).isNull();
         assertThat(TerminalTab.customTitleFromInput("  db-07 ", "db-07")).isNull();
@@ -307,7 +323,7 @@ class TerminalTabTitleTest {
     void projectsSaveTheCustomTitleInTheTabTitleAndRestoreIt() throws IOException {
         String window = source("MainWindow.java");
 
-        String save = methodBody(window, "private Project createProjectFromCurrentState() {");
+        String save = methodBody(window, "private SessionState captureTabState(Tab tab, CaptureOptions options) {");
         String terminal = save.substring(save.indexOf("if (tab instanceof TerminalTab terminalTab) {"),
             save.indexOf("} else if (tab instanceof SFTPManagerTab"));
         assertWithMessage("only a name the user gave is saved, so an unrenamed tab keeps following its connection")
@@ -316,7 +332,7 @@ class TerminalTabTitleTest {
             .that(terminal).doesNotContain("getShellTitle()");
         assertThat(terminal).doesNotContain("getEffectiveTitle()");
 
-        String load = methodBody(window, "private void loadProject(Project project) {");
+        String load = methodBody(window, "private void restoreSavedTab(");
         String restore = load.substring(load.indexOf("case TERMINAL -> {"), load.indexOf("case SFTP_MANAGER -> {"));
         assertThat(restore).contains("restoredTab.setCustomTitle(sessionState.getTabTitle());");
     }

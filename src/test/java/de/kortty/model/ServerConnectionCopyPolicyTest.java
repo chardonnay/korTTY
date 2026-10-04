@@ -27,6 +27,7 @@ public class ServerConnectionCopyPolicyTest {
 
     private static final Set<String> DUPLICATE_CARRIED = Set.of(
             "highlightRuleSetId",                                          // keyword highlighting rule set
+            "pasteWarningMode", "pasteLineDelayMs",                        // per-connection paste protection
             "host", "port", "username", "protocol", "localShellCommand",
             "localShellWorkingDirectory", "authMethod", "privateKeyPath",
             "shellIntegrationAutoInject",                                  // a duplicate runs the same local shell
@@ -49,7 +50,8 @@ public class ServerConnectionCopyPolicyTest {
             "name", "host", "port", "group", "tag", "tabColor", "protocol", "localShellCommand",
             "localShellWorkingDirectory", "authMethod", "privateKeyPath", "sshKeyId",
             "disableHostKeyCheck", "terminalEffectPluginId", "terminalEffectAnimationSpeed",
-            "terminalEmulationType", "encoding", "highlightRuleSetId", "settings");
+            "terminalEmulationType", "encoding", "highlightRuleSetId", "pasteWarningMode", "pasteLineDelayMs",
+            "settings");
 
     /** Exported only when the matching export-dialog checkbox is set. */
     private static final Set<String> EXPORT_CONDITIONAL = Set.of(

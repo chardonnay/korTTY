@@ -68,4 +68,45 @@ class MainWindowGeometrySupportTest {
 
         assertThat(plan.geometry().getY()).isEqualTo(90);
     }
+
+    @Test
+    void aMaximizedWindowFromADisconnectedMonitorOpensMaximized() {
+        WindowGeometry stored = new WindowGeometry(2200, 200, 1100, 760);
+        stored.setMaximized(true);
+
+        MainWindowGeometrySupport.RestorePlan plan =
+            MainWindowGeometrySupport.plan(stored, List.of(SCREEN), false);
+
+        assertThat(plan.geometry().getX()).isLessThan(SCREEN.getMaxX());
+        assertThat(plan.geometry().isMaximized()).isTrue();
+    }
+
+    @Test
+    void aProjectSavesTheNormalBoundsOfAMaximizedWindow() {
+        WindowGeometry normal = new WindowGeometry(140, 90, 1100, 760);
+
+        WindowGeometry saved = MainWindowGeometrySupport.capture(0, 25, 1512, 920, true, false, false, normal);
+
+        assertThat(saved.getX()).isEqualTo(140);
+        assertThat(saved.getWidth()).isEqualTo(1100);
+        assertThat(saved.isMaximized()).isTrue();
+        assertThat(saved).isNotSameInstanceAs(normal);
+    }
+
+    @Test
+    void aProjectSavesTheCurrentBoundsOfANormalWindowAndNeverFullscreen() {
+        WindowGeometry stale = new WindowGeometry(10, 10, 640, 480);
+
+        WindowGeometry normalWindow = MainWindowGeometrySupport.capture(200, 120, 1000, 700, false, false, false, stale);
+        WindowGeometry fullScreen = MainWindowGeometrySupport.capture(0, 0, 1512, 982, false, true, false, stale);
+        WindowGeometry unknownNormal = MainWindowGeometrySupport.capture(0, 25, 1512, 920, true, false, false, null);
+
+        assertThat(normalWindow.getX()).isEqualTo(200);
+        assertThat(normalWindow.getWidth()).isEqualTo(1000);
+        assertThat(normalWindow.isMaximized()).isFalse();
+        assertThat(fullScreen.getWidth()).isEqualTo(640);
+        assertThat(fullScreen.isFullScreen()).isFalse();
+        assertThat(unknownNormal.getWidth()).isEqualTo(1512);
+        assertThat(unknownNormal.isMaximized()).isTrue();
+    }
 }

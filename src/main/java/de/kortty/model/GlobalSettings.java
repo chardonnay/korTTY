@@ -135,6 +135,14 @@ public class GlobalSettings {
     @XmlElement
     private boolean connectionColorBorderEnabled = true;
 
+    // Tab colors of connection groups, set from a group's context menu in the Connection Manager: a
+    // connection without a tab color of its own takes its group's, or that of the nearest group above
+    // it with one (see ConnectionGroupColors). No group has a color until the user picks one; null
+    // while none has, so a settings file without colors keeps its old form.
+    @XmlElementWrapper(name = "connectionGroupColors")
+    @XmlElement(name = "group")
+    private java.util.List<ConnectionGroupColor> connectionGroupColors;
+
     // A terminal tab shows the title the program in its focused pane sets (OSC 0/2) in place of the
     // connection's name, unless the user renamed the tab. A settings file without it keeps it on.
     @XmlElement
@@ -954,6 +962,29 @@ public class GlobalSettings {
     @XmlElement(name = "question")
     private java.util.List<String> guideAskHistory;
 
+    /**
+     * File → Open Recent → Projects: the project files opened or saved last, as absolute paths, newest
+     * first (at most 10, see {@code de.kortty.core.RecentProjects}). Part of configuration backups.
+     */
+    @XmlElementWrapper(name = "recentProjectPaths")
+    @XmlElement(name = "path")
+    private java.util.List<String> recentProjectPaths;
+
+    /**
+     * When File → Open Recent → Clear List was chosen last, in epoch milliseconds; 0 for never.
+     * Connections used and project-folder files changed before then stay out of File → Open Recent.
+     */
+    @XmlElement
+    private long openRecentClearedAt = 0L;
+
+    /**
+     * Settings → Window → Session Restore: what korTTY does at startup with the session before this
+     * start, the {@link SessionRestoreMode#id()} {@code ask}, {@code auto} or {@code off}. Missing,
+     * blank or unknown values mean {@code ask}, so a damaged file never opens connections by itself.
+     */
+    @XmlElement
+    private String sessionRestoreMode = SessionRestoreMode.DEFAULT.id();
+
     /** Recent extra instructions from the workflow-script generator (max 10, newest first). */
     @XmlElementWrapper(name = "workflowInstructionsHistory")
     @XmlElement(name = "entry")
@@ -1568,6 +1599,67 @@ public class GlobalSettings {
 
     public void setConnectionColorBorderEnabled(boolean connectionColorBorderEnabled) {
         this.connectionColorBorderEnabled = connectionColorBorderEnabled;
+    }
+
+    /**
+     * The tab colors of connection groups, as a copy: {@code #RRGGBB} by group path
+     * ({@code Work/Production}). Groups without a color are absent, and so are stored entries
+     * without a group or with a value that is not a hex color (a hand-edited file).
+     */
+    public java.util.Map<String, String> getConnectionGroupColors() {
+        java.util.Map<String, String> colors = new java.util.LinkedHashMap<>();
+        if (connectionGroupColors != null) {
+            for (ConnectionGroupColor entry : connectionGroupColors) {
+                if (entry != null) {
+                    colors.putIfAbsent(entry.getPath(), entry.getColor());
+                }
+            }
+        }
+        return de.kortty.core.ConnectionGroupColors.copyOf(colors);
+    }
+
+    /**
+     * Gives the groups the colors {@code colors} names ({@code #RRGGBB} by group path) and removes
+     * the colors of all other groups. Entries without a group or with a value that is not a hex color
+     * are ignored.
+     */
+    public void setConnectionGroupColors(java.util.Map<String, String> colors) {
+        java.util.Map<String, String> valid = de.kortty.core.ConnectionGroupColors.copyOf(colors);
+        if (valid.isEmpty()) {
+            connectionGroupColors = null;
+            return;
+        }
+        java.util.List<ConnectionGroupColor> entries = new java.util.ArrayList<>();
+        valid.forEach((path, color) -> entries.add(new ConnectionGroupColor(path, color)));
+        connectionGroupColors = entries;
+    }
+
+    /**
+     * The tab color the group {@code groupPath} has of its own, as {@code #RRGGBB}, or {@code null};
+     * a color the group takes from a group above it does not count here.
+     */
+    public String getConnectionGroupColor(String groupPath) {
+        String key = de.kortty.core.ConnectionGroupColors.key(groupPath);
+        return key != null ? getConnectionGroupColors().get(key) : null;
+    }
+
+    /**
+     * Sets or, with {@code null} or a value that is not a hex color, removes the tab color of the
+     * group {@code groupPath}. A blank path (no group) is ignored.
+     */
+    public void setConnectionGroupColor(String groupPath, String color) {
+        String key = de.kortty.core.ConnectionGroupColors.key(groupPath);
+        if (key == null) {
+            return;
+        }
+        java.util.Map<String, String> colors = getConnectionGroupColors();
+        String hex = de.kortty.core.ConnectionColorSupport.normalizeHex(color);
+        if (hex != null) {
+            colors.put(key, hex);
+        } else {
+            colors.remove(key);
+        }
+        setConnectionGroupColors(colors);
     }
 
     /** Whether a terminal tab shows the title the program in it sets (OSC 0/2) in place of the connection's name (Window settings). */
@@ -3618,6 +3710,34 @@ public class GlobalSettings {
         while (history.size() > 10) {
             history.remove(history.size() - 1);
         }
+    }
+
+    /** The project files File → Open Recent remembers, newest first; never {@code null}, a copy. */
+    public java.util.List<String> getRecentProjectPaths() {
+        return recentProjectPaths == null ? java.util.List.of()
+                : recentProjectPaths.stream().filter(java.util.Objects::nonNull).toList();
+    }
+
+    public void setRecentProjectPaths(java.util.List<String> recentProjectPaths) {
+        this.recentProjectPaths = recentProjectPaths == null ? null : new java.util.ArrayList<>(recentProjectPaths);
+    }
+
+    public long getOpenRecentClearedAt() {
+        return openRecentClearedAt;
+    }
+
+    public void setOpenRecentClearedAt(long openRecentClearedAt) {
+        this.openRecentClearedAt = Math.max(0L, openRecentClearedAt);
+    }
+
+    /** What korTTY does at startup with the previous session; never null. */
+    public SessionRestoreMode getSessionRestoreMode() {
+        return SessionRestoreMode.fromId(sessionRestoreMode);
+    }
+
+    /** @param sessionRestoreMode the mode to store; null stores the default ({@code ask}) */
+    public void setSessionRestoreMode(SessionRestoreMode sessionRestoreMode) {
+        this.sessionRestoreMode = (sessionRestoreMode != null ? sessionRestoreMode : SessionRestoreMode.DEFAULT).id();
     }
 
     public java.util.List<String> getWorkflowInstructionsHistory() {

@@ -21,10 +21,12 @@ import java.util.Optional;
  *       connection of the pane being split ({@link PaneOrigin}), because the connection editor
  *       changes a saved connection in place, so an open pane's host or jump server can have been
  *       edited to a blocked one after the pane passed the gate.</li>
+ *   <li>Rebuilding a project's split panes: {@code TerminalView.prepareRestoredSplitPane}, for every
+ *       pane, on the tab's server or another one, before its connector is built. A blocked pane is
+ *       left out and counted in the restore's status-bar note instead of showing a dialog.</li>
  * </ul>
  *
- * <p>Free of UI so the decision is unit-testable; later restore paths for panes on other servers
- * reuse it.
+ * <p>Free of UI so the decision is unit-testable.
  */
 final class SplitConnectionPolicy {
 

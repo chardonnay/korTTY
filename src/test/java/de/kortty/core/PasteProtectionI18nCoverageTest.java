@@ -15,8 +15,9 @@ import java.util.regex.Pattern;
 import org.testng.annotations.Test;
 
 /**
- * Every text of the paste protection settings, of the paste confirmation and of a paced paste exists
- * in all eight bundled languages, with the same placeholders as the English text.
+ * Every text of the paste protection settings, of the paste confirmation, of a paced paste and of the
+ * connection editor's per-connection paste protection exists in all eight bundled languages, with the
+ * same placeholders as the English text.
  */
 class PasteProtectionI18nCoverageTest {
 
@@ -30,7 +31,8 @@ class PasteProtectionI18nCoverageTest {
         "messages_hr.properties",
         "messages_nl.properties");
 
-    private static final List<String> PREFIXES = List.of("settings.terminal.paste.", "terminal.paste.");
+    private static final List<String> PREFIXES = List.of("settings.terminal.paste.", "terminal.paste.",
+        "connEdit.paste.");
 
     private static final List<String> REQUIRED_KEYS = List.of(
         "settings.terminal.paste.header",
@@ -68,8 +70,19 @@ class PasteProtectionI18nCoverageTest {
         "terminal.paste.confirm.previewLegend",
         "terminal.paste.confirm.previewTruncated",
         "terminal.paste.confirm.settingsHint",
+        "terminal.paste.confirm.settingsHint.connection",
+        "terminal.paste.confirm.settingsHint.size",
         "terminal.paste.confirm.paste",
         "terminal.paste.pacing.progress",
+        // The connection editor's per-connection paste protection.
+        "connEdit.paste.warningMode",
+        "connEdit.paste.warningMode.tooltip",
+        "connEdit.paste.warningMode.default",
+        "connEdit.paste.lineDelay",
+        "connEdit.paste.lineDelay.override",
+        "connEdit.paste.lineDelay.unit",
+        "connEdit.paste.lineDelay.tooltip",
+        "connEdit.paste.teamwork",
         // Shared with other dialogs and the terminal's context menu.
         "dialog.cancel",
         "terminal.contextMenu.copy");
@@ -127,6 +140,8 @@ class PasteProtectionI18nCoverageTest {
         assertThat(placeholders(english.getProperty("terminal.paste.confirm.reason.bidiCharacters")))
             .containsExactly("{0}");
         assertThat(placeholders(english.getProperty("terminal.paste.pacing.progress"))).containsExactly("{0}", "{1}");
+        assertThat(placeholders(english.getProperty("connEdit.paste.warningMode.default"))).containsExactly("{0}");
+        assertThat(placeholders(english.getProperty("connEdit.paste.lineDelay.override"))).containsExactly("{0}");
     }
 
     private static Set<String> placeholders(String value) {

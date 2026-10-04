@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * The texts of a {@link PasteConfirmationDialog}, worked out from the request without JavaFX, so a
@@ -23,7 +24,9 @@ import java.util.Objects;
  * @param previewText the start of the text, with hidden characters made visible
  * @param previewLegend how hidden characters are shown, or null when the text has none
  * @param previewTruncated that the preview is shortened, or null when it shows the whole text
- * @param settingsHint where paste protection is configured
+ * @param settingsHint where paste protection is configured: Settings → Terminal, or the connection's
+ *     settings when the pane's connection sets its own paste warning and that warning asks (and both
+ *     when the paste is also too large, as the size check is always in Settings → Terminal)
  * @param pasteButton the label of the button that pastes
  * @param cancelButton the label of the default button, which drops the paste
  */
@@ -115,9 +118,28 @@ record PasteConfirmationContent(String title, String header, String summary, Lis
             preview.text(),
             showsHiddenCharacters ? text(translator, "previewLegend") : null,
             preview.truncated() ? text(translator, "previewTruncated") : null,
-            text(translator, "settingsHint"),
+            settingsHint(request, translator),
             text(translator, "paste"),
             translator.get("dialog.cancel"));
+    }
+
+    /**
+     * Where the user changes what made this paste ask. The connection editor only when the pane's
+     * connection sets its own warning and that warning asks (line breaks or control characters); the
+     * size check always comes from Settings → Terminal, so a paste that asks only for its size points
+     * there, and one that asks for both names both places.
+     */
+    private static String settingsHint(PasteConfirmationRequest request, Translator translator) {
+        Set<PasteReason> reasons = request.reasons();
+        boolean connectionWarningAsks = request.setByConnection()
+            && (reasons.contains(PasteReason.MULTI_LINE) || reasons.contains(PasteReason.CONTROL_CHARACTERS));
+        if (!connectionWarningAsks) {
+            return text(translator, "settingsHint");
+        }
+        String connection = text(translator, "settingsHint.connection");
+        return reasons.contains(PasteReason.LARGE)
+            ? connection + " " + text(translator, "settingsHint.size")
+            : connection;
     }
 
     /** What a screen reader announces for the preview: the question and the reasons. */
