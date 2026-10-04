@@ -876,6 +876,24 @@
 </tbody>
 </table>
 <p>Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsätzen, die Muster und alles, was in die Bereiche eingegeben wird, werden nie gesendet. Änderungen auf den Einstellungsseiten werden als Name der Einstellung gemeldet, bei Schaltern und Auswahlfeldern mit dem neuen Wert; bei den Buchstaben und Mustern der Schnellauswahl und bei neu belegten Tastenkürzeln nur, ob Sie sie geändert haben.</p>
+<h3 id="ki-chat-codeblocke">KI-Chat-Codeblöcke<a class="headerlink" href="#ki-chat-codeblocke" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ai_code_block_action</code></td>
+<td><strong>Einfügen</strong> oder <strong>Ausführen</strong> wird auf einem Codeblock eines KI-Chats verwendet</td>
+<td><code>insert</code> oder <code>run</code> und ob die Aktion mit <code>sent</code>, <code>cancelled</code> (die Ausführen-Bestätigung wurde abgelehnt) oder <code>refused</code> (die Richtlinie, der Block oder der Bereich ließ es nicht zu) endete</td>
+</tr>
+</tbody>
+</table>
+<p>Der Block, seine Sprache, der Befehl, der Bereich, der Tab, der Host und der Grund einer Ablehnung werden nie gesendet.</p>
 <h3 id="steuerungs-api-und-mcp-clients">Steuerungs-API und MCP-Clients<a class="headerlink" href="#steuerungs-api-und-mcp-clients" title="Permanent link">&para;</a></h3>
 <p>Wenn ein Programm die <a href="../reference/control-api.html">Steuerungs-API</a> verwendet, meldet korTTY, welche Methoden verwendet werden und welche Art von Client sie verwendet hat. Ein KI-Assistent, der über <code>kortty-cli mcp</code> verbunden ist, wird zusätzlich nach Tool und nach dem Ausgang des Aufrufs gemeldet. Jedes Ereignis wird höchstens einmal pro Methode bzw. pro Tool und Ausgang gesendet, solange korTTY läuft; die Anzahl der Aufrufe fließt in die regelmäßige Nutzungszusammenfassung ein.</p>
 <table>

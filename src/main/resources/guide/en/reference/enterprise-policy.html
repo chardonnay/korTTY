@@ -1036,7 +1036,7 @@
 <td><code>ai-chat</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>deny</code></td>
-<td>AI chat, Saved Chats and the terminal-selection AI actions</td>
+<td>AI chat, Saved Chats and the terminal-selection AI actions. <code>deny</code> also greys out <strong>Insert</strong> and <strong>Run</strong> on the <a href="../features/ai-assistant.html#code-blocks-in-the-terminal">code blocks of a chat</a></td>
 </tr>
 <tr>
 <td><code>ai-swarm</code></td>
@@ -1114,7 +1114,7 @@
 <td><code>ai-agent-execution</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
-<td><code>confirm</code> forces interactive approval of every mutating command set and defeats the auto-approve option; <code>read-only</code> lets the agent plan and chat but never execute commands. Scheduled jobs: under <code>confirm</code> an <a href="../features/jobscheduler.html#security-and-secrets">AI Agent or AI Swarm job</a> blocks every server-changing command, whatever its <strong>Auto-approve AI commands</strong> says, because nobody is there to approve it; under <code>read-only</code> both AI job types end as blocked before they connect. A job is also blocked up front when <code>ai</code> or <code>ai-agent</code> is denied, and a swarm job when <code>ai-swarm</code> is denied</td>
+<td><code>confirm</code> forces interactive approval of every mutating command set and defeats the auto-approve option; <code>read-only</code> lets the agent plan and chat but never execute commands, and greys out <strong>Run</strong> on the <a href="../features/ai-assistant.html#code-blocks-in-the-terminal">code blocks of an AI chat</a> (<strong>Insert</strong> stays, since it runs nothing). Scheduled jobs: under <code>confirm</code> an <a href="../features/jobscheduler.html#security-and-secrets">AI Agent or AI Swarm job</a> blocks every server-changing command, whatever its <strong>Auto-approve AI commands</strong> says, because nobody is there to approve it; under <code>read-only</code> both AI job types end as blocked before they connect. A job is also blocked up front when <code>ai</code> or <code>ai-agent</code> is denied, and a swarm job when <code>ai-swarm</code> is denied</td>
 </tr>
 </tbody>
 </table>

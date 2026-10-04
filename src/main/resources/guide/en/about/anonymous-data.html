@@ -876,6 +876,24 @@
 </tbody>
 </table>
 <p>The search text, the names of commands, tabs, connections, snippets and rule sets, the patterns, and anything typed into the panes are never sent. Changes on the settings pages are reported as the name of the setting and, for switches and choices, the new value; for the quick-select letters and patterns and for rebound shortcuts only whether you changed them.</p>
+<h3 id="ai-chat-code-blocks">AI chat code blocks<a class="headerlink" href="#ai-chat-code-blocks" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Sent when</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ai_code_block_action</code></td>
+<td><strong>Insert</strong> or <strong>Run</strong> on a code block of an AI chat is used</td>
+<td><code>insert</code> or <code>run</code>, and whether it ended <code>sent</code>, <code>cancelled</code> (the Run confirmation was declined) or <code>refused</code> (the policy, the block or the pane did not allow it)</td>
+</tr>
+</tbody>
+</table>
+<p>The block, its language, the command, the pane, the tab, the host and the reason for a refusal are never sent.</p>
 <h3 id="control-api-and-mcp-clients">Control API and MCP clients<a class="headerlink" href="#control-api-and-mcp-clients" title="Permanent link">&para;</a></h3>
 <p>When a program uses the <a href="../reference/control-api.html">Control API</a>, korTTY reports which methods are used and what kind of client used them. An AI assistant connected through <code>kortty-cli mcp</code> is also reported by tool and by how the call ended. Each event is sent at most once per method, or per tool and outcome, while korTTY runs; the number of calls goes into the periodic usage summary.</p>
 <table>
