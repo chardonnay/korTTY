@@ -147,6 +147,7 @@ What changed in the current release. The version this guide was built for is sho
 ### Connections
 
 - **Password targets behind a password jump server now connect** — the terminal handed the master password only to targets that log in with an SSH key, and the SFTP tab not even to a temporary key, so a password or keyboard-interactive target failed on the jump server's stored password with "vault is locked" although the vault was open — and korTTY kept repeating that failed attempt through the whole retry count. The jump password now works whatever the target's authentication. Failures that another attempt cannot fix — a jump password that is missing, locked in the vault or cannot be decrypted, an incomplete jump setup, a rejected jump-server host key, an SSH key file that is missing or cannot be read — are reported once and no longer retried or reconnected automatically, and with a locked vault korTTY no longer contacts the jump server at all. See [When the jump server cannot be used](../features/jump-server.md#when-the-jump-server-cannot-be-used).
+- **Saved local shells keep their shell in Quick Connect and through export and import** — picking a saved Local Shell connection in Quick Connect left its shell, custom command and start directory out of the form and started the platform's default shell instead, for example zsh instead of the saved fish, and importing a korTTY export turned Local Shell and Mosh connections into SSH connections and dropped the shell. Quick Connect now shows the saved shell and start directory and starts that shell, including a command the shell list cannot show, such as `wsl.exe -d Ubuntu`, unless you pick another one; an import keeps the protocol, the shell command and the start directory. See [Local Shell](../features/connections.md#local-shell).
 
 ### SFTP file manager
 
@@ -202,6 +203,8 @@ What changed in the current release. The version this guide was built for is sho
 ### Teamwork and terminal recording
 
 - **No more options that did nothing** — the Video Manager no longer offers a **Default format**: recordings were always written as korTTY replay files, and WebM or MKV videos come only from **Export**. A setting saved with the old WebM value still loads. The **Read-only** checkbox is gone from the teamwork source dialog as well, because korTTY never writes back to a teamwork source; a value stored earlier is kept. The [Teamwork](../features/teamwork.md) page now describes the one-way sync as it works. See [Terminal recording](../features/recording.md).
+
+- **Teamwork connections can no longer be edited by mistake** — **Edit** on the Connection Manager's **Teamwork connections** tab opened the connection editor although teamwork connections are read-only, and saving changed the shared connection korTTY had loaded without storing it anywhere, so connecting to it could use the edited values. **Edit** is now unavailable on that tab, in the button column and in the right-click menu, and a teamwork connection can no longer be dragged into another folder, which changed its folder the same way. See [Using teamwork connections](../features/teamwork.md#using-teamwork-connections).
 
 ### Local data files
 

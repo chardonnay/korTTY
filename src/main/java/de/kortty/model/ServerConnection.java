@@ -357,6 +357,53 @@ public class ServerConnection {
         return c;
     }
 
+    /**
+     * Copy made from a connection read out of an imported korTTY file: it reads back what
+     * {@link #copyForExport} writes, so an exported Local Shell or Mosh connection comes back as
+     * one, while username, password/credential reference, tunnels and jump server follow the import
+     * dialog's checkboxes. The host-key check override is not taken over, and nothing copyForExport
+     * leaves behind is read back, even when a file carries it. Every persisted field must be
+     * classified as carried, conditional or excluded in ServerConnectionCopyPolicyTest.
+     */
+    public static ServerConnection copyForImport(ServerConnection source, boolean includeUsername,
+            boolean includePassword, boolean includeTunnels, boolean includeJumpServer) {
+        ServerConnection c = new ServerConnection();
+        c.name = source.name;
+        c.host = source.host;
+        c.port = source.port;
+        c.group = source.group;
+        c.tag = source.tag;
+        c.tabColor = source.tabColor;
+        c.protocol = source.protocol;
+        c.localShellCommand = source.localShellCommand;
+        c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.authMethod = source.authMethod;
+        c.privateKeyPath = source.privateKeyPath;
+        c.sshKeyId = source.sshKeyId;
+        c.terminalEffectPluginId = source.terminalEffectPluginId;
+        c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
+        c.highlightRuleSetId = source.highlightRuleSetId;
+        c.pasteWarningMode = source.pasteWarningMode;
+        c.pasteLineDelayMs = source.pasteLineDelayMs;
+        c.terminalEmulationType = source.getTerminalEmulationType();
+        c.encoding = source.encoding;
+        c.username = includeUsername ? source.username : "";
+        if (includePassword) {
+            c.encryptedPassword = source.encryptedPassword;
+            c.credentialId = source.credentialId;
+        }
+        if (includeTunnels && source.sshTunnels != null) {
+            c.sshTunnels = new java.util.ArrayList<>(source.sshTunnels);
+        }
+        if (includeJumpServer && source.jumpServer != null) {
+            c.jumpServer = source.jumpServer;
+        }
+        if (source.settings != null) {
+            c.settings = new ConnectionSettings(source.settings);
+        }
+        return c;
+    }
+
     // Getters and Setters
 
     public String getId() {
