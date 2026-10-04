@@ -909,6 +909,13 @@
 <td><code>highlightRuleSets</code></td>
 </tr>
 <tr>
+<td>Aktionen von Hervorhebungsregeln ausführen (Benachrichtigungen, Snippets)</td>
+<td>umschalten</td>
+<td>–</td>
+<td>Ein</td>
+<td><code>terminalTriggersEnabled</code></td>
+</tr>
+<tr>
 <td>Web-Adressen, E-Mail-Adressen und Dateipfade im Terminaltext erkennen</td>
 <td>umschalten</td>
 <td>–</td>
@@ -977,6 +984,13 @@
 <td>–</td>
 <td>Ein</td>
 <td><code>remoteTerminalNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Auf Stille überwachen meldet nach:</td>
+<td>Nummer</td>
+<td>5–3.600 Sekunden</td>
+<td>30</td>
+<td><code>terminalSilenceSeconds</code></td>
 </tr>
 <tr>
 <td>SSH Keep-Alive aktivieren</td>
@@ -1072,6 +1086,7 @@
 <p><strong>Auch in Vollbildprogrammen hervorheben</strong> erweitert die Hervorhebung auf Programme, die den alternativen Bildschirm des Terminals verwenden, etwa <code>vim</code>, <code>less</code> und <code>htop</code>. Die Option ist standardmäßig ausgeschaltet, weil diese Programme ihren Bildschirm ständig neu zeichnen und eigene Farben mitbringen, sodass Hervorhebungen dort flackern und mit den Farben des Programms kollidieren können. Wenn Sie sie ausschalten, bleiben Hervorhebungen, die ein laufendes Programm bereits zeigt, bestehen, bis es sie neu zeichnet.</p>
 <p>Alle drei gelten für geöffnete Terminals, sobald Sie speichern.</p>
 <p><strong>Regeln bearbeiten…</strong> öffnet den <a href="../../features/highlighting.html#ihre-eigenen-regelsatze">Regelsatz-Editor</a>, in dem Sie eigene Regelsätze anlegen und die mitgelieferten ansehen. Die Schaltfläche bleibt verfügbar, solange der Hauptschalter ausgeschaltet ist, sodass Sie Regelsätze vorbereiten können, bevor Sie die Hervorhebung einschalten. Der Editor speichert seine Änderungen, sobald Sie ihn bestätigen, gleich ob Sie danach den Einstellungsdialog speichern, und anschließend listet das Dropdown <strong>Standard-Regelsatz</strong> Ihre Regelsätze in ihrem aktuellen Stand. Löschen Sie den Regelsatz, den das Dropdown zeigt, fällt es auf <strong>Keiner</strong> zurück.</p>
+<p><strong>Aktionen von Hervorhebungsregeln ausführen (Benachrichtigungen, Snippets)</strong> lässt Regeln, deren Aktion <strong>Desktop-Benachrichtigung</strong> ist, ihren Tab markieren und benachrichtigen, wenn ihr Muster in neuer Ausgabe in einem Tab erscheint, den Sie gerade nicht ansehen (siehe <a href="../../features/highlighting.html#benachrichtigungen-bei-passender-ausgabe">Benachrichtigungen bei passender Ausgabe</a>), und Regeln, deren Aktion <strong>Snippet ausführen</strong> ist, ihr Snippet in dem Bereich ausführen, in dem das Muster erscheint, nachdem sie Sie einmal pro Verbindung gefragt haben (siehe <a href="../../features/highlighting.html#ein-snippet-ausfuhren-wenn-die-ausgabe-passt">Ein Snippet ausführen, wenn die Ausgabe passt</a>). Die Einstellung ist standardmäßig eingeschaltet, weil eine Regel nur dann eine Aktion erhält, wenn Sie ihr eine geben; ausgeschaltet heben solche Regeln nur hervor. Sie ist ausgegraut, solange der Hauptschalter ausgeschaltet ist, und wird bei jedem Treffer gelesen, sodass eine Änderung für geöffnete Terminals gilt, sobald Sie speichern. Der Richtlinienschlüssel <code>terminal-triggers</code> der Unternehmensrichtlinie sperrt sie in der Stellung, die die Richtlinie gewählt hat (siehe <a href="../enterprise-policy.html#rulefeatures">Unternehmensrichtlinie</a>).</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Links</p>
@@ -1092,6 +1107,7 @@
 <p>Ein Programm, das in einem Tab, den Sie gerade nicht ansehen, die Terminalglocke läutet, markiert diesen Tab immer mit 🔔, bis Sie ihn ansehen; dafür ist keine Einstellung nötig. <strong>Desktop-Benachrichtigung, wenn die Glocke in einem Tab läutet, den Sie gerade nicht ansehen</strong> fügt eine Desktop-Benachrichtigung mit dem Titel <code>korTTY ·</code> und dem Namen des Tabs hinzu, höchstens eine pro Bereich alle 10 Sekunden. Sie ist standardmäßig ausgeschaltet, weil Shells bei jeder erfolglosen Tab-Vervollständigung die Glocke läuten, und ein Bereich mit einem erkannten Coding-Agent erhält keine, solange die Coding-Agent-Benachrichtigungen eingeschaltet sind. Die Einstellung wird bei jedem Glockensignal gelesen, sodass eine Änderung für offene Tabs gilt, sobald Sie speichern.</p>
 <p>In einer für die Shell-Integration eingerichteten Shell markiert ein Befehl, der mindestens <strong>Mindestlaufzeit eines Befehls:</strong> lief (standardmäßig 30 Sekunden) und in einem Tab endet, den Sie gerade nicht ansehen, diesen Tab ebenfalls mit 🔔, und <strong>Desktop-Benachrichtigung, wenn ein lang laufender Befehl in einem Tab endet, den Sie gerade nicht ansehen</strong>, standardmäßig eingeschaltet, fügt eine Desktop-Benachrichtigung hinzu, die sagt, wie der Befehl endete und wie lange er lief, nie den Befehl selbst, höchstens eine pro Tab alle 10 Sekunden. Befehle des KI-Agenten von korTTY lösen nie eine Benachrichtigung aus. Beide sind ausgegraut, solange <strong>Befehlsmarkierungen von Shells mit eingerichteter Shell-Integration nutzen (OSC 133)</strong> ausgeschaltet ist, und beide werden bei jedem beendeten Befehl gelesen. Siehe <a href="../../features/terminal-notifications.html#lange-laufende-befehle">Terminal-Benachrichtigungen</a>.</p>
 <p>Ein Programm, das mit OSC 9 oder OSC 777 eine Desktop-Benachrichtigung anfordert, etwa ein Coding-Agent auf einem Server, der auf Ihre Antwort wartet, markiert seinen Tab ebenfalls mit 🔔, wenn Sie ihn gerade nicht ansehen, und <strong>Desktop-Benachrichtigung, wenn ein Programm in einem Tab, den Sie gerade nicht ansehen, eine anfordert (OSC 9, OSC 777)</strong>, standardmäßig eingeschaltet, zeigt den Text des Programms unter einem Titel mit dem Namen des Tabs, bereinigt von Steuer- und Bidi-Zeichen und gekürzt auf 80 Zeichen für den Titel und 200 für den Text, höchstens eine pro Bereich alle 5 Sekunden; was dazwischen eintrifft, wird verworfen. Ein Bereich mit einem erkannten Coding-Agent erhält keine, solange die Coding-Agent-Benachrichtigungen eingeschaltet sind. Die Funktion braucht keine Shell-Integration, und die Einstellung wird bei jeder Anfrage gelesen. Siehe <a href="../../features/terminal-notifications.html#benachrichtigungen-von-programmen">Benachrichtigungen von Programmen</a>.</p>
+<p><strong>Auf Stille überwachen meldet nach:</strong> gibt an, wie lange ein Bereich, nachdem er etwas ausgegeben hat, ohne Ausgabe bleiben muss, bevor ein Tab, den Sie mit <strong>Auf Stille überwachen</strong> in seinem Rechtsklickmenü überwachen, mit 🔔 markiert wird und eine Desktop-Benachrichtigung zeigt, standardmäßig 30 Sekunden. Die Überwachung selbst wird, wie <strong>Auf Aktivität überwachen</strong>, das neue Ausgabe nach 10 Sekunden Ruhe meldet, pro Tab eingeschaltet, ist ausgeschaltet, bis Sie sie einschalten, und wird nie gespeichert. Der Schwellenwert wird jede Sekunde gelesen, sodass eine Änderung für die überwachten Tabs gilt, sobald Sie speichern. Siehe <a href="../../features/terminal-notifications.html#einen-tab-auf-aktivitat-oder-stille-uberwachen">Einen Tab auf Aktivität oder Stille überwachen</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">SSH-Keep-Alive</p>
