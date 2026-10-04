@@ -14,6 +14,7 @@ import de.kortty.core.DynamicLanguageGenerator;
 import de.kortty.core.GuideTranslationGenerator;
 import de.kortty.core.GuideLocationResolver;
 import de.kortty.core.GPGKeyManager;
+import de.kortty.core.QuickSelectLabels;
 import de.kortty.core.AiCliArgumentPreset;
 import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiCliProviderDescriptor;
@@ -177,6 +178,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox terminalCopyOnSelectCheck;
     private final CheckBox osc52ClipboardWriteCheck;
     private final CheckBox terminalLinkDetectionCheck;
+    /** Quick select's label letters and the user's own patterns (Links section); see QuickSelectSettingsSupport. */
+    private final TextField quickSelectAlphabetField;
+    private final TextArea quickSelectPatternsArea;
+    private final Label quickSelectAlphabetError;
+    private final Label quickSelectPatternsError;
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final ComboBox<PasteWarningMode> pasteWarningModeCombo;
     private final Spinner<Integer> pasteLargeWarningSpinner;
@@ -823,6 +829,29 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalLinkDetectionCheck.setSelected(globalSettings == null || globalSettings.isTerminalLinkDetectionEnabled());
         terminalLinkDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.linkDetection.tooltip")));
 
+        // Quick select: the label letters and the user's own patterns. Checked as they are typed; a
+        // problem shows under the field and keeps Save from closing the dialog.
+        quickSelectAlphabetField = new TextField(globalSettings != null && globalSettings.getTerminalQuickSelectAlphabet() != null
+            ? globalSettings.getTerminalQuickSelectAlphabet() : "");
+        quickSelectAlphabetField.setPromptText(QuickSelectLabels.DEFAULT_ALPHABET);
+        quickSelectAlphabetField.setPrefColumnCount(26);
+        quickSelectAlphabetField.setMaxWidth(Region.USE_PREF_SIZE);
+        quickSelectAlphabetField.setTooltip(new Tooltip(I18n.get(QuickSelectSettingsSupport.ALPHABET_TOOLTIP_KEY)));
+        quickSelectPatternsArea = new TextArea(QuickSelectSettingsSupport.patternsText(
+            globalSettings != null ? globalSettings.getTerminalQuickSelectPatterns() : List.of()));
+        quickSelectPatternsArea.setPromptText(I18n.get(QuickSelectSettingsSupport.PATTERNS_PROMPT_KEY));
+        quickSelectPatternsArea.setPrefRowCount(4);
+        quickSelectPatternsArea.setPrefColumnCount(40);
+        quickSelectPatternsArea.setMaxWidth(UiFontScaleSupport.scaleDimension(560, true));
+        quickSelectPatternsArea.setWrapText(false);
+        quickSelectPatternsArea.setStyle("-fx-font-family: monospace;");
+        quickSelectPatternsArea.setTooltip(new Tooltip(I18n.get(QuickSelectSettingsSupport.PATTERNS_TOOLTIP_KEY)));
+        quickSelectAlphabetError = quickSelectErrorLabel();
+        quickSelectPatternsError = quickSelectErrorLabel();
+        quickSelectAlphabetField.textProperty().addListener((obs, was, now) -> validateQuickSelectFields());
+        quickSelectPatternsArea.textProperty().addListener((obs, was, now) -> validateQuickSelectFields());
+        validateQuickSelectFields();
+
         closeActiveTerminalWindowsWithoutConfirmationCheck = new CheckBox(I18n.get("settings.terminal.closeActiveWithoutConfirmation"));
         closeActiveTerminalWindowsWithoutConfirmationCheck.setSelected(globalSettings != null
             && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation());
@@ -1047,6 +1076,20 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         linksHeader.setStyle("-fx-font-weight: bold;");
         terminalGrid.add(linksHeader, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalLinkDetectionCheck, 0, terminalRow++, 2, 1);
+        Label quickSelectAlphabetLabel = new Label(I18n.get(QuickSelectSettingsSupport.ALPHABET_KEY));
+        GridPane.setValignment(quickSelectAlphabetLabel, VPos.TOP);
+        quickSelectAlphabetLabel.setPadding(new Insets(4, 0, 0, 0));
+        terminalGrid.add(quickSelectAlphabetLabel, 0, terminalRow);
+        terminalGrid.add(new VBox(4, quickSelectAlphabetField, quickSelectAlphabetError), 1, terminalRow++);
+        Label quickSelectPatternsLabel = new Label(I18n.get(QuickSelectSettingsSupport.PATTERNS_KEY));
+        GridPane.setValignment(quickSelectPatternsLabel, VPos.TOP);
+        quickSelectPatternsLabel.setPadding(new Insets(4, 0, 0, 0));
+        terminalGrid.add(quickSelectPatternsLabel, 0, terminalRow);
+        terminalGrid.add(new VBox(4, quickSelectPatternsArea, quickSelectPatternsError), 1, terminalRow++);
+        Label quickSelectInfo = new Label(I18n.get(QuickSelectSettingsSupport.INFO_KEY));
+        quickSelectInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        quickSelectInfo.setWrapText(true);
+        terminalGrid.add(quickSelectInfo, 0, terminalRow++, 2, 1);
 
         // Paste protection section
         terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
@@ -3373,6 +3416,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     event.consume();
                     mainTabPane.getSelectionModel().select(keyboardTab);
                     keyboardPage.revealConflicts();
+                } else if (!QuickSelectSettingsSupport.canSave(quickSelectAlphabetField.getText(),
+                        quickSelectPatternsArea.getText())) {
+                    // A label letter or pattern quick select cannot use: show it instead of saving it.
+                    event.consume();
+                    revealQuickSelectProblems();
                 }
             });
         }
@@ -3508,8 +3556,58 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             + "; -fx-border-width: 1;";
     }
     
+    /** A red line under a quick-select field that says what is wrong with it; hidden while nothing is. */
+    private static Label quickSelectErrorLabel() {
+        Label error = new Label();
+        error.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #d9534f;");
+        error.setWrapText(true);
+        error.setMinHeight(Region.USE_PREF_SIZE); // wrap instead of ellipsizing
+        error.setMaxWidth(UiFontScaleSupport.scaleDimension(560, true));
+        error.setVisible(false);
+        error.setManaged(false);
+        return error;
+    }
+
+    /**
+     * Shows under the quick-select fields what keeps them from being saved and marks a field with a
+     * problem red; called on every change of either field.
+     */
+    private void validateQuickSelectFields() {
+        String alphabetMessage = QuickSelectSettingsSupport.alphabetMessage(quickSelectAlphabetField.getText(), I18n::get);
+        List<String> patternMessages = QuickSelectSettingsSupport.patternMessages(quickSelectPatternsArea.getText(), I18n::get);
+        showQuickSelectProblem(quickSelectAlphabetField, quickSelectAlphabetError, alphabetMessage);
+        showQuickSelectProblem(quickSelectPatternsArea, quickSelectPatternsError,
+            patternMessages.isEmpty() ? null : String.join("\n", patternMessages));
+    }
+
+    private static void showQuickSelectProblem(TextInputControl field, Label error, String message) {
+        boolean problem = message != null;
+        error.setText(problem ? message : "");
+        error.setVisible(problem);
+        error.setManaged(problem);
+        String base = field instanceof TextArea ? "-fx-font-family: monospace;" : "";
+        field.setStyle(problem ? base + " -fx-border-color: #e74c3c; -fx-border-width: 2px; -fx-border-radius: 3px;" : base);
+    }
+
+    /** Shows the Terminal page with the first quick-select field that cannot be saved focused. */
+    private void revealQuickSelectProblems() {
+        validateQuickSelectFields();
+        if (mainTabPane != null) {
+            mainTabPane.getSelectionModel().select(terminalTab);
+        }
+        TextInputControl first = quickSelectAlphabetError.isVisible() ? quickSelectAlphabetField : quickSelectPatternsArea;
+        // After the page is built and laid out: it is built on first selection.
+        Platform.runLater(first::requestFocus);
+    }
+
     /** @return true if save may continue, false to abort (e.g. vault locked and translation API key cannot be encrypted) */
     private boolean applySettings() {
+        // The Save button's filter already stops here; this keeps any other way in from storing
+        // label letters or patterns quick select cannot use. Before any setter runs, so nothing is half saved.
+        if (!QuickSelectSettingsSupport.canSave(quickSelectAlphabetField.getText(), quickSelectPatternsArea.getText())) {
+            revealQuickSelectProblems();
+            return false;
+        }
         // Snapshot for the "most changed settings" metric — read from the models
         // before any setter runs, diffed again on the success path.
         java.util.Map<String, Object> trackedSettingsBefore = captureTrackedSettings();
@@ -3573,6 +3671,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
             globalSettings.setOsc52ClipboardWriteEnabled(osc52ClipboardWriteCheck.isSelected());
             globalSettings.setTerminalLinkDetectionEnabled(terminalLinkDetectionCheck.isSelected());
+            // Save only gets here with both fields valid (the Save button's filter checks them).
+            globalSettings.setTerminalQuickSelectAlphabet(
+                QuickSelectSettingsSupport.alphabet(quickSelectAlphabetField.getText()));
+            globalSettings.setTerminalQuickSelectPatterns(
+                QuickSelectSettingsSupport.patterns(quickSelectPatternsArea.getText()));
             globalSettings.setPasteWarningMode(pasteWarningModeCombo.getValue());
             globalSettings.setPasteLargeWarningKiB(pasteLargeWarningSpinner.getValue() != null
                 ? pasteLargeWarningSpinner.getValue() : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);

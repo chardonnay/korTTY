@@ -7,6 +7,8 @@ import com.sithtermfx.core.util.TermSize;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import de.kortty.platform.FlatpakSupport;
+import de.kortty.shellintegration.ShellIntegrationInjection;
+import de.kortty.shellintegration.ShellIntegrationWrapperDirectory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +22,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +33,7 @@ import java.util.OptionalLong;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Connector that runs a LOCAL shell (no network) inside a pty4j PTY: Windows cmd.exe/PowerShell
@@ -78,6 +83,15 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     private static volatile String cachedLocalHostName;
     private static final AtomicBoolean localHostNameRequested = new AtomicBoolean(false);
 
+    /** Wrapper folders a crash left behind are deleted once they are this old; a shell needs them only to start. */
+    private static final Duration STALE_SHELL_INTEGRATION_WRAPPER_AGE = Duration.ofDays(1);
+    private static final AtomicBoolean staleShellIntegrationWrappersSwept = new AtomicBoolean(false);
+
+    /** The startup files of korTTY's shell-integration wrapper for this shell; deleted with the connector. */
+    private final AtomicReference<ShellIntegrationWrapperDirectory> shellIntegrationWrapper = new AtomicReference<>();
+    /** Where wrapper folders are created; null for {@code ~/.kortty/shell-integration}. Tests set their own. */
+    private volatile Path shellIntegrationRoot;
+
     public LocalShellTtyConnector(ServerConnection connection) {
         this.connection = connection;
         this.charset = TerminalEncodingSupport.resolveFromSettings(connection);
@@ -110,7 +124,8 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
                 i18n("localShell.protocolMismatch", i18n("protocol.localShell")));
         }
         try {
-            List<String> shellCommand = resolveShellCommand(connection.getLocalShellCommand());
+            String configuredCommand = connection.getLocalShellCommand();
+            List<String> shellCommand = resolveShellCommand(configuredCommand);
             int cols = terminalColumns();
             int rows = terminalRows();
 
@@ -118,7 +133,16 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
                 System.getenv(), TerminalEmulationSupport.termName(connection), charset);
 
             String workingDirectory = restoredOrConfiguredDirectory();
-            List<String> command = FlatpakSupport.hostCommand(shellCommand, workingDirectory, env);
+            List<String> launchCommand = shellCommand;
+            List<String> forwardedVariables = List.of();
+            ShellIntegrationInjection.Plan injection = prepareShellIntegration(shellCommand, env,
+                (configuredCommand == null || configuredCommand.isBlank()) && FlatpakSupport.isRunningInFlatpak());
+            if (injection != null) {
+                launchCommand = injection.command();
+                env = new HashMap<>(injection.environment());
+                forwardedVariables = injection.forwardedVariables();
+            }
+            List<String> command = FlatpakSupport.hostCommand(launchCommand, workingDirectory, env, forwardedVariables);
 
             PtyProcessBuilder builder = new PtyProcessBuilder(command.toArray(new String[0]))
                 .setEnvironment(env)
@@ -174,6 +198,120 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             env.put("LANG", "en_US.UTF-8");
         }
         return env;
+    }
+
+    /**
+     * Whether {@code connection} starts its shell with korTTY's shell-integration wrapper: only a
+     * local shell connection that opted in, never one shared through Teamwork, and only while
+     * <i>Settings → Terminal → Shell integration</i> is on. SSH and Mosh connections never get it;
+     * their connectors do not call this at all (commit 05f5a138: an SSH bootstrap caused a duplicate
+     * login prompt, and korTTY types nothing into a remote session to set anything up).
+     */
+    public static boolean wantsShellIntegrationInjection(ServerConnection connection, boolean shellIntegrationEnabled) {
+        return shellIntegrationEnabled
+            && connection != null
+            && connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL
+            && !connection.isTeamworkConnection()
+            && connection.isShellIntegrationAutoInject();
+    }
+
+    /**
+     * Whether the local shell {@code configuredCommand} starts (blank for the default shell) can be
+     * given korTTY's shell-integration wrapper, for the connection editor. In a Flatpak sandbox the
+     * default shell is the host's, which is decided on the host when the shell starts.
+     */
+    public static ShellIntegrationInjection.Support shellIntegrationSupport(String configuredCommand) {
+        if ((configuredCommand == null || configuredCommand.isBlank()) && FlatpakSupport.isRunningInFlatpak()) {
+            return ShellIntegrationInjection.Support.SUPPORTED;
+        }
+        return ShellIntegrationInjection.support(resolveShellCommand(configuredCommand), isWindows());
+    }
+
+    /**
+     * Writes the shell-integration wrapper for this shell when the connection wants it and the shell
+     * supports it, and returns what to start instead; null to start the shell as configured. Never
+     * fails the start: when the files cannot be written, the shell starts without them.
+     */
+    private ShellIntegrationInjection.Plan prepareShellIntegration(List<String> shellCommand,
+                                                                   Map<String, String> env,
+                                                                   boolean hostDefaultShell) {
+        if (!wantsShellIntegrationInjection(connection, globalShellIntegrationEnabled())) {
+            return null;
+        }
+        if (!hostDefaultShell) {
+            ShellIntegrationInjection.Support support = ShellIntegrationInjection.support(shellCommand, isWindows());
+            if (support != ShellIntegrationInjection.Support.SUPPORTED) {
+                // The command line itself is never logged: it may carry credentials.
+                logger.info("Starting the local shell without korTTY's shell integration: {}",
+                    support == ShellIntegrationInjection.Support.OTHER_SHELL
+                        ? "it is not bash, zsh or fish named by a usable path"
+                        : "it is started with arguments other than -i, -l and --login");
+                return null;
+            }
+        }
+        ShellIntegrationWrapperDirectory directory = null;
+        try {
+            Path root = shellIntegrationRoot != null
+                ? shellIntegrationRoot
+                : de.kortty.KorTTYApplication.getConfigDirectory().resolve(ShellIntegrationWrapperDirectory.ROOT_NAME);
+            if (staleShellIntegrationWrappersSwept.compareAndSet(false, true)) {
+                int stale = ShellIntegrationWrapperDirectory.deleteStale(root, STALE_SHELL_INTEGRATION_WRAPPER_AGE, Instant.now());
+                if (stale > 0) {
+                    logger.info("Deleted {} shell-integration folder(s) left behind by an earlier run", stale);
+                }
+            }
+            directory = ShellIntegrationWrapperDirectory.create(root);
+            java.util.Optional<ShellIntegrationInjection.Plan> plan = hostDefaultShell
+                ? ShellIntegrationInjection.planForHostLoginShell(env, directory.shellPath())
+                : ShellIntegrationInjection.plan(shellCommand, env, directory.shellPath(), isWindows());
+            if (plan.isEmpty()) {
+                logger.info("Starting the local shell without korTTY's shell integration: "
+                    + "its folder cannot be named in a startup file");
+                directory.delete();
+                return null;
+            }
+            directory.write(plan.get().files());
+            shellIntegrationWrapper.set(directory);
+            logger.info("Starting the local {} with korTTY's shell-integration wrapper",
+                plan.get().shell() != null ? plan.get().shell().shellName() + " shell" : "login shell of the host");
+            return plan.get();
+        } catch (IOException | RuntimeException e) {
+            logger.warn("Could not write korTTY's shell-integration wrapper; starting the local shell without it", e);
+            if (directory != null) {
+                directory.delete();
+            }
+            return null;
+        }
+    }
+
+    /** Settings → Terminal → Shell integration; on when the settings cannot be read, its default. */
+    private static boolean globalShellIntegrationEnabled() {
+        try {
+            GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            return settings == null || settings.isShellIntegrationEnabled();
+        } catch (RuntimeException e) {
+            return true;
+        }
+    }
+
+    /** Deletes this shell's wrapper folder, if it has one; the shell read it while it started. */
+    private void deleteShellIntegrationWrapper() {
+        ShellIntegrationWrapperDirectory directory = shellIntegrationWrapper.get();
+        if (directory != null && directory.delete()) {
+            shellIntegrationWrapper.compareAndSet(directory, null);
+        }
+    }
+
+    /** Tests: create wrapper folders in {@code root} instead of {@code ~/.kortty/shell-integration}. */
+    void setShellIntegrationRoot(Path root) {
+        this.shellIntegrationRoot = root;
+    }
+
+    /** Tests: the folder of this shell's wrapper, or null without one. */
+    Path shellIntegrationWrapperPath() {
+        ShellIntegrationWrapperDirectory directory = shellIntegrationWrapper.get();
+        return directory != null ? directory.path() : null;
     }
 
     /**
@@ -722,6 +860,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             try {
                 int exitCode = localPty.waitFor();
                 connected.set(false);
+                deleteShellIntegrationWrapper();
                 if (disconnectListener != null) {
                     boolean wasError = exitCode != 0;
                     String reason = wasError
@@ -886,6 +1025,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
         if (localMonitor != null) {
             localMonitor.interrupt();
         }
+        deleteShellIntegrationWrapper();
 
         InputStreamReader localReader = reader;
         InputStream localIn = inputStream;
