@@ -1084,6 +1084,20 @@
 <td><strong>Aus</strong></td>
 <td><code>controlApiEnabled</code></td>
 </tr>
+<tr>
+<td>MCP-Server</td>
+<td>umschalten</td>
+<td>–</td>
+<td><strong>Aus</strong></td>
+<td><code>mcpServerEnabled</code></td>
+</tr>
+<tr>
+<td>Schreib-Tools erlauben</td>
+<td>umschalten</td>
+<td>–</td>
+<td><strong>Aus</strong></td>
+<td><code>mcpWriteToolsEnabled</code></td>
+</tr>
 </tbody>
 </table>
 <h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
@@ -1171,6 +1185,7 @@
 <div class="admonition warning">
 <p class="admonition-title">Einem lokalen Programm erlauben, dieses korTTY zu lesen und zu steuern</p>
 <p>Das ist die Steuerungs-API und die einzige Einstellung dieses Reiters, die standardmäßig aus ist. Solange sie an ist, kann jedes Programm unter Ihrem Benutzerkonto auf diesem Rechner Ihre Fenster auflisten, jeden offenen Bereich lesen – lokale Shells wie SSH-Sitzungen – und darin tippen, einschließlich <span class="keys"><kbd class="key-enter">Enter</kbd></span>. Über das Netzwerk ist nichts erreichbar und kein anderer Benutzer des Rechners kann sich verbinden, aber weiter reicht die Grenze nicht: innerhalb Ihres eigenen Kontos ist es dieselbe Macht, als säße jemand an Ihrer Tastatur. Eine Statuszeile unter dem Kontrollkästchen meldet, was der Listener tatsächlich tut, denn Kontrollkästchen und Listener können berechtigt auseinanderliegen – die Unternehmensrichtlinie kann die Funktion verbieten, und ein Start kann scheitern, weil bereits ein anderes korTTY den Socket besitzt. Jede Aktion wird nur mit Byte-Anzahlen protokolliert, nie mit Terminaltext, und beim ersten Tippen eines Programms in einen Bereich erhalten Sie eine Desktop-Benachrichtigung. Siehe <a href="../control-api.html">Steuerungs-API</a> für das Sicherheitsmodell und <a href="../cli.html">Steuerungs-CLI</a> für den Client <code>kortty-cli</code>, der sie spricht.</p>
+<p><strong>MCP-Server</strong> und das darunterliegende <strong>Schreib-Tools erlauben</strong> lassen einen KI-Assistenten über <code>kortty-cli mcp</code> auf korTTY zugreifen: Ersteres bietet schreibgeschützte Tools mit maskierten Geheimnissen und begrenzter Ausgabe, Letzteres ergänzt Tools, die in einen Bereich tippen, wobei korTTY Sie vor jedem einzelnen Schreibzugriff fragt. Beide sind standardmäßig aus, ausgegraut, solange die Steuerungs-API aus ist, und gesperrt, wenn die Unternehmensrichtlinie <code>mcp-server</code> verweigert. Siehe <a href="../control-api.html#mcp-clients">MCP-Clients</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Coding-Agents erkennen</p>

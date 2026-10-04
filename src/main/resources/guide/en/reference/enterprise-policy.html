@@ -1105,6 +1105,12 @@
 <td>JobScheduler <a href="../features/jobscheduler.html#run-notifications">webhook notifications</a> to Slack, Teams or a generic JSON receiver. <code>deny</code> stops every webhook delivery of a run and every test message before anything is decrypted or sent, and the job journal records <em>notification blocked by policy</em> for each target; desktop notifications are not affected. Which hosts webhooks may reach is set by <code>webhook-host-allowlist</code> in <a href="#rulejob-scheduler"><code>[rule.job-scheduler]</code></a>. There is no Settings control, so <code>allow</code> changes nothing</td>
 </tr>
 <tr>
+<td><code>mcp-server</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>korTTY as an <a href="control-api.html#mcp-clients">MCP server</a>: Control API clients that declare themselves MCP clients. <code>deny</code> refuses every such connection with <code>blocked_by_policy</code> and forces both the <strong>MCP server</strong> switch and <strong>Allow write tools</strong> off; plain Control API clients and <code>kortty-cli</code> keep working. It also needs <code>control-api</code>. <code>allow</code> leaves both switches with the user and never switches them on</td>
+</tr>
+<tr>
 <td><code>ai-agent-execution</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>

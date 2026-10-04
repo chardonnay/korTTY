@@ -1105,6 +1105,12 @@
 <td><a href="../features/jobscheduler.html#lauf-benachrichtigungen">Webhook-Benachrichtigungen</a> des JobSchedulers an Slack, Teams oder einen generischen JSON-Empfänger. <code>deny</code> stoppt jede Webhook-Zustellung eines Laufs und jede Testnachricht, bevor etwas entschlüsselt oder gesendet wird, und das Job-Journal vermerkt für jedes Ziel <em>notification blocked by policy</em>; Desktop-Benachrichtigungen sind nicht betroffen. Welche Hosts Webhooks erreichen dürfen, legt <code>webhook-host-allowlist</code> in <a href="#rulejob-scheduler"><code>[rule.job-scheduler]</code></a> fest. Es gibt kein Bedienelement in den Einstellungen, daher ändert <code>allow</code> nichts</td>
 </tr>
 <tr>
+<td><code>mcp-server</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>korTTY als <a href="control-api.html#mcp-clients">MCP-Server</a>: Clients der Steuerungs-API, die sich als MCP-Clients ausweisen. <code>deny</code> weist jede solche Verbindung mit <code>blocked_by_policy</code> ab und schaltet sowohl den Schalter <strong>MCP-Server</strong> als auch <strong>Schreib-Tools erlauben</strong> zwangsweise aus; gewöhnliche Clients der Steuerungs-API und <code>kortty-cli</code> funktionieren weiter. Der Schlüssel setzt außerdem <code>control-api</code> voraus. <code>allow</code> überlässt beide Schalter dem Benutzer und schaltet sie nie ein</td>
+</tr>
+<tr>
 <td><code>ai-agent-execution</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
