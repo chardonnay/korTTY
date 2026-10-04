@@ -63,6 +63,7 @@ import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.FailingAiService;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.AiReasoningSupport;
+import de.kortty.core.ProjectLeafFieldSanitizer;
 import de.kortty.core.ProjectManager;
 import de.kortty.core.RecentConnections;
 import de.kortty.core.RecentProjects;
@@ -471,6 +472,8 @@ public class MainWindow {
      * korTTY started it, so every hook is a no-op in a window built without the application. FX thread.
      */
     private static SessionAutosaveCoordinator sessionAutosave;
+    /** Saves each terminal pane's output for the session snapshot when the setting is on; null before startup. */
+    private static SessionScrollbackCoordinator sessionScrollback;
     /** The name of the project a session snapshot holds; shown nowhere, but a project needs one. */
     private static final String SESSION_PROJECT_NAME = "Session";
 
@@ -3553,6 +3556,29 @@ public class MainWindow {
             de.kortty.model.TemporarySSHKey temporarySSHKey,
             String terminalEffectPluginId,
             Double terminalEffectAnimationSpeed) {
+        return openConnectionAndReturnTab(connection, password, historyToRestore, historySavedAt, temporarySSHKey,
+                terminalEffectPluginId, terminalEffectAnimationSpeed, null, null);
+    }
+
+    /**
+     * {@link #openConnectionAndReturnTab(ServerConnection, String, String, java.time.LocalDateTime,
+     * de.kortty.model.TemporarySSHKey, String, Double)} for a tab restored from the session snapshot.
+     *
+     * @param restoredWorkingDirectory the directory the session snapshot saved for the tab's local
+     *     shell, which starts there while it still exists; ignored by a remote tab, null for none
+     * @param beforeConnect runs with the new tab's view on the FX thread before it connects (the
+     *     saved output to restore), null for nothing
+     */
+    private TerminalTab openConnectionAndReturnTab(
+            ServerConnection connection,
+            String password,
+            String historyToRestore,
+            java.time.LocalDateTime historySavedAt,
+            de.kortty.model.TemporarySSHKey temporarySSHKey,
+            String terminalEffectPluginId,
+            Double terminalEffectAnimationSpeed,
+            String restoredWorkingDirectory,
+            java.util.function.Consumer<TerminalView> beforeConnect) {
         // Central UI gate for the enterprise server policy — covers saved connections, session
         // restore, teamwork-shared connections and multi/swarm opens. Group opens and Duplicate
         // check it themselves; TerminalView.connect re-checks before every (re)connect attempt,
@@ -3609,6 +3635,14 @@ public class MainWindow {
                 // Queued before connect(): the view writes it into the emulator before the
                 // emulator starts reading the connection, so it never races the login output.
                 terminalTab.getTerminalView().setPendingRestoredHistory(historyToRestore, historySavedAt);
+            }
+            if (restoredWorkingDirectory != null
+                    && connection.getProtocol() == de.kortty.model.ConnectionProtocol.LOCAL_SHELL) {
+                // Also before connect(): the local shell starts there. A remote tab never gets a cd.
+                terminalTab.getTerminalView().setRestoredWorkingDirectory(restoredWorkingDirectory);
+            }
+            if (beforeConnect != null) {
+                beforeConnect.accept(terminalTab.getTerminalView());
             }
             registerTerminalTabForAiAgentDock(terminalTab);
             if (terminalEffectAnimationSpeed != null) {
@@ -6141,6 +6175,8 @@ public class MainWindow {
             return;
         }
         terminalTab.getTerminalView().setOnWidgetSetChanged(() -> onTerminalWidgetSetChanged(terminalTab));
+        // A local shell's cd: the session snapshot keeps the directory it restarts in.
+        terminalTab.getTerminalView().setOnSessionStateChanged(MainWindow::markSessionDirty);
         terminalTab.setJournalStateListener(() -> onTabJournalStateChanged(terminalTab));
         // Pane focus → done-until-seen; idempotent, and the listener resolves the owning window
         // itself, so a tab dragged to another window keeps working without re-registration.
@@ -7429,7 +7465,108 @@ public class MainWindow {
                 writer, MainWindow::sessionAutosaveTimers);
         logger.info("Session snapshot started (previous session available: {}, saving: {})",
                 store.isPreviousAvailable(), store.canWrite());
+        startSessionScrollback(store, startup, writesAllowed);
         return sessionAutosave;
+    }
+
+    /**
+     * Starts saving each terminal pane's output for the session snapshot (Settings › Window › Session
+     * Restore, off by default) and removes the files no saved session names any more. FX thread.
+     */
+    private static void startSessionScrollback(SessionSnapshotStore store, SessionSnapshotStore.StartupState startup,
+                                               java.util.function.BooleanSupplier writesAllowed) {
+        KorTTYApplication application = KorTTYApplication.getInstance();
+        if (application == null || sessionScrollback != null) {
+            return;
+        }
+        java.util.Set<String> startupRefs = new java.util.HashSet<>();
+        if (startup.last() != null) {
+            startupRefs.addAll(de.kortty.core.SessionScrollbackStore.referencedBy(startup.last().getProject()));
+        }
+        if (!startup.rotated() && store.isPreviousAvailable()) {
+            store.loadPrevious().ifPresent(previous ->
+                    startupRefs.addAll(de.kortty.core.SessionScrollbackStore.referencedBy(previous.getProject())));
+        }
+        sessionScrollback = new SessionScrollbackCoordinator(
+                new de.kortty.core.SessionScrollbackStore(KorTTYApplication.getConfigDirectory()),
+                new SessionScrollbackCoordinator.Environment(
+                        () -> scrollbackSettings(application) != null
+                                && scrollbackSettings(application).isSessionRestoreScrollback(),
+                        () -> scrollbackSettings(application) != null
+                                ? scrollbackSettings(application).getSessionRestoreScrollbackLines()
+                                : de.kortty.core.ScrollbackSnapshotCodec.DEFAULT_LINES,
+                        () -> application.getMasterPasswordManager() != null
+                                ? application.getMasterPasswordManager().getDerivedKey() : null,
+                        // Only the korTTY that writes the session snapshot writes or deletes its output files.
+                        () -> writesAllowed.getAsBoolean() && store.canWrite(),
+                        MainWindow::openTerminalViews,
+                        () -> {
+                            SessionSnapshot saved = sessionAutosave != null ? sessionAutosave.savedSnapshot() : null;
+                            return saved != null
+                                    ? de.kortty.core.SessionScrollbackStore.referencedBy(saved.getProject())
+                                    : java.util.Set.of();
+                        },
+                        MainWindow::markSessionDirty,
+                        Platform::runLater),
+                startupRefs);
+        sessionScrollback.start();
+    }
+
+    private static de.kortty.model.GlobalSettings scrollbackSettings(KorTTYApplication application) {
+        return application.getGlobalSettingsManager() != null ? application.getGlobalSettingsManager().getSettings() : null;
+    }
+
+    /** The views of every terminal tab in every open window. FX thread. */
+    private static List<TerminalView> openTerminalViews() {
+        List<TerminalView> views = new ArrayList<>();
+        for (MainWindow window : List.copyOf(openWindows)) {
+            for (Tab tab : window.tabPane.getTabs()) {
+                if (tab instanceof TerminalTab terminalTab) {
+                    views.add(terminalTab.getTerminalView());
+                }
+            }
+        }
+        return views;
+    }
+
+    /**
+     * Settings › Window › Session Restore › restoring the output was turned on or off; off deletes
+     * every saved output file at once. FX thread.
+     */
+    public static void sessionRestoreScrollbackChanged(boolean enabled) {
+        if (sessionScrollback != null) {
+            sessionScrollback.settingChanged(enabled);
+        }
+        markSessionDirty();
+    }
+
+    /**
+     * Restores the output the session snapshot saved for a restored terminal tab's panes, when the
+     * setting is on. With the vault locked nothing is read, and the status bar says so. FX thread,
+     * before the tab connects.
+     */
+    private void restoreSavedScrollback(TerminalView view, SessionState sessionState) {
+        try {
+            java.util.Set<String> refs = de.kortty.core.SessionScrollbackStore.referencedBy(sessionState);
+            if (refs.isEmpty() || sessionScrollback == null) {
+                return;
+            }
+            java.util.function.Function<String, java.util.Optional<de.kortty.core.ScrollbackSnapshotCodec.Decoded>> loader =
+                    sessionScrollback.loader();
+            if (loader == null) {
+                KorTTYApplication application = KorTTYApplication.getInstance();
+                de.kortty.model.GlobalSettings settings = application != null ? scrollbackSettings(application) : null;
+                if (settings != null && settings.isSessionRestoreScrollback()) {
+                    logger.info("The saved terminal output is not restored: the master-password vault is locked");
+                    updateStatus(I18n.get("status.sessionScrollback.vaultLocked"));
+                }
+                return;
+            }
+            view.setRestoredScrollback(sessionState.getScrollbackRef(), loader);
+        } catch (RuntimeException e) {
+            // The saved output is a convenience; the tab opens without it.
+            logger.warn("The saved terminal output could not be prepared: {}", e.toString());
+        }
     }
 
     /**
@@ -7490,6 +7627,10 @@ public class MainWindow {
     private static void sealSessionSnapshotForExit() {
         if (sessionAutosave != null) {
             sessionAutosave.saveAndSeal();
+        }
+        // After the snapshot: it named the files, now the panes' last output goes into them.
+        if (sessionScrollback != null) {
+            sessionScrollback.flushForExit();
         }
     }
 
@@ -7705,15 +7846,17 @@ public class MainWindow {
      * @param includeScreen      the last visible screen and the command timestamps of each terminal tab
      * @param includeWaitingTabs the saved tabs a restore has not opened yet, at their saved places
      *                           (see {@link ProjectRestoreOrder#withWaitingTabs})
+     * @param includeWorkingDirectories the working directory of each local-shell pane, a field only
+     *                           the session snapshot of this device keeps; a project file never does
      */
-    record CaptureOptions(boolean includeScreen, boolean includeWaitingTabs) {
+    record CaptureOptions(boolean includeScreen, boolean includeWaitingTabs, boolean includeWorkingDirectories) {
         /** File › Save Project: the layout and the last visible screen of each terminal tab. */
-        static final CaptureOptions PROJECT = new CaptureOptions(true, false);
+        static final CaptureOptions PROJECT = new CaptureOptions(true, false, false);
         /**
          * The session snapshot: the layout without any screen text, and with the tabs that still wait
          * in the restore bar or for their download, so a restart in the middle of a restore keeps them.
          */
-        static final CaptureOptions SESSION = new CaptureOptions(false, true);
+        static final CaptureOptions SESSION = new CaptureOptions(false, true, true);
     }
 
     /**
@@ -7806,12 +7949,30 @@ public class MainWindow {
             if (connection.getSettings() == null || currentFontSize != connection.getSettings().getFontSize()) {
                 sessionState.setFontSizeOverride(currentFontSize);
             }
-            // Save split pane structure (if terminal has splits)
-            de.kortty.model.SplitPaneState splitState = terminalTab.getTerminalView().getSplitState();
+            // Save split pane structure (if terminal has splits). Only the session snapshot keeps
+            // where each local shell is; neither the live read (lsof) nor anything else blocks here.
+            // The file each pane's saved output goes to; only the session snapshot names them, and only
+            // while Settings › Window › Session Restore keeps the output and the vault is open.
+            TerminalView view = terminalTab.getTerminalView();
+            java.util.function.Function<com.sithtermfx.ui.SithTermFxWidget, String> scrollbackRefOf =
+                    pane -> sessionScrollback != null ? sessionScrollback.refOf(view, pane) : null;
+            de.kortty.model.SplitPaneState splitState = options.includeWorkingDirectories()
+                    ? view.getSessionSplitState(scrollbackRefOf)
+                    : view.getSplitState();
             if ((splitState == null || !splitState.isSplit()) && terminalTab.getPendingSplitLayout() != null) {
                 // A restored tab that has not connected yet has not reopened its split panes: it keeps
-                // the layout it is waiting to rebuild, so saving now does not lose it.
-                splitState = terminalTab.getPendingSplitLayout();
+                // the layout it is waiting to rebuild, so saving now does not lose it. A copy: saving
+                // a project strips the session-only fields from what it saves, never from the layout
+                // the tab still rebuilds.
+                splitState = terminalTab.getPendingSplitLayout().deepCopy();
+                if (!options.includeWorkingDirectories()) {
+                    ProjectLeafFieldSanitizer.sanitize(splitState, ProjectLeafFieldSanitizer.Source.PROJECT_FILE);
+                }
+            }
+            if (options.includeWorkingDirectories()) {
+                // The first pane's local shell directory; a remote tab's directory is never saved.
+                sessionState.setCurrentDirectory(terminalTab.getTerminalView().getSessionWorkingDirectory());
+                sessionState.setScrollbackRef(view.getSessionScrollbackRef(scrollbackRefOf));
             }
             if (splitState != null) {
                 sessionState.setSplitPaneState(splitState);
@@ -8075,7 +8236,11 @@ public class MainWindow {
                         project.getLastModified(),
                         temporaryKey,
                         sessionState.getTerminalEffectPluginId(),
-                        sessionState.getTerminalEffectAnimationSpeed());
+                        sessionState.getTerminalEffectAnimationSpeed(),
+                        // Only the session snapshot has it: a project file's is removed on load.
+                        sessionState.getCurrentDirectory(),
+                        // The saved output of the tab's panes, also session snapshot only.
+                        view -> restoreSavedScrollback(view, sessionState));
                 if (restoredTab == null) {
                     // Blocked by the enterprise server policy.
                     return;

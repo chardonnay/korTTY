@@ -577,6 +577,9 @@ public class BackupManager {
 
             // Copy files to config directory
             int filesImported = copyBackupFiles(extractDir, overwriteExisting);
+            // The saved terminal output belongs to the session before the restore, and may be encrypted
+            // with a master key the restored files no longer use.
+            SessionScrollbackStore.purge(configDir);
 
             logger.info("Backup imported successfully: {} files", filesImported);
             return new ImportResult(filesImported, masterKeyReplaced);

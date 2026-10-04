@@ -89,6 +89,43 @@ public class SplitPaneState {
         return state;
     }
     
+    /**
+     * A copy of this layout down to its last node, every field included, so a caller can sanitize or
+     * change it without touching the layout another object still holds (a restored tab's pending
+     * layout, for instance). Walks the tree without recursion, so a deeply nested hand-made file
+     * cannot overflow the stack.
+     */
+    public SplitPaneState deepCopy() {
+        SplitPaneState root = copyNodeFields(this);
+        java.util.Deque<SplitPaneState[]> pending = new java.util.ArrayDeque<>();
+        pending.push(new SplitPaneState[] {this, root});
+        while (!pending.isEmpty()) {
+            SplitPaneState[] pair = pending.pop();
+            SplitPaneState source = pair[0];
+            SplitPaneState target = pair[1];
+            if (source.leftChild != null) {
+                target.leftChild = copyNodeFields(source.leftChild);
+                pending.push(new SplitPaneState[] {source.leftChild, target.leftChild});
+            }
+            if (source.rightChild != null) {
+                target.rightChild = copyNodeFields(source.rightChild);
+                pending.push(new SplitPaneState[] {source.rightChild, target.rightChild});
+            }
+        }
+        return root;
+    }
+
+    private static SplitPaneState copyNodeFields(SplitPaneState source) {
+        SplitPaneState copy = new SplitPaneState();
+        copy.widgetIndex = source.widgetIndex;
+        copy.orientation = source.orientation;
+        copy.dividerPosition = source.dividerPosition;
+        copy.connectionId = source.connectionId;
+        copy.currentDirectory = source.currentDirectory;
+        copy.scrollbackRef = source.scrollbackRef;
+        return copy;
+    }
+
     public boolean isLeaf() {
         return widgetIndex != null;
     }

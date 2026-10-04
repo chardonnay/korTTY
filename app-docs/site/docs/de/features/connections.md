@@ -117,7 +117,7 @@ Wenn eine neue geteilte Verbindung geöffnet wird, wird der SSH-Handshake auf ei
 
 ## Lokale Shell
 
-Eine **Lokale Shell**-Verbindung erzeugt ein lokales Pseudo-Terminal (PTY) auf Ihrem eigenen Computer, anstatt eine Verbindung zu einem Remote-Host herzustellen. Es ist sowohl in der **Schnellverbindung** als auch im **Connection-Manager** auswählbar; Für diese Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich (und in den Dialogen deaktiviert), und es wird keine Passwortabfrage angezeigt.
+Eine **Lokale Shell**-Verbindung erzeugt ein lokales Pseudo-Terminal (PTY) auf Ihrem eigenen Computer, anstatt eine Verbindung zu einem Remote-Host herzustellen. Sie ist sowohl in der **Schnellverbindung** als auch im **Connection-Manager** auswählbar; für diese Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich (und in den Dialogen deaktiviert), und es wird keine Passwortabfrage angezeigt.
 
 ### Eine Shell auswählen
 

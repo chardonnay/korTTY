@@ -262,6 +262,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox tabTitleFromShellCheck;
     private final CheckBox tabSwitchMostRecentFirstCheck;
     private final ComboBox<SessionRestoreMode> sessionRestoreModeCombo;
+    private final CheckBox sessionRestoreScrollbackCheck;
+    private final Spinner<Integer> sessionRestoreScrollbackLinesSpinner;
     private final CheckBox useFixedGeometryCheck;
     private final Spinner<Integer> fixedWidthSpinner;
     private final Spinner<Integer> fixedHeightSpinner;
@@ -1810,6 +1812,29 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         sessionRestoreInfoLabel.setWrapText(true);
         sessionRestoreInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(sessionRestoreInfoLabel, 0, windowRow++, 2, 1);
+
+        // Optional, off by default: the output of each pane, saved only encrypted with the vault key.
+        sessionRestoreScrollbackCheck = new CheckBox(I18n.get("settings.window.restore.scrollback"));
+        sessionRestoreScrollbackCheck.setSelected(globalSettings != null && globalSettings.isSessionRestoreScrollback());
+        sessionRestoreScrollbackCheck.setTooltip(new Tooltip(I18n.get("settings.window.restore.scrollback.tooltip")));
+        windowGrid.add(sessionRestoreScrollbackCheck, 0, windowRow++, 2, 1);
+
+        sessionRestoreScrollbackLinesSpinner = new Spinner<>(de.kortty.core.ScrollbackSnapshotCodec.MIN_LINES,
+            de.kortty.core.ScrollbackSnapshotCodec.MAX_LINES,
+            globalSettings != null ? globalSettings.getSessionRestoreScrollbackLines()
+                : de.kortty.core.ScrollbackSnapshotCodec.DEFAULT_LINES, 100);
+        sessionRestoreScrollbackLinesSpinner.setEditable(true);
+        sessionRestoreScrollbackLinesSpinner.setPrefWidth(110);
+        sessionRestoreScrollbackLinesSpinner.setTooltip(
+            new Tooltip(I18n.get("settings.window.restore.scrollbackLines.tooltip")));
+        sessionRestoreScrollbackLinesSpinner.disableProperty().bind(sessionRestoreScrollbackCheck.selectedProperty().not());
+        windowGrid.add(new Label(I18n.get("settings.window.restore.scrollbackLines")), 0, windowRow);
+        windowGrid.add(sessionRestoreScrollbackLinesSpinner, 1, windowRow++);
+
+        Label sessionRestoreScrollbackInfoLabel = new Label(I18n.get("settings.window.restore.scrollback.info"));
+        sessionRestoreScrollbackInfoLabel.setWrapText(true);
+        sessionRestoreScrollbackInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        windowGrid.add(sessionRestoreScrollbackInfoLabel, 0, windowRow++, 2, 1);
 
         // Fixed geometry section
         windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
@@ -3855,6 +3880,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTabTitleFromShellEnabled(tabTitleFromShellCheck.isSelected());
             globalSettings.setTabSwitchMostRecentFirst(tabSwitchMostRecentFirstCheck.isSelected());
             globalSettings.setSessionRestoreMode(sessionRestoreModeCombo.getValue());
+            boolean scrollbackWasOn = globalSettings.isSessionRestoreScrollback();
+            globalSettings.setSessionRestoreScrollback(sessionRestoreScrollbackCheck.isSelected());
+            globalSettings.setSessionRestoreScrollbackLines(sessionRestoreScrollbackLinesSpinner.getValue() != null
+                ? sessionRestoreScrollbackLinesSpinner.getValue() : de.kortty.core.ScrollbackSnapshotCodec.DEFAULT_LINES);
+            if (scrollbackWasOn != sessionRestoreScrollbackCheck.isSelected()) {
+                // Off deletes every saved output file at once; on starts saving with the next round.
+                MainWindow.sessionRestoreScrollbackChanged(sessionRestoreScrollbackCheck.isSelected());
+            }
 
             // Save the shortcut overrides, only when the Keyboard page changed them: stored entries
             // it does not show (another platform's, a newer version's) are kept as they are.

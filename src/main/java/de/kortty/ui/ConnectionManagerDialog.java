@@ -1487,82 +1487,37 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                     }
                 }
                 
-                ServerConnection imported = new ServerConnection();
+                // Everything the export wrote, including the protocol, a local shell's command and start
+                // directory, and the paste protection (shown under Terminal behavior in the editor);
+                // username, password, tunnels and jump server follow the checkboxes.
+                // The key passphrase is never imported: it is only ever stored encrypted (set in the
+                // edit dialog or key manager).
+                ServerConnection imported = ServerConnection.copyForImport(conn,
+                    result.importUsername, result.importPassword,
+                    result.importTunnels, result.importJumpServer);
                 
-                // Always import basic data
-                imported.setName(conn.getName());
-                imported.setHost(conn.getHost());
-                imported.setPort(conn.getPort());
-                imported.setAuthMethod(conn.getAuthMethod());
-                imported.setTerminalEffectPluginId(conn.getTerminalEffectPluginId());
-                imported.setTerminalEffectAnimationSpeed(conn.getTerminalEffectAnimationSpeed());
-                imported.setHighlightRuleSetId(conn.getHighlightRuleSetId());
-                // Paste protection travels with the connection like the export writes it; the editor
-                // shows an imported warning mode and line delay under Terminal behavior.
-                imported.setPasteWarningMode(conn.getPasteWarningMode());
-                imported.setPasteLineDelayMs(conn.getPasteLineDelayMs());
-                
-                // SSH Key (conditional or replaced)
+                // SSH Key (replaced)
                 if (result.replaceSSHKey && result.replacementSSHKey != null) {
                     // Replace with selected SSH key
                     imported.setSshKeyId(result.replacementSSHKey.getId());
                     imported.setPrivateKeyPath(app.getSSHKeyManager() != null ? 
                         app.getSSHKeyManager().getEffectiveKeyPath(result.replacementSSHKey) : 
                         result.replacementSSHKey.getKeyPath());
-                    imported.setPrivateKeyPassphrase(null);  // Use key manager instead
-                } else {
-                    imported.setPrivateKeyPath(conn.getPrivateKeyPath());
-                    imported.setSshKeyId(conn.getSshKeyId());
-                    // Never import passphrase: it must only be stored encrypted (set in edit dialog or key manager)
-                    imported.setPrivateKeyPassphrase(null);
                 }
                 
                 // Group assignment (target group overrides original group)
                 if (result.assignToGroup && result.targetGroup != null && !result.targetGroup.trim().isEmpty()) {
                     imported.setGroup(result.targetGroup);
-                } else {
-                    imported.setGroup(conn.getGroup());
                 }
-                imported.setTag(conn.getTag());
                 imported.setTabColor(de.kortty.core.ConnectionColorSupport.normalizeHex(conn.getTabColor()));
                 
-                // Username (conditional)
-                if (result.importUsername) {
-                    imported.setUsername(conn.getUsername());
-                } else {
-                    imported.setUsername("");
-                }
-                
-                // Password (conditional or replaced)
+                // Password (replaced)
                 if (result.replaceCredentials && result.replacementCredential != null) {
                     // Replace with selected credential
                     imported.setUsername(result.replacementCredential.getUsername());
                     imported.setCredentialId(result.replacementCredential.getId());
                     imported.setEncryptedPassword(null);  // Use credential instead
-                } else if (result.importPassword) {
-                    imported.setEncryptedPassword(conn.getEncryptedPassword());
-                    imported.setCredentialId(conn.getCredentialId());
-                } else {
-                    imported.setEncryptedPassword(null);
-                    imported.setCredentialId(null);
                 }
-                
-                // SSH Tunnels (conditional)
-                if (result.importTunnels && conn.getSshTunnels() != null) {
-                    imported.setSshTunnels(new ArrayList<>(conn.getSshTunnels()));
-                }
-                
-                // Jump Server (conditional)
-                if (result.importJumpServer && conn.getJumpServer() != null) {
-                    imported.setJumpServer(conn.getJumpServer());
-                }
-                
-                // Copy settings
-                if (conn.getSettings() != null) {
-                    imported.setSettings(new de.kortty.model.ConnectionSettings(conn.getSettings()));
-                }
-                imported.setTerminalEmulationType(conn.getTerminalEmulationType());
-                imported.setEncoding(conn.getEncoding());
                 
                 importList.add(imported);
             }

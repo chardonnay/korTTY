@@ -145,6 +145,36 @@ final class LocalShellPresetSupport {
     }
 
     /**
+     * What the shell controls show: the selected preset, the custom-command field and the
+     * start-directory field.
+     */
+    record Selection(String preset, String customCommand, String workingDirectory) {
+
+        /** The command this selection launches; see {@link #commandFor}. */
+        String command(String gitBashCommand, String cygwinCommand, String wslCommand) {
+            return commandFor(preset, customCommand, gitBashCommand, cygwinCommand, wslCommand);
+        }
+
+        /** The start directory to store: trimmed, {@code null} when blank. */
+        String workingDirectoryOrNull() {
+            String trimmed = workingDirectory != null ? workingDirectory.trim() : "";
+            return trimmed.isEmpty() ? null : trimmed;
+        }
+    }
+
+    /**
+     * The selection the shell controls show for a stored command and start directory: the matching
+     * preset, the raw command in the custom field when no preset matches (empty otherwise), and the
+     * start directory (empty when none is stored).
+     */
+    static Selection selectionFor(String command, String workingDirectory,
+                                  String gitBashCommand, String cygwinCommand, String wslCommand) {
+        String preset = presetForCommand(command, gitBashCommand, cygwinCommand, wslCommand);
+        String custom = CUSTOM.equals(preset) && command != null && !command.isBlank() ? command : "";
+        return new Selection(preset, custom, workingDirectory != null ? workingDirectory : "");
+    }
+
+    /**
      * Maps a stored command back to a preset id for display. Falls back to {@link #CUSTOM} when the
      * command does not match a preset that is actually available on this OS (the caller then shows the
      * raw command in the custom field). A blank command selects the OS default preset.

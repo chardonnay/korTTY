@@ -17,6 +17,8 @@ This tab configures window geometry behavior, dashboard state retention, menu ba
 | Name terminal tabs after the title the shell sets | toggle | — | On | `tabTitleFromShellEnabled` |
 | Ctrl+Tab switches tabs in the order they were last used | toggle | — | Off | `tabSwitchMostRecentFirst` |
 | At startup: | choice | Offer to restore the previous session / Restore the previous session automatically / Do nothing | Offer to restore the previous session | `sessionRestoreMode` (`ask` / `auto` / `off`) |
+| Also restore the output of each terminal pane (encrypted) | toggle | — | Off | `sessionRestoreScrollback` |
+| Lines of output per pane: | number | 100–5000 | 1000 | `sessionRestoreScrollbackLines` |
 | Use fixed window geometry | toggle | — | Off | `useFixedWindowGeometry` |
 | Width: | number | 400–4000 | — | `fixedWindowGeometry.width` |
 | Height: | number | 300–3000 | — | `fixedWindowGeometry.height` |
@@ -56,3 +58,5 @@ With **Remember window geometry** enabled, KorTTY stores the position and size o
 - **Do nothing** shows nothing at startup.
 
 *File → Restore Previous Session* opens the previous session in every mode. Either way the tabs open without asking anything: a tab that needs a password, a new temporary SSH key or the locked vault waits in the [restore bar](../../features/projects.md#tabs-that-wait-for-you). If korTTY ends unexpectedly within a minute of a restore, the next start offers the session instead of restoring it automatically, so a session that makes korTTY crash cannot do so at every start. A missing or unknown value in `global-settings.xml` means **Offer to restore the previous session**, so a damaged file never opens connections by itself. Your organization can set the mode with the `session-restore` key of its [enterprise policy](../enterprise-policy.md#ruleterminal); the dropdown is then locked with the "Managed by your organization" hint. The setting takes effect at the next start. See [At startup](../../features/projects.md#at-startup).
+
+**Also restore the output of each terminal pane (encrypted)** keeps the newest lines of every terminal pane with the session snapshot, and a restored tab or pane shows them again, dimmed and above its new session; they are only shown on your computer, never sent to the server or typed into the shell. It is off by default, because terminal output can hold secrets: korTTY writes it only encrypted with the key of your master password, readable only by you and never into backups or project files. Without a master password, or while the vault is locked, nothing is saved or restored, and the status bar says so when a restore finds saved output it cannot read. **Lines of output per pane** sets how many of the newest lines are kept, from 100 to 5000. Turning the option off deletes the saved output at once, and so do a change of the master password and restoring a backup. See [Restoring the output](../../features/projects.md#restoring-the-output).

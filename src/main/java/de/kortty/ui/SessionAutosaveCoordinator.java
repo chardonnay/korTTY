@@ -181,6 +181,11 @@ public final class SessionAutosaveCoordinator {
         return dirty;
     }
 
+    /** The snapshot on disk as far as this process knows, or null; any thread. */
+    @Nullable SessionSnapshot savedSnapshot() {
+        return saved;
+    }
+
     boolean isSealed() {
         return sealed;
     }

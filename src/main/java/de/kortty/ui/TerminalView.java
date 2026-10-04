@@ -365,6 +365,26 @@ public class TerminalView extends BorderPane {
     // Screen text a project saved for this tab, shown locally once the first connect succeeds.
     // Set on the FX thread before connect(), consumed (getAndSet(null)) on the FX thread.
     private final AtomicReference<PendingRestoredHistory> pendingRestoredHistory = new AtomicReference<>();
+    /**
+     * The directory the session snapshot saved for this tab's local shell: the primary pane's shell
+     * starts there on its first successful connect, while the directory still exists.
+     */
+    private final AtomicReference<String> restoredWorkingDirectory = new AtomicReference<>();
+    /**
+     * The saved output (session snapshot, Settings › Window › Session Restore) the primary pane shows
+     * on its first successful connect: the file name, until it was loaded on the connect thread.
+     */
+    private final AtomicReference<String> pendingScrollbackRef = new AtomicReference<>();
+    /** The file name of the primary pane's saved output; a split pane never shows the same file. */
+    private volatile @Nullable String restoredPrimaryScrollbackRef;
+    /** Loads a pane's saved output by its file name, off the FX thread; null while none is restored. */
+    private volatile java.util.function.@Nullable Function<String, Optional<de.kortty.core.ScrollbackSnapshotCodec.Decoded>>
+        restoredScrollbackLoader;
+    /** The working directory each local-shell pane is saved with in the session snapshot. */
+    private final PaneWorkingDirectoryTracker<SithTermFxWidget> paneWorkingDirectories =
+        new PaneWorkingDirectoryTracker<>(TerminalView::scheduleWorkingDirectoryRead, this::fireSessionStateChanged);
+    /** Told on the FX thread when something only the session snapshot keeps changed (a pane's directory). */
+    private volatile Runnable onSessionStateChanged;
     // Single tab-wide font-size source. Every per-pane provider delegates its font-size reads/writes
     // here, so Cmd/Ctrl +/- zoom and reset stay global across all splits.
     private DynamicFontSizeSettingsProvider sharedFontSource;
@@ -1251,6 +1271,40 @@ public class TerminalView extends BorderPane {
         return total;
     }
 
+    /**
+     * Registers the callback told on the FX thread when something only the session snapshot keeps
+     * changed, such as the working directory of a local-shell pane after a {@code cd}.
+     */
+    public void setOnSessionStateChanged(@Nullable Runnable onSessionStateChanged) {
+        this.onSessionStateChanged = onSessionStateChanged;
+    }
+
+    private void fireSessionStateChanged() {
+        Runnable callback = onSessionStateChanged;
+        if (callback != null && !cleanedUp) {
+            Platform.runLater(callback);
+        }
+    }
+
+    /** One background thread for every tab's live working-directory reads ({@code lsof} on macOS). */
+    private static final class WorkingDirectoryReader {
+        static final java.util.concurrent.ScheduledExecutorService EXECUTOR =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor(runnable -> {
+                Thread thread = new Thread(runnable, "kortty-pane-cwd");
+                thread.setDaemon(true);
+                return thread;
+            });
+    }
+
+    private static void scheduleWorkingDirectoryRead(Runnable task, long delayMillis) {
+        WorkingDirectoryReader.EXECUTOR.schedule(task, delayMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
+    /** Reads a local shell's directory from the operating system; blocking, never on the FX thread. */
+    private static java.util.function.Supplier<String> liveWorkingDirectoryRead(LocalShellTtyConnector local) {
+        return () -> local.isForeignSessionSuspected() ? null : local.readLiveWorkingDirectory();
+    }
+
     /** Registers a callback fired (on the FX thread) when the set of terminal widgets changes. */
     public void setOnWidgetSetChanged(@Nullable Runnable onWidgetSetChanged) {
         this.onWidgetSetChanged = onWidgetSetChanged;
@@ -1359,6 +1413,7 @@ public class TerminalView extends BorderPane {
         }
         gutterMap.remove(widget);
         paneOrigins.forget(widget);
+        paneWorkingDirectories.forget(widget);
         paneOutputClocks.remove(widget);
         // A closed pane leaves multi-exec and is never mirrored into again.
         MultiExecCoordinator.shared().forget(widget);
@@ -2597,6 +2652,7 @@ public class TerminalView extends BorderPane {
         installAgentShortcutInputInterceptor(widget, baseConnector);
         installTerminalRecordingInputListener(baseConnector);
         bindCodingAgentMonitor(widget, baseConnector);
+        trackLocalWorkingDirectory(widget, baseConnector);
         // A paced paste belongs to the session it started in; the rest of it never reaches the next one.
         cancelPastePacing(widget);
         resetBracketedPasteModeForNewSession(widget, baseConnector);
@@ -2619,6 +2675,19 @@ public class TerminalView extends BorderPane {
             () -> settings == null || settings.isTerminalColorsEnabled(),
             this::reportTerminalActivity,
             outputClock::outputArrived));
+    }
+
+    /**
+     * A local shell tells the pane's working-directory tracker when a submitted {@code cd} may have
+     * moved it, so the session snapshot follows. A new session in the pane starts afresh.
+     */
+    private void trackLocalWorkingDirectory(@Nullable SithTermFxWidget widget, TtyConnector baseConnector) {
+        if (widget == null || !(baseConnector instanceof LocalShellTtyConnector local)) {
+            return;
+        }
+        paneWorkingDirectories.forget(widget);
+        java.util.function.Supplier<String> liveRead = liveWorkingDirectoryRead(local);
+        local.setWorkingDirectoryChangeListener(() -> paneWorkingDirectories.directoryMayHaveChanged(widget, liveRead));
     }
 
     /**
@@ -7243,6 +7312,11 @@ public class TerminalView extends BorderPane {
 
                     // Create TtyConnector
                     ttyConnector = createConnectorForConnection(connection, password);
+                    if (ttyConnector instanceof LocalShellTtyConnector localShell) {
+                        // A restored session's local shell starts in its saved directory, if it
+                        // still exists (checked when the shell starts). Nothing is typed into it.
+                        localShell.setRestoredStartDirectory(restoredWorkingDirectory.get());
+                    }
                     
                     // Register disconnect listener. It captures the connector it was registered
                     // for: a reconnect (or tab close) replaces/clears the connector, and the old
@@ -7271,6 +7345,10 @@ public class TerminalView extends BorderPane {
                     connected = connectConnector(ttyConnector);
                     
                     if (connected) {
+                        // Used once: a later reconnect starts where the connection says.
+                        restoredWorkingDirectory.set(null);
+                        // Decrypted here, off the FX thread: the replay below shows it before the first byte.
+                        loadPendingRestoredScrollback();
                         if (ttyConnector instanceof SshTtyConnector sshConnector) {
                             sshConnector.addDataListener(getTerminalAgentPromptDataListener(sshConnector));
                         }
@@ -8049,6 +8127,8 @@ public class TerminalView extends BorderPane {
     public void cleanup() {
         // A split layout still being restored stops before its next pane and attaches nothing more.
         cleanedUp = true;
+        onSessionStateChanged = null;
+        paneWorkingDirectories.clear();
         // A bell, a finished command or a program's notification still on its way to the FX thread
         // must not mark or announce a closed tab, nor may a program's clipboard write still change
         // the clipboard.
@@ -8963,6 +9043,67 @@ public class TerminalView extends BorderPane {
         return SplitLayoutRestorePlan.capture(splitPane.snapshotLayout(), this::savedConnectionIdOf);
     }
 
+    /**
+     * {@link #getSplitState()} for the session snapshot: each pane that runs a local shell also names
+     * its working directory, a field only the session snapshot keeps ({@link PaneWorkingDirectoryTracker});
+     * a remote pane names none. Never blocks. JavaFX thread.
+     */
+    public de.kortty.model.SplitPaneState getSessionSplitState() {
+        if (splitPane == null || splitPane.getWidgetCount() <= 1) {
+            return null;
+        }
+        return getSessionSplitState(pane -> null);
+    }
+
+    /**
+     * {@link #getSessionSplitState()} with each pane's saved-output file, as {@code scrollbackRefOf}
+     * names it (Settings › Window › Session Restore). Never blocks. JavaFX thread.
+     */
+    public de.kortty.model.SplitPaneState getSessionSplitState(
+            java.util.function.Function<SithTermFxWidget, String> scrollbackRefOf) {
+        if (splitPane == null || splitPane.getWidgetCount() <= 1) {
+            return null;
+        }
+        return SplitLayoutRestorePlan.capture(splitPane.snapshotLayout(), this::savedConnectionIdOf,
+            this::sessionWorkingDirectoryOf, scrollbackRefOf::apply);
+    }
+
+    /**
+     * The working directory the session snapshot keeps for this tab's first pane: the directory its
+     * local shell is in, or the one it is still waiting to start in after a restore; {@code null} for
+     * a remote tab. Never blocks. JavaFX thread.
+     */
+    public @Nullable String getSessionWorkingDirectory() {
+        String waiting = restoredWorkingDirectory.get();
+        if (waiting != null) {
+            return waiting;
+        }
+        return sessionWorkingDirectoryOf(terminalWidget);
+    }
+
+    /**
+     * The directory the session snapshot restarts this tab's local shell in, set before
+     * {@link #connect()}; used once, by the first successful connect, and only while it still exists.
+     * A remote tab ignores it: a restore never types {@code cd} into a remote shell.
+     */
+    public void setRestoredWorkingDirectory(@Nullable String directory) {
+        restoredWorkingDirectory.set(de.kortty.core.SessionWorkingDirectory.forSnapshot(directory));
+    }
+
+    /** A pane's local-shell directory for the session snapshot, or null for a remote pane. */
+    private @Nullable String sessionWorkingDirectoryOf(@Nullable SithTermFxWidget pane) {
+        if (pane == null) {
+            return null;
+        }
+        TtyConnector base = unwrapTerminalEffectConnector(pane.getTtyConnector());
+        if (!(base instanceof LocalShellTtyConnector local) || !local.isConnected()
+            || local.isForeignSessionSuspected()) {
+            return null;
+        }
+        return paneWorkingDirectories.snapshotDirectory(pane, local.getCurrentWorkingDirectory(),
+            liveWorkingDirectoryRead(local));
+    }
+
     /** The saved connection a pane runs when it is not the tab's, or null for the tab's own. */
     private @Nullable String savedConnectionIdOf(SithTermFxWidget pane) {
         PaneOrigin own = paneOrigins.recorded(pane);
@@ -9011,6 +9152,15 @@ public class TerminalView extends BorderPane {
         if (pending == null) {
             return;
         }
+        replayRestoredOutput(widget, pending);
+    }
+
+    /**
+     * Writes restored rows into {@code widget} through {@link RestoredHistoryReplay}: sanitized, dimmed,
+     * between two marker rows, into the emulator only — never to the connection. Then marks the
+     * highlight baseline, so a trigger does not fire on old output. FX thread, before {@code start()}.
+     */
+    private void replayRestoredOutput(SithTermFxWidget widget, PendingRestoredHistory pending) {
         try {
             String header = pending.savedAt() != null
                 ? I18n.get("terminal.restoredHistory.header",
@@ -9018,14 +9168,105 @@ public class TerminalView extends BorderPane {
                 : I18n.get("terminal.restoredHistory.headerUndated");
             RestoredHistoryReplay.replay(widget.getTerminal(), pending.lines(), header,
                 I18n.get("terminal.restoredHistory.footer"));
-            logger.info("Showed {} restored screen rows locally", pending.lines().size());
+            logger.info("Showed {} restored rows locally", pending.lines().size());
         } catch (RuntimeException e) {
             // Old output is a convenience; it must never keep the live session from starting.
-            logger.warn("Could not show the restored screen output: {}", e.getMessage());
+            logger.warn("Could not show the restored output: {}", e.getMessage());
         } finally {
             // The restored rows are old output: a highlight trigger must not fire on them.
             markHighlightBaseline(widget);
         }
+    }
+
+    /**
+     * Restores the output the session snapshot saved for this tab's panes (Settings › Window ›
+     * Session Restore). Call it on the FX thread before {@link #connect()}.
+     *
+     * <p>{@code loader} runs off the FX thread only: the primary pane's file ({@code primaryRef}) is
+     * read on the connect thread once the connection is up and shown like a project's saved screen
+     * ({@link #setPendingRestoredHistory}); each split pane's file is read while its pane is prepared
+     * and shown right before the pane starts. Either way the rows go into the emulator only,
+     * sanitized and dimmed, and never to the server.
+     *
+     * @param primaryRef the primary pane's file name, or null
+     * @param loader     reads and decrypts a file by its name; null restores nothing
+     */
+    public void setRestoredScrollback(@Nullable String primaryRef,
+            java.util.function.@Nullable Function<String, Optional<de.kortty.core.ScrollbackSnapshotCodec.Decoded>> loader) {
+        restoredScrollbackLoader = loader;
+        restoredPrimaryScrollbackRef = loader != null ? primaryRef : null;
+        pendingScrollbackRef.set(loader != null ? primaryRef : null);
+    }
+
+    /** Loads the primary pane's saved output into the pending restored block; connect thread. */
+    private void loadPendingRestoredScrollback() {
+        String ref = pendingScrollbackRef.getAndSet(null);
+        PendingRestoredHistory loaded = ref != null ? loadRestoredScrollback(ref) : null;
+        if (loaded != null) {
+            // A project's saved screen, if there is one, stays: a session snapshot has none.
+            pendingRestoredHistory.compareAndSet(null, loaded);
+        }
+    }
+
+    /** One file of saved output as rows to replay, or null; never on the FX thread. */
+    private @Nullable PendingRestoredHistory loadRestoredScrollback(@Nullable String ref) {
+        java.util.function.Function<String, Optional<de.kortty.core.ScrollbackSnapshotCodec.Decoded>> loader =
+            restoredScrollbackLoader;
+        if (ref == null || loader == null) {
+            return null;
+        }
+        try {
+            Optional<de.kortty.core.ScrollbackSnapshotCodec.Decoded> decoded = loader.apply(ref);
+            if (decoded.isEmpty()) {
+                return null;
+            }
+            List<String> lines = RestoredHistoryReplay.sanitize(String.join("\n", decoded.get().lines()));
+            if (lines.isEmpty()) {
+                return null;
+            }
+            LocalDateTime savedAt = decoded.get().savedAtMillis() > 0
+                ? LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(decoded.get().savedAtMillis()),
+                    java.time.ZoneId.systemDefault())
+                : null;
+            return new PendingRestoredHistory(lines, savedAt);
+        } catch (RuntimeException e) {
+            logger.warn("Saved terminal output could not be loaded: {}", e.toString());
+            return null;
+        }
+    }
+
+    /**
+     * The file name the session snapshot names for this tab's primary pane's saved output: the one it
+     * is still waiting to show, else {@code refOf}'s. JavaFX thread.
+     */
+    public @Nullable String getSessionScrollbackRef(java.util.function.Function<SithTermFxWidget, String> refOf) {
+        String waiting = pendingScrollbackRef.get();
+        if (waiting != null) {
+            return waiting;
+        }
+        return terminalWidget != null ? refOf.apply(terminalWidget) : null;
+    }
+
+    /** Every open pane of this tab: the split panes, or the single pane. JavaFX thread. */
+    public List<SithTermFxWidget> getOpenPanes() {
+        if (splitPane != null) {
+            return splitPane.getAllWidgets();
+        }
+        return terminalWidget != null ? List.of(terminalWidget) : List.of();
+    }
+
+    /** When {@code pane} last received output ({@link PaneOutputClock#NEVER} for never). Any thread. */
+    public long lastPaneOutputNanos(@Nullable SithTermFxWidget pane) {
+        PaneOutputClock clock = pane != null ? paneOutputClocks.get(pane) : null;
+        return clock != null ? clock.lastOutputNanos() : PaneOutputClock.NEVER;
+    }
+
+    /**
+     * The newest {@code maxLines} lines of {@code pane}, read under its buffer lock and bounded
+     * ({@link PaneTailReader}); null while the pane shows the alternate screen. Any thread.
+     */
+    public @Nullable List<String> readPaneTail(@Nullable SithTermFxWidget pane, int maxLines) {
+        return pane != null ? PaneTailReader.readTail(pane.getTerminalTextBuffer(), maxLines) : List.of();
     }
 
     private static @Nullable Locale currentUiLocale() {
@@ -9109,8 +9350,10 @@ public class TerminalView extends BorderPane {
                         continue;
                     }
                     PreparedSplitPane prepared;
+                    // Where the pane's local shell was, from the session snapshot; a project has none.
+                    String directory = plan.directoryOf(step.newLeafId());
                     try {
-                        prepared = prepareRestoredSplitPane(step, tab, tabConnectionId);
+                        prepared = prepareRestoredSplitPane(step, directory, tab, tabConnectionId);
                     } catch (RuntimeException e) {
                         // One pane that fails unexpectedly (the saved connections changing under the
                         // sign-in lookup, for instance) costs that pane, not the panes after it.
@@ -9121,7 +9364,14 @@ public class TerminalView extends BorderPane {
                         skipped.put(step.newLeafId(), prepared.skipReason());
                         continue;
                     }
-                    SithTermFxWidget pane = attachRestoredSplitPane(source, step.orientation(), prepared);
+                    // The pane's saved output from the session snapshot, decrypted here off the FX
+                    // thread; the primary pane's own file is never shown a second time.
+                    String scrollbackRef = plan.scrollbackRefOf(step.newLeafId());
+                    PendingRestoredHistory restoredOutput = scrollbackRef != null
+                        && !scrollbackRef.equals(restoredPrimaryScrollbackRef)
+                        ? loadRestoredScrollback(scrollbackRef) : null;
+                    SithTermFxWidget pane = attachRestoredSplitPane(source, step.orientation(), prepared,
+                        restoredOutput);
                     if (pane == null) {
                         skipped.put(step.newLeafId(), SplitLayoutRestorePlan.SkipReason.FAILED);
                         continue;
@@ -9157,7 +9407,8 @@ public class TerminalView extends BorderPane {
      * Builds and connects the connector of one restored pane, off the JavaFX thread and without
      * asking anything: no password prompt, no vault unlock and no new temporary key.
      */
-    private PreparedSplitPane prepareRestoredSplitPane(SplitLayoutRestorePlan.SplitStep step, PaneOrigin tab,
+    private PreparedSplitPane prepareRestoredSplitPane(SplitLayoutRestorePlan.SplitStep step,
+                                                       @Nullable String directory, PaneOrigin tab,
                                                        @Nullable String tabConnectionId) {
         PaneOrigin origin = tab;
         PaneOrigin ownOrigin = null;
@@ -9193,6 +9444,11 @@ public class TerminalView extends BorderPane {
             logger.warn("A restored split pane could not be prepared: {}", e.getMessage());
             return PreparedSplitPane.skipped(SplitLayoutRestorePlan.SkipReason.FAILED);
         }
+        if (connector instanceof LocalShellTtyConnector localShell) {
+            // The pane's local shell starts in the directory the session snapshot saved for it, if
+            // it still exists; a project file has none. A remote pane never gets a cd.
+            localShell.setRestoredStartDirectory(directory);
+        }
         try {
             if (connectConnector(connector)) {
                 return new PreparedSplitPane(connector, ownOrigin, null);
@@ -9213,7 +9469,8 @@ public class TerminalView extends BorderPane {
      * @return the new pane, or null
      */
     private @Nullable SithTermFxWidget attachRestoredSplitPane(SithTermFxWidget source, Orientation orientation,
-                                                               PreparedSplitPane prepared) {
+                                                               PreparedSplitPane prepared,
+                                                               @Nullable PendingRestoredHistory restoredOutput) {
         TtyConnector connector = prepared.connector();
         CompletableFuture<SithTermFxWidget> attached = new CompletableFuture<>();
         boolean posted = runOnFxThread(() -> {
@@ -9222,7 +9479,13 @@ public class TerminalView extends BorderPane {
                 if (!cleanedUp && splitPane != null && splitPane.getAllWidgets().contains(source)) {
                     // Recorded against the base connector first, so the decorator binds it to the new pane.
                     paneOrigins.expect(connector, prepared.ownOrigin());
-                    pane = attachSplitPane(source, orientation, connector).orElse(null);
+                    // The saved output goes in right before the pane starts reading its session.
+                    pane = splitPane.splitWidget(source, SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, orientation,
+                        connector, restoredOutput == null ? null : widget -> {
+                            if (widget.getTerminal() != null) {
+                                replayRestoredOutput(widget, restoredOutput);
+                            }
+                        });
                 }
                 attached.complete(pane);
             } catch (RuntimeException e) {

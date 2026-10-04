@@ -124,6 +124,24 @@ class HeadlessTerminalTest {
         }
     }
 
+    @Test
+    void anOverlongControlSequenceDoesNotStopTheEmulator() {
+        // The chars SithTermFX cannot place in a CSI are pushed back to be read again; thousands of
+        // them, or of parameters beside one, overran that push-back and killed the emulator thread,
+        // so nothing the remote end sent afterwards reached the screen.
+        try (HeadlessTerminal terminal = new HeadlessTerminal(40, 5)) {
+            terminal.feed("\u001b[" + " ".repeat(4_096) + "m");
+            terminal.feed("\u001b[2J\u001b[Hafter stray chars");
+            assertThat(terminal.awaitProcessed(2_000)).isTrue();
+            assertThat(terminal.screenText()).startsWith("after stray chars");
+
+            terminal.feed("\u001b[" + "1;".repeat(2_048) + "1 q");
+            terminal.feed("\u001b[2J\u001b[Hafter parameters");
+            assertThat(terminal.awaitProcessed(2_000)).isTrue();
+            assertThat(terminal.screenText()).startsWith("after parameters");
+        }
+    }
+
     private static void sleep(long millis) {
         try {
             Thread.sleep(millis);

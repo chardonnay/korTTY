@@ -93,7 +93,8 @@ class BackupCoverageTest {
         "journal-search-visited.xml",
         "kortty-policy.toml",
         SessionSnapshotStore.DIRECTORY_NAME + "/" + SessionSnapshotStore.SNAPSHOT_FILE,
-        SessionSnapshotStore.DIRECTORY_NAME + "/" + SessionSnapshotStore.PREVIOUS_FILE);
+        SessionSnapshotStore.DIRECTORY_NAME + "/" + SessionSnapshotStore.PREVIOUS_FILE,
+        SessionSnapshotStore.DIRECTORY_NAME + "/" + SessionScrollbackStore.DIRECTORY_NAME);
 
     @Test
     void everyPersistedStoreFileIsClassified() throws IOException {
@@ -182,6 +183,39 @@ class BackupCoverageTest {
             assertWithMessage(file.getKey() + " was not restored byte for byte")
                 .that(Files.readAllBytes(restoreDir.resolve(file.getKey()))).isEqualTo(file.getValue());
         }
+    }
+
+    @Test
+    void savedTerminalOutputIsNeverBackedUpAndARestoreDeletesIt() throws Exception {
+        Path root = Files.createTempDirectory("kortty-backup-scrollback-");
+        Path configDir = Files.createDirectories(root.resolve("config"));
+        Files.writeString(configDir.resolve(ThemeManager.THEMES_FILE), "<themes/>");
+        Path ownOutput = Files.createDirectories(SessionScrollbackStore.directoryOf(configDir)).resolve("pane-1.enc");
+        Files.writeString(ownOutput, "KSB1:secret");
+
+        char[] masterPassword = "master-pw".toCharArray();
+        CredentialManager credentialManager = new CredentialManager(configDir);
+        StoredCredential credential = new StoredCredential(
+            "backup", "user", StoredCredential.Environment.PRODUCTION);
+        credentialManager.setPassword(credential, "backup-pw", masterPassword);
+        credentialManager.addCredential(credential);
+        GlobalSettings settings = new GlobalSettings();
+        settings.setBackupEncryptionType(GlobalSettings.BackupEncryptionType.PASSWORD);
+        settings.setBackupCredentialId(credential.getId());
+        Path backup = new BackupManager(configDir, settings)
+            .createBackup(root.resolve("target"), credentialManager, null, masterPassword);
+
+        Path restoreDir = Files.createDirectories(root.resolve("restore"));
+        Path restoreOutput = Files.createDirectories(SessionScrollbackStore.directoryOf(restoreDir)).resolve("pane-2.enc");
+        Files.writeString(restoreOutput, "KSB1:older");
+        new BackupManager(restoreDir, new GlobalSettings()).importBackup(backup, "backup-pw", true);
+
+        assertWithMessage("the backup carried no saved terminal output")
+            .that(Files.exists(SessionScrollbackStore.directoryOf(restoreDir).resolve("pane-1.enc"))).isFalse();
+        assertWithMessage("a restore deletes the output saved before it")
+            .that(Files.exists(restoreOutput)).isFalse();
+        assertWithMessage("the backup still restored the configuration")
+            .that(Files.exists(restoreDir.resolve(ThemeManager.THEMES_FILE))).isTrue();
     }
 
     /** {@code SimpleClass.CONSTANT} → file name, for every store-file constant in main. */
