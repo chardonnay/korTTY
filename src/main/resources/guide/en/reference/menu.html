@@ -1130,6 +1130,61 @@
 <td>Slider (0–100 %) that makes the terminal background see-through to the desktop while the text stays sharp; every split pane inherits the value. The value is saved across restarts; fullscreen temporarily renders terminal backgrounds opaque and restores the value when you leave. Switching it on or off needs a restart, so the status bar shows a hint when you cross that threshold. Shown in the in-window menu bar only.</td>
 </tr>
 <tr>
+<td>Panes ▸ Split Pane</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
+<td>Split the focused pane of the active terminal tab on that pane's own server, as <strong>Split Right (same server)</strong> or <strong>Split Down (same server)</strong> in its right-click menu does: the new pane goes to the right when the pane is wide and below it when it is tall, and gets the keyboard focus (see <a href="../features/terminal.html#split-operations">Split operations</a>). On macOS the key is <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-o">O</kbd></span></td>
+</tr>
+<tr>
+<td>Panes ▸ Split Right / Split Down</td>
+<td></td>
+<td>Split the focused pane on that pane's own server, with the new pane always to the right / below</td>
+</tr>
+<tr>
+<td>Panes ▸ Close Pane</td>
+<td></td>
+<td>Close the focused pane of the active tab without asking; the keyboard moves to the first remaining pane. Disabled while the tab has a single pane</td>
+</tr>
+<tr>
+<td>Panes ▸ Focus Pane Left / Right / Above / Below</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-arrow-left">Left</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-arrow-right">Right</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span></td>
+<td>Move the keyboard focus to the <a href="../features/terminal.html#split-operations">split pane</a> on that side of the focused pane in the active tab; at the edge of the tab nothing happens. Available while the active tab has two or more panes. On macOS the keys are <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-option">Option</kbd></span> with an arrow key</td>
+</tr>
+<tr>
+<td>Panes ▸ Next Pane / Previous Pane</td>
+<td></td>
+<td>Move the keyboard focus to the next or previous pane of the active tab, starting over after the last one</td>
+</tr>
+<tr>
+<td>Panes ▸ Zoom Pane</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span></td>
+<td>Let the focused pane of the active tab fill the whole tab, or show all its panes again; the check mark shows whether a pane is zoomed. Splitting, closing or moving a pane and moving the focus to another pane show all panes again as well (see <a href="../features/terminal.html#split-operations">Split operations</a>). Available while the active tab has two or more panes. On macOS the key is <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span></td>
+</tr>
+<tr>
+<td>Panes ▸ Broadcast to All Panes of This Tab</td>
+<td></td>
+<td>Switch the active tab's <a href="../features/terminal.html#broadcast-mode">broadcast mode</a> on or off, as <em>Extras → Broadcast Mode</em> in a pane's right-click menu does; the check mark shows whether it is on. Switching it on needs two or more panes</td>
+</tr>
+<tr>
+<td>Multi-exec ▸ Include This Pane</td>
+<td></td>
+<td>Let the focused pane of the active terminal tab take part in <a href="../features/terminal.html#multi-exec">multi-exec</a>, so what you type in it also goes to the other panes that take part, in any tab and window, or take it out again; the check mark shows whether it takes part. <em>Extras → Multi-exec: Include This Pane</em> in a pane's right-click menu does the same for that pane</td>
+</tr>
+<tr>
+<td>Multi-exec ▸ Include All Panes of This Tab</td>
+<td></td>
+<td>Let every pane of the active terminal tab take part in multi-exec, or take them all out when they all take part; the check mark shows whether they do. The tab's right-click menu has the same entry</td>
+</tr>
+<tr>
+<td>Multi-exec ▸ Include All Terminals of This Window</td>
+<td></td>
+<td>Let every pane of every terminal tab of this window take part in multi-exec</td>
+</tr>
+<tr>
+<td>Multi-exec ▸ Stop Multi-exec</td>
+<td></td>
+<td>Take every pane of every window out of multi-exec, as <strong>Stop</strong> in the status bar does. Available while a pane takes part</td>
+</tr>
+<tr>
 <td>Highlighting ▸ Highlighting On</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span></td>
 <td>Switch <a href="../features/highlighting.html">keyword highlighting</a> on or off for the focused pane of the active tab; switching it back on restores the set the pane showed last. Applies to the running session only</td>
@@ -1237,7 +1292,7 @@
 <li><strong>Menu-bar (status) icon</strong> — a system-tray icon with <strong>New Window</strong> and <strong>Quit</strong>; clicking the icon opens a new window.</li>
 </ul>
 <p>Both provide a reliable <strong>Quit</strong> even when every window is closed.</p>
-<p>The menu bar at the top of the screen stays as well when you close the last window, and while no korTTY window has the focus it can still be the menu bar of a window you closed. Its entries then act in the korTTY window you used last, which comes to the front, or open a new window first when none is open: <strong>New Tab</strong> opens Quick Connect there, <strong>Manage Connections...</strong> the Connection Manager. <strong>New Window</strong>, <strong>Quit</strong>, <strong>Prevent System Sleep</strong> and cancelling a running job need no window. <strong>Close Tab</strong>, <strong>Close All Tabs</strong>, <strong>Close Window</strong>, <strong>Cut</strong>, <strong>Copy</strong> and <strong>Paste</strong> do nothing from the menu bar of a closed window, so they never close a tab or paste into a window you are not looking at.</p></p>
+<p>The menu bar at the top of the screen stays as well when you close the last window, and while no korTTY window has the focus it can still be the menu bar of a window you closed. Its entries then act in the korTTY window you used last, which comes to the front, or open a new window first when none is open: <strong>New Tab</strong> opens Quick Connect there, <strong>Manage Connections...</strong> the Connection Manager. <strong>New Window</strong>, <strong>Quit</strong>, <strong>Prevent System Sleep</strong>, <strong>Stop Multi-exec</strong> and cancelling a running job need no window. <strong>Close Tab</strong>, <strong>Close All Tabs</strong>, <strong>Close Window</strong>, <strong>Close Pane</strong>, <strong>Cut</strong>, <strong>Copy</strong>, <strong>Paste</strong>, <strong>Broadcast to All Panes of This Tab</strong> and the three <strong>Include</strong> entries of <em>View → Multi-exec</em> do nothing from the menu bar of a closed window, so they never close a tab or a pane, paste into it or change where your typing goes in a window you are not looking at.</p></p>
     </article>
 </section>
             <!-- endblock -->
