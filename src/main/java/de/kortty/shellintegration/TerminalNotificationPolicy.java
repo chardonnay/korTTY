@@ -29,10 +29,15 @@ import java.util.function.LongSupplier;
  *       detected while the coding-agent notifications are on: the agent rings the bell or asks for a
  *       notification when it waits for a decision, and its own notification already says so
  *       ({@link Kind#leftToCodingAgents()}).</li>
- *   <li>No bell counts while keys typed in another pane reached the pane through broadcast mode or
- *       multi-exec moments ago ({@link PaneState#mirroredInput()}): it answers those keys, typically
- *       a failed Tab completion that rings in every mirrored pane at once.</li>
+ *   <li>No bell and no activity counts while keys typed in another pane reached the pane through
+ *       broadcast mode or multi-exec moments ago ({@link PaneState#mirroredInput()}): it answers
+ *       those keys, typically a failed Tab completion that rings in every mirrored pane at once, or
+ *       the echo every mirrored pane prints ({@link Kind#discountsMirroredInput()}).</li>
  * </ul>
+ *
+ * <p>Activity and silence ({@link Kind#ACTIVITY}, {@link Kind#SILENCE}) are reported only for a tab
+ * the user asked to watch, with its right-click menu ({@link PaneActivityMonitor}), so that request
+ * is their setting: they always notify, within their interval.
  *
  * <p>A finished command ({@link Kind#COMMAND_FINISHED}) also has to have run at least the
  * threshold of the settings, and a command that a korTTY terminal-agent run typed into the pane
@@ -60,27 +65,39 @@ public final class TerminalNotificationPolicy {
     /** Why a pane asks for attention. */
     public enum Kind {
         /** A program in the pane rang the terminal bell (BEL). */
-        BELL(10_000L, true),
+        BELL(10_000L, true, true),
         /**
          * A command the shell marked with {@code OSC 133} finished ({@code D}) after running at
          * least the threshold. Its notification slot is the tab, so the same command finishing in
          * several panes that broadcast mirrors into notifies once.
          */
-        COMMAND_FINISHED(10_000L, false),
+        COMMAND_FINISHED(10_000L, false, false),
         /**
          * A program in the pane asked for a desktop notification with {@code OSC 9} or
          * {@code OSC 777;notify}, typically a coding agent on a server that waits for an answer. Its
          * text is the program's, so it gets a shorter interval than the others but drops what comes
          * within it: a program cannot flood the desktop.
          */
-        REMOTE(5_000L, true);
+        REMOTE(5_000L, true, false),
+        /**
+         * Output arrived after a quiet spell in a pane whose tab the user asked to watch for activity
+         * ({@link PaneActivityMonitor.Event#ACTIVITY}). The echo of mirrored keys is no activity.
+         */
+        ACTIVITY(10_000L, false, true),
+        /**
+         * A pane whose tab the user asked to watch for silence stopped printing for the silence
+         * threshold ({@link PaneActivityMonitor.Event#SILENCE}).
+         */
+        SILENCE(10_000L, false, false);
 
         private final long toastIntervalMillis;
         private final boolean leftToCodingAgents;
+        private final boolean discountsMirroredInput;
 
-        Kind(long toastIntervalMillis, boolean leftToCodingAgents) {
+        Kind(long toastIntervalMillis, boolean leftToCodingAgents, boolean discountsMirroredInput) {
             this.toastIntervalMillis = toastIntervalMillis;
             this.leftToCodingAgents = leftToCodingAgents;
+            this.discountsMirroredInput = discountsMirroredInput;
         }
 
         /** The shortest time between two desktop notifications of this kind for the same slot. */
@@ -94,6 +111,14 @@ public final class TerminalNotificationPolicy {
          */
         public boolean leftToCodingAgents() {
             return leftToCodingAgents;
+        }
+
+        /**
+         * Whether a request of this kind leads to nothing while mirrored keys reached the pane moments
+         * ago ({@link PaneState#mirroredInput()}), because it most likely answers them.
+         */
+        public boolean discountsMirroredInput() {
+            return discountsMirroredInput;
         }
     }
 
@@ -224,16 +249,18 @@ public final class TerminalNotificationPolicy {
     }
 
     /**
-     * Decides about one request of a kind that needs nothing but the pane, {@link Kind#BELL} or
-     * {@link Kind#REMOTE}; the pane is its own notification slot. A decision with a toast counts as the
-     * slot's last notification of this kind, so call it only when the notification will really be
-     * shown. A bell in a pane that got mirrored keys moments ago leads to nothing
-     * ({@link PaneState#mirroredInput()}).
+     * Decides about one request of a kind that needs nothing but the pane, {@link Kind#BELL},
+     * {@link Kind#REMOTE}, {@link Kind#ACTIVITY} or {@link Kind#SILENCE}; the pane is its own
+     * notification slot. A decision with a toast counts as the slot's last notification of this kind,
+     * so call it only when the notification will really be shown. A bell or activity in a pane that
+     * got mirrored keys moments ago leads to nothing ({@link PaneState#mirroredInput()}). Activity and
+     * silence need no setting: the user switched their watch on for the tab.
      *
      * @param kind    why the pane asks; not {@link Kind#COMMAND_FINISHED}, which has
      *                {@link #decideCommandFinished}
      * @param pane    the notification slot, kept weakly: the pane, a terminal widget compared by
-     *                identity, or for a bell the multi-exec session the pane takes part in
+     *                identity, or for a bell, activity or silence the multi-exec session the pane
+     *                takes part in
      * @param state   what is known about the pane now
      * @param toggles the settings now
      * @throws IllegalArgumentException for {@link Kind#COMMAND_FINISHED}
@@ -246,10 +273,11 @@ public final class TerminalNotificationPolicy {
         boolean toastEnabled = switch (kind) {
             case BELL -> toggles.bellToasts();
             case REMOTE -> toggles.remoteToasts();
+            case ACTIVITY, SILENCE -> true;
             case COMMAND_FINISHED -> throw new IllegalArgumentException(
                 "A finished command needs its runtime and its tab: use decideCommandFinished");
         };
-        if (kind == Kind.BELL && state.mirroredInput()) {
+        if (kind.discountsMirroredInput() && state.mirroredInput()) {
             return Decision.NONE;
         }
         return decide(kind, pane, state, toggles, toastEnabled);

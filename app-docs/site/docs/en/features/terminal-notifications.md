@@ -6,6 +6,8 @@ title: Terminal notifications
 
 A program in a terminal can ask for your attention while you are working somewhere else: a build script rings the bell when it is done, a prompt rings it when it waits for input, a coding agent on a server asks for a notification when it needs your answer, and in a shell set up for [shell integration](shell-integration.md) a long command tells korTTY when it has finished. KorTTY marks the tab such a request comes from, so you see it in the tab bar, and can also show a desktop notification. It never plays a sound.
 
+You can also ask korTTY to watch a tab for you: to tell you when output appears in a quiet tab, or when a tab that was printing falls silent; see [Watching a tab for activity or silence](#watching-a-tab-for-activity-or-silence).
+
 A program can also ask to put text on your clipboard. KorTTY allows that only when you switch it on, and the status bar tells you each time; see [Programs copying to the clipboard](#programs-copying-to-the-clipboard-osc-52).
 
 ## When you are looking at a tab
@@ -69,6 +71,19 @@ When such a request comes from a tab you are not looking at, korTTY marks the ta
 
 !!! note "Privacy"
     A desktop notification shows the tab's name, which can be a server name, and depending on your operating system's settings it can appear on the lock screen; a program's notification also shows the text the program sent. Turn off the desktop notifications you do not want, or the notifications for korTTY in the operating system; the mark on the tab stays inside korTTY.
+
+## Watching a tab for activity or silence
+
+Right-click a terminal tab and choose **Monitor for Activity** or **Monitor for Silence** to have korTTY watch it while you work elsewhere. Both are also commands of the [command palette](command-palette.md#terminal-and-tab-commands) for the tab you are in, with a check mark while they are on. They work in local shells and SSH sessions alike, need no [shell integration](shell-integration.md) and nothing on the server.
+
+- **Monitor for Activity** reports output that appears in the tab after at least 10 seconds without any while you are not looking at it, such as a new line in a quiet `tail -f` log, a message in a chat program or a prompt that finally asks for input. The tab gets 🔔, pointing at it shows *New output arrived while you were not looking at this tab.*, and a desktop notification titled `korTTY · ` and the name of the tab says *New output in this tab after at least 10 seconds of quiet.* It reports once: further output only reports again after you have looked at the tab, so a log that keeps scrolling in the background notifies you once and not on every line.
+- **Monitor for Silence** reports a pane of the tab that printed something and then stays without output for the time set at **Monitor for Silence reports after:** in *Settings → Terminal → Notifications*, 30 seconds by default and from 5 to 3,600 seconds. The tab gets 🔔 and a desktop notification such as *No output in this tab for 30 sec.* It is meant for a build, a copy or an upgrade that prints while it works, also in a shell without shell integration, where korTTY cannot tell when a command has finished. It reports once, and again only after the pane printed something new. Switch it on while the command is still printing, or right after it stopped: output from within the threshold before still counts, while a pane that has been quiet for longer reports nothing until it prints again.
+
+Both switches belong to the tab and are off until you switch them on. A tab keeps them while it is open, also when you move it to another window, but they are never saved: a [project](projects.md) does not store them, and they end when the tab closes or korTTY quits. Choosing the entry again switches it off. In a tab with [split panes](terminal.md#split-screen-with-broadcast) every pane is watched on its own, and the notification names the tab.
+
+The same rules as for the bell apply. Nothing happens in the tab you are looking at, and the mark goes away when you look at the tab. A pane shows at most one notification of each kind every 10 seconds, and the panes that take part in [multi-exec](terminal.md#multi-exec) count as one, whichever tabs they are in. The notification never contains terminal output. Activity and silence have no notification setting of their own: switching the watch on is the request for the notification, so switch it off, or turn off korTTY's notifications in the operating system, to stop them.
+
+What counts as output is everything the pane receives from its session: the echo of what you type there, a prompt the shell redraws, and while korTTY's [AI Agent](ai-assistant.md#ai-agent-and-ai-planning) runs in an SSH pane, the prompt the shell prints for the blank line the agent sends now and then to keep the connection alive. Output that arrives within about 3 seconds of keys you typed in another pane reaching the pane through [broadcast mode](terminal.md#broadcast-mode) or multi-exec is the shell's answer to those keys, typically their echo: it is no activity and starts no silence count, so typing into a dozen watched panes at once makes none of them notify. Output after a new quiet spell counts again.
 
 ## Programs copying to the clipboard (OSC 52)
 

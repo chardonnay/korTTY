@@ -49,8 +49,12 @@ public final class TerminalTabScreenshotGenerator {
     /** Padding below the last row of the tab's grid, in unscaled pixels. */
     private static final double BOTTOM_MARGIN = 24;
 
-    /** Height used for the first layout pass, before the content's real height is known. */
-    private static final int MEASURE_HEIGHT = 1600;
+    /**
+     * Height used for the first layout pass, before the content's real height is known. It has to
+     * be taller than the whole tab: the shot is cut at it, and at 1600 it had cut off the Coding
+     * agents and Control API sections once the tab grew past that.
+     */
+    private static final int MEASURE_HEIGHT = 3000;
 
     private static final String OUTPUT_FILE = "app-docs/screenshots/settings/terminal.png";
 

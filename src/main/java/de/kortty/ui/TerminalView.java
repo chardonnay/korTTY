@@ -72,6 +72,7 @@ import de.kortty.plugin.terminaleffects.TerminalEffectPlugin;
 import de.kortty.plugin.terminaleffects.TerminalEffectSession;
 import de.kortty.shellintegration.BellCoalescer;
 import de.kortty.shellintegration.CommandStatus;
+import de.kortty.shellintegration.PaneOutputClock;
 import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.shellintegration.RemoteNotificationText;
 import de.kortty.shellintegration.ShellIntegrationEvent;
@@ -449,6 +450,13 @@ public class TerminalView extends BorderPane {
         new ConcurrentHashMap<>();
     /** DECSET 2004 trackers per pane, registered on the pane's base connector data stream. */
     private final Map<SithTermFxWidget, PasteTracking> codingAgentPasteTrackers = new ConcurrentHashMap<>();
+    /**
+     * When each pane last received output, stamped by its colour filter on the emulator thread
+     * (output only, never what is typed); read by the activity and silence monitoring of the tab
+     * ({@link TerminalActivityWatcher}). One clock per pane, kept across re-decorations of its
+     * connector, so a Mosh recovery that re-decorates a live pane keeps its quiet spell.
+     */
+    private final Map<SithTermFxWidget, PaneOutputClock> paneOutputClocks = new ConcurrentHashMap<>();
     /**
      * Sends a paste line by line when Settings → Terminal → Paste protection sets a line delay. While
      * a pane is pacing a paste, {@link #pasteInputHold} holds its keys (Esc stops the paste), broadcast
@@ -1146,6 +1154,22 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * The output clocks of this view's panes in split order, for the tab's activity and silence
+     * monitoring ({@link TerminalActivityWatcher}); a pane that never had a session has none yet.
+     * JavaFX thread.
+     */
+    Map<SithTermFxWidget, PaneOutputClock> paneOutputClocks() {
+        Map<SithTermFxWidget, PaneOutputClock> clocks = new java.util.LinkedHashMap<>();
+        for (SithTermFxWidget widget : getOrderedWidgets()) {
+            PaneOutputClock clock = widget != null ? paneOutputClocks.get(widget) : null;
+            if (clock != null) {
+                clocks.put(widget, clock);
+            }
+        }
+        return clocks;
+    }
+
+    /**
      * All agent-capable connectors across this view's split widgets (terminal-effect wrappers
      * unwrapped). Used by the AI swarm to enumerate every open server in this tab.
      */
@@ -1306,6 +1330,7 @@ public class TerminalView extends BorderPane {
         }
         gutterMap.remove(widget);
         paneOrigins.forget(widget);
+        paneOutputClocks.remove(widget);
         // A closed pane leaves multi-exec and is never mirrored into again.
         MultiExecCoordinator.shared().forget(widget);
         lastTimestampLineByWidget.remove(widget);
@@ -2555,10 +2580,14 @@ public class TerminalView extends BorderPane {
                 decorated = baseConnector;
             }
         }
+        PaneOutputClock outputClock = widget != null
+            ? paneOutputClocks.computeIfAbsent(widget, unused -> new PaneOutputClock())
+            : new PaneOutputClock();
         return withShellIntegration(widget, new TerminalColorFilteringTtyConnector(
             decorated,
             () -> settings == null || settings.isTerminalColorsEnabled(),
-            this::reportTerminalActivity));
+            this::reportTerminalActivity,
+            outputClock::outputArrived));
     }
 
     /**
@@ -7804,6 +7833,7 @@ public class TerminalView extends BorderPane {
         commandEnterNanosByWidget.clear();
         scrollbackTrimTrackerByWidget.clear();
         agentShortcutBuffers.clear();
+        paneOutputClocks.clear();
         terminalWidget = null;
     }
     
@@ -8932,16 +8962,31 @@ public class TerminalView extends BorderPane {
         private final TtyConnector delegate;
         private final BooleanSupplier terminalColorsEnabled;
         private final Runnable activityCallback;
+        private final Runnable outputCallback;
         private final TerminalColorControlSequenceFilter filter = new TerminalColorControlSequenceFilter();
         private final StringBuilder pendingOutput = new StringBuilder();
 
+        /**
+         * @param activityCallback runs for every read that returned output and every write, on the
+         *                         thread doing it (power management's activity)
+         * @param outputCallback   runs for every read that returned output only, on the emulator
+         *                         thread; never for a write (the tab's activity and silence monitoring)
+         */
         TerminalColorFilteringTtyConnector(
                 TtyConnector delegate,
                 BooleanSupplier terminalColorsEnabled,
-                Runnable activityCallback) {
+                Runnable activityCallback,
+                Runnable outputCallback) {
             this.delegate = Objects.requireNonNull(delegate, "delegate");
             this.terminalColorsEnabled = Objects.requireNonNull(terminalColorsEnabled, "terminalColorsEnabled");
             this.activityCallback = Objects.requireNonNull(activityCallback, "activityCallback");
+            this.outputCallback = Objects.requireNonNull(outputCallback, "outputCallback");
+        }
+
+        /** Output arrived from the session. */
+        private void outputArrived() {
+            activityCallback.run();
+            outputCallback.run();
         }
 
         TtyConnector delegate() {
@@ -8958,7 +9003,7 @@ public class TerminalView extends BorderPane {
                 pendingOutput.setLength(0);
                 int count = delegate.read(buf, offset, length);
                 if (count > 0) {
-                    activityCallback.run();
+                    outputArrived();
                 }
                 return count;
             }
@@ -8968,7 +9013,7 @@ public class TerminalView extends BorderPane {
                 if (count <= 0) {
                     return count;
                 }
-                activityCallback.run();
+                outputArrived();
                 pendingOutput.append(filter.filter(source, 0, count));
             }
 

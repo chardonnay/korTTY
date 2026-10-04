@@ -272,6 +272,8 @@ public class TerminalTab extends Tab {
      * Idempotent.
      */
     void releaseResources() {
+        // A closed tab is no longer watched; the poll timer stops with the last watched tab.
+        TerminalActivityWatcher.shared().forget(this);
         closeRecordingResources();
         cancelAutoReconnectTimer();
         // Idempotent; also stops the session journal and closes every pane's connector.
@@ -2012,6 +2014,35 @@ public class TerminalTab extends Tab {
         attentionLine = line;
         updateTabTitle(lastTitleSuffix);
         refreshTooltip();
+    }
+
+    /**
+     * Whether the tab is watched for activity: output after a quiet spell of at least 10 seconds
+     * while the user is not looking at it marks the tab and notifies ({@link TerminalActivityWatcher}).
+     * Off until switched on in its right-click menu; never saved. FX thread.
+     */
+    public boolean isMonitoringActivity() {
+        return TerminalActivityWatcher.shared().watchesActivity(this);
+    }
+
+    /** Switches activity monitoring of the tab on or off ({@link #isMonitoringActivity()}). FX thread. */
+    public void setMonitoringActivity(boolean on) {
+        TerminalActivityWatcher.shared().setActivity(this, on);
+    }
+
+    /**
+     * Whether the tab is watched for silence: a pane that printed and then stays silent for
+     * {@code GlobalSettings.terminalSilenceSeconds} marks the tab and notifies
+     * ({@link TerminalActivityWatcher}). Off until switched on in its right-click menu; never saved.
+     * FX thread.
+     */
+    public boolean isMonitoringSilence() {
+        return TerminalActivityWatcher.shared().watchesSilence(this);
+    }
+
+    /** Switches silence monitoring of the tab on or off ({@link #isMonitoringSilence()}). FX thread. */
+    public void setMonitoringSilence(boolean on) {
+        TerminalActivityWatcher.shared().setSilence(this, on);
     }
 
     /** Removes the attention mark: the user is looking at the tab now. FX thread. */

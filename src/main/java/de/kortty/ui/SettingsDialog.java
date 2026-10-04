@@ -75,6 +75,7 @@ import de.kortty.model.WindowGeometry;
 import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteWarningMode;
+import de.kortty.shellintegration.PaneActivityMonitor;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
 import de.kortty.security.PasswordStrengthChecker;
 import de.kortty.security.MasterPasswordManager;
@@ -184,6 +185,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox commandFinishedNotificationsCheck;
     private final Spinner<Integer> commandFinishedSecondsSpinner;
     private final CheckBox remoteTerminalNotificationsCheck;
+    private final Spinner<Integer> terminalSilenceSecondsSpinner;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
     private final CheckBox codingAgentDetectionCheck;
@@ -886,6 +888,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         remoteTerminalNotificationsCheck.setSelected(globalSettings == null
             || globalSettings.isRemoteTerminalNotificationsEnabled());
         remoteTerminalNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.remote.tooltip")));
+        // ... and how long a tab watched for silence (its right-click menu) has to stay silent.
+        terminalSilenceSecondsSpinner = new Spinner<>(PaneActivityMonitor.MIN_SILENCE_SECONDS,
+            PaneActivityMonitor.MAX_SILENCE_SECONDS,
+            globalSettings != null ? globalSettings.getTerminalSilenceSeconds()
+                : PaneActivityMonitor.DEFAULT_SILENCE_SECONDS);
+        terminalSilenceSecondsSpinner.setEditable(true);
+        terminalSilenceSecondsSpinner.setPrefWidth(100);
+        terminalSilenceSecondsSpinner.setTooltip(
+            new Tooltip(I18n.get("settings.terminal.notify.silenceSeconds.tooltip")));
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -1068,6 +1079,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         commandFinishedSecondsBox.setAlignment(Pos.CENTER_LEFT);
         terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);
         terminalGrid.add(remoteTerminalNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.notify.silenceSeconds")), 0, terminalRow);
+        HBox terminalSilenceSecondsBox = new HBox(10, terminalSilenceSecondsSpinner,
+            new Label(I18n.get("settings.terminal.notify.silenceSeconds.unit")));
+        terminalSilenceSecondsBox.setAlignment(Pos.CENTER_LEFT);
+        terminalGrid.add(terminalSilenceSecondsBox, 1, terminalRow++);
         Label notificationsInfo = new Label(I18n.get("settings.terminal.notify.info"));
         notificationsInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         notificationsInfo.setWrapText(true);
@@ -3502,6 +3518,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null
                 ? commandFinishedSecondsSpinner.getValue() : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS);
             globalSettings.setRemoteTerminalNotificationsEnabled(remoteTerminalNotificationsCheck.isSelected());
+            globalSettings.setTerminalSilenceSeconds(terminalSilenceSecondsSpinner.getValue() != null
+                ? terminalSilenceSecondsSpinner.getValue() : PaneActivityMonitor.DEFAULT_SILENCE_SECONDS);
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
@@ -3765,6 +3783,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::getCommandFinishedNotificationSeconds, true));
             tracked.add(new TrackedSetting("terminal", "remote_notifications",
                 gs::isRemoteTerminalNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "silence_seconds", gs::getTerminalSilenceSeconds, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
                 gs::isCodingAgentNotificationsEnabled, true));
