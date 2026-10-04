@@ -908,15 +908,16 @@
 <li><strong>Farbunterstützung</strong>: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung</li>
 <li><strong>Überprüfte Grenzkorrektur</strong>: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab <code>line == height</code> beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern <code>TerminalTextBuffer</code> Bereichsfehler</li>
 <li><strong>Überprüfter Shortcut-Akkord-Fix</strong>: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-<code>KEY_TYPED</code>-Zeichen (z. B. <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-d">D</kbd></span>) die PTY- oder Broadcast-Fenster erreichen</li>
+<li><strong>Überprüfte Längenbegrenzung für Steuersequenzen</strong>: Ein dritter angehefteter korTTY-Patch begrenzt den 1024 Zeichen großen Rückschiebepuffer, über den <code>ControlSequence</code> die Zeichen, die es in einer CSI nicht unterbringen kann, vor der Sequenz erneut liest: Nicht zuordenbare Zeichen und danach ganze Parameter, die nicht hineinpassen, werden verworfen, und die neu ausgegebene Sequenz behält immer ihr Abschlusszeichen, sodass eine überlange Sequenz in der Ausgabe der Gegenstelle keine <code>ArrayIndexOutOfBoundsException</code> mehr im Emulator-Thread auslöst und die Sitzung beendet. <code>OscEventSplitter</code> spielt dieselben Zeichen erneut ab, und die Korrektur wartet als <code>vendor-patches/0003-control-sequence-push-back-bounds.patch</code> auf eine Upstream-Veröffentlichung</li>
 <li><strong>Korrektheit des Bildlaufbereichs</strong>: Der Bildlaufbereich schränkt den Cursor nicht ein, während der Ursprungsmodus (DECOM) deaktiviert ist. Text, der oberhalb des oberen Rands oder unterhalb des unteren Rands adressiert wird, bleibt in dieser Zeile, anstatt in den Bereich gezogen zu werden, und nur ein Zeilenvorschub oder ein automatischer Zeilenumbruch, der tatsächlich den unteren Rand überschreitet, scrollt – so landen die erste Bereichszeile von tmux, seine Statuszeile und der Cursor alle dort, wo die Anwendung sie platziert hat. Wird als korTTY-Patch getragen, bis er in SithTermFX 1.2.2 ausgeliefert wird</li>
 </ul>
 <h3 id="build-integration">Build-Integration<a class="headerlink" href="#build-integration" title="Permanent link">&para;</a></h3>
 <p>Der Build-Prozess automatisch:</p>
 <ol>
 <li>Klont SithTermFX am Tag <code>v1.2.2</code> in <code>vendor/sithtermfx</code> (kein GitHub-Token erforderlich)</li>
-<li>Wendet die überprüften Patches in <code>patches/sithtermfx/</code> – <code>1.2.2-terminal-panel-bottom-row.patch</code> und <code>1.2.2-terminal-panel-meta-shortcut-key-typed.patch</code> – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder zutrifft noch bereits mit der Quelle übereinstimmt</li>
+<li>Wendet die überprüften Patches in <code>patches/sithtermfx/</code> – <code>1.2.2-control-sequence-bounds.patch</code>, <code>1.2.2-terminal-panel-bottom-row.patch</code> und <code>1.2.2-terminal-panel-meta-shortcut-key-typed.patch</code> – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder zutrifft noch bereits mit der Quelle übereinstimmt</li>
 <li>Erstellt es lokal mit Maven über die <code>installSithtermfxLocal</code>-Aufgabe</li>
-<li>Installiert Artefakte im lokalen Maven-Repository (<code>mavenLocal()</code>), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, ein ungepatchtes zwischengespeichertes UI-JAR abzulehnen</li>
+<li>Installiert Artefakte im lokalen Maven-Repository (<code>mavenLocal()</code>), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, ein ungepatchtes zwischengespeichertes Kern- oder UI-JAR abzulehnen</li>
 <li>Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR</li>
 </ol>
 <p>Nach dem Klonen ist kein Netzwerkzugriff erforderlich; Alle Build-Schritte sind deterministisch und reproduzierbar.</p>
@@ -1234,7 +1235,7 @@
 <tr>
 <td><strong>Terminal</strong></td>
 <td>SithTermFX (Kern, UI)</td>
-<td>1.2.2 plus angeheftete KorTTY-Grenz- und Shortcut-Akkord-Patches</td>
+<td>1.2.2 plus angeheftete KorTTY-Grenz-, Shortcut-Akkord- und Steuersequenz-Längen-Patches</td>
 <td>Terminal-Emulator-Engine</td>
 </tr>
 <tr>
