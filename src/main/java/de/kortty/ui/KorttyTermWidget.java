@@ -8,6 +8,7 @@ import com.sithtermfx.core.compatibility.Point;
 import com.sithtermfx.core.model.SithTerminal;
 import com.sithtermfx.core.model.StyleState;
 import com.sithtermfx.core.model.TerminalTextBuffer;
+import com.sithtermfx.core.model.hyperlinks.LinkInfo;
 import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.TerminalAction;
 import com.sithtermfx.ui.TerminalCopyPasteHandler;
@@ -59,7 +60,9 @@ import java.util.function.Supplier;
  *
  * <p>OSC 8 links go through {@link KorttyOsc8LinkInfoProvider}, which keeps only web and mail links
  * and, in a pane with a {@linkplain #setFileLinkHandler file handler}, {@code file:} links, and open
- * only on a Cmd/Ctrl+click through {@link TerminalLinkClickPolicy}. The same click opens a web or
+ * only on a single, still Cmd/Ctrl+click: SithTermFX navigates them on that gesture only, and the
+ * pane opens a navigated link only when {@link TerminalLinkClickPolicy}'s filter saw that click on
+ * it ({@link KorttyTerminalPanel#followLink}). The same click opens a web or
  * e-mail address or a file path printed as plain text, which {@link TerminalLinkResolver} finds on
  * demand for the kinds set with {@link #setPlainTextLinkKinds}; none until then. A file opens as text
  * in the Snippet Editor through the file handler, never with another program. Resting the mouse on a
@@ -119,7 +122,7 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
         // links with java.awt.Desktop.open, so remote output could launch a local program. korTTY's
         // keeps a file: link only while the pane's file handler opens files, as text.
         KorttyTerminalPanel panel = (KorttyTerminalPanel) getTerminalPanel();
-        setLinkInfoProvider(new KorttyOsc8LinkInfoProvider(panel::fileLinksEnabled));
+        setLinkInfoProvider(new KorttyOsc8LinkInfoProvider(panel::fileLinksEnabled, panel::followLink));
         // A filter runs before SithTermFX's own click handler on the canvas, so consuming the click
         // keeps SithTermFX from pasting the selection itself. Mouse reports to the program go out
         // on press and release, which this leaves alone. It takes only the middle button; the
@@ -389,18 +392,29 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
 
         private final TerminalLinkContextMenu linkMenu;
 
+        /**
+         * The OSC 8 link a click with the open gesture landed on, noted by the click filter and
+         * dropped once SithTermFX's click handler has run; JavaFX thread only.
+         */
+        private @Nullable GestureClick gestureClick;
+
+        /** A click with the open gesture on an OSC 8 link: the link's {@code LinkInfo} and what it opens. */
+        private record GestureClick(@NotNull LinkInfo linkInfo, @NotNull Hit hit) {
+        }
+
         KorttyTerminalPanel(@NotNull SettingsProvider settingsProvider, @NotNull TerminalTextBuffer terminalTextBuffer,
                 @NotNull StyleState styleState) {
             super(settingsProvider, terminalTextBuffer, styleState);
             // The pane's live link kinds; a file the file handler does not open is no link target.
             TerminalLinkHoverController.LinkFinder linkFinder =
                 (buffer, cell) -> openable(TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get()));
-            // Links open only on a single, still Cmd/Ctrl+click; SithTermFX's plain-click navigation
-            // is a no-op in KorttyLinkInfo. A canvas filter, so it runs before SithTermFX's handler.
+            // Links open only on a single, still Cmd/Ctrl+click. A canvas filter, so it runs before
+            // SithTermFX's handler: it opens a plain-text link itself and notes the OSC 8 link of an
+            // open gesture, which SithTermFX then navigates (followLink).
             TerminalLinkClickPolicy.install(this, (buffer, cell) -> {
                 TerminalLinkResolver.Link link = linkFinder.linkAt(buffer, cell);
                 return link != null ? link.hit() : Hit.NONE;
-            }, this::openLink);
+            }, this::openLink, this::noteOsc8Click);
             // Hover: underline, cursor and target tooltip. Its MOUSE_MOVED handler follows in init().
             linkHover = TerminalLinkHoverController.install(this, linkFinder, () -> linkOverlay.get());
             // The link under a right-button press, for Open Link and Copy Link Address in the context menu.
@@ -461,6 +475,26 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
             return createFont();
         }
 
+        /** Notes the OSC 8 link of a click with the open gesture, before SithTermFX handles the click. */
+        private void noteOsc8Click(@NotNull Point cell, @NotNull Hit hit) {
+            LinkInfo linkInfo = TerminalLinkResolver.linkInfoAt(getTerminalTextBuffer(), cell);
+            gestureClick = linkInfo != null ? new GestureClick(linkInfo, hit) : null;
+        }
+
+        /**
+         * Opens an OSC 8 link SithTermFX navigated, which it does on a single, still click with the
+         * open gesture. It opens only the link the click filter saw that click land on, so the
+         * gesture, the host-mismatch question and the file handler apply whatever the settings
+         * provider or the vendor's cell mapping would let through; anything else does nothing.
+         */
+        void followLink(@NotNull KorttyLinkInfo link) {
+            GestureClick click = gestureClick;
+            gestureClick = null;
+            if (click != null && click.linkInfo() == link) {
+                openLink(click.hit());
+            }
+        }
+
         /**
          * Opens a Cmd/Ctrl+clicked link. An OSC 8 link whose text names another host than its target
          * opens only after the user confirms; the question is asked once the click is handled.
@@ -516,12 +550,15 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
 
         /**
          * SithTermFX adds its mouse handlers here, after the constructor. The hover's
-         * {@code MOUSE_MOVED} handler goes after them, so the cursor it sets wins over SithTermFX's.
+         * {@code MOUSE_MOVED} handler goes after them, so the cursor it sets wins over SithTermFX's,
+         * and so does the {@code MOUSE_CLICKED} handler that drops a noted gesture click.
          */
         @Override
         public void init() {
             super.init();
             linkHover.followMouseMoves();
+            // After SithTermFX's click handler, which navigates a link while the noted click is fresh.
+            getCanvas().addEventHandler(MouseEvent.MOUSE_CLICKED, event -> gestureClick = null);
         }
 
         @Override

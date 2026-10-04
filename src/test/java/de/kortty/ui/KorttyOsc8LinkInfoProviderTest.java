@@ -27,9 +27,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
 /**
  * SithTermFX's default OSC 8 provider opened {@code file:} links with {@code java.awt.Desktop.open},
  * so a link printed by a server could launch a local program with one click. These cases pin
- * korTTY's replacement: only web and mail links become links, SithTermFX's own navigation of them
- * does nothing (they open only on a Cmd/Ctrl+click, see {@link TerminalLinkClickPolicyTest}), and
- * nothing in the link path references {@code java.awt}.
+ * korTTY's replacement: only web and mail links become links, SithTermFX's navigation of them only
+ * hands them back to the pane (which opens them only on a Cmd/Ctrl+click, see
+ * {@link TerminalLinkClickPolicyTest}), and nothing in the link path references {@code java.awt}.
  */
 public class KorttyOsc8LinkInfoProviderTest {
 
@@ -42,19 +42,36 @@ public class KorttyOsc8LinkInfoProviderTest {
     }
 
     @Test
-    public void sithTermFxNavigationOpensNothing() throws IOException {
-        // SithTermFX navigates on every plain click, on each click of a double-click and after a drag
-        // that ends on the link. korTTY's click gate opens links instead, so the link itself must
-        // hold no way to open anything.
-        KorttyLinkInfo link = new KorttyOsc8LinkInfoProvider().createLinkInfo("https://example.com/docs");
+    public void sithTermFxNavigationHandsTheLinkToThePaneAndOpensNothingItself() throws IOException {
+        // SithTermFX navigates a link on the open gesture. The link holds no opener: it hands itself
+        // to the pane's follower, which opens it after the host-mismatch question.
+        List<KorttyLinkInfo> followed = new java.util.ArrayList<>();
+        KorttyLinkInfo link = new KorttyOsc8LinkInfoProvider(() -> false, followed::add)
+            .createLinkInfo("https://example.com/docs");
 
         assertThat(link).isNotNull();
         link.navigate();
+        assertThat(followed).containsExactly(link);
+        // Without a pane, navigating does nothing.
+        KorttyLinkInfo paneless = new KorttyOsc8LinkInfoProvider().createLinkInfo("https://example.com/docs");
+        assertThat(paneless).isNotNull();
+        paneless.navigate();
         assertThat(classFileText(KorttyLinkInfo.class)).doesNotContain("de/kortty/ui/TerminalLinkOpener");
         // The provider still calls the opener's static allowlist, but holds or passes on no opener:
         // a field or parameter of that type would show as its descriptor "L...TerminalLinkOpener;".
         assertThat(classFileText(KorttyOsc8LinkInfoProvider.class)).doesNotContain("de/kortty/ui/TerminalLinkOpener;");
         assertThat(classFileText(KorttyOsc8LinkInfoProvider.class)).doesNotContain("HostServices");
+    }
+
+    @Test
+    public void aFileLinkIsHandedToThePaneToo() {
+        List<KorttyLinkInfo> followed = new java.util.ArrayList<>();
+        KorttyLinkInfo file = new KorttyOsc8LinkInfoProvider(() -> true, followed::add)
+            .createLinkInfo("file:///home/daniel/notes.txt");
+
+        assertThat(file).isNotNull();
+        file.navigate();
+        assertThat(followed).containsExactly(file);
     }
 
     @Test
@@ -166,7 +183,7 @@ public class KorttyOsc8LinkInfoProviderTest {
 
         // In the constructor, so the provider is in place before any pane is started.
         int constructor = widget.indexOf("super(columns, lines, settingsProvider);");
-        int install = widget.indexOf("\n        setLinkInfoProvider(new KorttyOsc8LinkInfoProvider(panel::fileLinksEnabled));\n");
+        int install = widget.indexOf("\n        setLinkInfoProvider(new KorttyOsc8LinkInfoProvider(panel::fileLinksEnabled, panel::followLink));\n");
         int panelFactory = widget.indexOf("protected TerminalPanel createTerminalPanel(");
         assertThat(constructor).isAtLeast(0);
         assertThat(install).isGreaterThan(constructor);

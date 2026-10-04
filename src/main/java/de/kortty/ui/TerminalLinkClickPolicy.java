@@ -1,9 +1,8 @@
 package de.kortty.ui;
 
 import com.sithtermfx.core.compatibility.Point;
-import com.sithtermfx.core.model.SelectionUtil;
-import com.sithtermfx.core.model.TerminalSelection;
 import com.sithtermfx.core.model.TerminalTextBuffer;
+import com.sithtermfx.ui.settings.ModifierKeys;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import org.jetbrains.annotations.NotNull;
@@ -11,37 +10,35 @@ import org.jetbrains.annotations.Nullable;
 
 import java.net.URI;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
  * When a click on a terminal link opens it: only on a single, still Cmd+click (macOS) or Ctrl+click
- * (Windows, Linux).
+ * (Windows, Linux), never with Alt, which Windows also reports for AltGr (user decision D2).
  *
- * <p>SithTermFX opens a link on every plain primary click over it. A double-click therefore opened it
- * twice, a drag-selection released over a link opened it, and so did a click while a program such as
- * tmux or vim had mouse reporting on. korTTY's {@link KorttyLinkInfo} does nothing when SithTermFX
- * navigates, and this class decides instead, as a {@code MOUSE_CLICKED} event filter on the canvas
- * of {@link KorttyTermWidget.KorttyTerminalPanel}. A filter runs before SithTermFX's own handler,
- * so a click this class consumes never reaches it.
+ * <p>Since SithTermFX 1.2.3 the vendor asks the settings provider which clicks follow a link
+ * ({@code UserSettingsProvider.isFollowLinkGesture}), and follows one only on a still, single
+ * primary click. korTTY's settings provider answers with {@link #isFollowLinkGesture(ModifierKeys)}.
+ * So for an OSC 8 link SithTermFX itself decides: a plain click, a double or triple click and the
+ * release of a drag act as on other text (the click does nothing, the multi-clicks select a word or a
+ * line, the drag selects), and a Cmd/Ctrl+click navigates the link's {@link KorttyLinkInfo}, which
+ * hands it back to the pane ({@code KorttyTerminalPanel.followLink}). The pane opens it only when
+ * this class saw the same click arrive on the same link with the open gesture, so the gesture holds
+ * even under a settings provider that follows every click, and the host-mismatch question and the
+ * file handler apply as for every other link.
  *
- * <p>{@link #decide} is the pure decision table:
- * <ul>
- *   <li>Anything but a primary click, a popup trigger, or a click on no link: {@link Action#PASS},
- *       SithTermFX and the split pane handle it as before (selection, focus, middle-click paste,
- *       the context menu).</li>
- *   <li>Shortcut down without Alt: {@link Action#OPEN} for a single click that did not move since the
- *       press, {@link Action#SWALLOW} otherwise, so a double-click or a drag release never opens a
- *       link. Alt is excluded because Windows reports AltGr as Ctrl+Alt.</li>
- *   <li>No open gesture over a link korTTY found in plain text ({@link HitKind#AUTO}): {@link Action#PASS},
- *       because SithTermFX sees ordinary text there and selects it as usual.</li>
- *   <li>No open gesture over an OSC 8 link: SithTermFX would navigate instead of selecting, so a
- *       single click is swallowed and a double or triple click selects the word or the line here,
- *       exactly as SithTermFX does on other text, but only where SithTermFX would select (not while
- *       a program receives the mouse).</li>
- * </ul>
+ * <p>A link korTTY finds in plain text ({@link HitKind#AUTO}) is ordinary text to SithTermFX, so
+ * this class opens it itself, as a {@code MOUSE_CLICKED} event filter on the canvas of
+ * {@link KorttyTermWidget.KorttyTerminalPanel} that runs before SithTermFX's own handler.
+ * {@link #decide} is that filter's pure decision table: {@link Action#OPEN} for a single, still
+ * primary click with the open gesture on a plain-text link, {@link Action#PASS} for everything else,
+ * which SithTermFX and the split pane handle as before (selection, focus, middle-click paste, the
+ * context menu, and OSC 8 links).
  *
- * <p>Every consumed click requests the keyboard focus on the canvas: consuming it also skips the
- * split pane's click handler, and the split pane follows the canvas focus to know the focused pane.
+ * <p>An opening click is consumed and requests the keyboard focus on the canvas: consuming it also
+ * skips the split pane's click handler, and the split pane follows the canvas focus to know the
+ * focused pane.
  */
 public final class TerminalLinkClickPolicy {
 
@@ -55,18 +52,12 @@ public final class TerminalLinkClickPolicy {
         AUTO
     }
 
-    /** What a click does. */
+    /** What korTTY's click filter does with a click. */
     public enum Action {
         /** Leave the click to SithTermFX and the split pane. */
         PASS,
-        /** Open the link. */
-        OPEN,
-        /** Consume the click and do nothing else. */
-        SWALLOW,
-        /** Select the word under the click, as a double-click on other text does. */
-        SELECT_WORD,
-        /** Select the logical line under the click, as a triple-click on other text does. */
-        SELECT_LINE
+        /** Consume the click and open the plain-text link under it. */
+        OPEN
     }
 
     /**
@@ -121,55 +112,61 @@ public final class TerminalLinkClickPolicy {
     }
 
     /**
-     * The decision table described on the class.
+     * The open gesture: Cmd (macOS) or Ctrl (Windows, Linux) without Alt. Alt is excluded because
+     * Windows reports AltGr as Ctrl+Alt. korTTY's settings provider answers SithTermFX's
+     * {@code isFollowLinkGesture} with this, so the vendor's hover highlight and its link clicks
+     * follow the same rule as korTTY's own links.
+     */
+    public static boolean isFollowLinkGesture(@NotNull ModifierKeys modifiers) {
+        Objects.requireNonNull(modifiers, "modifiers");
+        return isFollowLinkGesture(modifiers.isShortcutDown(), modifiers.isAltDown());
+    }
+
+    /** {@link #isFollowLinkGesture(ModifierKeys)} for the two keys it looks at. */
+    public static boolean isFollowLinkGesture(boolean shortcut, boolean alt) {
+        return shortcut && !alt;
+    }
+
+    /**
+     * The decision table of korTTY's click filter, described on the class.
      *
-     * @param primary          the primary button was clicked
-     * @param popupTrigger     the click is the platform's context-menu gesture
-     * @param shortcut         Cmd (macOS) or Ctrl (Windows, Linux) is down
-     * @param alt              Alt (Option on macOS, also AltGr on Windows) is down
-     * @param clickCount       the click count of the event
-     * @param stillSincePress  the mouse stayed put between the press and this click
-     * @param hit              what lies under the clicked cell
-     * @param localMouseAction SithTermFX handles the mouse itself instead of reporting it to the
-     *                         program ({@code TerminalPanel.isLocalMouseAction})
+     * @param primary         the primary button was clicked
+     * @param popupTrigger    the click is the platform's context-menu gesture
+     * @param shortcut        Cmd (macOS) or Ctrl (Windows, Linux) is down
+     * @param alt             Alt (Option on macOS, also AltGr on Windows) is down
+     * @param clickCount      the click count of the event
+     * @param stillSincePress the mouse stayed put between the press and this click
+     * @param hit             what lies under the clicked cell
      */
     public static @NotNull Action decide(boolean primary, boolean popupTrigger, boolean shortcut, boolean alt,
-            int clickCount, boolean stillSincePress, @NotNull HitKind hit, boolean localMouseAction) {
+            int clickCount, boolean stillSincePress, @NotNull HitKind hit) {
         Objects.requireNonNull(hit, "hit");
-        if (!primary || popupTrigger || hit == HitKind.NONE) {
-            return Action.PASS;
-        }
-        if (shortcut && !alt) {
-            return clickCount == 1 && stillSincePress ? Action.OPEN : Action.SWALLOW;
-        }
-        if (hit == HitKind.AUTO) {
-            return Action.PASS;
-        }
-        if (clickCount == 2) {
-            return localMouseAction ? Action.SELECT_WORD : Action.SWALLOW;
-        }
-        if (clickCount >= 3) {
-            return localMouseAction ? Action.SELECT_LINE : Action.SWALLOW;
-        }
-        return Action.SWALLOW;
+        boolean opens = primary && !popupTrigger && hit == HitKind.AUTO && isFollowLinkGesture(shortcut, alt)
+            && clickCount == 1 && stillSincePress;
+        return opens ? Action.OPEN : Action.PASS;
     }
 
     /**
      * Adds the click filter to {@code panel}'s canvas.
      *
-     * @param resolver finds the link under the clicked cell, normally a {@link TerminalLinkResolver}
-     * @param opener   opens the link of an {@link Action#OPEN} click, one that {@link Hit#opens()},
-     *                 normally through {@link TerminalLinkOpener#open} or the pane's file handler
+     * @param resolver    finds the link under the clicked cell, normally a {@link TerminalLinkResolver}
+     * @param opener      opens the plain-text link of an {@link Action#OPEN} click, one that
+     *                    {@link Hit#opens()}, normally through {@link TerminalLinkOpener#open} or the
+     *                    pane's file handler
+     * @param osc8Clicked told about every primary click with the open gesture on an OSC 8 link, with
+     *                    the clicked cell and its link, before SithTermFX's own click handler runs
      */
     static void install(@NotNull KorttyTermWidget.KorttyTerminalPanel panel, @NotNull HitResolver resolver,
-            @NotNull Consumer<Hit> opener) {
+            @NotNull Consumer<Hit> opener, @NotNull BiConsumer<Point, Hit> osc8Clicked) {
         Objects.requireNonNull(resolver, "resolver");
         Objects.requireNonNull(opener, "opener");
-        panel.getCanvas().addEventFilter(MouseEvent.MOUSE_CLICKED, event -> onClicked(panel, resolver, opener, event));
+        Objects.requireNonNull(osc8Clicked, "osc8Clicked");
+        panel.getCanvas().addEventFilter(MouseEvent.MOUSE_CLICKED,
+            event -> onClicked(panel, resolver, opener, osc8Clicked, event));
     }
 
     private static void onClicked(@NotNull KorttyTermWidget.KorttyTerminalPanel panel, @NotNull HitResolver resolver,
-            @NotNull Consumer<Hit> opener, @NotNull MouseEvent event) {
+            @NotNull Consumer<Hit> opener, @NotNull BiConsumer<Point, Hit> osc8Clicked, @NotNull MouseEvent event) {
         if (event.isConsumed() || event.getButton() != MouseButton.PRIMARY) {
             return;
         }
@@ -177,61 +174,23 @@ public final class TerminalLinkClickPolicy {
         if (cell == null) {
             return;
         }
-        TerminalTextBuffer buffer = panel.getTerminalTextBuffer();
-        Hit hit = resolver.hitAt(buffer, cell);
+        Hit hit = resolver.hitAt(panel.getTerminalTextBuffer(), cell);
+        if (hit.kind() == HitKind.OSC8) {
+            if (!event.isPopupTrigger() && isFollowLinkGesture(event.isShortcutDown(), event.isAltDown())) {
+                osc8Clicked.accept(cell, hit);
+            }
+            return;
+        }
         Action action = decide(true, event.isPopupTrigger(), event.isShortcutDown(), event.isAltDown(),
-            event.getClickCount(), event.isStillSincePress(), hit.kind(), panel.isLocalMouseAction(event));
-        if (action == Action.PASS) {
+            event.getClickCount(), event.isStillSincePress(), hit.kind());
+        if (action != Action.OPEN) {
             return;
         }
         event.consume();
         panel.getCanvas().requestFocus();
-        switch (action) {
-            case OPEN -> {
-                if (hit.opens()) {
-                    opener.accept(hit);
-                }
-            }
-            case SELECT_WORD -> panel.selectionProperty().set(wordSelection(buffer, cell));
-            case SELECT_LINE -> panel.selectionProperty().set(lineSelection(buffer, cell));
-            default -> {
-                // SWALLOW: the click only takes the focus.
-            }
+        if (hit.opens()) {
+            opener.accept(hit);
         }
         panel.repaint();
-    }
-
-    /** The word around {@code cell}, delimited the way SithTermFX's own double-click delimits it. */
-    static @NotNull TerminalSelection wordSelection(@NotNull TerminalTextBuffer buffer, @NotNull Point cell) {
-        buffer.lock();
-        try {
-            TerminalSelection selection = new TerminalSelection(SelectionUtil.getPreviousSeparator(cell, buffer));
-            selection.updateEnd(SelectionUtil.getNextSeparator(cell, buffer));
-            return selection;
-        } finally {
-            buffer.unlock();
-        }
-    }
-
-    /**
-     * The logical line around {@code cell}: the row plus the rows it wraps from and into, as
-     * SithTermFX's own triple-click selects it. Unlike SithTermFX it stops at the last screen row,
-     * which has no row below it to wrap into.
-     */
-    static @NotNull TerminalSelection lineSelection(@NotNull TerminalTextBuffer buffer, @NotNull Point cell) {
-        buffer.lock();
-        try {
-            int startLine = cell.y;
-            while (startLine > -buffer.getHistoryLinesCount() && buffer.getLine(startLine - 1).isWrapped()) {
-                startLine--;
-            }
-            int endLine = cell.y;
-            while (endLine < buffer.getHeight() - 1 && buffer.getLine(endLine).isWrapped()) {
-                endLine++;
-            }
-            return new TerminalSelection(new Point(0, startLine), new Point(buffer.getWidth(), endLine));
-        } finally {
-            buffer.unlock();
-        }
     }
 }

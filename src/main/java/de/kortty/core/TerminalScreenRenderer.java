@@ -35,8 +35,6 @@ public final class TerminalScreenRenderer {
         String hex(int index, boolean bright);
     }
 
-    private static final int MAX_LINK_STYLE_DEPTH = 8;
-
     private TerminalScreenRenderer() {
     }
 
@@ -88,25 +86,14 @@ public final class TerminalScreenRenderer {
     }
 
     /**
-     * The style a cell's text is drawn with. A link cell holds a {@link HyperlinkStyle}, which has no
-     * colours or attributes of its own: an OSC 8 link keeps the text's style as its previous style, a
-     * link drawn over existing text as its original style, and its custom style carries the link
-     * colours. Unwrapping in that order keeps the colours, bold and inverse of linked text in
-     * recordings, which otherwise showed it in the default colour.
+     * The style a cell's text is drawn with. A link cell holds a {@link HyperlinkStyle}; its
+     * {@linkplain HyperlinkStyle#getUnderlyingStyle() underlying style} is the text beneath the link
+     * (an OSC 8 link's text style, with every SGR applied inside it, or the original style a link
+     * was drawn over), which keeps the colours, bold and inverse of linked text in recordings. Links
+     * do not nest since SithTermFX 1.2.3, so one level is all there is to unwrap.
      */
     static TextStyle drawnStyle(TextStyle style) {
-        TextStyle current = style;
-        // A link opened inside another link wraps it; the depth bound only guards against a cycle.
-        for (int depth = 0; depth < MAX_LINK_STYLE_DEPTH && current instanceof HyperlinkStyle link; depth++) {
-            if (link.getPrevTextStyle() != null) {
-                current = link.getPrevTextStyle();
-            } else if (link.getOriginalStyle() != null) {
-                current = link.getOriginalStyle();
-            } else {
-                return link.getCustomStyle();
-            }
-        }
-        return current instanceof HyperlinkStyle link ? link.getCustomStyle() : current;
+        return style instanceof HyperlinkStyle link ? link.getUnderlyingStyle() : style;
     }
 
     /** The snapshot drawn like a recording export frame (monospaced, black background). */

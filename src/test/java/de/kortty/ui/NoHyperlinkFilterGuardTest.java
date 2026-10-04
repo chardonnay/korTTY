@@ -17,11 +17,12 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * korTTY draws OSC 8 links in SithTermFX's {@code HOVER_WITH_CUSTOM_COLOR} mode so that linked text
- * keeps its own colours. In that mode a vendor link filter would overwrite every cell it matches,
- * OSC 8 links included, with the vendor's link colours, and in the other modes its targets go stale
- * while a line is still being written. Links in plain text are therefore found on demand, and no
- * code in korTTY may register a filter: this scan of the main sources fails as soon as one does.
+ * Links in plain text are found on demand ({@code TerminalLinkResolver}), only when a click, a hover
+ * or quick select asks for one cell, so they cost nothing while output arrives and always match the
+ * text on screen; they open through korTTY's own click filter, hover and context menu. A vendor link
+ * filter would run on every write and make a second kind of plain-text link that korTTY's gate does
+ * not see (up to SithTermFX 1.2.2 it also overwrote OSC 8 links and kept stale targets). So no code
+ * in korTTY may register one: this scan of the main sources fails as soon as one does.
  */
 public class NoHyperlinkFilterGuardTest {
 

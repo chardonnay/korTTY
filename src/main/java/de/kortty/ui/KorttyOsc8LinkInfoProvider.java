@@ -20,8 +20,9 @@ import java.util.function.BooleanSupplier;
  * such a file is read as text into the Snippet Editor, never launched. For every other target it
  * returns {@code null}, so the text is drawn as plain text and a click does nothing.
  *
- * <p>The {@link KorttyLinkInfo} it returns does not open anything itself: links open only on a
- * Cmd/Ctrl+click, through {@link TerminalLinkClickPolicy}.
+ * <p>The {@link KorttyLinkInfo} it returns does not open anything itself: SithTermFX navigates it
+ * only on korTTY's open gesture, a single, still Cmd/Ctrl+click ({@link TerminalLinkClickPolicy}),
+ * and navigating hands it to the pane's {@link KorttyLinkInfo.Follower}.
  *
  * <p>SithTermFX calls it on the emulator thread for every OSC 8 sequence, so it stays toolkit-free
  * and cheap.
@@ -29,30 +30,42 @@ import java.util.function.BooleanSupplier;
 public final class KorttyOsc8LinkInfoProvider implements LinkInfoProvider {
 
     private final BooleanSupplier fileLinks;
+    private final KorttyLinkInfo.Follower follower;
 
-    /** A provider that keeps {@code file:} targets as plain text. */
+    /** A provider for a buffer no pane shows: it keeps {@code file:} targets as plain text. */
     public KorttyOsc8LinkInfoProvider() {
         this(() -> false);
     }
 
     /**
-     * @param fileLinks whether the pane opens files now; asked on the emulator thread, for each
-     *     {@code file:} target only
+     * A provider for a buffer no pane shows: navigating its links does nothing.
+     *
+     * @param fileLinks whether {@code file:} targets become links now
      */
     public KorttyOsc8LinkInfoProvider(@NotNull BooleanSupplier fileLinks) {
+        this(fileLinks, KorttyLinkInfo.NO_PANE);
+    }
+
+    /**
+     * @param fileLinks whether the pane opens files now; asked on the emulator thread, for each
+     *     {@code file:} target only
+     * @param follower  the pane's, given every link SithTermFX navigates
+     */
+    public KorttyOsc8LinkInfoProvider(@NotNull BooleanSupplier fileLinks, @NotNull KorttyLinkInfo.Follower follower) {
         this.fileLinks = Objects.requireNonNull(fileLinks, "fileLinks");
+        this.follower = Objects.requireNonNull(follower, "follower");
     }
 
     @Override
     public @Nullable KorttyLinkInfo createLinkInfo(@NotNull String uri) {
         KorttyLinkInfo web = TerminalLinkOpener.allowedBrowseUri(uri)
-            .map(KorttyLinkInfo::new)
+            .map(target -> new KorttyLinkInfo(target, follower))
             .orElse(null);
         if (web != null || !uri.regionMatches(true, 0, "file:", 0, "file:".length()) || !fileLinks.getAsBoolean()) {
             return web;
         }
         return TerminalFileLink.fromFileUri(uri)
-            .map(KorttyLinkInfo::new)
+            .map(file -> new KorttyLinkInfo(file, follower))
             .orElse(null);
     }
 }

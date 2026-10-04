@@ -25,7 +25,7 @@ final class EmulatorTextBufferFixture {
     EmulatorTextBufferFixture(int width, int height, int historyLines, LinkInfoProvider provider) {
         StyleState styleState = new StyleState();
         TextProcessing processing = new TextProcessing(new TextStyle(),
-            HyperlinkStyle.HighlightMode.HOVER_WITH_CUSTOM_COLOR);
+            HyperlinkStyle.HighlightMode.HOVER_WITH_BOTH_COLORS);
         processing.setLinkInfoProvider(provider);
         buffer = new TerminalTextBuffer(width, height, styleState, historyLines, processing);
         processing.setTerminalTextBuffer(buffer);

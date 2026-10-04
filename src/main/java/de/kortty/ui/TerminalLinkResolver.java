@@ -160,6 +160,23 @@ public final class TerminalLinkResolver implements TerminalLinkClickPolicy.HitRe
     }
 
     /**
+     * The {@link LinkInfo} of the OSC 8 link under {@code cell}, one per OSC 8 sequence, or
+     * {@code null} for a cell outside the buffer or on no OSC 8 link.
+     */
+    public static @Nullable LinkInfo linkInfoAt(@NotNull TerminalTextBuffer buffer, @NotNull Point cell) {
+        Objects.requireNonNull(buffer, "buffer");
+        Objects.requireNonNull(cell, "cell");
+        buffer.lock();
+        try {
+            return isInside(buffer, cell) && buffer.getStyleAt(cell.x, cell.y) instanceof HyperlinkStyle hyperlink
+                ? hyperlink.getLinkInfo()
+                : null;
+        } finally {
+            buffer.unlock();
+        }
+    }
+
+    /**
      * The rows read around {@code cell}: the logical line it belongs to, cut to
      * {@value #MAX_ROWS_AROUND} rows on each side and {@value #MAX_WINDOW_CHARS} characters. Rows the
      * end does not need go to the start. Call it under the buffer lock.

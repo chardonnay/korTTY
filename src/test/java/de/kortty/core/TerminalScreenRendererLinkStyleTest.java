@@ -22,7 +22,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
  * A cell inside an OSC 8 link holds a {@link HyperlinkStyle}, which has no colours or attributes of
  * its own; the text's style sits inside it. Recordings read the cell styles through
  * {@link TerminalScreenRenderer#styleRuns}, so linked text came out in the default colour and without
- * bold. These cases pin that the renderer reports the style the text was written with.
+ * bold. These cases pin that the renderer reports the style the text was written with, which since
+ * SithTermFX 1.2.3 is {@link HyperlinkStyle#getUnderlyingStyle()}.
  */
 public class TerminalScreenRendererLinkStyleTest {
 
@@ -77,7 +78,7 @@ public class TerminalScreenRendererLinkStyleTest {
     }
 
     @Test
-    public void linkOpenedInsideAnotherLinkStillReportsItsText() {
+    public void linkOpenedInsideAnotherLinkReplacesItAndReportsItsText() {
         Screen screen = new Screen();
         screen.styleState.setCurrent(BOLD_RED_ON_NAVY);
 
@@ -85,8 +86,9 @@ public class TerminalScreenRendererLinkStyleTest {
         screen.terminal.setLinkUriStarted("https://example.com/inner");
         screen.terminal.writeString("inner");
 
+        // SithTermFX 1.2.3: the second link replaces the first instead of nesting inside it.
         assertThat(((HyperlinkStyle) screen.buffer.getStyleAt(0, 0)).getPrevTextStyle())
-            .isInstanceOf(HyperlinkStyle.class);
+            .isNotInstanceOf(HyperlinkStyle.class);
         TerminalRecordingStyleRun run = screen.run("inner");
         assertThat(run.foreground()).isEqualTo("#CC2211");
         assertThat(run.options()).containsExactly("BOLD");
@@ -109,16 +111,17 @@ public class TerminalScreenRendererLinkStyleTest {
     }
 
     @Test
-    public void linkWithoutTextStyleReportsItsLinkColours() {
-        // The shape a vendor link filter in custom-colour mode leaves behind: only the link colours.
+    public void linkWithoutTextStyleReportsWhatSithTermFxDrawsBeneathIt() {
+        // The shape a vendor link filter in custom-colour mode leaves behind: only the link colours,
+        // which SithTermFX draws on hover. Not hovered, the text beneath has none of its own.
         HyperlinkStyle link = new HyperlinkStyle(LINK_BLUE, LINK_WHITE, new LinkInfo(() -> { }),
             HyperlinkStyle.HighlightMode.HOVER_WITH_CUSTOM_COLOR, null, null);
 
         TextStyle drawn = TerminalScreenRenderer.drawnStyle(link);
 
-        assertThat(drawn).isSameInstanceAs(link.getCustomStyle());
-        assertThat(drawn.getForeground()).isEqualTo(LINK_BLUE);
-        assertThat(drawn.getBackground()).isEqualTo(LINK_WHITE);
+        assertThat(drawn).isNotInstanceOf(HyperlinkStyle.class);
+        assertThat(drawn.getForeground()).isEqualTo(link.getUnderlyingStyle().getForeground());
+        assertThat(drawn.getBackground()).isEqualTo(link.getUnderlyingStyle().getBackground());
     }
 
     @Test

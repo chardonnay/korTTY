@@ -41,7 +41,8 @@ import java.util.function.Supplier;
  * shows, because the program prints any text it likes around it; a link korTTY does not open says so
  * instead.
  *
- * <p>SithTermFX underlines a hovered OSC 8 link and shows the hand cursor over it by itself. A link
+ * <p>SithTermFX underlines a hovered OSC 8 link by itself, while the open gesture (Cmd/Ctrl) is held,
+ * and shows the hand cursor over it. A link
  * korTTY finds in plain text is ordinary text to SithTermFX, so this class draws its underline as
  * {@link Line}s in the pane's {@code LINKS} overlay layer (from {@code TerminalSplitPane.paneOverlay},
  * mouse-transparent) and sets the cursor itself. It sets the cursor explicitly whenever the mouse

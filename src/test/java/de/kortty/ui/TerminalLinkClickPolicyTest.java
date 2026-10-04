@@ -1,8 +1,6 @@
 package de.kortty.ui;
 
-import com.sithtermfx.core.compatibility.Point;
-import com.sithtermfx.core.model.SelectionUtil;
-import com.sithtermfx.core.model.TerminalSelection;
+import com.sithtermfx.ui.settings.ModifierKeys;
 import de.kortty.ui.TerminalLinkClickPolicy.Action;
 import de.kortty.ui.TerminalLinkClickPolicy.HitKind;
 import org.testng.annotations.DataProvider;
@@ -17,70 +15,52 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static de.kortty.ui.TerminalLinkClickPolicy.Action.OPEN;
 import static de.kortty.ui.TerminalLinkClickPolicy.Action.PASS;
-import static de.kortty.ui.TerminalLinkClickPolicy.Action.SELECT_LINE;
-import static de.kortty.ui.TerminalLinkClickPolicy.Action.SELECT_WORD;
-import static de.kortty.ui.TerminalLinkClickPolicy.Action.SWALLOW;
 import static de.kortty.ui.TerminalLinkClickPolicy.HitKind.AUTO;
 import static de.kortty.ui.TerminalLinkClickPolicy.HitKind.NONE;
 import static de.kortty.ui.TerminalLinkClickPolicy.HitKind.OSC8;
 
 /**
- * SithTermFX opened a terminal link on every plain primary click: twice on a double-click, after a
- * drag-selection released over it, and while tmux or vim had mouse reporting on. These cases pin
- * korTTY's gate: a link opens only on a single, still Cmd/Ctrl+click (never with AltGr, which
- * Windows reports as Ctrl+Alt), a plain click on an OSC 8 link does nothing, and a plain double or
- * triple click on one selects the word or the line as it does on other text.
+ * Pins korTTY's link gate (user decision D2): a link opens only on a single, still Cmd/Ctrl+click,
+ * never with AltGr, which Windows reports as Ctrl+Alt.
+ *
+ * <p>For OSC 8 links SithTermFX 1.2.3 makes the call itself, through the settings provider's
+ * {@code isFollowLinkGesture} and its own single-and-still rule ({@code SithTermFxFollowLinkClickTest}
+ * pins that), and korTTY's filter leaves those clicks alone. For links korTTY finds in plain text the
+ * filter decides alone, with the same rule.
  */
 public class TerminalLinkClickPolicyTest {
 
-    private static final int WIDTH = 40;
-    private static final int HEIGHT = 4;
-
     @DataProvider
     public Object[][] namedClicks() {
-        // description, primary, popupTrigger, shortcut, alt, clickCount, stillSincePress, hit, localMouseAction, expected
+        // description, primary, popupTrigger, shortcut, alt, clickCount, stillSincePress, hit, expected
         return new Object[][] {
-            {"Cmd/Ctrl+click on an OSC 8 link", true, false, true, false, 1, true, OSC8, true, OPEN},
-            {"Cmd/Ctrl+click on an OSC 8 link with mouse reporting on", true, false, true, false, 1, true, OSC8, false, OPEN},
-            {"Cmd/Ctrl+click on a plain-text link", true, false, true, false, 1, true, AUTO, true, OPEN},
-            {"Cmd/Ctrl+double-click on an OSC 8 link", true, false, true, false, 2, true, OSC8, true, SWALLOW},
-            {"Cmd/Ctrl+double-click on a plain-text link", true, false, true, false, 2, true, AUTO, true, SWALLOW},
-            {"Cmd/Ctrl+triple-click on an OSC 8 link", true, false, true, false, 3, true, OSC8, true, SWALLOW},
-            {"Cmd/Ctrl+drag released on an OSC 8 link", true, false, true, false, 1, false, OSC8, true, SWALLOW},
-            {"Cmd/Ctrl+drag released on a plain-text link", true, false, true, false, 1, false, AUTO, true, SWALLOW},
-            {"AltGr (Ctrl+Alt) click on an OSC 8 link", true, false, true, true, 1, true, OSC8, true, SWALLOW},
-            {"AltGr (Ctrl+Alt) click on a plain-text link", true, false, true, true, 1, true, AUTO, true, PASS},
-            {"AltGr (Ctrl+Alt) double-click on an OSC 8 link", true, false, true, true, 2, true, OSC8, true, SELECT_WORD},
-            {"plain click on an OSC 8 link", true, false, false, false, 1, true, OSC8, true, SWALLOW},
-            {"plain click on an OSC 8 link with mouse reporting on", true, false, false, false, 1, true, OSC8, false, SWALLOW},
-            {"plain drag released on an OSC 8 link", true, false, false, false, 1, false, OSC8, true, SWALLOW},
-            {"plain click on a plain-text link", true, false, false, false, 1, true, AUTO, true, PASS},
-            {"plain double-click on a plain-text link", true, false, false, false, 2, true, AUTO, true, PASS},
-            {"plain double-click on an OSC 8 link", true, false, false, false, 2, true, OSC8, true, SELECT_WORD},
-            {"plain double-click on an OSC 8 link with mouse reporting on", true, false, false, false, 2, true, OSC8, false, SWALLOW},
-            {"plain triple-click on an OSC 8 link", true, false, false, false, 3, true, OSC8, true, SELECT_LINE},
-            {"plain triple-click on an OSC 8 link with mouse reporting on", true, false, false, false, 3, true, OSC8, false, SWALLOW},
-            {"plain quadruple-click on an OSC 8 link", true, false, false, false, 4, true, OSC8, true, SELECT_LINE},
-            {"Alt+click on an OSC 8 link", true, false, false, true, 1, true, OSC8, true, SWALLOW},
-            {"secondary click on an OSC 8 link", false, false, false, false, 1, true, OSC8, true, PASS},
-            {"Cmd/Ctrl+secondary click on an OSC 8 link", false, false, true, false, 1, true, OSC8, true, PASS},
-            {"macOS Ctrl+click (popup trigger) on an OSC 8 link", true, true, false, false, 1, true, OSC8, true, PASS},
-            {"Cmd/Ctrl+click on no link", true, false, true, false, 1, true, NONE, true, PASS},
-            {"plain double-click on no link", true, false, false, false, 2, true, NONE, true, PASS},
-            {"plain triple-click on no link", true, false, false, false, 3, true, NONE, true, PASS},
+            {"Cmd/Ctrl+click on a plain-text link", true, false, true, false, 1, true, AUTO, OPEN},
+            {"Cmd/Ctrl+double-click on a plain-text link", true, false, true, false, 2, true, AUTO, PASS},
+            {"Cmd/Ctrl+drag released on a plain-text link", true, false, true, false, 1, false, AUTO, PASS},
+            {"AltGr (Ctrl+Alt) click on a plain-text link", true, false, true, true, 1, true, AUTO, PASS},
+            {"plain click on a plain-text link", true, false, false, false, 1, true, AUTO, PASS},
+            {"plain double-click on a plain-text link", true, false, false, false, 2, true, AUTO, PASS},
+            {"Cmd/Ctrl+secondary click on a plain-text link", false, false, true, false, 1, true, AUTO, PASS},
+            {"Cmd/Ctrl+click that is the popup trigger", true, true, true, false, 1, true, AUTO, PASS},
+            // SithTermFX follows OSC 8 links itself, on the gesture korTTY's provider defines.
+            {"Cmd/Ctrl+click on an OSC 8 link", true, false, true, false, 1, true, OSC8, PASS},
+            {"plain click on an OSC 8 link", true, false, false, false, 1, true, OSC8, PASS},
+            {"plain double-click on an OSC 8 link", true, false, false, false, 2, true, OSC8, PASS},
+            {"Cmd/Ctrl+click on no link", true, false, true, false, 1, true, NONE, PASS},
+            {"plain triple-click on no link", true, false, false, false, 3, true, NONE, PASS},
         };
     }
 
     @Test(dataProvider = "namedClicks")
     public void namedClick(String description, boolean primary, boolean popupTrigger, boolean shortcut, boolean alt,
-                           int clickCount, boolean still, HitKind hit, boolean local, Action expected) {
+                           int clickCount, boolean still, HitKind hit, Action expected) {
         assertWithMessage(description)
-            .that(TerminalLinkClickPolicy.decide(primary, popupTrigger, shortcut, alt, clickCount, still, hit, local))
+            .that(TerminalLinkClickPolicy.decide(primary, popupTrigger, shortcut, alt, clickCount, still, hit))
             .isEqualTo(expected);
     }
 
     @Test
-    public void fullTableHoldsTheRules() {
+    public void fullTableOpensOnlyASingleStillGestureClickOnAPlainTextLink() {
         int combinations = 0;
         for (boolean primary : new boolean[] {true, false}) {
             for (boolean popupTrigger : new boolean[] {true, false}) {
@@ -89,47 +69,14 @@ public class TerminalLinkClickPolicyTest {
                         for (int clickCount = 0; clickCount <= 4; clickCount++) {
                             for (boolean still : new boolean[] {true, false}) {
                                 for (HitKind hit : HitKind.values()) {
-                                    for (boolean local : new boolean[] {true, false}) {
-                                        combinations++;
-                                        Action action = TerminalLinkClickPolicy.decide(
-                                            primary, popupTrigger, shortcut, alt, clickCount, still, hit, local);
-                                        String row = "primary=" + primary + " popup=" + popupTrigger
-                                            + " shortcut=" + shortcut + " alt=" + alt + " clicks=" + clickCount
-                                            + " still=" + still + " hit=" + hit + " local=" + local + " -> " + action;
-                                        boolean openGesture = shortcut && !alt;
-                                        boolean linkClick = primary && !popupTrigger && hit != NONE;
-
-                                        // Opens exactly on a single, still Cmd/Ctrl+click without Alt on a link.
-                                        assertWithMessage(row).that(action == OPEN)
-                                            .isEqualTo(linkClick && openGesture && clickCount == 1 && still);
-                                        // Other buttons, the context-menu gesture and cells without a link
-                                        // are left to SithTermFX and the split pane.
-                                        if (!linkClick) {
-                                            assertWithMessage(row).that(action).isEqualTo(PASS);
-                                        }
-                                        // SithTermFX would navigate on a primary click on an OSC 8 cell
-                                        // instead of selecting, so such a click never reaches it.
-                                        if (linkClick && hit == OSC8) {
-                                            assertWithMessage(row).that(action).isNotEqualTo(PASS);
-                                        }
-                                        // A plain-text link is ordinary text to SithTermFX: without the open
-                                        // gesture its selection works unchanged.
-                                        if (linkClick && hit == AUTO && !openGesture) {
-                                            assertWithMessage(row).that(action).isEqualTo(PASS);
-                                        }
-                                        // korTTY selects only on OSC 8 cells, only where SithTermFX would
-                                        // select, and never on an open gesture.
-                                        if (action == SELECT_WORD || action == SELECT_LINE) {
-                                            assertWithMessage(row).that(hit).isEqualTo(OSC8);
-                                            assertWithMessage(row).that(local).isTrue();
-                                            assertWithMessage(row).that(openGesture).isFalse();
-                                            if (action == SELECT_WORD) {
-                                                assertWithMessage(row).that(clickCount).isEqualTo(2);
-                                            } else {
-                                                assertWithMessage(row).that(clickCount).isAtLeast(3);
-                                            }
-                                        }
-                                    }
+                                    combinations++;
+                                    Action action = TerminalLinkClickPolicy.decide(
+                                        primary, popupTrigger, shortcut, alt, clickCount, still, hit);
+                                    String row = "primary=" + primary + " popup=" + popupTrigger
+                                        + " shortcut=" + shortcut + " alt=" + alt + " clicks=" + clickCount
+                                        + " still=" + still + " hit=" + hit + " -> " + action;
+                                    assertWithMessage(row).that(action == OPEN).isEqualTo(primary && !popupTrigger
+                                        && hit == AUTO && shortcut && !alt && clickCount == 1 && still);
                                 }
                             }
                         }
@@ -137,66 +84,30 @@ public class TerminalLinkClickPolicyTest {
                 }
             }
         }
-        assertThat(combinations).isEqualTo(2 * 2 * 2 * 2 * 5 * 2 * 3 * 2);
+        assertThat(combinations).isEqualTo(2 * 2 * 2 * 2 * 5 * 2 * 3);
     }
 
     @Test
-    public void doubleClickSelectsTheLinkWordLikeSithTermFx() {
-        EmulatorTextBufferFixture fixture = fixture();
-        fixture.write("see ");
-        fixture.link("https://example.com/docs", "docs-link");
-        fixture.write(" now");
-
-        TerminalSelection selection = TerminalLinkClickPolicy.wordSelection(fixture.buffer, new Point(7, 0));
-
-        assertThat(selection.getStart()).isEqualTo(new Point(4, 0));
-        assertThat(selection.getEnd()).isEqualTo(new Point(12, 0));
-        // The panel turns a selection into text the same way: the end cell is included.
-        var run = selection.pointsForRun(WIDTH);
-        assertThat(SelectionUtil.getSelectedText(run.getFirst(), run.getSecond(), fixture.buffer)).isEqualTo("docs-link");
+    public void theOpenGestureIsCmdOrCtrlWithoutAlt() {
+        assertThat(TerminalLinkClickPolicy.isFollowLinkGesture(ModifierKeys.NONE)).isFalse();
+        assertThat(TerminalLinkClickPolicy.isFollowLinkGesture(ModifierKeys.of(false, false, false, false, true))).isTrue();
+        assertThat(TerminalLinkClickPolicy.isFollowLinkGesture(ModifierKeys.of(true, false, false, true, true))).isTrue();
+        // AltGr on Windows arrives as Ctrl+Alt.
+        assertThat(TerminalLinkClickPolicy.isFollowLinkGesture(ModifierKeys.of(false, true, true, false, true))).isFalse();
+        assertThat(TerminalLinkClickPolicy.isFollowLinkGesture(ModifierKeys.of(false, false, true, false, false))).isFalse();
+        assertThat(TerminalLinkClickPolicy.isFollowLinkGesture(ModifierKeys.of(true, false, false, false, false))).isFalse();
+        // macOS Ctrl (not the shortcut there) does not open.
+        assertThat(TerminalLinkClickPolicy.isFollowLinkGesture(ModifierKeys.of(false, true, false, false, false))).isFalse();
     }
 
     @Test
-    public void tripleClickSelectsTheWholeWrappedLine() {
-        EmulatorTextBufferFixture fixture = fixture();
-        fixture.write("first\r\n");
-        // The emulator hands the buffer at most one row per write and wraps before the next one.
-        fixture.terminal.setLinkUriStarted("https://example.com/long");
-        fixture.write("L".repeat(WIDTH));
-        fixture.write("L".repeat(5));
-        fixture.terminal.setLinkUriFinished();
-        fixture.write("\r\nlast");
-        assertThat(fixture.buffer.getLine(1).isWrapped()).isTrue();
-
-        for (int row : new int[] {1, 2}) {
-            TerminalSelection selection = TerminalLinkClickPolicy.lineSelection(fixture.buffer, new Point(3, row));
-            assertWithMessage("row " + row).that(selection.getStart()).isEqualTo(new Point(0, 1));
-            assertWithMessage("row " + row).that(selection.getEnd()).isEqualTo(new Point(WIDTH, 2));
-        }
-    }
-
-    @Test
-    public void tripleClickOnTheLastRowStaysOnTheScreen() {
-        EmulatorTextBufferFixture fixture = fixture();
-        fixture.write("\r\n\r\n\r\n");
-        fixture.link("https://example.com/", "bottom");
-        // A last row marked as wrapping into the row below, which does not exist.
-        fixture.buffer.getLine(HEIGHT - 1).setWrapped(true);
-
-        TerminalSelection selection = TerminalLinkClickPolicy.lineSelection(fixture.buffer, new Point(2, HEIGHT - 1));
-
-        assertThat(selection.getStart()).isEqualTo(new Point(0, HEIGHT - 1));
-        assertThat(selection.getEnd()).isEqualTo(new Point(WIDTH, HEIGHT - 1));
-    }
-
-    @Test
-    public void everyPanelInstallsTheClickFilter() throws IOException {
+    public void everyPanelInstallsTheClickFilterAndFollowsOnlyTheNotedLink() throws IOException {
         String widget = source("src/main/java/de/kortty/ui/KorttyTermWidget.java").replaceAll("\\s+", " ");
 
         int panelConstructor = widget.indexOf("super(settingsProvider, terminalTextBuffer, styleState);");
         int install = widget.indexOf("TerminalLinkClickPolicy.install(this, (buffer, cell) -> { "
             + "TerminalLinkResolver.Link link = linkFinder.linkAt(buffer, cell); "
-            + "return link != null ? link.hit() : Hit.NONE; }, this::openLink);");
+            + "return link != null ? link.hit() : Hit.NONE; }, this::openLink, this::noteOsc8Click);");
         int nextMember = widget.indexOf("void setPlainTextLinkKinds(", panelConstructor);
         assertThat(panelConstructor).isAtLeast(0);
         // The click resolves through the same lookup as the hover and the menu: the pane's live link
@@ -205,10 +116,19 @@ public class TerminalLinkClickPolicyTest {
             + "(buffer, cell) -> openable(TerminalLinkResolver.linkAt(buffer, cell, plainTextLinkKinds.get()));");
         assertThat(install).isGreaterThan(panelConstructor);
         assertThat(install).isLessThan(nextMember);
+        // Every OSC 8 link the pane shows hands SithTermFX's navigation back to the pane.
+        assertThat(widget).contains("setLinkInfoProvider(new KorttyOsc8LinkInfoProvider(panel::fileLinksEnabled, panel::followLink));");
+        // The pane opens a navigated link only when the filter noted the same link for that click,
+        // and drops the note once SithTermFX's click handler ran.
+        assertThat(widget).contains("GestureClick click = gestureClick; gestureClick = null; "
+            + "if (click != null && click.linkInfo() == link) { openLink(click.hit()); }");
+        assertThat(widget).contains("super.init(); linkHover.followMouseMoves(); ");
+        assertThat(widget).contains("getCanvas().addEventHandler(MouseEvent.MOUSE_CLICKED, event -> gestureClick = null);");
         assertThat(widget).contains("private TerminalLinkOpener linkOpener = TerminalLinkOpener.system();");
         // Every opened link goes through the opener's allowlist, after the host-mismatch question,
         // and every file through the pane's file handler, which accepts it once more.
         assertThat(widget).contains("linkOpener.open(target);");
+        assertThat(widget).contains("TerminalLinkOpener.visibleHostMismatch(hit.text(), target)");
         assertThat(widget).contains("if (handler == null || !handler.accepts(file)) { return; }");
         assertThat(widget).contains("handler.open(file);");
         assertThat(NoHyperlinkFilterGuardTest.codeOnly(source("src/main/java/de/kortty/ui/KorttyTermWidget.java")))
@@ -216,18 +136,24 @@ public class TerminalLinkClickPolicyTest {
     }
 
     @Test
-    public void theClickGateIsACanvasFilterSoItRunsBeforeSithTermFx() throws IOException {
-        String policy = NoHyperlinkFilterGuardTest.codeOnly(source("src/main/java/de/kortty/ui/TerminalLinkClickPolicy.java"));
+    public void theClickFilterRunsBeforeSithTermFxAndNotesOnlyGestureClicksOnOsc8Links() throws IOException {
+        String policy = NoHyperlinkFilterGuardTest.codeOnly(source("src/main/java/de/kortty/ui/TerminalLinkClickPolicy.java"))
+            .replaceAll("\\s+", " ");
 
         assertThat(policy).contains("panel.getCanvas().addEventFilter(MouseEvent.MOUSE_CLICKED,");
         assertThat(policy).doesNotContain("addEventHandler(");
+        assertThat(policy).contains("if (hit.kind() == HitKind.OSC8) { if (!event.isPopupTrigger() "
+            + "&& isFollowLinkGesture(event.isShortcutDown(), event.isAltDown())) { osc8Clicked.accept(cell, hit); } return; }");
         assertThat(policy).contains("event.consume();");
         assertThat(policy).contains("panel.getCanvas().requestFocus();");
     }
 
-    /** A 40x4 text buffer driven by a real SithTermFX emulator, with korTTY's OSC 8 provider. */
-    private static EmulatorTextBufferFixture fixture() {
-        return new EmulatorTextBufferFixture(WIDTH, HEIGHT, 100, new KorttyOsc8LinkInfoProvider());
+    @Test
+    public void korttysSettingsProviderFollowsLinksOnlyOnTheGesture() throws IOException {
+        String view = source("src/main/java/de/kortty/ui/TerminalView.java").replaceAll("\\s+", " ");
+
+        assertThat(view).contains("public boolean isFollowLinkGesture(@NotNull com.sithtermfx.ui.settings.ModifierKeys modifiers) "
+            + "{ return TerminalLinkClickPolicy.isFollowLinkGesture(modifiers); }");
     }
 
     private static String source(String path) throws IOException {
