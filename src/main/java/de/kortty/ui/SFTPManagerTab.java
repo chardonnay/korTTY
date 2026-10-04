@@ -634,7 +634,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             resetAutoCloseTimer();
             openSelectedRemoteFileInExternalEditor();
         });
-        editRemoteButton.getItems().addAll(editRemoteSnippetItem, editRemoteExternalItem);
+        MenuItem editRemoteSudoItem = new MenuItem(I18n.get("sftp.edit.asRoot"));
+        editRemoteSudoItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openSelectedRemoteFileAsRoot();
+        });
+        editRemoteButton.getItems().addAll(editRemoteSnippetItem, editRemoteExternalItem, editRemoteSudoItem);
         
         remoteButtons.getChildren().addAll(remoteLabel, refreshRemoteButton, newFolderRemoteButton, deleteRemoteButton,
                 ownerRemoteButton,
@@ -671,7 +676,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             boolean editableFile = isRemoteConnected() && isSingleEditableFileSelection(remoteTable);
             editRemoteSnippetItem.setDisable(!editableFile || !editGate.remoteEditorAvailable());
             editRemoteExternalItem.setDisable(!editableFile || !externalEditAvailable(editGate));
-            editRemoteButton.setDisable(editRemoteSnippetItem.isDisable() && editRemoteExternalItem.isDisable());
+            editRemoteSudoItem.setDisable(!editableFile || !sudoEditAvailable());
+            editRemoteButton.setDisable(editRemoteSnippetItem.isDisable() && editRemoteExternalItem.isDisable()
+                && editRemoteSudoItem.isDisable());
             // A new folder goes into the absolute folder a listing returned, not the unexpanded '~'.
             newFolderRemoteButton.setDisable(!isRemoteConnected() || !remotePathResolved);
         };
@@ -2788,6 +2795,15 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             openSelectedRemoteFileInExternalEditor();
         });
 
+        // "Open with" holds the ways of editing that need more than the login user's rights.
+        MenuItem sudoEditItem = new MenuItem(I18n.get("sftp.contextMenu.editAsRoot"));
+        sudoEditItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openSelectedRemoteFileAsRoot();
+        });
+        Menu openWithMenu = new Menu(I18n.get("sftp.contextMenu.openWith"));
+        openWithMenu.getItems().add(sudoEditItem);
+
         MenuItem openImageItem = new MenuItem(I18n.get("sftp.contextMenu.openImage"));
         openImageItem.setOnAction(e -> {
             resetAutoCloseTimer();
@@ -2803,7 +2819,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             new SeparatorMenuItem(), 
             archiveItem, extractItem,
             new SeparatorMenuItem(),
-            editWithSnippetEditorItem, editExternalItem, openImageItem
+            editWithSnippetEditorItem, editExternalItem, openWithMenu, openImageItem
         );
         
         // Disable items when nothing is selected
@@ -2825,6 +2841,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             SftpEditGate editGate = SftpEditGate.current();
             editWithSnippetEditorItem.setDisable(!isSingleFile || !editGate.remoteEditorAvailable());
             editExternalItem.setDisable(!isSingleFile || !externalEditAvailable(editGate));
+            sudoEditItem.setDisable(!isSingleFile || !sudoEditAvailable());
+            openWithMenu.setDisable(sudoEditItem.isDisable());
             openImageItem.setDisable(!isImageFile || !editGate.remoteImageAvailable());
         });
 
@@ -4944,6 +4962,37 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         remoteEdits.open(selected.getPath(), selected.getName(), uploads);
     }
 
+    /**
+     * Whether "Edit as root (sudo)..." is offered (D16): the policy must not deny
+     * {@code sftp-sudo-edit}, must allow file transfer, and {@code load-into-snippet-editor} must be
+     * {@code allow}, because an edit as root always writes back.
+     */
+    private boolean sudoEditAvailable() {
+        return de.kortty.policy.PolicyManager.effective().sudoEditAllowed();
+    }
+
+    /** Reads the selected server file as root and opens it in the external editor (see {@link SftpRemoteEdits}). */
+    private void openSelectedRemoteFileAsRoot() {
+        SftpFileItem selected = getSingleEditableFileSelection(remoteTable);
+        if (selected == null) {
+            return;
+        }
+        if (!remoteEditAllowedByPolicy(sudoEditAvailable()) || !requireConnected()) {
+            return;
+        }
+        String path = selected.getPath();
+        if (path == null || !path.startsWith("/")) {
+            statusLabel.setText(I18n.get("sftp.sudoEdit.error.relative"));
+            return;
+        }
+        remoteEdits.openAsRoot(path, selected.getName());
+    }
+
+    /** The JobScheduler's sudo credential store, or null when the scheduler is not running. */
+    private de.kortty.jobscheduler.JobSchedulerRepository sudoCredentialRepository() {
+        return app != null && app.getJobSchedulerService() != null ? app.getJobSchedulerService().getRepository() : null;
+    }
+
     /** The "Remote edits" list below the transfer list; hidden while nothing is edited. */
     private void createRemoteEdits() {
         remoteEdits = new SftpRemoteEdits(new SftpRemoteEdits.Host() {
@@ -4982,6 +5031,59 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             @Override
             public void styleDialog(Dialog<?> dialog) {
                 applyDarkTheme(dialog);
+            }
+
+            @Override
+            public de.kortty.core.remote.RemoteCommandRunner commandRunner() throws IOException {
+                return connectedSession().commandRunner();
+            }
+
+            @Override
+            public boolean storedSudoPasswordAvailable() {
+                de.kortty.jobscheduler.JobSchedulerRepository repository = sudoCredentialRepository();
+                return repository != null && (repository.findServerSudoCredential(connection.getId()).isPresent()
+                    || repository.findGroupSudoCredential(connection.getGroup()).isPresent());
+            }
+
+            @Override
+            public boolean storedSudoPasswordOptedIn() {
+                return app != null && app.getGlobalSettingsManager() != null
+                    && app.getGlobalSettingsManager().getSettings().isSftpSudoEditStoredPasswordAllowed(connection.getId());
+            }
+
+            @Override
+            public void setStoredSudoPasswordOptedIn(boolean optedIn) {
+                if (app != null && app.getGlobalSettingsManager() != null) {
+                    app.getGlobalSettingsManager().getSettings()
+                        .setSftpSudoEditStoredPasswordAllowed(connection.getId(), optedIn);
+                    app.getGlobalSettingsManager().scheduleSave();
+                }
+            }
+
+            @Override
+            public Optional<char[]> storedSudoPassword() {
+                de.kortty.jobscheduler.JobSchedulerRepository repository = sudoCredentialRepository();
+                char[] master = app != null && app.getMasterPasswordManager() != null
+                    ? app.getMasterPasswordManager().getMasterPassword() : null;
+                if (repository == null || master == null) {
+                    return Optional.empty();
+                }
+                try {
+                    // The scheduler hands out a String (D15 accepts that for the opted-in case);
+                    // korTTY's own copy is a char[] that the edit session wipes.
+                    return new de.kortty.jobscheduler.JobSchedulerSudoService(repository)
+                        .resolveSudoPassword(connection, master)
+                        .filter(value -> !value.isEmpty())
+                        .map(String::toCharArray);
+                } catch (Exception e) {
+                    logger.warn("The saved sudo password could not be read: {}", e.getClass().getSimpleName());
+                    return Optional.empty();
+                }
+            }
+
+            @Override
+            public void journalNote(String text) {
+                MainWindow.noteInConnectionJournals(connection.getId(), text);
             }
         }, "SFTP-RemoteEdit-" + connection.getHost());
     }

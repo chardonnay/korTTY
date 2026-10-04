@@ -232,6 +232,19 @@ An organization can restrict editing server files with the `load-into-snippet-ed
 
 The editor is always started directly, never through a shell or as the file's default application, so a downloaded script never runs. With the [enterprise policy](../reference/enterprise-policy.md)'s `load-into-snippet-editor = "read-only"` the file opens but saves stay on your computer and the list says so; `load-into-snippet-editor = "deny"` or `file-transfer = "deny"` grey out **Edit in External Editor**.
 
+### Editing as root
+
+**Open With → Edit as Root (sudo)...** (in the right-click menu of a server file, and **Edit as Root (sudo)...** in the remote **Edit** menu) opens a file that only root may change, such as a configuration file under `/etc`, in your own editor, the same way as [Editing in your own editor](#editing-in-your-own-editor). The row in **Remote edits** carries a **sudo** badge.
+
+- **Password** — korTTY first tries `sudo -n`, so with `NOPASSWD` or a still-valid sudo ticket nothing is asked. Otherwise it asks for your password in a masked dialog. When the [JobScheduler](jobscheduler.md) has a sudo password saved for the server or its group, the dialog offers to use it for this server from now on; korTTY never uses it without that choice, and unticking the box later takes it back. The password is kept only while the file is being edited, is handed to sudo only when sudo actually asks for it, and is wiped when you stop. It never appears in a command line, the log, an error message or the session journal.
+- **Reading** — the file is read with `sudo cat` straight into the private local copy; nothing is written on the server for that.
+- **Saving** — each save travels to the server over the connection, into a staging folder that root creates and owns, and only after its size and SHA-256 match is it written into the file itself. The file keeps its inode, owner, permissions, ACLs and SELinux label, and a broken transfer never leaves it half written. The staging folder is removed in every case. Before each save korTTY reads the file again as root; if someone else changed it meanwhile, the same conflict question as above appears.
+- **Links** — when the path is a symbolic link, korTTY shows where it points and edits that file only after you confirm.
+- **Refused** — a file in a folder you can write to without sudo is not edited as root, because anything running as you could replace it in the meantime; edit it normally. Files larger than 64 MB are refused too.
+- **Journal** — when a terminal on the same connection records a [session journal](session-journal.md), it gets one line, `sudo-edit` and the path; never the content.
+
+Servers whose sudo is configured with `requiretty` refuse this; korTTY reports it and does not work around it with a terminal. The [enterprise policy](../reference/enterprise-policy.md) can switch the feature off with `sftp-sudo-edit = "deny"`; it is also greyed out while `file-transfer` is denied or `load-into-snippet-editor` is not `allow`.
+
 ## Search
 
 The search field above each list filters the folder shown as you type, without leaving it; the parent entry `..` stays visible. korTTY evaluates the wildcards itself, the same way for local and remote names. A pattern with a wildcard has to match the whole name, ignoring case:

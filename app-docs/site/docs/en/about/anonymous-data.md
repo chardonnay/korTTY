@@ -42,14 +42,14 @@ The search text, the names of commands, tabs, connections, snippets and rule set
 
 ### SFTP transfers
 
-When an upload or download in the SFTP Manager finishes, one event says how it went. File counts are rounded down to 0, 1, 2, 5, 10, 50, 100 or 1000. When korTTY stops watching a file you edited in an external editor, one event says how the edit ended; upload counts are rounded down to 0, 1, 2, 5, 10 or 50.
+When an upload or download in the SFTP Manager finishes, one event says how it went. File counts are rounded down to 0, 1, 2, 5, 10, 50, 100 or 1000. When korTTY stops watching a file you edited in an external editor (also as root), one event says how the edit ended; upload counts are rounded down to 0, 1, 2, 5, 10 or 50.
 
 | Event | Sent when | Data |
 | --- | --- | --- |
 | `sftp_transfer_batch` | an upload or download batch (one button press or one drop) is finished | `upload` or `download`, the rounded number of files, whether it ended `done`, `partial`, `failed` or `cancelled`, whether a file continued a partial file, and how many files were copied at once |
-| `sftp_remote_edit` | korTTY stops watching a file opened with **Edit in External Editor** | `external`, whether it ended `stopped`, `conflict`, `disconnected`, `closed` or `failed`, and the rounded number of uploads |
+| `sftp_remote_edit` | korTTY stops watching a file opened with **Edit in External Editor** or **Edit as Root (sudo)...** | `external` or `sudo`, whether it ended `stopped`, `conflict`, `disconnected`, `closed` or `failed`, and the rounded number of uploads |
 
-File and folder names, paths, server names, editor commands and file sizes are never sent.
+File and folder names, paths, server names, editor commands, sudo passwords and file sizes are never sent.
 
 ## What is never collected
 

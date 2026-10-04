@@ -1,9 +1,15 @@
 package de.kortty.ui.sftp;
 
+import de.kortty.core.remote.RemoteCommandRunner;
+import de.kortty.core.remote.SudoAuthenticationException;
+import de.kortty.core.remote.SudoPasswordRequiredException;
+import de.kortty.core.remote.SudoRequiresTtyException;
 import de.kortty.core.remote.edit.ExternalEditorLauncher;
+import de.kortty.core.remote.edit.RemoteEdit;
 import de.kortty.core.remote.edit.RemoteEditSession;
 import de.kortty.core.remote.edit.RemoteEditTempDirs;
 import de.kortty.core.remote.edit.RemoteEditWatcher;
+import de.kortty.core.remote.edit.SudoEditService;
 import de.kortty.telemetry.RemoteEditTelemetry;
 import de.kortty.telemetry.Telemetry;
 import de.kortty.telemetry.TelemetryEvents;
@@ -41,6 +47,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -56,6 +63,13 @@ import java.util.concurrent.RejectedExecutionException;
  * <b>Overwrite server file</b>, <b>Save local copy as...</b> or <b>Stop watching</b>. Each row
  * shows the file, its state and the last upload, with <b>Upload now</b> (for editors whose saves
  * the polling misses) and <b>Stop</b>. Under a read-only policy the file opens without uploads.
+ *
+ * <p><b>Edit as root (sudo)...</b> ({@link #openAsRoot}) reads and writes the file through sudo
+ * ({@link SudoEditService}): {@code sudo -n true} first, then a masked password prompt, or the
+ * JobScheduler's saved sudo password when the user opted in for the server (D15). A symbolic link
+ * is opened only after its target was shown and confirmed. Such rows carry a <b>sudo</b> badge;
+ * their password lives in the edit session only and is wiped when it stops. The session journal
+ * of a capturing terminal on the same connection gets one line, {@code sudo-edit <path>}.
  *
  * <p>Stop, closing the tab and losing the connection stop the watching and delete the local copy;
  * a lost connection with changes that were not uploaded first offers to keep a copy. All SFTP and
@@ -85,6 +99,37 @@ public final class SftpRemoteEdits extends VBox {
 
         /** Styles a dialog like the rest of the tab. */
         void styleDialog(javafx.scene.control.Dialog<?> dialog);
+
+        /** Runs commands on the tab's connection; throws when it is not connected. */
+        default RemoteCommandRunner commandRunner() throws IOException {
+            throw new IOException(I18n.get("sftp.notConnected"));
+        }
+
+        /** Whether the JobScheduler has a sudo password saved for this server or its group. */
+        default boolean storedSudoPasswordAvailable() {
+            return false;
+        }
+
+        /** Whether the user opted in to using the saved sudo password for this server. */
+        default boolean storedSudoPasswordOptedIn() {
+            return false;
+        }
+
+        /** Records the user's opt-in (or opt-out) for this server. */
+        default void setStoredSudoPasswordOptedIn(boolean optedIn) {
+        }
+
+        /**
+         * The saved sudo password as a fresh array the caller wipes, or empty when there is none
+         * or the vault is locked. Runs on the worker thread (decrypting takes a moment).
+         */
+        default Optional<char[]> storedSudoPassword() {
+            return Optional.empty();
+        }
+
+        /** Adds {@code text} to the session journal of a capturing terminal on this connection. */
+        default void journalNote(String text) {
+        }
     }
 
     /** Where an edit stands. */
@@ -92,16 +137,18 @@ public final class SftpRemoteEdits extends VBox {
 
     /** One row: an edit session and its state (FX thread). */
     static final class Entry {
-        final RemoteEditSession session;
+        final RemoteEdit session;
         final boolean uploads;
         final String name;
+        final RemoteEditTelemetry.Mode mode;
         final ObjectProperty<State> state = new SimpleObjectProperty<>();
         String detail = "";
 
-        Entry(RemoteEditSession session, boolean uploads, String name) {
+        Entry(RemoteEdit session, boolean uploads, String name, RemoteEditTelemetry.Mode mode) {
             this.session = session;
             this.uploads = uploads;
             this.name = name;
+            this.mode = mode;
             this.state.set(uploads ? State.WATCHING : State.READ_ONLY);
         }
     }
@@ -156,7 +203,7 @@ public final class SftpRemoteEdits extends VBox {
             return;
         }
         for (Entry entry : entries) {
-            if (entry.session.remotePath().equals(remotePath)) {
+            if (entry.mode == RemoteEditTelemetry.Mode.EXTERNAL && entry.session.remotePath().equals(remotePath)) {
                 // Already open: start the editor on the same copy again.
                 startEditor(entry.session, displayName, entry);
                 return;
@@ -171,7 +218,7 @@ public final class SftpRemoteEdits extends VBox {
             } catch (IOException | RuntimeException e) {
                 logger.warn("Could not open a remote file for editing: {}", e.toString());
                 Platform.runLater(() -> host.status(I18n.get("sftp.remoteEdit.error.open", displayName, message(e))));
-                trackEnded(RemoteEditTelemetry.Outcome.FAILED, 0);
+                trackEnded(RemoteEditTelemetry.Mode.EXTERNAL, RemoteEditTelemetry.Outcome.FAILED, 0);
                 return;
             }
             Platform.runLater(() -> {
@@ -179,14 +226,193 @@ public final class SftpRemoteEdits extends VBox {
                     submit(session::close);
                     return;
                 }
-                Entry entry = new Entry(session, uploads, displayName);
+                Entry entry = new Entry(session, uploads, displayName, RemoteEditTelemetry.Mode.EXTERNAL);
                 startEditor(session, displayName, entry);
             });
         });
     }
 
+    /**
+     * Reads {@code remotePath} as root and opens it in the external editor; saves go back through
+     * sudo. The caller checked the policy ({@code sftp-sudo-edit}, file transfer, and
+     * {@code load-into-snippet-editor = allow}).
+     */
+    public void openAsRoot(String remotePath, String displayName) {
+        if (disposed) {
+            return;
+        }
+        for (Entry entry : entries) {
+            if (entry.mode == RemoteEditTelemetry.Mode.SUDO && entry.session.remotePath().equals(remotePath)) {
+                startEditor(entry.session, displayName, entry);
+                return;
+            }
+        }
+        SudoEditService service;
+        try {
+            service = new SudoEditService(host.commandRunner());
+        } catch (IOException e) {
+            host.status(I18n.get("sftp.remoteEdit.error.open", displayName, message(e)));
+            return;
+        }
+        host.status(I18n.get("sftp.sudoEdit.status.opening", displayName));
+        submit(() -> {
+            boolean needsPassword;
+            try {
+                needsPassword = service.needsPassword();
+            } catch (IOException | RuntimeException e) {
+                failAsRoot(displayName, e);
+                return;
+            }
+            if (!needsPassword) {
+                continueAsRoot(service, remotePath, displayName, null);
+                return;
+            }
+            if (host.storedSudoPasswordOptedIn()) {
+                Optional<char[]> stored = host.storedSudoPassword();
+                if (stored.isPresent()) {
+                    continueAsRoot(service, remotePath, displayName, stored.get());
+                    return;
+                }
+            }
+            Platform.runLater(() -> askPasswordAsRoot(service, remotePath, displayName, false));
+        });
+    }
+
+    /** Asks for the sudo password (FX thread), then goes on on the worker. */
+    private void askPasswordAsRoot(SudoEditService service, String remotePath, String displayName, boolean retry) {
+        if (disposed) {
+            return;
+        }
+        boolean storedAvailable = host.storedSudoPasswordAvailable();
+        Optional<SftpSudoPasswordDialog.Answer> answer = SftpSudoPasswordDialog.show(host.ownerWindow(), displayName,
+            retry, storedAvailable, host.storedSudoPasswordOptedIn(), host::styleDialog);
+        if (answer.isEmpty()) {
+            host.status(I18n.get("sftp.sudoEdit.status.cancelled", displayName));
+            return;
+        }
+        boolean useStored = storedAvailable && answer.get().useStored();
+        if (storedAvailable) {
+            host.setStoredSudoPasswordOptedIn(useStored);
+        }
+        char[] typed = answer.get().password();
+        submit(() -> {
+            if (useStored) {
+                wipe(typed);
+                Optional<char[]> stored = host.storedSudoPassword();
+                if (stored.isEmpty()) {
+                    Platform.runLater(() -> host.status(I18n.get("sftp.sudoEdit.error.storedUnavailable")));
+                    return;
+                }
+                continueAsRoot(service, remotePath, displayName, stored.get());
+            } else {
+                continueAsRoot(service, remotePath, displayName, typed);
+            }
+        });
+    }
+
+    /**
+     * Looks at the path as root (worker thread). A link asks first; a wrong password asks again.
+     * {@code secret} is wiped on every way out of the flow.
+     */
+    private void continueAsRoot(SudoEditService service, String remotePath, String displayName, char[] secret) {
+        SudoEditService.Target target;
+        try {
+            target = service.inspect(remotePath, Optional.ofNullable(secret));
+        } catch (SudoAuthenticationException | SudoPasswordRequiredException e) {
+            wipe(secret);
+            Platform.runLater(() -> askPasswordAsRoot(service, remotePath, displayName, true));
+            return;
+        } catch (IOException | RuntimeException e) {
+            wipe(secret);
+            failAsRoot(displayName, e);
+            return;
+        }
+        switch (target.kind()) {
+            case FILE -> openResolvedAsRoot(service, remotePath, displayName, secret);
+            case LINK -> Platform.runLater(() -> {
+                if (!disposed && confirmLink(target)) {
+                    submit(() -> openResolvedAsRoot(service, target.resolvedPath(), displayName, secret));
+                } else {
+                    wipe(secret);
+                }
+            });
+            default -> {
+                wipe(secret);
+                failAsRoot(displayName, new IOException(I18n.get("sftp.remoteEdit.error.notFile", remotePath)));
+            }
+        }
+    }
+
+    /** Opens the regular file {@code path} as root (worker thread) and wipes {@code secret}. */
+    private void openResolvedAsRoot(SudoEditService service, String path, String displayName, char[] secret) {
+        RemoteEdit session;
+        try {
+            service.refuseUserWritableFolder(path);
+            session = service.open(path, Optional.ofNullable(secret), RemoteEditTempDirs.defaultRoot());
+        } catch (IOException | RuntimeException e) {
+            failAsRoot(displayName, e);
+            return;
+        } finally {
+            wipe(secret);
+        }
+        Platform.runLater(() -> {
+            if (disposed) {
+                submit(session::close);
+                return;
+            }
+            host.journalNote(SudoEditJournal.note(path));
+            Entry entry = new Entry(session, true, displayName, RemoteEditTelemetry.Mode.SUDO);
+            startEditor(session, displayName, entry);
+        });
+    }
+
+    /** Shows where a link points and asks whether to edit that file instead (FX thread). */
+    private boolean confirmLink(SudoEditService.Target target) {
+        ButtonType edit = new ButtonType(I18n.get("sftp.sudoEdit.link.edit"), ButtonBar.ButtonData.OK_DONE);
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION,
+            I18n.get("sftp.sudoEdit.link.content", target.path(), target.resolvedPath()), edit, ButtonType.CANCEL);
+        Window owner = host.ownerWindow();
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
+        alert.setTitle(I18n.get("sftp.sudoEdit.link.title"));
+        alert.setHeaderText(I18n.get("sftp.sudoEdit.link.header"));
+        alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        host.styleDialog(alert);
+        ((Button) alert.getDialogPane().lookupButton(ButtonType.CANCEL)).setDefaultButton(true);
+        ((Button) alert.getDialogPane().lookupButton(edit)).setDefaultButton(false);
+        return alert.showAndWait().orElse(ButtonType.CANCEL) == edit;
+    }
+
+    private void failAsRoot(String displayName, Throwable e) {
+        logger.warn("Could not open a remote file as root: {}", e.getClass().getSimpleName());
+        String text = sudoMessage(e);
+        Platform.runLater(() -> host.status(I18n.get("sftp.remoteEdit.error.open", displayName, text)));
+        trackEnded(RemoteEditTelemetry.Mode.SUDO, RemoteEditTelemetry.Outcome.FAILED, 0);
+    }
+
+    /** A user-facing text for a failed sudo step; never the remote output or a password. */
+    static String sudoMessage(Throwable e) {
+        if (e instanceof SudoRequiresTtyException) {
+            return I18n.get("sftp.sudoEdit.error.requiretty");
+        }
+        if (e instanceof SudoAuthenticationException) {
+            return I18n.get("sftp.sudoEdit.error.password");
+        }
+        if (e instanceof SudoPasswordRequiredException) {
+            return I18n.get("sftp.sudoEdit.error.passwordRequired");
+        }
+        return message(e);
+    }
+
+    private static void wipe(char[] secret) {
+        if (secret != null) {
+            Arrays.fill(secret, '\0');
+        }
+    }
+
     /** Plans and starts the editor (FX thread for any question); adds the row once it started. */
-    private void startEditor(RemoteEditSession session, String displayName, Entry entry) {
+    private void startEditor(RemoteEdit session, String displayName, Entry entry) {
         ExternalEditorLauncher.Plan plan;
         try {
             plan = ExternalEditorLauncher.plan(host.editorCommand(), session.localFile());
@@ -228,7 +454,7 @@ public final class SftpRemoteEdits extends VBox {
         if (!entries.contains(entry)) {
             entries.add(entry);
             Path local = entry.session.localFile();
-            watcher.track(local, entry.session.baseline().sha256(), (file, hash) -> onSaved(entry));
+            watcher.track(local, entry.session.baselineSha256(), (file, hash) -> onSaved(entry));
             watcher.start();
         }
         host.status(entry.uploads
@@ -240,7 +466,7 @@ public final class SftpRemoteEdits extends VBox {
     private void abandon(Entry entry) {
         if (!entries.contains(entry)) {
             submit(entry.session::close);
-            trackEnded(RemoteEditTelemetry.Outcome.FAILED, 0);
+            trackEnded(entry.mode, RemoteEditTelemetry.Outcome.FAILED, 0);
         }
     }
 
@@ -267,10 +493,11 @@ public final class SftpRemoteEdits extends VBox {
                 RemoteEditSession.UploadResult result = force ? entry.session.forceUpload() : entry.session.upload();
                 Platform.runLater(() -> afterUpload(entry, result));
             } catch (IOException | RuntimeException e) {
-                logger.warn("Uploading an edited file failed: {}", e.toString());
+                logger.warn("Uploading an edited file failed: {}", e.getClass().getSimpleName());
+                String text = sudoMessage(e);
                 Platform.runLater(() -> {
-                    setState(entry, State.FAILED, message(e));
-                    host.status(I18n.get("sftp.remoteEdit.state.failed", message(e)));
+                    setState(entry, State.FAILED, text);
+                    host.status(I18n.get("sftp.remoteEdit.state.failed", text));
                 });
             }
         });
@@ -361,7 +588,7 @@ public final class SftpRemoteEdits extends VBox {
         watcher.untrack(entry.session.localFile());
         int uploads = entry.session.uploads();
         submit(entry.session::close);
-        trackEnded(outcome, uploads);
+        trackEnded(entry.mode, outcome, uploads);
     }
 
     /**
@@ -391,7 +618,7 @@ public final class SftpRemoteEdits extends VBox {
                 for (Entry entry : stopped) {
                     int uploads = entry.session.uploads();
                     submit(entry.session::close);
-                    trackEnded(RemoteEditTelemetry.Outcome.DISCONNECTED, uploads);
+                    trackEnded(entry.mode, RemoteEditTelemetry.Outcome.DISCONNECTED, uploads);
                 }
             });
         });
@@ -425,7 +652,7 @@ public final class SftpRemoteEdits extends VBox {
         for (Entry entry : new ArrayList<>(entries)) {
             int uploads = entry.session.uploads();
             submit(entry.session::close);
-            trackEnded(RemoteEditTelemetry.Outcome.CLOSED, uploads);
+            trackEnded(entry.mode, RemoteEditTelemetry.Outcome.CLOSED, uploads);
         }
         entries.clear();
         worker.shutdown();
@@ -468,9 +695,8 @@ public final class SftpRemoteEdits extends VBox {
         }
     }
 
-    private static void trackEnded(RemoteEditTelemetry.Outcome outcome, int uploads) {
-        Telemetry.track(TelemetryEvents.SFTP_REMOTE_EDIT,
-            RemoteEditTelemetry.props(RemoteEditTelemetry.Mode.EXTERNAL, outcome, uploads));
+    private static void trackEnded(RemoteEditTelemetry.Mode mode, RemoteEditTelemetry.Outcome outcome, int uploads) {
+        Telemetry.track(TelemetryEvents.SFTP_REMOTE_EDIT, RemoteEditTelemetry.props(mode, outcome, uploads));
     }
 
     private static String message(Throwable e) {
@@ -496,6 +722,7 @@ public final class SftpRemoteEdits extends VBox {
 
     private final class EntryCell extends ListCell<Entry> {
         private final Label name = new Label();
+        private final Label sudoBadge = new Label(I18n.get("sftp.sudoEdit.badge"));
         private final Label state = new Label();
         private final Button uploadNow = new Button(I18n.get("sftp.remoteEdit.uploadNow"));
         private final Button stop = new Button(I18n.get("sftp.remoteEdit.stop"));
@@ -508,7 +735,11 @@ public final class SftpRemoteEdits extends VBox {
             state.setStyle("-fx-text-fill: gray;");
             Region spacer = new Region();
             HBox.setHgrow(spacer, Priority.ALWAYS);
-            box = new HBox(10, name, state, spacer, uploadNow, stop);
+            sudoBadge.getStyleClass().add("sftp-sudo-badge");
+            sudoBadge.setStyle("-fx-background-color: #b45309; -fx-text-fill: white; -fx-padding: 0 5 0 5;"
+                + " -fx-background-radius: 3; -fx-font-size: 0.85em; -fx-font-weight: bold;");
+            sudoBadge.setTooltip(new Tooltip(I18n.get("sftp.sudoEdit.badge.tooltip")));
+            box = new HBox(10, name, sudoBadge, state, spacer, uploadNow, stop);
             box.setAlignment(Pos.CENTER_LEFT);
             uploadNow.setOnAction(e -> {
                 if (bound != null) {
@@ -536,6 +767,9 @@ public final class SftpRemoteEdits extends VBox {
             }
             bound.state.addListener(stateListener);
             name.setText(bound.name);
+            boolean sudo = bound.mode == RemoteEditTelemetry.Mode.SUDO;
+            sudoBadge.setVisible(sudo);
+            sudoBadge.setManaged(sudo);
             Tooltip.install(name, new Tooltip(bound.session.remotePath()));
             uploadNow.setDisable(!bound.uploads);
             refresh();

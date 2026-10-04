@@ -1049,6 +1049,13 @@ public class GlobalSettings {
      */
     @XmlElement
     private String sftpExternalEditorCommand;
+
+    /**
+     * Ids of the connections whose "Edit as root" may use the JobScheduler's saved sudo password
+     * (D15: only after the user opted in per server); null = none.
+     */
+    @XmlElement(name = "sftpSudoEditStoredPasswordConnection")
+    private java.util.List<String> sftpSudoEditStoredPasswordConnections;
     
     // Editor defaults (FileEditor)
     @XmlElement
@@ -4089,6 +4096,32 @@ public class GlobalSettings {
     /** @param value the editor command template; null or blank stores none */
     public void setSftpExternalEditorCommand(String value) {
         this.sftpExternalEditorCommand = value == null || value.isBlank() ? null : value.strip();
+    }
+
+    /** Whether "Edit as root" on {@code connectionId} may use the JobScheduler's saved sudo password. */
+    public boolean isSftpSudoEditStoredPasswordAllowed(String connectionId) {
+        return connectionId != null && sftpSudoEditStoredPasswordConnections != null
+            && sftpSudoEditStoredPasswordConnections.contains(connectionId);
+    }
+
+    /** Opts {@code connectionId} in or out of using the saved sudo password for "Edit as root". */
+    public void setSftpSudoEditStoredPasswordAllowed(String connectionId, boolean allowed) {
+        if (connectionId == null || connectionId.isBlank()) {
+            return;
+        }
+        if (allowed) {
+            if (sftpSudoEditStoredPasswordConnections == null) {
+                sftpSudoEditStoredPasswordConnections = new java.util.ArrayList<>();
+            }
+            if (!sftpSudoEditStoredPasswordConnections.contains(connectionId)) {
+                sftpSudoEditStoredPasswordConnections.add(connectionId);
+            }
+        } else if (sftpSudoEditStoredPasswordConnections != null) {
+            sftpSudoEditStoredPasswordConnections.remove(connectionId);
+            if (sftpSudoEditStoredPasswordConnections.isEmpty()) {
+                sftpSudoEditStoredPasswordConnections = null;
+            }
+        }
     }
     
     /**

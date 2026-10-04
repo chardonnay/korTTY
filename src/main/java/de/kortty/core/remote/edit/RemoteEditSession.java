@@ -41,7 +41,7 @@ import java.util.Objects;
  * <p>{@link #close()} deletes the private folder. Not thread-safe: the caller runs one action at a
  * time per session.
  */
-public final class RemoteEditSession implements AutoCloseable {
+public final class RemoteEditSession implements RemoteEdit {
 
     private static final Logger logger = LoggerFactory.getLogger(RemoteEditSession.class);
 
@@ -135,11 +135,13 @@ public final class RemoteEditSession implements AutoCloseable {
     }
 
     /** The remote file being edited (a link's target, when a link was opened). */
+    @Override
     public String remotePath() {
         return remotePath;
     }
 
     /** The local copy the editor works on. */
+    @Override
     public Path localFile() {
         return localFile;
     }
@@ -153,22 +155,31 @@ public final class RemoteEditSession implements AutoCloseable {
         return baseline;
     }
 
+    @Override
+    public String baselineSha256() {
+        return baseline.sha256();
+    }
+
     /** The conflict the last upload stopped at, or {@code null}. */
+    @Override
     public Conflict conflict() {
         return conflict;
     }
 
     /** How many uploads went to the server. */
+    @Override
     public int uploads() {
         return uploads;
     }
 
     /** When the last upload finished, or {@code null}. */
+    @Override
     public Instant lastUpload() {
         return lastUpload;
     }
 
     /** Whether the local copy differs from what the server got last. */
+    @Override
     public boolean hasUnsyncedChanges() {
         if (closed) {
             return false;
@@ -200,11 +211,13 @@ public final class RemoteEditSession implements AutoCloseable {
     }
 
     /** Uploads the local copy unless the remote file changed meanwhile (see the class comment). */
+    @Override
     public UploadResult upload() throws IOException {
         return upload(false);
     }
 
     /** Uploads the local copy even though the remote file changed: the user chose to overwrite it. */
+    @Override
     public UploadResult forceUpload() throws IOException {
         return upload(true);
     }
@@ -243,6 +256,7 @@ public final class RemoteEditSession implements AutoCloseable {
     }
 
     /** Copies the local copy to {@code target}, replacing a file there. */
+    @Override
     public void saveLocalCopy(Path target) throws IOException {
         Files.copy(localFile, target, StandardCopyOption.REPLACE_EXISTING, LinkOption.NOFOLLOW_LINKS);
     }
@@ -254,6 +268,7 @@ public final class RemoteEditSession implements AutoCloseable {
         RemoteEditTempDirs.delete(folder);
     }
 
+    @Override
     public boolean isClosed() {
         return closed;
     }

@@ -37,7 +37,12 @@ public enum PolicyFeature {
      * operations (rename, delete, permissions, archives, search, remote copy) keep working. Shell commands such as
      * {@code scp} typed into a terminal cannot be blocked.
      */
-    FILE_TRANSFER("file-transfer");
+    FILE_TRANSFER("file-transfer"),
+    /**
+     * Editing server files as root from the SFTP manager ("Edit as root (sudo)..."). Allowed unless
+     * denied; it also needs {@link #FILE_TRANSFER} and {@code load-into-snippet-editor = "allow"}.
+     */
+    SFTP_SUDO_EDIT("sftp-sudo-edit");
 
     private final String tomlKey;
 

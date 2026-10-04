@@ -51,5 +51,7 @@ public enum ManagedSetting {
      * The parallel-transfers spinner and the conflict-default choice in Settings → SFTP Manager
      * ({@code [rule.sftp] max-parallel-transfers} and {@code conflict-default}).
      */
-    SFTP_TRANSFERS
+    SFTP_TRANSFERS,
+    /** Editing server files as root ({@link PolicyFeature#SFTP_SUDO_EDIT}); no Settings control of its own. */
+    SFTP_SUDO_EDIT
 }

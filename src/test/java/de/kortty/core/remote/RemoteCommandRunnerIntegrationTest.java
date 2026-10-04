@@ -37,7 +37,8 @@ import static org.testng.Assert.assertThrows;
 public class RemoteCommandRunnerIntegrationTest {
 
     private static final String SECRET = "S3cret pw'\"$x";
-    private static final String FAKE_SUDO = """
+    /** The scripted sudo; also used by {@link SudoEditIntegrationTest}. */
+    static final String FAKE_SUDO = """
         #!/bin/sh
         prompt="Password:"
         nonint=0
