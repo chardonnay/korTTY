@@ -74,6 +74,21 @@ class SplitLayoutRestoreWiringTest {
     }
 
     @Test
+    void anUnexpectedFailureCostsOnePaneAndTheRestoreStillFinishes() throws IOException {
+        String restore = methodBody(read(TERMINAL_VIEW), "public void restoreSplitLayout(");
+
+        int prepare = restore.indexOf("prepared = prepareRestoredSplitPane(step, tab, tabConnectionId);");
+        int caught = restore.indexOf("} catch (RuntimeException e) {", prepare);
+        assertWithMessage("a failing pane is skipped, not the worker thread killed").that(prepare).isAtLeast(0);
+        assertThat(caught).isGreaterThan(prepare);
+        assertThat(restore.substring(caught)).contains("PreparedSplitPane.skipped(SplitLayoutRestorePlan.SkipReason.FAILED)");
+
+        String finallyBlock = restore.substring(restore.lastIndexOf("} finally {"));
+        assertWithMessage("the tab always stops waiting for its layout and the status bar always hears the outcome")
+            .that(finallyBlock).contains("runOnFxThread(() -> finishSplitLayoutRestore(plan, opened, skipped, onDone));");
+    }
+
+    @Test
     void aRestoredPaneNeverAsksAndPassesThePolicy() throws IOException {
         String prepare = methodBody(read(TERMINAL_VIEW), "private PreparedSplitPane prepareRestoredSplitPane(");
 

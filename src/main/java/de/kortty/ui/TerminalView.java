@@ -8908,28 +8908,41 @@ public class TerminalView extends BorderPane {
         opened.put(0, firstPane);
         Map<Integer, SplitLayoutRestorePlan.SkipReason> skipped = new ConcurrentHashMap<>();
         Thread worker = new Thread(() -> {
-            for (SplitLayoutRestorePlan.SplitStep step : plan.steps()) {
-                if (cleanedUp) {
-                    return;
+            try {
+                for (SplitLayoutRestorePlan.SplitStep step : plan.steps()) {
+                    if (cleanedUp) {
+                        return;
+                    }
+                    SithTermFxWidget source = opened.get(step.sourceLeafId());
+                    if (source == null) {
+                        // The pane it splits did not open: the step's reason is already recorded there.
+                        continue;
+                    }
+                    PreparedSplitPane prepared;
+                    try {
+                        prepared = prepareRestoredSplitPane(step, tab, tabConnectionId);
+                    } catch (RuntimeException e) {
+                        // One pane that fails unexpectedly (the saved connections changing under the
+                        // sign-in lookup, for instance) costs that pane, not the panes after it.
+                        logger.warn("A restored split pane could not be prepared: {}", e.toString());
+                        prepared = PreparedSplitPane.skipped(SplitLayoutRestorePlan.SkipReason.FAILED);
+                    }
+                    if (prepared.connector() == null) {
+                        skipped.put(step.newLeafId(), prepared.skipReason());
+                        continue;
+                    }
+                    SithTermFxWidget pane = attachRestoredSplitPane(source, step.orientation(), prepared);
+                    if (pane == null) {
+                        skipped.put(step.newLeafId(), SplitLayoutRestorePlan.SkipReason.FAILED);
+                        continue;
+                    }
+                    opened.put(step.newLeafId(), pane);
                 }
-                SithTermFxWidget source = opened.get(step.sourceLeafId());
-                if (source == null) {
-                    // The pane it splits did not open: the step's reason is already recorded there.
-                    continue;
-                }
-                PreparedSplitPane prepared = prepareRestoredSplitPane(step, tab, tabConnectionId);
-                if (prepared.connector() == null) {
-                    skipped.put(step.newLeafId(), prepared.skipReason());
-                    continue;
-                }
-                SithTermFxWidget pane = attachRestoredSplitPane(source, step.orientation(), prepared);
-                if (pane == null) {
-                    skipped.put(step.newLeafId(), SplitLayoutRestorePlan.SkipReason.FAILED);
-                    continue;
-                }
-                opened.put(step.newLeafId(), pane);
+            } finally {
+                // Always: the tab stops waiting for its layout (a later save keeps what it has) and the
+                // status bar hears about the panes that stayed out. Nothing happens for a closed tab.
+                runOnFxThread(() -> finishSplitLayoutRestore(plan, opened, skipped, onDone));
             }
-            runOnFxThread(() -> finishSplitLayoutRestore(plan, opened, skipped, onDone));
         }, "Split-Layout-Restore");
         worker.setDaemon(true);
         worker.start();
