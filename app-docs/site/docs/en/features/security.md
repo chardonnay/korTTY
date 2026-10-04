@@ -171,7 +171,7 @@ Interactive pins are written atomically to `~/.kortty/ssh-host-keys.properties`;
 For lab or throwaway hosts you can turn the first-use prompt off and have korTTY accept an unknown key silently. This is an **accept-new** relaxation, not blind trust: a key that differs from one already pinned for that host is still hard-blocked, so a man-in-the-middle on a host you have connected to before is still caught. It is off by default and can be set at three scopes, in precedence order:
 
 1. **Per connection** — the *Host key verification* control in the Connection Manager's connection editor and in Quick Connect, with three states: **Use default** (inherit), **Verify** (force strict even if the group or global setting relaxed it), and **Don't verify**.
-2. **Per group** — right-click a group in the Connection Manager and toggle **Disable host key verification**; it applies to every connection in the group that inherits.
+2. **Per group** — right-click a group in the Connection Manager and toggle **Disable host key verification**; it applies to every connection in the group that inherits. The setting belongs to the folder, not to its name: renaming a folder moves it, and those of its subfolders, to the new name (after a rename merges two folders, verification stays off only if it was off in both), and deleting a folder removes them, so a new folder that reuses the name starts with verification on.
 3. **Globally** — **Settings → Terminal → Disable host key verification for all connections**, the base default for every connection that inherits at both levels above.
 
 A jump server's own host key is never relaxed by any of these — the bastion is always verified strictly.
