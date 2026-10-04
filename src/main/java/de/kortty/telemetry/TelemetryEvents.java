@@ -26,6 +26,9 @@ public final class TelemetryEvents {
     public static final String TERMINAL_LOG_STARTED = "terminal_log_started";
     public static final String TERMINAL_EFFECT_APPLIED = "terminal_effect_applied";
     public static final String TERMINAL_HIGHLIGHT_APPLIED = "terminal_highlight_applied";
+    public static final String COMMAND_PALETTE_USED = "command_palette_used";
+    public static final String MULTI_EXEC_CHANGED = "multi_exec_changed";
+    public static final String SESSION_RESTORED = "session_restored";
 
     // Projects / backups / connections / panels
     public static final String PROJECT_ACTION = "project_action";

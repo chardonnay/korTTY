@@ -1,5 +1,8 @@
 package de.kortty.ui;
 
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
+import de.kortty.telemetry.TerminalUxTelemetry;
 import de.kortty.ui.actions.CommandPaletteModel;
 import de.kortty.ui.actions.MruList;
 import de.kortty.ui.actions.PaletteEntry;
@@ -148,6 +151,7 @@ final class CommandPalettePopup {
 
     private void run(PaletteEntry entry) {
         model.chosen(entry);
+        reportUse(entry);
         // After the key event that chose it, with the popup already closed.
         Platform.runLater(entry.run());
     }
@@ -155,7 +159,22 @@ final class CommandPalettePopup {
     /** Alt/Option+Enter on a row with an alternate: as {@link #run}, with the alternate. */
     private void runAlternate(PaletteEntry entry) {
         model.chosen(entry);
+        reportUse(entry);
         Platform.runLater(entry.alternate());
+    }
+
+    /**
+     * The anonymous {@code command_palette_used} event: the row's kind and whether the query was
+     * scoped, never the query, the row's title or its action.
+     */
+    private void reportUse(PaletteEntry entry) {
+        try {
+            boolean scoped = model.parse(picker.field().getText()).scope() != null;
+            Telemetry.track(TelemetryEvents.COMMAND_PALETTE_USED,
+                TerminalUxTelemetry.commandPaletteUsed(entry.kind(), scoped));
+        } catch (RuntimeException e) {
+            // The statistics never keep a row from running.
+        }
     }
 
     private void showReason(PaletteEntry entry) {

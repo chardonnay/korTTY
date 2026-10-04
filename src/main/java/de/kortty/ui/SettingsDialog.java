@@ -3958,6 +3958,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
             tracked.add(new TrackedSetting("terminal", "osc52_clipboard_write", gs::isOsc52ClipboardWriteEnabled, true));
             tracked.add(new TrackedSetting("terminal", "link_detection", gs::isTerminalLinkDetectionEnabled, true));
+            // Whether the user set label letters or patterns of their own, never the letters or patterns.
+            tracked.add(new TrackedSetting("terminal", "quick_select_alphabet_customized",
+                () -> gs.getTerminalQuickSelectAlphabet() != null, true));
+            tracked.add(new TrackedSetting("terminal", "quick_select_patterns_customized",
+                () -> !gs.getTerminalQuickSelectPatterns().isEmpty(), true));
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
             tracked.add(new TrackedSetting("terminal", "paste_warning_mode", () -> gs.getPasteWarningMode().id(), true));
@@ -3998,6 +4003,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("window", "tools_as_tabs", gs::isOpenToolWindowsAsTabs, true));
             tracked.add(new TrackedSetting("window", "fixed_geometry", gs::isUseFixedWindowGeometry, true));
             tracked.add(new TrackedSetting("window", "session_restore_mode", () -> gs.getSessionRestoreMode().id(), true));
+            tracked.add(new TrackedSetting("window", "tab_title_from_shell", gs::isTabTitleFromShellEnabled, true));
+            tracked.add(new TrackedSetting("window", "tab_switch_most_recent_first", gs::isTabSwitchMostRecentFirst, true));
+            // Whether any shortcut was rebound, never which action or which keys.
+            tracked.add(new TrackedSetting("keyboard", "shortcuts_customized",
+                () -> !gs.getKeyBindingOverrides().isEmpty(), true));
             tracked.add(new TrackedSetting("security", "require_master_password_on_startup",
                 gs::isRequireMasterPasswordOnStartup, true));
             tracked.add(new TrackedSetting("security", "temporary_ssh_key_enabled", gs::isTemporarySshKeyEnabled, true));

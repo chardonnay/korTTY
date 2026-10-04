@@ -16,7 +16,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
  * How multi-exec is wired into the panes, tabs and windows: every pane of every tab is registered
  * with the coordinator and forgotten when it closes, every split pane asks the coordinator as its
  * input mirror, only typed keys are mirrored (never paste, snippets or input-method text), the
- * markers follow every change in every window, and nothing new is sent to telemetry. Proving this
+ * markers follow every change in every window, and only the coordinator reports a change to telemetry
+ * ({@code TerminalUxTelemetryWiringTest}). Proving this
  * live needs windows and connections ({@code multiExecSmoke} does part of it), so the sources are
  * pinned, line-ending agnostic; the membership itself is tested in {@link MultiExecMembershipTest}.
  */
@@ -119,7 +120,7 @@ class MultiExecWiringTest {
 
         String action = methodBody(window,
             "private void handleDashboardAction(TerminalTab terminalTab, DashboardView.DashboardAction action) {");
-        assertWithMessage("multi-exec sends no telemetry in this release")
+        assertWithMessage("the dashboard does not count a multi-exec toggle; the coordinator reports it")
             .that(action.indexOf("DashboardView.DashboardAction.TOGGLE_MULTI_EXEC"))
             .isLessThan(action.indexOf("Telemetry.track("));
         String paneAction = methodBody(window, "private void handleDashboardPaneAction(");

@@ -4,6 +4,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.telemetry.Telemetry;
 import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryProps;
+import de.kortty.telemetry.TerminalUxTelemetry.RestoreTrigger;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KeyTypedResidueGuard.Residue;
 import de.kortty.shellintegration.PromptNavigator;
@@ -1762,7 +1763,7 @@ public class MainWindow {
         // Opens the windows and tabs of the session before this start; enabled while there is one.
         // In a closed macOS window it acts in the frontmost open window, else a new one, like Open Project.
         MenuItem restorePreviousSession = menuItem("menu.file.restorePreviousSession");
-        restorePreviousSession.setOnAction(e -> restorePreviousSession());
+        restorePreviousSession.setOnAction(e -> restorePreviousSession(RestoreTrigger.MENU));
         restorePreviousSessionMenuItems.add(restorePreviousSession);
 
         MenuItem createBackup = menuItem("menu.edit.createBackup");
@@ -7525,9 +7526,10 @@ public class MainWindow {
      * this window when this window has no tab, else into a new window; every further window opens in
      * a new window, and the windows already open keep their tabs. The tabs open like those of a
      * project with Auto-Reconnect, asking nothing: what needs a password, a new temporary SSH key or
-     * the locked vault waits in the restore bar. Offered once per run.
+     * the locked vault waits in the restore bar. Offered once per run. {@code trigger} says what
+     * started it, for the anonymous {@code session_restored} event only.
      */
-    private void restorePreviousSession() {
+    private void restorePreviousSession(RestoreTrigger trigger) {
         if (sessionAutosave == null || !sessionAutosave.canRestorePrevious()) {
             updateStatus(I18n.get("session.restore.previous.none"));
             syncRestorePreviousSessionMenuItems();
@@ -7555,11 +7557,27 @@ public class MainWindow {
         logger.info("Restoring the previous session: {} window(s), {} tab(s)",
                 windows.size(), SessionSnapshotStore.restorableTabs(project));
         restoreProject(project, target);
+        reportSessionRestored(trigger, windows.size(), SessionSnapshotStore.restorableTabs(project));
         target.updateStatus(I18n.get("session.restore.previous.done"));
         for (MainWindow window : new ArrayList<>(openWindows)) {
             window.syncRestorePreviousSessionMenuItems();
         }
         markSessionStableLater();
+    }
+
+    /**
+     * The anonymous {@code session_restored} event: the Session Restore setting, what started the
+     * restore, and how many windows and tabs it opened in coarse buckets. Never a host or a title.
+     */
+    private void reportSessionRestored(RestoreTrigger trigger, int windows, int tabs) {
+        try {
+            de.kortty.model.SessionRestoreMode mode = app != null && app.getGlobalSettingsManager() != null
+                ? app.getGlobalSettingsManager().getSettings().getSessionRestoreMode() : null;
+            Telemetry.track(TelemetryEvents.SESSION_RESTORED,
+                de.kortty.telemetry.TerminalUxTelemetry.sessionRestored(mode, trigger, windows, tabs));
+        } catch (RuntimeException e) {
+            logger.debug("Session restore could not be reported: {}", e.toString());
+        }
     }
 
     /**
@@ -7624,7 +7642,7 @@ public class MainWindow {
             public void restore() {
                 if (openWindows.contains(MainWindow.this)) {
                     logger.info("Restoring the previous session automatically");
-                    restorePreviousSession();
+                    restorePreviousSession(RestoreTrigger.AUTO);
                 }
             }
 
@@ -7655,7 +7673,7 @@ public class MainWindow {
             sessionRestoreOfferBar = new SessionRestoreOfferBar();
             sessionRestoreOfferBar.setOnRestore(() -> {
                 sessionRestoreOfferBar.hideOffer();
-                restorePreviousSession();
+                restorePreviousSession(RestoreTrigger.OFFER);
             });
             sessionRestoreOfferBar.setOnDismiss(() -> {
                 sessionRestoreOfferBar.hideOffer();

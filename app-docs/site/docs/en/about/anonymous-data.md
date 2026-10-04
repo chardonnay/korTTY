@@ -27,6 +27,19 @@ korTTY can collect **anonymous usage statistics** to help decide which features 
 
 The session ID is **not** a persistent identifier: it is newly generated each time and cannot be traced back to you across launches.
 
+### Terminal features
+
+A few terminal features report how they are used, with flags, coarse counts and fixed names only. Counts are rounded down to 0, 1, 2, 3, 5, 10 or 20, so seven panes are reported as 5.
+
+| Event | Sent when | Data |
+| --- | --- | --- |
+| `command_palette_used` | a row of the command palette runs | the kind of row (command, tab, connection or snippet) and whether the search started with a scope prefix such as `>` or `@` |
+| `terminal_highlight_applied` | a pane starts showing another highlighting rule set | a built-in set's id, or `custom` or `none`, and where the choice came from (menu, shortcut, connection or default) |
+| `multi_exec_changed` | you add panes to multi-exec, remove them or stop it | whether multi-exec is still on, and the rounded number of panes, tabs and windows taking part |
+| `session_restored` | the previous session is opened again | the Session Restore setting (`ask`, `auto` or `off`), whether the menu, the startup bar or the automatic restore opened it, and the rounded number of windows and tabs |
+
+The search text, the names of commands, tabs, connections, snippets and rule sets, the patterns, and anything typed into the panes are never sent. Changes on the settings pages are reported as the name of the setting and, for switches and choices, the new value; for the quick-select letters and patterns and for rebound shortcuts only whether you changed them.
+
 ## What is never collected
 
 korTTY never transmits any of the following:

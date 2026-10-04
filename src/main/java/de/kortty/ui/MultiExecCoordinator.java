@@ -131,7 +131,9 @@ public final class MultiExecCoordinator implements InputMirror {
             // Joining is what the policy denies; leaving always works.
             return false;
         }
-        return membership.toggle(pane);
+        boolean member = membership.toggle(pane);
+        reportChange();
+        return member;
     }
 
     /**
@@ -140,6 +142,14 @@ public final class MultiExecCoordinator implements InputMirror {
      * @return whether any pane changed
      */
     public boolean setPanes(@NotNull Collection<SithTermFxWidget> panes, boolean included) {
+        boolean changed = changePanes(panes, included);
+        if (changed) {
+            reportChange();
+        }
+        return changed;
+    }
+
+    private boolean changePanes(@NotNull Collection<SithTermFxWidget> panes, boolean included) {
         if (included && joinRefused()) {
             return false;
         }
@@ -161,6 +171,7 @@ public final class MultiExecCoordinator implements InputMirror {
     public boolean toggleAll(@NotNull Collection<SithTermFxWidget> panes) {
         boolean include = !membership.includesAll(panes);
         setPanes(panes, include);
+        // setPanes reported the change, if there was one.
         return include && membership.includesAll(panes);
     }
 
@@ -181,7 +192,29 @@ public final class MultiExecCoordinator implements InputMirror {
     public void stop() {
         if (membership.clear()) {
             logger.info("Multi-exec stopped");
+            reportChange();
         }
+    }
+
+    /**
+     * The anonymous {@code multi_exec_changed} event, once per user choice that changed the members
+     * (not when a pane leaves because it closed): whether multi-exec is on afterwards and how far it
+     * reaches, in coarse buckets. Never a host, a title or what is typed.
+     */
+    private void reportChange() {
+        try {
+            MultiExecMembership.Counts reach = counts(MultiExecCoordinator::windowOfSplitPane);
+            de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.MULTI_EXEC_CHANGED,
+                de.kortty.telemetry.TerminalUxTelemetry.multiExecChanged(membership.size() > 0, reach));
+        } catch (RuntimeException e) {
+            logger.debug("Multi-exec change could not be reported: {}", e.toString());
+        }
+    }
+
+    /** The window that shows {@code splitPane}, or {@code null} while it is in no scene. */
+    private static @Nullable Object windowOfSplitPane(@NotNull TerminalSplitPane splitPane) {
+        javafx.scene.Scene scene = splitPane.getScene();
+        return scene != null ? scene.getWindow() : null;
     }
 
     // ---- what the markers show ----------------------------------------------------------------------
