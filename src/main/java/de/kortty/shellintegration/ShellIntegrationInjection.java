@@ -319,7 +319,9 @@ public final class ShellIntegrationInjection {
 
     /**
      * A full path, not in the Windows folder: {@code C:\Windows\System32\bash.exe} starts WSL, which
-     * cannot read a startup file named by a Windows path, and a bare {@code bash} could be that one.
+     * cannot read a startup file named by a Windows path, and a bare {@code bash} could be that one. So
+     * does the app-execution alias in {@code %LOCALAPPDATA%\Microsoft\WindowsApps}; handed a Windows
+     * path, WSL's bash would start without the user's own {@code ~/.bashrc}.
      */
     private static boolean isWindowsShellPath(String program) {
         String path = program.replace('\\', '/').toLowerCase(Locale.ROOT);
@@ -327,7 +329,7 @@ public final class ShellIntegrationInjection {
             return false;
         }
         return !path.matches("^([a-z]:)?/windows/.*") && !path.contains("/system32/")
-            && !path.contains("/syswow64/") && !path.contains("/sysnative/");
+            && !path.contains("/syswow64/") && !path.contains("/sysnative/") && !path.contains("/windowsapps/");
     }
 
     /** A directory that every shell reads back as written: absolute, no control characters. */

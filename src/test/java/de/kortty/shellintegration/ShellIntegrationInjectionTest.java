@@ -59,6 +59,10 @@ class ShellIntegrationInjectionTest {
         // WSL's bash.exe, also when PATH would find it, cannot read a Windows path.
         assertThat(ShellIntegrationInjection.support(List.of("C:\\Windows\\System32\\bash.exe"), true))
             .isEqualTo(Support.OTHER_SHELL);
+        // The app-execution alias Windows installs for WSL lives in the user profile, but starts WSL too.
+        assertThat(ShellIntegrationInjection.support(
+            List.of("C:\\Users\\Ana\\AppData\\Local\\Microsoft\\WindowsApps\\bash.exe"), true))
+            .isEqualTo(Support.OTHER_SHELL);
         assertThat(ShellIntegrationInjection.support(List.of("bash.exe"), true)).isEqualTo(Support.OTHER_SHELL);
         assertThat(ShellIntegrationInjection.support(List.of("bash"), true)).isEqualTo(Support.OTHER_SHELL);
         assertThat(ShellIntegrationInjection.support(List.of("wsl.exe"), true)).isEqualTo(Support.OTHER_SHELL);
