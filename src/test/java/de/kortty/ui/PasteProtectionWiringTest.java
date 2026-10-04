@@ -76,6 +76,37 @@ class PasteProtectionWiringTest {
     }
 
     @Test
+    void theOrganizationsFloorAppliesAndThenTheConnectionNoLongerChoseTheWarning() {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setPasteWarningMode(PasteWarningMode.OFF);
+        ServerConnection lab = new ServerConnection("lab", "lab.example.com", 22, "root");
+        lab.setPasteWarningMode(PasteWarningMode.OFF);
+
+        PasteRules raised = TerminalView.pasteRules(() -> settings, lab, PasteWarningMode.ALWAYS);
+        assertThat(((PasteDecision) raised).settings().mode()).isEqualTo(PasteWarningMode.ALWAYS);
+        assertWithMessage("the policy raised the mode, so the dialog must not send the user to the connection")
+            .that(raised.setByConnection()).isFalse();
+        assertThat(raised.reasons("echo one\necho two", true)).containsExactly(PasteReason.MULTI_LINE);
+
+        ServerConnection production = new ServerConnection("prod", "db.example.com", 22, "root");
+        production.setPasteWarningMode(PasteWarningMode.ALWAYS);
+        assertThat(TerminalView.pasteRules(() -> settings, production, PasteWarningMode.UNLESS_BRACKETED)
+            .setByConnection()).isTrue();
+
+        PasteRules unreadable = TerminalView.pasteRules(() -> {
+            throw new IllegalStateException("no application");
+        }, null, PasteWarningMode.ALWAYS);
+        assertThat(((PasteDecision) unreadable).settings().mode()).isEqualTo(PasteWarningMode.ALWAYS);
+    }
+
+    @Test
+    void theGuardReadsThePolicyFloorOnEveryPaste() throws IOException {
+        String view = Files.readString(TERMINAL_VIEW, StandardCharsets.UTF_8).replace("\r\n", "\n");
+        assertThat(view).contains("floor = de.kortty.policy.PolicyManager.effective().pasteWarningFloor();");
+        assertThat(view).contains("PasteProtectionSettings.resolve(global, connection, floor)");
+    }
+
+    @Test
     void aTeamworkConnectionCannotSwitchTheWarningOff() {
         GlobalSettings settings = new GlobalSettings();
         ServerConnection shared = new ServerConnection("shared", "db.example.com", 22, "root");

@@ -76,4 +76,15 @@ class PasteWarningModeTest {
         assertThat(PasteWarningMode.mostRestrictive(PasteWarningMode.ALWAYS, null)).isEqualTo(PasteWarningMode.ALWAYS);
         assertThat(PasteWarningMode.mostRestrictive(null, null)).isNull();
     }
+
+    @Test
+    void aFloorLeavesOnlyTheModesThatAskAtLeastAsOften() {
+        assertThat(PasteWarningMode.atLeast(null)).containsExactlyElementsIn(PasteWarningMode.values()).inOrder();
+        assertThat(PasteWarningMode.atLeast(PasteWarningMode.OFF))
+            .containsExactlyElementsIn(PasteWarningMode.values()).inOrder();
+        assertThat(PasteWarningMode.atLeast(PasteWarningMode.UNLESS_BRACKETED))
+            .containsExactly(PasteWarningMode.UNLESS_BRACKETED, PasteWarningMode.ALWAYS).inOrder();
+        assertWithMessage("an always floor leaves nothing to choose, so the dropdown is locked")
+            .that(PasteWarningMode.atLeast(PasteWarningMode.ALWAYS)).containsExactly(PasteWarningMode.ALWAYS);
+    }
 }

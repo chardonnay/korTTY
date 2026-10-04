@@ -40,6 +40,20 @@ public final class PolicyUiSupport {
         return true;
     }
 
+    /**
+     * Disables {@code control} with the managed-by-organization tooltip when {@code locked}: for a
+     * control the policy can only force one way, such as the OSC 52 switch, which is locked while
+     * {@code allow-osc52-clipboard-write = false} and free otherwise. Returns {@code locked}.
+     */
+    public static boolean lockIf(Control control, boolean locked) {
+        if (!locked) {
+            return false;
+        }
+        control.setDisable(true);
+        control.setTooltip(new Tooltip(managedByOrganizationText()));
+        return true;
+    }
+
     /** Menu-item variant of {@link #lockIfManaged(Control, ManagedSetting)}. */
     public static boolean lockIfManaged(MenuItem item, ManagedSetting setting) {
         if (!PolicyManager.effective().isManaged(setting)) {

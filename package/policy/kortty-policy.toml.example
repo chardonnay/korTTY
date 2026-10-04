@@ -63,6 +63,8 @@
 #   ai-planning = "deny"              # AI planning
 #   teamwork = "deny"                 # shared-connections sync
 #   plugins = "deny"                  # plugins (e.g. terminal effects)
+#   multi-exec = "deny"               # typing into several terminals at once: multi-exec
+#                                     # and a tab's broadcast mode (Stop always works)
 #   # Agent execution mode: "allow" (user settings govern), "confirm" (every mutating
 #   # command set needs interactive approval; auto-approve is defeated), "read-only"
 #   # (the agent may plan and chat but never executes commands).
@@ -78,6 +80,10 @@
 #   # applications cannot be pasted into korTTY, korTTY copies never reach the OS
 #   # clipboard, and copy/paste WITHIN korTTY keeps working (terminals, SFTP, editors).
 #   clipboard-mode = "internal"       # "system" (default) | "internal"
+#   # false: programs in a terminal (vim, tmux on a server) can never put text on the
+#   # clipboard with OSC 52, and the Settings switch is locked off. true or unset leaves
+#   # the choice (off by default) to the user.
+#   allow-osc52-clipboard-write = false
 #
 #   [rule.teamwork]
 #   allow-custom-sources = false      # only the [[teamwork-source]] entries below
@@ -109,6 +115,13 @@
 #   # Terminal "Load into snippet editor": "allow", "read-only" (loading works, but
 #   # writing back to the remote system is forbidden) or "deny".
 #   load-into-snippet-editor = "read-only"
+#   # The least a paste warning may ask: "off", "unless-bracketed" (line breaks ask
+#   # unless the program brackets pastes) or "always". A floor on top of Settings, a
+#   # connection's own mode and teamwork connections; users may still ask more often.
+#   paste-warning = "unless-bracketed"
+#   # What korTTY does at startup with the previous session's windows and tabs: "off",
+#   # "ask" or "auto". Set and locked; File > Restore Previous Session stays available.
+#   session-restore = "ask"
 #
 #   # Where and how korTTY writes its log files. Directory and retention are forced into
 #   # the (locked) user settings; format, compression and rotation apply directly.

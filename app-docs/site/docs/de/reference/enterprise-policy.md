@@ -21,7 +21,7 @@ korTTY lädt die Richtlinie ausschließlich aus dem Ordner `policy/` seines Inst
 
 Das Durchsetzungsmodell basiert auf den Dateiberechtigungen des Betriebssystems: Das Installationsverzeichnis darf nur von Administratoren beschreibbar sein, was für die oben genannten Speicherorte die Standardeinstellung ist. korTTY protokolliert zusätzlich eine Warnung, wenn die aktive Richtliniendatei vom aktuellen Benutzer beschreibbar ist. Während der Entwicklung (niemals in einer Paketinstallation) kann eine Richtlinie mit `-Dkortty.policy.file=/path/to/policy.toml` getestet werden.
 
-Wenn die Datei existiert, aber nicht geparst werden kann oder einen ungültigen Wert enthält, startet korTTY mit einer ausfallsicheren Sperre: Alle durch Richtlinien steuerbaren Funktionen werden verweigert, keine Serververbindung ist erlaubt und ein Startdialog benennt die Datei und die genaue Fehlerposition. Ein Tippfehler kann daher niemals stillschweigend die Durchsetzung verhindern. Eine ungültige Regel lehnt die gesamte Datei ab; Unbekannte Schlüssel erzeugen nur Protokollwarnungen, daher sperrt eine für ein neueres korTTY geschriebene Richtlinie Benutzer einer älteren Version nicht aus.
+Wenn die Datei existiert, aber nicht geparst werden kann oder einen ungültigen Wert enthält, startet korTTY in einer fehlersicheren Sperre: Jede per Richtlinie steuerbare Funktion wird verweigert, keine Serververbindung ist erlaubt, jedes Einfügen mit Zeilenumbruch ins Terminal fragt nach einer Bestätigung, Programme können keinen Text per OSC 52 in die Zwischenablage legen, die vorherige Sitzung wird beim Start nicht wieder geöffnet, die Ausgabe der Terminalbereiche wird dafür nicht gespeichert, und ein Dialog beim Start nennt die Datei und die genaue Fehlerposition. Ein Tippfehler kann die Durchsetzung daher nie stillschweigend abschalten. Eine einzige ungültige Regel verwirft die gesamte Datei; unbekannte Schlüssel erzeugen nur Warnungen im Log, sodass eine für ein neueres korTTY geschriebene Richtlinie Benutzer einer älteren Version nicht aussperrt.
 
 ## Benutzer, Gruppen und Regelpriorität
 
@@ -124,6 +124,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `session-journal` | Zeichenfolge | `allow`, `deny` | The [session journal](../features/session-journal.md): Erfassung, Journalleiste, Manager, Viewer und Exporte. Nicht angekettet `ai` – Auch wenn die KI verweigert wird, zeichnet das Journal immer noch Rohaktivitäten auf |
 | `control-api` | Zeichenfolge | `allow`, `deny` | Die [Steuerungs-API](control-api.md) und ihr Client `kortty-cli`: `deny` beendet den Listener, sperrt das Kontrollkästchen in den Einstellungen und erzwingt die Einstellung aus. Nicht an `ai` gekoppelt – die API ist lokale Automatisierung, keine KI-Funktion |
 | `terminal-triggers` | Zeichenfolge | `allow`, `deny` | [Hervorhebungsregeln, die eine Aktion auslösen](../features/highlighting.md#benachrichtigungen-bei-passender-ausgabe), wenn ihr Muster in der Terminalausgabe erscheint (eine Desktop-Benachrichtigung oder das [Ausführen eines Snippets](../features/highlighting.md#ein-snippet-ausfuhren-wenn-die-ausgabe-passt) im Bereich): `deny` stoppt jede solche Aktion, auch ein Snippet, das der Benutzer für eine Verbindung bereits erlaubt hat, sperrt **Aktionen von Hervorhebungsregeln ausführen (Benachrichtigungen, Snippets)** unter *Einstellungen → Terminal* in ausgeschalteter Stellung und hindert den Regelsatz-Editor daran, einer Regel eine Aktion zu geben. Die Hervorhebung von Schlüsselwörtern selbst ist nicht betroffen. `allow` sperrt die Einstellung eingeschaltet |
+| `multi-exec` | string | `allow`, `deny` | Eingabe in mehrere Terminals gleichzeitig: [Multi-Exec](../features/terminal.md#multi-exec) über Tabs und Fenster hinweg und der Broadcast-Modus eines Tabs. `deny` sperrt die Einträge zum Einbeziehen unter *Ansicht → Multi-Exec*, *Ansicht → Bereiche → Broadcast an alle Bereiche dieses Tabs*, die Einträge für Multi-Exec und Broadcast-Modus in den Kontextmenüs von Tab, Bereich und Dashboard sowie ihre Einträge in der Befehlspalette und ihre Tastenkürzel; kein Bereich kann von irgendwo aus beitreten. **Multi-Exec beenden** und das Ausschalten des Broadcast-Modus funktionieren weiterhin. Es gibt kein Steuerelement in den Einstellungen, daher ändert `allow` nichts |
 | `ai-agent-execution` | Zeichenfolge | `allow`, `confirm`, `read-only` | `confirm` erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und deaktiviert die Option zur automatischen Genehmigung; `read-only` lässt den Agenten planen und chatten, aber niemals Befehle ausführen |
 
 !!! note "Eine genannte Funktion wird übernommen, egal wie entschieden"
@@ -139,6 +140,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `allow-terminal-recording` | boolean | `false` | Verbietet die Aufzeichnung von Terminalsitzungen, einschließlich der Umschaltung auf Sitzungsebene |
 | `allow-port-forwarding` | boolean | `false` | Öffnet niemals die [SSH-Tunnel](../features/tunnels.md), die auf Verbindungen (lokales, entferntes und dynamisches Port-Forwarding) konfiguriert sind; die Statusleiste des Tabs sagt, sie seien von Ihrer Organisation deaktiviert. Ein Jump-Server-Hop ist nicht betroffen |
 | `clipboard-mode` | Zeichenfolge | `system`, `internal` | `internal` beschränkt korTTY auf seine eigene Zwischenablage im Speicher – siehe unten |
+| `allow-osc52-clipboard-write` | boolean | `false` | Programme in einem Terminal können nie Text per OSC 52 in die Zwischenablage legen, unabhängig von *Einstellungen → Terminal*: Die Einstellung wird ausgeschaltet und **Programmen im Terminal erlauben, Text in die Zwischenablage zu kopieren (OSC 52)** ist mit dem Hinweis „Verwaltet von Ihrer Organisation“ gesperrt, und korTTY prüft die Richtlinie bei jedem Schreibvorgang erneut. `true` überlässt die Wahl, die standardmäßig aus ist, dem Benutzer und sperrt nichts |
 
 ### `[rule.teamwork]`, `[rule.snippets]`, `[rule.ai-profiles]`
 
@@ -212,6 +214,23 @@ groups = ["compliance"]
 | Schlüssel | Typ | Werte | Wirkung |
 | --- | --- | --- | --- |
 | `load-into-snippet-editor` | Zeichenfolge | `allow`, `read-only`, `deny` | `read-only` lädt weiterhin entfernte Dateien in den Snippet-Editor, verbietet jedoch das Zurückschreiben in das Zielsystem; `deny` entfernt die Funktion vollständig, einschließlich des Öffnens von Dateipfaden und `file:`-Links aus der Terminalausgabe ([Links in der Terminalausgabe](../features/terminal.md#links-in-der-terminalausgabe)) |
+| `paste-warning` | string | `off`, `unless-bracketed`, `always` | Wie oft eine [Einfügewarnung](../features/terminal.md#einfugeschutz) mindestens nachfragt. Es ist eine Untergrenze, die zusätzlich zu *Einstellungen → Terminal → Einfügeschutz*, der eigenen Einfügewarnung einer Verbindung und der Einfügewarnung einer Teamwork-Verbindung gilt, sodass keine von ihnen seltener nachfragen kann; eine, die öfter nachfragt, tut das weiterhin. Die gespeicherte Einstellung wird auf die Untergrenze angehoben, und das Auswahlfeld trägt den Hinweis „Verwaltet von Ihrer Organisation“ und bietet nur die Untergrenze und strengere Optionen an; mit `always` ist es gesperrt. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt der strengere (`always` vor `unless-bracketed` vor `off`) |
+| `session-restore` | string | `off`, `ask`, `auto` | Legt fest, was korTTY beim Start mit den Fenstern und Tabs der vorherigen Sitzung tut (*Einstellungen → Fenster → [Sitzungswiederherstellung](settings/window.md#sitzungswiederherstellung)*), und sperrt das Auswahlfeld. `off` öffnet von selbst nichts; **Datei → Vorherige Sitzung wiederherstellen** bleibt verfügbar. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt der Wert, der von selbst weniger Verbindungen öffnet (`off` vor `ask` vor `auto`) |
+| `session-restore-output` | boolean | `true`, `false` | Legt **Auch die Ausgabe jedes Terminalbereichs wiederherstellen (verschlüsselt)** in *Einstellungen → Fenster → [Sitzungswiederherstellung](settings/window.md#sitzungswiederherstellung)* fest und sperrt die Option zusammen mit **Ausgabezeilen pro Bereich**. `false` schaltet sie aus, wodurch die bisher gespeicherte Ausgabe beim nächsten Start gelöscht wird; `true` schaltet sie ein, und die Ausgabe wird weiterhin nur gespeichert, solange ein Master-Passwort existiert und der Tresor entsperrt ist. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt `false` |
+
+```toml
+[[rule]]
+  [rule.features]
+  multi-exec = "deny"
+
+  [rule.security]
+  allow-osc52-clipboard-write = false
+
+  [rule.terminal]
+  paste-warning = "always"
+  session-restore = "ask"
+  session-restore-output = false
+```
 
 ### `[rule.logging]`
 
