@@ -91,6 +91,10 @@ public class ControlApiErrorContractTest {
         {"split_failed", "-32032", "1", "true"},
         {"ui_unavailable", "-32041", "1", "true"},
         {"timeout", "-32040", "4", "true"},
+        {"mcp_server_disabled", "-32007", "3", "false"},
+        {"method_not_allowed_for_mcp", "-32008", "3", "false"},
+        {"mcp_write_denied", "-32009", "3", "false"},
+        {"mcp_write_refused", "-32018", "1", "false"},
     };
 
     /**
@@ -675,9 +679,68 @@ public class ControlApiErrorContractTest {
                     + " weakening the table above", code.wire())
                 .that(ControlErrorCode.forWire(code.wire())).isPresent();
         }
-        // All 30 codes now have a provoking test in this class. Keeping the count here means a code
+        // All 34 codes now have a provoking test in this class. Keeping the count here means a code
         // added to the enum without a scenario fails this test rather than passing unnoticed.
-        assertThat(ControlErrorCode.values().length - WITHOUT_A_WIRE_SCENARIO.size()).isEqualTo(30);
+        assertThat(ControlErrorCode.values().length - WITHOUT_A_WIRE_SCENARIO.size()).isEqualTo(34);
+    }
+
+    @Test(timeOut = 60_000)
+    void anMcpClientWhileTheMcpServerIsSwitchedOffIsMcpServerDisabled() throws Exception {
+        EndpointDescriptor mcp = startMcpServer(McpGate.Verdict.DISABLED_BY_SETTING);
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(mcp)) {
+            assertError(wire.call(ControlConnection.AUTH_METHOD, ControlApiScenarioFixtures.params(
+                "token", mcp.token(), "client", "contract-test", "client_kind", "mcp")),
+                ControlErrorCode.MCP_SERVER_DISABLED);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void anMcpClientCallingAVerbOffTheAllowlistIsMethodNotAllowedForMcp() throws Exception {
+        EndpointDescriptor mcp = startMcpServer(McpGate.Verdict.READ_ONLY);
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(mcp)) {
+            JsonObject hello = wire.call(ControlConnection.AUTH_METHOD, ControlApiScenarioFixtures.params(
+                "token", mcp.token(), "client", "contract-test", "client_kind", "mcp"));
+            assertThat(hello.has("result")).isTrue();
+            JsonObject data = assertError(wire.call("pane.split",
+                ControlApiScenarioFixtures.params("pane", LOCAL_PANE)),
+                ControlErrorCode.METHOD_NOT_ALLOWED_FOR_MCP);
+            assertThat(data.get("method").getAsString()).isEqualTo("pane.split");
+            assertThat(data.get("reason").getAsString()).isEqualTo(McpMethodAllowlist.REASON_NOT_EXPOSED);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    void anMcpWriteTheUserDeniesIsMcpWriteDenied() throws Exception {
+        ControlApiServer own = ControlApiScenarioFixtures.startServer(
+            root.resolve("m" + extraServers.size()), surface, agents,
+            () -> McpGate.Verdict.READ_WRITE, (request, timeoutMillis) -> McpWriteConsent.Decision.DENY);
+        extraServers.add(own);
+        EndpointDescriptor mcp = own.endpoint().orElseThrow();
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(mcp)) {
+            assertThat(wire.call(ControlConnection.AUTH_METHOD, ControlApiScenarioFixtures.params(
+                "token", mcp.token(), "client", "contract-test", "client_kind", "mcp")).has("result")).isTrue();
+            JsonObject data = assertError(wire.call("pane.run",
+                ControlApiScenarioFixtures.params("pane", LOCAL_PANE, "command", "ls")),
+                ControlErrorCode.MCP_WRITE_DENIED);
+            assertThat(data.get("reason").getAsString()).isEqualTo(McpWriteConsent.REASON_DENIED);
+        }
+        assertThat(surface.written(LOCAL_PANE)).isEmpty();
+    }
+
+    @Test(timeOut = 60_000)
+    void anMcpWriteIntoAFullScreenProgramIsMcpWriteRefused() throws Exception {
+        surface.setMcpWriteState(LOCAL_PANE,
+            new McpPaneWriteState("vim", true, false, true, false, false, false, false));
+        EndpointDescriptor mcp = startMcpServer(McpGate.Verdict.READ_WRITE);
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(mcp)) {
+            assertThat(wire.call(ControlConnection.AUTH_METHOD, ControlApiScenarioFixtures.params(
+                "token", mcp.token(), "client", "contract-test", "client_kind", "mcp")).has("result")).isTrue();
+            JsonObject data = assertError(wire.call("pane.send_text",
+                ControlApiScenarioFixtures.params("pane", LOCAL_PANE, "text", ":q")),
+                ControlErrorCode.MCP_WRITE_REFUSED);
+            assertThat(data.get("reason").getAsString()).isEqualTo(McpPaneWriteState.REASON_ALTERNATE_SCREEN);
+        }
+        assertThat(surface.written(LOCAL_PANE)).isEmpty();
     }
 
     // --- helpers ------------------------------------------------------------------------------
@@ -707,6 +770,14 @@ public class ControlApiErrorContractTest {
         assertWithMessage("data.retryable tells an automated caller whether to try again")
             .that(data.get("retryable").getAsBoolean()).isEqualTo(expected.retryable());
         return data;
+    }
+
+    /** The default scenery behind a fixed MCP gate, in its own configuration directory. */
+    private EndpointDescriptor startMcpServer(McpGate.Verdict verdict) {
+        ControlApiServer own = ControlApiScenarioFixtures.startServer(
+            root.resolve("m" + extraServers.size()), surface, agents, () -> verdict);
+        extraServers.add(own);
+        return own.endpoint().orElseThrow();
     }
 
     /** The same scenery behind a gate the test can close mid-connection. */

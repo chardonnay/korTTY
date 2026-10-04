@@ -837,6 +837,26 @@
 </tbody>
 </table>
 <p>Unticking the box stops the listener and deletes the socket immediately.</p>
+<p>Two more switches under the status line belong to <a href="#mcp-clients">MCP clients</a>, such as <a href="cli.html#serving-mcp-clients"><code>kortty-cli mcp</code></a>, and both are off by default:</p>
+<table>
+<thead>
+<tr>
+<th>Switch</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MCP server</strong></td>
+<td>Serves clients that declare themselves MCP clients, with the read-only method list, masked output and capped reads described below.</td>
+</tr>
+<tr>
+<td><strong>Allow write tools</strong></td>
+<td>Also offers such clients <code>pane.send_text</code>, <code>pane.run</code> and <code>pane.send_keys</code>. korTTY still asks you before every write. It can only be changed while <strong>MCP server</strong> is ticked.</td>
+</tr>
+</tbody>
+</table>
+<p>Both switches are greyed out while the Control API checkbox is unticked, with a hint that says so; they keep their values and take effect again when you tick the Control API. When the enterprise policy denies <code>mcp-server</code> or <code>control-api</code>, both are unticked and locked with the "Managed by your organization" hint. Saving with either switch off also drops every "allow for this pane in this session" answer, so switching the write tools on again later asks afresh.</p>
 <h2 id="where-the-endpoint-lives">Where the endpoint lives<a class="headerlink" href="#where-the-endpoint-lives" title="Permanent link">&para;</a></h2>
 <p>Everything the API owns lives in its own directory, <code>~/.kortty/control/</code>, created with owner-only permissions (<code>0700</code>) <strong>before</strong> anything binds. The directory, not the socket file, is the real protection: a socket inode is created with the process umask, which on most systems is world-readable.</p>
 <table>
@@ -976,6 +996,101 @@
 <div class="admonition note">
 <p class="admonition-title">Writes are not restricted to local shells — on purpose</p>
 <p>Typing is allowed into remote panes too. Restricting it would break answering a coding agent that runs over SSH, and it would not be a real boundary anyway: a caller who can reach the socket can simply run <code>ssh</code> in a local pane instead. The honest controls are the default-off switch, the policy deny, the audit line and the notification — not a filter that looks like a boundary and is not one.</p>
+</div>
+<h2 id="mcp-clients">MCP clients<a class="headerlink" href="#mcp-clients" title="Permanent link">&para;</a></h2>
+<p>A client can tell korTTY what kind of client it is with the optional <code>client_kind</code> parameter of <code>auth</code>: <code>cli</code>, the default, for <code>kortty-cli</code> and every script, or <code>mcp</code> for an MCP server that passes korTTY on to an AI assistant. korTTY ships such a server itself: <a href="cli.html#serving-mcp-clients"><code>kortty-cli mcp</code></a>. Any other value is refused with <code>invalid_params</code>. A connection that authenticated as <code>mcp</code> stays an <code>mcp</code> connection: a second <code>auth</code> on it as <code>cli</code> is refused with <code>invalid_params</code>. An <code>mcp</code> client is served only while three things allow it: the Control API itself, the separate <strong>MCP server</strong> switch, which is off by default, and the <a href="enterprise-policy.html">enterprise policy</a> key <code>mcp-server</code>. When one of them says no, the handshake fails with <code>mcp_server_disabled</code> or <code>blocked_by_policy</code>, and the check is repeated before every request, so switching the MCP server off stops a connection that is already open at its next call.</p>
+<p>An <code>mcp</code> client gets a fixed, fail-closed list of methods:</p>
+<table>
+<thead>
+<tr>
+<th>Access</th>
+<th>Methods</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Always</td>
+<td><code>ping</code>, <code>api.schema</code>, <code>window.list</code>, <code>tab.list</code>, <code>pane.list</code>, <code>pane.current</code>, <code>pane.get</code>, <code>pane.read</code>, <code>pane.wait_output</code>, <code>agent.list</code>, <code>agent.get</code></td>
+</tr>
+<tr>
+<td>Only with <strong>Allow write tools</strong>, also off by default</td>
+<td><code>pane.send_text</code>, <code>pane.run</code>, <code>pane.send_keys</code></td>
+</tr>
+<tr>
+<td>Never</td>
+<td>everything else: events, focusing, splitting and closing, notifications, every <code>agent.*</code> method that acts, the reserved verbs, and any method a later korTTY adds until it is reviewed for MCP clients</td>
+</tr>
+</tbody>
+</table>
+<p>A refused method answers <code>method_not_allowed_for_mcp</code>, with <code>data.reason</code> set to <code>write_tools_disabled</code> or <code>not_exposed</code>. The method list in the <code>auth</code> reply and the <code>api.schema</code> document show an <code>mcp</code> client only the methods it may call, and the <code>auth</code> reply says in <code>mcp_write_tools</code> whether the write tools are on.</p>
+<h3 id="what-an-mcp-client-reads">What an MCP client reads<a class="headerlink" href="#what-an-mcp-client-reads" title="Permanent link">&para;</a></h3>
+<p>Everything an <code>mcp</code> client reads is masked, always, because its model usually runs in the cloud: korTTY treats it like a cloud AI profile, with no opt-out. The screen and scrollback of <code>pane.read</code>, the matched line and screen of <code>pane.wait_output</code>, the evidence line and the process command line of <code>agent.list</code>, <code>agent.get</code> and the agent inside a pane description, and the tab and window titles all lose the connection's password, the organisation's replacement rules from the <a href="enterprise-policy.html">enterprise policy</a> and well-known token formats such as cloud access keys, each replaced by <code>***</code>. A command line is masked too, because it can carry an API key. A secret that runs over the right edge of a full-width row into the next one is masked as well; those rows are then wrapped again at the pane width.</p>
+<p><code>pane.read</code> and <code>pane.wait_output</code> give an <code>mcp</code> client at most 2000 rows and 64,000 characters, the newest ones kept, and set <code>truncated</code> when anything was left out; a <code>cli</code> client keeps the protocol's own limits. <code>pane.read</code> adds <code>masked_count</code>, the number of secrets masked in what it returned. <code>pane.wait_output</code> searches the masked text, so a pattern cannot confirm a guessed password by whether it matched. A <code>cli</code> client reads the raw text exactly as before.</p>
+<h3 id="writes-by-an-mcp-client">Writes by an MCP client<a class="headerlink" href="#writes-by-an-mcp-client" title="Permanent link">&para;</a></h3>
+<p>When <strong>Allow write tools</strong> is on, korTTY still asks you before every write an <code>mcp</code> client wants to make. <code>pane.send_text</code>, <code>pane.run</code> and <code>pane.send_keys</code> open a prompt in korTTY that shows the client's name, marked as reported by the client because nothing proves it, the target pane with its tab title and host, whether the write submits a line, and the exact text or key names. Control characters and invisible characters are shown as symbols, such as <code>␊</code> for a line break, <code>␛</code> for Escape and <code>&lt;U+202E&gt;</code> for a direction override, so nothing reaches the pane that you could not see.</p>
+<table>
+<thead>
+<tr>
+<th>Answer</th>
+<th>What it allows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Deny</strong> (the default button)</td>
+<td>Nothing; the call answers <code>mcp_write_denied</code> with <code>data.reason</code> <code>denied</code></td>
+</tr>
+<tr>
+<td><strong>Allow once</strong></td>
+<td>This one write</td>
+</tr>
+<tr>
+<td><strong>Allow for this pane in this session</strong></td>
+<td>This write, and every later <code>pane.send_text</code> into the same pane from the same MCP server process without another question, as long as the text submits nothing</td>
+</tr>
+</tbody>
+</table>
+<p>The third answer is offered only for <code>pane.send_text</code> whose text contains no line break and no other control character and does not set <code>submit</code>. <code>pane.run</code>, <code>pane.send_keys</code> and any text that submits a line always ask, because one click must never let an assistant run whatever it wants afterwards. The session is the <code>kortty-cli mcp</code> process: it sends a random <code>mcp_session</code> id with every connection, so the answer lasts until the assistant's host stops that process or korTTY quits. A client that sends no <code>mcp_session</code> keeps the answer for one connection only.</p>
+<p>A prompt that is not answered within 60 seconds counts as Deny (<code>data.reason</code> <code>timeout</code>), and so does a korTTY that cannot show one (<code>no_prompt</code>). Only one prompt is open at a time; a second write waits for the first, within the same 60 seconds. The call waits on its own connection while you decide, never on korTTY's user interface.</p>
+<p>korTTY refuses some writes without asking, with <code>mcp_write_refused</code> and a <code>data.reason</code>, because it would not type into such a pane on its own either:</p>
+<table>
+<thead>
+<tr>
+<th><code>data.reason</code></th>
+<th>The pane</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paste_pacing</code></td>
+<td>is still sending a paste line by line</td>
+</tr>
+<tr>
+<td><code>alternate_screen</code></td>
+<td>shows a full-screen program such as <code>vim</code> or <code>less</code></td>
+</tr>
+<tr>
+<td><code>foreign_session</code></td>
+<td>is suspected to run as another user or host, after <code>su</code> or a nested <code>ssh</code></td>
+</tr>
+<tr>
+<td><code>broadcast</code></td>
+<td>is in a tab with broadcast mode on</td>
+</tr>
+<tr>
+<td><code>multi_exec</code></td>
+<td>takes part in multi-exec</td>
+</tr>
+<tr>
+<td><code>coding_agent</code></td>
+<td>shows a detected coding agent, or a korTTY agent run drives it</td>
+</tr>
+</tbody>
+</table>
+<p>These checks run again right before the text is typed, so a pane that opens <code>vim</code> while you read the prompt is still refused. Every decision, including each refusal and each write a session answer allowed, is written to korTTY's log as an <code>mcp.consent</code> line with the method, the decision, the reason, the number of characters and the client name, but never the text.</p>
+<div class="admonition warning">
+<p class="admonition-title">A narrower surface, not a sandbox</p>
+<p><code>client_kind</code> is declared by the client, not proven. The list limits what an MCP server exposes to an AI assistant; it does not protect korTTY from an assistant that can also run shell commands as you, because any program of yours can read the token and connect as <code>cli</code>. Treat every MCP client as a cloud model and everything it reads from a terminal as untrusted text.</p>
 </div>
 <h2 id="audit-and-visibility">Audit and visibility<a class="headerlink" href="#audit-and-visibility" title="Permanent link">&para;</a></h2>
 <p>Every action the API takes writes exactly one line to korTTY's log, carrying <strong>byte counts and shapes only</strong> — <code>bytes=28 bracketed=false submitted=true</code>, <code>keys=2</code>, <code>orientation=vertical</code> — never terminal text. The line goes to korTTY's log and only there — the API writes nothing into a tab's session journal.</p>

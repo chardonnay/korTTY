@@ -302,11 +302,30 @@ class CliCommandsTest {
         for (CliCommands.Command command : CliCommands.commands()) {
             assertWithMessage("synopsis of %s", command.name()).that(command.synopsis()).isNotEmpty();
             assertWithMessage("summary of %s", command.name()).that(command.summary()).isNotEmpty();
-            boolean callable = command.method() != null || "raw".equals(command.group());
+            boolean callable = command.method() != null || "raw".equals(command.group())
+                || CliCommands.MCP_GROUP.equals(command.group());
             assertWithMessage("%s must either be callable or explain why it is not", command.name())
                 .that(callable || command.reserved() != null)
                 .isTrue();
         }
+    }
+
+    @Test
+    void theMcpSubcommandIsParsedAsTheStdioServerNotAsACall() throws Exception {
+        CliInvocation invocation = CliArguments.parse(new String[] {"mcp"});
+        assertThat(invocation.group()).isEqualTo("mcp");
+        assertThat(invocation.verb()).isNull();
+        assertThat(CliCommands.isMcpServer(invocation)).isTrue();
+        assertThat(CliCommands.isMcpServer(CliArguments.parse(new String[] {
+            "--config-dir", "/tmp/kt-home", "mcp"}))).isTrue();
+        assertThat(CliCommands.isMcpServer(CliArguments.parse(new String[] {"ping"}))).isFalse();
+        expectThrows(CliSyntaxException.class, () -> CliCommands.toCall(invocation));
+        expectThrows(CliSyntaxException.class,
+            () -> CliArguments.parse(new String[] {"mcp", "extra"}));
+        expectThrows(CliSyntaxException.class,
+            () -> CliArguments.parse(new String[] {"mcp", "--pane", "p1"}));
+        assertThat(CliUsage.top()).contains("mcp");
+        assertThat(CliUsage.group("mcp")).contains("stdin and stdout");
     }
 
     private static void assertMethod(String method, String... args) throws Exception {

@@ -1084,6 +1084,20 @@
 <td><strong>Off</strong></td>
 <td><code>controlApiEnabled</code></td>
 </tr>
+<tr>
+<td>MCP server</td>
+<td>toggle</td>
+<td>—</td>
+<td><strong>Off</strong></td>
+<td><code>mcpServerEnabled</code></td>
+</tr>
+<tr>
+<td>Allow write tools</td>
+<td>toggle</td>
+<td>—</td>
+<td><strong>Off</strong></td>
+<td><code>mcpWriteToolsEnabled</code></td>
+</tr>
 </tbody>
 </table>
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
@@ -1171,6 +1185,7 @@
 <div class="admonition warning">
 <p class="admonition-title">Allow a local program to read and control this korTTY</p>
 <p>This is the Control API, and it is the only setting in this tab that is off by default. While it is on, any program running under your user account on this computer can list your windows, read every open pane — local shells and SSH sessions alike — and type into them, including pressing <span class="keys"><kbd class="key-enter">Enter</kbd></span>. Nothing is reachable over the network and no other user of the computer can connect, but that is the extent of the boundary: within your own account it is the same power as sitting at your keyboard. A status line under the checkbox reports what the listener is actually doing, because the checkbox and the listener can legitimately disagree — enterprise policy can deny the feature, and a start can fail because another korTTY already owns the socket. Every action is logged with byte counts only, never terminal text, and the first time a program types into a pane you get one desktop notification. See <a href="../control-api.html">Control API</a> for the security model and <a href="../cli.html">Control CLI</a> for the <code>kortty-cli</code> client that speaks it.</p>
+<p><strong>MCP server</strong> and <strong>Allow write tools</strong> below it let an AI assistant reach korTTY through <code>kortty-cli mcp</code>: the first offers read-only tools with secrets masked and output capped, the second adds tools that type into a pane, each of which korTTY asks you about first. Both are off by default, greyed out while the Control API is off and locked when the enterprise policy denies <code>mcp-server</code>. See <a href="../control-api.html#mcp-clients">MCP clients</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Detect coding agents</p>

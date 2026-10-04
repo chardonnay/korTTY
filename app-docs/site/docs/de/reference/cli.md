@@ -53,7 +53,7 @@ Der Starter heißt bewusst **nicht** `kortty`: dieser Name gehört dem grafische
 kortty-cli <group> <command> [options]
 ```
 
-Die Gruppen sind `pane`, `tab`, `window`, `agent`, `events`, `notify`, `raw`, `ping` und `schema`. Innerhalb einer Gruppe ist der Befehlsname die API-Methode nach dem Punkt, deren Unterstriche als Bindestriche geschrieben werden – `pane.send_text` wird zu `pane send-text`. Vier Methoden ergeben sich nicht aus ihrem Namen und sind es wert, gemerkt zu werden: `api.schema` ist `schema`, `events.subscribe` ist `events`, `notification.show` ist `notify`, und alles ohne eigenen Befehl – `events.unsubscribe`, `pane.resolve` – erreichen Sie über `raw`.
+Die Gruppen sind `pane`, `tab`, `window`, `agent`, `events`, `notify`, `raw`, `ping` und `schema`, dazu `mcp`, das kein einzelner Aufruf ist, sondern ein dauerhaft laufender Server (siehe [MCP-Clients bedienen](#mcp-clients-bedienen)). Innerhalb einer Gruppe ist der Befehlsname die API-Methode nach dem Punkt, deren Unterstriche als Bindestriche geschrieben werden – `pane.send_text` wird zu `pane send-text`. Vier Methoden ergeben sich nicht aus ihrem Namen und sind es wert, gemerkt zu werden: `api.schema` ist `schema`, `events.subscribe` ist `events`, `notification.show` ist `notify`, und alles ohne eigenen Befehl – `events.unsubscribe`, `pane.resolve` – erreichen Sie über `raw`.
 
 Alles, was ein Befehl braucht, ist eine Option. Positionsargumente gibt es nur für die Tastennamen von `pane send-keys` und `agent send-keys` sowie für Methode und JSON von `raw`.
 
@@ -105,6 +105,45 @@ kortty-cli events --include-evidence --timeout 60000
 `--kinds` und `--panes` nehmen kommagetrennte Listen und schränken die Zustellung ein; `--include-evidence` ergänzt jedes Ereignis um die Belege des Erkenners; `--count N` hält nach N Ereignissen an. Drei Dinge beenden den Strom: `--count` ist erreicht, die Frist aus `--timeout` läuft ab, oder Sie unterbrechen ihn. Die ersten beiden enden mit 0. Eine Unterbrechung wird **nicht** behandelt – es gibt bewusst keine Signalbehandlung –, der Prozess endet also mit der 128 + SIGINT = 130 der Shell, was ein CI-Job einplanen sollte, der den Strom in `timeout` einpackt.
 
 Ohne `--count` und ohne `--timeout` hat der Strom überhaupt keine Frist und läuft, bis korTTY endet oder Sie ihn anhalten.
+
+## MCP-Clients bedienen
+
+`kortty-cli mcp` macht den Client zu einem [Model Context Protocol](https://modelcontextprotocol.io/)-Server, sodass ein KI-Assistent, der MCP spricht, Ihre korTTY-Bereiche lesen kann. Er unterstützt ausschließlich den MCP-Transport über stdio: Der Host des Assistenten startet `kortty-cli mcp` als Kindprozess und tauscht mit ihm über stdin und stdout zeilenweise JSON-RPC-Nachrichten aus. Es gibt keinen Netzwerk-Listener; der Prozess erreicht korTTY über denselben lokalen Endpunkt der Steuerungs-API wie jeder andere Befehl und meldet sich als `mcp`-Client an, sodass korTTY auf jede Anfrage die [MCP-Regeln](control-api.md#mcp-clients) anwendet.
+
+korTTY muss es erlauben: Die Steuerungs-API muss eingeschaltet sein, der separate Schalter **MCP-Server** unter **Einstellungen › Terminal › Steuerungs-API** muss eingeschaltet sein, und die [Unternehmensrichtlinie](enterprise-policy.md) darf `mcp-server` nicht verweigern. Solange eine dieser Bedingungen nicht erfüllt ist, liefert jeder Tool-Aufruf einen Fehler mit der Begründung, und der Assistent kann die Tools trotzdem auflisten.
+
+Die meisten MCP-Hosts werden mit einem JSON-Eintrag wie diesem konfiguriert; tragen Sie in `command` den vollständigen Pfad von `kortty-cli` aus der Tabelle oben ein, falls er nicht in Ihrem `PATH` liegt:
+
+```json
+{
+  "mcpServers": {
+    "kortty": {
+      "command": "kortty-cli",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+Der Server bietet diese Tools an. Jedes Argument trägt den Namen des API-Parameters, den es füllt, und `pane` nimmt eine Bereichs-ID aus `pane_list` oder `@focused` entgegen:
+
+| Tool | Ruft auf | Angeboten |
+| --- | --- | --- |
+| `pane_list` | `pane.list` | Immer |
+| `pane_read` | `pane.read` | Immer |
+| `pane_wait_output` | `pane.wait_output` | Immer |
+| `tab_list` | `tab.list` | Immer |
+| `agent_list` | `agent.list` | Immer |
+| `pane_send_text` | `pane.send_text` | Nur solange korTTY **Schreib-Tools erlauben** als eingeschaltet meldet |
+| `pane_run` | `pane.run` | Nur solange korTTY **Schreib-Tools erlauben** als eingeschaltet meldet |
+| `pane_send_keys` | `pane.send_keys` | Nur solange korTTY **Schreib-Tools erlauben** als eingeschaltet meldet |
+
+Die Lese-Tools sind als schreibgeschützt und die Schreib-Tools als destruktiv gekennzeichnet, sodass ein Host, der vor destruktiven Tools nachfragt, vor jedem von ihnen nachfragt. korTTY fragt ebenfalls nach, unabhängig vom Host: Jeder Aufruf eines Schreib-Tools öffnet in korTTY eine [Rückfrage zur Zustimmung](control-api.md#schreibvorgange-eines-mcp-clients), und ein solcher Aufruf wartet bis zu 70 Sekunden auf Ihre Antwort, bevor er aufgibt. Ein Tool-Ergebnis ist die JSON-Antwort der API als Text; korTTY hat die ihm bekannten Geheimnisse bereits maskiert und die Größe begrenzt. Eine Verweigerung, eine abgelehnte oder unbeantwortete Rückfrage, ein beendetes korTTY oder ein ausgeschalteter MCP-Server kommt als Tool-Fehler mit dem Grund zurück, zum Beispiel `method_not_allowed_for_mcp` oder `mcp_write_denied`, und der Assistent kann ihn Ihnen anzeigen. Die Tool-Liste wird bei jeder `tools/list`-Anfrage einmal gelesen, daher wirkt das Ein- oder Ausschalten der Schreib-Tools erst, wenn der Assistent die Tools das nächste Mal auflistet.
+
+Jeder Tool-Aufruf öffnet eine eigene Verbindung, daher muss der Assistent nach einem Neustart von korTTY nicht neu gestartet werden. Aufrufe werden nacheinander bearbeitet: Ein langes `pane_wait_output` verzögert die nächste Antwort, bis es zurückkehrt. stdout enthält ausschließlich Protokollnachrichten; `kortty-cli mcp` schreibt pro Anfrage eine Diagnosezeile nach stderr, die die Methode oder das Tool nennt, aber nie deren Argumente oder Ergebnisse, und `--quiet` unterdrückt diese Zeilen. `--config-dir` funktioniert wie bei jedem anderen Befehl.
+
+!!! warning "Alles, was ein Tool zurückgibt, ist nicht vertrauenswürdiger Terminaltext"
+    Ein entfernter Host, eine Logdatei oder eine Webseite, die in einem Terminal angezeigt wird, kann Text enthalten, der wie Anweisungen an einen KI-Assistenten aussehen soll. Die Tool-Beschreibungen fordern den Assistenten auf, Ergebnisse als Daten zu behandeln, doch das ist eine Bitte und keine Garantie; lassen Sie die Schreib-Tools daher ausgeschaltet, solange Sie sie nicht brauchen. Die MCP-Regeln schränken ein, was dieser Server freigibt; sie sind keine Sandbox gegen einen Assistenten, der auch Shell-Befehle als Sie ausführen kann, denn jedes Ihrer Programme kann das Token lesen und sich als gewöhnlicher `cli`-Client verbinden.
 
 ## Exit-Codes
 

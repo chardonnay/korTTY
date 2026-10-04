@@ -186,6 +186,31 @@ public final class ControlApiScenarioFixtures {
      */
     public static ControlApiServer startServer(Path tempConfigDir, ControlSurface surface,
                                                CodingAgentRegistry registry) {
+        return startServer(tempConfigDir, surface, registry, () -> McpGate.Verdict.DISABLED_BY_SETTING);
+    }
+
+    /**
+     * The same, with an MCP gate, so a test can open, narrow or close the MCP surface — and change its
+     * mind between two requests on one connection.
+     */
+    public static ControlApiServer startServer(Path tempConfigDir, ControlSurface surface,
+                                               CodingAgentRegistry registry,
+                                               java.util.function.Supplier<McpGate.Verdict> mcpGate) {
+        return startServer(tempConfigDir, surface, registry, mcpGate, ALLOW_EVERY_WRITE);
+    }
+
+    /**
+     * A consent prompter that answers "Allow once" to everything at once, for the scenarios that are
+     * about the gate and the allowlist rather than about the consent itself.
+     */
+    public static final McpWriteConsent.Prompter ALLOW_EVERY_WRITE =
+        (request, timeoutMillis) -> McpWriteConsent.Decision.ALLOW_ONCE;
+
+    /** The same, with the prompter that answers each MCP client write's consent question. */
+    public static ControlApiServer startServer(Path tempConfigDir, ControlSurface surface,
+                                               CodingAgentRegistry registry,
+                                               java.util.function.Supplier<McpGate.Verdict> mcpGate,
+                                               McpWriteConsent.Prompter prompter) {
         skipIfSocketPathTooLong(tempConfigDir.resolve(ControlDirectory.DIRECTORY_NAME));
         ControlEventBus events = new ControlEventBus(TIMER, System::currentTimeMillis);
         CodingAgentActions actions = new CodingAgentActions(registry, new AlwaysConnectedPanes(),
@@ -193,10 +218,11 @@ public final class ControlApiScenarioFixtures {
         String instanceId = UUID.randomUUID().toString();
         MethodRegistry methods = ControlVerbs.build(surface, UiDispatcher.DIRECT, registry, actions,
             events, (verb, pane, detail) -> { }, NOTIFIER, System::currentTimeMillis, APP_VERSION,
-            instanceId);
+            instanceId, new McpWriteConsent(prompter, (verb, pane, detail) -> { }));
         registry.addListener(events.registryListener(surface));
         ControlApiServer server = new ControlApiServer(tempConfigDir, nativeProbe(), methods,
-            () -> ControlApiGate.Verdict.OPEN, System::currentTimeMillis, APP_VERSION, instanceId);
+            () -> ControlApiGate.Verdict.OPEN, mcpGate, System::currentTimeMillis, APP_VERSION,
+            instanceId, null);
         server.applyEnabledState();
         return server;
     }

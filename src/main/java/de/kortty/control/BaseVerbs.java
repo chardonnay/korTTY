@@ -41,6 +41,11 @@ final class BaseVerbs {
     private BaseVerbs() {
     }
 
+    /** Each advertised capability and the method that provides it, for the MCP hello filter. */
+    static Map<String, String> capabilityMethods() {
+        return Map.copyOf(CAPABILITY_METHODS);
+    }
+
     /**
      * Registers the handshake verb and the two discovery verbs.
      *
@@ -63,7 +68,14 @@ final class BaseVerbs {
                 List.of(new ParamSpec("token", "string", true, null,
                         "The contents of the endpoint file's token field."),
                     new ParamSpec("client", "string", false, null,
-                        "A name for this client, for the korTTY log.")),
+                        "A name for this client, for the korTTY log."),
+                    new ParamSpec("client_kind", "string", false, "cli",
+                        "cli for scripts and kortty-cli; mcp for the MCP server facade, which is held "
+                            + "to the MCP allowlist. Any other value is refused."),
+                    new ParamSpec(ControlConnection.MCP_SESSION_PARAM, "string", false, null,
+                        "mcp only: a random id, 16 to 64 letters, digits or dashes, that one MCP server "
+                            + "process sends with every connection; it scopes the 'allow for this pane "
+                            + "in this session' write consent.")),
                 "{api, protocol_version, app_version, pid, transport, instance_id, "
                     + "server_time_millis, ids_survive_restart, capabilities, methods}",
                 List.of(ControlErrorCode.UNAUTHORIZED, ControlErrorCode.INVALID_PARAMS),

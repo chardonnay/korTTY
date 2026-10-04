@@ -40,6 +40,17 @@ A few terminal features report how they are used, with flags, coarse counts and 
 
 The search text, the names of commands, tabs, connections, snippets and rule sets, the patterns, and anything typed into the panes are never sent. Changes on the settings pages are reported as the name of the setting and, for switches and choices, the new value; for the quick-select letters and patterns and for rebound shortcuts only whether you changed them.
 
+### Control API and MCP clients
+
+When a program uses the [Control API](../reference/control-api.md), korTTY reports which methods are used and what kind of client used them. An AI assistant connected through `kortty-cli mcp` is also reported by tool and by how the call ended. Each event is sent at most once per method, or per tool and outcome, while korTTY runs; the number of calls goes into the periodic usage summary.
+
+| Event | Sent when | Data |
+| --- | --- | --- |
+| `control_api_used` | a Control API method is used for the first time in this run | the method name, such as `pane.read`, and the kind of client: `cli` for `kortty-cli`, `mcp` for an MCP client, `other` for any other program |
+| `mcp_tool_called` | an MCP client's call ends in a way not yet reported in this run | the tool (`pane_list`, `pane_read`, `pane_wait_output`, `tab_list`, `agent_list`, `pane_send_text`, `pane_run`, `pane_send_keys`, or `other`) and the outcome: `ok`, `refused` (switched off, not allowed or not possible in this pane), `denied` (you said no, or korTTY could not ask), `timeout` (nobody answered in time, or a wait ran out) or `failed` (any other error) |
+
+The client's name, pane ids, tool arguments, the text read or typed and the answers you gave are never sent.
+
 ### SFTP transfers
 
 When an SFTP Manager tab opens, one event says whether it shares a terminal's session. When an upload or download in the SFTP Manager finishes, one event says how it went. File counts are rounded down to 0, 1, 2, 5, 10, 50, 100 or 1000. When korTTY stops watching a file you edited in an external editor (also as root), one event says how the edit ended; upload counts are rounded down to 0, 1, 2, 5, 10 or 50.

@@ -106,6 +106,13 @@ public final class CliUsage {
         if (command.reserved() != null) {
             return text.toString();
         }
+        if (CliCommands.MCP_GROUP.equals(command.group())) {
+            text.append(NEWLINE).append("  Protocol: MCP (JSON-RPC 2.0) on stdin and stdout; diagnostics")
+                .append(" on stderr.").append(NEWLINE)
+                .append("  korTTY must allow MCP clients (Settings > Terminal > Control API).")
+                .append(NEWLINE);
+            return text.toString();
+        }
         text.append(NEWLINE).append("  Method: ")
             .append(command.method() == null ? "<the method operand>" : command.method())
             .append(NEWLINE);

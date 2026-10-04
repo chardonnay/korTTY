@@ -1,6 +1,7 @@
 package de.kortty.control;
 
 import de.kortty.codingagent.PaneRef;
+import de.kortty.core.SessionJournalRedactor;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -62,6 +63,29 @@ public interface ControlSurface {
      * ANY THREAD.
      */
     Optional<PaneReader> readerFor(String paneId);
+
+    /**
+     * The known secrets of the pane's session — its connection password and the organisation's
+     * replacement rules, the redactor {@code TerminalView.createSecretRedactor()} builds for AI
+     * requests — so that text handed to an MCP client can be masked off this thread afterwards.
+     * Empty when the pane is not open; the caller then masks with the organisation's rules and the
+     * token formats alone.
+     */
+    default Optional<SessionJournalRedactor> secretRedactorFor(String paneId) {
+        return Optional.empty();
+    }
+
+    /**
+     * What stands between an MCP client and typing into the pane: a pacing paste, a full-screen
+     * program, a suspected foreign session, broadcast or multi-exec, a coding agent — plus the label
+     * the consent prompt shows. The default describes nothing, and an unknown pane state is always
+     * refused, so a surface that does not implement this never lets an MCP client type.
+     *
+     * @throws ControlApiException {@link ControlErrorCode#PANE_NOT_FOUND}
+     */
+    default McpPaneWriteState mcpWriteStateOf(String paneId) throws ControlApiException {
+        return McpPaneWriteState.unknown(paneId);
+    }
 
     /**
      * Writes raw bytes to the pane's pty, with the same visibility and ordering guarantees as a user

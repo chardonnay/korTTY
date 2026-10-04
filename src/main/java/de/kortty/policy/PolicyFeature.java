@@ -48,7 +48,15 @@ public enum PolicyFeature {
      * no run result and no test message leaves the machine through a webhook. The hosts webhooks may
      * reach are limited separately ({@link ManagedSetting#WEBHOOK_HOST_ALLOWLIST}).
      */
-    JOB_WEBHOOKS("job-webhooks");
+    JOB_WEBHOOKS("job-webhooks"),
+    /**
+     * korTTY as an MCP server ({@code kortty-cli mcp}): an MCP client reaches the control API with
+     * {@code client_kind = "mcp"} and gets only the read-only allowlist (plus the pane write verbs when
+     * the user also allowed write tools). Denied, every MCP connection is refused and both user
+     * switches are forced off. It also needs {@link #CONTROL_API}; a plain control-API client is not
+     * affected.
+     */
+    MCP_SERVER("mcp-server");
 
     private final String tomlKey;
 

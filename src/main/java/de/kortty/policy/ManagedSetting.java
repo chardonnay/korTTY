@@ -60,5 +60,10 @@ public enum ManagedSetting {
      * The hosts JobScheduler webhooks may be sent to ({@code [rule.job-scheduler] webhook-host-allowlist},
      * {@link EffectivePolicy#webhookHostAllowlist()}); an empty list allows any host.
      */
-    WEBHOOK_HOST_ALLOWLIST
+    WEBHOOK_HOST_ALLOWLIST,
+    /**
+     * The two MCP server switches ({@link PolicyFeature#MCP_SERVER}): denied, both are forced off and
+     * locked.
+     */
+    MCP_SERVER
 }
