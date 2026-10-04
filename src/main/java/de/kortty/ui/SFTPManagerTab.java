@@ -10,6 +10,9 @@ import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.remote.RemoteArchiveCommands;
 import de.kortty.core.remote.RemoteCommandCancellation;
+import de.kortty.core.remote.RemoteCommandCancelledException;
+import de.kortty.core.remote.extract.ArchiveExtractException;
+import de.kortty.core.remote.extract.RemoteArchiveExtractor;
 import de.kortty.core.remote.search.RemoteSearchHit;
 import de.kortty.core.remote.search.RemoteSearchOutcome;
 import de.kortty.core.remote.search.RemoteSearchRequest;
@@ -23,6 +26,7 @@ import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.SnippetDiagram;
 import de.kortty.model.TemporarySSHKey;
+import de.kortty.ui.sftp.RemoteExtractMessages;
 import de.kortty.ui.sftp.RemoteSearchResultsPane;
 import de.kortty.ui.sftp.SftpDragOutPolicy;
 import de.kortty.ui.sftp.SftpDragPayload;
@@ -117,6 +121,8 @@ public class SFTPManagerTab extends Tab {
     private long remoteSearchGeneration;
     /** The cancel switch of the running recursive search, or null when none runs (FX thread). */
     private RemoteCommandCancellation remoteSearchCancellation;
+    /** The running "Extract Here" job, if any; FX thread. */
+    private RemoteCommandCancellation remoteExtractCancellation;
     private RemoteSearchResultsPane remoteSearchResults;
     private CheckBox remoteRecursiveToggle;
     private CheckBox remoteSameFilesystemToggle;
@@ -1148,6 +1154,9 @@ public class SFTPManagerTab extends Tab {
         deleteDragOutDirectories();
         cancelRemoteSearch();
         remoteSearchExecutor.shutdownNow();
+        if (remoteExtractCancellation != null) {
+            remoteExtractCancellation.cancel();
+        }
         SFTPSession session = sftpSession;
         if (session != null) {
             closeQuietly(session);
@@ -2493,6 +2502,12 @@ public class SFTPManagerTab extends Tab {
             resetAutoCloseTimer();
             createRemoteArchive();
         });
+
+        MenuItem extractItem = new MenuItem(I18n.get("sftp.contextMenu.extractHere"));
+        extractItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            extractSelectedRemoteArchive();
+        });
         
         MenuItem editWithSnippetEditorItem = new MenuItem(I18n.get("sftp.contextMenu.editWithSnippetEditor"));
         editWithSnippetEditorItem.setOnAction(e -> {
@@ -2513,7 +2528,7 @@ public class SFTPManagerTab extends Tab {
             new SeparatorMenuItem(),
             ownerItem,
             new SeparatorMenuItem(), 
-            archiveItem,
+            archiveItem, extractItem,
             new SeparatorMenuItem(),
             editWithSnippetEditorItem, openImageItem
         );
@@ -2532,6 +2547,8 @@ public class SFTPManagerTab extends Tab {
             newFolderItem.setDisable(!isRemoteConnected() || !remotePathResolved);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
+            extractItem.setDisable(!isSingleFile || remoteExtractCancellation != null
+                || RemoteArchiveExtractor.detect(selected.get(0).getName()).isEmpty());
             editWithSnippetEditorItem.setDisable(!isSingleFile);
             openImageItem.setDisable(!isImageFile);
         });
@@ -3116,6 +3133,106 @@ public class SFTPManagerTab extends Tab {
         public String toString() { return displayName; }
     }
     
+    /**
+     * "Extract Here...": unpacks the selected archive on the server into a new folder next to it
+     * (see {@link RemoteArchiveExtractor}). The data never leaves the server, so this is not a file
+     * transfer. FX thread.
+     */
+    private void extractSelectedRemoteArchive() {
+        SftpFileItem item = singleNamedSelection(remoteTable);
+        if (item == null || !item.isFile() || !requireConnected() || remoteExtractCancellation != null) {
+            return;
+        }
+        String archivePath = item.getPath();
+        if (RemoteArchiveExtractor.detect(item.getName()).isEmpty() || archivePath == null
+                || !archivePath.startsWith("/")) {
+            showError(I18n.get("sftp.extract.failedTitle"), I18n.get("sftp.extract.error.unsupported", item.getName()));
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("sftp.extract.title"));
+        confirm.setHeaderText(I18n.get("sftp.extract.header", item.getName()));
+        confirm.setContentText(I18n.get("sftp.extract.content"));
+        applyDarkTheme(confirm);
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+        SFTPSession session = sftpSession;
+        RemoteCommandCancellation cancellation = new RemoteCommandCancellation();
+        remoteExtractCancellation = cancellation;
+
+        Dialog<Void> progress = new Dialog<>();
+        progress.setTitle(I18n.get("sftp.extract.title"));
+        progress.setHeaderText(item.getName());
+        Label phaseLabel = new Label(RemoteExtractMessages.phaseText(RemoteArchiveExtractor.Phase.CHECKING));
+        ProgressBar bar = new ProgressBar(ProgressIndicator.INDETERMINATE_PROGRESS);
+        bar.setMaxWidth(Double.MAX_VALUE);
+        VBox content = new VBox(10, phaseLabel, bar);
+        content.setPadding(new Insets(10));
+        content.setPrefWidth(380);
+        progress.getDialogPane().setContent(content);
+        progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+        progress.setOnCloseRequest(event -> {
+            if (remoteExtractCancellation == cancellation) {
+                // the job closes the dialog once it has cleaned up
+                cancellation.cancel();
+                phaseLabel.setText(I18n.get("sftp.extract.cancelling"));
+                event.consume();
+            }
+        });
+        applyDarkTheme(progress);
+        progress.show();
+        statusLabel.setText(I18n.get("sftp.extract.running", item.getName()));
+
+        Thread.ofPlatform().daemon().name("SFTP-Extract").start(() -> {
+            RemoteArchiveExtractor.Result result = null;
+            Throwable failure = null;
+            try {
+                if (session == null) {
+                    throw new IOException(I18n.get("sftp.notConnected"));
+                }
+                result = new RemoteArchiveExtractor(session.commandRunner()).extract(archivePath, cancellation,
+                    phase -> Platform.runLater(() -> phaseLabel.setText(RemoteExtractMessages.phaseText(phase))));
+            } catch (IOException | RuntimeException e) {
+                failure = e;
+            }
+            RemoteArchiveExtractor.Result done = result;
+            Throwable error = failure;
+            Platform.runLater(() -> finishRemoteExtract(cancellation, progress, item.getName(), done, error));
+        });
+    }
+
+    private void finishRemoteExtract(RemoteCommandCancellation cancellation, Dialog<Void> progress, String name,
+                                     RemoteArchiveExtractor.Result result, Throwable failure) {
+        if (remoteExtractCancellation == cancellation) {
+            remoteExtractCancellation = null;
+        }
+        progress.close();
+        if (closing) {
+            return;
+        }
+        if (result != null) {
+            statusLabel.setText(I18n.get("sftp.extract.done", name, result.folder()));
+            String parent = RemotePathSupport.parentRemotePath(result.folder());
+            if (parent != null && parent.equals(currentRemotePath)) {
+                pendingRemoteSelection = result.folder();
+                refreshRemote();
+            }
+            return;
+        }
+        if (failure instanceof RemoteCommandCancelledException) {
+            statusLabel.setText(I18n.get("sftp.extract.cancelled"));
+            return;
+        }
+        String message = failure instanceof ArchiveExtractException refused
+            ? RemoteExtractMessages.errorText(refused)
+            : I18n.get("sftp.extract.error.failed", failureMessage(failure));
+        logger.warn("Extracting {} failed: {}", name, failure instanceof ArchiveExtractException refused
+            ? refused.reason() : failure.getClass().getSimpleName());
+        statusLabel.setText(message);
+        showError(I18n.get("sftp.extract.failedTitle"), message);
+    }
+
     private void createRemoteArchive() {
         var selected = remoteTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) {

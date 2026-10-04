@@ -80,9 +80,20 @@ Each panel has its own group of toolbar buttons below the lists (local on the le
 | **Copy** | **Copy to...** in the context menu copies within the same side: locally into a folder you pick (in the background), remotely into a folder path you type. A remote folder copied where a folder of that name exists merges into it; copying an item onto itself or into one of its own subfolders is refused with an error |
 | **Edit in Snippet Editor** | Select exactly one local or remote file, then use the *Edit* toolbar menu or the right-click context menu |
 | **Archive** | **Archive** in the remote toolbar, or **Archive...** in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side. A local archive can have a password; an archive on the server cannot, because `zip` and `7z` would need the password on the server's command line, where other users of the server can read it |
+| **Extract Here** | Right-click one archive on the server (`.zip`, `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz` or `.7z`) and choose **Extract Here...**. It is unpacked on the server into a new folder next to it; see [Extracting archives on the server](#extracting-archives-on-the-server) |
 | **Set Owner/Permissions** | Select entries, then click **Rights** or choose **Set Owner/Permissions...** in the context menu. Separate fields for User, Group, and octal permissions (e.g., 755) |
 
 A name for **Rename** or **New Folder** must be a single entry in the folder shown: it may not be empty, `.` or `..`, or contain `/` or `\`. The dialog stays open with an error until the name is usable.
+
+### Extracting archives on the server
+
+**Extract Here...** in the remote context menu unpacks the selected archive on the server itself, so nothing is downloaded or uploaded. After you confirm, a progress window shows each step, and **Cancel** stops the extraction and removes what was already unpacked.
+
+- **Always a new folder** — the files land in a new folder next to the archive, named after it without the extension (`site-1.2.tar.gz` becomes `site-1.2`). If that name is taken, korTTY uses `site-1.2 (1)`, `site-1.2 (2)` and so on; an existing file or folder is never overwritten or merged into.
+- **Checked before anything is written** — korTTY first lists the archive and refuses it as a whole when an entry would land outside the new folder: an absolute path, `..` that climbs above the folder, a drive letter such as `C:`, a name with a line break, a device file, or a link whose target lies outside. Nothing is written in that case.
+- **Checked again after unpacking** — the archive is unpacked into a hidden staging folder (`.kortty-extract.` plus random characters) that only you can open, without taking over the owners stored in the archive. korTTY then checks every symbolic link in it; if one points outside the folder, the staging folder is deleted and you get an error. Only a clean result is renamed to the new folder, so it appears complete or not at all.
+- **Tools on the server** — ZIP needs `unzip`, the tar formats `tar`, and 7z `7z` or `7za`. If the tool is missing, the error names it. With a tar other than GNU tar (for example BusyBox), archives with hard links are refused, because their targets cannot be checked.
+- **No passwords** — password-protected archives are refused with a message: the tools would need the password on the server's command line, where other users of the server can read it.
 
 ### Drag and drop
 
