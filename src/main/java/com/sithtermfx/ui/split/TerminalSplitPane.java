@@ -35,11 +35,17 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.TransferMode;
+import javafx.scene.layout.Border;
+import javafx.scene.layout.BorderStroke;
+import javafx.scene.layout.BorderStrokeStyle;
+import javafx.scene.layout.BorderWidths;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.ui.I18n;
@@ -104,8 +110,8 @@ public class TerminalSplitPane extends StackPane {
         LINKS,
         /**
          * The ring around the pane the keyboard is in (with two or more panes), a zoomed pane's badge,
-         * and the outline and badge of a pane whose typing goes to other panes (multi-exec or
-         * broadcast mode).
+         * the outline and badge of a pane whose typing goes to other panes (multi-exec or broadcast
+         * mode), and the frame of a pane whose connection has another tab color than its tab.
          */
         DECORATION,
         /** The drop zones shown while a pane is dragged onto this one to move it. */
@@ -175,6 +181,34 @@ public class TerminalSplitPane extends StackPane {
     static final String MIRROR_OUTLINE_STYLE_CLASS = "kortty-pane-mirror-outline";
 
     /**
+     * Style class of the frame in the DECORATION layer of a pane that runs another connection than
+     * its tab, in that connection's tab color ({@link #setPaneConnectionMarks}).
+     */
+    static final String CONNECTION_FRAME_STYLE_CLASS = "kortty-pane-connection-frame";
+
+    /**
+     * Set on the wrapper of a pane while its connection frame shows: the stylesheets then draw the
+     * focus ring and the mirror outline inside the frame, so all of them show.
+     */
+    static final PseudoClass CONNECTION_FRAMED = PseudoClass.getPseudoClass("connection-framed");
+
+    /** Width of a pane's connection frame, in pixels: the same 3 px as the frame around a colored tab. */
+    public static final double CONNECTION_FRAME_WIDTH = 3;
+
+    /**
+     * How a pane that runs another connection than its tab is marked: a frame in that connection's
+     * tab color over the pane's edge, and what screen readers hear after the pane's name. The host
+     * app decides which panes get one (korTTY: a pane whose connection's color differs from the tab's).
+     *
+     * @param frameColor the frame's color, or {@code null} for no frame (the connection has no color,
+     *     or frames are switched off)
+     * @param description the text for screen readers, such as "Connection db-prod, tab color red
+     *     (#D32F2F)", or {@code null} for none
+     */
+    public record PaneConnectionMark(@Nullable Color frameColor, @Nullable String description) {
+    }
+
+    /**
      * A block that forks into three lines to its right, 10 by 10: what you type in one pane goes on to
      * others. The pane badge, the tab marker, the dashboard and the status bar of multi-exec show it,
      * so none of them is text and colour alone.
@@ -232,6 +266,9 @@ public class TerminalSplitPane extends StackPane {
     private @Nullable SithTermFxWidget zoomedWidget;
     // The badge in the zoomed pane's DECORATION layer, reused from one zoom to the next.
     private @Nullable Label zoomBadge;
+    // The connection frame and screen-reader text of each pane that runs another connection than its
+    // tab; set by the host app, drawn by refreshPaneDecorations.
+    private final Map<SithTermFxWidget, PaneConnectionMark> paneConnectionMarks = new HashMap<>();
     // JavaFX creates a new themed SplitPane for every split level. Remember see-through mode so both
     // existing and future nested controls stay transparent instead of restoring the opaque theme.
     private boolean backgroundTransparent = false;
@@ -1067,11 +1104,47 @@ public class TerminalSplitPane extends StackPane {
     }
 
     /**
+     * The connection frame in a pane's {@link PaneOverlayLayer#DECORATION} layer, added on first use,
+     * below the focus ring and the mirror outline: a region as large as the pane whose border
+     * ({@link #connectionFrameBorder}) lies over the pane's edge. Like the ring it is unmanaged and
+     * without padding, so showing it never resizes the terminal, and mouse-transparent, so the pane's
+     * close button and the terminal still get every click.
+     */
+    static @NotNull Region connectionFrameOf(@NotNull Pane decorationLayer) {
+        return layerFillingRegion(decorationLayer, CONNECTION_FRAME_STYLE_CLASS, true);
+    }
+
+    /** The connection frame of a decoration layer, or {@code null} while it has none. */
+    static @Nullable Region findConnectionFrame(@NotNull Pane decorationLayer) {
+        return findStyledRegion(decorationLayer, CONNECTION_FRAME_STYLE_CLASS);
+    }
+
+    /** One solid {@link #CONNECTION_FRAME_WIDTH} px stroke of {@code color} on every side, square-cornered. */
+    static @NotNull Border connectionFrameBorder(@NotNull Color color) {
+        return new Border(new BorderStroke(color, BorderStrokeStyle.SOLID, CornerRadii.EMPTY,
+            new BorderWidths(CONNECTION_FRAME_WIDTH)));
+    }
+
+    /** Shows {@code frame} in {@code color}, or hides it for {@code null}. */
+    static void showConnectionFrame(@NotNull Region frame, @Nullable Color color) {
+        frame.setBorder(color != null ? connectionFrameBorder(color) : null);
+        frame.setVisible(color != null);
+    }
+
+    /**
      * The region with {@code styleClass} in {@code layer}, added on first use: as large as the layer
      * and following its size, unmanaged, without padding, mouse-transparent and not focusable, so
      * the stylesheets can draw a border over the pane's edge that never resizes the terminal.
      */
     private static @NotNull Region layerFillingRegion(@NotNull Pane layer, @NotNull String styleClass) {
+        return layerFillingRegion(layer, styleClass, false);
+    }
+
+    /**
+     * {@link #layerFillingRegion(Pane, String)}, added below the layer's other children when
+     * {@code below} is set, so they are drawn over it.
+     */
+    private static @NotNull Region layerFillingRegion(@NotNull Pane layer, @NotNull String styleClass, boolean below) {
         Region existing = findStyledRegion(layer, styleClass);
         if (existing != null) {
             return existing;
@@ -1086,7 +1159,11 @@ public class TerminalSplitPane extends StackPane {
         ChangeListener<Number> fit = (obs, oldSize, newSize) -> region.resize(layer.getWidth(), layer.getHeight());
         layer.widthProperty().addListener(fit);
         layer.heightProperty().addListener(fit);
-        layer.getChildren().add(region);
+        if (below) {
+            layer.getChildren().add(0, region);
+        } else {
+            layer.getChildren().add(region);
+        }
         return region;
     }
 
@@ -1115,9 +1192,12 @@ public class TerminalSplitPane extends StackPane {
      * so no pane shows a ring, the zoomed one shows the zoom badge instead, and its name says it is
      * zoomed. A pane whose typing goes to other panes, as a member of the input mirror (multi-exec)
      * or in a tab whose broadcast mode is on, shows an amber outline and a badge that says which, and
-     * its name says it too. Runs after every change to the tree, to the zoom, to broadcast mode and
-     * to the input mirror's members ({@link #refreshMirrorMarkers}), so a pane that joined gets them,
-     * the numbers follow a moved pane and the badges count the right panes.
+     * its name says it too. A pane the host app marked as running another connection than its tab
+     * ({@link #setPaneConnectionMarks}) shows that connection's frame, with any number of panes, and
+     * its name says which connection it is. Runs after every change to the tree, to the zoom, to
+     * broadcast mode, to the input mirror's members ({@link #refreshMirrorMarkers}) and to the
+     * connection marks, so a pane that joined gets them, the numbers follow a moved pane and the
+     * badges count the right panes.
      */
     private void refreshPaneDecorations() {
         List<SithTermFxWidget> panes = getAllWidgets();
@@ -1137,11 +1217,15 @@ public class TerminalSplitPane extends StackPane {
             if (ring != null) {
                 ring.setVisible(several && zoomedWidget == null);
             }
+            PaneConnectionMark connectionMark = paneConnectionMarks.get(pane);
+            refreshConnectionFrame(pane, connectionMark != null ? connectionMark.frameColor() : null);
             TerminalPanel panel = pane.getTerminalPanel();
             if (panel != null && panel.getCanvas() != null) {
                 String name = paneAccessibleName(i, panes.size());
                 String text = pane == zoomedWidget && name != null ? name + ", " + badgeText : name;
-                panel.getCanvas().setAccessibleText(joinAccessibleText(text, mirrorText));
+                String connectionText = connectionMark != null ? connectionMark.description() : null;
+                panel.getCanvas().setAccessibleText(
+                    joinAccessibleText(joinAccessibleText(text, connectionText), mirrorText));
             }
         }
         refreshLastFocusedMarks();
@@ -1149,6 +1233,49 @@ public class TerminalSplitPane extends StackPane {
         // After the zoom badge, so a zoomed pane's mirror badge can sit left of it.
         for (int i = 0; i < panes.size(); i++) {
             refreshMirrorMarker(panes.get(i), mirrorTexts.get(i));
+        }
+    }
+
+    /**
+     * Marks the panes that run another connection than their tab: each pane in {@code marks} shows
+     * its {@link PaneConnectionMark#frameColor() frame} and its screen-reader text, every other pane
+     * neither. Replaces the marks set before; an unchanged set draws nothing again. The marks stay
+     * with their panes through splits, moves and the zoom, and go with a closed pane. FX thread.
+     */
+    public void setPaneConnectionMarks(@NotNull Map<SithTermFxWidget, PaneConnectionMark> marks) {
+        Map<SithTermFxWidget, PaneConnectionMark> next = new HashMap<>();
+        marks.forEach((pane, mark) -> {
+            if (pane != null && mark != null && (mark.frameColor() != null || mark.description() != null)) {
+                next.put(pane, mark);
+            }
+        });
+        if (next.equals(paneConnectionMarks)) {
+            return;
+        }
+        paneConnectionMarks.clear();
+        paneConnectionMarks.putAll(next);
+        refreshPaneDecorations();
+    }
+
+    /**
+     * Shows the connection frame in {@code color} on {@code pane}, or hides it for {@code null}, and
+     * marks the pane's wrapper {@link #CONNECTION_FRAMED} while it shows, so the focus ring and the
+     * mirror outline move inside it.
+     */
+    private void refreshConnectionFrame(@NotNull SithTermFxWidget pane, @Nullable Color color) {
+        StackPane wrapper = wrapperOf(pane);
+        if (wrapper != null) {
+            wrapper.pseudoClassStateChanged(CONNECTION_FRAMED, color != null);
+        }
+        Pane decoration = color != null
+            ? paneOverlay(pane, PaneOverlayLayer.DECORATION)
+            : existingPaneOverlay(pane, PaneOverlayLayer.DECORATION);
+        if (decoration == null) {
+            return;
+        }
+        Region frame = color != null ? connectionFrameOf(decoration) : findConnectionFrame(decoration);
+        if (frame != null) {
+            showConnectionFrame(frame, color);
         }
     }
 
@@ -1772,6 +1899,7 @@ public class TerminalSplitPane extends StackPane {
         widgetBottomHosts.remove(widget);
         widgetCloseButtons.remove(widget);
         widgetOverlayHosts.remove(widget);
+        paneConnectionMarks.remove(widget);
     }
 
     /**
@@ -2297,6 +2425,7 @@ public class TerminalSplitPane extends StackPane {
         widgetBottomHosts.clear();
         widgetCloseButtons.clear();
         widgetOverlayHosts.clear();
+        paneConnectionMarks.clear();
     }
 
     private void refreshSplitCloseButtons() {
@@ -2304,6 +2433,7 @@ public class TerminalSplitPane extends StackPane {
         List<SithTermFxWidget> activeWidgets = getAllWidgets();
         widgetCloseButtons.entrySet().removeIf(entry -> !activeWidgets.contains(entry.getKey()));
         widgetOverlayHosts.keySet().removeIf(w -> !activeWidgets.contains(w));
+        paneConnectionMarks.keySet().removeIf(w -> !activeWidgets.contains(w));
         for (Button button : widgetCloseButtons.values()) {
             button.setVisible(showButtons);
             button.setManaged(showButtons);

@@ -12,9 +12,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * The keys of the tab basics (rename, close others, reopen closed tabs, the connection's tab color,
- * its frame, the credential environment colors, the title the shell sets, Ctrl+Tab in
- * most-recently-used order, and the tab commands that follow) exist in every bundled language.
- * Grows with each tab feature.
+ * its frame, the frames of split panes of another color, the credential environment colors, the
+ * folder (group) colors, the title the shell sets, Ctrl+Tab in most-recently-used order, and the tab commands that follow)
+ * exist in every bundled language. Grows with each tab feature.
  */
 class TabBasicsI18nCoverageTest {
 
@@ -71,7 +71,20 @@ class TabBasicsI18nCoverageTest {
             "dialog.renameTab.headerShellTitle",
             "settings.window.tabSwitchMostRecentFirst",
             "settings.window.tabSwitchMostRecentFirst.tooltip",
-            "settings.window.tabSwitchMostRecentFirst.info");
+            "settings.window.tabSwitchMostRecentFirst.info",
+            "terminal.pane.connectionColor",
+            "terminal.pane.connectionNoColor",
+            "tab.tooltip.mixedConnections",
+            "tab.tooltip.mixedConnection.color",
+            "tab.tooltip.mixedConnection.noColor",
+            "tab.tooltip.groupColor",
+            "connManager.group.tabColor",
+            "connManager.group.tabColor.title",
+            "connManager.group.tabColor.header",
+            "connManager.group.tabColor.enable",
+            "connManager.group.tabColor.info",
+            "connManager.group.tabColor.inherited",
+            "connManager.group.tabColor.swatch");
 
     @Test
     void everyTabBasicsKeyExistsInEveryBundledLocale() throws Exception {
@@ -144,6 +157,25 @@ class TabBasicsI18nCoverageTest {
     }
 
     @Test
+    void aSplitPaneOfAnotherColorIsNamedWithItsConnectionColorAndCode() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            for (String key : List.of("terminal.pane.connectionColor", "tab.tooltip.mixedConnection.color")) {
+                String value = localized.getProperty(key);
+                for (String placeholder : List.of("{0}", "{1}", "{2}")) {
+                    assertWithMessage(bundle + " drops " + placeholder + " from " + key)
+                            .that(value).contains(placeholder);
+                }
+            }
+            for (String key : List.of("terminal.pane.connectionNoColor", "tab.tooltip.mixedConnections",
+                    "tab.tooltip.mixedConnection.noColor")) {
+                assertWithMessage(bundle + " drops the connection from " + key)
+                        .that(localized.getProperty(key)).contains("{0}");
+            }
+        }
+    }
+
+    @Test
     void theTabColorTooltipNamesTheConnectionTheColorAndItsCode() throws Exception {
         for (String bundle : BUNDLES) {
             Properties localized = loadBundle(bundle);
@@ -171,6 +203,29 @@ class TabBasicsI18nCoverageTest {
                     .that(swatch).contains("{0}");
             assertWithMessage("%s drops the color code from credential.environments.color.swatch", bundle)
                     .that(swatch).contains("{1}");
+        }
+    }
+
+    @Test
+    void theGroupColorTooltipAndFolderDialogNameTheColorItsCodeAndTheFolder() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            for (String key : List.of("tab.tooltip.groupColor", "connManager.group.tabColor.inherited")) {
+                String value = localized.getProperty(key);
+                for (String placeholder : List.of("{0}", "{1}", "{2}")) {
+                    assertWithMessage("%s drops %s from %s", bundle, placeholder, key)
+                            .that(value).contains(placeholder);
+                }
+            }
+            assertWithMessage("%s drops the folder from connManager.group.tabColor.header", bundle)
+                    .that(localized.getProperty("connManager.group.tabColor.header")).contains("{0}");
+            String swatch = localized.getProperty("connManager.group.tabColor.swatch");
+            assertWithMessage("%s drops the color name from connManager.group.tabColor.swatch", bundle)
+                    .that(swatch).contains("{0}");
+            assertWithMessage("%s drops the color code from connManager.group.tabColor.swatch", bundle)
+                    .that(swatch).contains("{1}");
+            assertWithMessage("%s: the folder menu entry opens a dialog", bundle)
+                    .that(localized.getProperty("connManager.group.tabColor")).endsWith("...");
         }
     }
 

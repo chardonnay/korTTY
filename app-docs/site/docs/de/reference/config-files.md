@@ -72,6 +72,7 @@ Enthält alle gespeicherten SSH-Verbindungen mit ihren Einstellungen.
 - Gruppen-/Ordnerorganisation
 - Optionaler Freitext-Tag (wird für Suche, Massen-Tagging und Tag-basierten Export verwendet)
 - Optionaler Regelsatz für die Hervorhebung von Schlüsselwörtern (`highlightRuleSetId`): die ID eines mitgelieferten oder eigenen Regelsatzes, `none` für keine Hervorhebung oder nicht vorhanden, um dem Standard-Regelsatz zu folgen (siehe [Regelsatz pro Verbindung](../features/highlighting.md#regelsatz-pro-verbindung)). Verbindungen aus einer [Teamarbeit](../features/teamwork.md)-Datei können ihn ebenfalls enthalten; die ID eines Regelsatzes, der auf Ihrem Computer nicht existiert, wird ignoriert.
+- Optionaler Einfügeschutz, der *Einstellungen → Terminal → Einfügeschutz* für diese Verbindung überschreibt: `pasteWarningMode` (`off`, `unless-bracketed` oder `always`) und `pasteLineDelayMs` (0 bis 1000; 0 fügt sofort ein). Fehlt ein Wert, gilt die globale Einstellung, und ein unbekannter Warnmodus zählt als fehlend (siehe [Einfügeschutz](../features/connections.md#einfugeschutz)). Verbindungen aus einer [Teamarbeit](../features/teamwork.md)-Datei können beide Werte enthalten, ihr Warnmodus gilt aber nur, wenn er häufiger nachfragt als Ihre eigene Einstellung.
 - Optionale Tab-Farbe (`tabColor`, `#RRGGBB`), die die Terminal-Tabs der Verbindung mit einem farbigen Punkt markiert; alles, was keine Hex-Farbe ist, wird ignoriert (siehe [Tab-Farbe](../features/connections.md#tab-farbe)). Verbindungen aus einer [Teamarbeit](../features/teamwork.md)-Datei können sie ebenfalls enthalten, sodass derjenige, der die Datei pflegt, entscheidet, wie diese Tabs markiert werden.
 
 **Sicherheit:** Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.
@@ -150,7 +151,8 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - Präferenz für die Sichtbarkeit der Menüleiste
 - Dashboard-Sichtbarkeitsstatus
 -  Flag „Toolfenster als Registerkarten öffnen“.
-- `connectionColorBorderEnabled`: ob das Terminal einer Verbindung mit einer [Tab-Farbe](../features/connections.md#tab-farbe) einen Rahmen in dieser Farbe erhält (standardmäßig aktiviert)
+- `connectionColorBorderEnabled`: ob das Terminal einer Verbindung mit einer [Tab-Farbe](../features/connections.md#tab-farbe) einen Rahmen in dieser Farbe erhält und ein geteilter Bereich einer Verbindung mit einer anderen Farbe einen eigenen Rahmen (standardmäßig eingeschaltet)
+- `connectionGroupColors`: die [Tab-Farben der Connection-Manager-Ordner](../features/connections.md#tab-farbe), ein Eintrag `<group path="Work/Production" color="#D32F2F"/>` pro Ordner mit eigener Farbe; ein Eintrag, dessen Farbe keine Hex-Farbe ist, wird ignoriert, und ohne das Element hat kein Ordner eine Farbe
 - `tabTitleFromShellEnabled`: ob ein Terminal-Tab statt des Verbindungsnamens den [Titel anzeigt, den seine Shell setzt](../features/terminal.md#titel-aus-der-shell) (standardmäßig aktiviert)
 - `tabSwitchMostRecentFirst`: ob ++ctrl+tab++ die Tabs in der Reihenfolge ihrer letzten Nutzung wechselt statt in ihrer [Reihenfolge in der Tab-Leiste](settings/window.md#tabs) (standardmäßig aus)
 - `recentProjectPaths`: die absoluten Pfade der Projektdateien, die Sie zuletzt geöffnet oder gespeichert haben, die neueste zuerst, höchstens 10, die [*Datei → Zuletzt verwendet*](../features/projects.md#zuletzt-verwendet) auflistet; `openRecentClearedAt`: wann Sie dort zuletzt **Liste leeren** gewählt haben (Millisekunden seit 1970, `0` für nie)

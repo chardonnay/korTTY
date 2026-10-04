@@ -1,6 +1,7 @@
 package de.kortty.paste;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -482,5 +483,47 @@ class PasteGuardTest {
 
         assertThat(target.sent).containsExactly("one\r");
         assertThat(pacer.isPacing(target.key())).isTrue();
+    }
+
+    @Test
+    void eachPaneIsAskedAndPacedByTheRulesOfItsOwnConnection() {
+        QueuedScheduler scheduler = new QueuedScheduler();
+        PastePacer pacer = new PastePacer(scheduler);
+        RecordingConfirmer confirmer = new RecordingConfirmer();
+        FakeTarget production = new FakeTarget();
+        FakeTarget console = new FakeTarget();
+        PasteGuard guard = new PasteGuard(
+            target -> target == production ? ALWAYS_MULTI_LINE : PasteRules.NONE, confirmer, pacer,
+            target -> target == console ? 100 : 0);
+
+        guard.paste(production, "one\ntwo", PasteSource.CLIPBOARD);
+        guard.paste(console, "three\nfour", PasteSource.CLIPBOARD);
+
+        assertThat(confirmer.requests).hasSize(1);
+        assertThat(production.sent).isEmpty();
+        assertThat(console.sent).containsExactly("three\r");
+        scheduler.runAll();
+        assertThat(console.sent).containsExactly("three\r", "four").inOrder();
+
+        confirmer.answer(0, true);
+        assertWithMessage("the production pane has no line delay of its own, so it pastes at once")
+            .that(production.sent).containsExactly("one\rtwo");
+    }
+
+    @Test
+    void theRequestSaysWhetherThePanesConnectionSetTheWarning() {
+        RecordingConfirmer confirmer = new RecordingConfirmer();
+        PasteRules fromConnection = new PasteDecision(
+            new PasteProtectionSettings(PasteWarningMode.ALWAYS, 0), true);
+        FakeTarget connectionPane = new FakeTarget();
+        PasteGuard guard = new PasteGuard(
+            target -> target == connectionPane ? fromConnection : ALWAYS_MULTI_LINE, confirmer, null, target -> 0);
+
+        guard.paste(connectionPane, "a\nb", PasteSource.CLIPBOARD);
+        guard.paste(new FakeTarget(), "c\nd", PasteSource.CLIPBOARD);
+
+        assertThat(confirmer.requests).hasSize(2);
+        assertThat(confirmer.requests.get(0).setByConnection()).isTrue();
+        assertThat(confirmer.requests.get(1).setByConnection()).isFalse();
     }
 }

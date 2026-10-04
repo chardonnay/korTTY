@@ -65,6 +65,7 @@ import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteRules;
 import de.kortty.paste.PasteSource;
+import de.kortty.paste.PasteTarget;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.plugin.terminaleffects.TerminalEffectAppearance;
 import de.kortty.plugin.terminaleffects.TerminalEffectConnectorWrapper;
@@ -339,6 +340,12 @@ public class TerminalView extends BorderPane {
     // The connection each split pane runs when it is not the tab's (a "new connection" split and
     // the same-server splits made from it), so a same-server split opens on the pane's own server.
     private final PaneOrigins<SithTermFxWidget, TtyConnector> paneOrigins = new PaneOrigins<>();
+    // The tab's color, the frame switch and the color resolver the window last applied, so a pane
+    // whose own connection has another color can be framed in it; null until then and after cleanup.
+    // FX thread.
+    private PaneConnectionColors.Scheme paneColorScheme;
+    // Told the tab tooltip's line about such panes (null for none) whenever it may have changed. FX thread.
+    private Consumer<String> paneConnectionsListener;
 
     /** Set once {@link #cleanup()} ran: the tab is closed, and a split layout restore stops. */
     private volatile boolean cleanedUp;
@@ -476,11 +483,13 @@ public class TerminalView extends BorderPane {
      * middle-click and text dropped onto a pane. It asks first when Settings → Terminal → Paste
      * protection says so (line breaks, control characters, a large paste), removes bracketed-paste
      * markers from the text, brackets the paste itself when the program in the pane has bracketed
-     * paste enabled, and paces it when a line delay is set.
+     * paste enabled, and paces it when a line delay is set. A pane whose connection sets its own
+     * paste warning or line delay follows that instead ({@link #pasteConnectionOf}).
      */
-    private final PasteGuard pasteGuard = new PasteGuard(() -> pasteRules(TerminalView::readGlobalSettings),
+    private final PasteGuard pasteGuard = new PasteGuard(
+        target -> pasteRules(TerminalView::readGlobalSettings, pasteConnectionOf(target)),
         new PasteConfirmationDialog(this::pasteConfirmationOwner), pastePacer,
-        () -> pasteLineDelayMs(TerminalView::readGlobalSettings));
+        target -> pasteLineDelayMs(TerminalView::readGlobalSettings, pasteConnectionOf(target)));
     private final List<Consumer<SithTermFxWidget>> focusedWidgetListeners = new CopyOnWriteArrayList<>();
     /** The pane whose canvas most recently gained keyboard focus (null before the first focus). */
     private volatile SithTermFxWidget lastFocusedWidget;
@@ -677,6 +686,8 @@ public class TerminalView extends BorderPane {
         splitPane.setOnWidgetSplitCreated((widget, request) -> { // New split panes inherit the source pane's highlight choice and effect
             inheritHighlightOnSplit(widget, request);
             inheritEffectOnSplit(widget, request);
+            // Its origin is bound by now: a pane of another connection with another color gets its frame.
+            refreshPaneConnectionColors(null);
         });
         // The first pane is set up now (it was configured inside the constructor above): report the
         // rule set it starts with, if any.
@@ -1323,6 +1334,8 @@ public class TerminalView extends BorderPane {
         paneProviders.remove(widget);
         discardTerminalAgentRunsForWidget(widget);
         releasePaneState(widget);
+        // The pane is still in the split pane while this runs: leave it out of the tab's tooltip.
+        refreshPaneConnectionColors(widget);
         if (closingConnector != null && closingConnector == tunnelOwnerConnector) {
             // The pane is still part of the split pane while this hook runs; look for a new
             // owner once it is gone.
@@ -3925,6 +3938,71 @@ public class TerminalView extends BorderPane {
         return label != null ? label : "";
     }
 
+    /**
+     * Marks the panes of this tab that run a connection of their own whose tab color differs from
+     * the tab's ({@link PaneConnectionColors}): a frame in that color over the pane's edge while
+     * {@code frameEnabled} (Window settings), and the connection and its color for screen readers and
+     * in the tab's tooltip. Kept for the panes split or closed later. FX thread.
+     *
+     * @param tabHex the tab's color ({@code #RRGGBB}), or {@code null} without one
+     * @param colorOf the color of another connection, as the tab's would be resolved, or {@code null}
+     */
+    void applyPaneConnectionColors(@Nullable String tabHex, boolean frameEnabled,
+                                   @Nullable java.util.function.Function<ServerConnection, String> colorOf) {
+        paneColorScheme = new PaneConnectionColors.Scheme(tabHex, frameEnabled, colorOf);
+        refreshPaneConnectionColors(null);
+    }
+
+    /** Tells {@code listener} the tab tooltip's line about panes of other colors, {@code null} for none. FX thread. */
+    void setPaneConnectionsListener(@Nullable Consumer<String> listener) {
+        this.paneConnectionsListener = listener;
+    }
+
+    /**
+     * Brings the connection marks of every pane up to date with the scheme the window applied: a pane
+     * with an origin of its own ({@link PaneOrigins}) whose connection's color differs from the tab's
+     * is marked, every other pane is not. Does nothing before the window applied a scheme and after
+     * {@link #cleanup}.
+     *
+     * @param closing a pane that is closing but still in the split pane, left out; or {@code null}
+     */
+    private void refreshPaneConnectionColors(@Nullable SithTermFxWidget closing) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> refreshPaneConnectionColors(closing));
+            return;
+        }
+        PaneConnectionColors.Scheme scheme = paneColorScheme;
+        TerminalSplitPane split = splitPane;
+        if (scheme == null || split == null) {
+            return;
+        }
+        try {
+            List<PaneConnectionColors.PaneInput<SithTermFxWidget>> panes = new ArrayList<>();
+            for (SithTermFxWidget pane : split.getAllWidgets()) {
+                if (pane == closing) {
+                    continue;
+                }
+                PaneOrigin recorded = paneOrigins.recorded(pane);
+                panes.add(PaneConnectionColors.input(pane, recorded != null ? recorded.connection() : null, scheme));
+            }
+            List<PaneConnectionColors.MixedPane<SithTermFxWidget>> mixed =
+                PaneConnectionColors.mixedPanes(scheme.tabHex(), panes, scheme.frameEnabled());
+            Map<SithTermFxWidget, TerminalSplitPane.PaneConnectionMark> marks = new java.util.HashMap<>();
+            for (PaneConnectionColors.MixedPane<SithTermFxWidget> pane : mixed) {
+                marks.put(pane.pane(), new TerminalSplitPane.PaneConnectionMark(
+                    pane.frameHex() != null ? javafx.scene.paint.Color.web(pane.frameHex()) : null,
+                    PaneConnectionColors.accessibleText(pane)));
+            }
+            split.setPaneConnectionMarks(marks);
+            Consumer<String> listener = paneConnectionsListener;
+            if (listener != null) {
+                listener.accept(PaneConnectionColors.tooltipLine(mixed));
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Marking the panes of other connections failed: {}", e.toString());
+        }
+    }
+
     /** The connection a base connector (without korTTY's wrappers) runs, or null when it does not say. */
     static @Nullable ServerConnection connectionOf(@Nullable TtyConnector connector) {
         if (connector instanceof SshTtyConnector ssh) {
@@ -6222,13 +6300,27 @@ public class TerminalView extends BorderPane {
      * @param settings reads the global settings; may return null or throw
      */
     static PasteRules pasteRules(Supplier<GlobalSettings> settings) {
-        PasteProtectionSettings protection;
+        return pasteRules(settings, null);
+    }
+
+    /**
+     * The paste protection rules for the next paste into a pane of {@code connection}: its own warning
+     * mode when it sets one that applies ({@link PasteProtectionSettings#resolve}), else the global
+     * settings as they are now. Without readable settings the defaults stand in for them, never "off".
+     *
+     * @param settings reads the global settings; may return null or throw
+     * @param connection the connection whose paste protection applies; null follows the global settings
+     */
+    static PasteRules pasteRules(Supplier<GlobalSettings> settings, @Nullable ServerConnection connection) {
+        GlobalSettings global = readOrNull(settings);
         try {
-            protection = PasteProtectionSettings.from(settings.get());
+            PasteProtectionSettings protection = PasteProtectionSettings.resolve(global, connection);
+            boolean setByConnection = PasteProtectionSettings.connectionWarningMode(
+                PasteProtectionSettings.from(global).mode(), connection) != null;
+            return new PasteDecision(protection, setByConnection);
         } catch (RuntimeException e) {
-            protection = PasteProtectionSettings.DEFAULTS;
+            return new PasteDecision(PasteProtectionSettings.DEFAULTS);
         }
-        return new PasteDecision(protection);
     }
 
     /**
@@ -6238,12 +6330,65 @@ public class TerminalView extends BorderPane {
      * @param settings reads the global settings; may return null or throw
      */
     static int pasteLineDelayMs(Supplier<GlobalSettings> settings) {
+        return pasteLineDelayMs(settings, null);
+    }
+
+    /**
+     * The pause after each line pasted into a pane of {@code connection}: its own pause when it sets one,
+     * else the global settings as they are now; 0, which pastes at once, when neither can be read.
+     *
+     * @param settings reads the global settings; may return null or throw
+     * @param connection the connection whose line delay applies; null follows the global settings
+     */
+    static int pasteLineDelayMs(Supplier<GlobalSettings> settings, @Nullable ServerConnection connection) {
         try {
-            GlobalSettings current = settings.get();
-            return current != null ? current.getPasteLineDelayMs() : 0;
+            return PasteProtectionSettings.resolveLineDelayMs(readOrNull(settings), connection);
         } catch (RuntimeException e) {
             return 0;
         }
+    }
+
+    private static @Nullable GlobalSettings readOrNull(Supplier<GlobalSettings> settings) {
+        try {
+            return settings.get();
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * The connection whose paste protection applies to a paste into this pane: the pane's own
+     * connection (a split to another server has its own, every other pane runs the tab's), and of that
+     * the saved connection with the same id when there is one, so a change saved in the Connection
+     * Manager applies to the next paste into an open pane. A teamwork connection is not among the saved
+     * ones and keeps the values it connected with.
+     */
+    private @Nullable ServerConnection pasteConnectionOf(@Nullable PasteTarget target) {
+        SithTermFxWidget pane = target != null && target.key() instanceof SithTermFxWidget widget ? widget : null;
+        ServerConnection own = pane != null ? connectionOf(unwrapTerminalEffectConnector(pane.getTtyConnector())) : null;
+        ServerConnection paneConnection = own != null ? own : connection;
+        try {
+            KorTTYApplication app = KorTTYApplication.getInstance();
+            de.kortty.core.ConfigurationManager configManager = app != null ? app.getConfigManager() : null;
+            return savedConnectionOr(paneConnection, configManager != null ? configManager::getConnectionById : null);
+        } catch (RuntimeException e) {
+            return paneConnection;
+        }
+    }
+
+    /**
+     * The saved connection with {@code connection}'s id, or {@code connection} itself when none is saved
+     * (a teamwork or Quick Connect connection) or there is nothing to look in.
+     *
+     * @param savedById looks up a saved connection by id; may be null
+     */
+    static @Nullable ServerConnection savedConnectionOr(@Nullable ServerConnection connection,
+            @Nullable java.util.function.Function<String, ServerConnection> savedById) {
+        if (connection == null || connection.getId() == null || savedById == null) {
+            return connection;
+        }
+        ServerConnection saved = savedById.apply(connection.getId());
+        return saved != null ? saved : connection;
     }
 
     /** Where a pane shows the progress of a paced paste: the pane's own wrapper in the split pane. */
@@ -7866,6 +8011,9 @@ public class TerminalView extends BorderPane {
         // must not mark or announce a closed tab, nor may a program's clipboard write still change
         // the clipboard.
         bellListener = null;
+        // Closing the panes below must not recolor them one by one, nor update the closed tab's tooltip.
+        paneColorScheme = null;
+        paneConnectionsListener = null;
         commandFinishedListener = null;
         remoteNotificationListener = null;
         clipboardWriteListener = null;

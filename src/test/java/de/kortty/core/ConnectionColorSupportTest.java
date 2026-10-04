@@ -3,12 +3,14 @@ package de.kortty.core;
 import de.kortty.core.ConnectionColorSupport.Family;
 import de.kortty.core.ConnectionColorSupport.Source;
 import de.kortty.core.ConnectionColorSupport.TabColor;
+import de.kortty.model.ConnectionSource;
 import de.kortty.model.ServerConnection;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -16,7 +18,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
 /**
  * The tab color of a connection: only hex colors are accepted (the value can come from a shared
  * teamwork file), the saved connection wins over a tab's copy of it, a connection without a color
- * of its own takes the color of its stored credential's environment, and every color has a family
+ * of its own takes the color of its group (or the nearest group above it with one), then the color
+ * of its stored credential's environment, and every color has a family
  * name for the tooltip, so the color is never the only cue.
  */
 public class ConnectionColorSupportTest {
@@ -180,6 +183,144 @@ public class ConnectionColorSupportTest {
         assertThat(ConnectionColorSupport.effectiveTabColor(plain, id -> null, CREDENTIAL_ENVIRONMENTS::get, null)).isNull();
         assertThat(ConnectionColorSupport.effectiveTabColor(connection("own", "#616161"), null, null, null))
                 .isEqualTo(new TabColor("#616161", Source.CONNECTION, null));
+    }
+
+    // ---- group colors ------------------------------------------------------------------------
+
+    /** Folder colors as the global settings hold them, by group path. */
+    private static final Map<String, String> GROUP_COLORS = Map.of(
+            "Production", "#d32f2f",
+            "Production/Lab", "#7B1FA2",
+            "Production/Lab/Broken", "red; -fx-background-color: #8B0000",
+            "Development", "#388E3C");
+
+    private static TabColor resolve(ServerConnection connection, Function<String, ServerConnection> savedById) {
+        return ConnectionColorSupport.effectiveTabColor(connection, savedById, GROUP_COLORS::get,
+                CREDENTIAL_ENVIRONMENTS::get, ENVIRONMENT_COLORS::get);
+    }
+
+    @Test
+    void theOrderIsConnectionThenGroupThenCredentialEnvironment() {
+        ServerConnection connection = connection("db-1", null);
+        connection.setGroup("Development/DB");
+        connection.setCredentialId("cred-prod");
+
+        assertWithMessage("the group color comes before the credential environment's")
+                .that(resolve(connection, id -> null))
+                .isEqualTo(new TabColor("#388E3C", Source.GROUP, null, "Development"));
+
+        connection.setTabColor("#1976d2");
+        assertWithMessage("a color set on the connection comes first")
+                .that(resolve(connection, id -> null))
+                .isEqualTo(new TabColor("#1976D2", Source.CONNECTION, null));
+
+        connection.setTabColor(null);
+        connection.setGroup("Staging");
+        assertWithMessage("a group without a color leaves the credential environment's")
+                .that(resolve(connection, id -> null))
+                .isEqualTo(new TabColor("#D32F2F", Source.ENVIRONMENT, "PRODUCTION"));
+    }
+
+    @Test
+    void aKeyAuthProductionHostWithoutACredentialTakesItsGroupColor() {
+        ServerConnection keyHost = connection("web-1", null);
+        keyHost.setGroup("Production");
+
+        assertThat(resolve(keyHost, id -> null))
+                .isEqualTo(new TabColor("#D32F2F", Source.GROUP, null, "Production"));
+    }
+
+    @Test
+    void theNearestGroupWithAColorWinsAndNamesItself() {
+        ServerConnection lab = connection("lab-1", null);
+        lab.setGroup("Production/Lab/EU");
+        ServerConnection broken = connection("broken-1", null);
+        broken.setGroup("Production/Lab/Broken");
+        ServerConnection other = connection("other-1", null);
+        other.setGroup("Production/Web");
+
+        assertThat(resolve(lab, id -> null)).isEqualTo(new TabColor("#7B1FA2", Source.GROUP, null, "Production/Lab"));
+        assertWithMessage("a stored value that is not a hex color is skipped and the search goes up")
+                .that(resolve(broken, id -> null))
+                .isEqualTo(new TabColor("#7B1FA2", Source.GROUP, null, "Production/Lab"));
+        assertThat(resolve(other, id -> null)).isEqualTo(new TabColor("#D32F2F", Source.GROUP, null, "Production"));
+    }
+
+    @Test
+    void groupsAreMatchedByWholeTrimmedSegmentsAndCaseMatters() {
+        ServerConnection spaced = connection("spaced", null);
+        spaced.setGroup(" Production / DB ");
+        ServerConnection lookalike = connection("lookalike", null);
+        lookalike.setGroup("Production2");
+        ServerConnection lowerCase = connection("lower", null);
+        lowerCase.setGroup("production");
+
+        assertThat(resolve(spaced, id -> null)).isEqualTo(new TabColor("#D32F2F", Source.GROUP, null, "Production"));
+        assertThat(resolve(lookalike, id -> null)).isNull();
+        assertThat(resolve(lowerCase, id -> null)).isNull();
+    }
+
+    @Test
+    void theSavedConnectionsGroupWinsSoMovingItRecolorsItsOpenTabs() {
+        ServerConnection saved = connection("db-prod", null);
+        saved.setGroup("Production");
+        ServerConnection tabCopy = ServerConnection.copyForAuth(saved);
+        Map<String, ServerConnection> store = new HashMap<>(Map.of(saved.getId(), saved));
+
+        assertThat(resolve(tabCopy, store::get)).isEqualTo(new TabColor("#D32F2F", Source.GROUP, null, "Production"));
+
+        saved.setGroup("Development");
+        assertThat(resolve(tabCopy, store::get)).isEqualTo(new TabColor("#388E3C", Source.GROUP, null, "Development"));
+
+        saved.setGroup(null);
+        assertWithMessage("a connection moved out of every group loses the group color")
+                .that(resolve(tabCopy, store::get)).isNull();
+    }
+
+    @Test
+    void anUnsavedQuickConnectSessionUsesItsOwnGroup() {
+        ServerConnection quick = connection("quick", null);
+        quick.setGroup("Production/Lab");
+
+        assertThat(resolve(quick, id -> null)).isEqualTo(new TabColor("#7B1FA2", Source.GROUP, null, "Production/Lab"));
+    }
+
+    @Test
+    void teamworkConnectionsNeverTakeAGroupColor() {
+        ServerConnection shared = connection("shared-db", null);
+        shared.setGroup("Production");
+        shared.setConnectionSource(ConnectionSource.TEAMWORK);
+
+        assertWithMessage("the shared file decides the group, so it must not pick one of your colors")
+                .that(resolve(shared, id -> null)).isNull();
+
+        shared.setCredentialId("cred-lab");
+        assertWithMessage("the credential environment still applies")
+                .that(resolve(shared, id -> null))
+                .isEqualTo(new TabColor("#7B1FA2", Source.ENVIRONMENT, "custom-lab"));
+
+        ServerConnection local = connection("local", null);
+        ServerConnection sharedWithTheSameId = connection("shared", null);
+        sharedWithTheSameId.setId(local.getId());
+        sharedWithTheSameId.setGroup("Production");
+        sharedWithTheSameId.setConnectionSource(ConnectionSource.TEAMWORK);
+        local.setGroup("Production");
+        assertThat(resolve(local, Map.of(local.getId(), sharedWithTheSameId)::get)).isNull();
+    }
+
+    @Test
+    void withoutAGroupLookupOrAGroupThereIsNoGroupColor() {
+        ServerConnection grouped = connection("grouped", null);
+        grouped.setGroup("Production");
+        ServerConnection ungrouped = connection("ungrouped", null);
+        ungrouped.setGroup(" / ");
+
+        assertWithMessage("the four-argument overload knows no group colors")
+                .that(ConnectionColorSupport.effectiveTabColor(grouped, id -> null,
+                        CREDENTIAL_ENVIRONMENTS::get, ENVIRONMENT_COLORS::get)).isNull();
+        assertThat(ConnectionColorSupport.effectiveTabColor(grouped, id -> null, null, null, null)).isNull();
+        assertThat(resolve(ungrouped, id -> null)).isNull();
+        assertThat(new TabColor("#D32F2F", Source.CONNECTION, null).groupPath()).isNull();
     }
 
     @Test

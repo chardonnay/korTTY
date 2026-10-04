@@ -76,6 +76,24 @@ public class ServerConnection {
     @XmlElement
     private String highlightRuleSetId;
 
+    /**
+     * When a paste with line breaks into this connection's terminals asks for confirmation: the
+     * {@link de.kortty.paste.PasteWarningMode#id()} {@code off}, {@code unless-bracketed} or {@code always},
+     * or {@code null} to follow Settings → Terminal → Paste protection. A value this version does not know
+     * also follows the global setting. Resolved by
+     * {@link de.kortty.paste.PasteProtectionSettings#resolve}, which lets a teamwork connection only make
+     * the warning stricter.
+     */
+    @XmlElement
+    private String pasteWarningMode;
+
+    /**
+     * The pause in milliseconds after each line of a paste into this connection's terminals, {@code 0..1000}
+     * ({@code 0} pastes at once), or {@code null} to follow Settings → Terminal → Paste protection.
+     */
+    @XmlElement
+    private Integer pasteLineDelayMs;
+
     /** SithTermFX terminal emulation type stored as enum name. */
     @XmlElement
     private String terminalEmulationType = "XTERM";
@@ -211,6 +229,8 @@ public class ServerConnection {
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.highlightRuleSetId = source.highlightRuleSetId;
+        c.pasteWarningMode = source.pasteWarningMode;
+        c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.group = source.group;
@@ -260,6 +280,8 @@ public class ServerConnection {
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.highlightRuleSetId = source.highlightRuleSetId;
+        c.pasteWarningMode = source.pasteWarningMode;
+        c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.group = source.group;
@@ -300,6 +322,8 @@ public class ServerConnection {
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.highlightRuleSetId = source.highlightRuleSetId;
+        c.pasteWarningMode = source.pasteWarningMode;
+        c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.username = includeUsername ? source.username : "";
@@ -485,6 +509,34 @@ public class ServerConnection {
     public void setHighlightRuleSetId(String highlightRuleSetId) {
         this.highlightRuleSetId = highlightRuleSetId != null && !highlightRuleSetId.isBlank()
                 ? highlightRuleSetId.trim() : null;
+    }
+
+    /**
+     * When a paste with line breaks into this connection's terminals asks for confirmation, or {@code null}
+     * to follow the global paste protection (also for a stored value this version does not know). Read it
+     * through {@link de.kortty.paste.PasteProtectionSettings#resolve}, not on its own.
+     */
+    public de.kortty.paste.PasteWarningMode getPasteWarningMode() {
+        return de.kortty.paste.PasteWarningMode.parseId(pasteWarningMode);
+    }
+
+    /** Sets when this connection's pastes with line breaks ask; {@code null} follows the global setting. */
+    public void setPasteWarningMode(de.kortty.paste.PasteWarningMode pasteWarningMode) {
+        this.pasteWarningMode = pasteWarningMode != null ? pasteWarningMode.id() : null;
+    }
+
+    /**
+     * The pause in milliseconds after each line of a paste into this connection's terminals, clamped to
+     * {@code 0..1000} ({@code 0} pastes at once), or {@code null} to follow the global paste protection.
+     */
+    public Integer getPasteLineDelayMs() {
+        return pasteLineDelayMs != null ? de.kortty.paste.PastePacer.clampLineDelayMs(pasteLineDelayMs) : null;
+    }
+
+    /** Sets the pause after each pasted line, clamped to {@code 0..1000}; {@code null} follows the global setting. */
+    public void setPasteLineDelayMs(Integer pasteLineDelayMs) {
+        this.pasteLineDelayMs = pasteLineDelayMs != null
+                ? de.kortty.paste.PastePacer.clampLineDelayMs(pasteLineDelayMs) : null;
     }
 
     public String getTerminalEmulationType() {

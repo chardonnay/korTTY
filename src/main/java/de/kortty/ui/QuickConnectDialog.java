@@ -954,7 +954,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
 
     /**
      * The fields every "modified copy of a saved connection" branch sets the same way: identity,
-     * endpoint, tag and tab color, terminal settings and the values the spinners own. Auth is left to the caller,
+     * endpoint, tag and tab color, terminal settings, the per-connection overrides (encoding, highlighting,
+     * paste protection) and the values the spinners own. Auth is left to the caller,
      * since that is the only thing those branches actually disagree about.
      *
      * <p>Copying a connection field by field is what lost the capture settings: each branch was
@@ -979,6 +980,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         applySelectedTerminalEmulation(modified, selected);
         modified.setEncoding(selected.getEncoding());
         modified.setHighlightRuleSetId(selected.getHighlightRuleSetId());
+        modified.setPasteWarningMode(selected.getPasteWarningMode());
+        modified.setPasteLineDelayMs(selected.getPasteLineDelayMs());
         modified.setLogConfig(new de.kortty.model.TerminalLogConfig(selected.getLogConfig()));
         modified.setSessionJournalConfig(
             new de.kortty.model.SessionJournalConfig(selected.getSessionJournalConfig()));

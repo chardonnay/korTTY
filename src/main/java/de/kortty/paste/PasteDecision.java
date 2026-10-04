@@ -28,14 +28,31 @@ public final class PasteDecision implements PasteRules {
 
     private final PasteProtectionSettings settings;
 
+    private final boolean setByConnection;
+
     /** @param settings the protection to apply; null means {@link PasteProtectionSettings#DEFAULTS} */
     public PasteDecision(PasteProtectionSettings settings) {
+        this(settings, false);
+    }
+
+    /**
+     * @param settings the protection to apply; null means {@link PasteProtectionSettings#DEFAULTS}
+     * @param setByConnection whether the pane's connection chose the warning mode
+     *     ({@link PasteProtectionSettings#connectionWarningMode}) rather than Settings → Terminal
+     */
+    public PasteDecision(PasteProtectionSettings settings, boolean setByConnection) {
         this.settings = settings != null ? settings : PasteProtectionSettings.DEFAULTS;
+        this.setByConnection = setByConnection;
     }
 
     /** The protection these rules apply. */
     public PasteProtectionSettings settings() {
         return settings;
+    }
+
+    @Override
+    public boolean setByConnection() {
+        return setByConnection;
     }
 
     @Override

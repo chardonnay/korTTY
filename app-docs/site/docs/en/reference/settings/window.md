@@ -38,7 +38,7 @@ With **Remember window geometry** enabled, KorTTY stores the position and size o
 
 ## Tabs
 
-**Frame the terminal in its connection's tab color** draws a 3-pixel frame around the terminal of every tab whose connection has a [tab color](../../features/connections.md#tab-color), in addition to the colored dot on the tab, so a production server stands out right where you type. The frame surrounds the whole tab content — all split panes and the status bars below them — and connections without a tab color never get one. Switch it off to keep only the dot. The change applies to the open tabs of every window as soon as you save.
+**Frame the terminal in its connection's tab color** draws a 3-pixel frame around the terminal of every tab whose connection has a [tab color](../../features/connections.md#tab-color), in addition to the colored dot on the tab, so a production server stands out right where you type. The frame surrounds the whole tab content — all split panes and the status bars below them — and connections without a tab color never get one. A split pane opened to a connection whose tab color differs from the tab's gets a frame of its own color at its edge, which does not resize its terminal (see [Tab color](../../features/connections.md#tab-color)). Switch the setting off to keep only the dot; it removes the panes' frames as well. The change applies to the open tabs of every window as soon as you save.
 
 !!! note
     The frame takes 3 pixels on each side of the terminal. Turning it on or off therefore resizes the open terminals of every colored connection, and giving a connection a tab color or removing it resizes that connection's terminals: the remote side receives the new size, and full-screen programs such as `vim`, `htop` or `less` redraw.

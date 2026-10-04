@@ -158,6 +158,11 @@ public class TerminalTab extends Tab {
     /** The tooltip line about the tab color, or null without a color; FX thread only. */
     private String connectionColorLine;
     /**
+     * The tooltip line about split panes that run another connection with another tab color (see
+     * {@link PaneConnectionColors#tooltipLine}), or null while there are none; FX thread only.
+     */
+    private String paneConnectionsLine;
+    /**
      * The multi-exec / broadcast marker in {@link #tabDecorations}, after the color dot, or null
      * while what you type in the tab stays in its pane; FX thread only.
      */
@@ -189,6 +194,8 @@ public class TerminalTab extends Tab {
             Platform.runLater(() -> takeJournalScreenshot(widget)));
         this.terminalView.setJournalNoteHandler(() -> Platform.runLater(this::addJournalNote));
         this.terminalView.setShellTitleListener(this::onShellTitleChanged);
+        // Split panes of another connection with another tab color are listed in the tab's tooltip.
+        this.terminalView.setPaneConnectionsListener(this::setPaneConnectionsLine);
         // A bell in a pane the user is not looking at marks the tab and may notify (Settings → Terminal).
         this.terminalView.setBellListener(widget -> TerminalAttentionNotifier.shared().onBell(this, widget));
         // So does a long command the shell marked (shell integration) finishing there.
@@ -1899,22 +1906,25 @@ public class TerminalTab extends Tab {
      * Marks the tab with its connection's color: a dot in the tab header, a tooltip that names the
      * connection and the color, which is also what screen readers read for the dot, and, when
      * {@code showFrame} is set (Window settings), a frame of that color around the terminal.
-     * {@code environmentName} is the credential environment the color comes from, which the tooltip
-     * names; {@code null} when the color is set on the connection itself. {@code null} or a value
-     * that is not a hex color removes all three. The tab's style is left alone: it shows the
-     * connection status (yellow while connecting, dark red when the connection failed). Safe to
+     * {@code source} says where the color comes from and {@code sourceName} names the group or the
+     * credential environment for the tooltip; for a color set on the connection itself
+     * ({@link ConnectionColorSupport.Source#CONNECTION} or {@code null}) it is not used. {@code null}
+     * or a value that is not a hex color removes all three. The tab's style is left alone: it shows
+     * the connection status (yellow while connecting, dark red when the connection failed). Safe to
      * call from any thread.
      */
-    public void applyConnectionColor(String hex, String environmentName, boolean showFrame) {
+    public void applyConnectionColor(String hex, ConnectionColorSupport.Source source, String sourceName,
+                                     boolean showFrame) {
         String color = ConnectionColorSupport.normalizeHex(hex);
         if (Platform.isFxApplicationThread()) {
-            showConnectionColor(color, environmentName, showFrame);
+            showConnectionColor(color, source, sourceName, showFrame);
         } else {
-            Platform.runLater(() -> showConnectionColor(color, environmentName, showFrame));
+            Platform.runLater(() -> showConnectionColor(color, source, sourceName, showFrame));
         }
     }
 
-    private void showConnectionColor(String color, String environmentName, boolean showFrame) {
+    private void showConnectionColor(String color, ConnectionColorSupport.Source source, String sourceName,
+                                     boolean showFrame) {
         // The frame is the content's border, outside the panes: never the terminal view's style,
         // which the see-through window mode owns. Turning it on or off resizes the terminal by 3 px,
         // so an unchanged frame is left in place rather than replaced by an equal one.
@@ -1930,9 +1940,7 @@ public class TerminalTab extends Tab {
             connectionColorLine = null;
         } else {
             String family = I18n.get(TabColorPresentation.familyKey(ConnectionColorSupport.family(color)));
-            String colorLine = environmentName == null
-                ? I18n.get("tab.tooltip.connectionColor", family, color)
-                : I18n.get("tab.tooltip.environmentColor", family, color, environmentName);
+            String colorLine = TabColorPresentation.colorLine(source, sourceName, family, color);
             String connectionLine = I18n.get("tab.tooltip.connection", connectionEndpoint());
             connectionColorSwatch = TabColorPresentation.swatch(color,
                 TabColorPresentation.describe(colorLine, connectionLine, ", "));
@@ -1941,6 +1949,32 @@ public class TerminalTab extends Tab {
         }
         refreshTooltip();
         setGraphic(tabDecorations.getChildren().isEmpty() ? null : tabDecorations);
+    }
+
+    /**
+     * Frames the split panes of this tab that run another connection than the tab, when that
+     * connection's tab color differs from the tab's {@code tabHex} (see
+     * {@link PaneConnectionColors}): in their own color while {@code showFrame} (Window settings),
+     * and named with their color in the tab's tooltip and for screen readers. {@code colorOf} gives
+     * another connection's color as the tab's own is resolved. Applies to panes split later too.
+     * FX thread.
+     */
+    void applyPaneConnectionColors(String tabHex, boolean showFrame,
+                                   java.util.function.Function<ServerConnection, String> colorOf) {
+        terminalView.applyPaneConnectionColors(ConnectionColorSupport.normalizeHex(tabHex), showFrame, colorOf);
+    }
+
+    /**
+     * Sets the tooltip line about split panes of another connection with another tab color, or
+     * removes it for {@code null}. FX thread.
+     */
+    private void setPaneConnectionsLine(String line) {
+        String next = line != null && !line.isBlank() ? line : null;
+        if (java.util.Objects.equals(next, paneConnectionsLine)) {
+            return;
+        }
+        paneConnectionsLine = next;
+        refreshTooltip();
     }
 
     /**
@@ -1993,7 +2027,7 @@ public class TerminalTab extends Tab {
             ? I18n.get("tab.tooltip.shellTitle", getConnectionTitle())
             : null;
         String text = tooltipText(I18n.get("tab.tooltip.connection", connectionEndpoint()), shellLine,
-            connectionColorLine, attentionLine);
+            connectionColorLine, paneConnectionsLine, attentionLine);
         if (text == null) {
             setTooltip(null);
         } else if (getTooltip() != null) {
@@ -2017,12 +2051,23 @@ public class TerminalTab extends Tab {
      * line, which also makes a tooltip on its own, so the mark is always explained in words.
      */
     static String tooltipText(String connectionLine, String shellTitleLine, String colorLine, String attentionLine) {
+        return tooltipText(connectionLine, shellTitleLine, colorLine, null, attentionLine);
+    }
+
+    /**
+     * {@link #tooltipText(String, String, String, String)} with the line about split panes of another
+     * connection with another tab color after the color line; that line also makes a tooltip on its
+     * own, so a production pane in an uncolored tab is named when you point at the tab.
+     */
+    static String tooltipText(String connectionLine, String shellTitleLine, String colorLine, String paneLine,
+                              String attentionLine) {
         if ((shellTitleLine == null || shellTitleLine.isBlank()) && (colorLine == null || colorLine.isBlank())
+                && (paneLine == null || paneLine.isBlank())
                 && (attentionLine == null || attentionLine.isBlank())) {
             return null;
         }
         java.util.StringJoiner text = new java.util.StringJoiner("\n");
-        for (String line : java.util.Arrays.asList(connectionLine, shellTitleLine, colorLine, attentionLine)) {
+        for (String line : java.util.Arrays.asList(connectionLine, shellTitleLine, colorLine, paneLine, attentionLine)) {
             if (line != null && !line.isBlank()) {
                 text.add(line);
             }

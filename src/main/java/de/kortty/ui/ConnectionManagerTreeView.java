@@ -50,6 +50,12 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private java.util.function.BiConsumer<GroupPath, Boolean> onToggleGroupHostKeyCheck;
     /** Reports whether a group currently has host-key verification disabled, to render the check mark. */
     private java.util.function.Predicate<GroupPath> groupHostKeyCheckDisabled;
+    /** Opens the tab color of a group for editing; without it the group menu has no color entry. */
+    private Consumer<GroupPath> onEditGroupColor;
+    /** The tab color a group has of its own ({@code #RRGGBB}), or null; shown as a dot after the folder's name. */
+    private java.util.function.Function<GroupPath, String> groupColorProbe;
+    /** Runs after a connection was dragged into another group or such a move was undone. */
+    private Runnable onConnectionsMoved;
     private Runnable onAddConnection;
     
     public ConnectionManagerTreeView(List<ServerConnection> connections) {
@@ -380,6 +386,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                     setGraphic(null);
                     setContextMenu(null);
                     setTooltip(null);
+                    setAccessibleText(null);
                     // Text colour comes from the theme (light on dark designs); only the size is set.
                     setStyle(ENTRY_STYLE);
                     
@@ -389,6 +396,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                     
                     if (item.isGroup()) {
                         setText("📁 " + item.getDisplayName());
+                        showGroupColor(this, item.getGroupPath());
                         if (!selectionOnly) {
                             setContextMenu(createGroupContextMenu(item.getGroupPath()));
                         }
@@ -488,6 +496,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                         } else {
                             refreshTree();
                         }
+                        if (onConnectionsMoved != null) {
+                            onConnectionsMoved.run();
+                        }
                         success = true;
                     }
                 }
@@ -498,6 +509,26 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             
             return cell;
         });
+    }
+
+    /**
+     * Shows the tab color a group has of its own as an outlined dot after the folder's name, with a
+     * tooltip that names it, which screen readers read as well; a group without one shows none.
+     */
+    private void showGroupColor(TreeCell<ConnectionTreeItem.ItemData> cell, GroupPath groupPath) {
+        String color = groupColorProbe != null
+            ? de.kortty.core.ConnectionColorSupport.normalizeHex(groupColorProbe.apply(groupPath))
+            : null;
+        if (color == null) {
+            return;
+        }
+        String text = I18n.get("connManager.group.tabColor.swatch", I18n.get(TabColorPresentation.familyKey(
+            de.kortty.core.ConnectionColorSupport.family(color))), color);
+        cell.setGraphic(TabColorPresentation.swatch(color, text));
+        cell.setContentDisplay(ContentDisplay.RIGHT);
+        cell.setGraphicTextGap(8);
+        cell.setTooltip(new Tooltip(text));
+        cell.setAccessibleText(cell.getText() + ", " + text);
     }
     
     /**
@@ -557,7 +588,13 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         });
 
         menu.getItems().addAll(renameItem, createSubGroupItem, new SeparatorMenuItem(),
-                               disableHostKeyItem, new SeparatorMenuItem());
+                               disableHostKeyItem);
+        if (onEditGroupColor != null) {
+            MenuItem tabColorItem = new MenuItem(I18n.get("connManager.group.tabColor"));
+            tabColorItem.setOnAction(e -> onEditGroupColor.accept(groupPath));
+            menu.getItems().add(tabColorItem);
+        }
+        menu.getItems().add(new SeparatorMenuItem());
         if (onAssignTagToGroup != null || onRemoveTagFromGroup != null) {
             menu.getItems().addAll(assignTagItem, removeTagItem, new SeparatorMenuItem());
         }
@@ -571,6 +608,21 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
 
     public void setGroupHostKeyCheckDisabledProbe(java.util.function.Predicate<GroupPath> probe) {
         this.groupHostKeyCheckDisabled = probe;
+    }
+
+    /** Adds a "Tab Color..." entry to every group's context menu that hands the group to {@code handler}. */
+    public void setOnEditGroupColor(Consumer<GroupPath> handler) {
+        this.onEditGroupColor = handler;
+    }
+
+    /** Shows the tab color {@code probe} gives a group ({@code #RRGGBB}, or null) after the folder's name. */
+    public void setGroupColorProbe(java.util.function.Function<GroupPath, String> probe) {
+        this.groupColorProbe = probe;
+    }
+
+    /** Runs {@code callback} after a connection was dragged into another group or that move was undone. */
+    public void setOnConnectionsMoved(Runnable callback) {
+        this.onConnectionsMoved = callback;
     }
     
     /**
@@ -681,6 +733,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                 filterTree(currentSearchPredicate);
             } else {
                 refreshTree();
+            }
+            if (onConnectionsMoved != null) {
+                onConnectionsMoved.run();
             }
             
             if (undoButton != null) {
