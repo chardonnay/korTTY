@@ -18,6 +18,7 @@ public final class JobSwarmAgentRunner implements AgentCommandRunner, AutoClosea
 
     private final JobSchedulerRemoteSession session;
     private String currentDirectory;
+    private volatile Consumer<String> sessionPasswordListener;
 
     public JobSwarmAgentRunner(JobSchedulerRemoteSession session, String initialWorkingDirectory) {
         this.session = session;
@@ -95,9 +96,22 @@ public final class JobSwarmAgentRunner implements AgentCommandRunner, AutoClosea
         return session != null && session.isConnected();
     }
 
+    /**
+     * Told the session password as soon as the runner connects, so the job's journal redactors
+     * know it while the run is still in progress, not only after it. Called on the agent's worker
+     * thread; the listener must be thread-safe.
+     */
+    public void setSessionPasswordListener(Consumer<String> listener) {
+        this.sessionPasswordListener = listener;
+    }
+
     private void ensureConnected() throws Exception {
         if (session != null && !session.isConnected()) {
             session.connect();
+            Consumer<String> listener = sessionPasswordListener;
+            if (listener != null) {
+                session.getPassword().ifPresent(listener);
+            }
         }
     }
 

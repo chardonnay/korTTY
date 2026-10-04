@@ -215,6 +215,8 @@ If KorTTY is about to exit while JobScheduler jobs are running, it shows a warni
 - Sudo passwords are stored encrypted with the master password.
 - SSH key passphrases and archive passwords are stored encrypted.
 - KorTTY redacts managed secrets (passwords, passphrases, archive credentials) from journal output before persistence.
+- In an AI Swarm job, each server's password is redacted from the journals as soon as its background session connects, so output captured while the swarm is still running is covered too.
+- What AI jobs send to a cloud AI profile is masked: the AI Swarm agents and the request that combines their answers (see [Masking what the agent sends](ai-tools.md#masking-what-the-agent-sends)), and the request of an AI Agent job, where the server's stored password and the job's sudo password become `***`. The AI Agent job's request holds only the server name, the working directory and the job prompt, so the masking there only catches a secret typed into the prompt. Integrated models and a trusted local endpoint get the original text.
 - If the master password is locked when a job needs SSH, sudo, API, or archive secrets, the job is blocked.
 
 ## Troubleshooting

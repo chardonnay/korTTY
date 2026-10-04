@@ -5,10 +5,12 @@ import com.google.gson.JsonSyntaxException;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiInternetAccessConfiguration;
+import de.kortty.core.AiOutboundRedaction;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiServiceFactory;
 import de.kortty.core.AiSkillPromptSupport;
 import de.kortty.core.AiUsageRecorder;
+import de.kortty.core.SessionJournalRedactor;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiProfile;
@@ -64,6 +66,11 @@ public class JobSchedulerAiSupport {
         String userPrompt = "Server: " + connectionContext.displayName() + "\n"
             + "Working directory: " + (job.getWorkingDirectory() != null ? job.getWorkingDirectory() : "~") + "\n"
             + "Job prompt:\n" + action.getAiPrompt();
+        // The plan is one-shot and sends no terminal output; what can leak is a secret typed into
+        // the job prompt (or a server name / working directory). Mask it for a profile that may
+        // forward it, with the job's known secrets: connection and sudo passwords.
+        userPrompt = AiOutboundRedaction.redactFor(
+            profile, userPrompt, knownSecrets(remoteSession, sudoPassword, redactor)).text();
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
         // The token count is bookkeeping, not a secret: book it against the profile quota.
         usageRecorder().record(profile, AiUsageRecorder.usageOrEstimate(result, systemPrompt, userPrompt, profile));
@@ -123,6 +130,26 @@ public class JobSchedulerAiSupport {
             stdout.toString(),
             stderr.toString(),
             detail.toString());
+    }
+
+    /**
+     * The job's known secrets for masking the AI prompt: the organisation's replacement rules, the
+     * connection password, the sudo password and whatever the job's journal redactor already
+     * holds. A fresh redactor; the sources are not changed.
+     */
+    static SessionJournalRedactor knownSecrets(
+        JobSchedulerRemoteSession remoteSession, String sudoPassword, JobSchedulerSecretRedactor redactor) {
+        SessionJournalRedactor known = AiOutboundRedaction.newPolicyRedactor();
+        if (remoteSession != null) {
+            remoteSession.getPassword().ifPresent(known::addSecret);
+        }
+        if (sudoPassword != null && !sudoPassword.isBlank()) {
+            known.addSecret(sudoPassword);
+        }
+        if (redactor != null) {
+            redactor.secrets().forEach(known::addSecret);
+        }
+        return known;
     }
 
     private AiUsageRecorder usageRecorder() {

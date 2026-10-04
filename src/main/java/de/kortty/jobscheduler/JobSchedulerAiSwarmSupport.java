@@ -87,9 +87,14 @@ public class JobSchedulerAiSwarmSupport {
         List<SwarmTarget> swarmTargets = new ArrayList<>();
         for (int i = 0; i < targets.size(); i++) {
             ServerConnection connection = targets.get(i);
-            JobSchedulerRemoteSession session = new JobSchedulerRemoteSession(
-                app, connection, hostKeys.get(i), masterPassword, job.isHostKeyVerificationDisabled());
+            JobSchedulerRemoteSession session = newRemoteSession(job, connection, hostKeys.get(i), masterPassword);
             JobSwarmAgentRunner runner = new JobSwarmAgentRunner(session, job.getWorkingDirectory());
+            // Known as soon as the runner connects, so the journals mask the password while the
+            // swarm is still running; the finally block below stays as a backstop.
+            runner.setSessionPasswordListener(password -> {
+                redactor.addSecret(password);
+                journals.recorderFor(connection).addSecret(password);
+            });
             runners.add(runner);
             swarmTargets.add(new SwarmTarget(
                 "job-" + runId + "-" + i,
@@ -118,7 +123,7 @@ public class JobSchedulerAiSwarmSupport {
             // Same as the interactive path's MainWindow.terminalAgentService: a bare, un-wired
             // TerminalAgentService — SwarmOrchestrator's own null-coalescing constructor would build
             // the same instance, this just makes that explicit at the call site.
-            SwarmOrchestrator orchestrator = new SwarmOrchestrator(new TerminalAgentService());
+            SwarmOrchestrator orchestrator = new SwarmOrchestrator(newAgentService());
             AiUsageRecorder usageRecorder = AiUsageRecorder.application();
             orchestrator.setUsageSink(usage -> usageRecorder.record(profile, usage));
             orchestrator.run(request, SwarmJournalSupport.wrapTargets(swarmTargets, journals), profile,
@@ -151,7 +156,7 @@ public class JobSchedulerAiSwarmSupport {
                 job.getName() + " — " + LocalDateTime.now().format(CHAT_TITLE_FORMAT),
                 prompt.trim(), profile.getId(), profile.getName(),
                 statuses, markdown, connectionIds(targets), redact);
-            if (app.getSwarmChatManager() != null) {
+            if (app != null && app.getSwarmChatManager() != null) {
                 app.getSwarmChatManager().saveChat(chat);
             }
         } catch (Exception e) {
@@ -159,6 +164,18 @@ public class JobSchedulerAiSwarmSupport {
         }
 
         return mapOutcome(statuses, markdown, callback.mutationBlockedAgentIds, redact);
+    }
+
+    /** The headless SSH session for one target. Overridden by tests with a fake session. */
+    JobSchedulerRemoteSession newRemoteSession(
+        ScheduledJob job, ServerConnection connection, PinnedHostKey hostKey, char[] masterPassword) {
+        return new JobSchedulerRemoteSession(
+            app, connection, hostKey, masterPassword, job.isHostKeyVerificationDisabled());
+    }
+
+    /** The agent service the swarm runs. Overridden by tests with a fake agent. */
+    TerminalAgentService newAgentService() {
+        return new TerminalAgentService();
     }
 
     private AiPromptService safeCreateService(AiProfile profile) {
