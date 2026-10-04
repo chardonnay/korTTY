@@ -126,7 +126,7 @@ It **cannot**:
 
 ## MCP clients
 
-A client can tell korTTY what kind of client it is with the optional `client_kind` parameter of `auth`: `cli`, the default, for `kortty-cli` and every script, or `mcp` for an MCP server that passes korTTY on to an AI assistant. Any other value is refused with `invalid_params`. An `mcp` client is served only while three things allow it: the Control API itself, the separate **MCP server** switch, which is off by default, and the [enterprise policy](enterprise-policy.md) key `mcp-server`. When one of them says no, the handshake fails with `mcp_server_disabled` or `blocked_by_policy`, and the check is repeated before every request, so switching the MCP server off stops a connection that is already open at its next call.
+A client can tell korTTY what kind of client it is with the optional `client_kind` parameter of `auth`: `cli`, the default, for `kortty-cli` and every script, or `mcp` for an MCP server that passes korTTY on to an AI assistant. korTTY ships such a server itself: [`kortty-cli mcp`](cli.md#serving-mcp-clients). Any other value is refused with `invalid_params`. An `mcp` client is served only while three things allow it: the Control API itself, the separate **MCP server** switch, which is off by default, and the [enterprise policy](enterprise-policy.md) key `mcp-server`. When one of them says no, the handshake fails with `mcp_server_disabled` or `blocked_by_policy`, and the check is repeated before every request, so switching the MCP server off stops a connection that is already open at its next call.
 
 An `mcp` client gets a fixed, fail-closed list of methods:
 

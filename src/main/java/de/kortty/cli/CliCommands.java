@@ -62,6 +62,12 @@ public final class CliCommands {
      */
     static final String CURRENT_SELECTOR = "@current";
 
+    /**
+     * The verb-less {@code mcp} command: not one call but a long-running MCP server on stdin and
+     * stdout, which {@link KorttyCli} starts instead of mapping the invocation through {@link #toCall}.
+     */
+    static final String MCP_GROUP = "mcp";
+
     /** How a verb addresses a pane. */
     enum Selector {
         /** The verb addresses no pane; {@code --tab} and {@code --window} are plain filters. */
@@ -144,6 +150,10 @@ public final class CliCommands {
         }
         if ("raw".equals(command.group())) {
             return rawCall(invocation);
+        }
+        if (MCP_GROUP.equals(command.group())) {
+            throw new CliSyntaxException("'mcp' is a long-running MCP server on stdin and stdout,"
+                + " not a single call");
         }
         JsonObject params = new JsonObject();
         switch (command.method()) {
@@ -247,6 +257,11 @@ public final class CliCommands {
      */
     public static String usage(String groupOrNull) {
         return groupOrNull == null ? CliUsage.top() : CliUsage.group(groupOrNull);
+    }
+
+    /** Whether {@code invocation} asks for the MCP stdio server rather than for one call. */
+    static boolean isMcpServer(CliInvocation invocation) {
+        return invocation != null && MCP_GROUP.equals(invocation.group()) && invocation.verb() == null;
     }
 
     // --- the table, shared with CliArguments and CliUsage -------------------------------------
@@ -624,6 +639,9 @@ public final class CliCommands {
         table.add(new Command("notify", null, "notification.show", Selector.NONE,
             Set.of("title", "body"), List.of(Set.of("title"), Set.of("body")), null, false, null,
             "notify --title <s> --body <s>", "Raises one desktop notification."));
+        table.add(new Command(MCP_GROUP, null, null, Selector.NONE, Set.of(), List.of(), null, false,
+            null, "mcp",
+            "Serves korTTY's read-only tools to an MCP client over stdin and stdout."));
         table.add(new Command("raw", null, null, Selector.NONE, Set.of("stdin"), List.of(),
             "<method> [<json>]", false, null, "raw <method> [<json>|--stdin]",
             "Escape hatch: calls any method with params from an argument or stdin."));

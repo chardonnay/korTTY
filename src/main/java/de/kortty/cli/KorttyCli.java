@@ -3,6 +3,7 @@ package de.kortty.cli;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import de.kortty.cli.mcp.McpStdioServer;
 import de.kortty.control.ControlApiProtocol;
 import de.kortty.control.EndpointDescriptor;
 import java.io.IOException;
@@ -77,6 +78,18 @@ public final class KorttyCli {
      *     {@link #EXIT_UNREACHABLE} or {@link #EXIT_TIMEOUT}
      */
     public static int run(String[] args, PrintStream out, PrintStream err) {
+        return run(args, System.in, out, err);
+    }
+
+    /**
+     * Runs one invocation with an explicit stdin and returns its exit code.
+     *
+     * <p>{@code mcp} is the one command that is not a single call: it serves the MCP stdio protocol on
+     * {@code in} and {@code out} until {@code in} ends, with diagnostics on {@code err}.
+     *
+     * @param in the payload source for {@code --stdin}, and the request stream of {@code mcp}
+     */
+    public static int run(String[] args, InputStream in, PrintStream out, PrintStream err) {
         boolean quiet = CliArguments.looksQuiet(args);
         CliInvocation invocation;
         try {
@@ -92,10 +105,13 @@ public final class KorttyCli {
             print(out, invocation.quiet(), helpFor(invocation));
             return EXIT_OK;
         }
+        if (CliCommands.isMcpServer(invocation)) {
+            return serveMcp(invocation, in, out, err);
+        }
         CliCommands.Call call;
         CliInvocation resolved;
         try {
-            resolved = readStdinPayload(invocation);
+            resolved = readStdinPayload(invocation, in);
             call = CliCommands.toCall(resolved);
         } catch (CliSyntaxException e) {
             return syntaxError(err, invocation.quiet(), e);
@@ -116,7 +132,28 @@ public final class KorttyCli {
      * contents. stderr follows so a message the server wrote survives the same way.
      */
     public static void main(String[] args) {
-        System.exit(run(args, utf8(System.out), utf8(System.err)));
+        PrintStream out = utf8(System.out);
+        PrintStream err = utf8(System.err);
+        // stdout belongs to the result line, and under 'mcp' to the protocol: anything else that
+        // writes to System.out in this process (a logging console appender, a library) goes to
+        // stderr instead of corrupting the stream a script or an MCP client parses.
+        System.setOut(err);
+        System.exit(run(args, System.in, out, err));
+    }
+
+    /**
+     * Serves MCP on stdio until stdin ends.
+     *
+     * <p>{@code --quiet} silences only the diagnostics; the protocol lines are the output an MCP
+     * client asked for.
+     */
+    private static int serveMcp(CliInvocation invocation, InputStream in, PrintStream out,
+                                PrintStream err) {
+        McpStdioServer server = new McpStdioServer(
+            McpStdioServer.controlBackend(invocation.configDir()), implementationVersion(),
+            invocation.quiet() ? null : err);
+        return server.serve(in == null ? InputStream.nullInputStream() : in, out) == 0
+            ? EXIT_OK : EXIT_FAILED;
     }
 
     /** Re-encodes one inherited stream as UTF-8, preserving any {@code System.setOut} redirection. */
@@ -233,11 +270,12 @@ public final class KorttyCli {
      * <p>Doing it here rather than inside {@link CliCommands#toCall} is what keeps the mapper a pure
      * function: by the time it runs, the text is an ordinary flag value.
      */
-    private static CliInvocation readStdinPayload(CliInvocation invocation) throws IOException {
+    private static CliInvocation readStdinPayload(CliInvocation invocation, InputStream in)
+            throws IOException {
         if (!invocation.has(CliArguments.FLAG_STDIN)) {
             return invocation;
         }
-        String payload = readAll(System.in);
+        String payload = readAll(in);
         if ("raw".equals(invocation.group())) {
             return CliArguments.withOperand(invocation, payload.strip());
         }
@@ -261,10 +299,15 @@ public final class KorttyCli {
      * command and must work with no server running.
      */
     static String versionLine() {
+        return "korTTY control CLI " + implementationVersion()
+            + " (protocol " + ControlApiProtocol.PROTOCOL_VERSION + ")";
+    }
+
+    /** The jar manifest's version, or {@code dev} on a raw class path. */
+    static String implementationVersion() {
         Package self = KorttyCli.class.getPackage();
         String version = self == null ? null : self.getImplementationVersion();
-        return "korTTY control CLI " + (version == null || version.isBlank() ? "dev" : version)
-            + " (protocol " + ControlApiProtocol.PROTOCOL_VERSION + ")";
+        return version == null || version.isBlank() ? "dev" : version;
     }
 
     private static String helpFor(CliInvocation invocation) {
