@@ -48,6 +48,8 @@ import de.kortty.core.TerminalRecordingSession;
 import de.kortty.core.TerminalRecordingStyleRun;
 import de.kortty.core.TerminalColorControlSequenceFilter;
 import de.kortty.core.TerminalPaletteSupport;
+import de.kortty.core.sftp.LocalUploadTree;
+import de.kortty.core.sftp.TerminalSftpLease;
 import de.kortty.core.highlight.HighlightTelemetry;
 import de.kortty.core.highlight.HighlightToggle;
 import de.kortty.core.highlight.TerminalHighlightService;
@@ -149,7 +151,6 @@ import javafx.stage.Window;
 import javafx.scene.layout.VBox;
 import javafx.scene.Scene;
 import org.apache.sshd.sftp.client.SftpClient;
-import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.apache.sshd.sftp.common.SftpConstants;
 import org.apache.sshd.sftp.common.SftpException;
 
@@ -2204,30 +2205,94 @@ public class TerminalView extends BorderPane {
 
     /** Returns true if the event was handled (caller should consume). */
     private boolean handleFileDragOver(DragEvent event) {
-        TtyConnector conn = getFocusedConnector();
-        if (conn instanceof SshTtyConnector ssh && ssh.isConnected() && ssh.getSession() != null) {
+        if (fileDropConnector(fileDropPane(event)) != null) {
             event.acceptTransferModes(TransferMode.COPY);
             return true;
         }
         return false;
     }
 
-    /** Returns true if the event was handled (caller should consume). */
+    /**
+     * Copies dropped files to the server of the pane under the drop point, which becomes the
+     * focused pane. The copy starts once the drag has ended (its dialogs are windows and should not
+     * open inside the platform's drag loop), and only while that pane still runs as the identity it
+     * was opened with: after su or a nested ssh the target directory belongs to another user or
+     * host, so the drop is refused with a message. Returns true if the event was handled.
+     */
     private boolean handleFileDragDropped(DragEvent event) {
         Dragboard db = event.getDragboard();
-        TtyConnector conn = getFocusedConnector();
-        if (!(conn instanceof SshTtyConnector ssh) || !ssh.isConnected() || ssh.getSession() == null) {
+        SithTermFxWidget pane = fileDropPane(event);
+        if (fileDropConnector(pane) == null) {
             event.setDropCompleted(false);
             return false;
         }
         List<java.io.File> dropped = db.getFiles();
-        if (dropped.isEmpty()) {
+        if (dropped == null || dropped.isEmpty()) {
             event.setDropCompleted(false);
             return false;
         }
         event.setDropCompleted(true);
-        copyDroppedFilesToServer(ssh, dropped);
+        List<Path> paths = dropped.stream().map(java.io.File::toPath).toList();
+        Platform.runLater(() -> startDroppedFileCopy(pane, paths));
         return true;
+    }
+
+    /** FX thread: focuses the drop pane, checks the session identity there, then starts the upload. */
+    private void startDroppedFileCopy(SithTermFxWidget pane, List<Path> paths) {
+        if (!terminalPanes().contains(pane)) {
+            logger.debug("Dropped files not copied: the pane closed first ({} items)", paths.size());
+            return;
+        }
+        SshTtyConnector ssh = fileDropConnector(pane);
+        if (ssh == null) {
+            return;
+        }
+        if (splitPane != null) {
+            splitPane.focusWidget(pane);
+        }
+        boolean foreignSession = isForeignSessionActive(createTerminalAgentRunContext(pane));
+        Optional<String> refusal = TerminalTransferGuard.refusalKey(
+            TerminalTransferGuard.Transfer.DROP, foreignSession);
+        if (refusal.isPresent()) {
+            logger.info("Dropped files not copied: a different session is active in the pane");
+            showDropRefusal(I18n.get(refusal.get()));
+            return;
+        }
+        copyDroppedFilesToServer(ssh, paths);
+    }
+
+    private void showDropRefusal(String message) {
+        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
+            javafx.scene.control.Alert.AlertType.WARNING, message, javafx.scene.control.ButtonType.OK);
+        alert.setTitle(I18n.get("terminal.dragDrop.title"));
+        alert.setHeaderText(null);
+        if (getScene() != null && getScene().getWindow() != null) {
+            alert.initOwner(getScene().getWindow());
+        }
+        alert.show();
+    }
+
+    /**
+     * The pane a file drop lands on: the one under the pointer, else the focused pane (a drop next
+     * to the panes, for example on the tab's border).
+     */
+    private @Nullable SithTermFxWidget fileDropPane(DragEvent event) {
+        for (SithTermFxWidget widget : terminalPanes()) {
+            if (widget != null && isUnderPointer(widget.getPane(), event.getSceneX(), event.getSceneY())) {
+                return widget;
+            }
+        }
+        return splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+    }
+
+    /** The pane's connected SSH connector with an open session, or null (local, Mosh, Telnet, closed). */
+    private @Nullable SshTtyConnector fileDropConnector(@Nullable SithTermFxWidget pane) {
+        if (pane == null) {
+            return null;
+        }
+        TtyConnector connector = unwrapTerminalEffectConnector(pane.getTtyConnector());
+        return connector instanceof SshTtyConnector ssh && ssh.isConnected() && ssh.getSession() != null
+            ? ssh : null;
     }
 
     private TtyConnector getFocusedConnector() {
@@ -2872,13 +2937,13 @@ public class TerminalView extends BorderPane {
             && sshConnector.hasShellStartupCommandConfigured();
     }
 
-    private void copyDroppedFilesToServer(SshTtyConnector sshConnector, List<java.io.File> dropped) {
-        List<PathPair> toUpload = new ArrayList<>();
-        for (java.io.File f : dropped) {
-            collectFiles(f.toPath(), "", toUpload);
-        }
-        if (toUpload.isEmpty()) return;
-        int total = toUpload.size();
+    /**
+     * Uploads dropped files and folders into the pane's tracked remote directory over one SFTP
+     * channel leased from the terminal's session ({@link TerminalSftpLease}), closed when the copy
+     * ends, fails or is aborted. The local tree is listed on the worker thread without following
+     * links into folders ({@link LocalUploadTree}); skipped linked folders are reported.
+     */
+    private void copyDroppedFilesToServer(SshTtyConnector sshConnector, List<Path> dropped) {
         AtomicBoolean aborted = new AtomicBoolean(false);
         AtomicLong startTime = new AtomicLong(System.currentTimeMillis());
         javafx.scene.control.ProgressBar progressBar = new javafx.scene.control.ProgressBar(0);
@@ -2888,13 +2953,16 @@ public class TerminalView extends BorderPane {
         targetLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #888888;");
         javafx.scene.control.Label timeLabel = new javafx.scene.control.Label("0s");
         timeLabel.setStyle("-fx-font-size: 0.8462em;");
-        javafx.scene.control.Label statusLabel = new javafx.scene.control.Label(
-            I18n.get("terminal.dragDrop.count", 0, total));
+        javafx.scene.control.Label statusLabel = new javafx.scene.control.Label("");
         javafx.scene.control.Label currentFileLabel = new javafx.scene.control.Label("");
         currentFileLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: #aaaaaa;");
+        javafx.scene.control.Label skippedLabel = new javafx.scene.control.Label("");
+        skippedLabel.setWrapText(true);
+        skippedLabel.setManaged(false);
+        skippedLabel.setVisible(false);
         javafx.scene.control.Button abortButton = new javafx.scene.control.Button(I18n.get("terminal.dragDrop.abort"));
         javafx.scene.layout.VBox vbox = new javafx.scene.layout.VBox(8,
-            targetLabel, timeLabel, statusLabel, currentFileLabel, progressBar, abortButton);
+            targetLabel, timeLabel, statusLabel, currentFileLabel, skippedLabel, progressBar, abortButton);
         vbox.setPadding(new javafx.geometry.Insets(15));
         javafx.scene.control.Dialog<Void> dialog = new javafx.scene.control.Dialog<>();
         dialog.setTitle(I18n.get("terminal.dragDrop.title"));
@@ -2906,8 +2974,30 @@ public class TerminalView extends BorderPane {
             dialog.close();
         });
         Thread worker = new Thread(() -> {
-            try {
-                SftpClient sftp = SftpClientFactory.instance().createSftpClient(sshConnector.getSession());
+            LocalUploadTree.Result tree = LocalUploadTree.collect(dropped);
+            List<LocalUploadTree.Entry> toUpload = tree.entries();
+            int total = toUpload.size();
+            int skippedLinks = tree.skippedLinkedFolders().size();
+            if (!tree.skippedLinkedFolders().isEmpty()) {
+                logger.info("Drag-drop skips {} linked folder(s)", skippedLinks);
+            }
+            Platform.runLater(() -> {
+                statusLabel.setText(I18n.get("terminal.dragDrop.count", 0, total));
+                if (skippedLinks > 0) {
+                    skippedLabel.setText(I18n.get("terminal.dragDrop.skippedLinks", skippedLinks));
+                    skippedLabel.setManaged(true);
+                    skippedLabel.setVisible(true);
+                }
+            });
+            if (toUpload.isEmpty()) {
+                Platform.runLater(() -> {
+                    statusLabel.setText(I18n.get("terminal.dragDrop.done"));
+                    progressBar.setProgress(1.0);
+                });
+                return;
+            }
+            try (TerminalSftpLease lease = TerminalSftpLease.open(sshConnector.getSession())) {
+                SftpClient sftp = lease.client();
                 String trackedDir = sshConnector.getCurrentRemoteDirectory();
                 String sftpStartDir = needsSftpStartDirectory(trackedDir) ? resolveSftpStartDirectory(sftp) : null;
                 String remoteTargetDir = resolveDragDropRemoteDirectory(trackedDir, sftpStartDir);
@@ -2917,21 +3007,17 @@ public class TerminalView extends BorderPane {
                     trackedDir,
                     sftpStartDir);
                 final String remoteHome = remoteTargetDir;
-                logger.debug("Drag-drop will upload to remote directory: {}", remoteHome);
-                // Update target label with destination directory
-                Platform.runLater(() -> {
-                    targetLabel.setText(I18n.get("terminal.dragDrop.target", remoteHome));
-                });
+                Platform.runLater(() -> targetLabel.setText(I18n.get("terminal.dragDrop.target", remoteHome)));
                 int copied = 0;
                 for (int i = 0; i < toUpload.size() && !aborted.get(); i++) {
-                    PathPair p = toUpload.get(i);
-                    String fullRemote = appendRemotePath(remoteHome, p.remote);
-                    final String fileName = p.remote;
+                    LocalUploadTree.Entry entry = toUpload.get(i);
+                    String fullRemote = appendRemotePath(remoteHome, entry.remoteRelative());
+                    final String fileName = entry.remoteRelative();
                     Platform.runLater(() -> {
                         long elapsed = (System.currentTimeMillis() - startTime.get()) / 1000;
                         timeLabel.setText(elapsed + "s");
                     });
-                    uploadOne(sftp, p, fullRemote);
+                    uploadOne(sftp, entry, fullRemote);
                     if (aborted.get()) break;
                     copied++;
                     final int done = copied;
@@ -2945,9 +3031,12 @@ public class TerminalView extends BorderPane {
                     Platform.runLater(() -> {
                         statusLabel.setText(I18n.get("terminal.dragDrop.done"));
                         progressBar.setProgress(1.0);
-                        javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1.2));
-                        pause.setOnFinished(e -> dialog.close());
-                        pause.play();
+                        if (skippedLinks == 0) {
+                            // Leave the dialog open when it reports skipped folders, so the note can be read.
+                            javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1.2));
+                            pause.setOnFinished(e -> dialog.close());
+                            pause.play();
+                        }
                     });
                 }
             } catch (Exception ex) {
@@ -2963,46 +3052,13 @@ public class TerminalView extends BorderPane {
         dialog.show();
     }
 
-    private static class PathPair {
-        final Path local;
-        final String remote;
-        final boolean isDir;
-
-        PathPair(Path local, String remote, boolean isDir) {
-            this.local = local;
-            this.remote = remote;
-            this.isDir = isDir;
-        }
-    }
-
-    private void collectFiles(Path local, String remoteDir, List<PathPair> out) {
-        if (Files.isRegularFile(local)) {
-            String name = local.getFileName().toString();
-            String remote = remoteDir.isEmpty() ? name : remoteDir + "/" + name;
-            out.add(new PathPair(local, remote, false));
-        } else if (Files.isDirectory(local)) {
-            String dirName = local.getFileName().toString();
-            String subRemote = remoteDir.isEmpty() ? dirName : remoteDir + "/" + dirName;
-            out.add(new PathPair(local, subRemote, true));
-            try {
-                try (var stream = Files.list(local)) {
-                    for (Path child : stream.toList()) {
-                        collectFiles(child, subRemote, out);
-                    }
-                }
-            } catch (Exception e) {
-                logger.debug("List dir failed: {}", e.getMessage());
-            }
-        }
-    }
-
-    private void uploadOne(SftpClient sftp, PathPair p, String fullRemotePath) throws java.io.IOException {
-        if (p.isDir) {
+    private void uploadOne(SftpClient sftp, LocalUploadTree.Entry entry, String fullRemotePath) throws java.io.IOException {
+        if (entry.directory()) {
             mkdirsRemote(sftp, fullRemotePath);
             return;
         }
         mkdirsRemote(sftp, parentRemotePath(fullRemotePath));
-        try (InputStream in = Files.newInputStream(p.local);
+        try (InputStream in = Files.newInputStream(entry.local());
              OutputStream out = sftp.write(fullRemotePath, java.util.EnumSet.of(
                  SftpClient.OpenMode.Write, SftpClient.OpenMode.Create, SftpClient.OpenMode.Truncate))) {
             byte[] buf = new byte[8192];

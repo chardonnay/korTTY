@@ -6,6 +6,7 @@ import de.kortty.core.RemotePathSupport;
 import de.kortty.core.SnippetFolderLayout;
 import de.kortty.core.SnippetTreeTransferService;
 import de.kortty.core.SshTtyConnector;
+import de.kortty.core.sftp.TerminalSftpLease;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
@@ -17,7 +18,6 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 import org.apache.sshd.sftp.client.SftpClient;
-import org.apache.sshd.sftp.client.SftpClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +32,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * local shell. Every file gets its executable bit from the snippet ({@code 0755} / {@code 0644}).
  * The target directory and existing files are resolved off the FX thread, the user confirms
  * (overwrite, skip existing or cancel), then a cancellable progress dialog runs the copy.
+ * The copy is refused up front while the pane runs as another user or host (after {@code su} or a
+ * nested {@code ssh}), see {@link TerminalTransferGuard}.
  */
 final class SnippetTerminalTransfer {
 
@@ -54,15 +56,18 @@ final class SnippetTerminalTransfer {
         return connector instanceof LocalShellTtyConnector local && local.isConnected();
     }
 
-    /** One prepared copy: where it goes and which files are already there. */
-    private record Plan(String targetDirectory, List<String> conflicts, SftpClient sftp, Path localDirectory) {
+    /**
+     * One prepared copy: where it goes and which files are already there. A remote plan owns the SFTP
+     * channel leased from the terminal's session and releases it in {@link #close()}.
+     */
+    private record Plan(String targetDirectory, List<String> conflicts, TerminalSftpLease lease, Path localDirectory) {
+        SftpClient sftp() {
+            return lease != null ? lease.client() : null;
+        }
+
         void close() {
-            if (sftp != null) {
-                try {
-                    sftp.close();
-                } catch (Exception ignored) {
-                    // nothing left to release
-                }
+            if (lease != null) {
+                lease.close();
             }
         }
     }
@@ -71,6 +76,14 @@ final class SnippetTerminalTransfer {
         TerminalView view = tab.getTerminalView();
         SshTtyConnector ssh = view.getActiveSshConnector();
         TerminalView.TerminalAgentRunContext context = view.captureTerminalAgentRunContext();
+        // FX thread: the verdict reads the screen; only the plain result reaches the worker.
+        Optional<String> refusal = TerminalTransferGuard.refusalKey(
+            TerminalTransferGuard.Transfer.SNIPPET_COPY, view.isForeignSessionActive(context));
+        if (refusal.isPresent()) {
+            logger.info("Snippets not copied to the terminal directory: a different session is active in the pane");
+            showError(owner, I18n.get(refusal.get()));
+            return;
+        }
         String promptDirectory = context != null ? context.workingDirectory() : null;
         ObservableTtyConnector local = ssh == null ? view.getActiveAgentConnector() : null;
 
@@ -96,8 +109,9 @@ final class SnippetTerminalTransfer {
 
     private static Plan prepareRemote(SshTtyConnector ssh, String promptDirectory, SnippetFolderLayout layout)
             throws Exception {
-        SftpClient sftp = SftpClientFactory.instance().createSftpClient(ssh.getSession());
+        TerminalSftpLease lease = TerminalSftpLease.open(ssh.getSession());
         try {
+            SftpClient sftp = lease.client();
             String tracked = ssh.getCurrentRemoteDirectory();
             String target;
             if (tracked != null && tracked.trim().startsWith("/")) {
@@ -110,9 +124,9 @@ final class SnippetTerminalTransfer {
                 target = RemotePathSupport.resolveTargetDirectory(tracked, start);
             }
             List<String> conflicts = SnippetTreeTransferService.existingRemote(sftp, target, layout);
-            return new Plan(target, conflicts, sftp, null);
+            return new Plan(target, conflicts, lease, null);
         } catch (Exception e) {
-            sftp.close();
+            lease.close();
             throw e;
         }
     }
