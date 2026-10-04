@@ -1694,7 +1694,7 @@ public class TerminalSplitPane extends StackPane {
         CheckMenuItem broadcastToggle = new CheckMenuItem(I18n.get("terminal.contextMenu.broadcastMode"));
         broadcastToggle.setSelected(broadcastMode);
         broadcastToggle.setOnAction(e -> setBroadcastMode(broadcastToggle.isSelected()));
-        broadcastToggle.setDisable(rootCell.countWidgets() <= 1);
+        broadcastToggle.setDisable(rootCell.countWidgets() <= 1 || (!broadcastMode && !broadcastAllowed()));
         extrasMenu.getItems().addAll(splitMenu, fontMenu, new SeparatorMenuItem(), broadcastToggle);
         String held = broadcastMode ? heldMirrorTargetsText(countHeldMirrorTargets(), getWidgetCount()) : null;
         if (held != null) {
@@ -2210,6 +2210,12 @@ public class TerminalSplitPane extends StackPane {
     }
     
     public void setBroadcastMode(boolean enabled) {
+        if (enabled && !this.broadcastMode && !broadcastAllowed()) {
+            // Typing into several panes at once is what [rule.features] multi-exec = "deny" forbids;
+            // switching it off always works.
+            logger.info("Broadcast mode not switched on: denied by the organization's policy");
+            return;
+        }
         boolean changed = this.broadcastMode != enabled;
         this.broadcastMode = enabled;
         logger.info("Broadcast mode {}", enabled ? "enabled" : "disabled");
@@ -2226,6 +2232,11 @@ public class TerminalSplitPane extends StackPane {
         }
     }
     
+    /** Whether broadcast mode may be switched on: false while the organization's policy denies multi-exec. */
+    public static boolean broadcastAllowed() {
+        return de.kortty.policy.PolicyManager.effective().multiExecAllowed();
+    }
+
     public void toggleBroadcastMode() {
         setBroadcastMode(!broadcastMode);
     }

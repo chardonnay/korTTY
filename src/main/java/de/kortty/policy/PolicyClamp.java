@@ -107,6 +107,20 @@ public final class PolicyClamp {
             // switched it off before.
             settings.setTerminalTriggersEnabled(true);
         }
+        if (policy.pasteWarningFloor() != null) {
+            // A floor, not a fixed value: a user who asks more often than the policy demands keeps it.
+            settings.setPasteWarningMode(de.kortty.paste.PasteWarningMode.mostRestrictive(
+                settings.getPasteWarningMode(), policy.pasteWarningFloor()));
+        }
+        if (!policy.osc52ClipboardWriteAllowed()) {
+            settings.setOsc52ClipboardWriteEnabled(false);
+        }
+        if (policy.sessionRestoreMode() != null) {
+            settings.setSessionRestoreMode(policy.sessionRestoreMode());
+        }
+        if (policy.sessionRestoreOutput() != null) {
+            settings.setSessionRestoreScrollback(policy.sessionRestoreOutput());
+        }
         if (policy.requireMasterPassword()) {
             settings.setRequireMasterPasswordOnStartup(true);
             // A forced master password rules out the insecure auto-unlock path.

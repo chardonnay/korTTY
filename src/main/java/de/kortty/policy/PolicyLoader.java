@@ -39,7 +39,7 @@ public final class PolicyLoader {
     private static final Set<String> SERVERS_KEYS = Set.of("mode", "hosts");
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
         "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "allow-port-forwarding",
-        "clipboard-mode");
+        "clipboard-mode", "allow-osc52-clipboard-write");
     private static final Set<String> RULE_TEAMWORK_KEYS = Set.of("allow-custom-sources");
     private static final Set<String> SNIPPETS_KEYS =
         Set.of("allow-custom-script-headers", "analysis-max-stored-content-bytes");
@@ -48,7 +48,8 @@ public final class PolicyLoader {
     private static final Set<String> RULE_AI_RUNTIME_KEYS =
         Set.of("allow-runtime-downloads", "allow-model-downloads", "allow-user-models");
     private static final Set<String> UPDATES_KEYS = Set.of("enabled", "feed-url");
-    private static final Set<String> TERMINAL_KEYS = Set.of("load-into-snippet-editor");
+    private static final Set<String> TERMINAL_KEYS = Set.of("load-into-snippet-editor", "paste-warning",
+        "session-restore", "session-restore-output");
     private static final Set<String> LOGGING_KEYS = Set.of("directory", "retention-days",
         "compress", "format", "rotation-max-files", "rotation-total-size-mb");
     private static final Set<String> SESSION_JOURNAL_KEYS = Set.of("enforced", "log-format",
@@ -264,6 +265,7 @@ public final class PolicyLoader {
         builder.allowTelemetry(getBoolean(security, "allow-telemetry", securityContext));
         builder.allowTerminalRecording(getBoolean(security, "allow-terminal-recording", securityContext));
         builder.allowPortForwarding(getBoolean(security, "allow-port-forwarding", securityContext));
+        builder.allowOsc52ClipboardWrite(getBoolean(security, "allow-osc52-clipboard-write", securityContext));
         String clipboardMode = getString(security, "clipboard-mode", securityContext);
         if (clipboardMode != null) {
             ClipboardMode mode = ClipboardMode.fromToml(clipboardMode);
@@ -369,6 +371,25 @@ public final class PolicyLoader {
                 builder.loadIntoSnippetEditor(mode);
             }
         }
+        String pasteWarning = getString(table, "paste-warning", tableContext);
+        if (pasteWarning != null) {
+            de.kortty.paste.PasteWarningMode floor = de.kortty.paste.PasteWarningMode.parseId(pasteWarning);
+            if (floor == null) {
+                errors.add(tableContext + ": paste-warning must be \"off\", \"unless-bracketed\" or \"always\"");
+            } else {
+                builder.pasteWarningFloor(floor);
+            }
+        }
+        String sessionRestore = getString(table, "session-restore", tableContext);
+        if (sessionRestore != null) {
+            de.kortty.model.SessionRestoreMode mode = de.kortty.model.SessionRestoreMode.parseId(sessionRestore);
+            if (mode == null) {
+                errors.add(tableContext + ": session-restore must be \"off\", \"ask\" or \"auto\"");
+            } else {
+                builder.sessionRestoreMode(mode);
+            }
+        }
+        builder.sessionRestoreOutput(getBoolean(table, "session-restore-output", tableContext));
     }
 
     private void parseRuleLogging(TomlTable rule, String context, PolicyRule.Builder builder) {

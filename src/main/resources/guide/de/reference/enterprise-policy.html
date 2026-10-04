@@ -828,7 +828,7 @@
 </tbody>
 </table>
 <p>Das Durchsetzungsmodell basiert auf den Dateiberechtigungen des Betriebssystems: Das Installationsverzeichnis darf nur von Administratoren beschreibbar sein, was für die oben genannten Speicherorte die Standardeinstellung ist. korTTY protokolliert zusätzlich eine Warnung, wenn die aktive Richtliniendatei vom aktuellen Benutzer beschreibbar ist. Während der Entwicklung (niemals in einer Paketinstallation) kann eine Richtlinie mit <code>-Dkortty.policy.file=/path/to/policy.toml</code> getestet werden.</p>
-<p>Wenn die Datei existiert, aber nicht geparst werden kann oder einen ungültigen Wert enthält, startet korTTY mit einer ausfallsicheren Sperre: Alle durch Richtlinien steuerbaren Funktionen werden verweigert, keine Serververbindung ist erlaubt und ein Startdialog benennt die Datei und die genaue Fehlerposition. Ein Tippfehler kann daher niemals stillschweigend die Durchsetzung verhindern. Eine ungültige Regel lehnt die gesamte Datei ab; Unbekannte Schlüssel erzeugen nur Protokollwarnungen, daher sperrt eine für ein neueres korTTY geschriebene Richtlinie Benutzer einer älteren Version nicht aus.</p>
+<p>Wenn die Datei existiert, aber nicht geparst werden kann oder einen ungültigen Wert enthält, startet korTTY in einer fehlersicheren Sperre: Jede per Richtlinie steuerbare Funktion wird verweigert, keine Serververbindung ist erlaubt, jedes Einfügen mit Zeilenumbruch ins Terminal fragt nach einer Bestätigung, Programme können keinen Text per OSC 52 in die Zwischenablage legen, die vorherige Sitzung wird beim Start nicht wieder geöffnet, die Ausgabe der Terminalbereiche wird dafür nicht gespeichert, und ein Dialog beim Start nennt die Datei und die genaue Fehlerposition. Ein Tippfehler kann die Durchsetzung daher nie stillschweigend abschalten. Eine einzige ungültige Regel verwirft die gesamte Datei; unbekannte Schlüssel erzeugen nur Warnungen im Log, sodass eine für ein neueres korTTY geschriebene Richtlinie Benutzer einer älteren Version nicht aussperrt.</p>
 <h2 id="benutzer-gruppen-und-regelprioritat">Benutzer, Gruppen und Regelpriorität<a class="headerlink" href="#benutzer-gruppen-und-regelprioritat" title="Permanent link">&para;</a></h2>
 <p>Regeln zielen auf den aktuellen Anmeldenamen des Betriebssystems ab (entspricht Kleinbuchstaben). Die Gruppenmitgliedschaft stammt aus zwei Quellen gleichzeitig: Gruppen, die in der Tabelle <code>[groups]</code> der Richtlinie definiert sind, und den Gruppenmitgliedschaften des Benutzers auf Betriebssystemebene. Auf in die Domäne eingebundenen Windows-Computern umfassen die Betriebssystemgruppen Active Directory-Gruppen, sodass Regeln direkt auf AD-Gruppen abzielen können – sowohl vollständig qualifiziert (<code>ACME\Operations</code>) als auch als bloßer Name (<code>operations</code>) – ohne dass eine Verzeichnisserverkonfiguration erforderlich ist.</p>
 <p>Jeder <code>[[rule]]</code>-Block benennt optional <code>users</code> und/oder <code>groups</code>; Eine Regel, die keine Benennung vornimmt, gilt für jeden Benutzer. Pro Einstellung gewinnt die spezifischste Stufe, die sie festlegt: <strong>Benutzer schlägt Gruppe schlägt alle</strong>. Das ist das bekannte Gruppenrichtlinienmuster: Sperren Sie alles in einer Grundregel für alle und lockern Sie dann die individuellen Einstellungen für eine vertrauenswürdige Gruppe. Wenn mehrere Regeln derselben Ebene denselben Schlüssel festlegen, gilt der restriktivste Wert (<code>deny</code> über <code>read-only</code> über <code>confirm</code> über <code>allow</code>); Gemäß den Serverregeln muss eine Verbindung alle geltenden Einschränkungen der Gewinnerstufe erfüllen. Die Reihenfolge der Regeln in der Datei hat keine Bedeutung.</p>
@@ -1081,6 +1081,12 @@
 <td><a href="../features/highlighting.html#benachrichtigungen-bei-passender-ausgabe">Hervorhebungsregeln, die eine Aktion auslösen</a>, wenn ihr Muster in der Terminalausgabe erscheint (eine Desktop-Benachrichtigung oder das <a href="../features/highlighting.html#ein-snippet-ausfuhren-wenn-die-ausgabe-passt">Ausführen eines Snippets</a> im Bereich): <code>deny</code> stoppt jede solche Aktion, auch ein Snippet, das der Benutzer für eine Verbindung bereits erlaubt hat, sperrt <strong>Aktionen von Hervorhebungsregeln ausführen (Benachrichtigungen, Snippets)</strong> unter <em>Einstellungen → Terminal</em> in ausgeschalteter Stellung und hindert den Regelsatz-Editor daran, einer Regel eine Aktion zu geben. Die Hervorhebung von Schlüsselwörtern selbst ist nicht betroffen. <code>allow</code> sperrt die Einstellung eingeschaltet</td>
 </tr>
 <tr>
+<td><code>multi-exec</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Eingabe in mehrere Terminals gleichzeitig: <a href="../features/terminal.html#multi-exec">Multi-Exec</a> über Tabs und Fenster hinweg und der Broadcast-Modus eines Tabs. <code>deny</code> sperrt die Einträge zum Einbeziehen unter <em>Ansicht → Multi-Exec</em>, <em>Ansicht → Bereiche → Broadcast an alle Bereiche dieses Tabs</em>, die Einträge für Multi-Exec und Broadcast-Modus in den Kontextmenüs von Tab, Bereich und Dashboard sowie ihre Einträge in der Befehlspalette und ihre Tastenkürzel; kein Bereich kann von irgendwo aus beitreten. <strong>Multi-Exec beenden</strong> und das Ausschalten des Broadcast-Modus funktionieren weiterhin. Es gibt kein Steuerelement in den Einstellungen, daher ändert <code>allow</code> nichts</td>
+</tr>
+<tr>
 <td><code>ai-agent-execution</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
@@ -1138,6 +1144,12 @@
 <td>Zeichenfolge</td>
 <td><code>system</code>, <code>internal</code></td>
 <td><code>internal</code> beschränkt korTTY auf seine eigene Zwischenablage im Speicher – siehe unten</td>
+</tr>
+<tr>
+<td><code>allow-osc52-clipboard-write</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Programme in einem Terminal können nie Text per OSC 52 in die Zwischenablage legen, unabhängig von <em>Einstellungen → Terminal</em>: Die Einstellung wird ausgeschaltet und <strong>Programmen im Terminal erlauben, Text in die Zwischenablage zu kopieren (OSC 52)</strong> ist mit dem Hinweis „Verwaltet von Ihrer Organisation“ gesperrt, und korTTY prüft die Richtlinie bei jedem Schreibvorgang erneut. <code>true</code> überlässt die Wahl, die standardmäßig aus ist, dem Benutzer und sperrt nichts</td>
 </tr>
 </tbody>
 </table>
@@ -1302,8 +1314,38 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 <td><code>allow</code>, <code>read-only</code>, <code>deny</code></td>
 <td><code>read-only</code> lädt weiterhin entfernte Dateien in den Snippet-Editor, verbietet jedoch das Zurückschreiben in das Zielsystem; <code>deny</code> entfernt die Funktion vollständig, einschließlich des Öffnens von Dateipfaden und <code>file:</code>-Links aus der Terminalausgabe (<a href="../features/terminal.html#links-in-der-terminalausgabe">Links in der Terminalausgabe</a>)</td>
 </tr>
+<tr>
+<td><code>paste-warning</code></td>
+<td>string</td>
+<td><code>off</code>, <code>unless-bracketed</code>, <code>always</code></td>
+<td>Wie oft eine <a href="../features/terminal.html#einfugeschutz">Einfügewarnung</a> mindestens nachfragt. Es ist eine Untergrenze, die zusätzlich zu <em>Einstellungen → Terminal → Einfügeschutz</em>, der eigenen Einfügewarnung einer Verbindung und der Einfügewarnung einer Teamwork-Verbindung gilt, sodass keine von ihnen seltener nachfragen kann; eine, die öfter nachfragt, tut das weiterhin. Die gespeicherte Einstellung wird auf die Untergrenze angehoben, und das Auswahlfeld trägt den Hinweis „Verwaltet von Ihrer Organisation“ und bietet nur die Untergrenze und strengere Optionen an; mit <code>always</code> ist es gesperrt. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt der strengere (<code>always</code> vor <code>unless-bracketed</code> vor <code>off</code>)</td>
+</tr>
+<tr>
+<td><code>session-restore</code></td>
+<td>string</td>
+<td><code>off</code>, <code>ask</code>, <code>auto</code></td>
+<td>Legt fest, was korTTY beim Start mit den Fenstern und Tabs der vorherigen Sitzung tut (<em>Einstellungen → Fenster → <a href="settings/window.html#sitzungswiederherstellung">Sitzungswiederherstellung</a></em>), und sperrt das Auswahlfeld. <code>off</code> öffnet von selbst nichts; <strong>Datei → Vorherige Sitzung wiederherstellen</strong> bleibt verfügbar. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt der Wert, der von selbst weniger Verbindungen öffnet (<code>off</code> vor <code>ask</code> vor <code>auto</code>)</td>
+</tr>
+<tr>
+<td><code>session-restore-output</code></td>
+<td>boolean</td>
+<td><code>true</code>, <code>false</code></td>
+<td>Legt <strong>Auch die Ausgabe jedes Terminalbereichs wiederherstellen (verschlüsselt)</strong> in <em>Einstellungen → Fenster → <a href="settings/window.html#sitzungswiederherstellung">Sitzungswiederherstellung</a></em> fest und sperrt die Option zusammen mit <strong>Ausgabezeilen pro Bereich</strong>. <code>false</code> schaltet sie aus, wodurch die bisher gespeicherte Ausgabe beim nächsten Start gelöscht wird; <code>true</code> schaltet sie ein, und die Ausgabe wird weiterhin nur gespeichert, solange ein Master-Passwort existiert und der Tresor entsperrt ist. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt <code>false</code></td>
+</tr>
 </tbody>
 </table>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">multi-exec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"deny"</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="k">[rule.security]</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="n">allow-osc52-clipboard-write</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="k">[rule.terminal]</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="n">paste-warning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"always"</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">  </span><span class="n">session-restore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ask"</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span><span class="n">session-restore-output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span></code></pre></div>
 <h3 id="rulelogging"><code>[rule.logging]</code><a class="headerlink" href="#rulelogging" title="Permanent link">&para;</a></h3>
 <p>korTTY rotiert sein Protokoll täglich (<code>kortty.YYYY-MM-DD.log</code>); Diese Tabelle steuert, wohin die Dateien gehen, wie lange sie leben, wie sie formatiert sind und wie die Rotation begrenzt wird. Verzeichnis und Aufbewahrung werden in die entsprechenden (dann gesperrten) Benutzereinstellungen gezwungen; Format, Komprimierung und die Rotationsbeschränkungen haben keine Benutzereinstellung und wirken direkt. Die Konfiguration wird vor der allerersten Protokollzeile eines Starts angewendet, sodass auch die Startprotokollierung dem Schema des Administrators folgt.</p>
 <table>
@@ -1354,14 +1396,14 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 </tr>
 </tbody>
 </table>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[[rule]]</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="k">[rule.logging]</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/var/log/kortty"</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="n">retention-days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="n">compress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="n">rotation-max-files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="n">rotation-total-size-mb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="k">[rule.logging]</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/var/log/kortty"</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="n">retention-days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="n">compress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="n">rotation-max-files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="n">rotation-total-size-mb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span>
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -1471,15 +1513,15 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 </tr>
 </tbody>
 </table>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[[rule]]</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="k">[rule.features]</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">session-journal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"allow"</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="n">log-format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="n">storage-path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/srv/audit/kortty-journals"</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="n">allow-delete</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="n">name-template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"{connection} {date} {time} ({user})"</span>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="n">session-journal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"allow"</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="n">log-format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="n">storage-path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/srv/audit/kortty-journals"</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="n">allow-delete</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span><span class="n">name-template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"{connection} {date} {time} ({user})"</span>
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -1530,26 +1572,26 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 </tr>
 </tbody>
 </table>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[[rule]]</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AKIA[0-9A-Z]{16}"</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"***AWS-ACCESS-KEY***"</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AWS access keys"</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"(?i)bearer</span><span class="se">\\</span><span class="s2">s+[A-Za-z0-9._-]{20,}"</span>
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer ***"</span>
-</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer tokens"</span>
-</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
-</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
-</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"vpn.internal.acme.corp"</span>
-</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;internal-host&gt;"</span>
-</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">    </span><span class="n">ignore-case</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AKIA[0-9A-Z]{16}"</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"***AWS-ACCESS-KEY***"</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AWS access keys"</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"(?i)bearer</span><span class="se">\\</span><span class="s2">s+[A-Za-z0-9._-]{20,}"</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer ***"</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer tokens"</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"vpn.internal.acme.corp"</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;internal-host&gt;"</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">    </span><span class="n">ignore-case</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </span></code></pre></div>
 <p>Die Regeln werden <strong>im Erfassungsthread ausgeführt, bevor eine Zeile geschrieben wird</strong>, sodass ein übereinstimmender Text überhaupt nicht in die Protokolldatei gelangt, und sie werden auch auf KI-Zusammenfassungen und Benutzernotizen angewendet. Im Gegensatz zu den anderen Schlüsseln werden Ersetzungsregeln <strong>über alle übereinstimmenden Regeln und alle Ebenen hinweg zusammengeführt</strong> und nicht, dass die höchste Ebene gewinnt: Mehr Schwärzung ist das restriktivere Ergebnis, sodass eine benutzer- oder gruppenspezifische Regel nur Muster hinzufügen und niemals die organisationsweiten ausschalten kann. Doppelte Einträge werden ausgeblendet.</p>
 <div class="admonition warning">
@@ -1602,7 +1644,7 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 </div>
 <h2 id="verschlusselte-api-schlussel">Verschlüsselte API-Schlüssel<a class="headerlink" href="#verschlusselte-api-schlussel" title="Permanent link">&para;</a></h2>
 <p>Der API-Schlüssel eines KI-Profils erscheint niemals im Klartext in der Richtlinie. Der Administrator verschlüsselt es einmal von einem Terminal aus – der Befehl gibt einen <code>kortty-enc:v1:</code>-Wert für den <code>api-key-encrypted</code>-Schlüssel aus:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
 </span></code></pre></div>
 <p>Benutzern wird im Profil nur „Von Ihrer Organisation bereitgestellter API-Schlüssel“ angezeigt. Der Schlüssel wird im Speicher entschlüsselt, sobald eine Anfrage gestellt wird.</p>
 <div class="admonition warning">

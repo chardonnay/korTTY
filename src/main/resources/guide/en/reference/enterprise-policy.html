@@ -828,7 +828,7 @@
 </tbody>
 </table>
 <p>The enforcement model relies on the operating system's file permissions: the installation directory must be writable only by administrators, which is the default for the locations above. korTTY additionally logs a warning when the active policy file is writable by the current user. During development (never in a packaged installation) a policy can be tested with <code>-Dkortty.policy.file=/path/to/policy.toml</code>.</p>
-<p>If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version.</p>
+<p>If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, every terminal paste with a line break asks for confirmation, programs cannot put text on the clipboard with OSC 52, the previous session is not reopened at startup, the output of terminal panes is not saved for it, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version.</p>
 <h2 id="users-groups-and-rule-precedence">Users, groups and rule precedence<a class="headerlink" href="#users-groups-and-rule-precedence" title="Permanent link">&para;</a></h2>
 <p>Rules target the current OS login name (matched lowercase). Group membership comes from two sources at once: groups defined in the policy's <code>[groups]</code> table, and the user's OS-level group memberships. On domain-joined Windows machines the OS groups include Active Directory groups, so rules can target AD groups directly — both fully qualified (<code>ACME\Operations</code>) and as the bare name (<code>operations</code>) — without any directory server configuration.</p>
 <p>Each <code>[[rule]]</code> block optionally names <code>users</code> and/or <code>groups</code>; a rule naming neither applies to every user. Per setting, the most specific tier that sets it wins: <strong>user beats group beats everyone</strong>. That is the familiar group-policy pattern — lock everything down in a baseline rule for everyone, then relax individual settings for a trusted group. When several rules of the same tier set the same key, the most restrictive value applies (<code>deny</code> over <code>read-only</code> over <code>confirm</code> over <code>allow</code>); for server rules, a connection must pass every applicable restriction of the winning tier. The order of rules in the file has no significance.</p>
@@ -1081,6 +1081,12 @@
 <td><a href="../features/highlighting.html#notifications-for-matching-output">Highlight rules that act</a> when their pattern appears in terminal output (a desktop notification, or <a href="../features/highlighting.html#running-a-snippet-when-output-matches">running a snippet</a> in the pane): <code>deny</code> stops every such action, also a snippet the user already allowed for a connection, locks <strong>Run actions of highlight rules (notifications, snippets)</strong> in <em>Settings → Terminal</em> in the off position and keeps the rule editor from giving a rule an action. Keyword highlighting itself is not affected. <code>allow</code> locks the setting on</td>
 </tr>
 <tr>
+<td><code>multi-exec</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Typing into several terminals at once: <a href="../features/terminal.html#multi-exec">multi-exec</a> across tabs and windows and a tab's broadcast mode. <code>deny</code> locks the include items of <em>View → Multi-exec</em>, <em>View → Panes → Broadcast</em>, the Multi-exec and Broadcast Mode entries of the tab, pane and Dashboard context menus, and their command palette and shortcut entries; no pane can join from anywhere. <strong>Stop Multi-exec</strong> and switching broadcast mode off keep working. There is no Settings control, so <code>allow</code> changes nothing</td>
+</tr>
+<tr>
 <td><code>ai-agent-execution</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
@@ -1138,6 +1144,12 @@
 <td>string</td>
 <td><code>system</code>, <code>internal</code></td>
 <td><code>internal</code> confines korTTY to its own in-memory clipboard — see below</td>
+</tr>
+<tr>
+<td><code>allow-osc52-clipboard-write</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Programs in a terminal can never put text on the clipboard with OSC 52, whatever <em>Settings → Terminal</em> says: the setting is forced off and <strong>Let programs in the terminal copy text to the clipboard (OSC 52)</strong> is locked with the "Managed by your organization" hint, and korTTY checks the policy again on every write. <code>true</code> leaves the choice, which is off by default, to the user and locks nothing</td>
 </tr>
 </tbody>
 </table>
@@ -1302,8 +1314,38 @@ at an internal endpoint.</p>
 <td><code>allow</code>, <code>read-only</code>, <code>deny</code></td>
 <td><code>read-only</code> keeps loading remote files into the snippet editor but forbids writing back to the target system; <code>deny</code> removes the feature entirely, including opening file paths and <code>file:</code> links from terminal output (<a href="../features/terminal.html#links-in-terminal-output">Links in terminal output</a>)</td>
 </tr>
+<tr>
+<td><code>paste-warning</code></td>
+<td>string</td>
+<td><code>off</code>, <code>unless-bracketed</code>, <code>always</code></td>
+<td>The least a <a href="../features/terminal.html#paste-protection">paste warning</a> may ask. It is a floor, applied on top of <em>Settings → Terminal → Paste protection</em>, a connection's own paste warning and the paste warning of a teamwork connection, so none of them can ask less often; one that asks more often keeps doing so. The stored setting is raised to the floor, and the dropdown carries the "Managed by your organization" hint and offers only the floor and stricter choices; with <code>always</code> it is locked. When several rules of the same tier set it, the stricter value wins (<code>always</code> over <code>unless-bracketed</code> over <code>off</code>)</td>
+</tr>
+<tr>
+<td><code>session-restore</code></td>
+<td>string</td>
+<td><code>off</code>, <code>ask</code>, <code>auto</code></td>
+<td>Sets what korTTY does at startup with the previous session's windows and tabs (<em>Settings → Window → <a href="settings/window.html#session-restore">Session Restore</a></em>) and locks the dropdown. <code>off</code> reopens nothing by itself; <strong>File → Restore Previous Session</strong> stays available. When several rules of the same tier set it, the value that opens fewer connections by itself wins (<code>off</code> over <code>ask</code> over <code>auto</code>)</td>
+</tr>
+<tr>
+<td><code>session-restore-output</code></td>
+<td>boolean</td>
+<td><code>true</code>, <code>false</code></td>
+<td>Sets and locks <strong>Also restore the output of each terminal pane (encrypted)</strong> in <em>Settings → Window → <a href="settings/window.html#session-restore">Session Restore</a></em>, together with <strong>Lines of output per pane</strong>. <code>false</code> switches it off, which deletes the output saved so far at the next start; <code>true</code> switches it on, and the output is still saved only while a master password exists and the vault is unlocked. When several rules of the same tier set it, <code>false</code> wins</td>
+</tr>
 </tbody>
 </table>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">multi-exec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"deny"</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="k">[rule.security]</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="n">allow-osc52-clipboard-write</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="k">[rule.terminal]</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="n">paste-warning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"always"</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">  </span><span class="n">session-restore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ask"</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">  </span><span class="n">session-restore-output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span></code></pre></div>
 <h3 id="rulelogging"><code>[rule.logging]</code><a class="headerlink" href="#rulelogging" title="Permanent link">&para;</a></h3>
 <p>korTTY rotates its log daily (<code>kortty.YYYY-MM-DD.log</code>); this table controls where the files go, how long they live, how they are formatted and how rotation is capped. Directory and retention are forced into the corresponding (then locked) user settings; format, compression and the rotation caps have no user setting and act directly. The configuration is applied before the very first log line of a start, so even startup logging follows the admin's scheme.</p>
 <table>
@@ -1354,14 +1396,14 @@ at an internal endpoint.</p>
 </tr>
 </tbody>
 </table>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[[rule]]</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="k">[rule.logging]</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/var/log/kortty"</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="n">retention-days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="n">compress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="n">rotation-max-files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="n">rotation-total-size-mb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="k">[rule.logging]</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/var/log/kortty"</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="n">retention-days</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="n">compress</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="n">rotation-max-files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">14</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="n">rotation-total-size-mb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span>
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -1471,15 +1513,15 @@ at an internal endpoint.</p>
 </tr>
 </tbody>
 </table>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[[rule]]</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="k">[rule.features]</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="n">session-journal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"allow"</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="n">log-format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="n">storage-path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/srv/audit/kortty-journals"</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="n">allow-delete</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="n">name-template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"{connection} {date} {time} ({user})"</span>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="k">[rule.features]</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="n">session-journal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"allow"</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="n">log-format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"json"</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="n">storage-path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"/srv/audit/kortty-journals"</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span><span class="n">allow-delete</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span><span class="n">name-template</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"{connection} {date} {time} ({user})"</span>
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -1530,26 +1572,26 @@ at an internal endpoint.</p>
 </tr>
 </tbody>
 </table>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[[rule]]</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AKIA[0-9A-Z]{16}"</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"***AWS-ACCESS-KEY***"</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AWS access keys"</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"(?i)bearer</span><span class="se">\\</span><span class="s2">s+[A-Za-z0-9._-]{20,}"</span>
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer ***"</span>
-</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer tokens"</span>
-</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
-</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
-</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"vpn.internal.acme.corp"</span>
-</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;internal-host&gt;"</span>
-</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">    </span><span class="n">ignore-case</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">[[rule]]</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="k">[rule.session-journal]</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="n">enforced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AKIA[0-9A-Z]{16}"</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"***AWS-ACCESS-KEY***"</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"AWS access keys"</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"(?i)bearer</span><span class="se">\\</span><span class="s2">s+[A-Za-z0-9._-]{20,}"</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer ***"</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="n">regex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Bearer tokens"</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">    </span><span class="k">[[rule.session-journal.replace]]</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="n">pattern</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"vpn.internal.acme.corp"</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">    </span><span class="n">replacement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"&lt;internal-host&gt;"</span>
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">    </span><span class="n">ignore-case</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </span></code></pre></div>
 <p>The rules run <strong>on the capture thread, before a line is written</strong>, so a matching text never reaches the log file at all, and they are applied to AI summaries and user notes as well. Unlike the other keys, replacement rules are <strong>merged across every matching rule and every tier</strong> rather than the highest tier winning: more redaction is the more restrictive outcome, so a user- or group-specific rule can only add patterns, never switch the organization-wide ones off. Duplicate entries are collapsed.</p>
 <div class="admonition warning">
@@ -1602,7 +1644,7 @@ at an internal endpoint.</p>
 </div>
 <h2 id="encrypted-api-keys">Encrypted API keys<a class="headerlink" href="#encrypted-api-keys" title="Permanent link">&para;</a></h2>
 <p>An AI profile's API key never appears in plain text in the policy. The administrator encrypts it once from a terminal — the command prints a <code>kortty-enc:v1:</code> value for the <code>api-key-encrypted</code> key:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>korTTY<span class="w"> </span>--encrypt-policy-value
 </span></code></pre></div>
 <p>Users see only "API key provided by your organization" in the profile; the key is decrypted in memory at the moment a request is made.</p>
 <div class="admonition warning">

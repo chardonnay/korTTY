@@ -53,7 +53,7 @@ class SessionRestoreStartupWiringTest {
         assertThat(start).contains("return isModalDialogShowing();");
         assertThat(start).contains("sessionAutosave.carryForward(previous);");
         assertThat(start).contains("showSessionRestoreOffer(text);");
-        assertThat(start).contains("restorePreviousSession();");
+        assertThat(start).contains("restorePreviousSession(RestoreTrigger.AUTO);");
         assertThat(start).contains("}, decision, facts, I18n::get).start();");
 
         String modal = methodBody(read(MAIN_WINDOW), "private static boolean isModalDialogShowing() {");
@@ -68,12 +68,12 @@ class SessionRestoreStartupWiringTest {
         assertThat(offer).contains("statusBar.getChildren().add(0, sessionRestoreOfferBar);");
         assertThat(offer).contains("sessionAutosave.dropCarriedForward();");
         assertThat(offer).doesNotContain("showAndWait");
-        assertThat(offer.indexOf("sessionRestoreOfferBar.hideOffer();")).isLessThan(offer.indexOf("restorePreviousSession();"));
+        assertThat(offer.indexOf("sessionRestoreOfferBar.hideOffer();")).isLessThan(offer.indexOf("restorePreviousSession(RestoreTrigger.OFFER);"));
     }
 
     @Test
     void everyRestoreOfThePreviousSessionLeavesItsMarkFirstAndBecomesStableAfterAMinute() throws IOException {
-        String restore = methodBody(read(MAIN_WINDOW), "private void restorePreviousSession() {");
+        String restore = methodBody(read(MAIN_WINDOW), "private void restorePreviousSession(RestoreTrigger trigger) {");
 
         int once = restore.indexOf("sessionAutosave.markPreviousRestored();");
         int mark = restore.indexOf("sessionAutosave.beginSessionRestore();");

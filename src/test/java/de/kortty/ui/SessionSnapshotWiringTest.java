@@ -104,7 +104,7 @@ class SessionSnapshotWiringTest {
         assertThat(file).contains("openProject, openRecent, saveProject, restorePreviousSession, new SeparatorMenuItem(),");
         assertThat(file.substring(file.indexOf("fileMenu.setOnShowing("))).contains("syncRestorePreviousSessionMenuItems();");
 
-        String restore = methodBody(window, "private void restorePreviousSession() {");
+        String restore = methodBody(window, "private void restorePreviousSession(RestoreTrigger trigger) {");
         assertThat(restore).contains("sessionAutosave.loadPrevious()");
         assertThat(restore).contains("sessionAutosave.markPreviousRestored();");
         assertThat(restore).contains("restoreProject(project, target);");
