@@ -40,6 +40,16 @@ Einige Terminalfunktionen melden, wie sie verwendet werden, und zwar nur mit Sch
 
 Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsätzen, die Muster und alles, was in die Bereiche eingegeben wird, werden nie gesendet. Änderungen auf den Einstellungsseiten werden als Name der Einstellung gemeldet, bei Schaltern und Auswahlfeldern mit dem neuen Wert; bei den Buchstaben und Mustern der Schnellauswahl und bei neu belegten Tastenkürzeln nur, ob Sie sie geändert haben.
 
+### SFTP-Übertragungen
+
+Wenn ein Upload oder Download im SFTP-Manager abgeschlossen ist, beschreibt ein Ereignis, wie er verlaufen ist. Dateianzahlen werden auf 0, 1, 2, 5, 10, 50, 100 oder 1000 abgerundet.
+
+| Ereignis | Gesendet, wenn | Daten |
+| --- | --- | --- |
+| `sftp_transfer_batch` | ein Upload- oder Download-Stapel (ein Klick auf eine Schaltfläche oder ein Ablegen) ist abgeschlossen | `upload` oder `download`, die gerundete Anzahl der Dateien, ob er mit `done`, `partial`, `failed` oder `cancelled` endete, ob eine Datei eine Teildatei fortgesetzt hat und wie viele Dateien gleichzeitig kopiert wurden |
+
+Datei- und Ordnernamen, Pfade, Servernamen und Dateigrößen werden niemals gesendet.
+
 ## Was niemals gesammelt wird
 
 korTTY übermittelt niemals Folgendes:
