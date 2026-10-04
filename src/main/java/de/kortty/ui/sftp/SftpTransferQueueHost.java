@@ -106,6 +106,33 @@ public final class SftpTransferQueueHost implements AutoCloseable {
         return Optional.ofNullable(queue);
     }
 
+    /**
+     * How many transfers closing the tab would cancel: the rows of the transfer list that are still
+     * waiting or working (a folder counts once, however many files in it are left). 0 once closed.
+     */
+    public int activeTransferCount() {
+        if (queue == null || closed) {
+            return 0;
+        }
+        int count = 0;
+        for (TransferBatch batch : queue.batches()) {
+            for (TransferItem item : batch.items()) {
+                if (item.state().isActive()) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Whether closing the tab has to ask first: a transfer is waiting or working. Finished, failed,
+     * skipped and cancelled rows ask nothing. Never prompts.
+     */
+    public boolean needsCloseConfirmation() {
+        return activeTransferCount() > 0;
+    }
+
     /** Uploads {@code paths} into {@code remoteDirectory}; empty when there is no queue yet. */
     public Optional<TransferBatch> enqueueUpload(List<Path> paths, String remoteDirectory) {
         if (queue == null || closed || paths.isEmpty()) {

@@ -27,6 +27,7 @@ import de.kortty.ui.sftp.SftpTransferRowModel;
 import de.kortty.core.sftp.transfer.PartFiles;
 import de.kortty.core.sftp.transfer.RemoteEntryRef;
 import de.kortty.core.sftp.transfer.TransferBatch;
+import de.kortty.core.sftp.transfer.TransferCancellation;
 import de.kortty.core.sftp.transfer.TransferDirection;
 import de.kortty.core.sftp.transfer.TransferItem;
 import javafx.animation.KeyFrame;
@@ -89,8 +90,11 @@ import java.util.concurrent.TimeoutException;
 /**
  * SFTP Manager as a Tab for file transfers between local and remote systems.
  * Can be embedded in the main window's TabPane instead of opening as a modal dialog.
+ *
+ * <p>While transfers run, every way of closing the tab asks first ({@link HostedCloseGuard}): its
+ * close button, Close Tab, Close All Tabs, closing the window and quitting.
  */
-public class SFTPManagerTab extends Tab {
+public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     
     private static final Logger logger = LoggerFactory.getLogger(SFTPManagerTab.class);
     
@@ -164,6 +168,8 @@ public class SFTPManagerTab extends Tab {
     /** The transfer list at the bottom of the tab and the queue behind it (FX thread). */
     private SftpTransferQueuePane transferQueuePane;
     private SftpTransferQueueHost transferQueueHost;
+    /** The drag-out download that may still run on its worker; FX thread. */
+    private TransferCancellation dragOutCancel;
     /** Folders to list again shortly after transfers into them finished (FX thread). */
     private boolean transferRefreshLocal;
     private boolean transferRefreshRemote;
@@ -235,8 +241,12 @@ public class SFTPManagerTab extends Tab {
         VBox content = createContent();
         setContent(content);
         
-        // Handle tab close
+        // Handle tab close: running transfers ask first; a veto keeps the tab open.
         setOnCloseRequest(event -> {
+            if (!confirmHostedClose()) {
+                event.consume();
+                return;
+            }
             cleanup();
             if (onCloseCallback != null) {
                 onCloseCallback.run();
@@ -266,6 +276,11 @@ public class SFTPManagerTab extends Tab {
         remainingSeconds = minutes * 60;
         
         autoCloseTimer = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
+            if (transferQueueHost != null && transferQueueHost.needsCloseConfirmation()) {
+                // Running transfers count as activity: the tab never closes itself under them.
+                resetAutoCloseTimer();
+                return;
+            }
             remainingSeconds--;
             updateTimeoutLabel();
             
@@ -1113,6 +1128,7 @@ public class SFTPManagerTab extends Tab {
             autoCloseTimer.stop();
         }
         remoteListExecutor.shutdownNow();
+        cancelDragOut();
         deleteDragOutDirectories();
         // Cancels the transfers and closes their channels before the session goes.
         transferQueueHost.close();
@@ -1540,6 +1556,39 @@ public class SFTPManagerTab extends Tab {
                 refreshRemote();
             }
         });
+    }
+
+    /** Whether closing would cancel running transfers; never prompts. */
+    @Override
+    public boolean needsCloseConfirmation() {
+        return !closing && transferQueueHost != null && transferQueueHost.needsCloseConfirmation();
+    }
+
+    /**
+     * Asks whether to cancel the running transfers and close; closes nothing itself. Nothing running
+     * asks nothing. The caller disposes the tab ({@link #cleanup()} cancels the transfers).
+     */
+    @Override
+    public boolean confirmHostedClose() {
+        if (!needsCloseConfirmation()) {
+            return true;
+        }
+        int running = transferQueueHost.activeTransferCount();
+        ButtonType closeButton = new ButtonType(I18n.get("sftp.queue.close.confirm"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType keepButton = new ButtonType(I18n.get("sftp.queue.close.keep"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, I18n.get("sftp.queue.close.content"),
+            closeButton, keepButton);
+        javafx.stage.Window owner = ownerWindowOrNull();
+        if (owner != null) {
+            confirm.initOwner(owner);
+        }
+        confirm.setTitle(I18n.get("sftp.queue.close.title"));
+        confirm.setHeaderText(I18n.get("sftp.queue.close.header", String.valueOf(running)));
+        applyDarkTheme(confirm);
+        // Keeping the tab is the default: Enter must not cancel transfers by accident.
+        ((Button) confirm.getDialogPane().lookupButton(closeButton)).setDefaultButton(false);
+        ((Button) confirm.getDialogPane().lookupButton(keepButton)).setDefaultButton(true);
+        return confirm.showAndWait().orElse(keepButton) == closeButton;
     }
 
     private javafx.stage.Window ownerWindowOrNull() {
@@ -2066,7 +2115,8 @@ public class SFTPManagerTab extends Tab {
      * then works inside the window only.
      */
     private List<File> prepareDragOut(List<SftpFileItem> items) {
-        // The copies of the previous drag were dropped by now.
+        // The copies of the previous drag were dropped by now; a download still running for it stops.
+        cancelDragOut();
         deleteDragOutDirectories();
         if (SftpDragOutPolicy.check(items) != SftpDragOutPolicy.Verdict.ALLOWED) {
             statusLabel.setText(I18n.get("sftp.dragOut.tooLarge",
@@ -2086,13 +2136,17 @@ public class SFTPManagerTab extends Tab {
             return List.of();
         }
         dragOutDirectories.add(directory);
-        FutureTask<List<File>> download = new FutureTask<>(() -> downloadForDragOut(session, items, directory));
+        TransferCancellation cancel = TransferCancellation.create();
+        dragOutCancel = cancel;
+        FutureTask<List<File>> download = new FutureTask<>(() -> downloadForDragOut(session, items, directory, cancel));
         Thread worker = new Thread(download, "SFTP-DragOut");
         worker.setDaemon(true);
         worker.start();
         try {
             return download.get(SftpDragOutPolicy.MAX_WAIT.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
+            // Stops the download in the middle of its file; it deletes what it wrote.
+            cancel.cancel();
             download.cancel(true);
             logger.info("Remote files for a drag out of the window took longer than {}", SftpDragOutPolicy.MAX_WAIT);
             statusLabel.setText(I18n.get("sftp.dragOut.timeout",
@@ -2108,9 +2162,19 @@ public class SFTPManagerTab extends Tab {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            cancel.cancel();
             download.cancel(true);
         }
         return List.of();
+    }
+
+    /** Stops a drag-out download that is still running (the next drag, the tab closes). */
+    private void cancelDragOut() {
+        TransferCancellation cancel = dragOutCancel;
+        dragOutCancel = null;
+        if (cancel != null) {
+            cancel.cancel();
+        }
     }
 
     /** The dragged names resolve to a folder, a device or more bytes than a drag out of the window may carry. */
@@ -2124,14 +2188,15 @@ public class SFTPManagerTab extends Tab {
      * Runs on the drag-out worker: one download after another into {@code directory}. First every
      * name is resolved on the server and checked against the caps once more
      * ({@link SftpDragOutPolicy#checkResolved}): the listing shows a symbolic link with the size of
-     * the link, and a download that runs past the wait cannot be stopped, so a link to a large file
-     * or to {@code /dev/zero} would otherwise keep filling the temporary folder in the background.
+     * the link, so a link to a large file or to {@code /dev/zero} would otherwise be copied. The
+     * downloads go through {@link SFTPSession#downloadNewFile}, so {@code cancel} (the wait ran out,
+     * the tab closed) stops one in the middle of a file and deletes what it wrote.
      */
-    static List<File> downloadForDragOut(SFTPSession session, List<SftpFileItem> items, Path directory)
-            throws IOException {
+    static List<File> downloadForDragOut(SFTPSession session, List<SftpFileItem> items, Path directory,
+            TransferCancellation cancel) throws IOException {
         List<SftpDragOutPolicy.Resolved> resolved = new ArrayList<>(items.size());
         for (SftpFileItem item : items) {
-            checkDragOutCancelled();
+            cancel.throwIfCancelled();
             SftpClient.Attributes attributes = session.getAttributes(item.getPath());
             var flags = attributes.getFlags();
             resolved.add(new SftpDragOutPolicy.Resolved(
@@ -2144,18 +2209,12 @@ public class SFTPManagerTab extends Tab {
         }
         List<File> files = new ArrayList<>(items.size());
         for (SftpFileItem item : items) {
-            checkDragOutCancelled();
+            cancel.throwIfCancelled();
             Path target = localChild(directory, item.getName());
-            session.downloadFile(item.getPath(), target);
+            session.downloadNewFile(item.getPath(), target, cancel);
             files.add(target.toFile());
         }
         return files;
-    }
-
-    private static void checkDragOutCancelled() throws java.io.InterruptedIOException {
-        if (Thread.currentThread().isInterrupted()) {
-            throw new java.io.InterruptedIOException("Drag-out download cancelled");
-        }
     }
 
     /** Deletes the temporary folders of earlier drags out of the window; a busy one is retried later. */

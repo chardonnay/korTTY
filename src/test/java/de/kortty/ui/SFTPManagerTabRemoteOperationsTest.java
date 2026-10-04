@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.core.SFTPSession;
+import de.kortty.core.sftp.transfer.TransferCancellation;
 import de.kortty.model.ServerConnection;
 import de.kortty.ui.sftp.SftpDragOutPolicy;
 import de.kortty.ui.sftp.SftpFileItem;
@@ -59,7 +60,7 @@ class SFTPManagerTabRemoteOperationsTest {
         session.attributes.put("/srv/b.txt", attributes(REGULAR_FILE, 7));
 
         List<File> files = SFTPManagerTab.downloadForDragOut(session,
-            List.of(listed("a.txt", 5), listed("b.txt", 7)), directory);
+            List.of(listed("a.txt", 5), listed("b.txt", 7)), directory, TransferCancellation.create());
 
         assertThat(files).containsExactly(directory.resolve("a.txt").toFile(), directory.resolve("b.txt").toFile());
         assertThat(session.downloads).containsExactly("/srv/a.txt", "/srv/b.txt");
@@ -73,7 +74,7 @@ class SFTPManagerTabRemoteOperationsTest {
         session.attributes.put("/srv/big.log", attributes(REGULAR_FILE, 200L * 1024 * 1024));
 
         expectThrows(SFTPManagerTab.DragOutTooLarge.class,
-            () -> SFTPManagerTab.downloadForDragOut(session, List.of(link), directory));
+            () -> SFTPManagerTab.downloadForDragOut(session, List.of(link), directory, TransferCancellation.create()));
 
         assertThat(session.downloads).isEmpty();
         try (var entries = Files.list(directory)) {
@@ -88,9 +89,9 @@ class SFTPManagerTabRemoteOperationsTest {
         session.attributes.put("/srv/logs", attributes(DIRECTORY, 4096));
 
         expectThrows(SFTPManagerTab.DragOutTooLarge.class,
-            () -> SFTPManagerTab.downloadForDragOut(session, List.of(listed("zero", 9)), directory));
+            () -> SFTPManagerTab.downloadForDragOut(session, List.of(listed("zero", 9)), directory, TransferCancellation.create()));
         expectThrows(SFTPManagerTab.DragOutTooLarge.class,
-            () -> SFTPManagerTab.downloadForDragOut(session, List.of(listed("logs", 4)), directory));
+            () -> SFTPManagerTab.downloadForDragOut(session, List.of(listed("logs", 4)), directory, TransferCancellation.create()));
         assertThat(session.downloads).isEmpty();
     }
 
@@ -100,7 +101,7 @@ class SFTPManagerTabRemoteOperationsTest {
         session.attributes.put("/srv/big.iso", attributes(REGULAR_FILE, SftpDragOutPolicy.MAX_TOTAL_BYTES));
 
         expectThrows(SFTPManagerTab.DragOutTooLarge.class, () -> SFTPManagerTab.downloadForDragOut(session,
-            List.of(listed("a.txt", 5), listed("big.iso", 12)), directory));
+            List.of(listed("a.txt", 5), listed("big.iso", 12)), directory, TransferCancellation.create()));
         assertThat(session.downloads).isEmpty();
     }
 
@@ -173,7 +174,8 @@ class SFTPManagerTabRemoteOperationsTest {
         }
 
         @Override
-        public void downloadFile(String remotePath, Path localPath) throws IOException {
+        public void downloadNewFile(String remotePath, Path localPath, TransferCancellation cancel)
+                throws IOException {
             downloads.add(remotePath);
             Files.writeString(localPath, remotePath + "\n", StandardCharsets.UTF_8);
         }

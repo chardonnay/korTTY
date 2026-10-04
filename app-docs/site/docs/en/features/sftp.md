@@ -100,7 +100,7 @@ You can drag entries between the two panels, from your desktop into the SFTP Man
 A drag into the same panel does nothing; use **Copy to...** or **Rename** there.
 
 !!! note "Dragging from the server to the desktop"
-    The desktop can only take files that already exist when the drag starts. korTTY therefore downloads the dragged remote files into a private temporary folder first, which can hold the window for up to 5 seconds. Folders, more than 20 files, more than 16 MB or a download that takes longer can only be dropped inside the window; the status bar says so, and you drop them on the local panel instead. A link on the server counts as the file it points to, so a link to a large file is not offered to the desktop either. The temporary copies are deleted when you start the next drag or close the tab.
+    The desktop can only take files that already exist when the drag starts. korTTY therefore downloads the dragged remote files into a private temporary folder first, which can hold the window for up to 5 seconds. Folders, more than 20 files, more than 16 MB or a download that takes longer can only be dropped inside the window; the status bar says so, and you drop them on the local panel instead. A download that runs out of time stops in the middle of its file and deletes what it wrote, so it does not go on filling the temporary folder in the background. A link on the server counts as the file it points to, so a link to a large file is not offered to the desktop either. The temporary copies are deleted when you start the next drag or close the tab.
 
 ### Keys
 
@@ -137,6 +137,7 @@ Uploads and downloads run in the background, up to three files at a time, each o
 - **The lists follow the transfers.** When files arrive in the folder a panel shows, that panel is listed again shortly afterwards; a folder you browsed away from is not.
 - **Files arrive complete or not at all.** A file is first written as `name.kortty-part` next to the target and gets its real name only once it is complete, so an interrupted transfer never leaves a half-written file under the real name.
 - **Interrupted transfers continue where they stopped.** After a failure or a lost connection the `.kortty-part` file is kept, and **Retry** continues it instead of starting over, as long as the source has not changed since; korTTY re-checks the last 64 KB before it continues. A cancelled transfer deletes its partial file.
+- **Closing the tab asks while transfers run.** The tab's close button, *File > Close Tab*, *Close All Tabs*, closing the window and quitting korTTY first ask **Cancel *n* running transfers and close?**; **Keep tab open** is the default and leaves every transfer running. Closing cancels the transfers that are not finished and deletes their partial files. Finished or failed rows ask nothing, and the automatic closing of idle tabs waits until the transfers are done.
 - **Leftover partial files** are shown in italics, with a tooltip. **Remove leftover partial files** at the end of either panel's context menu deletes the `.kortty-part` files in the folder shown after a confirmation; partial files of transfers that are still running are left alone.
 
 ### When a file already exists

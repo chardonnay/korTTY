@@ -4,7 +4,10 @@ import de.kortty.core.sftp.SftpChannelSource;
 import de.kortty.core.sftp.SftpLoopbackFixture;
 import de.kortty.core.sftp.transfer.ConflictAction;
 import de.kortty.core.sftp.transfer.ConflictResolver;
+import de.kortty.core.sftp.transfer.PartFiles;
 import de.kortty.core.sftp.transfer.RemoteEntryRef;
+import de.kortty.core.sftp.transfer.ResumeIndex;
+import de.kortty.core.sftp.transfer.ResumePlanner;
 import de.kortty.core.sftp.transfer.TransferBatch;
 import de.kortty.core.sftp.transfer.TransferDirection;
 import de.kortty.core.sftp.transfer.TransferItem;
@@ -25,12 +28,14 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * The SFTP tab's queue host against a loopback SSHD, without JavaFX: the queue is made on the first
@@ -168,6 +173,96 @@ class SftpTransferQueueHostTest {
         assertThat(batch.items().get(0).state()).isEqualTo(TransferState.CANCELLED);
         assertThat(host.enqueueUpload(List.of(big), "/dest").isPresent()).isFalse();
         assertThat(host.activePartNames(TransferDirection.UPLOAD, "/dest")).isEmpty();
+    }
+
+    @Test
+    void onlyWaitingOrWorkingTransfersMakeTheTabAskBeforeClosing() throws Exception {
+        fixture = SftpLoopbackFixture.builder(tmp).requestDelayMillis(20).start();
+        SftpTransferQueueHost host = host(new Events(), new AtomicInteger());
+        // No queue yet: nothing to ask about.
+        assertThat(host.needsCloseConfirmation()).isFalse();
+        assertThat(host.activeTransferCount()).isEqualTo(0);
+        host.onSessionReady(source());
+        assertThat(host.needsCloseConfirmation()).isFalse();
+
+        Files.createDirectories(fixture.root().resolve("dest"));
+        Path small = Files.writeString(tmp.resolve("small.txt"), "small");
+        TransferBatch finished = host.enqueueUpload(List.of(small), "/dest").orElseThrow();
+        await(finished);
+        assertThat(finished.items().get(0).state()).isEqualTo(TransferState.DONE);
+        // A finished (or failed) transfer asks nothing.
+        Path missing = tmp.resolve("missing.txt");
+        TransferBatch failed = host.enqueueUpload(List.of(missing), "/dest").orElseThrow();
+        await(failed);
+        assertThat(failed.items().get(0).state()).isEqualTo(TransferState.FAILED);
+        assertThat(host.needsCloseConfirmation()).isFalse();
+        assertThat(host.activeTransferCount()).isEqualTo(0);
+
+        Path big = Files.write(tmp.resolve("big.bin"), new byte[4 * 1024 * 1024]);
+        Path folder = Files.createDirectories(tmp.resolve("folder"));
+        Files.write(folder.resolve("inner.bin"), new byte[1024 * 1024]);
+        TransferBatch running = host.enqueueUpload(List.of(big, folder), "/dest").orElseThrow();
+        assertThat(host.needsCloseConfirmation()).isTrue();
+        // One per row of the transfer list, a folder once.
+        assertThat(host.activeTransferCount()).isEqualTo(2);
+
+        host.queue().orElseThrow().cancelAll();
+        await(running);
+        assertThat(host.needsCloseConfirmation()).isFalse();
+
+        TransferBatch again = host.enqueueUpload(List.of(big), "/dest").orElseThrow();
+        assertThat(host.needsCloseConfirmation()).isTrue();
+        host.close();
+        await(again);
+        // A closed host (the tab is going) asks nothing more.
+        assertThat(host.needsCloseConfirmation()).isFalse();
+    }
+
+    @Test
+    void aDownloadInterruptedByAServerRestartResumesOnTheNewSession() throws Exception {
+        fixture = SftpLoopbackFixture.builder(tmp).requestDelayMillis(20).start();
+        TransferSettings settings = TransferSettings.defaults()
+            .withResume(new ResumeIndex(tmp.resolve("config").resolve(ResumeIndex.FILE_NAME)), "conn-restart");
+        SftpTransferQueueHost host = new SftpTransferQueueHost(() -> settings,
+            () -> ConflictResolver.always(ConflictAction.OVERWRITE), new Events(), null);
+        hosts.add(host);
+        host.onSessionReady(source());
+
+        byte[] content = new byte[4 * 1024 * 1024];
+        new Random(7).nextBytes(content);
+        Files.write(fixture.root().resolve("big.bin"), content);
+        Path downloads = Files.createDirectories(tmp.resolve("down"));
+        Path target = downloads.resolve("big.bin");
+        Path part = PartFiles.localPart(target);
+
+        TransferBatch batch = host.enqueueDownload(List.of(RemoteEntryRef.file("/big.bin", content.length)), downloads)
+            .orElseThrow();
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
+        while (!Files.exists(part) || Files.size(part) <= 2L * ResumePlanner.OVERLAP_BYTES) {
+            assertWithMessage("part file grows").that(System.nanoTime()).isLessThan(deadline);
+            Thread.sleep(5);
+        }
+        // The server goes away mid-file, as on a restart.
+        fixture.close();
+        host.onSessionLost();
+        await(batch);
+        TransferItem item = batch.items().get(0);
+        assertThat(item.state()).isEqualTo(TransferState.FAILED);
+        assertThat(item.isConnectionLost()).isTrue();
+        assertThat(item.isRetryable()).isTrue();
+        assertThat(Files.exists(part)).isTrue();
+        assertThat(Files.exists(target)).isFalse();
+
+        // The same server (same files) is back; the tab reconnects with a new session.
+        fixture = SftpLoopbackFixture.builder(tmp).start();
+        host.onSessionReady(source());
+        assertThat(host.queue().orElseThrow().retryFailed()).isEqualTo(1);
+        await(batch);
+
+        assertWithMessage(String.valueOf(item)).that(item.state()).isEqualTo(TransferState.DONE);
+        assertThat(item.resumedFrom()).isGreaterThan(0L);
+        assertThat(Files.readAllBytes(target)).isEqualTo(content);
+        assertThat(Files.exists(part)).isFalse();
     }
 
     // ------------------------------------------------------------------ helpers

@@ -16,7 +16,7 @@ Defaults for the dual-panel [SFTP file manager](../../features/sftp.md) and for 
 | Timeout (minutes) | number | 1–120 | 10 | `sftpAutoCloseMinutes` |
 
 !!! note "Auto-close"
-    An idle SFTP tab closes itself after the timeout, which frees the server-side connection when you forget to close the manager. The timeout field is only editable while the toggle is on, and the two share one stored value: switching the toggle off stores no timeout at all.
+    An idle SFTP tab closes itself after the timeout, which frees the server-side connection when you forget to close the manager. The timeout field is only editable while the toggle is on, and the two share one stored value: switching the toggle off stores no timeout at all. While uploads or downloads are running the tab counts as active, so it never closes itself in the middle of a transfer.
 
 ## ZIP Creation Settings
 

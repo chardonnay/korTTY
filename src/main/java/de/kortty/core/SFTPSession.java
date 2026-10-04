@@ -394,6 +394,42 @@ public class SFTPSession implements SftpChannelSource {
     }
 
     /**
+     * Downloads {@code remotePath} into a new local file {@code localPath} and can be stopped
+     * mid-file: {@code cancel} is checked after every buffer of the pipelined copy (on the shared
+     * channel the cancel is cooperative; the channel itself stays open). The local file must not
+     * exist yet, and a symbolic link there is never followed. A missing remote file creates nothing,
+     * and a cancelled or failed download deletes what it wrote, so no partial file is left behind.
+     *
+     * @throws java.nio.file.FileAlreadyExistsException when {@code localPath} exists
+     * @throws de.kortty.core.sftp.transfer.TransferCancelledException when {@code cancel} stopped it
+     */
+    public void downloadNewFile(String remotePath, Path localPath, TransferCancellation cancel) throws IOException {
+        SftpClient client = primaryClient();
+        cancel.throwIfCancelled();
+        // Stat first: a missing remote file must not leave an empty local one behind.
+        client.stat(remotePath);
+        // CREATE_NEW refuses any existing entry, a symbolic link included, so the cleanup below
+        // only ever deletes the file this call created.
+        Files.newByteChannel(localPath, java.nio.file.StandardOpenOption.CREATE_NEW,
+            java.nio.file.StandardOpenOption.WRITE).close();
+        boolean complete = false;
+        try {
+            long bytes = SftpStreamCopier.download(client, remotePath, localPath, 0,
+                TransferProgressListener.NONE, cancel);
+            complete = true;
+            logger.info("Downloaded {} bytes from {} to {}", bytes, remotePath, localPath);
+        } finally {
+            if (!complete) {
+                try {
+                    Files.deleteIfExists(localPath);
+                } catch (IOException e) {
+                    logger.debug("Could not delete the unfinished download {}", localPath, e);
+                }
+            }
+        }
+    }
+
+    /**
      * Uploads a local file to {@code remotePath}, replacing a remote file of that name.
      *
      * <p>The file is streamed and pipelined (see {@link SftpStreamCopier}), so its size is limited

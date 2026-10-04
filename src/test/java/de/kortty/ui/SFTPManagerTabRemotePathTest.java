@@ -114,8 +114,10 @@ class SFTPManagerTabRemotePathTest {
         assertThat(tab).contains("DataFormat.lookupMimeType(mimeType)");
         // A drag out of the window waits for the download at most the policy's time.
         assertThat(tab).contains("download.get(SftpDragOutPolicy.MAX_WAIT.toMillis(), TimeUnit.MILLISECONDS)");
-        // Temporary copies are removed when the tab closes.
-        assertThat(tab).contains("remoteListExecutor.shutdownNow();\n        deleteDragOutDirectories();");
+        // A drag-out download still running stops, and the temporary copies are removed, when the tab closes.
+        assertThat(tab).contains("remoteListExecutor.shutdownNow();\n        cancelDragOut();\n        deleteDragOutDirectories();");
+        // Running out of time stops the download mid-file instead of letting it fill the folder.
+        assertThat(tab).contains("cancel.cancel();\n            download.cancel(true);");
         // Row drags end in the row, never in MainWindow's tab-drag DRAG_DONE handler.
         assertThat(tab).contains("row.setOnDragDone(DragEvent::consume);");
     }
