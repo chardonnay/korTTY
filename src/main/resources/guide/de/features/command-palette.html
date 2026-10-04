@@ -2,13 +2,13 @@
 <html lang="de" data-bs-theme="dark">
 
 <head>
-        <title>Hervorhebung von Schlüsselwörtern - korTTY Anleitung</title>
+        <title>Befehlspalette - korTTY Anleitung</title>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
         
-        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/de/features/highlighting.html">
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/de/features/command-palette.html">
         <meta name="author" content="korTTY">
         <link rel="stylesheet" href="../assets/css/darcula-highlight.min.css">
         <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
@@ -410,7 +410,7 @@
                             
     <li class="drac-box-ternary">
         <a href="highlighting.html"
-            class=" active 
+            class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
             Hervorhebung von Schlüsselwörtern
         </a>
@@ -418,7 +418,7 @@
                             
     <li class="drac-box-ternary">
         <a href="command-palette.html"
-            class="
+            class=" active 
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
             Befehlspalette
         </a>
@@ -659,13 +659,13 @@
         <div class="container">
             <div class="row row-preview">
                 <div class="col">
-                    <a href="terminal.html"
+                    <a href="highlighting.html"
                         class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover">
                         <i class="fa fa-arrow-left"></i> Previous
                     </a>
                 </div>
                 <div class="col">
-                    <a href="command-palette.html"
+                    <a href="tunnels.html"
                         class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
                         Next <i class="fa fa-arrow-right"></i>
                     </a>
@@ -764,7 +764,7 @@
     </nav>
 </header>
 <div class="kt-lang-bar">
-  <a class="kt-lang-switch" href="../../en/features/highlighting.html"
+  <a class="kt-lang-switch" href="../../en/features/command-palette.html"
      title="English" hreflang="en">EN</a>
 </div>
 
@@ -773,150 +773,118 @@
             <!-- block content -->
                 <section class="p-md-5 section-content">
     <article>
-        <p><h1 id="hervorhebung-von-schlusselwortern">Hervorhebung von Schlüsselwörtern<a class="headerlink" href="#hervorhebung-von-schlusselwortern" title="Permanent link">&para;</a></h1>
-<p>korTTY kann Wörter und Muster in der Terminalausgabe färben, sobald sie eintreffen – Fehler in Rot, Warnungen unterstrichen, IP- und MAC-Adressen, Schnittstellennamen und Link-Zustände auf Netzwerkgeräten –, sodass die wichtigen Zeilen hervorstechen, während die Ausgabe vorbeiläuft. Die Hervorhebung ändert nur, wie der Text aussieht: Was der Server gesendet hat, was Sie kopieren, das Terminalprotokoll und was die KI-Funktionen lesen, bleibt genau gleich.</p>
-<p>Die Hervorhebung ist ausgeschaltet, bis Sie sie einschalten: für einen Bereich über ein Menü oder das Tastenkürzel, für jedes Terminal einer Verbindung mit dem <a href="#regelsatz-pro-verbindung">Regelsatz der Verbindung</a> oder für jeden Bereich mit einem <a href="#standard-regelsatz-und-einstellungen">Standard-Regelsatz</a>. Jeder Terminalbereich zeigt höchstens einen <strong>Regelsatz</strong> gleichzeitig. korTTY liefert drei Regelsätze mit, und Sie können <a href="#ihre-eigenen-regelsatze">eigene</a> anlegen.</p>
-<h2 id="mitgelieferte-regelsatze">Mitgelieferte Regelsätze<a class="headerlink" href="#mitgelieferte-regelsatze" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Regelsatz</th>
-<th>Was er markiert</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Fehler und Warnungen</strong></td>
-<td><code>error</code>, <code>failed</code>, <code>failure</code>, <code>fatal</code>, <code>critical</code>, <code>denied</code>, <code>refused</code>, <code>panic</code>, <code>exception</code>, <code>traceback</code> und <code>segmentation fault</code> fett in Rot; Namen von Exception-Klassen wie <code>NullPointerException</code> oder <code>ValueError</code> in Rot; <code>warning</code>, <code>deprecated</code> und <code>timed out</code> unterstrichen in Gelb. Die Wörter werden nur als ganze Wörter und unabhängig von Groß-/Kleinschreibung erkannt, daher wird <code>ERROR:</code> markiert, <code>terror</code> aber nicht.</td>
-</tr>
-<tr>
-<td><strong>Netzwerkadressen</strong></td>
-<td>IPv4-Adressen mit optionaler Präfixlänge (<code>10.0.0.1/24</code>), IPv6-Adressen einschließlich verkürzter Schreibweisen (<code>fe80::1%eth0</code>) und MAC-Adressen mit Doppelpunkten, Bindestrichen oder in der Punktschreibweise von Cisco (<code>aabb.ccdd.eeff</code>), alle unterstrichen. Zahlen, die nur wie eine Adresse aussehen, etwa <code>999.1.1.1</code>, bleiben unberührt.</td>
-</tr>
-<tr>
-<td><strong>Netzwerkgeräte</strong></td>
-<td>Link- und Sitzungszustände auf Switches und Routern: <code>down</code>, <code>err-disabled</code>, <code>notconnect</code>, <code>administratively down</code>, <code>inactive</code> und Ähnliches fett in Rot, <code>up</code>, <code>connected</code>, <code>established</code> und <code>forwarding</code> fett in Grün sowie Schnittstellennamen, wie Cisco, Arista und Juniper sie ausgeben (<code>Gi0/1</code>, <code>TenGigabitEthernet1/0/1</code>, <code>Eth1/2</code>, <code>xe-0/0/0</code>, <code>ae0</code>), unterstrichen in Cyan.</td>
-</tr>
-</tbody>
-</table>
-<p>Die mitgelieferten Regelsätze verwenden die ANSI-Farben des Themas und folgen damit Ihren Farbeinstellungen und den Farben jeder Verbindung. Jede Regel stellt ihren Text außerdem fett oder unterstrichen dar, sodass ein Treffer auch für farbenblinde Menschen und in einem einfarbigen Thema hervorsticht.</p>
-<p><img alt="Three terminal panes, each showing one built-in rule set: Errors and warnings on an application log, Network devices on a switch's interface list and Network addresses on ip output" src="../assets/screenshots/highlighting/terminal-highlighting.png" /></p>
-<h2 id="hervorhebung-ein-und-ausschalten">Hervorhebung ein- und ausschalten<a class="headerlink" href="#hervorhebung-ein-und-ausschalten" title="Permanent link">&para;</a></h2>
-<p>Die Hervorhebung gilt pro Bereich: In einem geteilten Tab kann jeder Bereich einen anderen Regelsatz zeigen, und ein neu geteilter Bereich übernimmt einen Regelsatz, der für den Bereich gewählt wurde, aus dem er geteilt wurde; ohne eine solche Wahl folgt er seiner eigenen Verbindung.</p>
+        <p><h1 id="befehlspalette">Befehlspalette<a class="headerlink" href="#befehlspalette" title="Permanent link">&para;</a></h1>
+<p>Die Befehlspalette findet jeden Befehl der Menüs des Hauptfensters und führt ihn aus, wenn Sie ein paar Buchstaben seines Namens eingeben, sodass Sie weder die Maus brauchen noch wissen müssen, wo der Befehl in den Menüs steht. Sie führt außerdem die Rechtsklick-Befehle des Terminals aus, in dem Sie sich befinden, etwa <strong>Puffer löschen</strong> oder <strong>Neu verbinden</strong>, wechselt zu jedem offenen Tab, die zuletzt benutzten zuerst, einschließlich der Terminal-Tabs Ihrer anderen korTTY-Fenster, öffnet einen Tab für jede gespeicherte oder per Teamwork geteilte Verbindung und führt jedes Snippet des <a href="snippets.html">Snippet-Managers</a> im Terminal aus. Sie erreicht jeden Menübefehl auch bei ausgeblendeter Menüleiste und im Nur-Terminal-Vollbildmodus.</p>
+<h2 id="palette-offnen">Palette öffnen<a class="headerlink" href="#palette-offnen" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Tastatur</strong>: <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> auf macOS) schaltet die Hervorhebung für den Bereich mit dem Tastaturfokus ein oder aus. Beim Wiedereinschalten kehrt der Regelsatz zurück, den dieser Bereich zuletzt gezeigt hat; ein Bereich, der noch nie einen gezeigt hat, beginnt mit dem Regelsatz seiner Verbindung oder dem Standard-Regelsatz oder, wenn es keinen von beiden gibt, mit <strong>Fehler und Warnungen</strong>. Die Statusleiste nennt den Regelsatz, der jetzt eingeschaltet ist.</li>
-<li><strong>Ansicht → Hervorhebung</strong>: <strong>Hervorhebung ein</strong> wirkt wie das Tastenkürzel. Darunter wählen Sie <strong>Keine</strong> oder einen Regelsatz für den fokussierten Bereich des aktiven Tabs.</li>
-<li><strong>Terminal-Kontextmenü</strong>: Klicken Sie mit der rechten Maustaste auf einen Bereich und öffnen Sie <strong>Hervorhebung</strong>; dort finden Sie dieselben Einträge, angewendet auf den angeklickten Bereich. Das Untermenü ist auch vorhanden, wenn Terminal-Effekte ausgeschaltet sind.</li>
+<li>Drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> unter macOS) oder wählen Sie <strong>Ansicht → Befehlspalette…</strong>. Dieselben Tasten schließen sie wieder.</li>
+<li>Die Tasten funktionieren in jedem Tab eines Hauptfensters, auch wenn ein Terminal, ein Snippet-Editor oder ein anderer Tool-Tab den Tastaturfokus hat, bei ausgeblendeter Menüleiste und im Nur-Terminal-Vollbildmodus. Ein Tool, das in einem eigenen Fenster statt als Tab geöffnet ist, hat keine Palette.</li>
+<li>Unter Windows und Linux behält korTTY <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> für sich, sodass die Tastenkombination das Programm im Terminal nicht erreicht, während ein einfaches <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-p">P</kbd></span> (der vorherige Befehl in bash) weiterhin die Shell erreicht. Kombinationen mit <span class="keys"><kbd class="key-alt-graph">AltGr</kbd></span>, die als <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd></span> ankommen, bleiben ebenfalls unberührt.</li>
 </ul>
-<p>Beide Menüs listen Ihre eigenen Regelsätze unter den mitgelieferten auf und enden mit <strong>Regelsätze verwalten…</strong>, das den <a href="#ihre-eigenen-regelsatze">Regelsatz-Editor</a> mit dem Regelsatz öffnet, den der Bereich zeigt.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Ein Regelsatz, den Sie in diesen Menüs oder mit dem Tastenkürzel wählen, gilt nur für die laufende Sitzung und wird nicht gespeichert: Der nächste Tab, den Sie für dieselbe Verbindung öffnen, beginnt mit dem <a href="#regelsatz-pro-verbindung">Regelsatz der Verbindung</a> oder, falls sie keinen hat, mit dem Standard-Regelsatz, der <strong>Keiner</strong> ist, sofern Sie in den Einstellungen keinen gewählt haben. Um einen Regelsatz für eine Verbindung dauerhaft festzulegen, wählen Sie ihn im Verbindungseditor. Das unterscheidet sich von <strong>Ansicht → Terminal-Effekt</strong>, das den Effekt in der Verbindung speichert.</p>
-</div>
-<p>Das Tastenkürzel funktioniert auch bei ausgeblendeter Menüleiste und im Nur-Terminal-Vollbildmodus. Unter Windows und Linux behält korTTY <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> für sich, sodass es das Programm im Terminal nicht erreicht; ein einfaches <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-h">H</kbd></span> erreicht die Shell weiterhin als Rücktaste.</p>
-<h2 id="standard-regelsatz-und-einstellungen">Standard-Regelsatz und Einstellungen<a class="headerlink" href="#standard-regelsatz-und-einstellungen" title="Permanent link">&para;</a></h2>
-<p>Der Abschnitt <strong>Hervorhebung von Schlüsselwörtern</strong> unter <em>Konfiguration → Globale Einstellungen → Terminal</em> enthält drei Einstellungen, die für jeden Bereich gelten; Einzelheiten finden Sie unter <a href="../reference/settings/terminal.html#hinweise">Terminal-Einstellungen</a>.</p>
+<p>Die Palette öffnet sich oben im Fenster mit einem leeren Suchfeld. Wenn unter macOS noch die Menüleiste eines Fensters angezeigt wird, das Sie geschlossen haben, öffnet <strong>Ansicht → Befehlspalette…</strong> die Palette im vordersten offenen Fenster.</p>
+<h2 id="befehl-finden">Befehl finden<a class="headerlink" href="#befehl-finden" title="Permanent link">&para;</a></h2>
+<p>Geben Sie einen Teil des Befehlsnamens ein. Die Buchstaben müssen in dieser Reihenfolge vorkommen, aber nicht direkt nebeneinander, und die Groß- und Kleinschreibung spielt keine Rolle, sodass <code>nfen</code> <strong>Neues Fenster</strong> findet. Jede Zeile zeigt:</p>
+<ul>
+<li>ein <strong>Befehl</strong>-Badge;</li>
+<li>den Namen des Befehls, wie ihn sein Menü anzeigt, gefolgt von seinem Menüpfad in Grau, zum Beispiel <strong>Links andocken</strong> Ansicht › Live-Journal;</li>
+<li>ein Häkchen, wenn der Befehl eine aktivierte Einstellung ist, etwa <strong>Dashboard anzeigen</strong>;</li>
+<li>sein Tastaturkürzel, falls er eines hat.</li>
+</ul>
+<p>Der Menüpfad wird ebenfalls durchsucht, wodurch gleichnamige Befehle unterscheidbar bleiben: <code>journal links</code> findet <strong>Ansicht › Live-Journal › Links andocken</strong>, und <code>datei links</code> findet <strong>Ansicht › Dateibrowser › Links anzeigen</strong>. Ein Treffer im Namen rangiert vor einem Treffer im Pfad, und unter gleich guten Treffern kommen die zuletzt gewählten Befehle zuerst.</p>
+<p>Ohne Eingabe listet die Palette die zuletzt gewählten Befehle und Verbindungen auf, bis zu acht und die neuesten zuerst, dann die <a href="#tabs-wechseln">offenen Tabs</a> und dann alle Befehle, Menü für Menü. Andere Verbindungen erscheinen erst, wenn Sie tippen. <a href="#snippets-ausfuhren">Snippets</a> erscheinen nie, bevor Sie tippen, auch nicht die zuletzt ausgeführten, denn ein Snippet führt einen Befehl im Terminal aus. Neben den Menübefehlen bietet sie <strong>Nächster Tab</strong> und <strong>Vorheriger Tab</strong>, die wie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> die Tabs wechseln, sowie die <a href="#terminal-und-tab-befehle">Terminal- und Tab-Befehle</a>.</p>
+<p>Als erstes Zeichen eingegeben, beschränkt ein Filterzeichen die Liste auf eine Art von Zeilen: <code>&gt;</code> listet nur Befehle, <code>#</code> nur Tabs, <code>@</code> nur Verbindungen und <code>$</code> nur Snippets, sodass <code>&gt;schließen</code> die Befehle zum Schließen findet, aber keinen Tab, dessen Name „schließen“ enthält. Die Zeile unter der Liste nennt diese Zeichen.</p>
+<p>Die Liste der zuletzt gewählten Einträge besteht, bis korTTY beendet wird; alle Fenster teilen sie, und sie wird nie gespeichert. Was Sie in die Palette eingeben, wird weder protokolliert noch irgendwohin gesendet.</p>
+<h2 id="terminal-und-tab-befehle">Terminal- und Tab-Befehle<a class="headerlink" href="#terminal-und-tab-befehle" title="Permanent link">&para;</a></h2>
+<p>Die Palette bietet außerdem die Befehle der Rechtsklickmenüs des Terminals und des Tabs an, die es in der Menüleiste nicht gibt. Sie wirken auf den Terminal-Tab, in dem Sie sich befinden, die Terminalbefehle auf dessen fokussierten Bereich, also den, in den Ihre Eingabe geht und den <strong>Bearbeiten → Suchen…</strong> durchsucht:</p>
 <table>
 <thead>
 <tr>
-<th>Einstellung</th>
-<th>Standard</th>
+<th>Befehl</th>
+<th>Graues Detail</th>
 <th>Wirkung</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Schlüsselwörter in der Terminalausgabe hervorheben</strong></td>
-<td>Ein</td>
-<td>Der Hauptschalter. Ausgeschaltet wird kein Bereich hervorgehoben, gleich was irgendwo gewählt wurde; die Hervorhebungsmenüs sind ausgegraut, und das Tastenkürzel zeigt nur einen Hinweis in der Statusleiste.</td>
+<td><strong>Puffer löschen</strong></td>
+<td>Terminal</td>
+<td>Löscht den Scrollback und den Bildschirm des fokussierten Bereichs, behält aber die Prompt-Zeile bei, wie <strong>Puffer löschen</strong> im Rechtsklickmenü des Terminals. Während ein Vollbildprogramm wie <code>vim</code> oder <code>less</code> läuft, tut es nichts. Unter macOS zeigt die Zeile die eigene Taste des Terminals, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-k">K</kbd></span>.</td>
 </tr>
 <tr>
-<td><strong>Auch in Vollbildprogrammen hervorheben (vim, less, htop)</strong></td>
-<td>Aus</td>
-<td>Hebt auch in Programmen hervor, die den alternativen Bildschirm verwenden.</td>
+<td><strong>Duplizieren</strong></td>
+<td>Tabs</td>
+<td>Öffnet eine Kopie des Tabs daneben und meldet sich an wie <strong>Duplizieren</strong> im Rechtsklickmenü des Tabs.</td>
 </tr>
 <tr>
-<td><strong>Standard-Regelsatz</strong></td>
-<td>Keiner</td>
-<td>Der Regelsatz, den jeder Bereich zeigt, sofern weder seine Verbindung noch der Bereich selbst einen eigenen hat. Wählen Sie hier einen Regelsatz, damit die Hervorhebung in jedem neuen und geöffneten Terminal eingeschaltet ist.</td>
+<td><strong>Neu verbinden</strong></td>
+<td>Tabs</td>
+<td>Verbindet den Tab erneut, wie <strong>Neu verbinden</strong> in seinem Rechtsklickmenü.</td>
 </tr>
 </tbody>
 </table>
-<p>Für einen Bereich gilt das Erste, was davon zutrifft:</p>
-<ol>
-<li>der für diesen Bereich in einem Menü oder mit dem Tastenkürzel gewählte Regelsatz, einschließlich <strong>Keine</strong>;</li>
-<li>der <a href="#regelsatz-pro-verbindung">Regelsatz der Verbindung</a>, einschließlich <strong>Keiner</strong>;</li>
-<li>der Standard-Regelsatz;</li>
-<li>keine Hervorhebung.</li>
-</ol>
-<p>Ein Regelsatz, der nicht mehr existiert, wird übersprungen, sodass die nächste Stufe entscheidet. Beim Speichern der Einstellungen wechselt jeder geöffnete Bereich zu dem Regelsatz, der sich jetzt für ihn ergibt, sodass ein neuer Standard sofort in jedem Bereich erscheint, für den weder seine Verbindung noch der Bereich selbst eine eigene Wahl hat.</p>
-<h2 id="regelsatz-pro-verbindung">Regelsatz pro Verbindung<a class="headerlink" href="#regelsatz-pro-verbindung" title="Permanent link">&para;</a></h2>
-<p>Eine Verbindung kann einen eigenen Regelsatz haben, zum Beispiel <strong>Netzwerkgeräte</strong> für Ihre Switches und Router und <strong>Fehler und Warnungen</strong> für Anwendungsserver. Öffnen Sie die Verbindung im Connection-Manager, wechseln Sie zur Registerkarte <em>Terminal-Einstellungen</em> und wählen Sie den Regelsatz unter <strong>Hervorhebung von Schlüsselwörtern</strong> im Abschnitt <strong>Terminal-Verhalten</strong>:</p>
+<p>In allen anderen Arten von Tabs, etwa einem Snippet-Editor, sind diese Zeilen ausgegraut. <strong>Suchen</strong> wird nicht ein zweites Mal aufgeführt: Geben Sie <code>suchen</code> für <strong>Bearbeiten → Suchen…</strong> ein, das die Suche des fokussierten Bereichs öffnet.</p>
+<p>Die Befehle für Bereiche stehen nicht in dieser Tabelle, weil die Menüleiste sie hat: Die Befehle von <em>Ansicht → Bereiche</em> und <em>Ansicht → Multi-Exec</em> sind Zeilen wie jeder andere Menübefehl, mit ihrem Menüpfad, ihrem Tastaturkürzel und ihrem Häkchen. Geben Sie <code>rechts teilen</code> für <strong>Rechts teilen</strong> Ansicht › Bereiche ein, das den fokussierten Bereich auf dessen eigenem Server teilt wie <strong>Rechts teilen (gleicher Server)</strong> im Rechtsklickmenü, mit demselben Fortschrittsdialog und derselben Prüfung der <a href="terminal.html#sicher-verbinden">Serverrichtlinie</a>, und die Tastatur in den neuen Bereich setzt. <strong>Unten teilen</strong>, <strong>Bereich teilen</strong>, <strong>Bereich schließen</strong>, die Fokusbefehle, <strong>Nächster Bereich</strong>, <strong>Vorheriger Bereich</strong>, <strong>Bereich maximieren</strong>, <strong>Broadcast an alle Bereiche dieses Tabs</strong> und die Befehle von <em>Multi-Exec</em> finden Sie auf dieselbe Weise, und sie tun genau das, was ihre Menüeinträge tun; eine Zeile ist ausgegraut, solange ihr Menüeintrag es ist, sodass die Befehle, die einen Bereich schließen, fokussieren oder maximieren, zwei oder mehr Bereiche brauchen. <strong>Bereich maximieren</strong>, der Broadcast-Befehl, <strong>Diesen Bereich einbeziehen</strong> und <strong>Alle Bereiche dieses Tabs einbeziehen</strong> zeigen ein Häkchen, solange sie eingeschaltet sind, und der <a href="terminal.html#broadcast-modus">Broadcast-Modus</a> lässt sich immer ausschalten, auch wenn nur noch ein Bereich übrig ist.</p>
+<h2 id="tabs-wechseln">Tabs wechseln<a class="headerlink" href="#tabs-wechseln" title="Permanent link">&para;</a></h2>
+<p>Jeder Tab des Fensters ist eine Zeile mit einem <strong>Tab</strong>-Badge und heißt so, wie die Tab-Leiste ihn nennt: mit dem Namen, den Sie ihm mit <strong>Tab umbenennen</strong> gegeben haben, dem Titel, den seine Shell gesetzt hat, oder dem Namen seiner Verbindung, ohne das Gruppenpräfix und den Verbindungsstatus. Das graue Detail eines Terminal-Tabs nennt, wohin er verbunden ist, als <code>user@host</code> aus der gespeicherten Verbindung (oder den Namen der Verbindung bei einer lokalen Shell), sowie seine Tab-Gruppe, zum Beispiel <strong>root@db-01 · Produktion</strong>. Ein Programm im Terminal kann den Titel des Tabs setzen, aber nicht dieses Detail, sodass ein Titel, der einen anderen Server vortäuscht, nicht verbirgt, wo der Tab wirklich verbunden ist; ein langer Titel wird nach der halben Zeilenbreite abgeschnitten und kann das Detail daher auch nicht aus dem Blick schieben.</p>
+<p>Die Tabs werden in der Reihenfolge aufgelistet, in der Sie sie zuletzt benutzt haben, der zuletzt benutzte zuerst, und wenn Sie tippen, behalten gleich gute Treffer diese Reihenfolge. Der Tab, in dem Sie sich befinden, steht am Ende und ist mit <strong>Aktueller Tab</strong> gekennzeichnet, sodass <code>#</code> und <span class="keys"><kbd class="key-enter">Enter</kbd></span> zu dem Tab zurückführen, den Sie davor benutzt haben. Ein Tab zählt als benutzt, wenn Sie ihn auswählen, mit der Maus, mit Tasten wie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-1">1</kbd></span> oder aus der Palette. Ist <a href="../reference/settings/window.html#tabs"><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> in dieser Reihenfolge</a> eingeschaltet, zählt beim Durchblättern der Tabs, während Sie <span class="keys"><kbd class="key-control">Ctrl</kbd></span> gedrückt halten, nur der Tab, bei dem Sie anhalten. Wenn Sie mehrere Tabs auf einmal schließen, sie neu gruppieren oder einen Tab an eine andere Stelle ziehen, zählt nur der danach angezeigte Tab, nicht die Tabs, über die die Auswahl dabei hinweggeht. Die Reihenfolge gilt, solange das Fenster besteht, und wird nie gespeichert.</p>
+<p>Danach folgen die Terminal-Tabs Ihrer anderen korTTY-Fenster, die Tabs jedes Fensters in der Reihenfolge, in der sie dort benutzt wurden, mit der Nummer des Fensters vor dem Detail, etwa <strong>Fenster 2 · admin@web-01</strong>; die Nummer eines Fensters ist seine Position unter den offenen Fenstern, in der Reihenfolge, in der sie geöffnet wurden. Wenn Sie einen solchen Tab wählen, kommt sein Fenster nach vorne, wird wiederhergestellt, falls es minimiert ist, und der Tab wird dort ausgewählt. Andere Arten von Tabs der anderen Fenster, etwa Editoren oder KI-Ergebnisse, werden nicht aufgeführt.</p>
+<h2 id="verbinden">Verbinden<a class="headerlink" href="#verbinden" title="Permanent link">&para;</a></h2>
+<p>Jede im <a href="connections.html#connection-manager">Connection-Manager</a> gespeicherte Verbindung ist eine Zeile mit einem <strong>Verbindung</strong>-Badge und heißt so, wie der Connection-Manager sie nennt. Das graue Detail nennt, wohin sie verbindet, als <code>user@host</code> (<strong>Lokale Shell</strong> bei einer lokalen Shell), sowie ihre Gruppe, zum Beispiel <strong>postgres@db-01.example.org · Produktion</strong>; eine Verbindung ohne eigenen Namen zeigt dort nur ihre Gruppe, weil ihr Name bereits <code>user@host</code> ist. Das Detail zeigt nie ein Passwort, gespeicherte Anmeldeinformationen oder einen SSH-Schlüssel.</p>
+<p>Wenn die Richtlinie Ihrer Organisation <a href="teamwork.html">Teamwork</a> erlaubt, folgen die mit Ihnen geteilten Verbindungen, mit <strong>Geteilt (Teamwork)</strong> vor dem Detail. Ihre Namen stammen aus einer Datei, die jemand anderes schreibt, deshalb nennen ihre Zeilen immer auch <code>user@host</code>, selbst wenn der Name wie eine Adresse aussieht, und ein langer Name wird nach der halben Zeilenbreite abgeschnitten, damit das Detail sichtbar bleibt. Teamwork-Verbindungen, die Sie auf diesem Computer gelöscht haben, werden nicht aufgeführt.</p>
+<p>Gespeicherte Verbindungen werden mit der zuletzt benutzten zuerst aufgelistet, die nie benutzten nach Namen; die Teamwork-Verbindungen folgen nach Namen. Wenn Sie tippen, kommen unter gleich guten Treffern die Verbindungen zuerst, die Sie kürzlich in der Palette gewählt haben, und die übrigen behalten diese Reihenfolge. Geben Sie <code>@</code> ein, um nur Verbindungen aufzulisten, die kürzlich in der Palette gewählten zuerst.</p>
+<p>Wenn Sie eine Verbindung wählen, öffnet sich in diesem Fenster ein Tab dafür, und die Anmeldung läuft genau wie bei <strong>Verbinden</strong> im Connection-Manager (siehe <a href="connections.html#anmelden">Anmelden</a>): korTTY prüft zuerst die Serverrichtlinie, verwendet dann das gespeicherte Passwort oder den gespeicherten Schlüssel und fragt nur nach dem, was fehlt. Wenn Sie eine Frage abbrechen, wird kein Tab geöffnet. Anders als im Connection-Manager zählt eine aus der Palette geöffnete Verbindung als benutzt, sodass sie in der Palette und unter den häufig verwendeten Verbindungen der Schnellverbindung nach oben rückt.</p>
+<p>Eine Verbindung, deren Server oder Jump-Server die <a href="../reference/enterprise-policy.html#server-zugriffskontrolle">Server-Zugriffsrichtlinie</a> Ihrer Organisation sperrt, ist ausgegraut. Wenn Sie sie wählen, bleibt die Palette offen, und die Zeile unter der Liste nennt den gesperrten Server und weist darauf hin, dass Ihre Organisation ihn verwaltet.</p>
+<h2 id="snippets-ausfuhren">Snippets ausführen<a class="headerlink" href="#snippets-ausfuhren" title="Permanent link">&para;</a></h2>
+<p>Jedes Snippet des <a href="snippets.html">Snippet-Managers</a> ist eine Zeile mit einem <strong>Snippet</strong>-Badge und heißt so, wie die Bibliothek es nennt. Geben Sie einen Teil seines Namens oder seines Ordners, seiner Kategorie oder seiner Tags ein. Geben Sie zuerst <code>$</code> ein, um nur Snippets aufzulisten: Die zuletzt aus der Palette ausgeführten kommen zuerst, dann die übrigen, die zuletzt benutzten zuerst und die nie benutzten nach Namen; unter gleich guten Treffern gilt dieselbe Reihenfolge. Das graue Detail nennt das Terminal, in dem das Snippet läuft, zum Beispiel <strong>Ausführen in root@db-01.example.org (prod-db)</strong>: den <code>user@host</code> der Verbindung des Tabs, dann den Namen des Tabs. Ein Programm im Terminal kann den Titel des Tabs ändern, aber nicht seine Verbindung, und die Verbindung steht vorn, sodass bei zu schmaler Zeile ein langer Titel abgeschnitten wird, nie der Server. Wenn Sie den Namen eines Tabs oder Servers eingeben, werden nicht alle Snippets aufgelistet, denn ein Snippet wird nicht über das Terminal gefunden, das seine Zeile nennt.</p>
+<p>Wenn Sie ein Snippet wählen, wird es genau wie mit <a href="snippets.html#an-terminal-senden">An Terminal senden</a> im Snippet-Manager ausgeführt: korTTY ersetzt seine <a href="snippets.html#platzhaltervariablen">Platzhalter</a>, fragt nach einer deklarierten Variablen ohne gespeicherten Wert (Abbrechen sendet nichts), sendet es als Einzeiler, wo die Sprache das zulässt, führt es mit <span class="keys"><kbd class="key-enter">Enter</kbd></span> aus, wechselt zum Tab und zeigt <strong>An … gesendet</strong> in der Statusleiste. Es läuft in dem Terminal-Tab, in dem Sie sich befinden, oder, wenn eine andere Art von Tab wie der Snippet-Manager ausgewählt ist, in dem zuletzt benutzten Terminal-Tab (oder dem einzigen offenen), und immer im ersten Bereich dieses Tabs, also dem, mit dem der Tab geöffnet wurde, nicht in dem Bereich, der den Fokus hat. Wenn der Tab geteilt ist, sagt das Detail das: <strong>Ausführen im ersten Bereich von root@db-01.example.org (prod-db)</strong>. Das Snippet läuft genau in dem Tab, den seine Zeile genannt hat; wurde dieser Tab inzwischen geschlossen, meldet korTTY, dass kein Terminal geöffnet ist, statt einen anderen zu wählen.</p>
+<p>Drücken Sie stattdessen <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> (<span class="keys"><kbd class="key-option">Option</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> unter macOS), um das Snippet im Snippet-Manager zu öffnen, ohne es auszuführen; die Zeile unter der Liste nennt diese Taste, solange eine Snippet-Zeile gewählt ist. Ohne Terminal-Tab im Fenster sind die Snippet-Zeilen ausgegraut und weisen darauf hin, und <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> öffnet sie trotzdem.</p>
+<div class="admonition warning">
+<p class="admonition-title">Ein Snippet läuft sofort auf dem Server</p>
+<p>Wenn Sie eine Snippet-Zeile wählen, wird das Snippet sofort mit <span class="keys"><kbd class="key-enter">Enter</kbd></span> im genannten Terminal ausgeführt, auf dem Server, mit dem dieser Bereich verbunden ist. Lesen Sie das graue Detail, bevor Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span> drücken, und sehen Sie sich ein Snippet mit <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> zuerst an. Die Palette listet nie Snippets auf, bevor Sie tippen, daher kann <span class="keys"><kbd class="key-enter">Enter</kbd></span> in einer leeren Palette keines ausführen.</p>
+</div>
+<h2 id="befehl-ausfuhren">Befehl ausführen<a class="headerlink" href="#befehl-ausfuhren" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Auswahl</th>
-<th>Was die Terminals der Verbindung zeigen</th>
+<th>Taste</th>
+<th>Aktion</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><strong>Standard verwenden (…)</strong></td>
-<td>Den <a href="#standard-regelsatz-und-einstellungen">Standard-Regelsatz</a>; der Eintrag nennt den Regelsatz, den der Standard gerade zeigt. Neue und bestehende Verbindungen beginnen mit dieser Auswahl.</td>
+<td><span class="keys"><kbd class="key-arrow-up">Up</kbd></span> / <span class="keys"><kbd class="key-arrow-down">Down</kbd></span></td>
+<td>Zeile wählen</td>
 </tr>
 <tr>
-<td><strong>Keiner (keine Hervorhebung für diese Verbindung)</strong></td>
-<td>Keine Hervorhebung, gleich welcher Standard-Regelsatz eingestellt ist.</td>
+<td><span class="keys"><kbd class="key-enter">Enter</kbd></span> oder Doppelklick</td>
+<td>Die gewählte Zeile ausführen, oder die erste Zeile, wenn keine gewählt ist</td>
 </tr>
 <tr>
-<td>Ein mitgelieferter oder ein eigener Regelsatz</td>
-<td>Diesen Regelsatz, in jedem Bereich der Verbindung.</td>
+<td><span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> (<span class="keys"><kbd class="key-option">Option</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> unter macOS)</td>
+<td>Das gewählte Snippet im Snippet-Manager öffnen, statt es auszuführen; in jeder anderen Zeile wie <span class="keys"><kbd class="key-enter">Enter</kbd></span></td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span></td>
+<td>Zwischen Suchfeld und Liste wechseln</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-escape">Esc</kbd></span></td>
+<td>Palette schließen</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> unter macOS)</td>
+<td>Palette schließen</td>
 </tr>
 </tbody>
 </table>
-<ul>
-<li>Der Abschnitt gilt unabhängig davon, ob die Verbindung eigene Terminal-Einstellungen verwendet, und bleibt erhalten, wenn Terminal-Effekte ausgeschaltet sind. Solange der Hauptschalter unter <em>Einstellungen → Terminal</em> ausgeschaltet ist, weist der Abschnitt darauf hin, und es wird kein Regelsatz angezeigt.</li>
-<li>Beim Speichern im Connection-Manager wechseln die geöffneten Bereiche dieser Verbindung in jedem Fenster sofort zum neuen Regelsatz. Ein Bereich mit einem im Menü oder per Tastenkürzel gewählten Regelsatz behält diese Wahl, bis Sie sie dort ändern.</li>
-<li>Tabs, die aus der gespeicherten Verbindung über Schnellverbindung, <strong>Duplizieren</strong> oder ein <a href="projects.html">Projekt</a> geöffnet werden, verwenden ihren Regelsatz. Ein Bereich, der mit <strong>Rechts teilen (neue Verbindung)</strong> oder <strong>Unten teilen (neue Verbindung)</strong> geöffnet wurde, folgt der Verbindung, mit der er geöffnet wurde, es sei denn, er hat einen Regelsatz übernommen, der für den Bereich gewählt war, aus dem er geteilt wurde.</li>
-<li>Die Auswahl wird mit der Verbindung in <code>connections.xml</code> gespeichert und bleibt beim Duplizieren, Exportieren und Importieren erhalten; ein Export enthält nur die ID des Regelsatzes, nie seine Regeln. Ein Regelsatz, der nicht mehr existiert – weil Sie ihn gelöscht haben oder weil die Verbindung auf einem anderen Computer exportiert wurde oder aus einer gemeinsam genutzten <a href="teamwork.html">Teamarbeit</a>-Datei stammt –, wird im Dropdown als <strong>Fehlender Regelsatz</strong> angezeigt, und die Bereiche der Verbindung folgen dem Standard-Regelsatz, bis Sie einen anderen wählen. Die mitgelieferten Regelsätze haben auf jedem Computer dieselbe ID.</li>
-</ul>
-<h2 id="ihre-eigenen-regelsatze">Ihre eigenen Regelsätze<a class="headerlink" href="#ihre-eigenen-regelsatze" title="Permanent link">&para;</a></h2>
-<p>Der Regelsatz-Editor legt Ihre eigenen Regelsätze an und ändert sie. Öffnen Sie ihn über <em>Ansicht → Hervorhebung → Regelsätze verwalten…</em>, mit <strong>Regelsätze verwalten…</strong> im Kontext-Untermenü <strong>Hervorhebung</strong> eines Bereichs oder mit <strong>Regeln bearbeiten…</strong> neben dem Standard-Regelsatz unter <em>Konfiguration → Globale Einstellungen → Terminal</em>.</p>
-<p><img alt="The rule-set editor with a set of your own, its rules, a test text and the preview" src="../assets/screenshots/highlighting/rules-dialog.png" /></p>
-<ul>
-<li><strong>Regelsätze</strong> links listet die mitgelieferten Regelsätze, markiert als <em>mitgeliefert</em>, und danach Ihre eigenen. Die mitgelieferten Regelsätze sind schreibgeschützt, Sie können aber einen auswählen, um seine Muster zu lesen. <strong>Duplizieren</strong> kopiert den ausgewählten Regelsatz, ob mitgeliefert oder eigen, in einen neuen Regelsatz, den Sie ändern können; <strong>Neu</strong> beginnt einen leeren Regelsatz mit einer Regel zum Ausfüllen, und <strong>Löschen</strong> entfernt einen Ihrer Regelsätze.</li>
-<li><strong>Name des Regelsatzes</strong> ist der Name, den die Menüs und das Dropdown für den Standard-Regelsatz anzeigen.</li>
-<li><strong>Regeln</strong> listet die Regeln des Regelsatzes in Prioritätsreihenfolge auf: Treffen zwei Regeln denselben Text, gewinnt die obere, wie bei den mitgelieferten Regelsätzen. Mit ▲ und ▼ ändern Sie die Reihenfolge, mit <strong>Regel hinzufügen</strong> fügen Sie unter der ausgewählten Regel eine neue ein, und mit <strong>Regel entfernen</strong> löschen Sie sie. Über die Spalte <strong>Ein</strong> schalten Sie eine Regel aus, ohne sie zu löschen. <strong>Muster</strong> zeigt jedes Muster in dem Aussehen, das es erzeugt, <strong>Gilt für</strong>, ob es den gefundenen Text oder die ganze Zeile färbt, <strong>Treffer</strong>, wie viele Stellen es im Testtext darunter hervorhebt, und <strong>Prüfung</strong>, ob etwas damit nicht stimmt.</li>
-<li>Unterhalb der Tabelle bearbeiten Sie die ausgewählte Regel. <strong>Muster</strong> ist ein Wort oder eine Wortfolge, die gesucht wird, oder ein regulärer Ausdruck in Java-Syntax, wenn <strong>Regulärer Ausdruck</strong> eingeschaltet ist. <strong>Groß-/Kleinschreibung ignorieren</strong> behandelt Groß- und Kleinbuchstaben gleich, und <strong>Ganzes Wort</strong> trifft nur dort, wo der Treffer nicht Teil eines längeren Wortes ist, sodass <code>error</code> zwar <code>ERROR:</code> markiert, aber nicht <code>terror</code>. <strong>Gilt für</strong> färbt entweder den <strong>Gefundenen Text</strong> oder die <strong>Ganze Zeile</strong>, automatisch umbrochene Zeilen eingeschlossen.</li>
-<li><strong>Textfarbe</strong> und <strong>Hintergrund</strong> sind <strong>Unverändert</strong> (die eigene Farbe des Programms), eine der 16 Themenfarben oder <strong>Eigene Farbe</strong> mit einer Farbauswahl. Themenfarben folgen Ihren Farbeinstellungen und den Farben jeder Verbindung, wie bei den mitgelieferten Regelsätzen; eine eigene Farbe bleibt überall gleich. <strong>Stil</strong> fügt <strong>Fett</strong>, <strong>Kursiv</strong> oder <strong>Unterstrichen</strong> hinzu. Eine Regel braucht mindestens eine Farbe oder einen Stil.</li>
-</ul>
-<p>Der <strong>Testtext</strong> unten beginnt mit Beispielzeilen aus einem Protokoll und von einem Netzwerkgerät; ersetzen Sie ihn durch eigene Ausgabe. <strong>Vorschau</strong> zeigt ihn so, wie ein Terminalbereich ihn zeigen würde, mit derselben Trefferlogik, derselben Regelreihenfolge und demselben Zeitlimit, und folgt jeder Änderung, während Sie tippen. Der Editor behält Ihren Testtext, bis korTTY beendet wird; er wird nicht gespeichert.</p>
-<p><strong>Prüfung</strong> zeigt <strong>Ungültig</strong> für eine Regel, die nicht funktionieren kann, <strong>Aus</strong> für eine Regel, die Sie ausgeschaltet haben, <strong>Langsam</strong> für eine Regel, die auf einer Zeile des Testtexts mehr als die Hälfte ihres Zeitlimits brauchte, und <strong>Zu langsam</strong> für eine Regel, die dort ihr Zeitlimit überschritten hat und auf dieser Zeile nichts hervorhebt; ein Terminalbereich schaltet eine solche Regel aus, sobald sie auf drei Zeilen ihr Zeitlimit überschritten hat (siehe <a href="#grenzen">Grenzen</a>). Fahren Sie mit der Maus über das Wort oder wählen Sie die Regel aus, um die Erklärung zu sehen. Solange eine Regel oder ein Regelsatz ein Problem hat, ist <strong>OK</strong> deaktiviert, und die Zeile über den Schaltflächen nennt das erste, zum Beispiel ein fehlendes Muster, einen regulären Ausdruck, der sich nicht kompilieren lässt, oder ein Muster wie <code>a*</code>, das auch auf leeren Text passt.</p>
-<p><strong>OK</strong> speichert Ihre Regelsätze sofort in <code>global-settings.xml</code> und wechselt jeden geöffneten Bereich zu seinem aktualisierten Regelsatz; <strong>Abbrechen</strong> verwirft alle Änderungen. Wenn Sie den Regelsatz löschen, der Ihr Standard-Regelsatz ist, wird der Standard wieder auf <strong>Keiner</strong> gesetzt. Ein Bereich, der einen gelöschten Regelsatz zeigte, fällt auf die nächste Stufe zurück: den Regelsatz seiner Verbindung, sonst den Standard-Regelsatz.</p>
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p>Um einen mitgelieferten Regelsatz anzupassen, wählen Sie ihn aus, klicken Sie auf <strong>Duplizieren</strong> und ändern Sie die Kopie. Die mitgelieferten Regelsätze selbst bleiben so, wie korTTY sie ausliefert, damit eine spätere Version ihre Muster verbessern kann.</p>
+<p>Die Palette schließt sich zuerst und führt dann den Befehl genau so aus wie sein Menüeintrag: Ein Dialog öffnet sich, eine Einstellung wie <strong>Dashboard anzeigen</strong> wird umgeschaltet, und <strong>Bearbeiten → Suchen…</strong> öffnet die Suche des aktiven Terminals. Eine Tab-Zeile wählt ihren Tab aus, eine Verbindungszeile öffnet einen Tab für ihre Verbindung, und eine Snippet-Zeile führt ihr Snippet in dem Terminal aus, das sie nennt. Ein Klick außerhalb der Palette schließt sie ebenfalls.</p>
+<p>Befehle, die gerade nicht ausgeführt werden können, sind ausgegraut, etwa <strong>Tresor entsperren…</strong>, während der Tresor bereits geöffnet ist, oder <strong>Tab umbenennen…</strong> außerhalb eines Terminal-Tabs. Wenn Sie einen davon wählen, bleibt die Palette offen, und die Zeile unter der Liste nennt den Grund: <strong>Gerade nicht verfügbar</strong> oder dass Ihre Organisation die Funktion verwaltet, wenn ihre <a href="../reference/enterprise-policy.html">Richtlinie</a> die Funktion abgeschaltet hat.</p>
+<div class="admonition note">
+<p class="admonition-title">Tasten bleiben in der Palette</p>
+<p>Solange die Palette geöffnet ist, geht jede gedrückte Taste an die Palette. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span>, <span class="keys"><kbd class="key-page-up">Page Up</kbd></span> oder eine Funktionstaste erreichen weder das Terminal dahinter noch im <a href="terminal.html#broadcast-modus">Broadcast-Modus</a> die anderen Bereiche, und auch das Schließen der Palette mit ihrem Tastaturkürzel hinterlässt kein Zeichen im Terminal.</p>
 </div>
-<h2 id="verhalten-der-hervorhebung">Verhalten der Hervorhebung<a class="headerlink" href="#verhalten-der-hervorhebung" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Neue Ausgabe wird kurz nach ihrem Erscheinen (etwa 50 ms) in einem Hintergrund-Thread hervorgehoben, sodass ein schnelles <code>cat</code> oder ein mitgelesenes Protokoll seine Geschwindigkeit behält.</li>
-<li>Ein Treffer kann über eine automatisch umbrochene Zeile hinweg weitergehen, und Muster erkennen auch breite Zeichen wie CJK-Text und Emoji.</li>
-<li>Die Wahl eines anderen Regelsatzes oder von <strong>Keine</strong> färbt den Bildschirm sofort neu und den Scrollback schrittweise, die neuesten Zeilen zuerst. <strong>Keine</strong> stellt überall die ursprünglichen Farben wieder her.</li>
-<li>Vollbildprogramme wie <code>vim</code>, <code>less</code> und <code>htop</code> werden nicht hervorgehoben, es sei denn, Sie erlauben es in den <a href="#standard-regelsatz-und-einstellungen">Einstellungen</a>: Sie zeichnen ihren Bildschirm ständig neu und bringen eigene Farben mit, sodass Hervorhebungen flackern und mit diesen Farben kollidieren würden.</li>
-<li>Wenn die Ausgabe schneller hereinströmt, als sie geprüft werden kann, bleiben Zeilen, die mehr als 10.000 Zeilen über dem unteren Rand liegen, unverändert.</li>
-<li>Text, den ein Programm als verborgen markiert, bleibt verborgen, und Links behalten ihren eigenen Stil.</li>
-<li>Hervorhebungen erscheinen auch bei Verbindungen, deren Terminalfarben ausgeschaltet sind, und sie sind in <a href="recording.html">Terminalaufnahmen</a> zu sehen, weil sie Teil dessen sind, was der Bereich zeigt.</li>
-<li>Solange die Suchleiste Ergebnisse anzeigt, wartet korTTY nach einem Wechsel des Regelsatzes mit dem Neufärben des Scrollbacks, damit die Treffer, die Sie gerade betrachten, markiert bleiben. Eine Zeile, die bei geöffneter Suchleiste hervorgehoben wird, kann ihre Suchmarkierung verlieren; suchen Sie erneut, um sie zurückzuholen.</li>
-</ul>
-<h2 id="grenzen">Grenzen<a class="headerlink" href="#grenzen" title="Permanent link">&para;</a></h2>
-<p>Jede Regel erhält höchstens 2 ms pro Ausgabezeile. Eine Regel, die dreimal ihr Zeitlimit überschreitet – meist ein regulärer Ausdruck mit übermäßigem Backtracking –, wird für diesen Bereich ausgeschaltet, bis Sie erneut einen Regelsatz wählen. Eine Zeile wird einschließlich ihrer automatisch umbrochenen Fortsetzungen bis zu ihren ersten 8.192 Zeichen geprüft. Die Spalte <strong>Prüfung</strong> des Editors warnt vor langsamen Regeln, bevor sie ein Terminal erreichen.</p>
-<p>Sie können bis zu 32 Regelsätze mit jeweils bis zu 64 Regeln anlegen, und ein Muster darf bis zu 512 Zeichen lang sein.</p>
-<h2 id="sicherheit-und-datenschutz">Sicherheit und Datenschutz<a class="headerlink" href="#sicherheit-und-datenschutz" title="Permanent link">&para;</a></h2>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>Eine Hervorhebung ist kein Vertrauenssignal. Der Server bestimmt, was er ausgibt; er kann also Text ausgeben, der auf eine Regel passt, genauso wie er seine eigene Ausgabe einfärben kann. Die Hervorhebung ändert nie, was gesendet oder empfangen wird.</p>
-</div>
-<p>Regelsätze bleiben auf Ihrem Computer, in <code>global-settings.xml</code> (siehe <a href="../reference/config-files.html#global-settingsxml">Konfigurationsdateien</a>), und das Protokoll nennt Regeln und Regelsätze nur über ihre IDs, nie über ihre Muster oder den Text, auf den sie gepasst haben. Wenn Sie <a href="../about/anonymous-data.html">anonyme Nutzungsstatistiken</a> erlaubt haben, meldet korTTY, welcher mitgelieferte Regelsatz eingeschaltet wurde (jeder eigene Regelsatz zählt nur als „custom“), ob dies über ein Menü, mit dem Tastenkürzel, über den Regelsatz der Verbindung oder über den Standard-Regelsatz geschah und welche der drei Einstellungen Sie geändert haben, wobei der Standard-Regelsatz wieder nur als mitgelieferter Regelsatz, „custom“ oder „none“ gemeldet wird – nie Muster, Namen von Regelsätzen oder Terminaltext.</p></p>
+<h2 id="puffer-loschen-und-suchen-unter-windows-und-linux">Puffer löschen und Suchen unter Windows und Linux<a class="headerlink" href="#puffer-loschen-und-suchen-unter-windows-und-linux" title="Permanent link">&para;</a></h2>
+<p>Unter Windows und Linux gehen <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> an das Programm im Terminal, deshalb haben <strong>Puffer löschen</strong> und die Suche des Terminals dort keine eigene Taste. Öffnen Sie die Palette und geben Sie <code>puffer</code> für <strong>Puffer löschen</strong> oder <code>suchen</code> für <strong>Bearbeiten → Suchen…</strong> ein, um sie per Tastatur zu erreichen.</p></p>
     </article>
 </section>
             <!-- endblock -->

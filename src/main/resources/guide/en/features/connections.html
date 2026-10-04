@@ -417,6 +417,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="command-palette.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Command palette
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -781,7 +789,7 @@
 <li>A local shell and SSH key authentication connect without a password.</li>
 <li>Otherwise korTTY uses the saved password, from the connection's stored credential first and then from the connection itself, and asks for the password when none is saved; <strong>OK</strong> stays greyed out until you type one. When the saved password is in the locked vault, korTTY first offers <strong>Unlock Vault…</strong> (see <a href="security.html#unlocking-the-vault-later">Unlocking the vault later</a>); if you do not unlock it, korTTY asks you to type the password instead.</li>
 </ol>
-<p>Cancelling any of these questions opens no tab. <strong>Duplicate</strong> in a terminal tab's context menu signs in the same way, so it also asks for a new temporary SSH key when the tab's key has expired. <strong>Reopen Closed Tab</strong> and <em>File → Recently Closed</em> sign in the same way too, with the saved connection as it is now (see <a href="terminal.html#working-with-tabs">Working with tabs</a>).</p>
+<p>Cancelling any of these questions opens no tab. <strong>Duplicate</strong> in a terminal tab's context menu signs in the same way, so it also asks for a new temporary SSH key when the tab's key has expired. A saved or teamwork connection chosen in the <a href="command-palette.html#connecting">command palette</a> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> on macOS, then <code>@</code> and part of its name) signs in the same way. <strong>Reopen Closed Tab</strong> and <em>File → Recently Closed</em> sign in the same way too, with the saved connection as it is now (see <a href="terminal.html#working-with-tabs">Working with tabs</a>).</p>
 <h2 id="creating-editing-a-connection">Creating / editing a connection<a class="headerlink" href="#creating-editing-a-connection" title="Permanent link">&para;</a></h2>
 <p>The connection editor has these tabs:</p>
 <table>

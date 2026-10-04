@@ -417,6 +417,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="command-palette.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Command palette
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -806,11 +814,11 @@
 </tr>
 <tr>
 <td><strong>Next Tab</strong></td>
-<td>++ctrl+Tab++</td>
+<td>++ctrl+Tab++ (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> on macOS too). With <strong>Ctrl+Tab switches tabs in the order they were last used</strong> on in the <a href="../reference/settings/window.html#tabs">Window settings</a>, it goes back to the tab you used before the current one instead; keep <span class="keys"><kbd class="key-control">Ctrl</kbd></span> held and press <span class="keys"><kbd class="key-tab">Tab</kbd></span> again to go further back, and release <span class="keys"><kbd class="key-control">Ctrl</kbd></span> at the tab you want.</td>
 </tr>
 <tr>
 <td><strong>Previous Tab</strong></td>
-<td>++ctrl+shift+Tab++</td>
+<td>++ctrl+shift+Tab++, or with the same setting on, the tab you used longest ago, stepping towards the recent ones while <span class="keys"><kbd class="key-control">Ctrl</kbd></span> stays held</td>
 </tr>
 <tr>
 <td><strong>Jump to a tab</strong></td>
@@ -850,7 +858,7 @@
 <h2 id="connection-loss-and-automatic-reconnect">Connection loss and automatic reconnect<a class="headerlink" href="#connection-loss-and-automatic-reconnect" title="Permanent link">&para;</a></h2>
 <p>When an <strong>established</strong> SSH connection is lost — network drop, VPN cut, server gone — the tab does <strong>not</strong> close. It switches to a red disconnected state instead: the tab title gets a <code>(DISCONNECT)</code> suffix, the tab turns dark red, a red status bar shows the time the connection was lost, and the terminal cursor stops blinking so a dead session no longer looks alive. Only a normal remote logout (typing <code>exit</code>, or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span> at the prompt) closes the tab.</p>
 <p>KorTTY notices a silent transport death within about ten seconds: every few seconds it sends an SSH liveness probe (a global request the server must answer, the same technique as OpenSSH's <code>ServerAliveInterval</code>) and treats two consecutive unanswered probes as a lost connection. The probe only arms itself after the server has answered once, so servers that never reply to such requests keep their sessions untouched. This is independent of the <a href="#ssh-keep-alive">SSH keep-alive</a> heartbeat, which keeps idle connections open but does not detect a dead one.</p>
-<p>To pick the session back up in the same tab, double-click the red status bar or the red tab, or use <strong>Reconnect</strong> in the tab, terminal, or Dashboard context menu. In a split tab, panes whose connection died close individually; the last remaining pane keeps the tab open and carries the reconnect offer.</p>
+<p>To pick the session back up in the same tab, double-click the red status bar or the red tab, or use <strong>Reconnect</strong> in the tab, terminal, or Dashboard context menu or in the <a href="command-palette.html#terminal-and-tab-commands">command palette</a>. In a split tab, panes whose connection died close individually; the last remaining pane keeps the tab open and carries the reconnect offer.</p>
 <p>With <strong>Automatically reconnect lost connections</strong> enabled (<strong>Settings → Terminal</strong>, on by default), the tab reconnects on its own: attempts start after 3 seconds and back off through 5, 10, 20 and 30 seconds up to one attempt per minute, and the red status bar counts down to the next attempt. A successful reconnect, a manual reconnect, or closing the tab ends the automatic attempts. Permanent failures — authentication, host-key verification, configuration refusals — stop them too, so a wrong password is never hammered against the server. While a <a href="session-journal.html">session journal</a> is running, its red decision bar takes precedence and no automatic attempt starts — the journal asks whether to reconnect and continue or to end with its closing summary. See <a href="../reference/settings/terminal.html">Settings → Terminal</a> for the setting.</p>
 <h2 id="multi-window-support">Multi-window support<a class="headerlink" href="#multi-window-support" title="Permanent link">&para;</a></h2>
 <p>Open additional windows to organize connections by project or environment:</p>
@@ -879,7 +887,7 @@
 </tr>
 <tr>
 <td><strong>Clear Buffer</strong></td>
-<td>Clears the scrollback and the screen but keeps the prompt line. While a full-screen program such as <code>vim</code> or <code>less</code> is running, it does nothing.</td>
+<td>Clears the scrollback and the screen but keeps the prompt line. While a full-screen program such as <code>vim</code> or <code>less</code> is running, it does nothing. On Windows and Linux, where it has no key, the <a href="command-palette.html#terminal-and-tab-commands">command palette</a> runs it from the keyboard for the focused pane.</td>
 </tr>
 <tr>
 <td><strong>Find</strong></td>
@@ -980,7 +988,7 @@
 <p>Split the terminal view to display multiple connections side by side, and optionally send input to all panes of the tab at once, or with <a href="#multi-exec">multi-exec</a> to panes you choose in any tab and window.</p>
 <h3 id="split-operations">Split operations<a class="headerlink" href="#split-operations" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Split Pane</strong>: right-click a pane and choose <em>Extras → Split Terminal</em>, then <strong>Split Right</strong> or <strong>Split Down</strong>, each to the same server or to a new connection. Splits nest, so a tab can hold a grid of panes.</li>
+<li><strong>Split Pane</strong>: right-click a pane and choose <em>Extras → Split Terminal</em>, then <strong>Split Right</strong> or <strong>Split Down</strong>, each to the same server or to a new connection. Splits nest, so a tab can hold a grid of panes. The <a href="command-palette.html#terminal-and-tab-commands">command palette</a> splits the focused pane with the <em>View → Panes</em> commands of the next point, such as <strong>Split Right</strong>.</li>
 <li><strong>Split from the keyboard</strong>: <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-o">O</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-o">O</kbd></span> on macOS) splits the pane the keyboard is in, on that pane's own server, as <strong>Split Right (same server)</strong> or <strong>Split Down (same server)</strong> does. The new pane goes to the right of a wide pane and below a tall one, so the panes stay roughly square when you split again and again, and the keyboard moves into the new pane. <em>View → Panes</em> has the same command as <strong>Split Pane</strong>, and <strong>Split Right</strong> and <strong>Split Down</strong> to choose the side yourself. The key works in every terminal tab while the keyboard is in it; on Windows and Linux it no longer reaches the shell, which received it as <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span> and still gets that key itself.</li>
 <li><strong>Independent Sessions</strong>: Each pane can show a different SSH connection.</li>
 <li><strong>Same server means the pane's server</strong>: <strong>Split Right (same server)</strong> and <strong>Split Down (same server)</strong> open a new session to the server of the pane you split, with the sign-in that pane used. For a pane you opened with <strong>Split Right (new connection)</strong> or <strong>Split Down (new connection)</strong>, that is the server you picked for it, not the tab's, and the panes split from it stay on that server too; every other pane splits to the tab's server. If the pane signed in with a temporary SSH key that has expired since, the split says so and opens no pane.</li>
@@ -994,7 +1002,7 @@
 <li><strong>Move Panes</strong>: Hold <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-alt">Alt</kbd></span> (Windows/Linux) or <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-option">Option</kbd></span> (macOS) and drag a pane onto another to reorder. Without the modifiers, mouse drag is used for text selection in the terminal.</li>
 </ul>
 <h3 id="broadcast-mode">Broadcast mode<a class="headerlink" href="#broadcast-mode" title="Permanent link">&para;</a></h3>
-<p>When <strong>Broadcast Mode</strong> is enabled, keyboard input is sent simultaneously to all panes of the tab. This is useful for running the same commands on multiple servers. Switch it on or off with <em>Extras → Broadcast Mode</em> in a pane's right-click menu or with <em>View → Panes → Broadcast to All Panes of This Tab</em>; both need two or more panes to switch it on, and the check mark shows whether it is on for the active tab.</p>
+<p>When <strong>Broadcast Mode</strong> is enabled, keyboard input is sent simultaneously to all panes of the tab. This is useful for running the same commands on multiple servers. Switch it on or off with <em>Extras → Broadcast Mode</em> in a pane's right-click menu or with <em>View → Panes → Broadcast to All Panes of This Tab</em>, which the <a href="command-palette.html#terminal-and-tab-commands">command palette</a> runs too; both need two or more panes to switch it on, and the check mark shows whether it is on for the active tab.</p>
 <ul>
 <li><strong>Mirrored</strong>: typed text, <span class="keys"><kbd class="key-enter">Enter</kbd></span>, <span class="keys"><kbd class="key-backspace">Backspace</kbd></span>, <span class="keys"><kbd class="key-escape">Esc</kbd></span>, <span class="keys"><kbd class="key-tab">Tab</kbd></span> and <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span>, the arrow keys, <span class="keys"><kbd class="key-home">Home</kbd></span> / <span class="keys"><kbd class="key-end">End</kbd></span>, <span class="keys"><kbd class="key-page-up">Page Up</kbd></span> / <span class="keys"><kbd class="key-page-down">Page Down</kbd></span>, <span class="keys"><kbd class="key-insert">Ins</kbd></span> / <span class="keys"><kbd class="key-delete">Del</kbd></span> and <span class="keys"><kbd class="key-f1">F1</kbd></span> to <span class="keys"><kbd class="key-f11">F11</kbd></span>, including their <span class="keys"><kbd class="key-shift">Shift</kbd></span>, <span class="keys"><kbd class="key-control">Ctrl</kbd></span> and <span class="keys"><kbd class="key-alt">Alt</kbd></span> combinations (<span class="keys"><kbd class="key-f12">F12</kbd></span> toggles fullscreen).</li>
 <li><strong>Encoded for each pane</strong>: every pane receives a key the way its own program expects it. When one pane runs <code>mc</code> or <code>vim</code>, which switch the terminal to application cursor keys, its arrows arrive as <code>ESC O A</code> while a shell in the next pane gets <code>ESC [ A</code>, so history and completion work in both.</li>

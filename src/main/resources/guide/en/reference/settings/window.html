@@ -417,6 +417,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/command-palette.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Command palette
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -766,7 +774,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="window">Window<a class="headerlink" href="#window" title="Permanent link">&para;</a></h1>
-<p>This tab configures window geometry behavior, dashboard state retention, menu bar visibility, the frame around the terminal of a colored connection, and whether terminal tabs take the title the shell sets. Open via <strong>Configuration → Global Settings → Window</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>This tab configures window geometry behavior, dashboard state retention, menu bar visibility, the frame around the terminal of a colored connection, whether terminal tabs take the title the shell sets, and the order in which <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> switches tabs. Open via <strong>Configuration → Global Settings → Window</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Window settings tab" src="../../assets/screenshots/settings/window.png" /></p>
 <table>
 <thead>
@@ -813,6 +821,13 @@
 <td>—</td>
 <td>On</td>
 <td><code>tabTitleFromShellEnabled</code></td>
+</tr>
+<tr>
+<td>Ctrl+Tab switches tabs in the order they were last used</td>
+<td>toggle</td>
+<td>—</td>
+<td>Off</td>
+<td><code>tabSwitchMostRecentFirst</code></td>
 </tr>
 <tr>
 <td>Use fixed window geometry</td>
@@ -871,7 +886,8 @@
 <p class="admonition-title">Note</p>
 <p>The frame takes 3 pixels on each side of the terminal. Turning it on or off therefore resizes the open terminals of every colored connection, and giving a connection a tab color or removing it resizes that connection's terminals: the remote side receives the new size, and full-screen programs such as <code>vim</code>, <code>htop</code> or <code>less</code> redraw.</p>
 </div>
-<p><strong>Name terminal tabs after the title the shell sets</strong> lets a terminal tab show the title that the shell or another program in it sets with the OSC 0 or OSC 2 escape sequence, such as <code>user@host: directory</code>, in place of the connection's name; a tab with split panes shows the title of its focused pane. A name you gave a tab with <a href="../../features/terminal.html#working-with-tabs">Rename Tab</a> still comes first. The server decides this title, so it is cleaned of control and bidi characters, capped at 80 characters and never changes the tab color; pointing at such a tab shows the connection it belongs to. Switch it off to keep the connection's names on every tab. The change applies to the open tabs of every window as soon as you save. See <a href="../../features/terminal.html#title-from-the-shell">Title from the shell</a>.</p></p>
+<p><strong>Name terminal tabs after the title the shell sets</strong> lets a terminal tab show the title that the shell or another program in it sets with the OSC 0 or OSC 2 escape sequence, such as <code>user@host: directory</code>, in place of the connection's name; a tab with split panes shows the title of its focused pane. A name you gave a tab with <a href="../../features/terminal.html#working-with-tabs">Rename Tab</a> still comes first. The server decides this title, so it is cleaned of control and bidi characters, capped at 80 characters and never changes the tab color; pointing at such a tab shows the connection it belongs to. Switch it off to keep the connection's names on every tab. The change applies to the open tabs of every window as soon as you save. See <a href="../../features/terminal.html#title-from-the-shell">Title from the shell</a>.</p>
+<p><strong>Ctrl+Tab switches tabs in the order they were last used</strong> changes what <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> do (<span class="keys"><kbd class="key-control">Ctrl</kbd></span> on macOS too). Off, they go to the next and the previous tab of the tab bar. On, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> goes back to the tab you used before the current one, so one press switches between your two latest tabs. Keep <span class="keys"><kbd class="key-control">Ctrl</kbd></span> held and press <span class="keys"><kbd class="key-tab">Tab</kbd></span> again to go further back through the tabs, from the most to the least recently used, add <span class="keys"><kbd class="key-shift">Shift</kbd></span> to step the other way, and release <span class="keys"><kbd class="key-control">Ctrl</kbd></span> at the tab you want; <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> on its own starts at the tab you used longest ago. Only the tab you stop at counts as used, so the tabs you pass on the way keep their places in the order. Pressing any other key, choosing a tab with the mouse or switching to another window also ends the step-through at the tab it reached, and the key you pressed then acts on that tab. The order is the one the <a href="../../features/command-palette.html#switching-tabs">command palette</a> lists the tabs in: it lasts as long as the window and is never saved. The change applies to every window as soon as you save; the palette's <strong>Next Tab</strong> and <strong>Previous Tab</strong> follow it too.</p></p>
     </article>
 </section>
             <!-- endblock -->
