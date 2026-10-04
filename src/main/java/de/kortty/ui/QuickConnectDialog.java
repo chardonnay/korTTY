@@ -961,7 +961,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
      * <p>Copying a connection field by field is what lost the capture settings: each branch was
      * written separately and none of them carried {@code logConfig} or {@code sessionJournalConfig}
      * over, so logging and journaling configured in the Connection Manager silently did nothing
-     * whenever the session was started from here with a changed auth method.</p>
+     * whenever the session was started from here with a changed auth method. The local shell's
+     * command and start directory went the same way, so a saved Local Shell connection started the
+     * platform default shell instead of its own.</p>
      */
     private ServerConnection baseCopyOf(ServerConnection selected) {
         ServerConnection modified = new ServerConnection();
@@ -977,6 +979,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         modified.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
         modified.setRetryCount(retrySpinner.getValue());
         modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
+        applyLocalShellSelection(modified, selected, shownLocalShellSelection(),
+            gitBashCommand, cygwinCommand, wslCommand);
         applySelectedTerminalEmulation(modified, selected);
         modified.setEncoding(selected.getEncoding());
         modified.setHighlightRuleSetId(selected.getHighlightRuleSetId());
@@ -1388,10 +1392,13 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     }
     
     private void fillFormWithConnection(ServerConnection conn) {
-        hostField.setText(conn.getHost());
+        // A Local Shell connection may have no host or username; the connect button's listener
+        // trims the host text, so it must never be null.
+        hostField.setText(Objects.requireNonNullElse(conn.getHost(), ""));
         portSpinner.getValueFactory().setValue(conn.getPort());
-        usernameField.setText(conn.getUsername());
+        usernameField.setText(Objects.requireNonNullElse(conn.getUsername(), ""));
         protocolCombo.setValue(conn.getProtocol());
+        loadLocalShellSelection(conn);
         TerminalEmulationComboBoxSupport.select(terminalEmulationCombo, conn.getTerminalEmulationType());
         showTerminalLogSettings(conn);
         updateCredentialCombo(conn.getHost());
@@ -1551,10 +1558,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             }
         }
 
-        if (selected != null && 
-            selected.getHost().equals(hostField.getText().trim()) &&
-            selected.getPort() == portSpinner.getValue() &&
-            selected.getUsername().equals(usernameField.getText().trim())) {
+        if (selected != null && formMatchesSaved(selected,
+                hostField.getText(), portSpinner.getValue(), usernameField.getText())) {
             // Using an existing saved connection
             // But if auth method changed OR using temporary key, create a modified copy
             // Also update timeout and retries from spinner values
@@ -1686,9 +1691,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         connection.setUsername(usernameField.getText().trim().isEmpty() ? "root" : usernameField.getText().trim());
         connection.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : ConnectionProtocol.SSH_TCP);
         if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
-            connection.setLocalShellCommand(effectiveShellCommand());
-            String workingDir = shellWorkingDirField.getText() != null ? shellWorkingDirField.getText().trim() : "";
-            connection.setLocalShellWorkingDirectory(workingDir.isEmpty() ? null : workingDir);
+            LocalShellPresetSupport.Selection shown = shownLocalShellSelection();
+            connection.setLocalShellCommand(shown.command(gitBashCommand, cygwinCommand, wslCommand));
+            connection.setLocalShellWorkingDirectory(shown.workingDirectoryOrNull());
         }
         applySelectedTerminalEmulation(connection, null);
         connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
@@ -1789,12 +1794,69 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         return I18n.get("protocol.sshTcp");
     }
 
-    /** The shell command for the result: the selected preset, or the custom field when "custom". */
-    private String effectiveShellCommand() {
-        return LocalShellPresetSupport.commandFor(
-            shellPresetCombo.getValue(),
-            customShellCommandField.getText(),
+    /** What the shell controls currently show. */
+    private LocalShellPresetSupport.Selection shownLocalShellSelection() {
+        return new LocalShellPresetSupport.Selection(
+            shellPresetCombo.getValue(), customShellCommandField.getText(), shellWorkingDirField.getText());
+    }
+
+    /**
+     * Shows a saved connection's shell, custom command and start directory in the shell controls.
+     * Every field is set, so nothing is left over from a connection chosen before.
+     */
+    private void loadLocalShellSelection(ServerConnection conn) {
+        LocalShellPresetSupport.Selection shown = LocalShellPresetSupport.selectionFor(
+            conn.getLocalShellCommand(), conn.getLocalShellWorkingDirectory(),
             gitBashCommand, cygwinCommand, wslCommand);
+        shellPresetCombo.setValue(shown.preset());
+        customShellCommandField.setText(shown.customCommand());
+        shellWorkingDirField.setText(shown.workingDirectory());
+    }
+
+    /**
+     * Sets the local shell command and start directory on {@code target}, the Quick Connect copy of
+     * saved connection {@code saved}, from the shell controls ({@code shown}).
+     *
+     * <p>When the copy is a local shell and the controls still launch what was loaded from a saved
+     * local shell, the saved command is kept as it is: the preset list cannot show every stored
+     * command (WSL or Git Bash with arguments, or none at all for the platform default), and turning
+     * it into the preset's own command would start a different shell. For SSH and Mosh the saved
+     * values are carried unchanged; they do nothing there.</p>
+     */
+    static void applyLocalShellSelection(ServerConnection target, ServerConnection saved,
+                                         LocalShellPresetSupport.Selection shown,
+                                         String gitBashCommand, String cygwinCommand, String wslCommand) {
+        if (target.getProtocol() != ConnectionProtocol.LOCAL_SHELL) {
+            target.setLocalShellCommand(saved.getLocalShellCommand());
+            target.setLocalShellWorkingDirectory(saved.getLocalShellWorkingDirectory());
+            return;
+        }
+        String command = shown.command(gitBashCommand, cygwinCommand, wslCommand);
+        if (saved.isLocalShell()) {
+            String loaded = LocalShellPresetSupport.selectionFor(
+                    saved.getLocalShellCommand(), saved.getLocalShellWorkingDirectory(),
+                    gitBashCommand, cygwinCommand, wslCommand)
+                .command(gitBashCommand, cygwinCommand, wslCommand);
+            if (Objects.equals(command, loaded)) {
+                command = saved.getLocalShellCommand();
+            }
+        }
+        target.setLocalShellCommand(command);
+        target.setLocalShellWorkingDirectory(shown.workingDirectoryOrNull());
+    }
+
+    /**
+     * Whether the form still names saved connection {@code saved}: the same host, port and username.
+     * A missing host or username counts as empty, as a Local Shell connection may have neither.
+     */
+    static boolean formMatchesSaved(ServerConnection saved, String host, int port, String username) {
+        return Objects.requireNonNullElse(saved.getHost(), "").equals(trimmedOrEmpty(host))
+            && saved.getPort() == port
+            && Objects.requireNonNullElse(saved.getUsername(), "").equals(trimmedOrEmpty(username));
+    }
+
+    private static String trimmedOrEmpty(String text) {
+        return text != null ? text.trim() : "";
     }
 
     /** Applies the credential/key field enablement implied by the selected auth method. */

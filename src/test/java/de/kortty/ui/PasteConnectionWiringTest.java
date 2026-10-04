@@ -54,9 +54,9 @@ class PasteConnectionWiringTest {
         assertThat(baseCopy).contains("modified.setPasteWarningMode(selected.getPasteWarningMode());");
         assertThat(baseCopy).contains("modified.setPasteLineDelayMs(selected.getPasteLineDelayMs());");
 
-        String manager = source("ConnectionManagerDialog.java");
-        assertThat(manager).contains("imported.setPasteWarningMode(conn.getPasteWarningMode());");
-        assertThat(manager).contains("imported.setPasteLineDelayMs(conn.getPasteLineDelayMs());");
+        // copyForImport carries both values; ServerConnectionCopyPolicyTest pins that.
+        assertThat(source("ConnectionManagerDialog.java"))
+            .contains("ServerConnection imported = ServerConnection.copyForImport(conn,");
     }
 
     private static String source(String file) throws IOException {

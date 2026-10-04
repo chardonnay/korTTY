@@ -162,6 +162,36 @@ class XMLConnectionRepositoryTest {
     }
 
     @Test
+    void exportedLocalShellAndMoshConnectionsComeBackFromAnImport() throws Exception {
+        // The Connection Manager's export and import, minus the dialogs: the import used to build a
+        // fresh connection without the protocol, so both of these came back as SSH.
+        ServerConnection localShell = new ServerConnection();
+        localShell.setName("Fish");
+        localShell.setHost("");
+        localShell.setProtocol(ConnectionProtocol.LOCAL_SHELL);
+        localShell.setLocalShellCommand("/usr/bin/fish");
+        localShell.setLocalShellWorkingDirectory("/tmp/workdir");
+        ServerConnection mosh = new ServerConnection("Mosh", "mosh.example.test", 22, "demo");
+        mosh.setProtocol(ConnectionProtocol.MOSH);
+
+        java.io.ByteArrayOutputStream file = new java.io.ByteArrayOutputStream();
+        XMLConnectionRepository.writeConnections(List.of(
+            ServerConnection.copyForExport(localShell, true, false, false, false),
+            ServerConnection.copyForExport(mosh, true, false, false, false)), file, null);
+        List<ServerConnection> imported = XMLConnectionRepository
+            .readConnections(new java.io.ByteArrayInputStream(file.toByteArray()), null).stream()
+            .map(read -> ServerConnection.copyForImport(read, true, false, false, false))
+            .toList();
+
+        assertThat(imported).hasSize(2);
+        assertThat(imported.get(0).getProtocol()).isEqualTo(ConnectionProtocol.LOCAL_SHELL);
+        assertThat(imported.get(0).getLocalShellCommand()).isEqualTo("/usr/bin/fish");
+        assertThat(imported.get(0).getLocalShellWorkingDirectory()).isEqualTo("/tmp/workdir");
+        assertThat(imported.get(1).getProtocol()).isEqualTo(ConnectionProtocol.MOSH);
+        assertThat(imported.get(1).getHost()).isEqualTo("mosh.example.test");
+    }
+
+    @Test
     void saveAndLoadPreservesDisableHostKeyCheck() throws Exception {
         Path dir = Files.createTempDirectory("kortty-xml-repo-host-key-check");
         try {
