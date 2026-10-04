@@ -75,6 +75,7 @@ import de.kortty.model.WindowGeometry;
 import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteWarningMode;
+import de.kortty.shellintegration.TerminalNotificationPolicy;
 import de.kortty.security.PasswordStrengthChecker;
 import de.kortty.security.MasterPasswordManager;
 import de.kortty.security.MasterPasswordReEncryptor;
@@ -172,11 +173,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox commandTimestampsCheck;
     private final CheckBox terminalDragDropCheck;
     private final CheckBox terminalCopyOnSelectCheck;
+    private final CheckBox osc52ClipboardWriteCheck;
     private final CheckBox terminalLinkDetectionCheck;
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final ComboBox<PasteWarningMode> pasteWarningModeCombo;
     private final Spinner<Integer> pasteLargeWarningSpinner;
     private final Spinner<Integer> pasteLineDelaySpinner;
+    private final CheckBox shellIntegrationCheck;
+    private final CheckBox terminalBellNotificationsCheck;
+    private final CheckBox commandFinishedNotificationsCheck;
+    private final Spinner<Integer> commandFinishedSecondsSpinner;
+    private final CheckBox remoteTerminalNotificationsCheck;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
     private final CheckBox codingAgentDetectionCheck;
@@ -336,7 +343,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox aiConfirmBeforeSendCheck;
     private final CheckBox aiTerminalAgentExecutionEnabledCheck;
     private final CheckBox aiTerminalAgentConfirmMutatingCommandSetsCheck;
-    private final CheckBox aiPromptHookEnabledCheck;
     private final CheckBox aiShowDebugMessagesCheck;
     private final CheckBox aiShowRuntimeMessagesCheck;
     private final CheckBox aiTerminalAgentShowRunDialogCheck;
@@ -798,6 +804,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalCopyOnSelectCheck.setSelected(globalSettings != null ? globalSettings.isTerminalCopyOnSelectEnabled() : true);
         terminalCopyOnSelectCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.copyOnSelect.tooltip")));
 
+        // Programs copying to the clipboard with OSC 52 (vim, tmux on a server): off unless allowed.
+        osc52ClipboardWriteCheck = new CheckBox(I18n.get("settings.terminal.osc52.enabled"));
+        osc52ClipboardWriteCheck.setSelected(globalSettings != null && globalSettings.isOsc52ClipboardWriteEnabled());
+        osc52ClipboardWriteCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.osc52.enabled.tooltip")));
+
         terminalLinkDetectionCheck = new CheckBox(I18n.get("settings.terminal.linkDetection"));
         terminalLinkDetectionCheck.setSelected(globalSettings == null || globalSettings.isTerminalLinkDetectionEnabled());
         terminalLinkDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.linkDetection.tooltip")));
@@ -837,6 +848,44 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         pasteLineDelaySpinner.setEditable(true);
         pasteLineDelaySpinner.setPrefWidth(100);
         pasteLineDelaySpinner.setTooltip(new Tooltip(I18n.get("settings.terminal.paste.lineDelay.tooltip")));
+
+        // Shell integration: OSC 133 command marks and prompt navigation.
+        shellIntegrationCheck = new CheckBox(I18n.get("settings.terminal.shellIntegration.enabled"));
+        shellIntegrationCheck.setSelected(globalSettings == null || globalSettings.isShellIntegrationEnabled());
+        shellIntegrationCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.shellIntegration.enabled.tooltip")));
+
+        // Notifications: a bell in a tab the user is not looking at.
+        terminalBellNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.bell"));
+        terminalBellNotificationsCheck.setSelected(globalSettings != null
+            && globalSettings.isTerminalBellNotificationsEnabled());
+        terminalBellNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.bell.tooltip")));
+        // ... and a long command the shell marked finishing there; needs shell integration.
+        commandFinishedNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.commandFinished"));
+        commandFinishedNotificationsCheck.setSelected(globalSettings == null
+            || globalSettings.isCommandFinishedNotificationsEnabled());
+        commandFinishedNotificationsCheck.setTooltip(
+            new Tooltip(I18n.get("settings.terminal.notify.commandFinished.tooltip")));
+        commandFinishedSecondsSpinner = new Spinner<>(TerminalNotificationPolicy.MIN_COMMAND_FINISHED_SECONDS,
+            TerminalNotificationPolicy.MAX_COMMAND_FINISHED_SECONDS,
+            globalSettings != null ? globalSettings.getCommandFinishedNotificationSeconds()
+                : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS);
+        commandFinishedSecondsSpinner.setEditable(true);
+        commandFinishedSecondsSpinner.setPrefWidth(100);
+        commandFinishedSecondsSpinner.setTooltip(
+            new Tooltip(I18n.get("settings.terminal.notify.commandFinishedSeconds.tooltip")));
+        // Without shell integration no command is ever marked finished: show that the two do nothing.
+        Runnable syncCommandFinishedControls = () -> {
+            boolean marksRead = shellIntegrationCheck.isSelected();
+            commandFinishedNotificationsCheck.setDisable(!marksRead);
+            commandFinishedSecondsSpinner.setDisable(!marksRead);
+        };
+        shellIntegrationCheck.selectedProperty().addListener((obs, was, now) -> syncCommandFinishedControls.run());
+        syncCommandFinishedControls.run();
+        // ... and a program there asking for a notification (OSC 9, OSC 777); needs no shell integration.
+        remoteTerminalNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.remote"));
+        remoteTerminalNotificationsCheck.setSelected(globalSettings == null
+            || globalSettings.isRemoteTerminalNotificationsEnabled());
+        remoteTerminalNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.remote.tooltip")));
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -936,6 +985,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(commandTimestampsCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalDragDropCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalCopyOnSelectCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(osc52ClipboardWriteCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(closeActiveTerminalWindowsWithoutConfirmationCheck, 0, terminalRow++, 2, 1);
 
         // Keyword highlighting section
@@ -987,6 +1037,41 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         pasteProtectionInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         pasteProtectionInfo.setWrapText(true);
         terminalGrid.add(pasteProtectionInfo, 0, terminalRow++, 2, 1);
+
+        // Shell integration section
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
+        Label shellIntegrationHeader = new Label(I18n.get("settings.terminal.shellIntegration.header"));
+        shellIntegrationHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(shellIntegrationHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(shellIntegrationCheck, 0, terminalRow++, 2, 1);
+        // Reachable with the checkbox off too: the snippets can be put on the servers first.
+        Button shellIntegrationSetupButton = new Button(I18n.get("settings.terminal.shellIntegration.setup"));
+        shellIntegrationSetupButton.setTooltip(new Tooltip(I18n.get("settings.terminal.shellIntegration.setup.tooltip")));
+        shellIntegrationSetupButton.setOnAction(event -> openShellIntegrationSetup());
+        shellIntegrationSetupButton.setMinWidth(Region.USE_PREF_SIZE);
+        terminalGrid.add(shellIntegrationSetupButton, 0, terminalRow++, 2, 1);
+        Label shellIntegrationInfo = new Label(I18n.get("settings.terminal.shellIntegration.info"));
+        shellIntegrationInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        shellIntegrationInfo.setWrapText(true);
+        terminalGrid.add(shellIntegrationInfo, 0, terminalRow++, 2, 1);
+
+        // Notifications section
+        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
+        Label notificationsHeader = new Label(I18n.get("settings.terminal.notify.header"));
+        notificationsHeader.setStyle("-fx-font-weight: bold;");
+        terminalGrid.add(notificationsHeader, 0, terminalRow++, 2, 1);
+        terminalGrid.add(terminalBellNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(commandFinishedNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.notify.commandFinishedSeconds")), 0, terminalRow);
+        HBox commandFinishedSecondsBox = new HBox(10, commandFinishedSecondsSpinner,
+            new Label(I18n.get("settings.terminal.notify.commandFinishedSeconds.unit")));
+        commandFinishedSecondsBox.setAlignment(Pos.CENTER_LEFT);
+        terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);
+        terminalGrid.add(remoteTerminalNotificationsCheck, 0, terminalRow++, 2, 1);
+        Label notificationsInfo = new Label(I18n.get("settings.terminal.notify.info"));
+        notificationsInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        notificationsInfo.setWrapText(true);
+        terminalGrid.add(notificationsInfo, 0, terminalRow++, 2, 1);
 
         // SSH Keep-Alive section
         terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
@@ -2168,10 +2253,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiTerminalAgentConfirmMutatingHint.setWrapText(true);
         aiTerminalAgentConfirmMutatingHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         aiRoot.getChildren().add(aiTerminalAgentConfirmMutatingHint);
-
-        aiPromptHookEnabledCheck = new CheckBox(I18n.get("settings.ai.promptHook"));
-        aiPromptHookEnabledCheck.setSelected(globalSettings == null || globalSettings.isDefaultPromptHookEnabled());
-        aiRoot.getChildren().add(aiPromptHookEnabledCheck);
 
         aiShowDebugMessagesCheck = new CheckBox(I18n.get("settings.ai.showDebugMessages"));
         aiShowDebugMessagesCheck.setSelected(globalSettings != null && globalSettings.isTerminalAgentShowDebugMessages());
@@ -3408,12 +3489,19 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setShowTerminalScrollbar(showTerminalScrollbarCheck.isSelected());
             globalSettings.setTerminalDragDropEnabled(terminalDragDropCheck.isSelected());
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
+            globalSettings.setOsc52ClipboardWriteEnabled(osc52ClipboardWriteCheck.isSelected());
             globalSettings.setTerminalLinkDetectionEnabled(terminalLinkDetectionCheck.isSelected());
             globalSettings.setPasteWarningMode(pasteWarningModeCombo.getValue());
             globalSettings.setPasteLargeWarningKiB(pasteLargeWarningSpinner.getValue() != null
                 ? pasteLargeWarningSpinner.getValue() : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);
             globalSettings.setPasteLineDelayMs(pasteLineDelaySpinner.getValue() != null
                 ? pasteLineDelaySpinner.getValue() : 0);
+            globalSettings.setShellIntegrationEnabled(shellIntegrationCheck.isSelected());
+            globalSettings.setTerminalBellNotificationsEnabled(terminalBellNotificationsCheck.isSelected());
+            globalSettings.setCommandFinishedNotificationsEnabled(commandFinishedNotificationsCheck.isSelected());
+            globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null
+                ? commandFinishedSecondsSpinner.getValue() : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS);
+            globalSettings.setRemoteTerminalNotificationsEnabled(remoteTerminalNotificationsCheck.isSelected());
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
                 closeActiveTerminalWindowsWithoutConfirmationCheck.isSelected()
             );
@@ -3662,12 +3750,21 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "scrollbar_visible", gs::isShowTerminalScrollbar, true));
             tracked.add(new TrackedSetting("terminal", "drag_drop_enabled", gs::isTerminalDragDropEnabled, true));
             tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "osc52_clipboard_write", gs::isOsc52ClipboardWriteEnabled, true));
             tracked.add(new TrackedSetting("terminal", "link_detection", gs::isTerminalLinkDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "close_without_confirmation",
                 gs::isCloseActiveTerminalWindowsWithoutConfirmation, true));
             tracked.add(new TrackedSetting("terminal", "paste_warning_mode", () -> gs.getPasteWarningMode().id(), true));
             tracked.add(new TrackedSetting("terminal", "paste_large_warning_kib", gs::getPasteLargeWarningKiB, true));
             tracked.add(new TrackedSetting("terminal", "paste_line_delay_ms", gs::getPasteLineDelayMs, true));
+            tracked.add(new TrackedSetting("terminal", "shell_integration", gs::isShellIntegrationEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "bell_notifications", gs::isTerminalBellNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "command_finished_notifications",
+                gs::isCommandFinishedNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "command_finished_notification_seconds",
+                gs::getCommandFinishedNotificationSeconds, true));
+            tracked.add(new TrackedSetting("terminal", "remote_notifications",
+                gs::isRemoteTerminalNotificationsEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
                 gs::isCodingAgentNotificationsEnabled, true));
@@ -6042,9 +6139,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         if (aiTerminalAgentConfirmMutatingCommandSetsCheck != null) {
             targetSettings.setTerminalAgentConfirmMutatingCommandSets(aiTerminalAgentConfirmMutatingCommandSetsCheck.isSelected());
         }
-        if (aiPromptHookEnabledCheck != null) {
-            targetSettings.setDefaultPromptHookEnabled(aiPromptHookEnabledCheck.isSelected());
-        }
         if (aiShowDebugMessagesCheck != null) {
             targetSettings.setTerminalAgentShowDebugMessages(aiShowDebugMessagesCheck.isSelected());
         }
@@ -6773,6 +6867,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed") + ": " + (t != null ? t.getMessage() : "")).showAndWait();
         });
         new Thread(task).start();
+    }
+
+    /** Set Up Shell Integration…: the window with the shell snippets, see {@link ShellIntegrationSetupDialog}. */
+    private void openShellIntegrationSetup() {
+        javafx.stage.Window owner = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        ShellIntegrationSetupDialog.open(owner, null);
     }
 
     /**

@@ -3,6 +3,7 @@ package de.kortty.ui;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import de.kortty.shellintegration.CommandStatus;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -23,6 +24,9 @@ import org.testng.annotations.Test;
  * <p>The short day-month is a translator-controlled pattern, so a typo in one bundle would only
  * show up in that language. Every bundle's pattern is therefore checked here: it has to parse,
  * leave the year out and fit the narrow gutter.
+ *
+ * <p>A row with the status of a command the shell marked (OSC 133) shows that command's runtime in
+ * place of the gap since the previous mark, and its popup the runtime and the exit status.
  */
 class TimestampGutterFormatsTest {
 
@@ -132,8 +136,99 @@ class TimestampGutterFormatsTest {
     }
 
     @Test
+    void theRuntimeReplacesTheTimeSinceThePreviousMarkWhenAStatusIsPresent() {
+        Duration sincePrevious = Duration.ofSeconds(90);
+        assertWithMessage("without shell integration the row shows the gap since the previous mark")
+            .that(TimestampGutterFormats.topLine("10/02", sincePrevious, null)).isEqualTo("10/02 +1:30");
+        assertWithMessage("a finished command shows its own runtime, without the + of a gap")
+            .that(TimestampGutterFormats.topLine("10/02", sincePrevious, finished(0, Duration.ofSeconds(12))))
+            .isEqualTo("10/02 12s");
+        assertThat(TimestampGutterFormats.topLine("10/02", null, finished(1, Duration.ofMillis(40))))
+            .isEqualTo("10/02 <1s");
+        assertWithMessage("a running command has no runtime yet, so the gap stays")
+            .that(TimestampGutterFormats.topLine("10/02", sincePrevious, running())).isEqualTo("10/02 +1:30");
+        assertWithMessage("the first output line of a running command has no timestamp and no text")
+            .that(TimestampGutterFormats.topLine(null, null, running())).isEmpty();
+        assertThat(TimestampGutterFormats.topLine(null, null, finished(0, Duration.ofSeconds(3)))).isEqualTo("3s");
+        assertThat(TimestampGutterFormats.topLine("10/02", Duration.ofSeconds(-5), null)).isEqualTo("10/02");
+    }
+
+    @Test
+    void theCompactRuntimeIsLanguageNeutralAndHasNoSign() {
+        assertThat(TimestampGutterFormats.compactRuntime(Duration.ZERO)).isEqualTo("<1s");
+        assertThat(TimestampGutterFormats.compactRuntime(Duration.ofMillis(999))).isEqualTo("<1s");
+        assertThat(TimestampGutterFormats.compactRuntime(Duration.ofSeconds(1))).isEqualTo("1s");
+        assertThat(TimestampGutterFormats.compactRuntime(Duration.ofSeconds(65))).isEqualTo("1:05");
+        assertThat(TimestampGutterFormats.compactRuntime(Duration.ofSeconds(3723))).isEqualTo("1:02:03");
+        assertThat(TimestampGutterFormats.compactRuntime(Duration.ofSeconds(-3))).isEqualTo("<1s");
+    }
+
+    @Test
+    void thePopupNamesTheRuntimeOrHowLongTheCommandHasBeenRunning() throws Exception {
+        TimestampGutterFormats english = formatsFor("messages.properties");
+        assertThat(english.durationLine(Duration.ofSeconds(90), finished(0, Duration.ofSeconds(65)), 0L))
+            .isEqualTo("Runtime: 1 min 5 sec");
+        assertThat(english.durationLine(null, finished(0, Duration.ofMillis(350)), 0L)).isEqualTo("Runtime: 350 ms");
+        CommandStatus running = new CommandStatus(CommandStatus.Kind.RUNNING, null, 1_000_000_000L, 0L);
+        assertThat(english.durationLine(null, running, 66_000_000_000L)).isEqualTo("Running for 1 min 5 sec");
+        assertWithMessage("without a status the popup keeps the elapsed time")
+            .that(english.durationLine(Duration.ofSeconds(65), null, 0L)).isEqualTo("Elapsed: 1 min 5 sec");
+        assertThat(english.durationLine(null, null, 0L)).isNull();
+        assertThat(english.durationLine(Duration.ofSeconds(-1), null, 0L)).isNull();
+
+        TimestampGutterFormats german = formatsFor("messages_de.properties");
+        assertThat(german.durationLine(null, finished(0, Duration.ofSeconds(65)), 0L)).isEqualTo("Laufzeit: 1 Min. 5 Sek.");
+        assertThat(german.exitStatusLine(finished(2, Duration.ZERO))).isEqualTo("Exit-Status: 2");
+    }
+
+    @Test
+    void thePopupShowsTheExitStatusOnlyWhenTheShellReportedOne() throws Exception {
+        TimestampGutterFormats english = formatsFor("messages.properties");
+        assertThat(english.exitStatusLine(finished(0, Duration.ZERO))).isEqualTo("Exit status: 0");
+        assertThat(english.exitStatusLine(finished(130, Duration.ZERO))).isEqualTo("Exit status: 130");
+        assertThat(english.exitStatusLine(new CommandStatus(CommandStatus.Kind.NO_STATUS, null, 1L, 2L))).isNull();
+        assertThat(english.exitStatusLine(running())).isNull();
+        assertThat(english.exitStatusLine(null)).isNull();
+    }
+
+    @Test
+    void everyBundleFillsTheRuntimeAndExitStatusTexts() throws Exception {
+        CommandStatus failed = finished(127, Duration.ofSeconds(3723));
+        for (String bundle : BUNDLES.keySet()) {
+            TimestampGutterFormats formats = formatsFor(bundle);
+            for (String text : new String[] {
+                formats.durationLine(null, failed, 0L),
+                formats.durationLine(null, new CommandStatus(CommandStatus.Kind.RUNNING, null, 0L, 0L), 3_723_000_000_000L),
+                formats.exitStatusLine(failed),
+                formats.verboseRuntime(Duration.ofMillis(250))}) {
+                assertWithMessage(bundle + " left a placeholder unfilled: " + text).that(text).doesNotContain("{");
+            }
+            assertWithMessage(bundle).that(formats.exitStatusLine(failed)).contains("127");
+            assertWithMessage(bundle).that(formats.durationLine(null, failed, 0L)).contains("2");
+            assertWithMessage(bundle).that(formats.verboseRuntime(Duration.ofMillis(250))).contains("250");
+        }
+    }
+
+    @Test
+    void aMissingTranslationOfTheStatusTextsFallsBackToEnglish() {
+        TimestampGutterFormats formats = TimestampGutterFormats.forLocale(Locale.GERMAN, key -> key);
+        assertThat(formats.durationLine(null, finished(1, Duration.ofSeconds(2)), 0L)).isEqualTo("Runtime: 2 sec");
+        assertThat(formats.exitStatusLine(finished(1, Duration.ZERO))).isEqualTo("Exit status: 1");
+        assertThat(formats.verboseRuntime(Duration.ofMillis(5))).isEqualTo("5 ms");
+    }
+
+    @Test
     void theFormatsRememberTheLocaleTheyWereBuiltFor() {
         assertThat(TimestampGutterFormats.forLocale(Locale.ITALIAN, key -> null).locale()).isEqualTo(Locale.ITALIAN);
+    }
+
+    private static CommandStatus finished(int exitStatus, Duration runtime) {
+        CommandStatus.Kind kind = exitStatus == 0 ? CommandStatus.Kind.SUCCEEDED : CommandStatus.Kind.FAILED;
+        return new CommandStatus(kind, exitStatus, 1_000L, 1_000L + runtime.toNanos());
+    }
+
+    private static CommandStatus running() {
+        return new CommandStatus(CommandStatus.Kind.RUNNING, null, 1_000L, 0L);
     }
 
     private TimestampGutterFormats formatsFor(String bundle) throws Exception {

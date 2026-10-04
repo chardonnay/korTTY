@@ -409,6 +409,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/shell-integration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Shell integration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/terminal-notifications.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal notifications
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/highlighting.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -897,6 +913,26 @@
 <td>Quick Select</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-space">Space</kbd></span></td>
 <td>Label every web address, path, e-mail address, UUID, IP address, git hash and number of four or more digits in the focused terminal pane; type a label to copy its text, or <span class="keys"><kbd class="key-shift">Shift</kbd></span> and the label to open a web or e-mail address, or in SSH and local-shell tabs a file path in the Snippet Editor. Disabled outside terminal tabs, see <a href="../features/terminal.html#quick-select">Quick select</a></td>
+</tr>
+<tr>
+<td>Previous Prompt</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span></td>
+<td>Scroll the focused terminal pane to the prompt before the one you are at, using the marks of a shell set up for <a href="../features/shell-integration.html">shell integration</a>; when it cannot, the status bar says why. Disabled outside terminal tabs</td>
+</tr>
+<tr>
+<td>Next Prompt</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span></td>
+<td>Scroll the focused terminal pane to the next prompt its shell marked, or back to the bottom after the last one. Disabled outside terminal tabs</td>
+</tr>
+<tr>
+<td>Select Last Output</td>
+<td></td>
+<td>Select what the last finished command printed in the focused terminal pane, using the marks of a shell set up for <a href="../features/shell-integration.html#selecting-and-copying-a-commands-output">shell integration</a>; the status bar says what was selected, or why nothing was. Disabled outside terminal tabs</td>
+</tr>
+<tr>
+<td>Copy Last Output</td>
+<td></td>
+<td>Copy what the last finished command printed in the focused terminal pane to the clipboard, without changing the selection. Disabled outside terminal tabs</td>
 </tr>
 </tbody>
 </table>

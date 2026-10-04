@@ -245,6 +245,48 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void aFileWithTheOldAiPromptMarkerSettingStillLoads() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-prompt-hook");
+        try {
+            // Written by a version that still showed "Use OSC 133 prompt markers when the shell
+            // already provides them" in Settings > AI, unticked, and had no shell integration switch.
+            Files.writeString(dir.resolve("global-settings.xml"), """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <globalSettings>
+                    <language>en</language>
+                    <aiConfirmBeforeSend>false</aiConfirmBeforeSend>
+                    <terminalAgentExecutionEnabled>true</terminalAgentExecutionEnabled>
+                    <defaultPromptHookEnabled>false</defaultPromptHookEnabled>
+                    <terminalAgentShowDebugMessages>true</terminalAgentShowDebugMessages>
+                    <terminalAgentCommandName>susi</terminalAgentCommandName>
+                </globalSettings>
+                """);
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.load();
+            GlobalSettings settings = manager.getSettings();
+
+            assertThat(settings.isAiConfirmBeforeSend()).isFalse();
+            assertThat(settings.isTerminalAgentShowDebugMessages()).isTrue();
+            assertThat(settings.getTerminalAgentCommandName()).isEqualTo("susi");
+            assertThat(settings.isDefaultPromptHookEnabled()).isFalse();
+            // The old checkbox never changed anything, so its value does not turn the marks off.
+            assertThat(settings.isShellIntegrationEnabled()).isTrue();
+
+            // Saved again, the file keeps the old value for an older version started on it.
+            manager.save();
+            assertThat(Files.readString(dir.resolve("global-settings.xml")))
+                .contains("<defaultPromptHookEnabled>false</defaultPromptHookEnabled>");
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().isDefaultPromptHookEnabled()).isFalse();
+            assertThat(reloaded.getSettings().isShellIntegrationEnabled()).isTrue();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void saveAndLoadPreservesCustomSnippetCodeLanguages() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings");
         try {

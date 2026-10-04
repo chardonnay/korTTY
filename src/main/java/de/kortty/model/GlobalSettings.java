@@ -4,6 +4,7 @@ import de.kortty.ai.llama.LlamaBackend;
 import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteWarningMode;
+import de.kortty.shellintegration.TerminalNotificationPolicy;
 import jakarta.xml.bind.annotation.*;
 
 /**
@@ -351,11 +352,60 @@ public class GlobalSettings {
     @XmlElement
     private boolean terminalCopyOnSelectEnabled = true; // Copy selected text to clipboard automatically
 
+    /**
+     * Whether a program in a terminal may put text on the clipboard with OSC 52, as vim, Neovim and
+     * tmux on a server do. Off by default (decision D4 a): any program whose output reaches the
+     * terminal could replace what the user copied. Programs can only write, never read.
+     */
+    @XmlElement
+    private boolean osc52ClipboardWriteEnabled = false;
+
     @XmlElement
     private boolean terminalLinkDetectionEnabled = true; // Cmd/Ctrl+click opens web/e-mail addresses and file paths in plain text
 
     @XmlElement
     private boolean closeActiveTerminalWindowsWithoutConfirmation = false; // Ask before closing active terminal windows by default
+
+    /**
+     * Shell integration: korTTY reads the OSC 133 command marks that a shell set up for shell integration sends, and offers
+     * prompt navigation. On by default; nothing changes for a shell that sends no marks. While it is on, the AI Agent's
+     * commands also use the marks to tell that the shell is at its prompt; it replaced {@link #defaultPromptHookEnabled}.
+     */
+    @XmlElement
+    private boolean shellIntegrationEnabled = true;
+
+    /**
+     * Desktop notification when a program rings the bell in a terminal tab the user is not looking
+     * at. Off by default: shells ring on every failed Tab completion. The tab's bell mark does not
+     * depend on it.
+     */
+    @XmlElement
+    private boolean terminalBellNotificationsEnabled = false;
+
+    /**
+     * Desktop notification when a command the shell marked with shell integration (OSC 133) ran at
+     * least {@link #commandFinishedNotificationSeconds} and finished in a terminal tab the user is not
+     * looking at. On by default (decision D4 a); it never names the command. The tab's mark does not
+     * depend on it.
+     */
+    @XmlElement
+    private boolean commandFinishedNotificationsEnabled = true;
+
+    /**
+     * How long a command has to run, in seconds, before its end marks its tab and notifies; boxed so
+     * a settings file written before this setting existed falls back to the default of 30.
+     */
+    @XmlElement
+    private Integer commandFinishedNotificationSeconds = TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS;
+
+    /**
+     * Desktop notification when a program in a terminal tab the user is not looking at asks for one
+     * with OSC 9 or OSC 777, such as a coding agent on a server waiting for an answer. On by default
+     * (decision D4 a): the text is cleaned, follows the tab's name and comes at most once per pane
+     * every 5 seconds. The tab's mark does not depend on it.
+     */
+    @XmlElement
+    private boolean remoteTerminalNotificationsEnabled = true;
 
     /**
      * When a terminal paste with line breaks asks for confirmation: the {@link PasteWarningMode#id()}
@@ -680,7 +730,13 @@ public class GlobalSettings {
     @XmlElement
     private boolean terminalAgentConfirmMutatingCommandSets = false;
 
-    /** Prefer OSC 133 prompt markers when the shell emits them. */
+    /**
+     * The former AI setting "Use OSC 133 prompt markers when the shell already provides them". It
+     * never changed anything and is no longer shown: the OSC 133 marks follow
+     * {@link #shellIntegrationEnabled} alone, also for the AI Agent's prompt detection. The value is
+     * still read and written, so settings files of older versions load as before and an older
+     * version started again finds the choice it saved.
+     */
     @XmlElement
     private boolean defaultPromptHookEnabled = true;
 
@@ -2065,6 +2121,18 @@ public class GlobalSettings {
     }
 
     /**
+     * Whether programs in a terminal may put text on the clipboard with OSC 52, at most 256 KiB at a
+     * time. Read on every write, so a change applies at once.
+     */
+    public boolean isOsc52ClipboardWriteEnabled() {
+        return osc52ClipboardWriteEnabled;
+    }
+
+    public void setOsc52ClipboardWriteEnabled(boolean osc52ClipboardWriteEnabled) {
+        this.osc52ClipboardWriteEnabled = osc52ClipboardWriteEnabled;
+    }
+
+    /**
      * Whether a Cmd/Ctrl+click in a terminal also opens web and e-mail addresses that a program
      * printed as plain text, and in SSH and local-shell panes file paths, not only OSC 8 links. Read
      * on every click, so a change applies to open terminals at once.
@@ -2083,6 +2151,67 @@ public class GlobalSettings {
 
     public void setCloseActiveTerminalWindowsWithoutConfirmation(boolean closeActiveTerminalWindowsWithoutConfirmation) {
         this.closeActiveTerminalWindowsWithoutConfirmation = closeActiveTerminalWindowsWithoutConfirmation;
+    }
+
+    /**
+     * Whether korTTY reads the OSC 133 command marks of the terminal panes (prompt navigation). Read
+     * on every mark and key press, so a change applies to open tabs at once.
+     */
+    public boolean isShellIntegrationEnabled() {
+        return shellIntegrationEnabled;
+    }
+
+    public void setShellIntegrationEnabled(boolean shellIntegrationEnabled) {
+        this.shellIntegrationEnabled = shellIntegrationEnabled;
+    }
+
+    /**
+     * Whether a bell in a terminal tab the user is not looking at also shows a desktop notification,
+     * at most one per pane every 10 seconds. Read on every bell, so a change applies at once.
+     */
+    public boolean isTerminalBellNotificationsEnabled() {
+        return terminalBellNotificationsEnabled;
+    }
+
+    public void setTerminalBellNotificationsEnabled(boolean terminalBellNotificationsEnabled) {
+        this.terminalBellNotificationsEnabled = terminalBellNotificationsEnabled;
+    }
+
+    /**
+     * Whether a long command that finishes in a terminal tab the user is not looking at also shows a
+     * desktop notification. Read on every finished command, so a change applies at once.
+     */
+    public boolean isCommandFinishedNotificationsEnabled() {
+        return commandFinishedNotificationsEnabled;
+    }
+
+    public void setCommandFinishedNotificationsEnabled(boolean commandFinishedNotificationsEnabled) {
+        this.commandFinishedNotificationsEnabled = commandFinishedNotificationsEnabled;
+    }
+
+    /** How long a command has to run before its end counts, in seconds, {@code 1..3600}. */
+    public int getCommandFinishedNotificationSeconds() {
+        return commandFinishedNotificationSeconds != null
+            ? TerminalNotificationPolicy.clampCommandFinishedSeconds(commandFinishedNotificationSeconds)
+            : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS;
+    }
+
+    /** @param commandFinishedNotificationSeconds the threshold in seconds, clamped to {@code 1..3600} */
+    public void setCommandFinishedNotificationSeconds(int commandFinishedNotificationSeconds) {
+        this.commandFinishedNotificationSeconds =
+            TerminalNotificationPolicy.clampCommandFinishedSeconds(commandFinishedNotificationSeconds);
+    }
+
+    /**
+     * Whether a program's request for a desktop notification (OSC 9, OSC 777) in a terminal tab the
+     * user is not looking at is shown. Read on every request, so a change applies at once.
+     */
+    public boolean isRemoteTerminalNotificationsEnabled() {
+        return remoteTerminalNotificationsEnabled;
+    }
+
+    public void setRemoteTerminalNotificationsEnabled(boolean remoteTerminalNotificationsEnabled) {
+        this.remoteTerminalNotificationsEnabled = remoteTerminalNotificationsEnabled;
     }
 
     /** When a terminal paste with line breaks asks for confirmation; never null. */
@@ -2740,6 +2869,7 @@ public class GlobalSettings {
         this.terminalAgentConfirmMutatingCommandSets = terminalAgentConfirmMutatingCommandSets;
     }
 
+    /** The former AI prompt-marker setting, kept for settings files only; see {@link #defaultPromptHookEnabled}. */
     public boolean isDefaultPromptHookEnabled() {
         return defaultPromptHookEnabled;
     }

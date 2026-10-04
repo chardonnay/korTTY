@@ -30,6 +30,24 @@ class TerminalViewContextMenuTest {
     }
 
     @Test
+    void offersThePromptJumpsOnlyWhileThePaneHasPromptMarks() {
+        assertThat(ShellIntegrationController.contextMenuEntries(true, true, true))
+            .isEqualTo(ShellIntegrationController.ContextMenuEntries.NAVIGATION);
+        assertThat(ShellIntegrationController.contextMenuEntries(true, true, false))
+            .isEqualTo(ShellIntegrationController.ContextMenuEntries.SETUP);
+    }
+
+    @Test
+    void offersNoShellIntegrationEntryWhenItIsOffOrTheEmulationCannotCarryMarks() {
+        for (boolean hasPrompts : new boolean[] {true, false}) {
+            assertThat(ShellIntegrationController.contextMenuEntries(false, true, hasPrompts))
+                .isEqualTo(ShellIntegrationController.ContextMenuEntries.NONE);
+            assertThat(ShellIntegrationController.contextMenuEntries(true, false, hasPrompts))
+                .isEqualTo(ShellIntegrationController.ContextMenuEntries.NONE);
+        }
+    }
+
+    @Test
     void showsLoadAsTextFileItemOnlyForSelectionAndHandler() {
         assertThat(TerminalView.shouldShowLoadAsTextFileContextItem("file.txt", true)).isTrue();
         assertThat(TerminalView.shouldShowLoadAsTextFileContextItem("file.txt", false)).isFalse();

@@ -17,7 +17,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
  * The tab context menu and the command-timestamp gutter speak the UI language.
  *
  * <p>Both used to show fixed texts: the tab menu offered German "Duplizieren" and "Keine Gruppe"
- * in every language, the gutter English "Elapsed" and a German-ordered date.
+ * in every language, the gutter English "Elapsed" and a German-ordered date. The gutter's popup
+ * also names the runtime and exit status of commands marked by shell integration.
  */
 class TerminalUiI18nCoverageTest {
 
@@ -38,7 +39,11 @@ class TerminalUiI18nCoverageTest {
             "terminal.timestamps.elapsed",
             "terminal.timestamps.duration.seconds",
             "terminal.timestamps.duration.minutes",
-            "terminal.timestamps.duration.hours");
+            "terminal.timestamps.duration.hours",
+            "terminal.timestamps.duration.milliseconds",
+            "terminal.timestamps.runtime",
+            "terminal.timestamps.runningFor",
+            "terminal.timestamps.exitStatus");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
     private static final Path MAIN_WINDOW = Path.of("src/main/java/de/kortty/ui/MainWindow.java");

@@ -137,6 +137,28 @@ public class TerminalNavigationKeysTest {
     }
 
     @Test
+    public void korttysPromptJumpsKeepTheirKeyInEveryEmulationShellIntegrationReads() {
+        for (EmulationType emulation : EmulationType.values()) {
+            if (ShellIntegrationTtyConnector.appliesTo(emulation)) {
+                assertWithMessage("korTTY's prompt jump in a %s pane, which has prompt marks", emulation)
+                    .that(TerminalNavigationKeys.mayKeepKeyLocal(emulation, true)).isTrue();
+            }
+            if (TerminalNavigationKeys.isKorttyEncoded(emulation)) {
+                assertWithMessage("SithTermFX's scrollback keys in a %s pane", emulation)
+                    .that(TerminalNavigationKeys.mayKeepKeyLocal(emulation, false)).isTrue();
+            }
+        }
+        // SCO ANSI is read by shell integration but keeps the fixed key sequences: only korTTY's own
+        // action may keep Cmd/Ctrl+Shift+Up there, and Shift+Page Up still reaches the program.
+        assertThat(ShellIntegrationTtyConnector.appliesTo(EmulationType.SCOANSI)).isTrue();
+        assertThat(TerminalNavigationKeys.isKorttyEncoded(EmulationType.SCOANSI)).isFalse();
+        assertThat(TerminalNavigationKeys.mayKeepKeyLocal(EmulationType.SCOANSI, true)).isTrue();
+        assertThat(TerminalNavigationKeys.mayKeepKeyLocal(EmulationType.SCOANSI, false)).isFalse();
+        assertThat(TerminalNavigationKeys.mayKeepKeyLocal(EmulationType.WY60, false)).isFalse();
+        assertThat(TerminalNavigationKeys.mayKeepKeyLocal(null, false)).isFalse();
+    }
+
+    @Test
     public void mosh4jGetsSs3ArrowsUntilItsCursorKeyModeIsVerified() {
         // mosh4j re-renders the server's screen locally; whether ESC[?1h reaches korTTY's emulator is
         // not verified. mosh-server turns SS3 arrows into whatever the application asked for, so a

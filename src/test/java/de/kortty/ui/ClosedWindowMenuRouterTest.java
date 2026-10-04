@@ -375,6 +375,12 @@ class ClosedWindowMenuRouterTest {
         for (String item : List.of("cut", "copy", "paste")) {
             assertThat(edit).contains("ClosedWindowMenuRouter.ownWindowOnly(" + item + ");");
         }
+        for (String item : List.of("previousPrompt", "nextPrompt", "selectLastOutput", "copyLastOutput")) {
+            assertWithMessage(item + " acts in the frontmost open window's terminal, like Find")
+                .that(edit).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(" + item + ")");
+            assertThat(edit).doesNotContain("ClosedWindowMenuRouter.noWindowNeeded(" + item + ")");
+            assertThat(edit).contains("MenuItem " + item + " = ");
+        }
         assertThat(methodBody(window, "private Menu createConfigurationMenu() {"))
             .contains("ClosedWindowMenuRouter.noWindowNeeded(preventSleep);");
         // Like Find, the command palette opens in the frontmost open window (the default need).

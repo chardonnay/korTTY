@@ -26,6 +26,10 @@ import java.util.function.Function;
  * changed, and a call that changes nothing tells them nothing. A failing listener does not keep
  * the others from being told.
  *
+ * <p>The stretch from the first pane joining to the last one leaving is one {@link Session}: what a
+ * command typed once in it does in every member belongs together, so its long-command notification
+ * is shown once for all of them ({@code TerminalAttentionNotifier}).
+ *
  * <p>Generic over the pane type and free of JavaFX, so it is unit-tested without the toolkit; the
  * application's instance lives in {@link MultiExecCoordinator}, which uses it on the FX thread
  * only. It is not thread-safe.
@@ -49,10 +53,31 @@ public final class MultiExecMembership<K> {
         public static final Counts NONE = new Counts(0, 0, 0);
     }
 
+    /**
+     * One stretch of multi-exec, from the first pane joining until the last one leaves; panes that
+     * join or leave in between do not start a new one. Told apart by reference only, so it can key a
+     * weak map: the notifications use it as the slot shared by every member.
+     */
+    public static final class Session {
+        private final long number;
+
+        private Session(long number) {
+            this.number = number;
+        }
+
+        @Override
+        public String toString() {
+            return "multi-exec session " + number;
+        }
+    }
+
     // Identity keys in join order: an IdentityHashMap has no order, so the order is kept in a
     // LinkedHashMap over an identity wrapper.
     private final Map<Identity<K>, K> members = new LinkedHashMap<>();
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
+    // Set while there are members, so the listeners already see the session a change started.
+    private @Nullable Session session;
+    private long sessionCount;
 
     /** Whether {@code pane} takes part. */
     public boolean contains(@Nullable K pane) {
@@ -67,6 +92,16 @@ public final class MultiExecMembership<K> {
     /** Whether no pane takes part. */
     public boolean isEmpty() {
         return members.isEmpty();
+    }
+
+    /** The session that runs now, or {@code null} while no pane takes part. */
+    public @Nullable Session session() {
+        return session;
+    }
+
+    /** The session {@code pane} takes part in, or {@code null} when it does not take part. */
+    public @Nullable Session sessionOf(@Nullable K pane) {
+        return contains(pane) ? session : null;
     }
 
     /** The members in the order they joined; a copy. */
@@ -150,6 +185,7 @@ public final class MultiExecMembership<K> {
             }
         }
         if (changed) {
+            updateSession();
             fireChanged();
         }
         return changed;
@@ -174,8 +210,18 @@ public final class MultiExecMembership<K> {
             return false;
         }
         members.clear();
+        updateSession();
         fireChanged();
         return true;
+    }
+
+    /** Starts a session when the first pane joined, and ends it when the last one left. */
+    private void updateSession() {
+        if (members.isEmpty()) {
+            session = null;
+        } else if (session == null) {
+            session = new Session(++sessionCount);
+        }
     }
 
     /**

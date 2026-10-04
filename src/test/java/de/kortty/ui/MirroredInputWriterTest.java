@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -125,6 +126,42 @@ class MirroredInputWriterTest {
             assertThat(afterEachDrain).doesNotContain(true);
         }
         assertThat(MirroredInput.active()).isFalse();
+    }
+
+    @Test(timeOut = 10_000)
+    void itRemembersWhenAMirroredWriteLastReachedEachTarget() throws Exception {
+        long[] now = {1_000_000_000L};
+        MirroredInputWriter writer = new MirroredInputWriter(Runnable::run, () -> now[0]);
+        RecordingConnector target = new RecordingConnector();
+        RecordingConnector other = new RecordingConnector();
+        Duration window = Duration.ofSeconds(2);
+
+        assertThat(writer.wroteWithin(target, window)).isFalse();
+        writer.write(target, "\t");
+        assertThat(writer.wroteWithin(target, window)).isTrue();
+        assertThat(writer.wroteWithin(other, window)).isFalse();
+        assertThat(writer.wroteWithin(null, window)).isFalse();
+
+        now[0] += window.toNanos() - 1;
+        assertThat(writer.wroteWithin(target, window)).isTrue();
+        now[0] += 1;
+        assertThat(writer.wroteWithin(target, window)).isFalse();
+
+        writer.write(target, "\r".getBytes(StandardCharsets.US_ASCII));
+        assertThat(writer.wroteWithin(target, window)).isTrue();
+        assertThat(target.writes()).containsExactly("\t", "\r").inOrder();
+    }
+
+    @Test(timeOut = 10_000)
+    void aWriteThatFailedDidNotReachItsTarget() throws Exception {
+        MirroredInputWriter writer = new MirroredInputWriter(Runnable::run, () -> 5L);
+        RecordingConnector target = new RecordingConnector();
+        target.failNextWrite(new IOException("channel closed"));
+
+        writer.write(target, "lost");
+
+        assertThat(writer.wroteWithin(target, Duration.ofSeconds(2))).isFalse();
+        assertThrows(NullPointerException.class, () -> writer.wroteWithin(target, null));
     }
 
     @Test(timeOut = 10_000)

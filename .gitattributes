@@ -28,3 +28,8 @@ src/main/resources/guide/**/*.gz  binary
 # renderer, so their line endings are content rather than formatting.
 gradlew.bat                  -text
 src/main/resources/flf/*.flf -text
+
+# Shell-integration snippets that users copy into the startup files of bash, zsh and fish on their
+# servers. A CRLF checkout on Windows would ship them with carriage returns, which those shells
+# read as part of every command. Pin them to LF on every platform.
+src/main/resources/shell-integration/* text eol=lf

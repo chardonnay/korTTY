@@ -9,6 +9,7 @@ import com.sithtermfx.core.model.SithTerminal;
 import com.sithtermfx.core.model.StyleState;
 import com.sithtermfx.core.model.TerminalTextBuffer;
 import com.sithtermfx.ui.SithTermFxWidget;
+import com.sithtermfx.ui.TerminalAction;
 import com.sithtermfx.ui.TerminalCopyPasteHandler;
 import com.sithtermfx.ui.TerminalPanel;
 import com.sithtermfx.ui.settings.SettingsProvider;
@@ -27,10 +28,14 @@ import javafx.scene.text.Font;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -62,8 +67,18 @@ import java.util.function.Supplier;
  * another host than it opens asks first ({@link TerminalLinkMismatchDialog}). A right-click on a link
  * adds Open Link and Copy Link Address, or Open File and Copy Path, to the context menu
  * ({@link #contextMenuLink()}).
+ *
+ * <p>Every bell the program in the pane rings goes to the {@linkplain #setBellListener bell listener}
+ * as well; the bell itself stays silent.
+ *
+ * <p>korTTY's own key actions for the pane, such as Previous Prompt and Next Prompt, come before
+ * SithTermFX's ({@link #setLeadingTerminalActions}): SithTermFX and the split pane's key routing both
+ * let the first action whose key matches decide, and an action that is disabled at the time leaves
+ * the key to the program in the pane.
  */
 public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneActions {
+
+    private static final Logger logger = LoggerFactory.getLogger(KorttyTermWidget.class);
 
     /** Points per Increase/Decrease step of the context menu's font-size submenu. */
     static final float FONT_SIZE_STEP = 2f;
@@ -277,6 +292,48 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
     }
 
     /**
+     * Sets who is told that a program in the pane rang the bell (BEL). It runs on the pane's emulator
+     * thread, once for every BEL in the output, so it must be cheap and must not block: hand the
+     * work on, coalesced, as {@link de.kortty.shellintegration.BellCoalescer} does. {@code null}
+     * stops the reports. The bell stays silent either way.
+     */
+    public void setBellListener(@Nullable Runnable listener) {
+        ((KorttyTerminalPanel) getTerminalPanel()).bellListener = listener;
+    }
+
+    /**
+     * Sets korTTY's key actions for this pane, which SithTermFX tries before its own (copy, paste,
+     * scrolling, find). Each is asked whether it is enabled on every matching key press; a disabled
+     * one leaves the key to the program in the pane, exactly as if it did not exist. Keep them hidden
+     * ({@link TerminalAction#withHidden}): korTTY builds the pane's context menu itself. An empty list
+     * removes them. Call it on the JavaFX thread.
+     */
+    public void setLeadingTerminalActions(@NotNull List<TerminalAction> actions) {
+        ((KorttyTerminalPanel) getTerminalPanel()).leadingActions = List.copyOf(actions);
+    }
+
+    /**
+     * Whether {@code action} is one of korTTY's own key actions for this pane
+     * ({@link #setLeadingTerminalActions}) rather than one of SithTermFX's. Compared by identity: the
+     * pane's action list hands out the instances that were set. Any thread.
+     */
+    public boolean isLeadingTerminalAction(@Nullable TerminalAction action) {
+        if (action == null) {
+            return false;
+        }
+        List<TerminalAction> own = ((KorttyTerminalPanel) getTerminalPanel()).leadingActions;
+        if (own == null) {
+            return false;
+        }
+        for (TerminalAction candidate : own) {
+            if (candidate == action) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * The link the terminal's context menu was opened on: the one under the last right-button press
      * in this pane, as it was at that press, or {@code null} when that press was on no link or another
      * press came after it. The menu offers Open Link and Copy Link Address for it (Open File in Snippet
@@ -321,6 +378,12 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
 
         /** Opens the files links point to; none until the terminal view sets it. Read on the emulator thread too. */
         private volatile @Nullable TerminalFileLinkHandler fileLinkHandler;
+
+        /** Told about every bell; none until the terminal view sets it. Called on the emulator thread. */
+        private volatile @Nullable Runnable bellListener;
+
+        /** korTTY's key actions, tried before SithTermFX's; none until the terminal view sets them. */
+        private volatile List<TerminalAction> leadingActions = List.of();
 
         private final TerminalLinkHoverController linkHover;
 
@@ -479,6 +542,47 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
                 return;
             }
             KorttyTermWidget.this.paste(handler, PasteSource.CLIPBOARD);
+        }
+
+        /**
+         * Every bell of every emulation ends here: the panel is the terminal's display, and the
+         * emulators ring through {@code Terminal.beep()}. The listener hears it first, then
+         * SithTermFX's own handling runs, which stays silent because korTTY's settings provider
+         * answers {@code audibleBell()} with false. This runs on the emulator thread for every BEL,
+         * thousands of them when a binary file is printed, and a failing listener must not stop
+         * that thread.
+         */
+        @Override
+        public void beep() {
+            Runnable listener = bellListener;
+            if (listener != null) {
+                try {
+                    listener.run();
+                } catch (RuntimeException e) {
+                    // The emulator thread keeps reading; a lost bell report is all that happens.
+                    logger.debug("Bell listener failed: {}", e.toString());
+                }
+            }
+            super.beep();
+        }
+
+        /**
+         * SithTermFX's key actions with korTTY's in front ({@link #setLeadingTerminalActions}).
+         * SithTermFX builds a new list on every key press and runs the first action whose key matches;
+         * the split pane's key routing asks the same list, so both see korTTY's first.
+         */
+        @Override
+        public List<TerminalAction> getActions() {
+            List<TerminalAction> own = leadingActions;
+            List<TerminalAction> actions = super.getActions();
+            // Null only if SithTermFX asked while this panel's own fields were not set yet.
+            if (own == null || own.isEmpty()) {
+                return actions;
+            }
+            List<TerminalAction> all = new ArrayList<>(own.size() + actions.size());
+            all.addAll(own);
+            all.addAll(actions);
+            return all;
         }
 
         @Override

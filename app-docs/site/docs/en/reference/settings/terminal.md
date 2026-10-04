@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
+Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, shell integration, notifications, and SSH connection management. Open via **Configuration → Global Settings → Terminal**; stored in `~/.kortty/global-settings.xml`.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -19,6 +19,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Show command timestamps | toggle | — | Off | `commandTimestampsEnabled` |
 | Allow drag and drop into the terminal (files copy over SFTP, text is pasted) | toggle | — | On | `terminalDragDropEnabled` |
 | Copy selection to clipboard automatically | toggle | — | On | `terminalCopyOnSelectEnabled` |
+| Let programs in the terminal copy text to the clipboard (OSC 52) | toggle | — | Off | `osc52ClipboardWriteEnabled` |
 | Close active terminal windows without confirmation | toggle | — | Off | `closeActiveTerminalWindowsWithoutConfirmation` |
 | Highlight keywords in terminal output | toggle | — | On | `terminalHighlightingEnabled` |
 | Also highlight in full-screen programs (vim, less, htop) | toggle | — | Off | `terminalHighlightAlternateScreen` |
@@ -28,6 +29,12 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Warn about multi-line pastes: | dropdown | Off, Unless the program uses bracketed paste, Always | Unless the program uses bracketed paste | `pasteWarningMode` |
 | Warn about pastes larger than: | number | 0–10,240 KiB (0 = off) | 5 | `pasteLargeWarningKiB` |
 | Pause after each pasted line: | number | 0–1,000 ms (0 = off) | 0 | `pasteLineDelayMs` |
+| Use the command marks of shells set up for shell integration (OSC 133) | toggle | — | On | `shellIntegrationEnabled` |
+| Set Up Shell Integration… | button | opens the window with the shell snippets | — | — |
+| Desktop notification when the bell rings in a tab you are not looking at | toggle | — | Off | `terminalBellNotificationsEnabled` |
+| Desktop notification when a long-running command finishes in a tab you are not looking at | toggle | — | On | `commandFinishedNotificationsEnabled` |
+| Minimum command runtime: | number | 1–3,600 seconds | 30 | `commandFinishedNotificationSeconds` |
+| Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777) | toggle | — | On | `remoteTerminalNotificationsEnabled` |
 | Enable SSH Keep-Alive | toggle | — | On | `sshKeepAliveEnabled` |
 | Interval (seconds): | number | 5–600 | 60 | `sshKeepAliveInterval` |
 | Enable connection retries | toggle | — | On | `connectionRetriesEnabled` |
@@ -54,6 +61,9 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 !!! note "Copy selection to clipboard automatically"
     When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode) the selection stays inside korTTY on every platform.
 
+!!! note "Programs copying to the clipboard (OSC 52)"
+    With **Let programs in the terminal copy text to the clipboard (OSC 52)** on, programs such as vim, Neovim and tmux, also on a server over SSH, can put up to 256 KiB of text at a time on your clipboard with the OSC 52 escape sequence, and the status bar names the tab each time. They can never read the clipboard, because korTTY never answers the OSC 52 query. It is off by default, because any program whose output reaches the terminal could replace what you copied; while it is off, the status bar says when a program tried. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode) what programs copy stays inside korTTY. The setting is read on every write, so a change applies to open tabs as soon as you save. See [Programs copying to the clipboard](../../features/terminal-notifications.md#programs-copying-to-the-clipboard-osc-52).
+
 !!! note "Keyword highlighting"
     **Highlight keywords in terminal output** is the master switch of [keyword highlighting](../../features/highlighting.md). While it is off, no pane is highlighted, whatever was chosen in a menu, with ++ctrl+shift+h++ (++cmd+shift+h++ on macOS), for a connection or as the default rule set, and the highlighting menus are greyed out. It is on by default, but nothing is highlighted until a rule set is chosen.
 
@@ -75,6 +85,16 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
     Whether a program uses bracketed paste is what the server reports, and any output can switch it on, also in a shell such as `sh` that does not handle it. Pasted line breaks then run without a warning, so choose **Always** if you work on production servers.
 
+!!! note "Shell integration"
+    With **Use the command marks of shells set up for shell integration (OSC 133)** on, korTTY reads the invisible marks that a shell with korTTY's snippet in its startup file prints around every prompt and command, and ++cmd+shift+up++ / ++cmd+shift+down++ (++ctrl+shift+up++ / ++ctrl+shift+down++ on Windows and Linux), *Edit → Previous Prompt / Next Prompt* and the terminal's right-click menu jump between the prompts. The snippets for bash, zsh and fish are on the [Shell integration](../../features/shell-integration.md#setting-it-up) page, and **Set Up Shell Integration…** opens a window with them and a **Copy** button, also while the setting is off. Without a snippet in the shell's startup file nothing changes. The marks also tell korTTY that an SSH session is at its prompt, for the AI Agent's `agent` commands and the question before closing a busy tab; this setting replaces **Use OSC 133 prompt markers when the shell already provides them**, which *Settings → AI* used to show and which changed nothing. Switched off, the prompt keys reach the program in the terminal, the right-click menu has no shell-integration entries, and korTTY tells that a session is at its prompt from the prompt's text alone. The setting is read on every mark and key press, so a change applies to open tabs as soon as you save.
+
+!!! note "Notifications"
+    A program that rings the terminal bell in a tab you are not looking at always marks that tab with 🔔 until you look at it; this needs no setting. **Desktop notification when the bell rings in a tab you are not looking at** adds a desktop notification titled `korTTY · ` and the tab's name, at most one per pane every 10 seconds. It is off by default because shells ring the bell on every failed Tab completion, and a pane with a detected coding agent gets none while the coding-agent notifications are on. The setting is read on every bell, so a change applies to open tabs as soon as you save.
+
+    In a shell set up for shell integration, a command that ran at least **Minimum command runtime:** (30 seconds by default) and finishes in a tab you are not looking at marks that tab with 🔔 too, and **Desktop notification when a long-running command finishes in a tab you are not looking at**, on by default, adds a desktop notification saying how the command ended and how long it ran, never the command itself, at most one per tab every 10 seconds. Commands of korTTY's AI Agent never notify. Both are greyed out while **Use the command marks of shells set up for shell integration (OSC 133)** is off, and both are read on every finished command. See [Terminal notifications](../../features/terminal-notifications.md#long-running-commands).
+
+    A program that asks for a desktop notification with OSC 9 or OSC 777, such as a coding agent on a server waiting for your answer, marks its tab with 🔔 too when you are not looking at it, and **Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777)**, on by default, shows the program's text below a title with the tab's name, cleaned of control and bidi characters and cut to 80 characters for the title and 200 for the text, at most one per pane every 5 seconds; what comes in between is dropped. A pane with a detected coding agent gets none while the coding-agent notifications are on. It needs no shell integration and is read on every request. See [Notifications from programs](../../features/terminal-notifications.md#notifications-from-programs).
+
 !!! note "SSH Keep-Alive"
     When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.
 
@@ -90,6 +110,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
     When enabled, a sidebar appears on the left side of the terminal displaying the date and time each command was entered, useful for audit trails and session logging.
 
     Each mark stays on its command line when the scrollback is full and the oldest lines are dropped, and a mark whose line has left the scrollback disappears with it. **Clear Buffer** in the terminal's right-click menu, and a `clear` that also empties the scrollback, remove all marks; the next command gets a fresh one. Opening and quitting a full-screen program such as `vim` or `less` does not move the marks. The day and month above each mark and the full date in the hover popup follow the korTTY UI language (for example `02.10.` in German, `10/02` in English), as does the elapsed time in the popup.
+
+    In a shell set up for [shell integration](../../features/shell-integration.md#exit-status-and-runtime), the sidebar also shows how each command ended: ✓ for exit status 0, ✗ for any other and … while it runs, with the command's real runtime next to the date and the exit status in the hover popup. The time such a command finished comes from the shell instead of from the first half second without output. The exit statuses are not saved with a project; the timestamps are.
 
 !!! note "Connection Retries"
     When enabled, failed SSH connections are automatically retried. Disabling this prevents automatic reconnection attempts for failed connections.

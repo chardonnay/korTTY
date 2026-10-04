@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="de" data-bs-theme="dark">
+
+<head>
+        <title>Shell-Integration - korTTY Anleitung</title>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/de/features/shell-integration.html">
+        <meta name="author" content="korTTY">
+        <link rel="stylesheet" href="../assets/css/darcula-highlight.min.css">
+        <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
+        <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
+        <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
+        <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
+        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+
+
+</head>
+
+<body class="drac-bg-black-secondary drac-text-grey-ternary drac-text drac-scrollbar-purple">
+
+    <main class="d-flex">
+
+        <!-- block sidebar -->
+            <nav id="sidebar" class="sidebar drac-bg-black">
+    <div class="custom-menu">
+        <button type="button" id="sidebarCollapse" class="btn btn-primary">
+            <i class="fa fa-bars"></i>
+            <span class="sr-only">Menu</span>
+        </button>
+    </div>
+
+    <div class="p-4">
+        
+            <img class="logo" src="../assets/images/favicon.png" height="150px">
+        
+
+        <div class="drac-text-center">
+            
+                <span class="drac-text drac-line-height drac-text-white">korTTY Anleitung</span>
+            
+        </div>
+
+        <div class="drac-box flex-column">
+            <ul class="dot-ul">
+                <li><div class="dot-li drac-bg-cyan"></div></li>
+                <li><div class="dot-li drac-bg-green"></div></li>
+                <li><div class="dot-li drac-bg-orange"></div></li>
+                <li><div class="dot-li drac-bg-pink"></div></li>
+                <li><div class="dot-li drac-bg-purple"></div></li>
+                <li><div class="dot-li drac-bg-red"></div></li>
+                <li><div class="dot-li drac-bg-yellow"></div></li>
+            </ul>
+        </div>
+
+        <hr class="drac-divider" />
+
+        <!-- block menu -->
+        <ul class="mb-5 drac-list drac-list-none">
+            
+            <li class="drac-box">
+                <a href="../index.html"
+                    class="
+                    drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+                    Startseite
+                </a>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#erste-schritte-collapse" aria-expanded="false">
+                    Erste Schritte
+                </a>
+                <div class="collapse" id="erste-schritte-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/installation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Installation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/building-packages.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KorTTY-Pakete erstellen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/first-launch.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Erster Start – Master-Passwort
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/main-window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Übersicht des Hauptfensters
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#referenz-collapse" aria-expanded="false">
+                    Referenz
+                </a>
+                <div class="collapse" id="referenz-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/menu.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Menüreferenz
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/keyboard-shortcuts.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Tastaturkürzel
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/architecture.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Architektur
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/config-files.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Konfigurationsdateien
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/enterprise-policy.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Richtlinienkonfiguration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#einstellungen-collapse" aria-expanded="false">
+            Einstellungen
+        </a>
+
+        <div class="collapse" id="einstellungen-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Einstellungsreferenz
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/appearance.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Aussehen, Themen und Schriftart
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/colors.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Farben
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Fenster
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/resources.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Ressourcen
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/logging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Protokollierung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/export.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Exportieren
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sicherung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/updates.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Aktualisierungen
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sicherheit
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/language.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sprache
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/translation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Übersetzung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/video.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Video
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/ai.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/ai-skills.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Skills
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP-Manager
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/editor.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#snippet-editor-collapse" aria-expanded="false">
+            Snippet-Editor
+        </a>
+
+        <div class="collapse" id="snippet-editor-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/snippet-editor/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet-Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/hardening-options.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Härtungsoptionen
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/input-hardening.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Eingabe-Härtung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/language-migration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sprachvereinigung
+        </a>
+    </li>
+            </ul>
+        </div>
+    </li>
+            </ul>
+        </div>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class=" active 
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover"
+                    data-bs-toggle="collapse" data-bs-target="#funktionen-collapse" aria-expanded="true">
+                    Funktionen
+                </a>
+                <div class="collapse show" id="funktionen-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="connections.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Verbindungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminalsitzungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="shell-integration.html"
+            class=" active 
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Shell-Integration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal-notifications.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal-Benachrichtigungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hervorhebung von Schlüsselwörtern
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="command-palette.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Befehlspalette
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="tunnels.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SSH-Tunnel (Portweiterleitung)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="jump-server.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Jump-Server (Bastion Host)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP-Dateimanager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="file-browser.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Dateibrowser
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="snippets.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet-Manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="jobscheduler.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            JobScheduler
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="projects.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Projekte (Arbeitsbereiche)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="teamwork.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Teamarbeit (gemeinsame Verbindungen)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-assistant.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Assistent
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="local-models.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Lokale Modelle (llama.cpp und MLX)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="rag.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            RAG-Wissensspeicher
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-tools.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal-KI-Agent und -Tools
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-swarm.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Schwarm
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sichern und wiederherstellen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="recording.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminalaufzeichnung
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="session-journal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sitzungsjournal
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ascii-art.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            ASCII-Art
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal-effect-plugins.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminaleffekt-Plugins
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding-Agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="i18n.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sprachen und dynamische Übersetzung
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#über-kortty-collapse" aria-expanded="false">
+                    Über korTTY
+                </a>
+                <div class="collapse" id="über-kortty-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/release-notes.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Versionshinweise
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/feedback.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Feedback und Support
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/anonymous-data.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Anonyme Daten zur Applikationsoptimierung
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        <!-- endblock -->
+    </div>
+</nav>
+        <!-- endblock -->
+
+        <nav class="divider drac-bg-purple-cyan"></nav>
+
+        <div class="content">
+            <!-- block header -->
+
+                <header>
+    <nav class="navbar navbar-expand-xl drac-bg-purple">
+        <div class="container-fluid">
+            
+            <button class="navbar-toggler w-100 text-center" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsMenu"
+                aria-controls="navbarsMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse flex-column ml-auto" id="navbarsMenu">
+                <ul class="navbar-nav text-md-center">
+
+                    <!-- block preview -->
+                    <li class="nav-item">
+                            
+        <div class="container">
+            <div class="row row-preview">
+                <div class="col">
+                    <a href="terminal.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover">
+                        <i class="fa fa-arrow-left"></i> Previous
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="terminal-notifications.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
+                        Next <i class="fa fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block search -->
+                    <li class="nav-item">
+
+
+
+
+
+<div role="search" class="search-box kt-search">
+	<form id="rtd-search-form" class="wy-form kt-search-form" action="../search.html" method="get">
+		<input type="text" name="q" id="mkdocs-search-query"
+		class="kt-search-input drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
+		placeholder="Durchsuchen"
+		autocomplete="off" title="Type search term here" /><button type="button" class="kt-search-clear" hidden
+		        aria-label="Suche zurücksetzen" title="Suche zurücksetzen">&times;</button>
+	</form>
+	<div id="mkdocs-search-results" class="kt-search-suggest"
+	     data-no-results-text="Keine Treffer"
+	     data-preparing-text="Suche wird vorbereitet …"
+	     data-more-text="{n} weitere Treffer anzeigen"></div>
+	<script>
+	  (function () {
+	    var box = document.currentScript.parentNode;
+	    var panel = box.querySelector('.kt-search-suggest');
+	    var input = box.querySelector('#mkdocs-search-query');
+	    var clear = box.querySelector('.kt-search-clear');
+
+	    // Emptying the panel is what hides it (CSS :empty), so closing is just that.
+	    function close () { while (panel.firstChild) { panel.removeChild(panel.firstChild); } }
+	    // The button is only useful once there is something to clear.
+	    function sync () { clear.hidden = !input.value; }
+
+	    input.addEventListener('input', sync);
+	    clear.addEventListener('click', function () {
+	      input.value = '';
+	      sync();
+	      // search/main.js renders on keyup, which a programmatic clear never fires, so
+	      // the panel has to be emptied here or the old hits would outlive the query.
+	      close();
+	      input.focus();
+	    });
+
+	    document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
+
+	    // Escape has to be handled on keyUP, and on the document rather than the input.
+	    // search/main.js binds doSearch to the field's keyup, so anything that closed the
+	    // panel on keydown was undone microseconds later by that re-render — which is why
+	    // Escape appeared to do nothing at all. Listening on the document means this runs
+	    // after the field's own handler has already re-rendered, so closing sticks.
+	    // What the panel looked like BEFORE that re-render is the interesting state, so it
+	    // is captured on keydown: the usual two steps, Escape dismisses the suggestions,
+	    // Escape again empties the box.
+	    var panelWasOpen = false;
+	    document.addEventListener('keydown', function (e) {
+	      if (e.key === 'Escape') {
+	        panelWasOpen = !!panel.firstChild;
+	      }
+	    });
+	    document.addEventListener('keyup', function (e) {
+	      if (e.key !== 'Escape') {
+	        return;
+	      }
+	      // Only clear the field while it has focus — Escape elsewhere on the page is not ours.
+	      if (!panelWasOpen && document.activeElement === input && input.value) {
+	        input.value = '';
+	        sync();
+	      }
+	      close();
+	    });
+
+	    sync();  // a ?q= deep link arrives with the field already filled
+	  })();
+	</script>
+</div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block source -->
+                    <li class="nav-item">
+                        
+                    </li>
+                    <!--  endblock -->
+
+                </ul>
+            </div>
+
+        </div>
+    </nav>
+</header>
+<div class="kt-lang-bar">
+  <a class="kt-lang-switch" href="../../en/features/shell-integration.html"
+     title="English" hreflang="en">EN</a>
+</div>
+
+            <!-- endblock -->
+
+            <!-- block content -->
+                <section class="p-md-5 section-content">
+    <article>
+        <p><h1 id="shell-integration">Shell-Integration<a class="headerlink" href="#shell-integration" title="Permanent link">&para;</a></h1>
+<p>Mit Shell-Integration teilt die Shell korTTY mit, wo jeder Prompt beginnt, wo der Befehl beginnt, den Sie eingeben, wo seine Ausgabe beginnt und wie der Befehl geendet hat. Das geschieht mit unsichtbaren OSC-133-Markierungen, denselben, die auch iTerm2, WezTerm, kitty und VS Code auswerten; ein paar Zeilen in der Startdatei der Shell fügen sie hinzu. korTTY nutzt sie, um mit einer Taste zwischen den Prompts einer langen Sitzung zu springen, um auszuwählen oder zu kopieren, was der letzte Befehl ausgegeben hat, um in der Seitenleiste mit den Befehls-Zeitstempeln anzuzeigen, wie jeder Befehl geendet hat und wie lange er lief, und um Ihnen mitzuteilen, wenn ein langer Befehl in einem Tab endet, den Sie gerade nicht ansehen. In einer SSH-Sitzung zeigen sie korTTY außerdem, dass die Shell an ihrem Prompt steht, worauf die <code>agent</code>-Befehle des KI-Agenten und die Rückfrage vor dem Schließen eines beschäftigten Tabs angewiesen sind.</p>
+<p>Ohne die Markierungen ändert sich nichts: Die Tasten erreichen die Shell wie bisher, und das Terminal sieht aus und verhält sich wie immer.</p>
+<h2 id="zwischen-prompts-springen">Zwischen Prompts springen<a class="headerlink" href="#zwischen-prompts-springen" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Befehl</th>
+<th>Tasten</th>
+<th>Wo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Vorheriger Prompt</strong></td>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> auf macOS, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> unter Windows und Linux</td>
+<td>Menü <em>Bearbeiten</em> und das Rechtsklickmenü des Terminals</td>
+</tr>
+<tr>
+<td><strong>Nächster Prompt</strong></td>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span> auf macOS, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span> unter Windows und Linux</td>
+<td>Menü <em>Bearbeiten</em> und das Rechtsklickmenü des Terminals</td>
+</tr>
+</tbody>
+</table>
+<p>Ein Sprung scrollt den Bereich so, dass der Prompt oben in der Ansicht steht, mit dem Befehl und seiner Ausgabe darunter.</p>
+<ul>
+<li>Ganz unten im Scrollback springt <strong>Vorheriger Prompt</strong> zum Prompt des Befehls vor dem, den Sie gerade eingeben, und jeder weitere Tastendruck geht einen Befehl weiter zurück.</li>
+<li>Nachdem Sie von Hand gescrollt haben, beginnt ein Sprung bei der obersten sichtbaren Zeile: <strong>Vorheriger Prompt</strong> springt zum nächstgelegenen Prompt darüber und <strong>Nächster Prompt</strong> zum nächstgelegenen darunter, sodass ein Prompt, den Sie bereits sehen, nicht übersprungen wird.</li>
+<li>Ein Prompt auf dem letzten Bildschirm kann nicht nach oben rücken, weil die Ansicht nicht über das Ende hinaus scrollen kann. Die Ansicht bleibt dann, wo sie ist, und der nächste Tastendruck macht bei diesem Prompt weiter.</li>
+<li><strong>Nächster Prompt</strong> nach dem letzten Prompt kehrt ans Ende zurück. <strong>Vorheriger Prompt</strong> oberhalb des ersten Prompts tut nichts.</li>
+<li>Die Tasten wirken in dem Bereich, der den Tastaturfokus hat, und jeder Bereich eines geteilten Tabs hat seine eigenen Markierungen. <em>Bearbeiten → Vorheriger Prompt</em> und <em>Bearbeiten → Nächster Prompt</em> wirken im fokussierten Bereich des ausgewählten Tabs, das Rechtsklickmenü in dem Bereich, auf den Sie mit der rechten Maustaste geklickt haben. Wenn das Menü <em>Bearbeiten</em> nicht springen kann, nennt die Statusleiste den Grund.</li>
+</ul>
+<p>Die Tasten gehören nur dann korTTY, wenn der Bereich Prompt-Markierungen hat und seinen normalen Bildschirm zeigt. In einem Bereich ohne Markierungen und während ein Vollbildprogramm wie <code>vim</code>, <code>less</code>, <code>htop</code> oder <code>tmux</code> läuft, erreichen sie das Programm genau wie bisher: unter Windows und Linux als <code>ESC [ 1 ; 6 A</code> und <code>ESC [ 1 ; 6 B</code>. Bei eingeschaltetem <a href="terminal.html#broadcast-modus">Broadcast-Modus</a>, oder wenn der Bereich an <a href="terminal.html#multi-exec">Multi-Exec</a> teilnimmt, wirkt ein Sprung nur in dem Bereich, in dem Sie die Taste gedrückt haben; geht die Taste stattdessen an das Programm, geht sie unter Windows und Linux wie jede andere Pfeiltaste auch an die anderen Bereiche. Windows Terminal und GNOME Terminal scrollen mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span> um eine Zeile; in korTTY sind das <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> und <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> und <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span> auf macOS).</p>
+<h3 id="das-rechtsklickmenu">Das Rechtsklickmenü<a class="headerlink" href="#das-rechtsklickmenu" title="Permanent link">&para;</a></h3>
+<p>Ein Bereich mit Prompt-Markierungen hat in seinem Rechtsklickmenü <strong>Vorheriger Prompt</strong>, <strong>Nächster Prompt</strong>, <strong>Letzte Ausgabe auswählen</strong> und <strong>Letzte Ausgabe kopieren</strong>, alle ausgegraut, solange ein Vollbildprogramm läuft, die letzten beiden außerdem, bis ein Befehl beendet ist. Ein Bereich, dessen Shell keine Markierungen sendet, zeigt stattdessen <strong>Shell-Integration einrichten…</strong>, das das Fenster mit den unter <a href="#setting-it-up">Einrichten</a> beschriebenen Snippets öffnet. Keiner dieser Einträge erscheint, solange die Shell-Integration ausgeschaltet ist, oder bei einer Verbindung, deren Terminalemulation die Markierungen nicht übertragen kann (Wyse, TeleVideo, HP, IBM 3270 und 5250, PETSCII).</p>
+<h2 id="ausgabe-eines-befehls-auswahlen-und-kopieren">Ausgabe eines Befehls auswählen und kopieren<a class="headerlink" href="#ausgabe-eines-befehls-auswahlen-und-kopieren" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Befehl</th>
+<th>Wo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Letzte Ausgabe auswählen</strong></td>
+<td>Menü <em>Bearbeiten</em> und das Rechtsklickmenü des Terminals</td>
+</tr>
+<tr>
+<td><strong>Letzte Ausgabe kopieren</strong></td>
+<td>Menü <em>Bearbeiten</em> und das Rechtsklickmenü des Terminals</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Letzte Ausgabe auswählen</strong> wählt alles aus, was der letzte Befehl ausgegeben hat, als hätten Sie mit der Maus darüber gezogen: <em>Bearbeiten → Kopieren</em> kopiert es dann, und mit <strong>Markierung automatisch in Zwischenablage kopieren</strong> in <em>Einstellungen → Terminal</em> wird es sofort kopiert. <strong>Letzte Ausgabe kopieren</strong> legt die Ausgabe direkt in die Zwischenablage und lässt Ihre bestehende Auswahl unverändert. Keiner der beiden Befehle hat ein eigenes Tastenkürzel.</p>
+<ul>
+<li>Die Ausgabe reicht von der Zeile unter der Befehlszeile bis dorthin, wo der nächste Prompt beginnt; Prompt und Befehlszeile gehören nicht dazu. Die Kopie hat am Ende keinen Zeilenumbruch, und Leerzeilen am Ende werden weggelassen. Eine Ausgabe ohne Zeilenumbruch am Ende, etwa die von <code>printf done</code>, endet dort, wo der nächste Prompt in derselben Zeile beginnt.</li>
+<li>Der letzte Befehl ist der zuletzt beendete. Solange ein Befehl wie <code>tail -f</code> noch läuft, nehmen beide die Ausgabe des Befehls davor, und ein Prompt, an dem Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span> ohne Befehl gedrückt haben, zählt nicht.</li>
+<li><em>Bearbeiten → Letzte Ausgabe auswählen</em> und <em>Bearbeiten → Letzte Ausgabe kopieren</em> wirken im fokussierten Bereich des ausgewählten Tabs, das Rechtsklickmenü in dem Bereich, auf den Sie mit der rechten Maustaste geklickt haben. Die Statusleiste meldet, was ausgewählt oder kopiert wurde, oder warum nichts: In dem Bereich ist noch kein Befehl beendet, der Befehl hat nichts ausgegeben, im Bereich läuft ein Vollbildprogramm, oder die Shell sendet keine Markierungen.</li>
+<li>Wenn die Ausgabe länger ist, als der Scrollback fasst, sind ihre ersten Zeilen bereits verschwunden: Beide nehmen dann den Rest, ab der ältesten Zeile im Scrollback, und die Statusleiste meldet, dass der Anfang fehlt. Erhöhen Sie <strong>Zurückscrollen</strong> in <em>Einstellungen → Terminal</em>, um längere Ausgaben vollständig zu behalten.</li>
+<li>Kopien laufen über die Zwischenablage von korTTY, sodass der <a href="../reference/enterprise-policy.html#interner-zwischenablagemodus">interne Zwischenablagemodus</a> der Unternehmensrichtlinie sie innerhalb von korTTY hält.</li>
+</ul>
+<p>Beide benötigen die Markierungen für den Beginn der Ausgabe und das Ende des Befehls (OSC 133 C und D), die die Snippets von korTTY senden. Eine auf andere Weise eingerichtete Shell, die nur ihre Prompts markiert, erhält Prompt-Sprünge, aber die Statusleiste meldet dann, dass kein Befehl beendet ist.</p>
+<h2 id="exit-status-und-laufzeit">Exit-Status und Laufzeit<a class="headerlink" href="#exit-status-und-laufzeit" title="Permanent link">&para;</a></h2>
+<p>Die Seitenleiste mit den Befehls-Zeitstempeln links im Terminal zeigt, wie jeder von der Shell markierte Befehl geendet hat. Die Seitenleiste ist standardmäßig ausgeschaltet: Schalten Sie sie mit <em>Ansicht → Befehls-Zeitstempel anzeigen</em> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span> auf macOS, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-t">T</kbd></span> unter Windows und Linux) oder <strong>Befehls-Zeitstempel anzeigen</strong> im Rechtsklickmenü des Terminals ein, oder für jedes neue Terminal mit <strong>Befehls-Zeitstempel anzeigen</strong> in <em>Einstellungen → Terminal</em>. korTTY merkt sich die Exit-Status auch bei ausgeblendeter Seitenleiste, sodass sie beim Einschalten für die bereits gelaufenen Befehle erscheinen.</p>
+<table>
+<thead>
+<tr>
+<th>Zeichen</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✓ in Grün</td>
+<td>Der Befehl endete mit Exit-Status 0</td>
+</tr>
+<tr>
+<td>✗ in Rot</td>
+<td>Der Befehl endete mit einem anderen Exit-Status, zum Beispiel 1 bei einem Fehler oder 130 nach <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span></td>
+</tr>
+<tr>
+<td>…</td>
+<td>Der Befehl läuft noch; das Zeichen steht in der ersten Zeile seiner Ausgabe</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Das Zeichen eines beendeten Befehls steht in der Zeile, in der er endete, also dort, wo die Shell den nächsten Prompt ausgibt. Die Uhrzeit in dieser Zeile ist der Zeitpunkt, zu dem der Befehl endete, und darüber, neben dem Datum, ersetzt die Laufzeit des Befehls die Zeit seit der vorherigen Markierung: <code>10/04 12s</code>, <code>10/04 1:05</code> oder <code>10/04 &lt;1s</code> für einen Befehl, der weniger als eine Sekunde dauerte. Die Laufzeit zählt vom Start des Befehls bis zu seinem Ende, ohne die Zeit, die Sie zum Eintippen gebraucht haben.</li>
+<li>Wenn Sie auf die Zeile zeigen, erscheinen Datum und Uhrzeit, die <strong>Laufzeit</strong> und der <strong>Exit-Status</strong>; zeigen Sie auf das … eines laufenden Befehls, sehen Sie, wie lange er schon läuft.</li>
+<li>Ohne Shell-Integration hält die Seitenleiste einen Befehl für beendet, sobald eine halbe Sekunde lang keine neue Ausgabe kommt; ein Befehl, der pausiert, bevor er mehr ausgibt, gilt so zu früh als beendet. Bei einem von der Shell markierten Befehl wartet korTTY stattdessen auf die Markierung der Shell. Befehle, die die Shell nicht markiert, etwa solche, die Sie in ein Programm oder in eine von der ersten aus gestartete zweite SSH-Sitzung eingeben, behalten die Schätzung nach einer halben Sekunde.</li>
+<li>Jedes Zeichen hat neben seiner Farbe eine eigene Form, sodass Sie die Zeichen unterscheiden können, ohne Grün und Rot unterscheiden zu müssen. Eine Shell, die keinen Exit-Status meldet, zeigt die Laufzeit ohne Zeichen.</li>
+<li>Solange die Shell-Integration ausgeschaltet ist, zeigt die Seitenleiste keine Zeichen und wieder die Zeit seit der vorherigen Markierung.</li>
+</ul>
+<p>Die Seitenleiste hat eine feste Breite: Bei einer sehr großen Terminalschrift können eine lange Laufzeit oder das Zeichen an ihrem rechten Rand abgeschnitten werden.</p>
+<h2 id="benachrichtigung-wenn-ein-langer-befehl-endet">Benachrichtigung, wenn ein langer Befehl endet<a class="headerlink" href="#benachrichtigung-wenn-ein-langer-befehl-endet" title="Permanent link">&para;</a></h2>
+<p>Wenn ein Befehl, der mindestens 30 Sekunden lief, in einem Tab endet, den Sie gerade nicht ansehen, markiert korTTY den Tab mit 🔔 und zeigt eine Desktop-Benachrichtigung mit dem Namen des Tabs, dem Exit-Status und der Laufzeit, zum Beispiel <em>Befehl fehlgeschlagen (Exit-Status 1) nach 2 Min. 14 Sek.</em> Den Befehl selbst zeigt sie nie. <em>Einstellungen → Terminal → Benachrichtigungen</em> schaltet die Benachrichtigung aus oder ändert die 30 Sekunden; Einzelheiten unter <a href="terminal-notifications.html#lange-laufende-befehle">Lange laufende Befehle</a>.</p>
+<h2 id="setting-it-up">Einrichten<a class="headerlink" href="#setting-it-up" title="Permanent link">&para;</a></h2>
+<p>Fügen Sie das Snippet für Ihre Shell auf jedem Computer, dessen Shell markiert werden soll, in ihre Startdatei ein: auf jedem Server, mit dem Sie sich per SSH verbinden, und auf Ihrem eigenen Computer für lokale Shell-Tabs. korTTY ändert nie Dateien auf einem Server und tippt nie etwas in eine SSH-Sitzung, um das einzurichten. Öffnen Sie nach dem Hinzufügen des Snippets eine neue Shell oder verbinden Sie den Tab neu.</p>
+<p><strong>Shell-Integration einrichten…</strong> öffnet ein Fenster mit den Snippets: aus dem Rechtsklickmenü eines Terminals, dessen Shell keine Markierungen sendet, oder über die gleichnamige Schaltfläche in <em>Einstellungen → Terminal → Shell-Integration</em>, die auch bei ausgeschalteter Einstellung funktioniert. Es hat je einen Tab für bash, zsh und fish, jeweils mit dem Ort, an den das Snippet gehört, und dem Snippet selbst, demselben Text wie unten.</p>
+<p><img alt="Das Fenster Shell-Integration einrichten auf seinem Tab bash, mit dem Snippet, seinem Speicherort und der Schaltfläche Kopieren" src="../assets/screenshots/main/shell-integration-setup.png" /></p>
+<ul>
+<li><strong>Kopieren</strong> legt das Snippet des ausgewählten Tabs in die Zwischenablage, bereit zum Einfügen in die Startdatei in einem Editor auf dem Server. Stattdessen an einem Shell-Prompt eingefügt, markiert es nur diese Shell, bis sie beendet wird. Die Kopie läuft über die Zwischenablage von korTTY, sodass das Snippet mit dem <a href="../reference/enterprise-policy.html#interner-zwischenablagemodus">internen Zwischenablagemodus</a> der Unternehmensrichtlinie innerhalb von korTTY bleibt, und das Fenster weist darauf hin: Fügen Sie es dann in ein Terminal oder einen Editor von korTTY ein. Sie können auch einen Teil des Textes auswählen und diesen kopieren.</li>
+<li>Das Fenster öffnet sich mit der zuletzt gewählten Shell, beim ersten Mal mit bash. Aus dem Rechtsklickmenü eines lokalen Shell-Tabs, in dem bash, zsh oder fish läuft, öffnet es sich stattdessen mit dieser Shell; korTTY kann nicht erkennen, welche Shell auf einem Server läuft, wählen Sie die Shell für eine SSH-Verbindung daher selbst.</li>
+<li>Das Fenster blockiert den Rest von korTTY nicht und kann daher geöffnet bleiben, während Sie das Snippet in ein Terminal einfügen. Es gibt nur eines: Erneutes Öffnen holt es in den Vordergrund. <strong>Shell-Integration in der Anleitung</strong> an seinem unteren Rand öffnet diese Seite.</li>
+</ul>
+<p>Jedes Snippet:</p>
+<ul>
+<li>läuft nur in einer interaktiven Shell, deren <code>TERM</code> nicht <code>dumb</code> ist, sodass <code>scp</code>, <code>rsync</code> und Skripte, die die Startdatei lesen, nicht betroffen sind;</li>
+<li>wird nur einmal geladen, auch wenn die Startdatei zweimal gelesen wird;</li>
+<li>behält Ihren Prompt und die <code>PROMPT_COMMAND</code>-, <code>precmd</code>- oder Event-Hooks bei, die Sie bereits haben;</li>
+<li>meldet außerdem mit OSC 7 das Arbeitsverzeichnis der Shell, das korTTY als aktuelles Verzeichnis der Sitzung verwendet, etwa für relative Dateipfade und <strong>Im Snippet-Editor öffnen</strong>.</li>
+</ul>
+<p>Um zu prüfen, ob es funktioniert, führen Sie ein paar Befehle aus und drücken <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> unter Windows und Linux), oder klicken Sie mit der rechten Maustaste auf das Terminal: <strong>Vorheriger Prompt</strong> anstelle von <strong>Shell-Integration einrichten…</strong> bedeutet, dass die Markierungen ankommen.</p>
+<h3 id="bash">bash<a class="headerlink" href="#bash" title="Permanent link">&para;</a></h3>
+<p>Für bash 4.4 oder neuer; in einer älteren bash, etwa der bash 3.2, die macOS als <code>/bin/bash</code> mitliefert, tut es nichts. Speichern Sie es auf dem Server als <code>~/.kortty-shell-integration.bash</code> und fügen Sie <code>source ~/.kortty-shell-integration.bash</code> als letzte Zeile von <code>~/.bashrc</code> hinzu, oder fügen Sie es am Ende von <code>~/.bashrc</code> ein. Es muss nach allem anderen stehen, was <code>PROMPT_COMMAND</code> oder <code>PS1</code> setzt, etwa starship, oh-my-bash oder liquidprompt.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># korTTY shell integration for bash 4.4 or later: OSC 133 prompt and command marks, OSC 7 directory.</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1"># Add it at the end of ~/.bashrc, or save it as ~/.kortty-shell-integration.bash and add</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1">#   source ~/.kortty-shell-integration.bash</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># at the end of ~/.bashrc. It does nothing in a non-interactive shell, with TERM=dumb, in an older</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># bash, or when it was already loaded.</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="nv">$-</span><span class="w"> </span><span class="o">==</span><span class="w"> </span>*i*<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="si">${</span><span class="nv">TERM</span><span class="k">:-</span><span class="nv">dumb</span><span class="si">}</span><span class="w"> </span>!<span class="o">=</span><span class="w"> </span>dumb<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>-z<span class="w"> </span><span class="si">${</span><span class="nv">__kortty_si_loaded</span><span class="p">-</span><span class="si">}</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="o">((</span><span class="w"> </span>BASH_VERSINFO<span class="o">[</span><span class="m">0</span><span class="o">]</span><span class="w"> </span>&gt;<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">(</span>BASH_VERSINFO<span class="o">[</span><span class="m">0</span><span class="o">]</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>BASH_VERSINFO<span class="o">[</span><span class="m">1</span><span class="o">]</span><span class="w"> </span>&gt;<span class="o">=</span><span class="w"> </span><span class="m">4</span><span class="o">)</span><span class="w"> </span><span class="o">))</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nv">__kortty_si_loaded</span><span class="o">=</span><span class="m">1</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="c1"># OSC 7: the working directory as a file: URL, percent-encoded byte by byte.</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span>__kortty_si_cwd<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">        </span><span class="nb">local</span><span class="w"> </span><span class="nv">LC_ALL</span><span class="o">=</span>C<span class="w"> </span><span class="nv">path</span><span class="o">=</span><span class="nv">$PWD</span><span class="w"> </span><span class="nv">url</span><span class="o">=</span><span class="w"> </span>char<span class="w"> </span>hex<span class="w"> </span>i
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="o">((</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0</span><span class="p">;</span><span class="w"> </span>i<span class="w"> </span>&lt;<span class="w"> </span><span class="si">${#</span><span class="nv">path</span><span class="si">}</span><span class="p">;</span><span class="w"> </span>i++<span class="w"> </span><span class="o">))</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">            </span><span class="nv">char</span><span class="o">=</span><span class="si">${</span><span class="nv">path</span><span class="p">:</span><span class="nv">i</span><span class="p">:</span><span class="nv">1</span><span class="si">}</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="nv">$char</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">[</span>-/._~A-Za-z0-9<span class="o">]</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">                </span><span class="nv">url</span><span class="o">+=</span><span class="nv">$char</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">            </span><span class="k">else</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">                </span><span class="nb">printf</span><span class="w"> </span>-v<span class="w"> </span>hex<span class="w"> </span><span class="s1">'%02X'</span><span class="w"> </span><span class="s2">"'</span><span class="nv">$char</span><span class="s2">"</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">                </span><span class="nv">url</span><span class="o">+=</span>%<span class="si">${</span><span class="nv">hex</span><span class="p">: -2</span><span class="si">}</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">            </span><span class="k">fi</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">        </span><span class="k">done</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">        </span><span class="nb">printf</span><span class="w"> </span><span class="s1">'\e]7;file://%s%s\a'</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">HOSTNAME</span><span class="p">-</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$url</span><span class="s2">"</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="o">}</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">    </span><span class="c1"># Runs first in PROMPT_COMMAND, while $? still holds the command's exit status: D, then OSC 7.</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">    </span><span class="c1"># It returns that status again, so the PROMPT_COMMAND hooks after it still see it.</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">    </span>__kortty_si_precmd<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">        </span><span class="nb">local</span><span class="w"> </span><span class="nv">exit_code</span><span class="o">=</span><span class="nv">$?</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">        </span><span class="nb">printf</span><span class="w"> </span><span class="s1">'\e]133;D;%s\a'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$exit_code</span><span class="s2">"</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">        </span>__kortty_si_cwd
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s2">"</span><span class="nv">$exit_code</span><span class="s2">"</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="w">    </span><span class="o">}</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a><span class="w">    </span><span class="c1"># Runs last in PROMPT_COMMAND: A at the start of the prompt and B at its end, put back whenever</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="w">    </span><span class="c1"># a theme rewrote PS1. It leaves $? as it found it, for a prompt that shows it.</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="w">    </span>__kortty_si_prompt<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="w">        </span><span class="nb">local</span><span class="w"> </span><span class="nv">exit_code</span><span class="o">=</span><span class="nv">$?</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="w">        </span><span class="o">[[</span><span class="w"> </span><span class="nv">$PS1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span>*<span class="s1">'\e]133;A\a'</span>*<span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">'\[\e]133;A\a\]'</span><span class="nv">$PS1</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="w">        </span><span class="o">[[</span><span class="w"> </span><span class="nv">$PS1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span>*<span class="s1">'\e]133;B\a'</span>*<span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="nv">$PS1</span><span class="s1">'\[\e]133;B\a\]'</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="s2">"</span><span class="nv">$exit_code</span><span class="s2">"</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="w">    </span><span class="o">}</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="w">    </span><span class="c1"># C: bash prints PS0 after it read a command line, right before the command runs.</span>
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="w">    </span><span class="o">[[</span><span class="w"> </span><span class="si">${</span><span class="nv">PS0</span><span class="p">-</span><span class="si">}</span><span class="w"> </span><span class="o">==</span><span class="w"> </span>*<span class="s1">'\e]133;C\a'</span>*<span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">PS0</span><span class="o">=</span><span class="si">${</span><span class="nv">PS0</span><span class="p">-</span><span class="si">}</span><span class="s1">'\e]133;C\a'</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="k">$(</span><span class="nb">declare</span><span class="w"> </span>-p<span class="w"> </span>PROMPT_COMMAND<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="k">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s1">'declare -a'</span>*<span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a><span class="w">        </span><span class="nv">PROMPT_COMMAND</span><span class="o">=(</span>__kortty_si_precmd<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">PROMPT_COMMAND</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>__kortty_si_prompt<span class="o">)</span>
+</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="w">    </span><span class="k">else</span>
+</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="w">        </span><span class="nv">PROMPT_COMMAND</span><span class="o">=</span>__kortty_si_precmd<span class="si">${</span><span class="nv">PROMPT_COMMAND</span><span class="p">:+</span><span class="s1">$'\n'</span><span class="nv">$PROMPT_COMMAND</span><span class="si">}</span><span class="s1">$'\n'</span>__kortty_si_prompt
+</span><span id="__span-0-50"><a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="w">    </span><span class="k">fi</span>
+</span><span id="__span-0-51"><a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="k">fi</span>
+</span></code></pre></div>
+<h3 id="zsh">zsh<a class="headerlink" href="#zsh" title="Permanent link">&para;</a></h3>
+<p>Für zsh 5.1 oder neuer. Speichern Sie es als <code>~/.kortty-shell-integration.zsh</code> und fügen Sie <code>source ~/.kortty-shell-integration.zsh</code> als letzte Zeile von <code>~/.zshrc</code> hinzu, oder fügen Sie es am Ende von <code>~/.zshrc</code> ein, nach oh-my-zsh, prezto oder starship. Mit powerlevel10k setzen Sie stattdessen <code>POWERLEVEL9K_TERM_SHELL_INTEGRATION=true</code> in <code>~/.p10k.zsh</code>: powerlevel10k sendet die Markierungen dann selbst.</p>
+<div class="language-zsh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># korTTY shell integration for zsh 5.1 or later: OSC 133 prompt and command marks, OSC 7 directory.</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># Add it at the end of ~/.zshrc, or save it as ~/.kortty-shell-integration.zsh and add</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1">#   source ~/.kortty-shell-integration.zsh</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># at the end of ~/.zshrc. It does nothing in a non-interactive shell, with TERM=dumb, or when it</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># was already loaded.</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-o<span class="w"> </span>interactive<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="si">${</span><span class="nv">TERM</span><span class="k">:-</span><span class="nv">dumb</span><span class="si">}</span><span class="w"> </span>!<span class="o">=</span><span class="w"> </span>dumb<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>-z<span class="w"> </span><span class="si">${</span><span class="nv">__kortty_si_loaded</span><span class="p">-</span><span class="si">}</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="nb">typeset</span><span class="w"> </span>-g<span class="w"> </span><span class="nv">__kortty_si_loaded</span><span class="o">=</span><span class="m">1</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="c1"># OSC 7: the working directory as a file: URL, percent-encoded byte by byte.</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span>__kortty_si_cwd<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">        </span>emulate<span class="w"> </span>-L<span class="w"> </span>zsh
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">        </span>setopt<span class="w"> </span>no_multibyte
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">        </span><span class="nb">local</span><span class="w"> </span><span class="nv">LC_ALL</span><span class="o">=</span>C
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">        </span><span class="nb">local</span><span class="w"> </span><span class="nv">url</span><span class="o">=</span><span class="w"> </span>char
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">        </span><span class="nb">local</span><span class="w"> </span>-i<span class="w"> </span>i
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="o">((</span><span class="w"> </span><span class="nv">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">;</span><span class="w"> </span>i<span class="w"> </span>&lt;<span class="o">=</span><span class="w"> </span><span class="si">${#</span><span class="nv">PWD</span><span class="si">}</span><span class="p">;</span><span class="w"> </span>i++<span class="w"> </span><span class="o">))</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">            </span><span class="nv">char</span><span class="o">=</span><span class="si">${</span><span class="nv">PWD</span><span class="p">[i]</span><span class="si">}</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="nv">$char</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">[</span>-/._~A-Za-z0-9<span class="o">]</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">                </span><span class="nv">url</span><span class="o">+=</span><span class="nv">$char</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">            </span><span class="k">else</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">                </span><span class="c1"># The byte's value as two hex digits, from zsh's own arithmetic.</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">                </span><span class="nv">url</span><span class="o">+=</span>%<span class="si">${</span><span class="p">(l:</span><span class="nv">2</span><span class="p">::</span><span class="nv">0</span><span class="p">:)</span><span class="k">$((</span><span class="w"> </span><span class="o">[</span><span class="c1">##16] #char ))}</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">            </span><span class="nv">fi</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">        </span><span class="nv">done</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="w">        </span><span class="nv">printf</span><span class="w"> </span><span class="s1">'\e]7;file://%s%s\a'</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">HOST</span><span class="p">-</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$url</span><span class="s2">"</span>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">    </span><span class="o">}</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="w">    </span><span class="c1"># The first precmd hook, while $? still holds the command's exit status: D, then OSC 7.</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="nv">__kortty_si_precmd</span><span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="w">        </span><span class="nv">local</span><span class="w"> </span><span class="nv">exit_code</span><span class="o">=</span><span class="nv">$?</span>
+</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="w">        </span><span class="nv">printf</span><span class="w"> </span><span class="s1">'\e]133;D;%s\a'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$exit_code</span><span class="s2">"</span>
+</span><span id="__span-1-32"><a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="w">        </span><span class="nv">__kortty_si_cwd</span>
+</span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="w">    </span><span class="o">}</span>
+</span><span id="__span-1-34"><a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a>
+</span><span id="__span-1-35"><a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a><span class="w">    </span><span class="c1"># The last precmd hook: A at the start of the prompt and B at its end, put back whenever a theme</span>
+</span><span id="__span-1-36"><a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="w">    </span><span class="c1"># rewrote PS1.</span>
+</span><span id="__span-1-37"><a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a><span class="w">    </span><span class="nv">__kortty_si_prompt</span><span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</span><span id="__span-1-38"><a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="w">        </span><span class="o">[[</span><span class="w"> </span><span class="nv">$PS1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">*</span><span class="s1">$'\e]133;A\a'</span><span class="o">*</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">$'%{\e]133;A\a%}'</span><span class="nv">$PS1</span>
+</span><span id="__span-1-39"><a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a><span class="w">        </span><span class="o">[[</span><span class="w"> </span><span class="nv">$PS1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">*</span><span class="s1">$'\e]133;B\a'</span><span class="o">*</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="nv">$PS1</span><span class="s1">$'%{\e]133;B\a%}'</span>
+</span><span id="__span-1-40"><a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a><span class="w">    </span><span class="o">}</span>
+</span><span id="__span-1-41"><a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a>
+</span><span id="__span-1-42"><a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a><span class="w">    </span><span class="c1"># C: zsh runs the preexec hooks after it read a command line, right before the command runs.</span>
+</span><span id="__span-1-43"><a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a><span class="w">    </span><span class="nv">__kortty_si_preexec</span><span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</span><span id="__span-1-44"><a id="__codelineno-1-44" name="__codelineno-1-44" href="#__codelineno-1-44"></a><span class="w">        </span><span class="nv">printf</span><span class="w"> </span><span class="s1">'\e]133;C\a'</span>
+</span><span id="__span-1-45"><a id="__codelineno-1-45" name="__codelineno-1-45" href="#__codelineno-1-45"></a><span class="w">    </span><span class="o">}</span>
+</span><span id="__span-1-46"><a id="__codelineno-1-46" name="__codelineno-1-46" href="#__codelineno-1-46"></a>
+</span><span id="__span-1-47"><a id="__codelineno-1-47" name="__codelineno-1-47" href="#__codelineno-1-47"></a><span class="w">    </span><span class="nv">typeset</span><span class="w"> </span><span class="o">-</span><span class="nv">ga</span><span class="w"> </span><span class="nv">precmd_functions</span><span class="w"> </span><span class="nv">preexec_functions</span>
+</span><span id="__span-1-48"><a id="__codelineno-1-48" name="__codelineno-1-48" href="#__codelineno-1-48"></a><span class="w">    </span><span class="nv">precmd_functions</span><span class="o">=(</span><span class="nv">__kortty_si_precmd</span><span class="w"> </span><span class="si">${</span><span class="nv">precmd_functions</span><span class="p">[@]</span><span class="si">}</span><span class="w"> </span><span class="nv">__kortty_si_prompt</span><span class="o">)</span>
+</span><span id="__span-1-49"><a id="__codelineno-1-49" name="__codelineno-1-49" href="#__codelineno-1-49"></a><span class="w">    </span><span class="nv">preexec_functions</span><span class="o">+=(</span><span class="nv">__kortty_si_preexec</span><span class="o">)</span>
+</span><span id="__span-1-50"><a id="__codelineno-1-50" name="__codelineno-1-50" href="#__codelineno-1-50"></a><span class="nv">fi</span>
+</span></code></pre></div>
+<h3 id="fish">fish<a class="headerlink" href="#fish" title="Permanent link">&para;</a></h3>
+<p>Für fish 3.1 oder neuer. Speichern Sie es als <code>~/.config/fish/conf.d/kortty.fish</code>; fish liest diesen Ordner von selbst.</p>
+<div class="language-fish highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c"># korTTY shell integration for fish 3.1 or later: OSC 133 prompt and command marks, OSC 7 directory.</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c"># Save it as ~/.config/fish/conf.d/kortty.fish. It does nothing in a non-interactive shell, with</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c"># TERM=dumb, or when it was already loaded.</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">if</span> <span class="nb">status </span>is-interactive<span class="p">;</span> <span class="k">and</span> <span class="k">test</span> <span class="s2">"</span><span class="nv">$TERM</span><span class="s2">"</span> !<span class="o">=</span> dumb<span class="p">;</span> <span class="k">and</span> <span class="k">not</span> <span class="k">set</span> -q __kortty_si_loaded
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="k">set</span> -g __kortty_si_loaded 1
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="c"># Before every prompt: OSC 7 with the working directory as a file: URL, then A.</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="k">function</span> __kortty_si_prompt_start --on-event <span class="nb">fish_prompt</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="nb">        printf</span> <span class="s1">'\e]7;file://%s%s\a'</span> <span class="nv">$hostname</span> <span class="o">(</span>string escape --style<span class="o">=</span>url -- <span class="nv">$PWD</span><span class="o">)</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>        <span class="nb">printf</span> <span class="s1">'\e]133;A\a'</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="k">end</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="c"># C right before a command runs, D with its exit status right after it.</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="k">function</span> __kortty_si_preexec --on-event fish_preexec
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>        <span class="nb">printf</span> <span class="s1">'\e]133;C\a'</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>    <span class="k">end</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>    <span class="k">function</span> __kortty_si_postexec --on-event fish_postexec
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>        <span class="nb">printf</span> <span class="s1">'\e]133;D;%s\a'</span> <span class="nv">$status</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    <span class="k">end</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>    <span class="c"># B at the end of the prompt.</span>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>    <span class="k">if</span> <span class="nb">functions</span> -q <span class="nb">fish_prompt</span><span class="p">;</span> <span class="k">and</span> <span class="k">not</span> <span class="nb">functions</span> -q __kortty_si_original_prompt
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>        <span class="nb">functions</span> -c <span class="nb">fish_prompt </span>__kortty_si_original_prompt
+</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>        <span class="k">function</span> <span class="nb">fish_prompt</span>
+</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="nb">            </span>__kortty_si_original_prompt
+</span><span id="__span-2-26"><a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>            <span class="nb">printf</span> <span class="s1">'\e]133;B\a'</span>
+</span><span id="__span-2-27"><a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>        <span class="k">end</span>
+</span><span id="__span-2-28"><a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>    <span class="k">end</span>
+</span><span id="__span-2-29"><a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="k">end</span>
+</span></code></pre></div>
+<h2 id="einschrankungen">Einschränkungen<a class="headerlink" href="#einschrankungen" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>tmux und screen</strong> reichen die Markierungen nicht weiter, daher hat eine Shell darin keine. Starten Sie die Shell außerhalb von tmux, oder richten Sie die eigene Prompt-Navigation von tmux ein.</li>
+<li><strong>Mosh</strong>-Verbindungen übertragen sie nie: mosh-server zeichnet den Bildschirm selbst und verwirft die Markierungen.</li>
+<li><strong>Lokale Windows-Shells</strong>: Die Snippets decken bash, zsh und fish ab, nicht <code>cmd.exe</code> oder PowerShell, und ob Windows die Markierungen einer Shell wie Git Bash oder WSL weiterreicht, hängt von der Windows-Version ab.</li>
+<li><strong>Größenänderung</strong>: Wenn eine Breitenänderung lange Zeilen neu umbricht, kann ein Sprung bei Prompts oberhalb des neu umbrochenen Textes einige Zeilen danebenliegen, die Ausgabe, die <strong>Letzte Ausgabe auswählen</strong> und <strong>Letzte Ausgabe kopieren</strong> nehmen, kann um ebenso viele Zeilen verschoben sein, und ebenso die Exit-Status-Zeichen in der Zeitstempel-Seitenleiste, wie deren Zeitstempel.</li>
+<li><strong>Verschachteltes ssh</strong>: OSC 7 nennt einen Host, doch korTTY ignoriert ihn; wenn Sie sich vom ersten Server per ssh weiter mit einem zweiten verbinden, der ebenfalls das Snippet hat, wird das Verzeichnis des zweiten Servers für das des ersten gehalten.</li>
+<li><strong>Gefälschte Markierungen</strong>: Jedes Programm kann OSC-133-Markierungen ausgeben. Das Schlimmste, was eine gefälschte Markierung bewirken kann, ist, einen Sprung in die falsche Zeile zu lenken, <strong>Letzte Ausgabe auswählen</strong> und <strong>Letzte Ausgabe kopieren</strong> andere Zeilen des Bereichs als die Ausgabe des letzten Befehls nehmen zu lassen, einen falschen Exit-Status, eine falsche Laufzeit oder Endzeit in der Zeitstempel-Seitenleiste anzuzeigen oder den Tab zu markieren und eine Benachrichtigung <em>Befehl beendet</em> mit einem erfundenen Exit-Status anzuzeigen. Der Text der Benachrichtigung stammt von korTTY selbst, sodass eine gefälschte Markierung keine eigenen Worte hineinbringen kann, und die Laufzeit misst korTTY, sodass höchstens eine solche Benachrichtigung pro Tab alle 10 Sekunden möglich ist.</li>
+</ul>
+<p>Die Markierungen und die Exit-Status existieren nur im Arbeitsspeicher von korTTY, solange der Bereich geöffnet ist: Sie werden nicht mit einem <a href="projects.html">Projekt</a> gespeichert, die Ausgabe eines wiederhergestellten Projekts hat keine, und sie verlassen nie Ihren Computer. Die Zeitpunkte, zu denen Befehle endeten, sind Zeitstempel wie alle anderen, die ein Projekt mit den übrigen Zeitstempeln der Seitenleiste speichert.</p>
+<h2 id="ausschalten">Ausschalten<a class="headerlink" href="#ausschalten" title="Permanent link">&para;</a></h2>
+<p><em>Einstellungen → Terminal → Shell-Integration</em> hat <strong>Befehlsmarkierungen von Shells mit eingerichteter Shell-Integration nutzen (OSC 133)</strong>, standardmäßig eingeschaltet. Ausgeschaltet ignoriert korTTY die Markierungen: Die Prompt-Tasten erreichen das Programm, das Rechtsklickmenü zeigt keine Einträge der Shell-Integration, die Zeitstempel-Seitenleiste zeigt keine Exit-Status, kein langer Befehl markiert seinen Tab oder löst eine Benachrichtigung aus, und korTTY erkennt allein am Text des Prompts, dass eine SSH-Sitzung an ihrem Prompt steht, für die <code>agent</code>-Befehle des KI-Agenten und für die Rückfrage vor dem Schließen eines beschäftigten Tabs. Diese eine Einstellung deckt jede Verwendung der Markierungen ab; <em>Einstellungen → KI</em> hat keine eigene Option mehr dafür. Die Änderung gilt für offene Tabs, sobald Sie speichern. Die Markierungen bleiben in jedem Fall unsichtbar, weil das Terminal OSC-133-Sequenzen nie anzeigt. Siehe <a href="../reference/settings/terminal.html#hinweise">Terminal-Einstellungen</a>.</p></p>
+    </article>
+</section>
+            <!-- endblock -->
+
+            <!-- block footer -->
+<footer class="kt-footer">
+  <div class="kt-footer__line">MIT-lizenziert &middot; Entwickelt von Daniel Mengel</div>
+  <div class="kt-footer__line">korTTY <strong>v2.18.0</strong></div>
+</footer>
+
+            <!-- endblock -->
+        </div>
+
+    </main>
+
+        <script>var base_url = '..';</script>
+        <script src="../assets/js/jquery-3.3.1.slim.min.js"></script>
+        <script src="../assets/js/bootstrap.bundle.min.js"></script>
+        <script src="../assets/js/mkdocs.js"></script>
+			<script src="../assets/javascripts/kt-zoom.js" defer></script>
+			<script src="../search/main.js" defer></script>
+
+</body>
+
+</html>
