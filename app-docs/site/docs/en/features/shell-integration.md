@@ -165,15 +165,15 @@ if [[ -o interactive && ${TERM:-dumb} != dumb && -z ${__kortty_si_loaded-} ]]; t
         emulate -L zsh
         setopt no_multibyte
         local LC_ALL=C
-        local url= char hex
+        local url= char
         local -i i
         for (( i = 1; i <= ${#PWD}; i++ )); do
             char=${PWD[i]}
             if [[ $char == [-/._~A-Za-z0-9] ]]; then
                 url+=$char
             else
-                printf -v hex '%02X' "'$char"
-                url+=%${hex[-2,-1]}
+                # The byte's value as two hex digits, from zsh's own arithmetic.
+                url+=%${(l:2::0:)$(( [##16] #char ))}
             fi
         done
         printf '\e]7;file://%s%s\a' "${HOST-}" "$url"

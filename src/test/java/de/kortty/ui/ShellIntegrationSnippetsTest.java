@@ -128,11 +128,14 @@ class ShellIntegrationSnippetsTest {
         requireShell("zsh");
         Path dir = Files.createTempDirectory("kortty-zsh");
         try {
+            Files.createDirectory(dir.resolve("a b%x"));
             String output = runInteractive(List.of("zsh", "-i"), dir,
-                "source " + quoted(resource("kortty.zsh")) + "\nfalse\ntrue\nexit\n", "ZDOTDIR", dir.toString());
+                "cd 'a b%x'\nsource " + quoted(resource("kortty.zsh")) + "\nfalse\ntrue\nexit\n", "ZDOTDIR", dir.toString());
             assertThat(output).contains(ESC + "]133;C" + BEL + ESC + "]133;D;1" + BEL);
             assertThat(output).contains(ESC + "]133;C" + BEL + ESC + "]133;D;0" + BEL);
             assertThat(output).contains(ESC + "]7;file://");
+            assertWithMessage("OSC 7 percent-encodes the directory byte by byte")
+                .that(output).contains("/a%20b%25x" + BEL);
         } finally {
             deleteQuietly(dir);
         }
@@ -143,12 +146,16 @@ class ShellIntegrationSnippetsTest {
         int[] version = requireBash(4, 4);
         Path dir = Files.createTempDirectory("kortty-bash");
         try {
+            Files.createDirectory(dir.resolve("a b%x"));
             // bash prints its prompts and PS0, which carries C, to stderr: read both streams, as a
             // terminal shows both.
             String output = runInteractive(List.of("bash", "--norc", "--noprofile", "-i"), dir, true,
-                "PROMPT_COMMAND='echo \"hook saw $?\"'\nsource " + quoted(resource("kortty.bash")) + "\nfalse\nexit\n");
+                "cd 'a b%x'\nPROMPT_COMMAND='echo \"hook saw $?\"'\nsource " + quoted(resource("kortty.bash"))
+                    + "\nfalse\nexit\n");
             assertThat(output).contains(ESC + "]133;C" + BEL);
             assertThat(output).contains(ESC + "]133;D;1" + BEL);
+            assertWithMessage("OSC 7 percent-encodes the directory byte by byte")
+                .that(output).contains("/a%20b%25x" + BEL);
             assertWithMessage("a PROMPT_COMMAND hook the user had still sees the command's exit status")
                 .that(output).contains("hook saw 1\n");
             if (version[0] > 5 || (version[0] == 5 && version[1] >= 1)) {
