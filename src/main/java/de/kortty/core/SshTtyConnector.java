@@ -35,6 +35,7 @@ import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 
 /**
@@ -84,6 +85,8 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private DisconnectListener disconnectListener;
     private Thread connectionMonitorThread;
     private Thread livenessProbeThread;
+    /** Raw inbound bytes of this connector's SSH sessions; the liveness probe compares differences. */
+    private final AtomicLong inboundBytes = new AtomicLong();
     private final CopyOnWriteArrayList<DataListener> dataListeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<InputActivityListener> inputActivityListeners = new CopyOnWriteArrayList<>();
     private volatile InputInterceptor inputInterceptor;
@@ -237,6 +240,9 @@ public class SshTtyConnector implements ObservableTtyConnector {
             // connection a remote tunnel delivers. Splits register no remote forwards, so for them
             // the filter admits nothing either.
             client.setForwardingFilter(SshTunnelManager.clientForwardingFilter());
+            // Counts inbound bytes so the liveness probe can tell a reply queued behind bulk data
+            // (an SFTP transfer sharing this session) from a dead link.
+            client.setSessionFactory(SshLivenessProbe.inboundCountingSessionFactory(client, inboundBytes));
             configureKeepAlive(client, connection.getSettings());
             
             // Configure supported auth methods explicitly.
@@ -629,8 +635,9 @@ public class SshTtyConnector implements ObservableTtyConnector {
 
     /**
      * How quickly a dead transport is noticed: a probe runs every {@link #LIVENESS_PROBE_INTERVAL_MS}
-     * and a missing reply is confirmed by a second probe, so the worst case is
-     * interval + 2 * timeout. Both values are chosen so that stays within 10 seconds.
+     * and a missing reply is confirmed by a second probe right away, so the worst case is
+     * interval + 2 * timeout (or 3 * timeout when the link dies while a probe waits). Both values
+     * are chosen so that stays within 10 seconds; see {@link SshLivenessProbe}.
      */
     static final long LIVENESS_PROBE_INTERVAL_MS = 3_000;
     static final long LIVENESS_PROBE_TIMEOUT_MS = 3_000;
@@ -643,44 +650,53 @@ public class SshTtyConnector implements ObservableTtyConnector {
      * which is detected within seconds; TCP alone would take minutes to notice. On a confirmed
      * death the transport is closed, which wakes the connection monitor and reports the loss.
      *
+     * <p>The session may be shared with bulk traffic (an SFTP transfer borrowing the terminal's
+     * session, a large paste). A missed reply only counts while the session received no inbound
+     * byte during that probe, counted by {@link #inboundBytes} through the
+     * {@linkplain SshLivenessProbe#inboundCountingSessionFactory counting session factory}; queued
+     * transfer data on a slow link therefore never kills a live terminal, while a dead link (which
+     * delivers no inbound bytes) is still detected within 10 seconds. The decision rules live in
+     * {@link SshLivenessProbe}.</p>
+     *
      * <p>The kill-switch only arms after the server answered one probe: a server that never
      * replies to global requests (violating RFC 4254) must not have healthy sessions killed.</p>
      */
     private void startLivenessProbe() {
+        ClientSession probedSession = session;
+        if (probedSession == null) {
+            return;
+        }
+        SshLivenessProbe.Transport transport = new SshLivenessProbe.Transport() {
+            @Override
+            public boolean isOpen() {
+                return probedSession.isOpen() && !probedSession.isClosing();
+            }
+
+            @Override
+            public boolean probe() {
+                return probeServer(probedSession);
+            }
+
+            @Override
+            public long inboundBytes() {
+                return inboundBytes.get();
+            }
+        };
         livenessProbeThread = new Thread(() -> {
-            boolean armed = false;
-            while (connected.get()) {
-                try {
-                    Thread.sleep(LIVENESS_PROBE_INTERVAL_MS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-                if (!connected.get()) {
-                    return;
-                }
-                ClientSession currentSession = session;
-                if (currentSession == null || !currentSession.isOpen()) {
-                    return; // already closing: the connection monitor reports it
-                }
-                if (probeServer(currentSession)) {
-                    armed = true;
-                    continue;
-                }
-                if (!armed || !connected.get()) {
-                    continue;
-                }
-                if (probeServer(currentSession)) {
-                    continue; // single missed reply: not yet a death
-                }
-                if (!connected.get()) {
-                    return;
-                }
-                logger.warn("SSH liveness probe got no reply twice for {} - treating connection as lost",
-                    connection.getDisplayName());
-                forceCloseDeadTransport(currentSession);
+            SshLivenessProbe.Outcome outcome;
+            try {
+                outcome = new SshLivenessProbe(LIVENESS_PROBE_INTERVAL_MS, Thread::sleep)
+                    .run(transport, connected::get);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 return;
             }
+            if (outcome != SshLivenessProbe.Outcome.DEAD || !connected.get()) {
+                return; // stopped, or already closing: the connection monitor reports it
+            }
+            logger.warn("SSH liveness probe got no reply twice on a silent transport for {} - "
+                + "treating connection as lost", connection.getDisplayName());
+            forceCloseDeadTransport(probedSession);
         }, "SSH-Liveness-" + connection.getDisplayName());
         livenessProbeThread.setDaemon(true);
         livenessProbeThread.start();
