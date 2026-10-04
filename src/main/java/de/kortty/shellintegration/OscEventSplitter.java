@@ -27,7 +27,8 @@ import org.jetbrains.annotations.Nullable;
  *       tmux passthrough included.</li>
  *   <li>A CSI ({@code ESC [}) runs to its first char in {@code 0x40..0x7E}; nothing inside it
  *       starts an OSC. The chars SithTermFX cannot place in a CSI are pushed back and read again
- *       afterwards, followed by the sequence itself; the splitter replays them the same way.</li>
+ *       afterwards, as many as fit, followed by the sequence itself; the splitter replays them the
+ *       same way.</li>
  *   <li>{@code ESC} plus one of {@code # ( ) * + $ @ % . / space} takes one more char; any other
  *       char after ESC ends the escape, ESC and C1 included.</li>
  * </ul>
@@ -73,8 +74,12 @@ public final class OscEventSplitter {
      */
     private static final int RETAINED_PAYLOAD_CAPACITY = 8 * 1024;
 
-    /** SithTermFX pushes a CSI's stray chars back through a 1024-char array; it fails beyond that. */
-    private static final int MAX_CSI_STRAY_CHARS = 1_000;
+    /**
+     * SithTermFX pushes a CSI's stray chars back through a 1024-char array that also holds the
+     * {@code ESC [}, the {@code ! ? >} marker and the final char; korTTY's pinned SithTermFX patch
+     * drops the stray chars that do not fit.
+     */
+    private static final int CSI_PUSH_BACK_LENGTH = 1024;
 
     private static final List<OwnedOsc> OWNED = List.of(OwnedOsc.values());
 
@@ -121,6 +126,8 @@ public final class OscEventSplitter {
     /** Inside a string (OSC or DCS body): the previous char was ESC. */
     private boolean afterEscape;
     private int csiPosition;
+    /** CSI only: the sequence started with one of {@code ! ? >}. */
+    private boolean csiMarker;
     private final StringBuilder csiStrayChars = new StringBuilder();
     /** Chars of a possible owned sequence, not passed on yet: ESC, or an OSC introducer and its first chars. */
     private final StringBuilder held = new StringBuilder();
@@ -229,6 +236,7 @@ public final class OscEventSplitter {
                 state = switch (c) {
                     case '[' -> {
                         csiPosition = 0;
+                        csiMarker = false;
                         csiStrayChars.setLength(0);
                         yield State.CSI;
                     }
@@ -280,6 +288,7 @@ public final class OscEventSplitter {
     private int advanceCsi(char c) {
         int position = csiPosition++;
         if (position == 0 && (c == '!' || c == '?' || c == '>')) {
+            csiMarker = true;
             return PASS;
         }
         if (c == ';' || (c >= '0' && c <= '9')) {
@@ -293,7 +302,7 @@ public final class OscEventSplitter {
             }
             return PASS;
         }
-        if (csiStrayChars.length() < MAX_CSI_STRAY_CHARS) {
+        if (csiStrayChars.length() < CSI_PUSH_BACK_LENGTH - 3 - (csiMarker ? 1 : 0)) {
             csiStrayChars.append(c);
         }
         return PASS;
