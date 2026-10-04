@@ -57,7 +57,7 @@ class SplitLayoutRestoreWiringTest {
         assertThat(restore).contains("SplitLayoutRestorePlan.plan(state)");
         assertThat(restore).contains("new Thread(() -> {");
         assertThat(restore).contains("worker.setDaemon(true);");
-        assertThat(restore).contains("prepareRestoredSplitPane(step, tab, tabConnectionId)");
+        assertThat(restore).contains("prepareRestoredSplitPane(step, directory, tab, tabConnectionId)");
         assertThat(restore).contains("attachRestoredSplitPane(source, step.orientation(), prepared)");
         assertWithMessage("a closed tab stops the restore before its next pane").that(restore).contains("if (cleanedUp) {");
         assertThat(methodBody(view, "public void cleanup(")).contains("cleanedUp = true;");
@@ -77,7 +77,7 @@ class SplitLayoutRestoreWiringTest {
     void anUnexpectedFailureCostsOnePaneAndTheRestoreStillFinishes() throws IOException {
         String restore = methodBody(read(TERMINAL_VIEW), "public void restoreSplitLayout(");
 
-        int prepare = restore.indexOf("prepared = prepareRestoredSplitPane(step, tab, tabConnectionId);");
+        int prepare = restore.indexOf("prepared = prepareRestoredSplitPane(step, directory, tab, tabConnectionId);");
         int caught = restore.indexOf("} catch (RuntimeException e) {", prepare);
         assertWithMessage("a failing pane is skipped, not the worker thread killed").that(prepare).isAtLeast(0);
         assertThat(caught).isGreaterThan(prepare);

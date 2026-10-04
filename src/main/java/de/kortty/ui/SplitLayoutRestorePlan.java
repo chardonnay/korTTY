@@ -108,13 +108,15 @@ final class SplitLayoutRestorePlan {
     private final PaneLayout<Integer> layout;
     private final List<SplitStep> steps;
     private final List<String> connectionIds;
+    private final List<String> directories;
     private final boolean truncated;
 
     private SplitLayoutRestorePlan(PaneLayout<Integer> layout, List<SplitStep> steps, List<String> connectionIds,
-                                   boolean truncated) {
+                                   List<String> directories, boolean truncated) {
         this.layout = layout;
         this.steps = List.copyOf(steps);
         this.connectionIds = Collections.unmodifiableList(new ArrayList<>(connectionIds));
+        this.directories = Collections.unmodifiableList(new ArrayList<>(directories));
         this.truncated = truncated;
     }
 
@@ -122,7 +124,8 @@ final class SplitLayoutRestorePlan {
     static SplitLayoutRestorePlan plan(@Nullable SplitPaneState state) {
         Builder builder = new Builder();
         PaneLayout<Integer> layout = builder.build(state, 0);
-        return new SplitLayoutRestorePlan(layout, builder.steps, builder.connectionIds, builder.truncated);
+        return new SplitLayoutRestorePlan(layout, builder.steps, builder.connectionIds, builder.directories,
+            builder.truncated);
     }
 
     /** The saved layout, with the pane numbers as panes. */
@@ -148,6 +151,15 @@ final class SplitLayoutRestorePlan {
     /** The saved connection pane {@code leafId} runs, or null for the tab's connection. */
     @Nullable String connectionIdOf(int leafId) {
         return connectionIds.get(leafId);
+    }
+
+    /**
+     * The working directory the session snapshot saved for pane {@code leafId}'s local shell, or null.
+     * It is only a wish: the pane uses it when it runs a local shell and the directory still exists
+     * ({@link de.kortty.core.SessionWorkingDirectory#startDirectory}); a project file never has one.
+     */
+    @Nullable String directoryOf(int leafId) {
+        return directories.get(leafId);
     }
 
     /**
@@ -198,20 +210,36 @@ final class SplitLayoutRestorePlan {
      */
     static <W> @Nullable SplitPaneState capture(@Nullable PaneLayout<W> layout,
                                                 Function<? super W, String> connectionIdOf) {
+        return capture(layout, connectionIdOf, pane -> null);
+    }
+
+    /**
+     * {@link #capture(PaneLayout, Function)} for the session snapshot: each pane also names the working
+     * directory of its local shell, a session-only field a project file never carries.
+     *
+     * @param directoryOf the working directory of a pane's local shell, or null (a remote pane)
+     */
+    static <W> @Nullable SplitPaneState capture(@Nullable PaneLayout<W> layout,
+                                                Function<? super W, String> connectionIdOf,
+                                                Function<? super W, String> directoryOf) {
         if (layout == null) {
             return null;
         }
         Objects.requireNonNull(connectionIdOf, "connectionIdOf");
-        return captureNode(layout, connectionIdOf, new int[] {0});
+        Objects.requireNonNull(directoryOf, "directoryOf");
+        return captureNode(layout, connectionIdOf, directoryOf, new int[] {0});
     }
 
     private static <W> SplitPaneState captureNode(PaneLayout<W> node, Function<? super W, String> connectionIdOf,
-                                                  int[] nextIndex) {
+                                                  Function<? super W, String> directoryOf, int[] nextIndex) {
         if (node.isLeaf()) {
-            return SplitPaneState.createLeaf(nextIndex[0]++, normalizedId(connectionIdOf.apply(node.pane())));
+            SplitPaneState leaf = SplitPaneState.createLeaf(nextIndex[0]++,
+                normalizedId(connectionIdOf.apply(node.pane())));
+            leaf.setCurrentDirectory(de.kortty.core.SessionWorkingDirectory.forSnapshot(directoryOf.apply(node.pane())));
+            return leaf;
         }
-        SplitPaneState first = captureNode(node.first(), connectionIdOf, nextIndex);
-        SplitPaneState second = captureNode(node.second(), connectionIdOf, nextIndex);
+        SplitPaneState first = captureNode(node.first(), connectionIdOf, directoryOf, nextIndex);
+        SplitPaneState second = captureNode(node.second(), connectionIdOf, directoryOf, nextIndex);
         return SplitPaneState.createSplit(node.orientation(), node.divider(), first, second);
     }
 
@@ -250,6 +278,7 @@ final class SplitLayoutRestorePlan {
 
         private final List<SplitStep> steps = new ArrayList<>();
         private final List<String> connectionIds = new ArrayList<>();
+        private final List<String> directories = new ArrayList<>();
         private boolean truncated;
 
         PaneLayout<Integer> build(@Nullable SplitPaneState node, int depth) {
@@ -281,6 +310,9 @@ final class SplitLayoutRestorePlan {
         private PaneLayout<Integer> leaf(@Nullable SplitPaneState node) {
             int id = connectionIds.size();
             connectionIds.add(normalizedId(node != null ? node.getConnectionId() : null));
+            directories.add(node != null
+                ? de.kortty.core.SessionWorkingDirectory.forSnapshot(node.getCurrentDirectory())
+                : null);
             return PaneLayout.leaf(id);
         }
 

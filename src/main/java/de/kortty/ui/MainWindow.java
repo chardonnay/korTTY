@@ -62,6 +62,7 @@ import de.kortty.core.AiTokenWarningLevel;
 import de.kortty.core.FailingAiService;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.AiReasoningSupport;
+import de.kortty.core.ProjectLeafFieldSanitizer;
 import de.kortty.core.ProjectManager;
 import de.kortty.core.RecentConnections;
 import de.kortty.core.RecentProjects;
@@ -3548,6 +3549,26 @@ public class MainWindow {
             de.kortty.model.TemporarySSHKey temporarySSHKey,
             String terminalEffectPluginId,
             Double terminalEffectAnimationSpeed) {
+        return openConnectionAndReturnTab(connection, password, historyToRestore, historySavedAt, temporarySSHKey,
+                terminalEffectPluginId, terminalEffectAnimationSpeed, null);
+    }
+
+    /**
+     * {@link #openConnectionAndReturnTab(ServerConnection, String, String, java.time.LocalDateTime,
+     * de.kortty.model.TemporarySSHKey, String, Double)} for a tab restored from the session snapshot.
+     *
+     * @param restoredWorkingDirectory the directory the session snapshot saved for the tab's local
+     *     shell, which starts there while it still exists; ignored by a remote tab, null for none
+     */
+    private TerminalTab openConnectionAndReturnTab(
+            ServerConnection connection,
+            String password,
+            String historyToRestore,
+            java.time.LocalDateTime historySavedAt,
+            de.kortty.model.TemporarySSHKey temporarySSHKey,
+            String terminalEffectPluginId,
+            Double terminalEffectAnimationSpeed,
+            String restoredWorkingDirectory) {
         // Central UI gate for the enterprise server policy — covers saved connections, session
         // restore, teamwork-shared connections and multi/swarm opens. Group opens and Duplicate
         // check it themselves; TerminalView.connect re-checks before every (re)connect attempt,
@@ -3604,6 +3625,11 @@ public class MainWindow {
                 // Queued before connect(): the view writes it into the emulator before the
                 // emulator starts reading the connection, so it never races the login output.
                 terminalTab.getTerminalView().setPendingRestoredHistory(historyToRestore, historySavedAt);
+            }
+            if (restoredWorkingDirectory != null
+                    && connection.getProtocol() == de.kortty.model.ConnectionProtocol.LOCAL_SHELL) {
+                // Also before connect(): the local shell starts there. A remote tab never gets a cd.
+                terminalTab.getTerminalView().setRestoredWorkingDirectory(restoredWorkingDirectory);
             }
             registerTerminalTabForAiAgentDock(terminalTab);
             if (terminalEffectAnimationSpeed != null) {
@@ -6136,6 +6162,8 @@ public class MainWindow {
             return;
         }
         terminalTab.getTerminalView().setOnWidgetSetChanged(() -> onTerminalWidgetSetChanged(terminalTab));
+        // A local shell's cd: the session snapshot keeps the directory it restarts in.
+        terminalTab.getTerminalView().setOnSessionStateChanged(MainWindow::markSessionDirty);
         terminalTab.setJournalStateListener(() -> onTabJournalStateChanged(terminalTab));
         // Pane focus → done-until-seen; idempotent, and the listener resolves the owning window
         // itself, so a tab dragged to another window keeps working without re-registration.
@@ -7680,15 +7708,17 @@ public class MainWindow {
      * @param includeScreen      the last visible screen and the command timestamps of each terminal tab
      * @param includeWaitingTabs the saved tabs a restore has not opened yet, at their saved places
      *                           (see {@link ProjectRestoreOrder#withWaitingTabs})
+     * @param includeWorkingDirectories the working directory of each local-shell pane, a field only
+     *                           the session snapshot of this device keeps; a project file never does
      */
-    record CaptureOptions(boolean includeScreen, boolean includeWaitingTabs) {
+    record CaptureOptions(boolean includeScreen, boolean includeWaitingTabs, boolean includeWorkingDirectories) {
         /** File › Save Project: the layout and the last visible screen of each terminal tab. */
-        static final CaptureOptions PROJECT = new CaptureOptions(true, false);
+        static final CaptureOptions PROJECT = new CaptureOptions(true, false, false);
         /**
          * The session snapshot: the layout without any screen text, and with the tabs that still wait
          * in the restore bar or for their download, so a restart in the middle of a restore keeps them.
          */
-        static final CaptureOptions SESSION = new CaptureOptions(false, true);
+        static final CaptureOptions SESSION = new CaptureOptions(false, true, true);
     }
 
     /**
@@ -7781,12 +7811,24 @@ public class MainWindow {
             if (connection.getSettings() == null || currentFontSize != connection.getSettings().getFontSize()) {
                 sessionState.setFontSizeOverride(currentFontSize);
             }
-            // Save split pane structure (if terminal has splits)
-            de.kortty.model.SplitPaneState splitState = terminalTab.getTerminalView().getSplitState();
+            // Save split pane structure (if terminal has splits). Only the session snapshot keeps
+            // where each local shell is; neither the live read (lsof) nor anything else blocks here.
+            de.kortty.model.SplitPaneState splitState = options.includeWorkingDirectories()
+                    ? terminalTab.getTerminalView().getSessionSplitState()
+                    : terminalTab.getTerminalView().getSplitState();
             if ((splitState == null || !splitState.isSplit()) && terminalTab.getPendingSplitLayout() != null) {
                 // A restored tab that has not connected yet has not reopened its split panes: it keeps
-                // the layout it is waiting to rebuild, so saving now does not lose it.
-                splitState = terminalTab.getPendingSplitLayout();
+                // the layout it is waiting to rebuild, so saving now does not lose it. A copy: saving
+                // a project strips the session-only fields from what it saves, never from the layout
+                // the tab still rebuilds.
+                splitState = terminalTab.getPendingSplitLayout().deepCopy();
+                if (!options.includeWorkingDirectories()) {
+                    ProjectLeafFieldSanitizer.sanitize(splitState, ProjectLeafFieldSanitizer.Source.PROJECT_FILE);
+                }
+            }
+            if (options.includeWorkingDirectories()) {
+                // The first pane's local shell directory; a remote tab's directory is never saved.
+                sessionState.setCurrentDirectory(terminalTab.getTerminalView().getSessionWorkingDirectory());
             }
             if (splitState != null) {
                 sessionState.setSplitPaneState(splitState);
@@ -8050,7 +8092,9 @@ public class MainWindow {
                         project.getLastModified(),
                         temporaryKey,
                         sessionState.getTerminalEffectPluginId(),
-                        sessionState.getTerminalEffectAnimationSpeed());
+                        sessionState.getTerminalEffectAnimationSpeed(),
+                        // Only the session snapshot has it: a project file's is removed on load.
+                        sessionState.getCurrentDirectory());
                 if (restoredTab == null) {
                     // Blocked by the enterprise server policy.
                     return;

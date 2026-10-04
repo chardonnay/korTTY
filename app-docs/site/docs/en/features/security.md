@@ -216,6 +216,7 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 | `master.key` | Master password hash (PBKDF2, 310,000 iterations) and salt | PBKDF2 hash only |
 | `master.autounlock` | Remembered master password for the optional auto-login | Obfuscated only — not encrypted; owner-only file permissions |
 | `global-settings.xml` | AI profile API keys, translation API keys, optional Hugging Face token | AES-256-GCM |
+| `session/last-session.xml`, `session/previous-session.xml` | The open windows and tabs, with the ids of their saved connections and the folder each local shell was in; no passwords, keys or screen text | Not encrypted; owner-only file permissions, not part of backups |
 
 korTTY does not rewrite these files in place: a save goes to a temporary file in `~/.kortty` that is then renamed over the old file, for the connections, credentials, SSH keys, scheduled jobs and `master.key` after flushing it to the disk, so a crash, a full disk or a killed process leaves the previous version intact. On macOS and Linux, korTTY keeps `~/.kortty` at `rwx------` and writes `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `job-scheduler.xml` and `master.key` owner-only (`rw-------`), also when an older version left them readable by other users; on Windows they are protected by the permissions of your user profile.
 

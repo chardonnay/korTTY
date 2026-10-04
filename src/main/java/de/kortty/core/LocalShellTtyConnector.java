@@ -69,6 +69,11 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     // The configured command itself is a remote client (e.g. "ssh user@host"): the shell never
     // runs locally, so local path resolution is wrong for the tab's whole lifetime.
     private volatile boolean remoteClientShell;
+    // The directory a restored session saved for this pane (SessionWorkingDirectory): used by the
+    // next connect() instead of the connection's start directory while it still exists.
+    private volatile String restoredStartDirectory;
+    // Told when a submitted line may have changed the directory (cd, pushd, popd).
+    private volatile Runnable workingDirectoryChangeListener;
 
     private static volatile String cachedLocalHostName;
     private static final AtomicBoolean localHostNameRequested = new AtomicBoolean(false);
@@ -112,7 +117,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             Map<String, String> env = shellEnvironment(
                 System.getenv(), TerminalEmulationSupport.termName(connection), charset);
 
-            String workingDirectory = resolveWorkingDirectory(connection.getLocalShellWorkingDirectory());
+            String workingDirectory = restoredOrConfiguredDirectory();
             List<String> command = FlatpakSupport.hostCommand(shellCommand, workingDirectory, env);
 
             PtyProcessBuilder builder = new PtyProcessBuilder(command.toArray(new String[0]))
@@ -358,6 +363,40 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             return List.of("/bin/zsh");
         }
         return List.of("/bin/bash");
+    }
+
+    /**
+     * Lets the next {@link #connect()} start the shell in {@code directory}, the directory the session
+     * snapshot saved for this pane, instead of the connection's start directory. It is checked when
+     * the shell starts: a directory that no longer exists is ignored and the shell starts where the
+     * connection says. Nothing is typed into the shell. {@code null} clears it.
+     */
+    public void setRestoredStartDirectory(String directory) {
+        this.restoredStartDirectory = directory;
+    }
+
+    /**
+     * Registers the callback told, on the thread that writes to the shell, when a submitted line may
+     * have changed the shell's directory ({@code cd}, {@code pushd}, {@code popd}). It must return at
+     * once; {@code null} removes it.
+     */
+    public void setWorkingDirectoryChangeListener(Runnable listener) {
+        this.workingDirectoryChangeListener = listener;
+    }
+
+    /** The directory the next shell starts in: the restored one while it exists, else the connection's. */
+    String restoredOrConfiguredDirectory() {
+        String restored = restoredStartDirectory;
+        if (restored != null) {
+            String usable = SessionWorkingDirectory.startDirectory(
+                ConnectionProtocol.LOCAL_SHELL, restored, java.nio.file.Files::isDirectory);
+            if (usable != null) {
+                return new File(usable).getAbsolutePath();
+            }
+            logger.info("The restored working directory of the local shell no longer exists; "
+                + "starting in the connection's directory");
+        }
+        return resolveWorkingDirectory(connection.getLocalShellWorkingDirectory());
     }
 
     private static String resolveWorkingDirectory(String configured) {
@@ -739,9 +778,22 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             notifyInputActivity(bytesToWrite.length);
             if (directoryChangeTracker.accept(bytesToWrite)) {
                 unresolvedWorkingDirectoryChange.set(true);
+                notifyWorkingDirectoryMayHaveChanged();
             }
             localOut.write(bytesToWrite);
             localOut.flush();
+        }
+    }
+
+    private void notifyWorkingDirectoryMayHaveChanged() {
+        Runnable listener = workingDirectoryChangeListener;
+        if (listener == null) {
+            return;
+        }
+        try {
+            listener.run();
+        } catch (RuntimeException e) {
+            logger.debug("Working directory listener failed: {}", e.getMessage());
         }
     }
 

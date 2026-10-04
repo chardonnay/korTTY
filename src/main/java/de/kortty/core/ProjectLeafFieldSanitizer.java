@@ -19,10 +19,11 @@ import java.util.regex.Pattern;
  * Only korTTY's own session snapshot on this device may carry them. A project file is meant to be
  * shared, so a {@code .kortty} file someone sends must not choose the directory a local shell starts
  * in (a prompt plugin that runs {@code git} there can run code from a prepared directory) or point
- * a pane at a file of its choosing: {@link Source#PROJECT_FILE} drops both, the way
- * {@link ProjectManager} already drops inline screen text. {@link Source#SESSION_SNAPSHOT} keeps the
- * directory and keeps a scrollback reference only when it is a plain name
- * ({@link #isValidScrollbackRef}).
+ * a pane at a file of its choosing: {@link Source#PROJECT_FILE} drops both, and the tab's own
+ * {@code currentDirectory} (its first pane's), the way {@link ProjectManager} already drops inline
+ * screen text. {@link Source#SESSION_SNAPSHOT} keeps a directory only when it is an absolute path
+ * without control characters ({@link SessionWorkingDirectory#forSnapshot}) and a scrollback reference
+ * only when it is a plain name ({@link #isValidScrollbackRef}).
  *
  * <p>The tree is walked without recursion, so a hand-made file nested arbitrarily deep cannot
  * overflow the stack here.
@@ -55,6 +56,7 @@ public final class ProjectLeafFieldSanitizer {
             }
             for (SessionState session : window.getTabs()) {
                 if (session != null) {
+                    sanitizeTab(session, source);
                     sanitize(session.getSplitPaneState(), source);
                 }
             }
@@ -85,12 +87,26 @@ public final class ProjectLeafFieldSanitizer {
         return ref != null && SCROLLBACK_REF.matcher(ref).matches();
     }
 
+    /**
+     * The tab's own working directory (its first pane's, {@link SessionState#getCurrentDirectory}) is
+     * session-only as well: a project file loses it, a session snapshot keeps it only when
+     * {@link SessionWorkingDirectory#forSnapshot} would save it.
+     */
+    private static void sanitizeTab(SessionState session, Source source) {
+        if (source == Source.PROJECT_FILE) {
+            session.setCurrentDirectory(null);
+            return;
+        }
+        session.setCurrentDirectory(SessionWorkingDirectory.forSnapshot(session.getCurrentDirectory()));
+    }
+
     private static void sanitizeNode(SplitPaneState node, Source source) {
         if (source == Source.PROJECT_FILE) {
             node.setCurrentDirectory(null);
             node.setScrollbackRef(null);
             return;
         }
+        node.setCurrentDirectory(SessionWorkingDirectory.forSnapshot(node.getCurrentDirectory()));
         if (node.getScrollbackRef() != null && !isValidScrollbackRef(node.getScrollbackRef())) {
             node.setScrollbackRef(null);
         }

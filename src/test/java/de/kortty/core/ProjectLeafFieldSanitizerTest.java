@@ -149,6 +149,7 @@ class ProjectLeafFieldSanitizerTest {
                                     <tabType>TERMINAL</tabType>
                                     <sessionId>session-1</sessionId>
                                     <connectionId>connection-1</connectionId>
+                                    <currentDirectory>/tmp/prepared-tab</currentDirectory>
                                     <splitPaneState>
                                         <orientation>HORIZONTAL</orientation>
                                         <dividerPosition>0.5</dividerPosition>
@@ -172,6 +173,7 @@ class ProjectLeafFieldSanitizerTest {
 
         Project loaded = projectManager.loadProject(projectFile);
 
+        assertThat(loaded.getWindows().get(0).getTabs().get(0).getCurrentDirectory()).isNull();
         SplitPaneState layout = loaded.getWindows().get(0).getTabs().get(0).getSplitPaneState();
         assertThat(layout.isSplit()).isTrue();
         assertThat(layout.getLeftChild().getCurrentDirectory()).isNull();
@@ -180,6 +182,8 @@ class ProjectLeafFieldSanitizerTest {
 
         // Saving it again writes neither field back.
         layout.getLeftChild().setCurrentDirectory("/tmp/again");
+        // Nor the tab's own working directory, its first pane's.
+        loaded.getWindows().get(0).getTabs().get(0).setCurrentDirectory("/tmp/tab-again");
         Path resaved = configDir.resolve("resaved.kortty");
         projectManager.saveProject(loaded, resaved);
         String xml = Files.readString(resaved, StandardCharsets.UTF_8);
