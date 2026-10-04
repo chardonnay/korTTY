@@ -164,12 +164,13 @@ public final class MultiExecCoordinator implements InputMirror {
 
     /**
      * Lets the panes of a tab take part when not all of them do yet, else none of them: what
-     * <i>Multi-exec: Include All Panes of This Tab</i> does.
+     * <i>Multi-exec: Include All Panes of This Tab</i> does. While the organization's policy denies
+     * multi-exec, the panes that take part leave instead, so the toggle can never get stuck on.
      *
      * @return whether all of them take part afterwards
      */
     public boolean toggleAll(@NotNull Collection<SithTermFxWidget> panes) {
-        boolean include = !membership.includesAll(panes);
+        boolean include = !membership.includesAll(panes) && joinAllowed();
         setPanes(panes, include);
         // setPanes reported the change, if there was one.
         return include && membership.includesAll(panes);

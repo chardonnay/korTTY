@@ -74,6 +74,8 @@ class TerminalUxPolicyWiringTest {
         assertThat(coordinator).contains("this(() -> de.kortty.policy.PolicyManager.effective().multiExecAllowed());");
         assertThat(coordinator).contains("if (!membership.contains(pane) && joinRefused()) {");
         assertThat(coordinator).contains("if (included && joinRefused()) {");
+        assertWithMessage("a tab toggle with some panes taking part must let them leave while joining is denied")
+            .that(coordinator).contains("boolean include = !membership.includesAll(panes) && joinAllowed();");
         String stop = coordinator.substring(coordinator.indexOf("public void stop()"));
         assertWithMessage("Stop Multi-exec must work whatever the policy says")
             .that(stop.substring(0, stop.indexOf('}'))).doesNotContain("joinRefused");
@@ -103,7 +105,9 @@ class TerminalUxPolicyWiringTest {
     @Test
     void theSettingsControlsCarryTheManagedLock() throws IOException {
         String dialog = source("src/main/java/de/kortty/ui/SettingsDialog.java");
-        assertThat(dialog).contains("pasteWarningModeCombo, de.kortty.policy.ManagedSetting.PASTE_WARNING);");
+        assertThat(dialog).contains("pasteWarningModeCombo.getItems().setAll(PasteWarningMode.atLeast(pasteWarningFloor));");
+        assertThat(dialog).contains("isManaged(de.kortty.policy.ManagedSetting.PASTE_WARNING)");
+        assertThat(dialog).contains("pasteWarningModeCombo.getItems().size() <= 1)) {");
         assertThat(dialog).contains("sessionRestoreModeCombo, de.kortty.policy.ManagedSetting.SESSION_RESTORE);");
         assertThat(dialog).contains("""
             de.kortty.policy.PolicyUiSupport.lockIf(osc52ClipboardWriteCheck,
@@ -112,7 +116,7 @@ class TerminalUxPolicyWiringTest {
         assertThat(dialog.indexOf("osc52ClipboardWriteCheck.setTooltip("))
             .isLessThan(dialog.indexOf("lockIf(osc52ClipboardWriteCheck,"));
         assertThat(dialog.indexOf("pasteWarningModeCombo.setTooltip("))
-            .isLessThan(dialog.indexOf("pasteWarningModeCombo, de.kortty.policy.ManagedSetting.PASTE_WARNING"));
+            .isLessThan(dialog.indexOf("isManaged(de.kortty.policy.ManagedSetting.PASTE_WARNING)"));
         assertThat(dialog.indexOf("sessionRestoreModeCombo.setTooltip("))
             .isLessThan(dialog.indexOf("sessionRestoreModeCombo, de.kortty.policy.ManagedSetting.SESSION_RESTORE"));
     }

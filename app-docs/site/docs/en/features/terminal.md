@@ -108,7 +108,7 @@ Some pastes ask before they reach the pane. korTTY then shows what you are about
 
 A connection can choose its own line-break warning in the connection editor, for example **Always** for production servers while your other connections keep the default; each pane follows the connection it runs (see [Paste protection per connection](connections.md#paste-protection)).
 
-Your organization can set the least the warning asks with the `paste-warning` key of its [enterprise policy](../reference/enterprise-policy.md#ruleterminal). The setting is then locked with the "Managed by your organization" hint, and neither *Settings → Terminal*, a connection's own warning nor a teamwork connection can ask less often; a choice that asks more often stays.
+Your organization can set the least the warning asks with the `paste-warning` key of its [enterprise policy](../reference/enterprise-policy.md#ruleterminal). The dropdown in *Settings → Terminal* then carries the "Managed by your organization" hint and offers only that level and stricter ones, and neither *Settings → Terminal*, a connection's own warning nor a teamwork connection can ask less often; a choice that asks more often stays.
 
 ![Paste confirmation](../assets/screenshots/main/paste-confirmation.png)
 

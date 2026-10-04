@@ -1,5 +1,7 @@
 package de.kortty.paste;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -74,5 +76,19 @@ public enum PasteWarningMode {
             return a;
         }
         return a.ordinal() >= b.ordinal() ? a : b;
+    }
+
+    /**
+     * The modes that ask at least as often as {@code floor}, least restrictive first: what a user may
+     * still choose under the organization's paste warning floor. Every mode when {@code floor} is null.
+     */
+    public static List<PasteWarningMode> atLeast(PasteWarningMode floor) {
+        List<PasteWarningMode> modes = new ArrayList<>();
+        for (PasteWarningMode mode : values()) {
+            if (floor == null || mode.ordinal() >= floor.ordinal()) {
+                modes.add(mode);
+            }
+        }
+        return List.copyOf(modes);
     }
 }

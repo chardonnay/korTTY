@@ -864,10 +864,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         );
 
         // Paste protection: when a terminal paste asks before it reaches the pane.
+        // [rule.terminal] paste-warning is a floor: only the modes that ask at least as often are offered.
+        PasteWarningMode pasteWarningFloor = de.kortty.policy.PolicyManager.effective().pasteWarningFloor();
         pasteWarningModeCombo = new ComboBox<>();
-        pasteWarningModeCombo.getItems().setAll(PasteWarningMode.values());
-        pasteWarningModeCombo.setValue(globalSettings != null
-            ? globalSettings.getPasteWarningMode() : PasteWarningMode.DEFAULT);
+        pasteWarningModeCombo.getItems().setAll(PasteWarningMode.atLeast(pasteWarningFloor));
+        pasteWarningModeCombo.setValue(PasteWarningMode.mostRestrictive(globalSettings != null
+            ? globalSettings.getPasteWarningMode() : PasteWarningMode.DEFAULT, pasteWarningFloor));
         pasteWarningModeCombo.setConverter(new javafx.util.StringConverter<>() {
             @Override
             public String toString(PasteWarningMode mode) {
@@ -880,10 +882,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
         pasteWarningModeCombo.setTooltip(new Tooltip(I18n.get("settings.terminal.paste.warningMode.tooltip")));
-        // After setTooltip: [rule.terminal] paste-warning locks the combo at the value PolicyClamp raised
-        // to the organization's floor.
-        de.kortty.policy.PolicyUiSupport.lockIfManaged(
-            pasteWarningModeCombo, de.kortty.policy.ManagedSetting.PASTE_WARNING);
+        // After setTooltip: under [rule.terminal] paste-warning the combo carries the managed hint and
+        // offers only the floor and stricter modes; it is locked when nothing stricter is left (always).
+        if (de.kortty.policy.PolicyManager.effective().isManaged(de.kortty.policy.ManagedSetting.PASTE_WARNING)) {
+            if (!de.kortty.policy.PolicyUiSupport.lockIf(pasteWarningModeCombo,
+                    pasteWarningModeCombo.getItems().size() <= 1)) {
+                pasteWarningModeCombo.setTooltip(
+                    new Tooltip(de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+            }
+        }
         pasteLargeWarningSpinner = new Spinner<>(0, PasteProtectionSettings.MAX_LARGE_WARNING_KIB,
             globalSettings != null ? globalSettings.getPasteLargeWarningKiB()
                 : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);

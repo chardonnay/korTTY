@@ -33,7 +33,7 @@ A few terminal features report how they are used, with flags, coarse counts and 
 
 | Event | Sent when | Data |
 | --- | --- | --- |
-| `command_palette_used` | a row of the command palette runs | the kind of row (command, tab, connection or snippet) and whether the search started with a scope prefix such as `>` or `@` |
+| `command_palette_used` | a row of the command palette runs | the kind of row (`action`, `tab`, `connection` or `snippet`) and whether the search started with a scope prefix such as `>` or `@` |
 | `terminal_highlight_applied` | a pane starts showing another highlighting rule set | a built-in set's id, or `custom` or `none`, and where the choice came from (menu, shortcut, connection or default) |
 | `multi_exec_changed` | you add panes to multi-exec, remove them or stop it | whether multi-exec is still on, and the rounded number of panes, tabs and windows taking part |
 | `session_restored` | the previous session is opened again | the Session Restore setting (`ask`, `auto` or `off`), whether the menu, the startup bar or the automatic restore opened it, and the rounded number of windows and tabs |

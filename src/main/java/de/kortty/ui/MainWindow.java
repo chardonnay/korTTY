@@ -7213,7 +7213,7 @@ public class MainWindow {
     
     private void handleDashboardAction(TerminalTab terminalTab, DashboardView.DashboardAction action) {
         if (action == DashboardView.DashboardAction.TOGGLE_MULTI_EXEC) {
-            // Multi-exec has no telemetry of its own yet; it is not counted as a dashboard action.
+            // Reported as multi_exec_changed by the coordinator, not counted as a dashboard action.
             if (terminalTab != null && terminalTab.getTerminalView() != null) {
                 MultiExecCoordinator.shared().toggleAll(terminalTab.getTerminalView().getOrderedWidgets());
             }
