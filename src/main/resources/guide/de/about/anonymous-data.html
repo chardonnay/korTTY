@@ -876,6 +876,25 @@
 </tbody>
 </table>
 <p>Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsätzen, die Muster und alles, was in die Bereiche eingegeben wird, werden nie gesendet. Änderungen auf den Einstellungsseiten werden als Name der Einstellung gemeldet, bei Schaltern und Auswahlfeldern mit dem neuen Wert; bei den Buchstaben und Mustern der Schnellauswahl und bei neu belegten Tastenkürzeln nur, ob Sie sie geändert haben.</p>
+<h3 id="sftp-ubertragungen">SFTP-Übertragungen<a class="headerlink" href="#sftp-ubertragungen" title="Permanent link">&para;</a></h3>
+<p>Wenn ein Upload oder Download im SFTP-Manager abgeschlossen ist, beschreibt ein Ereignis, wie er verlaufen ist. Dateianzahlen werden auf 0, 1, 2, 5, 10, 50, 100 oder 1000 abgerundet.</p>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sftp_transfer_batch</code></td>
+<td>ein Upload- oder Download-Stapel (ein Klick auf eine Schaltfläche oder ein Ablegen) ist abgeschlossen</td>
+<td><code>upload</code> oder <code>download</code>, die gerundete Anzahl der Dateien, ob er mit <code>done</code>, <code>partial</code>, <code>failed</code> oder <code>cancelled</code> endete, ob eine Datei eine Teildatei fortgesetzt hat und wie viele Dateien gleichzeitig kopiert wurden</td>
+</tr>
+</tbody>
+</table>
+<p>Datei- und Ordnernamen, Pfade, Servernamen und Dateigrößen werden niemals gesendet.</p>
 <h2 id="was-niemals-gesammelt-wird">Was niemals gesammelt wird<a class="headerlink" href="#was-niemals-gesammelt-wird" title="Permanent link">&para;</a></h2>
 <p>korTTY übermittelt niemals Folgendes:</p>
 <ul>
