@@ -81,6 +81,9 @@ public class GlobalSettingsManager {
     private de.kortty.policy.PolicyClamp policyClamp;
     private ScheduledFuture<?> pendingSave;
     private int writeCount;
+    private LoadRecovery loadRecovery;
+    /** Set when the defaults replaced an unreadable file that could not be copied aside. */
+    private boolean saveBlocked;
 
     public GlobalSettingsManager(Path configDir) {
         this.configDir = configDir;
@@ -104,6 +107,8 @@ public class GlobalSettingsManager {
      */
     public synchronized void load() throws Exception {
         Path settingsFile = settingsFile();
+        loadRecovery = null;
+        saveBlocked = false;
 
         if (!Files.exists(settingsFile)) {
             // No settings file at all: this is a first installation, not an update, so the
@@ -117,17 +122,75 @@ public class GlobalSettingsManager {
         
         long lastModifiedMillis = lastModifiedMillis(settingsFile);
         try {
-            Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
-            this.settings = (GlobalSettings) unmarshaller.unmarshal(settingsFile.toFile());
-            this.settings.initializeAiConfiguration();
+            this.settings = unmarshal(new javax.xml.transform.stream.StreamSource(settingsFile.toFile()));
             logger.info("Loaded global settings from {} - language: '{}'", settingsFile, this.settings.getLanguage());
         } catch (Exception e) {
-            logger.error("Failed to load settings, using defaults", e);
-            this.settings = new GlobalSettings();
+            this.settings = recoverUnreadableFile(settingsFile, e);
         } finally {
             this.loadedSettingsLastModifiedMillis = lastModifiedMillis;
             applyPolicyClamp();
         }
+    }
+
+    private static GlobalSettings unmarshal(javax.xml.transform.Source source) throws Exception {
+        Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
+        GlobalSettings loaded = unmarshaller.unmarshal(source, GlobalSettings.class).getValue();
+        loaded.initializeAiConfiguration();
+        return loaded;
+    }
+
+    /**
+     * The file did not unmarshal. Before anything can overwrite it, a copy goes aside as
+     * {@code global-settings.xml.unreadable-<timestamp>}; then one retry without the characters
+     * XML 1.0 cannot hold (JAXB writes them raw, so a single BEL in any string makes the whole file
+     * unreadable). Only when that fails too do the defaults apply. When no copy could be made and
+     * the defaults apply, saving is refused for this session so the file survives.
+     */
+    private GlobalSettings recoverUnreadableFile(Path settingsFile, Exception failure) {
+        Path backup = null;
+        try {
+            backup = UnreadableSettingsBackup.copyAside(settingsFile);
+            logger.error("Failed to load global settings from {}; an unchanged copy was saved as {}",
+                settingsFile, backup, failure);
+        } catch (IOException copyFailure) {
+            logger.error("Failed to load global settings from {} and could not copy it aside ({})",
+                settingsFile, copyFailure.toString(), failure);
+        }
+        try {
+            XmlCharacterSanitizer.Result sanitized = XmlCharacterSanitizer.sanitize(Files.readAllBytes(settingsFile));
+            if (sanitized.removedCount() > 0) {
+                GlobalSettings recovered = unmarshal(
+                    new javax.xml.transform.stream.StreamSource(new java.io.StringReader(sanitized.text())));
+                logger.warn("Recovered global settings from {} after removing {} character(s) that XML 1.0 "
+                    + "cannot hold", settingsFile, sanitized.removedCount());
+                loadRecovery = new LoadRecovery(LoadRecovery.Outcome.RECOVERED, backup, sanitized.removedCount());
+                return recovered;
+            }
+        } catch (Exception retryFailure) {
+            logger.warn("Global settings from {} still do not load without invalid XML characters: {}",
+                settingsFile, retryFailure.toString());
+        }
+        logger.error("Using default global settings{}", backup != null ? "; the unreadable file is kept as " + backup
+            : "; saving is disabled for this session so " + settingsFile + " is not overwritten");
+        saveBlocked = backup == null;
+        loadRecovery = new LoadRecovery(LoadRecovery.Outcome.RESET, backup, 0);
+        return new GlobalSettings();
+    }
+
+    /**
+     * What the last {@link #load()} had to do because the settings file did not load, for the
+     * one-time startup notice; empty when it loaded normally.
+     */
+    public synchronized java.util.Optional<LoadRecovery> getLoadRecovery() {
+        return java.util.Optional.ofNullable(loadRecovery);
+    }
+
+    /**
+     * How an unreadable settings file was handled: {@code backup} is the untouched copy (null when
+     * none could be made), {@code removedCharacters} how many characters the recovery dropped.
+     */
+    public record LoadRecovery(Outcome outcome, Path backup, int removedCharacters) {
+        public enum Outcome { RECOVERED, RESET }
     }
     
     /**
@@ -247,6 +310,10 @@ public class GlobalSettingsManager {
     /** Atomic replace via a sibling temp file, so a crash mid-write never leaves a truncated settings file. */
     private synchronized void writeBytes(byte[] bytes) throws IOException {
         Path settingsFile = settingsFile();
+        if (saveBlocked) {
+            throw new IOException("Refusing to overwrite " + settingsFile
+                + " — it could not be loaded or copied aside");
+        }
         Files.createDirectories(settingsFile.getParent());
         Path temp = settingsFile.resolveSibling(SETTINGS_FILE + ".tmp");
         Files.write(temp, bytes);
