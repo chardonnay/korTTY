@@ -3,6 +3,7 @@ package de.kortty.ui.sftp;
 import de.kortty.core.sftp.transfer.ConflictResolver.Resolution;
 import de.kortty.ui.DialogThemeHelper;
 import javafx.application.Platform;
+import org.slf4j.LoggerFactory;
 import javafx.geometry.Insets;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
@@ -30,7 +31,15 @@ public final class SftpConflictDialog {
 
     /** A presenter that shows the dialog on the FX thread, owned by the window {@code owner} gives. */
     public static FxConflictResolver.Presenter presenter(Supplier<Window> owner) {
-        return prompt -> Platform.runLater(() -> show(prompt, owner == null ? null : owner.get()));
+        return prompt -> Platform.runLater(() -> {
+            try {
+                show(prompt, owner == null ? null : owner.get());
+            } catch (RuntimeException e) {
+                // A dialog that cannot be shown must not leave the transfer worker waiting forever.
+                LoggerFactory.getLogger(SftpConflictDialog.class).warn("Could not show the SFTP conflict dialog", e);
+                prompt.answer(Resolution.CANCEL_ALL);
+            }
+        });
     }
 
     private static void show(FxConflictResolver.Prompt prompt, Window owner) {
