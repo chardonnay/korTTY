@@ -129,6 +129,9 @@ public class RemoteCommandRunnerIntegrationTest {
 
     @AfterMethod(alwaysRun = true)
     public void assertNoSecretLeaked() {
+        if (appender == null) {
+            return; // the class was skipped (Windows), so no test ran and nothing was captured
+        }
         root.detachAppender(appender);
         remoteLogger.setLevel(previousLevel);
         List<String> texts = new ArrayList<>(errorTexts);
