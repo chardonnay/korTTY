@@ -119,6 +119,9 @@ public class SudoEditIntegrationTest {
     /** No password, in any form, in a log line, an exception text or a journal note. */
     @AfterMethod(alwaysRun = true)
     public void assertNoSecretLeaked() throws IOException {
+        if (appender == null) {
+            return; // the class was skipped (Windows), so no test ran and nothing was captured
+        }
         root.detachAppender(appender);
         koLogger.setLevel(previousLevel);
         List<String> texts = new ArrayList<>(errorTexts);
