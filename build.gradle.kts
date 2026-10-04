@@ -3682,6 +3682,22 @@ tasks.register<JavaExec>("terminalSplitCloseButtonSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("paneKeyboardSmoke") {
+    group = "verification"
+    description = "Splits a terminal into a 2x2 grid with the base stylesheet and checks the focus ring and accessible name of every pane, that the ring is drawn only on the focused pane, that the pane focus moves to each neighbour, stops at the edges and wraps for next/previous without resizing a terminal, that a zoomed pane fills the split pane with its badge while the hidden panes keep their size and the dividers come back however the zoom ends, and that one pane shows no ring; pass a PNG path via --args to save a snapshot (and a -zoomed one) (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("com.sithtermfx.ui.split.PaneKeyboardSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("multiExecSmoke") {
+    group = "verification"
+    description = "Lets three panes of two tabs take part in multi-exec, one of them with a connection whose writes never return, and checks that typed keys and Enter reach the member in the other tab while the FX thread keeps answering, that a pane outside multi-exec and one its tab's guard holds back get nothing, that the members show the badge and the status chip counts panes and tabs, and that Stop and closing a pane take panes out; pass a PNG path via --args to save a snapshot (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.MultiExecSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerTabCssSmoke") {
     group = "verification"
     description = "Opens the AI Manager under every app design and fails on JavaFX CSS warnings for the selected tab."

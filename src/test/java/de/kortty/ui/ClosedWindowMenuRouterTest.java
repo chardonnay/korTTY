@@ -201,6 +201,52 @@ class ClosedWindowMenuRouterTest {
     }
 
     @Test
+    void viewPanesOfAClosedWindowSplitsZoomsAndMovesTheFocusInTheFrontmostWindowButNeverClosesAPaneOrSwitchesBroadcast() {
+        Desktop desktop = new Desktop();
+        Win closed = desktop.open("A");
+        Win open = desktop.open("B");
+        closed.open = false;
+        String panes = I18n.get(PaneMenuSupport.MENU_KEY);
+
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.SPLIT_AUTO_KEY)));
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.FOCUS_LEFT_KEY)));
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.NEXT_KEY)));
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.ZOOM_KEY)));
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.CLOSE_KEY)));
+        click(closed.item("View", panes, I18n.get(PaneMenuSupport.BROADCAST_KEY)));
+
+        assertWithMessage("closing a pane ends a session and broadcast decides where B's typed keys go, so a "
+            + "closed window's menu bar leaves both alone")
+            .that(desktop.log).containsExactly("front B", "Split Pane in B", "front B", "Focus LEFT in B",
+                "front B", "Next Pane in B", "front B", "Zoom in B").inOrder();
+        click(open.item("View", panes, I18n.get(PaneMenuSupport.CLOSE_KEY)));
+        click(open.item("View", panes, I18n.get(PaneMenuSupport.BROADCAST_KEY)));
+        assertThat(desktop.log).containsAtLeast("Close Pane in B", "Broadcast in B").inOrder();
+    }
+
+    @Test
+    void viewMultiExecOfAClosedWindowNeverChoosesPanesElsewhereButStopsEverywhere() {
+        Desktop desktop = new Desktop();
+        Win closed = desktop.open("A");
+        Win open = desktop.open("B");
+        closed.open = false;
+        String multiExec = I18n.get(MultiExecMenuSupport.MENU_KEY);
+
+        click(closed.item("View", multiExec, I18n.get(MultiExecMenuSupport.INCLUDE_PANE_KEY)));
+        click(closed.item("View", multiExec, I18n.get(MultiExecMenuSupport.INCLUDE_TAB_KEY)));
+        click(closed.item("View", multiExec, I18n.get(MultiExecMenuSupport.INCLUDE_WINDOW_KEY)));
+        click(closed.item("View", multiExec, I18n.get(MultiExecMenuSupport.STOP_KEY)));
+
+        assertWithMessage("including panes decides where typed keys go, so a closed window's menu bar never "
+            + "does it in B; Stop acts on every window and needs none, so it runs where it is")
+            .that(desktop.log).containsExactly("Stop Multi-exec in A");
+        assertThat(desktop.opened).isEmpty();
+        click(open.item("View", multiExec, I18n.get(MultiExecMenuSupport.INCLUDE_PANE_KEY)));
+        click(open.item("View", multiExec, I18n.get(MultiExecMenuSupport.INCLUDE_WINDOW_KEY)));
+        assertThat(desktop.log).containsAtLeast("Include Pane in B", "Include Window in B").inOrder();
+    }
+
+    @Test
     void closingAndClipboardItemsOfAClosedWindowDoNothing() {
         Desktop desktop = new Desktop();
         Win closed = desktop.open("A");
@@ -339,6 +385,25 @@ class ClosedWindowMenuRouterTest {
             .contains("ClosedWindowMenuRouter.noWindowNeeded(preventSleep);");
         assertThat(methodBody(window, "private void rebuildJobSchedulerStatusMenuItems(Menu menu) {"))
             .contains("ClosedWindowMenuRouter.noWindowNeeded(cancel);");
+        // View > Panes: broadcast and Close Pane stay in their window, the split, focus and zoom items
+        // are routed like Find.
+        String panes = methodBody(source("PaneMenuSupport.java"), "static @NotNull PaneMenu create(@NotNull Commands commands, @NotNull Supplier");
+        assertThat(panes).contains("ClosedWindowMenuRouter.ownWindowOnly(broadcast);");
+        assertThat(panes).contains("ClosedWindowMenuRouter.ownWindowOnly(close);");
+        assertThat(panes).doesNotContain("noWindowNeeded(");
+        assertThat(panes.split("ClosedWindowMenuRouter\\.ownWindowOnly\\(", -1)).hasLength(3);
+        assertThat(methodBody(window, "private Menu createViewMenu(MenuBarTarget target) {"))
+            .contains("Menu panesMenu = createPanesMenu(target);");
+        // View > Multi-exec: the include items stay in their window, Stop needs none.
+        String multiExec = methodBody(source("MultiExecMenuSupport.java"),
+            "static @NotNull MultiExecMenu create(@NotNull Commands commands, @NotNull Supplier");
+        for (String item : List.of("includePane", "includeTab", "includeWindow")) {
+            assertThat(multiExec).contains("ClosedWindowMenuRouter.ownWindowOnly(" + item + ");");
+        }
+        assertThat(multiExec).contains("ClosedWindowMenuRouter.noWindowNeeded(stop);");
+        assertThat(multiExec.split("ClosedWindowMenuRouter\\.ownWindowOnly\\(", -1)).hasLength(4);
+        assertThat(methodBody(window, "private Menu createViewMenu(MenuBarTarget target) {"))
+            .contains("Menu multiExecMenu = createMultiExecMenu(target);");
     }
 
     // ---- helpers ------------------------------------------------------------------------------
@@ -421,6 +486,65 @@ class ClosedWindowMenuRouterTest {
             CheckMenuItem dashboard = new CheckMenuItem("Dashboard");
             dashboard.setOnAction(e -> log.add("Dashboard " + (dashboard.isSelected() ? "on" : "off") + " in " + name));
             view.getItems().add(dashboard);
+            // View > Panes as MainWindow builds it, with plain items for separators (no toolkit here).
+            PaneMenuSupport.PaneMenu panes = PaneMenuSupport.create(new PaneMenuSupport.Commands() {
+                @Override
+                public void split(SplitOrientationChooser.SplitSide side) {
+                    log.add("Split " + (side != null ? side : "Pane") + " in " + name);
+                }
+
+                @Override
+                public void closePane() {
+                    log.add("Close Pane in " + name);
+                }
+
+                @Override
+                public void focus(PaneNavigator.PaneDirection direction) {
+                    log.add("Focus " + direction + " in " + name);
+                }
+
+                @Override
+                public void cycle(boolean forward) {
+                    log.add((forward ? "Next" : "Previous") + " Pane in " + name);
+                }
+
+                @Override
+                public void toggleZoom() {
+                    log.add("Zoom in " + name);
+                }
+
+                @Override
+                public void toggleBroadcast() {
+                    log.add("Broadcast in " + name);
+                }
+            }, MenuItem::new);
+            PaneMenuSupport.sync(panes, new PaneMenuSupport.State(true, 2, false));
+            view.getItems().add(panes.menu());
+            // View > Multi-exec as MainWindow builds it.
+            MultiExecMenuSupport.MultiExecMenu multiExec = MultiExecMenuSupport.create(
+                new MultiExecMenuSupport.Commands() {
+                    @Override
+                    public void togglePane() {
+                        log.add("Include Pane in " + name);
+                    }
+
+                    @Override
+                    public void toggleTab() {
+                        log.add("Include Tab in " + name);
+                    }
+
+                    @Override
+                    public void includeWindow() {
+                        log.add("Include Window in " + name);
+                    }
+
+                    @Override
+                    public void stop() {
+                        log.add("Stop Multi-exec in " + name);
+                    }
+                }, MenuItem::new);
+            MultiExecMenuSupport.sync(multiExec, new MultiExecMenuSupport.State(true, false, false, true, 1));
+            view.getItems().add(multiExec.menu());
             // Filled while it opens, like the job status menu.
             Menu jobs = new Menu("Jobs");
             jobs.setOnShowing(e -> {

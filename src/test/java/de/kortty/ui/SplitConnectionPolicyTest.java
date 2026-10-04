@@ -88,12 +88,14 @@ class SplitConnectionPolicyTest {
     }
 
     @Test
-    void aSameServerSplitRechecksTheTabsConnectionBeforeBuildingAConnector() throws IOException {
-        // The connection editor changes a saved connection in place, so the tab's host or jump
-        // server may have been edited to a blocked one after the tab passed the gate.
+    void aSameServerSplitRechecksThePanesConnectionBeforeBuildingAConnector() throws IOException {
+        // The connection editor changes a saved connection in place, so the pane's host or jump
+        // server may have been edited to a blocked one after the pane passed the gate. The pane's
+        // connection is the tab's unless it was split to another server (PaneOrigin).
         String same = methodBody(source("TerminalView.java"),
             "private @Nullable TtyConnector doCreateSameServerConnection(");
-        int gate = same.indexOf("SplitConnectionPolicy.blockedTarget(connection)");
+        assertThat(same).contains("ServerConnection target = origin.connection();");
+        int gate = same.indexOf("SplitConnectionPolicy.blockedTarget(target)");
         assertWithMessage("doCreateSameServerConnection asks the split policy seam").that(gate).isAtLeast(0);
         int dialog = same.indexOf("PolicyUiSupport.showBlockedServerDialog(", gate);
         int refuse = same.indexOf("return null;", dialog);

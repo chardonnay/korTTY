@@ -76,7 +76,8 @@ class PastePacingWiringTest {
 
     @Test
     void broadcastModeSkipsAPaneThatIsPacing() throws IOException {
-        assertThat(source(TERMINAL_VIEW)).contains("splitPane.setMirrorTargetGuard(widget -> !pastePacer.isPacing(widget));");
+        assertThat(source(TERMINAL_VIEW)).contains("splitPane.setMirrorTargetGuard(MirrorTargetGuard.accepting(\n"
+            + "            pastePacer::isPacing,");
     }
 
     @Test

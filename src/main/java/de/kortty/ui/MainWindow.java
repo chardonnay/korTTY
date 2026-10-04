@@ -10,6 +10,7 @@ import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.ui.actions.ActionIds;
 import de.kortty.core.AgentDashboardStatus;
 import com.sithtermfx.ui.SithTermFxWidget;
+import com.sithtermfx.ui.split.TerminalSplitPane;
 import de.kortty.codingagent.CodingAgentActionException;
 import de.kortty.codingagent.CodingAgentActions;
 import de.kortty.codingagent.CodingAgentEntry;
@@ -229,6 +230,33 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.UP, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final KeyCombination NEXT_PROMPT_ACCELERATOR =
         new KeyCodeCombination(KeyCode.DOWN, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // View > Panes > Focus Pane Left/Right/Up/Down: Cmd+Option or Ctrl+Alt with an arrow key, routed
+    // only while the selected terminal tab has two or more panes, so with one pane the arrows still
+    // reach the shell as xterm sends them. No plain Ctrl+letter, and arrows type no AltGr character.
+    private static final KeyCombination PANE_FOCUS_LEFT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.LEFT, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final KeyCombination PANE_FOCUS_RIGHT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.RIGHT, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final KeyCombination PANE_FOCUS_UP_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.UP, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    private static final KeyCombination PANE_FOCUS_DOWN_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.DOWN, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
+    // View > Panes > Split Pane: Cmd/Ctrl+Shift+O (as in Terminator) splits the focused pane on its own
+    // server, routed while the keyboard is in a terminal tab; only Cmd/Ctrl+O (Open Project) shares the O.
+    private static final KeyCombination PANE_SPLIT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // View > Panes > Zoom Pane: Cmd/Ctrl+Shift+Enter (iTerm2's Maximize Active Pane) lets the focused
+    // pane fill the tab, routed while the keyboard is in a terminal tab with two or more panes; with
+    // one pane the shell still gets it as Enter.
+    private static final KeyCombination PANE_ZOOM_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.ENTER, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    private static final PaneShortcuts PANE_SHORTCUTS = new PaneShortcuts(Map.of(
+        PaneShortcuts.PaneAction.FOCUS_LEFT, PANE_FOCUS_LEFT_ACCELERATOR,
+        PaneShortcuts.PaneAction.FOCUS_RIGHT, PANE_FOCUS_RIGHT_ACCELERATOR,
+        PaneShortcuts.PaneAction.FOCUS_UP, PANE_FOCUS_UP_ACCELERATOR,
+        PaneShortcuts.PaneAction.FOCUS_DOWN, PANE_FOCUS_DOWN_ACCELERATOR,
+        PaneShortcuts.PaneAction.SPLIT, PANE_SPLIT_ACCELERATOR,
+        PaneShortcuts.PaneAction.ZOOM, PANE_ZOOM_ACCELERATOR));
     private static final String MENU_BAR_TOGGLE_SHORTCUT_LABEL = "Cmd/Ctrl+Shift+L";
     private static final int JOB_SCHEDULER_QUEUE_LIMIT = 5;
     private static final int MAX_CONCURRENT_TERMINAL_AGENT_RUNS = 5;
@@ -315,6 +343,15 @@ public class MainWindow {
     private CheckMenuItem systemTerminalOnlyFullscreenMenuItem;
     private CheckMenuItem highlightingToggleMenuItem;
     private CheckMenuItem systemHighlightingToggleMenuItem;
+    // View > Panes of the in-window and the macOS system menu bar, synced from the active tab.
+    private PaneMenuSupport.PaneMenu paneMenu;
+    private PaneMenuSupport.PaneMenu systemPaneMenu;
+    // View > Multi-exec of both menu bars, synced from the active tab and the members.
+    private MultiExecMenuSupport.MultiExecMenu multiExecMenu;
+    private MultiExecMenuSupport.MultiExecMenu systemMultiExecMenu;
+    // The multi-exec chip in the status bar, and this window's subscription to multi-exec changes.
+    private MultiExecStatusBar multiExecStatusBar;
+    private AutoCloseable multiExecListener;
     private CheckMenuItem hideFullscreenScrollbarsMenuItem;
     private CheckMenuItem systemHideFullscreenScrollbarsMenuItem;
     private CheckMenuItem showTimestampsMenuItem;
@@ -539,6 +576,7 @@ public class MainWindow {
                 lastSelectedFileEditorTab = fileEditorTab;
             }
             updateEditMenuItemsForSelection();
+            syncPaneMenuItems();
             // See-through mode: only a terminal tab reveals the desktop; other/empty tabs stay opaque.
             refreshTransparentModeContainers();
             // When the agent panel is docked to the side, swap it to show only the now-active tab.
@@ -667,6 +705,8 @@ public class MainWindow {
                 updateDashboard();
                 updateAllTabContextMenus();
                 sourceWindow.updateAllTabContextMenus();
+                // The tab's panes keep their multi-exec membership; the window counts changed.
+                MultiExecCoordinator.shared().refreshMarkers();
             } else {
                 updateDashboard();
                 updateAllTabContextMenus();
@@ -712,6 +752,8 @@ public class MainWindow {
                 updateDashboard();
                 updateAllTabContextMenus();
                 sourceWindow.updateAllTabContextMenus();
+                // The tab's panes keep their multi-exec membership; the window counts changed.
+                MultiExecCoordinator.shared().refreshMarkers();
             } else {
                 updateDashboard();
                 updateAllTabContextMenus();
@@ -728,6 +770,7 @@ public class MainWindow {
         statusRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(statusSpacer, Priority.ALWAYS);
         installCodingAgentStatusStrip(statusSpacer);
+        installMultiExecStatusBar(statusSpacer);
         statusBar = new VBox(statusRow);
         statusBar.getStyleClass().add("status-bar");
         statusLabel.getStyleClass().add("status-label");
@@ -871,6 +914,8 @@ public class MainWindow {
                 // entry, unless korTTY ends with this window (Quit, or the last window on Windows and Linux).
                 recordClosedWindow(willCloseApplication());
                 closeAllTabs();
+                // Its panes left multi-exec with the tabs; the other windows' chips have counted that.
+                releaseMultiExecListener();
                 // Deregister file browser manager listener to prevent memory leaks and stale callbacks
                 if (fileBrowserManager != null && fileBrowserPositionListener != null) {
                     fileBrowserManager.removePositionListener(fileBrowserPositionListener);
@@ -997,6 +1042,7 @@ public class MainWindow {
         applyMenuBarVisibility(true);
         syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
         syncTimestampMenuItems(false);
+        syncPaneMenuItems();
         // The history belongs to the application: a new window offers what other windows closed.
         syncRecentlyClosedMenus();
         applyMainWindowThemeFromGlobalSettings();
@@ -2106,6 +2152,8 @@ public class MainWindow {
         terminalEffectMenu.setOnShowing(event ->
                 rebuildTerminalEffectMenu(terminalEffectMenu, getActiveTerminalTab(), includeEffectSpeedControl));
         Menu highlightingMenu = createHighlightingMenu(target);
+        Menu panesMenu = createPanesMenu(target);
+        Menu multiExecMenu = createMultiExecMenu(target);
 
         MenuItem fullscreen = new MenuItem(I18n.get("menu.view.fullscreen"));
         // F12 lives on the in-window bar; the macOS companion system bar has all accelerators
@@ -2146,9 +2194,176 @@ public class MainWindow {
         if (target != MenuBarTarget.SYSTEM) {
             viewMenu.getItems().addAll(new SeparatorMenuItem(), buildBackgroundTransparencyMenuItem());
         }
-        viewMenu.getItems().addAll(new SeparatorMenuItem(), highlightingMenu, terminalEffectMenu, new SeparatorMenuItem(),
-            fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
+        viewMenu.getItems().addAll(new SeparatorMenuItem(), panesMenu, multiExecMenu, highlightingMenu,
+            terminalEffectMenu, new SeparatorMenuItem(), fullscreen, terminalOnlyFullscreen, hideFullscreenScrollbars);
         return viewMenu;
+    }
+
+    /**
+     * View → Panes: Split Pane, the focus items and Zoom Pane carry the pane chords for display (the
+     * scene shortcut router handles the keys themselves while the keyboard is in a terminal tab, with
+     * two or more panes for the focus and zoom keys), Split Right, Split Down, Close Pane, Next Pane and
+     * Previous Pane have none, and the broadcast item switches the active tab's broadcast mode. The
+     * items are synced from the active tab while the menu opens and before an accelerator or the menu
+     * bar of a closed macOS window runs one of them.
+     */
+    private Menu createPanesMenu(MenuBarTarget target) {
+        PaneMenuSupport.PaneMenu panes = PaneMenuSupport.create(new PaneMenuSupport.Commands() {
+            @Override
+            public void split(SplitOrientationChooser.SplitSide side) {
+                splitPaneInActiveTerminal(side);
+            }
+
+            @Override
+            public void closePane() {
+                closePaneInActiveTerminal();
+            }
+
+            @Override
+            public void focus(PaneNavigator.PaneDirection direction) {
+                focusPaneInActiveTerminal(direction);
+            }
+
+            @Override
+            public void cycle(boolean forward) {
+                cyclePaneInActiveTerminal(forward);
+            }
+
+            @Override
+            public void toggleZoom() {
+                toggleZoomInActiveTerminal();
+            }
+
+            @Override
+            public void toggleBroadcast() {
+                toggleBroadcastInActiveTerminal();
+            }
+        });
+        panes.split().setAccelerator(PANE_SPLIT_ACCELERATOR);
+        panes.zoom().setAccelerator(PANE_ZOOM_ACCELERATOR);
+        panes.focusItem(PaneNavigator.PaneDirection.LEFT).setAccelerator(PANE_FOCUS_LEFT_ACCELERATOR);
+        panes.focusItem(PaneNavigator.PaneDirection.RIGHT).setAccelerator(PANE_FOCUS_RIGHT_ACCELERATOR);
+        panes.focusItem(PaneNavigator.PaneDirection.UP).setAccelerator(PANE_FOCUS_UP_ACCELERATOR);
+        panes.focusItem(PaneNavigator.PaneDirection.DOWN).setAccelerator(PANE_FOCUS_DOWN_ACCELERATOR);
+        panes.menu().setOnShowing(event -> syncPaneMenuItems());
+        panes.menu().setOnMenuValidation(event -> syncPaneMenuItems());
+        if (target == MenuBarTarget.WINDOW) {
+            paneMenu = panes;
+        } else {
+            systemPaneMenu = panes;
+        }
+        return panes.menu();
+    }
+
+    /** The View → Panes state of the active tab: the number of its panes, its broadcast mode and zoom. */
+    private PaneMenuSupport.State activePaneMenuState() {
+        TerminalTab terminalTab = activeTerminalTab();
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        if (view == null) {
+            return PaneMenuSupport.State.NO_TERMINAL;
+        }
+        return new PaneMenuSupport.State(true, view.getTerminalPaneCount(), view.isBroadcastMode(),
+            view.isPaneZoomed());
+    }
+
+    /** Shows the active tab's panes, broadcast mode and zoom on View → Panes of both menu bars. */
+    private void syncPaneMenuItems() {
+        PaneMenuSupport.State state = activePaneMenuState();
+        PaneMenuSupport.sync(paneMenu, state);
+        PaneMenuSupport.sync(systemPaneMenu, state);
+        // View > Multi-exec follows the same events: the active tab, its panes and its focused pane.
+        syncMultiExecMenuItems();
+    }
+
+    /** The number of panes of the selected terminal tab, 0 when no terminal tab is selected. */
+    private int activeTerminalPaneCount() {
+        TerminalTab terminalTab = activeTerminalTab();
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        return view != null ? view.getTerminalPaneCount() : 0;
+    }
+
+    /**
+     * What a pane shortcut does once the scene shortcut router took its chord. The split runs after
+     * the key event, as its connect dialog runs a nested event loop: the router swallows the chord's
+     * KEY_TYPED first, so no O reaches the old or the new pane. The zoom runs at once; the router
+     * swallows the carriage return its KEY_TYPED can carry.
+     */
+    private void runPaneShortcut(PaneShortcuts.PaneAction action) {
+        switch (action) {
+            case FOCUS_LEFT, FOCUS_RIGHT, FOCUS_UP, FOCUS_DOWN -> focusPaneInActiveTerminal(action.direction());
+            case SPLIT -> Platform.runLater(() -> splitPaneInActiveTerminal(null));
+            case ZOOM -> toggleZoomInActiveTerminal();
+        }
+    }
+
+    /**
+     * Splits the focused pane of the active terminal tab on that pane's own server, putting the new
+     * pane on {@code side}, or on the side that suits the pane's shape when {@code side} is null.
+     */
+    private void splitPaneInActiveTerminal(SplitOrientationChooser.SplitSide side) {
+        TerminalTab terminalTab = activeTerminalTab();
+        if (terminalTab != null && terminalTab.getTerminalView() != null) {
+            terminalTab.getTerminalView().splitFocusedPane(side);
+        }
+        syncPaneMenuItems();
+    }
+
+    /** Closes the focused pane of the active terminal tab; the tab's last pane stays. */
+    private void closePaneInActiveTerminal() {
+        TerminalTab terminalTab = activeTerminalTab();
+        if (terminalTab != null && terminalTab.getTerminalView() != null) {
+            terminalTab.getTerminalView().closeFocusedPane();
+        }
+        syncPaneMenuItems();
+    }
+
+    /** Moves the keyboard focus to the neighbouring pane of the active terminal tab; nothing at the edge. */
+    private void focusPaneInActiveTerminal(PaneNavigator.PaneDirection direction) {
+        TerminalTab terminalTab = activeTerminalTab();
+        if (terminalTab != null && terminalTab.getTerminalView() != null) {
+            terminalTab.getTerminalView().focusPane(direction);
+        }
+        // Moving the focus shows a zoomed tab's panes again.
+        syncPaneMenuItems();
+    }
+
+    /** Moves the keyboard focus to the next or previous pane of the active terminal tab, wrapping around. */
+    private void cyclePaneInActiveTerminal(boolean forward) {
+        TerminalTab terminalTab = activeTerminalTab();
+        if (terminalTab != null && terminalTab.getTerminalView() != null) {
+            terminalTab.getTerminalView().focusNextPane(forward);
+        }
+        syncPaneMenuItems();
+    }
+
+    /**
+     * View → Panes → Zoom Pane: lets the focused pane of the active terminal tab fill the tab alone,
+     * or shows every pane again while one is zoomed. The tab's zoom decides, never the check item,
+     * which JavaFX has already flipped when this runs; the items are re-synced afterwards.
+     */
+    private void toggleZoomInActiveTerminal() {
+        TerminalTab terminalTab = activeTerminalTab();
+        if (terminalTab != null && terminalTab.getTerminalView() != null) {
+            terminalTab.getTerminalView().toggleZoomPane();
+        }
+        syncPaneMenuItems();
+    }
+
+    /**
+     * View → Panes → Broadcast: switches the active tab's broadcast mode. The decision comes from the
+     * tab's mode, never from the check item, which JavaFX has already flipped when this runs; the
+     * items are re-synced afterwards. Switching it on needs a second pane, as in the context menu.
+     */
+    private void toggleBroadcastInActiveTerminal() {
+        TerminalTab terminalTab = activeTerminalTab();
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        if (view != null) {
+            boolean on = view.isBroadcastMode();
+            if (on || view.getTerminalPaneCount() >= 2) {
+                view.setBroadcastMode(!on);
+            }
+        }
+        syncPaneMenuItems();
     }
 
     /**
@@ -2568,6 +2783,17 @@ public class MainWindow {
             int jumpSlot = slot;
             router.consume(press -> TabKeyboardShortcuts.slotOf(press) == jumpSlot, SceneShortcutRouter.ALWAYS,
                 () -> selectTabBySlot(jumpSlot), TabKeyboardShortcuts.JUMP_RESIDUE);
+        }
+        // Cmd+Option / Ctrl+Alt with an arrow key move the focus between the panes of the selected
+        // terminal tab, only while the keyboard is in that tab and it has two or more panes; otherwise
+        // the key reaches the shell as xterm sends it. Arrow keys type nothing, so no residue.
+        // Cmd/Ctrl+Shift+O splits the focused pane while the keyboard is in the tab; the O, or the
+        // U+000F Ctrl turns it into, is swallowed. Cmd/Ctrl+Shift+Enter zooms the focused pane with two
+        // or more panes; the carriage return or line feed it can still type is swallowed.
+        for (PaneShortcuts.PaneAction paneAction : PaneShortcuts.PaneAction.values()) {
+            router.consume(press -> PANE_SHORTCUTS.isChordOf(press, paneAction),
+                () -> isKeyboardInSelectedTerminal() && PaneShortcuts.applies(paneAction, activeTerminalPaneCount()),
+                () -> runPaneShortcut(paneAction), paneAction.residue());
         }
         return router;
     }
@@ -3105,7 +3331,7 @@ public class MainWindow {
                 }
             }
             
-            return new TerminalView.ConnectionResult(result.connection(), finalPassword);
+            return new TerminalView.ConnectionResult(result.connection(), finalPassword, result.temporarySSHKey());
         } catch (Exception e) {
             logger.error("Failed to request new connection for split", e);
             return null;
@@ -5185,6 +5411,9 @@ public class MainWindow {
             }
             tab.setAgentStatusBadge(badge);
         }
+        // Runs every second in the foreground window: an AI agent run that started or ended in a
+        // member pane changes how many members multi-exec leaves out.
+        refreshMultiExecStatus();
     }
 
     /**
@@ -5196,6 +5425,8 @@ public class MainWindow {
         if (codingAgentStatusStrip != null) {
             codingAgentStatusStrip.refresh();
         }
+        // A coding agent that waits for a decision gets no mirrored keys: the chip counts it.
+        refreshMultiExecStatus();
     }
 
     private void startAgentStatusIndicatorTimer() {
@@ -5226,6 +5457,10 @@ public class MainWindow {
         // this the new pane stays missing from the dashboard until some unrelated event happens to
         // rebuild it.
         updateDashboard();
+        // View > Panes needs two or more panes to move the focus.
+        syncPaneMenuItems();
+        // The tab marker counts the tab's panes.
+        refreshMirrorTabMarkers();
     }
 
     /** Re-binds the docked side panel to the currently active terminal tab (spotlight model). */
@@ -5545,6 +5780,164 @@ public class MainWindow {
             logger.warn("Coding-agent status strip could not be installed: {}", e.toString());
             codingAgentStatusStrip = null;
         }
+    }
+
+    /**
+     * Puts the multi-exec chip into the status bar, right of the spacer, and subscribes this window
+     * to multi-exec, so the chip, the tab markers, View → Multi-exec and the dashboard follow every
+     * change in any window. The subscription ends when the window closes.
+     */
+    private void installMultiExecStatusBar(Region statusSpacer) {
+        if (statusRow == null) {
+            return;
+        }
+        multiExecStatusBar = new MultiExecStatusBar();
+        multiExecStatusBar.setOnStop(() -> MultiExecCoordinator.shared().stop());
+        int spacerIndex = statusRow.getChildren().indexOf(statusSpacer);
+        statusRow.getChildren().add(spacerIndex < 0 ? statusRow.getChildren().size() : spacerIndex + 1,
+            multiExecStatusBar);
+        multiExecListener = MultiExecCoordinator.shared().addListener(this::onMultiExecChanged);
+        refreshMultiExecStatus();
+    }
+
+    /** Ends this window's multi-exec subscription; the window closed. */
+    private void releaseMultiExecListener() {
+        AutoCloseable listener = multiExecListener;
+        multiExecListener = null;
+        if (listener != null) {
+            try {
+                listener.close();
+            } catch (Exception e) {
+                logger.debug("Could not unsubscribe from multi-exec: {}", e.toString());
+            }
+        }
+    }
+
+    /**
+     * Multi-exec changed, here or in another window, or a tab's broadcast mode was switched: the
+     * status chip, the markers of this window's tabs, View → Multi-exec and the dashboard rows.
+     */
+    private void onMultiExecChanged() {
+        refreshMultiExecStatus();
+        refreshMirrorTabMarkers();
+        syncMultiExecMenuItems();
+        if (dashboardView != null && dashboardVisible) {
+            dashboardView.refreshRows();
+        }
+    }
+
+    /** Updates the status chip: how many panes take part, in how many tabs and windows, and how many are left out. */
+    private void refreshMultiExecStatus() {
+        if (multiExecStatusBar == null) {
+            return;
+        }
+        MultiExecCoordinator multiExec = MultiExecCoordinator.shared();
+        if (multiExec.memberCount() == 0) {
+            multiExecStatusBar.update(MultiExecMembership.Counts.NONE, 0);
+            return;
+        }
+        multiExecStatusBar.update(multiExec.counts(MainWindow::windowHoldingSplitPane), multiExec.countHeld());
+    }
+
+    /** The open window whose terminal tab holds {@code splitPane}, or {@code null}. */
+    private static MainWindow windowHoldingSplitPane(TerminalSplitPane splitPane) {
+        for (MainWindow window : openWindows) {
+            for (TerminalTab tab : window.terminalTabs()) {
+                TerminalView view = tab.getTerminalView();
+                if (view != null && view.holdsSplitPane(splitPane)) {
+                    return window;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Marks each terminal tab of this window whose typing goes to other panes (multi-exec or broadcast mode). */
+    private void refreshMirrorTabMarkers() {
+        for (TerminalTab tab : terminalTabs()) {
+            TerminalView view = tab.getTerminalView();
+            if (view == null) {
+                tab.setMirrorMarker(null);
+                continue;
+            }
+            tab.setMirrorMarker(MultiExecMarkers.tabMarkerText(view.multiExecMemberCount(),
+                view.getTerminalPaneCount(), view.isBroadcastMode()));
+        }
+    }
+
+    /** The focused pane of the active terminal tab, or {@code null}. */
+    private SithTermFxWidget activeFocusedPane() {
+        TerminalTab terminalTab = activeTerminalTab();
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        return view != null ? view.getFocusedWidget() : null;
+    }
+
+    /** Every pane of every terminal tab of this window. */
+    private List<SithTermFxWidget> windowPanes() {
+        List<SithTermFxWidget> panes = new ArrayList<>();
+        for (TerminalTab tab : terminalTabs()) {
+            if (tab.getTerminalView() != null) {
+                panes.addAll(tab.getTerminalView().getOrderedWidgets());
+            }
+        }
+        return panes;
+    }
+
+    /**
+     * View → Multi-exec: the focused pane, all panes of the active tab or of the window join or leave
+     * multi-exec, or it stops. Every command decides from the members, never from a check item.
+     */
+    private Menu createMultiExecMenu(MenuBarTarget target) {
+        MultiExecMenuSupport.MultiExecMenu menu = MultiExecMenuSupport.create(new MultiExecMenuSupport.Commands() {
+            @Override
+            public void togglePane() {
+                MultiExecCoordinator.shared().togglePane(activeFocusedPane());
+                syncMultiExecMenuItems();
+            }
+
+            @Override
+            public void toggleTab() {
+                TerminalTab terminalTab = activeTerminalTab();
+                if (terminalTab != null && terminalTab.getTerminalView() != null) {
+                    MultiExecCoordinator.shared().toggleAll(terminalTab.getTerminalView().getOrderedWidgets());
+                }
+                syncMultiExecMenuItems();
+            }
+
+            @Override
+            public void includeWindow() {
+                MultiExecCoordinator.shared().setPanes(windowPanes(), true);
+                syncMultiExecMenuItems();
+            }
+
+            @Override
+            public void stop() {
+                MultiExecCoordinator.shared().stop();
+                syncMultiExecMenuItems();
+            }
+        });
+        menu.menu().setOnShowing(event -> syncMultiExecMenuItems());
+        menu.menu().setOnMenuValidation(event -> syncMultiExecMenuItems());
+        if (target == MenuBarTarget.WINDOW) {
+            multiExecMenu = menu;
+        } else {
+            systemMultiExecMenu = menu;
+        }
+        return menu.menu();
+    }
+
+    /** Shows the active tab's and the window's multi-exec state on View → Multi-exec of both menu bars. */
+    private void syncMultiExecMenuItems() {
+        MultiExecCoordinator multiExec = MultiExecCoordinator.shared();
+        TerminalTab terminalTab = activeTerminalTab();
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        SithTermFxWidget focused = view != null ? view.getFocusedWidget() : null;
+        MultiExecMenuSupport.State state = new MultiExecMenuSupport.State(view != null,
+            focused != null && multiExec.isMember(focused),
+            view != null && multiExec.includesAll(view.getOrderedWidgets()),
+            !terminalTabs().isEmpty(), multiExec.memberCount());
+        MultiExecMenuSupport.sync(multiExecMenu, state);
+        MultiExecMenuSupport.sync(systemMultiExecMenu, state);
     }
 
     /** This window's docked Coding Agents panel, or null while it was never shown. */
@@ -6025,6 +6418,13 @@ public class MainWindow {
     }
     
     private void handleDashboardAction(TerminalTab terminalTab, DashboardView.DashboardAction action) {
+        if (action == DashboardView.DashboardAction.TOGGLE_MULTI_EXEC) {
+            // Multi-exec has no telemetry of its own yet; it is not counted as a dashboard action.
+            if (terminalTab != null && terminalTab.getTerminalView() != null) {
+                MultiExecCoordinator.shared().toggleAll(terminalTab.getTerminalView().getOrderedWidgets());
+            }
+            return;
+        }
         Telemetry.track(TelemetryEvents.DASHBOARD_ACTION,
             Map.of("action", action.name().toLowerCase(Locale.ROOT)));
         switch (action) {
@@ -6072,6 +6472,12 @@ public class MainWindow {
     private void handleDashboardPaneAction(TerminalTab terminalTab, SithTermFxWidget widget, PaneRef pane,
                                            DashboardView.PaneAction action) {
         if (action == null) {
+            return;
+        }
+        if (action == DashboardView.PaneAction.TOGGLE_MULTI_EXEC) {
+            // Any pane of any window joins or leaves multi-exec, without switching to it; not a
+            // coding-agent action, so not counted as one.
+            MultiExecCoordinator.shared().togglePane(widget);
             return;
         }
         Telemetry.track(TelemetryEvents.CODING_AGENT_ACTION,
@@ -12007,6 +12413,17 @@ public class MainWindow {
             contextMenu.getItems().add(journalMenu);
         }
 
+        // Multi-exec: every pane of this tab joins, or leaves when all of them take part. The members
+        // decide, never the check mark, which JavaFX has already flipped when the action runs.
+        CheckMenuItem multiExecItem = new CheckMenuItem(I18n.get(MultiExecMarkers.TAB_TOGGLE_KEY));
+        multiExecItem.setOnAction(e -> {
+            TerminalView view = terminalTab.getTerminalView();
+            if (view != null) {
+                MultiExecCoordinator.shared().toggleAll(view.getOrderedWidgets());
+            }
+        });
+        contextMenu.getItems().add(multiExecItem);
+
         contextMenu.getItems().add(new SeparatorMenuItem());
         MenuItem closeOthersItem = new MenuItem(I18n.get("tab.contextMenu.closeOthers"));
         closeOthersItem.setOnAction(e -> closeOtherTabs(terminalTab));
@@ -12020,6 +12437,9 @@ public class MainWindow {
         contextMenu.setOnShowing(e -> {
             syncTabCloseItems(terminalTab, closeOthersItem, closeToRightItem);
             reopenClosedItem.setDisable(closedTabHistory.isEmpty());
+            TerminalView multiExecView = terminalTab.getTerminalView();
+            multiExecItem.setSelected(multiExecView != null
+                && MultiExecCoordinator.shared().includesAll(multiExecView.getOrderedWidgets()));
         });
 
         if (TerminalEffectUiSupport.isTerminalEffectsEnabled()) {

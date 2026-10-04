@@ -1086,7 +1086,7 @@
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>agent<span class="w"> </span>-plan<span class="w"> </span>&lt;task&gt;
 </span></code></pre></div>
 <p>The base command name is configurable in <strong>Settings &gt; AI</strong>. If you rename <code>agent</code>, korTTY derives the matching <code>-ask</code> and <code>-plan</code> commands automatically. The same settings page can make the command name case-insensitive and can disable the per-run setup dialog; when the dialog is disabled, korTTY uses the configured default profile.</p>
-<p>Only an agent command that you type or paste is recognized. Text that the server prints, for example a file shown with <code>cat</code> that contains a crafted escape sequence, cannot start an agent run.</p>
+<p>Only an agent command that you type or paste is recognized. Text that the server prints, for example a file shown with <code>cat</code> that contains a crafted escape sequence, cannot start an agent run. In <a href="terminal.html#broadcast-mode">broadcast mode</a> the command starts a run only in the pane you type it in; the other panes receive it as an ordinary command line, and broadcast mode sends no keys into a pane while an agent run is active there.</p>
 <h3 id="tab-completion-and-prompt-history">TAB completion and prompt history<a class="headerlink" href="#tab-completion-and-prompt-history" title="Permanent link">&para;</a></h3>
 <p>At the shell prompt, TAB completion is enhanced for agent commands:</p>
 <ul>

@@ -154,6 +154,13 @@ public class TerminalTab extends Tab {
     /** The tooltip line about the tab color, or null without a color; FX thread only. */
     private String connectionColorLine;
     /**
+     * The multi-exec / broadcast marker in {@link #tabDecorations}, after the color dot, or null
+     * while what you type in the tab stays in its pane; FX thread only.
+     */
+    private Node mirrorMarker;
+    /** The text the mirror marker shows as its tooltip, or null without a marker; FX thread only. */
+    private String mirrorMarkerText;
+    /**
      * The tab's content: the terminal view with its split panes, and the status bars below it. Its
      * border is the frame in the connection's tab color and nothing else (see {@link #showConnectionColor}).
      */
@@ -1894,6 +1901,43 @@ public class TerminalTab extends Tab {
         refreshTooltip();
         setGraphic(tabDecorations.getChildren().isEmpty() ? null : tabDecorations);
     }
+
+    /**
+     * Marks the tab while what you type in it goes to other panes: an amber icon after the color dot
+     * whose tooltip, which screen readers read as well, is {@code text} (see
+     * {@link MultiExecMarkers#tabMarkerText}); {@code null} removes it. The icon is a shape, not a
+     * glyph in the title, so the title the Control API and the dashboard report stays the tab's name.
+     * FX thread.
+     */
+    void setMirrorMarker(String text) {
+        if (java.util.Objects.equals(text, mirrorMarkerText)) {
+            return;
+        }
+        mirrorMarkerText = text;
+        if (mirrorMarker != null) {
+            tabDecorations.getChildren().remove(mirrorMarker);
+            mirrorMarker = null;
+        }
+        if (text != null) {
+            javafx.scene.shape.SVGPath icon = new javafx.scene.shape.SVGPath();
+            icon.setContent(com.sithtermfx.ui.split.TerminalSplitPane.MIRROR_ICON_PATH);
+            icon.getStyleClass().add(MIRROR_MARKER_STYLE_CLASS);
+            icon.setAccessibleRole(javafx.scene.AccessibleRole.IMAGE_VIEW);
+            icon.setAccessibleText(text);
+            Tooltip.install(icon, new Tooltip(text));
+            mirrorMarker = icon;
+            tabDecorations.getChildren().add(mirrorMarker);
+        }
+        setGraphic(tabDecorations.getChildren().isEmpty() ? null : tabDecorations);
+    }
+
+    /** The mirror marker's text, or {@code null} while the tab shows none. */
+    String getMirrorMarkerText() {
+        return mirrorMarkerText;
+    }
+
+    /** Style class of the tab's multi-exec / broadcast marker icon. */
+    static final String MIRROR_MARKER_STYLE_CLASS = "tab-mirror-marker";
 
     /**
      * Sets the tab's tooltip from what it shows: when the name comes from the shell, which connection

@@ -327,7 +327,7 @@ agent -plan <task>
 
 The base command name is configurable in **Settings > AI**. If you rename `agent`, korTTY derives the matching `-ask` and `-plan` commands automatically. The same settings page can make the command name case-insensitive and can disable the per-run setup dialog; when the dialog is disabled, korTTY uses the configured default profile.
 
-Only an agent command that you type or paste is recognized. Text that the server prints, for example a file shown with `cat` that contains a crafted escape sequence, cannot start an agent run.
+Only an agent command that you type or paste is recognized. Text that the server prints, for example a file shown with `cat` that contains a crafted escape sequence, cannot start an agent run. In [broadcast mode](terminal.md#broadcast-mode) the command starts a run only in the pane you type it in; the other panes receive it as an ordinary command line, and broadcast mode sends no keys into a pane while an agent run is active there.
 
 ### TAB completion and prompt history
 
