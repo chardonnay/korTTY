@@ -7,7 +7,8 @@ import org.testng.annotations.Test;
 import static com.google.common.truth.Truth.assertThat;
 
 /**
- * Regression coverage for korTTY's pinned SithTermFX 1.2.1 shortcut KEY_TYPED patch: the character
+ * Regression coverage for the shortcut KEY_TYPED fix (a korTTY patch until it shipped upstream in
+ * SithTermFX 1.2.3; this pins the released behaviour against a regressing upgrade): the character
  * half of a Meta/Cmd chord (e.g. the "d" of the Cmd+Shift+D dashboard accelerator) must never be
  * written to the pty, while plain typing and Windows AltGr input (reported as Ctrl+Alt) must.
  */
