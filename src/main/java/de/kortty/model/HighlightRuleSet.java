@@ -103,4 +103,41 @@ public class HighlightRuleSet {
     public void setRules(List<HighlightRule> rules) {
         this.rules = rules != null ? new ArrayList<>(rules) : new ArrayList<>();
     }
+
+    /** Whether {@code global-settings.xml} can hold every text of the set and of its rules ({@link XmlStorableText}). */
+    boolean isStorable() {
+        if (!XmlStorableText.isStorable(id) || !XmlStorableText.isStorable(name)) {
+            return false;
+        }
+        for (HighlightRule rule : getRules()) {
+            if (rule != null && !rule.isStorable()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The set as {@code global-settings.xml} can hold it: itself when the file can hold all of its text,
+     * otherwise a deep copy with the same ids, without the rules {@link HighlightRule#storable()} leaves out and
+     * without a name the file cannot store (such an id is replaced by a fresh one). The rule editor refuses
+     * such text with a message; this keeps every other way in from writing a file that no longer loads,
+     * which would put every setting back to its default.
+     */
+    HighlightRuleSet storable() {
+        if (isStorable()) {
+            return this;
+        }
+        HighlightRuleSet copy = new HighlightRuleSet(
+            XmlStorableText.isStorable(id) ? id : UUID.randomUUID().toString(),
+            XmlStorableText.isStorable(name) ? name : null,
+            null);
+        for (HighlightRule rule : getRules()) {
+            HighlightRule kept = rule != null ? rule.storable() : null;
+            if (kept != null) {
+                copy.rules.add(kept == rule ? new HighlightRule(rule) : kept);
+            }
+        }
+        return copy;
+    }
 }

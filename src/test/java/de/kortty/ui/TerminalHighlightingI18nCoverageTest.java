@@ -114,6 +114,8 @@ class TerminalHighlightingI18nCoverageTest {
                 withArgument.add(key);
             }
         }
+        // These name the invisible character ({0} = U+0007); without it the user could not find it.
+        withArgument.addAll(HighlightRuleValidator.UNSTORABLE_KEYS);
         for (String bundle : BUNDLES) {
             Properties localized = loadBundle(bundle);
             for (String key : withArgument) {

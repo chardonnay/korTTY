@@ -139,12 +139,18 @@ class HighlightTriggerDispatcherTest {
 
     @Test
     void theRuleNameIsCleanedAndShortened() {
-        CompiledHighlightSet.Rule longName = rule("\u001b]0;evil\u0007" + "N".repeat(200), "x", false);
+        CompiledHighlightSet.Rule longName = rule("‮evil " + "N".repeat(200), "x", false);
 
         String body = dispatch(UNSEEN, match(longName, "x")).getFirst().body();
 
-        assertThat(body).doesNotContain("\u001b");
+        assertThat(body).doesNotContain("‮");
         assertThat(body.length()).isAtMost(HighlightTriggerDispatcher.MAX_RULE_LABEL_CHARS);
+        // A control character in the name never gets this far: the settings file cannot hold it, so the
+        // rule is refused (HighlightRuleValidator.KEY_RULE_NAME_UNSTORABLE) and the terminal does not run it.
+        HighlightRule escape = new HighlightRule("x", false);
+        escape.setName("title\u001b]0;evil\u0007set");
+        escape.setAction(HighlightRule.Action.NOTIFY);
+        assertThat(CompiledHighlightSet.compile(new HighlightRuleSet("s", "S", List.of(escape))).rules()).isEmpty();
     }
 
     @Test
