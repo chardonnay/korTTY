@@ -201,6 +201,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox codingAgentAppBadgeCheck;
     private final CheckBox controlApiEnabledCheck;
     private final Label controlApiStatusLabel;
+    private final CheckBox mcpServerEnabledCheck;
+    private final CheckBox mcpWriteToolsCheck;
+    private final Label mcpHintLabel;
     // Keyword highlighting: master switch, full-screen programs, default rule set
     private final CheckBox terminalHighlightingEnabledCheck;
     private final CheckBox terminalHighlightAlternateScreenCheck;
@@ -1031,6 +1034,25 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         controlApiStatusLabel = new Label(controlApiStatusText());
         controlApiStatusLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         controlApiStatusLabel.setWrapText(true);
+
+        // The MCP server (kortty-cli mcp) rides on the Control API; both switches are off by default.
+        mcpServerEnabledCheck = new CheckBox(I18n.get("settings.controlApi.mcpServer"));
+        mcpServerEnabledCheck.setSelected(globalSettings != null && globalSettings.isMcpServerEnabled());
+        mcpServerEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.controlApi.mcpServer.tooltip")));
+        mcpWriteToolsCheck = new CheckBox(I18n.get("settings.controlApi.mcpWriteTools"));
+        mcpWriteToolsCheck.setSelected(globalSettings != null && globalSettings.isMcpWriteToolsEnabled());
+        mcpWriteToolsCheck.setTooltip(new Tooltip(I18n.get("settings.controlApi.mcpWriteTools.tooltip")));
+        // Locked only when the policy denies the MCP server; an allow leaves both switches with the
+        // user, so a merely managed setting does not grey them out.
+        boolean mcpPolicyAllowed = de.kortty.policy.PolicyManager.effective().mcpServerAllowed();
+        de.kortty.policy.PolicyUiSupport.lockIf(mcpServerEnabledCheck, !mcpPolicyAllowed);
+        de.kortty.policy.PolicyUiSupport.lockIf(mcpWriteToolsCheck, !mcpPolicyAllowed);
+        mcpHintLabel = new Label();
+        mcpHintLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        mcpHintLabel.setWrapText(true);
+        controlApiEnabledCheck.selectedProperty().addListener((obs, was, now) -> refreshMcpControls());
+        mcpServerEnabledCheck.selectedProperty().addListener((obs, was, now) -> refreshMcpControls());
+        refreshMcpControls();
         
         // Keyword highlighting. The defaults (on, not in full-screen programs, no default set) mean
         // nothing is highlighted until a set is chosen here, in a menu or with the shortcut.
@@ -1252,6 +1274,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         controlApiInfo.setWrapText(true);
         terminalGrid.add(controlApiInfo, 0, terminalRow++, 2, 1);
         terminalGrid.add(controlApiStatusLabel, 0, terminalRow++, 2, 1);
+        mcpServerEnabledCheck.setPadding(new Insets(0, 0, 0, 20));
+        terminalGrid.add(mcpServerEnabledCheck, 0, terminalRow++, 2, 1);
+        mcpWriteToolsCheck.setPadding(new Insets(0, 0, 0, 40));
+        terminalGrid.add(mcpWriteToolsCheck, 0, terminalRow++, 2, 1);
+        Label mcpInfo = new Label(I18n.get("settings.controlApi.mcpServer.info"));
+        mcpInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        mcpInfo.setWrapText(true);
+        mcpInfo.setPadding(new Insets(0, 0, 0, 20));
+        terminalGrid.add(mcpInfo, 0, terminalRow++, 2, 1);
+        mcpHintLabel.setPadding(new Insets(0, 0, 0, 20));
+        terminalGrid.add(mcpHintLabel, 0, terminalRow++, 2, 1);
 
         LazyTabContent.defer(terminalTab, () -> terminalGrid);
 
@@ -3646,6 +3679,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                         // the server re-reads the gate rather than being told what the user chose.
                         app.getControlApiServer().applyEnabledState();
                         controlApiStatusLabel.setText(controlApiStatusText());
+                        if (de.kortty.control.McpGate.verdict(app.getGlobalSettingsManager().getSettings(),
+                                de.kortty.policy.PolicyManager.effective())
+                                != de.kortty.control.McpGate.Verdict.READ_WRITE) {
+                            // With the write tools or the MCP server off, an earlier "allow for this
+                            // pane in this session" must not come back when they are switched on again.
+                            de.kortty.control.ControlApiWiring.revokeMcpGrants(app.getControlApiServer());
+                        }
                     }
                     app.applyLoggingSettings();
                     app.restartUpdateCheckService();
@@ -3884,6 +3924,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCodingAgentNotificationsEnabled(codingAgentNotificationsCheck.isSelected());
             globalSettings.setCodingAgentAppBadgeEnabled(codingAgentAppBadgeCheck.isSelected());
             globalSettings.setControlApiEnabled(controlApiEnabledCheck.isSelected());
+            boolean mcpAllowed = de.kortty.policy.PolicyManager.effective().mcpServerAllowed();
+            globalSettings.setMcpServerEnabled(mcpAllowed && mcpServerEnabledCheck.isSelected());
+            // Kept while the MCP server is off: the gate ignores it then, and ticking the server again
+            // restores the earlier choice instead of silently dropping it.
+            globalSettings.setMcpWriteToolsEnabled(mcpAllowed && mcpWriteToolsCheck.isSelected());
             globalSettings.setTerminalHighlightingEnabled(terminalHighlightingEnabledCheck.isSelected());
             globalSettings.setTerminalHighlightAlternateScreen(terminalHighlightAlternateScreenCheck.isSelected());
             globalSettings.setDefaultHighlightRuleSetId(
@@ -4175,6 +4220,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::isCodingAgentNotificationsEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_app_badge", gs::isCodingAgentAppBadgeEnabled, true));
             tracked.add(new TrackedSetting("terminal", "control_api_enabled", gs::isControlApiEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "mcp_server_enabled", gs::isMcpServerEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "mcp_write_tools_enabled", gs::isMcpWriteToolsEnabled, true));
             tracked.add(new TrackedSetting("terminal", "highlighting_enabled", gs::isTerminalHighlightingEnabled, true));
             tracked.add(new TrackedSetting("terminal", "highlighting_full_screen",
                 gs::isTerminalHighlightAlternateScreen, true));
@@ -7386,6 +7433,24 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
      * checkbox: the two can legitimately disagree — policy can deny the feature, and a start can fail
      * because another korTTY already owns the socket — and the user needs to see which it is.
      */
+    /**
+     * Greys out the MCP switches that cannot take effect and says why; reads the boxes as shown, so
+     * unticking the Control API greys them out before anything is saved.
+     */
+    private void refreshMcpControls() {
+        McpSettingsSupport.State state = McpSettingsSupport.state(controlApiEnabledCheck.isSelected(),
+            de.kortty.policy.PolicyManager.effective().mcpServerAllowed(), mcpServerEnabledCheck.isSelected());
+        if (state.forceOff()) {
+            mcpServerEnabledCheck.setSelected(false);
+            mcpWriteToolsCheck.setSelected(false);
+        }
+        mcpServerEnabledCheck.setDisable(!state.serverEditable());
+        mcpWriteToolsCheck.setDisable(!state.writeToolsEditable());
+        String hint = state.hintKey() == null ? "" : I18n.get(state.hintKey());
+        // Only the text changes: toggling managed inside the settings ScrollPane skips the relayout.
+        mcpHintLabel.setText(hint);
+    }
+
     private String controlApiStatusText() {
         de.kortty.KorTTYApplication application = de.kortty.KorTTYApplication.getInstance();
         de.kortty.control.ControlApiServer server =

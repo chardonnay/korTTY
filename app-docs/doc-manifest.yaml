@@ -487,6 +487,7 @@ pages:
       - src/main/java/de/kortty/ui/ControlApiUiBridge.java
       - src/main/java/de/kortty/ui/ControlApiPaneReader.java
       - src/main/java/de/kortty/ui/McpWriteConsentDialog.java
+      - src/main/java/de/kortty/ui/McpSettingsSupport.java
       - src/main/java/de/kortty/paste/PasteSanitizer.java
     diagrams: []
     screenshots: []

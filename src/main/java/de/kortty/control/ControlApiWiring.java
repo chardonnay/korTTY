@@ -70,6 +70,10 @@ public final class ControlApiWiring {
     private static final Map<ControlApiServer, ControlEventBus> BUSES =
         Collections.synchronizedMap(new WeakHashMap<>());
 
+    /** The MCP write consent of each assembled server, weak-keyed for the same reason as {@link #BUSES}. */
+    private static final Map<ControlApiServer, McpWriteConsent> CONSENTS =
+        Collections.synchronizedMap(new WeakHashMap<>());
+
     private ControlApiWiring() {
     }
 
@@ -129,12 +133,13 @@ public final class ControlApiWiring {
         ControlEventBus events = new ControlEventBus(eventTimer(), System::currentTimeMillis);
         ControlAuditSink sink = auditSink(notifier);
         CodingAgentActions controlActions = new CodingAgentActions(registry, panes, agentAuditSink(sink));
+        McpWriteConsent consent = new McpWriteConsent(mcpPrompter, sink);
         MethodRegistry methods = ControlVerbs.build(surface, ui, registry, controlActions, events,
-            sink, notifier, System::currentTimeMillis, appVersion, instanceId,
-            new McpWriteConsent(mcpPrompter, sink));
+            sink, notifier, System::currentTimeMillis, appVersion, instanceId, consent);
         ControlApiServer server = new ControlApiServer(configDir, probe, methods, gate, mcpGate,
             System::currentTimeMillis, appVersion, instanceId, events);
         BUSES.put(server, events);
+        CONSENTS.put(server, consent);
         return server;
     }
 
@@ -172,6 +177,18 @@ public final class ControlApiWiring {
      */
     public static ControlEventBus eventBus(ControlApiServer server) {
         return server == null ? null : BUSES.get(server);
+    }
+
+    /**
+     * Drops every "allow for this pane in this session" grant of a server {@link #create} built, so
+     * switching the MCP server or its write tools off and on again never revives an old grant.
+     * A server this class did not build is ignored. Any thread.
+     */
+    public static void revokeMcpGrants(ControlApiServer server) {
+        McpWriteConsent consent = server == null ? null : CONSENTS.get(server);
+        if (consent != null) {
+            consent.revokeAll();
+        }
     }
 
     /**

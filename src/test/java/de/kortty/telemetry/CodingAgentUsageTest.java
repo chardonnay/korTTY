@@ -99,6 +99,27 @@ class CodingAgentUsageTest {
             "coding_agent_kinds_detected", 1,
             "coding_agent_notifications", 1,
             "control_api_requests", 2,
-            "control_api_methods_used", 1);
+            "control_api_methods_used", 1,
+            "mcp_tool_calls", 0);
+    }
+
+    @Test
+    void mcpToolCallIsTrackedOncePerToolAndOutcomeAndCountedEveryTime() {
+        usage.mcpToolCalled("pane.read", McpToolTelemetry.Outcome.OK);
+        usage.mcpToolCalled("pane.read", McpToolTelemetry.Outcome.OK);
+        usage.mcpToolCalled("pane.run", McpToolTelemetry.Outcome.DENIED);
+        usage.mcpToolCalled("pane.run", McpToolTelemetry.Outcome.TIMEOUT);
+        usage.mcpToolCalled("agent.prompt", McpToolTelemetry.Outcome.REFUSED);
+        usage.mcpToolCalled(" ", McpToolTelemetry.Outcome.OK);
+
+        assertThat(tracked).containsExactly(
+            new Tracked(TelemetryEvents.MCP_TOOL_CALLED, Map.of("tool", "pane_read", "outcome", "ok")),
+            new Tracked(TelemetryEvents.MCP_TOOL_CALLED, Map.of("tool", "pane_run", "outcome", "denied")),
+            new Tracked(TelemetryEvents.MCP_TOOL_CALLED, Map.of("tool", "pane_run", "outcome", "timeout")),
+            new Tracked(TelemetryEvents.MCP_TOOL_CALLED, Map.of("tool", "other", "outcome", "refused")));
+
+        Map<String, Object> props = new HashMap<>();
+        usage.putSnapshotProps(props);
+        assertThat(props).containsEntry("mcp_tool_calls", 5);
     }
 }

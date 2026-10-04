@@ -26,6 +26,15 @@ It is **off by default** and has to be switched on per installation under **Sett
 
 Unticking the box stops the listener and deletes the socket immediately.
 
+Two more switches under the status line belong to [MCP clients](#mcp-clients), such as [`kortty-cli mcp`](cli.md#serving-mcp-clients), and both are off by default:
+
+| Switch | What it does |
+| --- | --- |
+| **MCP server** | Serves clients that declare themselves MCP clients, with the read-only method list, masked output and capped reads described below. |
+| **Allow write tools** | Also offers such clients `pane.send_text`, `pane.run` and `pane.send_keys`. korTTY still asks you before every write. It can only be changed while **MCP server** is ticked. |
+
+Both switches are greyed out while the Control API checkbox is unticked, with a hint that says so; they keep their values and take effect again when you tick the Control API. When the enterprise policy denies `mcp-server` or `control-api`, both are unticked and locked with the "Managed by your organization" hint. Saving with either switch off also drops every "allow for this pane in this session" answer, so switching the write tools on again later asks afresh.
+
 ## Where the endpoint lives
 
 Everything the API owns lives in its own directory, `~/.kortty/control/`, created with owner-only permissions (`0700`) **before** anything binds. The directory, not the socket file, is the real protection: a socket inode is created with the process umask, which on most systems is world-readable.

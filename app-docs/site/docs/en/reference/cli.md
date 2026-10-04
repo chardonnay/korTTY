@@ -110,7 +110,7 @@ With neither `--count` nor `--timeout`, the stream has no deadline at all and ru
 
 `kortty-cli mcp` turns the client into a [Model Context Protocol](https://modelcontextprotocol.io/) server, so an AI assistant that speaks MCP can read your korTTY panes. It speaks the MCP stdio transport only: the assistant's host starts `kortty-cli mcp` as a child process and exchanges newline-delimited JSON-RPC messages with it on stdin and stdout. There is no network listener; the process reaches korTTY over the same local Control API endpoint as every other command, and declares itself as an `mcp` client so korTTY applies the [MCP rules](control-api.md#mcp-clients) to every request.
 
-korTTY has to allow it: the Control API must be on, the separate **MCP server** switch must be on, and the [enterprise policy](enterprise-policy.md) must not deny `mcp-server`. While any of them says no, every tool call returns an error that says why, and the assistant can still list the tools.
+korTTY has to allow it: the Control API must be on, the separate **MCP server** switch under **Settings › Terminal › Control API** must be on, and the [enterprise policy](enterprise-policy.md) must not deny `mcp-server`. While any of them says no, every tool call returns an error that says why, and the assistant can still list the tools.
 
 Most MCP hosts are configured with a JSON entry like this one; put the full path of `kortty-cli` from the table above in `command` if it is not on your `PATH`:
 

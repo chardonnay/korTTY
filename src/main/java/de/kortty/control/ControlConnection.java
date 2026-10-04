@@ -311,10 +311,11 @@ public final class ControlConnection implements Runnable, AutoCloseable {
      */
     private boolean handle(String line) {
         JsonElement id = JsonNull.INSTANCE;
+        String method = null;
         try {
             JsonObject frame = ControlJson.parseObjectStrict(line);
             id = requireId(frame);
-            String method = requireMethod(frame);
+            method = requireMethod(frame);
             JsonObject params = params(frame);
             requireEnabled();
             if (AUTH_METHOD.equals(method)) {
@@ -339,19 +340,60 @@ public final class ControlConnection implements Runnable, AutoCloseable {
             }
             de.kortty.telemetry.CodingAgentUsage.get().controlRequestHandled(method, current.client(),
                 current.isMcp());
+            if (current.isMcp()) {
+                de.kortty.telemetry.CodingAgentUsage.get().mcpToolCalled(method,
+                    de.kortty.telemetry.McpToolTelemetry.Outcome.OK);
+            }
             send(id, result);
             return true;
         } catch (ControlApiException e) {
+            trackMcpFailure(method, mcpOutcome(e));
             // A refused request is answered and the connection stays usable; only a line the codec
             // could not delimit (message_too_large, raised in pumpRequests) closes it.
             enqueue(ControlFrame.error(id, e.toWire()));
             return true;
         } catch (RuntimeException e) {
+            trackMcpFailure(method, de.kortty.telemetry.McpToolTelemetry.Outcome.FAILED);
             LOG.error("control-api {}: request handling failed", connectionId, e);
             enqueue(ControlFrame.error(id, ControlApiError.of(ControlErrorCode.INTERNAL_ERROR,
                 "The request failed; see the korTTY log")));
             return true;
         }
+    }
+
+    /**
+     * Counts a failed request of an authenticated MCP session for {@code mcp_tool_called}; the
+     * handshake itself is not a tool call and is never counted.
+     */
+    private void trackMcpFailure(String method, de.kortty.telemetry.McpToolTelemetry.Outcome outcome) {
+        ControlSession current = session;
+        if (!authenticated || current == null || !current.isMcp() || method == null
+                || AUTH_METHOD.equals(method)) {
+            return;
+        }
+        de.kortty.telemetry.CodingAgentUsage.get().mcpToolCalled(method, outcome);
+    }
+
+    /**
+     * How a refused MCP request is reported: gate, policy, allowlist and pane guards are
+     * {@code refused}; a denied or unanswerable consent prompt is {@code denied}; a prompt nobody
+     * answered in time and a wait that ran out are {@code timeout}; everything else is {@code failed}.
+     */
+    static de.kortty.telemetry.McpToolTelemetry.Outcome mcpOutcome(ControlApiException e) {
+        if (e == null || e.code() == null) {
+            return de.kortty.telemetry.McpToolTelemetry.Outcome.FAILED;
+        }
+        return switch (e.code()) {
+            case MCP_SERVER_DISABLED, METHOD_NOT_ALLOWED_FOR_MCP, BLOCKED_BY_POLICY,
+                 CONTROL_API_DISABLED, MCP_WRITE_REFUSED ->
+                de.kortty.telemetry.McpToolTelemetry.Outcome.REFUSED;
+            case MCP_WRITE_DENIED -> McpWriteConsent.REASON_TIMEOUT.equals(
+                    e.data() == null ? null : e.data().get("reason"))
+                ? de.kortty.telemetry.McpToolTelemetry.Outcome.TIMEOUT
+                : de.kortty.telemetry.McpToolTelemetry.Outcome.DENIED;
+            case TIMEOUT -> de.kortty.telemetry.McpToolTelemetry.Outcome.TIMEOUT;
+            default -> de.kortty.telemetry.McpToolTelemetry.Outcome.FAILED;
+        };
     }
 
     private boolean authenticate(JsonElement id, JsonObject params) throws ControlApiException {

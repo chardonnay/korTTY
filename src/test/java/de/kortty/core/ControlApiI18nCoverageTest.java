@@ -37,6 +37,14 @@ class ControlApiI18nCoverageTest {
         "settings.controlApi.status.blockedByPolicy",
         "settings.controlApi.status.running",
         "settings.controlApi.status.failed",
+        // The MCP server switches under the status line (McpSettingsSupport)
+        "settings.controlApi.mcpServer",
+        "settings.controlApi.mcpServer.tooltip",
+        "settings.controlApi.mcpWriteTools",
+        "settings.controlApi.mcpWriteTools.tooltip",
+        "settings.controlApi.mcpServer.info",
+        "settings.controlApi.mcpServer.needsControlApi",
+        "settings.controlApi.mcpServer.blockedByPolicy",
         // Runtime: the one desktop notification per run that makes a takeover impossible to miss
         "controlApi.notify.takeover.title",
         "controlApi.notify.takeover.body",
