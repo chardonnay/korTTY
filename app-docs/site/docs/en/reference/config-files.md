@@ -152,6 +152,7 @@ Global application preferences and defaults.
 - `connectionColorBorderEnabled`: whether the terminal of a connection with a [tab color](../features/connections.md#tab-color) gets a frame in that color (on by default)
 - `tabTitleFromShellEnabled`: whether a terminal tab shows the [title its shell sets](../features/terminal.md#title-from-the-shell) in place of the connection's name (on by default)
 - `tabSwitchMostRecentFirst`: whether ++ctrl+tab++ switches tabs in the order they were last used instead of their [tab bar order](settings/window.md#tabs) (off by default)
+- `recentProjectPaths`: the absolute paths of the project files you opened or saved last, newest first, at most 10, which [*File → Open Recent*](../features/projects.md#open-recent) lists; `openRecentClearedAt`: when you last chose **Clear List** there (milliseconds since 1970, `0` for never)
 - Docked live session-journal panel: placement (hidden/left/right) and width
 - JobScheduler status display preference
 - Last ASCII Art dialog preview zoom level

@@ -855,6 +855,21 @@ public class GlobalSettings {
     @XmlElement(name = "question")
     private java.util.List<String> guideAskHistory;
 
+    /**
+     * File → Open Recent → Projects: the project files opened or saved last, as absolute paths, newest
+     * first (at most 10, see {@code de.kortty.core.RecentProjects}). Part of configuration backups.
+     */
+    @XmlElementWrapper(name = "recentProjectPaths")
+    @XmlElement(name = "path")
+    private java.util.List<String> recentProjectPaths;
+
+    /**
+     * When File → Open Recent → Clear List was chosen last, in epoch milliseconds; 0 for never.
+     * Connections used and project-folder files changed before then stay out of File → Open Recent.
+     */
+    @XmlElement
+    private long openRecentClearedAt = 0L;
+
     /** Recent extra instructions from the workflow-script generator (max 10, newest first). */
     @XmlElementWrapper(name = "workflowInstructionsHistory")
     @XmlElement(name = "entry")
@@ -3363,6 +3378,24 @@ public class GlobalSettings {
         while (history.size() > 10) {
             history.remove(history.size() - 1);
         }
+    }
+
+    /** The project files File → Open Recent remembers, newest first; never {@code null}, a copy. */
+    public java.util.List<String> getRecentProjectPaths() {
+        return recentProjectPaths == null ? java.util.List.of()
+                : recentProjectPaths.stream().filter(java.util.Objects::nonNull).toList();
+    }
+
+    public void setRecentProjectPaths(java.util.List<String> recentProjectPaths) {
+        this.recentProjectPaths = recentProjectPaths == null ? null : new java.util.ArrayList<>(recentProjectPaths);
+    }
+
+    public long getOpenRecentClearedAt() {
+        return openRecentClearedAt;
+    }
+
+    public void setOpenRecentClearedAt(long openRecentClearedAt) {
+        this.openRecentClearedAt = Math.max(0L, openRecentClearedAt);
     }
 
     public java.util.List<String> getWorkflowInstructionsHistory() {

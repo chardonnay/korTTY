@@ -82,7 +82,7 @@ pages:
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md
     owns_i18n: ["menu."]
-    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/PaneMenuSupport.java, src/main/java/de/kortty/ui/MultiExecMenuSupport.java]
+    owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/PaneMenuSupport.java, src/main/java/de/kortty/ui/MultiExecMenuSupport.java, src/main/java/de/kortty/ui/OpenRecentMenuSupport.java]
     screenshots:
       - main/menu-tools.png
       - main/menu-ai.png
@@ -224,7 +224,7 @@ pages:
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
     owns_i18n: [menu.connections., connEdit.tag, connEdit.encoding, connEdit.terminalBehavior, connEdit.tabColor, connManager.assignTag, connManager.removeTag, connExport.selection, quickConnect.tag, dialog.passwordVaultLocked]
-    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionAuthResolver.java, src/main/java/de/kortty/core/ConnectionColorSupport.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/core/TerminalEncodingSupport.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
+    owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionAuthResolver.java, src/main/java/de/kortty/core/ConnectionColorSupport.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/RecentConnections.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/core/TerminalEncodingSupport.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
     last_synced_ref: "ab5f2d9d"
   - path: app-docs/site/docs/en/features/terminal.md
@@ -275,7 +275,7 @@ pages:
     last_synced_ref: "38bcd2b4"
   - path: app-docs/site/docs/en/features/projects.md
     owns_i18n: [project.]
-    owns_code: [src/main/java/de/kortty/model/Project.java, src/main/java/de/kortty/model/WindowState.java, src/main/java/de/kortty/model/SessionState.java, src/main/java/de/kortty/model/SplitPaneState.java, src/main/java/de/kortty/core/ProjectManager.java, src/main/java/de/kortty/persistence/HistoryStorage.java, src/main/java/de/kortty/ui/RestoredHistoryReplay.java, src/main/java/de/kortty/ui/ProjectSettingsDialog.java, src/main/java/de/kortty/ui/ProjectPreviewDialog.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/SftpSessionRestoreSupport.java, src/main/java/de/kortty/ui/FileEditorTab.java, src/main/java/de/kortty/ui/UnsavedChangesClose.java]
+    owns_code: [src/main/java/de/kortty/model/Project.java, src/main/java/de/kortty/model/WindowState.java, src/main/java/de/kortty/model/SessionState.java, src/main/java/de/kortty/model/SplitPaneState.java, src/main/java/de/kortty/core/ProjectManager.java, src/main/java/de/kortty/persistence/HistoryStorage.java, src/main/java/de/kortty/ui/RestoredHistoryReplay.java, src/main/java/de/kortty/ui/ProjectSettingsDialog.java, src/main/java/de/kortty/ui/ProjectPreviewDialog.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/SftpSessionRestoreSupport.java, src/main/java/de/kortty/ui/FileEditorTab.java, src/main/java/de/kortty/ui/UnsavedChangesClose.java, src/main/java/de/kortty/core/RecentProjects.java]
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/teamwork.md
     owns_i18n: []

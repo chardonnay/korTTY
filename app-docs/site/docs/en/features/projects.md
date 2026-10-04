@@ -27,6 +27,18 @@ Projects are `.kortty` files saved wherever you choose in the save dialog, for e
    - Project metadata (name, description, last modified)
 4. Click *Open* to load the project.
 
+## Open Recent
+
+*File → Open Recent* takes you back to what you used last without the file dialog or the Connection Manager:
+
+- **Connections** — the saved connections you used last, up to 10, the one used last first: the same connections as the buttons at the top of Quick Connect, which count what you open from Quick Connect, the [command palette](command-palette.md), **Open Group** and this menu (a connection opened from the Connection Manager is not counted). Each entry shows the connection's name and `user@host`. Choosing one opens a tab for it that signs in like **Connect** in the Connection Manager (see [Signing in](connections.md#signing-in)), with the [server access policy](../reference/enterprise-policy.md#server-access-control) checked first, and counts as a use, so the connection moves to the top.
+- **Projects** — the project files you opened or saved last, up to 10, newest first, followed by the other `.kortty` files in `~/.kortty/projects`, the one changed last first. Each entry shows the file name and its folder, with your home folder written as `~`. Choosing one opens the project like *File → Open Project…*: editors with unsaved changes ask first, and the project replaces the tabs of the window. A project file that was moved or deleted is left out of the menu.
+- **Clear List** empties the menu. It deletes no connection and no project file: a connection comes back once you use it again, a project once you open or save it.
+
+The menu is rebuilt every time you open the *File* menu. On macOS, where korTTY keeps running after you close its last window, choosing an entry from the menu bar opens it in a new window.
+
+korTTY keeps the paths of your recent projects, and the time you last chose **Clear List**, in its settings file `~/.kortty/global-settings.xml` (see [Configuration files](../reference/config-files.md#global-settingsxml)). They are therefore part of every [configuration backup](backup.md) and come back when you restore one. Only the paths are kept, never the content of a project, and the connections are not stored a second time: the list follows when each saved connection was last used.
+
 ## What Gets Saved
 
 A project captures the complete state of your workspace:

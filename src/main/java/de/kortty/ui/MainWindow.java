@@ -61,6 +61,8 @@ import de.kortty.core.FailingAiService;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.ProjectManager;
+import de.kortty.core.RecentConnections;
+import de.kortty.core.RecentProjects;
 import de.kortty.core.RemoteTextFileSelectionSupport;
 import de.kortty.core.SftpFileTransferService;
 import de.kortty.core.SnippetLanguageSupport;
@@ -397,6 +399,28 @@ public class MainWindow {
     private static final int RECENTLY_CLOSED_NAMES = 3;
 
     /**
+     * The projects File › Open Recent lists, newest first, as {@link #refreshRecentProjects} found them
+     * last. Read and written on the FX thread only.
+     */
+    private static List<Path> recentProjects = List.of();
+    /**
+     * Counts the changes to the remembered projects (opened, saved, cleared), so a refresh that started
+     * before one of them cannot put back what it changed. FX thread only.
+     */
+    private static long recentProjectsGeneration;
+    /**
+     * Looks for the recent project files off the FX thread: a remembered file can sit on a network
+     * share that takes long to answer, which must not freeze the File menu. One daemon thread, made
+     * when the first refresh runs.
+     */
+    private static final java.util.concurrent.ExecutorService RECENT_PROJECTS_LOOKUP =
+        java.util.concurrent.Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "kortty-open-recent");
+            thread.setDaemon(true);
+            return thread;
+        });
+
+    /**
      * Mints {@link #windowId}. A counter rather than the list position: a window id that renumbered
      * itself whenever an earlier window closed would silently re-point every id a script is holding.
      */
@@ -414,6 +438,8 @@ public class MainWindow {
     private final List<MenuItem> reopenClosedTabMenuItems = new ArrayList<>();
     /** File › Recently Closed in every menu bar of this window, rebuilt whenever the history changes. */
     private final List<Menu> recentlyClosedMenus = new ArrayList<>();
+    /** File › Open Recent in every menu bar of this window, rebuilt whenever the File menu opens. */
+    private final List<Menu> openRecentMenus = new ArrayList<>();
     private Runnable powerManagementStateListener;
     private static volatile boolean applicationQuitRequested = false;
     private static volatile boolean schedulerDrainApproved = false;
@@ -1071,6 +1097,8 @@ public class MainWindow {
         syncPaneMenuItems();
         // The history belongs to the application: a new window offers what other windows closed.
         syncRecentlyClosedMenus();
+        syncOpenRecentMenus();
+        refreshRecentProjects();
         applyMainWindowThemeFromGlobalSettings();
         syncAiFeaturesMenuItemsEnabled();
         startJobSchedulerStatusUpdates();
@@ -1608,6 +1636,11 @@ public class MainWindow {
         openProject.setAccelerator(new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN));
         openProject.setOnAction(e -> openProject());
 
+        // Rebuilt from the connections used last and the recent projects whenever the File menu opens
+        // (syncOpenRecentMenus), so it stays out of the action harvest, where its entries would go stale.
+        Menu openRecent = ActionIds.exclude(new Menu(I18n.get("menu.file.openRecent")));
+        openRecentMenus.add(openRecent);
+
         MenuItem saveProject = menuItem("menu.file.saveProject");
         saveProject.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
         saveProject.setOnAction(e -> saveProject());
@@ -1630,13 +1663,17 @@ public class MainWindow {
             renameTab.setDisable(!(selected instanceof TerminalTab));
             syncTabCloseItems(selected, closeOthers, closeToRight);
             syncRecentlyClosedMenus();
+            // From what is known now; the project files are looked up in the background, and the
+            // menu follows if they changed.
+            syncOpenRecentMenus();
+            refreshRecentProjects();
         });
 
         fileMenu.getItems().addAll(
             newTab, renameTab, closeTab, closeOthers, closeToRight, closeAllTabs,
             reopenClosedTab, recentlyClosed, new SeparatorMenuItem(),
             newWindow, closeWindow, new SeparatorMenuItem(),
-            openProject, saveProject, new SeparatorMenuItem(),
+            openProject, openRecent, saveProject, new SeparatorMenuItem(),
             createBackup, importBackup, new SeparatorMenuItem(), quit);
         return fileMenu;
     }
@@ -4669,6 +4706,151 @@ public class MainWindow {
         return entry.window() ? I18n.get("menu.file.recentlyClosed.window", names) : names;
     }
 
+    // ---- File › Open Recent -------------------------------------------------------------------
+
+    /** {@link #syncOpenRecentMenus()} for every window: the lists are shared, the menus are not. */
+    private static void syncOpenRecentMenusInAllWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            window.syncOpenRecentMenus();
+        }
+    }
+
+    /**
+     * Rebuilds File › Open Recent in every menu bar of this window: the saved connections used last
+     * and the recent projects as {@link #refreshRecentProjects} found them last. Reads no file.
+     */
+    private void syncOpenRecentMenus() {
+        if (openRecentMenus.isEmpty()) {
+            return;
+        }
+        List<ServerConnection> connections = List.of();
+        if (app != null && app.getConfigManager() != null && app.getGlobalSettingsManager() != null) {
+            connections = RecentConnections.top(app.getConfigManager().getConnections(),
+                OpenRecentMenuSupport.CONNECTION_COUNT,
+                app.getGlobalSettingsManager().getSettings().getOpenRecentClearedAt());
+        }
+        Path home = userHome();
+        for (Menu menu : openRecentMenus) {
+            menu.getItems().setAll(OpenRecentMenuSupport.items(connections, recentProjects, home,
+                new OpenRecentMenuSupport.Commands() {
+                    @Override
+                    public void connect(ServerConnection connection) {
+                        openRecentConnection(connection);
+                    }
+
+                    @Override
+                    public void openProject(Path project) {
+                        openProjectFile(project);
+                    }
+
+                    @Override
+                    public void clear() {
+                        clearOpenRecent();
+                    }
+                }));
+        }
+    }
+
+    private static Path userHome() {
+        String home = System.getProperty("user.home");
+        try {
+            return home == null || home.isBlank() ? null : Path.of(home).toAbsolutePath().normalize();
+        } catch (java.nio.file.InvalidPathException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Looks up the recent projects off the FX thread ({@link RecentProjects#list}): the remembered
+     * project files that still exist, then those of the project folder. When the result differs from
+     * what the menus show, every window's File › Open Recent follows.
+     */
+    private void refreshRecentProjects() {
+        if (app == null || app.getGlobalSettingsManager() == null || projectManager == null) {
+            return;
+        }
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        List<String> remembered = settings.getRecentProjectPaths();
+        long clearedAt = settings.getOpenRecentClearedAt();
+        long generation = recentProjectsGeneration;
+        ProjectManager projects = projectManager;
+        try {
+            RECENT_PROJECTS_LOOKUP.execute(() -> {
+                List<Path> folder;
+                try {
+                    folder = projects.listProjects();
+                } catch (IOException | RuntimeException e) {
+                    logger.debug("Could not list the project folder for Open Recent: {}", e.getMessage());
+                    folder = List.of();
+                }
+                List<Path> found = RecentProjects.list(remembered, folder, clearedAt, RecentProjects.MAX_ENTRIES);
+                Platform.runLater(() -> {
+                    if (generation == recentProjectsGeneration && !found.equals(recentProjects)) {
+                        recentProjects = found;
+                        syncOpenRecentMenusInAllWindows();
+                    }
+                });
+            });
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            logger.debug("Open Recent lookup rejected: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Remembers {@code project} as the project opened or saved last for File › Open Recent, and saves
+     * the settings in the background.
+     */
+    private void rememberRecentProject(Path project) {
+        if (app == null || app.getGlobalSettingsManager() == null || project == null) {
+            return;
+        }
+        try {
+            de.kortty.core.GlobalSettingsManager manager = app.getGlobalSettingsManager();
+            GlobalSettings settings = manager.getSettings();
+            settings.setRecentProjectPaths(RecentProjects.remember(settings.getRecentProjectPaths(), project));
+            manager.scheduleSave();
+        } catch (RuntimeException e) {
+            // The project opened or was saved all the same; only the menu entry is missing.
+            logger.warn("Could not remember the recent project {}: {}", project.getFileName(), e.getMessage());
+        }
+        recentProjectsGeneration++;
+        refreshRecentProjects();
+    }
+
+    /**
+     * File › Open Recent › a connection: opens a tab for the saved connection as it is now, signing in
+     * like Connect in the Connection Manager (the server policy first), and counts it as a use. A
+     * connection deleted since the menu was built is dropped from the menu instead.
+     */
+    private void openRecentConnection(ServerConnection connection) {
+        ServerConnection current = connection.getId() != null
+            ? app.getConfigManager().getConnectionById(connection.getId())
+            : null;
+        if (current == null) {
+            syncOpenRecentMenus();
+            return;
+        }
+        connectSavedConnection(current, true, tab -> { });
+    }
+
+    /**
+     * File › Open Recent › Clear List: forgets the remembered projects and hides the connections used
+     * and the project-folder files changed until now. Saved connections and project files stay.
+     */
+    private void clearOpenRecent() {
+        if (app == null || app.getGlobalSettingsManager() == null) {
+            return;
+        }
+        de.kortty.core.GlobalSettingsManager manager = app.getGlobalSettingsManager();
+        GlobalSettings settings = manager.getSettings();
+        settings.setRecentProjectPaths(List.of());
+        settings.setOpenRecentClearedAt(System.currentTimeMillis());
+        manager.scheduleSave();
+        recentProjectsGeneration++;
+        recentProjects = List.of();
+        syncOpenRecentMenusInAllWindows();
+    }
+
     /**
      * Releases a tab's native and timer resources on the programmatic close paths (Cmd+W,
      * close-all, dashboard, opening a project, closing the window), where JavaFX fires neither
@@ -6735,20 +6917,32 @@ public class MainWindow {
         
         File file = fileChooser.showOpenDialog(stage);
         if (file != null) {
-            try {
-                Project project = projectManager.loadProject(file.toPath());
-                // Loading replaces every tab: hosted snippet editors and file editors ask about
-                // unsaved work first.
-                if (!confirmHostedTabsClose()) {
-                    return;
-                }
-                loadProject(project);
-                Telemetry.track(TelemetryEvents.PROJECT_ACTION, Map.of("action", "open"));
-                updateStatus(I18n.get("status.projectLoaded", project.getName()));
-            } catch (Exception e) {
-                logger.error("Failed to load project", e);
-                showError(I18n.get("error.title"), I18n.get("error.projectLoadFailed", e.getMessage()));
+            openProjectFile(file.toPath());
+        }
+    }
+
+    /**
+     * Opens the project file {@code path} in this window, replacing its tabs (unsaved editors ask
+     * first): File › Open Project… after the file dialog, and File › Open Recent. A project that
+     * opened is remembered for File › Open Recent.
+     */
+    private void openProjectFile(Path path) {
+        try {
+            Project project = projectManager.loadProject(path);
+            // Loading replaces every tab: hosted snippet editors and file editors ask about
+            // unsaved work first.
+            if (!confirmHostedTabsClose()) {
+                return;
             }
+            loadProject(project);
+            rememberRecentProject(path);
+            Telemetry.track(TelemetryEvents.PROJECT_ACTION, Map.of("action", "open"));
+            updateStatus(I18n.get("status.projectLoaded", project.getName()));
+        } catch (Exception e) {
+            logger.error("Failed to load project", e);
+            showError(I18n.get("error.title"), I18n.get("error.projectLoadFailed", e.getMessage()));
+            // A file gone since the menu was built leaves File › Open Recent.
+            refreshRecentProjects();
         }
     }
     
@@ -6776,6 +6970,7 @@ public class MainWindow {
                 
                 if (result.isPresent()) {
                     projectManager.saveProject(result.get(), file.toPath());
+                    rememberRecentProject(file.toPath());
                     Telemetry.track(TelemetryEvents.PROJECT_ACTION, Map.of("action", "save"));
                     updateStatus(I18n.get("status.projectSaved", file.getName()));
                 }

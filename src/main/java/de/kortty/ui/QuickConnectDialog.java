@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import com.sithtermfx.core.emulator.EmulationType;
+import de.kortty.core.RecentConnections;
 import de.kortty.core.TerminalEmulationSupport;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.ConnectionSettings;
@@ -279,11 +280,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private VBox createTopConnectionsSection() {
         // Show the N last used connections, ordered by last used (most recent first).
         int maxCount = Math.max(1, topConnectionsCount);
-        List<ServerConnection> recentConnections = savedConnections.stream()
-                .filter(c -> c.getLastUsed() > 0)
-                .sorted((a, b) -> Long.compare(b.getLastUsed(), a.getLastUsed()))
-                .limit(maxCount)
-                .collect(Collectors.toList());
+        List<ServerConnection> recentConnections = RecentConnections.top(savedConnections, maxCount);
         
         if (recentConnections.isEmpty()) {
             return null;
