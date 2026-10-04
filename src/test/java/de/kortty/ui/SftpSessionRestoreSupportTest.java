@@ -236,14 +236,17 @@ class SftpSessionRestoreSupportTest {
         String window = read("src/main/java/de/kortty/ui/MainWindow.java");
         String restore = window.substring(window.indexOf("case SFTP_MANAGER -> {"),
             window.indexOf("case FILE_EDITOR -> {"));
-        assertThat(restore).contains("SftpSessionRestoreSupport.findConnection(");
+        // The connection is looked up when the tab is sorted (by id, else by an older project's name).
+        String lookup = window.substring(window.indexOf("private ServerConnection savedConnectionOf(SessionState sessionState) {"));
+        lookup = lookup.substring(0, lookup.indexOf("\n    }\n"));
+        assertThat(lookup).contains("SftpSessionRestoreSupport.findConnection(");
         assertThat(restore).contains("sessionState.getSftpLocalPath(), sessionState.getSftpRemotePath()");
 
         // Restored remote editor and image tabs open their session like an SFTP tab and own it.
         String editorAndImage = window.substring(window.indexOf("case FILE_EDITOR -> {"),
             window.indexOf("private final class WindowRestore {"));
         assertThat(editorAndImage).doesNotContain("new de.kortty.core.SFTPSession(");
-        assertThat(editorAndImage).contains("openOwnedSftpSession(connection, password)");
+        assertThat(editorAndImage).contains("openOwnedSftpSession(connection, password, temporaryKey)");
         assertThat(editorAndImage).contains("restore.lateTabReady(owned, index, ");
         String lateTab = window.substring(window.indexOf("void lateTabReady(de.kortty.core.SFTPSession session, int index,"));
         lateTab = lateTab.substring(0, lateTab.indexOf("\n        }\n"));

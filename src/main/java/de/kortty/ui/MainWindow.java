@@ -347,6 +347,15 @@ public class MainWindow {
     private WindowGeometry lastNormalGeometry;
     /** The latest restore of this window's tabs from a project; see {@link WindowRestore}. */
     private WindowRestore activeRestore;
+    /**
+     * The tabs of that restore that did not open right away, which the restore bar lists; see
+     * {@link #restoreOrDeferSavedTab}.
+     */
+    private final RestoreAttention<DeferredTab> restoreAttention = new RestoreAttention<>();
+    /** The restore bar above the status line; hidden while no tab waits. */
+    private RestoreAttentionBar restoreAttentionBar;
+    /** Whether Connect… on the restore bar is asking about a waiting tab right now. */
+    private boolean connectingDeferredTabs;
     private javafx.animation.PauseTransition journalLiveWidthSaveDelay;
     private CheckMenuItem showJournalLiveLeftMenuItem;
     private CheckMenuItem showJournalLiveRightMenuItem;
@@ -842,6 +851,7 @@ public class MainWindow {
         installCodingAgentStatusStrip(statusSpacer);
         installMultiExecStatusBar(statusSpacer);
         statusBar = new VBox(statusRow);
+        installRestoreAttentionBar();
         statusBar.getStyleClass().add("status-bar");
         statusLabel.getStyleClass().add("status-label");
         statusBar.setStyle("-fx-padding: 5; -fx-background-color: #2d2d2d;");
@@ -1878,12 +1888,14 @@ public class MainWindow {
 
     /**
      * Called by {@link de.kortty.KorTTYApplication#onVaultUnlocked()} for every open window once the
-     * vault was unlocked after startup.
+     * vault was unlocked after startup. The project tabs this window's restore bar lists as waiting
+     * for the vault open now (see {@link #retryTabsWaitingForVault}).
      */
     public void onVaultUnlocked() {
         syncUnlockVaultMenuItems();
         updateDashboard();
         updateStatus(I18n.get("status.vaultUnlocked"));
+        retryTabsWaitingForVault();
     }
 
     private void installPowerManagementStateListener() {
@@ -7266,6 +7278,7 @@ public class MainWindow {
         if (windows.isEmpty()) {
             firstWindow.activeRestore = null;
             firstWindow.closeAllTabs();
+            firstWindow.clearRestoreAttention();
             return;
         }
         firstWindow.restoreWindowState(windows.get(0), project, true);
@@ -7286,7 +7299,9 @@ public class MainWindow {
     /**
      * Gives this window the saved {@code windowState} of {@code project}: replaces its tabs, reopens
      * the saved tabs in their saved order, sorts them into their tab groups once, sets the dashboard
-     * and selects the tab that was active, once it is there (see {@link WindowRestore}). FX thread.
+     * and selects the tab that was active, once it is there (see {@link WindowRestore}). Tabs that
+     * cannot open without the user are listed in the restore bar (see {@link #restoreOrDeferSavedTab}).
+     * FX thread.
      *
      * @param moveWindow whether to move this window to the saved bounds; a window opened for the
      *     project was shown there already
@@ -7294,10 +7309,12 @@ public class MainWindow {
     private void restoreWindowState(WindowState windowState, Project project, boolean moveWindow) {
         // Close existing tabs
         closeAllTabs();
+        // The tabs an earlier project left waiting go with its tabs.
+        restoreAttention.clear();
         if (moveWindow) {
             applyProjectGeometry(windowState.getGeometry());
         }
-        
+
         List<SessionState> tabs = windowState.getTabs() != null ? windowState.getTabs() : List.of();
         List<String> keys = ProjectRestoreOrder.tabKeys(tabs);
         WindowRestore restore = new WindowRestore(keys, ProjectRestoreOrder.activeTabKey(windowState, keys));
@@ -7305,11 +7322,12 @@ public class MainWindow {
         for (int index = 0; index < tabs.size(); index++) {
             SessionState sessionState = tabs.get(index);
             if (sessionState != null) {
-                restoreSavedTab(sessionState, index, project, restore);
+                restoreOrDeferSavedTab(sessionState, index, project, restore);
             }
         }
         restore.syncTabsDone();
-        
+        refreshRestoreAttentionBar();
+
         // Restore dashboard state from project (visibility)
         if (windowState.getDashboardVisible() != null) {
             toggleDashboard(windowState.getDashboardVisible());
@@ -7337,140 +7355,196 @@ public class MainWindow {
     }
 
     /**
-     * Reopens the tab saved at {@code index} in this window. Tabs that open right away are handed to
-     * {@code restore} at once; a remote file editor or image viewer tab is announced as pending and
-     * arrives once its file has been downloaded, or never.
+     * A tab of an opened project that did not open right away and waits in the restore bar: what
+     * {@link #restoreSavedTab} needs to open it later, with the restore it belongs to.
      */
-    private void restoreSavedTab(SessionState sessionState, int index, Project project, WindowRestore restore) {
-        SessionState.TabType tabType = sessionState.getTabType();
-        if (tabType == null) {
-            tabType = SessionState.TabType.TERMINAL; // Backward compatibility
+    private record DeferredTab(SessionState state, int index, Project project, WindowRestore restore) {
+    }
+
+    /**
+     * Reopens the tab saved at {@code index} in this window when it can open without asking anything,
+     * and lists it in the restore bar otherwise (see {@link TabRestoreTriage}): a local shell, SSH key
+     * auth, a stored password, a valid temporary key and an existing local file open right away; a
+     * password that is not stored, an expired temporary key, a password in the locked vault, a server
+     * the policy blocks and a connection or file that is gone wait in the bar, instead of being
+     * skipped silently or asked about in a dialog per tab. Without Auto-Reconnect, tabs that open
+     * over a connection are skipped, as before.
+     */
+    private void restoreOrDeferSavedTab(SessionState sessionState, int index, Project project, WindowRestore restore) {
+        if (!project.isAutoReconnect() && TabRestoreTriage.opensOverConnection(sessionState)) {
+            // TODO: Create read-only tab with history display only (no connection)
+            logger.info("Auto-reconnect disabled, skipping the {} tab at position {}",
+                    TabRestoreTriage.tabType(sessionState), index);
+            return;
         }
-        
+        TabRestoreTriage.Outcome outcome = classifySavedTab(sessionState);
+        if (outcome == null) {
+            return;
+        }
+        if (outcome.isReady()) {
+            restoreSavedTab(sessionState, index, project, restore, outcome.auth());
+            return;
+        }
+        ServerConnection connection = outcome.connection();
+        String label = TabRestoreTriage.label(sessionState, connection, index, I18n::get);
+        logger.info("The {} tab at position {} waits in the restore bar: {}",
+                TabRestoreTriage.tabType(sessionState), index, outcome);
+        restoreAttention.add(new RestoreAttention.Item<>(new DeferredTab(sessionState, index, project, restore),
+                index, label, connection != null ? connection.getId() : null, outcome));
+    }
+
+    /**
+     * How a saved tab can come back, decided without asking anything: the server policy first, then
+     * the sign-in of {@link ConnectionAuthResolver} (non-interactive), or for a local file whether it
+     * still exists.
+     *
+     * @return the outcome, or {@code null} for a file tab that names no file
+     */
+    private TabRestoreTriage.Outcome classifySavedTab(SessionState sessionState) {
+        return TabRestoreTriage.classify(sessionState, this::savedConnectionOf, connectionAuthResolver(),
+                MainWindow::localFileExists);
+    }
+
+    /**
+     * The saved connection a restored tab opens over, or {@code null} when it no longer exists. An
+     * SFTP Manager tab of an older project names its connection by name (see
+     * {@link SftpSessionRestoreSupport#findConnection}).
+     */
+    private ServerConnection savedConnectionOf(SessionState sessionState) {
+        String connectionId = sessionState.getConnectionId();
+        if (connectionId == null || connectionId.isBlank()) {
+            return null;
+        }
+        if (TabRestoreTriage.tabType(sessionState) == SessionState.TabType.SFTP_MANAGER) {
+            // By id; projects saved before stored the connection's name.
+            return SftpSessionRestoreSupport.findConnection(
+                    connectionId,
+                    app.getConfigManager()::getConnectionById,
+                    app.getConfigManager().getConnections());
+        }
+        return app.getConfigManager().getConnectionById(connectionId);
+    }
+
+    private static boolean localFileExists(String filePath) {
+        try {
+            return filePath != null && java.nio.file.Files.exists(java.nio.file.Paths.get(filePath));
+        } catch (RuntimeException e) {
+            // A path this system cannot even express is as gone as a deleted file.
+            return false;
+        }
+    }
+
+    /**
+     * Reopens the tab saved at {@code index} in this window with the sign-in {@code auth} that
+     * {@link #restoreOrDeferSavedTab} found, or that the user completed from the restore bar. Tabs that
+     * open right away are handed to {@code restore} at once; a remote file editor or image viewer tab
+     * is announced as pending and arrives once its file has been downloaded, or never.
+     *
+     * @param auth the connection, password and temporary key to open with; {@code null} for a local
+     *     file editor or image viewer tab
+     */
+    private void restoreSavedTab(SessionState sessionState, int index, Project project, WindowRestore restore,
+            ConnectionAuthResolver.Resolution auth) {
+        SessionState.TabType tabType = TabRestoreTriage.tabType(sessionState);
+        boolean remote = TabRestoreTriage.opensOverConnection(sessionState);
+        if (remote && (auth == null || !auth.isReady())) {
+            logger.warn("Not restoring the {} tab at position {}: it is not signed in", tabType, index);
+            return;
+        }
+        ServerConnection connection = remote ? auth.connection() : null;
+        String password = remote ? auth.password() : null;
+        de.kortty.model.TemporarySSHKey temporaryKey = remote ? auth.temporaryKey() : null;
+
         switch (tabType) {
             case TERMINAL -> {
-                ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
-                if (connection != null) {
-                    if (project.isAutoReconnect()) {
-                        // Get password and reconnect with history restore
-                        // SSH key auth does not require a password
-                        boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
-                        String password = isKeyAuth ? null : getConnectionPassword(connection);
-                        if (password != null || isKeyAuth) {
-                            String history = sessionState.getTerminalHistory();
-                            TerminalTab restoredTab = openConnectionAndReturnTab(
-                                    connection,
-                                    password,
-                                    history,
-                                    project.getLastModified(),
-                                    null,
-                                    sessionState.getTerminalEffectPluginId(),
-                                    sessionState.getTerminalEffectAnimationSpeed());
-                            if (restoredTab == null) {
-                                // Blocked by the enterprise server policy.
-                                return;
-                            }
-                            restore.opened(restoredTab, index);
-                            restoredTab.getTerminalView().restorePrimaryTimestampEntries(
-                                    sessionState.getTerminalTimestamps());
-                            // Restore tab group (not connection group); the window sorts the tabs
-                            // into their groups once, after the last tab (WindowRestore.syncTabsDone).
-                            if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
-                                restoredTab.setGroup(sessionState.getGroup());
-                            }
-                            // A renamed tab keeps its name; the setter cleans what the file holds.
-                            if (sessionState.getTabTitle() != null) {
-                                restoredTab.setCustomTitle(sessionState.getTabTitle());
-                            }
-                            // Restore font size (zoom level) if saved
-                            Integer fontSizeOverride = sessionState.getFontSizeOverride();
-                            if (fontSizeOverride != null && fontSizeOverride > 0) {
-                                restoredTab.getTerminalView().setFontSize(fontSizeOverride);
-                            }
-                            // The split panes come back once the tab's own session is up, and
-                            // only then: never again after an automatic reconnect.
-                            de.kortty.model.SplitPaneState splitState = sessionState.getSplitPaneState();
-                            if (splitState != null && splitState.isSplit()) {
-                                String tabName = connection.getDisplayName();
-                                logger.info("Restoring the split panes of tab {} once it is connected", tabName);
-                                restoredTab.addOnFirstConnected(() -> restoredTab.getTerminalView()
-                                        .restoreSplitLayout(splitState,
-                                                summary -> reportSplitLayoutRestore(tabName, summary)));
-                            }
-                            logger.info("Restoring tab for {} with {} chars of history", 
-                                    connection.getDisplayName(), 
-                                    history != null ? history.length() : 0);
-                        }
-                    } else {
-                        // TODO: Create read-only tab with history display only (no connection)
-                        logger.info("Auto-reconnect disabled, skipping connection for {}", 
-                                connection.getDisplayName());
-                    }
+                // Reconnect with the saved screen shown locally above the new session.
+                String history = sessionState.getTerminalHistory();
+                TerminalTab restoredTab = openConnectionAndReturnTab(
+                        connection,
+                        password,
+                        history,
+                        project.getLastModified(),
+                        temporaryKey,
+                        sessionState.getTerminalEffectPluginId(),
+                        sessionState.getTerminalEffectAnimationSpeed());
+                if (restoredTab == null) {
+                    // Blocked by the enterprise server policy.
+                    return;
                 }
+                restore.opened(restoredTab, index);
+                restoredTab.getTerminalView().restorePrimaryTimestampEntries(
+                        sessionState.getTerminalTimestamps());
+                // Restore tab group (not connection group); the window sorts the tabs
+                // into their groups once, after the last tab (WindowRestore.syncTabsDone).
+                if (sessionState.getGroup() != null && !sessionState.getGroup().trim().isEmpty()) {
+                    restoredTab.setGroup(sessionState.getGroup());
+                }
+                // A renamed tab keeps its name; the setter cleans what the file holds.
+                if (sessionState.getTabTitle() != null) {
+                    restoredTab.setCustomTitle(sessionState.getTabTitle());
+                }
+                // Restore font size (zoom level) if saved
+                Integer fontSizeOverride = sessionState.getFontSizeOverride();
+                if (fontSizeOverride != null && fontSizeOverride > 0) {
+                    restoredTab.getTerminalView().setFontSize(fontSizeOverride);
+                }
+                // The split panes come back once the tab's own session is up, and
+                // only then: never again after an automatic reconnect.
+                de.kortty.model.SplitPaneState splitState = sessionState.getSplitPaneState();
+                if (splitState != null && splitState.isSplit()) {
+                    String tabName = connection.getDisplayName();
+                    logger.info("Restoring the split panes of tab {} once it is connected", tabName);
+                    restoredTab.addOnFirstConnected(() -> restoredTab.getTerminalView()
+                            .restoreSplitLayout(splitState,
+                                    summary -> reportSplitLayoutRestore(tabName, summary)));
+                }
+                logger.info("Restoring tab for {} with {} chars of history",
+                        connection.getDisplayName(),
+                        history != null ? history.length() : 0);
             }
             case SFTP_MANAGER -> {
-                // By id; projects saved before stored the connection's name.
-                ServerConnection connection = SftpSessionRestoreSupport.findConnection(
-                        sessionState.getConnectionId(),
-                        app.getConfigManager()::getConnectionById,
-                        app.getConfigManager().getConnections());
-                if (connection != null && project.isAutoReconnect()) {
-                    boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
-                    String password = isKeyAuth ? null : getConnectionPassword(connection);
-                    if (password != null || isKeyAuth) {
-                        Integer timeout = sessionState.getSftpAutoCloseTimeout();
-                        int timeoutMinutes = (timeout != null && timeout > 0) ? timeout : 0;
+                Integer timeout = sessionState.getSftpAutoCloseTimeout();
+                int timeoutMinutes = (timeout != null && timeout > 0) ? timeout : 0;
 
-                        // Starts in the saved folders (or the home folders when they are gone).
-                        SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, null,
-                                timeoutMinutes, this,
-                                sessionState.getSftpLocalPath(), sessionState.getSftpRemotePath());
-                        tabPane.getTabs().add(sftpTab);
-                        restore.opened(sftpTab, index);
+                // Starts in the saved folders (or the home folders when they are gone).
+                SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, temporaryKey,
+                        timeoutMinutes, this,
+                        sessionState.getSftpLocalPath(), sessionState.getSftpRemotePath());
+                tabPane.getTabs().add(sftpTab);
+                restore.opened(sftpTab, index);
 
-                        logger.info("Restored SFTP Manager tab for {}", connection.getDisplayName());
-                    }
-                }
+                logger.info("Restored SFTP Manager tab for {}", connection.getDisplayName());
             }
             case FILE_EDITOR -> {
-                Boolean isRemote = sessionState.getEditorIsRemote();
                 String filePath = sessionState.getEditorFilePath();
-                
+
                 if (filePath != null) {
-                    if (Boolean.TRUE.equals(isRemote)) {
-                        // Remote file - need connection
-                        ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
-                        if (connection != null && project.isAutoReconnect()) {
-                            boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
-                            String password = isKeyAuth ? null : getConnectionPassword(connection);
-                            if (password != null || isKeyAuth) {
-                                restore.pending(index);
-                                // Open an SFTP session of its own and download the file;
-                                // the session closes with the tab.
-                                new Thread(() -> {
-                                    de.kortty.core.SFTPSession sftpSession = null;
-                                    try {
-                                        sftpSession = openOwnedSftpSession(connection, password);
+                    if (remote) {
+                        restore.pending(index);
+                        // Open an SFTP session of its own and download the file;
+                        // the session closes with the tab.
+                        new Thread(() -> {
+                            de.kortty.core.SFTPSession sftpSession = null;
+                            try {
+                                sftpSession = openOwnedSftpSession(connection, password, temporaryKey);
 
-                                        byte[] content = sftpSession.downloadFileBytes(filePath);
-                                        String filename = java.nio.file.Paths.get(filePath).getFileName().toString();
+                                byte[] content = sftpSession.downloadFileBytes(filePath);
+                                String filename = java.nio.file.Paths.get(filePath).getFileName().toString();
 
-                                        de.kortty.core.SFTPSession owned = sftpSession;
-                                        Platform.runLater(() -> restore.lateTabReady(owned, index, () -> {
-                                            FileEditorTab editorTab = new FileEditorTab(filename, filePath, owned, content);
-                                            logger.info("Restored remote file editor: {}", filePath);
-                                            return editorTab;
-                                        }));
-                                    } catch (Exception e) {
-                                        logger.error("Failed to restore remote file editor", e);
-                                        if (sftpSession != null) {
-                                            closeOwnedSftpSession(sftpSession);
-                                        }
-                                        Platform.runLater(() -> restore.lateTabDone(index));
-                                    }
-                                }, "SFTP-Restore-Editor").start();
+                                de.kortty.core.SFTPSession owned = sftpSession;
+                                Platform.runLater(() -> restore.lateTabReady(owned, index, () -> {
+                                    FileEditorTab editorTab = new FileEditorTab(filename, filePath, owned, content);
+                                    logger.info("Restored remote file editor: {}", filePath);
+                                    return editorTab;
+                                }));
+                            } catch (Exception e) {
+                                logger.error("Failed to restore remote file editor", e);
+                                if (sftpSession != null) {
+                                    closeOwnedSftpSession(sftpSession);
+                                }
+                                Platform.runLater(() -> restore.lateTabDone(index));
                             }
-                        }
+                        }, "SFTP-Restore-Editor").start();
                     } else {
                         // Local file
                         try {
@@ -7488,45 +7562,35 @@ public class MainWindow {
                 }
             }
             case IMAGE_VIEWER -> {
-                Boolean isRemote = sessionState.getImageIsRemote();
                 String filePath = sessionState.getImageFilePath();
-                Double zoomLevel = sessionState.getImageZoomLevel();
-                
+
                 if (filePath != null) {
-                    if (Boolean.TRUE.equals(isRemote)) {
-                        // Remote image - need connection
-                        ServerConnection connection = app.getConfigManager().getConnectionById(sessionState.getConnectionId());
-                        if (connection != null && project.isAutoReconnect()) {
-                            boolean isKeyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
-                            String password = isKeyAuth ? null : getConnectionPassword(connection);
-                            if (password != null || isKeyAuth) {
-                                restore.pending(index);
-                                // Open an SFTP session of its own and download the image;
-                                // the session closes with the tab.
-                                new Thread(() -> {
-                                    de.kortty.core.SFTPSession sftpSession = null;
-                                    try {
-                                        sftpSession = openOwnedSftpSession(connection, password);
+                    if (remote) {
+                        restore.pending(index);
+                        // Open an SFTP session of its own and download the image;
+                        // the session closes with the tab.
+                        new Thread(() -> {
+                            de.kortty.core.SFTPSession sftpSession = null;
+                            try {
+                                sftpSession = openOwnedSftpSession(connection, password, temporaryKey);
 
-                                        byte[] imageData = sftpSession.downloadFileBytes(filePath);
-                                        String filename = java.nio.file.Paths.get(filePath).getFileName().toString();
+                                byte[] imageData = sftpSession.downloadFileBytes(filePath);
+                                String filename = java.nio.file.Paths.get(filePath).getFileName().toString();
 
-                                        de.kortty.core.SFTPSession owned = sftpSession;
-                                        Platform.runLater(() -> restore.lateTabReady(owned, index, () -> {
-                                            ImageViewerTab viewerTab = new ImageViewerTab(filename, filePath, owned, imageData);
-                                            logger.info("Restored remote image viewer: {}", filePath);
-                                            return viewerTab;
-                                        }));
-                                    } catch (Exception e) {
-                                        logger.error("Failed to restore remote image viewer", e);
-                                        if (sftpSession != null) {
-                                            closeOwnedSftpSession(sftpSession);
-                                        }
-                                        Platform.runLater(() -> restore.lateTabDone(index));
-                                    }
-                                }, "SFTP-Restore-Image").start();
+                                de.kortty.core.SFTPSession owned = sftpSession;
+                                Platform.runLater(() -> restore.lateTabReady(owned, index, () -> {
+                                    ImageViewerTab viewerTab = new ImageViewerTab(filename, filePath, owned, imageData);
+                                    logger.info("Restored remote image viewer: {}", filePath);
+                                    return viewerTab;
+                                }));
+                            } catch (Exception e) {
+                                logger.error("Failed to restore remote image viewer", e);
+                                if (sftpSession != null) {
+                                    closeOwnedSftpSession(sftpSession);
+                                }
+                                Platform.runLater(() -> restore.lateTabDone(index));
                             }
-                        }
+                        }, "SFTP-Restore-Image").start();
                     } else {
                         // Local image
                         try {
@@ -7543,6 +7607,185 @@ public class MainWindow {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Puts the restore bar into the status bar, above the status line. It stays hidden until a project
+     * leaves tabs waiting.
+     */
+    private void installRestoreAttentionBar() {
+        restoreAttentionBar = new RestoreAttentionBar();
+        restoreAttentionBar.setOnConnect(() -> connectDeferredTabs(null));
+        restoreAttentionBar.setOnUnlock(this::unlockVaultForDeferredTabs);
+        restoreAttentionBar.setOnDismiss(this::clearRestoreAttention);
+        VBox.setMargin(restoreAttentionBar, new javafx.geometry.Insets(0, 0, 4, 0));
+        statusBar.getChildren().add(0, restoreAttentionBar);
+    }
+
+    /** Shows the restore bar with the tabs that wait now, or hides it when none does. */
+    private void refreshRestoreAttentionBar() {
+        if (restoreAttentionBar == null) {
+            return;
+        }
+        if (restoreAttention.isEmpty()) {
+            restoreAttentionBar.hideBar();
+            return;
+        }
+        List<RestoreAttentionBar.Line> lines = new ArrayList<>();
+        for (RestoreAttention.Item<DeferredTab> item : restoreAttention.items()) {
+            lines.add(new RestoreAttentionBar.Line(restoreAttention.itemText(item, I18n::get),
+                    item.classification().waitsForUser() ? () -> connectDeferredTabs(item) : null));
+        }
+        boolean vaultLocked = VaultUnlockSupport.isLocked(app.getMasterPasswordManager());
+        restoreAttentionBar.showBar(restoreAttention.summary(I18n::get), restoreAttention.offersConnect(),
+                restoreAttention.offersUnlock(vaultLocked), lines, connectingDeferredTabs);
+    }
+
+    /** Dismiss on the restore bar, or another project in this window: forgets the waiting tabs. */
+    private void clearRestoreAttention() {
+        restoreAttention.clear();
+        refreshRestoreAttentionBar();
+    }
+
+    /**
+     * Connect… on the restore bar: asks for each waiting tab's password, new temporary SSH key or
+     * vault unlock in turn — once per connection: the other tabs of that connection open with what
+     * the user gave — and opens it. The server policy is checked before every question; a server it
+     * now blocks, or a connection deleted meanwhile, moves to that part of the list without a
+     * dialog. Cancelling a question stops; that tab and the ones after it keep waiting.
+     *
+     * @param only the one tab chosen in <b>Details</b>, or {@code null} for every waiting tab
+     */
+    private void connectDeferredTabs(RestoreAttention.Item<DeferredTab> only) {
+        if (connectingDeferredTabs) {
+            return;
+        }
+        connectingDeferredTabs = true;
+        refreshRestoreAttentionBar();
+        try {
+            reopenDeferredTabs(() -> {
+                if (only != null) {
+                    connectDeferredTab(only);
+                    return;
+                }
+                Optional<RestoreAttention.Item<DeferredTab>> next;
+                while ((next = restoreAttention.nextToConnect()).isPresent()) {
+                    if (!connectDeferredTab(next.get())) {
+                        break;
+                    }
+                }
+            });
+        } finally {
+            connectingDeferredTabs = false;
+            refreshRestoreAttentionBar();
+        }
+    }
+
+    /**
+     * Asks for what one waiting tab needs and opens it, with the other tabs of its connection.
+     *
+     * @return {@code false} when the user cancelled the question; the tab keeps waiting
+     */
+    private boolean connectDeferredTab(RestoreAttention.Item<DeferredTab> item) {
+        // Out of the list before any question: an unlock from the question retries the tabs waiting
+        // for the vault, and must not open this one a second time.
+        if (!restoreAttention.remove(item)) {
+            return true;
+        }
+        DeferredTab tab = item.tab();
+        if (tab.restore() != activeRestore) {
+            return true;
+        }
+        ConnectionAuthResolver.Resolution auth =
+                connectionAuthResolver().resolve(savedConnectionOf(tab.state()), true);
+        TabRestoreTriage.Outcome outcome = TabRestoreTriage.Outcome.of(auth);
+        if (!outcome.isReady()) {
+            restoreAttention.add(item.with(outcome));
+            // A blocked or deleted connection is no question the user cancelled: go on with the next.
+            return !outcome.classification().waitsForUser();
+        }
+        List<RestoreAttention.Item<DeferredTab>> sameConnection = restoreAttention.sameConnection(item);
+        openDeferredTab(tab, auth);
+        for (RestoreAttention.Item<DeferredTab> other : sameConnection) {
+            if (restoreAttention.remove(other)) {
+                openDeferredTab(other.tab(), auth);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * After the vault was unlocked: the tabs waiting for it are sorted again without asking, and those
+     * that are ready now open; the others stay listed with what they need now, for instance a
+     * password that was not in the vault after all.
+     */
+    private void retryTabsWaitingForVault() {
+        List<RestoreAttention.Item<DeferredTab>> waiting =
+                restoreAttention.waiting(TabRestoreTriage.Classification.NEEDS_UNLOCK);
+        if (waiting.isEmpty()) {
+            refreshRestoreAttentionBar();
+            return;
+        }
+        reopenDeferredTabs(() -> {
+            for (RestoreAttention.Item<DeferredTab> item : waiting) {
+                if (!restoreAttention.remove(item)) {
+                    continue;
+                }
+                TabRestoreTriage.Outcome outcome = classifySavedTab(item.tab().state());
+                if (outcome == null) {
+                    continue;
+                }
+                if (outcome.isReady()) {
+                    openDeferredTab(item.tab(), outcome.auth());
+                } else {
+                    restoreAttention.add(item.with(outcome));
+                }
+            }
+        });
+    }
+
+    /**
+     * Unlock Vault… on the restore bar. Success reaches every window through
+     * {@link de.kortty.KorTTYApplication#onVaultUnlocked()}, which opens the tabs waiting for it.
+     */
+    private void unlockVaultForDeferredTabs() {
+        if (!VaultUnlockSupport.isLocked(app.getMasterPasswordManager())) {
+            retryTabsWaitingForVault();
+            return;
+        }
+        VaultUnlockSupport.unlock(stage, app.getMasterPasswordManager());
+        refreshRestoreAttentionBar();
+    }
+
+    /** Opens a waiting tab like the restore would have, unless another project replaced that restore. */
+    private void openDeferredTab(DeferredTab tab, ConnectionAuthResolver.Resolution auth) {
+        if (tab.restore() != activeRestore) {
+            return;
+        }
+        restoreSavedTab(tab.state(), tab.index(), tab.project(), tab.restore(), auth);
+    }
+
+    /**
+     * Runs {@code reopen}, which opens waiting tabs, then sorts the tab groups once (a terminal tab
+     * opens in its connection's group and only then gets its saved tab group) and selects the tab
+     * that was active when the project was saved, if it came back now.
+     */
+    private void reopenDeferredTabs(Runnable reopen) {
+        WindowRestore restore = activeRestore;
+        Tab activeBefore = restore != null ? restore.activeTab() : null;
+        int tabsBefore = tabPane.getTabs().size();
+        try {
+            reopen.run();
+        } finally {
+            if (tabPane.getTabs().size() != tabsBefore) {
+                organizeTabsByGroup();
+            }
+            Tab active = restore != null ? restore.activeTab() : null;
+            if (active != null && active != activeBefore && tabPane.getTabs().contains(active)) {
+                tabPane.getSelectionModel().select(active);
+            }
+            refreshRestoreAttentionBar();
         }
     }
 
@@ -7564,15 +7807,28 @@ public class MainWindow {
         private javafx.animation.PauseTransition activeTabDeadline;
         /** The tab shown when the window started waiting for its active tab; null before. */
         private Tab selectedWhileWaiting;
+        /** The tab opened for the saved active tab, right away or later from the restore bar; null before. */
+        private Tab activeTab;
 
         WindowRestore(List<String> keys, String activeKey) {
             this.keys = keys;
             this.activeKey = activeKey;
         }
 
-        /** A tab the restore opened right away, from saved position {@code index}. */
+        /**
+         * A tab the restore opened from saved position {@code index}: right away, or later from the
+         * restore bar.
+         */
         void opened(Tab tab, int index) {
             savedIndexes.put(tab, index);
+            if (activeKey != null && activeKey.equals(keys.get(index))) {
+                activeTab = tab;
+            }
+        }
+
+        /** The tab opened for the saved active tab so far, or {@code null}. */
+        Tab activeTab() {
+            return activeTab;
         }
 
         /** The tab from saved position {@code index} opens later, once its file has been downloaded. */
@@ -7677,11 +7933,13 @@ public class MainWindow {
      * an SFTP tab's session: the vault (managed SSH keys, and the master password that also
      * decrypts a jump server's stored password) is handed over before connecting. A failed connect
      * closes the half-opened session. Runs off the FX thread.
+     *
+     * @param temporaryKey the still valid temporary SSH key the sign-in found, or {@code null}
      */
-    private de.kortty.core.SFTPSession openOwnedSftpSession(ServerConnection connection, String password)
-            throws Exception {
+    private de.kortty.core.SFTPSession openOwnedSftpSession(ServerConnection connection, String password,
+            de.kortty.model.TemporarySSHKey temporaryKey) throws Exception {
         de.kortty.core.SFTPSession session = new de.kortty.core.SFTPSession(
-                SftpConnectionSupport.connectionForSftp(connection, null), password);
+                SftpConnectionSupport.connectionForSftp(connection, temporaryKey), password);
         char[] masterPassword = app.getMasterPasswordManager() != null
                 ? app.getMasterPasswordManager().getMasterPassword()
                 : null;
