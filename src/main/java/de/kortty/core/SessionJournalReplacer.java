@@ -170,10 +170,9 @@ public final class SessionJournalReplacer {
     private static void reportMatches(Pattern pattern, String text, java.util.function.Consumer<String> maskedValues) {
         Matcher matcher = pattern.matcher(text);
         while (matcher.find()) {
+            // find() itself steps past an empty match, so only non-empty matches are reported.
             if (matcher.end() > matcher.start()) {
                 maskedValues.accept(matcher.group());
-            } else if (!matcher.hitEnd()) {
-                matcher.region(matcher.end() + 1, text.length());
             }
         }
     }

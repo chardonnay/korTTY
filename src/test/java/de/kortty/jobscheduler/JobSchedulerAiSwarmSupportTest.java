@@ -164,6 +164,20 @@ class JobSchedulerAiSwarmSupportTest {
     }
 
     @Test
+    void headlessApprovalUnderConfirmWithoutAutoApproveKeepsTheAutoApproveReason() {
+        de.kortty.policy.EffectivePolicy confirm = agentExecution(de.kortty.policy.AgentExecutionMode.CONFIRM);
+        JobSchedulerAiSwarmSupport.HeadlessSwarmCallback callback =
+            new JobSchedulerAiSwarmSupport.HeadlessSwarmCallback(false, Thread.currentThread(), () -> confirm);
+
+        assertThat(callback.requestBatchApproval(null, "agent-1"))
+            .isEqualTo(TerminalAgentService.ApprovalDecision.CANCEL);
+        assertThat(callback.mutationBlockedAgentIds).containsExactly("agent-1");
+        // Auto-approve was off, so the policy did not override anything: the summary must not
+        // claim "even though auto-approve is on".
+        assertThat(callback.blockedByPolicy).isFalse();
+    }
+
+    @Test
     void headlessApprovalUnderAllowPolicyStillApprovesWithAutoApprove() {
         de.kortty.policy.EffectivePolicy allow = agentExecution(de.kortty.policy.AgentExecutionMode.ALLOW);
         JobSchedulerAiSwarmSupport.HeadlessSwarmCallback callback =

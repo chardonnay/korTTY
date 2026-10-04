@@ -165,6 +165,12 @@ class JobSchedulerAiSupportTest {
     private static JobExecutionOutcome runPlannedCommand(
         de.kortty.policy.EffectivePolicy policy, RecordingRemoteSession remote, String command, String risk)
         throws Exception {
+        return runPlannedCommand(policy, remote, command, risk, true);
+    }
+
+    private static JobExecutionOutcome runPlannedCommand(
+        de.kortty.policy.EffectivePolicy policy, RecordingRemoteSession remote, String command, String risk,
+        boolean autoApprove) throws Exception {
         de.kortty.model.AiProfile profile = new de.kortty.model.AiProfile();
         profile.setId("p");
         AiPromptService aiService = new CapturingAiService(
@@ -184,7 +190,7 @@ class JobSchedulerAiSupportTest {
         ScheduledJob job = new ScheduledJob();
         job.getAction().setType(JobActionType.AI_AGENT);
         job.getAction().setAiPrompt("tidy up");
-        job.getAction().setAiAutoApproveCommands(true);
+        job.getAction().setAiAutoApproveCommands(autoApprove);
         return support.runAiAgent(job, new JobSchedulerAiSupport.ServerConnectionContext("srv"), remote,
             null, new JobSchedulerSecretRedactor());
     }
@@ -199,6 +205,19 @@ class JobSchedulerAiSupportTest {
         assertThat(outcome.status()).isEqualTo(JobRunStatus.BLOCKED);
         assertThat(outcome.summary()).isEqualTo(de.kortty.ui.I18n.get("jobscheduler.dialog.policy.aiConfirmBlocked"));
         assertThat(outcome.detail()).isEqualTo("touch /tmp/kortty-marker");
+        assertThat(remote.executed).isEmpty();
+    }
+
+    @Test
+    void confirmPolicyWithoutAutoApproveKeepsTheAutoApproveReason() throws Exception {
+        RecordingRemoteSession remote = new RecordingRemoteSession();
+
+        JobExecutionOutcome outcome = runPlannedCommand(
+            agentExecution(de.kortty.policy.AgentExecutionMode.CONFIRM), remote, "touch /tmp/kortty-marker", "LOW",
+            false);
+
+        assertThat(outcome.status()).isEqualTo(JobRunStatus.BLOCKED);
+        assertThat(outcome.summary()).isEqualTo("AI agent planned a server-changing command without job auto-approval.");
         assertThat(remote.executed).isEmpty();
     }
 

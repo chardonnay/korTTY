@@ -372,14 +372,16 @@ public class JobSchedulerAiSwarmSupport {
             // D8: under agent execution CONFIRM the terminal agent forces this approval so that a
             // person decides; a background job has nobody to ask, so the job's auto-approve must
             // not answer it. Read per request: the policy may have been reloaded mid-run.
-            de.kortty.policy.EffectivePolicy effective = policy.get();
-            if (effective != null
-                && effective.agentExecution() == de.kortty.policy.AgentExecutionMode.CONFIRM) {
-                blockedByPolicy = true;
-                mutationBlockedAgentIds.add(agentId);
-                return TerminalAgentService.ApprovalDecision.CANCEL;
-            }
+            // Without auto-approve the job refuses anyway, so the policy is only named as the
+            // reason when it really overrode the job's auto-approve.
             if (autoApprove) {
+                de.kortty.policy.EffectivePolicy effective = policy.get();
+                if (effective != null
+                    && effective.agentExecution() == de.kortty.policy.AgentExecutionMode.CONFIRM) {
+                    blockedByPolicy = true;
+                    mutationBlockedAgentIds.add(agentId);
+                    return TerminalAgentService.ApprovalDecision.CANCEL;
+                }
                 return TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS;
             }
             mutationBlockedAgentIds.add(agentId);

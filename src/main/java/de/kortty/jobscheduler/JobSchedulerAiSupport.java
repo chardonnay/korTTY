@@ -127,9 +127,10 @@ public class JobSchedulerAiSupport {
             }
             String normalizedCommand = TerminalAgentService.normalizeSudoForAgentExecution(command.command());
             if (requiresAutoApprovalForServerChange(command, normalizedCommand)) {
-                if (confirmRequired) {
+                if (confirmRequired && action.isAiAutoApproveCommands()) {
                     // D8: CONFIRM means a person approves every server-changing command; an
                     // unattended job has nobody to ask, so the job's auto-approve does not count.
+                    // Without auto-approve the job blocks below anyway, with the usual reason.
                     return JobExecutionOutcome.blocked(
                         de.kortty.ui.I18n.get("jobscheduler.dialog.policy.aiConfirmBlocked"),
                         normalizedCommand);
