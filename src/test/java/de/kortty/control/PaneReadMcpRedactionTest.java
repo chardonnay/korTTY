@@ -1,6 +1,7 @@
 package de.kortty.control;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.testng.Assert.expectThrows;
 
 import com.google.gson.JsonArray;
@@ -203,6 +204,34 @@ class PaneReadMcpRedactionTest {
         assertThat(got.get(0).length()).isLessThan(McpOutputMasking.MAX_CHARS);
         assertThat(got.get(0)).endsWith(" " + MASK);
         assertThat(got.get(0)).doesNotContain(PASSWORD.substring(0, 6));
+    }
+
+    @Test
+    void aSecretThatWrapsAcrossFullWidthRowsIsStillMasked() {
+        SessionJournalRedactor secrets = new SessionJournalRedactor();
+        secrets.addSecret(PASSWORD);
+        // A 12-column pane: the password and the access key both run over the right edge.
+        String passwordLine = "pw: " + PASSWORD;
+        String keyLine = "k: " + AWS_KEY_ID;
+        List<String> rows = List.of(passwordLine.substring(0, 12), passwordLine.substring(12),
+            keyLine.substring(0, 12), keyLine.substring(12), "short row", "exactly12chr", "tail");
+        PaneText source = new PaneText(PANE, ReadMode.RECENT.wire(), rows, 12, 24, false, null, false);
+
+        McpOutputMasking masking = McpOutputMasking.with(secrets);
+        PaneText masked = masking.text(source);
+
+        String all = String.join("", masked.lines());
+        assertThat(all).doesNotContain(PASSWORD.substring(0, 8));
+        assertThat(all).doesNotContain(PASSWORD.substring(PASSWORD.length() - 8));
+        assertThat(all).doesNotContain(AWS_KEY_ID.substring(4));
+        assertThat(all).contains(MASK);
+        assertThat(masking.maskedCount()).isAtLeast(2);
+        for (String line : masked.lines()) {
+            assertWithMessage("re-wrapped rows stay within the pane width").that(line.length()).isAtMost(12);
+        }
+        assertWithMessage("rows without anything to mask keep their exact layout")
+            .that(masked.lines().subList(masked.lines().size() - 3, masked.lines().size()))
+            .containsExactly("short row", "exactly12chr", "tail").inOrder();
     }
 
     @Test

@@ -129,16 +129,26 @@ final class McpOutputMasking {
             truncated = true;
         }
         List<String> masked = new ArrayList<>(lines.size());
-        int[] counts = new int[lines.size()];
-        for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            if (line == null || line.isEmpty()) {
-                masked.add(line == null ? "" : line);
-                continue;
+        List<Integer> rowCounts = new ArrayList<>(lines.size());
+        int columns = source.columns();
+        int row = 0;
+        while (row < lines.size()) {
+            // A row that fills the whole pane width most likely wraps on into the next one, and a
+            // token or password printed across that wrap would escape a row-by-row match.
+            int end = row;
+            while (columns > 0 && end + 1 < lines.size() && length(lines.get(end)) == columns) {
+                end++;
             }
-            RedactionResult result = AiOutboundRedaction.redact(line, secrets);
-            masked.add(result.text());
-            counts[i] = result.count();
+            if (end == row) {
+                maskRow(lines.get(row), masked, rowCounts);
+            } else {
+                maskWrapped(lines.subList(row, end + 1), columns, masked, rowCounts);
+            }
+            row = end + 1;
+        }
+        int[] counts = new int[rowCounts.size()];
+        for (int k = 0; k < counts.length; k++) {
+            counts[k] = rowCounts.get(k);
         }
         int keepFrom = firstFitting(masked, MAX_CHARS);
         List<String> kept = new ArrayList<>(masked.subList(keepFrom, masked.size()));
@@ -157,6 +167,54 @@ final class McpOutputMasking {
         }
         return new PaneText(source.paneId(), source.mode(), kept, source.columns(), source.rows(),
             source.alternateScreen(), mask(source.oscTitle()), truncated);
+    }
+
+    /** Masks one row on its own. */
+    private void maskRow(String line, List<String> masked, List<Integer> counts) {
+        if (line == null || line.isEmpty()) {
+            masked.add(line == null ? "" : line);
+            counts.add(0);
+            return;
+        }
+        RedactionResult result = AiOutboundRedaction.redact(line, secrets);
+        masked.add(result.text());
+        counts.add(result.count());
+    }
+
+    /**
+     * Masks rows that wrap into each other as the one logical line they show. When the joined line
+     * has nothing to mask the rows are masked one by one and keep their exact layout; otherwise the
+     * masked line is wrapped again at the pane width, and every new row is masked once more, so a
+     * match that only a single row produced is never lost.
+     */
+    private void maskWrapped(List<String> group, int columns, List<String> masked, List<Integer> counts) {
+        StringBuilder joined = new StringBuilder();
+        for (String line : group) {
+            joined.append(line == null ? "" : line);
+        }
+        RedactionResult whole = AiOutboundRedaction.redact(joined.toString(), secrets);
+        if (whole.count() == 0) {
+            for (String line : group) {
+                maskRow(line, masked, counts);
+            }
+            return;
+        }
+        String text = whole.text();
+        boolean firstRow = true;
+        for (int start = 0; start < text.length() || firstRow; start += columns) {
+            String chunk = text.substring(Math.min(start, text.length()),
+                Math.min(start + columns, text.length()));
+            int before = counts.size();
+            maskRow(chunk, masked, counts);
+            if (firstRow) {
+                counts.set(before, counts.get(before) + whole.count());
+                firstRow = false;
+            }
+        }
+    }
+
+    private static int length(String line) {
+        return line == null ? 0 : line.length();
     }
 
     /** A coding agent as an MCP client may see it: evidence line and command line masked. */

@@ -410,6 +410,14 @@ public final class ControlConnection implements Runnable, AutoCloseable {
         ControlSession.ClientKind kind = ControlSession.ClientKind.forWire(kindWire).orElseThrow(
             () -> new ControlApiException(ControlErrorCode.INVALID_PARAMS,
                 "client_kind must be 'cli' or 'mcp'", Map.of("param", "client_kind")));
+        ControlSession previous = session;
+        if (authenticated && previous != null && previous.isMcp() && kind != ControlSession.ClientKind.MCP) {
+            // Once a connection is held to the MCP rules it stays held to them: a second 'auth' may
+            // not shed the allowlist, the masking and the consent on the same connection.
+            throw new ControlApiException(ControlErrorCode.INVALID_PARAMS,
+                "An MCP connection cannot authenticate again as another kind of client",
+                Map.of("param", "client_kind"));
+        }
         String mcpSession = ControlJson.optString(params, MCP_SESSION_PARAM, null);
         if (mcpSession != null && !MCP_SESSION_PATTERN.matcher(mcpSession).matches()) {
             throw new ControlApiException(ControlErrorCode.INVALID_PARAMS,

@@ -149,6 +149,25 @@ public class ControlApiMcpGateTest {
         }
     }
 
+    @Test(timeOut = 60_000)
+    void anMcpConnectionCannotReauthenticateAsAPlainClient() throws Exception {
+        try (ControlApiScenarioFixtures.Wire wire = new ControlApiScenarioFixtures.Wire(endpoint)) {
+            assertThat(authMcp(wire).has("result")).isTrue();
+            JsonObject asCli = wire.call(ControlConnection.AUTH_METHOD, ControlApiScenarioFixtures.params(
+                "token", endpoint.token(), "client", "gate-test", "client_kind", "cli"));
+            assertThat(assertRefused(asCli, ControlErrorCode.INVALID_PARAMS).get("param").getAsString())
+                .isEqualTo("client_kind");
+            JsonObject noKind = wire.call(ControlConnection.AUTH_METHOD, ControlApiScenarioFixtures.params(
+                "token", endpoint.token(), "client", "gate-test"));
+            assertRefused(noKind, ControlErrorCode.INVALID_PARAMS);
+            assertWithMessage("the connection is still held to the MCP allowlist")
+                .that(code(wire.call("events.subscribe", new JsonObject())))
+                .isEqualTo(ControlErrorCode.METHOD_NOT_ALLOWED_FOR_MCP.wire());
+            assertWithMessage("re-authenticating as mcp again is fine")
+                .that(authMcp(wire).has("result")).isTrue();
+        }
+    }
+
     // --- refusals after the handshake ------------------------------------------------------------
 
     @Test(timeOut = 60_000)
