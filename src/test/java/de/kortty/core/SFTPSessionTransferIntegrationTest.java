@@ -2,6 +2,12 @@ package de.kortty.core;
 
 import de.kortty.model.AuthMethod;
 import de.kortty.model.ServerConnection;
+import de.kortty.core.sftp.transfer.ConflictAction;
+import de.kortty.core.sftp.transfer.ConflictResolver;
+import de.kortty.core.sftp.transfer.SftpTransferQueue;
+import de.kortty.core.sftp.transfer.TransferBatch;
+import de.kortty.core.sftp.transfer.TransferSettings;
+import de.kortty.core.sftp.transfer.TransferState;
 import org.apache.sshd.common.file.virtualfs.VirtualFileSystemFactory;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
@@ -170,15 +176,18 @@ class SFTPSessionTransferIntegrationTest {
         Files.createDirectory(tree.resolve("sub"));
         Files.writeString(tree.resolve("sub/b.txt"), "b", StandardCharsets.UTF_8);
 
-        SftpFileTransferService service = new SftpFileTransferService();
-        session = newSession();
-        service.connect(session);
-        service.uploadDirectory(tree, "/");
+        session = connect();
+        try (SftpTransferQueue queue = new SftpTransferQueue(session, TransferSettings.defaults(),
+                ConflictResolver.always(ConflictAction.OVERWRITE))) {
+            awaitFinished(queue.enqueueUpload(List.of(tree), "/"));
 
-        Files.writeString(tree.resolve("a.txt"), "second", StandardCharsets.UTF_8);
-        Files.writeString(tree.resolve("sub/c.txt"), "c", StandardCharsets.UTF_8);
-        // The remote folders exist now; the second upload must merge instead of failing on mkdir.
-        service.uploadDirectory(tree, "/");
+            Files.writeString(tree.resolve("a.txt"), "second", StandardCharsets.UTF_8);
+            Files.writeString(tree.resolve("sub/c.txt"), "c", StandardCharsets.UTF_8);
+            // The remote folders exist now; the second upload must merge instead of failing on mkdir.
+            TransferBatch second = queue.enqueueUpload(List.of(tree), "/");
+            awaitFinished(second);
+            assertThat(second.countFiles(TransferState.DONE)).isEqualTo(3);
+        }
 
         Path remote = remoteRoot.resolve("project");
         assertThat(Files.readString(remote.resolve("a.txt"), StandardCharsets.UTF_8)).isEqualTo("second");
@@ -272,6 +281,16 @@ class SFTPSessionTransferIntegrationTest {
         SshHostKeyTrustManager trust = new SshHostKeyTrustManager(
             tmp.resolve("hostkeys.properties"), new LoopbackSshServers.AcceptingPrompt());
         return new SFTPSession(connection, "secret", trust);
+    }
+
+    private static void awaitFinished(TransferBatch batch) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+        while (!batch.isFinished()) {
+            if (System.nanoTime() > deadline) {
+                throw new AssertionError("Batch did not finish: " + batch.allItems());
+            }
+            Thread.sleep(10);
+        }
     }
 
     private static void deleteTree(Path root) throws IOException {

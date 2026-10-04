@@ -35,7 +35,7 @@ public final class PolicyLoader {
     private static final Set<String> META_KEYS = Set.of("schema-version", "organization");
     private static final Set<String> RULE_KEYS = Set.of("name", "users", "groups", "servers",
         "features", "security", "teamwork", "snippets", "ai-profiles", "ai-runtime", "updates",
-        "terminal", "logging", "session-journal");
+        "terminal", "logging", "session-journal", "sftp");
     private static final Set<String> SERVERS_KEYS = Set.of("mode", "hosts");
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
         "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "allow-port-forwarding",
@@ -50,6 +50,7 @@ public final class PolicyLoader {
     private static final Set<String> UPDATES_KEYS = Set.of("enabled", "feed-url");
     private static final Set<String> TERMINAL_KEYS = Set.of("load-into-snippet-editor", "paste-warning",
         "session-restore", "session-restore-output");
+    private static final Set<String> SFTP_KEYS = Set.of("max-parallel-transfers", "conflict-default");
     private static final Set<String> LOGGING_KEYS = Set.of("directory", "retention-days",
         "compress", "format", "rotation-max-files", "rotation-total-size-mb");
     private static final Set<String> SESSION_JOURNAL_KEYS = Set.of("enforced", "log-format",
@@ -178,6 +179,7 @@ public final class PolicyLoader {
             parseRuleTerminal(table, context, builder);
             parseRuleLogging(table, context, builder);
             parseRuleSessionJournal(table, context, builder);
+            parseRuleSftp(table, context, builder);
             rules.add(builder.build());
         }
         return rules;
@@ -416,6 +418,40 @@ public final class PolicyLoader {
             directory, retentionDays, compress, format, rotationMaxFiles, rotationTotalSizeMb);
         if (!logging.isEmpty()) {
             builder.logging(logging);
+        }
+    }
+
+    /** The {@code [rule.sftp]} table: parallel transfers cap and the conflict default. */
+    private void parseRuleSftp(TomlTable rule, String context, PolicyRule.Builder builder) {
+        TomlTable table = getTable(rule, "sftp", context);
+        if (table == null) {
+            return;
+        }
+        String tableContext = context + " [rule.sftp]";
+        warnUnknownKeys(table, SFTP_KEYS, tableContext);
+        Integer maxParallel = null;
+        Long parallel = getLong(table, "max-parallel-transfers", tableContext);
+        if (parallel != null) {
+            if (parallel < de.kortty.model.GlobalSettings.MIN_SFTP_PARALLEL_TRANSFERS
+                    || parallel > de.kortty.model.GlobalSettings.MAX_SFTP_PARALLEL_TRANSFERS) {
+                errors.add(tableContext + ": max-parallel-transfers must be between "
+                    + de.kortty.model.GlobalSettings.MIN_SFTP_PARALLEL_TRANSFERS + " and "
+                    + de.kortty.model.GlobalSettings.MAX_SFTP_PARALLEL_TRANSFERS);
+            } else {
+                maxParallel = parallel.intValue();
+            }
+        }
+        de.kortty.model.SftpConflictDefault conflictDefault = null;
+        String conflict = getString(table, "conflict-default", tableContext);
+        if (conflict != null) {
+            conflictDefault = de.kortty.model.SftpConflictDefault.parseId(conflict);
+            if (conflictDefault == null) {
+                errors.add(tableContext + ": conflict-default must be \"ask\", \"skip\" or \"overwrite\"");
+            }
+        }
+        PolicyRule.SftpRule sftp = new PolicyRule.SftpRule(maxParallel, conflictDefault);
+        if (!sftp.isEmpty()) {
+            builder.sftp(sftp);
         }
     }
 

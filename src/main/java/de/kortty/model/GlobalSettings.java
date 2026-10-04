@@ -1026,6 +1026,22 @@ public class GlobalSettings {
     
     @XmlElement
     private Integer sftpDefaultZipCompression = 6; // Default compression level (0-9)
+
+    /** Files the SFTP manager copies at once (1..8, default 3); null = default. */
+    @XmlElement
+    private Integer sftpParallelTransfers;
+
+    /** {@link SftpConflictDefault#id()} when a transfer target exists; null = ask. */
+    @XmlElement
+    private String sftpConflictDefault;
+
+    /** Whether interrupted SFTP transfers continue from their partial file; null = on. */
+    @XmlElement
+    private Boolean sftpResumePartialTransfers;
+
+    /** Whether a cancelled SFTP transfer keeps its partial file for a later resume; null = off. */
+    @XmlElement
+    private Boolean sftpKeepPartialOnCancel;
     
     // Editor defaults (FileEditor)
     @XmlElement
@@ -4002,6 +4018,60 @@ public class GlobalSettings {
      */
     public void setSftpDefaultZipCompression(Integer sftpDefaultZipCompression) {
         this.sftpDefaultZipCompression = sftpDefaultZipCompression;
+    }
+
+    /** Default number of files the SFTP manager copies at once. */
+    public static final int DEFAULT_SFTP_PARALLEL_TRANSFERS = 3;
+    /** Smallest and largest number of parallel SFTP transfers. */
+    public static final int MIN_SFTP_PARALLEL_TRANSFERS = 1;
+    public static final int MAX_SFTP_PARALLEL_TRANSFERS = 8;
+
+    /**
+     * How many files the SFTP manager copies at once, clamped to
+     * {@value #MIN_SFTP_PARALLEL_TRANSFERS}..{@value #MAX_SFTP_PARALLEL_TRANSFERS}; default
+     * {@value #DEFAULT_SFTP_PARALLEL_TRANSFERS}.
+     */
+    public int getSftpParallelTransfers() {
+        if (sftpParallelTransfers == null) {
+            return DEFAULT_SFTP_PARALLEL_TRANSFERS;
+        }
+        return Math.max(MIN_SFTP_PARALLEL_TRANSFERS, Math.min(MAX_SFTP_PARALLEL_TRANSFERS, sftpParallelTransfers));
+    }
+
+    /** @param sftpParallelTransfers the number to store (clamped when read); null stores the default */
+    public void setSftpParallelTransfers(Integer sftpParallelTransfers) {
+        this.sftpParallelTransfers = sftpParallelTransfers;
+    }
+
+    /** What a transfer does when its target exists and nobody answered yet; default {@code ask}. */
+    public SftpConflictDefault getSftpConflictDefault() {
+        return SftpConflictDefault.fromId(sftpConflictDefault);
+    }
+
+    /** @param value the value to store; null stores the default ({@code ask}) */
+    public void setSftpConflictDefault(SftpConflictDefault value) {
+        this.sftpConflictDefault = (value != null ? value : SftpConflictDefault.DEFAULT).id();
+    }
+
+    /** Whether interrupted SFTP transfers continue from their partial file; default on. */
+    public boolean isSftpResumePartialTransfers() {
+        return sftpResumePartialTransfers == null || sftpResumePartialTransfers;
+    }
+
+    public void setSftpResumePartialTransfers(boolean value) {
+        this.sftpResumePartialTransfers = value;
+    }
+
+    /**
+     * Whether a cancelled SFTP transfer keeps its partial file so it can be resumed; default off (a
+     * cancel means "I don't want it"). Only takes effect while resuming is on.
+     */
+    public boolean isSftpKeepPartialOnCancel() {
+        return Boolean.TRUE.equals(sftpKeepPartialOnCancel);
+    }
+
+    public void setSftpKeepPartialOnCancel(boolean value) {
+        this.sftpKeepPartialOnCancel = value;
     }
     
     /**

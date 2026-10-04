@@ -876,6 +876,25 @@
 </tbody>
 </table>
 <p>The search text, the names of commands, tabs, connections, snippets and rule sets, the patterns, and anything typed into the panes are never sent. Changes on the settings pages are reported as the name of the setting and, for switches and choices, the new value; for the quick-select letters and patterns and for rebound shortcuts only whether you changed them.</p>
+<h3 id="sftp-transfers">SFTP transfers<a class="headerlink" href="#sftp-transfers" title="Permanent link">&para;</a></h3>
+<p>When an upload or download in the SFTP Manager finishes, one event says how it went. File counts are rounded down to 0, 1, 2, 5, 10, 50, 100 or 1000.</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Sent when</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sftp_transfer_batch</code></td>
+<td>an upload or download batch (one button press or one drop) is finished</td>
+<td><code>upload</code> or <code>download</code>, the rounded number of files, whether it ended <code>done</code>, <code>partial</code>, <code>failed</code> or <code>cancelled</code>, whether a file continued a partial file, and how many files were copied at once</td>
+</tr>
+</tbody>
+</table>
+<p>File and folder names, paths, server names and file sizes are never sent.</p>
 <h2 id="what-is-never-collected">What is never collected<a class="headerlink" href="#what-is-never-collected" title="Permanent link">&para;</a></h2>
 <p>korTTY never transmits any of the following:</p>
 <ul>

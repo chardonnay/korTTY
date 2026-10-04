@@ -236,3 +236,23 @@
     -fx-background-color: -kortty-fb-accent, -kortty-fb-selected;
     -fx-background-insets: 0, 1;
 }
+
+/* SFTP manager: a part file left by an interrupted transfer (name.kortty-part) */
+.file-browser-table .table-row-cell:kortty-part .table-cell {
+    -fx-font-style: italic;
+    -fx-opacity: 0.65;
+}
+
+/* SFTP manager: the transfer list at the bottom of the tab */
+.sftp-transfer-table .table-row-cell:failed .table-cell {
+    -fx-text-fill: #e5534b;
+}
+
+.sftp-transfer-table .table-row-cell:nested .table-cell {
+    -fx-padding: 0 6 0 18;
+}
+
+.sftp-transfer-queue .sftp-transfer-title {
+    -fx-text-fill: -kortty-fb-fg;
+    -fx-font-weight: bold;
+}

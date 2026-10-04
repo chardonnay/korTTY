@@ -114,21 +114,33 @@ class SFTPManagerTabRemotePathTest {
         assertThat(tab).contains("DataFormat.lookupMimeType(mimeType)");
         // A drag out of the window waits for the download at most the policy's time.
         assertThat(tab).contains("download.get(SftpDragOutPolicy.MAX_WAIT.toMillis(), TimeUnit.MILLISECONDS)");
-        // Temporary copies are removed when the tab closes.
-        assertThat(tab).contains("remoteListExecutor.shutdownNow();\n        deleteDragOutDirectories();");
+        // A drag-out download still running stops, and the temporary copies are removed, when the tab closes.
+        assertThat(tab).contains("remoteListExecutor.shutdownNow();\n        cancelDragOut();\n        deleteDragOutDirectories();");
+        // Running out of time stops the download mid-file instead of letting it fill the folder.
+        assertThat(tab).contains("cancel.cancel();\n            download.cancel(true);");
         // Row drags end in the row, never in MainWindow's tab-drag DRAG_DONE handler.
         assertThat(tab).contains("row.setOnDragDone(DragEvent::consume);");
     }
 
     @Test
-    void transfersStreamAndMergeFolders() throws IOException {
+    void transfersStreamThroughTheQueue() throws IOException {
         String session = read("src/main/java/de/kortty/core/SFTPSession.java");
         assertThat(session).doesNotContain("readAllBytes");
-        assertThat(session).contains("in.transferTo(out)");
+        // Uploads and downloads stream through the pipelined copier, never a whole-file array.
+        assertThat(session).contains("SftpStreamCopier.upload(sftpClient, remotePath, localPath, 0");
+        assertThat(session).contains("SftpStreamCopier.download(sftpClient, remotePath, out, 0");
 
         String tab = read("src/main/java/de/kortty/ui/SFTPManagerTab.java");
-        // Uploading a folder again merges into the existing remote folder.
-        assertThat(tab).contains("session.createDirectoryIfMissing(remotePath)");
+        // Uploads and downloads go through the transfer queue (which merges a folder into an
+        // existing one), never through raw threads of the tab.
+        assertThat(tab).contains("transferQueueHost.enqueueUpload(toUpload, targetDir)");
+        assertThat(tab).contains("transferQueueHost.enqueueDownload(entries, targetDir)");
+        assertThat(tab).doesNotContain("\"SFTP-Upload\"");
+        assertThat(tab).doesNotContain("\"SFTP-Download\"");
+        // The queue follows the session and closes with the tab.
+        assertThat(tab).contains("transferQueueHost.onSessionReady(session);");
+        assertThat(tab).contains("transferQueueHost.onSessionLost();");
+        assertThat(tab).contains("transferQueueHost.close();");
         assertThat(tab).doesNotContain("sftpSession.createDirectory(");
         // The remote listing runs on the listing executor, never on the FX thread.
         assertThat(tab).contains(".supplyAsync(() -> listRemote(session, requestedPath, basePath), remoteListExecutor)");

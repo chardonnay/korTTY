@@ -125,6 +125,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `control-api` | Zeichenfolge | `allow`, `deny` | Die [Steuerungs-API](control-api.md) und ihr Client `kortty-cli`: `deny` beendet den Listener, sperrt das Kontrollkästchen in den Einstellungen und erzwingt die Einstellung aus. Nicht an `ai` gekoppelt – die API ist lokale Automatisierung, keine KI-Funktion |
 | `terminal-triggers` | Zeichenfolge | `allow`, `deny` | [Hervorhebungsregeln, die eine Aktion auslösen](../features/highlighting.md#benachrichtigungen-bei-passender-ausgabe), wenn ihr Muster in der Terminalausgabe erscheint (eine Desktop-Benachrichtigung oder das [Ausführen eines Snippets](../features/highlighting.md#ein-snippet-ausfuhren-wenn-die-ausgabe-passt) im Bereich): `deny` stoppt jede solche Aktion, auch ein Snippet, das der Benutzer für eine Verbindung bereits erlaubt hat, sperrt **Aktionen von Hervorhebungsregeln ausführen (Benachrichtigungen, Snippets)** unter *Einstellungen → Terminal* in ausgeschalteter Stellung und hindert den Regelsatz-Editor daran, einer Regel eine Aktion zu geben. Die Hervorhebung von Schlüsselwörtern selbst ist nicht betroffen. `allow` sperrt die Einstellung eingeschaltet |
 | `multi-exec` | string | `allow`, `deny` | Eingabe in mehrere Terminals gleichzeitig: [Multi-Exec](../features/terminal.md#multi-exec) über Tabs und Fenster hinweg und der Broadcast-Modus eines Tabs. `deny` sperrt die Einträge zum Einbeziehen unter *Ansicht → Multi-Exec*, *Ansicht → Bereiche → Broadcast an alle Bereiche dieses Tabs*, die Einträge für Multi-Exec und Broadcast-Modus in den Kontextmenüs von Tab, Bereich und Dashboard sowie ihre Einträge in der Befehlspalette und ihre Tastenkürzel; kein Bereich kann von irgendwo aus beitreten. **Multi-Exec beenden** und das Ausschalten des Broadcast-Modus funktionieren weiterhin. Es gibt kein Steuerelement in den Einstellungen, daher ändert `allow` nichts |
+| `file-transfer` | string | `allow`, `deny` | Kopieren von Dateien zwischen diesem Computer und einem Server. `deny` graut im [SFTP-Manager](../features/sftp.md) die Schaltflächen **Hochladen** und **Herunterladen** sowie **Wiederholen** in der Übertragungsliste aus, weist Ziehvorgänge auf eines der beiden Panels zurück, die auf den Server oder vom Server kopieren würden, verhindert, dass Serverdateien aus dem Fenster gezogen werden, und lässt die SFTP-Aktionen Hochladen, Herunterladen und Synchronisieren sowie die rsync-Aktion des JobSchedulers mit der Richtlinienmeldung fehlschlagen, bevor sie eine Verbindung aufbauen. Das Öffnen des SFTP-Managers, das Durchsuchen und reine Server-Operationen (Umbenennen, Löschen, Berechtigungen, Eigentümer, Archive, Suche, Kopieren auf dem Server) funktionieren weiterhin, und das Laden einer Datei in den Snippet-Editor unterliegt weiterhin `load-into-snippet-editor`. Befehle wie `scp` oder `rsync`, die in ein Terminal eingegeben werden, kann korTTY nicht blockieren. Es gibt kein Steuerelement in den Einstellungen, daher ändert `allow` nichts |
 | `ai-agent-execution` | Zeichenfolge | `allow`, `confirm`, `read-only` | `confirm` erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und deaktiviert die Option zur automatischen Genehmigung; `read-only` lässt den Agenten planen und chatten, aber niemals Befehle ausführen |
 
 !!! note "Eine genannte Funktion wird übernommen, egal wie entschieden"
@@ -231,6 +232,25 @@ groups = ["compliance"]
   session-restore = "ask"
   session-restore-output = false
 ```
+
+### `[rule.sftp]`
+
+| Schlüssel | Typ | Werte | Wirkung |
+| --- | --- | --- | --- |
+| `max-parallel-transfers` | Ganzzahl | `1` bis `8` | Die Höchstzahl an Dateien, die der SFTP-Manager gleichzeitig kopiert. Eine Obergrenze für **Parallele Übertragungen** in *Einstellungen → [SFTP-Manager](settings/sftp.md)*: Ein höherer gespeicherter Wert wird auf sie gesenkt, und das Zahlenfeld geht nicht darüber hinaus, während Benutzer weiterhin weniger wählen können. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt der kleinste |
+| `conflict-default` | string | `ask`, `skip`, `overwrite` | Legt **Wenn das Ziel bereits existiert** in *Einstellungen → SFTP-Manager* fest und sperrt die Einstellung: was ein Upload oder Download mit einer Datei tut, die bereits vorhanden ist. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt der Wert, der weniger Daten verliert (`ask` vor `skip` vor `overwrite`) |
+
+```toml
+[[rule]]
+  [rule.features]
+  file-transfer = "allow"
+
+  [rule.sftp]
+  max-parallel-transfers = 2
+  conflict-default = "ask"
+```
+
+Eine fehlerhafte Richtliniendatei fällt auf den Lockdown zurück, der `file-transfer` wie jede andere Funktion verweigert.
 
 ### `[rule.logging]`
 

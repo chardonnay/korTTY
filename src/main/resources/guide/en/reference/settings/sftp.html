@@ -830,7 +830,66 @@
 </table>
 <div class="admonition note">
 <p class="admonition-title">Auto-close</p>
-<p>An idle SFTP tab closes itself after the timeout, which frees the server-side connection when you forget to close the manager. The timeout field is only editable while the toggle is on, and the two share one stored value: switching the toggle off stores no timeout at all.</p>
+<p>An idle SFTP tab closes itself after the timeout, which frees the server-side connection when you forget to close the manager. The timeout field is only editable while the toggle is on, and the two share one stored value: switching the toggle off stores no timeout at all. While uploads or downloads are running the tab counts as active, so it never closes itself in the middle of a transfer.</p>
+</div>
+<h2 id="transfers">Transfers<a class="headerlink" href="#transfers" title="Permanent link">&para;</a></h2>
+<p>How uploads and downloads in the <a href="../../features/sftp.html#transfer-list">transfer list</a> work. Changes apply to SFTP tabs opened afterwards.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Type</th>
+<th>Values</th>
+<th>Default</th>
+<th>Stored as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parallel transfers</td>
+<td>number</td>
+<td>1–8</td>
+<td>3</td>
+<td><code>sftpParallelTransfers</code></td>
+</tr>
+<tr>
+<td>When the target already exists</td>
+<td>choice</td>
+<td>Ask (with "apply to all"), Skip the file, Overwrite</td>
+<td>Ask</td>
+<td><code>sftpConflictDefault</code> (<code>ask</code>, <code>skip</code>, <code>overwrite</code>)</td>
+</tr>
+<tr>
+<td>Resume interrupted transfers</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>sftpResumePartialTransfers</code></td>
+</tr>
+<tr>
+<td>Keep the partial file when a transfer is cancelled</td>
+<td>toggle</td>
+<td>—</td>
+<td>Off</td>
+<td><code>sftpKeepPartialOnCancel</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Parallel transfers</p>
+<p>Each parallel transfer uses one SFTP channel of its own next to the one the tab browses with. Three channels give most of the speed on slow links and stay well below the usual server limit of ten sessions per connection; when the server refuses a channel, the tab quietly copies with fewer. A tab that borrows a terminal pane's session uses at most 2, whatever the setting says.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">When the target already exists</p>
+<p><strong>Ask</strong> shows the <a href="../../features/sftp.html#when-a-file-already-exists">file already exists</a> dialog once per upload or download, with <strong>Apply to all</strong>. <strong>Skip the file</strong> and <strong>Overwrite</strong> answer it without asking; folders are merged either way. <strong>Overwrite</strong> never replaces a symbolic link, or a file where a folder is expected (and the other way round): those are still asked about.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Partial files</p>
+<p>Every transfer writes into a <code>.kortty-part</code> file next to its target first. With <strong>Resume interrupted transfers</strong> on, a transfer that failed or lost its connection keeps that file, and <strong>Retry</strong> continues where it stopped after checking that the source has not changed. Switched off, the partial file is removed whenever a transfer does not finish, and a retry starts from the beginning. <strong>Keep the partial file when a transfer is cancelled</strong> also keeps it on <strong>Cancel</strong>, so a cancelled transfer can be resumed too; it can only be switched on while resuming is on.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Managed by your organization</p>
+<p>An organization can cap <strong>Parallel transfers</strong> and set and lock <strong>When the target already exists</strong> with <a href="../enterprise-policy.html#rulesftp"><code>[rule.sftp]</code></a>, and switch file transfer off entirely with <code>file-transfer = "deny"</code>; the page then says so below the transfer settings.</p>
 </div>
 <h2 id="zip-creation-settings">ZIP Creation Settings<a class="headerlink" href="#zip-creation-settings" title="Permanent link">&para;</a></h2>
 <p>These are the defaults for creating a ZIP archive <strong>on the remote server</strong> from the SFTP manager.</p>
