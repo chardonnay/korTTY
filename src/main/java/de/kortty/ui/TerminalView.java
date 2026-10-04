@@ -2296,6 +2296,44 @@ public class TerminalView extends BorderPane {
             ? ssh : null;
     }
 
+    /**
+     * A supplier of {@code pane}'s SSH session for SFTP that borrows it ({@code SFTPSession.attach}),
+     * or null when the pane runs no connected SSH session (local shell, Mosh, Telnet, closed). The
+     * supplier holds this view and the pane weakly, remembers the pane's {@link PaneOrigin}
+     * identity as it is now, and returns the pane's current session only while that identity
+     * still matches. Call it on the FX thread; the supplier itself may be used from any thread.
+     */
+    public de.kortty.core.sftp.@Nullable BorrowedSessionSupplier borrowedSessionSupplier(@Nullable SithTermFxWidget pane) {
+        if (pane == null || fileDropConnector(pane) == null) {
+            return null;
+        }
+        PaneOrigin origin = paneOrigins.resolve(pane, tabOrigin());
+        return new PaneSessionSupplier<>(this, pane, PaneSessionSupplier.Identity.of(origin.connection()),
+            TerminalView::currentPaneSession);
+    }
+
+    /** The connection {@code pane} runs: its own {@link PaneOrigin}'s, else the tab's. */
+    public ServerConnection paneConnection(@Nullable SithTermFxWidget pane) {
+        return paneOrigins.resolve(pane, tabOrigin()).connection();
+    }
+
+    /**
+     * What {@code pane} runs right now, for {@link PaneSessionSupplier}. Static, so the supplier's
+     * resolver does not hold the view; touches no scene graph, so it is safe off the FX thread.
+     */
+    private static PaneSessionSupplier.@Nullable PaneSession currentPaneSession(TerminalView view, SithTermFxWidget pane) {
+        PaneOrigin origin = view.paneOrigins.resolve(pane, view.tabOrigin());
+        TtyConnector connector = unwrapTerminalEffectConnector(pane.getTtyConnector());
+        if (!(connector instanceof SshTtyConnector ssh)) {
+            return null;
+        }
+        ServerConnection running = ssh.getConnection();
+        return new PaneSessionSupplier.PaneSession(
+            PaneSessionSupplier.Identity.of(origin.connection()),
+            running != null ? PaneSessionSupplier.Identity.of(running) : null,
+            ssh.isConnected() ? ssh.getSession() : null);
+    }
+
     private TtyConnector getFocusedConnector() {
         SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : null;
         return focused != null ? unwrapTerminalEffectConnector(focused.getTtyConnector()) : null;
