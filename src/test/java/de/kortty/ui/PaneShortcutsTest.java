@@ -98,9 +98,13 @@ class PaneShortcutsTest {
         String router = source.substring(routerStart, routerEnd);
 
         assertThat(router).contains("for (PaneShortcuts.PaneAction paneAction : PaneShortcuts.PaneAction.values()) {");
-        assertThat(router).contains("router.consume(press -> PANE_SHORTCUTS.isChordOf(press, paneAction),\n"
+        // Each pane chord is a RoutedChord on PANE_SHORTCUTS' default, which the user can rebind.
+        assertThat(router).contains("RoutedChord paneChord = paneChords.get(paneAction);\n"
+            + "            router.consume(paneChord::matches,\n"
             + "                () -> isKeyboardInSelectedTerminal() && PaneShortcuts.applies(paneAction, activeTerminalPaneCount()),\n"
-            + "                () -> runPaneShortcut(paneAction), paneAction.residue());");
+            + "                () -> runPaneShortcut(paneAction), paneChord::residue);");
+        assertThat(methodBody(source, "private static Map<PaneShortcuts.PaneAction, RoutedChord> createPaneChords() {"))
+            .contains("new RoutedChord(action.actionId(), PANE_SHORTCUTS.chordOf(action), action.residue())");
         assertWithMessage("the split's connect dialog runs a nested event loop: after the key event, not inside it")
             .that(methodBody(source, "private void runPaneShortcut(PaneShortcuts.PaneAction action) {"))
             .contains("case SPLIT -> Platform.runLater(() -> splitPaneInActiveTerminal(null));");

@@ -41,13 +41,17 @@ class CommandPaletteShortcutTest {
 
     @Test
     void theRouterTakesTheChordFirstAndSwallowsItsResidue() throws IOException {
-        String router = routerBody(source());
+        String source = source();
+        String router = routerBody(source);
 
-        int palette = router.indexOf(".consume(press -> PaletteKeys.isChord(press, COMMAND_PALETTE_ACCELERATOR), "
-            + "SceneShortcutRouter.ALWAYS,\n                this::toggleCommandPalette, PaletteKeys.RESIDUE)");
+        // The chord in effect: COMMAND_PALETTE_ACCELERATOR unless the user rebound it.
+        assertThat(source).contains("private final RoutedChord commandPaletteChord =\n"
+            + "        new RoutedChord(\"menu.view.commandPalette\", COMMAND_PALETTE_ACCELERATOR, PaletteKeys.RESIDUE);");
+        int palette = router.indexOf(".consume(commandPaletteChord::matches, "
+            + "SceneShortcutRouter.ALWAYS,\n                this::toggleCommandPalette, commandPaletteChord::residue)");
         assertWithMessage("router entry for the palette").that(palette).isAtLeast(0);
         assertWithMessage("the palette entry comes before every other entry")
-            .that(palette).isLessThan(router.indexOf(".consume(press -> press.matches(MENU_BAR_TOGGLE_ACCELERATOR)"));
+            .that(palette).isLessThan(router.indexOf(".consume(menuBarToggleChord::matches"));
         assertThat(router.indexOf("SceneShortcutKeys::isZoomIn")).isGreaterThan(palette);
     }
 
@@ -69,7 +73,8 @@ class CommandPaletteShortcutTest {
         assertWithMessage("states are refreshed before the palette reads them")
             .that(show.indexOf("refreshActionStates();"))
             .isLessThan(show.indexOf("commandPalette.show(sceneRoot);"));
-        assertThat(show).contains("PaletteKeys.passThrough(COMMAND_PALETTE_ACCELERATOR, isMacOs())");
+        assertWithMessage("the chord in effect, read per key event, so a rebinding reaches an open palette")
+            .that(show).contains("PaletteKeys.passThrough(commandPaletteChord::chord, isMacOs())");
         assertThat(show).contains("new ActionPaletteSource(actionRegistry(), KeyCombination::getDisplayText,");
 
         String refresh = methodBody(source, "private void refreshActionStates() {");
@@ -120,9 +125,10 @@ class CommandPaletteShortcutTest {
 
     /**
      * The router consumes before the focused terminal sees a key, so a plain Shortcut+letter there
-     * would take a control character away from the shell on Windows and Linux. Every chord constant
+     * would take a control character away from the shell on Windows and Linux. Every default chord
      * the router consumes needs Shift or Alt as well; the Edit &gt; Find menu accelerator (Shortcut+F)
-     * is no router entry and only fires for keys the terminal left alone.
+     * is no router entry and only fires for keys the terminal left alone. A chord the user chooses
+     * instead is held to the same rule by KeymapOverrides (RESERVED_SHELL, KeymapOverridesTest).
      */
     @Test
     void noRouterChordIsAPlainShortcutLetter() throws IOException {
@@ -130,23 +136,47 @@ class CommandPaletteShortcutTest {
         Map<String, String> constants = constants(source);
         String router = routerBody(source);
 
+        // A rebindable entry's default is the constant its RoutedChord field is built on.
+        Map<String, String> routedDefaults = new LinkedHashMap<>();
+        Matcher field = Pattern.compile(
+            "private final RoutedChord (\\w+) =\\s*new RoutedChord\\(\\s*[^,]+,\\s*(\\w+),").matcher(source);
+        while (field.find()) {
+            routedDefaults.put(field.group(1), field.group(2));
+        }
+        List<String> paneDefaults = new ArrayList<>();
+        Matcher pane = Pattern.compile("PaneShortcuts\\.PaneAction\\.\\w+, (PANE_\\w+_ACCELERATOR)").matcher(source);
+        while (pane.find()) {
+            paneDefaults.add(pane.group(1));
+        }
+        assertThat(paneDefaults).hasSize(PaneShortcuts.PaneAction.values().length);
+
         // Consuming entries only: the Paste observer lets its Shortcut+V go on to the terminal.
-        Matcher used = Pattern.compile(
-            "\\.consume\\(press -> (?:press\\.matches|PaletteKeys\\.isChord)\\((?:press, )?(\\w+)\\)").matcher(router);
+        Matcher used = Pattern.compile("\\.consume\\((?:press -> (?:press\\.matches|PaletteKeys\\.isChord)"
+            + "\\((?:press, )?(\\w+)\\)|(\\w+)::matches)").matcher(router);
         List<String> plain = new ArrayList<>();
         int chords = 0;
         while (used.find()) {
-            chords++;
-            String combination = constants.get(used.group(1));
-            assertWithMessage("router chord " + used.group(1) + " is a KeyCodeCombination constant")
-                .that(combination).isNotNull();
-            boolean letter = combination.matches("(?:.*\\+)?[A-Z](?:\\+.*)?");
-            boolean extraModifier = combination.contains("SHIFT_DOWN") || combination.contains("ALT_DOWN");
-            if (letter && combination.contains("SHORTCUT_DOWN") && !extraModifier) {
-                plain.add(used.group(1) + " = " + combination);
+            List<String> names = new ArrayList<>();
+            if (used.group(1) != null) {
+                names.add(used.group(1));
+            } else if ("paneChord".equals(used.group(2))) {
+                names.addAll(paneDefaults);
+            } else {
+                names.add(routedDefaults.get(used.group(2)));
+            }
+            for (String name : names) {
+                chords++;
+                String combination = constants.get(name);
+                assertWithMessage("router chord " + name + " is a KeyCodeCombination constant")
+                    .that(combination).isNotNull();
+                boolean letter = combination.matches("(?:.*\\+)?[A-Z](?:\\+.*)?");
+                boolean extraModifier = combination.contains("SHIFT_DOWN") || combination.contains("ALT_DOWN");
+                if (letter && combination.contains("SHORTCUT_DOWN") && !extraModifier) {
+                    plain.add(name + " = " + combination);
+                }
             }
         }
-        assertThat(chords).isAtLeast(6);
+        assertThat(chords).isAtLeast(12);
         assertThat(plain).isEmpty();
     }
 

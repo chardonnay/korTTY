@@ -8,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * The command palette's chord as the palette and the scene shortcut router see it. Pure functions of
@@ -15,8 +16,9 @@ import java.util.function.Predicate;
  * unit-tested without the JavaFX toolkit.
  *
  * <p>The chord is MainWindow's {@code COMMAND_PALETTE_ACCELERATOR}, Cmd+Shift+P on macOS and
- * Ctrl+Shift+P elsewhere. It needs Alt up, so AltGr+Shift+P (reported as Ctrl+Alt+Shift+P on
- * Windows) types its character, and plain Ctrl+P stays the shell's previous-history key.
+ * Ctrl+Shift+P elsewhere, unless the user rebound it. It needs Alt up, so AltGr+Shift+P (reported as
+ * Ctrl+Alt+Shift+P on Windows) types its character, and plain Ctrl+P stays the shell's
+ * previous-history key.
  */
 final class PaletteKeys {
 
@@ -38,7 +40,19 @@ final class PaletteKeys {
      */
     static Predicate<KeyEvent> passThrough(@NotNull KeyCombination chord, boolean macOs) {
         Objects.requireNonNull(chord, "chord");
-        return event -> event.getEventType() == KeyEvent.KEY_PRESSED
-            && isChord(KeyPress.of(event, macOs), chord);
+        return passThrough(() -> chord, macOs);
+    }
+
+    /**
+     * {@link #passThrough(KeyCombination, boolean)} for the chord in effect, which the user can
+     * rebind while the palette exists: asked for each key event. With no chord nothing passes.
+     */
+    static Predicate<KeyEvent> passThrough(@NotNull Supplier<KeyCombination> chord, boolean macOs) {
+        Objects.requireNonNull(chord, "chord");
+        return event -> {
+            KeyCombination current = chord.get();
+            return current != null && event.getEventType() == KeyEvent.KEY_PRESSED
+                && isChord(KeyPress.of(event, macOs), current);
+        };
     }
 }

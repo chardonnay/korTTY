@@ -52,8 +52,11 @@ public class TerminalQuickSelectControllerTest {
 
         assertThat(mainWindow).contains("privatestaticfinalKeyCombinationQUICK_SELECT_ACCELERATOR="
             + "newKeyCodeCombination(KeyCode.SPACE,KeyCombination.SHORTCUT_DOWN,KeyCombination.SHIFT_DOWN);");
-        assertThat(mainWindow).contains(".consume(press->press.matches(QUICK_SELECT_ACCELERATOR),"
-            + "this::isKeyboardInSelectedTerminal,this::quickSelectInCurrentTab,QUICK_SELECT_RESIDUE)");
+        // The router reads the chord in effect: the default above, or the user's rebinding of it.
+        assertThat(mainWindow).contains("privatefinalRoutedChordquickSelectChord="
+            + "newRoutedChord(\"menu.edit.quickSelect\",QUICK_SELECT_ACCELERATOR,QUICK_SELECT_RESIDUE);");
+        assertThat(mainWindow).contains(".consume(quickSelectChord::matches,"
+            + "this::isKeyboardInSelectedTerminal,this::quickSelectInCurrentTab,quickSelectChord::residue)");
         assertThat(mainWindow).contains("=menuItem(\"menu.edit.quickSelect\");"
             + "quickSelect.setAccelerator(QUICK_SELECT_ACCELERATOR);");
         assertThat(mainWindow).contains("booleandisableQuickSelect=!(currentTabinstanceofTerminalTab);");
@@ -65,7 +68,7 @@ public class TerminalQuickSelectControllerTest {
         String controller = compact("src/main/java/de/kortty/ui/TerminalQuickSelectController.java");
 
         int install = terminalView.indexOf(
-            "quickSelect=TerminalQuickSelectController.install(splitPane,MainWindow.quickSelectAccelerator());");
+            "quickSelect=TerminalQuickSelectController.install(splitPane,MainWindow::effectiveQuickSelectAccelerator);");
         int viewFilter = terminalView.indexOf("splitPane.addEventFilter(KeyEvent.KEY_PRESSED,");
         assertThat(install).isAtLeast(0);
         assertThat(viewFilter).isGreaterThan(install);

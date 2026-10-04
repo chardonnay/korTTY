@@ -49,9 +49,13 @@ class CredentialsShortcutTest {
         assertThat(routerStart).isAtLeast(0);
         int routerEnd = source.indexOf("return router;", routerStart);
         assertThat(routerEnd).isGreaterThan(routerStart);
-        Matcher entry = Pattern.compile("\\.consume\\(press -> press\\.matches\\(CREDENTIALS_ACCELERATOR\\), "
+        // The router reads the chord in effect, CREDENTIALS_ACCELERATOR unless the user rebound it.
+        assertThat(Pattern.compile("private final RoutedChord credentialsChord =\\s*new RoutedChord\\("
+                + "\"menu\\.security\\.credentials\", CREDENTIALS_ACCELERATOR, Residue\\.ofLetter\\('M'\\)\\);")
+            .matcher(source).find()).isTrue();
+        Matcher entry = Pattern.compile("\\.consume\\(credentialsChord::matches, "
                 + "SceneShortcutRouter\\.ALWAYS,\\s*\\(\\) -> Platform\\.runLater\\(this::showCredentialManagement\\), "
-                + "Residue\\.ofLetter\\('M'\\)\\)")
+                + "credentialsChord::residue\\)")
             .matcher(source);
         assertThat(entry.find(routerStart)).isTrue();
         assertThat(entry.start()).isLessThan(routerEnd);

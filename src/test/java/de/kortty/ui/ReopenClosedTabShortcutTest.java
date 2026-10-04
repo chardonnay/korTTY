@@ -49,9 +49,13 @@ class ReopenClosedTabShortcutTest {
         assertThat(routerStart).isAtLeast(0);
         int routerEnd = source.indexOf("return router;", routerStart);
         assertThat(routerEnd).isGreaterThan(routerStart);
-        Matcher entry = Pattern.compile("\\.consume\\(press -> press\\.matches\\(REOPEN_CLOSED_TAB_ACCELERATOR\\), "
+        // The router reads the chord in effect, REOPEN_CLOSED_TAB_ACCELERATOR unless the user rebound it.
+        assertThat(Pattern.compile("private final RoutedChord reopenClosedTabChord =\\s*new RoutedChord\\("
+                + "\"menu\\.file\\.reopenClosedTab\", REOPEN_CLOSED_TAB_ACCELERATOR, Residue\\.anyCharacter\\(\\)\\);")
+            .matcher(source).find()).isTrue();
+        Matcher entry = Pattern.compile("\\.consume\\(reopenClosedTabChord::matches, "
                 + "SceneShortcutRouter\\.ALWAYS,\\s*\\(\\) -> Platform\\.runLater\\(this::reopenClosedTab\\), "
-                + "Residue\\.anyCharacter\\(\\)\\)")
+                + "reopenClosedTabChord::residue\\)")
             .matcher(source);
         assertThat(entry.find(routerStart)).isTrue();
         assertThat(entry.start()).isLessThan(routerEnd);

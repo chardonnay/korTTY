@@ -209,13 +209,25 @@ public class CodingAgentPanel extends BorderPane {
 
     // ---- construction -------------------------------------------------------------------------
 
+    /**
+     * The next-blocked button's tooltip: the menu item's label with the chord in effect, Cmd/Ctrl+Alt+N
+     * or the one the user chose, and no chord when the user removed it.
+     */
+    private static String nextBlockedTooltipText() {
+        String label = I18n.get("menu.codingAgent.nextBlocked");
+        KeyCombination chord = MainWindow.effectiveAccelerator("menu.codingAgent.nextBlocked", NEXT_BLOCKED_ACCELERATOR);
+        return chord == null ? label : label + " (" + chord.getDisplayText() + ")";
+    }
+
     private VBox buildHeader() {
         titleLabel.setStyle("-fx-font-weight: bold;");
         summaryLabel.setStyle(dimStyle);
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        nextBlockedButton.setTooltip(new Tooltip(I18n.get("menu.codingAgent.nextBlocked") + " ("
-            + NEXT_BLOCKED_ACCELERATOR.getDisplayText() + ")"));
+        // Names the chord in effect each time it shows: the user may rebind it while the panel is open.
+        Tooltip nextBlockedTooltip = new Tooltip(nextBlockedTooltipText());
+        nextBlockedTooltip.setOnShowing(event -> nextBlockedTooltip.setText(nextBlockedTooltipText()));
+        nextBlockedButton.setTooltip(nextBlockedTooltip);
         nextBlockedButton.setOnAction(event -> focusNextBlocked());
 
         MenuItem dockLeft = new MenuItem(I18n.get("codingAgent.panel.dockLeft"));
