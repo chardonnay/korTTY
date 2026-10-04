@@ -127,11 +127,11 @@ class GlobalSettingsManagerRecoveryTest {
 
     @Test
     void sanitizerRemovesEveryCharacterXml10CannotHold() {
-        String text = "a\u0000b\tc\u001Fd￾e￿f\uD800g\uDC00h😀i\r\n";
+        String text = "a\u0000b\tc\u001Fd\uFFFEe\uFFFFf\uD800g\uDC00h\uD83D\uDE00i\r\n";
         XmlCharacterSanitizer.Result result = XmlCharacterSanitizer.sanitize(
             text.getBytes(StandardCharsets.UTF_8));
         // getBytes turns each lone surrogate into "?"; the encoded-surrogate bytes are tested below.
-        assertThat(result.text()).isEqualTo("ab\tcde" + "f?g?h😀i\r\n");
+        assertThat(result.text()).isEqualTo("ab\tcde" + "f?g?h\uD83D\uDE00i\r\n");
         assertThat(result.removedCount()).isEqualTo(4);
 
         byte[] malformed = {'x', (byte) 0xC3, 'y', (byte) 0xED, (byte) 0xA0, (byte) 0x80, 'z'};

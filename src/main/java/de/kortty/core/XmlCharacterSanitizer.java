@@ -1,5 +1,7 @@
 package de.kortty.core;
 
+import de.kortty.model.XmlStorableText;
+
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharsetDecoder;
@@ -11,7 +13,8 @@ import java.nio.charset.StandardCharsets;
  * Turns the bytes of an XML file that does not parse into text that can: decodes them as UTF-8,
  * dropping byte sequences that are not UTF-8, and removes every character XML 1.0 cannot hold —
  * C0 controls other than tab/LF/CR, U+FFFE, U+FFFF and lone surrogates. JAXB writes such
- * characters raw, so a single one in any string makes the whole document unreadable.
+ * characters raw, so a single one in any string makes the whole document unreadable. The
+ * character rule is {@link XmlStorableText#isStorableCodePoint}.
  */
 final class XmlCharacterSanitizer {
 
@@ -43,7 +46,7 @@ final class XmlCharacterSanitizer {
         while (i < out.length()) {
             int codePoint = Character.codePointAt(out, i);
             int width = Character.charCount(codePoint);
-            if (isXml10Char(codePoint)) {
+            if (XmlStorableText.isStorableCodePoint(codePoint)) {
                 text.appendCodePoint(codePoint);
             } else {
                 removed++;
@@ -51,17 +54,9 @@ final class XmlCharacterSanitizer {
             i += width;
         }
         // A leading BOM would precede the XML declaration in the decoded text.
-        if (text.length() > 0 && text.charAt(0) == '﻿') {
+        if (text.length() > 0 && text.charAt(0) == '\uFEFF') {
             text.deleteCharAt(0);
         }
         return new Result(text.toString(), removed);
-    }
-
-    /** The XML 1.0 {@code Char} production; a lone surrogate arrives here as its own code point. */
-    static boolean isXml10Char(int codePoint) {
-        return codePoint == 0x9 || codePoint == 0xA || codePoint == 0xD
-            || (codePoint >= 0x20 && codePoint <= 0xD7FF)
-            || (codePoint >= 0xE000 && codePoint <= 0xFFFD)
-            || (codePoint >= 0x10000 && codePoint <= 0x10FFFF);
     }
 }

@@ -24,7 +24,7 @@ public final class XmlStorableText {
         }
         for (int i = 0; i < text.length(); ) {
             int codePoint = Character.codePointAt(text, i);
-            if (!isXmlChar(codePoint)) {
+            if (!isStorableCodePoint(codePoint)) {
                 return codePoint;
             }
             i += Character.charCount(codePoint);
@@ -37,8 +37,8 @@ public final class XmlStorableText {
         return firstUnstorableCodePoint(text) < 0;
     }
 
-    /** XML 1.0's {@code Char} production. */
-    private static boolean isXmlChar(int codePoint) {
+    /** XML 1.0's {@code Char} production; a lone surrogate is passed as its own value. */
+    public static boolean isStorableCodePoint(int codePoint) {
         return codePoint == 0x9 || codePoint == 0xA || codePoint == 0xD
             || (codePoint >= 0x20 && codePoint <= 0xD7FF)
             || (codePoint >= 0xE000 && codePoint <= 0xFFFD)
