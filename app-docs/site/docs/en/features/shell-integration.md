@@ -27,7 +27,7 @@ The keys are korTTY's only while the pane has prompt marks and shows its normal 
 
 ### The right-click menu
 
-A pane with prompt marks has **Previous Prompt**, **Next Prompt**, **Select Last Output** and **Copy Last Output** in its right-click menu, all greyed out while a full-screen program runs, and the last two also until a command finished. A pane whose shell sends no marks shows **Set Up Shell Integration…** instead, which opens this page at [Setting it up](#setting-it-up). Neither shows while shell integration is switched off, or for a connection whose terminal emulation cannot carry the marks (Wyse, TeleVideo, HP, IBM 3270 and 5250, PETSCII).
+A pane with prompt marks has **Previous Prompt**, **Next Prompt**, **Select Last Output** and **Copy Last Output** in its right-click menu, all greyed out while a full-screen program runs, and the last two also until a command finished. A pane whose shell sends no marks shows **Set Up Shell Integration…** instead, which opens the window with the snippets described under [Setting it up](#setting-it-up). Neither shows while shell integration is switched off, or for a connection whose terminal emulation cannot carry the marks (Wyse, TeleVideo, HP, IBM 3270 and 5250, PETSCII).
 
 ## Selecting and copying a command's output
 
@@ -71,6 +71,14 @@ When a command that ran at least 30 seconds finishes in a tab you are not lookin
 ## Setting it up
 
 Add the snippet for your shell to its startup file on every computer whose shell you want marked: on each server you connect to with SSH, and on your own computer for local shell tabs. korTTY never changes files on a server and never types anything into an SSH session to set this up. Open a new shell, or reconnect the tab, after adding the snippet.
+
+**Set Up Shell Integration…** opens a window with the snippets: from the right-click menu of a terminal whose shell sends no marks, or with the button of the same name in *Settings → Terminal → Shell integration*, which works while the setting is off too. It has a tab for bash, zsh and fish, each with where the snippet goes and the snippet itself, the same text as below.
+
+![The Set Up Shell Integration window on its bash tab, with the snippet, where it goes and the Copy button](../assets/screenshots/main/shell-integration-setup.png)
+
+- **Copy** puts the snippet of the selected tab on the clipboard, ready to paste into the startup file in an editor on the server. Pasted at a shell prompt instead, it marks only that shell, until it exits. The copy goes through korTTY's clipboard, so with the enterprise policy's [internal clipboard mode](../reference/enterprise-policy.md#internal-clipboard-mode) the snippet stays inside korTTY, and the window says so: paste it into a korTTY terminal or editor then. You can also select part of the text and copy that.
+- The window opens on the shell you picked last, bash the first time. From the right-click menu of a local shell tab that runs bash, zsh or fish, it opens on that shell instead; korTTY cannot tell which shell a server runs, so for an SSH connection pick the shell yourself.
+- The window does not block the rest of korTTY, so it can stay open while you paste the snippet into a terminal. There is only one: opening it again brings it to the front. **Shell integration in the manual** at its bottom opens this page.
 
 Each snippet:
 

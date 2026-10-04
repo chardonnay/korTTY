@@ -40,6 +40,8 @@ class ShellIntegrationI18nCoverageTest {
         "settings.terminal.shellIntegration.header",
         "settings.terminal.shellIntegration.enabled",
         "settings.terminal.shellIntegration.enabled.tooltip",
+        "settings.terminal.shellIntegration.setup",
+        "settings.terminal.shellIntegration.setup.tooltip",
         "settings.terminal.shellIntegration.info",
         "terminal.contextMenu.shellIntegration.previousPrompt",
         "terminal.contextMenu.shellIntegration.nextPrompt",
@@ -55,7 +57,18 @@ class ShellIntegrationI18nCoverageTest {
         "terminal.shellIntegration.status.lastOutputCopiedTruncated",
         "terminal.shellIntegration.status.noOutput",
         "terminal.shellIntegration.status.noFinishedCommand",
-        "terminal.shellIntegration.status.lastOutputFullScreen");
+        "terminal.shellIntegration.status.lastOutputFullScreen",
+        "terminal.shellIntegration.setup.title",
+        "terminal.shellIntegration.setup.header",
+        "terminal.shellIntegration.setup.intro",
+        "terminal.shellIntegration.setup.bash",
+        "terminal.shellIntegration.setup.zsh",
+        "terminal.shellIntegration.setup.fish",
+        "terminal.shellIntegration.setup.copy",
+        "terminal.shellIntegration.setup.copied",
+        "terminal.shellIntegration.setup.copiedInternal",
+        "terminal.shellIntegration.setup.check",
+        "terminal.shellIntegration.setup.manual");
 
     @Test
     void everyKeyExistsInEveryBundle() throws Exception {
@@ -95,6 +108,47 @@ class ShellIntegrationI18nCoverageTest {
             for (String shell : List.of("bash", "zsh", "fish")) {
                 assertWithMessage(bundle).that(localized.getProperty("settings.terminal.shellIntegration.info"))
                     .contains(shell);
+            }
+        }
+    }
+
+    @Test
+    void theSetupWindowAndItsButtonCarryTheNameOfTheRightClickEntry() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = load(bundle);
+            String entry = localized.getProperty("terminal.contextMenu.shellIntegration.setup");
+            assertWithMessage(bundle + ": the Settings button opens the same window as the right-click entry")
+                .that(localized.getProperty("settings.terminal.shellIntegration.setup")).isEqualTo(entry);
+            assertWithMessage(bundle + ": the window is titled after the entry, without its ellipsis")
+                .that(localized.getProperty("terminal.shellIntegration.setup.title"))
+                .isEqualTo(entry.substring(0, entry.length() - 1));
+            assertWithMessage(bundle + ": the settings note points to the button")
+                .that(localized.getProperty("settings.terminal.shellIntegration.info")).contains(entry);
+            assertWithMessage(bundle + ": the check names the entry that disappears once the marks arrive")
+                .that(localized.getProperty("terminal.shellIntegration.setup.check")).contains(entry);
+            assertWithMessage(bundle + ": the check names the entry that appears instead")
+                .that(localized.getProperty("terminal.shellIntegration.setup.check"))
+                .contains(localized.getProperty("terminal.contextMenu.shellIntegration.previousPrompt"));
+        }
+    }
+
+    @Test
+    void everyTranslationKeepsThePathsTheSnippetsGoTo() throws Exception {
+        // Translators must not touch file names, commands and variables: they are typed as they are.
+        List<List<String>> literals = List.of(
+            List.of("terminal.shellIntegration.setup.bash", "bash 4.4", "/bin/bash", "~/.kortty-shell-integration.bash",
+                "source ~/.kortty-shell-integration.bash", "~/.bashrc", "PROMPT_COMMAND", "PS1"),
+            List.of("terminal.shellIntegration.setup.zsh", "zsh 5.1", "~/.kortty-shell-integration.zsh",
+                "source ~/.kortty-shell-integration.zsh", "~/.zshrc", "POWERLEVEL9K_TERM_SHELL_INTEGRATION=true",
+                "~/.p10k.zsh"),
+            List.of("terminal.shellIntegration.setup.fish", "fish 3.1", "~/.config/fish/conf.d/kortty.fish"));
+        for (String bundle : BUNDLES) {
+            Properties localized = load(bundle);
+            for (List<String> expected : literals) {
+                String value = localized.getProperty(expected.get(0));
+                for (String literal : expected.subList(1, expected.size())) {
+                    assertWithMessage(bundle + " " + expected.get(0)).that(value).contains(literal);
+                }
             }
         }
     }

@@ -4111,6 +4111,15 @@ tasks.register<JavaExec>("generatePasteConfirmationScreenshot") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateShellIntegrationSetupScreenshot") {
+    group = "build"
+    description = "Renders the Set Up Shell Integration window screenshot for the manual " +
+        "(app-docs/screenshots/main/shell-integration-setup.png) via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.ShellIntegrationSetupScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.jar {
     val implementationTitle = project.name
     val implementationVersion = project.version

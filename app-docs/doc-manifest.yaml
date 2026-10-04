@@ -235,7 +235,8 @@ pages:
     last_synced_ref: "53a0d88a"
   - path: app-docs/site/docs/en/features/shell-integration.md
     owns_i18n: [terminal.contextMenu.shellIntegration., terminal.shellIntegration., terminal.timestamps.exitStatus, terminal.timestamps.runtime, terminal.timestamps.runningFor, terminal.timestamps.duration.milliseconds]
-    owns_code: [src/main/java/de/kortty/shellintegration, src/main/java/de/kortty/ui/ShellIntegrationTtyConnector.java, src/main/java/de/kortty/ui/ShellIntegrationController.java, src/main/java/de/kortty/ui/PaneCommandMarks.java, src/main/java/de/kortty/ui/TerminalScrollSupport.java, src/main/java/de/kortty/ui/KorttyTermWidget.java, src/main/resources/shell-integration, src/main/java/de/kortty/ui/TimestampGutter.java, src/main/java/de/kortty/ui/TimestampGutterFormats.java]
+    owns_code: [src/main/java/de/kortty/shellintegration, src/main/java/de/kortty/ui/ShellIntegrationTtyConnector.java, src/main/java/de/kortty/ui/ShellIntegrationController.java, src/main/java/de/kortty/ui/PaneCommandMarks.java, src/main/java/de/kortty/ui/TerminalScrollSupport.java, src/main/java/de/kortty/ui/KorttyTermWidget.java, src/main/resources/shell-integration, src/main/java/de/kortty/ui/TimestampGutter.java, src/main/java/de/kortty/ui/TimestampGutterFormats.java, src/main/java/de/kortty/ui/ShellIntegrationSetupDialog.java]
+    screenshots: [main/shell-integration-setup.png]
     last_synced_ref: "f5cf36c3"
   - path: app-docs/site/docs/en/features/terminal-notifications.md
     owns_i18n: [terminal.notify., terminal.osc52.]

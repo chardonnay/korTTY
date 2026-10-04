@@ -73,6 +73,7 @@ import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.shellintegration.RemoteNotificationText;
 import de.kortty.shellintegration.ShellIntegrationEvent;
+import de.kortty.shellintegration.ShellIntegrationSnippet;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -8122,7 +8123,7 @@ public class TerminalView extends BorderPane {
             case SETUP -> {
                 javafx.scene.control.MenuItem setup = new javafx.scene.control.MenuItem(
                     I18n.get("terminal.contextMenu.shellIntegration.setup"));
-                setup.setOnAction(e -> openShellIntegrationGuide());
+                setup.setOnAction(e -> openShellIntegrationSetup(widget));
                 yield List.of(setup);
             }
         };
@@ -8137,16 +8138,35 @@ public class TerminalView extends BorderPane {
         }
     }
 
-    /** The guide section with the shell snippets, which Set Up Shell Integration… opens. */
-    static final String SHELL_INTEGRATION_GUIDE_LOCATION = "features/shell-integration.html#setting-it-up";
-
-    private void openShellIntegrationGuide() {
+    /**
+     * Set Up Shell Integration…: the window with the shell snippets, on the tab of {@code widget}'s
+     * local shell when korTTY knows it.
+     */
+    private void openShellIntegrationSetup(SithTermFxWidget widget) {
         try {
             javafx.stage.Window window = getScene() != null ? getScene().getWindow() : null;
-            GuideViewer.show(KorTTYApplication.getInstance(), window, SHELL_INTEGRATION_GUIDE_LOCATION);
+            ShellIntegrationSetupDialog.open(window, localShellSnippet(widget));
         } catch (RuntimeException e) {
-            logger.warn("Could not open the shell integration guide", e);
+            logger.warn("Could not open the shell integration setup", e);
         }
+    }
+
+    /**
+     * The snippet for the shell of {@code widget}'s local shell tab, or null: for SSH and Mosh, whose
+     * remote shell korTTY does not know, for the default shell on Windows, and for a command that
+     * starts no bash, zsh or fish directly.
+     */
+    private static @Nullable ShellIntegrationSnippet localShellSnippet(SithTermFxWidget widget) {
+        TtyConnector base = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        if (!(base instanceof LocalShellTtyConnector local)) {
+            return null;
+        }
+        String command = local.getConnection() != null ? local.getConnection().getLocalShellCommand() : null;
+        if (command == null || command.isBlank()) {
+            return LocalShellTtyConnector.isWindows() ? null : ShellIntegrationSnippet.forShell(System.getenv("SHELL"));
+        }
+        java.util.List<String> tokens = ServerConnection.tokenizeLocalShellCommand(command);
+        return tokens.isEmpty() ? null : ShellIntegrationSnippet.forShell(tokens.get(0));
     }
 
     /**

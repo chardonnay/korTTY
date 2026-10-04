@@ -3,6 +3,7 @@ package de.kortty.ui;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import de.kortty.shellintegration.ShellIntegrationSnippet;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -79,8 +80,31 @@ class ShellIntegrationSnippetsTest {
     }
 
     @Test
-    void theSetupEntryOpensTheSectionWithTheSnippets() throws IOException {
-        assertThat(TerminalView.SHELL_INTEGRATION_GUIDE_LOCATION).isEqualTo("features/shell-integration.html#setting-it-up");
+    void theSetupWindowShowsAndCopiesEachSnippetAsTheGuidePrintsIt() throws IOException {
+        String page = Files.readString(GUIDE_PAGE, StandardCharsets.UTF_8).replace("\r\n", "\n");
+        List<String> blocks = new ArrayList<>();
+        Matcher matcher = FENCE.matcher(page);
+        while (matcher.find()) {
+            blocks.add(matcher.group(2));
+        }
+        List<String> shipped = new ArrayList<>();
+        for (ShellIntegrationSnippet snippet : ShellIntegrationSnippet.values()) {
+            String fileName = snippet.resource().substring("/shell-integration/".length());
+            shipped.add(fileName);
+            String text = snippet.text();
+            assertWithMessage(snippet + " is the shipped resource").that(text).isEqualTo(snippet(fileName).stripTrailing() + "\n");
+            assertWithMessage(snippet + " is what the guide prints").that(blocks).contains(text.stripTrailing());
+            assertWithMessage(snippet + " has no carriage return, which the shell would run as part of a command")
+                .that(text).doesNotContain("\r");
+            assertWithMessage(snippet + "'s tab is named after its shell").that(snippet.shellName())
+                .isEqualTo(snippet.name().toLowerCase(Locale.ROOT));
+        }
+        assertWithMessage("the window has a tab for every snippet korTTY ships").that(shipped).containsExactlyElementsIn(SNIPPETS);
+    }
+
+    @Test
+    void theSetupWindowLinksToTheSectionWithTheSnippets() throws IOException {
+        assertThat(ShellIntegrationSetupDialog.GUIDE_LOCATION).isEqualTo("features/shell-integration.html#setting-it-up");
         String page = Files.readString(GUIDE_PAGE, StandardCharsets.UTF_8).replace("\r\n", "\n");
         assertThat(page).contains("\n## Setting it up\n");
     }

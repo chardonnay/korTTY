@@ -136,7 +136,7 @@ class ShellIntegrationWiringTest {
         String entries = body(view, "private List<javafx.scene.control.MenuItem> buildShellIntegrationMenuItems(SithTermFxWidget widget) {");
         assertThat(entries).contains("previous.setOnAction(e -> shellIntegration.jump(widget, PromptNavigator.Direction.PREVIOUS));");
         assertThat(entries).contains("next.setOnAction(e -> shellIntegration.jump(widget, PromptNavigator.Direction.NEXT));");
-        assertThat(entries).contains("setup.setOnAction(e -> openShellIntegrationGuide());");
+        assertThat(entries).contains("setup.setOnAction(e -> openShellIntegrationSetup(widget));");
         assertThat(entries).contains("selectOutput.setOnAction(e -> showShellIntegrationStatus(\n"
             + "                    shellIntegration.lastOutput(widget, ShellIntegrationController.LastOutputAction.SELECT)));");
         assertThat(entries).contains("copyOutput.setOnAction(e -> showShellIntegrationStatus(\n"
@@ -145,6 +145,48 @@ class ShellIntegrationWiringTest {
             .that(entries).contains("boolean outputAvailable = available && shellIntegration.hasFinishedCommand(widget);");
         assertThat(entries).contains("yield List.of(previous, next, selectOutput, copyOutput);");
         assertThat(view).contains("List<javafx.scene.control.MenuItem> shellIntegrationItems = buildShellIntegrationMenuItems(widget);");
+    }
+
+    @Test
+    void theSetupEntryAndTheSettingsButtonOpenTheSetupWindow() throws IOException {
+        String view = source("TerminalView.java");
+        assertThat(body(view, "private void openShellIntegrationSetup(SithTermFxWidget widget) {"))
+            .contains("ShellIntegrationSetupDialog.open(window, localShellSnippet(widget));");
+        String localShell = body(view, "private static @Nullable ShellIntegrationSnippet localShellSnippet(SithTermFxWidget widget) {");
+        assertWithMessage("only a local shell tab names its shell; SSH and Mosh keep the tab chosen last")
+            .that(localShell).contains("if (!(base instanceof LocalShellTtyConnector local)) {\n            return null;");
+        assertThat(localShell).contains("ShellIntegrationSnippet.forShell(System.getenv(\"SHELL\"))");
+        assertThat(view).doesNotContain("openShellIntegrationGuide");
+
+        String dialog = source("SettingsDialog.java");
+        assertThat(dialog).contains(
+            "Button shellIntegrationSetupButton = new Button(I18n.get(\"settings.terminal.shellIntegration.setup\"));");
+        assertThat(dialog).contains("shellIntegrationSetupButton.setOnAction(event -> openShellIntegrationSetup());");
+        assertThat(dialog).contains("terminalGrid.add(shellIntegrationSetupButton, 0, terminalRow++, 2, 1);");
+        assertWithMessage("the snippets can be put on the servers before the setting is switched on")
+            .that(dialog).doesNotContain("shellIntegrationSetupButton.disableProperty()");
+        assertThat(body(dialog, "private void openShellIntegrationSetup() {"))
+            .contains("ShellIntegrationSetupDialog.open(owner, null);");
+    }
+
+    @Test
+    void theSetupWindowCopiesThroughThePolicyAwareClipboardAndStaysOutOfTheWay() throws IOException {
+        String setup = source("ShellIntegrationSetupDialog.java");
+        assertWithMessage("non-modal, so the snippet can be pasted into a terminal while it is open")
+            .that(setup).contains("initModality(Modality.NONE);");
+        String copy = body(setup, "private void copySelectedSnippet() {");
+        assertWithMessage("Copy follows the enterprise policy's clipboard mode")
+            .that(copy).contains("KorttyClipboard.setText(text);");
+        assertThat(copy).contains("\"terminal.shellIntegration.setup.copiedInternal\"");
+        assertThat(setup).doesNotContain("Clipboard.getSystemClipboard()");
+        String tab = body(setup, "private Tab snippetTab(ShellIntegrationSnippet snippet, double textWidth) {");
+        assertWithMessage("read-only").that(tab).contains("text.setEditable(false);");
+        assertWithMessage("the text area's own Copy is replaced by a policy-aware one")
+            .that(tab).contains("copySelection.setOnAction(event -> KorttyClipboard.copySelection(text));");
+        assertThat(tab).contains("text.setContextMenu(new ContextMenu(");
+        String open = body(setup, "public static void open(@Nullable Window owner, @Nullable ShellIntegrationSnippet shell) {");
+        assertWithMessage("one window at a time").that(open).contains("open.revealDialogOrHost();");
+        assertThat(open).contains("open.close();");
     }
 
     @Test

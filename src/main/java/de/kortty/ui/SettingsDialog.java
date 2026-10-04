@@ -1044,6 +1044,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         shellIntegrationHeader.setStyle("-fx-font-weight: bold;");
         terminalGrid.add(shellIntegrationHeader, 0, terminalRow++, 2, 1);
         terminalGrid.add(shellIntegrationCheck, 0, terminalRow++, 2, 1);
+        // Reachable with the checkbox off too: the snippets can be put on the servers first.
+        Button shellIntegrationSetupButton = new Button(I18n.get("settings.terminal.shellIntegration.setup"));
+        shellIntegrationSetupButton.setTooltip(new Tooltip(I18n.get("settings.terminal.shellIntegration.setup.tooltip")));
+        shellIntegrationSetupButton.setOnAction(event -> openShellIntegrationSetup());
+        shellIntegrationSetupButton.setMinWidth(Region.USE_PREF_SIZE);
+        terminalGrid.add(shellIntegrationSetupButton, 0, terminalRow++, 2, 1);
         Label shellIntegrationInfo = new Label(I18n.get("settings.terminal.shellIntegration.info"));
         shellIntegrationInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         shellIntegrationInfo.setWrapText(true);
@@ -6858,6 +6864,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed") + ": " + (t != null ? t.getMessage() : "")).showAndWait();
         });
         new Thread(task).start();
+    }
+
+    /** Set Up Shell Integration…: the window with the shell snippets, see {@link ShellIntegrationSetupDialog}. */
+    private void openShellIntegrationSetup() {
+        javafx.stage.Window owner = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        ShellIntegrationSetupDialog.open(owner, null);
     }
 
     /**
