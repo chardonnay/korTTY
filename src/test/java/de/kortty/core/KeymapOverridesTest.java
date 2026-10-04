@@ -152,6 +152,17 @@ class KeymapOverridesTest {
         assertThat(KeymapOverrides.problemOf(KeyChord.parse("Shortcut+Space"), MAC)).isEqualTo(Problem.SYSTEM);
         assertThat(KeymapOverrides.problemOf(KeyChord.parse("Alt+F4"), WINDOWS)).isEqualTo(Problem.SYSTEM);
         assertThat(KeymapOverrides.problemOf(KeyChord.parse("Shortcut+Escape"), WINDOWS)).isEqualTo(Problem.SYSTEM);
+        assertWithMessage("Mission Control and App Exposé").that(
+            KeymapOverrides.problemOf(KeyChord.parse("Ctrl+Up"), MAC)).isEqualTo(Problem.SYSTEM);
+        assertThat(KeymapOverrides.problemOf(KeyChord.parse("Ctrl+Down"), MAC)).isEqualTo(Problem.SYSTEM);
+        assertThat(KeymapOverrides.problemOf(KeyChord.parse("Shortcut+Shift+Q"), MAC)).isEqualTo(Problem.SYSTEM);
+        assertThat(KeymapOverrides.problemOf(KeyChord.parse("Shortcut+Alt+D"), MAC)).isEqualTo(Problem.SYSTEM);
+        assertWithMessage("a text console on Linux").that(
+            KeymapOverrides.problemOf(KeyChord.parse("Shortcut+Alt+F3"), LINUX)).isEqualTo(Problem.SYSTEM);
+        assertThat(KeymapOverrides.problemOf(KeyChord.parse("Shortcut+Alt+F12"), LINUX)).isEqualTo(Problem.SYSTEM);
+        assertWithMessage("but free on Windows").that(
+            KeymapOverrides.problemOf(KeyChord.parse("Shortcut+Alt+F3"), WINDOWS)).isNull();
+        assertThat(KeymapOverrides.problemOf(KeyChord.parse("Shortcut+Alt+D"), LINUX)).isNull();
         assertThat(KeymapOverrides.problemOf(KeyChord.parse("K"), MAC)).isEqualTo(Problem.NEEDS_MODIFIER);
         assertThat(KeymapOverrides.problemOf(KeyChord.parse("Shift+K"), WINDOWS)).isEqualTo(Problem.NEEDS_MODIFIER);
         assertThat(KeymapOverrides.problemOf(KeyChord.parse("Shift+Enter"), LINUX)).isEqualTo(Problem.NEEDS_MODIFIER);

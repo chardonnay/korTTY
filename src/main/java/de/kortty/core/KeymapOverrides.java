@@ -40,8 +40,8 @@ import java.util.function.Function;
  *   <li>{@link Problem#TERMINAL}: the terminal's own key actions (SithTermFX and korTTY's settings
  *       provider), which take the key in a focused terminal: Cmd+C, V, K, F and Cmd+Up/Down on macOS,
  *       Ctrl+Shift+C/V and Ctrl+Up/Down on Windows and Linux, Shift+Page Up/Down everywhere.</li>
- *   <li>{@link Problem#SYSTEM}: chords the operating system keeps for itself, such as Cmd+Tab or
- *       Alt+F4.</li>
+ *   <li>{@link Problem#SYSTEM}: chords the operating system keeps for itself, such as Cmd+Tab and
+ *       Control+Up on macOS, Alt+F4, or Ctrl+Alt+F1 to F12 (a text console) on Linux.</li>
  *   <li>{@link Problem#NEEDS_MODIFIER}: a key without Cmd, Ctrl or Alt would be lost to typing;
  *       only the function keys F1 to F12 may go without.</li>
  *   <li>{@link Problem#FIXED}: a korTTY shortcut that cannot be rebound (passed in as
@@ -139,14 +139,19 @@ public final class KeymapOverrides {
         Os.LINUX, physicalSet(Os.LINUX, "Shortcut+Shift+C", "Shortcut+Shift+V", "Shortcut+Up", "Shortcut+Down",
             "Shift+PageUp", "Shift+PageDown"));
 
+    // macOS: Mission Control and App Exposé (Control+Up/Down), Log Out (Cmd+Shift+Q) and hiding the
+    // Dock (Cmd+Option+D) are on by default. Linux: Ctrl+Alt+F1 to F12 switch to a text console.
     private static final Map<Os, Set<Physical>> SYSTEM_CHORDS = Map.of(
         Os.MAC, physicalSet(Os.MAC, "Shortcut+Tab", "Shortcut+Shift+Tab", "Shortcut+Space", "Shortcut+Ctrl+Space",
             "Shortcut+Backquote", "Shortcut+H", "Shortcut+Alt+H", "Shortcut+Alt+Escape", "Shortcut+Shift+3",
-            "Shortcut+Shift+4", "Shortcut+Shift+5", "Shortcut+Ctrl+Q", "Shortcut+Ctrl+F"),
+            "Shortcut+Shift+4", "Shortcut+Shift+5", "Shortcut+Ctrl+Q", "Shortcut+Ctrl+F", "Shortcut+Shift+Q",
+            "Shortcut+Alt+D", "Ctrl+Up", "Ctrl+Down"),
         Os.WINDOWS, physicalSet(Os.WINDOWS, "Alt+Tab", "Shift+Alt+Tab", "Alt+F4", "Alt+Space", "Alt+Escape",
             "Shortcut+Escape", "Shortcut+Shift+Escape", "Shortcut+Alt+Delete"),
         Os.LINUX, physicalSet(Os.LINUX, "Alt+Tab", "Shift+Alt+Tab", "Alt+F4", "Alt+Space",
-            "Shortcut+Alt+Delete", "Shortcut+Alt+Backspace"));
+            "Shortcut+Alt+Delete", "Shortcut+Alt+Backspace", "Shortcut+Alt+F1", "Shortcut+Alt+F2", "Shortcut+Alt+F3",
+            "Shortcut+Alt+F4", "Shortcut+Alt+F5", "Shortcut+Alt+F6", "Shortcut+Alt+F7", "Shortcut+Alt+F8",
+            "Shortcut+Alt+F9", "Shortcut+Alt+F10", "Shortcut+Alt+F11", "Shortcut+Alt+F12"));
 
     /** Keys that, with plain Ctrl, send a control character the shell uses. */
     private static final Set<String> CTRL_CONTROL_CHARACTER_KEYS = Set.of(

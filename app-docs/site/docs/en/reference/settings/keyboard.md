@@ -30,12 +30,12 @@ korTTY does not take a key away from the shell or the system, so these combinati
 
 | Combination | Why |
 | --- | --- |
-| ++ctrl++ with a letter on Windows and Linux (++ctrl+l++, ++ctrl+f++, ++ctrl+d++, ++ctrl+p++, ++ctrl+r++, ++ctrl+c++, ++ctrl+v++ and every other letter), ++ctrl+space++, ++ctrl++ with `[`, `]`, `\` or `/`, ++ctrl+shift+6++, ++ctrl+shift+2++ and ++ctrl+shift+minus++ | They send control characters the shell and the programs in the terminal use; ++ctrl+shift+6++ is the Cisco break sequence |
+| ++ctrl++ with a letter (++ctrl+l++, ++ctrl+f++, ++ctrl+d++, ++ctrl+p++, ++ctrl+r++, ++ctrl+c++, ++ctrl+v++ and every other letter; on macOS the Control key, not ++cmd++), ++ctrl+space++, ++ctrl++ with `[`, `]`, `\` or `/`, ++ctrl+shift+6++, ++ctrl+shift+2++ and ++ctrl+shift+minus++ | They send control characters the shell and the programs in the terminal use; ++ctrl+shift+6++ is the Cisco break sequence |
 | ++ctrl++ or ++alt++ with ++left++, ++right++, ++backspace++ or ++delete++ | They move or delete a word at the shell's prompt |
 | ++alt++ with a letter, digit or punctuation key on Windows and Linux | korTTY sends it as the shell's Meta key |
 | ++ctrl+alt++ with a character key on Windows, ++option++ with a character key on macOS | They type a character on many keyboard layouts: on Windows ++alt-graph++ arrives as ++ctrl+alt++ |
 | ++cmd+c++, ++cmd+v++, ++cmd+k++, ++cmd+f++, ++cmd+up++ and ++cmd+down++ on macOS, ++ctrl+shift+c++, ++ctrl+shift+v++, ++ctrl+up++ and ++ctrl+down++ on Windows and Linux, ++shift+page-up++ and ++shift+page-down++ everywhere | The terminal's own keys for copying, pasting, clearing, finding and scrolling |
-| ++cmd+tab++, ++cmd+space++, ++cmd+h++ and the screenshot keys on macOS, ++alt+tab++, ++alt+f4++, ++alt+space++ and ++ctrl+esc++ on Windows, ++alt+tab++, ++alt+f4++ and ++ctrl+alt+delete++ on Linux | The operating system keeps them |
+| ++cmd+tab++, ++cmd+space++, ++cmd+h++, ++cmd+shift+q++, ++cmd+option+d++, ++ctrl+up++, ++ctrl+down++ and the screenshot keys on macOS, ++alt+tab++, ++alt+f4++, ++alt+space++ and ++ctrl+esc++ on Windows, ++alt+tab++, ++alt+f4++, ++ctrl+alt+delete++ and ++ctrl+alt+f1++ to ++ctrl+alt+f12++ on Linux | The operating system keeps them |
 | A key without ++ctrl++, ++alt++ or ++cmd++, other than ++f1++ to ++f12++ | It would type text |
 | A [fixed shortcut](#fixed-shortcuts) | korTTY keeps it for its command |
 
