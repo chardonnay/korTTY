@@ -137,8 +137,9 @@ public final class PartTransfers {
             } else {
                 if (decision.kind() == ResumePlanner.Kind.RESTART) {
                     logger.debug("Restarting the upload to {}: {}", remoteTarget, decision.reason());
-                    if (RemoteFinalizer.lstatOrNull(client, part) != null) {
-                        // Removes a planted link itself, never what it points to.
+                    ResumePlanner.PartState now = remotePartState(client, part);
+                    if (now.exists()) {
+                        requirePartOfOurs(entry, now, true, part);
                         client.remove(part);
                     }
                 }
@@ -278,7 +279,11 @@ public final class PartTransfers {
             } else {
                 if (decision.kind() == ResumePlanner.Kind.RESTART) {
                     logger.debug("Restarting the download to {}: {}", localTarget, decision.reason());
-                    Files.deleteIfExists(part);
+                    ResumePlanner.PartState now = LocalFinalizer.partState(part);
+                    if (now.exists()) {
+                        requirePartOfOurs(entry, now, false, part.toString());
+                        Files.deleteIfExists(part);
+                    }
                 }
                 if (entry != null) {
                     resume.forget();
@@ -316,6 +321,24 @@ public final class PartTransfers {
             resume.forget();
         }
         return new Outcome(bytes, method, resumeFrom);
+    }
+
+    /**
+     * Throws {@link PartExistsException} unless the existing part is provably one this korTTY left
+     * for this very transfer: it has an index entry, is a plain file and (on the server) still has
+     * the owner recorded when it was created. Anything else may be another transfer writing it right
+     * now (another tab, another computer, another user in a shared folder); deleting it would make
+     * that transfer move this one's incomplete part onto its target. A planted link is refused the
+     * same way. The user removes real leftovers with "Remove leftover partial files".
+     */
+    private static void requirePartOfOurs(ResumeIndex.Entry entry, ResumePlanner.PartState part, boolean remote,
+            String partPath) throws PartExistsException {
+        boolean ours = entry != null && part.regularFile()
+            && !(remote && part.ownerKey() != null && entry.partOwner() != null
+                && !part.ownerKey().equals(entry.partOwner()));
+        if (!ours) {
+            throw new PartExistsException(partPath, null);
+        }
     }
 
     /** {@code lstat} of a remote part as the {@link ResumePlanner} needs it. */

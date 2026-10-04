@@ -23,7 +23,8 @@ import static org.testng.Assert.expectThrows;
 
 /**
  * Resume against a loopback SSHD: a transfer that fails at 40% continues from there to a byte-equal
- * result in both directions; a changed source, a corrupted part tail or a planted link restarts;
+ * result in both directions; a changed source or a corrupted part tail restarts; a part that is not
+ * provably this transfer's (no entry, another owner, a planted link) is refused and left alone;
  * success and cancel forget the transfer.
  */
 class ResumeIntegrationTest {
@@ -196,7 +197,7 @@ class ResumeIntegrationTest {
     }
 
     @Test
-    void aLinkPlantedAtTheLocalPartIsRemovedNotFollowed() throws IOException {
+    void aLinkPlantedAtTheLocalPartIsRefusedNotFollowedNorRemoved() throws IOException {
         requirePosix();
         Path target = interruptedDownload();
         Path part = PartFiles.localPart(target);
@@ -204,25 +205,56 @@ class ResumeIntegrationTest {
         Files.delete(part);
         Files.createSymbolicLink(part, victim);
 
-        PartTransfers.Outcome outcome = PartTransfers.download(client, "/remote.bin", target,
-            downloadContext(target), null, TransferCancellation.create());
+        expectThrows(PartExistsException.class, () -> PartTransfers.download(client, "/remote.bin", target,
+            downloadContext(target), null, TransferCancellation.create()));
 
-        assertThat(outcome.resumedFrom()).isEqualTo(0);
-        assertThat(Files.readAllBytes(target)).isEqualTo(data);
+        assertThat(Files.isSymbolicLink(part)).isTrue();
         assertThat(Files.readString(victim)).isEqualTo("keep me");
+        assertThat(Files.exists(target, LinkOption.NOFOLLOW_LINKS)).isFalse();
     }
 
     @Test
-    void aLeftoverPartWithoutAnEntryIsReplacedWhenResumeIsOn() throws IOException {
+    void aLocalPartWithoutAnEntryIsNeverDeleted() throws IOException {
+        // Another tab or korTTY may be writing it right now: deleting it would let that transfer
+        // move this one's incomplete part onto the target when it finishes.
         Files.write(fixture.root().resolve("remote.bin"), data);
         Path target = downloads().resolve("remote.bin");
-        Files.writeString(PartFiles.localPart(target), "stale");
+        Path part = Files.writeString(PartFiles.localPart(target), "someone else's");
 
-        PartTransfers.Outcome outcome = PartTransfers.download(client, "/remote.bin", target,
-            downloadContext(target), null, TransferCancellation.create());
+        expectThrows(PartExistsException.class, () -> PartTransfers.download(client, "/remote.bin", target,
+            downloadContext(target), null, TransferCancellation.create()));
 
-        assertThat(outcome.resumedFrom()).isEqualTo(0);
-        assertThat(Files.readAllBytes(target)).isEqualTo(data);
+        assertThat(Files.readString(part)).isEqualTo("someone else's");
+        assertThat(Files.exists(target)).isFalse();
+    }
+
+    @Test
+    void aRemotePartWithoutAnEntryIsNeverDeleted() throws IOException {
+        Path local = Files.write(tmp.resolve("local.bin"), data);
+        Path part = Files.writeString(fixture.root().resolve("up.bin" + PartFiles.PART_SUFFIX), "in flight");
+
+        expectThrows(PartExistsException.class, () -> PartTransfers.upload(client, null, local, "/up.bin",
+            uploadContext(local), null, TransferCancellation.create()));
+
+        assertThat(Files.readString(part)).isEqualTo("in flight");
+        assertThat(Files.exists(fixture.root().resolve("up.bin"))).isFalse();
+    }
+
+    @Test
+    void aRemotePartOfAnotherOwnerIsNeverDeletedEvenWhenTheSourceChanged() throws IOException {
+        Path local = interruptedUpload();
+        ResumeIndex.Key key = uploadContext(local).key();
+        ResumeIndex.Entry entry = index.get(key).orElseThrow();
+        index.put(key, new ResumeIndex.Entry(entry.sourceSize(), entry.sourceMtimeMillis(), entry.partSize(),
+            entry.partMtimeMillis(), "uid:999999", entry.updatedAtMillis()));
+        Files.write(local, new byte[] {1, 2, 3});
+        Path part = fixture.root().resolve("up.bin" + PartFiles.PART_SUFFIX);
+        long partSize = Files.size(part);
+
+        expectThrows(PartExistsException.class, () -> PartTransfers.upload(client, null, local, "/up.bin",
+            uploadContext(local), null, TransferCancellation.create()));
+
+        assertThat(Files.size(part)).isEqualTo(partSize);
     }
 
     @Test
