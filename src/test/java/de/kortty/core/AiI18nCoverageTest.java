@@ -146,7 +146,6 @@ class AiI18nCoverageTest {
         "ai.result.attachment.flowchart.title",
         "settings.ai.featuresEnabled",
         "settings.ai.featuresEnabled.hint",
-        "settings.ai.promptHook",
         "settings.ai.terminalAgentExecutionEnabled",
         "settings.ai.terminalAgentExecutionEnabled.hint",
         "settings.ai.terminalAgentConfirmMutatingCommandSets",

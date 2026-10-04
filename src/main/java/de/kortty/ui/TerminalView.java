@@ -70,6 +70,12 @@ import de.kortty.plugin.terminaleffects.TerminalEffectConnectorWrapper;
 import de.kortty.plugin.terminaleffects.TerminalEffectContext;
 import de.kortty.plugin.terminaleffects.TerminalEffectPlugin;
 import de.kortty.plugin.terminaleffects.TerminalEffectSession;
+import de.kortty.shellintegration.BellCoalescer;
+import de.kortty.shellintegration.CommandStatus;
+import de.kortty.shellintegration.PromptNavigator;
+import de.kortty.shellintegration.RemoteNotificationText;
+import de.kortty.shellintegration.ShellIntegrationEvent;
+import de.kortty.shellintegration.ShellIntegrationSnippet;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
@@ -124,6 +130,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -375,9 +382,14 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, PauseTransition> commandCompletionTimerByWidget = new ConcurrentHashMap<>();
     // Absolute line where the current command started (Enter pressed).
     private final Map<SithTermFxWidget, Integer> commandStartLineByWidget = new ConcurrentHashMap<>();
+    // System.nanoTime() of that Enter, to tell whether the shell marked the command (OSC 133;C).
+    private final Map<SithTermFxWidget, Long> commandEnterNanosByWidget = new ConcurrentHashMap<>();
     // Counts the lines a full scrollback drops from its top, so the absolute-line keys above can
     // follow their command lines instead of drifting (and colliding on the bottom row).
     private final Map<SithTermFxWidget, ScrollbackTrimTracker> scrollbackTrimTrackerByWidget = new ConcurrentHashMap<>();
+    // OSC 133 command marks per pane and prompt navigation; marks are runtime-only.
+    private final ShellIntegrationController shellIntegration = new ShellIntegrationController(
+        TerminalView::isShellIntegrationEnabled, MainWindow.previousPromptAccelerator(), MainWindow.nextPromptAccelerator());
 
     // Optional listener called when timestamp gutter visibility is toggled (e.g. from context menu)
     private Runnable timestampToggleListener;
@@ -466,6 +478,23 @@ public class TerminalView extends BorderPane {
         new ShellTitleTracker<>(Platform::runLater, this::getFocusedWidget, TerminalView::isTabTitleFromShellEnabled);
     /** Each pane's title listener on its terminal, so a closing pane can take it off again. */
     private final Map<SithTermFxWidget, TerminalApplicationTitleListener> shellTitleListeners = new ConcurrentHashMap<>();
+    /** Told on the FX thread which pane rang the bell; set by the tab, null once the tab is cleaned up. */
+    private volatile Consumer<SithTermFxWidget> bellListener;
+    /**
+     * Told on the FX thread which pane finished a command the shell marked, and how; set by the tab,
+     * null once the tab is cleaned up.
+     */
+    private volatile BiConsumer<SithTermFxWidget, CommandStatus> commandFinishedListener;
+    /**
+     * Told on the FX thread which pane's program asked for a desktop notification (OSC 9, OSC 777),
+     * and its cleaned text; set by the tab, null once the tab is cleaned up.
+     */
+    private volatile BiConsumer<SithTermFxWidget, RemoteNotificationText> remoteNotificationListener;
+    /**
+     * Told on the FX thread which pane's program asked to put text on the clipboard (OSC 52), with
+     * the still undecoded write; set by the tab, null once the tab is cleaned up.
+     */
+    private volatile BiConsumer<SithTermFxWidget, ShellIntegrationEvent.ClipboardWrite> clipboardWriteListener;
 
     /** A bracketed-paste tracker together with the connector it listens on, so a rebind can detach it. */
     private record PasteTracking(BracketedPasteTracker tracker, ObservableTtyConnector connector) {}
@@ -474,6 +503,9 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, StringBuilder> agentShortcutBuffers = new ConcurrentHashMap<>();
     private final StringBuilder agentShortcutPromptTail = new StringBuilder();
     private final Map<SshTtyConnector, StringBuilder> terminalAgentOscBuffers = new ConcurrentHashMap<>();
+    /** The start of an OSC 133 shell-integration mark in raw output, before its letter (A, B, C, D). */
+    private static final String OSC_133_PREFIX = "\u001B]133;";
+    // At a shell prompt: from the OSC 133 marks while shell integration is on, else from the prompt's text.
     private volatile boolean agentShortcutPromptReady;
     private TerminalAgentCompletionPopup agentCompletionPopup;
     private volatile boolean timestampGuttersVisibleState;
@@ -555,6 +587,15 @@ public class TerminalView extends BorderPane {
         this.settings = effective;
         this.defaultFontSize = settings.getFontSize();
         this.timestampGuttersVisibleState = isCommandTimestampsEnabled();
+        // A pane's OSC 133 marks changed a command's status: show it in the pane's gutter.
+        shellIntegration.setStatusesChangedListener(widget -> Platform.runLater(() -> updateCommandStatuses(widget)));
+        // A command the shell marked finished after at least a second: the tab decides whether to tell.
+        shellIntegration.setCommandFinishedListener(
+            (widget, status) -> Platform.runLater(() -> onPaneCommandFinished(widget, status)));
+        // A program asked for a desktop notification (OSC 9/777): the tab decides whether to show it.
+        shellIntegration.setRemoteNotificationListener(widget -> Platform.runLater(() -> onPaneRemoteNotification(widget)));
+        // A program asked to put text on the clipboard (OSC 52): the tab's setting decides.
+        shellIntegration.setClipboardWriteListener(widget -> Platform.runLater(() -> onPaneClipboardWrite(widget)));
         // The session carrying the tunnels closed while it still owned them: if its pane is gone
         // (the user closed it or typed exit there), move them to another pane of the same server.
         tunnelManager.setOwnerClosedListener(session -> Platform.runLater(this::rehomeTunnelsIfOwnerGone));
@@ -721,6 +762,12 @@ public class TerminalView extends BorderPane {
                     items.add(new javafx.scene.control.SeparatorMenuItem());
                 }
             }
+            // Shell integration: the prompt entries while the pane has OSC 133 marks, else how to set it up.
+            List<javafx.scene.control.MenuItem> shellIntegrationItems = buildShellIntegrationMenuItems(widget);
+            if (!shellIntegrationItems.isEmpty()) {
+                items.addAll(shellIntegrationItems);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
             javafx.scene.control.Menu themeMenu = new javafx.scene.control.Menu(I18n.get("theme.menu"));
             try {
                 var tm = KorTTYApplication.getInstance().getThemeManager();
@@ -776,7 +823,7 @@ public class TerminalView extends BorderPane {
         // Key handling at split-pane level runs before every pane: the agent input lock, the agent
         // shortcut and Ctrl+D come first. Navigation keys are encoded below, in each pane's own
         // filter (TerminalSplitPane.routeKeyPressed), which needs the real connector type.
-        splitPane.setConnectorUnwrapper(this::unwrapTerminalEffectConnector);
+        splitPane.setConnectorUnwrapper(TerminalView::unwrapTerminalEffectConnector);
         // A pane that is pacing a paste takes no keys, not even mirrored ones from broadcast mode,
         // so none lands between two pasted lines; Esc stops the paste (PasteInputHold). Broadcast
         // mode also leaves out a pane an AI agent run drives and one whose coding agent waits for a
@@ -1270,6 +1317,7 @@ public class TerminalView extends BorderPane {
             completionTimer.stop();
         }
         commandStartLineByWidget.remove(widget);
+        commandEnterNanosByWidget.remove(widget);
         scrollbackTrimTrackerByWidget.remove(widget);
         agentShortcutBuffers.remove(widget);
         TerminalModelListener recordingListener = terminalRecordingModelListeners.remove(widget);
@@ -1280,6 +1328,10 @@ public class TerminalView extends BorderPane {
         releaseTerminalHighlighter(widget);
         releasePaneFocusObserver(widget);
         releaseShellTitleListener(widget);
+        if (widget instanceof KorttyTermWidget korttyWidget) {
+            korttyWidget.setBellListener(null);
+        }
+        shellIntegration.detach(widget);
         releaseBracketedPasteTracker(widget);
         if (terminalRecordingTargetWidgets.contains(widget)) {
             terminalRecordingTargetWidgets = terminalRecordingTargetWidgets.stream()
@@ -2495,22 +2547,53 @@ public class TerminalView extends BorderPane {
         attachBracketedPasteTracker(widget, baseConnector);
         PaneEffect effect = paneEffects.get(widget);
         TtyConnector decorated = baseConnector;
-        if (effect == null || effect.session == null) {
-            return new TerminalColorFilteringTtyConnector(
-                decorated,
-                () -> settings == null || settings.isTerminalColorsEnabled(),
-                this::reportTerminalActivity);
+        if (effect != null && effect.session != null) {
+            try {
+                decorated = effect.session.wrapConnector(widget, baseConnector);
+            } catch (Exception e) {
+                logger.warn("Terminal effect '{}' failed to wrap connector: {}", effect.pluginId, e.getMessage());
+                decorated = baseConnector;
+            }
         }
-        try {
-            decorated = effect.session.wrapConnector(widget, baseConnector);
-        } catch (Exception e) {
-            logger.warn("Terminal effect '{}' failed to wrap connector: {}", effect.pluginId, e.getMessage());
-            decorated = baseConnector;
-        }
-        return new TerminalColorFilteringTtyConnector(
+        return withShellIntegration(widget, new TerminalColorFilteringTtyConnector(
             decorated,
             () -> settings == null || settings.isTerminalColorsEnabled(),
-            this::reportTerminalActivity);
+            this::reportTerminalActivity));
+    }
+
+    /**
+     * Makes {@link ShellIntegrationTtyConnector} the outermost connector, so it sees exactly what the
+     * emulator reads, for the emulations that read OSC the way it expects. The emulation is the one
+     * {@link #applyTerminalEmulation} just set, which the widget's next emulator is created with.
+     */
+    private TtyConnector withShellIntegration(SithTermFxWidget widget, TtyConnector decorated) {
+        if (widget == null || !ShellIntegrationTtyConnector.appliesTo(widget.getEmulationType())) {
+            return decorated;
+        }
+        return new ShellIntegrationTtyConnector(decorated, event -> onShellIntegrationEvent(widget, event));
+    }
+
+    /**
+     * Receives a pane's OSC 133/9/777/52 events on its emulator thread, at the point of the output
+     * where they stood: the OSC 133 marks, the notifications programs ask for (OSC 9/777) and their
+     * clipboard writes (OSC 52) go to {@link #shellIntegration}.
+     */
+    private void onShellIntegrationEvent(SithTermFxWidget widget, ShellIntegrationEvent event) {
+        if (logger.isTraceEnabled()) {
+            logger.trace("Shell integration event in pane {}: {}", System.identityHashCode(widget), event.summary());
+        }
+        shellIntegration.onEvent(widget, event);
+    }
+
+    /** {@code GlobalSettings.shellIntegrationEnabled}; on when the settings cannot be read, as by default. */
+    private static boolean isShellIntegrationEnabled() {
+        try {
+            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            var gs = gsm != null ? gsm.getSettings() : null;
+            return gs == null || gs.isShellIntegrationEnabled();
+        } catch (Exception e) {
+            return true;
+        }
     }
 
     /**
@@ -2535,9 +2618,19 @@ public class TerminalView extends BorderPane {
         return bound != next;
     }
 
-    private TtyConnector unwrapTerminalEffectConnector(TtyConnector connector) {
+    /**
+     * The base connector of a pane, with every wrapper korTTY puts around it taken off, in whatever
+     * order they are stacked: {@link ShellIntegrationTtyConnector}, the colour filter and the
+     * terminal effects' wrappers. Per-pane state is keyed by this connector, never by a wrapper: a
+     * Mosh recovery re-decorates a live pane while its emulator still reads the old chain.
+     */
+    static TtyConnector unwrapTerminalEffectConnector(TtyConnector connector) {
         TtyConnector current = connector;
         while (true) {
+            if (current instanceof ShellIntegrationTtyConnector wrapper) {
+                current = wrapper.delegate();
+                continue;
+            }
             if (current instanceof TerminalColorFilteringTtyConnector wrapper) {
                 current = wrapper.delegate();
                 continue;
@@ -3580,6 +3673,124 @@ public class TerminalView extends BorderPane {
         attachTerminalHighlighter(widget);
         installPaneFocusObserver(widget);
         installShellTitleListener(widget);
+        installBellListener(widget);
+        shellIntegration.attach(widget);
+    }
+
+    /**
+     * Reports the bells of {@code widget} to {@link #setBellListener the tab}. The pane rings on its
+     * emulator thread, for every BEL; a {@link BellCoalescer} counts them there and hands them to the
+     * FX thread in one task, so a flood of bells never floods the FX queue. Removed in
+     * {@link #releasePaneState}.
+     */
+    private void installBellListener(SithTermFxWidget widget) {
+        if (widget instanceof KorttyTermWidget korttyWidget) {
+            BellCoalescer bells = new BellCoalescer(Platform::runLater, count -> onPaneBell(widget));
+            korttyWidget.setBellListener(bells::ring);
+        }
+    }
+
+    /** A pane rang the bell; FX thread. A pane closed or a tab cleaned up since then is ignored. */
+    private void onPaneBell(SithTermFxWidget widget) {
+        Consumer<SithTermFxWidget> listener = bellListener;
+        if (listener == null || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        try {
+            listener.accept(widget);
+        } catch (RuntimeException e) {
+            logger.debug("Bell handling failed: {}", e.toString());
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that a program in one of this tab's panes rang the bell.
+     * Bells that arrive in quick succession are reported once.
+     */
+    public void setBellListener(Consumer<SithTermFxWidget> listener) {
+        bellListener = listener;
+    }
+
+    /**
+     * A command the shell marked with OSC 133 finished in {@code widget} after running at least a
+     * second (see {@link ShellIntegrationController#setCommandFinishedListener}); FX thread. A pane
+     * closed or a tab cleaned up since then is ignored.
+     */
+    private void onPaneCommandFinished(SithTermFxWidget widget, CommandStatus status) {
+        BiConsumer<SithTermFxWidget, CommandStatus> listener = commandFinishedListener;
+        if (listener == null || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        try {
+            listener.accept(widget, status);
+        } catch (RuntimeException e) {
+            logger.debug("Handling a finished command failed: {}", e.toString());
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that a command the shell marked finished in one of this
+     * tab's panes after running at least a second, with its exit status and runtime but never its
+     * text.
+     */
+    public void setCommandFinishedListener(BiConsumer<SithTermFxWidget, CommandStatus> listener) {
+        commandFinishedListener = listener;
+    }
+
+    /**
+     * A program in {@code widget} asked for a desktop notification with OSC 9 or OSC 777 (see
+     * {@link ShellIntegrationController#setRemoteNotificationListener}); FX thread. The notification
+     * is taken in any case, which frees the pane for its next one; a pane closed or a tab cleaned up
+     * since then is ignored.
+     */
+    private void onPaneRemoteNotification(SithTermFxWidget widget) {
+        RemoteNotificationText notification = shellIntegration.takeRemoteNotification(widget);
+        BiConsumer<SithTermFxWidget, RemoteNotificationText> listener = remoteNotificationListener;
+        if (notification == null || listener == null || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        try {
+            listener.accept(widget, notification);
+        } catch (RuntimeException e) {
+            logger.debug("Handling a program's notification failed: {}", e.toString());
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that a program in one of this tab's panes asked for a
+     * desktop notification, with its text already cleaned of control and bidi characters and cut to
+     * length. A pane hands on one at a time; what it asks for meanwhile is dropped.
+     */
+    public void setRemoteNotificationListener(BiConsumer<SithTermFxWidget, RemoteNotificationText> listener) {
+        remoteNotificationListener = listener;
+    }
+
+    /**
+     * A program in {@code widget} asked to put text on the clipboard with OSC 52 (see
+     * {@link ShellIntegrationController#setClipboardWriteListener}); FX thread. The write is taken in
+     * any case, which frees the pane for its next one; a pane closed or a tab cleaned up since then
+     * is ignored, so a closed tab never changes the clipboard.
+     */
+    private void onPaneClipboardWrite(SithTermFxWidget widget) {
+        ShellIntegrationEvent.ClipboardWrite write = shellIntegration.takeClipboardWrite(widget);
+        BiConsumer<SithTermFxWidget, ShellIntegrationEvent.ClipboardWrite> listener = clipboardWriteListener;
+        if (write == null || listener == null || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        try {
+            listener.accept(widget, write);
+        } catch (RuntimeException e) {
+            logger.debug("Handling a program's clipboard write failed: {}", e.toString());
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that a program in one of this tab's panes asked to put
+     * text on the clipboard (OSC 52). The write comes as the program sent it, base64 and unchecked;
+     * a pane hands on one at a time, and a newer write replaces one still waiting.
+     */
+    public void setClipboardWriteListener(BiConsumer<SithTermFxWidget, ShellIntegrationEvent.ClipboardWrite> listener) {
+        clipboardWriteListener = listener;
     }
 
     /**
@@ -5223,16 +5434,6 @@ public class TerminalView extends BorderPane {
         return !caseInsensitiveCommandName || canInterceptBufferedAgentShortcut(rawCommand, commandName, false);
     }
 
-    private boolean isTerminalAgentPromptHookEnabled() {
-        try {
-            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
-            var gs = gsm != null ? gsm.getSettings() : null;
-            return gs == null || gs.isDefaultPromptHookEnabled();
-        } catch (Exception e) {
-            return true;
-        }
-    }
-
     private boolean isTerminalAgentShortcutEnabled() {
         try {
             var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
@@ -5301,11 +5502,9 @@ public class TerminalView extends BorderPane {
             sourceConnector,
             data,
             payload -> dispatchTerminalAgentOscPayload(sourceConnector, payload));
-        if (data.contains("\u001B]133;A") || data.contains("\u001B]133;B")) {
-            agentShortcutPromptReady = true;
-        }
-        if (data.contains("\u001B]133;C")) {
-            agentShortcutPromptReady = false;
+        Boolean markedPromptReady = promptReadinessFromOsc133(data, TerminalView::isShellIntegrationEnabled);
+        if (markedPromptReady != null) {
+            agentShortcutPromptReady = markedPromptReady;
         }
 
         synchronized (agentShortcutPromptTail) {
@@ -5327,6 +5526,27 @@ public class TerminalView extends BorderPane {
                 }
             }
         }
+    }
+
+    /**
+     * What the OSC 133 marks in a chunk of raw SSH output say about the shell's prompt, for the AI
+     * Agent's commands and the close question: {@code true} when the chunk's last mark is a prompt
+     * mark (A or B), {@code false} when it is a command start (C), and {@code null} when the chunk
+     * has neither or shell integration is off. Then only the prompt's text tells ({@link
+     * #looksLikeShellPrompt}). The last mark decides because a short command's start, output, end
+     * and the next prompt often arrive in one chunk. The setting is read only for a chunk with a
+     * mark in it, so plain output never touches the settings.
+     */
+    static @Nullable Boolean promptReadinessFromOsc133(@Nullable String data, BooleanSupplier shellIntegrationEnabled) {
+        if (data == null || !data.contains(OSC_133_PREFIX)) {
+            return null;
+        }
+        int prompt = Math.max(data.lastIndexOf(OSC_133_PREFIX + 'A'), data.lastIndexOf(OSC_133_PREFIX + 'B'));
+        int command = data.lastIndexOf(OSC_133_PREFIX + 'C');
+        if ((prompt < 0 && command < 0) || !shellIntegrationEnabled.getAsBoolean()) {
+            return null;
+        }
+        return prompt > command;
     }
 
     /**
@@ -6067,6 +6287,8 @@ public class TerminalView extends BorderPane {
         gutter.setGutterBackgroundColor(Color.web(settings.getBackgroundColor()));
         gutter.setGutterTextColor(Color.web(settings.getForegroundColor()));
         gutter.setTimestampFont(settings.getFontFamily(), settings.getFontSize());
+        // Exit statuses of shell-integration commands hide while shell integration is switched off.
+        gutter.setCommandStatusesShown(shellIntegration::isEnabled);
         
         // Set initial visibility based on current runtime state (important for new split widgets
         // created after user toggled timestamps in the active tab).
@@ -6092,6 +6314,7 @@ public class TerminalView extends BorderPane {
                     recordTimestampForLine(widget, startAbsoluteLine, LocalDateTime.now());
                     commandStartLineByWidget.put(widget, startAbsoluteLine);
                 }
+                commandEnterNanosByWidget.put(widget, System.nanoTime());
                 awaitingCommandCompletionByWidget.put(widget, true);
             }
         };
@@ -6196,6 +6419,12 @@ public class TerminalView extends BorderPane {
         if (!Boolean.TRUE.equals(awaitingCommandCompletionByWidget.get(widget))) {
             return;
         }
+        Long enterNanos = commandEnterNanosByWidget.get(widget);
+        if (enterNanos != null && shellIntegration.awaitsCompletionMark(widget, enterNanos)) {
+            // The shell marked this command as running (OSC 133;C): a pause in its output is not its
+            // end. Its D mark records the completion, see updateCommandStatuses.
+            return;
+        }
         try {
             int absoluteLine = resolveCursorLineAfterScrollbackTrim(widget);
             if (absoluteLine < 0) {
@@ -6259,11 +6488,72 @@ public class TerminalView extends BorderPane {
         if (!scrollbackTrimMovesMarks(trim)) {
             return;
         }
+        TimestampGutter gutter = gutterMap.get(widget);
         if (trim.kind() == ScrollbackTrimTracker.Trim.Kind.CLEARED) {
             clearTimestampMarks(widget);
+            if (gutter != null) {
+                gutter.clearCommandStatuses();
+            }
         } else {
             shiftTimestampMarks(widget, trim.lines());
+            if (gutter != null) {
+                gutter.shiftCommandStatuses(trim.lines());
+            }
         }
+    }
+
+    /**
+     * Shows the OSC 133 command statuses of {@code widget} in its gutter and records the completion
+     * timestamps of the commands that finished since the last call, at the line of their D mark and
+     * the time it arrived (FX thread). Scheduled by {@link ShellIntegrationController}, at most once
+     * at a time per pane, whenever a mark changed a status.
+     *
+     * <p>The gutter's trim tracker is polled under the same buffer lock as the marks are read, so the
+     * statuses, the completions and the gutter's shifted timestamps all name the same lines. A D mark
+     * that came after the latest Enter ends the wait for that command's completion, so the 500 ms
+     * guess in {@link #recordCommandCompletionTimestamp} no longer fires for it.
+     */
+    private void updateCommandStatuses(SithTermFxWidget widget) {
+        ScrollbackTrimTracker tracker = scrollbackTrimTrackerByWidget.get(widget);
+        var buffer = widget.getTerminalTextBuffer();
+        ScrollbackTrimTracker.Trim trim = null;
+        PaneCommandMarks.GutterUpdate update;
+        if (buffer != null) {
+            buffer.lock();
+        }
+        try {
+            if (tracker != null && buffer != null) {
+                trim = tracker.poll();
+            }
+            update = shellIntegration.gutterUpdate(widget);
+        } finally {
+            if (buffer != null) {
+                buffer.unlock();
+            }
+        }
+        if (trim != null) {
+            applyScrollbackTrim(widget, trim);
+        }
+        TimestampGutter gutter = gutterMap.get(widget);
+        if (update == null || gutter == null) {
+            return;
+        }
+        if (!update.completions().isEmpty()) {
+            LocalDateTime now = LocalDateTime.now();
+            long nowNanos = System.nanoTime();
+            Long enterNanos = commandEnterNanosByWidget.get(widget);
+            for (PaneCommandMarks.Completion completion : update.completions()) {
+                recordTimestampForLine(widget, completion.absoluteLine(), completion.time(now, nowNanos));
+                if (enterNanos == null || completion.nanos() - enterNanos >= 0) {
+                    awaitingCommandCompletionByWidget.put(widget, false);
+                    PauseTransition timer = commandCompletionTimerByWidget.get(widget);
+                    if (timer != null) {
+                        timer.stop();
+                    }
+                }
+            }
+        }
+        gutter.setCommandStatuses(update.statuses());
     }
 
     /**
@@ -7454,6 +7744,13 @@ public class TerminalView extends BorderPane {
      * Cleans up resources (closes connection and destroys UI). Use when closing the tab.
      */
     public void cleanup() {
+        // A bell, a finished command or a program's notification still on its way to the FX thread
+        // must not mark or announce a closed tab, nor may a program's clipboard write still change
+        // the clipboard.
+        bellListener = null;
+        commandFinishedListener = null;
+        remoteNotificationListener = null;
+        clipboardWriteListener = null;
         pastePacer.cancelAll();
         releaseAllShellTitleListeners();
         cancelAllTerminalAgentRuns();
@@ -7462,6 +7759,7 @@ public class TerminalView extends BorderPane {
         releaseAllCodingAgentMonitors();
         releaseAllTerminalHighlighters();
         releaseAllCodingAgentPaneState();
+        shellIntegration.detachAll();
         stopLogger();
         stopSessionJournal();
         stopAllEffects();
@@ -7503,6 +7801,7 @@ public class TerminalView extends BorderPane {
         timestampHistoryByWidget.clear();
         awaitingCommandCompletionByWidget.clear();
         commandStartLineByWidget.clear();
+        commandEnterNanosByWidget.clear();
         scrollbackTrimTrackerByWidget.clear();
         agentShortcutBuffers.clear();
         terminalWidget = null;
@@ -8009,6 +8308,112 @@ public class TerminalView extends BorderPane {
         }
     }
     
+    /**
+     * Scrolls the focused pane to its previous or next prompt (Edit &gt; Previous Prompt / Next
+     * Prompt), see {@link ShellIntegrationController#jump}.
+     */
+    ShellIntegrationController.JumpResult jumpToPrompt(PromptNavigator.Direction direction) {
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (focused == null) {
+            return ShellIntegrationController.JumpResult.NO_PROMPTS;
+        }
+        return shellIntegration.jump(focused, direction);
+    }
+
+    /**
+     * Selects or copies what the focused pane's newest finished command printed (Edit &gt; Select
+     * Last Output / Copy Last Output), see {@link ShellIntegrationController#lastOutput}.
+     */
+    ShellIntegrationController.LastOutputResult lastOutput(ShellIntegrationController.LastOutputAction action) {
+        SithTermFxWidget focused = splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+        if (focused == null) {
+            return ShellIntegrationController.LastOutputResult.NO_PROMPTS;
+        }
+        return shellIntegration.lastOutput(focused, action);
+    }
+
+    /**
+     * The shell-integration entries of {@code widget}'s context menu: Previous Prompt, Next Prompt,
+     * Select Last Output and Copy Last Output while the pane has prompt marks (the jumps greyed out
+     * while a full-screen program runs, the output entries also until a command finished),
+     * otherwise Set Up Shell Integration…, which opens the guide page with the shell snippets. None
+     * while shell integration is off or the pane's emulation cannot carry the marks.
+     */
+    private List<javafx.scene.control.MenuItem> buildShellIntegrationMenuItems(SithTermFxWidget widget) {
+        return switch (shellIntegration.contextMenuEntries(widget)) {
+            case NONE -> List.of();
+            case NAVIGATION -> {
+                boolean available = shellIntegration.canNavigate(widget);
+                javafx.scene.control.MenuItem previous = new javafx.scene.control.MenuItem(
+                    I18n.get("terminal.contextMenu.shellIntegration.previousPrompt"));
+                previous.setOnAction(e -> shellIntegration.jump(widget, PromptNavigator.Direction.PREVIOUS));
+                previous.setDisable(!available);
+                javafx.scene.control.MenuItem next = new javafx.scene.control.MenuItem(
+                    I18n.get("terminal.contextMenu.shellIntegration.nextPrompt"));
+                next.setOnAction(e -> shellIntegration.jump(widget, PromptNavigator.Direction.NEXT));
+                next.setDisable(!available);
+                boolean outputAvailable = available && shellIntegration.hasFinishedCommand(widget);
+                javafx.scene.control.MenuItem selectOutput = new javafx.scene.control.MenuItem(
+                    I18n.get("terminal.contextMenu.shellIntegration.selectLastOutput"));
+                selectOutput.setOnAction(e -> showShellIntegrationStatus(
+                    shellIntegration.lastOutput(widget, ShellIntegrationController.LastOutputAction.SELECT)));
+                selectOutput.setDisable(!outputAvailable);
+                javafx.scene.control.MenuItem copyOutput = new javafx.scene.control.MenuItem(
+                    I18n.get("terminal.contextMenu.shellIntegration.copyLastOutput"));
+                copyOutput.setOnAction(e -> showShellIntegrationStatus(
+                    shellIntegration.lastOutput(widget, ShellIntegrationController.LastOutputAction.COPY)));
+                copyOutput.setDisable(!outputAvailable);
+                yield List.of(previous, next, selectOutput, copyOutput);
+            }
+            case SETUP -> {
+                javafx.scene.control.MenuItem setup = new javafx.scene.control.MenuItem(
+                    I18n.get("terminal.contextMenu.shellIntegration.setup"));
+                setup.setOnAction(e -> openShellIntegrationSetup(widget));
+                yield List.of(setup);
+            }
+        };
+    }
+
+    /** Shows what Select or Copy Last Output did in the status bar of this view's window. */
+    private void showShellIntegrationStatus(ShellIntegrationController.LastOutputResult result) {
+        javafx.stage.Window window = getScene() != null ? getScene().getWindow() : null;
+        MainWindow mainWindow = MainWindow.findByStage(window);
+        if (mainWindow != null) {
+            mainWindow.showStatusMessage(I18n.get(result.statusKey()));
+        }
+    }
+
+    /**
+     * Set Up Shell Integration…: the window with the shell snippets, on the tab of {@code widget}'s
+     * local shell when korTTY knows it.
+     */
+    private void openShellIntegrationSetup(SithTermFxWidget widget) {
+        try {
+            javafx.stage.Window window = getScene() != null ? getScene().getWindow() : null;
+            ShellIntegrationSetupDialog.open(window, localShellSnippet(widget));
+        } catch (RuntimeException e) {
+            logger.warn("Could not open the shell integration setup", e);
+        }
+    }
+
+    /**
+     * The snippet for the shell of {@code widget}'s local shell tab, or null: for SSH and Mosh, whose
+     * remote shell korTTY does not know, for the default shell on Windows, and for a command that
+     * starts no bash, zsh or fish directly.
+     */
+    private static @Nullable ShellIntegrationSnippet localShellSnippet(SithTermFxWidget widget) {
+        TtyConnector base = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        if (!(base instanceof LocalShellTtyConnector local)) {
+            return null;
+        }
+        String command = local.getConnection() != null ? local.getConnection().getLocalShellCommand() : null;
+        if (command == null || command.isBlank()) {
+            return LocalShellTtyConnector.isWindows() ? null : ShellIntegrationSnippet.forShell(System.getenv("SHELL"));
+        }
+        java.util.List<String> tokens = ServerConnection.tokenizeLocalShellCommand(command);
+        return tokens.isEmpty() ? null : ShellIntegrationSnippet.forShell(tokens.get(0));
+    }
+
     /**
      * Pastes the clipboard into the focused pane, through {@link #pasteGuard} like every terminal paste.
      */
@@ -8522,7 +8927,7 @@ public class TerminalView extends BorderPane {
      * - Font zoom via Cmd+Plus/Minus (or Ctrl+Plus/Minus)
      * - Font zoom via right-click context menu
      */
-    private static final class TerminalColorFilteringTtyConnector implements TtyConnector {
+    static final class TerminalColorFilteringTtyConnector implements TtyConnector {
 
         private final TtyConnector delegate;
         private final BooleanSupplier terminalColorsEnabled;
@@ -8530,7 +8935,7 @@ public class TerminalView extends BorderPane {
         private final TerminalColorControlSequenceFilter filter = new TerminalColorControlSequenceFilter();
         private final StringBuilder pendingOutput = new StringBuilder();
 
-        private TerminalColorFilteringTtyConnector(
+        TerminalColorFilteringTtyConnector(
                 TtyConnector delegate,
                 BooleanSupplier terminalColorsEnabled,
                 Runnable activityCallback) {

@@ -207,6 +207,52 @@ class MultiExecMembershipTest {
         assertThat(members.members()).containsExactly(a1);
     }
 
+    @Test
+    void aSessionRunsFromTheFirstPaneJoiningToTheLastOneLeaving() {
+        MultiExecMembership<Pane> members = new MultiExecMembership<>();
+        assertThat(members.session()).isNull();
+        assertThat(members.sessionOf(a1)).isNull();
+
+        members.setAll(List.of(a1, b1), true);
+        MultiExecMembership.Session session = members.session();
+        assertThat(session).isNotNull();
+        assertWithMessage("every member shares it, whichever tab holds it")
+            .that(members.sessionOf(a1)).isSameInstanceAs(session);
+        assertThat(members.sessionOf(b1)).isSameInstanceAs(session);
+        assertWithMessage("a pane that takes no part has none").that(members.sessionOf(c1)).isNull();
+        assertThat(members.sessionOf(null)).isNull();
+
+        members.toggle(c1);
+        members.remove(a1);
+        assertWithMessage("panes joining and leaving in between keep the session")
+            .that(members.sessionOf(c1)).isSameInstanceAs(session);
+        assertThat(members.sessionOf(a1)).isNull();
+
+        members.setAll(List.of(b1, c1), false);
+        assertThat(members.session()).isNull();
+        members.toggle(a1);
+        assertWithMessage("after the last pane left, the next one starts a new session")
+            .that(members.session()).isNotSameInstanceAs(session);
+        assertThat(members.session()).isNotNull();
+    }
+
+    @Test
+    void stoppingEndsTheSessionAndTheListenersAlreadySeeTheNewState() {
+        MultiExecMembership<Pane> members = new MultiExecMembership<>();
+        List<Object> seen = new ArrayList<>();
+        members.addListener(() -> seen.add(String.valueOf(members.session() != null)));
+
+        members.toggle(a1);
+        MultiExecMembership.Session first = members.session();
+        members.clear();
+        assertThat(members.session()).isNull();
+        assertThat(members.sessionOf(a1)).isNull();
+        members.toggle(a1);
+        assertThat(members.session()).isNotSameInstanceAs(first);
+        assertThat(seen).containsExactly("true", "false", "true").inOrder();
+        assertWithMessage("compared by reference only").that(first.toString()).startsWith("multi-exec session ");
+    }
+
     private static AtomicInteger count(MultiExecMembership<?> members) {
         AtomicInteger changes = new AtomicInteger();
         members.addListener(changes::incrementAndGet);

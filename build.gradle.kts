@@ -3676,6 +3676,14 @@ tasks.register<JavaExec>("terminalLinksSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("shellIntegrationPromptSmoke") {
+    group = "verification"
+    description = "Feeds shell output with OSC 133 marks into a real terminal pane and checks that Cmd/Ctrl+Shift+Up and Down jump between its prompts without reaching the program, that a jump starts from a view scrolled by hand, and that the keys reach the program without marks, on the alternate screen and with shell integration off, and that a SCO ANSI pane jumps too while its scrollback keys still reach the program (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.ShellIntegrationPromptSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("terminalSplitCloseButtonSmoke") {
     group = "verification"
     description = "Splits and closes terminal panes and checks each pane keeps its overlay host and shows its close button only while it has a sibling (needs a display)."
@@ -4134,6 +4142,15 @@ tasks.register<JavaExec>("generatePasteConfirmationScreenshot") {
     description = "Renders the paste confirmation dialog screenshot for the manual via Scene.snapshot."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.PasteConfirmationScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateShellIntegrationSetupScreenshot") {
+    group = "build"
+    description = "Renders the Set Up Shell Integration window screenshot for the manual " +
+        "(app-docs/screenshots/main/shell-integration-setup.png) via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.ShellIntegrationSetupScreenshotGenerator")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

@@ -162,6 +162,16 @@ public final class MultiExecCoordinator implements InputMirror {
         return membership.members();
     }
 
+    /**
+     * The multi-exec session {@code pane} takes part in, or {@code null} when it takes part in none:
+     * the same object for every member from the first pane joining until the last one leaves. A
+     * command typed once runs in every member, so the notifications use the session as the members'
+     * shared slot and report that command once.
+     */
+    public @Nullable Object sessionOf(@Nullable SithTermFxWidget pane) {
+        return membership.sessionOf(pane);
+    }
+
     /** How many of {@code panes} take part, such as the panes of one tab. */
     public int countIn(@NotNull Collection<SithTermFxWidget> panes) {
         return membership.countIn(panes);

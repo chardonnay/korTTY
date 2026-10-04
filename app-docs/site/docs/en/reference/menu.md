@@ -34,6 +34,10 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 | Paste | ++ctrl+v++ | Paste into the terminal |
 | Find… | ++ctrl+f++ | Search the active tab (terminal scrollback or open editor). On Windows and Linux a focused terminal sends ++ctrl+f++ to the shell, so open Find from this menu or the terminal's right-click menu there |
 | Quick Select | ++ctrl+shift+space++ | Label every web address, path, e-mail address, UUID, IP address, git hash and number of four or more digits in the focused terminal pane; type a label to copy its text, or ++shift++ and the label to open a web or e-mail address, or in SSH and local-shell tabs a file path in the Snippet Editor. Disabled outside terminal tabs, see [Quick select](../features/terminal.md#quick-select) |
+| Previous Prompt | ++ctrl+shift+up++ | Scroll the focused terminal pane to the prompt before the one you are at, using the marks of a shell set up for [shell integration](../features/shell-integration.md); when it cannot, the status bar says why. Disabled outside terminal tabs |
+| Next Prompt | ++ctrl+shift+down++ | Scroll the focused terminal pane to the next prompt its shell marked, or back to the bottom after the last one. Disabled outside terminal tabs |
+| Select Last Output | | Select what the last finished command printed in the focused terminal pane, using the marks of a shell set up for [shell integration](../features/shell-integration.md#selecting-and-copying-a-commands-output); the status bar says what was selected, or why nothing was. Disabled outside terminal tabs |
+| Copy Last Output | | Copy what the last finished command printed in the focused terminal pane to the clipboard, without changing the selection. Disabled outside terminal tabs |
 
 ## Connections
 

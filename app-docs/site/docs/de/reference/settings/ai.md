@@ -21,7 +21,6 @@ Konfigurieren von KI-Profilen und Einstellungen für den Terminal-KI-Agent. Dies
 | --- | --- | --- | --- | --- |
 | KI-Agent-Ausführung aktivieren | Schalter | — | Ein | `terminalAgentExecutionEnabled` |
 | Frage vor der Änderung des Zielsystems durch den KI-Agent stellen | Schalter | — | Aus | `terminalAgentConfirmMutatingCommandSets` |
-| OSC 133-Prompt-Marker verwenden, wenn die Shell diese bereits bereitstellt | Schalter | — | Ein | `defaultPromptHookEnabled` |
 | Agent-Debugmeldungen anzeigen | umschalten | — | Aus | `terminalAgentShowDebugMessages` |
 | Agent-Laufzeitmeldungen anzeigen | umschalten | — | Aus | `terminalAgentShowRuntimeMessages` |
 | Terminal-Agent-Abfrage vor jedem Start anzeigen | umschalten | — | Ein | `terminalAgentShowRunDialog` |

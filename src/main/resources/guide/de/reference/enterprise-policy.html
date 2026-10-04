@@ -409,6 +409,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/shell-integration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Shell-Integration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/terminal-notifications.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal-Benachrichtigungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/highlighting.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -1565,7 +1581,7 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 </table>
 <h2 id="interner-zwischenablagemodus">Interner Zwischenablagemodus<a class="headerlink" href="#interner-zwischenablagemodus" title="Permanent link">&para;</a></h2>
 <p>Mit <code>clipboard-mode = "internal"</code> trennt sich korTTY vollständig von der Zwischenablage des Betriebssystems und verwendet stattdessen seine eigene Zwischenablage im Arbeitsspeicher: In einer anderen Anwendung kopierter Text kann nirgendwo in korTTY eingefügt werden, und in korTTY kopierter Text gelangt nie in die Zwischenablage des Betriebssystems – während das Kopieren, Ausschneiden und Einfügen <em>innerhalb</em> von korTTY weiterhin überall funktioniert, da Terminals, SFTP-Ansichten, der Snippet-Editor und alle Dialoge denselben internen Puffer verwenden. Da es sich hierbei um reine Anwendungslogik handelt und keine Betriebssystem-Zwischenablage-Isolations-API beteiligt ist, verhält es sich unter macOS, Windows und Linux identisch, einschließlich der X11-Primärauswahl (Einfügen mit mittlerem Klick): Das Einfügen von Inhalten mit mittlerem Klick aus anderen Anwendungen ist blockiert, das Einfügen mit mittlerem Klick von korTTY-internen Kopien funktioniert weiterhin.</p>
-<p>Der Modus umfasst das Terminal (Tastenkürzel, Kontextmenü, Mittelklick und Text, der aus einer anderen Anwendung darauf gezogen wird und abgelehnt wird), den Code-Editor, alle Kopierschaltflächen, die Snippet-Variable <code>${clipboard}</code> und die Tastenkürzel zum Kopieren/Ausschneiden/Einfügen in einfachen Eingabefeldern. Das Kopieren von Bildern (KI-generierte Bilder, Diagrammexporte) ist im internen Modus nicht verfügbar, da ein Bild nur über die Zwischenablage des Betriebssystems geteilt werden kann.</p>
+<p>Der Modus umfasst das Terminal (Tastenkürzel, Kontextmenü, Mittelklick, Text, der aus einer anderen Anwendung darauf gezogen wird und abgelehnt wird, sowie Text, den ein Programm im Terminal mit OSC 52 kopiert, sofern <em>Einstellungen → Terminal</em> das erlaubt, und der nur in der internen Zwischenablage landet), den Code-Editor, alle Kopierschaltflächen, die Snippet-Variable <code>${clipboard}</code> und die Tastenkürzel zum Kopieren/Ausschneiden/Einfügen in einfachen Eingabefeldern. Das Kopieren von Bildern (KI-generierte Bilder, Diagrammexporte) ist im internen Modus nicht verfügbar, da ein Bild nur über die Zwischenablage des Betriebssystems geteilt werden kann.</p>
 <div class="admonition note">
 <p class="admonition-title">Bereich</p>
 <p>Die interne Zwischenablage ist ein Richtlinientool gegen zufällige Datenübertragung über die Zwischenablage und kein fester Luftspalt: Ein Benutzer kann weiterhin Text auf dem Bildschirm lesen. Die Rechtsklick-<em>Einfüge</em>-Eingabe von Nur-Text-Feldern wird vom UI-Toolkit bereitgestellt und kann weiterhin auf die Zwischenablage des Betriebssystems zugreifen – die Tastenkombination und jedes von korTTY bereitgestellte Menü werden abgedeckt.</p>

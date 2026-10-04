@@ -4,7 +4,7 @@ title: Terminal
 
 # Terminal
 
-Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Hervorhebung von Schlüsselwörtern, Links, Einfügeschutz und SSH-Verbindungsverwaltung. Öffnen über **Konfiguration → Globale Einstellungen → Terminal**; in `~/.kortty/global-settings.xml` gespeichert.
+Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Hervorhebung von Schlüsselwörtern, Links, Einfügeschutz, Shell-Integration, Benachrichtigungen und SSH-Verbindungsverwaltung. Öffnen über **Konfiguration → Globale Einstellungen → Terminal**; in `~/.kortty/global-settings.xml` gespeichert.
 
 ![Terminal settings tab](../../assets/screenshots/settings/terminal.png)
 
@@ -19,6 +19,7 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | Befehlszeitstempel anzeigen | umschalten | – | Aus | `commandTimestampsEnabled` |
 | Drag-and-Drop ins Terminal erlauben (Dateien werden per SFTP kopiert, Text wird eingefügt) | umschalten | – | Ein | `terminalDragDropEnabled` |
 | Auswahl automatisch in die Zwischenablage kopieren | umschalten | – | Ein | `terminalCopyOnSelectEnabled` |
+| Programmen im Terminal erlauben, Text in die Zwischenablage zu kopieren (OSC 52) | umschalten | – | Aus | `osc52ClipboardWriteEnabled` |
 | Aktive Terminalfenster ohne Bestätigung schließen | umschalten | – | Aus | `closeActiveTerminalWindowsWithoutConfirmation` |
 | Schlüsselwörter in der Terminalausgabe hervorheben | umschalten | – | Ein | `terminalHighlightingEnabled` |
 | Auch in Vollbildprogrammen hervorheben (vim, less, htop) | umschalten | – | Aus | `terminalHighlightAlternateScreen` |
@@ -28,6 +29,12 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | Bei mehrzeiligem Einfügen warnen: | Dropdown | Aus, Außer das Programm verwendet Bracketed Paste, Immer | Außer das Programm verwendet Bracketed Paste | `pasteWarningMode` |
 | Warnen, wenn eingefügter Text größer ist als: | Nummer | 0–10.240 KiB (0 = aus) | 5 | `pasteLargeWarningKiB` |
 | Pause nach jeder eingefügten Zeile: | Nummer | 0–1.000 ms (0 = aus) | 0 | `pasteLineDelayMs` |
+| Befehlsmarkierungen von Shells mit eingerichteter Shell-Integration nutzen (OSC 133) | umschalten | – | Ein | `shellIntegrationEnabled` |
+| Shell-Integration einrichten… | Schaltfläche | öffnet das Fenster mit den Shell-Snippets | – | – |
+| Desktop-Benachrichtigung, wenn die Glocke in einem Tab läutet, den Sie gerade nicht ansehen | umschalten | – | Aus | `terminalBellNotificationsEnabled` |
+| Desktop-Benachrichtigung, wenn ein lang laufender Befehl in einem Tab endet, den Sie gerade nicht ansehen | umschalten | – | Ein | `commandFinishedNotificationsEnabled` |
+| Mindestlaufzeit eines Befehls: | Nummer | 1–3.600 Sekunden | 30 | `commandFinishedNotificationSeconds` |
+| Desktop-Benachrichtigung, wenn ein Programm in einem Tab, den Sie gerade nicht ansehen, eine anfordert (OSC 9, OSC 777) | umschalten | – | Ein | `remoteTerminalNotificationsEnabled` |
 | SSH Keep-Alive aktivieren | umschalten | – | Ein | `sshKeepAliveEnabled` |
 | Intervall (Sekunden): | Nummer | 5–600 | 60 | `sshKeepAliveInterval` |
 | Verbindungswiederholungen aktivieren | umschalten | – | Ein | `connectionRetriesEnabled` |
@@ -54,6 +61,9 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 !!! note "Markierung automatisch in Zwischenablage kopieren"
     Wenn aktiviert, wird der von Ihnen im Terminal ausgewählte Text sofort in die Zwischenablage kopiert. Unter Linux wird er zudem zur X11-Hauptauswahl, sodass ein Mittelklick ihn in anderen Anwendungen wie xterm oder gedit einfügt. Mit dem internen Zwischenablage-Modus der Unternehmensrichtlinie [interner Zwischenablage-Modus](../enterprise-policy.md#interner-zwischenablagemodus) bleibt die Auswahl innerhalb von korTTY auf jeder Plattform.
 
+!!! note "Programme, die in die Zwischenablage kopieren (OSC 52)"
+    Ist **Programmen im Terminal erlauben, Text in die Zwischenablage zu kopieren (OSC 52)** eingeschaltet, können Programme wie vim, Neovim und tmux, auch auf einem Server über SSH, mit der Escape-Sequenz OSC 52 bis zu 256 KiB Text auf einmal in Ihre Zwischenablage legen, und die Statusleiste nennt jedes Mal den Tab. Sie können die Zwischenablage nie lesen, weil korTTY die OSC-52-Abfrage nie beantwortet. Die Einstellung ist standardmäßig ausgeschaltet, weil jedes Programm, dessen Ausgabe das Terminal erreicht, ersetzen könnte, was Sie kopiert haben; solange sie ausgeschaltet ist, meldet die Statusleiste, wenn ein Programm es versucht hat. Mit dem [internen Zwischenablagemodus](../enterprise-policy.md#interner-zwischenablagemodus) der Unternehmensrichtlinie bleibt, was Programme kopieren, innerhalb von korTTY. Die Einstellung wird bei jedem Schreibvorgang gelesen, sodass eine Änderung für offene Tabs gilt, sobald Sie speichern. Siehe [Programme, die in die Zwischenablage kopieren](../../features/terminal-notifications.md#programme-die-in-die-zwischenablage-kopieren-osc-52).
+
 !!! note "Hervorhebung von Schlüsselwörtern"
     **Schlüsselwörter in der Terminalausgabe hervorheben** ist der Hauptschalter der [Hervorhebung von Schlüsselwörtern](../../features/highlighting.md). Solange er ausgeschaltet ist, wird kein Bereich hervorgehoben, gleich was in einem Menü, mit ++ctrl+shift+h++ (++cmd+shift+h++ auf macOS), für eine Verbindung oder als Standard-Regelsatz gewählt wurde, und die Hervorhebungsmenüs sind ausgegraut. Er ist standardmäßig eingeschaltet, aber es wird nichts hervorgehoben, bis ein Regelsatz gewählt ist.
 
@@ -75,6 +85,16 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
     Ob ein Programm Bracketed Paste verwendet, meldet der Server, und jede Ausgabe kann es einschalten, auch in einer Shell wie `sh`, die es nicht beherrscht. Eingefügte Zeilenumbrüche werden dann ohne Warnung ausgeführt; wählen Sie daher **Immer**, wenn Sie auf Produktionsservern arbeiten.
 
+!!! note "Shell-Integration"
+    Ist **Befehlsmarkierungen von Shells mit eingerichteter Shell-Integration nutzen (OSC 133)** eingeschaltet, liest korTTY die unsichtbaren Markierungen, die eine Shell mit dem Snippet von korTTY in ihrer Startdatei um jeden Prompt und jeden Befehl ausgibt, und ++cmd+shift+up++ / ++cmd+shift+down++ (++ctrl+shift+up++ / ++ctrl+shift+down++ unter Windows und Linux), *Bearbeiten → Vorheriger Prompt / Nächster Prompt* und das Rechtsklickmenü des Terminals springen zwischen den Prompts. Die Snippets für bash, zsh und fish stehen auf der Seite [Shell-Integration](../../features/shell-integration.md#setting-it-up), und **Shell-Integration einrichten…** öffnet ein Fenster mit ihnen und einer Schaltfläche **Kopieren**, auch wenn die Einstellung ausgeschaltet ist. Ohne Snippet in der Startdatei der Shell ändert sich nichts. Die Markierungen zeigen korTTY außerdem, dass eine SSH-Sitzung an ihrem Prompt steht, für die `agent`-Befehle des KI-Agenten und die Rückfrage vor dem Schließen eines beschäftigten Tabs; diese Einstellung ersetzt **OSC-133-Prompt-Marker verwenden, wenn die Shell sie bereits liefert**, das *Einstellungen → KI* früher zeigte und das nichts bewirkte. Ausgeschaltet erreichen die Prompt-Tasten das Programm im Terminal, das Rechtsklickmenü hat keine Einträge der Shell-Integration, und korTTY erkennt allein am Text des Prompts, dass eine Sitzung an ihrem Prompt steht. Die Einstellung wird bei jeder Markierung und jedem Tastendruck gelesen, sodass eine Änderung für offene Tabs gilt, sobald Sie speichern.
+
+!!! note "Benachrichtigungen"
+    Ein Programm, das in einem Tab, den Sie gerade nicht ansehen, die Terminalglocke läutet, markiert diesen Tab immer mit 🔔, bis Sie ihn ansehen; dafür ist keine Einstellung nötig. **Desktop-Benachrichtigung, wenn die Glocke in einem Tab läutet, den Sie gerade nicht ansehen** fügt eine Desktop-Benachrichtigung mit dem Titel `korTTY · ` und dem Namen des Tabs hinzu, höchstens eine pro Bereich alle 10 Sekunden. Sie ist standardmäßig ausgeschaltet, weil Shells bei jeder erfolglosen Tab-Vervollständigung die Glocke läuten, und ein Bereich mit einem erkannten Coding-Agent erhält keine, solange die Coding-Agent-Benachrichtigungen eingeschaltet sind. Die Einstellung wird bei jedem Glockensignal gelesen, sodass eine Änderung für offene Tabs gilt, sobald Sie speichern.
+
+    In einer für die Shell-Integration eingerichteten Shell markiert ein Befehl, der mindestens **Mindestlaufzeit eines Befehls:** lief (standardmäßig 30 Sekunden) und in einem Tab endet, den Sie gerade nicht ansehen, diesen Tab ebenfalls mit 🔔, und **Desktop-Benachrichtigung, wenn ein lang laufender Befehl in einem Tab endet, den Sie gerade nicht ansehen**, standardmäßig eingeschaltet, fügt eine Desktop-Benachrichtigung hinzu, die sagt, wie der Befehl endete und wie lange er lief, nie den Befehl selbst, höchstens eine pro Tab alle 10 Sekunden. Befehle des KI-Agenten von korTTY lösen nie eine Benachrichtigung aus. Beide sind ausgegraut, solange **Befehlsmarkierungen von Shells mit eingerichteter Shell-Integration nutzen (OSC 133)** ausgeschaltet ist, und beide werden bei jedem beendeten Befehl gelesen. Siehe [Terminal-Benachrichtigungen](../../features/terminal-notifications.md#lange-laufende-befehle).
+
+    Ein Programm, das mit OSC 9 oder OSC 777 eine Desktop-Benachrichtigung anfordert, etwa ein Coding-Agent auf einem Server, der auf Ihre Antwort wartet, markiert seinen Tab ebenfalls mit 🔔, wenn Sie ihn gerade nicht ansehen, und **Desktop-Benachrichtigung, wenn ein Programm in einem Tab, den Sie gerade nicht ansehen, eine anfordert (OSC 9, OSC 777)**, standardmäßig eingeschaltet, zeigt den Text des Programms unter einem Titel mit dem Namen des Tabs, bereinigt von Steuer- und Bidi-Zeichen und gekürzt auf 80 Zeichen für den Titel und 200 für den Text, höchstens eine pro Bereich alle 5 Sekunden; was dazwischen eintrifft, wird verworfen. Ein Bereich mit einem erkannten Coding-Agent erhält keine, solange die Coding-Agent-Benachrichtigungen eingeschaltet sind. Die Funktion braucht keine Shell-Integration, und die Einstellung wird bei jeder Anfrage gelesen. Siehe [Benachrichtigungen von Programmen](../../features/terminal-notifications.md#benachrichtigungen-von-programmen).
+
 !!! note "SSH-Keep-Alive"
     Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.
 
@@ -90,6 +110,8 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
     Wenn diese Option aktiviert ist, wird auf der linken Seite des Terminals eine Seitenleiste angezeigt, in der das Datum und die Uhrzeit der Eingabe jedes Befehls angezeigt werden. Dies ist nützlich für Audit-Trails und Sitzungsprotokollierung.
 
     Jede Markierung bleibt auf ihrer Befehlszeile, wenn der Scrollback voll ist und die ältesten Zeilen verworfen werden, und eine Markierung, deren Zeile den Scrollback verlassen hat, verschwindet ebenfalls. **Puffer löschen** im Rechtsklick-Menü des Terminals sowie ein `clear`, der den Scrollback ebenfalls leert, entfernt alle Markierungen; der nächste Befehl erhält eine neue. Das Öffnen und Beenden eines Vollbildprogramms wie `vim` oder `less` verschiebt die Markierungen nicht. Der Tag und Monat über jeder Markierung sowie das vollständige Datum im Hover-Popup folgen der korTTY UI-Sprache (zum Beispiel `02.10.` auf Deutsch, `10/02` auf Englisch), ebenso wie die verstrichene Zeit im Popup.
+
+    In einer für die [Shell-Integration](../../features/shell-integration.md#exit-status-und-laufzeit) eingerichteten Shell zeigt die Seitenleiste außerdem, wie jeder Befehl endete: ✓ für Exit-Status 0, ✗ für jeden anderen und …, solange er läuft, mit der tatsächlichen Laufzeit des Befehls neben dem Datum und dem Exit-Status im Hover-Popup. Den Zeitpunkt, zu dem ein solcher Befehl endete, liefert die Shell statt der ersten halben Sekunde ohne Ausgabe. Die Exit-Status werden nicht mit einem Projekt gespeichert, die Zeitstempel schon.
 
 !!! note "Verbindungswiederholungsversuche"
     Wenn diese Option aktiviert ist, werden fehlgeschlagene SSH-Verbindungen automatisch wiederholt. Wenn Sie dies deaktivieren, werden automatische Wiederverbindungsversuche bei fehlgeschlagenen Verbindungen verhindert.

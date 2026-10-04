@@ -86,6 +86,7 @@ Diese Tasten funktionieren, solange ein Terminalbereich den Fokus hat. Wie sie s
 | ++option+left++ / ++option+right++ | Unter macOS ein Wort nach links / rechts springen (sendet `ESC b` / `ESC f` wie Terminal.app) |
 | ++shift+page-up++ / ++shift+page-down++ | Den Scrollback von korTTY um eine Seite scrollen; in einem Vollbildprogramm wie `vim`, `less` oder `mc` geht die Taste an das Programm |
 | ++ctrl+up++ / ++ctrl+down++ | Den Scrollback von korTTY um eine Zeile scrollen (++cmd+up++ / ++cmd+down++ unter macOS); unter Windows und Linux gehen die Tasten stattdessen an ein laufendes Vollbildprogramm |
+| ++ctrl+shift+up++ / ++ctrl+shift+down++ | In einem Bereich, dessen Shell für die [Shell-Integration](../features/shell-integration.md) eingerichtet ist, zum vorherigen / nächsten Prompt springen (++cmd+shift+up++ / ++cmd+shift+down++ unter macOS); in einem Bereich ohne Prompt-Markierungen und während ein Vollbildprogramm läuft, erreichen die Tasten das Programm wie bisher |
 | ++ctrl+tab++ / ++ctrl+shift+tab++ | Nächster / vorheriger Tab, auch wenn das Terminal den Fokus hat (auch unter macOS mit ++ctrl++) |
 | ++ctrl+1++ … ++ctrl+9++ | Zu einem Tab springen, auch wenn das Terminal den Fokus hat (++cmd++ auf macOS, siehe [Allgemein](#allgemein)) |
 | ++ctrl+alt+shift+t++ | Zuletzt geschlossenen Terminal-Tab wieder öffnen, auch wenn das Terminal den Fokus hat (++cmd+option+shift+t++ auf macOS) |

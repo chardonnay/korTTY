@@ -409,6 +409,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/shell-integration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Shell integration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/terminal-notifications.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal notifications
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/highlighting.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -774,7 +790,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h1>
-<p>Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, and SSH connection management. Open via <strong>Configuration → Global Settings → Terminal</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, shell integration, notifications, and SSH connection management. Open via <strong>Configuration → Global Settings → Terminal</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Terminal settings tab" src="../../assets/screenshots/settings/terminal.png" /></p>
 <table>
 <thead>
@@ -851,6 +867,13 @@
 <td><code>terminalCopyOnSelectEnabled</code></td>
 </tr>
 <tr>
+<td>Let programs in the terminal copy text to the clipboard (OSC 52)</td>
+<td>toggle</td>
+<td>—</td>
+<td>Off</td>
+<td><code>osc52ClipboardWriteEnabled</code></td>
+</tr>
+<tr>
 <td>Close active terminal windows without confirmation</td>
 <td>toggle</td>
 <td>—</td>
@@ -912,6 +935,48 @@
 <td>0–1,000 ms (0 = off)</td>
 <td>0</td>
 <td><code>pasteLineDelayMs</code></td>
+</tr>
+<tr>
+<td>Use the command marks of shells set up for shell integration (OSC 133)</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>shellIntegrationEnabled</code></td>
+</tr>
+<tr>
+<td>Set Up Shell Integration…</td>
+<td>button</td>
+<td>opens the window with the shell snippets</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Desktop notification when the bell rings in a tab you are not looking at</td>
+<td>toggle</td>
+<td>—</td>
+<td>Off</td>
+<td><code>terminalBellNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Desktop notification when a long-running command finishes in a tab you are not looking at</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>commandFinishedNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Minimum command runtime:</td>
+<td>number</td>
+<td>1–3,600 seconds</td>
+<td>30</td>
+<td><code>commandFinishedNotificationSeconds</code></td>
+</tr>
+<tr>
+<td>Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777)</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>remoteTerminalNotificationsEnabled</code></td>
 </tr>
 <tr>
 <td>Enable SSH Keep-Alive</td>
@@ -997,6 +1062,10 @@
 <p>When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's <a href="../enterprise-policy.html#internal-clipboard-mode">internal clipboard mode</a> the selection stays inside korTTY on every platform.</p>
 </div>
 <div class="admonition note">
+<p class="admonition-title">Programs copying to the clipboard (OSC 52)</p>
+<p>With <strong>Let programs in the terminal copy text to the clipboard (OSC 52)</strong> on, programs such as vim, Neovim and tmux, also on a server over SSH, can put up to 256 KiB of text at a time on your clipboard with the OSC 52 escape sequence, and the status bar names the tab each time. They can never read the clipboard, because korTTY never answers the OSC 52 query. It is off by default, because any program whose output reaches the terminal could replace what you copied; while it is off, the status bar says when a program tried. With the enterprise policy's <a href="../enterprise-policy.html#internal-clipboard-mode">internal clipboard mode</a> what programs copy stays inside korTTY. The setting is read on every write, so a change applies to open tabs as soon as you save. See <a href="../../features/terminal-notifications.html#programs-copying-to-the-clipboard-osc-52">Programs copying to the clipboard</a>.</p>
+</div>
+<div class="admonition note">
 <p class="admonition-title">Keyword highlighting</p>
 <p><strong>Highlight keywords in terminal output</strong> is the master switch of <a href="../../features/highlighting.html">keyword highlighting</a>. While it is off, no pane is highlighted, whatever was chosen in a menu, with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-h">H</kbd></span> on macOS), for a connection or as the default rule set, and the highlighting menus are greyed out. It is on by default, but nothing is highlighted until a rule set is chosen.</p>
 <p><strong>Default rule set</strong> is the set every terminal pane shows unless its connection has a rule set of its own (see <a href="../../features/highlighting.html#rule-set-per-connection">Rule set per connection</a>) or you choose another one for that pane. It is <strong>None</strong> by default, so highlighting stays off until you opt in here, for a connection in the connection editor, in <em>View → Highlighting</em>, in a pane's context menu or with the shortcut. A set chosen for a pane in one of those places stays on top of the default until the pane is closed, and <strong>None</strong> chosen there keeps that pane plain whatever the default is. If the stored default names a rule set that no longer exists, the dropdown shows it as missing and panes show no highlighting.</p>
@@ -1015,6 +1084,16 @@
 <p>Whether a program uses bracketed paste is what the server reports, and any output can switch it on, also in a shell such as <code>sh</code> that does not handle it. Pasted line breaks then run without a warning, so choose <strong>Always</strong> if you work on production servers.</p>
 </div>
 <div class="admonition note">
+<p class="admonition-title">Shell integration</p>
+<p>With <strong>Use the command marks of shells set up for shell integration (OSC 133)</strong> on, korTTY reads the invisible marks that a shell with korTTY's snippet in its startup file prints around every prompt and command, and <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> / <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-up">Up</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-arrow-down">Down</kbd></span> on Windows and Linux), <em>Edit → Previous Prompt / Next Prompt</em> and the terminal's right-click menu jump between the prompts. The snippets for bash, zsh and fish are on the <a href="../../features/shell-integration.html#setting-it-up">Shell integration</a> page, and <strong>Set Up Shell Integration…</strong> opens a window with them and a <strong>Copy</strong> button, also while the setting is off. Without a snippet in the shell's startup file nothing changes. The marks also tell korTTY that an SSH session is at its prompt, for the AI Agent's <code>agent</code> commands and the question before closing a busy tab; this setting replaces <strong>Use OSC 133 prompt markers when the shell already provides them</strong>, which <em>Settings → AI</em> used to show and which changed nothing. Switched off, the prompt keys reach the program in the terminal, the right-click menu has no shell-integration entries, and korTTY tells that a session is at its prompt from the prompt's text alone. The setting is read on every mark and key press, so a change applies to open tabs as soon as you save.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Notifications</p>
+<p>A program that rings the terminal bell in a tab you are not looking at always marks that tab with 🔔 until you look at it; this needs no setting. <strong>Desktop notification when the bell rings in a tab you are not looking at</strong> adds a desktop notification titled <code>korTTY ·</code> and the tab's name, at most one per pane every 10 seconds. It is off by default because shells ring the bell on every failed Tab completion, and a pane with a detected coding agent gets none while the coding-agent notifications are on. The setting is read on every bell, so a change applies to open tabs as soon as you save.</p>
+<p>In a shell set up for shell integration, a command that ran at least <strong>Minimum command runtime:</strong> (30 seconds by default) and finishes in a tab you are not looking at marks that tab with 🔔 too, and <strong>Desktop notification when a long-running command finishes in a tab you are not looking at</strong>, on by default, adds a desktop notification saying how the command ended and how long it ran, never the command itself, at most one per tab every 10 seconds. Commands of korTTY's AI Agent never notify. Both are greyed out while <strong>Use the command marks of shells set up for shell integration (OSC 133)</strong> is off, and both are read on every finished command. See <a href="../../features/terminal-notifications.html#long-running-commands">Terminal notifications</a>.</p>
+<p>A program that asks for a desktop notification with OSC 9 or OSC 777, such as a coding agent on a server waiting for your answer, marks its tab with 🔔 too when you are not looking at it, and <strong>Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777)</strong>, on by default, shows the program's text below a title with the tab's name, cleaned of control and bidi characters and cut to 80 characters for the title and 200 for the text, at most one per pane every 5 seconds; what comes in between is dropped. A pane with a detected coding agent gets none while the coding-agent notifications are on. It needs no shell integration and is read on every request. See <a href="../../features/terminal-notifications.html#notifications-from-programs">Notifications from programs</a>.</p>
+</div>
+<div class="admonition note">
 <p class="admonition-title">SSH Keep-Alive</p>
 <p>When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.</p>
 </div>
@@ -1031,6 +1110,7 @@
 <p class="admonition-title">Command Timestamps</p>
 <p>When enabled, a sidebar appears on the left side of the terminal displaying the date and time each command was entered, useful for audit trails and session logging.</p>
 <p>Each mark stays on its command line when the scrollback is full and the oldest lines are dropped, and a mark whose line has left the scrollback disappears with it. <strong>Clear Buffer</strong> in the terminal's right-click menu, and a <code>clear</code> that also empties the scrollback, remove all marks; the next command gets a fresh one. Opening and quitting a full-screen program such as <code>vim</code> or <code>less</code> does not move the marks. The day and month above each mark and the full date in the hover popup follow the korTTY UI language (for example <code>02.10.</code> in German, <code>10/02</code> in English), as does the elapsed time in the popup.</p>
+<p>In a shell set up for <a href="../../features/shell-integration.html#exit-status-and-runtime">shell integration</a>, the sidebar also shows how each command ended: ✓ for exit status 0, ✗ for any other and … while it runs, with the command's real runtime next to the date and the exit status in the hover popup. The time such a command finished comes from the shell instead of from the first half second without output. The exit statuses are not saved with a project; the timestamps are.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Connection Retries</p>

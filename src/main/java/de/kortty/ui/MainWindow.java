@@ -6,6 +6,7 @@ import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryProps;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KeyTypedResidueGuard.Residue;
+import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.ui.actions.ActionIds;
 import de.kortty.ui.actions.ActionPaletteSource;
 import de.kortty.ui.actions.ActionRegistry;
@@ -231,6 +232,15 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.SPACE, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     /** What Cmd/Ctrl+Shift+Space can still type once korTTY took it: a space, or NUL for Ctrl+Space. */
     private static final Residue QUICK_SELECT_RESIDUE = Residue.of(" ", "\u0000");
+    // Edit > Previous Prompt / Next Prompt: jump between the prompts that shell integration (OSC 133)
+    // marks. The pane's own key actions use these constants (ShellIntegrationController) and act only
+    // while the pane has prompt marks on its normal screen; otherwise the key reaches the program as
+    // before. Not a plain Ctrl+letter, and SithTermFX's line scroll is Shortcut+Up/Down without Shift.
+    private static final KeyCombination PREVIOUS_PROMPT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.UP, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    private static final KeyCombination NEXT_PROMPT_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.DOWN, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+
     // View > Command Palette, the chord Credentials gave up (it is Shortcut+Shift+M now). Not a plain
     // Ctrl+letter, so on Windows/Linux Ctrl+P (the shell's previous-history key) stays with the shell.
     private static final KeyCombination COMMAND_PALETTE_ACCELERATOR =
@@ -436,6 +446,11 @@ public class MainWindow {
     private final List<MenuItem> unlockVaultMenuItems = new ArrayList<>();
     /** File › Reopen Closed Tab in every menu bar of this window. */
     private final List<MenuItem> reopenClosedTabMenuItems = new ArrayList<>();
+    /**
+     * Edit › Previous Prompt, Next Prompt, Select Last Output and Copy Last Output in every menu bar
+     * of this window; terminal tabs only.
+     */
+    private final List<MenuItem> shellIntegrationMenuItems = new ArrayList<>();
     /** File › Recently Closed in every menu bar of this window, rebuilt whenever the history changes. */
     private final List<Menu> recentlyClosedMenus = new ArrayList<>();
     /** File › Open Recent in every menu bar of this window, rebuilt whenever the File menu opens. */
@@ -611,6 +626,8 @@ public class MainWindow {
                 terminalTab.getTerminalView().setTerminalActive(true);
                 Platform.runLater(() -> terminalTab.getTerminalView().focusTerminal());
                 lastSelectedTerminalTab = terminalTab;
+                // The user looks at the tab now: its bell mark has done its job.
+                clearAttentionOfSeenTab();
             } else if (newTab instanceof FileEditorTab fileEditorTab) {
                 lastSelectedFileEditorTab = fileEditorTab;
             }
@@ -1266,6 +1283,8 @@ public class MainWindow {
     private void updateForegroundActivity() {
         boolean foreground = isForegroundWindow();
         if (foreground) {
+            // The window came to the front: its selected tab is seen again.
+            clearAttentionOfSeenTab();
             startJobSchedulerStatusUpdates();
             if (!terminalTabs().isEmpty()) {
                 startAgentStatusIndicatorTimer();
@@ -1286,6 +1305,18 @@ public class MainWindow {
         }
         onCodingAgentFocusContextChanged();
         AppDesignAnimator.refreshAll();
+    }
+
+    /**
+     * Removes the attention mark of the tab the user is looking at: the selected terminal tab of this
+     * window while it is in front (see {@link PaneSeenOracle}). Called on tab selection and when the
+     * window comes to the front.
+     */
+    private void clearAttentionOfSeenTab() {
+        TerminalTab seen = isForegroundWindow() ? getActiveTerminalTab() : null;
+        if (seen != null) {
+            seen.clearAttention();
+        }
     }
 
     /** True while this window is showing, not iconified and focused (the foreground window). */
@@ -1714,9 +1745,27 @@ public class MainWindow {
         } else {
             systemQuickSelectMenuItem = quickSelect;
         }
+
+        // Shown here; while a terminal has the focus its pane's own key actions take the keys.
+        MenuItem previousPrompt = ActionIds.tag(new MenuItem(I18n.get("menu.edit.previousPrompt")),
+            "menu.edit.previousPrompt");
+        previousPrompt.setAccelerator(PREVIOUS_PROMPT_ACCELERATOR);
+        previousPrompt.setOnAction(e -> jumpToPromptInCurrentTab(PromptNavigator.Direction.PREVIOUS));
+        MenuItem nextPrompt = ActionIds.tag(new MenuItem(I18n.get("menu.edit.nextPrompt")), "menu.edit.nextPrompt");
+        nextPrompt.setAccelerator(NEXT_PROMPT_ACCELERATOR);
+        nextPrompt.setOnAction(e -> jumpToPromptInCurrentTab(PromptNavigator.Direction.NEXT));
+        // The output of the newest command the shell marked as finished; no key of their own.
+        MenuItem selectLastOutput = ActionIds.tag(new MenuItem(I18n.get("menu.edit.selectLastOutput")),
+            "menu.edit.selectLastOutput");
+        selectLastOutput.setOnAction(e -> lastOutputInCurrentTab(ShellIntegrationController.LastOutputAction.SELECT));
+        MenuItem copyLastOutput = ActionIds.tag(new MenuItem(I18n.get("menu.edit.copyLastOutput")),
+            "menu.edit.copyLastOutput");
+        copyLastOutput.setOnAction(e -> lastOutputInCurrentTab(ShellIntegrationController.LastOutputAction.COPY));
+        shellIntegrationMenuItems.addAll(List.of(previousPrompt, nextPrompt, selectLastOutput, copyLastOutput));
         updateEditMenuItemsForSelection();
 
-        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, quickSelect);
+        editMenu.getItems().addAll(cut, copy, paste, new SeparatorMenuItem(), find, quickSelect,
+            new SeparatorMenuItem(), previousPrompt, nextPrompt, selectLastOutput, copyLastOutput);
         return editMenu;
     }
 
@@ -2883,6 +2932,16 @@ public class MainWindow {
     /** The chord that starts quick select, for the terminal view that ignores it while quick select runs. */
     static KeyCombination quickSelectAccelerator() {
         return QUICK_SELECT_ACCELERATOR;
+    }
+
+    /** The key of Previous Prompt, for the terminal panes' own key action (ShellIntegrationController). */
+    static KeyCombination previousPromptAccelerator() {
+        return PREVIOUS_PROMPT_ACCELERATOR;
+    }
+
+    /** The key of Next Prompt, for the terminal panes' own key action (ShellIntegrationController). */
+    static KeyCombination nextPromptAccelerator() {
+        return NEXT_PROMPT_ACCELERATOR;
     }
 
     /** The chord that opens and closes the command palette. */
@@ -5366,6 +5425,10 @@ public class MainWindow {
         if (systemQuickSelectMenuItem != null) {
             systemQuickSelectMenuItem.setDisable(disableQuickSelect);
         }
+        // Prompts and command output live in a terminal's scrollback; elsewhere the keys stay with the tab.
+        for (MenuItem item : shellIntegrationMenuItems) {
+            item.setDisable(!(currentTab instanceof TerminalTab));
+        }
     }
 
     private boolean invokeCutMethodIfPresent(Node focusOwner) {
@@ -5431,6 +5494,42 @@ public class MainWindow {
         } else if (currentTab instanceof FileEditorTab editorTab) {
             editorTab.showFind();
         }
+    }
+
+    /**
+     * Edit &gt; Previous Prompt / Next Prompt: scrolls the focused terminal pane to a prompt its shell
+     * marked. When it cannot, the status line says why: no marks (no shell integration in that shell),
+     * a full-screen program, or shell integration switched off.
+     */
+    private void jumpToPromptInCurrentTab(PromptNavigator.Direction direction) {
+        if (!(tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab)) {
+            return;
+        }
+        String status = switch (terminalTab.jumpToPrompt(direction)) {
+            case JUMPED, NO_TARGET -> null;
+            case NO_PROMPTS -> I18n.get("terminal.shellIntegration.status.noPrompts");
+            case FULL_SCREEN -> I18n.get("terminal.shellIntegration.status.fullScreen");
+            case DISABLED -> I18n.get("terminal.shellIntegration.status.disabled");
+        };
+        if (status != null) {
+            updateStatus(status);
+        }
+    }
+
+    /**
+     * Edit &gt; Select Last Output / Copy Last Output: selects or copies what the newest finished
+     * command in the focused terminal pane printed. The status line says what happened, including
+     * why nothing could be selected.
+     */
+    private void lastOutputInCurrentTab(ShellIntegrationController.LastOutputAction action) {
+        if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab) {
+            updateStatus(I18n.get(terminalTab.lastOutput(action).statusKey()));
+        }
+    }
+
+    /** Shows {@code message} in this window's status bar, for a terminal tab's own menu entries. */
+    void showStatusMessage(String message) {
+        updateStatus(message);
     }
 
     /** Edit &gt; Quick Select: labels what the focused terminal pane shows; nothing in other tabs. */
@@ -9659,11 +9758,6 @@ public class MainWindow {
         return terminalTab.getConnection() != null
             ? terminalTab.getConnection().getDisplayName()
             : I18n.get("ai.agent.connection.unknown");
-    }
-
-    private boolean isTerminalPromptHookEnabled() {
-        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
-        return settings == null || settings.isDefaultPromptHookEnabled();
     }
 
     private void showAiAgent() {

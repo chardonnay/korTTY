@@ -409,6 +409,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="shell-integration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Shell integration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal-notifications.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal notifications
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="highlighting.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -777,7 +793,7 @@
 <p>KorTTY recognises when a terminal-based coding agent — <strong>Claude Code</strong>, <strong>Codex</strong> or <strong>Gemini CLI</strong> — is running inside one of your <a href="terminal.html#local-shell-tabs">local shell tabs</a> and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable <strong>Coding Agents</strong> panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.</p>
 <p><img alt="Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier" src="../assets/diagrams/coding-agents.svg" /></p>
 <h2 id="what-it-detects">What it detects<a class="headerlink" href="#what-it-detects" title="Permanent link">&para;</a></h2>
-<p>Detection covers the three agents below, started from a <strong>Local Shell</strong> tab — directly, through a package-manager wrapper such as <code>npx</code>, or as a <code>node</code>, <code>bun</code> or <code>deno</code> script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process.</p>
+<p>Detection covers the three agents below, started from a <strong>Local Shell</strong> tab — directly, through a package-manager wrapper such as <code>npx</code>, or as a <code>node</code>, <code>bun</code> or <code>deno</code> script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process; an agent on a server can still tell you that it waits for you with a terminal notification, see <a href="terminal-notifications.html#notifications-from-programs">Notifications from programs</a>.</p>
 <table>
 <thead>
 <tr>

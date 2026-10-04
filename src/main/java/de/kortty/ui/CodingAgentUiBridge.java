@@ -224,20 +224,15 @@ public final class CodingAgentUiBridge implements FocusOracle, PaneLocator, Pane
         if (pane == null) {
             return false;
         }
-        for (MainWindow window : snapshotWindows()) {
-            if (!window.isForegroundWindow()) {
-                continue;
-            }
-            TerminalTab active = window.getActiveTerminalTab();
-            TerminalView view = active != null ? active.getTerminalView() : null;
-            if (view == null || !pane.tabId().equals(view.getTerminalViewId())) {
-                continue;
-            }
-            SithTermFxWidget widget = view.codingAgentWidgetFor(pane).orElse(null);
-            boolean focused = widget != null && widget == view.getFocusedWidget();
-            return seenFor(true, true, focused);
+        // The tab the user is looking at, as for terminal notifications; an agent also needs its pane focused.
+        TerminalTab active = PaneSeenOracle.seenTab(snapshotWindows());
+        TerminalView view = active != null ? active.getTerminalView() : null;
+        if (view == null || !pane.tabId().equals(view.getTerminalViewId())) {
+            return false;
         }
-        return false;
+        SithTermFxWidget widget = view.codingAgentWidgetFor(pane).orElse(null);
+        boolean focused = widget != null && widget == view.getFocusedWidget();
+        return seenFor(true, true, focused);
     }
 
     @Override

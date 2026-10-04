@@ -578,6 +578,10 @@ public class TerminalSplitPane extends StackPane {
      *       scroll the pane's scrollback while it shows the normal screen and are never broadcast.
      *       The alternate screen of vim, less or mc has no scrollback, so there they go to the
      *       application.</li>
+     *   <li>korTTY's own key actions of the pane, Previous Prompt and Next Prompt, likewise act in the
+     *       pane and are never broadcast while they can run, in every emulation shell integration
+     *       reads, SCO ANSI included; an emulation that keeps the fixed key sequences sends
+     *       SithTermFX's scroll keys to the application ({@link TerminalNavigationKeys#mayKeepKeyLocal}).</li>
      *   <li>Ctrl+Tab and Meta (Cmd) chords are shortcuts and are not sent.</li>
      * </ul>
      */
@@ -608,8 +612,7 @@ public class TerminalSplitPane extends StackPane {
             return;
         }
         typedMirror = BroadcastTargets.TypedMirror.NONE;
-        if (TerminalNavigationKeys.isKorttyEncoded(widget.getEmulationType())
-            && performsLocalScrollAction(widget, event)) {
+        if (performsLocalScrollAction(widget, event)) {
             return;
         }
         byte[] bytes = encodeKeyFor(widget, event);
@@ -680,7 +683,10 @@ public class TerminalSplitPane extends StackPane {
      * whose key combination matches decides. An enabled one (scrolling the scrollback) runs locally
      * and the key is neither sent nor mirrored ({@link BroadcastTargets#routeOf}). On the canvas
      * SithTermFX's own key filter runs it; for a key aimed at the pane or the scroll bar that filter
-     * never runs, so it is performed here.
+     * never runs, so it is performed here. In an emulation that keeps korTTY's fixed key sequences,
+     * such as SCO ANSI, only korTTY's own actions (the prompt jumps) may keep a key local, and
+     * SithTermFX's scrollback keys still go to the program there
+     * ({@link TerminalNavigationKeys#mayKeepKeyLocal}).
      *
      * @return true when the key was used for a local action and must not reach the application
      */
@@ -692,6 +698,10 @@ public class TerminalSplitPane extends StackPane {
         TerminalTextBuffer buffer = widget.getTerminalTextBuffer();
         boolean alternateScreen = buffer != null && buffer.isUsingAlternateBuffer();
         TerminalAction action = alternateScreen ? null : firstMatchingAction(panel, event);
+        if (action != null && !TerminalNavigationKeys.mayKeepKeyLocal(widget.getEmulationType(),
+            widget instanceof KorttyTermWidget kortty && kortty.isLeadingTerminalAction(action))) {
+            return false;
+        }
         BooleanSupplier paneAction = action != null ? () -> action.isEnabled(event) : null;
         if (BroadcastTargets.routeOf(alternateScreen, paneAction) != BroadcastTargets.KeyRoute.LOCAL_ACTION) {
             return false;

@@ -148,6 +148,23 @@ class TerminalTabTitleTest {
     }
 
     @Test
+    void theAttentionMarkFollowsTheAgentStatusAndExplainsItselfInTheTooltip() {
+        assertThat(TerminalTab.composeTitle(List.of("⚡", TerminalTab.ATTENTION_BADGE), "Ops", "web", " (DISCONNECT)"))
+            .isEqualTo("⚡ 🔔 [Ops] web (DISCONNECT)");
+        assertThat(TerminalTab.composeTitle(List.of("", TerminalTab.ATTENTION_BADGE), null, "web", ""))
+            .isEqualTo("🔔 web");
+
+        String bell = "The bell rang while you were not looking at this tab.";
+        assertWithMessage("the reason explains the mark in words and makes a tooltip on its own")
+            .that(TerminalTab.tooltipText("Connection: root@db7", null, null, bell))
+            .isEqualTo("Connection: root@db7\n" + bell);
+        assertThat(TerminalTab.tooltipText("Connection: root@db7", "Title set by the shell", "Tab color: red", bell))
+            .isEqualTo("Connection: root@db7\nTitle set by the shell\nTab color: red\n" + bell);
+        assertThat(TerminalTab.tooltipText("Connection: root@db7", null, null, " ")).isNull();
+        assertThat(TerminalTab.tooltipText("Connection: root@db7", null, null, null)).isNull();
+    }
+
+    @Test
     void confirmingTheConnectionNameKeepsFollowingTheConnection() {
         assertThat(TerminalTab.customTitleFromInput("db-07", "db-07")).isNull();
         assertThat(TerminalTab.customTitleFromInput("  db-07 ", "db-07")).isNull();
