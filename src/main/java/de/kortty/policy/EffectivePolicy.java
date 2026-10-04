@@ -36,7 +36,8 @@ public final class EffectivePolicy {
         ClipboardMode.SYSTEM, true, true, true,
         true, true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
         EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, null, TerminalPolicy.NONE,
-        List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of());
+        List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of(),
+        SftpPolicy.NONE);
 
     private final boolean fromPolicyFile;
     private final boolean lockdown;
@@ -70,6 +71,7 @@ public final class EffectivePolicy {
     private final List<PolicyFile.AiProfileDef> aiProfiles;
     private final List<PolicyFile.RuntimeModel> runtimeModels;
     private final List<PolicyFile.TeamworkSourceDef> teamworkSources;
+    private final SftpPolicy sftp;
 
     private EffectivePolicy(boolean fromPolicyFile, boolean lockdown, String organization,
                             Map<PolicyFeature, PolicyDecision> features, AgentExecutionMode agentExecution,
@@ -92,7 +94,8 @@ public final class EffectivePolicy {
                             List<PolicyFile.ScriptHeader> scriptHeaders,
                             List<PolicyFile.AiProfileDef> aiProfiles,
                             List<PolicyFile.RuntimeModel> runtimeModels,
-                            List<PolicyFile.TeamworkSourceDef> teamworkSources) {
+                            List<PolicyFile.TeamworkSourceDef> teamworkSources,
+                            SftpPolicy sftp) {
         this.fromPolicyFile = fromPolicyFile;
         this.lockdown = lockdown;
         this.organization = organization;
@@ -125,6 +128,7 @@ public final class EffectivePolicy {
         this.aiProfiles = List.copyOf(aiProfiles);
         this.runtimeModels = List.copyOf(runtimeModels);
         this.teamworkSources = List.copyOf(teamworkSources);
+        this.sftp = sftp;
     }
 
     /** No policy present: everything allowed. */
@@ -145,7 +149,7 @@ public final class EffectivePolicy {
             true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false, false,
             false, false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, 0L,
             TerminalPolicy.LOCKDOWN, List.of(), EnumSet.allOf(ManagedSetting.class),
-            List.of(), List.of(), List.of(), List.of());
+            List.of(), List.of(), List.of(), List.of(), SftpPolicy.LOCKDOWN);
     }
 
     /** Resolves the policy file for {@code identity}. */
@@ -181,6 +185,7 @@ public final class EffectivePolicy {
                     case CONTROL_API -> ManagedSetting.CONTROL_API;
                     case TERMINAL_TRIGGERS -> ManagedSetting.TERMINAL_TRIGGERS;
                     case MULTI_EXEC -> ManagedSetting.MULTI_EXEC;
+                    case FILE_TRANSFER -> ManagedSetting.FILE_TRANSFER;
                 });
             }
         }
@@ -281,6 +286,17 @@ public final class EffectivePolicy {
             managed.add(ManagedSetting.SESSION_JOURNAL);
         }
 
+        // A cap: the smaller number is the more restrictive one (the loader rejects values outside 1..8).
+        Integer sftpMaxParallel = resolver.resolve(
+            rule -> rule.sftp() != null ? rule.sftp().maxParallelTransfers() : null, Math::min);
+        de.kortty.model.SftpConflictDefault sftpConflictDefault = resolver.resolve(
+            rule -> rule.sftp() != null ? rule.sftp().conflictDefault() : null,
+            de.kortty.model.SftpConflictDefault::mostRestrictive);
+        SftpPolicy sftp = new SftpPolicy(sftpMaxParallel, sftpConflictDefault);
+        if (sftpMaxParallel != null || sftpConflictDefault != null) {
+            managed.add(ManagedSetting.SFTP_TRANSFERS);
+        }
+
         return new EffectivePolicy(true, false, file.organization(), features,
             orDefault(agentExecution, AgentExecutionMode.ALLOW),
             orDefault(requireMasterPassword, false), orDefault(enforceHostKeyCheck, false),
@@ -294,7 +310,7 @@ public final class EffectivePolicy {
             orDefault(allowUserModels, true), orDefault(updatesEnabled, true), updateFeedUrl,
             orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), logging, sessionJournal,
             analysisMaxStoredContentBytes, terminal, serverRestrictions, managed,
-            file.scriptHeaders(), file.aiProfiles(), file.runtimeModels(), file.teamworkSources());
+            file.scriptHeaders(), file.aiProfiles(), file.runtimeModels(), file.teamworkSources(), sftp);
     }
 
     // ---- accessors -------------------------------------------------------------------------
@@ -375,6 +391,31 @@ public final class EffectivePolicy {
      */
     public boolean multiExecAllowed() {
         return decision(PolicyFeature.MULTI_EXEC) != PolicyDecision.DENY;
+    }
+
+    /**
+     * Whether files may be copied between this computer and a server (D6): the SFTP manager's
+     * uploads, downloads, drops and drag-out, and the JobScheduler's SFTP upload, download and sync
+     * actions and its rsync action. Allowed unless the policy denies {@code file-transfer}. Browsing
+     * and remote-only operations are never gated by it. Callers ask {@link FileTransferGate}, which adds the reason.
+     */
+    public boolean fileTransferAllowed() {
+        return decision(PolicyFeature.FILE_TRANSFER) != PolicyDecision.DENY;
+    }
+
+    /** The {@code [rule.sftp]} limits: parallel transfers cap and the forced conflict default. */
+    public SftpPolicy sftp() {
+        return sftp;
+    }
+
+    /** The admin cap on parallel SFTP transfers, or null when the policy sets none. */
+    public Integer sftpMaxParallelTransfers() {
+        return sftp.maxParallelTransfers();
+    }
+
+    /** The conflict default the policy sets and locks, or null when it leaves it to the user. */
+    public de.kortty.model.SftpConflictDefault sftpConflictDefault() {
+        return sftp.conflictDefault();
     }
 
     /** Session journals are NOT chained through {@link #aiAllowed()}: capture works without AI. */
@@ -647,6 +688,26 @@ public final class EffectivePolicy {
          */
         static final TerminalPolicy LOCKDOWN = new TerminalPolicy(
             de.kortty.paste.PasteWarningMode.ALWAYS, false, de.kortty.model.SessionRestoreMode.OFF, false);
+    }
+
+    /**
+     * The {@code [rule.sftp]} dimensions of a policy.
+     *
+     * @param maxParallelTransfers the most files copied at once; null = up to the user (1..8)
+     * @param conflictDefault      the forced answer when a target exists; null = up to the user
+     */
+    public record SftpPolicy(Integer maxParallelTransfers, de.kortty.model.SftpConflictDefault conflictDefault) {
+
+        /** Nothing set: the user decides. */
+        static final SftpPolicy NONE = new SftpPolicy(null, null);
+
+        /** The fail-safe: one transfer at a time, and always ask. (File transfer itself is denied.) */
+        static final SftpPolicy LOCKDOWN = new SftpPolicy(1, de.kortty.model.SftpConflictDefault.ASK);
+
+        /** {@code requested} capped by {@link #maxParallelTransfers()}, when one is set. */
+        public int capParallel(int requested) {
+            return maxParallelTransfers == null ? requested : Math.min(requested, maxParallelTransfers);
+        }
     }
 
     // ---- resolution internals --------------------------------------------------------------

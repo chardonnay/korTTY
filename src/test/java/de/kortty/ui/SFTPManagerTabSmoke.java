@@ -39,7 +39,8 @@ import java.util.function.BooleanSupplier;
 
 /**
  * Drives a real {@link SFTPManagerTab} against a loopback SFTP server: the background listing,
- * a failed navigation that keeps the folder, Size sorted by bytes, uploading a folder twice,
+ * a failed navigation that keeps the folder, Size sorted by bytes, uploading a folder twice (the
+ * second time through the "file already exists" dialog), three files through the transfer list,
  * wildcard search, Rename and New Folder on both sides, the transfers behind drag and drop, the
  * Disconnected state with Reconnect after the server stops, a quiet tab close, and tabs restored
  * from a project at their saved folders (or the home folders when those are gone). Runs in an
@@ -149,9 +150,13 @@ public final class SFTPManagerTabSmoke {
         waitFor("first upload", () -> "first".equals(readRemote("project/a.txt")));
         Files.writeString(home.resolve("project/a.txt"), "second", StandardCharsets.UTF_8);
         uploadLocalItem("project");
+        // The folder merges; the files in it already exist, so "file already exists" asks once.
+        answerConflict(I18n.get("sftp.conflict.action.overwrite"), true);
         waitFor("second upload merged", () -> "second".equals(readRemote("project/a.txt"))
             && status().equals(I18n.get("sftp.uploadComplete", "1")));
         check(noDialogOpen(), "a second upload of the same folder must not fail");
+
+        runTransferQueue();
 
         runFileOperations();
 
@@ -185,6 +190,78 @@ public final class SFTPManagerTabSmoke {
             "a closed tab must not report a lost connection");
 
         runRestore(port);
+    }
+
+    /**
+     * Three files uploaded at once: each gets a row in the transfer list at the bottom of the tab,
+     * the rows reach Done, the folder shown is listed again, and Clear finished empties the list.
+     */
+    private static void runTransferQueue() throws Exception {
+        Path three = Files.createDirectories(home.resolve("three"));
+        List<Path> files = List.of(
+            Files.writeString(three.resolve("one.txt"), "1", StandardCharsets.UTF_8),
+            Files.writeString(three.resolve("two.txt"), "2", StandardCharsets.UTF_8),
+            Files.write(three.resolve("three.bin"), new byte[700_000]));
+        callWith("uploadPaths", new Class<?>[] {List.class, String.class}, files, "/");
+        waitFor("three uploads done in the transfer list", () -> {
+            List<de.kortty.core.sftp.transfer.TransferItem> rows = queueRows();
+            return rows.stream().filter(row -> row.parent() == null && files.stream()
+                    .anyMatch(file -> file.getFileName().toString().equals(row.name())))
+                .filter(row -> row.state() == de.kortty.core.sftp.transfer.TransferState.DONE).count() == 3;
+        });
+        check(fx(() -> queuePane().isVisible()), "the transfer list must show up with the first transfer");
+        check(Files.size(remoteRoot.resolve("three.bin")) == 700_000, "the third file must arrive whole");
+        waitFor("the folder shown is listed again", () -> names().contains("three.bin"));
+        check(fx(() -> remoteTable().getItems().stream().noneMatch(item -> item.getName().endsWith(".kortty-part"))),
+            "no part file may be left behind");
+        snapshot("transfer-queue");
+        fx(() -> {
+            Button clear = (Button) queuePane().lookupAll(".button").stream()
+                .filter(node -> node instanceof Button b
+                    && I18n.get("sftp.queue.action.clearFinished").equals(b.getText()))
+                .findFirst().orElseThrow();
+            clear.fire();
+            return null;
+        });
+        waitFor("finished rows cleared", () -> queueRows().isEmpty());
+    }
+
+    private static de.kortty.ui.sftp.SftpTransferQueuePane queuePane() {
+        return (de.kortty.ui.sftp.SftpTransferQueuePane) field("transferQueuePane");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<de.kortty.core.sftp.transfer.TransferItem> queueRows() {
+        try {
+            Method rows = de.kortty.ui.sftp.SftpTransferQueuePane.class.getDeclaredMethod("rows");
+            rows.setAccessible(true);
+            return (List<de.kortty.core.sftp.transfer.TransferItem>) rows.invoke(queuePane());
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /** Answers the "file already exists" dialog with the button labelled {@code action}. */
+    private static void answerConflict(String action, boolean applyToAll) throws Exception {
+        waitFor("conflict dialog", () -> {
+            for (Window window : Window.getWindows()) {
+                if (window.isShowing() && window.getScene() != null
+                        && window.getScene().getRoot() instanceof DialogPane pane
+                        && I18n.get("sftp.conflict.title").equals(((javafx.stage.Stage) window).getTitle())) {
+                    if (applyToAll) {
+                        pane.lookupAll(".check-box").forEach(node ->
+                            ((javafx.scene.control.CheckBox) node).setSelected(true));
+                    }
+                    for (ButtonType type : pane.getButtonTypes()) {
+                        if (action.equals(type.getText())) {
+                            ((Button) pane.lookupButton(type)).fire();
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        });
     }
 
     /**

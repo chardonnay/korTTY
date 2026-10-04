@@ -36,6 +36,8 @@ public final class TelemetryEvents {
     public static final String CONNECT_UI_OPENED = "connect_ui_opened";
     public static final String CONNECTION_TRANSFER = "connection_transfer";
     public static final String SFTP_OPENED = "sftp_opened";
+    /** One finished SFTP manager batch; props from {@link SftpTransferTelemetry}. */
+    public static final String SFTP_TRANSFER_BATCH = "sftp_transfer_batch";
     public static final String DASHBOARD_TOGGLED = "dashboard_toggled";
     public static final String DASHBOARD_ACTION = "dashboard_action";
     public static final String FILE_BROWSER_TOGGLED = "file_browser_toggled";

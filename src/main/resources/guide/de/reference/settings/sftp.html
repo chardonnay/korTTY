@@ -830,7 +830,66 @@
 </table>
 <div class="admonition note">
 <p class="admonition-title">Auto-Close</p>
-<p>Ein inaktiver SFTP-Tab schließt sich nach dem Timeout selbst, wodurch die serverseitige Verbindung freigegeben wird, wenn Sie vergessen, den Manager zu schließen. Das Timeout-Feld kann nur bearbeitet werden, während der Schalter aktiviert ist, und beide haben einen gemeinsamen gespeicherten Wert: Wenn Sie den Schalter ausschalten, wird überhaupt kein Timeout gespeichert.</p>
+<p>Ein inaktiver SFTP-Tab schließt sich nach dem Timeout selbst, wodurch die serverseitige Verbindung freigegeben wird, wenn Sie vergessen, den Manager zu schließen. Das Timeout-Feld kann nur bearbeitet werden, während der Schalter aktiviert ist, und beide haben einen gemeinsamen gespeicherten Wert: Wenn Sie den Schalter ausschalten, wird überhaupt kein Timeout gespeichert. Solange Uploads oder Downloads laufen, gilt der Tab als aktiv, sodass er sich nie mitten in einer Übertragung selbst schließt.</p>
+</div>
+<h2 id="ubertragungen">Übertragungen<a class="headerlink" href="#ubertragungen" title="Permanent link">&para;</a></h2>
+<p>Wie Uploads und Downloads in der <a href="../../features/sftp.html#ubertragungsliste">Übertragungsliste</a> funktionieren. Änderungen gelten für danach geöffnete SFTP-Tabs.</p>
+<table>
+<thead>
+<tr>
+<th>Einstellung</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Standard</th>
+<th>Gespeichert als</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Parallele Übertragungen</td>
+<td>Nummer</td>
+<td>1–8</td>
+<td>3</td>
+<td><code>sftpParallelTransfers</code></td>
+</tr>
+<tr>
+<td>Wenn das Ziel bereits existiert</td>
+<td>Auswahl</td>
+<td>Fragen (mit "für alle übernehmen"), Datei überspringen, Überschreiben</td>
+<td>Fragen</td>
+<td><code>sftpConflictDefault</code> (<code>ask</code>, <code>skip</code>, <code>overwrite</code>)</td>
+</tr>
+<tr>
+<td>Unterbrochene Übertragungen fortsetzen</td>
+<td>Schalter</td>
+<td>—</td>
+<td>Ein</td>
+<td><code>sftpResumePartialTransfers</code></td>
+</tr>
+<tr>
+<td>Teildatei behalten, wenn eine Übertragung abgebrochen wird</td>
+<td>Schalter</td>
+<td>—</td>
+<td>Aus</td>
+<td><code>sftpKeepPartialOnCancel</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Parallele Übertragungen</p>
+<p>Jede parallele Übertragung nutzt einen eigenen SFTP-Kanal neben dem, mit dem der Tab den Server durchsucht. Drei Kanäle bringen bei langsamen Verbindungen den größten Teil der Geschwindigkeit und bleiben deutlich unter dem üblichen Serverlimit von zehn Sitzungen pro Verbindung; verweigert der Server einen Kanal, kopiert der Tab stillschweigend mit weniger Kanälen. Ein Tab, der die Sitzung eines Terminal-Bereichs mitbenutzt, verwendet höchstens 2, unabhängig von der Einstellung.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Wenn das Ziel bereits existiert</p>
+<p><strong>Fragen</strong> zeigt den Dialog <a href="../../features/sftp.html#wenn-eine-datei-bereits-existiert">Datei existiert bereits</a> einmal pro Upload oder Download an, mit <strong>Für alle weiteren Konflikte dieser Art übernehmen</strong>. <strong>Datei überspringen</strong> und <strong>Überschreiben</strong> beantworten ihn ohne Nachfrage; Ordner werden in beiden Fällen zusammengeführt. <strong>Überschreiben</strong> ersetzt nie einen symbolischen Link oder eine Datei, wo ein Ordner erwartet wird (und umgekehrt): Hier wird weiterhin nachgefragt.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Teildateien</p>
+<p>Jede Übertragung schreibt zuerst in eine Datei <code>.kortty-part</code> neben ihrem Ziel. Ist <strong>Unterbrochene Übertragungen fortsetzen</strong> eingeschaltet, behält eine Übertragung, die fehlgeschlagen ist oder ihre Verbindung verloren hat, diese Datei, und <strong>Wiederholen</strong> setzt dort fort, wo sie aufgehört hat, nachdem geprüft wurde, dass sich die Quelle nicht geändert hat. Ist die Option ausgeschaltet, wird die Teildatei entfernt, sobald eine Übertragung nicht abgeschlossen wird, und ein erneuter Versuch beginnt von vorn. <strong>Teildatei behalten, wenn eine Übertragung abgebrochen wird</strong> behält sie auch bei <strong>Abbrechen</strong>, sodass auch eine abgebrochene Übertragung fortgesetzt werden kann; die Option lässt sich nur einschalten, solange das Fortsetzen eingeschaltet ist.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Von Ihrer Organisation verwaltet</p>
+<p>Eine Organisation kann mit <a href="../enterprise-policy.html#rulesftp"><code>[rule.sftp]</code></a> <strong>Parallele Übertragungen</strong> begrenzen sowie <strong>Wenn das Ziel bereits existiert</strong> festlegen und sperren und mit <code>file-transfer = "deny"</code> die Dateiübertragung ganz abschalten; die Seite weist dann unterhalb der Übertragungseinstellungen darauf hin.</p>
 </div>
 <h2 id="zip-erstellungseinstellungen">ZIP-Erstellungseinstellungen<a class="headerlink" href="#zip-erstellungseinstellungen" title="Permanent link">&para;</a></h2>
 <p>Dies sind die Standardeinstellungen für die Erstellung eines ZIP-Archivs <strong>auf dem Remote-Server</strong> über den SFTP-Manager.</p>

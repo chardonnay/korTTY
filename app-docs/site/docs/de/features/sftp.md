@@ -90,9 +90,9 @@ Sie können Einträge zwischen den beiden Panels ziehen, von Ihrem Desktop in de
 
 | Ziehen | Ergebnis |
 |------|--------|
-| Lokale Zeilen auf das entfernte Panel | Hochgeladen, wie bei **Hochladen**: eine Datei mit demselben Namen auf dem Server wird ersetzt, ein Ordner wird zusammengeführt |
+| Lokale Zeilen auf das Remote-Panel | Hochgeladen, wie bei **Hochladen**: Ein Ordner wird zusammengeführt, und eine gleichnamige Datei auf dem Server wird nicht ohne Nachfrage ersetzt (siehe [Wenn eine Datei bereits existiert](#wenn-eine-datei-bereits-existiert)) |
 | Dateien aus Finder, Explorer oder der Dateibrowser-Seitenleiste auf das Remote-Panel | hochgeladen – dieselbe Methode |
-| Remote-Zeilen auf das lokale Panel | Im Hintergrund heruntergeladen, wie bei **Herunterladen**: Ordner eingeschlossen, und eine lokale Datei mit demselben Namen wird ersetzt |
+| Remote-Zeilen auf das lokale Panel | Im Hintergrund heruntergeladen, wie bei **Herunterladen**: einschließlich Ordnern, und eine gleichnamige lokale Datei wird nicht ohne Nachfrage ersetzt |
 | Dateien aus Finder, Explorer oder der Dateibrowser-Seitenleiste auf das lokale Panel | Kopiert im Hintergrund; ein bereits vorhandener Name bekommt eine Nummer, wie in `report (2).txt`, und eine Datei, die auf den Ordner fallen gelassen wird, bleibt unverändert |
 | Lokale Zeilen auf den Desktop oder ein anderes Programm | Als die Dateien selbst angeboten |
 | Remote Zeilen auf den Desktop oder ein anderes Programm | Nur für maximal 20 Dateien mit insgesamt höchstens 16 MB, keine Ordner |
@@ -100,7 +100,7 @@ Sie können Einträge zwischen den beiden Panels ziehen, von Ihrem Desktop in de
 Ein Drag in dasselbe Panel bewirkt nichts; nutzen Sie dort **Kopieren nach...** oder **Umbenennen**.
 
 !!! note "Ziehen vom Server zum Desktop"
-    Der Desktop kann nur Dateien übernehmen, die bereits existieren, wenn der Drag beginnt. KorTTY lädt daher die gezogenen Remote-Dateien zunächst in einen privaten temporären Ordner, was das Fenster bis zu 5 Sekunden blockieren kann. Ordner, mehr als 20 Dateien, mehr als 16 MB oder ein Download, der länger dauert, können nur innerhalb des Fensters fallen gelassen werden; die Statusleiste weist darauf hin, und Sie legen sie stattdessen auf das lokale Panel. Ein Link auf dem Server zählt als die Datei, auf die er zeigt, sodass ein Link zu einer großen Datei ebenfalls nicht dem Desktop angeboten wird. Die temporären Kopien werden gelöscht, wenn Sie den nächsten Drag starten oder den Tab schließen.
+    Der Desktop kann nur Dateien übernehmen, die bereits existieren, wenn der Drag beginnt. korTTY lädt daher die gezogenen Remote-Dateien zunächst in einen privaten temporären Ordner, was das Fenster bis zu 5 Sekunden blockieren kann. Ordner, mehr als 20 Dateien, mehr als 16 MB oder ein Download, der länger dauert, können nur innerhalb des Fensters abgelegt werden; die Statusleiste weist darauf hin, und Sie legen sie stattdessen auf dem lokalen Panel ab. Ein Download, der die Zeit überschreitet, stoppt mitten in seiner Datei und löscht, was er geschrieben hat, damit er den temporären Ordner nicht im Hintergrund weiter füllt. Ein Link auf dem Server zählt als die Datei, auf die er zeigt, sodass ein Link zu einer großen Datei ebenfalls nicht dem Desktop angeboten wird. Die temporären Kopien werden gelöscht, wenn Sie den nächsten Drag starten oder den Tab schließen.
 
 ### Tasten
 
@@ -116,9 +116,67 @@ Diese Tasten funktionieren in beiden Panels:
 
 **Hochladen** kopiert die ausgewählten lokalen Dateien und Ordner in den entfernten Ordner, der angezeigt wurde, als Sie **Hochladen** geklickt haben; das Durchsuchen anderer Orte während es läuft ändert das Ziel nicht. **Hochladen** bleibt deaktiviert, bis der erste entfernte Ordner aufgelistet wurde, weil der Server `~` selbst nicht erweitert.
 
-- **Das erneute Hochladen eines Ordners führt zu einer Zusammenführung** in den bestehenden entfernten Ordner: Dateien mit demselben Namen werden ersetzt, andere entfernte Dateien bleiben erhalten.
+- **Ein erneut hochgeladener Ordner wird zusammengeführt** mit dem vorhandenen Remote-Ordner: Andere Remote-Dateien bleiben erhalten, und für jede bereits vorhandene Datei fragt korTTY, was geschehen soll (siehe unten).
 - **Dateien werden gestreamt**, sodass ihre Größe nicht durch den Speicher begrenzt ist; Dateien größer als 2 GB werden wie jede andere hochgeladen.
-- Wenn die Verbindung während eines Uploads oder Downloads abbricht, stoppt der Rest des Batches mit einem **Getrennt**-Status statt eines Fehlers pro Datei.
+- Bricht die Verbindung während eines Uploads oder Downloads ab, schlagen die unfertigen Einträge mit **Verbindung verloren** fehl, und es erscheint ein einziger Status **Getrennt** statt eines Fehlerdialogs pro Datei; wählen Sie sie nach **Neu verbinden** in der [Übertragungsliste](#ubertragungsliste) aus und klicken Sie auf **Wiederholen**.
+- **Verlinkten Ordnern wird nicht gefolgt.** Ein symbolischer Link auf eine Datei wird mit dem Inhalt der Datei übertragen; ein Link auf einen Ordner wird übersprungen und in der Zusammenfassung am Ende genannt, sodass eine Link-Schleife eine Übertragung nicht endlos laufen lassen kann.
+- **Heruntergeladene Namen bleiben im Zielordner.** Ein Servername wie `..` oder `a/b` wird abgelehnt. Unter Windows werden außerdem Namen abgelehnt, die Windows für Geräte reserviert (`CON`, `PRN`, `AUX`, `NUL`, `COM1` bis `COM9`, `LPT1` bis `LPT9`, auch mit einer Endung wie `nul.txt`), sowie Namen, die auf einen Punkt oder ein Leerzeichen enden oder `:` enthalten, weil Windows sie an einer anderen Stelle schreiben oder verändern würde.
+
+### Übertragungsliste
+
+Uploads und Downloads laufen im Hintergrund, bis zu drei Dateien gleichzeitig (*Einstellungen → SFTP-Manager → [Parallele Übertragungen](../reference/settings/sftp.md#ubertragungen)*, 1 bis 8), jede über einen eigenen SFTP-Kanal. Die erste Übertragung öffnet die Liste **Übertragungen** am unteren Rand des Tabs; der Pfeil links davon klappt sie auf ihre Kopfzeile zusammen. Jede Zeile ist eine Datei oder ein Ordner, den Sie übertragen haben, mit Richtung, Fortschrittsbalken, bisher übertragenen Bytes, Geschwindigkeit und Restzeit; eine Ordnerzeile fasst die darin enthaltenen Dateien zusammen. Die Statusleiste zeigt, wie viele Dateien aller laufenden Übertragungen fertig sind, und die Gesamtgeschwindigkeit an und meldet **Hochgeladen** oder **Heruntergeladen**, wenn ein Stapel abgeschlossen ist.
+
+![Übertragungsliste mit einem Ordner-Upload, einer fehlgeschlagenen Datei darin, einem laufenden Download und fertigen Zeilen](../assets/screenshots/sftp/sftp-transfer-list.png)
+
+| Schaltfläche | Aktion |
+|--------|--------|
+| **Abbrechen** | Stoppt die ausgewählten Zeilen; eine abgebrochene Datei hinterlässt keine Teildatei, es sei denn, die Einstellungen behalten sie für ein späteres Fortsetzen |
+| **Wiederholen** | Startet die ausgewählten fehlgeschlagenen oder abgebrochenen Zeilen erneut; für einen Ordner nur das, was nicht angekommen ist |
+| **Alle abbrechen** | Stoppt alle Übertragungen, einschließlich einer offenen Frage **Datei existiert bereits** |
+| **Fertige entfernen** | Entfernt die Zeilen, die fertig, übersprungen oder abgebrochen sind; fehlgeschlagene Zeilen bleiben für einen neuen Versuch stehen |
+
+- **Fehler öffnen nicht mehr einen Fehlerdialog pro Datei.** Eine fehlgeschlagene Datei erhält eine eigene rote Zeile (auch wenn sie in einem übertragenen Ordner liegt), der Grund steht in ihrer Spalte **Status**, und sobald der Stapel abgeschlossen ist, listet ein einziges Zusammenfassungsfenster die fehlgeschlagenen Dateien und die verlinkten Ordner auf, denen nicht gefolgt wurde. Die Zusammenfassung blockiert den Tab nicht.
+- **Die Listen folgen den Übertragungen.** Wenn Dateien in dem Ordner ankommen, den ein Panel anzeigt, wird dieses Panel kurz darauf neu eingelesen; ein Ordner, den Sie inzwischen verlassen haben, nicht.
+- **Dateien kommen vollständig oder gar nicht an.** Eine Datei wird zuerst als `name.kortty-part` neben dem Ziel geschrieben und erhält ihren echten Namen erst, wenn sie vollständig ist, sodass eine unterbrochene Übertragung nie eine halb geschriebene Datei unter dem echten Namen hinterlässt. Die einzige Ausnahme ist das Ersetzen einer Serverdatei, die einem anderen Benutzer gehört; sie wird direkt an Ort und Stelle geschrieben (siehe [Wenn eine Datei bereits existiert](#wenn-eine-datei-bereits-existiert)).
+- **Unterbrochene Übertragungen setzen dort fort, wo sie aufgehört haben.** Nach einem Fehler oder einem Verbindungsabbruch setzt **Wiederholen** eine unfertige Datei fort, statt von vorn zu beginnen; siehe [Fortsetzen unterbrochener Übertragungen](#fortsetzen-unterbrochener-ubertragungen).
+- **Das Schließen des Tabs fragt nach, solange Übertragungen laufen.** Die Schließen-Schaltfläche des Tabs, *Datei > Tab schließen*, *Alle Tabs schließen*, das Schließen des Fensters und das Beenden von korTTY fragen zuerst **_n_ laufende Übertragungen abbrechen und schließen?**; **Tab geöffnet lassen** ist die Vorgabe und lässt alle Übertragungen weiterlaufen. Das Schließen bricht die nicht abgeschlossenen Übertragungen ab und löscht ihre Teildateien, es sei denn, *Einstellungen → SFTP-Manager* behält die Teildateien abgebrochener Übertragungen. Bei fertigen oder fehlgeschlagenen Zeilen wird nicht nachgefragt, und das automatische Schließen inaktiver Tabs wartet, bis die Übertragungen abgeschlossen sind.
+- **Übrig gebliebene Teildateien** werden kursiv und mit einem Tooltip angezeigt. **Übrig gebliebene Teildateien entfernen** am Ende des Kontextmenüs beider Panels löscht nach einer Bestätigung die `.kortty-part`-Dateien im angezeigten Ordner; Teildateien noch laufender Übertragungen bleiben unberührt.
+
+### Fortsetzen unterbrochener Übertragungen
+
+Eine Übertragung, die fehlschlägt oder deren Verbindung abbricht, behält ihre Datei `name.kortty-part`, und **Wiederholen** (nach **Neu verbinden**, falls die Verbindung verloren ging) setzt sie dort fort, wo sie aufgehört hat. Während sie fortgesetzt wird, zeigt ihre Spalte **Status** **Wird fortgesetzt** an.
+
+- **Nur wenn sich nichts geändert hat.** korTTY merkt sich beim Start der Übertragung Größe und Änderungszeit der Quelle. Ist die Quelle beim erneuten Versuch anders, ist die Teildatei größer als die Quelle oder stimmen die letzten 64 KB vor dem Fortsetzungspunkt nicht mehr mit der Quelle überein, wird die Teildatei entfernt und die Datei von Anfang an kopiert.
+- **Nur Ihre eigenen Teildateien.** Auf dem Server wird eine Teildatei nur fortgesetzt, wenn sie noch eine normale Datei ist, die dem Benutzer gehört, als der Sie angemeldet sind; in einen Link oder eine Datei eines anderen Benutzers unter diesem Namen wird nie geschrieben. Auch auf Ihrem Computer wird der Teildatei nie über einen Link gefolgt. Eine Teildatei, die korTTY nicht für genau diese Übertragung hinterlassen hat (ein anderer Tab, ein anderer Computer oder ein anderer Benutzer schreibt sie vielleicht gerade), wird weder fortgesetzt noch entfernt: Die Übertragung schlägt mit einer Meldung fehl, die die Datei nennt, und einen echten Rest entfernen Sie mit **Übrig gebliebene Teildateien entfernen**.
+- **Abbrechen entfernt die Teildatei**, es sei denn, *Einstellungen → SFTP-Manager → [Teildatei behalten, wenn eine Übertragung abgebrochen wird](../reference/settings/sftp.md#ubertragungen)* ist eingeschaltet. Ist dort **Unterbrochene Übertragungen fortsetzen** ausgeschaltet, wird jede unfertige Teildatei entfernt, und ein erneuter Versuch beginnt immer von vorn.
+- **Was korTTY speichert.** Die gemerkten Größen und Zeiten liegen in `sftp-resume-index.json` im Konfigurationsordner von korTTY und sind nur für Sie lesbar. Ein Eintrag enthält einen Fingerabdruck der Verbindung und der beiden Pfade, nicht die Pfade oder Hostnamen selbst und nie Dateiinhalte; Einträge von Übertragungen, die Sie nie wiederholt haben, werden nach 30 Tagen verworfen. Die Datei ist nicht Teil der Konfigurationssicherung, weil die Teildateien, die sie beschreibt, auf diesem Computer und seinen Servern bleiben.
+- **Übrig gebliebene Teildateien** von Übertragungen, die Sie aufgegeben haben, entfernen Sie mit **Übrig gebliebene Teildateien entfernen** im Kontextmenü beider Panels (siehe [Übertragungsliste](#ubertragungsliste)).
+
+### Wenn eine Datei bereits existiert
+
+Ein Upload oder Download ersetzt nie stillschweigend eine vorhandene Datei. Enthält der Zielordner bereits einen Eintrag mit demselben Namen, zeigt korTTY **Datei existiert bereits** mit Größe und Änderungszeit beider Seiten an (die spätere Zeit ist als neuer markiert) und bietet diese Möglichkeiten:
+
+| Auswahl | Ergebnis |
+|--------|--------|
+| **Ersetzen** | Die vorhandene Datei wird durch die übertragene ersetzt |
+| **Überspringen** | Der vorhandene Eintrag bleibt unverändert, und dieses Element wird nicht übertragen |
+| **Beide behalten** | Das Element wird unter einem freien Namen mit einer Nummer übertragen, etwa `report (1).txt`; eine doppelte Endung bleibt zusammen (`backup (1).tar.gz`), und eine Punktdatei erhält die Nummer am Ende (`.bashrc (1)`) |
+| **Übertragung abbrechen** | Der Rest des Stapels wird gestoppt; das Schließen des Dialogs oder ++escape++ bewirkt dasselbe |
+
+![Dialog Datei existiert bereits bei einem Upload auf eine ältere Datei](../assets/screenshots/sftp/sftp-conflict-dialog.png)
+
+- **Für alle weiteren Konflikte dieser Art übernehmen** beantwortet jeden späteren Konflikt derselben Art in diesem Stapel, ohne erneut zu fragen. Die Arten werden auseinandergehalten: Das Ersetzen aller Dateien ersetzt nie einen symbolischen Link oder einen Ordner.
+- **Ein Ordner wird mit einem gleichnamigen Ordner zusammengeführt**, ohne nachzufragen; nur die darin enthaltenen Dateien können in Konflikt geraten.
+- **Ein symbolischer Link wird nie ersetzt.** Ist der vorhandene Eintrag ein Link, werden nur **Überspringen** und **Beide behalten** angeboten, sodass eine Übertragung nicht über einen Link in eine Datei an anderer Stelle schreiben kann.
+- **Eine Datei und ein Ordner können sich nicht gegenseitig ersetzen.** Ist eine Seite eine Datei und die andere ein Ordner, werden nur **Überspringen** und **Beide behalten** angeboten.
+- **Eine Datei, die einem anderen Benutzer gehört, wird an Ort und Stelle geschrieben.** Gehört die vorhandene Remote-Datei einem anderen Benutzer, weist der Dialog darauf hin; beim Ersetzen wird direkt in die Datei geschrieben, sodass Eigentümer und Berechtigungen erhalten bleiben.
+- **Immer nur eine Frage.** Geraten mehrere Dateien eines Stapels gleichzeitig in Konflikt, fragt korTTY nach einer davon und lässt die anderen warten, sodass eine Antwort für alle vor der nächsten Frage vorliegt. Das Schließen des Tabs beantwortet eine offene Frage mit **Übertragung abbrechen**.
+- **Die Frage lässt sich im Voraus beantworten.** *Einstellungen → SFTP-Manager → [Wenn das Ziel bereits existiert](../reference/settings/sftp.md#ubertragungen)* kann vorhandene Dateien ohne Nachfrage überspringen oder überschreiben; bei Links und bei Konflikten zwischen Datei und Ordner wird weiterhin nachgefragt. Eine Organisation kann diese Auswahl für Sie festlegen.
+- Auf einem Computer, dessen Datenträger nicht zwischen Groß- und Kleinschreibung unterscheidet (die Vorgabe unter macOS und Windows), gilt ein Name, der sich nur in der Groß-/Kleinschreibung unterscheidet, als derselbe Name, sowohl für die Frage als auch für den nummerierten Namen, den **Beide behalten** wählt.
+
+### Wenn Ihre Organisation die Dateiübertragung abgeschaltet hat
+
+Eine Organisation kann die Dateiübertragung mit ihrer [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulefeatures) abschalten (`file-transfer = "deny"`). Der SFTP-Manager öffnet und durchsucht den Server dann weiterhin, und Umbenennen, Löschen, Berechtigungen, Archive, Suche und Kopieren auf dem Server funktionieren weiter, aber **Hochladen**, **Herunterladen** und **Wiederholen** in der Übertragungsliste sind ausgegraut, das Ziehen von Dateien auf das Server-Panel oder von Serverdateien auf das lokale Panel wird nicht angenommen (der Mauszeiger zeigt kein Kopiersymbol), und Remote-Dateien lassen sich nicht auf den Desktop ziehen. Dateien vom Desktop können weiterhin auf dem lokalen Panel abgelegt werden. JobScheduler-Jobs, die per SFTP hochladen, herunterladen oder synchronisieren, sowie rsync-Jobs schlagen mit derselben Meldung fehl, ohne eine Verbindung aufzubauen. Befehle wie `scp`, die in ein Terminal eingegeben werden, sind davon nicht betroffen.
 
 ### Berechtigungen
 

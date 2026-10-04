@@ -29,7 +29,15 @@ public enum PolicyFeature {
      * broadcast mode. Denied, no pane can join and broadcast mode cannot be switched on; leaving and
      * Stop Multi-exec always work.
      */
-    MULTI_EXEC("multi-exec");
+    MULTI_EXEC("multi-exec"),
+    /**
+     * Copying files between this computer and a server: uploads, downloads, drag and drop and
+     * dragging out in the SFTP manager, and the JobScheduler's SFTP upload, download and sync
+     * actions and its rsync action. Denied, every one of them is refused; browsing and remote-only
+     * operations (rename, delete, permissions, archives, search, remote copy) keep working. Shell commands such as
+     * {@code scp} typed into a terminal cannot be blocked.
+     */
+    FILE_TRANSFER("file-transfer");
 
     private final String tomlKey;
 

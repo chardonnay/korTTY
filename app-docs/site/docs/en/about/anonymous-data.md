@@ -40,6 +40,16 @@ A few terminal features report how they are used, with flags, coarse counts and 
 
 The search text, the names of commands, tabs, connections, snippets and rule sets, the patterns, and anything typed into the panes are never sent. Changes on the settings pages are reported as the name of the setting and, for switches and choices, the new value; for the quick-select letters and patterns and for rebound shortcuts only whether you changed them.
 
+### SFTP transfers
+
+When an upload or download in the SFTP Manager finishes, one event says how it went. File counts are rounded down to 0, 1, 2, 5, 10, 50, 100 or 1000.
+
+| Event | Sent when | Data |
+| --- | --- | --- |
+| `sftp_transfer_batch` | an upload or download batch (one button press or one drop) is finished | `upload` or `download`, the rounded number of files, whether it ended `done`, `partial`, `failed` or `cancelled`, whether a file continued a partial file, and how many files were copied at once |
+
+File and folder names, paths, server names and file sizes are never sent.
+
 ## What is never collected
 
 korTTY never transmits any of the following:
