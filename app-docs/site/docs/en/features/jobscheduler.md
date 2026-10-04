@@ -188,6 +188,12 @@ The protocol/detail area below the table is separated by a vertical splitter. Re
 
 Journal statuses include successful, failed, blocked, cancelled, and running/system entries. Reasons such as locked master password, missing host-key pin, missing `rsync`/`ssh`, unsupported Mosh target, or shutdown drain are written as journal details.
 
+## Run Notifications
+
+When a job run fails or is blocked, korTTY shows a desktop notification, also while the JobScheduler window is closed. The notification is titled *korTTY · Job* followed by the job's name, and its text only says how the run ended, its exit code when it had one, and whether it was started manually or by its schedule, for example *Failed · Exit code 2 · Scheduled run*. It never contains the run's output, detail or summary, because those can name servers, paths or secrets and a notification can appear on the lock screen. Control characters and invisible direction-changing characters are removed from the job name.
+
+Successful runs and recoveries (a successful run right after a failed or blocked one) do not notify by default, and cancelled runs never do. A job shows at most one notification per minute, so a job that fails every minute does not flood the desktop; its journal still records every run. Notifications use the same desktop notification service as the terminal, so where the operating system offers none, nothing is shown.
+
 ## Menu-Bar Status and Cancellation
 
 When **Show Jobs status in menu bar** is enabled, KorTTY shows the scheduler status after **Help** only if an enabled scheduler entry exists or a job is currently running. The status shows the running job, cancellation state, or the next job with a live countdown.

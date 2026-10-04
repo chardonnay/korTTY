@@ -24,7 +24,7 @@ class JobSchedulerI18nCoverageTest {
         "messages_nl.properties", "messages_pt.properties");
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
     private static final Map<String, Set<String>> SHARED_TECHNICAL_TERMS = Map.of(
-        "messages_de.properties", Set.of("action.rsync", "action.sudo", "archiveFormat.tar", "archiveFormat.tar_bz2", "archiveFormat.zip", "job.column.job", "job.journal", "job.name", "journal.column.detail", "journal.column.job", "journal.column.status", "journal.column.stderr", "journal.column.stdout", "tab.job", "tab.journal", "title"),
+        "messages_de.properties", Set.of("action.rsync", "action.sudo", "archiveFormat.tar", "archiveFormat.tar_bz2", "archiveFormat.zip", "job.column.job", "job.journal", "job.name", "journal.column.detail", "journal.column.job", "journal.column.status", "journal.column.stderr", "journal.column.stdout", "notification.title", "tab.job", "tab.journal", "title"),
         "messages_es.properties", Set.of("archiveFormat.tar_bz2", "journal.column.stderr"),
         "messages_fr.properties", Set.of("action.compression", "action.rsync", "action.sudo", "action.type", "archiveFormat.tar_bz2", "job.journal", "journal.column.stderr", "tab.action", "tab.journal"),
         "messages_hr.properties", Set.of("action.rsync", "action.sudo", "actionType.ai_agent", "archiveFormat.tar_bz2", "archiveFormat.zip", "journal.column.status", "journal.column.stderr", "journal.column.stdout", "title"),

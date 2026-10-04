@@ -534,6 +534,12 @@ public class KorTTYApplication extends Application {
                 jobSchedulerService.load();
                 schedulerPowerStateListener = this::syncSchedulerPowerState;
                 jobSchedulerService.addListener(schedulerPowerStateListener);
+                JobSchedulerService scheduler = jobSchedulerService;
+                jobSchedulerService.addRunEventListener(new de.kortty.jobscheduler.JobNotificationDispatcher(
+                    this::getDesktopNotifier, de.kortty.policy.PolicyManager::effective, java.time.Clock.systemUTC(),
+                    jobId -> scheduler.findJob(jobId)
+                        .map(de.kortty.jobscheduler.ScheduledJob::effectiveNotificationConfig)
+                        .orElse(null)));
                 syncSchedulerPowerState();
                 jobSchedulerService.start();
             } catch (Exception e) {
