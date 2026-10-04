@@ -920,6 +920,7 @@
 <p>Der Genehmigungsdialog bietet außerdem die Option <strong>Schwarm abbrechen</strong>, um den gesamten Lauf zu stoppen.</p>
 <h2 id="kombinierte-antwort-und-zeilendetails">Kombinierte Antwort- und Zeilendetails<a class="headerlink" href="#kombinierte-antwort-und-zeilendetails" title="Permanent link">&para;</a></h2>
 <p>Wenn alle Agenten fertig sind, kombiniert der Schwarm die Antworten pro Server in einer Markdown-Vergleichstabelle mit genau einer Zeile pro Server. Die letzte Spalte trägt immer den Titel <strong>"Fehler"</strong> und listet Abweichungen, fehlende Daten und Fehler (oder <code>-</code>, wenn es nichts zu melden gibt) auf, unabhängig von der Antwortsprache.</p>
+<p>Die Anfrage, die die Antworten zusammenführt, enthält die Antwort und den Ausgabeauszug jedes Servers; daher wird sie wie die eigenen Prompts der Agenten maskiert, bevor sie an ein Profil geht, das kein integriertes Modell und kein vertrauenswürdiger lokaler Endpunkt ist: die Verbindungspasswörter aller Server, die Ersetzungsregeln Ihrer Organisation und bekannte Tokenformate werden zu <code>***</code> (siehe <a href="ai-assistant.html#geheimnisse-vor-dem-senden-maskieren">Geheimnisse vor dem Senden maskieren</a>). Die Zeilen und die Tabelle, die angezeigt wird, wenn die KI nicht erreichbar ist, behalten den Originaltext, weil sie Ihren Computer nie verlassen.</p>
 <p>Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – <strong>klicken Sie auf eine beliebige Tabellenzeile</strong>, um sie in einem separaten Fenster <em>Zeilendetails</em> mit lesbarem Layout, <strong>A− / A+</strong>-Schriftgrößenschaltflächen und einer Schaltfläche zum Kopieren in die Zwischenablage zu öffnen.</p>
 <h2 id="konversation-kopieren-exportieren-und-speichern">Konversation kopieren, exportieren und speichern<a class="headerlink" href="#konversation-kopieren-exportieren-und-speichern" title="Permanent link">&para;</a></h2>
 <p>Der Gesprächsheader verfügt über eine <strong>Kopieren</strong>-Schaltfläche (gesamtes Gespräch in die Zwischenablage) und ein <strong>Exportieren</strong>-Menü mit <strong>Plain Text</strong>, <strong>Markdown</strong> und <strong>PDF</strong>. <strong>Speichern</strong> speichert das Gespräch als benannten Swarm-Chat; gespeicherte Swarm-Chats erscheinen in einem dedizierten <strong>Swarm-Chats</strong>-Bereich des <a href="ai-assistant.html#ki-manager">KI-Manager</a> und können später wieder geöffnet werden.</p>
@@ -1012,7 +1013,8 @@
 <div class="admonition warning">
 <p class="admonition-title">Unbeaufsichtigte Änderungen</p>
 <p>Ein geplanter Schwarm mit <strong>Schreibgeschützt aus</strong> und <strong>Auto-Genehmigung ein</strong> ändert Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die Eingabeaufforderung ist absichtlich darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.</p>
-</div></p>
+</div>
+<p>Die <a href="../reference/enterprise-policy.html#rulefeatures">Unternehmensrichtlinie</a> einer Organisation gilt auch für geplante Swarms: Ist der KI-Swarm oder der KI-Agent verweigert oder <code>ai-agent-execution</code> auf <code>read-only</code> gesetzt, endet der Job als blockiert, bevor er sich verbindet; bei <code>ai-agent-execution = "confirm"</code> wird jeder Agent, der einen serverändernden Befehl plant, gestoppt und als blockiert gezählt, selbst wenn die automatische Genehmigung aktiviert ist.</p></p>
     </article>
 </section>
             <!-- endblock -->

@@ -1024,13 +1024,13 @@
 <td><code>ai</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>deny</code></td>
-<td>Master switch: <code>deny</code> disables every AI capability at once</td>
+<td>Master switch: <code>deny</code> disables every AI capability at once, and scheduled AI Agent and AI Swarm jobs end as blocked before they connect</td>
 </tr>
 <tr>
 <td><code>ai-agent</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>deny</code></td>
-<td>AI Agent (menu, terminal context menu, keyboard shortcut, headless job runs)</td>
+<td>AI Agent (menu, terminal context menu, keyboard shortcut, headless job runs). <code>deny</code> also blocks scheduled AI Agent and AI Swarm jobs before they connect, because swarm agents are AI agents</td>
 </tr>
 <tr>
 <td><code>ai-chat</code></td>
@@ -1042,7 +1042,7 @@
 <td><code>ai-swarm</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>deny</code></td>
-<td>AI Swarm, including scheduled swarm jobs</td>
+<td>AI Swarm, including scheduled swarm jobs, which end as blocked before they connect</td>
 </tr>
 <tr>
 <td><code>ai-planning</code></td>
@@ -1102,7 +1102,7 @@
 <td><code>ai-agent-execution</code></td>
 <td>string</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
-<td><code>confirm</code> forces interactive approval of every mutating command set and defeats the auto-approve option; <code>read-only</code> lets the agent plan and chat but never execute commands</td>
+<td><code>confirm</code> forces interactive approval of every mutating command set and defeats the auto-approve option; <code>read-only</code> lets the agent plan and chat but never execute commands. Scheduled jobs: under <code>confirm</code> an <a href="../features/jobscheduler.html#security-and-secrets">AI Agent or AI Swarm job</a> blocks every server-changing command, whatever its <strong>Auto-approve AI commands</strong> says, because nobody is there to approve it; under <code>read-only</code> both AI job types end as blocked before they connect. A job is also blocked up front when <code>ai</code> or <code>ai-agent</code> is denied, and a swarm job when <code>ai-swarm</code> is denied</td>
 </tr>
 </tbody>
 </table>
