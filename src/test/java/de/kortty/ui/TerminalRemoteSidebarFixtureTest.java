@@ -146,6 +146,18 @@ class TerminalRemoteSidebarFixtureTest {
         assertThat(view.substring(cleanup, view.indexOf("\n    }\n", cleanup))).contains("disposeRemoteSidebar();");
     }
 
+    @Test
+    void theSidebarUsesTheFileBrowserLookSoItsLabelsStayReadable() throws IOException {
+        String sidebar = source("src/main/java/de/kortty/ui/TerminalRemoteSidebar.java");
+        // Modena's light -fx-background under the Normal design hid the app's light label text.
+        assertThat(sidebar).doesNotContain("-fx-background-color: -fx-background;");
+        assertThat(sidebar).contains("getStyleClass().add(\"file-browser-panel\");");
+        assertThat(sidebar).contains("/styles/filebrowser.css");
+        assertThat(sidebar).contains("table.getStyleClass().add(\"file-browser-table\");");
+        // The emoji type glyphs have no glyph in the table's monospace font: the manager's icons instead.
+        assertThat(sidebar).contains("SFTPManagerTab.installTypeIconCell(type);");
+    }
+
     private static String source(String path) throws IOException {
         return Files.readString(Path.of(path), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }

@@ -210,6 +210,8 @@ The slider lives in the in-window menu bar only (the native macOS menu bar canno
 
 **View → Remote Files Sidebar** docks a narrow file list beside the panes of every terminal tab, on the right or the left. It shows the folder the shell of the focused SSH pane is in and follows it as you `cd` around. It is off by default; the position and the width you drag it to are remembered (**Settings → Terminal → Remote files sidebar**). Tabs with only local-shell or Mosh panes show no sidebar.
 
+![The remote files sidebar beside a terminal pane, following the shell into /var/www/shop](../assets/screenshots/terminal/remote-sidebar.png)
+
 The sidebar lists over an SFTP channel of the pane's own SSH session, like **Open SFTP Here**, so there is no second login, MFA prompt or access reason. The channel opens the first time the sidebar is shown in that tab and closes when you hide the sidebar or close the tab. A split pane connected elsewhere is followed with its own session when you click into it; clicking into a local or Mosh pane leaves the sidebar where it is.
 
 How it follows the shell:

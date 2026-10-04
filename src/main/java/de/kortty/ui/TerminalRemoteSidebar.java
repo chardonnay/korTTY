@@ -62,6 +62,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -169,10 +170,16 @@ final class TerminalRemoteSidebar extends VBox {
     private void buildUi() {
         setSpacing(4);
         setPadding(new Insets(4));
-        setStyle("-fx-background-color: -fx-background;");
+        // The local file browser's look (filebrowser.css tokens): -fx-background is Modena's light
+        // grey under the Normal design, which left the app's light label text unreadable.
+        getStyleClass().add("file-browser-panel");
+        URL stylesheet = TerminalRemoteSidebar.class.getResource("/styles/filebrowser.css");
+        if (stylesheet != null) {
+            getStylesheets().add(stylesheet.toExternalForm());
+        }
 
         Label title = new Label(I18n.get("terminal.remoteSidebar.title"));
-        title.setStyle("-fx-font-weight: bold;");
+        title.setStyle("-fx-font-weight: bold; -fx-text-fill: -kortty-fb-fg;");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         decorate(pinButton, "terminal.remoteSidebar.pin");
@@ -195,18 +202,22 @@ final class TerminalRemoteSidebar extends VBox {
         HBox header = new HBox(2, title, spacer, pinButton, refreshButton, uploadButton, downloadButton,
             openInManagerButton, hideButton);
         header.setAlignment(Pos.CENTER_LEFT);
+        header.getStyleClass().add("file-browser-toolbar");
 
         banner.setWrapText(true);
-        banner.setStyle("-fx-font-size: 0.85em;");
+        banner.setStyle("-fx-font-size: 0.85em; -fx-text-fill: -kortty-fb-fg;");
         status.setWrapText(true);
-        status.setStyle("-fx-font-size: 0.85em; -fx-text-fill: gray;");
+        status.setStyle("-fx-font-size: 0.85em; -fx-text-fill: -kortty-fb-dim;");
 
         filterField.setPromptText(I18n.get("terminal.remoteSidebar.filter"));
+        filterField.getStyleClass().add("file-browser-filter");
         filterField.textProperty().addListener((obs, was, now) -> applyFilter(now));
 
         TableColumn<SftpFileItem, String> type = new TableColumn<>("");
         type.setCellValueFactory(new PropertyValueFactory<>("type"));
         type.setPrefWidth(28);
+        // The SFTP manager's glyphs: the emoji of SftpFileItem.getType() has no glyph in the table's monospace font.
+        SFTPManagerTab.installTypeIconCell(type);
         TableColumn<SftpFileItem, String> name = new TableColumn<>(I18n.get("terminal.remoteSidebar.column.name"));
         name.setCellValueFactory(new PropertyValueFactory<>("name"));
         name.setPrefWidth(150);
@@ -215,12 +226,13 @@ final class TerminalRemoteSidebar extends VBox {
         size.setPrefWidth(70);
         TableColumn<SftpFileItem, String> modified = new TableColumn<>(I18n.get("terminal.remoteSidebar.column.modified"));
         modified.setCellValueFactory(new PropertyValueFactory<>("date"));
-        modified.setPrefWidth(120);
+        modified.setPrefWidth(140);
         for (TableColumn<SftpFileItem, String> column : List.of(type, name, size, modified)) {
             // Listed in the SFTP manager's Type order (SftpFileItemComparators); not re-sorted here.
             column.setSortable(false);
         }
         table.getColumns().addAll(List.of(type, name, size, modified));
+        table.getStyleClass().add("file-browser-table");
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         table.getSelectionModel().getSelectedItems().addListener(
             (javafx.collections.ListChangeListener<SftpFileItem>) change -> updateButtons());
@@ -275,6 +287,7 @@ final class TerminalRemoteSidebar extends VBox {
         button.setTooltip(new Tooltip(text));
         button.setAccessibleText(text);
         button.setFocusTraversable(false);
+        button.getStyleClass().add("file-browser-toolbar-button");
     }
 
     void setOnHideRequested(@Nullable Runnable onHideRequested) {

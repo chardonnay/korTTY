@@ -505,7 +505,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
      * Renders the Type column as a shared file-browser type glyph instead of the emoji from
      * {@link SftpFileItem#getType()}. Sorting is unaffected (it keys off isFile()+name, not this cell).
      */
-    private static void installTypeIconCell(TableColumn<SftpFileItem, String> column) {
+    static void installTypeIconCell(TableColumn<SftpFileItem, String> column) {
         column.setCellFactory(col -> new javafx.scene.control.TableCell<SftpFileItem, String>() {
             @Override
             protected void updateItem(String value, boolean empty) {
