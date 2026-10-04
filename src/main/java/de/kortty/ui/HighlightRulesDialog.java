@@ -227,6 +227,8 @@ public final class HighlightRulesDialog {
     private final Button deleteButton = new Button(I18n.get(DELETE_KEY));
 
     private final TextField nameField = new TextField();
+    /** The selected user set's own problems, right below its name. */
+    private final Label setMessage = new Label();
     private final Label builtinHint = new Label(I18n.get(BUILTIN_HINT_KEY));
     private final TableView<HighlightRule> ruleTable = new TableView<>(rules);
     private final Button addRuleButton = new Button(I18n.get(ADD_RULE_KEY));
@@ -554,6 +556,11 @@ public final class HighlightRulesDialog {
         nameRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(nameField, Priority.ALWAYS);
 
+        setMessage.setWrapText(true);
+        setMessage.setStyle(WARNING_STYLE);
+        setMessage.managedProperty().bind(setMessage.textProperty().isNotEmpty());
+        setMessage.visibleProperty().bind(setMessage.managedProperty());
+
         builtinHint.setWrapText(true);
         builtinHint.setStyle(HINT_STYLE);
         builtinHint.managedProperty().bind(builtinHint.visibleProperty());
@@ -588,8 +595,8 @@ public final class HighlightRulesDialog {
 
         Label rulesTitle = new Label(I18n.get(RULES_KEY));
         rulesTitle.setStyle("-fx-font-weight: bold;");
-        VBox box = new VBox(6, nameRow, builtinHint, rulesTitle, ruleTable, ruleButtons, priorityHint, details,
-            ruleMessage);
+        VBox box = new VBox(6, nameRow, setMessage, builtinHint, rulesTitle, ruleTable, ruleButtons, priorityHint,
+            details, ruleMessage);
         box.setPadding(new Insets(8));
         VBox.setVgrow(ruleTable, Priority.ALWAYS);
         return box;
@@ -903,6 +910,7 @@ public final class HighlightRulesDialog {
         String problem = model.firstProblem().map(HighlightRulesEditorModel.Problem::message).orElse("");
         problemLabel.setText(problem);
         invalid.set(!problem.isEmpty());
+        setMessage.setText(String.join(" ", model.setMessages(currentSet)));
     }
 
     private void updateRuleMessage() {

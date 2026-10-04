@@ -2,18 +2,25 @@ package de.kortty.core.highlight;
 
 import de.kortty.model.HighlightRule;
 import de.kortty.model.HighlightRuleSet;
+import de.kortty.model.XmlStorableText;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
  * The one set of checks a highlight rule and a rule set have to pass, shared by the rule editor (to
  * explain what is wrong) and by {@link CompiledHighlightSet} (to drop what is wrong). Every problem is
- * an i18n key under {@code highlight.validation.}; {@link #messageArguments(String)} supplies the
- * limit a message quotes, so the UI shows {@code getString(key, messageArguments(key))}.
+ * an i18n key under {@code highlight.validation.}; {@link #messageArguments(String, HighlightRuleSet, HighlightRule)}
+ * supplies the limit or the character a message quotes, so the UI shows
+ * {@code getString(key, messageArguments(key, set, rule))}.
+ *
+ * <p>Text {@code global-settings.xml} cannot hold ({@link XmlStorableText}) — a control character pasted
+ * into the pattern, the rule name or the set name — is a problem of its own: JAXB would write it, and the
+ * next start would fail to read the file and put every setting back to its default.
  *
  * <p>Pure and side-effect free; any thread.
  */
@@ -30,11 +37,14 @@ public final class HighlightRuleValidator {
     public static final String KEY_PATTERN_TOO_LONG = "highlight.validation.patternTooLong";
     public static final String KEY_PATTERN_INVALID = "highlight.validation.patternInvalid";
     public static final String KEY_PATTERN_MATCHES_EMPTY = "highlight.validation.patternMatchesEmpty";
+    public static final String KEY_PATTERN_UNSTORABLE = "highlight.validation.patternUnstorable";
+    public static final String KEY_RULE_NAME_UNSTORABLE = "highlight.validation.ruleNameUnstorable";
     public static final String KEY_FOREGROUND_INVALID = "highlight.validation.foregroundInvalid";
     public static final String KEY_BACKGROUND_INVALID = "highlight.validation.backgroundInvalid";
     public static final String KEY_NO_EFFECT = "highlight.validation.noEffect";
     public static final String KEY_SNIPPET_REQUIRED = "highlight.validation.snippetRequired";
     public static final String KEY_NAME_REQUIRED = "highlight.validation.nameRequired";
+    public static final String KEY_NAME_UNSTORABLE = "highlight.validation.nameUnstorable";
     public static final String KEY_TOO_MANY_RULES = "highlight.validation.tooManyRules";
     public static final String KEY_RESERVED_ID = "highlight.validation.reservedId";
     public static final String KEY_TOO_MANY_SETS = "highlight.validation.tooManySets";
@@ -42,9 +52,14 @@ public final class HighlightRuleValidator {
 
     /** Every key this class can return; the i18n coverage test checks each exists in every bundle. */
     public static final List<String> MESSAGE_KEYS = List.of(
-        KEY_PATTERN_REQUIRED, KEY_PATTERN_TOO_LONG, KEY_PATTERN_INVALID, KEY_PATTERN_MATCHES_EMPTY,
-        KEY_FOREGROUND_INVALID, KEY_BACKGROUND_INVALID, KEY_NO_EFFECT, KEY_SNIPPET_REQUIRED, KEY_NAME_REQUIRED,
-        KEY_TOO_MANY_RULES, KEY_RESERVED_ID, KEY_TOO_MANY_SETS, KEY_DUPLICATE_ID);
+        KEY_PATTERN_REQUIRED, KEY_PATTERN_UNSTORABLE, KEY_PATTERN_TOO_LONG, KEY_PATTERN_INVALID,
+        KEY_PATTERN_MATCHES_EMPTY, KEY_RULE_NAME_UNSTORABLE, KEY_FOREGROUND_INVALID, KEY_BACKGROUND_INVALID,
+        KEY_NO_EFFECT, KEY_SNIPPET_REQUIRED, KEY_NAME_REQUIRED, KEY_NAME_UNSTORABLE, KEY_TOO_MANY_RULES,
+        KEY_RESERVED_ID, KEY_TOO_MANY_SETS, KEY_DUPLICATE_ID);
+
+    /** The keys whose message quotes the character the settings file cannot store ({0}, e.g. {@code U+0007}). */
+    public static final List<String> UNSTORABLE_KEYS =
+        List.of(KEY_PATTERN_UNSTORABLE, KEY_RULE_NAME_UNSTORABLE, KEY_NAME_UNSTORABLE);
 
     private HighlightRuleValidator() {
     }
@@ -60,7 +75,11 @@ public final class HighlightRuleValidator {
             return problems;
         }
         String pattern = rule.getPattern();
-        if (pattern == null || pattern.isBlank()) {
+        if (!XmlStorableText.isStorable(pattern)) {
+            // Checked first: a pasted control character compiles, and one that counts as white space would
+            // otherwise be reported as a missing pattern.
+            problems.add(KEY_PATTERN_UNSTORABLE);
+        } else if (pattern == null || pattern.isBlank()) {
             problems.add(KEY_PATTERN_REQUIRED);
         } else if (pattern.length() > MAX_PATTERN_CHARS) {
             problems.add(KEY_PATTERN_TOO_LONG);
@@ -84,6 +103,9 @@ public final class HighlightRuleValidator {
             // Whether the snippet still exists is checked when the rule fires: the library can change at any time.
             problems.add(KEY_SNIPPET_REQUIRED);
         }
+        if (!XmlStorableText.isStorable(rule.getName())) {
+            problems.add(KEY_RULE_NAME_UNSTORABLE);
+        }
         return problems;
     }
 
@@ -102,7 +124,9 @@ public final class HighlightRuleValidator {
             problems.add(KEY_NAME_REQUIRED);
             return problems;
         }
-        if (set.getName() == null || set.getName().isBlank()) {
+        if (!XmlStorableText.isStorable(set.getName())) {
+            problems.add(KEY_NAME_UNSTORABLE);
+        } else if (set.getName() == null || set.getName().isBlank()) {
             problems.add(KEY_NAME_REQUIRED);
         }
         if (set.getRules().size() > MAX_RULES_PER_SET) {
@@ -139,7 +163,10 @@ public final class HighlightRuleValidator {
         return problems;
     }
 
-    /** The values a message quotes ({0}); empty for messages that quote nothing. */
+    /**
+     * The limit a message quotes ({0}); empty for messages that quote nothing or that quote the text of
+     * a rule or set — see {@link #messageArguments(String, HighlightRuleSet, HighlightRule)}.
+     */
     public static Object[] messageArguments(String key) {
         if (KEY_PATTERN_TOO_LONG.equals(key)) {
             return new Object[] {MAX_PATTERN_CHARS};
@@ -151,6 +178,26 @@ public final class HighlightRuleValidator {
             return new Object[] {MAX_USER_SETS};
         }
         return new Object[0];
+    }
+
+    /**
+     * The values the message of a problem of {@code rule} (or of {@code set} itself, {@code rule} null)
+     * quotes: the limit, or for one of {@link #UNSTORABLE_KEYS} the first character the settings file
+     * cannot store, as {@code U+0007} — it is invisible in the field, so the message names it.
+     */
+    public static Object[] messageArguments(String key, HighlightRuleSet set, HighlightRule rule) {
+        String text;
+        if (KEY_PATTERN_UNSTORABLE.equals(key)) {
+            text = rule != null ? rule.getPattern() : null;
+        } else if (KEY_RULE_NAME_UNSTORABLE.equals(key)) {
+            text = rule != null ? rule.getName() : null;
+        } else if (KEY_NAME_UNSTORABLE.equals(key)) {
+            text = set != null ? set.getName() : null;
+        } else {
+            return messageArguments(key);
+        }
+        int codePoint = XmlStorableText.firstUnstorableCodePoint(text);
+        return new Object[] {codePoint >= 0 ? String.format(Locale.ROOT, "U+%04X", codePoint) : "?"};
     }
 
     /**
