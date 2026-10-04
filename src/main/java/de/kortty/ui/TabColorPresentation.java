@@ -17,8 +17,9 @@ import java.util.Locale;
 /**
  * How a connection's tab color looks on a terminal tab: a small dot in the tab header (the tab's
  * graphic), named in the tab's tooltip and in the dot's accessible text together with where it comes
- * from (the connection, its group or its credential environment) so the color is never the only cue, and optionally a frame of that color around the terminal. The tab's style stays with
- * the connection-status colors (connecting, failed), which a connection color must never overwrite.
+ * from (the connection, its group or its credential environment) so the color is never the only cue,
+ * and optionally a frame of that color around the terminal. The tab's style stays with the
+ * connection-status colors (connecting, failed), which a connection color must never overwrite.
  */
 final class TabColorPresentation {
 

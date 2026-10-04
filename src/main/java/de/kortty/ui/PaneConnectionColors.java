@@ -27,7 +27,7 @@ import java.util.function.Function;
  * tab's own connection, and panes of another connection with the same color, are not marked.
  *
  * <p>Pure: no JavaFX. The colors come in as {@code #RRGGBB} from the caller's resolver (the
- * connection's own color, else its credential environment's; see
+ * connection's own color, else its group's, else its credential environment's; see
  * {@link ConnectionColorSupport#effectiveTabColor}), and the connection names are shown sanitized,
  * because a teamwork connection's name comes from a shared file.
  */
