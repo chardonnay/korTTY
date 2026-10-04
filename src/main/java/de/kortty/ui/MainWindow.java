@@ -2975,6 +2975,18 @@ public class MainWindow {
         loggedKeymapRejections = rejections;
     }
 
+    /**
+     * The actions of this window's in-window menu bar for the Settings → Keyboard page, with their
+     * default chords and the rules on this platform; {@code null} before the menu bar is built.
+     */
+    @Nullable KeyboardSettingsModel.Catalog keymapCatalog() {
+        if (menuBar == null) {
+            return null;
+        }
+        // Not imported: de.kortty.codingagent.KeyChord is a different class.
+        return KeymapSupport.catalog(menuBar.getMenus(), de.kortty.core.KeyChord.Os.current());
+    }
+
     /** {@link #applyKeymap()} in every open window, after the shortcut overrides changed; no restart needed. */
     static void refreshKeymapInAllWindows() {
         for (MainWindow window : List.copyOf(openWindows)) {
@@ -3969,6 +3981,8 @@ public class MainWindow {
         SettingsDialog dialog = new SettingsDialog(stage, app, app.getConfigManager(),
                 app.getGlobalSettingsManager().getSettings(),
                 app.getCredentialManager(), app.getGpgKeyManager());
+        // The Keyboard page lists the actions of this window's menu bar.
+        dialog.setKeymapCatalogSource(this::keymapCatalog);
 
         // Add listener to apply settings changes immediately to all open terminals
         dialog.addChangeListener(() -> {

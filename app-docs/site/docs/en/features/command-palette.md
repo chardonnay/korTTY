@@ -21,7 +21,7 @@ Type part of a command's name. The letters have to appear in that order but not 
 - a **Command** badge;
 - the command's name as its menu shows it, followed by its menu path in grey, for example **Dock Left** View › Live Journal;
 - a check mark when the command is a setting that is on, such as **Show Dashboard**;
-- its keyboard shortcut, if it has one.
+- its keyboard shortcut, if it has one, also one you chose yourself in [Settings → Keyboard](../reference/settings/keyboard.md).
 
 The menu path is searched as well, which keeps the commands with the same name apart: `journal left` finds **View › Live Journal › Dock Left**, and `file left` finds **View › File Browser › Show on Left**. A match in the name ranks above a match in the path, and among equally good matches the commands you chose recently come first.
 

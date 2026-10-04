@@ -8,6 +8,7 @@ import de.kortty.core.KeymapOverrides.Resolution;
 import de.kortty.core.KeymapOverrides.Rules;
 import de.kortty.ui.SceneShortcutRouter.KeyPress;
 import de.kortty.ui.actions.ActionIds;
+import de.kortty.ui.actions.MenuActionHarvester;
 import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
@@ -130,10 +131,42 @@ final class KeymapSupport {
      */
     static @NotNull Map<String, MenuItem> actionItems(@NotNull List<Menu> menus) {
         Map<String, MenuItem> items = new LinkedHashMap<>();
-        for (Menu menu : menus) {
-            collect(menu, items);
+        for (Map.Entry<String, Located> entry : locate(menus).entrySet()) {
+            items.put(entry.getKey(), entry.getValue().item());
         }
         return items;
+    }
+
+    /**
+     * What the Settings → Keyboard page lists for a menu bar: every action item in menu order, named
+     * by its menu text and its menu path as the command palette names it, the fixed ones marked;
+     * then the fixed shortcuts without a menu item (Ctrl+Tab, Ctrl+Shift+Tab, Cmd/Ctrl+1..9); and
+     * the rules on {@code os}. An item without text is named by its i18n key's text.
+     */
+    static @NotNull KeyboardSettingsModel.Catalog catalog(@NotNull List<Menu> menus, @NotNull Os os) {
+        Defaults defaults = defaults(menus, os);
+        List<KeyboardSettingsModel.Action> actions = new ArrayList<>();
+        for (Map.Entry<String, Located> entry : locate(menus).entrySet()) {
+            String id = entry.getKey();
+            String label = MenuActionHarvester.displayLabel(entry.getValue().item());
+            if (label.isEmpty()) {
+                label = MenuActionHarvester.displayLabel(new MenuItem(I18n.get(id)));
+            }
+            String category = entry.getValue().category();
+            actions.add(FIXED_ACTION_IDS.contains(id)
+                ? KeyboardSettingsModel.Action.fixed(id, label, category, defaults.fixed().get(id), null)
+                : KeyboardSettingsModel.Action.rebindable(id, label, category, defaults.rebindable().get(id)));
+        }
+        String tabs = I18n.get(KeyboardSettingsModel.CATEGORY_TABS_KEY);
+        actions.add(KeyboardSettingsModel.Action.fixed(FIXED_NEXT_TAB, I18n.get(KeyboardSettingsModel.FIXED_NEXT_TAB_KEY),
+            tabs, KeyChord.parse("Ctrl+Tab"), null));
+        actions.add(KeyboardSettingsModel.Action.fixed(FIXED_PREVIOUS_TAB,
+            I18n.get(KeyboardSettingsModel.FIXED_PREVIOUS_TAB_KEY), tabs, KeyChord.parse("Ctrl+Shift+Tab"), null));
+        KeyChord firstTab = KeyChord.parse("Shortcut+1");
+        KeyChord lastTab = KeyChord.parse("Shortcut+9");
+        actions.add(KeyboardSettingsModel.Action.fixed(FIXED_TAB_JUMP, I18n.get(KeyboardSettingsModel.FIXED_TAB_JUMP_KEY),
+            tabs, firstTab, firstTab.displayLabel(os) + " \u2026 " + lastTab.displayLabel(os)));
+        return new KeyboardSettingsModel.Catalog(os, actions, rules(os, defaults.fixed()));
     }
 
     /**
@@ -241,17 +274,36 @@ final class KeymapSupport {
         return List.copyOf(lines);
     }
 
-    private static void collect(Menu menu, Map<String, MenuItem> items) {
+    /** An action item and its menu path, as the command palette shows it. */
+    private record Located(MenuItem item, String category) {
+    }
+
+    /** The action items of a menu bar by id, see {@link #actionItems}, each with its menu path. */
+    private static Map<String, Located> locate(List<Menu> menus) {
+        Map<String, Located> items = new LinkedHashMap<>();
+        for (Menu menu : menus) {
+            collect(menu, List.of(), items);
+        }
+        return items;
+    }
+
+    private static void collect(Menu menu, List<String> above, Map<String, Located> items) {
         if (ActionIds.isExcluded(menu)) {
             return;
         }
+        List<String> path = new ArrayList<>(above);
+        String menuLabel = MenuActionHarvester.displayLabel(menu);
+        if (!menuLabel.isEmpty()) {
+            path.add(menuLabel);
+        }
         for (MenuItem item : menu.getItems()) {
             if (item instanceof Menu submenu) {
-                collect(submenu, items);
+                collect(submenu, path, items);
             } else if (item != null && !(item instanceof CustomMenuItem)) {
                 String id = ActionIds.idOf(item);
                 if (id != null) {
-                    items.putIfAbsent(id, item);
+                    items.putIfAbsent(id, new Located(item,
+                        String.join(MenuActionHarvester.CATEGORY_SEPARATOR, path)));
                 }
             }
         }

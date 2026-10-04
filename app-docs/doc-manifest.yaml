@@ -131,6 +131,12 @@ pages:
     screenshots:
       - settings/window.png
     last_synced_ref: "a4a2351c"
+  - path: app-docs/site/docs/en/reference/settings/keyboard.md
+    owns_i18n: [settings.keyboard.]
+    owns_code: [src/main/java/de/kortty/ui/KeyboardSettingsModel.java, src/main/java/de/kortty/ui/KeyboardSettingsPage.java, src/main/java/de/kortty/ui/KeymapSupport.java, src/main/java/de/kortty/core/KeymapOverrides.java, src/main/java/de/kortty/core/KeyChord.java, src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    screenshots:
+      - settings/keyboard.png
+    last_synced_ref: "e4cc14e2"
   - path: app-docs/site/docs/en/reference/settings/resources.md
     owns_i18n: [settings.resources.]
     owns_code: [src/main/java/de/kortty/model/JvmResourceProfile.java, src/main/java/de/kortty/JvmRelauncher.java]

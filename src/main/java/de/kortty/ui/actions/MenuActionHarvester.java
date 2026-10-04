@@ -141,9 +141,10 @@ public final class MenuActionHarvester {
 
     /**
      * The text a menu shows for {@code item}: without the mnemonic marker (when the item parses
-     * mnemonics, see {@link #stripMnemonic}), without a trailing "..." or "\u2026", trimmed.
+     * mnemonics, see {@link #stripMnemonic}), without a trailing "..." or "\u2026", trimmed. Also
+     * names the actions of the Settings → Keyboard page.
      */
-    static String displayLabel(MenuItem item) {
+    public static String displayLabel(MenuItem item) {
         String text = item.getText();
         if (text == null) {
             return "";

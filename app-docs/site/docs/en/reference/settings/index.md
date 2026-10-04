@@ -20,6 +20,7 @@ Each per-tab page lists settings as a table:
 | [Colors](colors.md) | Color profile, text/background/cursor/selection colors, cursor blink, the 16-color ANSI palette |
 | [Terminal](terminal.md) | Columns/rows, scrollback, encoding, SSH keep-alive, SSH host key verification, connection retries, drag-drop, timestamps |
 | [Window](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |
+| [Keyboard](keyboard.md) | Your own shortcuts for korTTY's commands: change, remove or reset them, with a check for keys the shell needs and for conflicts |
 | [Resources](resources.md) | Opt-in JVM heap/GC profile (Balanced / High / Maximum) for larger workloads |
 | [Logging](logging.md) | Terminal log directory and retention; session journal storage, AI summaries, interval and profile |
 | [Export](export.md) | PDF watermark and document footer for exported session journals, AI chats and code analysis reports |
