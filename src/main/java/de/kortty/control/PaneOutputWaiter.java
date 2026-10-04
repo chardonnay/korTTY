@@ -12,6 +12,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -72,6 +73,25 @@ public final class PaneOutputWaiter {
      */
     public MatchResult await(String paneId, String regexOrNull, String containsOrNull, ReadMode mode,
                              int lines, long timeoutMillis, long pollMillis) throws ControlApiException {
+        return await(paneId, regexOrNull, containsOrNull, mode, lines, timeoutMillis, pollMillis,
+            UnaryOperator.identity());
+    }
+
+    /**
+     * Waits for output as the caller is allowed to see it.
+     *
+     * <p>{@code view} is applied to every poll's text <em>before</em> it is searched, on the timer
+     * thread. An MCP client passes its masking here, so that the match, the matched line, the
+     * returned screen and a timeout's {@code last_line} all come from masked text — and a pattern
+     * cannot confirm a guessed password by matching the raw screen.
+     *
+     * @param view turns the text a poll read into the text the caller may see
+     * @see #await(String, String, String, ReadMode, int, long, long)
+     */
+    public MatchResult await(String paneId, String regexOrNull, String containsOrNull, ReadMode mode,
+                             int lines, long timeoutMillis, long pollMillis,
+                             UnaryOperator<PaneText> view) throws ControlApiException {
+        Objects.requireNonNull(view, "view");
         boolean hasRegex = regexOrNull != null && !regexOrNull.isEmpty();
         boolean hasContains = containsOrNull != null && !containsOrNull.isEmpty();
         if (hasRegex == hasContains) {
@@ -99,7 +119,9 @@ public final class PaneOutputWaiter {
         CompletableFuture<MatchResult> found = new CompletableFuture<>();
         Runnable probe = () -> {
             try {
-                PaneText text = read(reader, readMode, rows);
+                PaneText seen = view.apply(read(reader, readMode, rows));
+                PaneText text = seen != null ? seen
+                    : new PaneText(paneId, readMode.wire(), List.of(), 0, 0, false, null, false);
                 lastText.set(text);
                 MatchResult hit = search(paneId, text, pattern, containsOrNull, deadlineNanos,
                     elapsedMillis(startNanos));

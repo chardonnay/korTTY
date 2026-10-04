@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import de.kortty.core.SessionJournalRedactor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -64,6 +65,10 @@ final class LayoutVerbs {
                     surface::listWindows);
                 JsonObject result = new JsonObject();
                 result.addProperty(BaseVerbs.PARAM_INSTANCE, instanceId);
+                if (session.isMcp()) {
+                    McpOutputMasking masking = McpOutputMasking.with(null);
+                    windows = windows.stream().map(masking::window).toList();
+                }
                 result.add("windows", BaseVerbs.tree(windows));
                 return result;
             });
@@ -86,6 +91,10 @@ final class LayoutVerbs {
                     () -> surface.listTabs(windowId));
                 JsonObject result = new JsonObject();
                 result.addProperty(BaseVerbs.PARAM_INSTANCE, instanceId);
+                if (session.isMcp()) {
+                    McpOutputMasking masking = McpOutputMasking.with(null);
+                    tabs = tabs.stream().map(masking::tab).toList();
+                }
                 result.add("tabs", BaseVerbs.tree(tabs));
                 return result;
             });
@@ -147,7 +156,7 @@ final class LayoutVerbs {
                 }
                 JsonObject result = new JsonObject();
                 result.addProperty(BaseVerbs.PARAM_INSTANCE, instanceId);
-                result.add("panes", BaseVerbs.tree(filtered));
+                result.add("panes", BaseVerbs.tree(session.isMcp() ? masked(surface, ui, filtered) : filtered));
                 return result;
             });
     }
@@ -164,8 +173,11 @@ final class LayoutVerbs {
                 Optional<PaneInfo> pane = BaseVerbs.inUi(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS,
                     surface::focusedPane);
                 JsonObject result = new JsonObject();
+                Optional<PaneInfo> shown = session.isMcp() && pane.isPresent()
+                    ? Optional.of(masked(surface, ui, List.of(pane.get())).get(0))
+                    : pane;
                 result.add(BaseVerbs.PARAM_PANE,
-                    pane.<JsonElement>map(BaseVerbs::tree).orElse(JsonNull.INSTANCE));
+                    shown.<JsonElement>map(BaseVerbs::tree).orElse(JsonNull.INSTANCE));
                 return result;
             });
     }
@@ -185,7 +197,9 @@ final class LayoutVerbs {
             (session, params) -> {
                 PaneInfo pane = BaseVerbs.requirePane(surface, ui, params);
                 JsonObject result = new JsonObject();
-                result.add(BaseVerbs.PARAM_PANE, BaseVerbs.tree(pane));
+                result.add(BaseVerbs.PARAM_PANE, BaseVerbs.tree(session.isMcp()
+                    ? masked(surface, ui, List.of(pane)).get(0)
+                    : pane));
                 return result;
             });
     }
@@ -303,6 +317,24 @@ final class LayoutVerbs {
                 result.addProperty("ok", true);
                 return result;
             });
+    }
+
+    /**
+     * Pane descriptions as an MCP client may see them: the embedded coding agent's evidence and
+     * command line masked with each pane's known secrets, exactly as {@code agent.list} masks them.
+     */
+    private static List<PaneInfo> masked(ControlSurface surface, UiDispatcher ui, List<PaneInfo> panes)
+            throws ControlApiException {
+        List<String> paneIds = new ArrayList<>();
+        for (PaneInfo pane : panes) {
+            paneIds.add(pane.paneId());
+        }
+        Map<String, SessionJournalRedactor> secrets = McpOutputMasking.secretsFor(surface, ui, paneIds);
+        List<PaneInfo> out = new ArrayList<>(panes.size());
+        for (PaneInfo pane : panes) {
+            out.add(McpOutputMasking.with(secrets.get(pane.paneId())).pane(pane));
+        }
+        return out;
     }
 
     private static String requiredTabId(ControlSurface surface, UiDispatcher ui, JsonObject params)

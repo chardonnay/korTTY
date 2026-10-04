@@ -21,6 +21,7 @@ import de.kortty.control.PaneReader;
 import de.kortty.control.TabInfo;
 import de.kortty.control.UiDispatcher;
 import de.kortty.control.WindowInfo;
+import de.kortty.core.SessionJournalRedactor;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
 import java.io.IOException;
@@ -258,6 +259,12 @@ public final class ControlApiUiBridge implements ControlSurface, UiDispatcher {
         requireUiThread("readerFor");
         return locate(paneId).map(located ->
             new ControlApiPaneReader(paneId, located.widget(), located.view()));
+    }
+
+    @Override
+    public Optional<SessionJournalRedactor> secretRedactorFor(String paneId) {
+        requireUiThread("secretRedactorFor");
+        return locate(paneId).map(located -> located.view().createSecretRedactor());
     }
 
     // ---- writing ------------------------------------------------------------------------------

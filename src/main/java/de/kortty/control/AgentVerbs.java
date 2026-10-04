@@ -3,7 +3,10 @@ package de.kortty.control;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
+import de.kortty.core.SessionJournalRedactor;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The {@code agent.*} verbs. Every one of them requires a <strong>registered</strong> coding agent
@@ -66,7 +69,8 @@ final class AgentVerbs {
                 String tabId = BaseVerbs.optionalTabId(surface, ui, params, BaseVerbs.PARAM_TAB);
                 String windowId = ControlJson.optString(params, BaseVerbs.PARAM_WINDOW, null);
                 JsonObject result = new JsonObject();
-                result.add("agents", BaseVerbs.tree(agents.list(state, kind, tabId, windowId)));
+                List<AgentInfo> listed = agents.list(state, kind, tabId, windowId);
+                result.add("agents", BaseVerbs.tree(session.isMcp() ? masked(surface, ui, listed) : listed));
                 result.add("totals", BaseVerbs.tree(agents.totals()));
                 return result;
             });
@@ -87,7 +91,10 @@ final class AgentVerbs {
             (session, params) -> {
                 PaneInfo pane = BaseVerbs.requirePane(surface, ui, params);
                 JsonObject result = new JsonObject();
-                result.add("agent", BaseVerbs.tree(agents.get(pane.paneId())));
+                AgentInfo agent = agents.get(pane.paneId());
+                result.add("agent", BaseVerbs.tree(session.isMcp()
+                    ? masked(surface, ui, List.of(agent)).get(0)
+                    : agent));
                 return result;
             });
     }
@@ -297,6 +304,28 @@ final class AgentVerbs {
                 result.add("command", BaseVerbs.tree(started.command()));
                 return result;
             });
+    }
+
+    /**
+     * The agents as an MCP client may see them: evidence and command line masked with each pane's
+     * known secrets and the token formats — a command line can carry an API key. The secrets are
+     * looked up in one UI hop; the masking runs here, off the JavaFX thread.
+     */
+    static List<AgentInfo> masked(ControlSurface surface, UiDispatcher ui, List<AgentInfo> agents)
+            throws ControlApiException {
+        List<String> paneIds = new ArrayList<>();
+        for (AgentInfo agent : agents) {
+            if (agent != null) {
+                paneIds.add(agent.paneId());
+            }
+        }
+        Map<String, SessionJournalRedactor> secrets = McpOutputMasking.secretsFor(surface, ui, paneIds);
+        List<AgentInfo> out = new ArrayList<>(agents.size());
+        for (AgentInfo agent : agents) {
+            out.add(agent == null ? null
+                : McpOutputMasking.with(secrets.get(agent.paneId())).agent(agent));
+        }
+        return out;
     }
 
     /**

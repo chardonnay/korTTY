@@ -138,6 +138,12 @@ An `mcp` client gets a fixed, fail-closed list of methods:
 
 A refused method answers `method_not_allowed_for_mcp`, with `data.reason` set to `write_tools_disabled` or `not_exposed`. The method list in the `auth` reply and the `api.schema` document show an `mcp` client only the methods it may call, and the `auth` reply says in `mcp_write_tools` whether the write tools are on.
 
+### What an MCP client reads
+
+Everything an `mcp` client reads is masked, always, because its model usually runs in the cloud: korTTY treats it like a cloud AI profile, with no opt-out. The screen and scrollback of `pane.read`, the matched line and screen of `pane.wait_output`, the evidence line and the process command line of `agent.list`, `agent.get` and the agent inside a pane description, and the tab and window titles all lose the connection's password, the organisation's replacement rules from the [enterprise policy](enterprise-policy.md) and well-known token formats such as cloud access keys, each replaced by `***`. A command line is masked too, because it can carry an API key.
+
+`pane.read` and `pane.wait_output` give an `mcp` client at most 2000 rows and 64,000 characters, the newest ones kept, and set `truncated` when anything was left out; a `cli` client keeps the protocol's own limits. `pane.read` adds `masked_count`, the number of secrets masked in what it returned. `pane.wait_output` searches the masked text, so a pattern cannot confirm a guessed password by whether it matched. A `cli` client reads the raw text exactly as before.
+
 !!! warning "A narrower surface, not a sandbox"
     `client_kind` is declared by the client, not proven. The list limits what an MCP server exposes to an AI assistant; it does not protect korTTY from an assistant that can also run shell commands as you, because any program of yours can read the token and connect as `cli`. Treat every MCP client as a cloud model and everything it reads from a terminal as untrusted text.
 

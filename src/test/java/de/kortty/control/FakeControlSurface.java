@@ -1,6 +1,7 @@
 package de.kortty.control;
 
 import de.kortty.codingagent.PaneRef;
+import de.kortty.core.SessionJournalRedactor;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -25,6 +26,8 @@ final class FakeControlSurface implements ControlSurface {
     private final List<PaneInfo> panes = new ArrayList<>();
 
     private final Map<String, PaneReader> readers = new LinkedHashMap<>();
+
+    private final Map<String, SessionJournalRedactor> secrets = new LinkedHashMap<>();
 
     private final Map<String, ByteArrayOutputStream> written = new LinkedHashMap<>();
 
@@ -90,6 +93,10 @@ final class FakeControlSurface implements ControlSurface {
 
     void setReader(String paneId, PaneReader reader) {
         readers.put(paneId, reader);
+    }
+
+    void setSecrets(String paneId, SessionJournalRedactor redactor) {
+        secrets.put(paneId, redactor);
     }
 
     void setBracketedPaste(String paneId, boolean enabled) {
@@ -240,6 +247,12 @@ final class FakeControlSurface implements ControlSurface {
     public Optional<PaneReader> readerFor(String paneId) {
         record("readerFor");
         return Optional.ofNullable(readers.get(paneId));
+    }
+
+    @Override
+    public Optional<SessionJournalRedactor> secretRedactorFor(String paneId) {
+        record("secretRedactorFor");
+        return Optional.ofNullable(secrets.get(paneId));
     }
 
     @Override
