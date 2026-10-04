@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.KorTTYApplication;
 import de.kortty.codingagent.CodingAgentRegistry;
@@ -13,6 +14,7 @@ import de.kortty.shellintegration.RemoteNotificationText;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Decision;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Kind;
+import de.kortty.shellintegration.TerminalNotificationPolicy.MultiExecRun;
 import de.kortty.shellintegration.TerminalNotificationPolicy.PaneState;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Toggles;
 import org.jetbrains.annotations.Nullable;
@@ -23,6 +25,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -38,6 +41,14 @@ import java.util.function.Supplier;
  * carries terminal output, and the one for a finished command never names the command; the text a
  * program asks for is shown below that title, cleaned ({@link RemoteNotificationText}). Everything
  * here runs on the JavaFX thread; the notifier delivers in the background.
+ *
+ * <p>Multi-exec mirrors what is typed in one pane into panes of other tabs and windows, so one
+ * command line, or one failed Tab completion, makes every member ask at once. A member's bell and
+ * finished command therefore use its multi-exec session as the notification slot, which every member
+ * shares: a command typed once notifies once ({@link MultiExecRun}), and the members' bells notify at
+ * most once per interval together. A bell right after mirrored keys reached the pane is its answer to
+ * them and leads to nothing ({@link PaneState#mirroredInput()}). A program's own notification keeps
+ * the pane as its slot: its text is the program's, and another member's may say something else.
  */
 public final class TerminalAttentionNotifier {
 
@@ -67,14 +78,27 @@ public final class TerminalAttentionNotifier {
 
     private final Supplier<CodingAgentRegistry> codingAgents;
 
+    private final Function<SithTermFxWidget, Object> multiExecSession;
+
+    private final Predicate<SithTermFxWidget> mirroredInput;
+
+    /**
+     * @param multiExecSession the multi-exec session a pane takes part in, or {@code null}
+     *                         ({@link MultiExecCoordinator#sessionOf})
+     * @param mirroredInput    whether mirrored keys reached a pane within
+     *                         {@link TerminalNotificationPolicy#MIRRORED_ECHO_WINDOW}
+     */
     TerminalAttentionNotifier(TerminalNotificationPolicy policy, Predicate<TerminalTab> seen,
             Supplier<GlobalSettings> settings, Supplier<DesktopNotifier> notifier,
-            Supplier<CodingAgentRegistry> codingAgents) {
+            Supplier<CodingAgentRegistry> codingAgents, Function<SithTermFxWidget, Object> multiExecSession,
+            Predicate<SithTermFxWidget> mirroredInput) {
         this.policy = Objects.requireNonNull(policy, "policy");
         this.seen = Objects.requireNonNull(seen, "seen");
         this.settings = Objects.requireNonNull(settings, "settings");
         this.notifier = Objects.requireNonNull(notifier, "notifier");
         this.codingAgents = Objects.requireNonNull(codingAgents, "codingAgents");
+        this.multiExecSession = Objects.requireNonNull(multiExecSession, "multiExecSession");
+        this.mirroredInput = Objects.requireNonNull(mirroredInput, "mirroredInput");
     }
 
     /** The notifier of the running application, for every window. JavaFX thread. */
@@ -83,7 +107,8 @@ public final class TerminalAttentionNotifier {
         if (notifier == null) {
             notifier = new TerminalAttentionNotifier(new TerminalNotificationPolicy(), PaneSeenOracle::isSeen,
                 TerminalAttentionNotifier::currentSettings, TerminalAttentionNotifier::desktopNotifier,
-                TerminalAttentionNotifier::codingAgentRegistry);
+                TerminalAttentionNotifier::codingAgentRegistry, MultiExecCoordinator.shared()::sessionOf,
+                TerminalAttentionNotifier::receivedMirroredInput);
             shared = notifier;
         }
         return notifier;
@@ -91,15 +116,17 @@ public final class TerminalAttentionNotifier {
 
     /**
      * A program in {@code widget}, a pane of {@code tab}, rang the bell, once or several times since
-     * the last call. JavaFX thread.
+     * the last call. A member of multi-exec shares its notification slot with the other members, and
+     * a bell right after mirrored keys reached the pane leads to nothing. JavaFX thread.
      */
     public void onBell(TerminalTab tab, SithTermFxWidget widget) {
         if (tab == null || widget == null) {
             return;
         }
         Toggles toggles = toggles(settings.get());
-        PaneState state = new PaneState(seen.test(tab), hasCodingAgent(tab, widget), false);
-        Decision decision = policy.decide(Kind.BELL, widget, state, toggles);
+        PaneState state = new PaneState(seen.test(tab), hasCodingAgent(tab, widget), false, mirroredInputIn(widget));
+        Object session = multiExecSessionOf(widget);
+        Decision decision = policy.decide(Kind.BELL, session != null ? session : widget, state, toggles);
         if (decision.badge()) {
             tab.markAttention(I18n.get("terminal.notify.bell.tooltip"));
         }
@@ -114,7 +141,9 @@ public final class TerminalAttentionNotifier {
      * looking at, the tab gets its mark and, with the setting on, a desktop notification says how the
      * command ended and how long it ran; a command a terminal-agent run typed leads to nothing. The
      * text never contains the command: command lines can hold passwords and tokens, and a
-     * notification can show on the lock screen. JavaFX thread.
+     * notification can show on the lock screen. In a pane that takes part in multi-exec the same
+     * command line runs in every member, so it notifies once for all of them, however far apart
+     * they finish; each member's tab keeps its mark. JavaFX thread.
      */
     public void onCommandFinished(TerminalTab tab, SithTermFxWidget widget, CommandStatus status) {
         Duration runtime = status != null ? status.runtime() : null;
@@ -124,7 +153,9 @@ public final class TerminalAttentionNotifier {
         // Not consulted for a finished command: a coding agent is itself the command that ended.
         boolean codingAgentPane = false;
         PaneState state = new PaneState(seen.test(tab), codingAgentPane, agentRunIn(tab, widget));
-        Decision decision = policy.decideCommandFinished(tab, runtime, state, toggles(settings.get()));
+        Object session = multiExecSessionOf(widget);
+        MultiExecRun run = session != null ? new MultiExecRun(session, status.outputStartNanos()) : null;
+        Decision decision = policy.decideCommandFinished(tab, run, runtime, state, toggles(settings.get()));
         if (!decision.badge() && !decision.toast()) {
             return;
         }
@@ -232,6 +263,35 @@ public final class TerminalAttentionNotifier {
             logger.debug("Coding-agent lookup for a pane's notification failed: {}", e.toString());
             return false;
         }
+    }
+
+    /** The multi-exec session the pane takes part in, or {@code null}. */
+    private @Nullable Object multiExecSessionOf(SithTermFxWidget widget) {
+        try {
+            return multiExecSession.apply(widget);
+        } catch (RuntimeException e) {
+            logger.debug("Multi-exec lookup for a pane's notification failed: {}", e.toString());
+            return null;
+        }
+    }
+
+    /** Whether mirrored keys reached the pane moments ago, so what it does now answers them. */
+    private boolean mirroredInputIn(SithTermFxWidget widget) {
+        try {
+            return mirroredInput.test(widget);
+        } catch (RuntimeException e) {
+            logger.debug("Mirrored-input lookup for a pane's bell failed: {}", e.toString());
+            return false;
+        }
+    }
+
+    /**
+     * Whether broadcast mode or multi-exec wrote keys typed in another pane into {@code widget}'s
+     * connector within {@link TerminalNotificationPolicy#MIRRORED_ECHO_WINDOW}.
+     */
+    static boolean receivedMirroredInput(SithTermFxWidget widget) {
+        TtyConnector connector = widget.getTtyConnector();
+        return MirroredInputWriter.shared().wroteWithin(connector, TerminalNotificationPolicy.MIRRORED_ECHO_WINDOW);
     }
 
     /** Whether a korTTY terminal-agent run drives the pane, typing the commands that run there. */

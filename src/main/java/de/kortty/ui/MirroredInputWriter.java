@@ -2,19 +2,23 @@ package de.kortty.ui;
 
 import com.sithtermfx.core.TtyConnector;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.WeakHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.LongSupplier;
 
 /**
  * Writes the keys that broadcast mode mirrors into the other panes, off the JavaFX thread.
@@ -35,6 +39,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * {@link MirroredInput} scope. The pane the user types in is not written through here: its own
  * keys keep going through its terminal starter.
  *
+ * <p>It also remembers when it last wrote into each target ({@link #wroteWithin}): what a pane
+ * prints right after, such as the bell of a failed Tab completion, answers keys typed in another
+ * pane, and the terminal notifications do not count it as the pane asking for attention.
+ *
  * <p>Thread-safe.
  */
 public final class MirroredInputWriter {
@@ -44,13 +52,24 @@ public final class MirroredInputWriter {
     private final Executor executor;
     // Guarded by itself. Keyed by identity: a target is the connector instance a pane holds.
     private final Map<TtyConnector, TargetQueue> queues = new IdentityHashMap<>();
+    // Guarded by queues. System.nanoTime() of the last mirrored write that reached each target. Weak,
+    // so a closed pane's connector is not kept; no connector overrides equals, so this compares by
+    // identity like the queues.
+    private final Map<TtyConnector, Long> lastWriteNanos = new WeakHashMap<>();
+    private final LongSupplier clockNanos;
 
     /**
      * @param executor runs one drain task per target that has pending writes; it needs a free thread
      *     for every target that is draining at the same time, or a stalled target delays the others
      */
     MirroredInputWriter(@NotNull Executor executor) {
+        this(executor, System::nanoTime);
+    }
+
+    /** @param clockNanos the clock of {@link #wroteWithin}, {@link System#nanoTime()} but in tests */
+    MirroredInputWriter(@NotNull Executor executor, @NotNull LongSupplier clockNanos) {
         this.executor = Objects.requireNonNull(executor, "executor");
+        this.clockNanos = Objects.requireNonNull(clockNanos, "clockNanos");
     }
 
     /** The writer all split panes share. */
@@ -71,6 +90,22 @@ public final class MirroredInputWriter {
     public void write(@NotNull TtyConnector target, byte @NotNull [] bytes) {
         byte[] copy = bytes.clone();
         enqueue(target, () -> target.write(copy));
+    }
+
+    /**
+     * Whether a mirrored write reached {@code target}, the connector a pane holds, within
+     * {@code window} before now: keys typed in another pane through broadcast mode or multi-exec.
+     */
+    public boolean wroteWithin(@Nullable TtyConnector target, @NotNull Duration window) {
+        Objects.requireNonNull(window, "window");
+        if (target == null) {
+            return false;
+        }
+        Long last;
+        synchronized (queues) {
+            last = lastWriteNanos.get(target);
+        }
+        return last != null && clockNanos.getAsLong() - last < window.toNanos();
     }
 
     /** The number of targets with writes still queued or in progress. For tests. */
@@ -128,6 +163,10 @@ public final class MirroredInputWriter {
                 }
                 try {
                     MirroredInput.run(next);
+                    long written = clockNanos.getAsLong();
+                    synchronized (queues) {
+                        lastWriteNanos.put(target, written);
+                    }
                 } catch (IOException e) {
                     logger.debug("Failed to broadcast to widget: {}", e.getMessage());
                 } catch (RuntimeException e) {

@@ -67,11 +67,33 @@ class TerminalAttentionWiringTest {
     @Test
     void theNotifierDecidesOnTheBellAndNeverShowsTerminalText() throws IOException {
         String onBell = body(source("TerminalAttentionNotifier.java"), "public void onBell(TerminalTab tab, SithTermFxWidget widget) {");
-        assertThat(onBell).contains("policy.decide(Kind.BELL, widget, state, toggles);");
+        assertWithMessage("a multi-exec member shares the session's slot with the other members")
+            .that(onBell).contains("Object session = multiExecSessionOf(widget);");
+        assertThat(onBell).contains("policy.decide(Kind.BELL, session != null ? session : widget, state, toggles);");
         assertThat(onBell).contains("Toggles toggles = toggles(settings.get());");
-        assertThat(onBell).contains("new PaneState(seen.test(tab), hasCodingAgent(tab, widget), false);");
+        assertWithMessage("a bell right after mirrored keys answers them")
+            .that(onBell).contains("new PaneState(seen.test(tab), hasCodingAgent(tab, widget), false, mirroredInputIn(widget));");
         assertThat(onBell).contains("tab.markAttention(I18n.get(\"terminal.notify.bell.tooltip\"));");
         assertThat(onBell).contains("show(toastTitle(tab.getEffectiveTitle()), I18n.get(\"terminal.notify.bell.body\"));");
+    }
+
+    @Test
+    void theApplicationsNotifierAsksMultiExecAndTheMirroredInputWriter() throws IOException {
+        String notifier = source("TerminalAttentionNotifier.java");
+        assertThat(body(notifier, "static TerminalAttentionNotifier shared() {")).contains(
+            "TerminalAttentionNotifier::codingAgentRegistry, MultiExecCoordinator.shared()::sessionOf,\n"
+                + "                TerminalAttentionNotifier::receivedMirroredInput);");
+        assertWithMessage("the connector the split pane writes mirrored keys into is the pane's own")
+            .that(body(notifier, "static boolean receivedMirroredInput(SithTermFxWidget widget) {"))
+            .contains("return MirroredInputWriter.shared().wroteWithin(connector, "
+                + "TerminalNotificationPolicy.MIRRORED_ECHO_WINDOW);");
+        String splitPane = Files.readString(Path.of("src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java"),
+            StandardCharsets.UTF_8).replace("\r\n", "\n");
+        assertThat(splitPane).contains("TtyConnector connector = widget.getTtyConnector();");
+        assertThat(splitPane).contains("MirroredInputWriter.shared().write(connector, bytes);");
+        assertWithMessage("a program's own notification keeps the pane as its slot")
+            .that(body(notifier, "public void onRemoteNotification(TerminalTab tab, SithTermFxWidget widget, "
+                + "RemoteNotificationText notification) {")).doesNotContain("multiExecSessionOf");
     }
 
     @Test
@@ -135,8 +157,13 @@ class TerminalAttentionWiringTest {
             "public void onCommandFinished(TerminalTab tab, SithTermFxWidget widget, CommandStatus status) {");
         assertWithMessage("a terminal-agent run's commands are suppressed")
             .that(onFinished).contains("new PaneState(seen.test(tab), codingAgentPane, agentRunIn(tab, widget));");
-        assertWithMessage("the tab is the notification slot, so mirrored panes notify once")
-            .that(onFinished).contains("policy.decideCommandFinished(tab, runtime, state, toggles(settings.get()));");
+        assertWithMessage("the tab is the notification slot, so broadcast panes notify once, and a multi-exec "
+                + "member's run is reported once for every member")
+            .that(onFinished).contains("policy.decideCommandFinished(tab, run, runtime, state, toggles(settings.get()));");
+        assertThat(onFinished).contains("Object session = multiExecSessionOf(widget);");
+        assertWithMessage("the run starts at the command's C mark, the moment the mirrored Enter reached the shell")
+            .that(onFinished).contains(
+                "MultiExecRun run = session != null ? new MultiExecRun(session, status.outputStartNanos()) : null;");
         assertWithMessage("the text comes from the exit status and the runtime alone")
             .that(onFinished).contains("String text = commandFinishedText(status.exitStatus(),\n"
                 + "            TimestampGutter.currentFormats().verboseRuntime(runtime), I18n::get);");

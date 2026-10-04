@@ -6,6 +6,7 @@ import static org.testng.Assert.assertThrows;
 
 import de.kortty.shellintegration.TerminalNotificationPolicy.Decision;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Kind;
+import de.kortty.shellintegration.TerminalNotificationPolicy.MultiExecRun;
 import de.kortty.shellintegration.TerminalNotificationPolicy.PaneState;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Toggles;
 import java.time.Duration;
@@ -26,6 +27,10 @@ import org.testng.annotations.Test;
  *   <li>A program's notification (OSC 9, OSC 777): the same rules as the bell, with the
  *       notification on by default and at most once per pane every 5 seconds; what comes within
  *       them is dropped, and a pane whose coding agent notifies on its own gets none.</li>
+ *   <li>Multi-exec: a command line typed once runs in every member, in whichever tab; the members'
+ *       commands whose C marks lie within 5 seconds of each other are one run, which notifies once
+ *       however far apart they finish, and the members share the session's interval. A bell right
+ *       after mirrored keys reached the pane answers them and leads to nothing.</li>
  * </ul>
  */
 class TerminalNotificationPolicyTest {
@@ -40,6 +45,10 @@ class TerminalNotificationPolicyTest {
     private static final Toggles COMMAND_TOASTS_OFF = new Toggles(false, true, false, 30, true);
     private static final Toggles REMOTE_TOASTS_OFF = new Toggles(true, true, true, 30, false);
     private static final Duration THIRTY_SECONDS = Duration.ofSeconds(30);
+    private static final PaneState UNSEEN_MIRRORED = new PaneState(false, false, false, true);
+    private static final long SECOND_NANOS = 1_000_000_000L;
+    /** The C mark of the first command typed into the multi-exec session of a test. */
+    private static final long START = 500 * SECOND_NANOS;
 
     // TestNG runs every test method on one instance, so each method starts from a fresh policy.
     private long[] now;
@@ -309,6 +318,157 @@ class TerminalNotificationPolicyTest {
         assertThat(policy.decide(Kind.REMOTE, pane, UNSEEN_AGENT, new Toggles(false, false, true, 30, true)))
             .isEqualTo(new Decision(true, true));
         assertThat(Kind.REMOTE.leftToCodingAgents()).isTrue();
+    }
+
+    // ---- multi-exec ------------------------------------------------------------------------------
+
+    @Test
+    void aCommandTypedOnceIntoAMultiExecSessionNotifiesOnceHoweverFarApartTheMembersFinish() {
+        Object session = new Object();
+        // Three members in three tabs of two windows; the mirrored Enter reached them within a second.
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), Duration.ofSeconds(40),
+            UNSEEN, DEFAULTS)).isEqualTo(new Decision(true, true));
+        now[0] += 3_000;
+        assertWithMessage("a second member finishing seconds later only marks its tab")
+            .that(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START + SECOND_NANOS / 2),
+                Duration.ofSeconds(43), UNSEEN, DEFAULTS))
+            .isEqualTo(new Decision(true, false));
+        now[0] += 60_000;
+        assertWithMessage("a slow server's member a minute later, long past the interval, is still the same run")
+            .that(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START + SECOND_NANOS),
+                Duration.ofSeconds(103), UNSEEN, DEFAULTS))
+            .isEqualTo(new Decision(true, false));
+    }
+
+    @Test
+    void theNextCommandTypedIntoTheSessionNotifiesAgain() {
+        Object session = new Object();
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), THIRTY_SECONDS,
+            UNSEEN, DEFAULTS).toast()).isTrue();
+        now[0] += 90_000;
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START + 60 * SECOND_NANOS),
+            THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isTrue();
+    }
+
+    @Test
+    void commandsStartingTheWindowApartAreTwoRuns() {
+        Object session = new Object();
+        long window = TerminalNotificationPolicy.RUN_START_WINDOW.toNanos();
+        assertThat(TerminalNotificationPolicy.RUN_START_WINDOW).isEqualTo(Duration.ofSeconds(5));
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), THIRTY_SECONDS,
+            UNSEEN, DEFAULTS).toast()).isTrue();
+        now[0] += 10_000;
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START + window - 1),
+            THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isFalse();
+        assertWithMessage("a member whose clock reading lies before the first one's is the same run, too")
+            .that(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START - window + 1),
+                THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isFalse();
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START + window),
+            THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isTrue();
+    }
+
+    @Test
+    void theMembersShareTheSessionsIntervalBetweenTwoRuns() {
+        Object session = new Object();
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), THIRTY_SECONDS,
+            UNSEEN, DEFAULTS).toast()).isTrue();
+        now[0] += 9_999;
+        MultiExecRun next = new MultiExecRun(session, START + 20 * SECOND_NANOS);
+        assertWithMessage("another run finishing within 10 s of the notification only marks its tab")
+            .that(policy.decideCommandFinished(new Object(), next, THIRTY_SECONDS, UNSEEN, DEFAULTS))
+            .isEqualTo(new Decision(true, false));
+        now[0] += 1;
+        assertWithMessage("that run was not reported, so its next member notifies once the interval passed")
+            .that(policy.decideCommandFinished(new Object(), next, THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isTrue();
+    }
+
+    @Test
+    void sessionsAndTabsOutsideMultiExecNotifyOnTheirOwn() {
+        Object tab = new Object();
+        assertThat(policy.decideCommandFinished(tab, new MultiExecRun(new Object(), START), THIRTY_SECONDS,
+            UNSEEN, DEFAULTS).toast()).isTrue();
+        assertWithMessage("another session's run starting at the same moment")
+            .that(policy.decideCommandFinished(new Object(), new MultiExecRun(new Object(), START), THIRTY_SECONDS,
+                UNSEEN, DEFAULTS).toast()).isTrue();
+        assertWithMessage("a pane of the member's tab that takes no part keeps the tab's own slot")
+            .that(policy.decideCommandFinished(tab, THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isTrue();
+    }
+
+    @Test
+    void aSeenMemberOrOneWithTheNotificationOffTakesNothingFromTheRun() {
+        Object session = new Object();
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), THIRTY_SECONDS,
+            SEEN, DEFAULTS)).isEqualTo(Decision.NONE);
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), THIRTY_SECONDS,
+            UNSEEN, COMMAND_TOASTS_OFF)).isEqualTo(new Decision(true, false));
+        assertWithMessage("the first member in a tab the user does not look at notifies")
+            .that(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), THIRTY_SECONDS,
+                UNSEEN, DEFAULTS))
+            .isEqualTo(new Decision(true, true));
+    }
+
+    @Test
+    void theThresholdAndTerminalAgentRunsApplyToMembersToo() {
+        Object session = new Object();
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), Duration.ofSeconds(29),
+            UNSEEN, DEFAULTS)).isEqualTo(Decision.NONE);
+        assertThat(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), THIRTY_SECONDS,
+            UNSEEN_AGENT_RUN, DEFAULTS)).isEqualTo(Decision.NONE);
+        assertWithMessage("neither marked the run as reported")
+            .that(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), THIRTY_SECONDS,
+                UNSEEN, DEFAULTS).toast()).isTrue();
+    }
+
+    @Test
+    void aSessionStillKnowsALateMemberOfAnEarlierRun() {
+        Object session = new Object();
+        for (int run = 0; run < TerminalNotificationPolicy.REMEMBERED_RUNS; run++) {
+            assertWithMessage("run " + run)
+                .that(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START + run * 60 * SECOND_NANOS),
+                    THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isTrue();
+            now[0] += 60_000;
+        }
+        assertWithMessage("the oldest remembered run")
+            .that(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), THIRTY_SECONDS,
+                UNSEEN, DEFAULTS).toast()).isFalse();
+        assertThat(policy.decideCommandFinished(new Object(),
+            new MultiExecRun(session, START + TerminalNotificationPolicy.REMEMBERED_RUNS * 60 * SECOND_NANOS),
+            THIRTY_SECONDS, UNSEEN, DEFAULTS).toast()).isTrue();
+        now[0] += 60_000;
+        assertWithMessage("one run more pushed the oldest out")
+            .that(policy.decideCommandFinished(new Object(), new MultiExecRun(session, START), THIRTY_SECONDS,
+                UNSEEN, DEFAULTS).toast()).isTrue();
+    }
+
+    @Test
+    void aBellRightAfterMirroredKeysLeadsToNothing() {
+        assertThat(TerminalNotificationPolicy.MIRRORED_ECHO_WINDOW).isEqualTo(Duration.ofSeconds(2));
+        assertThat(policy.decide(Kind.BELL, pane, UNSEEN_MIRRORED, TOASTS_ON)).isEqualTo(Decision.NONE);
+        assertWithMessage("and took no slot").that(policy.decide(Kind.BELL, pane, UNSEEN, TOASTS_ON))
+            .isEqualTo(new Decision(true, true));
+        assertWithMessage("a program's notification is no answer to keys")
+            .that(policy.decide(Kind.REMOTE, new Object(), UNSEEN_MIRRORED, TOASTS_ON)).isEqualTo(new Decision(true, true));
+        assertWithMessage("nor is a command that finishes while the user types the next one")
+            .that(policy.decideCommandFinished(new Object(), new MultiExecRun(new Object(), START), THIRTY_SECONDS,
+                UNSEEN_MIRRORED, DEFAULTS))
+            .isEqualTo(new Decision(true, true));
+        assertThat(new PaneState(false, false, false).mirroredInput()).isFalse();
+    }
+
+    @Test
+    void theMembersBellsShareTheSessionsSlot() {
+        // The notifier passes the session instead of the pane for a member's bell.
+        Object session = new Object();
+        assertThat(policy.decide(Kind.BELL, session, UNSEEN, TOASTS_ON).toast()).isTrue();
+        now[0] += 1_000;
+        assertThat(policy.decide(Kind.BELL, session, UNSEEN, TOASTS_ON)).isEqualTo(new Decision(true, false));
+    }
+
+    @Test
+    void aRunNeedsItsSession() {
+        assertThrows(NullPointerException.class, () -> new MultiExecRun(null, START));
+        assertThrows(NullPointerException.class,
+            () -> policy.decideCommandFinished(null, new MultiExecRun(new Object(), START), THIRTY_SECONDS, UNSEEN, DEFAULTS));
     }
 
     @Test

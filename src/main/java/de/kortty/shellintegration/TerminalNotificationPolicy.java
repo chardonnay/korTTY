@@ -1,6 +1,10 @@
 package de.kortty.shellintegration;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Objects;
@@ -18,16 +22,23 @@ import java.util.function.LongSupplier;
  *   <li>A desktop notification needs its setting on, and comes at most once per notification slot
  *       within the kind's interval ({@link Kind#toastIntervalMillis()}); a request inside the
  *       interval only marks the tab. The slot is the pane for a bell and a program's notification,
- *       and the tab for a finished command (see {@link #decideCommandFinished}).</li>
+ *       and the tab for a finished command (see {@link #decideCommandFinished}); for a pane that
+ *       takes part in multi-exec the caller passes the multi-exec session instead of the pane or the
+ *       tab for a bell and a finished command, so the members, whichever tabs hold them, share it.</li>
  *   <li>No bell notification and no program's notification for a pane in which a coding agent was
  *       detected while the coding-agent notifications are on: the agent rings the bell or asks for a
  *       notification when it waits for a decision, and its own notification already says so
  *       ({@link Kind#leftToCodingAgents()}).</li>
+ *   <li>No bell counts while keys typed in another pane reached the pane through broadcast mode or
+ *       multi-exec moments ago ({@link PaneState#mirroredInput()}): it answers those keys, typically
+ *       a failed Tab completion that rings in every mirrored pane at once.</li>
  * </ul>
  *
  * <p>A finished command ({@link Kind#COMMAND_FINISHED}) also has to have run at least the
  * threshold of the settings, and a command that a korTTY terminal-agent run typed into the pane
- * leads to nothing at all: the run reports its own commands.
+ * leads to nothing at all: the run reports its own commands. In a multi-exec session a command typed
+ * once runs in every member, so it notifies once however far apart the members finish
+ * ({@link MultiExecRun}).
  *
  * <p>FX-free and clock-injected. Not thread-safe: call it from one thread, the UI thread in the
  * application. Panes and tabs are kept weakly, so a closed one needs no clean-up.
@@ -106,9 +117,52 @@ public final class TerminalNotificationPolicy {
      * @param codingAgentPane whether a coding agent was detected in the pane
      * @param agentRun        whether a korTTY terminal-agent run drives the pane, typing its
      *                        commands
+     * @param mirroredInput   whether keys typed in another pane reached this one through broadcast
+     *                        mode or multi-exec within {@link #MIRRORED_ECHO_WINDOW}, so what it
+     *                        prints now is most likely its answer to them
      */
-    public record PaneState(boolean seen, boolean codingAgentPane, boolean agentRun) {
+    public record PaneState(boolean seen, boolean codingAgentPane, boolean agentRun, boolean mirroredInput) {
+
+        /** A pane that got no mirrored keys lately. */
+        public PaneState(boolean seen, boolean codingAgentPane, boolean agentRun) {
+            this(seen, codingAgentPane, agentRun, false);
+        }
     }
+
+    /**
+     * The run a finished command belongs to in a pane that takes part in multi-exec. What is typed in
+     * one member goes to every member, so a command line starts in all of them within moments of each
+     * other: commands of the same session whose {@code C} marks lie less than
+     * {@link #RUN_START_WINDOW} apart are one run, and a run notifies once.
+     *
+     * @param session    the multi-exec session the pane takes part in; compared by identity and kept
+     *                   weakly, it is the notification slot of every member instead of their tabs
+     * @param startNanos {@link System#nanoTime()} at the command's {@code C} mark
+     *                   ({@link CommandStatus#outputStartNanos()})
+     */
+    public record MultiExecRun(Object session, long startNanos) {
+
+        public MultiExecRun {
+            Objects.requireNonNull(session, "session");
+        }
+    }
+
+    /**
+     * How long after a mirrored key a pane's bell is taken as its answer to that key
+     * ({@link PaneState#mirroredInput()}): a round trip to a slow server and back.
+     */
+    public static final Duration MIRRORED_ECHO_WINDOW = Duration.ofSeconds(2);
+
+    /**
+     * How far apart the {@code C} marks of the same command line typed into a multi-exec session may
+     * lie in its members ({@link MultiExecRun}): the keys reach every member in the background, and a
+     * slow server starts the command later. A long command keeps its shell busy, so two different
+     * runs of one session cannot start this close together in the same panes.
+     */
+    public static final Duration RUN_START_WINDOW = Duration.ofSeconds(5);
+
+    /** How many notified runs a multi-exec session remembers, so a late member of one is still known. */
+    static final int REMEMBERED_RUNS = 16;
 
     /**
      * The settings a decision depends on, read when the pane asks.
@@ -142,6 +196,9 @@ public final class TerminalNotificationPolicy {
 
     private final Map<Kind, Map<Object, Long>> lastToastMillis = new EnumMap<>(Kind.class);
 
+    /** The {@code C} marks of the runs each multi-exec session notified about, newest last. */
+    private final Map<Object, Deque<Long>> notifiedRunStarts = new WeakHashMap<>();
+
     /** A policy on the monotonic clock. */
     public TerminalNotificationPolicy() {
         this(() -> System.nanoTime() / 1_000_000L);
@@ -170,11 +227,13 @@ public final class TerminalNotificationPolicy {
      * Decides about one request of a kind that needs nothing but the pane, {@link Kind#BELL} or
      * {@link Kind#REMOTE}; the pane is its own notification slot. A decision with a toast counts as the
      * slot's last notification of this kind, so call it only when the notification will really be
-     * shown.
+     * shown. A bell in a pane that got mirrored keys moments ago leads to nothing
+     * ({@link PaneState#mirroredInput()}).
      *
      * @param kind    why the pane asks; not {@link Kind#COMMAND_FINISHED}, which has
      *                {@link #decideCommandFinished}
-     * @param pane    the pane, kept weakly; a terminal widget compares by identity
+     * @param pane    the notification slot, kept weakly: the pane, a terminal widget compared by
+     *                identity, or for a bell the multi-exec session the pane takes part in
      * @param state   what is known about the pane now
      * @param toggles the settings now
      * @throws IllegalArgumentException for {@link Kind#COMMAND_FINISHED}
@@ -190,6 +249,9 @@ public final class TerminalNotificationPolicy {
             case COMMAND_FINISHED -> throw new IllegalArgumentException(
                 "A finished command needs its runtime and its tab: use decideCommandFinished");
         };
+        if (kind == Kind.BELL && state.mirroredInput()) {
+            return Decision.NONE;
+        }
         return decide(kind, pane, state, toggles, toastEnabled);
     }
 
@@ -216,6 +278,29 @@ public final class TerminalNotificationPolicy {
      * @param toggles the settings now
      */
     public Decision decideCommandFinished(Object tab, Duration runtime, PaneState state, Toggles toggles) {
+        return decideCommandFinished(tab, null, runtime, state, toggles);
+    }
+
+    /**
+     * Decides about a finished command as {@link #decideCommandFinished(Object, Duration, PaneState,
+     * Toggles)} does, for a pane that may take part in multi-exec.
+     *
+     * <ul>
+     *   <li>Without a {@code run} the tab is the notification slot, as there.</li>
+     *   <li>With one, the slot is the run's multi-exec session, shared by every member whichever tab
+     *       holds it, and a run notifies once: a member whose command started within
+     *       {@link #RUN_START_WINDOW} of a run the session already notified about only marks its tab,
+     *       however long after the first member it finishes. The session's slot keeps the interval
+     *       of {@link Kind#COMMAND_FINISHED} between two notifications, too.</li>
+     *   <li>A seen tab or a notification switched off takes no slot and marks no run, so a member
+     *       finishing later in a tab the user does not look at still notifies.</li>
+     * </ul>
+     *
+     * @param run the multi-exec run the command belongs to, or {@code null} when the pane takes part
+     *            in no multi-exec session
+     */
+    public Decision decideCommandFinished(Object tab, @Nullable MultiExecRun run, Duration runtime, PaneState state,
+            Toggles toggles) {
         Objects.requireNonNull(tab, "tab");
         Objects.requireNonNull(runtime, "runtime");
         Objects.requireNonNull(state, "state");
@@ -223,7 +308,41 @@ public final class TerminalNotificationPolicy {
         if (state.agentRun() || runtime.compareTo(toggles.commandFinishedThreshold()) < 0) {
             return Decision.NONE;
         }
-        return decide(Kind.COMMAND_FINISHED, tab, state, toggles, toggles.commandFinishedToasts());
+        if (run == null) {
+            return decide(Kind.COMMAND_FINISHED, tab, state, toggles, toggles.commandFinishedToasts());
+        }
+        if (state.seen()) {
+            return Decision.NONE;
+        }
+        boolean toast = toggles.commandFinishedToasts() && !notifiedAbout(run)
+            && claimToast(Kind.COMMAND_FINISHED, run.session());
+        if (toast) {
+            rememberNotified(run);
+        }
+        return new Decision(true, toast);
+    }
+
+    /** Whether the run's session notified about a run whose {@code C} mark lies close to this one's. */
+    private boolean notifiedAbout(MultiExecRun run) {
+        Deque<Long> starts = notifiedRunStarts.get(run.session());
+        if (starts == null) {
+            return false;
+        }
+        long window = RUN_START_WINDOW.toNanos();
+        for (long start : starts) {
+            if (Math.abs(run.startNanos() - start) < window) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void rememberNotified(MultiExecRun run) {
+        Deque<Long> starts = notifiedRunStarts.computeIfAbsent(run.session(), unused -> new ArrayDeque<>());
+        starts.addLast(run.startNanos());
+        while (starts.size() > REMEMBERED_RUNS) {
+            starts.removeFirst();
+        }
     }
 
     private Decision decide(Kind kind, Object slot, PaneState state, Toggles toggles, boolean toastEnabled) {
