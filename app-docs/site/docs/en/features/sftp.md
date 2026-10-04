@@ -90,9 +90,9 @@ You can drag entries between the two panels, from your desktop into the SFTP Man
 
 | Drag | Result |
 |------|--------|
-| Local rows onto the remote panel | Uploaded, as with **Upload**: a file of the same name on the server is replaced, a folder merges |
+| Local rows onto the remote panel | Uploaded, as with **Upload**: a folder merges, and a file of the same name on the server is not replaced without asking (see [When a file already exists](#when-a-file-already-exists)) |
 | Files from Finder, Explorer or the file browser sidebar onto the remote panel | Uploaded the same way |
-| Remote rows onto the local panel | Downloaded in the background, as with **Download**: folders included, and a local file of the same name is replaced |
+| Remote rows onto the local panel | Downloaded in the background, as with **Download**: folders included, and a local file of the same name is not replaced without asking |
 | Files from Finder, Explorer or the file browser sidebar onto the local panel | Copied in the background; a name that is already there gets a number, as in `report (2).txt`, and a file dropped onto the folder it is in is left alone |
 | Local rows onto the desktop or another program | Offered as the files themselves |
 | Remote rows onto the desktop or another program | Only for at most 20 files with at most 16 MB together, and no folders |
@@ -116,10 +116,29 @@ These keys work in both panels:
 
 Upload copies the selected local files and folders into the remote folder that was shown when you clicked **Upload**; browsing elsewhere while it runs does not change the target. Upload stays disabled until the first remote folder has been listed, because the server does not expand `~` itself.
 
-- **Uploading a folder again merges** into the existing remote folder: files with the same name are replaced, other remote files are kept.
+- **Uploading a folder again merges** into the existing remote folder: other remote files are kept, and for each file that already exists korTTY asks what to do (see below).
 - **Files are streamed**, so their size is not limited by memory; files larger than 2 GB upload like any other.
 - If the connection drops during an upload or download, the rest of the batch stops with one **Disconnected** state rather than an error per file.
 - **Downloaded names stay inside the target folder.** A server name such as `..` or `a/b` is refused. On Windows, names that Windows reserves for devices (`CON`, `PRN`, `AUX`, `NUL`, `COM1` to `COM9`, `LPT1` to `LPT9`, also with an extension such as `nul.txt`) and names that end in a dot or a space or contain `:` are refused too, because Windows would write them somewhere else or change them.
+
+### When a file already exists
+
+An upload or download never replaces an existing file silently. When the target folder already has an entry of the same name, korTTY shows **File already exists** with the size and modification time of both sides (the later time is marked as newer) and these choices:
+
+| Choice | Result |
+|--------|--------|
+| **Replace** | The existing file is replaced by the transferred one |
+| **Skip** | The existing entry is left alone and this item is not transferred |
+| **Keep both** | The item is transferred under a free name with a number, such as `report (1).txt`; a double extension stays together (`backup (1).tar.gz`), and a dotfile gets the number at the end (`.bashrc (1)`) |
+| **Cancel transfer** | The rest of the batch stops; closing the dialog or pressing ++escape++ does the same |
+
+- **Do this for all remaining conflicts of this kind** answers every later conflict of the same kind in that batch without asking again. The kinds are kept apart: replacing all files never replaces a symbolic link or a folder.
+- **A folder onto a folder of the same name merges** without asking; only the files inside it can conflict.
+- **A symbolic link is never replaced.** When the existing entry is a link, only **Skip** and **Keep both** are offered, so a transfer cannot write through a link to a file somewhere else.
+- **A file and a folder cannot replace each other.** When one side is a file and the other a folder, only **Skip** and **Keep both** are offered.
+- **A file owned by another user is written in place.** When the existing remote file belongs to another user, the dialog says so; replacing it writes into the file directly, so its owner and permissions stay as they are.
+- **One question at a time.** When several files of a batch conflict at once, korTTY asks about one of them and waits with the others, so an answer for all of them arrives before the next question. Closing the tab answers an open question with **Cancel transfer**.
+- On a computer whose disk ignores upper and lower case (the macOS and Windows default), a name that differs only in case counts as the same name, both for the question and for the numbered name **Keep both** picks.
 
 ### Permissions
 
