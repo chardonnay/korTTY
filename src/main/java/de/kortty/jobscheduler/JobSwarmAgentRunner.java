@@ -101,6 +101,13 @@ public final class JobSwarmAgentRunner implements AgentCommandRunner, AutoClosea
         }
     }
 
+    @Override
+    public de.kortty.core.SessionJournalRedactor knownSecrets() {
+        de.kortty.core.SessionJournalRedactor redactor = de.kortty.core.AiOutboundRedaction.newPolicyRedactor();
+        sessionPassword().ifPresent(redactor::addSecret);
+        return redactor;
+    }
+
     /** Session password once connected, for secret redaction of the journal output. */
     public java.util.Optional<String> sessionPassword() {
         return session != null ? session.getPassword() : java.util.Optional.empty();

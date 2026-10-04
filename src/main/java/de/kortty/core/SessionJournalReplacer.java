@@ -120,6 +120,16 @@ public final class SessionJournalReplacer {
      * is counted against the text the previous rules left, so the count is what really changed.
      */
     public RedactionResult applyCounting(String text) {
+        return applyCounting(text, null);
+    }
+
+    /**
+     * Same as {@link #applyCounting(String)}, and hands every replaced match to
+     * {@code maskedValues} — for a caller that counts distinct secrets across several texts (the
+     * AI agent, which resends its history every turn). The values are secrets: the consumer must
+     * not keep or log them as they are.
+     */
+    public RedactionResult applyCounting(String text, java.util.function.Consumer<String> maskedValues) {
         if (text == null || text.isEmpty() || rules.isEmpty()) {
             return RedactionResult.unchanged(text);
         }
@@ -129,6 +139,9 @@ public final class SessionJournalReplacer {
             int matches = countMatches(compiled.pattern(), result);
             if (matches == 0) {
                 continue;
+            }
+            if (maskedValues != null) {
+                reportMatches(compiled.pattern(), result, maskedValues);
             }
             Matcher matcher = compiled.pattern().matcher(result);
             try {
@@ -152,6 +165,17 @@ public final class SessionJournalReplacer {
             total += countMatches(compiled.pattern(), text);
         }
         return total;
+    }
+
+    private static void reportMatches(Pattern pattern, String text, java.util.function.Consumer<String> maskedValues) {
+        Matcher matcher = pattern.matcher(text);
+        while (matcher.find()) {
+            if (matcher.end() > matcher.start()) {
+                maskedValues.accept(matcher.group());
+            } else if (!matcher.hitEnd()) {
+                matcher.region(matcher.end() + 1, text.length());
+            }
+        }
     }
 
     private static int countMatches(Pattern pattern, String text) {

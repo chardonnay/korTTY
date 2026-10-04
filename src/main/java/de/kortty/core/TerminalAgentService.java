@@ -11,8 +11,10 @@ import de.kortty.model.AiModelSelectionMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.core.agent.AgentCommandRunner;
+import de.kortty.core.agent.AgentOutboundContext;
 import de.kortty.core.agent.AgentCommandRunner.ExecResult;
 import de.kortty.core.agent.AgentCommandRunner.ShellKind;
+import de.kortty.ui.I18n;
 import de.kortty.ui.TerminalTab;
 import de.kortty.ui.TerminalView;
 import org.slf4j.Logger;
@@ -51,6 +53,11 @@ public class TerminalAgentService {
 
     private static final Logger logger = LoggerFactory.getLogger(TerminalAgentService.class);
     private static final Gson GSON = new Gson();
+    private static final java.lang.reflect.Type COMMAND_HISTORY_TYPE =
+        new com.google.gson.reflect.TypeToken<List<TerminalAgentModels.CommandResult>>() { }.getType();
+    /** Tells the model what the mask placeholder in its prompt means. */
+    static final String MASKED_SECRET_NOTE = "The text `" + SessionJournalRedactor.REPLACEMENT
+        + "` stands for a secret that korTTY masked before sending; never put it in a command, because the command would run with those literal characters.";
 
     private final AtomicLong webActivitySequence = new AtomicLong();
     private static final int MAX_AGENT_TURNS = 8;
@@ -204,9 +211,23 @@ public class TerminalAgentService {
         AiPromptService aiService,
         TerminalAgentModels.PlanRequest request,
         TerminalAgentModels.ProbeSnapshot probe) throws Exception {
+        return requestPlanningQuestions(profile, aiService, request, probe, null);
+    }
+
+    /**
+     * @param knownSecrets the session's known secrets (see {@link #knownSecretsFor}); {@code null}
+     *                     masks the organisation's rules and the token formats only
+     */
+    public PlanningQuestions requestPlanningQuestions(
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        SessionJournalRedactor knownSecrets) throws Exception {
+        AgentOutboundContext outbound = AgentOutboundContext.forRun(profile, null, knownSecrets);
         String systemPrompt = buildPlanQuestionSystemPrompt();
-        String userPrompt = buildPlanQuestionUserPrompt(request, probe);
-        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
+        String userPrompt = buildPlanQuestionUserPrompt(request, outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class));
+        AiExecutionResult result = executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt);
         AgentPlanQuestionDecision decision = parsePlanQuestionDecision(result.content());
         List<TerminalAgentModels.PlanQuestion> questions = decision.questions().stream()
             .map(item -> new TerminalAgentModels.PlanQuestion(
@@ -226,10 +247,25 @@ public class TerminalAgentService {
         List<TerminalAgentModels.PlanQuestion> questions,
         String answers,
         String customApproach) throws Exception {
+        return requestPlanningOptions(profile, aiService, request, probe, questions, answers, customApproach, null);
+    }
+
+    /** {@link #requestPlanningOptions} with the session's known secrets for outbound masking. */
+    public PlanningOptions requestPlanningOptions(
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.PlanQuestion> questions,
+        String answers,
+        String customApproach,
+        SessionJournalRedactor knownSecrets) throws Exception {
+        AgentOutboundContext outbound = AgentOutboundContext.forRun(profile, null, knownSecrets);
         String systemPrompt = buildPlanOptionSystemPrompt();
-        String userPrompt = buildPlanOptionUserPrompt(request, probe, questions, answers, customApproach);
+        String userPrompt = buildPlanOptionUserPrompt(
+            request, outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class), questions, answers, customApproach);
         AgentPlanOptionDecision decision = requestPlanDecisionWithRepair(
-            aiService, systemPrompt, userPrompt, this::parsePlanOptionDecision);
+            aiService, outbound, systemPrompt, userPrompt, this::parsePlanOptionDecision);
         List<TerminalAgentModels.PlanOption> options = new ArrayList<>();
         for (AgentPlanOptionDecisionItem item : safeList(decision.options())) {
             options.add(new TerminalAgentModels.PlanOption(
@@ -254,10 +290,32 @@ public class TerminalAgentService {
         String answers,
         TerminalAgentModels.PlanOption selectedOption,
         String customApproach) throws Exception {
+        return requestPlanningReport(
+            profile, aiService, request, probe, questions, answers, selectedOption, customApproach, null);
+    }
+
+    /** {@link #requestPlanningReport} with the session's known secrets for outbound masking. */
+    public PlanningReport requestPlanningReport(
+        AiProfile profile,
+        AiPromptService aiService,
+        TerminalAgentModels.PlanRequest request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.PlanQuestion> questions,
+        String answers,
+        TerminalAgentModels.PlanOption selectedOption,
+        String customApproach,
+        SessionJournalRedactor knownSecrets) throws Exception {
+        AgentOutboundContext outbound = AgentOutboundContext.forRun(profile, null, knownSecrets);
         String systemPrompt = buildPlanReportSystemPrompt();
-        String userPrompt = buildPlanReportUserPrompt(request, probe, questions, answers, selectedOption, customApproach);
+        String userPrompt = buildPlanReportUserPrompt(
+            request,
+            outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class),
+            questions,
+            answers,
+            selectedOption,
+            customApproach);
         AgentPlanReportDecision decision = requestPlanDecisionWithRepair(
-            aiService, systemPrompt, userPrompt, this::parsePlanReportDecision);
+            aiService, outbound, systemPrompt, userPrompt, this::parsePlanReportDecision);
         TerminalAgentModels.PlanReport report = new TerminalAgentModels.PlanReport(
             decision.title(),
             decision.summary(),
@@ -276,10 +334,11 @@ public class TerminalAgentService {
      */
     private <T> T requestPlanDecisionWithRepair(
         AiPromptService aiService,
+        AgentOutboundContext outbound,
         String systemPrompt,
         String userPrompt,
         Function<String, T> parser) throws Exception {
-        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
+        AiExecutionResult result = executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt);
         try {
             return parser.apply(result.content());
         } catch (RuntimeException firstFailure) {
@@ -287,6 +346,7 @@ public class TerminalAgentService {
                 firstFailure.getMessage());
             AiExecutionResult repaired = executeAgentJsonPrompt(
                 aiService,
+                outbound,
                 systemPrompt,
                 buildPlanRepairPrompt(userPrompt, result.content(), firstFailure.getMessage()));
             try {
@@ -389,6 +449,12 @@ public class TerminalAgentService {
         try {
             publishAgentProfile(ui, runId, profile);
             TerminalAgentModels.ProbeSnapshot probe = updateAndProbe(ui, runId, request, terminalTab, runner);
+            // Created after the probe: a lazily connected swarm runner knows its password only then.
+            // Per run, never a field — one service instance runs parallel swarm agents.
+            AgentOutboundContext outbound = AgentOutboundContext.forRun(
+                profile,
+                count -> publishOutboundMasking(ui, runId, count),
+                knownSecretsFor(terminalTab, runner));
             List<TerminalAgentModels.CommandResult> history = new ArrayList<>();
             // Policy mode CONFIRM overrides any request-level opt-out and defeats the
             // auto-approve bypass — every mutating command set must be approved interactively.
@@ -396,6 +462,7 @@ public class TerminalAgentService {
                 || agentPolicy.agentExecution() == de.kortty.policy.AgentExecutionMode.CONFIRM;
             boolean approvalBypass = !confirmMutatingCommandSets && request.autoApproveRootCommands();
             cachedPassword = cachedSudoPasswordBySessionId.get(sessionId);
+            rememberSudoPassword(outbound, cachedPassword);
 
             if (tryRunFileTypeCountRequest(terminalTab, runner, request, probe, ui, runId)) {
                 return;
@@ -426,6 +493,7 @@ public class TerminalAgentService {
 
                 AgentDecision decision = requestAgentDecision(
                     aiService,
+                    outbound,
                     request,
                     probe,
                     history,
@@ -457,6 +525,7 @@ public class TerminalAgentService {
                         if (cachedPassword == null || cachedPassword.isBlank()) {
                             return;
                         }
+                        rememberSudoPassword(outbound, cachedPassword);
                         continue;
                     }
                     ui.updateState(new TerminalAgentModels.RunState(
@@ -467,6 +536,9 @@ public class TerminalAgentService {
                 }
 
                 List<TerminalAgentModels.PlannedCommand> commands = validateCommands(decision.commands(), probe, request.queryOnly());
+                if (refuseMaskedPlaceholderCommands(outbound, commands, history, ui, runId, turn)) {
+                    continue;
+                }
                 if (!approvalBypass && shouldRequestApproval(
                     decision.status(),
                     commands,
@@ -517,6 +589,7 @@ public class TerminalAgentService {
                                         planned.purpose(),
                                         buildSudoPasswordPromptMessage(sudoPasswordFailures),
                                         planned.command());
+                                    rememberSudoPassword(outbound, cachedPassword);
                                     if (cachedPassword == null || cachedPassword.isBlank()) {
                                         if (commandActivityStarted) {
                                             publishCommandActivity(
@@ -593,7 +666,7 @@ public class TerminalAgentService {
                 }
             }
 
-            if (!history.isEmpty() && tryFinalizeAtTurnLimit(aiService, request, probe, history, ui, runId)) {
+            if (!history.isEmpty() && tryFinalizeAtTurnLimit(aiService, outbound, request, probe, history, ui, runId)) {
                 return;
             }
 
@@ -618,13 +691,14 @@ public class TerminalAgentService {
 
     private boolean tryFinalizeAtTurnLimit(
         AiPromptService aiService,
+        AgentOutboundContext outbound,
         TerminalAgentModels.Request request,
         TerminalAgentModels.ProbeSnapshot probe,
         List<TerminalAgentModels.CommandResult> history,
         RunUi ui,
         String runId) {
         try {
-            AgentDecision finalDecision = requestTurnLimitFinalDecision(aiService, request, probe, history, ui, runId);
+            AgentDecision finalDecision = requestTurnLimitFinalDecision(aiService, outbound, request, probe, history, ui, runId);
             TerminalAgentModels.Phase phase = finalDecision.status() == AgentDecisionStatus.done
                 ? TerminalAgentModels.Phase.DONE
                 : TerminalAgentModels.Phase.BLOCKED;
@@ -1027,8 +1101,26 @@ public class TerminalAgentService {
         boolean sudoPasswordCached,
         RunUi ui,
         String runId) throws Exception {
-        String systemPrompt = buildAgentSystemPrompt(request.queryOnly(), probe);
-        String userPrompt = buildAgentUserPrompt(request, probe, history, turn, sudoPasswordCached);
+        // No profile known here: masks like a cloud profile (fail closed).
+        return requestAgentDecision(
+            aiService, AgentOutboundContext.forRun(null, null), request, probe, history, turn, sudoPasswordCached, ui, runId);
+    }
+
+    AgentDecision requestAgentDecision(
+        AiPromptService aiService,
+        AgentOutboundContext outbound,
+        TerminalAgentModels.Request request,
+        TerminalAgentModels.ProbeSnapshot probe,
+        List<TerminalAgentModels.CommandResult> history,
+        int turn,
+        boolean sudoPasswordCached,
+        RunUi ui,
+        String runId) throws Exception {
+        // The prompts are built from masked copies; the decision is validated against the raw probe.
+        TerminalAgentModels.ProbeSnapshot outboundProbe = outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class);
+        String systemPrompt = buildAgentSystemPrompt(request.queryOnly(), outboundProbe);
+        String userPrompt = buildAgentUserPrompt(
+            request, outboundProbe, outbound.maskStructured(history, COMMAND_HISTORY_TYPE), turn, sudoPasswordCached);
         String thinkingId = runId + ":thinking:" + turn;
         long startedAtNanos = System.nanoTime();
         publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.RUNNING,
@@ -1038,7 +1130,7 @@ public class TerminalAgentService {
             TerminalAgentModels.AgentActivityTokenUsage.unknown(),
             0L,
             false);
-        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
+        AiExecutionResult result = executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt);
         publishUsedSkillActivity(ui, runId, aiService);
         publishWebToolActivity(ui, runId, result);
         recordTokenUsage(ui, result);
@@ -1071,6 +1163,7 @@ public class TerminalAgentService {
                 false);
             AiExecutionResult repaired = executeAgentJsonPrompt(
                 aiService,
+                outbound,
                 systemPrompt,
                 buildAgentDecisionRepairPrompt(userPrompt, result.content(), firstFailure.getMessage()));
             publishUsedSkillActivity(ui, runId, aiService);
@@ -1102,13 +1195,17 @@ public class TerminalAgentService {
 
     private AgentDecision requestTurnLimitFinalDecision(
         AiPromptService aiService,
+        AgentOutboundContext outbound,
         TerminalAgentModels.Request request,
         TerminalAgentModels.ProbeSnapshot probe,
         List<TerminalAgentModels.CommandResult> history,
         RunUi ui,
         String runId) throws Exception {
         String systemPrompt = buildAgentTurnLimitFinalSystemPrompt();
-        String userPrompt = buildAgentTurnLimitFinalUserPrompt(request, probe, history);
+        String userPrompt = buildAgentTurnLimitFinalUserPrompt(
+            request,
+            outbound.maskStructured(probe, TerminalAgentModels.ProbeSnapshot.class),
+            outbound.maskStructured(history, COMMAND_HISTORY_TYPE));
         String thinkingId = runId + ":thinking-turn-limit";
         long startedAtNanos = System.nanoTime();
         publishThinking(
@@ -1121,7 +1218,7 @@ public class TerminalAgentService {
             TerminalAgentModels.AgentActivityTokenUsage.unknown(),
             0L,
             false);
-        AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
+        AiExecutionResult result = executeAgentJsonPrompt(aiService, outbound, systemPrompt, userPrompt);
         publishUsedSkillActivity(ui, runId, aiService);
         publishWebToolActivity(ui, runId, result);
         recordTokenUsage(ui, result);
@@ -1161,7 +1258,7 @@ public class TerminalAgentService {
                 TerminalAgentModels.AgentActivityTokenUsage.unknown(),
                 0L,
                 false);
-            AiExecutionResult repaired = executeAgentJsonPrompt(aiService, systemPrompt, buildAgentRepairPrompt(userPrompt, result.content()));
+            AiExecutionResult repaired = executeAgentJsonPrompt(aiService, outbound, systemPrompt, buildAgentRepairPrompt(userPrompt, result.content()));
             publishUsedSkillActivity(ui, runId, aiService);
             publishWebToolActivity(ui, runId, repaired);
             recordTokenUsage(ui, repaired);
@@ -1197,18 +1294,109 @@ public class TerminalAgentService {
         }
     }
 
+    /**
+     * The single point where every agent and planning prompt leaves for the AI. Both prompts are
+     * masked here for the run's profile — the system prompt too, because it carries the probe
+     * snapshot — so no call site can forget it. What the run keeps locally stays raw.
+     */
     private AiExecutionResult executeAgentJsonPrompt(
         AiPromptService aiService,
+        AgentOutboundContext outbound,
         String systemPrompt,
         String userPrompt) throws Exception {
+        Objects.requireNonNull(outbound, "outbound");
+        String outboundSystemPrompt = outbound.mask(systemPrompt);
+        String outboundUserPrompt = outbound.mask(userPrompt);
         try {
-            return aiService.executeJsonPrompt(systemPrompt, userPrompt);
+            return aiService.executeJsonPrompt(outboundSystemPrompt, outboundUserPrompt);
         } catch (IOException e) {
             if (!looksLikeUnsupportedJsonResponseFormat(e.getMessage())) {
                 throw e;
             }
-            return aiService.executeJsonPromptWithoutResponseFormat(systemPrompt, userPrompt);
+            return aiService.executeJsonPromptWithoutResponseFormat(outboundSystemPrompt, outboundUserPrompt);
         }
+    }
+
+    /**
+     * The session's known secrets for masking agent prompts: the terminal tab's (its connection
+     * password and the organisation's rules) and the command runner's, which may drive another
+     * session than the tab (swarm targets, scheduled jobs). Returns a fresh redactor; the sources
+     * are not changed.
+     */
+    public static SessionJournalRedactor knownSecretsFor(TerminalTab terminalTab, AgentCommandRunner runner) {
+        TerminalView terminalView = terminalTab != null ? terminalTab.getTerminalView() : null;
+        SessionJournalRedactor tabSecrets = terminalView != null ? terminalView.createSecretRedactor() : null;
+        SessionJournalRedactor runnerSecrets = runner != null ? runner.knownSecrets() : null;
+        return AgentOutboundContext.combine(tabSecrets, runnerSecrets);
+    }
+
+    private static void rememberSudoPassword(AgentOutboundContext outbound, CachedSudoPassword password) {
+        if (outbound != null && password != null && !password.isBlank()) {
+            outbound.addSecret(password.value);
+        }
+    }
+
+    /**
+     * Refuses a command set in which a command contains the mask placeholder: the AI only saw the
+     * masked text and copied the placeholder, so the command would run with the literal
+     * {@code ***} instead of the secret. The refusal goes into the history so the next turn can
+     * plan without it. Only for a masking profile — an exempt model never saw a placeholder.
+     */
+    private boolean refuseMaskedPlaceholderCommands(
+        AgentOutboundContext outbound,
+        List<TerminalAgentModels.PlannedCommand> commands,
+        List<TerminalAgentModels.CommandResult> history,
+        RunUi ui,
+        String runId,
+        int turn) {
+        if (outbound == null || !outbound.masks() || commands == null) {
+            return false;
+        }
+        List<TerminalAgentModels.PlannedCommand> refused = commands.stream()
+            .filter(planned -> containsMaskPlaceholder(planned.command()))
+            .toList();
+        if (refused.isEmpty()) {
+            return false;
+        }
+        String note = I18n.get("ai.agent.outbound.placeholderRefused", SessionJournalRedactor.REPLACEMENT);
+        for (TerminalAgentModels.PlannedCommand planned : refused) {
+            ui.appendTranscript("\n" + note + "\n$ " + planned.command() + "\n");
+            history.add(new TerminalAgentModels.CommandResult(
+                planned.command(),
+                planned.purpose(),
+                planned.risk(),
+                null,
+                null,
+                "",
+                "Not run: the command contains the masked-secret placeholder "
+                    + SessionJournalRedactor.REPLACEMENT
+                    + ". Plan the step without the masked value.",
+                false,
+                false,
+                false,
+                false));
+        }
+        publishMessage(ui, runId, "masked-placeholder-" + turn, note, refused.get(0).command());
+        return true;
+    }
+
+    static boolean containsMaskPlaceholder(String command) {
+        return command != null && command.contains(SessionJournalRedactor.REPLACEMENT);
+    }
+
+    /** Shows how many distinct values this run has masked before sending, as one updating activity. */
+    private void publishOutboundMasking(RunUi ui, String runId, int distinctCount) {
+        ui.publishActivity(new TerminalAgentModels.AgentActivity(
+            runId + ":outbound-masked",
+            TerminalAgentModels.AgentActivityType.MESSAGE,
+            TerminalAgentModels.AgentActivityStatus.COMPLETED,
+            I18n.get("ai.agent.outbound.masked.title"),
+            I18n.get("ai.agent.outbound.masked.summary", distinctCount),
+            I18n.get("ai.agent.outbound.masked.detail"),
+            TerminalAgentModels.AgentActivityTokenUsage.unknown(),
+            0L,
+            true,
+            true));
     }
 
     private void publishUsedSkillActivity(RunUi ui, String runId, AiPromptService aiService) {
@@ -2665,6 +2853,7 @@ public class TerminalAgentService {
                 "Reply with exactly one JSON object and nothing else.",
                 "Do not use Markdown, code fences, comments, or explanations outside the JSON object.",
                 "Never invent facts. Only use the provided probe snapshot and previous command results.",
+                MASKED_SECRET_NOTE,
                 "Do not return commands in query-only mode.",
                 "Allowed status values: `done`, `blocked`.",
                 "Always include BOTH a non-empty `summary` (one short line) and a non-empty `userMessage` in every response.",
@@ -2683,6 +2872,7 @@ public class TerminalAgentService {
                 "Reply with exactly one JSON object and nothing else.",
                 "Do not use Markdown, code fences, comments, or explanations outside the JSON object.",
                 "Never invent facts. Only use the provided probe snapshot and command results.",
+                MASKED_SECRET_NOTE,
                 "You may suggest at most 3 commands.",
                 "All commands must be valid, non-interactive " + shellName + " commands that never wait for user input.",
                 "Each command runs in its own fresh non-interactive shell starting from the working directory in `probe.currentDir`; do not rely on `cd`/`Set-Location` persisting to later commands.",
@@ -2708,6 +2898,7 @@ public class TerminalAgentService {
             "Reply with exactly one JSON object and nothing else.",
             "Do not use Markdown, code fences, comments, or explanations outside the JSON object.",
             "Never invent facts. Only use the provided probe snapshot and command results.",
+            MASKED_SECRET_NOTE,
             "You may suggest at most 3 commands.",
             "All commands must be non-interactive and safe to run without user input.",
             "Each command runs in its own non-interactive shell from the working directory in `probe.currentDir`; do not rely on `cd` persisting to later commands.",

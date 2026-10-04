@@ -24,6 +24,10 @@ class AiI18nCoverageTest {
 
     private static final List<String> REQUIRED_KEYS = List.of(
         "menu.tools.aiManager",
+        "ai.agent.outbound.masked.title",
+        "ai.agent.outbound.masked.summary",
+        "ai.agent.outbound.masked.detail",
+        "ai.agent.outbound.placeholderRefused",
         "menu.tools.savedChats",
         "ai.chats.title",
         "ai.chats.tab.chats",

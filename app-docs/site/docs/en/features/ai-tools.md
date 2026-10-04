@@ -196,6 +196,13 @@ KorTTY enforces multiple guardrails around agent execution:
 
 - **One repair attempt** — If the AI response does not match the required JSON schema, KorTTY asks for a repair. If repair also fails, the run is blocked with an explanation.
 
+### Masking what the agent sends
+
+- **Everything that leaves is masked** — Before the agent sends a prompt to a profile other than an integrated model (llama.cpp, MLX) or a trusted local endpoint, korTTY replaces the secrets it recognizes with `***`: the connection's password, a sudo password typed during the run, your organization's replacement rules and well-known token formats (see [Masking secrets before sending](ai-assistant.md#masking-secrets-before-sending)). This covers the environment probe, the output of every command, the planning questions, options and report, the repair retries and the final answer at the turn limit.
+- **The run keeps the original** — Only what goes to the model is masked. The terminal, the activity panel, the approval dialog and the session journal show the real commands and their real output.
+- **Count in the activity panel** — A **Masked before sending** entry says how many different values were masked in the run. A value that comes back every turn, because the agent resends its command history, counts once.
+- **No commands with the placeholder** — The model is told that `***` stands for a masked secret. If it still plans a command that contains `***`, korTTY does not run it, notes this in the transcript and tells the model in the next turn, because the command would run with the three literal characters instead of the secret.
+
 ## Generate Workflow Script
 
 After a finished agent run completes successfully, a **Workflow** button converts the run into a single self-contained, reproducible script in a chosen language (Bash, Python, Perl, Ruby, PowerShell, Ansible playbook, **Windows-CMD** batch, or **AppleScript**) with robust error handling, detailed comments, and a deterministic metadata header (script name, creator, date/time).

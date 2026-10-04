@@ -123,6 +123,13 @@ public final class HeadlessSwarmAgentRunner implements AgentCommandRunner, AutoC
         return current != null && current.indicatesMissingTrackedWorkingDirectory(stderr);
     }
 
+    /** The delegate's secrets once the lazy session exists; {@code null} before the first command. */
+    @Override
+    public de.kortty.core.SessionJournalRedactor knownSecrets() {
+        JobSwarmAgentRunner current = delegate;
+        return current != null ? current.knownSecrets() : null;
+    }
+
     /**
      * Lazy semantics: "connectable" counts as connected until a real attempt happened — a failed
      * connect surfaces through {@code exec} as a per-target failure instead of a silent skip.
