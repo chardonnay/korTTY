@@ -193,6 +193,12 @@ class PasteConfirmationContentTest {
 
         PasteConfirmationContent clipboard = content("a\nb", EnumSet.of(PasteReason.MULTI_LINE));
         assertThat(clipboard.notes()).containsExactly("terminal.paste.confirm.notBracketed");
+
+        PasteConfirmationContent ai = content("a\nb", EnumSet.of(PasteReason.MULTI_LINE), false,
+            PasteSource.AI, false, "x");
+        assertWithMessage("AI text says where it comes from")
+            .that(ai.notes()).containsExactly(
+                "terminal.paste.confirm.notBracketed", "terminal.paste.confirm.source.ai").inOrder();
     }
 
     @Test

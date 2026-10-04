@@ -10,5 +10,14 @@ public enum PasteSource {
     SELECTION,
 
     /** Text dropped onto the terminal. */
-    DROP
+    DROP,
+
+    /**
+     * Text the AI assistant wrote, such as a code block of an AI chat answer. It is untrusted, since
+     * terminal output or a document can steer what a model writes, so {@link PasteGuard} gives it a
+     * strict floor: a line break or a control character always asks, whatever the pane's paste
+     * protection says, control and bidi characters are removed before it is sent, and a pane whose
+     * input is mirrored (broadcast or multi-exec) never receives it.
+     */
+    AI
 }

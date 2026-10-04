@@ -255,11 +255,13 @@ class PasteProtectionWiringTest {
         assertThat(dropped).contains("KorttyTermWidget pane = textDropPane(event);");
         assertThat(dropped).contains("String text = event.getDragboard().getString();");
         assertWithMessage("the confirmation opens after the platform's drag loop, not inside it")
-            .that(dropped).contains("Platform.runLater(() -> pasteDroppedText(pane, text));");
+            .that(dropped).contains("Platform.runLater(() -> pasteIntoPane(pane, text, PasteSource.DROP));");
 
-        String paste = body(view, "private void pasteDroppedText(KorttyTermWidget pane, String text) {");
+        String paste = body(view, "public void pasteIntoPane(KorttyTermWidget pane, String text, PasteSource source) {");
+        assertThat(paste).contains("if (!terminalPanes().contains(pane)) {");
         assertThat(paste).contains("splitPane.focusWidget(pane);");
-        assertThat(paste).contains("pasteGuard.paste(pane.pasteTarget(), text, PasteSource.DROP);");
+        assertWithMessage("a pane-precise paste goes through the guard with its own source")
+            .that(paste).contains("pasteGuard.paste(pane.pasteTarget(), text, source);");
 
         assertWithMessage("the pane under the pointer, not the focused pane")
             .that(body(view, "private @Nullable KorttyTermWidget textDropPane(DragEvent event) {"))

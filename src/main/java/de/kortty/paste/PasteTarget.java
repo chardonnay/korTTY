@@ -48,4 +48,12 @@ public interface PasteTarget {
     default boolean broadcastActive() {
         return false;
     }
+
+    /**
+     * Whether the pane takes part in multi-exec, so what it receives as user input is mirrored to the
+     * other panes of the group.
+     */
+    default boolean multiExecActive() {
+        return false;
+    }
 }

@@ -2157,7 +2157,7 @@ public class TerminalView extends BorderPane {
         boolean pasting = text != null && !text.isEmpty() && pane.pasteTarget().canReceive();
         event.setDropCompleted(pasting);
         if (pasting) {
-            Platform.runLater(() -> pasteDroppedText(pane, text));
+            Platform.runLater(() -> pasteIntoPane(pane, text, PasteSource.DROP));
         }
         return true;
     }
@@ -2170,12 +2170,22 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * Makes the pane the text was dropped on the focused pane and pastes the text into it, through
-     * paste protection like every other paste.
+     * Makes {@code pane} the focused pane and pastes {@code text} into exactly that pane, through
+     * paste protection like every other paste: a drop, or text the AI assistant wrote
+     * ({@link PasteSource#AI}), which {@link PasteGuard} confirms more strictly and never sends into a
+     * pane whose input broadcast or multi-exec mirrors. Nothing happens for a pane that is no longer
+     * open in this tab. JavaFX thread.
+     *
+     * @param pane the pane to paste into
+     * @param text the text to paste
+     * @param source where the text came from
      */
-    private void pasteDroppedText(KorttyTermWidget pane, String text) {
+    public void pasteIntoPane(KorttyTermWidget pane, String text, PasteSource source) {
+        if (pane == null || text == null || text.isEmpty()) {
+            return;
+        }
         if (!terminalPanes().contains(pane)) {
-            logger.debug("Dropped text not pasted: the pane closed first ({} chars)", text.length());
+            logger.debug("Text not pasted: the pane closed first ({} chars, {})", text.length(), source);
             return;
         }
         if (splitPane != null) {
@@ -2186,7 +2196,7 @@ public class TerminalView extends BorderPane {
                 focusTarget.requestFocus();
             }
         }
-        pasteGuard.paste(pane.pasteTarget(), text, PasteSource.DROP);
+        pasteGuard.paste(pane.pasteTarget(), text, source);
     }
 
     /**
@@ -4408,7 +4418,8 @@ public class TerminalView extends BorderPane {
             return;
         }
         korttyWidget.describePasteTarget(() -> pasteTargetLabel(korttyWidget), () -> connectorCharset(korttyWidget),
-            () -> splitPane != null && splitPane.isBroadcastMode());
+            () -> splitPane != null && splitPane.isBroadcastMode(),
+            () -> MultiExecCoordinator.shared().isMember(korttyWidget));
         korttyWidget.setPasteHandler(pasteGuard::paste);
     }
 
