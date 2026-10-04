@@ -167,6 +167,29 @@ class RemoteFinalizerIntegrationTest {
     }
 
     @Test
+    void aServerThatReportsNoOwnersGetsAnExistingTargetWrittenInPlace() throws Exception {
+        // A file store without owners (NTFS behind a Windows server, for one): korTTY cannot tell
+        // whether a rename would take over another user's file, so it never renames over it.
+        for (int version : new int[] {3, SftpLoopbackFixture.DEFAULT_VERSION}) {
+            fixture = SftpLoopbackFixture.builder(tmp)
+                .ownerReporting(SftpLoopbackFixture.OwnerReporting.NONE)
+                .start();
+            SftpClient client = fixture.openSftp(fixture.connect(), version);
+            Path target = existingRemoteTarget("report.bin", null);
+
+            PartTransfers.Outcome outcome = PartTransfers.upload(client, null, localFile, "/report.bin",
+                null, TransferCancellation.create());
+
+            assertThat(outcome.method()).isEqualTo(FinalizeMethod.IN_PLACE);
+            assertThat(Files.readAllBytes(target)).isEqualTo(data);
+            assertNoLeftovers();
+            fixture.close();
+            fixture = null;
+            Files.delete(target);
+        }
+    }
+
+    @Test
     void ownershipIsComparedByUidOrOwnerName() {
         SftpClient.Attributes mine = new SftpClient.Attributes().owner(1000, 100);
         assertThat(RemoteFinalizer.ownedByLogin(mine, new SftpClient.Attributes().owner(1000, 50))).isTrue();

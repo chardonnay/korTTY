@@ -330,12 +330,16 @@ public final class PartTransfers {
      * now (another tab, another computer, another user in a shared folder); deleting it would make
      * that transfer move this one's incomplete part onto its target. A planted link is refused the
      * same way. The user removes real leftovers with "Remove leftover partial files".
+     *
+     * <p>When an owner was recorded, the part must still report that very owner: a server that no
+     * longer reports one (an owner-less file store, a changed server) cannot prove it, so the part
+     * is kept. A part created on a server that never reported owners has no recorded owner and is
+     * judged by the entry and its file type alone.
      */
     private static void requirePartOfOurs(ResumeIndex.Entry entry, ResumePlanner.PartState part, boolean remote,
             String partPath) throws PartExistsException {
         boolean ours = entry != null && part.regularFile()
-            && !(remote && part.ownerKey() != null && entry.partOwner() != null
-                && !part.ownerKey().equals(entry.partOwner()));
+            && !(remote && entry.partOwner() != null && !entry.partOwner().equals(part.ownerKey()));
         if (!ours) {
             throw new PartExistsException(partPath, null);
         }

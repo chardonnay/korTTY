@@ -144,9 +144,13 @@ class LocalFinalizeTest {
     void windowsReservedAndAlteredNamesAreRejectedUnderWindowsRules() throws IOException {
         for (String name : new String[] {"CON", "con", "nul.txt", "Com1", "LPT9.tar.gz", "aux .log", "PRN",
                 "trailing.", "trailing ", "a:b", "what?", "pipe|name", "a\\b"}) {
+            // The Windows rules are a pure name check that runs before any Path exists, so they
+            // hold on every host; on Windows itself the name never reaches Path.resolve.
+            expectThrows(IOException.class, () -> LocalNames.checkName(name, true));
             expectThrows(IOException.class, () -> LocalNames.localChild(tmp, name, true));
-            // Other systems store these names as they are.
-            if (name.indexOf('\\') < 0) {
+            // Other systems store these names as they are. A Windows host cannot even build such a
+            // Path (InvalidPathException for "a:b", "what?", "trailing "), so it is checked elsewhere.
+            if (name.indexOf('\\') < 0 && !LocalNames.windowsRules()) {
                 assertThat(LocalNames.localChild(tmp, name, false)).isEqualTo(tmp.resolve(name));
             }
         }

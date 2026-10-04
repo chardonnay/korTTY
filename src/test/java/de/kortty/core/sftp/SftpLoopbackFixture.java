@@ -4,6 +4,7 @@ import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.keyverifier.AcceptAllServerKeyVerifier;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.file.virtualfs.VirtualFileSystemFactory;
+import org.apache.sshd.common.util.io.IoUtils;
 import org.apache.sshd.common.util.buffer.Buffer;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.channel.ChannelSession;
@@ -24,12 +25,15 @@ import org.apache.sshd.sftp.server.SftpSubsystemFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -46,6 +50,12 @@ import java.util.concurrent.atomic.AtomicReference;
  * because MINA against MINA otherwise negotiates version 6 and never exercises the version 3 paths
  * OpenSSH servers use.
  *
+ * <p>File owners are reported like a POSIX server does, with the same fixed user ({@link #UID},
+ * {@link #GID}, {@link #USER}) for every file on every host: MINA only sends what the host's file
+ * store has, and an NTFS store (Windows) has neither uid/gid nor an owner group, so the same tests
+ * would otherwise talk to an owner-less server on Windows only. {@link Builder#ownerReporting} with
+ * {@link OwnerReporting#NONE} models such a server on every host.
+ *
  * <p>{@link #stats()} counts what the server sees: live SFTP channels, open handles and the most
  * requests that were waiting while a READ or WRITE ran (more than one proves pipelining).
  *
@@ -58,6 +68,18 @@ public final class SftpLoopbackFixture implements AutoCloseable {
     public static final String PASSWORD = "secret";
     /** For {@link #openSftp(ClientSession, int)}: let MINA negotiate as it likes. */
     public static final int DEFAULT_VERSION = 0;
+    /** The uid every file reports with {@link OwnerReporting#POSIX}. */
+    public static final int UID = 1000;
+    /** The gid every file reports with {@link OwnerReporting#POSIX}. */
+    public static final int GID = 1000;
+
+    /** What the server reports as the owner of a file. */
+    public enum OwnerReporting {
+        /** uid/gid {@link #UID}/{@link #GID} and owner/group {@link #USER}, whatever the host stores. */
+        POSIX,
+        /** No uid, gid, owner or group at all, like a server on a file store without owners. */
+        NONE
+    }
 
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
 
@@ -144,6 +166,7 @@ public final class SftpLoopbackFixture implements AutoCloseable {
         private Integer serverVersion;
         private long requestDelayMillis;
         private SftpFileSystemAccessor accessor;
+        private OwnerReporting ownerReporting = OwnerReporting.POSIX;
 
         private Builder(Path workDir) {
             this.workDir = Objects.requireNonNull(workDir, "workDir");
@@ -167,6 +190,12 @@ public final class SftpLoopbackFixture implements AutoCloseable {
             return this;
         }
 
+        /** What the server reports as file owners; {@link OwnerReporting#POSIX} by default. */
+        public Builder ownerReporting(OwnerReporting reporting) {
+            this.ownerReporting = Objects.requireNonNull(reporting, "reporting");
+            return this;
+        }
+
         /** Replaces the SFTP file system accessor (for sinks, failure injection and the like). */
         public Builder fileSystemAccessor(SftpFileSystemAccessor accessor) {
             this.accessor = accessor;
@@ -185,7 +214,8 @@ public final class SftpLoopbackFixture implements AutoCloseable {
             if (serverVersion != null) {
                 SftpModuleProperties.SFTP_VERSION.set(server, serverVersion);
             }
-            FixtureSubsystemFactory factory = new FixtureSubsystemFactory(stats, advertiseExtensions, requestDelayMillis);
+            FixtureSubsystemFactory factory = new FixtureSubsystemFactory(stats, advertiseExtensions, requestDelayMillis,
+                ownerReporting);
             if (accessor != null) {
                 factory.setFileSystemAccessor(accessor);
             }
@@ -303,17 +333,20 @@ public final class SftpLoopbackFixture implements AutoCloseable {
         private final Stats stats;
         private final boolean advertiseExtensions;
         private final long requestDelayMillis;
+        private final OwnerReporting ownerReporting;
 
-        FixtureSubsystemFactory(Stats stats, boolean advertiseExtensions, long requestDelayMillis) {
+        FixtureSubsystemFactory(Stats stats, boolean advertiseExtensions, long requestDelayMillis,
+                OwnerReporting ownerReporting) {
             this.stats = stats;
             this.advertiseExtensions = advertiseExtensions;
             this.requestDelayMillis = requestDelayMillis;
+            this.ownerReporting = ownerReporting;
         }
 
         @Override
         public Command createSubsystem(ChannelSession channel) throws IOException {
             FixtureSubsystem subsystem = new FixtureSubsystem(channel, this, stats, advertiseExtensions,
-                requestDelayMillis);
+                requestDelayMillis, ownerReporting);
             for (SftpEventListener listener : getRegisteredListeners()) {
                 subsystem.addSftpEventListener(listener);
             }
@@ -325,13 +358,15 @@ public final class SftpLoopbackFixture implements AutoCloseable {
         private final Stats stats;
         private final boolean advertiseExtensions;
         private final long requestDelayMillis;
+        private final OwnerReporting ownerReporting;
 
         FixtureSubsystem(ChannelSession channel, SftpSubsystemConfigurator configurator, Stats stats,
-                boolean advertiseExtensions, long requestDelayMillis) {
+                boolean advertiseExtensions, long requestDelayMillis, OwnerReporting ownerReporting) {
             super(channel, configurator);
             this.stats = stats;
             this.advertiseExtensions = advertiseExtensions;
             this.requestDelayMillis = requestDelayMillis;
+            this.ownerReporting = ownerReporting;
             stats.attach(this);
         }
 
@@ -344,6 +379,25 @@ public final class SftpLoopbackFixture implements AutoCloseable {
             if (advertiseExtensions) {
                 super.appendExtensions(buffer, supportedVersions);
             }
+        }
+
+        @Override
+        protected NavigableMap<String, Object> getAttributes(Path path, int flags, LinkOption... options)
+                throws IOException {
+            NavigableMap<String, Object> attributes = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            attributes.putAll(super.getAttributes(path, flags, options));
+            if (ownerReporting == OwnerReporting.POSIX) {
+                attributes.put(IoUtils.USERID_VIEW_ATTR, UID);
+                attributes.put(IoUtils.GROUPID_VIEW_ATTR, GID);
+                attributes.put(IoUtils.OWNER_VIEW_ATTR, USER);
+                attributes.put(IoUtils.GROUP_VIEW_ATTR, USER);
+            } else {
+                attributes.remove(IoUtils.USERID_VIEW_ATTR);
+                attributes.remove(IoUtils.GROUPID_VIEW_ATTR);
+                attributes.remove(IoUtils.OWNER_VIEW_ATTR);
+                attributes.remove(IoUtils.GROUP_VIEW_ATTR);
+            }
+            return attributes;
         }
 
         @Override
