@@ -152,6 +152,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - `connectionColorBorderEnabled`: ob das Terminal einer Verbindung mit einer [Tab-Farbe](../features/connections.md#tab-farbe) einen Rahmen in dieser Farbe erhält (standardmäßig aktiviert)
 - `tabTitleFromShellEnabled`: ob ein Terminal-Tab statt des Verbindungsnamens den [Titel anzeigt, den seine Shell setzt](../features/terminal.md#titel-aus-der-shell) (standardmäßig aktiviert)
 - `tabSwitchMostRecentFirst`: ob ++ctrl+tab++ die Tabs in der Reihenfolge ihrer letzten Nutzung wechselt statt in ihrer [Reihenfolge in der Tab-Leiste](settings/window.md#tabs) (standardmäßig aus)
+- `keyBindingOverrides`: Ihre eigenen [Tastaturkürzel](settings/keyboard.md), ein `binding`-Eintrag pro geändertem Befehl, z. B. `menu.view.commandPalette=Shortcut+Alt+P` oder `menu.view.dashboard=none`; ohne diesen Eintrag behält jeder Befehl sein Standardkürzel
 - Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite
 - JobScheduler-Statusanzeigeeinstellung
 - Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds
