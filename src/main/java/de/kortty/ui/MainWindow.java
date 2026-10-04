@@ -64,6 +64,7 @@ import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.ProjectManager;
 import de.kortty.core.RecentConnections;
 import de.kortty.core.RecentProjects;
+import de.kortty.core.SessionSnapshotStore;
 import de.kortty.core.RemoteTextFileSelectionSupport;
 import de.kortty.core.SftpFileTransferService;
 import de.kortty.core.SnippetLanguageSupport;
@@ -426,6 +427,14 @@ public class MainWindow {
     private static final int RECENTLY_CLOSED_NAMES = 3;
 
     /**
+     * Keeps the session snapshot current (see {@link #startSessionAutosave}); {@code null} until
+     * korTTY started it, so every hook is a no-op in a window built without the application. FX thread.
+     */
+    private static SessionAutosaveCoordinator sessionAutosave;
+    /** The name of the project a session snapshot holds; shown nowhere, but a project needs one. */
+    private static final String SESSION_PROJECT_NAME = "Session";
+
+    /**
      * The projects File › Open Recent lists, newest first, as {@link #refreshRecentProjects} found them
      * last. Read and written on the FX thread only.
      */
@@ -472,6 +481,8 @@ public class MainWindow {
     private final List<Menu> recentlyClosedMenus = new ArrayList<>();
     /** File › Open Recent in every menu bar of this window, rebuilt whenever the File menu opens. */
     private final List<Menu> openRecentMenus = new ArrayList<>();
+    /** File › Restore Previous Session in every menu bar of this window. */
+    private final List<MenuItem> restorePreviousSessionMenuItems = new ArrayList<>();
     private Runnable powerManagementStateListener;
     private static volatile boolean applicationQuitRequested = false;
     private static volatile boolean schedulerDrainApproved = false;
@@ -533,6 +544,7 @@ public class MainWindow {
         WindowCloseShortcutSupport.installForMainWindow(stage, openWindows.isEmpty(), this::fireCloseRequest);
         
         openWindows.add(this);
+        markSessionDirty();
         Telemetry.track(TelemetryEvents.WINDOW_OPENED, Map.of("open_windows", openWindows.size()));
         // A window created later receives the current app badge / "(n) KorTTY" title right away.
         AppBadgeService appBadge = app.getAppBadgeService();
@@ -650,6 +662,8 @@ public class MainWindow {
             }
             updateEditMenuItemsForSelection();
             syncPaneMenuItems();
+            // The session snapshot keeps each window's active tab.
+            markSessionDirty();
             // See-through mode: only a terminal tab reveals the desktop; other/empty tabs stay opaque.
             refreshTransparentModeContainers();
             // When the agent panel is docked to the side, swap it to show only the now-active tab.
@@ -663,6 +677,8 @@ public class MainWindow {
         
         // Listen for tab removals to update dashboard and clear per-terminal AI state.
         tabPane.getTabs().addListener((javafx.collections.ListChangeListener.Change<? extends Tab> change) -> {
+            // Opened, closed, moved, regrouped or dragged to another window: the session snapshot follows.
+            markSessionDirty();
             while (change.next()) {
                 if (change.wasAdded()) {
                     for (Tab addedTab : change.getAddedSubList()) {
@@ -989,6 +1005,11 @@ public class MainWindow {
                 clearApplicationQuitState();
                 e.consume();
             } else {
+                if (willCloseApplication()) {
+                    // korTTY ends with this window (Quit, or the last window on Windows and Linux):
+                    // the session snapshot is written and sealed while the tabs are still open.
+                    sealSessionSnapshotForExit();
+                }
                 stopJobSchedulerStatusUpdates();
                 stopAgentStatusIndicatorTimer();
                 if (guideTranslationIndicator != null) {
@@ -1047,6 +1068,8 @@ public class MainWindow {
                 if (lastFocusedWindow == this) {
                     lastFocusedWindow = null;
                 }
+                // A window closed while korTTY keeps running leaves the session snapshot.
+                markSessionDirty();
 
                 // On macOS the application stays alive after the last window closes so the
                 // dock icon can reopen a new window without restarting the process.
@@ -1134,6 +1157,7 @@ public class MainWindow {
         syncRecentlyClosedMenus();
         syncOpenRecentMenus();
         refreshRecentProjects();
+        syncRestorePreviousSessionMenuItems();
         applyMainWindowThemeFromGlobalSettings();
         syncAiFeaturesMenuItemsEnabled();
         startJobSchedulerStatusUpdates();
@@ -1694,6 +1718,12 @@ public class MainWindow {
         saveProject.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN));
         saveProject.setOnAction(e -> saveProject());
 
+        // Opens the windows and tabs of the session before this start; enabled while there is one.
+        // In a closed macOS window it acts in the frontmost open window, else a new one, like Open Project.
+        MenuItem restorePreviousSession = menuItem("menu.file.restorePreviousSession");
+        restorePreviousSession.setOnAction(e -> restorePreviousSession());
+        restorePreviousSessionMenuItems.add(restorePreviousSession);
+
         MenuItem createBackup = menuItem("menu.edit.createBackup");
         createBackup.setAccelerator(new KeyCodeCombination(KeyCode.B, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         createBackup.setOnAction(e -> createBackup());
@@ -1716,13 +1746,14 @@ public class MainWindow {
             // menu follows if they changed.
             syncOpenRecentMenus();
             refreshRecentProjects();
+            syncRestorePreviousSessionMenuItems();
         });
 
         fileMenu.getItems().addAll(
             newTab, renameTab, closeTab, closeOthers, closeToRight, closeAllTabs,
             reopenClosedTab, recentlyClosed, new SeparatorMenuItem(),
             newWindow, closeWindow, new SeparatorMenuItem(),
-            openProject, openRecent, saveProject, new SeparatorMenuItem(),
+            openProject, openRecent, saveProject, restorePreviousSession, new SeparatorMenuItem(),
             createBackup, importBackup, new SeparatorMenuItem(), quit);
         return fileMenu;
     }
@@ -3230,6 +3261,8 @@ public class MainWindow {
         windowGeometrySaveDelay.setOnFinished(event -> {
             rememberNormalGeometry(null);
             persistWindowGeometry();
+            // The session snapshot keeps every window's bounds.
+            markSessionDirty();
         });
         javafx.beans.value.ChangeListener<Object> onGeometryChanged = (obs, oldValue, newValue) -> {
             if (stage.isShowing()) {
@@ -4329,6 +4362,9 @@ public class MainWindow {
         }
 
         applicationQuitRequested = true;
+        // Every window agreed: the session snapshot is written and sealed before the first window
+        // closes its tabs, so the windows closing one after another cannot shrink it.
+        sealSessionSnapshotForExit();
         for (MainWindow window : windowsToClose) {
             if (openWindows.contains(window)) {
                 window.fireCloseRequest();
@@ -4771,6 +4807,8 @@ public class MainWindow {
         for (MainWindow window : new ArrayList<>(openWindows)) {
             window.syncRecentlyClosedMenus();
         }
+        // Called whenever the history changed: the session snapshot keeps it across a restart.
+        markSessionDirty();
     }
 
     /**
@@ -5993,6 +6031,8 @@ public class MainWindow {
         syncPaneMenuItems();
         // The tab marker counts the tab's panes.
         refreshMirrorTabMarkers();
+        // The session snapshot keeps the tab's split panes.
+        markSessionDirty();
     }
 
     /** Re-binds the docked side panel to the currently active terminal tab (spotlight model). */
@@ -6923,6 +6963,7 @@ public class MainWindow {
             Telemetry.track(TelemetryEvents.DASHBOARD_TOGGLED, Map.of("visible", false));
         }
         syncDashboardMenuItems(dashboardVisible);
+        markSessionDirty();
     }
     
     private void updateDashboard() {
@@ -7131,14 +7172,189 @@ public class MainWindow {
         }
     }
     
+    // ---- Session snapshot ---------------------------------------------------------------------
+
+    /**
+     * Starts keeping the session snapshot (see {@link SessionAutosaveCoordinator}): loads what the
+     * last run left and makes it the previous session ({@link SessionSnapshotStore#startUp}), starts
+     * the Recently Closed list with the list it kept, and from now on writes the open windows and tabs
+     * whenever they change. {@code KorTTYApplication} calls it once, before the first window. FX thread.
+     *
+     * @param writesAllowed whether korTTY may write its files now; not while a restored backup with
+     *     another master password waits for the restart
+     * @return the coordinator, whose {@link SessionAutosaveCoordinator#sealOnShutdown} the shutdown runs
+     */
+    public static SessionAutosaveCoordinator startSessionAutosave(SessionSnapshotStore store,
+                                                                  java.util.function.BooleanSupplier writesAllowed) {
+        java.util.Objects.requireNonNull(store, "store");
+        if (sessionAutosave != null) {
+            return sessionAutosave;
+        }
+        SessionSnapshotStore.StartupState startup = store.startUp();
+        KorTTYApplication application = KorTTYApplication.getInstance();
+        if (application != null && application.getConfigManager() != null) {
+            // Ids only: each closed tab comes back with its saved connection as it is now.
+            closedTabHistory.seed(ClosedTabSnapshots.fromSnapshot(startup.recentlyClosed(),
+                    id -> application.getConfigManager().getConnectionById(id)));
+        }
+        java.util.concurrent.ExecutorService writer = java.util.concurrent.Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "kortty-session-autosave");
+            thread.setDaemon(true);
+            return thread;
+        });
+        sessionAutosave = new SessionAutosaveCoordinator(store, startup,
+                new SessionAutosaveCoordinator.Environment(MainWindow::captureSession, writesAllowed,
+                        Platform::isFxApplicationThread, System::currentTimeMillis, KorTTYApplication.getAppVersion()),
+                writer, MainWindow::sessionAutosaveTimers);
+        logger.info("Session snapshot started (previous session available: {}, saving: {})",
+                store.isPreviousAvailable(), store.canWrite());
+        return sessionAutosave;
+    }
+
+    /**
+     * The quiet-time timer of the session autosave. Only a short pause runs, and only after a change:
+     * an animation that ran all the time would keep JavaFX drawing frames while korTTY sits idle.
+     */
+    private static SessionAutosaveCoordinator.Timers sessionAutosaveTimers(Runnable due) {
+        javafx.animation.PauseTransition quiet = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis(SessionAutosaveCoordinator.DEBOUNCE_MILLIS));
+        quiet.setOnFinished(event -> due.run());
+        return new SessionAutosaveCoordinator.Timers() {
+            @Override
+            public void restartDebounce() {
+                quiet.playFromStart();
+            }
+
+            @Override
+            public void runSoon() {
+                quiet.stop();
+                Platform.runLater(due);
+            }
+
+            @Override
+            public void stop() {
+                quiet.stop();
+            }
+        };
+    }
+
+    /**
+     * The open session as the session snapshot keeps it: every open window that has a tab to keep, in
+     * the order the windows were opened, without screen text, with the tabs that still wait in a
+     * restore bar, and the Recently Closed list as ids. FX thread.
+     */
+    private static SessionAutosaveCoordinator.Capture captureSession() {
+        Project project = new Project(SESSION_PROJECT_NAME);
+        project.setAutoReconnect(true);
+        for (MainWindow window : List.copyOf(openWindows)) {
+            WindowState windowState = window.captureWindowState(CaptureOptions.SESSION);
+            if (!windowState.getTabs().isEmpty()) {
+                project.addWindow(windowState);
+            }
+        }
+        return new SessionAutosaveCoordinator.Capture(project, ClosedTabSnapshots.toSnapshot(closedTabHistory.entries()));
+    }
+
+    /** The windows or tabs changed: the session snapshot follows after a short quiet time. FX thread. */
+    private static void markSessionDirty() {
+        if (sessionAutosave != null) {
+            sessionAutosave.markDirty();
+        }
+    }
+
+    /**
+     * korTTY is about to end: writes the session snapshot it quits with while every tab is still open,
+     * and seals it, so the windows that close afterwards cannot change it. FX thread.
+     */
+    private static void sealSessionSnapshotForExit() {
+        if (sessionAutosave != null) {
+            sessionAutosave.saveAndSeal();
+        }
+    }
+
+    /**
+     * The saved tabs this window's restore has not opened yet, by saved position: the tabs waiting in
+     * the restore bar and the remote tabs still downloading.
+     */
+    private java.util.SortedMap<Integer, SessionState> waitingSavedTabs() {
+        java.util.SortedMap<Integer, SessionState> waiting = new java.util.TreeMap<>();
+        if (activeRestore == null) {
+            return waiting;
+        }
+        for (RestoreAttention.Item<DeferredTab> item : restoreAttention.items()) {
+            DeferredTab deferred = item.tab();
+            if (deferred.restore() == activeRestore && deferred.state() != null) {
+                waiting.putIfAbsent(deferred.index(), deferred.state());
+            }
+        }
+        activeRestore.pendingTabs().forEach(waiting::putIfAbsent);
+        return waiting;
+    }
+
+    /** Greys out File › Restore Previous Session while there is no previous session to open. */
+    private void syncRestorePreviousSessionMenuItems() {
+        boolean available = sessionAutosave != null && sessionAutosave.canRestorePrevious();
+        for (MenuItem item : restorePreviousSessionMenuItems) {
+            item.setDisable(!available);
+        }
+    }
+
+    /**
+     * File › Restore Previous Session: opens the windows and tabs of the session before this start,
+     * which korTTY saved while it ran (see {@link SessionSnapshotStore}). Its first window goes into
+     * this window when this window has no tab, else into a new window; every further window opens in
+     * a new window, and the windows already open keep their tabs. The tabs open like those of a
+     * project with Auto-Reconnect, asking nothing: what needs a password, a new temporary SSH key or
+     * the locked vault waits in the restore bar. Offered once per run.
+     */
+    private void restorePreviousSession() {
+        if (sessionAutosave == null || !sessionAutosave.canRestorePrevious()) {
+            updateStatus(I18n.get("session.restore.previous.none"));
+            syncRestorePreviousSessionMenuItems();
+            return;
+        }
+        Project project = sessionAutosave.loadPrevious().map(SessionSnapshot::getProject).orElse(null);
+        List<WindowState> windows = ProjectRestoreOrder.windowsToRestore(project);
+        if (windows.isEmpty() || SessionSnapshotStore.restorableTabs(project) == 0) {
+            updateStatus(I18n.get("session.restore.previous.none"));
+            syncRestorePreviousSessionMenuItems();
+            return;
+        }
+        // Once per run: a second restore would open every tab a second time.
+        sessionAutosave.markPreviousRestored();
+        MainWindow target = this;
+        if (!tabPane.getTabs().isEmpty()) {
+            // This window keeps its tabs; the previous session's first window gets a window of its own.
+            WindowState first = windows.get(0);
+            target = new MainWindow(new Stage());
+            target.show(first.getGeometry(), first.getDashboardVisible() == null);
+        }
+        logger.info("Restoring the previous session: {} window(s), {} tab(s)",
+                windows.size(), SessionSnapshotStore.restorableTabs(project));
+        restoreProject(project, target);
+        target.updateStatus(I18n.get("session.restore.previous.done"));
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            window.syncRestorePreviousSessionMenuItems();
+        }
+    }
+
     /**
      * What a window capture takes. A project keeps the last visible screen of each terminal tab
      * (written to {@code history/}, never into the project file); a capture without the screen keeps
      * the layout only.
+     *
+     * @param includeScreen      the last visible screen and the command timestamps of each terminal tab
+     * @param includeWaitingTabs the saved tabs a restore has not opened yet, at their saved places
+     *                           (see {@link ProjectRestoreOrder#withWaitingTabs})
      */
-    record CaptureOptions(boolean includeScreen) {
+    record CaptureOptions(boolean includeScreen, boolean includeWaitingTabs) {
         /** File › Save Project: the layout and the last visible screen of each terminal tab. */
-        static final CaptureOptions PROJECT = new CaptureOptions(true);
+        static final CaptureOptions PROJECT = new CaptureOptions(true, false);
+        /**
+         * The session snapshot: the layout without any screen text, and with the tabs that still wait
+         * in the restore bar or for their download, so a restart in the middle of a restore keeps them.
+         */
+        static final CaptureOptions SESSION = new CaptureOptions(false, true);
     }
 
     /**
@@ -7173,6 +7389,7 @@ public class MainWindow {
         
         Tab selected = tabPane.getSelectionModel().getSelectedItem();
         SessionState active = null;
+        List<Integer> savedPositions = new ArrayList<>();
         for (Tab tab : tabPane.getTabs()) {
             SessionState sessionState = captureTabState(tab, options);
             if (sessionState == null) {
@@ -7184,9 +7401,14 @@ public class MainWindow {
                 sessionState.setSessionId(UUID.randomUUID().toString());
             }
             windowState.addTab(sessionState);
+            savedPositions.add(activeRestore != null ? activeRestore.savedIndex(tab) : null);
             if (tab == selected) {
                 active = sessionState;
             }
+        }
+        if (options.includeWaitingTabs()) {
+            windowState.setTabs(new ArrayList<>(ProjectRestoreOrder.withWaitingTabs(
+                    windowState.getTabs(), savedPositions, waitingSavedTabs())));
         }
         
         windowState.setActiveSessionId(active != null ? active.getSessionId() : null);
@@ -7227,27 +7449,32 @@ public class MainWindow {
             }
             // Save split pane structure (if terminal has splits)
             de.kortty.model.SplitPaneState splitState = terminalTab.getTerminalView().getSplitState();
+            if ((splitState == null || !splitState.isSplit()) && terminalTab.getPendingSplitLayout() != null) {
+                // A restored tab that has not connected yet has not reopened its split panes: it keeps
+                // the layout it is waiting to rebuild, so saving now does not lose it.
+                splitState = terminalTab.getPendingSplitLayout();
+            }
             if (splitState != null) {
                 sessionState.setSplitPaneState(splitState);
-                logger.info("Saving split structure for tab: {}", connection.getDisplayName());
+                logCapturedTab(options, "Saving split structure for tab: {}", connection.getDisplayName());
             }
         } else if (tab instanceof SFTPManagerTab sftpTab) {
             sessionState = sftpTab.createSessionState();
-            logger.info("Saving SFTP Manager tab: {}", sftpTab.getText());
+            logCapturedTab(options, "Saving SFTP Manager tab: {}", sftpTab.getText());
         } else if (tab instanceof FileEditorTab editorTab) {
             sessionState = editorTab.createSessionState();
             // The connection the remote file was opened over, not merely the first SFTP tab's.
             if (editorTab.isRemote()) {
                 sessionState.setConnectionId(SftpSessionRestoreSupport.savedConnectionId(editorTab.getSftpSession()));
             }
-            logger.info("Saving File Editor tab: {}", editorTab.getText());
+            logCapturedTab(options, "Saving File Editor tab: {}", editorTab.getText());
         } else if (tab instanceof ImageViewerTab viewerTab) {
             sessionState = viewerTab.createSessionState();
             // The connection the remote image was opened over, not merely the first SFTP tab's.
             if (viewerTab.isRemote()) {
                 sessionState.setConnectionId(SftpSessionRestoreSupport.savedConnectionId(viewerTab.getSftpSession()));
             }
-            logger.info("Saving Image Viewer tab: {}", viewerTab.getText());
+            logCapturedTab(options, "Saving Image Viewer tab: {}", viewerTab.getText());
         }
         return sessionState;
     }
@@ -7256,6 +7483,18 @@ public class MainWindow {
      * Tells the status bar when a restored tab could not reopen all its split panes, and why; a
      * complete restore says nothing.
      */
+    /**
+     * Logs what a capture saves: at INFO for Save Project, at DEBUG for the session snapshot, which
+     * captures every few seconds and would otherwise fill the log.
+     */
+    private static void logCapturedTab(CaptureOptions options, String message, Object detail) {
+        if (options.includeScreen()) {
+            logger.info(message, detail);
+        } else {
+            logger.debug(message, detail);
+        }
+    }
+
     private void reportSplitLayoutRestore(String tabName, SplitLayoutRestorePlan.Summary summary) {
         if (summary.missingPanes() <= 0) {
             return;
@@ -7270,29 +7509,40 @@ public class MainWindow {
      * about unsaved editors in {@code firstWindow} first. FX thread.
      */
     static void restoreProject(Project project, MainWindow firstWindow) {
-        List<WindowState> windows = ProjectRestoreOrder.windowsToRestore(project);
-        if (project.getWindows() != null && project.getWindows().size() > ProjectRestoreOrder.MAX_WINDOWS) {
-            logger.warn("Project {} has {} windows; opening the first {}", project.getName(),
-                    project.getWindows().size(), ProjectRestoreOrder.MAX_WINDOWS);
+        // The session snapshot waits until the windows have their tabs; a capture now would hold
+        // only some of them.
+        if (sessionAutosave != null) {
+            sessionAutosave.beginRestore();
         }
-        if (windows.isEmpty()) {
-            firstWindow.activeRestore = null;
-            firstWindow.closeAllTabs();
-            firstWindow.clearRestoreAttention();
-            return;
-        }
-        firstWindow.restoreWindowState(windows.get(0), project, true);
-        for (WindowState windowState : windows.subList(1, windows.size())) {
-            MainWindow window = new MainWindow(new Stage());
-            // Opens at the saved bounds right away; a window without a saved dashboard state
-            // follows the settings like any new window.
-            window.show(windowState.getGeometry(), windowState.getDashboardVisible() == null);
-            window.restoreWindowState(windowState, project, false);
-        }
-        if (windows.size() > 1 && firstWindow.stage.isShowing()) {
-            // The window the project was opened from stays in front of the windows it opened.
-            firstWindow.stage.toFront();
-            firstWindow.stage.requestFocus();
+        try {
+            List<WindowState> windows = ProjectRestoreOrder.windowsToRestore(project);
+            if (project.getWindows() != null && project.getWindows().size() > ProjectRestoreOrder.MAX_WINDOWS) {
+                logger.warn("Project {} has {} windows; opening the first {}", project.getName(),
+                        project.getWindows().size(), ProjectRestoreOrder.MAX_WINDOWS);
+            }
+            if (windows.isEmpty()) {
+                firstWindow.activeRestore = null;
+                firstWindow.closeAllTabs();
+                firstWindow.clearRestoreAttention();
+                return;
+            }
+            firstWindow.restoreWindowState(windows.get(0), project, true);
+            for (WindowState windowState : windows.subList(1, windows.size())) {
+                MainWindow window = new MainWindow(new Stage());
+                // Opens at the saved bounds right away; a window without a saved dashboard state
+                // follows the settings like any new window.
+                window.show(windowState.getGeometry(), windowState.getDashboardVisible() == null);
+                window.restoreWindowState(windowState, project, false);
+            }
+            if (windows.size() > 1 && firstWindow.stage.isShowing()) {
+                // The window the project was opened from stays in front of the windows it opened.
+                firstWindow.stage.toFront();
+                firstWindow.stage.requestFocus();
+            }
+        } finally {
+            if (sessionAutosave != null) {
+                sessionAutosave.endRestore();
+            }
         }
     }
 
@@ -7317,7 +7567,7 @@ public class MainWindow {
 
         List<SessionState> tabs = windowState.getTabs() != null ? windowState.getTabs() : List.of();
         List<String> keys = ProjectRestoreOrder.tabKeys(tabs);
-        WindowRestore restore = new WindowRestore(keys, ProjectRestoreOrder.activeTabKey(windowState, keys));
+        WindowRestore restore = new WindowRestore(keys, ProjectRestoreOrder.activeTabKey(windowState, keys), tabs);
         activeRestore = restore;
         for (int index = 0; index < tabs.size(); index++) {
             SessionState sessionState = tabs.get(index);
@@ -7494,9 +7744,16 @@ public class MainWindow {
                 if (splitState != null && splitState.isSplit()) {
                     String tabName = connection.getDisplayName();
                     logger.info("Restoring the split panes of tab {} once it is connected", tabName);
+                    if (!SplitLayoutRestorePlan.plan(splitState).steps().isEmpty()) {
+                        // Until the panes are back, a save keeps the layout they come back in.
+                        restoredTab.setPendingSplitLayout(splitState);
+                    }
                     restoredTab.addOnFirstConnected(() -> restoredTab.getTerminalView()
-                            .restoreSplitLayout(splitState,
-                                    summary -> reportSplitLayoutRestore(tabName, summary)));
+                            .restoreSplitLayout(splitState, summary -> {
+                                restoredTab.setPendingSplitLayout(null);
+                                markSessionDirty();
+                                reportSplitLayoutRestore(tabName, summary);
+                            }));
                 }
                 logger.info("Restoring tab for {} with {} chars of history",
                         connection.getDisplayName(),
@@ -7625,6 +7882,8 @@ public class MainWindow {
 
     /** Shows the restore bar with the tabs that wait now, or hides it when none does. */
     private void refreshRestoreAttentionBar() {
+        // The tabs waiting in the bar stay part of the session snapshot until they open or are dismissed.
+        markSessionDirty();
         if (restoreAttentionBar == null) {
             return;
         }
@@ -7775,9 +8034,17 @@ public class MainWindow {
         WindowRestore restore = activeRestore;
         Tab activeBefore = restore != null ? restore.activeTab() : null;
         int tabsBefore = tabPane.getTabs().size();
+        // A tab leaves the bar before its question is asked: the session snapshot waits until it is
+        // open (or back in the bar), so a crash during the question cannot lose it.
+        if (sessionAutosave != null) {
+            sessionAutosave.beginRestore();
+        }
         try {
             reopen.run();
         } finally {
+            if (sessionAutosave != null) {
+                sessionAutosave.endRestore();
+            }
             if (tabPane.getTabs().size() != tabsBefore) {
                 organizeTabsByGroup();
             }
@@ -7798,9 +8065,13 @@ public class MainWindow {
     private final class WindowRestore {
         private final List<String> keys;
         private final String activeKey;
+        /** The saved tabs, by saved position; the session snapshot keeps the ones that have not opened yet. */
+        private final List<SessionState> savedTabs;
         /** The saved position of every tab this restore opened. */
         private final Map<Tab, Integer> savedIndexes = new IdentityHashMap<>();
         private final Set<String> pendingKeys = new HashSet<>();
+        /** The saved positions of the remote tabs still downloading. */
+        private final Set<Integer> pendingIndexes = new HashSet<>();
         private boolean syncTabsDone;
         private boolean selectionDone;
         private boolean timedOut;
@@ -7810,9 +8081,26 @@ public class MainWindow {
         /** The tab opened for the saved active tab, right away or later from the restore bar; null before. */
         private Tab activeTab;
 
-        WindowRestore(List<String> keys, String activeKey) {
+        WindowRestore(List<String> keys, String activeKey, List<SessionState> savedTabs) {
             this.keys = keys;
             this.activeKey = activeKey;
+            this.savedTabs = savedTabs;
+        }
+
+        /** The saved position of {@code tab} when this restore opened it, else {@code null}. */
+        Integer savedIndex(Tab tab) {
+            return savedIndexes.get(tab);
+        }
+
+        /** The saved remote tabs still downloading, by saved position. */
+        Map<Integer, SessionState> pendingTabs() {
+            Map<Integer, SessionState> pending = new java.util.TreeMap<>();
+            for (Integer index : pendingIndexes) {
+                if (index >= 0 && index < savedTabs.size() && savedTabs.get(index) != null) {
+                    pending.put(index, savedTabs.get(index));
+                }
+            }
+            return pending;
         }
 
         /**
@@ -7834,6 +8122,7 @@ public class MainWindow {
         /** The tab from saved position {@code index} opens later, once its file has been downloaded. */
         void pending(int index) {
             pendingKeys.add(keys.get(index));
+            pendingIndexes.add(index);
         }
 
         /**
@@ -7864,6 +8153,9 @@ public class MainWindow {
         /** The late tab from saved position {@code index} has arrived, or will not. */
         void lateTabDone(int index) {
             pendingKeys.remove(keys.get(index));
+            pendingIndexes.remove(index);
+            // Arrived or failed: the session snapshot no longer keeps it as waiting.
+            markSessionDirty();
             selectActiveTab();
         }
 
@@ -13611,8 +13903,10 @@ public class MainWindow {
             : I18n.get("dialog.renameTab.header", automaticTitle));
         dialog.setContentText(I18n.get("dialog.renameTab.prompt") + ":");
         dialog.getEditor().setPromptText(automaticTitle);
-        dialog.showAndWait().ifPresent(input ->
-            terminalTab.setCustomTitle(TerminalTab.customTitleFromInput(input, automaticTitle)));
+        dialog.showAndWait().ifPresent(input -> {
+            terminalTab.setCustomTitle(TerminalTab.customTitleFromInput(input, automaticTitle));
+            markSessionDirty();
+        });
     }
 
     /**

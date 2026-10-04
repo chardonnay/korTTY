@@ -116,6 +116,8 @@ public class TerminalTab extends Tab {
     private Runnable externalConnectedCallback;
     /** Waits for the first successful connect only; see {@link #addOnFirstConnected}. */
     private final OneShotRunnables firstConnectedActions = new OneShotRunnables(Platform::runLater);
+    /** The split layout a restored tab rebuilds once it is connected; see {@link #setPendingSplitLayout}. */
+    private de.kortty.model.SplitPaneState pendingSplitLayout;
     private Runnable journalStateListener;
     /** Told when the user closes the tab with its close button; see {@link #setOnUserCloseApproved}. */
     private java.util.function.Consumer<TerminalTab> onUserCloseApproved;
@@ -275,6 +277,7 @@ public class TerminalTab extends Tab {
      */
     void releaseResources() {
         firstConnectedActions.clear();
+        pendingSplitLayout = null;
         closeRecordingResources();
         cancelAutoReconnectTimer();
         // Idempotent; also stops the session journal and closes every pane's connector.
@@ -1535,6 +1538,20 @@ public class TerminalTab extends Tab {
      */
     public void addOnFirstConnected(Runnable action) {
         firstConnectedActions.add(action);
+    }
+
+    /**
+     * The split layout this restored tab rebuilds once it is connected, until the rebuild is done:
+     * a project or session saved in the meantime keeps it rather than the single pane the tab shows
+     * while it waits. {@code null} when the tab waits for no layout. JavaFX thread.
+     */
+    void setPendingSplitLayout(de.kortty.model.SplitPaneState layout) {
+        this.pendingSplitLayout = layout;
+    }
+
+    /** See {@link #setPendingSplitLayout}. */
+    de.kortty.model.SplitPaneState getPendingSplitLayout() {
+        return pendingSplitLayout;
     }
     
     /**

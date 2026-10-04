@@ -168,6 +168,31 @@ class ProjectRestoreOrderTest {
         assertThat(ProjectRestoreOrder.windowsToRestore(null)).isEmpty();
     }
 
+    @Test
+    void tabsStillWaitingGoBackToTheirSavedPlacesInTheSessionSnapshot() {
+        // Saved: a(0) b(1) c(2) d(3) e(4). Open: a, c, e (and a new tab x the restore did not open);
+        // b waits for a password in the restore bar, d is still downloading.
+        java.util.SortedMap<Integer, String> waiting = new java.util.TreeMap<>(Map.of(1, "b", 3, "d"));
+
+        List<String> tabs = ProjectRestoreOrder.withWaitingTabs(
+            List.of("a", "c", "e", "x"), Arrays.asList(0, 2, 4, null), waiting);
+
+        assertThat(tabs).containsExactly("a", "b", "c", "d", "e", "x").inOrder();
+    }
+
+    @Test
+    void waitingTabsAfterEveryOpenTabGoLastAndNothingWaitingChangesNothing() {
+        java.util.SortedMap<Integer, String> waiting = new java.util.TreeMap<>(Map.of(5, "f", 0, "a"));
+
+        assertThat(ProjectRestoreOrder.withWaitingTabs(List.of("c", "x"), Arrays.asList(2, null), waiting))
+            .containsExactly("a", "c", "x", "f").inOrder();
+        assertThat(ProjectRestoreOrder.withWaitingTabs(List.of("c", "x"), Arrays.asList(2, null), new java.util.TreeMap<>()))
+            .containsExactly("c", "x").inOrder();
+        assertWithMessage("a window whose every tab waits keeps them all, in saved order")
+            .that(ProjectRestoreOrder.withWaitingTabs(List.<String>of(), List.of(), waiting))
+            .containsExactly("a", "f").inOrder();
+    }
+
     private static WindowState window(List<SessionState> tabs, String activeSessionId, int activeTabIndex) {
         WindowState window = new WindowState("window");
         window.setTabs(new ArrayList<>(tabs));

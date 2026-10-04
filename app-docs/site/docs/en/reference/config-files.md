@@ -48,6 +48,7 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── plugins/                           # Imported terminal-effect plugin JARs
 ├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
 ├── projects/                          # Project files (.kortty)
+├── session/                           # Session snapshots for Restore Previous Session (owner-only; not backed up)
 ├── i18n/                              # Generated language files (messages_*.properties)
 └── ssh-keys/                          # Optional copied SSH keys (included in backups)
 ```
@@ -409,6 +410,23 @@ Project files for saving and loading connection sets.
 **Purpose:** Quickly open a pre-configured set of connections for a specific project or workflow.
 
 **Usage:** Save a project via *File > Save Project*, restore via *File > Open Project* or the project history menu.
+
+### session/
+The session snapshots korTTY writes while it runs, so *File > Restore Previous Session* can reopen your windows and tabs after a restart or a crash (see [Previous session](../features/projects.md#previous-session)).
+
+**Files:**
+
+- `last-session.xml` — the open windows and tabs of the running korTTY, rewritten a couple of seconds after each change and once more when korTTY quits, together with the Recently Closed list
+- `previous-session.xml` — the session before this start, which *Restore Previous Session* opens; at each start korTTY moves `last-session.xml` here, but only when that session had at least one tab
+- `session.lock` — held locked by the korTTY that writes the snapshots; a second korTTY started meanwhile reads them but never writes
+
+**Format:** XML. The windows and tabs are written like a [project](#projects) with Auto-Reconnect; the Recently Closed list keeps the id of each closed tab's saved connection, its tab group, name and terminal effect.
+
+**Contains no** screen text, scrollback, command timestamps, passwords or temporary SSH keys. A split pane's working directory and a reference to saved scrollback, which project files never carry, may appear here; korTTY accepts a scrollback reference only as a plain name.
+
+**Security:** The directory and its files are owner-only (`rwx------` and `rw-------`) and are replaced atomically. A snapshot that cannot be parsed is moved aside as `<name>.corrupt-<timestamp>`; one that cannot be read is left in place and not written over until the next start.
+
+**Backup:** Not included in configuration backups: the snapshots describe the windows of this computer.
 
 ### i18n/
 Dynamically generated language translation files.

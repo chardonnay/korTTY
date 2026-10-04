@@ -48,6 +48,23 @@ The menu is rebuilt every time you open the *File* menu. On macOS, where korTTY 
 
 korTTY keeps the paths of your recent projects, and the time you last chose **Clear List**, in its settings file `~/.kortty/global-settings.xml` (see [Configuration files](../reference/config-files.md#global-settingsxml)). They are therefore part of every [configuration backup](backup.md) and come back when you restore one. Only the paths are kept, never the content of a project, and the connections are not stored a second time: the list follows when each saved connection was last used.
 
+## Previous session
+
+While korTTY runs, it keeps a snapshot of your open windows and tabs, so you get them back after a restart or a crash without saving a project first. *File → Restore Previous Session* opens the windows and tabs korTTY had open before this start.
+
+- **When it is saved** — a couple of seconds after every change to the windows and tabs: a tab opened, closed, moved, renamed or split, a window opened, closed, moved or resized, the dashboard shown or hidden. When you quit korTTY, or close its last window on Windows and Linux, the snapshot is written once more while every tab is still open, so it holds all the windows you had, although they close one after another while korTTY quits.
+- **What it holds** — the same as a project with **Auto-Reconnect** (see [What Gets Saved](#what-gets-saved)): every window with its position and size, its tabs in their order with their tab groups, names, split panes, font sizes and terminal effects, SFTP Manager tabs with their folders, file editor and image viewer tabs, and the active tab and the dashboard of each window. Tabs that still wait in the [restore bar](#tabs-that-wait-for-you) or for their remote file are kept too, at their places, and so are the split panes of a restored tab that has not connected yet.
+- **What it never holds** — screen text, scrollback, command timestamps, passwords and temporary SSH keys. Each tab names its saved connection by id, as in a project.
+- **A session without tabs keeps the last one** — when no tab is open, for example after you closed the last window on macOS, where korTTY keeps running, the snapshot keeps the windows it had and takes only the new Recently Closed list.
+
+**Restore Previous Session** opens the previous session like a project with Auto-Reconnect and asks nothing while it opens the tabs: a local shell, SSH key authentication, a saved password and a temporary SSH key that is still valid open right away, and every tab that needs a password, a new temporary SSH key or the locked vault waits in the [restore bar](#tabs-that-wait-for-you), where a blocked server or a deleted connection is listed as well. Its first window opens in the window you choose the command in when that window has no tabs, and in a new window otherwise; every further window opens in a new window, and the windows that are open keep their tabs. The command is greyed out while there is no previous session, and after you restored it once, so no tab opens twice.
+
+The previous session is the last one in which korTTY had tabs open: at every start, korTTY makes the session of the last run the previous one, but only when it had at least one tab. A start at which you open nothing therefore never pushes your previous session out.
+
+The [Recently Closed](terminal.md#working-with-tabs) list is kept in the same snapshot, so it survives a restart. It keeps only the id of each closed tab's saved connection, with the tab group, the name and the terminal effect: after a restart a closed tab reopens with the saved connection as it is then, and a tab whose connection was deleted, or was never saved (a Quick Connect session), is no longer listed.
+
+korTTY keeps the snapshots in `~/.kortty/session/` (see [Configuration files](../reference/config-files.md#session)), readable only by you. They describe the windows of this computer and are not part of a [configuration backup](backup.md). A second korTTY started while the first one runs neither saves its session nor moves the previous one, so the two never write over each other; it can still restore the previous session. While a restored backup with another master password waits for the restart, korTTY saves nothing.
+
 ## What Gets Saved
 
 A project captures the complete state of your workspace:
@@ -145,4 +162,4 @@ Projects are useful for:
 - **Context switching** — Save a "production systems" project, a "development" project, and a "testing" project; open the one you need
 - **Team handoffs** — Share projects with colleagues to set up identical workspace layouts and connections
 - **Multi-window layouts** — Save a complex setup across multiple monitor windows and restore it instantly
-- **Session recovery** — Quickly restore your last known configuration if the app crashes or you accidentally close tabs
+- **Session recovery** — Keep a workspace you can always go back to; after a crash or a restart, [*File → Restore Previous Session*](#previous-session) brings back what was open, and *File → Recently Closed* the tabs you closed

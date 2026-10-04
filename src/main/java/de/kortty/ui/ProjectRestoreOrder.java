@@ -10,7 +10,9 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.function.ToIntFunction;
 
 /**
@@ -171,6 +173,32 @@ final class ProjectRestoreOrder {
             }
         }
         return liveSavedIndexes.size();
+    }
+
+    /**
+     * The tabs of a window as the session snapshot keeps them while a restore is not done yet: the
+     * tabs that are open, in their order, with the saved tabs that have not opened yet put back where
+     * they were — tabs waiting in the restore bar and remote files still downloading. Each waiting tab
+     * goes in front of the first tab from a later saved position (see {@link #lateInsertionIndex}),
+     * so a restart in the middle of a restore does not lose them. Tabs the restore did not open count
+     * as having no saved position.
+     *
+     * @param live             the open tabs, in their order
+     * @param liveSavedIndexes per open tab, its saved position, or {@code null}
+     * @param waiting          the tabs that have not opened yet, by saved position
+     */
+    static <T> List<T> withWaitingTabs(List<T> live, List<Integer> liveSavedIndexes, SortedMap<Integer, T> waiting) {
+        if (live.size() != liveSavedIndexes.size()) {
+            throw new IllegalArgumentException("one saved position per open tab");
+        }
+        List<T> tabs = new ArrayList<>(live);
+        List<Integer> positions = new ArrayList<>(liveSavedIndexes);
+        for (Map.Entry<Integer, T> tab : waiting.entrySet()) {
+            int at = lateInsertionIndex(positions, tab.getKey());
+            tabs.add(at, tab.getValue());
+            positions.add(at, tab.getKey());
+        }
+        return tabs;
     }
 
     /** What a restored window does about its active tab. */

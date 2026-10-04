@@ -422,6 +422,11 @@ class ClosedWindowMenuRouterTest {
         assertThat(openRecent).doesNotContain("ownWindowOnly(");
         assertThat(openRecent.split("ClosedWindowMenuRouter\\.noWindowNeeded\\(", -1)).hasLength(2);
         assertThat(methodBody(window, "private Menu createFileMenu() {")).doesNotContain("ownWindowOnly(openRecent)");
+        // File > Restore Previous Session opens the previous session in the frontmost open window, or a
+        // new one when none is open, like Open Project (the default need).
+        assertThat(file).contains("MenuItem restorePreviousSession = menuItem(\"menu.file.restorePreviousSession\");");
+        assertThat(file).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(restorePreviousSession)");
+        assertThat(file).doesNotContain("ClosedWindowMenuRouter.noWindowNeeded(restorePreviousSession)");
     }
 
     @Test

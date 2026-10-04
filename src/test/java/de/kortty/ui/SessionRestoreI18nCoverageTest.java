@@ -15,7 +15,8 @@ import java.util.regex.Pattern;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * Every text of the restore bar ({@code session.restore.*}) exists, translated, in all eight bundles,
+ * Every text of the restore bar ({@code session.restore.*}) and of File › Restore Previous Session
+ * exists, translated, in all eight bundles,
  * with the same placeholders as the English text and no doubled apostrophe: LanguageManager fills
  * placeholders with String.replace rather than MessageFormat, so a doubled apostrophe would show up
  * doubled, and a lost {0} would hide the count or the tab name.
@@ -38,13 +39,19 @@ class SessionRestoreI18nCoverageTest {
         RestoreAttention.DETAILS_KEY,
         "session.restore.tab.sftp");
 
+    /** File › Restore Previous Session and the status lines it leaves. */
+    private static final List<String> PREVIOUS_SESSION_KEYS = List.of(
+        "menu.file.restorePreviousSession",
+        "session.restore.previous.none",
+        "session.restore.previous.done");
+
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
     @Test
     void everyKeyExistsInEveryBundledLocale() throws Exception {
         for (String bundle : BUNDLES) {
             Properties localized = loadBundle(bundle);
-            for (String key : RestoreAttention.KEYS) {
+            for (String key : keys()) {
                 String value = localized.getProperty(key);
                 assertWithMessage(bundle + " is missing key " + key).that(value).isNotNull();
                 assertWithMessage(bundle + " has a blank value for key " + key).that(value.isBlank()).isFalse();
@@ -58,7 +65,7 @@ class SessionRestoreI18nCoverageTest {
         Properties english = loadBundle("messages.properties");
         for (String bundle : BUNDLES) {
             Properties localized = loadBundle(bundle);
-            for (String key : RestoreAttention.KEYS) {
+            for (String key : keys()) {
                 assertWithMessage(bundle + " changes the placeholders of " + key)
                     .that(placeholders(localized.getProperty(key)))
                     .isEqualTo(placeholders(english.getProperty(key)));
@@ -83,7 +90,7 @@ class SessionRestoreI18nCoverageTest {
         Properties english = loadBundle("messages.properties");
         for (String bundle : BUNDLES.subList(1, BUNDLES.size())) {
             Properties localized = loadBundle(bundle);
-            for (String key : RestoreAttention.KEYS) {
+            for (String key : keys()) {
                 if (SAME_IN_SOME_LANGUAGES.contains(key)) {
                     continue;
                 }
@@ -91,6 +98,24 @@ class SessionRestoreI18nCoverageTest {
                     .that(localized.getProperty(key)).isNotEqualTo(english.getProperty(key));
             }
         }
+    }
+
+    @Test
+    void theRestorePreviousSessionTextsTakeNoPlaceholder() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            for (String key : PREVIOUS_SESSION_KEYS) {
+                // Shown with I18n.get(key) and no arguments; a stray {0} would be printed raw.
+                assertWithMessage(bundle + " has a placeholder in " + key)
+                    .that(PLACEHOLDER.matcher(localized.getProperty(key)).find()).isFalse();
+            }
+        }
+    }
+
+    private static List<String> keys() {
+        List<String> keys = new java.util.ArrayList<>(RestoreAttention.KEYS);
+        keys.addAll(PREVIOUS_SESSION_KEYS);
+        return keys;
     }
 
     private static Set<String> placeholders(String value) {

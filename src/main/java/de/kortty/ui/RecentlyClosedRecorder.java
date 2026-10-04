@@ -20,7 +20,8 @@ import java.util.function.Supplier;
  * </ul>
  *
  * <p>Nothing is remembered when closing the window ends korTTY (Quit, or the last window on Windows
- * and Linux): the history would end with it. {@link MainWindow} never calls this class for a tab
+ * and Linux): those tabs are the session that File › Restore Previous Session brings back, not a
+ * close. {@link MainWindow} never calls this class for a tab
  * whose session ended on its own (exit, Ctrl+D, a remote logout), for the tabs opening a project
  * replaces, for regrouping or for a tab dragged to another window.
  */
