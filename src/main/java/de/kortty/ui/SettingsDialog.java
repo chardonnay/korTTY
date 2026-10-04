@@ -4074,7 +4074,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Runnable update = () -> {
             int index = tabPane.getSelectionModel().getSelectedIndex();
             int count = tabPane.getTabs().size();
-            Tab selected = tabPane.getSelectionModel().getSelectedItem();
+            // The tab at the selected index, not the selected item: selecting a tab sets the index
+            // first, and this runs from the index listener while the item is still the old tab.
+            Tab selected = index >= 0 && index < count ? tabPane.getTabs().get(index) : null;
             String title = selected != null ? selected.getText() : "";
             positionLabel.setText(SettingsSectionNavigation.positionLabel(title, index, count));
             previousButton.setDisable(!SettingsSectionNavigation.canGoPrevious(index));
