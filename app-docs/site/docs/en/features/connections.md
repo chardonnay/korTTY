@@ -117,7 +117,7 @@ When a new split connection is opened, the SSH handshake runs on a worker while 
 
 ## Local Shell
 
-A **Local Shell** connection spawns a local pseudo-terminal (PTY) on your own machine instead of connecting to a remote host. It is selectable in both **Quick Connect** and the **Connection Manager**; for these connections host, port, username and authentication are not required (and are disabled in the dialogs), and no password prompt is shown.
+A **Local Shell** connection spawns a local pseudo-terminal (PTY) on your own machine instead of connecting to a remote host. It is selectable in both **Quick Connect** and the **Connection Manager**; for these connections host, port, username and authentication are not required (and are disabled in the dialogs), and no password prompt is shown. The shell, custom command and start directory are stored with the connection and survive duplicating, exporting and importing; picking a saved Local Shell connection in Quick Connect shows them in the form and starts that shell.
 
 ### Choosing a shell
 

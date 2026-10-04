@@ -2061,15 +2061,12 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
     /** Initializes the shell controls from the connection's stored localShellCommand. */
     private void loadLocalShellSelection() {
-        String command = connection.getLocalShellCommand();
-        String preset = LocalShellPresetSupport.presetForCommand(command, gitBashCommand, cygwinCommand, wslCommand);
-        shellPresetCombo.setValue(preset);
-        if (LocalShellPresetSupport.CUSTOM.equals(preset) && command != null && !command.isBlank()) {
-            customShellCommandField.setText(command);
-        }
-        if (connection.getLocalShellWorkingDirectory() != null) {
-            shellWorkingDirField.setText(connection.getLocalShellWorkingDirectory());
-        }
+        LocalShellPresetSupport.Selection shown = LocalShellPresetSupport.selectionFor(
+            connection.getLocalShellCommand(), connection.getLocalShellWorkingDirectory(),
+            gitBashCommand, cygwinCommand, wslCommand);
+        shellPresetCombo.setValue(shown.preset());
+        customShellCommandField.setText(shown.customCommand());
+        shellWorkingDirField.setText(shown.workingDirectory());
     }
 
     /** The shell command to persist: the selected preset, or the custom field when "custom". */
