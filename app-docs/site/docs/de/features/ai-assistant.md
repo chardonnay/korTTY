@@ -342,6 +342,8 @@ An der Shell-Eingabeaufforderung wird die TAB-Vervollständigung für Agentenbef
 
 Die Verlaufsgröße kann unter **Einstellungen > AI** konfiguriert werden (Standard 20, Bereich 5–100).
 
+In einer SSH-Sitzung erkennt korTTY, dass die Shell an ihrem Prompt steht, an den OSC-133-Markierungen einer für die [Shell-Integration](shell-integration.md) eingerichteten Shell, solange **Befehlsmarkierungen von Shells mit eingerichteter Shell-Integration nutzen (OSC 133)** in *Einstellungen → Terminal* eingeschaltet ist, und andernfalls am Text des Prompts, etwa `user@host:~$`.
+
 ### So funktioniert der AI Agent
 
 Das Terminal AI Agent ist ein kontrollierter Terminalautomatisierungsworkflow. Es führt keine beliebige Modellausgabe direkt im interaktiven Terminal aus. Stattdessen folgt jede Runde diesem Muster:

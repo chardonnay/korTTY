@@ -68,7 +68,7 @@ The sidebar has a fixed width: with a very large terminal font, a long runtime o
 
 When a command that ran at least 30 seconds finishes in a tab you are not looking at, korTTY marks the tab with 🔔 and shows a desktop notification with the tab's name, the exit status and the runtime, for example *Command failed (exit 1) after 2 min 14 sec.* It never shows the command itself. *Settings → Terminal → Notifications* switches the notification off or changes the 30 seconds; see [Long-running commands](terminal-notifications.md#long-running-commands) for the details.
 
-## Setting it up
+## Setting it up { #setting-it-up }
 
 Add the snippet for your shell to its startup file on every computer whose shell you want marked: on each server you connect to with SSH, and on your own computer for local shell tabs. korTTY never changes files on a server and never types anything into an SSH session to set this up. Open a new shell, or reconnect the tab, after adding the snippet.
 

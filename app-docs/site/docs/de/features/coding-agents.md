@@ -10,7 +10,7 @@ korTTY erkennt, wenn ein terminalbasierter Coding-Agent – **Claude Code**, **C
 
 ## Was erkannt wird
 
-Die Erkennung umfasst die drei unten aufgeführten Agents, gestartet aus einer **Lokale Shell**-Registerkarte – direkt, über einen Paketmanager-Wrapper wie `npx` oder als `node`-, `bun`- oder `deno`-Skript. SSH- und Mosh-Registerkarten werden nicht analysiert, weil der Agent dort auf dem entfernten Rechner läuft und korTTY seinen Prozess nicht sehen kann.
+Die Erkennung umfasst die drei unten aufgeführten Agents, gestartet aus einer **Lokale Shell**-Registerkarte – direkt, über einen Paketmanager-Wrapper wie `npx` oder als `node`-, `bun`- oder `deno`-Skript. SSH- und Mosh-Registerkarten werden nicht analysiert, weil der Agent dort auf dem entfernten Rechner läuft und korTTY seinen Prozess nicht sehen kann; ein Agent auf einem Server kann Ihnen trotzdem mit einer Terminal-Benachrichtigung mitteilen, dass er auf Sie wartet, siehe [Benachrichtigungen von Programmen](terminal-notifications.md#benachrichtigungen-von-programmen).
 
 | Agent | Erkannte ausführbare Dateien |
 |-------|------------------------|
