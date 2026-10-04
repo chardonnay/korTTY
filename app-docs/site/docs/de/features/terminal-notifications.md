@@ -78,12 +78,12 @@ Kommt eine solche Anfrage aus einem Tab, den Sie gerade nicht ansehen, markiert 
 
 Läufe von korTTYs eigenem [KI-Agent](ai-tools.md) und [KI-Swarm](ai-swarm.md) melden sich, wenn sie Sie brauchen oder fertig sind, während Sie woanders hinsehen. Wenn ein Lauf in einem Tab, den Sie gerade nicht ansehen, auf Ihre Freigabe eines Befehls wartet, auf ein Passwort wartet, fertig wird oder ohne Abschluss stoppt (ein Fehler, oder der Agent hat blockiert aufgegeben), sagt das eine Desktop-Benachrichtigung mit dem Titel `korTTY · ` und dem Namen des Tabs. Ohne sie würde eine Freigabe, die in einem Fenster hinter einem anderen angefordert wird, den Lauf aufhalten, bis Sie zufällig hinsehen.
 
-- Der Text ist ein fester Satz, etwa *Der KI-Lauf in diesem Tab wartet auf deine Freigabe.* Er enthält nie Ihren Prompt, den Befehl, der auf Freigabe wartet, den Wortlaut der Passwortabfrage oder irgendeine Ausgabe, denn eine Benachrichtigung kann auf dem Sperrbildschirm erscheinen.
+- Der Text ist ein fester Satz, etwa *Der KI-Lauf in diesem Tab wartet auf Ihre Freigabe.* Er enthält nie Ihren Prompt, den Befehl, der auf Freigabe wartet, den Wortlaut der Passwortabfrage oder irgendeine Ausgabe, denn eine Benachrichtigung kann auf dem Sperrbildschirm erscheinen.
 - Ein Tab zeigt höchstens eine Benachrichtigung derselben Art alle 10 Sekunden, sodass ein Swarm, dessen Agenten nacheinander um Freigaben bitten, Ihren Desktop nicht überflutet; das Ende des Laufs wird trotzdem direkt nach einer Freigabe gemeldet.
 - Ein Terminal-Tab, dessen Agent-Lauf Sie braucht, wird außerdem mit 🔔 markiert, und der Tooltip wiederholt den Satz. Ein KI-Swarm-Tab behält stattdessen seine eigene blinkende Anzeige.
 - Im Tab, den Sie gerade ansehen, passiert nichts, und ebenso wenig, wenn Sie den Lauf selbst abbrechen oder neu starten.
 
-*Einstellungen → Terminal → Benachrichtigungen* enthält **Desktop-Benachrichtigung, wenn ein Lauf des KI-Agents oder KI-Schwarms in einem Tab, den du nicht ansiehst, endet oder auf dich wartet**, standardmäßig eingeschaltet. Ist es ausgeschaltet, wird ein Terminal-Tab trotzdem markiert. Siehe [Terminal-Einstellungen](../reference/settings/terminal.md#hinweise).
+*Einstellungen → Terminal → Benachrichtigungen* enthält **Desktop-Benachrichtigung, wenn ein Lauf des KI-Agents oder KI-Schwarms in einem Tab, den Sie nicht ansehen, endet oder auf Sie wartet**, standardmäßig eingeschaltet. Ist es ausgeschaltet, wird ein Terminal-Tab trotzdem markiert. Siehe [Terminal-Einstellungen](../reference/settings/terminal.md#hinweise).
 
 ## Einen Tab auf Aktivität oder Stille überwachen
 
