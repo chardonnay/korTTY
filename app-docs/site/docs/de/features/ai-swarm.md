@@ -88,6 +88,8 @@ Der Genehmigungsdialog bietet außerdem die Option **Schwarm abbrechen**, um den
 
 Wenn alle Agenten fertig sind, kombiniert der Schwarm die Antworten pro Server in einer Markdown-Vergleichstabelle mit genau einer Zeile pro Server. Die letzte Spalte trägt immer den Titel **"Fehler"** und listet Abweichungen, fehlende Daten und Fehler (oder `-`, wenn es nichts zu melden gibt) auf, unabhängig von der Antwortsprache.
 
+Die Anfrage, die die Antworten zusammenführt, enthält die Antwort und den Ausgabeauszug jedes Servers; daher wird sie wie die eigenen Prompts der Agenten maskiert, bevor sie an ein Profil geht, das kein integriertes Modell und kein vertrauenswürdiger lokaler Endpunkt ist: die Verbindungspasswörter aller Server, die Ersetzungsregeln Ihrer Organisation und bekannte Tokenformate werden zu `***` (siehe [Geheimnisse vor dem Senden maskieren](ai-assistant.md#geheimnisse-vor-dem-senden-maskieren)). Die Zeilen und die Tabelle, die angezeigt wird, wenn die KI nicht erreichbar ist, behalten den Originaltext, weil sie Ihren Computer nie verlassen.
+
 Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **klicken Sie auf eine beliebige Tabellenzeile**, um sie in einem separaten Fenster *Zeilendetails* mit lesbarem Layout, **A− / A+**-Schriftgrößenschaltflächen und einer Schaltfläche zum Kopieren in die Zwischenablage zu öffnen.
 
 ## Konversation kopieren, exportieren und speichern
@@ -151,3 +153,5 @@ Typische Kombinationen von Schwarm + Scheduler:
 
 !!! warning "Unbeaufsichtigte Änderungen"
     Ein geplanter Schwarm mit **Schreibgeschützt aus** und **Auto-Genehmigung ein** ändert Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die Eingabeaufforderung ist absichtlich darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.
+
+Die [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulefeatures) einer Organisation gilt auch für geplante Swarms: Ist der KI-Swarm oder der KI-Agent verweigert oder `ai-agent-execution` auf `read-only` gesetzt, endet der Job als blockiert, bevor er sich verbindet; bei `ai-agent-execution = "confirm"` wird jeder Agent, der einen serverändernden Befehl plant, gestoppt und als blockiert gezählt, selbst wenn die automatische Genehmigung aktiviert ist.

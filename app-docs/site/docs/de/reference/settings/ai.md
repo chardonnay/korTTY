@@ -66,6 +66,7 @@ Die gleichen Felder werden im **KI > KI-Manager > Profile** bearbeitet, wo das g
 | API-Schlüssel (optional) | Text | (Passwortfeld) | — | (Profilfeld `encryptedApiKey`) |
 | Maximale Zeichen | Zahl | 1–50.000.000 | 100.000 | (Profilfeld `maxSelectionChars`) |
 | Zeitlimit für dieses Profil | Kontrollkästchen + Zahl | Eigenes Zeitlimit aus = globales Zeitlimit folgen; ein: 0–1440 Minuten (0 = niemals abgelaufen) | Aus | (Profilfeld `requestTimeoutMinutes`) |
+| Maximale Ausgabe-Tokens | Kontrollkästchen + Zahl | Eigenes Limit aus = automatisch je Modell und Aktion; an: 256–1.048.576 Tokens pro Antwort | Aus | (Profilfeld `maxOutputTokens`) |
 | Tokenizer | Dropdown | Schätzung, OpenAI cl100k_base, OpenAI o200k_base, OpenAI p50k_base, OpenAI r50k_base | Schätzung | (Profilfeld `tokenizerType`) |
 | Maximale Tokens | Zahl + Einheit | (Menge: 0–1.000.000; Einheit: Tausende oder Millionen) | 0 (unbegrenzt) | (Profil `tokenLimitAmount`, `tokenLimitUnit`-Felder) |
 | Warnschwellen | Zahl-Paar | Gelb %: 0–100, Rot %: 0–100 | 75%, 90% | (Profil `tokenWarningYellowPercent`, `tokenWarningRedPercent`-Felder) |
@@ -156,7 +157,15 @@ Für MiniMax-Endpunkte (direkt oder über einen Aggregator, dessen Modellname `m
 
 Für MiniMax wird die OpenAI-kompatible URL `https://api.minimax.io/v1/chat/completions` verwendet anstatt dem nativen `/text/chatcompletion_v2`-Endpoint: Der native Endpoint antwortet mit HTTP 200 und einem Fehlerobjekt, wenn ein falscher Schlüssel, ein falsches Modell oder ein leerer Balance-Status vorliegt, was korTTY nun als eigenes Provider-Meldung anzeigt, während der OpenAI-kompatible Endpoint diese mit einem korrekten HTTP-Status meldet.
 
-Für den nativen Anthropic (Claude) Endpoint wird ein aktiviertes Reasoning-Level mit **erweitertem Denken** und einem abhängigen Denkbudget angefordert; Modelle, die erweitertes Denken nicht unterstützen, werden einmal ohne es neu versucht. Das Modell-Reasoning wird in den 💭 Denkzeilen des Terminal-KI-Agenten angezeigt.
+Für den nativen Anthropic-(Claude-)Endpunkt fordert ein aktiviertes Reasoning-Level **erweitertes Denken** mit einem vom Level abhängigen Denkbudget an; Modelle, die erweitertes Denken nicht unterstützen, werden einmal ohne es erneut angefragt. Das Budget bleibt immer unter dem Ausgabelimit der Anfrage — siehe [Ausgabelimit pro Antwort](#ausgabelimit-pro-antwort). Das Reasoning des Modells wird in den 💭-Denkzeilen des Terminal-KI-Agenten angezeigt.
+
+### Ausgabelimit pro Antwort
+
+**Maximale Ausgabe-Tokens** begrenzt, wie viele Tokens eine Antwort einschließlich Denken verwenden darf. Ist **Eigenes Limit** aus, wählt korTTY das Limit automatisch. Der Wert kann ein Limit nur senken, nie erhöhen: Aktionen mit eigenem Sicherheitslimit — ein Mermaid-Diagramm (32.768 Tokens), eine Snippet-Bearbeitung mit vollständiger Ersetzung, die Code-Vervollständigung (4.096 Tokens) oder ASCII-Art — behalten dieses Limit, auch wenn das Profil mehr zulässt.
+
+Beim nativen Anthropic-(Claude-)Endpunkt ist das Limit jeder Anfrage der kleinste Wert aus dem Sicherheitslimit der Aktion, den **Maximale Ausgabe-Tokens** des Profils, dem dokumentierten Ausgabelimit des Modells und 16.000 Tokens. korTTY kennt die Ausgabelimits der aktuellen Claude-Familien (Opus, Sonnet und Fable 5.x, Opus 4.6–4.8 und Sonnet 4.6 mit 128.000 Tokens; Opus 4.5, Sonnet 4.5 und Haiku 4.5 mit 64.000 Tokens); jedes andere Modell erhält 4.096 Tokens, sofern das Profil kein eigenes Limit setzt. Die Obergrenze von 16.000 Tokens gilt, weil korTTY Anthropic-Antworten noch nicht streamt und Anthropic für größere Ausgaben Streaming empfiehlt, damit eine lange Anfrage ohne Rückmeldung nicht abgebrochen wird. Ein Denkbudget wird immer strikt unterhalb des Limits eingepasst – verkleinert, wenn es zu wenig Platz für die Antwort ließe, und verworfen, wenn es unter Anthropics Minimum von 1.024 Tokens fiele. Lehnt die API eine Anfrage ab, weil `max_tokens` für das Modell zu hoch ist, wiederholt korTTY sie einmal mit dem im Fehler genannten Limit. Ist ein Anfrage-Timeout gesetzt, erhöht korTTY es bei einem großen Limit, damit die Antwort Zeit hat anzukommen (etwa 7,5 Minuten für 16.000 Tokens); ohne Timeout ändert sich nichts.
+
+Bei OpenAI-kompatiblen Endpunkten wird der Profilwert als `max_tokens` für jede Anfrage gesendet, die kein eigenes Aktionslimit hat.
 
 ### Bild-Eingabe (Vision)
 
