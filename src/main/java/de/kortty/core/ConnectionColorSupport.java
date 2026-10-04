@@ -10,8 +10,8 @@ import java.util.regex.Pattern;
 /**
  * The color that marks a connection's terminal tabs, for example red for production servers.
  * A connection stores it as {@code #RRGGBB} ({@link ServerConnection#getTabColor()}); a connection
- * without one can take the color of its stored credential's environment (see
- * {@link #effectiveTabColor}). Everything that shows a color reads it through {@link #normalizeHex},
+ * without one can take the color of its group, and else the color of its stored credential's
+ * environment (see {@link #effectiveTabColor}). Everything that shows a color reads it through {@link #normalizeHex},
  * so a value that is not a hex color (the field can arrive from a shared teamwork file) is ignored
  * instead of reaching the UI. Pure: no JavaFX.
  */
@@ -36,16 +36,24 @@ public final class ConnectionColorSupport {
     public enum Source {
         /** Set on the connection itself. */
         CONNECTION,
+        /** The color of the connection's group, or of the nearest group above it with one. */
+        GROUP,
         /** The color of the environment of the stored credential the tab signed in with. */
         ENVIRONMENT
     }
 
     /**
      * The color a terminal tab shows ({@code #RRGGBB}) and where it comes from;
-     * {@code environmentId} names the environment for {@link Source#ENVIRONMENT} and is
+     * {@code environmentId} names the environment for {@link Source#ENVIRONMENT} and
+     * {@code groupPath} the group that sets the color for {@link Source#GROUP}; both are
      * {@code null} otherwise.
      */
-    public record TabColor(String hex, Source source, String environmentId) {
+    public record TabColor(String hex, Source source, String environmentId, String groupPath) {
+
+        /** A color that does not come from a group. */
+        public TabColor(String hex, Source source, String environmentId) {
+            this(hex, source, environmentId, null);
+        }
     }
 
     private ConnectionColorSupport() {
@@ -94,15 +102,36 @@ public final class ConnectionColorSupport {
     }
 
     /**
+     * The color a terminal tab of {@code tabConnection} shows, or {@code null} for none, without
+     * group colors: {@link #effectiveTabColor(ServerConnection, Function, Function, Function, Function)}
+     * with no group color lookup.
+     */
+    public static TabColor effectiveTabColor(ServerConnection tabConnection,
+                                             Function<String, ServerConnection> savedById,
+                                             Function<String, String> credentialEnvironmentId,
+                                             Function<String, String> environmentColor) {
+        return effectiveTabColor(tabConnection, savedById, null, credentialEnvironmentId, environmentColor);
+    }
+
+    /**
      * The color a terminal tab of {@code tabConnection} shows, or {@code null} for none: the
-     * connection's own tab color first ({@link #tabColorOf}), else the color of the environment of
-     * the stored credential the tab signed in with. That credential is read from the tab's own
-     * connection: a teamwork default login or Quick Connect fills it into the tab's copy, and the
-     * saved connection with the same id does not name it (a teamwork connection names no
-     * credential). Only connections with a stored credential have an environment. A missing credential, an
-     * environment without a color and a stored value that is not a hex color all mean no color.
+     * connection's own tab color first ({@link #tabColorOf}), else the color of its group or of the
+     * nearest group above it with one ({@link ConnectionGroupColors#inherited}), else the color of
+     * the environment of the stored credential the tab signed in with. The group is the saved
+     * connection's, like the color, so moving a connection to another group in the Connection
+     * Manager recolors its open tabs; a connection that is not saved here (an unsaved Quick Connect
+     * session) uses its own. Group colors are set on your own groups and never apply to a
+     * {@link ServerConnection#isTeamworkConnection() teamwork} connection, whose group comes from the
+     * shared file. The credential is read from the tab's own connection: a teamwork default login
+     * or Quick Connect fills it into the tab's copy, and the saved connection with the same id does
+     * not name it (a teamwork connection names no credential). Only connections with a stored
+     * credential have an environment. A missing credential, an environment without a color and a
+     * stored value that is not a hex color all mean no color.
      *
      * @param savedById               looks a saved connection up by id; may return {@code null}
+     * @param groupColor              the stored tab color of the group with the given path
+     *                                ({@code Work/Production}), or {@code null}; {@code null} for no
+     *                                group colors
      * @param credentialEnvironmentId the environment id of the stored credential with the given id,
      *                                {@code null} when there is no such credential
      * @param environmentColor        the stored tab color of the environment with the given id, or
@@ -110,6 +139,7 @@ public final class ConnectionColorSupport {
      */
     public static TabColor effectiveTabColor(ServerConnection tabConnection,
                                              Function<String, ServerConnection> savedById,
+                                             Function<String, String> groupColor,
                                              Function<String, String> credentialEnvironmentId,
                                              Function<String, String> environmentColor) {
         if (tabConnection == null) {
@@ -118,6 +148,11 @@ public final class ConnectionColorSupport {
         String own = tabColorOf(tabConnection, savedById);
         if (own != null) {
             return new TabColor(own, Source.CONNECTION, null);
+        }
+        ConnectionGroupColors.Inherited fromGroup =
+                ConnectionGroupColors.inherited(groupOf(tabConnection, savedById), groupColor);
+        if (fromGroup != null) {
+            return new TabColor(fromGroup.hex(), Source.GROUP, null, fromGroup.groupPath());
         }
         String credentialId = tabConnection.getCredentialId();
         if (credentialId == null || credentialId.isBlank() || credentialEnvironmentId == null
@@ -130,6 +165,23 @@ public final class ConnectionColorSupport {
         }
         String color = normalizeHex(environmentColor.apply(environmentId));
         return color != null ? new TabColor(color, Source.ENVIRONMENT, environmentId) : null;
+    }
+
+    /**
+     * The group whose color a tab of {@code tabConnection} can take: the saved connection's group when
+     * the connection is saved here, else its own; {@code null} for a teamwork connection.
+     */
+    static String groupOf(ServerConnection tabConnection, Function<String, ServerConnection> savedById) {
+        if (tabConnection.isTeamworkConnection()) {
+            return null;
+        }
+        ServerConnection saved = tabConnection.getId() != null && savedById != null
+                ? savedById.apply(tabConnection.getId())
+                : null;
+        if (saved != null && saved.isTeamworkConnection()) {
+            return null;
+        }
+        return (saved != null ? saved : tabConnection).getGroup();
     }
 
     /**

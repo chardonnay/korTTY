@@ -72,6 +72,8 @@ When a command that ran at least 30 seconds finishes in a tab you are not lookin
 
 Add the snippet for your shell to its startup file on every computer whose shell you want marked: on each server you connect to with SSH, and on your own computer for local shell tabs. korTTY never changes files on a server and never types anything into an SSH session to set this up. Open a new shell, or reconnect the tab, after adding the snippet.
 
+For a local shell tab that runs bash, zsh or fish, korTTY can also do it for you without a snippet in your startup files: see [Adding it to local shells automatically](#local-shells).
+
 **Set Up Shell Integration…** opens a window with the snippets: from the right-click menu of a terminal whose shell sends no marks, or with the button of the same name in *Settings → Terminal → Shell integration*, which works while the setting is off too. It has a tab for bash, zsh and fish, each with where the snippet goes and the snippet itself, the same text as below.
 
 ![The Set Up Shell Integration window on its bash tab, with the snippet, where it goes and the Copy button](../assets/screenshots/main/shell-integration-setup.png)
@@ -79,6 +81,7 @@ Add the snippet for your shell to its startup file on every computer whose shell
 - **Copy** puts the snippet of the selected tab on the clipboard, ready to paste into the startup file in an editor on the server. Pasted at a shell prompt instead, it marks only that shell, until it exits. The copy goes through korTTY's clipboard, so with the enterprise policy's [internal clipboard mode](../reference/enterprise-policy.md#internal-clipboard-mode) the snippet stays inside korTTY, and the window says so: paste it into a korTTY terminal or editor then. You can also select part of the text and copy that.
 - The window opens on the shell you picked last, bash the first time. From the right-click menu of a local shell tab that runs bash, zsh or fish, it opens on that shell instead; korTTY cannot tell which shell a server runs, so for an SSH connection pick the shell yourself.
 - The window does not block the rest of korTTY, so it can stay open while you paste the snippet into a terminal. There is only one: opening it again brings it to the front. **Shell integration in the manual** at its bottom opens this page.
+- A line under its introduction points to **Add shell integration automatically**, with which korTTY adds the snippet to a local bash, zsh or fish by itself; see [Adding it to local shells automatically](#local-shells).
 
 Each snippet:
 
@@ -239,6 +242,28 @@ if status is-interactive; and test "$TERM" != dumb; and not set -q __kortty_si_l
     end
 end
 ```
+
+## Adding it to local shells automatically { #local-shells }
+
+For a local shell tab, korTTY can add shell integration itself, without a snippet in your startup files. Edit the connection and tick **Add shell integration automatically** under **Shell integration** on its **Connection** tab, below the start directory. It is off for every connection until you tick it, and it applies the next time the tab connects or reconnects, also to every pane you split off the tab.
+
+korTTY then starts the shell with a startup file of its own, a wrapper, which first runs the startup files the shell would have read anyway and then the same snippet as above:
+
+| Shell | How korTTY starts it | What the wrapper runs first |
+| --- | --- | --- |
+| bash | with `--rcfile` naming the wrapper | `~/.bashrc`; for a login bash (`-l` or `--login`, as the Git Bash and Cygwin choices start it), `/etc/profile` and the first of `~/.bash_profile`, `~/.bash_login` and `~/.profile` |
+| zsh | with `ZDOTDIR` naming the wrapper's folder | your `.zshenv`, `.zprofile` and `.zshrc` from your own `ZDOTDIR` or your home folder, also when your `.zshenv` moves `ZDOTDIR`; afterwards `ZDOTDIR` is yours again, so zsh reads your `.zlogin` itself and shells you start later never see the wrapper |
+| fish | with `--init-command`, which fish runs after its own configuration | `config.fish` and `conf.d`, as always |
+
+- Your startup files are never changed. The wrapper lives in `~/.kortty/shell-integration`, readable only by you, in a folder of its own for each shell, which korTTY deletes when the tab closes or the shell ends; a folder a crash left behind is deleted once it is a day old, when korTTY, started again, first starts a shell this way.
+- A startup file that already has korTTY's snippet does no harm: the snippet loads only once.
+- The snippet's own version limits still apply: the bash 3.2 that macOS ships as `/bin/bash` starts with the wrapper but gets no marks, so pick a newer bash, such as one from Homebrew, or zsh.
+- zsh reads its system-wide `/etc/zshenv` (`/etc/zsh/zshenv` on some Linux distributions) before the wrapper. If that file sets `ZDOTDIR` itself, zsh never reads the wrapper and starts as before; move the `ZDOTDIR` line into `~/.zshenv`, or add the snippet to your `.zshrc` by hand.
+- It works for bash, zsh and fish started with no other options than `-i`, `-l` and `--login`. With any other option, such as `-c`, `--norc` or a script, with another shell, or with a shell started through another program such as `env` or `tmux`, the shell starts exactly as you set it up, and the line under the box says why. On Windows the shell has to be named with its full path, as the Git Bash and Cygwin choices name it; PowerShell, cmd.exe and WSL cannot get it.
+- bash ignores `--rcfile` in a login shell, so a login bash is started as an interactive bash whose wrapper reads the login files: it then does not count as a login shell, and it does not read `~/.bash_logout` when it exits.
+- When korTTY runs from its Flatpak package, the wrapper is written where the host can read it and handed to the shell that `flatpak-spawn --host` starts. A connection without a shell command of its own starts your login shell on the host, and the host picks the wrapper for bash, zsh or fish.
+- It needs **Use the command marks of shells set up for shell integration (OSC 133)** in *Settings → Terminal*: while that is off, the shell starts as it is, and the line under the box says so.
+- korTTY never does this for SSH or Mosh connections and never types anything into a remote session: on a server, the snippet goes into the startup file as described under [Setting it up](#setting-it-up). A connection shared through [Teamwork](teamwork.md) never gets it either, whatever the shared file says, and an export leaves the choice behind, so it is only ever switched on on the computer the shell runs on.
 
 ## Limits
 

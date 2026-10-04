@@ -29,6 +29,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -91,6 +92,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private ComboBox<String> shellPresetCombo;
     private TextField customShellCommandField;
     private TextField shellWorkingDirField;
+    /** Add shell integration automatically; see {@link LocalShellIntegrationOption}. */
+    private CheckBox shellIntegrationAutoInjectCheck;
+    private Label shellIntegrationAutoInjectHint;
     
     // Connection-specific settings
     private CheckBox useCustomSettingsCheck;
@@ -121,6 +125,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     /** "Terminal behavior" section: whether this connection's tabs get a color dot, and its color. */
     private CheckBox tabColorCheck;
     private ColorPicker tabColorPicker;
+    /** "Terminal behavior" section: when this connection's pastes with line breaks ask. */
+    private ComboBox<PasteConnectionSupport.ModeChoice> pasteWarningModeCombo;
+    /** "Terminal behavior" section: whether this connection has its own pause after each pasted line, and which. */
+    private CheckBox pasteLineDelayCheck;
+    private Spinner<Integer> pasteLineDelaySpinner;
     
     // Terminal Logging
     private CheckBox enableLoggingCheck;
@@ -429,6 +438,20 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         connectionGrid.add(new Label(I18n.get("connEdit.shellWorkingDir")), 0, row);
         connectionGrid.add(shellWorkingDirField, 1, row++);
 
+        shellIntegrationAutoInjectCheck = new CheckBox(I18n.get("connEdit.shellIntegration.autoInject"));
+        shellIntegrationAutoInjectCheck.setSelected(connection.isShellIntegrationAutoInject());
+        shellIntegrationAutoInjectCheck.setTooltip(new Tooltip(I18n.get("connEdit.shellIntegration.autoInject.tooltip")));
+        shellIntegrationAutoInjectHint = new Label();
+        shellIntegrationAutoInjectHint.setStyle(MutedTextStyle.HINT);
+        shellIntegrationAutoInjectHint.setWrapText(true);
+        shellIntegrationAutoInjectHint.setMaxWidth(UiFontScaleSupport.scaleDimension(420, true));
+        shellIntegrationAutoInjectHint.setMinHeight(Region.USE_PREF_SIZE);
+        customShellCommandField.textProperty().addListener((obs, oldVal, newVal) -> updateShellIntegrationOption());
+        Label shellIntegrationLabel = new Label(I18n.get("connEdit.shellIntegration"));
+        shellIntegrationLabel.setLabelFor(shellIntegrationAutoInjectCheck);
+        connectionGrid.add(shellIntegrationLabel, 0, row);
+        connectionGrid.add(new VBox(4, shellIntegrationAutoInjectCheck, shellIntegrationAutoInjectHint), 1, row++);
+
         connectionGrid.add(new Label(I18n.get("connEdit.terminalEmulation")), 0, row);
         connectionGrid.add(terminalEmulationCombo, 1, row++);
 
@@ -599,6 +622,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     connection.setLocalShellCommand(effectiveShellCommand());
                     String workingDir = shellWorkingDirField.getText() != null ? shellWorkingDirField.getText().trim() : "";
                     connection.setLocalShellWorkingDirectory(workingDir.isEmpty() ? null : workingDir);
+                    connection.setShellIntegrationAutoInject(shellIntegrationAutoInjectCheck.isSelected());
                 }
                 connection.setTerminalEmulationType(TerminalEmulationSupport.storedValue(
                     TerminalEmulationComboBoxSupport.selectedEmulation(terminalEmulationCombo)));
@@ -709,6 +733,13 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 saveTerminalEffectSettings();
                 if (highlightRuleSetCombo != null) {
                     connection.setHighlightRuleSetId(HighlightConnectionSupport.storedValue(highlightRuleSetCombo.getValue()));
+                }
+                if (pasteWarningModeCombo != null) {
+                    connection.setPasteWarningMode(PasteConnectionSupport.storedMode(pasteWarningModeCombo.getValue()));
+                }
+                if (pasteLineDelayCheck != null && pasteLineDelaySpinner != null) {
+                    connection.setPasteLineDelayMs(PasteConnectionSupport.storedLineDelay(
+                        pasteLineDelayCheck.isSelected(), pasteLineDelaySpinner.getValue()));
                 }
                 
                 // Store the edited tunnels; an open tab of this connection applies them when the
@@ -1352,7 +1383,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     /**
      * The "Terminal behavior" section: settings of the connection's tabs and terminals that apply whether
      * or not the connection uses its own terminal settings, and also while terminal effects are switched
-     * off. Holds the tab colour and the keyword highlighting rule set of the connection's panes.
+     * off. Holds the tab colour, the keyword highlighting rule set of the connection's panes and their
+     * paste protection (warning mode and line delay).
      */
     private GridPane createTerminalBehaviorGrid() {
         String storedColor = ConnectionColorSupport.normalizeHex(connection.getTabColor());
@@ -1369,13 +1401,14 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         tabColorBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
 
         de.kortty.core.highlight.TerminalHighlightService service = terminalHighlightService();
-        String storedDefault = null;
+        GlobalSettings globalSettings = null;
         try {
-            GlobalSettings globalSettings = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
-            storedDefault = globalSettings != null ? globalSettings.getDefaultHighlightRuleSetId() : null;
+            globalSettings = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
         } catch (RuntimeException e) {
-            // No settings (a test or capture stage): the default entry then names no set.
+            // No settings (a test or capture stage): the default entries then name no set and the
+            // paste protection a fresh installation uses.
         }
+        String storedDefault = globalSettings != null ? globalSettings.getDefaultHighlightRuleSetId() : null;
         java.util.List<HighlightConnectionSupport.Choice> choices = HighlightConnectionSupport.choices(
                 HighlightSettingsSupport.selectableSetIds(service),
                 service != null && !service.isClosed() ? service::userSetName : null,
@@ -1390,6 +1423,37 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         Label highlightLabel = new Label(I18n.get(HighlightConnectionSupport.LABEL_KEY));
         highlightLabel.setTooltip(new Tooltip(I18n.get(HighlightConnectionSupport.TOOLTIP_KEY)));
         highlightLabel.setLabelFor(highlightRuleSetCombo);
+
+        de.kortty.paste.PasteWarningMode globalPasteMode = globalSettings != null
+                ? globalSettings.getPasteWarningMode() : de.kortty.paste.PasteWarningMode.DEFAULT;
+        int globalLineDelay = globalSettings != null ? globalSettings.getPasteLineDelayMs() : 0;
+        java.util.List<PasteConnectionSupport.ModeChoice> pasteModeChoices =
+                PasteConnectionSupport.modeChoices(globalPasteMode);
+        pasteWarningModeCombo = new ComboBox<>();
+        pasteWarningModeCombo.getItems().setAll(pasteModeChoices);
+        pasteWarningModeCombo.setValue(PasteConnectionSupport.selectedMode(pasteModeChoices, connection.getPasteWarningMode()));
+        pasteWarningModeCombo.setPrefWidth(280);
+        pasteWarningModeCombo.setTooltip(new Tooltip(I18n.get(PasteConnectionSupport.MODE_TOOLTIP_KEY)));
+        Label pasteModeLabel = new Label(I18n.get(PasteConnectionSupport.MODE_LABEL_KEY));
+        pasteModeLabel.setTooltip(new Tooltip(I18n.get(PasteConnectionSupport.MODE_TOOLTIP_KEY)));
+        pasteModeLabel.setLabelFor(pasteWarningModeCombo);
+
+        Integer storedLineDelay = connection.getPasteLineDelayMs();
+        pasteLineDelayCheck = new CheckBox(I18n.get(PasteConnectionSupport.DELAY_OVERRIDE_KEY, globalLineDelay));
+        pasteLineDelayCheck.setSelected(storedLineDelay != null);
+        pasteLineDelayCheck.setTooltip(new Tooltip(I18n.get(PasteConnectionSupport.DELAY_TOOLTIP_KEY)));
+        pasteLineDelaySpinner = new Spinner<>(0, de.kortty.paste.PastePacer.MAX_LINE_DELAY_MS,
+                PasteConnectionSupport.initialLineDelay(storedLineDelay, globalLineDelay), 10);
+        pasteLineDelaySpinner.setEditable(true);
+        pasteLineDelaySpinner.setPrefWidth(100);
+        pasteLineDelaySpinner.setTooltip(new Tooltip(I18n.get(PasteConnectionSupport.DELAY_TOOLTIP_KEY)));
+        pasteLineDelaySpinner.disableProperty().bind(pasteLineDelayCheck.selectedProperty().not());
+        HBox pasteLineDelayBox = new HBox(10, pasteLineDelayCheck, pasteLineDelaySpinner,
+                new Label(I18n.get(PasteConnectionSupport.DELAY_UNIT_KEY)));
+        pasteLineDelayBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        Label pasteLineDelayLabel = new Label(I18n.get(PasteConnectionSupport.DELAY_LABEL_KEY));
+        pasteLineDelayLabel.setTooltip(new Tooltip(I18n.get(PasteConnectionSupport.DELAY_TOOLTIP_KEY)));
+        pasteLineDelayLabel.setLabelFor(pasteLineDelaySpinner);
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -1406,7 +1470,17 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             Label disabledHint = new Label(I18n.get(HighlightConnectionSupport.DISABLED_KEY));
             disabledHint.setWrapText(true);
             disabledHint.setMaxWidth(520);
-            grid.add(disabledHint, 0, row, 2, 1);
+            grid.add(disabledHint, 0, row++, 2, 1);
+        }
+        grid.add(pasteModeLabel, 0, row);
+        grid.add(pasteWarningModeCombo, 1, row++);
+        grid.add(pasteLineDelayLabel, 0, row);
+        grid.add(pasteLineDelayBox, 1, row++);
+        if (connection.isTeamworkConnection()) {
+            Label teamworkHint = new Label(I18n.get(PasteConnectionSupport.TEAMWORK_KEY));
+            teamworkHint.setWrapText(true);
+            teamworkHint.setMaxWidth(520);
+            grid.add(teamworkHint, 0, row, 2, 1);
         }
         return grid;
     }
@@ -2021,6 +2095,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         shellWorkingDirField.setDisable(!local);
         customShellCommandField.setDisable(!local || !LocalShellPresetSupport.CUSTOM.equals(shellPresetCombo.getValue()));
 
+        updateShellIntegrationOption();
+
         hostField.setDisable(local);
         portSpinner.setDisable(local);
         usernameField.setDisable(local);
@@ -2047,6 +2123,35 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         }
     }
     
+    /**
+     * Whether <b>Add shell integration automatically</b> can be ticked for the protocol and shell the
+     * editor shows, and the line under it; the choice itself stays as ticked.
+     */
+    private void updateShellIntegrationOption() {
+        if (shellIntegrationAutoInjectCheck == null || protocolCombo == null || shellPresetCombo == null) {
+            return;
+        }
+        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+        LocalShellIntegrationOption.State state = LocalShellIntegrationOption.state(
+            local,
+            connection.isTeamworkConnection(),
+            local ? de.kortty.core.LocalShellTtyConnector.shellIntegrationSupport(effectiveShellCommand()) : null,
+            isShellIntegrationSwitchedOn());
+        shellIntegrationAutoInjectCheck.setDisable(!state.editable());
+        shellIntegrationAutoInjectHint.setText(I18n.get(state.hintKey()));
+    }
+
+    /** Settings → Terminal → Shell integration; on, its default, when the settings cannot be read. */
+    private static boolean isShellIntegrationSwitchedOn() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            return settings == null || settings.isShellIntegrationEnabled();
+        } catch (RuntimeException e) {
+            return true;
+        }
+    }
+
     private Tab createGeometryTab() {
         Tab tab = new Tab(I18n.get("connEdit.tab.geometry"));
         tab.setClosable(false);

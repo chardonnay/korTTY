@@ -839,8 +839,9 @@
 </span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>├── plugins/                           # Imported terminal-effect plugin JARs
 </span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
 </span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>├── projects/                          # Project files (.kortty)
-</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>├── i18n/                              # Generated language files (messages_*.properties)
-</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>├── session/                           # Session snapshots for Restore Previous Session (owner-only; not backed up)
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>├── i18n/                              # Generated language files (messages_*.properties)
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
 </span></code></pre></div>
 <h2 id="core-konfigurationsdateien">Core-Konfigurationsdateien<a class="headerlink" href="#core-konfigurationsdateien" title="Permanent link">&para;</a></h2>
 <h3 id="connectionsxml">connections.xml<a class="headerlink" href="#connectionsxml" title="Permanent link">&para;</a></h3>
@@ -859,6 +860,7 @@
 - Gruppen-/Ordnerorganisation
 - Optionaler Freitext-Tag (wird für Suche, Massen-Tagging und Tag-basierten Export verwendet)
 - Optionaler Regelsatz für die Hervorhebung von Schlüsselwörtern (<code>highlightRuleSetId</code>): die ID eines mitgelieferten oder eigenen Regelsatzes, <code>none</code> für keine Hervorhebung oder nicht vorhanden, um dem Standard-Regelsatz zu folgen (siehe <a href="../features/highlighting.html#regelsatz-pro-verbindung">Regelsatz pro Verbindung</a>). Verbindungen aus einer <a href="../features/teamwork.html">Teamarbeit</a>-Datei können ihn ebenfalls enthalten; die ID eines Regelsatzes, der auf Ihrem Computer nicht existiert, wird ignoriert.
+- Optionaler Einfügeschutz, der <em>Einstellungen → Terminal → Einfügeschutz</em> für diese Verbindung überschreibt: <code>pasteWarningMode</code> (<code>off</code>, <code>unless-bracketed</code> oder <code>always</code>) und <code>pasteLineDelayMs</code> (0 bis 1000; 0 fügt sofort ein). Fehlt ein Wert, gilt die globale Einstellung, und ein unbekannter Warnmodus zählt als fehlend (siehe <a href="../features/connections.html#einfugeschutz">Einfügeschutz</a>). Verbindungen aus einer <a href="../features/teamwork.html">Teamarbeit</a>-Datei können beide Werte enthalten, ihr Warnmodus gilt aber nur, wenn er häufiger nachfragt als Ihre eigene Einstellung.
 - Optionale Tab-Farbe (<code>tabColor</code>, <code>#RRGGBB</code>), die die Terminal-Tabs der Verbindung mit einem farbigen Punkt markiert; alles, was keine Hex-Farbe ist, wird ignoriert (siehe <a href="../features/connections.html#tab-farbe">Tab-Farbe</a>). Verbindungen aus einer <a href="../features/teamwork.html">Teamarbeit</a>-Datei können sie ebenfalls enthalten, sodass derjenige, der die Datei pflegt, entscheidet, wie diese Tabs markiert werden.</p>
 <p><strong>Sicherheit:</strong> Verbindungspasswörter werden mit AES-256-GCM unter Verwendung des Master-Passworts verschlüsselt.</p>
 <div class="admonition note">
@@ -919,9 +921,12 @@
 <li>Präferenz für die Sichtbarkeit der Menüleiste</li>
 <li>Dashboard-Sichtbarkeitsstatus</li>
 <li>Flag „Toolfenster als Registerkarten öffnen“.</li>
-<li><code>connectionColorBorderEnabled</code>: ob das Terminal einer Verbindung mit einer <a href="../features/connections.html#tab-farbe">Tab-Farbe</a> einen Rahmen in dieser Farbe erhält (standardmäßig aktiviert)</li>
+<li><code>connectionColorBorderEnabled</code>: ob das Terminal einer Verbindung mit einer <a href="../features/connections.html#tab-farbe">Tab-Farbe</a> einen Rahmen in dieser Farbe erhält und ein geteilter Bereich einer Verbindung mit einer anderen Farbe einen eigenen Rahmen (standardmäßig eingeschaltet)</li>
+<li><code>connectionGroupColors</code>: die <a href="../features/connections.html#tab-farbe">Tab-Farben der Connection-Manager-Ordner</a>, ein Eintrag <code>&lt;group path="Work/Production" color="#D32F2F"/&gt;</code> pro Ordner mit eigener Farbe; ein Eintrag, dessen Farbe keine Hex-Farbe ist, wird ignoriert, und ohne das Element hat kein Ordner eine Farbe</li>
 <li><code>tabTitleFromShellEnabled</code>: ob ein Terminal-Tab statt des Verbindungsnamens den <a href="../features/terminal.html#titel-aus-der-shell">Titel anzeigt, den seine Shell setzt</a> (standardmäßig aktiviert)</li>
 <li><code>tabSwitchMostRecentFirst</code>: ob <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> die Tabs in der Reihenfolge ihrer letzten Nutzung wechselt statt in ihrer <a href="settings/window.html#tabs">Reihenfolge in der Tab-Leiste</a> (standardmäßig aus)</li>
+<li><code>recentProjectPaths</code>: die absoluten Pfade der Projektdateien, die Sie zuletzt geöffnet oder gespeichert haben, die neueste zuerst, höchstens 10, die <a href="../features/projects.html#zuletzt-verwendet"><em>Datei → Zuletzt verwendet</em></a> auflistet; <code>openRecentClearedAt</code>: wann Sie dort zuletzt <strong>Liste leeren</strong> gewählt haben (Millisekunden seit 1970, <code>0</code> für nie)</li>
+<li><code>sessionRestoreMode</code>: was korTTY beim Start mit der <a href="../features/projects.html#beim-start">vorherigen Sitzung</a> macht: <code>ask</code> bietet sie in einer Leiste an (der Standard, auch bei fehlendem oder unbekanntem Wert), <code>auto</code> stellt sie wieder her, sobald kein Dialog offen ist, <code>off</code> tut nichts</li>
 <li><code>keyBindingOverrides</code>: Ihre eigenen <a href="settings/keyboard.html">Tastaturkürzel</a>, ein <code>binding</code>-Eintrag pro geändertem Befehl, z. B. <code>menu.view.commandPalette=Shortcut+Alt+P</code> oder <code>menu.view.dashboard=none</code>; ohne diesen Eintrag behält jeder Befehl sein Standardkürzel</li>
 <li>Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite</li>
 <li>JobScheduler-Statusanzeigeeinstellung</li>
@@ -1131,6 +1136,18 @@
 - Projektmetadaten und Erstellungszeitstempel</p>
 <p><strong>Zweck:</strong> Öffnen Sie schnell einen vorkonfigurierten Satz von Verbindungen für ein bestimmtes Projekt oder einen bestimmten Workflow.</p>
 <p><strong>Verwendung:</strong> Speichern Sie ein Projekt über <em>Datei &gt; Projekt speichern</em>, stellen Sie es über <em>Datei &gt; Projekt öffnen</em> oder das Projektverlaufsmenü wieder her.</p>
+<h3 id="session">session/<a class="headerlink" href="#session" title="Permanent link">&para;</a></h3>
+<p>Die Sitzungs-Snapshots, die korTTY während des Betriebs schreibt, damit <em>Datei &gt; Vorherige Sitzung wiederherstellen</em> Ihre Fenster und Tabs nach einem Neustart oder Absturz wieder öffnen kann (siehe <a href="../features/projects.html#vorherige-sitzung">Vorherige Sitzung</a>).</p>
+<p><strong>Dateien:</strong></p>
+<ul>
+<li><code>last-session.xml</code> — die offenen Fenster und Tabs des laufenden korTTY, ein paar Sekunden nach jeder Änderung und noch einmal beim Beenden von korTTY neu geschrieben, zusammen mit der Liste „Zuletzt geschlossen“</li>
+<li><code>previous-session.xml</code> — die Sitzung vor diesem Start, die <em>Vorherige Sitzung wiederherstellen</em> öffnet; bei jedem Start verschiebt korTTY <code>last-session.xml</code> hierher, aber nur, wenn diese Sitzung mindestens einen Tab hatte</li>
+<li><code>session.lock</code> — wird von dem korTTY gesperrt gehalten, das die Snapshots schreibt; ein zweites korTTY, das inzwischen gestartet wird, liest sie, schreibt aber nie</li>
+</ul>
+<p><strong>Format:</strong> XML. Die Fenster und Tabs werden wie ein <a href="#projekte">Projekt</a> mit Auto-Reconnect geschrieben; die Liste „Zuletzt geschlossen“ behält die ID der gespeicherten Verbindung jedes geschlossenen Tabs, seine Tab-Gruppe, seinen Namen und seinen Terminal-Effekt. Jeder Snapshot vermerkt außerdem, ob korTTY normal beendet wurde, ob dieser Lauf seine vorherige Sitzung wiederhergestellt hat und ob er danach noch eine Minute weiterlief; daran erkennt der nächste Start, dass korTTY direkt nach einer Wiederherstellung beendet wurde (siehe <a href="../features/projects.html#beim-start">Beim Start</a>). Solange das Angebot beim Start auf eine Antwort wartet, behält <code>last-session.xml</code> die angebotene Sitzung, sodass sie erneut angeboten wird, wenn korTTY beendet wird oder abstürzt, bevor Sie wählen.</p>
+<p><strong>Enthält keine</strong> Bildschirmtexte, Scrollback-Inhalte, Befehlszeitstempel, Passwörter oder temporären SSH-Schlüssel. Das Arbeitsverzeichnis eines geteilten Bereichs und ein Verweis auf gespeicherten Scrollback, die Projektdateien nie enthalten, können hier vorkommen; korTTY akzeptiert einen Scrollback-Verweis nur als reinen Namen.</p>
+<p><strong>Sicherheit:</strong> Das Verzeichnis und seine Dateien sind nur für den Eigentümer zugänglich (<code>rwx------</code> und <code>rw-------</code>) und werden atomar ersetzt. Ein Snapshot, der sich nicht parsen lässt, wird als <code>&lt;name&gt;.corrupt-&lt;timestamp&gt;</code> beiseitegelegt; einer, der sich nicht lesen lässt, bleibt an Ort und Stelle und wird bis zum nächsten Start nicht überschrieben.</p>
+<p><strong>Backup:</strong> Nicht in Konfigurationssicherungen enthalten: Die Snapshots beschreiben die Fenster dieses Computers.</p>
 <h3 id="i18n">i18n/<a class="headerlink" href="#i18n" title="Permanent link">&para;</a></h3>
 <p>Dynamisch generierte Sprachübersetzungsdateien.</p>
 <p><strong>Format:</strong> Java-Eigenschaftendateien (<code>.properties</code>)</p>

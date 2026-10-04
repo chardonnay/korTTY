@@ -60,7 +60,8 @@ class TerminalAttentionWiringTest {
         assertThat(tab).contains(
             "this.terminalView.setBellListener(widget -> TerminalAttentionNotifier.shared().onBell(this, widget));");
         assertThat(tab).contains("List.of(agentStatusBadge, attentionBadge), tabGroup, getEffectiveTitle(), effectiveSuffix)");
-        assertThat(tab).contains("connectionColorLine, attentionLine);");
+        assertWithMessage("the reason for the mark is the tooltip's last line, after the tab color and the panes of other colors")
+            .that(tab).contains("connectionColorLine, paneConnectionsLine, attentionLine);");
         assertThat(TerminalTab.ATTENTION_BADGE).isEqualTo("🔔");
     }
 

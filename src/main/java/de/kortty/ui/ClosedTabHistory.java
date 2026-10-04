@@ -11,10 +11,12 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * The terminal tabs the user closed in this session, newest first: what File › Reopen Closed Tab,
- * File › Recently Closed, the tab menu's Reopen Closed Tab and Cmd+Opt+Shift+T (Ctrl+Alt+Shift+T on
- * Windows and Linux) bring back. One history for the whole application, which
- * {@link MainWindow} keeps; FX thread only, in memory only, so it ends with korTTY.
+ * The terminal tabs the user closed, newest first: what File › Reopen Closed Tab, File › Recently
+ * Closed, the tab menu's Reopen Closed Tab and Cmd+Opt+Shift+T (Ctrl+Alt+Shift+T on Windows and
+ * Linux) bring back. One history for the whole application, which {@link MainWindow} keeps; FX
+ * thread only. The session snapshot keeps it across a restart as ids only (see
+ * {@link ClosedTabSnapshots}), so a tab whose connection is not saved does not come back after a
+ * restart.
  *
  * <p>An {@link Entry} is what one close took away: a single tab, the tabs one command closed
  * together, or the terminal tabs of a closed window. {@link RecentlyClosedRecorder} decides which
@@ -188,6 +190,25 @@ final class ClosedTabHistory {
     /** Forgets every entry (File › Recently Closed › Clear List). */
     void clear() {
         entries.clear();
+    }
+
+    /**
+     * Starts the history with {@code newestFirst}, the list the session snapshot of the last run kept
+     * (see {@link ClosedTabSnapshots}), when nothing was closed in this run yet; beyond
+     * {@link #MAX_ENTRIES} the oldest entries are forgotten.
+     *
+     * @return whether the entries were taken
+     */
+    boolean seed(List<Entry> newestFirst) {
+        Objects.requireNonNull(newestFirst, "newestFirst");
+        if (!entries.isEmpty()) {
+            return false;
+        }
+        for (Entry entry : newestFirst) {
+            entries.add(Objects.requireNonNull(entry, "entry"));
+        }
+        trim();
+        return true;
     }
 
     private void trim() {

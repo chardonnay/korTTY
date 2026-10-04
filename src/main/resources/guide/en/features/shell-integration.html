@@ -897,12 +897,14 @@
 <p>When a command that ran at least 30 seconds finishes in a tab you are not looking at, korTTY marks the tab with 🔔 and shows a desktop notification with the tab's name, the exit status and the runtime, for example <em>Command failed (exit 1) after 2 min 14 sec.</em> It never shows the command itself. <em>Settings → Terminal → Notifications</em> switches the notification off or changes the 30 seconds; see <a href="terminal-notifications.html#long-running-commands">Long-running commands</a> for the details.</p>
 <h2 id="setting-it-up">Setting it up<a class="headerlink" href="#setting-it-up" title="Permanent link">&para;</a></h2>
 <p>Add the snippet for your shell to its startup file on every computer whose shell you want marked: on each server you connect to with SSH, and on your own computer for local shell tabs. korTTY never changes files on a server and never types anything into an SSH session to set this up. Open a new shell, or reconnect the tab, after adding the snippet.</p>
+<p>For a local shell tab that runs bash, zsh or fish, korTTY can also do it for you without a snippet in your startup files: see <a href="#local-shells">Adding it to local shells automatically</a>.</p>
 <p><strong>Set Up Shell Integration…</strong> opens a window with the snippets: from the right-click menu of a terminal whose shell sends no marks, or with the button of the same name in <em>Settings → Terminal → Shell integration</em>, which works while the setting is off too. It has a tab for bash, zsh and fish, each with where the snippet goes and the snippet itself, the same text as below.</p>
 <p><img alt="The Set Up Shell Integration window on its bash tab, with the snippet, where it goes and the Copy button" src="../assets/screenshots/main/shell-integration-setup.png" /></p>
 <ul>
 <li><strong>Copy</strong> puts the snippet of the selected tab on the clipboard, ready to paste into the startup file in an editor on the server. Pasted at a shell prompt instead, it marks only that shell, until it exits. The copy goes through korTTY's clipboard, so with the enterprise policy's <a href="../reference/enterprise-policy.html#internal-clipboard-mode">internal clipboard mode</a> the snippet stays inside korTTY, and the window says so: paste it into a korTTY terminal or editor then. You can also select part of the text and copy that.</li>
 <li>The window opens on the shell you picked last, bash the first time. From the right-click menu of a local shell tab that runs bash, zsh or fish, it opens on that shell instead; korTTY cannot tell which shell a server runs, so for an SSH connection pick the shell yourself.</li>
 <li>The window does not block the rest of korTTY, so it can stay open while you paste the snippet into a terminal. There is only one: opening it again brings it to the front. <strong>Shell integration in the manual</strong> at its bottom opens this page.</li>
+<li>A line under its introduction points to <strong>Add shell integration automatically</strong>, with which korTTY adds the snippet to a local bash, zsh or fish by itself; see <a href="#local-shells">Adding it to local shells automatically</a>.</li>
 </ul>
 <p>Each snippet:</p>
 <ul>
@@ -1051,6 +1053,46 @@
 </span><span id="__span-2-28"><a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>    <span class="k">end</span>
 </span><span id="__span-2-29"><a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="k">end</span>
 </span></code></pre></div>
+<h2 id="local-shells">Adding it to local shells automatically<a class="headerlink" href="#local-shells" title="Permanent link">&para;</a></h2>
+<p>For a local shell tab, korTTY can add shell integration itself, without a snippet in your startup files. Edit the connection and tick <strong>Add shell integration automatically</strong> under <strong>Shell integration</strong> on its <strong>Connection</strong> tab, below the start directory. It is off for every connection until you tick it, and it applies the next time the tab connects or reconnects, also to every pane you split off the tab.</p>
+<p>korTTY then starts the shell with a startup file of its own, a wrapper, which first runs the startup files the shell would have read anyway and then the same snippet as above:</p>
+<table>
+<thead>
+<tr>
+<th>Shell</th>
+<th>How korTTY starts it</th>
+<th>What the wrapper runs first</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bash</td>
+<td>with <code>--rcfile</code> naming the wrapper</td>
+<td><code>~/.bashrc</code>; for a login bash (<code>-l</code> or <code>--login</code>, as the Git Bash and Cygwin choices start it), <code>/etc/profile</code> and the first of <code>~/.bash_profile</code>, <code>~/.bash_login</code> and <code>~/.profile</code></td>
+</tr>
+<tr>
+<td>zsh</td>
+<td>with <code>ZDOTDIR</code> naming the wrapper's folder</td>
+<td>your <code>.zshenv</code>, <code>.zprofile</code> and <code>.zshrc</code> from your own <code>ZDOTDIR</code> or your home folder, also when your <code>.zshenv</code> moves <code>ZDOTDIR</code>; afterwards <code>ZDOTDIR</code> is yours again, so zsh reads your <code>.zlogin</code> itself and shells you start later never see the wrapper</td>
+</tr>
+<tr>
+<td>fish</td>
+<td>with <code>--init-command</code>, which fish runs after its own configuration</td>
+<td><code>config.fish</code> and <code>conf.d</code>, as always</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Your startup files are never changed. The wrapper lives in <code>~/.kortty/shell-integration</code>, readable only by you, in a folder of its own for each shell, which korTTY deletes when the tab closes or the shell ends; a folder a crash left behind is deleted once it is a day old, when korTTY, started again, first starts a shell this way.</li>
+<li>A startup file that already has korTTY's snippet does no harm: the snippet loads only once.</li>
+<li>The snippet's own version limits still apply: the bash 3.2 that macOS ships as <code>/bin/bash</code> starts with the wrapper but gets no marks, so pick a newer bash, such as one from Homebrew, or zsh.</li>
+<li>zsh reads its system-wide <code>/etc/zshenv</code> (<code>/etc/zsh/zshenv</code> on some Linux distributions) before the wrapper. If that file sets <code>ZDOTDIR</code> itself, zsh never reads the wrapper and starts as before; move the <code>ZDOTDIR</code> line into <code>~/.zshenv</code>, or add the snippet to your <code>.zshrc</code> by hand.</li>
+<li>It works for bash, zsh and fish started with no other options than <code>-i</code>, <code>-l</code> and <code>--login</code>. With any other option, such as <code>-c</code>, <code>--norc</code> or a script, with another shell, or with a shell started through another program such as <code>env</code> or <code>tmux</code>, the shell starts exactly as you set it up, and the line under the box says why. On Windows the shell has to be named with its full path, as the Git Bash and Cygwin choices name it; PowerShell, cmd.exe and WSL cannot get it.</li>
+<li>bash ignores <code>--rcfile</code> in a login shell, so a login bash is started as an interactive bash whose wrapper reads the login files: it then does not count as a login shell, and it does not read <code>~/.bash_logout</code> when it exits.</li>
+<li>When korTTY runs from its Flatpak package, the wrapper is written where the host can read it and handed to the shell that <code>flatpak-spawn --host</code> starts. A connection without a shell command of its own starts your login shell on the host, and the host picks the wrapper for bash, zsh or fish.</li>
+<li>It needs <strong>Use the command marks of shells set up for shell integration (OSC 133)</strong> in <em>Settings → Terminal</em>: while that is off, the shell starts as it is, and the line under the box says so.</li>
+<li>korTTY never does this for SSH or Mosh connections and never types anything into a remote session: on a server, the snippet goes into the startup file as described under <a href="#setting-it-up">Setting it up</a>. A connection shared through <a href="teamwork.html">Teamwork</a> never gets it either, whatever the shared file says, and an export leaves the choice behind, so it is only ever switched on on the computer the shell runs on.</li>
+</ul>
 <h2 id="limits">Limits<a class="headerlink" href="#limits" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>tmux and screen</strong> do not pass the marks on, so a shell inside them has none. Run the shell outside tmux, or set up tmux's own prompt navigation.</li>

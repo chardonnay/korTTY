@@ -27,8 +27,10 @@ public class ServerConnectionCopyPolicyTest {
 
     private static final Set<String> DUPLICATE_CARRIED = Set.of(
             "highlightRuleSetId",                                          // keyword highlighting rule set
+            "pasteWarningMode", "pasteLineDelayMs",                        // per-connection paste protection
             "host", "port", "username", "protocol", "localShellCommand",
             "localShellWorkingDirectory", "authMethod", "privateKeyPath",
+            "shellIntegrationAutoInject",                                  // a duplicate runs the same local shell
             "terminalEffectPluginId", "terminalEffectAnimationSpeed", "terminalEmulationType",
             "encoding", "group", "tag", "tabColor", "disableHostKeyCheck", "aiProfileId", "aiSkillIds",
             "settings");
@@ -48,7 +50,8 @@ public class ServerConnectionCopyPolicyTest {
             "name", "host", "port", "group", "tag", "tabColor", "protocol", "localShellCommand",
             "localShellWorkingDirectory", "authMethod", "privateKeyPath", "sshKeyId",
             "disableHostKeyCheck", "terminalEffectPluginId", "terminalEffectAnimationSpeed",
-            "terminalEmulationType", "encoding", "highlightRuleSetId", "settings");
+            "terminalEmulationType", "encoding", "highlightRuleSetId", "pasteWarningMode", "pasteLineDelayMs",
+            "settings");
 
     /** Exported only when the matching export-dialog checkbox is set. */
     private static final Set<String> EXPORT_CONDITIONAL = Set.of(
@@ -60,7 +63,10 @@ public class ServerConnectionCopyPolicyTest {
             "logConfig", "sessionJournalConfig", "connectionTimeoutSeconds", "retryCount",
             "temporaryKeyContent", "temporaryKeyExpirationMinutes", "temporaryKeyPermanent",
             "connectionSource", "teamworkSourceId", "teamworkVersionToken", "teamworkRole",
-            "aiProfileId", "aiSkillIds");
+            "aiProfileId", "aiSkillIds",
+            // Set on the computer the shell runs on: an imported or shared file never switches on
+            // korTTY's shell-integration wrapper.
+            "shellIntegrationAutoInject");
 
     /**
      * Read back from an exported file except for the host-key check override, which the import has

@@ -39,6 +39,27 @@ class FlatpakSupportTest {
     }
 
     @Test
+    void forwardsOnlyTheNamedVariablesThatAreSet() {
+        List<String> wrapped = FlatpakSupport.hostCommand(
+            List.of("/usr/bin/zsh"),
+            null,
+            Map.of(
+                "FLATPAK_ID", FlatpakSupport.APP_ID,
+                "TERM", "xterm-256color",
+                "ZDOTDIR", "/home/ada/.kortty/shell-integration/tab-1/zsh",
+                "SECRET", "must-not-leak"),
+            List.of("ZDOTDIR", "KORTTY_SI_ZDOTDIR", "TERM", "BAD NAME"));
+
+        assertThat(wrapped).containsExactly(
+            "flatpak-spawn",
+            "--host",
+            "--watch-bus",
+            "--env=TERM=xterm-256color",
+            "--env=ZDOTDIR=/home/ada/.kortty/shell-integration/tab-1/zsh",
+            "/usr/bin/zsh").inOrder();
+    }
+
+    @Test
     void leavesCommandUntouchedOutsideFlatpak() {
         assertThat(FlatpakSupport.hostCommand(List.of("bash", "-l"), "/tmp", Map.of()))
             .containsExactly("bash", "-l").inOrder();

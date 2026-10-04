@@ -152,6 +152,34 @@ class ConfigurationManagerLockedLoadTest {
     }
 
     @Test
+    void aTemporaryKeyCountsAsLockedUntilTheUnlockOrANewAuthentication() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-locked-query");
+        try {
+            SecretKey key = deriveTestKey();
+            String id = seedTemporaryKeyConnection(dir, key);
+
+            ConfigurationManager unlocked = new ConfigurationManager(dir);
+            unlocked.load(key);
+            assertThat(unlocked.hasLockedTemporaryKey(id)).isFalse();
+
+            ConfigurationManager locked = new ConfigurationManager(dir);
+            locked.load(null);
+            assertThat(locked.hasLockedTemporaryKey(id)).isTrue();
+            assertThat(locked.hasLockedTemporaryKey(null)).isFalse();
+            assertThat(locked.hasLockedTemporaryKey("no-such-connection")).isFalse();
+            locked.onVaultUnlocked(key);
+            assertThat(locked.hasLockedTemporaryKey(id)).isFalse();
+
+            ConfigurationManager reauthenticated = new ConfigurationManager(dir);
+            reauthenticated.load(null);
+            reauthenticated.getConnectionById(id).setAuthMethod(AuthMethod.PASSWORD);
+            assertThat(reauthenticated.hasLockedTemporaryKey(id)).isFalse();
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    @Test
     void unlockedLoadHasNothingToRestore() throws Exception {
         Path dir = Files.createTempDirectory("kortty-unlocked-load");
         try {

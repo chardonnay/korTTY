@@ -15,9 +15,11 @@ import java.util.Set;
  * @param source where the text came from
  * @param broadcastActive whether broadcast mode was on in the pane's tab; the paste still goes to
  *     this pane only
+ * @param setByConnection whether the pane's connection sets its own paste warning
+ *     ({@link PasteRules#setByConnection()}), so the user changes it there and not in Settings
  */
 public record PasteConfirmationRequest(String label, String text, Set<PasteReason> reasons, boolean bracketed,
-        PasteSource source, boolean broadcastActive) {
+        PasteSource source, boolean broadcastActive, boolean setByConnection) {
 
     public PasteConfirmationRequest {
         label = label == null ? "" : label;
@@ -25,5 +27,11 @@ public record PasteConfirmationRequest(String label, String text, Set<PasteReaso
         // In the enum's order, so a confirmation lists the reasons the same way every time.
         reasons = reasons.isEmpty() ? Set.of() : Collections.unmodifiableSet(EnumSet.copyOf(reasons));
         Objects.requireNonNull(source, "source");
+    }
+
+    /** A request for a pane whose paste protection comes from Settings → Terminal. */
+    public PasteConfirmationRequest(String label, String text, Set<PasteReason> reasons, boolean bracketed,
+            PasteSource source, boolean broadcastActive) {
+        this(label, text, reasons, bracketed, source, broadcastActive, false);
     }
 }

@@ -38,6 +38,9 @@ class TabColorPresentationTest {
 
     private static final Path UI_ROOT = Path.of("src/main/java/de/kortty/ui");
 
+    private static final String SHOW_CONNECTION_COLOR = "private void showConnectionColor(String color, "
+            + "ConnectionColorSupport.Source source, String sourceName,\n                                     boolean showFrame) {";
+
     private static final List<String> BUNDLES = List.of(
             "messages.properties",
             "messages_de.properties",
@@ -191,10 +194,15 @@ class TabColorPresentationTest {
         assertThat(refresh).contains("for (MainWindow window : new ArrayList<>(openWindows)) {");
         assertThat(refresh).contains("window.applyConnectionColor(terminalTab);");
         String apply = methodBody(window, "private void applyConnectionColor(TerminalTab tab) {");
-        assertThat(apply).contains("ConnectionColorSupport.effectiveTabColor(");
-        assertThat(apply).contains("this::credentialEnvironmentId, this::environmentColor");
-        assertThat(apply).contains("TabColorPresentation.environmentLabel(");
+        assertThat(apply).contains("effectiveTabColor(tab.getConnection())");
+        assertThat(apply).contains("colorSourceName(color)");
         assertThat(apply).contains("TabColorPresentation.frameEnabled(app.getGlobalSettingsManager().getSettings())");
+        String resolve = methodBody(window,
+                "private ConnectionColorSupport.TabColor effectiveTabColor(ServerConnection connection) {");
+        assertThat(resolve).contains("ConnectionColorSupport.effectiveTabColor(");
+        assertThat(resolve).contains("this::credentialEnvironmentId, this::environmentColor");
+        assertThat(methodBody(window, "private String colorSourceName(ConnectionColorSupport.TabColor color) {"))
+                .contains("TabColorPresentation.environmentLabel(");
         assertThat(methodBody(window, "private String credentialEnvironmentId(String credentialId) {"))
                 .contains(".map(StoredCredential::getEnvironmentId)");
         assertThat(methodBody(window, "private String environmentColor(String environmentId) {"))
@@ -251,26 +259,52 @@ class TabColorPresentationTest {
         String tab = source("TerminalTab.java");
 
         String show = methodBody(tab,
-                "private void showConnectionColor(String color, String environmentName, boolean showFrame) {");
+                SHOW_CONNECTION_COLOR);
         assertWithMessage("the tab style shows the connection status; the retry looks for #8B0000 in it")
                 .that(show).doesNotContain("setStyle");
         assertThat(show).contains("setGraphic(");
         assertWithMessage("the color line goes into the one tooltip the tab has, next to a shell-title note")
                 .that(show).contains("refreshTooltip();");
         assertThat(methodBody(tab, "private void refreshTooltip() {")).contains("setTooltip(");
-        assertThat(methodBody(tab,
-                "public void applyConnectionColor(String hex, String environmentName, boolean showFrame) {"))
+        assertThat(methodBody(tab, "public void applyConnectionColor(String hex, ConnectionColorSupport.Source source, "
+                + "String sourceName,\n                                     boolean showFrame) {"))
                 .contains("ConnectionColorSupport.normalizeHex(hex)");
     }
 
     @Test
-    void theTooltipSaysWhetherTheColorIsTheConnectionsOrTheEnvironments() throws IOException {
-        String show = methodBody(source("TerminalTab.java"),
-                "private void showConnectionColor(String color, String environmentName, boolean showFrame) {");
+    void theTooltipSaysWhetherTheColorIsTheConnectionsTheGroupsOrTheEnvironments() throws IOException {
+        String show = methodBody(source("TerminalTab.java"), SHOW_CONNECTION_COLOR);
 
-        assertThat(show).contains("environmentName == null");
-        assertThat(show).contains("I18n.get(\"tab.tooltip.connectionColor\", family, color)");
-        assertThat(show).contains("I18n.get(\"tab.tooltip.environmentColor\", family, color, environmentName)");
+        assertThat(show).contains("TabColorPresentation.colorLine(source, sourceName, family, color)");
+        assertThat(TabColorPresentation.colorLineKey(ConnectionColorSupport.Source.CONNECTION))
+                .isEqualTo("tab.tooltip.connectionColor");
+        assertThat(TabColorPresentation.colorLineKey(null)).isEqualTo("tab.tooltip.connectionColor");
+        assertThat(TabColorPresentation.colorLineKey(ConnectionColorSupport.Source.GROUP))
+                .isEqualTo("tab.tooltip.groupColor");
+        assertThat(TabColorPresentation.colorLineKey(ConnectionColorSupport.Source.ENVIRONMENT))
+                .isEqualTo("tab.tooltip.environmentColor");
+    }
+
+    @Test
+    void theTooltipLineNamesTheGroupOrTheEnvironmentTheColorComesFrom() throws IOException {
+        assertThat(TabColorPresentation.colorLine(ConnectionColorSupport.Source.CONNECTION, "ignored", "red", "#D32F2F"))
+                .isEqualTo(I18n.get("tab.tooltip.connectionColor", "red", "#D32F2F"));
+        String group = TabColorPresentation.colorLine(ConnectionColorSupport.Source.GROUP, "Work/Production", "red", "#D32F2F");
+        assertThat(group).isEqualTo(I18n.get("tab.tooltip.groupColor", "red", "#D32F2F", "Work/Production"));
+        assertThat(group).contains("Work/Production");
+        assertThat(group).contains("#D32F2F");
+        assertThat(TabColorPresentation.colorLine(ConnectionColorSupport.Source.ENVIRONMENT, "Production", "red", "#D32F2F"))
+                .isEqualTo(I18n.get("tab.tooltip.environmentColor", "red", "#D32F2F", "Production"));
+        assertThat(loadBundle("messages.properties").getProperty("tab.tooltip.groupColor"))
+                .isEqualTo("Tab color: {0} ({1}), from the group {2}");
+    }
+
+    @Test
+    void theGroupPathInTheTooltipIsCleanedAndCapped() {
+        assertThat(TabColorPresentation.groupLabel("Work/Production")).isEqualTo("Work/Production");
+        assertThat(TabColorPresentation.groupLabel("Work/\u202EProd\007")).isEqualTo("Work/Prod");
+        assertThat(TabColorPresentation.groupLabel("x".repeat(200)))
+                .hasLength(TabColorPresentation.MAX_GROUP_NAME_LENGTH);
     }
 
     @Test
@@ -278,7 +312,7 @@ class TabColorPresentationTest {
         String tab = source("TerminalTab.java");
 
         String show = methodBody(tab,
-                "private void showConnectionColor(String color, String environmentName, boolean showFrame) {");
+                SHOW_CONNECTION_COLOR);
         assertThat(show).contains("TabColorPresentation.frameFor(color, showFrame)");
         assertThat(show).contains("content.setBorder(frame);");
         assertWithMessage("the terminal view's style belongs to the see-through window mode")

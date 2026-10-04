@@ -76,7 +76,11 @@ class BackupCoverageTest {
         Map.entry("TeamworkRecycleBinService.RECYCLE_FILE", "teamwork state, re-synced"),
         Map.entry("TelemetryService.SPOOL_FILE", "unsent telemetry spool"),
         Map.entry("SshTunnelApprovals.STORE_FILE_NAME",
-            "per-device consent: after a restore, tunnels ask once more before they listen"));
+            "per-device consent: after a restore, tunnels ask once more before they listen"),
+        Map.entry("SessionSnapshotStore.SNAPSHOT_FILE",
+            "per-device session state in ~/.kortty/session/, rewritten while korTTY runs"),
+        Map.entry("SessionSnapshotStore.PREVIOUS_FILE",
+            "per-device session state in ~/.kortty/session/; a restored backup must not reopen another device's tabs"));
 
     /** Files in ~/.kortty that must never end up in a backup archive. */
     private static final List<String> NEVER_BACKED_UP = List.of(
@@ -87,7 +91,9 @@ class BackupCoverageTest {
         "telemetry-spool.json",
         "teamwork-cache.xml",
         "journal-search-visited.xml",
-        "kortty-policy.toml");
+        "kortty-policy.toml",
+        SessionSnapshotStore.DIRECTORY_NAME + "/" + SessionSnapshotStore.SNAPSHOT_FILE,
+        SessionSnapshotStore.DIRECTORY_NAME + "/" + SessionSnapshotStore.PREVIOUS_FILE);
 
     @Test
     void everyPersistedStoreFileIsClassified() throws IOException {
@@ -137,6 +143,8 @@ class BackupCoverageTest {
             assertWithMessage(file + " must not be backed up")
                 .that(BackupManager.managedBackupFiles()).doesNotContain(file);
         }
+        assertWithMessage("the session snapshots are per-device state")
+            .that(BackupManager.managedBackupDirectories()).doesNotContain(SessionSnapshotStore.DIRECTORY_NAME);
     }
 
     @Test

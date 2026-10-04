@@ -897,12 +897,14 @@
 <p>Wenn ein Befehl, der mindestens 30 Sekunden lief, in einem Tab endet, den Sie gerade nicht ansehen, markiert korTTY den Tab mit 🔔 und zeigt eine Desktop-Benachrichtigung mit dem Namen des Tabs, dem Exit-Status und der Laufzeit, zum Beispiel <em>Befehl fehlgeschlagen (Exit-Status 1) nach 2 Min. 14 Sek.</em> Den Befehl selbst zeigt sie nie. <em>Einstellungen → Terminal → Benachrichtigungen</em> schaltet die Benachrichtigung aus oder ändert die 30 Sekunden; Einzelheiten unter <a href="terminal-notifications.html#lange-laufende-befehle">Lange laufende Befehle</a>.</p>
 <h2 id="setting-it-up">Einrichten<a class="headerlink" href="#setting-it-up" title="Permanent link">&para;</a></h2>
 <p>Fügen Sie das Snippet für Ihre Shell auf jedem Computer, dessen Shell markiert werden soll, in ihre Startdatei ein: auf jedem Server, mit dem Sie sich per SSH verbinden, und auf Ihrem eigenen Computer für lokale Shell-Tabs. korTTY ändert nie Dateien auf einem Server und tippt nie etwas in eine SSH-Sitzung, um das einzurichten. Öffnen Sie nach dem Hinzufügen des Snippets eine neue Shell oder verbinden Sie den Tab neu.</p>
+<p>Für einen lokalen Shell-Tab mit bash, zsh oder fish kann korTTY das auch für Sie erledigen, ohne ein Snippet in Ihren Startdateien: siehe <a href="#local-shells">Automatisch zu lokalen Shells hinzufügen</a>.</p>
 <p><strong>Shell-Integration einrichten…</strong> öffnet ein Fenster mit den Snippets: aus dem Rechtsklickmenü eines Terminals, dessen Shell keine Markierungen sendet, oder über die gleichnamige Schaltfläche in <em>Einstellungen → Terminal → Shell-Integration</em>, die auch bei ausgeschalteter Einstellung funktioniert. Es hat je einen Tab für bash, zsh und fish, jeweils mit dem Ort, an den das Snippet gehört, und dem Snippet selbst, demselben Text wie unten.</p>
 <p><img alt="Das Fenster Shell-Integration einrichten auf seinem Tab bash, mit dem Snippet, seinem Speicherort und der Schaltfläche Kopieren" src="../assets/screenshots/main/shell-integration-setup.png" /></p>
 <ul>
 <li><strong>Kopieren</strong> legt das Snippet des ausgewählten Tabs in die Zwischenablage, bereit zum Einfügen in die Startdatei in einem Editor auf dem Server. Stattdessen an einem Shell-Prompt eingefügt, markiert es nur diese Shell, bis sie beendet wird. Die Kopie läuft über die Zwischenablage von korTTY, sodass das Snippet mit dem <a href="../reference/enterprise-policy.html#interner-zwischenablagemodus">internen Zwischenablagemodus</a> der Unternehmensrichtlinie innerhalb von korTTY bleibt, und das Fenster weist darauf hin: Fügen Sie es dann in ein Terminal oder einen Editor von korTTY ein. Sie können auch einen Teil des Textes auswählen und diesen kopieren.</li>
 <li>Das Fenster öffnet sich mit der zuletzt gewählten Shell, beim ersten Mal mit bash. Aus dem Rechtsklickmenü eines lokalen Shell-Tabs, in dem bash, zsh oder fish läuft, öffnet es sich stattdessen mit dieser Shell; korTTY kann nicht erkennen, welche Shell auf einem Server läuft, wählen Sie die Shell für eine SSH-Verbindung daher selbst.</li>
 <li>Das Fenster blockiert den Rest von korTTY nicht und kann daher geöffnet bleiben, während Sie das Snippet in ein Terminal einfügen. Es gibt nur eines: Erneutes Öffnen holt es in den Vordergrund. <strong>Shell-Integration in der Anleitung</strong> an seinem unteren Rand öffnet diese Seite.</li>
+<li>Eine Zeile unter seiner Einleitung verweist auf <strong>Shell-Integration automatisch hinzufügen</strong>, mit dem korTTY das Snippet selbst zu einer lokalen bash, zsh oder fish hinzufügt; siehe <a href="#local-shells">Automatisch zu lokalen Shells hinzufügen</a>.</li>
 </ul>
 <p>Jedes Snippet:</p>
 <ul>
@@ -1051,6 +1053,46 @@
 </span><span id="__span-2-28"><a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>    <span class="k">end</span>
 </span><span id="__span-2-29"><a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="k">end</span>
 </span></code></pre></div>
+<h2 id="local-shells">Automatisch zu lokalen Shells hinzufügen<a class="headerlink" href="#local-shells" title="Permanent link">&para;</a></h2>
+<p>Für einen lokalen Shell-Tab kann korTTY die Shell-Integration selbst hinzufügen, ohne ein Snippet in Ihren Startdateien. Bearbeiten Sie die Verbindung und kreuzen Sie auf ihrem Tab <strong>Verbindung</strong> unter <strong>Shell-Integration</strong>, unterhalb des Startverzeichnisses, <strong>Shell-Integration automatisch hinzufügen</strong> an. Die Option ist für jede Verbindung ausgeschaltet, bis Sie sie ankreuzen, und wirkt, sobald sich der Tab das nächste Mal verbindet oder neu verbindet, auch für jeden Bereich, den Sie vom Tab abteilen.</p>
+<p>korTTY startet dann die Shell mit einer eigenen Startdatei, einem Wrapper, der zunächst die Startdateien ausführt, die die Shell ohnehin gelesen hätte, und anschließend das gleiche Snippet wie oben:</p>
+<table>
+<thead>
+<tr>
+<th>Shell</th>
+<th>Wie korTTY sie startet</th>
+<th>Was der Wrapper zuerst ausführt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bash</td>
+<td>mit <code>--rcfile</code>, das den Wrapper nennt</td>
+<td><code>~/.bashrc</code>; bei einer Login-bash (<code>-l</code> oder <code>--login</code>, wie die Auswahlen Git Bash und Cygwin sie starten) <code>/etc/profile</code> und die erste von <code>~/.bash_profile</code>, <code>~/.bash_login</code> und <code>~/.profile</code></td>
+</tr>
+<tr>
+<td>zsh</td>
+<td>mit <code>ZDOTDIR</code>, das den Ordner des Wrappers nennt</td>
+<td>Ihre <code>.zshenv</code>, <code>.zprofile</code> und <code>.zshrc</code> aus Ihrem eigenen <code>ZDOTDIR</code> oder Ihrem Home-Verzeichnis, auch wenn Ihre <code>.zshenv</code> <code>ZDOTDIR</code> verlegt; danach gehört <code>ZDOTDIR</code> wieder Ihnen, sodass zsh Ihre <code>.zlogin</code> selbst liest und später gestartete Shells den Wrapper nie sehen</td>
+</tr>
+<tr>
+<td>fish</td>
+<td>mit <code>--init-command</code>, das fish nach seiner eigenen Konfiguration ausführt</td>
+<td><code>config.fish</code> und <code>conf.d</code>, wie immer</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Ihre Startdateien werden nie geändert. Der Wrapper liegt in <code>~/.kortty/shell-integration</code>, nur für Sie lesbar, in einem eigenen Ordner pro Shell, den korTTY löscht, wenn der Tab geschlossen wird oder die Shell endet; einen Ordner, den ein Absturz zurückgelassen hat, löscht korTTY, sobald er einen Tag alt ist, wenn es nach einem Neustart zum ersten Mal eine Shell auf diese Weise startet.</li>
+<li>Eine Startdatei, die das Snippet von korTTY bereits enthält, schadet nicht: Das Snippet wird nur einmal geladen.</li>
+<li>Die Versionsgrenzen des Snippets selbst gelten weiterhin: Die bash 3.2, die macOS als <code>/bin/bash</code> mitliefert, startet mit dem Wrapper, erhält aber keine Markierungen; wählen Sie daher eine neuere bash, etwa eine aus Homebrew, oder zsh.</li>
+<li>zsh liest seine systemweite <code>/etc/zshenv</code> (<code>/etc/zsh/zshenv</code> bei einigen Linux-Distributionen) vor dem Wrapper. Setzt diese Datei <code>ZDOTDIR</code> selbst, liest zsh den Wrapper nie und startet wie bisher; verschieben Sie die <code>ZDOTDIR</code>-Zeile in <code>~/.zshenv</code>, oder fügen Sie das Snippet von Hand in Ihre <code>.zshrc</code> ein.</li>
+<li>Es funktioniert für bash, zsh und fish, die mit keinen anderen Optionen als <code>-i</code>, <code>-l</code> und <code>--login</code> gestartet werden. Mit jeder anderen Option, etwa <code>-c</code>, <code>--norc</code> oder einem Skript, mit einer anderen Shell oder mit einer Shell, die über ein anderes Programm wie <code>env</code> oder <code>tmux</code> gestartet wird, startet die Shell genau so, wie Sie sie eingerichtet haben, und die Zeile unter dem Kontrollkästchen sagt, warum. Unter Windows muss die Shell mit ihrem vollständigen Pfad angegeben sein, wie die Auswahlen Git Bash und Cygwin sie angeben; PowerShell, cmd.exe und WSL können es nicht erhalten.</li>
+<li>bash ignoriert <code>--rcfile</code> in einer Login-Shell, daher wird eine Login-bash als interaktive bash gestartet, deren Wrapper die Login-Dateien liest: Sie gilt dann nicht als Login-Shell und liest beim Beenden <code>~/.bash_logout</code> nicht.</li>
+<li>Läuft korTTY aus seinem Flatpak-Paket, wird der Wrapper dorthin geschrieben, wo der Host ihn lesen kann, und an die Shell übergeben, die <code>flatpak-spawn --host</code> startet. Eine Verbindung ohne eigenen Shell-Befehl startet Ihre Login-Shell auf dem Host, und der Host wählt den Wrapper für bash, zsh oder fish.</li>
+<li>Es benötigt <strong>Befehlsmarkierungen von Shells mit eingerichteter Shell-Integration nutzen (OSC 133)</strong> in <em>Einstellungen → Terminal</em>: Solange das ausgeschaltet ist, startet die Shell unverändert, und die Zeile unter dem Kontrollkästchen sagt das.</li>
+<li>korTTY tut dies nie für SSH- oder Mosh-Verbindungen und tippt nie etwas in eine Remote-Sitzung: Auf einem Server kommt das Snippet in die Startdatei, wie unter <a href="#setting-it-up">Einrichten</a> beschrieben. Eine über <a href="teamwork.html">Teamarbeit</a> geteilte Verbindung erhält es ebenfalls nie, was auch immer die gemeinsame Datei sagt, und ein Export lässt die Auswahl weg, sodass es immer nur auf dem Computer eingeschaltet wird, auf dem die Shell läuft.</li>
+</ul>
 <h2 id="einschrankungen">Einschränkungen<a class="headerlink" href="#einschrankungen" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>tmux und screen</strong> reichen die Markierungen nicht weiter, daher hat eine Shell darin keine. Starten Sie die Shell außerhalb von tmux, oder richten Sie die eigene Prompt-Navigation von tmux ein.</li>

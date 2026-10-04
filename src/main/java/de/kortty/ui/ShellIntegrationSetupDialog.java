@@ -42,6 +42,9 @@ import org.slf4j.LoggerFactory;
  *       prints too; {@code ShellIntegrationSnippetsTest} pins that both are the same.</li>
  *   <li>Nothing is sent to a terminal or written to a server: the user puts the snippet where it
  *       belongs.</li>
+ *   <li>A line under the introduction points to the connection editor's <b>Add shell integration
+ *       automatically</b>, with which korTTY starts a local bash, zsh or fish with the snippet itself
+ *       ({@link de.kortty.shellintegration.ShellIntegrationInjection}).</li>
  * </ul>
  */
 public final class ShellIntegrationSetupDialog extends ThemeAwareDialog<Void> {
@@ -138,6 +141,7 @@ public final class ShellIntegrationSetupDialog extends ThemeAwareDialog<Void> {
 
         VBox body = new VBox(10,
             wrapped(I18n.get("terminal.shellIntegration.setup.intro"), textWidth),
+            hint(I18n.get("terminal.shellIntegration.setup.local"), textWidth),
             tabs,
             copyRow,
             hint(I18n.get("terminal.shellIntegration.setup.check"), textWidth),

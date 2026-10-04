@@ -79,7 +79,9 @@ public class TerminalSplitPaneMirrorMarkerTest {
         String decorations = methodBody(source(), "private void refreshPaneDecorations(");
 
         assertThat(decorations).contains("String mirrorText = mirrorBadgeText(isMirrorMember(pane), broadcastMode && several);");
-        assertThat(decorations).contains("panel.getCanvas().setAccessibleText(joinAccessibleText(text, mirrorText));");
+        assertWithMessage("the badge comes last, after the pane's name and the connection it runs")
+            .that(decorations).contains("panel.getCanvas().setAccessibleText(\n"
+                + "                    joinAccessibleText(joinAccessibleText(text, connectionText), mirrorText));");
         assertWithMessage("a zoomed pane's mirror badge sits left of the zoom badge, so the zoom badge comes first")
             .that(decorations.indexOf("refreshMirrorMarker(panes.get(i), mirrorTexts.get(i));"))
             .isGreaterThan(decorations.indexOf("refreshZoomBadge(badgeText, hiddenReceivers > 0);"));

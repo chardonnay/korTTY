@@ -14,6 +14,7 @@ import de.kortty.core.DynamicLanguageGenerator;
 import de.kortty.core.GuideTranslationGenerator;
 import de.kortty.core.GuideLocationResolver;
 import de.kortty.core.GPGKeyManager;
+import de.kortty.core.QuickSelectLabels;
 import de.kortty.core.AiCliArgumentPreset;
 import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiCliProviderDescriptor;
@@ -66,6 +67,7 @@ import de.kortty.model.ChatColorProfile;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
+import de.kortty.model.SessionRestoreMode;
 import de.kortty.model.TerminalAgentExecutionTarget;
 import de.kortty.model.Theme;
 import de.kortty.model.TranslationApiProvider;
@@ -176,6 +178,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox terminalCopyOnSelectCheck;
     private final CheckBox osc52ClipboardWriteCheck;
     private final CheckBox terminalLinkDetectionCheck;
+    /** Quick select's label letters and the user's own patterns (Links section); see QuickSelectSettingsSupport. */
+    private final TextField quickSelectAlphabetField;
+    private final TextArea quickSelectPatternsArea;
+    private final Label quickSelectAlphabetError;
+    private final Label quickSelectPatternsError;
     private final CheckBox closeActiveTerminalWindowsWithoutConfirmationCheck;
     private final ComboBox<PasteWarningMode> pasteWarningModeCombo;
     private final Spinner<Integer> pasteLargeWarningSpinner;
@@ -254,6 +261,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox connectionColorBorderCheck;
     private final CheckBox tabTitleFromShellCheck;
     private final CheckBox tabSwitchMostRecentFirstCheck;
+    private final ComboBox<SessionRestoreMode> sessionRestoreModeCombo;
     private final CheckBox useFixedGeometryCheck;
     private final Spinner<Integer> fixedWidthSpinner;
     private final Spinner<Integer> fixedHeightSpinner;
@@ -821,6 +829,29 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalLinkDetectionCheck.setSelected(globalSettings == null || globalSettings.isTerminalLinkDetectionEnabled());
         terminalLinkDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.linkDetection.tooltip")));
 
+        // Quick select: the label letters and the user's own patterns. Checked as they are typed; a
+        // problem shows under the field and keeps Save from closing the dialog.
+        quickSelectAlphabetField = new TextField(globalSettings != null && globalSettings.getTerminalQuickSelectAlphabet() != null
+            ? globalSettings.getTerminalQuickSelectAlphabet() : "");
+        quickSelectAlphabetField.setPromptText(QuickSelectLabels.DEFAULT_ALPHABET);
+        quickSelectAlphabetField.setPrefColumnCount(26);
+        quickSelectAlphabetField.setMaxWidth(Region.USE_PREF_SIZE);
+        quickSelectAlphabetField.setTooltip(new Tooltip(I18n.get(QuickSelectSettingsSupport.ALPHABET_TOOLTIP_KEY)));
+        quickSelectPatternsArea = new TextArea(QuickSelectSettingsSupport.patternsText(
+            globalSettings != null ? globalSettings.getTerminalQuickSelectPatterns() : List.of()));
+        quickSelectPatternsArea.setPromptText(I18n.get(QuickSelectSettingsSupport.PATTERNS_PROMPT_KEY));
+        quickSelectPatternsArea.setPrefRowCount(4);
+        quickSelectPatternsArea.setPrefColumnCount(40);
+        quickSelectPatternsArea.setMaxWidth(UiFontScaleSupport.scaleDimension(560, true));
+        quickSelectPatternsArea.setWrapText(false);
+        quickSelectPatternsArea.setStyle("-fx-font-family: monospace;");
+        quickSelectPatternsArea.setTooltip(new Tooltip(I18n.get(QuickSelectSettingsSupport.PATTERNS_TOOLTIP_KEY)));
+        quickSelectAlphabetError = quickSelectErrorLabel();
+        quickSelectPatternsError = quickSelectErrorLabel();
+        quickSelectAlphabetField.textProperty().addListener((obs, was, now) -> validateQuickSelectFields());
+        quickSelectPatternsArea.textProperty().addListener((obs, was, now) -> validateQuickSelectFields());
+        validateQuickSelectFields();
+
         closeActiveTerminalWindowsWithoutConfirmationCheck = new CheckBox(I18n.get("settings.terminal.closeActiveWithoutConfirmation"));
         closeActiveTerminalWindowsWithoutConfirmationCheck.setSelected(globalSettings != null
             && globalSettings.isCloseActiveTerminalWindowsWithoutConfirmation());
@@ -1045,6 +1076,20 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         linksHeader.setStyle("-fx-font-weight: bold;");
         terminalGrid.add(linksHeader, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalLinkDetectionCheck, 0, terminalRow++, 2, 1);
+        Label quickSelectAlphabetLabel = new Label(I18n.get(QuickSelectSettingsSupport.ALPHABET_KEY));
+        GridPane.setValignment(quickSelectAlphabetLabel, VPos.TOP);
+        quickSelectAlphabetLabel.setPadding(new Insets(4, 0, 0, 0));
+        terminalGrid.add(quickSelectAlphabetLabel, 0, terminalRow);
+        terminalGrid.add(new VBox(4, quickSelectAlphabetField, quickSelectAlphabetError), 1, terminalRow++);
+        Label quickSelectPatternsLabel = new Label(I18n.get(QuickSelectSettingsSupport.PATTERNS_KEY));
+        GridPane.setValignment(quickSelectPatternsLabel, VPos.TOP);
+        quickSelectPatternsLabel.setPadding(new Insets(4, 0, 0, 0));
+        terminalGrid.add(quickSelectPatternsLabel, 0, terminalRow);
+        terminalGrid.add(new VBox(4, quickSelectPatternsArea, quickSelectPatternsError), 1, terminalRow++);
+        Label quickSelectInfo = new Label(I18n.get(QuickSelectSettingsSupport.INFO_KEY));
+        quickSelectInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        quickSelectInfo.setWrapText(true);
+        terminalGrid.add(quickSelectInfo, 0, terminalRow++, 2, 1);
 
         // Paste protection section
         terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
@@ -1716,6 +1761,37 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label tabSwitchMostRecentFirstInfoLabel = new Label(I18n.get("settings.window.tabSwitchMostRecentFirst.info"));
         tabSwitchMostRecentFirstInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(tabSwitchMostRecentFirstInfoLabel, 0, windowRow++, 2, 1);
+
+        // Session restore section: what korTTY does at startup with the session before this start.
+        windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
+
+        Label sessionRestoreHeader = new Label(I18n.get("settings.window.restore.header"));
+        sessionRestoreHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 0.9231em;");
+        windowGrid.add(sessionRestoreHeader, 0, windowRow++, 2, 1);
+
+        sessionRestoreModeCombo = new ComboBox<>();
+        sessionRestoreModeCombo.getItems().setAll(SessionRestoreMode.values());
+        sessionRestoreModeCombo.setValue(globalSettings != null
+            ? globalSettings.getSessionRestoreMode() : SessionRestoreMode.DEFAULT);
+        sessionRestoreModeCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(SessionRestoreMode mode) {
+                return mode != null ? I18n.get(sessionRestoreModeKey(mode)) : "";
+            }
+
+            @Override
+            public SessionRestoreMode fromString(String text) {
+                return null;
+            }
+        });
+        sessionRestoreModeCombo.setTooltip(new Tooltip(I18n.get("settings.window.restore.mode.tooltip")));
+        windowGrid.add(new Label(I18n.get("settings.window.restore.mode")), 0, windowRow);
+        windowGrid.add(sessionRestoreModeCombo, 1, windowRow++);
+
+        Label sessionRestoreInfoLabel = new Label(I18n.get("settings.window.restore.info"));
+        sessionRestoreInfoLabel.setWrapText(true);
+        sessionRestoreInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        windowGrid.add(sessionRestoreInfoLabel, 0, windowRow++, 2, 1);
 
         // Fixed geometry section
         windowGrid.add(new Separator(), 0, windowRow++, 2, 1);
@@ -3340,6 +3416,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     event.consume();
                     mainTabPane.getSelectionModel().select(keyboardTab);
                     keyboardPage.revealConflicts();
+                } else if (!QuickSelectSettingsSupport.canSave(quickSelectAlphabetField.getText(),
+                        quickSelectPatternsArea.getText())) {
+                    // A label letter or pattern quick select cannot use: show it instead of saving it.
+                    event.consume();
+                    revealQuickSelectProblems();
                 }
             });
         }
@@ -3475,8 +3556,58 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             + "; -fx-border-width: 1;";
     }
     
+    /** A red line under a quick-select field that says what is wrong with it; hidden while nothing is. */
+    private static Label quickSelectErrorLabel() {
+        Label error = new Label();
+        error.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #d9534f;");
+        error.setWrapText(true);
+        error.setMinHeight(Region.USE_PREF_SIZE); // wrap instead of ellipsizing
+        error.setMaxWidth(UiFontScaleSupport.scaleDimension(560, true));
+        error.setVisible(false);
+        error.setManaged(false);
+        return error;
+    }
+
+    /**
+     * Shows under the quick-select fields what keeps them from being saved and marks a field with a
+     * problem red; called on every change of either field.
+     */
+    private void validateQuickSelectFields() {
+        String alphabetMessage = QuickSelectSettingsSupport.alphabetMessage(quickSelectAlphabetField.getText(), I18n::get);
+        List<String> patternMessages = QuickSelectSettingsSupport.patternMessages(quickSelectPatternsArea.getText(), I18n::get);
+        showQuickSelectProblem(quickSelectAlphabetField, quickSelectAlphabetError, alphabetMessage);
+        showQuickSelectProblem(quickSelectPatternsArea, quickSelectPatternsError,
+            patternMessages.isEmpty() ? null : String.join("\n", patternMessages));
+    }
+
+    private static void showQuickSelectProblem(TextInputControl field, Label error, String message) {
+        boolean problem = message != null;
+        error.setText(problem ? message : "");
+        error.setVisible(problem);
+        error.setManaged(problem);
+        String base = field instanceof TextArea ? "-fx-font-family: monospace;" : "";
+        field.setStyle(problem ? base + " -fx-border-color: #e74c3c; -fx-border-width: 2px; -fx-border-radius: 3px;" : base);
+    }
+
+    /** Shows the Terminal page with the first quick-select field that cannot be saved focused. */
+    private void revealQuickSelectProblems() {
+        validateQuickSelectFields();
+        if (mainTabPane != null) {
+            mainTabPane.getSelectionModel().select(terminalTab);
+        }
+        TextInputControl first = quickSelectAlphabetError.isVisible() ? quickSelectAlphabetField : quickSelectPatternsArea;
+        // After the page is built and laid out: it is built on first selection.
+        Platform.runLater(first::requestFocus);
+    }
+
     /** @return true if save may continue, false to abort (e.g. vault locked and translation API key cannot be encrypted) */
     private boolean applySettings() {
+        // The Save button's filter already stops here; this keeps any other way in from storing
+        // label letters or patterns quick select cannot use. Before any setter runs, so nothing is half saved.
+        if (!QuickSelectSettingsSupport.canSave(quickSelectAlphabetField.getText(), quickSelectPatternsArea.getText())) {
+            revealQuickSelectProblems();
+            return false;
+        }
         // Snapshot for the "most changed settings" metric — read from the models
         // before any setter runs, diffed again on the success path.
         java.util.Map<String, Object> trackedSettingsBefore = captureTrackedSettings();
@@ -3540,6 +3671,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
             globalSettings.setOsc52ClipboardWriteEnabled(osc52ClipboardWriteCheck.isSelected());
             globalSettings.setTerminalLinkDetectionEnabled(terminalLinkDetectionCheck.isSelected());
+            // Save only gets here with both fields valid (the Save button's filter checks them).
+            globalSettings.setTerminalQuickSelectAlphabet(
+                QuickSelectSettingsSupport.alphabet(quickSelectAlphabetField.getText()));
+            globalSettings.setTerminalQuickSelectPatterns(
+                QuickSelectSettingsSupport.patterns(quickSelectPatternsArea.getText()));
             globalSettings.setPasteWarningMode(pasteWarningModeCombo.getValue());
             globalSettings.setPasteLargeWarningKiB(pasteLargeWarningSpinner.getValue() != null
                 ? pasteLargeWarningSpinner.getValue() : PasteProtectionSettings.DEFAULT_LARGE_WARNING_KIB);
@@ -3700,6 +3836,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setConnectionColorBorderEnabled(connectionColorBorderCheck.isSelected());
             globalSettings.setTabTitleFromShellEnabled(tabTitleFromShellCheck.isSelected());
             globalSettings.setTabSwitchMostRecentFirst(tabSwitchMostRecentFirstCheck.isSelected());
+            globalSettings.setSessionRestoreMode(sessionRestoreModeCombo.getValue());
 
             // Save the shortcut overrides, only when the Keyboard page changed them: stored entries
             // it does not show (another platform's, a newer version's) are kept as they are.
@@ -3849,6 +3986,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("window", "remember_dashboard", gs::isRememberDashboardState, true));
             tracked.add(new TrackedSetting("window", "tools_as_tabs", gs::isOpenToolWindowsAsTabs, true));
             tracked.add(new TrackedSetting("window", "fixed_geometry", gs::isUseFixedWindowGeometry, true));
+            tracked.add(new TrackedSetting("window", "session_restore_mode", () -> gs.getSessionRestoreMode().id(), true));
             tracked.add(new TrackedSetting("security", "require_master_password_on_startup",
                 gs::isRequireMasterPasswordOnStartup, true));
             tracked.add(new TrackedSetting("security", "temporary_ssh_key_enabled", gs::isTemporarySshKeyEnabled, true));
@@ -4582,6 +4720,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Stored preference: the saved style must always reflect the checkbox, even when the current
         // style carries a shape this build does not know (which would otherwise be returned unchanged).
         return TerminalCursorStyleSupport.withStoredBlinkingPreference(currentStyle, blink);
+    }
+
+    /** The label key of a choice in the Session Restore dropdown. */
+    private static String sessionRestoreModeKey(SessionRestoreMode mode) {
+        return switch (mode) {
+            case ASK -> "settings.window.restore.mode.ask";
+            case AUTO -> "settings.window.restore.mode.auto";
+            case OFF -> "settings.window.restore.mode.off";
+        };
     }
 
     /** The label key of a choice in the paste protection dropdown. */

@@ -48,6 +48,7 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── plugins/                           # Imported terminal-effect plugin JARs
 ├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
 ├── projects/                          # Project files (.kortty)
+├── session/                           # Session snapshots for Restore Previous Session (owner-only; not backed up)
 ├── i18n/                              # Generated language files (messages_*.properties)
 └── ssh-keys/                          # Optional copied SSH keys (included in backups)
 ```
@@ -71,6 +72,7 @@ Contains all saved SSH connections with their settings.
 - Group/folder organization
 - Optional free-text tag (used for search, bulk tagging and tag-based export)
 - Optional keyword highlighting rule set (`highlightRuleSetId`): the id of a built-in or your own rule set, `none` for no highlighting, or missing to follow the default rule set (see [Rule set per connection](../features/highlighting.md#rule-set-per-connection)). Connections from a [teamwork](../features/teamwork.md) file can carry it as well; the id of a rule set that does not exist on your computer is ignored.
+- Optional paste protection that overrides *Settings → Terminal → Paste protection* for this connection: `pasteWarningMode` (`off`, `unless-bracketed` or `always`) and `pasteLineDelayMs` (0 to 1000; 0 pastes at once). Missing means the global setting, and an unknown warning mode counts as missing (see [Paste protection](../features/connections.md#paste-protection)). Connections from a [teamwork](../features/teamwork.md) file can carry both, but their warning mode applies only when it asks more often than your own setting.
 - Optional tab color (`tabColor`, `#RRGGBB`) that marks the connection's terminal tabs with a colored dot; anything that is not a hex color is ignored (see [Tab color](../features/connections.md#tab-color)). Connections from a [teamwork](../features/teamwork.md) file can carry it as well, so the file's maintainer decides how those tabs are marked.
 
 **Security:** Connection passwords are encrypted with AES-256-GCM using the master password.
@@ -149,9 +151,12 @@ Global application preferences and defaults.
 - Menu bar visibility preference
 - Dashboard visibility state
 - "Open tool windows as tabs" flag
-- `connectionColorBorderEnabled`: whether the terminal of a connection with a [tab color](../features/connections.md#tab-color) gets a frame in that color (on by default)
+- `connectionColorBorderEnabled`: whether the terminal of a connection with a [tab color](../features/connections.md#tab-color) gets a frame in that color, and a split pane of a connection with a different color a frame of its own (on by default)
+- `connectionGroupColors`: the [tab colors of Connection Manager folders](../features/connections.md#tab-color), one `<group path="Work/Production" color="#D32F2F"/>` entry per folder with a color of its own; an entry whose color is not a hex color is ignored, and without the element no folder has a color
 - `tabTitleFromShellEnabled`: whether a terminal tab shows the [title its shell sets](../features/terminal.md#title-from-the-shell) in place of the connection's name (on by default)
 - `tabSwitchMostRecentFirst`: whether ++ctrl+tab++ switches tabs in the order they were last used instead of their [tab bar order](settings/window.md#tabs) (off by default)
+- `recentProjectPaths`: the absolute paths of the project files you opened or saved last, newest first, at most 10, which [*File → Open Recent*](../features/projects.md#open-recent) lists; `openRecentClearedAt`: when you last chose **Clear List** there (milliseconds since 1970, `0` for never)
+- `sessionRestoreMode`: what korTTY does at startup with the [previous session](../features/projects.md#at-startup): `ask` offers it in a bar (the default, also for a missing or unknown value), `auto` restores it once no dialog is open, `off` does nothing
 - `keyBindingOverrides`: your own [keyboard shortcuts](settings/keyboard.md), one `binding` entry per changed command, such as `menu.view.commandPalette=Shortcut+Alt+P` or `menu.view.dashboard=none`; without it every command keeps its default shortcut
 - Docked live session-journal panel: placement (hidden/left/right) and width
 - JobScheduler status display preference
@@ -409,6 +414,23 @@ Project files for saving and loading connection sets.
 **Purpose:** Quickly open a pre-configured set of connections for a specific project or workflow.
 
 **Usage:** Save a project via *File > Save Project*, restore via *File > Open Project* or the project history menu.
+
+### session/
+The session snapshots korTTY writes while it runs, so *File > Restore Previous Session* can reopen your windows and tabs after a restart or a crash (see [Previous session](../features/projects.md#previous-session)).
+
+**Files:**
+
+- `last-session.xml` — the open windows and tabs of the running korTTY, rewritten a couple of seconds after each change and once more when korTTY quits, together with the Recently Closed list
+- `previous-session.xml` — the session before this start, which *Restore Previous Session* opens; at each start korTTY moves `last-session.xml` here, but only when that session had at least one tab
+- `session.lock` — held locked by the korTTY that writes the snapshots; a second korTTY started meanwhile reads them but never writes
+
+**Format:** XML. The windows and tabs are written like a [project](#projects) with Auto-Reconnect; the Recently Closed list keeps the id of each closed tab's saved connection, its tab group, name and terminal effect. Each snapshot also notes whether korTTY quit normally, whether that run restored its previous session and whether it kept running for a minute afterwards, which tells the next start that korTTY ended right after a restore (see [At startup](../features/projects.md#at-startup)). While the startup offer waits for an answer, `last-session.xml` keeps the offered session, so it is offered again if korTTY quits or crashes before you choose.
+
+**Contains no** screen text, scrollback, command timestamps, passwords or temporary SSH keys. A split pane's working directory and a reference to saved scrollback, which project files never carry, may appear here; korTTY accepts a scrollback reference only as a plain name.
+
+**Security:** The directory and its files are owner-only (`rwx------` and `rw-------`) and are replaced atomically. A snapshot that cannot be parsed is moved aside as `<name>.corrupt-<timestamp>`; one that cannot be read is left in place and not written over until the next start.
+
+**Backup:** Not included in configuration backups: the snapshots describe the windows of this computer.
 
 ### i18n/
 Dynamically generated language translation files.

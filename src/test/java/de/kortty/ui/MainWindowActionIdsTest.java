@@ -189,9 +189,9 @@ class MainWindowActionIdsTest {
     }
 
     /**
-     * Recently Closed, the job status menu and the terminal effects are filled while they open, so a
-     * harvested copy of their items would go stale; the highlighting set list is excluded item by item
-     * (HighlightMenuSupportTest).
+     * Recently Closed, Open Recent, the job status menu and the terminal effects are filled while they
+     * open, so a harvested copy of their items would go stale; the highlighting set list is excluded
+     * item by item (HighlightMenuSupportTest).
      */
     @Test
     void menusFilledWhileTheyOpenStayOutOfTheHarvest() throws IOException {
@@ -199,6 +199,8 @@ class MainWindowActionIdsTest {
 
         assertThat(methodBody(source, "private Menu createFileMenu() {"))
             .contains("Menu recentlyClosed = ActionIds.exclude(new Menu(I18n.get(\"menu.file.recentlyClosed\")));");
+        assertThat(methodBody(source, "private Menu createFileMenu() {"))
+            .contains("Menu openRecent = ActionIds.exclude(new Menu(I18n.get(\"menu.file.openRecent\")));");
         assertThat(methodBody(source, "private Menu createJobSchedulerStatusMenu(MenuBarTarget target) {"))
             .contains("Menu jobsMenu = ActionIds.exclude(new Menu(I18n.get(\"jobscheduler.menu.noJobs\")));");
         assertThat(methodBody(source, "private Menu createViewMenu(MenuBarTarget target) {")).contains(

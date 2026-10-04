@@ -804,21 +804,80 @@
 <li>Öffnen Sie <em>Datei &gt; Projekt speichern</em> oder drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-s">S</kbd></span> unter macOS).</li>
 <li>Geben Sie einen <strong>Namen</strong> und optional eine <strong>Beschreibung</strong> für das Projekt ein.</li>
 <li>Konfigurieren Sie <strong>Auto-Reconnect</strong>:</li>
-<li>Wenn aktiviert, verbindet sich beim Öffnen des Projekts automatisch jeder gespeicherte Terminal- und SFTP-Tab.</li>
-<li>Wenn deaktiviert, stellt das Öffnen des Projekts nur die Fenstergeometrie sowie die Tabs für den lokalen Dateieditor und Bildbetrachter wieder her; Terminal-, SFTP- und Remote-Datei-Tabs werden übersprungen.</li>
+<li>Wenn aktiviert, verbindet sich beim Öffnen des Projekts automatisch jeder gespeicherte Terminal- und SFTP-Tab erneut; ein Tab, der ein Passwort, einen neuen temporären SSH-Schlüssel oder den gesperrten Tresor braucht, wartet stattdessen in der <a href="#tabs-die-auf-sie-warten">Wiederherstellungsleiste</a>.</li>
+<li>Wenn deaktiviert, stellt das Öffnen des Projekts nur die Fenster mit ihrer Position und Größe sowie die Tabs des lokalen Dateieditors und Bildbetrachters wieder her; Terminal-, SFTP- und Remote-Datei-Tabs werden übersprungen.</li>
 <li>Klicken Sie auf <em>Speichern</em>.</li>
 </ol>
 <p>Projekte sind <code>.kortty</code>-Dateien, die Sie an beliebiger Stelle im Speicherdialog speichern können, zum Beispiel in <code>~/.kortty/projects/</code>.</p>
+<p>Ein Projekt behält jedes offene korTTY-Fenster, nicht nur das, in dem Sie <em>Projekt speichern</em> wählen; dieses Fenster wird zuerst gespeichert. Ein Fenster, das nur KI-Ergebnis- und Werkzeug-Tabs enthält, die Projekte nicht behalten, wird ausgelassen, damit es nicht leer zurückkommt; das Fenster, aus dem Sie speichern, wird wegen seiner Position und Größe immer behalten.</p>
 <h2 id="ein-projekt-offnen">Ein Projekt öffnen<a class="headerlink" href="#ein-projekt-offnen" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Öffnen Sie <em>Datei &gt; Projekt öffnen</em> oder drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-o">O</kbd></span> unter macOS).</li>
 <li>Wählen Sie im Dateibrowser eine <code>.kortty</code>-Projektdatei aus.</li>
-<li>Das Dialogfeld <strong>Projektvorschau</strong> wird angezeigt und zeigt Folgendes:</li>
-<li>Anzahl der wiederherzustellenden Fenster</li>
-<li>Registerkarten und Verbindungen in jedem Fenster</li>
-<li>Projektmetadaten (Name, Beschreibung, letzte Änderung)</li>
-<li>Klicken Sie auf <em>Öffnen</em>, um das Projekt zu laden.</li>
+<li>Das Projekt öffnet sich sofort. Datei- und Snippet-Editoren mit ungespeicherten Änderungen im Fenster fragen zuerst nach; dann ersetzt das Projekt die Tabs des Fensters, und jedes weitere im Projekt gespeicherte Fenster öffnet sich in einem neuen Fenster, siehe <a href="#fenster">Fenster</a>.</li>
 </ol>
+<h3 id="fenster">Fenster<a class="headerlink" href="#fenster" title="Permanent link">&para;</a></h3>
+<p>Beim Öffnen eines Projekts übernimmt das Fenster, aus dem Sie es öffnen, sein erstes Fenster, und jedes weitere Fenster, das es enthält, öffnet sich in einem neuen Fenster. Bereits offene Fenster behalten ihre Tabs. Projekte, die mit früheren Versionen gespeichert wurden, enthalten nur das Fenster, aus dem sie gespeichert wurden, und öffnen sich wie bisher in einem einzigen Fenster.</p>
+<ul>
+<li><strong>Position und Größe</strong> — jedes Fenster kommt an seiner früheren Stelle und in seiner Größe zurück, maximiert, wenn es maximiert war. Ist der Bildschirm, auf dem ein Fenster war, nicht mehr angeschlossen, öffnet sich das Fenster zentriert auf dem Hauptbildschirm in seiner gespeicherten Größe, bei Bedarf so verkleinert, dass es passt. Ein maximiertes Fenster behält die Größe, die es vor dem Maximieren hatte, sodass Sie diese Größe zurückbekommen, wenn Sie die Maximierung später aufheben. Der Vollbildmodus wird nicht gespeichert, und das Fenster, aus dem Sie das Projekt öffnen, bleibt im Vollbildmodus, wenn es sich darin befindet.</li>
+<li><strong>Tabs</strong> — die Tabs kommen in ihrer gespeicherten Reihenfolge zurück und werden wie gewohnt in ihre <a href="terminal.html#arbeiten-mit-tabs">Tab-Gruppen</a> einsortiert.</li>
+<li><strong>Aktiver Tab</strong> — jedes Fenster wählt den Tab aus, der beim Speichern aktiv war. Ein Tab eines Remote-Datei-Editors oder Remote-Bildbetrachters öffnet sich erst, wenn seine Datei heruntergeladen ist; war er der aktive Tab, wählt das Fenster ihn aus, sobald er da ist, es sei denn, Sie haben inzwischen einen anderen Tab gewählt oder der Download dauert länger als 10 Sekunden. Kommt der aktive Tab nicht sofort zurück, zum Beispiel weil er in der <a href="#tabs-die-auf-sie-warten">Wiederherstellungsleiste</a> auf ein Passwort wartet oder seine Verbindung gelöscht wurde, behält das Fenster den Tab, den es gerade anzeigt; wenn Sie ihn später aus der Wiederherstellungsleiste öffnen, wählt das Fenster ihn dann aus.</li>
+<li><strong>Dashboard</strong> — jedes Fenster zeigt oder verbirgt das Dashboard so, wie es beim Speichern war.</li>
+<li><strong>Ohne Auto-Reconnect</strong> öffnen sich die Fenster ebenfalls, mit ihren lokalen Datei-Editor- und Bildbetrachter-Tabs; ein Fenster, dessen Tabs alle übersprungen wurden, öffnet sich leer.</li>
+<li>Ein Projekt öffnet höchstens 32 Fenster; eine Projektdatei mit mehr Fenstern, die korTTY nur schreibt, wenn so viele Fenster offen waren, öffnet ihre ersten 32.</li>
+</ul>
+<h2 id="zuletzt-verwendet">Zuletzt verwendet<a class="headerlink" href="#zuletzt-verwendet" title="Permanent link">&para;</a></h2>
+<p><em>Datei → Zuletzt verwendet</em> bringt Sie ohne Dateidialog oder Connection-Manager zu dem zurück, was Sie zuletzt verwendet haben:</p>
+<ul>
+<li><strong>Verbindungen</strong> — die gespeicherten Verbindungen, die Sie zuletzt verwendet haben, bis zu 10, die zuletzt verwendete zuerst: dieselben Verbindungen wie die Schaltflächen oben in der Schnellverbindung, die mitzählen, was Sie aus der Schnellverbindung, der <a href="command-palette.html">Befehlspalette</a>, mit <strong>Gruppe öffnen</strong> und aus diesem Menü öffnen (eine aus dem Connection-Manager geöffnete Verbindung wird nicht gezählt). Jeder Eintrag zeigt den Namen der Verbindung und <code>user@host</code>. Die Auswahl eines Eintrags öffnet dafür einen Tab, der sich wie <strong>Verbinden</strong> im Connection-Manager anmeldet (siehe <a href="connections.html#anmelden">Anmelden</a>), wobei zuerst die <a href="../reference/enterprise-policy.html#server-zugriffskontrolle">Serverzugriffsrichtlinie</a> geprüft wird, und zählt als Nutzung, sodass die Verbindung nach oben rückt.</li>
+<li><strong>Projekte</strong> — die Projektdateien, die Sie zuletzt geöffnet oder gespeichert haben, bis zu 10, die neueste zuerst, gefolgt von den übrigen <code>.kortty</code>-Dateien in <code>~/.kortty/projects</code>, die zuletzt geänderte zuerst. Jeder Eintrag zeigt den Dateinamen und seinen Ordner, wobei Ihr Home-Ordner als <code>~</code> geschrieben wird. Die Auswahl eines Eintrags öffnet das Projekt wie <em>Datei → Projekt öffnen…</em>: Editoren mit ungespeicherten Änderungen fragen zuerst nach, das Projekt ersetzt die Tabs des Fensters, und weitere darin gespeicherte Fenster öffnen sich in neuen Fenstern. Eine Projektdatei, die verschoben oder gelöscht wurde, wird im Menü ausgelassen.</li>
+<li><strong>Liste leeren</strong> leert das Menü. Dabei wird keine Verbindung und keine Projektdatei gelöscht: Eine Verbindung erscheint wieder, sobald Sie sie erneut verwenden, ein Projekt, sobald Sie es öffnen oder speichern.</li>
+</ul>
+<p>Das Menü wird jedes Mal neu aufgebaut, wenn Sie das Menü <em>Datei</em> öffnen. Unter macOS, wo korTTY nach dem Schließen seines letzten Fensters weiterläuft, wird ein Eintrag, den Sie in der Menüleiste wählen, in einem neuen Fenster geöffnet.</p>
+<p>korTTY speichert die Pfade Ihrer zuletzt verwendeten Projekte und den Zeitpunkt, zu dem Sie zuletzt <strong>Liste leeren</strong> gewählt haben, in seiner Einstellungsdatei <code>~/.kortty/global-settings.xml</code> (siehe <a href="../reference/config-files.html#global-settingsxml">Konfigurationsdateien</a>). Sie sind daher Teil jeder <a href="backup.html">Konfigurationssicherung</a> und kommen zurück, wenn Sie eine wiederherstellen. Gespeichert werden nur die Pfade, nie der Inhalt eines Projekts, und die Verbindungen werden nicht ein zweites Mal gespeichert: Die Liste richtet sich danach, wann jede gespeicherte Verbindung zuletzt verwendet wurde.</p>
+<h2 id="vorherige-sitzung">Vorherige Sitzung<a class="headerlink" href="#vorherige-sitzung" title="Permanent link">&para;</a></h2>
+<p>Während korTTY läuft, hält es einen Snapshot Ihrer offenen Fenster und Tabs vor, sodass Sie diese nach einem Neustart oder Absturz zurückbekommen, ohne vorher ein Projekt zu speichern. Beim Start bietet korTTY sie in einer Leiste an (siehe <a href="#beim-start">Beim Start</a>), und <em>Datei → Vorherige Sitzung wiederherstellen</em> öffnet die Fenster und Tabs, die korTTY vor diesem Start geöffnet hatte.</p>
+<ul>
+<li><strong>Wann er gespeichert wird</strong> — ein paar Sekunden nach jeder Änderung an den Fenstern und Tabs: Ein Tab wird geöffnet, geschlossen, verschoben, umbenannt oder geteilt, ein Fenster wird geöffnet, geschlossen, verschoben oder in der Größe geändert, das Dashboard wird ein- oder ausgeblendet. Wenn Sie korTTY beenden oder unter Windows und Linux sein letztes Fenster schließen, wird der Snapshot noch einmal geschrieben, solange noch jeder Tab offen ist, sodass er alle Fenster enthält, die Sie hatten, obwohl sie sich beim Beenden von korTTY nacheinander schließen.</li>
+<li><strong>Was er enthält</strong> — dasselbe wie ein Projekt mit <strong>Auto-Reconnect</strong> (siehe <a href="#was-gespeichert-wird">Was gespeichert wird</a>): jedes Fenster mit seiner Position und Größe, seine Tabs in ihrer Reihenfolge mit ihren Tab-Gruppen, Namen, geteilten Bereichen, Schriftgrößen und Terminal-Effekten, SFTP-Manager-Tabs mit ihren Ordnern, Tabs des Dateieditors und Bildbetrachters sowie den aktiven Tab und das Dashboard jedes Fensters. Tabs, die noch in der <a href="#tabs-die-auf-sie-warten">Wiederherstellungsleiste</a> oder auf ihre Remote-Datei warten, werden ebenfalls an ihrer Stelle behalten, ebenso die geteilten Bereiche eines wiederhergestellten Tabs, der sich noch nicht verbunden hat.</li>
+<li><strong>Was er nie enthält</strong> — Bildschirmtext, Scrollback, Befehlszeitstempel, Passwörter und temporäre SSH-Schlüssel. Jeder Tab verweist wie in einem Projekt über die ID auf seine gespeicherte Verbindung.</li>
+<li><strong>Eine Sitzung ohne Tabs behält die letzte</strong> — wenn kein Tab offen ist, zum Beispiel nachdem Sie unter macOS, wo korTTY weiterläuft, das letzte Fenster geschlossen haben, behält der Snapshot die Fenster, die er hatte, und übernimmt nur die neue Liste „Zuletzt geschlossen“.</li>
+</ul>
+<p><strong>Vorherige Sitzung wiederherstellen</strong> öffnet die vorherige Sitzung wie ein Projekt mit Auto-Reconnect und fragt nichts, während die Tabs geöffnet werden: Eine lokale Shell, SSH-Schlüssel-Authentifizierung, ein gespeichertes Passwort und ein noch gültiger temporärer SSH-Schlüssel öffnen sofort, und jeder Tab, der ein Passwort, einen neuen temporären SSH-Schlüssel oder den gesperrten Tresor braucht, wartet in der <a href="#tabs-die-auf-sie-warten">Wiederherstellungsleiste</a>, wo auch ein blockierter Server oder eine gelöschte Verbindung aufgeführt wird. Das erste Fenster der Sitzung öffnet sich in dem Fenster, in dem Sie den Befehl wählen, wenn dieses Fenster keine Tabs hat, und sonst in einem neuen Fenster; jedes weitere Fenster öffnet sich in einem neuen Fenster, und die bereits offenen Fenster behalten ihre Tabs. Der Befehl ist ausgegraut, solange es keine vorherige Sitzung gibt, und nachdem Sie sie einmal wiederhergestellt haben, damit sich kein Tab zweimal öffnet.</p>
+<p>Die vorherige Sitzung ist die letzte, in der korTTY Tabs geöffnet hatte: Bei jedem Start macht korTTY die Sitzung des letzten Laufs zur vorherigen, aber nur, wenn sie mindestens einen Tab hatte. Ein Start, bei dem Sie nichts öffnen, verdrängt Ihre vorherige Sitzung daher nie.</p>
+<p>Die Liste <a href="terminal.html#arbeiten-mit-tabs">Zuletzt geschlossen</a> wird im selben Snapshot gespeichert und übersteht daher einen Neustart. Sie behält nur die ID der gespeicherten Verbindung jedes geschlossenen Tabs, mit der Tab-Gruppe, dem Namen und dem Terminal-Effekt: Nach einem Neustart öffnet sich ein geschlossener Tab mit der gespeicherten Verbindung in ihrem dann aktuellen Stand wieder, und ein Tab, dessen Verbindung gelöscht oder nie gespeichert wurde (eine Schnellverbindungs-Sitzung), wird nicht mehr aufgeführt.</p>
+<p>korTTY speichert die Snapshots in <code>~/.kortty/session/</code> (siehe <a href="../reference/config-files.html#session">Konfigurationsdateien</a>), nur für Sie lesbar. Sie beschreiben die Fenster dieses Computers und sind nicht Teil einer <a href="backup.html">Konfigurationssicherung</a>. Ein zweites korTTY, das gestartet wird, während das erste läuft, speichert weder seine Sitzung noch verschiebt es die vorherige, sodass sich die beiden nie gegenseitig überschreiben; es kann die vorherige Sitzung trotzdem wiederherstellen. Solange ein wiederhergestelltes Backup mit einem anderen Master-Passwort auf den Neustart wartet, speichert korTTY nichts.</p>
+<h3 id="beim-start">Beim Start<a class="headerlink" href="#beim-start" title="Permanent link">&para;</a></h3>
+<p>Wenn korTTY startet und die Sitzung vor diesem Start mindestens einen Tab hatte, bietet eine Leiste über der Statuszeile des Fensters sie an, zum Beispiel <em>Fenster und Tabs von vor diesem Start wiederherstellen? Fenster: 2, Tabs: 6</em>. Die Leiste blockiert das Fenster nie, und nichts öffnet sich, bevor Sie wählen:</p>
+<ul>
+<li><strong>Wiederherstellen</strong> öffnet die vorherige Sitzung wie <em>Datei → Vorherige Sitzung wiederherstellen</em>.</li>
+<li><strong>Verwerfen</strong> blendet die Leiste aus und lässt das Fenster, wie es ist. <em>Datei → Vorherige Sitzung wiederherstellen</em> öffnet die Sitzung in diesem Lauf weiterhin, aber der nächste Start bietet sie nicht erneut an; wenn Sie selbst Tabs öffnen, sind diese die Sitzung, die der nächste Start anbietet.</li>
+<li>Wenn Sie keines von beiden tun und selbst keinen Tab öffnen, behält der Snapshot die angebotene Sitzung, sodass der nächste Start sie erneut anbietet, auch nach einem Absturz.</li>
+</ul>
+<p><em>Einstellungen → Fenster → <a href="../reference/settings/window.html#sitzungswiederherstellung">Sitzungswiederherstellung</a></em> bestimmt, was beim Start geschieht:</p>
+<table>
+<thead>
+<tr>
+<th>Beim Start</th>
+<th>Was korTTY tut</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wiederherstellen der vorherigen Sitzung anbieten (Standard)</td>
+<td>Zeigt die oben beschriebene Leiste.</td>
+</tr>
+<tr>
+<td>Vorherige Sitzung automatisch wiederherstellen</td>
+<td>Stellt die vorherige Sitzung von selbst wieder her, sobald kein Dialog offen ist, zum Beispiel nachdem Sie die Frage zu <a href="../about/anonymous-data.html">anonymen Daten</a> beantwortet haben, damit die Fragen, die ihre Verbindungen stellen können (ein Hostschlüssel, ein Passwort, ein Zugriffsgrund), nie über einem anderen Dialog erscheinen. Bleibt ein Dialog eine Minute lang offen, zeigt korTTY stattdessen die Leiste an.</td>
+</tr>
+<tr>
+<td>Nichts tun</td>
+<td>Zeigt nichts an; <em>Datei → Vorherige Sitzung wiederherstellen</em> öffnet die vorherige Sitzung, wenn Sie sie brauchen.</td>
+</tr>
+</tbody>
+</table>
+<p>Die automatische Wiederherstellung fragt nichts, was <em>Vorherige Sitzung wiederherstellen</em> nicht auch fragen würde: Tabs, die ein Passwort, einen neuen temporären SSH-Schlüssel oder den gesperrten Tresor brauchen, warten in der <a href="#tabs-die-auf-sie-warten">Wiederherstellungsleiste</a>. Endet korTTY innerhalb einer Minute nach dem Wiederherstellen einer Sitzung, ohne normal beendet zu werden (ein Absturz, ein erzwungenes Beenden oder ein Stromausfall), zeigt der nächste Start die Leiste, statt automatisch wiederherzustellen, und meldet, dass korTTY nach der letzten Wiederherstellung unerwartet beendet wurde, sodass eine Sitzung, die korTTY abstürzen lässt, das nicht bei jedem Start tun kann. Ein zweites korTTY, das gestartet wird, während das erste läuft, bietet die Sitzung nie an und stellt sie nie wieder her.</p>
 <h2 id="was-gespeichert-wird">Was gespeichert wird<a class="headerlink" href="#was-gespeichert-wird" title="Permanent link">&para;</a></h2>
 <p>Ein Projekt erfasst den vollständigen Zustand Ihres Arbeitsbereichs:</p>
 <table>
@@ -830,12 +889,12 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>Windows</strong></td>
-<td>Alle geöffneten KorTTY-Fenster und ihre Positionen/Größen</td>
+<td><strong>Fenster</strong></td>
+<td>Jedes offene korTTY-Fenster mit seiner Position und Größe und ob es maximiert war (siehe <a href="#fenster">Fenster</a>)</td>
 </tr>
 <tr>
 <td><strong>Tabs</strong></td>
-<td>Alle Terminal-Tabs in jedem Fenster, einschließlich der Konfiguration geteilter Bereiche und des Namens eines <a href="terminal.html#arbeiten-mit-tabs">umbenannten Tabs</a>, dazu SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, sowie Tabs des Dateieditors und des Bildbetrachters</td>
+<td>Alle Terminal-Tabs in jedem Fenster, einschließlich ihrer <a href="#geteilte-bereiche">geteilten Bereiche</a> mit dem Server jedes Bereichs und der Position jeder Trennlinie, und des Namens eines <a href="terminal.html#arbeiten-mit-tabs">umbenannten Tabs</a>, dazu SFTP-Manager-Tabs mit den lokalen und entfernten Ordnern, die sie anzeigen, sowie Tabs des Dateieditors und des Bildbetrachters</td>
 </tr>
 <tr>
 <td><strong>Verbindungen</strong></td>
@@ -843,11 +902,11 @@
 </tr>
 <tr>
 <td><strong>Dashboard</strong></td>
-<td>Sichtbarkeit des Armaturenbretts und Position der Trennwand</td>
+<td>Ob das Dashboard in jedem Fenster angezeigt wurde</td>
 </tr>
 <tr>
 <td><strong>Aktiver Tab</strong></td>
-<td>Welche Registerkarte war in jedem Fenster aktiv</td>
+<td>Welcher Tab in jedem Fenster aktiv war, anhand der Sitzungs-ID des Tabs, damit er wiedergefunden wird, nachdem die Tabs in ihre Gruppen einsortiert wurden</td>
 </tr>
 <tr>
 <td><strong>Terminal-Sitzungen</strong></td>
@@ -862,14 +921,61 @@
 <h2 id="automatische-wiederverbindung">Automatische Wiederverbindung<a class="headerlink" href="#automatische-wiederverbindung" title="Permanent link">&para;</a></h2>
 <p>Wenn <strong>Auto-Reconnect</strong> aktiviert ist, führt KorTTY automatisch Folgendes durch:</p>
 <ul>
-<li>Stellt alle Fenster mit ihrer gespeicherten Geometrie (Position und Größe) wieder her.</li>
-<li>Verbindet jede SSH-Registerkarte erneut mit den ursprünglichen Verbindungseinstellungen</li>
+<li>Stellt alle Fenster mit ihrer gespeicherten Position und Größe wieder her, siehe <a href="#fenster">Fenster</a></li>
+<li>Verbindet jeden SSH-Tab mit den ursprünglichen Verbindungseinstellungen erneut und öffnet jeden lokalen Shell-Tab wieder</li>
+<li>Öffnet jeden Tab, der sich ohne Nachfrage anmelden kann – eine lokale Shell, SSH-Schlüssel-Authentifizierung, ein gespeichertes Passwort oder ein noch gültiger temporärer SSH-Schlüssel –, und führt die anderen in einer Leiste über der Statuszeile auf, siehe <a href="#tabs-die-auf-sie-warten">Tabs, die auf Sie warten</a></li>
 <li>Gibt jeder umbenannten Terminal-Registerkarte ihren Namen zurück; eine Registerkarte, die Sie nie umbenannt haben, zeigt den aktuellen Namen der Verbindung</li>
 <li>Zeigt jeden Tab des Terminals mit dem gespeicherten Bildschirm, der über die neue Sitzung abgedunkelt ist, eingerahmt von einer <em>Wiederhergestellten Ausgabe aus</em> Zeile mit dem Datum, an dem das Projekt gespeichert wurde, und einer <em>Ende der wiederhergestellten Ausgabe</em> Zeile. Der Text wird nur in das lokale Terminal geschrieben und niemals an den Server gesendet: Er erreicht die Remote-Shell oder deren Befehlsverlauf nicht, und ein Sitzungsjournal, das mit der Verbindung beginnt, zeichnet ihn nicht auf (ein Journal, das Sie später aktivieren, importiert den Scrollback, der dann die wiederhergestellten Zeilen enthält). Steuerzeichen und Escape-Sequenzen werden daraus entfernt, bevor er angezeigt wird.</li>
+<li>Bringt die geteilten Bereiche jedes Terminal-Tabs zurück, sobald der Tab verbunden ist, siehe <a href="#geteilte-bereiche">Geteilte Bereiche</a></li>
 <li>Öffnet jeden SFTP-Manager-Tab erneut in den lokalen und entfernten Ordnern, die er beim Speichern des Projekts zeigte</li>
-<li>Stellt den aktiven Tab- und Dashboard-Status wieder her</li>
+<li>Wählt den aktiven Tab jedes Fensters aus und zeigt oder verbirgt sein Dashboard wie gespeichert</li>
 </ul>
-<p>Wenn <strong>Automatisches Wiederverbinden</strong> deaktiviert ist, werden Terminal-Tabs nicht wiederhergestellt: Das Öffnen des Projekts wendet die gespeicherte Fenstergeometrie an und öffnet erneut lokale Datei-Editor- und Bildbetrachter-Tabs, während Terminal-, SFTP- und Remote-Datei-Tabs übersprungen werden. Öffnen Sie diese Verbindungen erneut im Connection-Manager.</p>
+<p>Wenn <strong>Automatisches Wiederverbinden</strong> deaktiviert ist, werden Terminal-Tabs nicht wiederhergestellt: Das Öffnen des Projekts öffnet die gespeicherten Fenster an ihrer Position und in ihrer Größe und öffnet lokale Datei-Editor- und Bildbetrachter-Tabs erneut, während Terminal-, SFTP- und Remote-Datei-Tabs übersprungen werden. Öffnen Sie diese Verbindungen erneut im Connection-Manager.</p>
+<h3 id="tabs-die-auf-sie-warten">Tabs, die auf Sie warten<a class="headerlink" href="#tabs-die-auf-sie-warten" title="Permanent link">&para;</a></h3>
+<p>Mit <strong>Automatisches Wiederverbinden</strong> fragt das Öffnen eines Projekts Sie nichts, während es die Tabs öffnet. Jeder Terminal-, SFTP-Manager- und Remote-Datei-Tab meldet sich wie <strong>Verbinden</strong> im Connection-Manager an (siehe <a href="connections.html#anmelden">Anmelden</a>), aber nur mit dem, was gespeichert ist, und die <a href="../reference/enterprise-policy.html#server-zugriffskontrolle">Serverzugriffsrichtlinie</a> Ihrer Organisation wird zuerst geprüft:</p>
+<ul>
+<li><strong>Öffnet sofort</strong> — eine lokale Shell, SSH-Schlüssel-Authentifizierung, ein Passwort, das in der Verbindung oder in ihren hinterlegten Anmeldeinformationen gespeichert ist, und ein temporärer SSH-Schlüssel, der noch gültig ist. Eine lokale Shell öffnet sich unabhängig davon, was in ihrem Authentifizierungsfeld steht.</li>
+<li><strong>Wartet auf Sie</strong> — ein Passwort, das nicht gespeichert ist, ein temporärer SSH-Schlüssel, der abgelaufen ist oder den der gesperrte Tresor noch verschlüsselt hält, und ein Passwort, das im gesperrten Tresor liegt. Ein temporärer Schlüssel wird nie ohne Nachfrage erneuert.</li>
+<li><strong>Nur aufgeführt</strong> — ein Server oder Jump-Server, den die Serverzugriffsrichtlinie blockiert, eine Verbindung, die gelöscht oder nie gespeichert wurde (eine Schnellverbindungs-Sitzung), und eine lokale Datei, die nicht mehr existiert.</li>
+</ul>
+<p>Die Tabs, die sich nicht öffnen, werden in einer Leiste über der Statuszeile ihres Fensters aufgeführt, zum Beispiel <em>Nicht wieder geöffnete Tabs: Anmeldung nötig (2) · Tresor gesperrt (1) · durch Richtlinie gesperrt (1)</em>, statt in einem Dialog für jeden Tab. Die Leiste blockiert das Fenster nie, sodass Sie in den geöffneten Tabs arbeiten und später zu ihr zurückkehren können.</p>
+<table>
+<thead>
+<tr>
+<th>Aktion</th>
+<th>Was sie bewirkt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Verbinden…</strong></td>
+<td>Fragt nacheinander ab, was jeder wartende Tab braucht: sein Passwort, einen neuen temporären SSH-Schlüssel oder – bei einem Passwort im Tresor – <strong>Tresor entsperren…</strong>, wobei korTTY nach dem Passwort fragt, wenn Sie das ablehnen. Sie werden einmal pro Verbindung gefragt: Die anderen wartenden Tabs dieser Verbindung öffnen sich mit derselben Antwort. <strong>Abbrechen</strong> hält an; dieser Tab und die nachfolgenden bleiben in der Leiste. Die Serverzugriffsrichtlinie wird vor jeder Frage erneut geprüft, und ein Server, den sie inzwischen blockiert, oder eine zwischenzeitlich gelöschte Verbindung wandert ohne Dialog in den entsprechenden Teil der Liste.</td>
+</tr>
+<tr>
+<td><strong>Tresor entsperren…</strong></td>
+<td>Wird angezeigt, solange Tabs auf den gesperrten Tresor warten. Sobald Sie das Master-Passwort eingegeben haben, öffnen sich diese Tabs, in jedem Fenster. Wenn Sie den Tresor auf andere Weise entsperren, zum Beispiel mit <em>Konfiguration &gt; Sicherheit &gt; Tresor entsperren…</em>, öffnen sie sich ebenfalls; ein Tab, dessen Passwort sich dann doch nicht im Tresor befindet, wartet stattdessen auf die Anmeldung.</td>
+</tr>
+<tr>
+<td><strong>Details</strong></td>
+<td>Listet jeden Tab der Leiste mit seinem Namen und dem Grund auf, warum er sich nicht geöffnet hat, zum Beispiel <em>web-01: braucht ein Passwort</em> oder <em>prod: von den Richtlinien Ihrer Organisation nicht erlaubt (prod.example.com:22)</em>. Wenn Sie einen Tab wählen, der auf Sie wartet, wird nur dieser Tab verbunden; blockierte und fehlende Tabs sind ausgegraut.</td>
+</tr>
+<tr>
+<td><strong>Verwerfen</strong></td>
+<td>Blendet die Leiste aus und vergisst ihre Tabs.</td>
+</tr>
+</tbody>
+</table>
+<p>Ein Tab, den Sie aus der Leiste öffnen, kommt zurück wie die Tabs, die sich sofort geöffnet haben: mit seinem gespeicherten Bildschirm, seiner Tab-Gruppe, seinem Namen, seiner Schriftgröße und seinen <a href="#geteilte-bereiche">geteilten Bereichen</a>, einsortiert in seine Tab-Gruppe. War er der aktive Tab des Fensters, wählt das Fenster ihn aus. Wenn Sie ein anderes Projekt im Fenster öffnen, ersetzt dessen Leiste die bisherige, und das Schließen des Fensters verwirft sie.</p>
+<h3 id="geteilte-bereiche">Geteilte Bereiche<a class="headerlink" href="#geteilte-bereiche" title="Permanent link">&para;</a></h3>
+<p>Mit <strong>Automatisches Wiederverbinden</strong> bekommt ein Terminal-Tab, der geteilte Bereiche hatte, diese zurück, sobald seine eigene Sitzung verbunden ist: Die Bereiche öffnen sich nacheinander im Hintergrund, ohne einen <em>Verbinde</em>-Dialog für jeden, jeder Bereich an seinem bisherigen Platz, und die Trennlinien rücken dorthin, wo sie beim Speichern des Projekts waren. Das geschieht einmal bei jedem Öffnen des Projekts; wenn sich der Tab später erneut verbindet, werden seine Bereiche nicht noch einmal hinzugefügt.</p>
+<ul>
+<li>Ein Bereich, der auf der Verbindung des Tabs lief, meldet sich wie der Tab an, mit demselben Passwort oder SSH-Schlüssel. Der <a href="terminal.html#vorgange-aufteilen">Zugriffsgrund</a>, den Sie für den Tab angegeben haben, wird auch für diese Bereiche gesendet, sodass ein Server im CyberArk-Stil nur einmal fragt. Eine Hostschlüssel-Abfrage und die Eingabeaufforderungen einer Keyboard-Interactive-Anmeldung erscheinen weiterhin, wenn der Server fragt.</li>
+<li>Ein Bereich, den Sie mit <strong>Rechts teilen (neue Verbindung)</strong> oder <strong>Unten teilen (neue Verbindung)</strong> geöffnet hatten, und die Bereiche, die aus ihm auf demselben Server geteilt wurden, öffnen sich auf der gespeicherten Verbindung dieses Bereichs, nicht auf dem Server des Tabs. Sie melden sich nur mit dem an, was gespeichert ist: mit dem SSH-Schlüssel oder dem Passwort aus der Zugangsdatenverwaltung oder der Verbindung. Hier fragt korTTY weder nach einem Passwort noch nach einem neuen temporären SSH-Schlüssel und bietet nicht an, den Tresor zu entsperren.</li>
+<li>Jeder Bereich durchläuft die <a href="../reference/enterprise-policy.html#server-zugriffskontrolle">Serverzugriffsrichtlinie</a> Ihrer Organisation, auch die Bereiche auf dem eigenen Server des Tabs, weil eine gespeicherte Verbindung seit dem Speichern des Projekts geändert worden sein kann.</li>
+<li>Ein Bereich, der sich nicht öffnen lässt, bleibt zusammen mit den aus ihm geteilten Bereichen geschlossen, und die anderen Bereiche behalten ihre Plätze. Das passiert, wenn der Bereich ein Passwort oder einen neuen temporären SSH-Schlüssel braucht, wenn der Tresor gesperrt ist, wenn die Richtlinie seinen Server nicht erlaubt, wenn seine Verbindung gelöscht oder nie gespeichert wurde (eine Schnellverbindungs-Sitzung) oder wenn die Verbindung fehlschlägt. Die Statusleiste meldet dann, wie viele Bereiche welches Tabs nicht wieder geöffnet wurden und warum, zum Beispiel <em>web-01: 2 von 4 geteilten Bereichen wurden nicht wieder geöffnet (Tresor gesperrt)</em>. Öffnen Sie sie mit <strong>Rechts teilen</strong> oder <strong>Unten teilen</strong> erneut.</li>
+<li>Höchstens 32 Bereiche pro Tab werden wieder geöffnet; eine Projektdatei mit mehr, die korTTY selbst nie schreibt, öffnet sich mit den ersten 32.</li>
+</ul>
+<p>Projekte, die mit früheren Versionen gespeichert wurden, speichern keinen Server pro Bereich: Alle ihre Bereiche öffnen sich wie bisher auf dem Server des Tabs.</p>
 <h3 id="sftp-manager-tabs">SFTP-Manager-Tabs<a class="headerlink" href="#sftp-manager-tabs" title="Permanent link">&para;</a></h3>
 <p>Mit <strong>Automatisches Wiederverbinden</strong> verbindet sich jeder gespeicherte SFTP-Manager-Tab erneut mit seiner Verbindung und öffnet die lokalen und entfernten Ordner, die er beim Speichern des Projekts angezeigt hat. Ohne <strong>Automatisches Wiederverbinden</strong> werden SFTP-Manager-Tabs nicht wieder geöffnet.</p>
 <ul>
@@ -885,18 +991,19 @@
 <p>Ein Projekt ist eine einfache XML-Datei mit der <code>.kortty</code>-Erweiterung. Jedes Projekt enthält:</p>
 <ul>
 <li>Metadaten (Name, Beschreibung, Erstellungs-/Änderungszeitstempel)</li>
-<li>Vollständiger Fenster- und Tab-Status</li>
+<li>Jedes Fenster mit seiner Position, Größe und Tabs sowie der Sitzungs-ID seines aktiven Tabs</li>
 <li>Verbindungsreferenzen (nach Verbindungs-ID, daher muss die Verbindung im Connection-Manager existieren)</li>
-<li>Sichtbarkeit und Layout des Dashboards</li>
+<li>Sichtbarkeit des Dashboards in jedem Fenster</li>
 </ul>
 <p>Der gespeicherte Bildschirminhalt ist nicht Teil der <code>.kortty</code>-Datei. Er wird separat als eine gzip-Datei pro Terminal-Tab, <code>~/.kortty/history/&lt;session-id&gt;.history.gz</code>, gespeichert, die das Projekt per Dateiname referenziert – ein Projektdokument, das Sie teilen, trägt daher das Layout, jedoch nicht den Bildschirminhalt. korTTY liest, schreibt oder löscht ausschließlich reine Dateinamen innerhalb von <code>~/.kortty/history/</code>; ein Projekt, dessen Referenz auf einen anderen Ort zeigt, öffnet sich ohne diesen Bildschirminhalt.</p>
+<p>Eine Projektdatei enthält nie das Arbeitsverzeichnis eines Bereichs oder einen Verweis auf gespeicherten Scrollback: korTTY entfernt beides aus jedem Projekt, das es öffnet oder speichert, sodass ein Projekt, das Ihnen jemand schickt, weder den Ordner bestimmen kann, in dem eine lokale Shell startet, noch einen Bereich auf eine Datei verweisen lassen kann.</p>
 <h2 id="anwendungsfalle">Anwendungsfälle<a class="headerlink" href="#anwendungsfalle" title="Permanent link">&para;</a></h2>
 <p>Projekte sind nützlich für:</p>
 <ul>
 <li><strong>Kontextwechsel</strong> – Speichern Sie ein „Produktionssystem“-Projekt, ein „Entwicklungs“-Projekt und ein „Test“-Projekt; Öffnen Sie das, das Sie benötigen</li>
 <li><strong>Teamübergaben</strong> – Teilen Sie Projekte mit Kollegen, um identische Arbeitsbereichslayouts und -verbindungen einzurichten</li>
 <li><strong>Layouts mit mehreren Fenstern</strong> – Speichern Sie ein komplexes Setup über mehrere Monitorfenster hinweg und stellen Sie es sofort wieder her</li>
-<li><strong>Sitzungswiederherstellung</strong> – Stellen Sie schnell Ihre letzte bekannte Konfiguration wieder her, wenn die App abstürzt oder Sie Tabs versehentlich schließen</li>
+<li><strong>Sitzungswiederherstellung</strong> – Behalten Sie einen Arbeitsbereich, zu dem Sie jederzeit zurückkehren können; nach einem Absturz oder Neustart bringen das <a href="#beim-start">Angebot beim Start</a> oder <a href="#vorherige-sitzung"><em>Datei → Vorherige Sitzung wiederherstellen</em></a> zurück, was geöffnet war, und <em>Datei → Zuletzt geschlossen</em> die Tabs, die Sie geschlossen haben</li>
 </ul></p>
     </article>
 </section>

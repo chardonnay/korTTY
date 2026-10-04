@@ -53,6 +53,17 @@ public class ServerConnection {
     @XmlElement
     private String localShellWorkingDirectory;
 
+    /**
+     * For LOCAL_SHELL connections: start bash, zsh or fish with korTTY's shell-integration wrapper,
+     * which runs the user's own startup files and then the shell-integration snippet. Opt-in; null
+     * (written as nothing) means off. Never applies to SSH, Mosh or Teamwork connections: see
+     * {@link de.kortty.core.LocalShellTtyConnector#wantsShellIntegrationInjection}. Exports leave it
+     * behind and Teamwork files never switch it on, so it is only ever set on the computer the
+     * shell runs on.
+     */
+    @XmlElement
+    private Boolean shellIntegrationAutoInject;
+
     @XmlElement
     private ConnectionSettings settings;
     
@@ -75,6 +86,24 @@ public class ServerConnection {
      */
     @XmlElement
     private String highlightRuleSetId;
+
+    /**
+     * When a paste with line breaks into this connection's terminals asks for confirmation: the
+     * {@link de.kortty.paste.PasteWarningMode#id()} {@code off}, {@code unless-bracketed} or {@code always},
+     * or {@code null} to follow Settings → Terminal → Paste protection. A value this version does not know
+     * also follows the global setting. Resolved by
+     * {@link de.kortty.paste.PasteProtectionSettings#resolve}, which lets a teamwork connection only make
+     * the warning stricter.
+     */
+    @XmlElement
+    private String pasteWarningMode;
+
+    /**
+     * The pause in milliseconds after each line of a paste into this connection's terminals, {@code 0..1000}
+     * ({@code 0} pastes at once), or {@code null} to follow Settings → Terminal → Paste protection.
+     */
+    @XmlElement
+    private Integer pasteLineDelayMs;
 
     /** SithTermFX terminal emulation type stored as enum name. */
     @XmlElement
@@ -206,11 +235,14 @@ public class ServerConnection {
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.shellIntegrationAutoInject = source.shellIntegrationAutoInject;
         c.settings = source.settings;
         c.windowGeometry = source.windowGeometry;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.highlightRuleSetId = source.highlightRuleSetId;
+        c.pasteWarningMode = source.pasteWarningMode;
+        c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.group = source.group;
@@ -255,11 +287,14 @@ public class ServerConnection {
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.shellIntegrationAutoInject = source.shellIntegrationAutoInject;
         c.authMethod = source.authMethod;
         c.privateKeyPath = source.privateKeyPath;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.highlightRuleSetId = source.highlightRuleSetId;
+        c.pasteWarningMode = source.pasteWarningMode;
+        c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.group = source.group;
@@ -277,9 +312,10 @@ public class ServerConnection {
     /**
      * Copy written to a connection export: configuration is exported unconditionally, while
      * username, password/credential reference, tunnels and jump server follow the export dialog's
-     * checkboxes. Usage statistics, capture configs, temporary keys, AI assignments and teamwork
-     * provenance never leave the machine. Every persisted field must be classified as carried,
-     * conditional or excluded in ServerConnectionCopyPolicyTest.
+     * checkboxes. Usage statistics, capture configs, temporary keys, AI assignments, teamwork
+     * provenance and the local shell's shell-integration wrapper choice never leave the machine.
+     * Every persisted field must be classified as carried, conditional or excluded in
+     * ServerConnectionCopyPolicyTest.
      */
     public static ServerConnection copyForExport(ServerConnection source, boolean includeUsername,
             boolean includePassword, boolean includeTunnels, boolean includeJumpServer) {
@@ -300,6 +336,8 @@ public class ServerConnection {
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.highlightRuleSetId = source.highlightRuleSetId;
+        c.pasteWarningMode = source.pasteWarningMode;
+        c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.username = includeUsername ? source.username : "";
@@ -345,6 +383,8 @@ public class ServerConnection {
         c.terminalEffectPluginId = source.terminalEffectPluginId;
         c.terminalEffectAnimationSpeed = source.terminalEffectAnimationSpeed;
         c.highlightRuleSetId = source.highlightRuleSetId;
+        c.pasteWarningMode = source.pasteWarningMode;
+        c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.username = includeUsername ? source.username : "";
@@ -486,6 +526,19 @@ public class ServerConnection {
         this.localShellWorkingDirectory = localShellWorkingDirectory;
     }
 
+    /**
+     * Whether this local shell connection starts its shell with korTTY's shell-integration wrapper;
+     * the stored choice only. Whether a shell actually gets it is decided at its start.
+     */
+    public boolean isShellIntegrationAutoInject() {
+        return Boolean.TRUE.equals(shellIntegrationAutoInject);
+    }
+
+    /** Switches the shell-integration wrapper on or off; off is stored as nothing. */
+    public void setShellIntegrationAutoInject(boolean shellIntegrationAutoInject) {
+        this.shellIntegrationAutoInject = shellIntegrationAutoInject ? Boolean.TRUE : null;
+    }
+
     public ConnectionSettings getSettings() {
         return settings;
     }
@@ -530,6 +583,34 @@ public class ServerConnection {
     public void setHighlightRuleSetId(String highlightRuleSetId) {
         this.highlightRuleSetId = highlightRuleSetId != null && !highlightRuleSetId.isBlank()
                 ? highlightRuleSetId.trim() : null;
+    }
+
+    /**
+     * When a paste with line breaks into this connection's terminals asks for confirmation, or {@code null}
+     * to follow the global paste protection (also for a stored value this version does not know). Read it
+     * through {@link de.kortty.paste.PasteProtectionSettings#resolve}, not on its own.
+     */
+    public de.kortty.paste.PasteWarningMode getPasteWarningMode() {
+        return de.kortty.paste.PasteWarningMode.parseId(pasteWarningMode);
+    }
+
+    /** Sets when this connection's pastes with line breaks ask; {@code null} follows the global setting. */
+    public void setPasteWarningMode(de.kortty.paste.PasteWarningMode pasteWarningMode) {
+        this.pasteWarningMode = pasteWarningMode != null ? pasteWarningMode.id() : null;
+    }
+
+    /**
+     * The pause in milliseconds after each line of a paste into this connection's terminals, clamped to
+     * {@code 0..1000} ({@code 0} pastes at once), or {@code null} to follow the global paste protection.
+     */
+    public Integer getPasteLineDelayMs() {
+        return pasteLineDelayMs != null ? de.kortty.paste.PastePacer.clampLineDelayMs(pasteLineDelayMs) : null;
+    }
+
+    /** Sets the pause after each pasted line, clamped to {@code 0..1000}; {@code null} follows the global setting. */
+    public void setPasteLineDelayMs(Integer pasteLineDelayMs) {
+        this.pasteLineDelayMs = pasteLineDelayMs != null
+                ? de.kortty.paste.PastePacer.clampLineDelayMs(pasteLineDelayMs) : null;
     }
 
     public String getTerminalEmulationType() {

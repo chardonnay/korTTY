@@ -177,7 +177,9 @@ class RecentlyClosedRecorderTest {
 
         for (String signature : List.of(
                 "private void closeAllTabs() {",
-                "private void loadProject(Project project) {",
+                "static void restoreProject(Project project, MainWindow firstWindow) {",
+                "private void restoreWindowState(WindowState windowState, Project project, boolean moveWindow) {",
+                "private void restoreSavedTab(",
                 "private void organizeTabsByGroup() {")) {
             String body = methodBody(window, signature);
             assertWithMessage(signature).that(body).doesNotContain("recordUserClosedTabs");

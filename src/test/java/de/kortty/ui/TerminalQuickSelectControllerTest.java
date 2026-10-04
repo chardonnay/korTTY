@@ -68,7 +68,8 @@ public class TerminalQuickSelectControllerTest {
         String controller = compact("src/main/java/de/kortty/ui/TerminalQuickSelectController.java");
 
         int install = terminalView.indexOf(
-            "quickSelect=TerminalQuickSelectController.install(splitPane,MainWindow::effectiveQuickSelectAccelerator);");
+            "quickSelect=TerminalQuickSelectController.install(splitPane,MainWindow::effectiveQuickSelectAccelerator,"
+                + "()->quickSelectSettings(TerminalView::readGlobalSettings));");
         int viewFilter = terminalView.indexOf("splitPane.addEventFilter(KeyEvent.KEY_PRESSED,");
         assertThat(install).isAtLeast(0);
         assertThat(viewFilter).isGreaterThan(install);
@@ -104,6 +105,61 @@ public class TerminalQuickSelectControllerTest {
         // Before the labels are drawn: no key reaches the canvas's own hover teardown while quick select runs.
         assertThat(clear).isGreaterThan(focus);
         assertThat(clear).isLessThan(capture);
+    }
+
+    @Test
+    public void eachQuickSelectUsesTheLettersAndPatternsInEffectWhenItStarts() throws IOException {
+        String controller = compact("src/main/java/de/kortty/ui/TerminalQuickSelectController.java");
+
+        // Read on every start, so a change in the settings applies to open tabs at once.
+        int read = controller.indexOf("QuickSelectSettingsoptions=currentSettings();");
+        int capture = controller.indexOf("QuickSelectScreen.capture(panel.getTerminalTextBuffer(),geometry.scrollOrigin(),"
+            + "geometry.rows(),options.patterns());");
+        int session = controller.indexOf("QuickSelectSession.of(hits,options.alphabet(),trigger.get());");
+        assertThat(read).isAtLeast(0);
+        assertThat(capture).isGreaterThan(read);
+        assertThat(session).isGreaterThan(capture);
+        assertThat(controller).doesNotContain("QuickSelectLabels.DEFAULT_ALPHABET,trigger");
+    }
+
+    @Test
+    public void theTerminalViewReadsTheSettingsAndFallsBackToTheDefaults() {
+        de.kortty.model.GlobalSettings settings = new de.kortty.model.GlobalSettings();
+        settings.setTerminalQuickSelectAlphabet("hjkl");
+        settings.setTerminalQuickSelectPatterns(java.util.List.of("INC\\d+"));
+
+        de.kortty.core.QuickSelectSettings read = TerminalView.quickSelectSettings(() -> settings);
+
+        assertThat(read.alphabet()).isEqualTo("hjkl");
+        assertThat(read.patterns().size()).isEqualTo(1);
+        assertThat(TerminalView.quickSelectSettings(() -> null)).isEqualTo(de.kortty.core.QuickSelectSettings.DEFAULTS);
+        assertThat(TerminalView.quickSelectSettings(() -> {
+            throw new IllegalStateException("no application");
+        })).isEqualTo(de.kortty.core.QuickSelectSettings.DEFAULTS);
+    }
+
+    @Test
+    public void theSettingsPageStoresOnlyLettersAndPatternsQuickSelectCanUse() throws IOException {
+        String settings = compact("src/main/java/de/kortty/ui/SettingsDialog.java");
+
+        // Save stays in the dialog and shows the Terminal page while a field has a problem.
+        int saveFilter = settings.indexOf("}elseif(!QuickSelectSettingsSupport.canSave(quickSelectAlphabetField.getText(),"
+            + "quickSelectPatternsArea.getText())){");
+        assertThat(saveFilter).isAtLeast(0);
+        assertThat(settings.indexOf("event.consume();revealQuickSelectProblems();}", saveFilter)).isGreaterThan(saveFilter);
+        assertThat(settings).contains("privatebooleanapplySettings(){");
+        int guard = settings.indexOf("if(!QuickSelectSettingsSupport.canSave(quickSelectAlphabetField.getText(),"
+            + "quickSelectPatternsArea.getText())){revealQuickSelectProblems();returnfalse;}");
+        int firstSetter = settings.indexOf("settings.setFontFamily(fontFamilyCombo.getValue());");
+        assertThat(guard).isGreaterThan(settings.indexOf("privatebooleanapplySettings(){"));
+        assertThat(guard).isLessThan(firstSetter);
+        assertThat(settings).contains("globalSettings.setTerminalQuickSelectAlphabet("
+            + "QuickSelectSettingsSupport.alphabet(quickSelectAlphabetField.getText()));");
+        assertThat(settings).contains("globalSettings.setTerminalQuickSelectPatterns("
+            + "QuickSelectSettingsSupport.patterns(quickSelectPatternsArea.getText()));");
+        // The fields sit in the Links section, after its checkbox.
+        assertThat(settings.indexOf("terminalGrid.add(newVBox(4,quickSelectPatternsArea,quickSelectPatternsError),1,terminalRow++);"))
+            .isGreaterThan(settings.indexOf("terminalGrid.add(terminalLinkDetectionCheck,0,terminalRow++,2,1);"));
     }
 
     private static String compact(String path) throws IOException {

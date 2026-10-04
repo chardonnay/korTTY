@@ -116,7 +116,7 @@ Sobald eine Quelle synchronisiert ist:
 1. Öffnen Sie **Verbindungen verwalten…** (oder drücken Sie ++ctrl+m++).
 2. Wechseln Sie zum Tab **Teamwork-Verbindungen**.
 3. Doppelklicken Sie auf eine Teamwork-Verbindung, um sich zu verbinden.
-4. **Nur lesen** — Teamwork-Verbindungen sind nur lesbar, und korTTY schreibt niemals Änderungen zurück in eine Quelle. Um eine geteilte Verbindung zu ändern, bearbeiten Sie sie im Repository oder der gemeinsamen Datei; die Änderung wird mit dem nächsten Sync übernommen.
+4. **Nur lesen** — Teamwork-Verbindungen sind nur lesbar, und korTTY schreibt niemals Änderungen zurück in eine Quelle: **Bearbeiten** ist auf diesem Tab nicht verfügbar, und eine Verbindung kann nicht in einen anderen Ordner gezogen werden. Um eine geteilte Verbindung zu ändern, bearbeiten Sie sie im Repository oder in der gemeinsamen Datei; die Änderung wird mit dem nächsten Sync übernommen.
 
 Die [Befehlspalette](command-palette.md#verbinden) listet die Teamwork-Verbindungen ebenfalls auf, gekennzeichnet mit **Geteilt (Teamwork)**, sodass Sie sich auch verbinden können, indem Sie `@` und einen Teil eines Namens eingeben.
 
