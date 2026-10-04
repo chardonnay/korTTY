@@ -14,6 +14,9 @@ Konfigurieren von KI-Profilen und Einstellungen für den Terminal-KI-Agent. Dies
 | --- | --- | --- | --- | --- |
 | KI-Funktionen aktivieren | Schalter | — | Ein | `aiFeaturesEnabled` |
 | Bestätigungsdialog vor Absendung von KI-Anfragen anzeigen | Schalter | — | Ein | `aiConfirmBeforeSend` |
+| KI-Chat-Codeblöcke im Terminal | Dropdown | Aus (nur kopieren und speichern), Nur Einfügen, Einfügen und Ausführen | Einfügen und Ausführen | `aiChatTerminalActions` |
+
+**KI-Chat-Codeblöcke im Terminal** legt fest, welche Schaltflächen die Codeblöcke eines KI-Chats anbieten: **Einfügen** gibt einen Block an der Eingabeaufforderung eines Terminalbereichs ein, ohne Enter zu drücken, und **Ausführen** führt eine einzelne Shell-Befehlszeile nach einer Bestätigung aus. Die Unternehmensrichtlinie kann nur weitere Schaltflächen wegnehmen. Siehe [Codeblöcke im Terminal](../../features/ai-assistant.md#codeblocke-im-terminal).
 
 ## KI-Agent im Terminal
 
