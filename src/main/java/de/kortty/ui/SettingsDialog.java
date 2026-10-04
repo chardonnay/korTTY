@@ -4619,7 +4619,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         return TerminalCursorStyleSupport.withStoredBlinkingPreference(currentStyle, blink);
     }
 
-    /** The label key of a choice in the paste protection dropdown. */
+    /** The label key of a choice in the Session Restore dropdown. */
     private static String sessionRestoreModeKey(SessionRestoreMode mode) {
         return switch (mode) {
             case ASK -> "settings.window.restore.mode.ask";
@@ -4628,6 +4628,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         };
     }
 
+    /** The label key of a choice in the paste protection dropdown. */
     private static String pasteWarningModeKey(PasteWarningMode mode) {
         return switch (mode) {
             case OFF -> "settings.terminal.paste.mode.off";

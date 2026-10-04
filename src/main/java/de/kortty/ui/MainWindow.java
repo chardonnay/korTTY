@@ -7779,10 +7779,6 @@ public class MainWindow {
     }
     
     /**
-     * Tells the status bar when a restored tab could not reopen all its split panes, and why; a
-     * complete restore says nothing.
-     */
-    /**
      * Logs what a capture saves: at INFO for Save Project, at DEBUG for the session snapshot, which
      * captures every few seconds and would otherwise fill the log.
      */
@@ -7794,6 +7790,10 @@ public class MainWindow {
         }
     }
 
+    /**
+     * Tells the status bar when a restored tab could not reopen all its split panes, and why; a
+     * complete restore says nothing.
+     */
     private void reportSplitLayoutRestore(String tabName, SplitLayoutRestorePlan.Summary summary) {
         if (summary.missingPanes() <= 0) {
             return;
