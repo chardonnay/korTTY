@@ -1,5 +1,9 @@
 package de.kortty.core;
 
+import de.kortty.core.sftp.SftpChannelSource;
+import de.kortty.core.sftp.transfer.SftpStreamCopier;
+import de.kortty.core.sftp.transfer.TransferCancellation;
+import de.kortty.core.sftp.transfer.TransferProgressListener;
 import de.kortty.model.ServerConnection;
 import de.kortty.security.EncryptionService;
 import de.kortty.ui.I18n;
@@ -19,20 +23,21 @@ import org.slf4j.LoggerFactory;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Manages SFTP connections for file transfer.
+ *
+ * <p>As a {@link SftpChannelSource} it owns its SSH session; transfer workers may open further
+ * SFTP channels on it with {@link #openChannel()}.
  */
-public class SFTPSession {
+public class SFTPSession implements SftpChannelSource {
     
     private static final Logger logger = LoggerFactory.getLogger(SFTPSession.class);
     
@@ -374,40 +379,32 @@ public class SFTPSession {
     }
     
     /**
-     * Downloads a file from remote to local.
+     * Downloads a file from remote to local, replacing a local file of that name.
+     *
+     * <p>The copy is pipelined (see {@link SftpStreamCopier}).
      */
     public void downloadFile(String remotePath, Path localPath) throws IOException {
-        SftpClient.Attributes attrs = sftpClient.stat(remotePath);
-        long size = attrs.getSize();
-        
-        try (java.io.InputStream in = sftpClient.read(remotePath);
-             java.io.FileOutputStream out = new java.io.FileOutputStream(localPath.toFile())) {
-            byte[] buffer = new byte[8192];
-            long totalRead = 0;
-            int bytesRead;
-            while ((bytesRead = in.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-                totalRead += bytesRead;
-            }
-            logger.info("Downloaded {} bytes from {} to {}", totalRead, remotePath, localPath);
+        // Stat first, as before: a missing remote file must not leave an empty local one behind.
+        sftpClient.stat(remotePath);
+        try (OutputStream out = Files.newOutputStream(localPath)) {
+            long bytes = SftpStreamCopier.download(sftpClient, remotePath, out, 0,
+                TransferProgressListener.NONE, TransferCancellation.create());
+            logger.info("Downloaded {} bytes from {} to {}", bytes, remotePath, localPath);
         }
     }
-    
+
     /**
      * Uploads a local file to {@code remotePath}, replacing a remote file of that name.
      *
-     * <p>The file is streamed, so its size is limited neither by the heap nor by the 2 GB maximum
-     * of a Java array.
+     * <p>The file is streamed and pipelined (see {@link SftpStreamCopier}), so its size is limited
+     * neither by the heap nor by the 2 GB maximum of a Java array.
      */
     public void uploadFile(Path localPath, String remotePath) throws IOException {
-        try (InputStream in = Files.newInputStream(localPath);
-             OutputStream out = sftpClient.write(remotePath,
-                 EnumSet.of(SftpClient.OpenMode.Write, SftpClient.OpenMode.Create, SftpClient.OpenMode.Truncate))) {
-            long bytes = in.transferTo(out);
-            logger.info("Uploaded {} bytes from {} to {}", bytes, localPath, remotePath);
-        }
+        long bytes = SftpStreamCopier.upload(sftpClient, remotePath, localPath, 0, SftpStreamCopier.REPLACE,
+            TransferProgressListener.NONE, TransferCancellation.create());
+        logger.info("Uploaded {} bytes from {} to {}", bytes, localPath, remotePath);
     }
-    
+
     /**
      * Downloads a file and returns its content as byte array.
      */
@@ -686,6 +683,41 @@ public class SFTPSession {
         SftpClient client = sftpClient;
         ClientSession current = session;
         return client != null && client.isOpen() && current != null && current.isOpen();
+    }
+
+    @Override
+    public SftpClient primaryClient() {
+        SftpClient client = sftpClient;
+        if (client == null) {
+            throw new IllegalStateException("SFTP session is not connected");
+        }
+        return client;
+    }
+
+    /** Opens another SFTP channel on this session's SSH connection; the caller closes it. */
+    @Override
+    public SftpClient openChannel() throws IOException {
+        ClientSession current = session;
+        if (current == null || !current.isOpen()) {
+            throw new IOException("SFTP session is not connected");
+        }
+        return SftpClientFactory.instance().createSftpClient(current);
+    }
+
+    @Override
+    public boolean isOpen() {
+        return isConnected();
+    }
+
+    @Override
+    public boolean ownsSession() {
+        return true;
+    }
+
+    @Override
+    public String describe() {
+        // host:port only, like the connect log: no getter that could carry a user name.
+        return connection == null ? "sftp" : connection.getHost() + ":" + connection.getPort();
     }
     
     /**

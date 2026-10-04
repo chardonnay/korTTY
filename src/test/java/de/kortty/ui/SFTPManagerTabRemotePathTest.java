@@ -124,7 +124,9 @@ class SFTPManagerTabRemotePathTest {
     void transfersStreamAndMergeFolders() throws IOException {
         String session = read("src/main/java/de/kortty/core/SFTPSession.java");
         assertThat(session).doesNotContain("readAllBytes");
-        assertThat(session).contains("in.transferTo(out)");
+        // Uploads and downloads stream through the pipelined copier, never a whole-file array.
+        assertThat(session).contains("SftpStreamCopier.upload(sftpClient, remotePath, localPath, 0");
+        assertThat(session).contains("SftpStreamCopier.download(sftpClient, remotePath, out, 0");
 
         String tab = read("src/main/java/de/kortty/ui/SFTPManagerTab.java");
         // Uploading a folder again merges into the existing remote folder.

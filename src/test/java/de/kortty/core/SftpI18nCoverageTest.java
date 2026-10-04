@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -27,9 +28,14 @@ import static com.google.common.truth.Truth.assertWithMessage;
 class SftpI18nCoverageTest {
 
     private static final Path BUNDLES = Path.of("src/main/resources/i18n");
-    private static final List<Path> SOURCES = List.of(
+    private static final Path SESSION_SOURCE = Path.of("src/main/java/de/kortty/core/SFTPSession.java");
+    private static final List<Path> SOURCE_FILES = List.of(
         Path.of("src/main/java/de/kortty/ui/SFTPManagerTab.java"),
-        Path.of("src/main/java/de/kortty/core/SFTPSession.java"));
+        SESSION_SOURCE);
+    /** Every Java file below these folders is scanned too, so new SFTP classes are covered. */
+    private static final List<Path> SOURCE_TREES = List.of(
+        Path.of("src/main/java/de/kortty/ui/sftp"),
+        Path.of("src/main/java/de/kortty/core/sftp"));
     private static final List<String> LOCALES = List.of("", "_de", "_es", "_fr", "_hr", "_it", "_nl", "_pt");
     /** Keys passed to {@code I18n.get}; other "sftp.*" strings (e.g. dialog geometry ids) are not messages. */
     private static final Pattern KEY_USE = Pattern.compile("I18n\\.get\\(\\s*\"(sftp\\.[A-Za-z.]*[A-Za-z])\"");
@@ -38,7 +44,7 @@ class SftpI18nCoverageTest {
     @Test
     void everySftpKeyIsTranslatedWithMatchingPlaceholders() throws IOException {
         Set<String> used = new TreeSet<>();
-        for (Path source : SOURCES) {
+        for (Path source : sources()) {
             Matcher matcher = KEY_USE.matcher(read(source));
             while (matcher.find()) {
                 used.add(matcher.group(1));
@@ -72,12 +78,32 @@ class SftpI18nCoverageTest {
 
     @Test
     void sessionErrorsAreNoLongerGermanLiterals() throws IOException {
-        String session = read(SOURCES.get(1));
+        String session = read(SESSION_SOURCE);
         for (String literal : List.of("SFTP-Subsystem", "unbekannter Fehler", "Kein SSH-Key-Pfad",
                 "SSH-Key-Datei existiert nicht", "Konnte SSH-Key nicht laden", "Keine KeyPairs",
                 "SSH-Key-Authentifizierung fehlgeschlagen")) {
             assertWithMessage("German literal in SFTPSession: " + literal).that(session).doesNotContain(literal);
         }
+    }
+
+    @Test
+    void scansTheSftpPackageTrees() throws IOException {
+        assertThat(sources()).contains(Path.of("src/main/java/de/kortty/core/sftp/transfer/SftpStreamCopier.java"));
+        assertThat(sources()).contains(Path.of("src/main/java/de/kortty/ui/sftp/SftpFileItem.java"));
+    }
+
+    /** The fixed files plus every Java file below the SFTP package trees, in a stable order. */
+    private static List<Path> sources() throws IOException {
+        Set<Path> all = new TreeSet<>(SOURCE_FILES);
+        for (Path tree : SOURCE_TREES) {
+            if (!Files.isDirectory(tree)) {
+                continue;
+            }
+            try (Stream<Path> files = Files.walk(tree)) {
+                files.filter(path -> path.toString().endsWith(".java")).forEach(all::add);
+            }
+        }
+        return new ArrayList<>(all);
     }
 
     /** The source with LF line endings: Windows CI checks sources out with CRLF. */
