@@ -17,8 +17,9 @@ import org.testng.annotations.Test;
  * Teamwork connections are read-only in the Connection Manager, as korTTY never writes back to a shared
  * source. The editor writes the form into the object it is given, so it must never get a teamwork
  * connection: editing one used to change the live shared copy and then throw on {@code connections.set(-1, …)}
- * because only the local list was searched. The lookup is checked directly; the wiring that keeps Edit and
- * dragging off the Teamwork tab is checked in the source, as no headless test can build the dialog.
+ * because only the local list was searched. The lookup is checked directly; the wiring that keeps Edit,
+ * dragging and the folder and empty-space menus off the Teamwork tab is checked in the source, as no
+ * headless test can build the dialog.
  */
 class TeamworkConnectionReadOnlyTest {
 
@@ -116,6 +117,82 @@ class TeamworkConnectionReadOnlyTest {
                 .that(region(cells, handler, "\n            });\n"))
                 .contains("if (selectionOnly || readOnlyConnections) {\n                    return;");
         }
+    }
+
+    @Test
+    void theTeamworkTreeRegistersNoFolderOrNewConnectionHandler() throws IOException {
+        String manager = source("ConnectionManagerDialog.java");
+
+        for (String setter : List.of("setOnCreateGroup(", "setOnRenameGroup(", "setOnDeleteGroup(", "setOnExportGroup(",
+                "setOnAddConnection(", "setOnToggleGroupHostKeyCheck(", "setGroupHostKeyCheckDisabledProbe(",
+                "setOnAssignTagToGroup(", "setOnRemoveTagFromGroup(", "setOnEditGroupColor(")) {
+            assertWithMessage("the local tree keeps its folder and empty-space menus")
+                .that(manager).contains("        treeView." + setter);
+            assertWithMessage("a teamwork folder handler would act on the local list or relax host-key checks")
+                .that(manager).doesNotContain("teamworkTreeView." + setter);
+        }
+    }
+
+    @Test
+    void aReadOnlyTreeHasNoMenuForEmptySpace() throws IOException {
+        String tree = source("ConnectionManagerTreeView.java");
+
+        String menu = region(tree, "private ContextMenu createEmptyAreaContextMenu() {", "\n    }\n");
+        assertThat(menu).contains("if (onCreateGroup != null && !readOnlyConnections) {\n"
+            + "            menu.getItems().add(createFolderItem);");
+        assertThat(menu).contains("if (onAddConnection != null && !readOnlyConnections) {\n"
+            + "            menu.getItems().add(createConnectionItem);");
+        assertWithMessage("an empty menu must give way to none").that(menu)
+            .contains("return menu.getItems().isEmpty() ? null : menu;");
+        assertThat(menu).doesNotContain("addAll(");
+
+        assertWithMessage("the menu is only ever set through updateEmptyAreaContextMenu()")
+            .that(occurrences(tree, "createEmptyAreaContextMenu()")).isEqualTo(2);
+        assertThat(region(tree, "private void updateEmptyAreaContextMenu() {", "\n    }\n"))
+            .contains("setContextMenu(selectionOnly ? null : createEmptyAreaContextMenu());");
+        // It is built in the constructor, before any handler or the read-only flag is set.
+        for (String setter : List.of("public ConnectionManagerTreeView(List<ServerConnection> connections) {",
+                "public void setSelectionOnly(boolean selectionOnly) {",
+                "public void setReadOnlyConnections(boolean readOnlyConnections) {",
+                "public void setOnCreateGroup(Consumer<GroupPath> callback) {",
+                "public void setOnAddConnection(Runnable callback) {")) {
+            assertWithMessage(setter).that(region(tree, setter, "\n    }\n")).contains("updateEmptyAreaContextMenu();");
+        }
+    }
+
+    @Test
+    void aReadOnlyTreeHasNoFolderMenu() throws IOException {
+        String tree = source("ConnectionManagerTreeView.java");
+
+        String menu = region(tree, "private ContextMenu createGroupContextMenu(GroupPath groupPath) {",
+            "\n        return menu.getItems().isEmpty() ? null : menu;\n");
+        assertThat(menu).contains("boolean changeable = !readOnlyConnections;");
+        for (String entry : List.of(
+                "if (changeable && onRenameGroup != null) {\n            structure.add(renameItem);",
+                "if (changeable && onCreateGroup != null) {\n            structure.add(createSubGroupItem);",
+                "if (changeable && onToggleGroupHostKeyCheck != null) {\n            settings.add(disableHostKeyItem);",
+                "if (changeable && onEditGroupColor != null) {",
+                "if (changeable && (onAssignTagToGroup != null || onRemoveTagFromGroup != null)) {\n"
+                    + "            tags.addAll(List.of(assignTagItem, removeTagItem));",
+                "if (onExportGroup != null) {\n            folder.add(exportGroupItem);",
+                "if (onDeleteGroup != null) {\n            folder.add(deleteGroupItem);")) {
+            assertThat(menu).contains(entry);
+        }
+        assertWithMessage("every entry is added once, under its own condition")
+            .that(occurrences(menu, "menu.getItems().add")).isEqualTo(2);
+        assertThat(menu).contains("menu.getItems().add(new SeparatorMenuItem());");
+        assertThat(menu).contains("menu.getItems().addAll(section);");
+        assertWithMessage("a cell without a menu leaves the right-click to the tree, which has none either")
+            .that(region(tree, "private void setCellFactory() {", "\n    /**"))
+            .contains("setContextMenu(createGroupContextMenu(item.getGroupPath()));");
+    }
+
+    private static int occurrences(String text, String needle) {
+        int count = 0;
+        for (int at = text.indexOf(needle); at >= 0; at = text.indexOf(needle, at + needle.length())) {
+            count++;
+        }
+        return count;
     }
 
     private static ServerConnection teamwork(String name, String host) {
