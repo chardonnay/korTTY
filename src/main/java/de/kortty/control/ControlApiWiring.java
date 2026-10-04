@@ -94,13 +94,28 @@ public final class ControlApiWiring {
                                           UiDispatcher ui, CodingAgentRegistry registry,
                                           PaneAccess panes, DesktopNotifier notifier,
                                           Supplier<ControlApiGate.Verdict> gate, String appVersion) {
+        return create(configDir, probe, surface, ui, registry, panes, notifier, gate,
+            () -> McpGate.Verdict.DISABLED_BY_SETTING, appVersion);
+    }
+
+    /**
+     * The same, plus the MCP gate.
+     *
+     * @param mcpGate {@link McpGate#verdict}, consulted for every connection that declared
+     *     {@code client_kind = "mcp"}
+     */
+    public static ControlApiServer create(Path configDir, PlatformProbe probe, ControlSurface surface,
+                                          UiDispatcher ui, CodingAgentRegistry registry,
+                                          PaneAccess panes, DesktopNotifier notifier,
+                                          Supplier<ControlApiGate.Verdict> gate,
+                                          Supplier<McpGate.Verdict> mcpGate, String appVersion) {
         String instanceId = UUID.randomUUID().toString();
         ControlEventBus events = new ControlEventBus(eventTimer(), System::currentTimeMillis);
         ControlAuditSink sink = auditSink(notifier);
         CodingAgentActions controlActions = new CodingAgentActions(registry, panes, agentAuditSink(sink));
         MethodRegistry methods = ControlVerbs.build(surface, ui, registry, controlActions, events,
             sink, notifier, System::currentTimeMillis, appVersion, instanceId);
-        ControlApiServer server = new ControlApiServer(configDir, probe, methods, gate,
+        ControlApiServer server = new ControlApiServer(configDir, probe, methods, gate, mcpGate,
             System::currentTimeMillis, appVersion, instanceId, events);
         BUSES.put(server, events);
         return server;

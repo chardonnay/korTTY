@@ -52,6 +52,9 @@ public final class ControlApiServer implements AutoCloseable {
 
     private final Supplier<ControlApiGate.Verdict> gate;
 
+    /** The MCP gate every connection consults for an MCP client; fail-closed unless one is supplied. */
+    private final Supplier<McpGate.Verdict> mcpGate;
+
     private final LongSupplier clockMillis;
 
     private final String appVersion;
@@ -118,6 +121,21 @@ public final class ControlApiServer implements AutoCloseable {
     public ControlApiServer(Path configDir, PlatformProbe platformProbe, MethodRegistry methods,
                             Supplier<ControlApiGate.Verdict> gate, LongSupplier clockMillis,
                             String appVersion, String instanceId, ControlEventBus events) {
+        this(configDir, platformProbe, methods, gate, () -> McpGate.Verdict.DISABLED_BY_SETTING,
+            clockMillis, appVersion, instanceId, events);
+    }
+
+    /**
+     * The same, plus the MCP gate.
+     *
+     * @param mcpGate {@link McpGate#verdict}, evaluated when an MCP client authenticates and before
+     *     every request it sends
+     */
+    public ControlApiServer(Path configDir, PlatformProbe platformProbe, MethodRegistry methods,
+                            Supplier<ControlApiGate.Verdict> gate, Supplier<McpGate.Verdict> mcpGate,
+                            LongSupplier clockMillis, String appVersion, String instanceId,
+                            ControlEventBus events) {
+        this.mcpGate = Objects.requireNonNull(mcpGate, "mcpGate");
         this.configDir = Objects.requireNonNull(configDir, "configDir");
         this.platformProbe = Objects.requireNonNull(platformProbe, "platformProbe");
         this.methods = Objects.requireNonNull(methods, "methods");
@@ -366,7 +384,7 @@ public final class ControlApiServer implements AutoCloseable {
         }
         String id = "c" + connectionCounter.incrementAndGet();
         ControlConnection connection = new ControlConnection(id, channel, transportKind, token, methods,
-            gate, clockMillis, timer, writers, () -> closed(id));
+            gate, mcpGate, clockMillis, timer, writers, () -> closed(id));
         connections.put(id, connection);
         try {
             readers.execute(connection);

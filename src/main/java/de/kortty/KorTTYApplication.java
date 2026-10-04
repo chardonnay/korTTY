@@ -1608,6 +1608,9 @@ public class KorTTYApplication extends Application {
                 () -> de.kortty.control.ControlApiGate.verdict(
                     globalSettingsManager == null ? null : globalSettingsManager.getSettings(),
                     de.kortty.policy.PolicyManager.effective()),
+                () -> de.kortty.control.McpGate.verdict(
+                    globalSettingsManager == null ? null : globalSettingsManager.getSettings(),
+                    de.kortty.policy.PolicyManager.effective()),
                 APP_VERSION);
         } catch (RuntimeException e) {
             logger.warn("Control API could not be initialised: {}", e.toString());

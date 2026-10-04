@@ -42,7 +42,15 @@ public enum PolicyFeature {
      * Editing server files as root from the SFTP manager ("Edit as root (sudo)..."). Allowed unless
      * denied; it also needs {@link #FILE_TRANSFER} and {@code load-into-snippet-editor = "allow"}.
      */
-    SFTP_SUDO_EDIT("sftp-sudo-edit");
+    SFTP_SUDO_EDIT("sftp-sudo-edit"),
+    /**
+     * korTTY as an MCP server ({@code kortty-cli mcp}): an MCP client reaches the control API with
+     * {@code client_kind = "mcp"} and gets only the read-only allowlist (plus the pane write verbs when
+     * the user also allowed write tools). Denied, every MCP connection is refused and both user
+     * switches are forced off. It also needs {@link #CONTROL_API}; a plain control-API client is not
+     * affected.
+     */
+    MCP_SERVER("mcp-server");
 
     private final String tomlKey;
 

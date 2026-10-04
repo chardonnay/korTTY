@@ -82,9 +82,12 @@ public final class CodingAgentUsage implements CodingAgentRegistry.Listener {
      * A control-API request passed authentication and reached a registered method.
      *
      * @param method the wire method name
-     * @param client the client name from {@code auth}; reduced to {@code kortty-cli} or {@code other}
+     * @param client the client name from {@code auth}
+     * @param mcp whether the connection declared {@code client_kind = "mcp"}
+     *     ({@code kortty-cli mcp}); the {@code client} prop is reduced to {@code cli}, {@code mcp} or
+     *     {@code other}, never the free-form name
      */
-    public void controlRequestHandled(String method, String client) {
+    public void controlRequestHandled(String method, String client, boolean mcp) {
         if (method == null || method.isBlank()) {
             return;
         }
@@ -92,7 +95,7 @@ public final class CodingAgentUsage implements CodingAgentRegistry.Listener {
         if (usedMethods.add(method)) {
             tracker.accept(TelemetryEvents.CONTROL_API_USED, Map.of(
                 "method", method,
-                "client", CLI_CLIENT.equals(client) ? CLI_CLIENT : "other"));
+                "client", mcp ? "mcp" : CLI_CLIENT.equals(client) ? "cli" : "other"));
         }
     }
 

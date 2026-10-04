@@ -124,6 +124,23 @@ It **cannot**:
 !!! note "Writes are not restricted to local shells — on purpose"
     Typing is allowed into remote panes too. Restricting it would break answering a coding agent that runs over SSH, and it would not be a real boundary anyway: a caller who can reach the socket can simply run `ssh` in a local pane instead. The honest controls are the default-off switch, the policy deny, the audit line and the notification — not a filter that looks like a boundary and is not one.
 
+## MCP clients
+
+A client can tell korTTY what kind of client it is with the optional `client_kind` parameter of `auth`: `cli`, the default, for `kortty-cli` and every script, or `mcp` for an MCP server that passes korTTY on to an AI assistant. Any other value is refused with `invalid_params`. An `mcp` client is served only while three things allow it: the Control API itself, the separate **MCP server** switch, which is off by default, and the [enterprise policy](enterprise-policy.md) key `mcp-server`. When one of them says no, the handshake fails with `mcp_server_disabled` or `blocked_by_policy`, and the check is repeated before every request, so switching the MCP server off stops a connection that is already open at its next call.
+
+An `mcp` client gets a fixed, fail-closed list of methods:
+
+| Access | Methods |
+| --- | --- |
+| Always | `ping`, `api.schema`, `window.list`, `tab.list`, `pane.list`, `pane.current`, `pane.get`, `pane.read`, `pane.wait_output`, `agent.list`, `agent.get` |
+| Only with **Allow write tools**, also off by default | `pane.send_text`, `pane.run`, `pane.send_keys` |
+| Never | everything else: events, focusing, splitting and closing, notifications, every `agent.*` method that acts, the reserved verbs, and any method a later korTTY adds until it is reviewed for MCP clients |
+
+A refused method answers `method_not_allowed_for_mcp`, with `data.reason` set to `write_tools_disabled` or `not_exposed`. The method list in the `auth` reply and the `api.schema` document show an `mcp` client only the methods it may call, and the `auth` reply says in `mcp_write_tools` whether the write tools are on.
+
+!!! warning "A narrower surface, not a sandbox"
+    `client_kind` is declared by the client, not proven. The list limits what an MCP server exposes to an AI assistant; it does not protect korTTY from an assistant that can also run shell commands as you, because any program of yours can read the token and connect as `cli`. Treat every MCP client as a cloud model and everything it reads from a terminal as untrusted text.
+
 ## Audit and visibility
 
 Every action the API takes writes exactly one line to korTTY's log, carrying **byte counts and shapes only** — `bytes=28 bracketed=false submitted=true`, `keys=2`, `orientation=vertical` — never terminal text. The line goes to korTTY's log and only there — the API writes nothing into a tab's session journal.

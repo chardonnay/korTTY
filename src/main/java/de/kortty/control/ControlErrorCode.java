@@ -92,7 +92,16 @@ public enum ControlErrorCode {
     /** No window is open, or the toolkit is gone. */
     UI_UNAVAILABLE(-32041, 1, true),
     /** A wait expired, or a JavaFX hop exceeded its budget ({@code data.stage}). */
-    TIMEOUT(-32040, 4, true);
+    TIMEOUT(-32040, 4, true),
+
+    // --- MCP clients (client_kind = "mcp") ---
+    /** The user has not switched on the (default-off) MCP server setting. */
+    MCP_SERVER_DISABLED(-32007, 3, false),
+    /**
+     * The method is not on the MCP allowlist, or it is a write verb and MCP write tools are off;
+     * {@code data.method} names it and {@code data.reason} says which.
+     */
+    METHOD_NOT_ALLOWED_FOR_MCP(-32008, 3, false);
 
     private static final Map<String, ControlErrorCode> BY_WIRE = byWire();
 

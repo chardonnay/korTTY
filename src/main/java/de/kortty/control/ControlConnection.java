@@ -76,6 +76,9 @@ public final class ControlConnection implements Runnable, AutoCloseable {
 
     private final Supplier<ControlApiGate.Verdict> gate;
 
+    /** The MCP gate, consulted only for connections that declared {@code client_kind = "mcp"}. */
+    private final Supplier<McpGate.Verdict> mcpGate;
+
     private final LongSupplier clockMillis;
 
     private final ScheduledExecutorService timer;
@@ -150,12 +153,28 @@ public final class ControlConnection implements Runnable, AutoCloseable {
                              Supplier<ControlApiGate.Verdict> gate,
                              LongSupplier clockMillis, ScheduledExecutorService timer,
                              Executor writerExecutor, Runnable onClosed) {
+        this(connectionId, channel, transportKind, expectedToken, methods, gate,
+            () -> McpGate.Verdict.DISABLED_BY_SETTING, clockMillis, timer, writerExecutor, onClosed);
+    }
+
+    /**
+     * The same, plus the MCP gate.
+     *
+     * @param mcpGate {@link McpGate#verdict}, evaluated when an MCP client authenticates and before
+     *     every request it sends; a plain client never consults it
+     */
+    public ControlConnection(String connectionId, SocketChannel channel, String transportKind,
+                             String expectedToken, MethodRegistry methods,
+                             Supplier<ControlApiGate.Verdict> gate, Supplier<McpGate.Verdict> mcpGate,
+                             LongSupplier clockMillis, ScheduledExecutorService timer,
+                             Executor writerExecutor, Runnable onClosed) {
         this.connectionId = Objects.requireNonNull(connectionId, "connectionId");
         this.channel = Objects.requireNonNull(channel, "channel");
         this.transportKind = Objects.requireNonNull(transportKind, "transportKind");
         this.expectedToken = Objects.requireNonNull(expectedToken, "expectedToken");
         this.methods = Objects.requireNonNull(methods, "methods");
         this.gate = Objects.requireNonNull(gate, "gate");
+        this.mcpGate = Objects.requireNonNull(mcpGate, "mcpGate");
         this.clockMillis = Objects.requireNonNull(clockMillis, "clockMillis");
         this.timer = Objects.requireNonNull(timer, "timer");
         this.writerExecutor = Objects.requireNonNull(writerExecutor, "writerExecutor");
@@ -163,7 +182,8 @@ public final class ControlConnection implements Runnable, AutoCloseable {
         this.codec = new ControlLineCodec(new ProbedInputStream(Channels.newInputStream(channel)),
             Channels.newOutputStream(channel), ControlApiProtocol.MAX_LINE_BYTES);
         this.openedAtMillis = clockMillis.getAsLong();
-        this.session = new ControlSession(connectionId, transportKind, false, null, this::enqueue);
+        this.session = new ControlSession(connectionId, transportKind, false, null,
+            ControlSession.ClientKind.CLI, this::enqueue);
     }
 
     /** The short id this connection is logged under. */
@@ -295,8 +315,20 @@ public final class ControlConnection implements Runnable, AutoCloseable {
                     "The first request on a connection must be 'auth'")));
                 return false;
             }
-            JsonElement result = methods.dispatch(session, new ControlRequest(id, method, params));
-            de.kortty.telemetry.CodingAgentUsage.get().controlRequestHandled(method, session.client());
+            ControlSession current = session;
+            boolean mcpWrites = false;
+            if (current.isMcp()) {
+                // Before dispatch, never after: a refused verb must not run, and the gate is re-read
+                // per request so switching the MCP server off stops an open connection at once.
+                mcpWrites = requireMcpOpen().writesAllowed();
+                McpMethodAllowlist.check(method, params, mcpWrites);
+            }
+            JsonElement result = methods.dispatch(current, new ControlRequest(id, method, params));
+            if (current.isMcp() && "api.schema".equals(method)) {
+                result = McpMethodAllowlist.filterSchema(result, mcpWrites);
+            }
+            de.kortty.telemetry.CodingAgentUsage.get().controlRequestHandled(method, current.client(),
+                current.isMcp());
             send(id, result);
             return true;
         } catch (ControlApiException e) {
@@ -321,14 +353,26 @@ public final class ControlConnection implements Runnable, AutoCloseable {
             return false;
         }
         String client = ControlJson.optString(params, "client", null);
+        String kindWire = ControlJson.optString(params, "client_kind",
+            ControlSession.ClientKind.CLI.wire());
+        ControlSession.ClientKind kind = ControlSession.ClientKind.forWire(kindWire).orElseThrow(
+            () -> new ControlApiException(ControlErrorCode.INVALID_PARAMS,
+                "client_kind must be 'cli' or 'mcp'", Map.of("param", "client_kind")));
+        McpGate.Verdict mcpVerdict = kind == ControlSession.ClientKind.MCP ? requireMcpOpen() : null;
         authenticated = true;
-        session = new ControlSession(connectionId, transportKind, true, client, this::enqueue);
+        session = new ControlSession(connectionId, transportKind, true, client, kind, this::enqueue);
         ScheduledFuture<?> deadline = authDeadline;
         if (deadline != null) {
             deadline.cancel(false);
         }
-        LOG.info("control-api {}: authenticated client={}", connectionId, client == null ? "-" : client);
-        send(id, methods.dispatch(session, new ControlRequest(id, AUTH_METHOD, params)));
+        LOG.info("control-api {}: authenticated client={} kind={}", connectionId,
+            client == null ? "-" : client, kind.wire());
+        JsonElement hello = methods.dispatch(session, new ControlRequest(id, AUTH_METHOD, params));
+        if (mcpVerdict != null) {
+            hello = McpMethodAllowlist.filterHello(hello, mcpVerdict.writesAllowed(),
+                BaseVerbs.capabilityMethods());
+        }
+        send(id, hello);
         return true;
     }
 
@@ -349,6 +393,22 @@ public final class ControlConnection implements Runnable, AutoCloseable {
         if (!verdict.isOpen()) {
             throw new ControlApiException(verdict.errorCode(), verdict.message());
         }
+    }
+
+    /**
+     * Refuses an MCP client's request unless the MCP gate is open, with the verdict's own code.
+     *
+     * @return the open verdict, which also says whether the write verbs are allowed
+     */
+    private McpGate.Verdict requireMcpOpen() throws ControlApiException {
+        McpGate.Verdict verdict = mcpGate.get();
+        if (verdict == null) {
+            verdict = McpGate.Verdict.NOT_READY;
+        }
+        if (!verdict.isOpen()) {
+            throw new ControlApiException(verdict.errorCode(), verdict.message());
+        }
+        return verdict;
     }
 
     /**

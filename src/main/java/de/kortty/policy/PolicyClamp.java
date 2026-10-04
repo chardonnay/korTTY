@@ -100,6 +100,12 @@ public final class PolicyClamp {
             // with no way for the user to correct it. Both reference pages promise the opposite.
             settings.setControlApiEnabled(true);
         }
+        if (!policy.mcpServerAllowed()) {
+            // Default off and never forced on: an administrator's "allow" only leaves the choice with
+            // the user, because an MCP client is usually driven by a cloud model.
+            settings.setMcpServerEnabled(false);
+            settings.setMcpWriteToolsEnabled(false);
+        }
         if (!policy.terminalTriggersAllowed()) {
             settings.setTerminalTriggersEnabled(false);
         } else if (policy.isManaged(ManagedSetting.TERMINAL_TRIGGERS)) {

@@ -186,6 +186,16 @@ public final class ControlApiScenarioFixtures {
      */
     public static ControlApiServer startServer(Path tempConfigDir, ControlSurface surface,
                                                CodingAgentRegistry registry) {
+        return startServer(tempConfigDir, surface, registry, () -> McpGate.Verdict.DISABLED_BY_SETTING);
+    }
+
+    /**
+     * The same, with an MCP gate, so a test can open, narrow or close the MCP surface — and change its
+     * mind between two requests on one connection.
+     */
+    public static ControlApiServer startServer(Path tempConfigDir, ControlSurface surface,
+                                               CodingAgentRegistry registry,
+                                               java.util.function.Supplier<McpGate.Verdict> mcpGate) {
         skipIfSocketPathTooLong(tempConfigDir.resolve(ControlDirectory.DIRECTORY_NAME));
         ControlEventBus events = new ControlEventBus(TIMER, System::currentTimeMillis);
         CodingAgentActions actions = new CodingAgentActions(registry, new AlwaysConnectedPanes(),
@@ -196,7 +206,8 @@ public final class ControlApiScenarioFixtures {
             instanceId);
         registry.addListener(events.registryListener(surface));
         ControlApiServer server = new ControlApiServer(tempConfigDir, nativeProbe(), methods,
-            () -> ControlApiGate.Verdict.OPEN, System::currentTimeMillis, APP_VERSION, instanceId);
+            () -> ControlApiGate.Verdict.OPEN, mcpGate, System::currentTimeMillis, APP_VERSION,
+            instanceId, null);
         server.applyEnabledState();
         return server;
     }

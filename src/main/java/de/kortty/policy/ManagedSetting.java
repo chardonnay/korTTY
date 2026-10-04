@@ -53,5 +53,10 @@ public enum ManagedSetting {
      */
     SFTP_TRANSFERS,
     /** Editing server files as root ({@link PolicyFeature#SFTP_SUDO_EDIT}); no Settings control of its own. */
-    SFTP_SUDO_EDIT
+    SFTP_SUDO_EDIT,
+    /**
+     * The two MCP server switches ({@link PolicyFeature#MCP_SERVER}): denied, both are forced off and
+     * locked.
+     */
+    MCP_SERVER
 }

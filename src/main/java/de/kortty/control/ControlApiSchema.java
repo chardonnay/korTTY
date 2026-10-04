@@ -232,6 +232,9 @@ public final class ControlApiSchema {
         docs.put(ControlErrorCode.SPLIT_FAILED, "The split aborted before the new pane was connected.");
         docs.put(ControlErrorCode.UI_UNAVAILABLE, "No window is open, or the toolkit is gone.");
         docs.put(ControlErrorCode.TIMEOUT, "A wait or a UI hop exceeded its budget; see data.stage.");
+        docs.put(ControlErrorCode.MCP_SERVER_DISABLED, "The MCP server setting is off.");
+        docs.put(ControlErrorCode.METHOD_NOT_ALLOWED_FOR_MCP,
+            "The method is not offered to MCP clients, or write tools are off; see data.reason.");
         return Collections.unmodifiableMap(docs);
     }
 

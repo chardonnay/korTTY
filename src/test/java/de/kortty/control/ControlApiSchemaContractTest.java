@@ -62,7 +62,7 @@ public class ControlApiSchemaContractTest {
      */
     private static final Map<String, List<String>> DOCUMENTED_PARAMS = Map.ofEntries(
         Map.entry("ping", List.of()),
-        Map.entry("auth", List.of("token", "client")),
+        Map.entry("auth", List.of("token", "client", "client_kind")),
         Map.entry("api.schema", List.of("method")),
         Map.entry("events.subscribe", List.of("kinds", "panes", "include_evidence")),
         Map.entry("events.unsubscribe", List.of("subscription_id")),

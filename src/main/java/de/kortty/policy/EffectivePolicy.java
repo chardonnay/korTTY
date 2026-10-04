@@ -187,6 +187,7 @@ public final class EffectivePolicy {
                     case MULTI_EXEC -> ManagedSetting.MULTI_EXEC;
                     case FILE_TRANSFER -> ManagedSetting.FILE_TRANSFER;
                     case SFTP_SUDO_EDIT -> ManagedSetting.SFTP_SUDO_EDIT;
+                    case MCP_SERVER -> ManagedSetting.MCP_SERVER;
                 });
             }
         }
@@ -413,6 +414,16 @@ public final class EffectivePolicy {
         return decision(PolicyFeature.SFTP_SUDO_EDIT) != PolicyDecision.DENY
             && fileTransferAllowed()
             && (loadIntoSnippetEditor == null || loadIntoSnippetEditor == LoadIntoEditorMode.ALLOW);
+    }
+
+    /**
+     * Whether korTTY may serve MCP clients ({@code kortty-cli mcp}): allowed unless the policy denies
+     * {@code mcp-server}, and only while {@code control-api} is allowed, because the MCP server is a
+     * facade on the control API. Only the policy leg: the user's own default-off switch has to be on as
+     * well. Unlike {@code control-api}, {@code allow} never switches the user's setting on.
+     */
+    public boolean mcpServerAllowed() {
+        return decision(PolicyFeature.MCP_SERVER) != PolicyDecision.DENY && controlApiAllowed();
     }
 
     /** The {@code [rule.sftp]} limits: parallel transfers cap and the forced conflict default. */
