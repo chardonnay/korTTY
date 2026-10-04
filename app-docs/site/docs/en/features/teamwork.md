@@ -127,7 +127,7 @@ Deleting a teamwork connection only hides it on this computer, also in the comma
 - The credential and SSH key references (`credentialId`, `sshKeyId`) of a shared connection are resolved from your local storage.
 - For shared connections that name neither, choose **Authentication for all team connections** on the **Teamwork connections** tab: a stored credential, an SSH key or **Temporary SSH key**. A stored credential that has a username uses it; for an SSH key or a temporary key, an optional **Default username (SSH key)** replaces the username from the source.
 - If a credential or key is not found locally, you are prompted to provide it when connecting.
-- Only authentication, including the username, can be overridden locally. Host, port, group and the other connection settings always come from the source.
+- Only authentication, including the username, can be overridden locally. Host, port, group and the other connection settings always come from the source. A shared file cannot turn host-key verification off on your computer, though; see [Relaxing host-key verification](security.md#relaxing-host-key-verification).
 
 ### Distinguish sources
 

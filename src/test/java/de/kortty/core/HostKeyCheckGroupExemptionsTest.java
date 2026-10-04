@@ -12,8 +12,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Host-key exemptions of Connection Manager folders follow the folder, not its name: renaming a
- * folder moves its exemption and those of its subfolders, deleting it drops them, and a folder that
- * later takes a deleted or renamed folder's name starts with verification on.
+ * folder moves its exemption and those of its subfolders, deleting it drops them, a folder that is
+ * gone because its last connection was deleted or moved loses its exemption too, and a folder that
+ * later takes such a folder's name starts with verification on.
  */
 class HostKeyCheckGroupExemptionsTest {
 
@@ -170,5 +171,64 @@ class HostKeyCheckGroupExemptionsTest {
         assertThat(HostKeyCheckGroupExemptions.renamed(null, "Lab", "Test", list("Lab"))).isEmpty();
         assertThat(HostKeyCheckGroupExemptions.deleted(null, "Lab")).isEmpty();
         assertThat(HostKeyCheckGroupExemptions.renamed(list("Lab"), "Lab", "Test", null)).containsExactly("Test");
+    }
+
+    @Test
+    void aFolderWhoseLastConnectionWasDeletedLosesItsExemption() {
+        // Lab's only connection was deleted; Other still has one.
+        List<String> after = HostKeyCheckGroupExemptions.pruned(list("Lab", "Other"), list("Other"));
+
+        assertThat(after).containsExactly("Other");
+        assertWithMessage("a new folder named like the emptied one starts with verification on")
+            .that(modeIn("Lab", after)).isEqualTo(HostKeyCheckMode.STRICT);
+        assertThat(modeIn("Other", after)).isEqualTo(HostKeyCheckMode.ACCEPT_NEW);
+    }
+
+    @Test
+    void aFolderWhoseLastConnectionWasMovedAwayLosesItsExemption() {
+        // The last connection of Lab was dragged into Prod, or a move into Lab was undone.
+        List<String> after = HostKeyCheckGroupExemptions.pruned(list("Lab", "Prod"), list("Prod", "Prod"));
+
+        assertThat(after).containsExactly("Prod");
+        assertThat(modeIn("Lab", after)).isEqualTo(HostKeyCheckMode.STRICT);
+    }
+
+    @Test
+    void aFolderStaysWhileItOrAFolderBelowItHasAConnection() {
+        List<String> after = HostKeyCheckGroupExemptions.pruned(
+            list("Work", "Work/Lab", "Work/Lab/DB", "Lab", "Lab2"),
+            list("Work/Lab/DB/Replica", "Lab2/Web"));
+
+        assertWithMessage("Work, Work/Lab and Work/Lab/DB still show in the tree; Lab is not above Lab2/Web")
+            .that(after).containsExactly("Work", "Work/Lab", "Work/Lab/DB", "Lab2").inOrder();
+    }
+
+    @Test
+    void aPlaceholderKeepsItsFolder() {
+        ServerConnection placeholder = new ServerConnection("(Ordner: Lab)", "placeholder", 22, "");
+        placeholder.setGroup("Lab");
+        assertThat(placeholder.isPlaceholder()).isTrue();
+
+        assertThat(HostKeyCheckGroupExemptions.pruned(list("Lab"), list(placeholder.getGroup())))
+            .containsExactly("Lab");
+    }
+
+    @Test
+    void pruningComparesTrimmedPathsAndKeepsTheStoredForm() {
+        List<String> after = HostKeyCheckGroupExemptions.pruned(
+            list(" Lab / DB ", "Other", " ", "/", ""), list("Lab/DB", " Other "));
+
+        assertWithMessage("entries without a folder relax nothing and go")
+            .that(after).containsExactly(" Lab / DB ", "Other").inOrder();
+    }
+
+    @Test
+    void pruningWithoutConnectionsDropsEveryExemptionAndNeverChangesTheStoredList() {
+        List<String> exempt = list("Lab", "Lab/DB");
+
+        assertThat(HostKeyCheckGroupExemptions.pruned(exempt, list())).isEmpty();
+        assertThat(HostKeyCheckGroupExemptions.pruned(exempt, null)).isEmpty();
+        assertThat(HostKeyCheckGroupExemptions.pruned(null, list("Lab"))).isEmpty();
+        assertThat(exempt).containsExactly("Lab", "Lab/DB").inOrder();
     }
 }

@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import de.kortty.model.GroupPath;
+import de.kortty.model.ServerConnection;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,7 +17,9 @@ import java.util.Set;
  * behind under an old name, it would silently turn verification off for every connection of a
  * later folder that reuses the name. Group paths are compared after {@link GroupPath} has trimmed
  * their segments, and case matters, as it does in the Connection Manager's tree; entries that are
- * not touched are kept exactly as stored. Pure: no JavaFX.
+ * not touched are kept exactly as stored. Only the folders of the local connections count: shared
+ * (teamwork) connections never use these exemptions (see {@link HostKeyCheckPolicy}). Pure: no
+ * JavaFX.
  */
 public final class HostKeyCheckGroupExemptions {
 
@@ -114,6 +117,59 @@ public final class HostKeyCheckGroupExemptions {
             }
         }
         return result;
+    }
+
+    /**
+     * The exemptions of the groups that still exist. A group also goes away without being renamed or
+     * deleted, when its last connection is deleted or moved to another group, and its exemption must
+     * not pass to a later group of the same name; earlier versions kept the exemptions of renamed and
+     * deleted groups as well. An entry is kept while a connection is in its group or in a group below
+     * it, and kept exactly as stored; all others are dropped.
+     *
+     * @param groups the group of every connection, placeholders included
+     */
+    public static List<String> pruned(Collection<String> exempt, Collection<String> groups) {
+        List<String> result = new ArrayList<>();
+        if (exempt == null) {
+            return result;
+        }
+        Set<String> existing = new HashSet<>();
+        for (String group : groups == null ? List.<String>of() : groups) {
+            // A group exists, and so does every group above it.
+            for (String key = key(group); key != null; ) {
+                if (!existing.add(key)) {
+                    break;
+                }
+                int slash = key.lastIndexOf(GroupPath.SEPARATOR);
+                key = slash > 0 ? key.substring(0, slash) : null;
+            }
+        }
+        for (String entry : exempt) {
+            String key = key(entry);
+            if (key != null && existing.contains(key)) {
+                result.add(entry);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * {@link #pruned} against the local connections of {@code store}, but only while they are the
+     * stored ones ({@link ConfigurationManager#isLoaded()}): after a failed load the exemptions are
+     * returned unchanged, since the list that load left behind, often an empty one, would drop them
+     * all.
+     */
+    public static List<String> prunedAgainstLoaded(Collection<String> exempt, ConfigurationManager store) {
+        if (store == null || !store.isLoaded()) {
+            return exempt == null ? new ArrayList<>() : new ArrayList<>(exempt);
+        }
+        List<String> groups = new ArrayList<>();
+        for (ServerConnection connection : store.getConnections()) {
+            if (connection != null) {
+                groups.add(connection.getGroup());
+            }
+        }
+        return pruned(exempt, groups);
     }
 
     /**

@@ -13961,6 +13961,8 @@ public class MainWindow {
         });
         reloadAfterBackupImport("GPG keys", () -> app.getGpgKeyManager().load());
         reloadAfterBackupImport("global settings", () -> app.getGlobalSettingsManager().load());
+        // Restored connections need not have every folder the settings exempt (an older backup, a kept file).
+        app.pruneHostKeyCheckExemptions();
         // The highlighting service compiled the rule sets of the settings object just replaced: without
         // this, the menus and open panes would keep the old sets and default until the next save.
         reloadAfterBackupImport("keyword highlighting", () -> {

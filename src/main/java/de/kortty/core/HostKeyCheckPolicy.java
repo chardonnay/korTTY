@@ -18,6 +18,12 @@ import java.util.Set;
  *   <li><b>Global</b> — the base default for every connection that inherits at both levels above.</li>
  * </ol>
  *
+ * <p>A shared (teamwork) connection was written by whoever edits the shared file, not on this
+ * machine, so it cannot relax verification here: its own "don't verify" is ignored, and the group
+ * exemptions, which belong to the folders of the local Connection Manager, do not apply to it even
+ * where its group has the same name. Its own "verify" is honoured, and the global setting, which the
+ * user chose for every connection, applies to it as well.
+ *
  * <p>Pure and free of JavaFX/SSHD so the precedence is unit-testable. A jump server's own host key
  * is never routed through this — it is always verified strictly (see {@link JumpHostSupport}).
  */
@@ -41,12 +47,16 @@ public final class HostKeyCheckPolicy {
         if (connection == null) {
             return HostKeyCheckMode.STRICT;
         }
+        boolean local = !connection.isTeamworkConnection();
         Boolean perConnection = connection.getDisableHostKeyCheck();
-        if (perConnection != null) {
-            return perConnection ? HostKeyCheckMode.ACCEPT_NEW : HostKeyCheckMode.STRICT;
+        if (Boolean.FALSE.equals(perConnection)) {
+            return HostKeyCheckMode.STRICT;
+        }
+        if (Boolean.TRUE.equals(perConnection) && local) {
+            return HostKeyCheckMode.ACCEPT_NEW;
         }
         String group = connection.getGroup();
-        if (group != null && !group.isBlank() && disabledGroups != null && disabledGroups.contains(group)) {
+        if (local && group != null && !group.isBlank() && disabledGroups != null && disabledGroups.contains(group)) {
             return HostKeyCheckMode.ACCEPT_NEW;
         }
         return disabledForAllConnections ? HostKeyCheckMode.ACCEPT_NEW : HostKeyCheckMode.STRICT;

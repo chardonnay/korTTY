@@ -915,7 +915,7 @@
 <li>The credential and SSH key references (<code>credentialId</code>, <code>sshKeyId</code>) of a shared connection are resolved from your local storage.</li>
 <li>For shared connections that name neither, choose <strong>Authentication for all team connections</strong> on the <strong>Teamwork connections</strong> tab: a stored credential, an SSH key or <strong>Temporary SSH key</strong>. A stored credential that has a username uses it; for an SSH key or a temporary key, an optional <strong>Default username (SSH key)</strong> replaces the username from the source.</li>
 <li>If a credential or key is not found locally, you are prompted to provide it when connecting.</li>
-<li>Only authentication, including the username, can be overridden locally. Host, port, group and the other connection settings always come from the source.</li>
+<li>Only authentication, including the username, can be overridden locally. Host, port, group and the other connection settings always come from the source. A shared file cannot turn host-key verification off on your computer, though; see <a href="security.html#relaxing-host-key-verification">Relaxing host-key verification</a>.</li>
 </ul>
 <h3 id="distinguish-sources">Distinguish sources<a class="headerlink" href="#distinguish-sources" title="Permanent link">&para;</a></h3>
 <p>Connections from every enabled source appear together on the <strong>Teamwork connections</strong> tab, arranged by the groups defined in the shared files. The tab does not show which source a connection came from; give each source its own group names if your team needs to tell them apart.</p>

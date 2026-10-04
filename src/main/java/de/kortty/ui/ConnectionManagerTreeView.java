@@ -51,6 +51,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     /** Reports whether a group currently has host-key verification disabled, to render the check mark. */
     private java.util.function.Predicate<GroupPath> groupHostKeyCheckDisabled;
     private Runnable onAddConnection;
+    private Runnable onConnectionsMoved;
     
     public ConnectionManagerTreeView(List<ServerConnection> connections) {
         this.connections = connections;
@@ -332,30 +333,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                 boolean success = false;
                 
                 if (db.hasString() && cell.getItem() != null && cell.getItem().isGroup()) {
-                    String connectionId = db.getString();
-                    ServerConnection conn = connections.stream()
-                            .filter(c -> c.getId().equals(connectionId))
-                            .findFirst()
-                            .orElse(null);
-                    
-                    if (conn != null) {
-                        String oldGroup = conn.getGroup();
-                        String newGroup = cell.getItem().getGroupPath().getPath();
-                        
-                        conn.setGroup(newGroup);
-                        moveHistory.push(new MoveOperation(conn, oldGroup, newGroup));
-                        
-                        if (undoButton != null) {
-                            undoButton.setDisable(false);
-                        }
-                        
-                        if (currentSearchPredicate != null) {
-                            filterTree(currentSearchPredicate);
-                        } else {
-                            refreshTree();
-                        }
-                        success = true;
-                    }
+                    success = moveConnection(db.getString(), cell.getItem().getGroupPath());
                 }
                 
                 event.setDropCompleted(success);
@@ -466,30 +444,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                 boolean success = false;
                 
                 if (db.hasString() && cell.getItem() != null && cell.getItem().isGroup()) {
-                    String connectionId = db.getString();
-                    ServerConnection conn = connections.stream()
-                            .filter(c -> c.getId().equals(connectionId))
-                            .findFirst()
-                            .orElse(null);
-                    
-                    if (conn != null) {
-                        String oldGroup = conn.getGroup();
-                        String newGroup = cell.getItem().getGroupPath().getPath();
-                        
-                        conn.setGroup(newGroup);
-                        moveHistory.push(new MoveOperation(conn, oldGroup, newGroup));
-                        
-                        if (undoButton != null) {
-                            undoButton.setDisable(false);
-                        }
-                        
-                        if (currentSearchPredicate != null) {
-                            filterTree(currentSearchPredicate);
-                        } else {
-                            refreshTree();
-                        }
-                        success = true;
-                    }
+                    success = moveConnection(db.getString(), cell.getItem().getGroupPath());
                 }
                 
                 event.setDropCompleted(success);
@@ -556,8 +511,12 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         });
 
-        menu.getItems().addAll(renameItem, createSubGroupItem, new SeparatorMenuItem(),
-                               disableHostKeyItem, new SeparatorMenuItem());
+        menu.getItems().addAll(renameItem, createSubGroupItem, new SeparatorMenuItem());
+        // Only where a handler stores it: the teamwork tree's folders come from shared files, and the
+        // folder exemptions never apply to shared connections.
+        if (onToggleGroupHostKeyCheck != null) {
+            menu.getItems().addAll(disableHostKeyItem, new SeparatorMenuItem());
+        }
         if (onAssignTagToGroup != null || onRemoveTagFromGroup != null) {
             menu.getItems().addAll(assignTagItem, removeTagItem, new SeparatorMenuItem());
         }
@@ -686,7 +645,56 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             if (undoButton != null) {
                 undoButton.setDisable(moveHistory.isEmpty());
             }
+            notifyConnectionsMoved();
         }
+    }
+
+    /**
+     * Moves the connection dropped on a folder into {@code target}, remembers the move for {@link
+     * #undoLastMove} and reports it.
+     *
+     * @return whether a connection with {@code connectionId} was moved
+     */
+    private boolean moveConnection(String connectionId, GroupPath target) {
+        ServerConnection conn = connections.stream()
+                .filter(c -> c.getId().equals(connectionId))
+                .findFirst()
+                .orElse(null);
+        if (conn == null) {
+            return false;
+        }
+        String oldGroup = conn.getGroup();
+        String newGroup = target.getPath();
+        
+        conn.setGroup(newGroup);
+        moveHistory.push(new MoveOperation(conn, oldGroup, newGroup));
+        
+        if (undoButton != null) {
+            undoButton.setDisable(false);
+        }
+        
+        if (currentSearchPredicate != null) {
+            filterTree(currentSearchPredicate);
+        } else {
+            refreshTree();
+        }
+        notifyConnectionsMoved();
+        return true;
+    }
+
+    /** Tells the owner that a move or its undo changed a connection's folder, which can empty a folder. */
+    private void notifyConnectionsMoved() {
+        if (onConnectionsMoved != null) {
+            onConnectionsMoved.run();
+        }
+    }
+
+    /**
+     * Runs after a connection was dragged into another folder and after such a move was undone; the
+     * folder it left may be gone then.
+     */
+    public void setOnConnectionsMoved(Runnable callback) {
+        this.onConnectionsMoved = callback;
     }
     
     public void setUndoButton(Button undoButton) {

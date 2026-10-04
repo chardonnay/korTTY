@@ -45,6 +45,9 @@ public class ConfigurationManager {
      */
     private boolean loadedWithoutKey;
 
+    /** Whether the connections in memory are the stored ones; see {@link #isLoaded()}. */
+    private boolean connectionsLoaded;
+
     /**
      * Connections whose encrypted temporary SSH key the locked load could not decrypt, by id, with
      * the authentication they had then. The key is cleared in memory but still in connections.xml;
@@ -75,11 +78,13 @@ public class ConfigurationManager {
     public void load(SecretKey key) {
         Path file = connectionsGuard.file();
         connectionsGuard.beginLoad();
+        connectionsLoaded = false;
         if (connectionsGuard.isMissing()) {
             logger.info("No connections file found, starting with empty list");
             lockedTemporaryKeys.clear();
             loadedWithoutKey = key == null;
             connections = new ArrayList<>();
+            connectionsLoaded = true;
             return;
         }
         try {
@@ -89,6 +94,7 @@ public class ConfigurationManager {
                     undecryptedIds));
             if (loaded.isPresent()) {
                 connections = new ArrayList<>(loaded.get());
+                connectionsLoaded = true;
                 lockedTemporaryKeys.clear();
                 loadedWithoutKey = key == null;
                 for (ServerConnection connection : connections) {
@@ -172,6 +178,17 @@ public class ConfigurationManager {
     /** Whether the connections were loaded with the vault locked and it has not been unlocked since. */
     public boolean isLoadedWithoutKey() {
         return loadedWithoutKey;
+    }
+
+    /**
+     * Whether the connections in memory are the stored ones: the last {@link #load} read
+     * {@code connections.xml} or found that there is none. False before the first load and after a
+     * load that failed, which leaves the previous list (empty at startup) in memory; what is derived
+     * from the list of connections, such as which folders exist, must not be cleaned up against it
+     * then.
+     */
+    public boolean isLoaded() {
+        return connectionsLoaded;
     }
 
     /**

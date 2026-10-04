@@ -9,6 +9,7 @@ import de.kortty.core.SSHKeyManager;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetVariableManager;
 import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.HostKeyCheckGroupExemptions;
 import de.kortty.core.LegacyDiagramCacheCleanup;
 import de.kortty.core.LegacyTemporaryKeyFileCleanup;
 import de.kortty.core.LoggingConfiguration;
@@ -504,6 +505,9 @@ public class KorTTYApplication extends Application {
             } catch (Exception e) {
                 logger.warn("Failed to provision built-in AI skills", e);
             }
+
+            // Connections and settings are both loaded: folder exemptions left without a folder go.
+            pruneHostKeyCheckExemptions();
 
             // Sync ConfigurationManager with persisted terminal settings
             // so that all components reading from configManager see the saved values
@@ -1445,6 +1449,33 @@ public class KorTTYApplication extends Application {
     
     public GlobalSettingsManager getGlobalSettingsManager() {
         return globalSettingsManager;
+    }
+
+    /**
+     * Drops the host-key exemptions of Connection Manager folders that no longer exist, so a later
+     * folder of the same name cannot inherit one: those earlier versions kept when a folder was
+     * renamed, deleted or emptied, and those of a connections.xml restored without its settings.
+     * Runs once the connections and the global settings are loaded, at startup and after a backup
+     * import, and drops nothing when the connections could not be loaded. Never throws.
+     */
+    public void pruneHostKeyCheckExemptions() {
+        try {
+            GlobalSettings settings = globalSettingsManager != null ? globalSettingsManager.getSettings() : null;
+            if (settings == null) {
+                return;
+            }
+            java.util.List<String> stored = settings.getHostKeyCheckDisabledGroups();
+            java.util.List<String> kept = HostKeyCheckGroupExemptions.prunedAgainstLoaded(stored, configManager);
+            if (kept.equals(stored)) {
+                return;
+            }
+            int dropped = stored.size() - kept.size();
+            settings.setHostKeyCheckDisabledGroups(kept);
+            globalSettingsManager.save();
+            logger.info("Host-key verification is on again for {} folder(s) that no longer exist", dropped);
+        } catch (Exception e) {
+            logger.warn("Could not drop the host-key exemptions of folders that no longer exist", e);
+        }
     }
 
     public de.kortty.policy.PolicyManager getPolicyManager() {

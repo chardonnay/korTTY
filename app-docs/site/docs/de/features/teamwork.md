@@ -127,7 +127,7 @@ Das Löschen einer Teamwork-Verbindung versteckt sie nur auf diesem Computer, au
 - Die Referenzen für Anmeldeinformationen und SSH-Schlüssel (`credentialId`, `sshKeyId`) einer geteilten Verbindung werden aus Ihrem lokalen Speicher aufgelöst.
 - Für geteilte Verbindungen, die keines von beiden angeben, wählen Sie **Anmeldung für alle Teamwork-Verbindungen** auf dem Tab **Teamwork-Verbindungen**: eine gespeicherte Anmeldeinformation, einen SSH-Key oder **Temporärer SSH-Key**. Eine gespeicherte Anmeldeinformation, die einen Benutzernamen enthält, verwendet diesen; für einen SSH-Key oder einen temporären Key ersetzt ein optionaler **Standard-Benutzername (SSH-Schlüssel)** den Benutzernamen aus der Quelle.
 - Wenn lokal keine Anmeldeinformationen oder Schlüssel gefunden werden, werden Sie beim Herstellen der Verbindung aufgefordert, diese anzugeben.
-- Nur die Authentifizierung, einschließlich des Benutzernamens, kann lokal überschrieben werden. Host, Port, Gruppe und die übrigen Verbindungsparameter stammen immer aus der Quelle.
+- Nur die Authentifizierung, einschließlich des Benutzernamens, kann lokal überschrieben werden. Host, Port, Gruppe und die übrigen Verbindungsparameter stammen immer aus der Quelle. Eine gemeinsame Datei kann die Hostschlüsselüberprüfung auf Ihrem Computer jedoch nicht ausschalten; siehe [Lockere Überprüfung des Hostschlüssels](security.md#lockere-uberprufung-des-hostschlussels).
 
 ### Quellen unterscheiden
 

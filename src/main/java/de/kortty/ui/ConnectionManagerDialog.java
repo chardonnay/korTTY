@@ -234,6 +234,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         treeView.setOnRemoveTagFromGroup(this::removeTagFromGroup);
         treeView.setGroupHostKeyCheckDisabledProbe(this::isGroupHostKeyCheckDisabled);
         treeView.setOnToggleGroupHostKeyCheck(this::toggleGroupHostKeyCheck);
+        treeView.setOnConnectionsMoved(this::pruneHostKeyCheckExemptions);
         
         // Teamwork tree: no group ops, same connect/edit/delete/export
         teamworkTreeView.setOnDoubleClick(() -> {
@@ -690,6 +691,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 configManager.updateConnection(editedConnection);
                 treeView.refreshTree();
                 saveConnections();
+                // A new group can leave the old folder without connections.
+                pruneHostKeyCheckExemptions();
             });
         }
     }
@@ -746,6 +749,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 }
                 treeView.refreshTree();
                 saveConnections();
+                pruneHostKeyCheckExemptions();
             }
         });
     }
@@ -923,7 +927,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
     /**
      * Makes {@code exempt} the folders whose host-key verification is relaxed and saves the global
      * settings; unchanged exemptions are not saved again. A failed save keeps them in memory, since
-     * after a rename or delete they relax no connection that was verified before, and says so.
+     * after a rename, a delete or dropping those of gone folders they relax no connection that was
+     * verified before, and says so.
      */
     private void storeHostKeyCheckExemptions(List<String> exempt) {
         var gsm = app.getGlobalSettingsManager();
@@ -943,6 +948,17 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             alert.setContentText(e.getMessage());
             alert.showAndWait();
         }
+    }
+
+    /**
+     * Drops the host-key exemptions of folders that no longer exist. A folder also goes away without
+     * being deleted, when its last connection is deleted, dragged into another folder or given another
+     * group (placeholders keep a folder), and its exemption must not pass to a later folder of the
+     * same name. Nothing is dropped while the connections are not the stored ones after a failed load.
+     */
+    private void pruneHostKeyCheckExemptions() {
+        storeHostKeyCheckExemptions(hostKeyCheckExemptionsAfter(
+            exempt -> HostKeyCheckGroupExemptions.prunedAgainstLoaded(exempt, configManager)));
     }
 
     private void renameGroup(GroupPath oldPath) {
