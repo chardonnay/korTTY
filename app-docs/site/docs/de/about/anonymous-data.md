@@ -63,6 +63,16 @@ Wenn ein SFTP-Manager-Tab geöffnet wird, gibt ein Ereignis an, ob er die Sitzun
 
 Datei- und Ordnernamen, Pfade, Servernamen, Editorbefehle, sudo-Passwörter und Dateigrößen werden niemals gesendet.
 
+### JobScheduler-Benachrichtigungen
+
+Wenn der JobScheduler eine Desktop-Benachrichtigung für einen Joblauf anzeigt oder eine an ein Webhook-Ziel sendet, gibt ein Ereignis an, wie es ausgegangen ist.
+
+| Ereignis | Gesendet, wenn | Daten |
+| --- | --- | --- |
+| `job_notification_sent` | eine Lauf-Benachrichtigung wird auf dem Desktop angezeigt oder für ein Webhook-Ziel zugestellt, abgelehnt oder blockiert | `desktop` oder `webhook`, das Payload-Format (`slack`, `teams`, `generic` oder `none`), ob sie mit `ok`, `failed` oder `blocked` endete, und die Anzahl der Zustellversuche (0 bis 3) |
+
+Job- und Zielnamen, Webhook-URLs und Hosts, Laufstatus-Texte sowie alles aus der Ausgabe des Laufs werden niemals gesendet. Ein mit **Test senden** verschickter Test wird nicht gezählt.
+
 ## Was niemals gesammelt wird
 
 korTTY übermittelt niemals Folgendes:

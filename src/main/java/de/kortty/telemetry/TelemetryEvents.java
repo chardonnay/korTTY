@@ -54,6 +54,8 @@ public final class TelemetryEvents {
     public static final String MCP_TOOL_CALLED = "mcp_tool_called";
     public static final String JOURNAL_AI_ASK = "journal_ai_ask";
     public static final String JOURNAL_AI_CROSS_SEARCH = "journal_ai_cross_search";
+    /** One JobScheduler run notification on one channel; props from {@link JobNotificationTelemetry}. */
+    public static final String JOB_NOTIFICATION_SENT = "job_notification_sent";
 
     // Security / settings
     public static final String SECURITY_MANAGER_OPENED = "security_manager_opened";

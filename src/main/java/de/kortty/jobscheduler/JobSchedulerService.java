@@ -38,6 +38,7 @@ public class JobSchedulerService {
     private final ExecutorService workerExecutor;
     private final Map<String, ActiveJobControl> activeJobs = new ConcurrentHashMap<>();
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
+    private final List<JobRunEventListener> runEventListeners = new CopyOnWriteArrayList<>();
     private final Object drainMonitor = new Object();
     private final Object tickScheduleMonitor = new Object();
 
@@ -175,6 +176,31 @@ public class JobSchedulerService {
         repository.save();
         notifyListeners();
         scheduleNextTick();
+    }
+
+    /** The stored webhook targets of job notifications. */
+    public List<WebhookTarget> getWebhookTargets() {
+        return repository.getWebhookTargets();
+    }
+
+    /** Adds or replaces a webhook target and saves; its URL must already be encrypted. */
+    public void saveWebhookTarget(WebhookTarget target) throws Exception {
+        if (target == null) {
+            return;
+        }
+        repository.upsertWebhookTarget(target);
+        repository.save();
+        notifyListeners();
+    }
+
+    /** Deletes a webhook target, drops it from every job that sends to it, and saves. */
+    public boolean deleteWebhookTarget(String targetId) throws Exception {
+        boolean removed = repository.deleteWebhookTarget(targetId);
+        if (removed) {
+            repository.save();
+            notifyListeners();
+        }
+        return removed;
     }
 
     public void runJobNow(String jobId) {
@@ -320,6 +346,30 @@ public class JobSchedulerService {
         listeners.remove(listener);
     }
 
+    /**
+     * Registers a listener for finished runs. Only runs that match one of the job's notification
+     * triggers are published, never while the scheduler drains for shutdown.
+     */
+    public void addRunEventListener(JobRunEventListener listener) {
+        if (listener != null) {
+            runEventListeners.add(listener);
+        }
+    }
+
+    public void removeRunEventListener(JobRunEventListener listener) {
+        runEventListeners.remove(listener);
+    }
+
+    /**
+     * Records the result of a run notification (a skipped, blocked or failed webhook delivery) in
+     * the journal and saves it. Safe from any thread; never throws.
+     */
+    public void appendNotificationJournal(JobJournalEntry entry) {
+        if (entry != null) {
+            appendJournal(entry);
+        }
+    }
+
     private void tickSafely() {
         try {
             tick();
@@ -461,8 +511,10 @@ public class JobSchedulerService {
                 outcome = JobExecutionOutcome.failed("Job failed: " + safeMessage(e), -1, null, safeMessage(e), e.toString());
             }
         }
+        JobRunEvent runEvent = null;
         try {
             String finishedAt = currentJournalTimestamp();
+            JobRunStatus previousStatus = repository.findLastFinishedStatus(job.getId()).orElse(null);
             JobJournalEntry entry = new JobJournalEntry();
             entry.setJobId(job.getId());
             entry.setJobName(job.getName());
@@ -488,9 +540,19 @@ public class JobSchedulerService {
                 logger.info("Skipping persistence for deleted JobScheduler job {}", job.getId());
             }
             repository.save();
+            runEvent = new JobRunEvent(
+                job.getId(),
+                job.getName(),
+                outcome.status(),
+                previousStatus,
+                outcome.exitCode(),
+                triggerType,
+                outcome.summary(),
+                parseZoned(finishedAt).map(ZonedDateTime::toInstant).orElse(clock.instant()));
         } catch (Exception e) {
             logger.warn("Could not persist JobScheduler run result", e);
         } finally {
+            publishRunEvent(job, runEvent);
             removeActiveJob(job.getId(), control);
             notifyListeners();
             scheduleNextTick();
@@ -628,6 +690,33 @@ public class JobSchedulerService {
             notifyListeners();
         } catch (Exception e) {
             logger.warn("Could not append JobScheduler journal entry", e);
+        }
+    }
+
+    /**
+     * Hands a saved run to the run-event listeners on the worker thread. Nothing is published while
+     * draining or for a run that matches none of the job's triggers; each listener is isolated.
+     */
+    private void publishRunEvent(ScheduledJob job, JobRunEvent event) {
+        if (event == null || draining || runEventListeners.isEmpty()) {
+            return;
+        }
+        JobNotificationConfig config;
+        try {
+            config = job.effectiveNotificationConfig();
+        } catch (RuntimeException e) {
+            logger.debug("Could not read the notification settings of job {}", job.getId(), e);
+            return;
+        }
+        if (!config.matches(event)) {
+            return;
+        }
+        for (JobRunEventListener listener : runEventListeners) {
+            try {
+                listener.onJobRunFinished(event);
+            } catch (RuntimeException e) {
+                logger.warn("JobScheduler run-event listener failed for job {}", event.jobId(), e);
+            }
         }
     }
 

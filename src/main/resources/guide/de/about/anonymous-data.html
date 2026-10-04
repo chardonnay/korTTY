@@ -905,6 +905,25 @@
 </tbody>
 </table>
 <p>Datei- und Ordnernamen, Pfade, Servernamen, Editorbefehle, sudo-Passwörter und Dateigrößen werden niemals gesendet.</p>
+<h3 id="jobscheduler-benachrichtigungen">JobScheduler-Benachrichtigungen<a class="headerlink" href="#jobscheduler-benachrichtigungen" title="Permanent link">&para;</a></h3>
+<p>Wenn der JobScheduler eine Desktop-Benachrichtigung für einen Joblauf anzeigt oder eine an ein Webhook-Ziel sendet, gibt ein Ereignis an, wie es ausgegangen ist.</p>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>job_notification_sent</code></td>
+<td>eine Lauf-Benachrichtigung wird auf dem Desktop angezeigt oder für ein Webhook-Ziel zugestellt, abgelehnt oder blockiert</td>
+<td><code>desktop</code> oder <code>webhook</code>, das Payload-Format (<code>slack</code>, <code>teams</code>, <code>generic</code> oder <code>none</code>), ob sie mit <code>ok</code>, <code>failed</code> oder <code>blocked</code> endete, und die Anzahl der Zustellversuche (0 bis 3)</td>
+</tr>
+</tbody>
+</table>
+<p>Job- und Zielnamen, Webhook-URLs und Hosts, Laufstatus-Texte sowie alles aus der Ausgabe des Laufs werden niemals gesendet. Ein mit <strong>Test senden</strong> verschickter Test wird nicht gezählt.</p>
 <h2 id="was-niemals-gesammelt-wird">Was niemals gesammelt wird<a class="headerlink" href="#was-niemals-gesammelt-wird" title="Permanent link">&para;</a></h2>
 <p>korTTY übermittelt niemals Folgendes:</p>
 <ul>

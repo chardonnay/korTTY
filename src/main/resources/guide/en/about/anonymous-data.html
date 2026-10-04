@@ -905,6 +905,25 @@
 </tbody>
 </table>
 <p>File and folder names, paths, server names, editor commands, sudo passwords and file sizes are never sent.</p>
+<h3 id="jobscheduler-notifications">JobScheduler notifications<a class="headerlink" href="#jobscheduler-notifications" title="Permanent link">&para;</a></h3>
+<p>When the JobScheduler shows a desktop notification for a job run or sends one to a webhook target, one event says how it went.</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Sent when</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>job_notification_sent</code></td>
+<td>a run notification is shown on the desktop, or delivered, refused or blocked for one webhook target</td>
+<td><code>desktop</code> or <code>webhook</code>, the payload format (<code>slack</code>, <code>teams</code>, <code>generic</code> or <code>none</code>), whether it ended <code>ok</code>, <code>failed</code> or <code>blocked</code>, and the number of delivery attempts (0 to 3)</td>
+</tr>
+</tbody>
+</table>
+<p>Job and target names, webhook URLs and hosts, run status texts and anything of the run's output are never sent. A test sent with <strong>Send test</strong> is not counted.</p>
 <h2 id="what-is-never-collected">What is never collected<a class="headerlink" href="#what-is-never-collected" title="Permanent link">&para;</a></h2>
 <p>korTTY never transmits any of the following:</p>
 <ul>
