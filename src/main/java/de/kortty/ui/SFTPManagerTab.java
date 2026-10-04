@@ -607,8 +607,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             SftpFileItem selected = localTable.getSelectionModel().getSelectedItem();
             boolean hasSelection = selected != null && !selected.getName().equals("..");
             // Upload needs a live session and an absolute target: SFTP itself does not expand '~'.
-            uploadButton.setDisable(!hasSelection || !isRemoteConnected() || !remotePathResolved
-                || !fileTransferAllowed());
+            // Greyed out up front while the policy denies file transfer; uploadPaths refuses as well.
+            uploadButton.setDisable(!uploadEnabled(hasSelection, isRemoteConnected(), remotePathResolved,
+                fileTransferAllowed()));
             deleteLocalButton.setDisable(!hasSelection);
             ownerLocalButton.setDisable(!hasSelection);
             editLocalButton.setDisable(!isSingleEditableFileSelection(localTable));
@@ -618,7 +619,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             SftpFileItem selected = remoteTable.getSelectionModel().getSelectedItem();
             boolean hasSelection = selected != null && !selected.getName().equals("..");
             boolean usable = hasSelection && isRemoteConnected();
-            downloadButton.setDisable(!usable || !fileTransferAllowed());
+            downloadButton.setDisable(!downloadEnabled(usable, fileTransferAllowed()));
             archiveButton.setDisable(!usable);
             deleteRemoteButton.setDisable(!usable);
             ownerRemoteButton.setDisable(!usable);
@@ -2292,8 +2293,25 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             return false;
         }
         Dragboard dragboard = event.getDragboard();
-        // Under a file-transfer policy denial the drop is still taken, and downloadEntries says why it refuses.
-        return (isRemoteConnected() && ownRemoteEntries(dragboard).isPresent()) || dragboard.hasFiles();
+        return localDropAccepted(false, isRemoteConnected(), ownRemoteEntries(dragboard).isPresent(),
+            dragboard.hasFiles(), fileTransferAllowed());
+    }
+
+    /**
+     * The local panel's answer for a drag, as a pure decision. Its own rows never; this tab's remote
+     * rows only while connected and while the policy allows file transfer (they are downloaded), so
+     * under a denial the drag is rejected over the panel instead of refused after the drop. Files
+     * from the desktop or another program are a local copy and stay accepted (D6).
+     */
+    static boolean localDropAccepted(boolean startedHere, boolean remoteConnected, boolean ownRemoteEntries,
+            boolean hasFiles, boolean transferAllowed) {
+        if (startedHere) {
+            return false;
+        }
+        if (ownRemoteEntries && remoteConnected) {
+            return transferAllowed;
+        }
+        return hasFiles;
     }
 
     private void onLocalDragOver(DragEvent event, TableRow<SftpFileItem> row) {
@@ -2337,10 +2355,29 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
      * the desktop, other programs, and the prepared files of another SFTP tab; never its own rows.
      */
     private boolean acceptsRemoteDrop(DragEvent event) {
-        return !startedIn(event.getGestureSource(), remoteTable)
-            && event.getDragboard().hasFiles()
-            && isRemoteConnected()
-            && remotePathResolved;
+        return remoteDropAccepted(startedIn(event.getGestureSource(), remoteTable), event.getDragboard().hasFiles(),
+            isRemoteConnected(), remotePathResolved, fileTransferAllowed());
+    }
+
+    /**
+     * The remote panel's answer for a drag, as a pure decision: every drop onto it is an upload, so
+     * while the policy denies file transfer it rejects the drag over the panel (no copy cursor, no
+     * drop highlight) instead of refusing after the drop.
+     */
+    static boolean remoteDropAccepted(boolean startedHere, boolean hasFiles, boolean remoteConnected,
+            boolean remotePathResolved, boolean transferAllowed) {
+        return !startedHere && hasFiles && remoteConnected && remotePathResolved && transferAllowed;
+    }
+
+    /** Whether the Upload button is usable: a selection, a resolved remote folder and the policy's consent. */
+    static boolean uploadEnabled(boolean hasSelection, boolean remoteConnected, boolean remotePathResolved,
+            boolean transferAllowed) {
+        return hasSelection && remoteConnected && remotePathResolved && transferAllowed;
+    }
+
+    /** Whether the Download button is usable: a usable remote selection and the policy's consent. */
+    static boolean downloadEnabled(boolean usableRemoteSelection, boolean transferAllowed) {
+        return usableRemoteSelection && transferAllowed;
     }
 
     private void onRemoteDragOver(DragEvent event, TableRow<SftpFileItem> row) {

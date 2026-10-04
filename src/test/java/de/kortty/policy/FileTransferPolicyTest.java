@@ -240,8 +240,8 @@ class FileTransferPolicyTest {
         assertThat(tab).contains("if (refuseTransfer(de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD)) return;");
         assertThat(tab).contains("if (refuseTransfer(de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD)) return;");
         assertThat(tab).contains("refuseTransfer(de.kortty.policy.FileTransferGate.Route.SFTP_DRAG_OUT)");
-        assertThat(tab).contains("|| !fileTransferAllowed());");
-        assertThat(tab).contains("downloadButton.setDisable(!usable || !fileTransferAllowed());");
+        assertThat(tab).contains("uploadButton.setDisable(!uploadEnabled(hasSelection, isRemoteConnected(), remotePathResolved,\n                fileTransferAllowed()));");
+        assertThat(tab).contains("downloadButton.setDisable(!downloadEnabled(usable, fileTransferAllowed()));");
     }
 
     @Test

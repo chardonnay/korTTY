@@ -6,6 +6,7 @@ import de.kortty.core.sftp.transfer.TransferBatch;
 import de.kortty.core.sftp.transfer.TransferItem;
 import de.kortty.core.sftp.transfer.TransferQueueListener;
 import de.kortty.core.sftp.transfer.TransferState;
+import de.kortty.policy.FileTransferGate;
 import de.kortty.ui.I18n;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -109,7 +110,17 @@ public final class SftpTransferQueuePane extends VBox {
             queue.cancel(item);
             return null;
         }));
-        retryButton.setOnAction(event -> forSelection(item -> queue.retry(item)));
+        retryButton.setOnAction(event -> {
+            // Defence in depth: the button is greyed out while the policy denies file transfer.
+            if (transferAllowed()) {
+                forSelection(item -> queue.retry(item));
+            }
+        });
+        // A retry copies files again; under a policy denial it is greyed out with the reason (D6).
+        String refusal = FileTransferGate.current(FileTransferGate.Route.SFTP_UPLOAD).reason();
+        if (refusal != null) {
+            retryButton.setTooltip(new Tooltip(refusal));
+        }
         cancelAllButton.setOnAction(event -> {
             if (queue != null) {
                 queue.cancelAll();
@@ -305,6 +316,16 @@ public final class SftpTransferQueuePane extends VBox {
         updateButtons();
     }
 
+    /** Whether the organization's policy lets this pane start a transfer again (resolved once at startup). */
+    private static boolean transferAllowed() {
+        return FileTransferGate.current(FileTransferGate.Route.SFTP_UPLOAD).allowed();
+    }
+
+    /** Whether Retry is usable: a queue, a retryable selection and the policy's consent to file transfer. */
+    static boolean retryEnabled(boolean hasQueue, boolean anyRetryable, boolean transferAllowed) {
+        return hasQueue && anyRetryable && transferAllowed;
+    }
+
     private void updateButtons() {
         List<TransferItem> selected = table.getSelectionModel().getSelectedItems();
         boolean anyActive = false;
@@ -318,7 +339,7 @@ public final class SftpTransferQueuePane extends VBox {
         }
         boolean hasQueue = queue != null;
         cancelButton.setDisable(!hasQueue || !anyActive);
-        retryButton.setDisable(!hasQueue || !anyRetryable);
+        retryButton.setDisable(!retryEnabled(hasQueue, anyRetryable, transferAllowed()));
         boolean anyRowActive = false;
         boolean anyRowFinished = false;
         for (TransferItem row : rows) {
