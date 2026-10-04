@@ -35,9 +35,10 @@ class ConnectionGroupColorWiringTest {
     @Test
     void theFolderMenuHasTheColorEntryOnlyWithAHandler() throws IOException {
         String menu = region(source("ConnectionManagerTreeView.java"),
-            "private ContextMenu createGroupContextMenu(GroupPath groupPath) {", "\n        return menu;\n");
+            "private ContextMenu createGroupContextMenu(GroupPath groupPath) {",
+            "\n        return menu.getItems().isEmpty() ? null : menu;\n");
 
-        assertThat(menu).contains("if (onEditGroupColor != null) {");
+        assertThat(menu).contains("if (changeable && onEditGroupColor != null) {");
         assertThat(menu).contains("new MenuItem(I18n.get(\"connManager.group.tabColor\"))");
         assertThat(menu).contains("onEditGroupColor.accept(groupPath)");
     }

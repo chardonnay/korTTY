@@ -116,7 +116,7 @@ Once a source is synced:
 1. Open **Manage Connections…** (or press ++ctrl+m++).
 2. Switch to the **Teamwork connections** tab.
 3. Double-click a teamwork connection to connect.
-4. **Read-only** — Teamwork connections are read-only, and korTTY never writes changes back to a source: **Edit** is unavailable on this tab, and a connection cannot be dragged into another folder. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.
+4. **Read-only** — Teamwork connections are read-only, and korTTY never writes changes back to a source: **Edit** is unavailable on this tab, a connection cannot be dragged into another folder, and right-clicking a folder or an empty area opens no menu, so there is no way to add, rename or delete folders or to relax their host-key verification. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.
 
 The [command palette](command-palette.md#connecting) lists the teamwork connections as well, marked **Shared (Teamwork)**, so you can also connect by typing `@` and part of a name.
 

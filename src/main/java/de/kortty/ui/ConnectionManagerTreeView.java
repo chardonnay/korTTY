@@ -69,27 +69,33 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         refreshTree();
         setupDragAndDrop();
         setCellFactory();
-        setContextMenu(createEmptyAreaContextMenu());
+        updateEmptyAreaContextMenu();
     }
 
     public void setSelectionOnly(boolean selectionOnly) {
         this.selectionOnly = selectionOnly;
-        setContextMenu(selectionOnly ? null : createEmptyAreaContextMenu());
+        updateEmptyAreaContextMenu();
         setCellFactory();
     }
 
     /**
      * Marks the connections in this tree as read-only, as teamwork connections come from a shared source
-     * that korTTY never writes back to: they cannot be dragged into another folder, and their context menu
-     * has no Edit entry.
+     * that korTTY never writes back to: they cannot be dragged into another folder, their context menu
+     * has no Edit entry, and neither its folders nor its empty space offer anything that changes them.
      */
     public void setReadOnlyConnections(boolean readOnlyConnections) {
         this.readOnlyConnections = readOnlyConnections;
+        updateEmptyAreaContextMenu();
     }
-    
+
+    /** Sets the menu for a right-click into empty space again, after a setting or handler it depends on changed. */
+    private void updateEmptyAreaContextMenu() {
+        setContextMenu(selectionOnly ? null : createEmptyAreaContextMenu());
+    }
+
     /**
-     * Context menu shown when right-clicking on empty area (no item under cursor).
-     * Allows creating a folder or a new connection.
+     * Context menu shown when right-clicking on empty area (no item under cursor): a new folder and a new
+     * connection, each only with its handler and never in a read-only tree, or null when that leaves none.
      */
     private ContextMenu createEmptyAreaContextMenu() {
         ContextMenu menu = new ContextMenu();
@@ -105,8 +111,13 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                 onAddConnection.run();
             }
         });
-        menu.getItems().addAll(createFolderItem, createConnectionItem);
-        return menu;
+        if (onCreateGroup != null && !readOnlyConnections) {
+            menu.getItems().add(createFolderItem);
+        }
+        if (onAddConnection != null && !readOnlyConnections) {
+            menu.getItems().add(createConnectionItem);
+        }
+        return menu.getItems().isEmpty() ? null : menu;
     }
     
     /**
@@ -543,11 +554,11 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     }
     
     /**
-     * Creates context menu for group items.
+     * Creates the context menu for a group, or null when it would have no entry. Every entry needs its
+     * handler, and a read-only tree offers nothing that changes its folders (rename, subfolder, host-key
+     * check, tab color, tags), so the Teamwork tab shows no folder menu at all.
      */
     private ContextMenu createGroupContextMenu(GroupPath groupPath) {
-        ContextMenu menu = new ContextMenu();
-        
         MenuItem renameItem = new MenuItem(I18n.get("connManager.renameFolder"));
         renameItem.setOnAction(e -> {
             if (onRenameGroup != null) {
@@ -598,19 +609,47 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         });
 
-        menu.getItems().addAll(renameItem, createSubGroupItem, new SeparatorMenuItem(),
-                               disableHostKeyItem);
-        if (onEditGroupColor != null) {
+        boolean changeable = !readOnlyConnections;
+        List<MenuItem> structure = new ArrayList<>();
+        if (changeable && onRenameGroup != null) {
+            structure.add(renameItem);
+        }
+        if (changeable && onCreateGroup != null) {
+            structure.add(createSubGroupItem);
+        }
+        List<MenuItem> settings = new ArrayList<>();
+        // A teamwork folder never relaxes host-key verification, whatever handler is set.
+        if (changeable && onToggleGroupHostKeyCheck != null) {
+            settings.add(disableHostKeyItem);
+        }
+        if (changeable && onEditGroupColor != null) {
             MenuItem tabColorItem = new MenuItem(I18n.get("connManager.group.tabColor"));
             tabColorItem.setOnAction(e -> onEditGroupColor.accept(groupPath));
-            menu.getItems().add(tabColorItem);
+            settings.add(tabColorItem);
         }
-        menu.getItems().add(new SeparatorMenuItem());
-        if (onAssignTagToGroup != null || onRemoveTagFromGroup != null) {
-            menu.getItems().addAll(assignTagItem, removeTagItem, new SeparatorMenuItem());
+        List<MenuItem> tags = new ArrayList<>();
+        if (changeable && (onAssignTagToGroup != null || onRemoveTagFromGroup != null)) {
+            tags.addAll(List.of(assignTagItem, removeTagItem));
         }
-        menu.getItems().addAll(exportGroupItem, deleteGroupItem);
-        return menu;
+        List<MenuItem> folder = new ArrayList<>();
+        if (onExportGroup != null) {
+            folder.add(exportGroupItem);
+        }
+        if (onDeleteGroup != null) {
+            folder.add(deleteGroupItem);
+        }
+
+        ContextMenu menu = new ContextMenu();
+        for (List<MenuItem> section : List.of(structure, settings, tags, folder)) {
+            if (section.isEmpty()) {
+                continue;
+            }
+            if (!menu.getItems().isEmpty()) {
+                menu.getItems().add(new SeparatorMenuItem());
+            }
+            menu.getItems().addAll(section);
+        }
+        return menu.getItems().isEmpty() ? null : menu;
     }
 
     public void setOnToggleGroupHostKeyCheck(java.util.function.BiConsumer<GroupPath, Boolean> handler) {
@@ -767,6 +806,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     
     public void setOnCreateGroup(Consumer<GroupPath> callback) {
         this.onCreateGroup = callback;
+        updateEmptyAreaContextMenu();
     }
     
     public void setOnRenameGroup(Consumer<GroupPath> callback) {
@@ -799,6 +839,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     
     public void setOnAddConnection(Runnable callback) {
         this.onAddConnection = callback;
+        updateEmptyAreaContextMenu();
     }
 
     public void setOnAssignTag(Consumer<List<ServerConnection>> callback) {
