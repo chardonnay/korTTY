@@ -9,6 +9,7 @@ import de.kortty.core.KeymapOverrides.Rules;
 import de.kortty.ui.SceneShortcutRouter.KeyPress;
 import de.kortty.ui.actions.ActionIds;
 import de.kortty.ui.actions.MenuActionHarvester;
+import de.kortty.ui.actions.MenuItemActivation;
 import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
@@ -248,18 +249,49 @@ final class KeymapSupport {
 
     /**
      * Sets each action item of a menu bar to its chord in {@code resolution}; an item the resolution
-     * does not know (a fixed action) gets its default back.
+     * does not know (a fixed action) gets its default back. Returns the items whose accelerator
+     * changed, in menu order, for {@link #reinstallAccelerators}.
      */
-    static void applyToMenus(@NotNull List<Menu> menus, @NotNull Resolution resolution) {
+    static @NotNull List<MenuItem> applyToMenus(@NotNull List<Menu> menus, @NotNull Resolution resolution) {
+        List<MenuItem> changed = new ArrayList<>();
         for (Map.Entry<String, MenuItem> entry : actionItems(menus).entrySet()) {
             MenuItem item = entry.getValue();
             KeyCombination defaultAccelerator = defaultAccelerator(item);
+            KeyCombination before = item.getAccelerator();
             if (!resolution.knows(entry.getKey())) {
                 item.setAccelerator(defaultAccelerator);
-                continue;
+            } else {
+                KeyCombination accelerator = combinationOf(resolution.chord(entry.getKey()));
+                item.setAccelerator(Objects.equals(accelerator, defaultAccelerator) ? defaultAccelerator : accelerator);
             }
-            KeyCombination accelerator = combinationOf(resolution.chord(entry.getKey()));
-            item.setAccelerator(Objects.equals(accelerator, defaultAccelerator) ? defaultAccelerator : accelerator);
+            if (!Objects.equals(before, item.getAccelerator())) {
+                changed.add(item);
+            }
+        }
+        return changed;
+    }
+
+    /**
+     * Puts the action of each of {@code changedItems} back under its accelerator in
+     * {@code sceneAccelerators}, the accelerators of the scene the menu bar is in, after
+     * {@link #applyToMenus} changed them in a window that is already shown.
+     *
+     * <p>JavaFX keeps a menu item's scene accelerator in step with its {@code accelerator} property
+     * by moving the action from the old chord to the new one. That loses actions: an item that had
+     * no chord gets the new one without an action (so does an item whose removed shortcut is given
+     * back), and when two items trade chords, the first move overwrites the other item's entry, so
+     * one chord runs the wrong item and the other none. Each changed item's chord is therefore set
+     * again to run that item the way its accelerator does ({@link MenuItemActivation}). JavaFX has
+     * already removed the old chords, and a chord in effect belongs to one item only, so no other
+     * entry is touched. FX thread only.
+     */
+    static void reinstallAccelerators(@NotNull Map<KeyCombination, Runnable> sceneAccelerators,
+                                      @NotNull List<MenuItem> changedItems) {
+        for (MenuItem item : changedItems) {
+            KeyCombination accelerator = item.getAccelerator();
+            if (accelerator != null) {
+                sceneAccelerators.put(accelerator, () -> MenuItemActivation.activate(item));
+            }
         }
     }
 

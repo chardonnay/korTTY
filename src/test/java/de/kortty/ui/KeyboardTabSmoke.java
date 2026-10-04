@@ -40,8 +40,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * Headless smoke for the Settings &rarr; Keyboard tab on the REAL {@link SettingsDialog}: key presses
  * on the recorder field rebind the selected action, Escape ends recording without closing the
  * dialog, a chord another action uses shows the badge and keeps Save from going ahead (the Save
- * button's action is consumed and the Keyboard tab is selected), and once the conflict is resolved
- * the overrides reach the global settings. Exit 0 = OK.
+ * button's action is consumed and the Keyboard tab is selected), once the conflict is resolved
+ * the overrides reach the global settings, and applied to a menu bar in a window that is already
+ * shown, as {@code MainWindow.applyKeymap} does after saving, a real key press runs the action that
+ * now owns the chord. Exit 0 = OK.
  */
 public final class KeyboardTabSmoke {
 
@@ -137,6 +139,66 @@ public final class KeyboardTabSmoke {
         check(Boolean.TRUE.equals(apply.invoke(dialog)), "applySettings succeeds");
         check(settings.getKeyBindingOverrides().equals(List.of(PALETTE + "=Shortcut+F7", DASHBOARD + "=Shortcut+Shift+P")),
             "the overrides reach the global settings: " + settings.getKeyBindingOverrides());
+
+        checkShownWindowFollowsTheOverrides(settings, os);
+    }
+
+    /**
+     * The saved overrides, applied to the menu bar of a window that is already shown, the way
+     * MainWindow.applyKeymap does it after saving: the palette's old chord now runs Show Dashboard,
+     * F7 the palette, and Dashboard's old chord nothing; after Reset All each runs its own action
+     * again. JavaFX alone would leave the palette's chord without an action after the reset and
+     * Dashboard's chord running the palette.
+     */
+    private static void checkShownWindowFollowsTheOverrides(GlobalSettings settings, KeyChord.Os os) {
+        List<String> fired = new java.util.ArrayList<>();
+        List<Menu> menus = menus();
+        for (Menu menu : menus) {
+            for (MenuItem item : menu.getItems()) {
+                item.setOnAction(event -> fired.add(ActionIds.idOf(item)));
+            }
+        }
+        javafx.scene.Scene scene = new javafx.scene.Scene(new javafx.scene.layout.VBox(
+            new javafx.scene.control.MenuBar(menus.toArray(Menu[]::new))), 400, 200);
+        javafx.stage.Stage stage = new javafx.stage.Stage();
+        stage.setScene(scene);
+        stage.show();
+        try {
+            scene.getRoot().applyCss();
+            scene.getRoot().layout();
+            KeymapSupport.Defaults defaults = KeymapSupport.defaults(menus, os);
+            de.kortty.core.KeymapOverrides.Resolution keymap = de.kortty.core.KeymapOverrides
+                .parse(settings.getKeyBindingOverrides())
+                .resolve(defaults.rebindable(), KeymapSupport.rules(os, defaults.fixed()));
+            KeymapSupport.reinstallAccelerators(scene.getAccelerators(), KeymapSupport.applyToMenus(menus, keymap));
+
+            boolean mac = os.isMac();
+            keyPress(scene, KeyCode.P, true, mac);
+            check(fired.equals(List.of(DASHBOARD)), "the palette's old chord runs Show Dashboard: " + fired);
+            fired.clear();
+            keyPress(scene, KeyCode.F7, false, mac);
+            check(fired.equals(List.of(PALETTE)), "F7 runs the palette: " + fired);
+            fired.clear();
+            keyPress(scene, KeyCode.D, true, mac);
+            check(fired.isEmpty(), "Dashboard's old chord runs nothing: " + fired);
+
+            // Reset All, saved: each takes back the chord the other holds, palette first.
+            KeymapSupport.reinstallAccelerators(scene.getAccelerators(), KeymapSupport.applyToMenus(menus,
+                de.kortty.core.KeymapOverrides.empty().resolve(defaults.rebindable(),
+                    KeymapSupport.rules(os, defaults.fixed()))));
+            keyPress(scene, KeyCode.P, true, mac);
+            keyPress(scene, KeyCode.D, true, mac);
+            keyPress(scene, KeyCode.F7, false, mac);
+            check(fired.equals(List.of(PALETTE, DASHBOARD)), "the defaults run their own actions again: " + fired);
+        } finally {
+            stage.hide();
+        }
+    }
+
+    /** A real KEY_PRESSED of Cmd (macOS) or Ctrl with {@code code}, as the scene's accelerators see it. */
+    private static void keyPress(javafx.scene.Scene scene, KeyCode code, boolean shift, boolean mac) {
+        javafx.event.Event.fireEvent(scene, new KeyEvent(KeyEvent.KEY_PRESSED, KeyEvent.CHAR_UNDEFINED, "", code,
+            shift, !mac, false, mac));
     }
 
     private static List<Menu> menus() {

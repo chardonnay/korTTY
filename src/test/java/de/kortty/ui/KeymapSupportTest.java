@@ -22,6 +22,7 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.IntSupplier;
@@ -135,6 +136,52 @@ class KeymapSupportTest {
             "menu.file.newTab=Shortcut+X (FIXED with menu.edit.cut)",
             "menu.view.commandPalette=Shortcut+K (TERMINAL)",
             "menu.view.dashboard=Shortcut+Shift+P (CONFLICT with menu.view.commandPalette)").inOrder();
+    }
+
+    /**
+     * A shown window's menu accelerators live in its scene, where JavaFX moves an item's action from
+     * its old chord to its new one whenever the accelerator changes. Applying a keymap while the
+     * window is open would then leave a new chord without an action and mix up a swap, so the
+     * changed items' actions are put back.
+     */
+    @Test
+    void aKeymapAppliedToAShownWindowKeepsEveryChordOnItsOwnAction() {
+        Bar bar = new Bar();
+        List<String> fired = new ArrayList<>();
+        for (MenuItem item : List.of(bar.newTab, bar.renameTab, bar.palette, bar.dashboard)) {
+            item.setOnAction(event -> fired.add(item.getText()));
+        }
+        Map<KeyCombination, Runnable> scene = javafxSceneAccelerators(bar.menus);
+        KeyCombination shiftP = PALETTE;
+        KeyCombination shiftR = new KeyCodeCombination(KeyCode.R, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+        // On a Mac: on Windows and Linux plain Ctrl+T is the shell's, and only New Tab keeps it.
+        KeymapSupport.Defaults defaults = KeymapSupport.defaults(bar.menus, Os.MAC);
+        Resolution swapped = KeymapOverrides.parse(List.of("menu.file.newTab=Shortcut+Shift+P",
+            "menu.view.commandPalette=Shortcut+T", "menu.file.renameTab=Shortcut+Shift+R", "menu.view.dashboard=none"))
+            .resolve(defaults.rebindable(), KeymapSupport.rules(Os.MAC, defaults.fixed()));
+
+        List<MenuItem> changed = KeymapSupport.applyToMenus(bar.menus, swapped);
+
+        assertThat(changed).containsExactly(bar.newTab, bar.renameTab, bar.palette, bar.dashboard).inOrder();
+        // What JavaFX alone leaves: Cmd+T, now the palette's, still runs New Tab, Cmd+Shift+P runs
+        // nothing, and Rename Tab's new chord has no action.
+        assertThat(runAll(scene, fired, NEW_TAB)).containsExactly("New Tab");
+        assertThat(scene).doesNotContainKey(shiftP);
+        assertThat(scene.get(shiftR)).isNull();
+        KeymapSupport.reinstallAccelerators(scene, changed);
+        assertThat(runAll(scene, fired, NEW_TAB, shiftP, shiftR))
+            .containsExactly("Command Palette", "New Tab", "Rename Tab").inOrder();
+        assertThat(scene).doesNotContainKey(bar.dashboardDefault);
+        assertWithMessage("the fixed and untouched items keep JavaFX's own entries").that(scene).containsKey(CUT);
+
+        // Back to the defaults: Dashboard gets its removed shortcut back, Rename Tab loses its one.
+        changed = KeymapSupport.applyToMenus(bar.menus, KeymapOverrides.empty().resolve(defaults.rebindable(),
+            KeymapSupport.rules(Os.MAC, defaults.fixed())));
+        KeymapSupport.reinstallAccelerators(scene, changed);
+        assertThat(runAll(scene, fired, NEW_TAB, shiftP, bar.dashboardDefault))
+            .containsExactly("New Tab", "Command Palette", "Dashboard").inOrder();
+        assertThat(bar.dashboard.isSelected()).isTrue();
+        assertThat(scene).doesNotContainKey(shiftR);
     }
 
     @Test
@@ -276,6 +323,53 @@ class KeymapSupportTest {
         for (PaneNavigator.PaneDirection direction : PaneNavigator.PaneDirection.values()) {
             assertThat(PaneShortcuts.PaneAction.focus(direction).actionId()).isEqualTo(PaneMenuSupport.focusKey(direction));
         }
+    }
+
+    /**
+     * A scene's accelerators as JavaFX's ControlAcceleratorSupport keeps them for a shown menu bar:
+     * each leaf item's chord runs the item, and a change of its accelerator moves the action from the
+     * old chord to the new one ({@code put(new, remove(old))}), as JavaFX 21 does.
+     */
+    private static Map<KeyCombination, Runnable> javafxSceneAccelerators(List<Menu> menus) {
+        Map<KeyCombination, Runnable> scene = new HashMap<>();
+        List<MenuItem> leaves = new ArrayList<>();
+        for (Menu menu : menus) {
+            collectLeaves(menu, leaves);
+        }
+        for (MenuItem item : leaves) {
+            if (item.getAccelerator() != null) {
+                scene.put(item.getAccelerator(), item::fire);
+            }
+            item.acceleratorProperty().addListener((observable, before, now) -> {
+                Runnable action = scene.remove(before);
+                if (now != null) {
+                    scene.put(now, action);
+                }
+            });
+        }
+        return scene;
+    }
+
+    private static void collectLeaves(Menu menu, List<MenuItem> leaves) {
+        for (MenuItem item : menu.getItems()) {
+            if (item instanceof Menu submenu) {
+                collectLeaves(submenu, leaves);
+            } else {
+                leaves.add(item);
+            }
+        }
+    }
+
+    /** Runs the scene action of each chord in turn; returns the items that fired, in order. */
+    private static List<String> runAll(Map<KeyCombination, Runnable> scene, List<String> fired,
+                                       KeyCombination... chords) {
+        fired.clear();
+        for (KeyCombination chord : chords) {
+            Runnable action = scene.get(chord);
+            assertWithMessage("an action for %s", chord).that(action).isNotNull();
+            action.run();
+        }
+        return List.copyOf(fired);
     }
 
     private static String fixed(String chord, Os os, Map<String, KeyChord> fixedMenus) {

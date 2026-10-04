@@ -209,7 +209,9 @@ class MainWindowAcceleratorUniquenessTest {
         assertThat(apply).contains("KeymapSupport.defaults(menuBar.getMenus(), os)");
         assertThat(apply).contains("overrides.resolve(defaults.rebindable(),\n"
             + "            KeymapSupport.rules(os, defaults.fixed()));");
-        assertThat(apply).contains("KeymapSupport.applyToMenus(menuBar.getMenus(), keymap);");
+        assertThat(apply).contains("List<MenuItem> rechorded = KeymapSupport.applyToMenus(menuBar.getMenus(), keymap);");
+        assertWithMessage("a shown window's scene accelerators get the changed items' actions back")
+            .that(apply).contains("KeymapSupport.reinstallAccelerators(menuBarScene.getAccelerators(), rechorded);");
         assertThat(apply).contains("for (RoutedChord chord : routedChords()) {\n            chord.bind(keymap);");
 
         String setup = body(source, "    private void setupMenuBar() {");

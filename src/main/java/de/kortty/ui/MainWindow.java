@@ -2963,7 +2963,13 @@ public class MainWindow {
             ? KeymapOverrides.parse(settings.getKeyBindingOverrides()) : KeymapOverrides.empty();
         KeymapOverrides.Resolution keymap = overrides.resolve(defaults.rebindable(),
             KeymapSupport.rules(os, defaults.fixed()));
-        KeymapSupport.applyToMenus(menuBar.getMenus(), keymap);
+        List<MenuItem> rechorded = KeymapSupport.applyToMenus(menuBar.getMenus(), keymap);
+        // In a window that is already shown, JavaFX loses the actions of menu items whose chord
+        // changed (a new chord, a swap), so they are put back; at startup there is no scene yet.
+        Scene menuBarScene = menuBar.getScene();
+        if (menuBarScene != null) {
+            KeymapSupport.reinstallAccelerators(menuBarScene.getAccelerators(), rechorded);
+        }
         for (RoutedChord chord : routedChords()) {
             chord.bind(keymap);
         }
