@@ -153,3 +153,5 @@ Typical combinations of swarm + scheduler:
 
 !!! warning "Unattended changes"
     A scheduled swarm with **read-only off** and **auto-approve on** changes systems without anyone watching. Keep scheduled swarms read-only unless the prompt is deliberately designed (and tested interactively) to make changes.
+
+An organization's [enterprise policy](../reference/enterprise-policy.md#rulefeatures) also applies to scheduled swarms: with the AI Swarm or the AI agent denied, or `ai-agent-execution` set to `read-only`, the job ends as blocked before it connects; with `ai-agent-execution = "confirm"`, every agent that plans a server-changing command is stopped and counted as blocked, even when auto-approve is on.

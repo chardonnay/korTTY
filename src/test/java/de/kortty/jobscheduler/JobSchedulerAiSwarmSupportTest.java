@@ -134,6 +134,60 @@ class JobSchedulerAiSwarmSupportTest {
         assertThat(blocking.mutationBlockedAgentIds).containsExactly("agent-1");
     }
 
+    private static de.kortty.policy.EffectivePolicy agentExecution(de.kortty.policy.AgentExecutionMode mode) {
+        de.kortty.policy.PolicyRule rule = de.kortty.policy.PolicyRule.builder().agentExecution(mode).build();
+        return de.kortty.policy.EffectivePolicy.resolve(new de.kortty.policy.PolicyFile(1, "ACME",
+            java.util.Map.of(), List.of(rule), List.of(), List.of(), List.of(), List.of()),
+            new de.kortty.policy.PolicyIdentity() {
+                @Override
+                public String userName() {
+                    return "u";
+                }
+
+                @Override
+                public Set<String> osGroups() {
+                    return Set.of();
+                }
+            });
+    }
+
+    @Test
+    void headlessApprovalUnderConfirmPolicyCancelsDespiteAutoApprove() {
+        de.kortty.policy.EffectivePolicy confirm = agentExecution(de.kortty.policy.AgentExecutionMode.CONFIRM);
+        JobSchedulerAiSwarmSupport.HeadlessSwarmCallback callback =
+            new JobSchedulerAiSwarmSupport.HeadlessSwarmCallback(true, Thread.currentThread(), () -> confirm);
+
+        assertThat(callback.requestBatchApproval(null, "agent-1"))
+            .isEqualTo(TerminalAgentService.ApprovalDecision.CANCEL);
+        assertThat(callback.mutationBlockedAgentIds).containsExactly("agent-1");
+        assertThat(callback.blockedByPolicy).isTrue();
+    }
+
+    @Test
+    void headlessApprovalUnderAllowPolicyStillApprovesWithAutoApprove() {
+        de.kortty.policy.EffectivePolicy allow = agentExecution(de.kortty.policy.AgentExecutionMode.ALLOW);
+        JobSchedulerAiSwarmSupport.HeadlessSwarmCallback callback =
+            new JobSchedulerAiSwarmSupport.HeadlessSwarmCallback(true, Thread.currentThread(), () -> allow);
+
+        assertThat(callback.requestBatchApproval(null, "agent-1"))
+            .isEqualTo(TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS);
+        assertThat(callback.mutationBlockedAgentIds).isEmpty();
+        assertThat(callback.blockedByPolicy).isFalse();
+    }
+
+    @Test
+    void policyBlockedAgentsAreReportedWithThePolicyReason() {
+        SwarmModels.SwarmAgentStatus status = status("a1", SwarmModels.SwarmAgentState.FAILED);
+
+        JobExecutionOutcome outcome = JobSchedulerAiSwarmSupport.mapOutcome(
+            List.of(status), null, Set.of("a1"), IDENTITY, true);
+
+        assertThat(outcome.status()).isEqualTo(JobRunStatus.BLOCKED);
+        assertThat(outcome.summary()).contains(
+            de.kortty.ui.I18n.get("jobscheduler.dialog.policy.swarmConfirmBlocked", 1));
+        assertThat(outcome.summary()).doesNotContain("auto-approve is off");
+    }
+
     // ---------------------------------------------------------------- secrets known during the run
 
     private static final String SESSION_PASSWORD = "Job-Sw4rm-Passw0rd";

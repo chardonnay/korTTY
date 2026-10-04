@@ -38,6 +38,7 @@ import java.util.function.UnaryOperator;
  * <p>Headless approval semantics: read-only jobs run with the READ_ONLY policy; otherwise
  * mutating commands are auto-approved only when the job allows it — without auto-approval the
  * affected agent is stopped and reported as BLOCKED (a background job can never ask a human).
+ * Under the enterprise agent execution CONFIRM every approval is refused, auto-approve or not.
  */
 public class JobSchedulerAiSwarmSupport {
 
@@ -117,7 +118,8 @@ public class JobSchedulerAiSwarmSupport {
                 ? SwarmModels.BatchApprovalPolicy.READ_ONLY
                 : SwarmModels.BatchApprovalPolicy.PER_SERVER);
         HeadlessSwarmCallback callback =
-            new HeadlessSwarmCallback(action.isAiAutoApproveCommands(), Thread.currentThread());
+            new HeadlessSwarmCallback(
+                action.isAiAutoApproveCommands(), Thread.currentThread(), aiSupport.policySupplier());
 
         try {
             // Same as the interactive path's MainWindow.terminalAgentService: a bare, un-wired
@@ -163,7 +165,8 @@ public class JobSchedulerAiSwarmSupport {
             logger.warn("Failed to persist the swarm job chat", e);
         }
 
-        return mapOutcome(statuses, markdown, callback.mutationBlockedAgentIds, redact);
+        return mapOutcome(statuses, markdown, callback.mutationBlockedAgentIds, redact,
+            callback.blockedByPolicy);
     }
 
     /** The headless SSH session for one target. Overridden by tests with a fake session. */
@@ -203,6 +206,19 @@ public class JobSchedulerAiSwarmSupport {
         String aggregatedMarkdown,
         Set<String> mutationBlockedAgentIds,
         UnaryOperator<String> redact) {
+        return mapOutcome(statuses, aggregatedMarkdown, mutationBlockedAgentIds, redact, false);
+    }
+
+    /**
+     * As above; {@code blockedByPolicy} says the approvals were refused because the organization's
+     * policy requires a person to approve (agent execution CONFIRM), not because auto-approve is off.
+     */
+    static JobExecutionOutcome mapOutcome(
+        Collection<SwarmModels.SwarmAgentStatus> statuses,
+        String aggregatedMarkdown,
+        Set<String> mutationBlockedAgentIds,
+        UnaryOperator<String> redact,
+        boolean blockedByPolicy) {
 
         int done = 0;
         int failed = 0;
@@ -228,8 +244,13 @@ public class JobSchedulerAiSwarmSupport {
             summary.append(" Failed: ").append(failed).append(", blocked: ").append(blocked).append('.');
         }
         if (mutationBlockedAgentIds != null && !mutationBlockedAgentIds.isEmpty()) {
-            summary.append(" ").append(mutationBlockedAgentIds.size())
-                .append(" agent(s) required approval for server-changing commands (auto-approve is off).");
+            if (blockedByPolicy) {
+                summary.append(" ").append(de.kortty.ui.I18n.get(
+                    "jobscheduler.dialog.policy.swarmConfirmBlocked", mutationBlockedAgentIds.size()));
+            } else {
+                summary.append(" ").append(mutationBlockedAgentIds.size())
+                    .append(" agent(s) required approval for server-changing commands (auto-approve is off).");
+            }
         }
         JobRunStatus status = failed > 0
             ? JobRunStatus.FAILED
@@ -295,12 +316,23 @@ public class JobSchedulerAiSwarmSupport {
         final Map<String, SwarmModels.SwarmAgentStatus> lastStatusByAgentId = new ConcurrentHashMap<>();
         final Set<String> mutationBlockedAgentIds = ConcurrentHashMap.newKeySet();
         volatile SwarmModels.SwarmAggregationResult aggregation;
+        /** True once an approval was refused because the policy demands a person (CONFIRM). */
+        volatile boolean blockedByPolicy;
         private final boolean autoApprove;
         private final Thread jobWorkerThread;
+        private final java.util.function.Supplier<de.kortty.policy.EffectivePolicy> policy;
 
         HeadlessSwarmCallback(boolean autoApprove, Thread jobWorkerThread) {
+            this(autoApprove, jobWorkerThread, de.kortty.policy.PolicyManager::effective);
+        }
+
+        HeadlessSwarmCallback(
+            boolean autoApprove,
+            Thread jobWorkerThread,
+            java.util.function.Supplier<de.kortty.policy.EffectivePolicy> policy) {
             this.autoApprove = autoApprove;
             this.jobWorkerThread = jobWorkerThread;
+            this.policy = policy != null ? policy : de.kortty.policy.PolicyManager::effective;
         }
 
         List<SwarmModels.SwarmAgentStatus> orderedStatuses(List<SwarmTarget> targets) {
@@ -337,6 +369,16 @@ public class JobSchedulerAiSwarmSupport {
         @Override
         public TerminalAgentService.ApprovalDecision requestBatchApproval(
             TerminalAgentModels.Approval approval, String agentId) {
+            // D8: under agent execution CONFIRM the terminal agent forces this approval so that a
+            // person decides; a background job has nobody to ask, so the job's auto-approve must
+            // not answer it. Read per request: the policy may have been reloaded mid-run.
+            de.kortty.policy.EffectivePolicy effective = policy.get();
+            if (effective != null
+                && effective.agentExecution() == de.kortty.policy.AgentExecutionMode.CONFIRM) {
+                blockedByPolicy = true;
+                mutationBlockedAgentIds.add(agentId);
+                return TerminalAgentService.ApprovalDecision.CANCEL;
+            }
             if (autoApprove) {
                 return TerminalAgentService.ApprovalDecision.APPROVE_ALWAYS;
             }

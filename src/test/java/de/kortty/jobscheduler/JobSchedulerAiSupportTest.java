@@ -123,6 +123,120 @@ class JobSchedulerAiSupportTest {
         assertThat(known.redact("x Vault-Secret-123 y")).isEqualTo("x *** y");
     }
 
+    // ------------------------------------------------- D8: agent execution CONFIRM on scheduled jobs
+
+    private static de.kortty.policy.EffectivePolicy agentExecution(de.kortty.policy.AgentExecutionMode mode) {
+        de.kortty.policy.PolicyRule rule = de.kortty.policy.PolicyRule.builder().agentExecution(mode).build();
+        return de.kortty.policy.EffectivePolicy.resolve(new de.kortty.policy.PolicyFile(1, "ACME",
+            java.util.Map.of(), java.util.List.of(rule), java.util.List.of(), java.util.List.of(),
+            java.util.List.of(), java.util.List.of()), new de.kortty.policy.PolicyIdentity() {
+                @Override
+                public String userName() {
+                    return "u";
+                }
+
+                @Override
+                public java.util.Set<String> osGroups() {
+                    return java.util.Set.of();
+                }
+            });
+    }
+
+    /** A session that records what would run on the server instead of connecting anywhere. */
+    private static final class RecordingRemoteSession extends JobSchedulerRemoteSession {
+        final java.util.List<String> executed = new java.util.ArrayList<>();
+
+        RecordingRemoteSession() {
+            super(null, new de.kortty.model.ServerConnection("srv", "srv.example", 22, "root"), null, null, true);
+        }
+
+        @Override
+        public java.util.Optional<String> getPassword() {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public CommandResult execute(String command, String stdin) {
+            executed.add(command);
+            return new CommandResult(0, "ok\n", "");
+        }
+    }
+
+    private static JobExecutionOutcome runPlannedCommand(
+        de.kortty.policy.EffectivePolicy policy, RecordingRemoteSession remote, String command, String risk)
+        throws Exception {
+        de.kortty.model.AiProfile profile = new de.kortty.model.AiProfile();
+        profile.setId("p");
+        AiPromptService aiService = new CapturingAiService(
+            "{\"status\":\"run_commands\",\"summary\":\"plan\",\"commands\":[{\"command\":\""
+                + command + "\",\"purpose\":\"x\",\"risk\":\"" + risk + "\"}]}");
+        JobSchedulerAiSupport support = new JobSchedulerAiSupport(null, (p, usage) -> { }, () -> policy) {
+            @Override
+            de.kortty.model.AiProfile findAiProfile(String profileId) {
+                return profile;
+            }
+
+            @Override
+            AiPromptService createAiService(de.kortty.model.AiProfile ignored) {
+                return aiService;
+            }
+        };
+        ScheduledJob job = new ScheduledJob();
+        job.getAction().setType(JobActionType.AI_AGENT);
+        job.getAction().setAiPrompt("tidy up");
+        job.getAction().setAiAutoApproveCommands(true);
+        return support.runAiAgent(job, new JobSchedulerAiSupport.ServerConnectionContext("srv"), remote,
+            null, new JobSchedulerSecretRedactor());
+    }
+
+    @Test
+    void confirmPolicyBlocksAServerChangingCommandEvenWithAutoApprove() throws Exception {
+        RecordingRemoteSession remote = new RecordingRemoteSession();
+
+        JobExecutionOutcome outcome = runPlannedCommand(
+            agentExecution(de.kortty.policy.AgentExecutionMode.CONFIRM), remote, "touch /tmp/kortty-marker", "LOW");
+
+        assertThat(outcome.status()).isEqualTo(JobRunStatus.BLOCKED);
+        assertThat(outcome.summary()).isEqualTo(de.kortty.ui.I18n.get("jobscheduler.dialog.policy.aiConfirmBlocked"));
+        assertThat(outcome.detail()).isEqualTo("touch /tmp/kortty-marker");
+        assertThat(remote.executed).isEmpty();
+    }
+
+    @Test
+    void confirmPolicyStillRunsAReadOnlyCommand() throws Exception {
+        RecordingRemoteSession remote = new RecordingRemoteSession();
+
+        JobExecutionOutcome outcome = runPlannedCommand(
+            agentExecution(de.kortty.policy.AgentExecutionMode.CONFIRM), remote, "df -h", "LOW");
+
+        assertThat(outcome.status()).isEqualTo(JobRunStatus.SUCCESS);
+        assertThat(remote.executed).hasSize(1);
+        assertThat(remote.executed.get(0)).contains("df -h");
+    }
+
+    @Test
+    void allowPolicyKeepsRunningAutoApprovedServerChangingCommands() throws Exception {
+        RecordingRemoteSession remote = new RecordingRemoteSession();
+
+        JobExecutionOutcome outcome = runPlannedCommand(
+            agentExecution(de.kortty.policy.AgentExecutionMode.ALLOW), remote, "touch /tmp/kortty-marker", "LOW");
+
+        assertThat(outcome.status()).isEqualTo(JobRunStatus.SUCCESS);
+        assertThat(remote.executed).hasSize(1);
+    }
+
+    @Test
+    void readOnlyPolicyBlocksTheAgentBeforeTheAiIsAsked() throws Exception {
+        RecordingRemoteSession remote = new RecordingRemoteSession();
+
+        JobExecutionOutcome outcome = runPlannedCommand(
+            agentExecution(de.kortty.policy.AgentExecutionMode.READ_ONLY), remote, "df -h", "LOW");
+
+        assertThat(outcome.status()).isEqualTo(JobRunStatus.BLOCKED);
+        assertThat(outcome.summary()).isEqualTo(de.kortty.ui.I18n.get("jobscheduler.dialog.policy.aiReadOnly"));
+        assertThat(remote.executed).isEmpty();
+    }
+
     @Test
     void executeAgentJsonPromptKeepsNonResponseFormatErrors() throws Exception {
         FailingAiService aiService = new FailingAiService();
