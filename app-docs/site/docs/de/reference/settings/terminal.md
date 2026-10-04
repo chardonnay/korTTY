@@ -49,6 +49,8 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | Desktop-Benachrichtigung, wenn ein Coding-Agent eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen | umschalten | – | Ein | `codingAgentNotificationsEnabled` |
 | Anzahl der auf eine Entscheidung wartenden Agents am App-Symbol anzeigen | umschalten | – | Ein | `codingAgentAppBadgeEnabled` |
 | Einem lokalen Programm erlauben, dieses korTTY zu lesen und zu steuern | umschalten | – | **Aus** | `controlApiEnabled` |
+| MCP-Server | umschalten | – | **Aus** | `mcpServerEnabled` |
+| Schreib-Tools erlauben | umschalten | – | **Aus** | `mcpWriteToolsEnabled` |
 
 ## Hinweise
 
@@ -136,6 +138,8 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
 !!! warning "Einem lokalen Programm erlauben, dieses korTTY zu lesen und zu steuern"
     Das ist die Steuerungs-API und die einzige Einstellung dieses Reiters, die standardmäßig aus ist. Solange sie an ist, kann jedes Programm unter Ihrem Benutzerkonto auf diesem Rechner Ihre Fenster auflisten, jeden offenen Bereich lesen – lokale Shells wie SSH-Sitzungen – und darin tippen, einschließlich ++enter++. Über das Netzwerk ist nichts erreichbar und kein anderer Benutzer des Rechners kann sich verbinden, aber weiter reicht die Grenze nicht: innerhalb Ihres eigenen Kontos ist es dieselbe Macht, als säße jemand an Ihrer Tastatur. Eine Statuszeile unter dem Kontrollkästchen meldet, was der Listener tatsächlich tut, denn Kontrollkästchen und Listener können berechtigt auseinanderliegen – die Unternehmensrichtlinie kann die Funktion verbieten, und ein Start kann scheitern, weil bereits ein anderes korTTY den Socket besitzt. Jede Aktion wird nur mit Byte-Anzahlen protokolliert, nie mit Terminaltext, und beim ersten Tippen eines Programms in einen Bereich erhalten Sie eine Desktop-Benachrichtigung. Siehe [Steuerungs-API](../control-api.md) für das Sicherheitsmodell und [Steuerungs-CLI](../cli.md) für den Client `kortty-cli`, der sie spricht.
+
+    **MCP-Server** und das darunterliegende **Schreib-Tools erlauben** lassen einen KI-Assistenten über `kortty-cli mcp` auf korTTY zugreifen: Ersteres bietet schreibgeschützte Tools mit maskierten Geheimnissen und begrenzter Ausgabe, Letzteres ergänzt Tools, die in einen Bereich tippen, wobei korTTY Sie vor jedem einzelnen Schreibzugriff fragt. Beide sind standardmäßig aus, ausgegraut, solange die Steuerungs-API aus ist, und gesperrt, wenn die Unternehmensrichtlinie `mcp-server` verweigert. Siehe [MCP-Clients](../control-api.md#mcp-clients).
 
 !!! note "Coding-Agents erkennen"
     Wenn aktiviert, beobachtet korTTY jede lokale Shell-Abteilung auf laufende Claude Code, Codex oder Gemini CLI-Instanzen und überwacht, ob sie arbeitet, auf eine Frage blockiert ist, abgeschlossen oder inaktiv ist. Die Anzeige wird lokal analysiert und nichts verlässt den Computer; die Änderung wird sofort auf offene Tabs übertragen. Die beiden Schalter unten steuern die Desktop-Benachrichtigung für einen Agenten, der eine Entscheidung benötigt oder abgeschlossen wird, während Sie nicht auf dessen Abteilung sehen, sowie die Anzahl der wartenden Agenten auf der App-Icon (oder im Fenstertitel, wenn kein Icon-Abzeichen existiert); beide lesen den Einstellung live, sodass eine Änderung sofort wirkt. Siehe [Coding-Agents](../../features/coding-agents.md#app-symbol-badge-und-benachrichtigungen).

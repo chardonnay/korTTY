@@ -40,6 +40,17 @@ Einige Terminalfunktionen melden, wie sie verwendet werden, und zwar nur mit Sch
 
 Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsätzen, die Muster und alles, was in die Bereiche eingegeben wird, werden nie gesendet. Änderungen auf den Einstellungsseiten werden als Name der Einstellung gemeldet, bei Schaltern und Auswahlfeldern mit dem neuen Wert; bei den Buchstaben und Mustern der Schnellauswahl und bei neu belegten Tastenkürzeln nur, ob Sie sie geändert haben.
 
+### Steuerungs-API und MCP-Clients
+
+Wenn ein Programm die [Steuerungs-API](../reference/control-api.md) verwendet, meldet korTTY, welche Methoden verwendet werden und welche Art von Client sie verwendet hat. Ein KI-Assistent, der über `kortty-cli mcp` verbunden ist, wird zusätzlich nach Tool und nach dem Ausgang des Aufrufs gemeldet. Jedes Ereignis wird höchstens einmal pro Methode bzw. pro Tool und Ausgang gesendet, solange korTTY läuft; die Anzahl der Aufrufe fließt in die regelmäßige Nutzungszusammenfassung ein.
+
+| Ereignis | Gesendet, wenn | Daten |
+| --- | --- | --- |
+| `control_api_used` | eine Methode der Steuerungs-API wird in diesem Lauf zum ersten Mal verwendet | der Methodenname, z. B. `pane.read`, und die Art des Clients: `cli` für `kortty-cli`, `mcp` für einen MCP-Client, `other` für jedes andere Programm |
+| `mcp_tool_called` | ein Aufruf eines MCP-Clients endet auf eine Weise, die in diesem Lauf noch nicht gemeldet wurde | das Tool (`pane_list`, `pane_read`, `pane_wait_output`, `tab_list`, `agent_list`, `pane_send_text`, `pane_run`, `pane_send_keys` oder `other`) und der Ausgang: `ok`, `refused` (ausgeschaltet, nicht erlaubt oder in diesem Bereich nicht möglich), `denied` (Sie haben abgelehnt, oder korTTY konnte nicht fragen), `timeout` (niemand hat rechtzeitig geantwortet, oder eine Wartezeit ist abgelaufen) oder `failed` (jeder andere Fehler) |
+
+Der Name des Clients, Bereichs-IDs, Tool-Argumente, der gelesene oder eingegebene Text und Ihre Antworten werden niemals gesendet.
+
 ### SFTP-Übertragungen
 
 Wenn ein SFTP-Manager-Tab geöffnet wird, gibt ein Ereignis an, ob er die Sitzung eines Terminals teilt. Wenn ein Upload oder Download im SFTP-Manager abgeschlossen ist, gibt ein Ereignis an, wie er verlaufen ist. Dateizahlen werden auf 0, 1, 2, 5, 10, 50, 100 oder 1000 abgerundet. Wenn korTTY aufhört, eine Datei zu beobachten, die Sie in einem externen Editor (auch als root) bearbeitet haben, gibt ein Ereignis an, wie die Bearbeitung endete; die Zahl der Uploads wird auf 0, 1, 2, 5, 10 oder 50 abgerundet.
