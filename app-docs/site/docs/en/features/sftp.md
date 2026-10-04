@@ -124,11 +124,11 @@ Upload copies the selected local files and folders into the remote folder that w
 
 ### Transfer list
 
-Uploads and downloads run in the background, up to three files at a time, each over its own SFTP channel. The first transfer opens the **Transfers** list at the bottom of the tab; the arrow on its left collapses it to its header. Each row is a file or folder you transferred, with its direction, a progress bar, the bytes so far, the speed and the time left; a folder row adds up the files in it. The status bar shows how many files of all running transfers are done and the overall speed, and says **Upload complete** or **Download complete** when a batch is finished.
+Uploads and downloads run in the background, up to three files at a time (*Settings → SFTP Manager → [Parallel transfers](../reference/settings/sftp.md#transfers)*, 1 to 8), each over its own SFTP channel. The first transfer opens the **Transfers** list at the bottom of the tab; the arrow on its left collapses it to its header. Each row is a file or folder you transferred, with its direction, a progress bar, the bytes so far, the speed and the time left; a folder row adds up the files in it. The status bar shows how many files of all running transfers are done and the overall speed, and says **Upload complete** or **Download complete** when a batch is finished.
 
 | Button | Action |
 |--------|--------|
-| **Cancel** | Stops the selected rows; a cancelled file leaves no partial file behind |
+| **Cancel** | Stops the selected rows; a cancelled file leaves no partial file behind, unless the settings keep it for a later resume |
 | **Retry** | Starts the selected failed or cancelled rows again; for a folder, only what did not arrive |
 | **Cancel all** | Stops every transfer, including an open **File already exists** question |
 | **Clear finished** | Removes the rows that are done, skipped or cancelled; failed rows stay for a retry |
@@ -136,8 +136,8 @@ Uploads and downloads run in the background, up to three files at a time, each o
 - **Failures no longer open one error dialog per file.** A failed file gets a red row of its own (also when it is inside a folder you transferred), the reason is in its **State** column, and once the batch is finished one summary window lists the failed files and the linked folders that were not followed. The summary does not block the tab.
 - **The lists follow the transfers.** When files arrive in the folder a panel shows, that panel is listed again shortly afterwards; a folder you browsed away from is not.
 - **Files arrive complete or not at all.** A file is first written as `name.kortty-part` next to the target and gets its real name only once it is complete, so an interrupted transfer never leaves a half-written file under the real name.
-- **Interrupted transfers continue where they stopped.** After a failure or a lost connection the `.kortty-part` file is kept, and **Retry** continues it instead of starting over, as long as the source has not changed since; korTTY re-checks the last 64 KB before it continues. A cancelled transfer deletes its partial file.
-- **Closing the tab asks while transfers run.** The tab's close button, *File > Close Tab*, *Close All Tabs*, closing the window and quitting korTTY first ask **Cancel *n* running transfers and close?**; **Keep tab open** is the default and leaves every transfer running. Closing cancels the transfers that are not finished and deletes their partial files. Finished or failed rows ask nothing, and the automatic closing of idle tabs waits until the transfers are done.
+- **Interrupted transfers continue where they stopped.** After a failure or a lost connection the `.kortty-part` file is kept, and **Retry** continues it instead of starting over, as long as the source has not changed since; korTTY re-checks the last 64 KB before it continues. A cancelled transfer deletes its partial file. Both can be changed in *Settings → [SFTP Manager](../reference/settings/sftp.md#transfers)*: resuming can be switched off, and a cancelled transfer can keep its partial file.
+- **Closing the tab asks while transfers run.** The tab's close button, *File > Close Tab*, *Close All Tabs*, closing the window and quitting korTTY first ask **Cancel *n* running transfers and close?**; **Keep tab open** is the default and leaves every transfer running. Closing cancels the transfers that are not finished and deletes their partial files, unless *Settings → SFTP Manager* keeps the partial files of cancelled transfers. Finished or failed rows ask nothing, and the automatic closing of idle tabs waits until the transfers are done.
 - **Leftover partial files** are shown in italics, with a tooltip. **Remove leftover partial files** at the end of either panel's context menu deletes the `.kortty-part` files in the folder shown after a confirmation; partial files of transfers that are still running are left alone.
 
 ### When a file already exists
@@ -157,7 +157,12 @@ An upload or download never replaces an existing file silently. When the target 
 - **A file and a folder cannot replace each other.** When one side is a file and the other a folder, only **Skip** and **Keep both** are offered.
 - **A file owned by another user is written in place.** When the existing remote file belongs to another user, the dialog says so; replacing it writes into the file directly, so its owner and permissions stay as they are.
 - **One question at a time.** When several files of a batch conflict at once, korTTY asks about one of them and waits with the others, so an answer for all of them arrives before the next question. Closing the tab answers an open question with **Cancel transfer**.
+- **The question can be answered in advance.** *Settings → SFTP Manager → [When the target already exists](../reference/settings/sftp.md#transfers)* can skip existing files or overwrite them without asking; links and file/folder mismatches are still asked about. An organization can set this choice for you.
 - On a computer whose disk ignores upper and lower case (the macOS and Windows default), a name that differs only in case counts as the same name, both for the question and for the numbered name **Keep both** picks.
+
+### When file transfer is turned off by your organization
+
+An organization can switch file transfer off with its [enterprise policy](../reference/enterprise-policy.md#rulefeatures) (`file-transfer = "deny"`). The SFTP Manager then still opens and browses the server, and renaming, deleting, permissions, archives, search and copying on the server keep working, but **Upload** and **Download** stay disabled, drops that would copy to or from the server are refused with a message in the status bar, and remote files cannot be dragged to the desktop. JobScheduler jobs that upload, download or sync with SFTP fail with the same message without connecting. Commands such as `scp` typed into a terminal are not affected.
 
 ### Permissions
 

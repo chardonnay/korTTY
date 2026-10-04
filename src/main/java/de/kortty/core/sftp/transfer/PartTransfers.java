@@ -84,7 +84,20 @@ public final class PartTransfers {
      */
     public static Outcome upload(SftpClient client, SftpClient cleanupClient, Path localFile, String remoteTarget,
             ResumeContext resume, TransferProgressListener listener, TransferCancellation cancel) throws IOException {
+        return upload(client, cleanupClient, localFile, remoteTarget, resume, PartRetention.KEEP_ON_FAILURE,
+            listener, cancel);
+    }
+
+    /**
+     * Uploads {@code localFile} to {@code remoteTarget} through a remote part, keeping or removing
+     * the part of an unfinished run as {@code retention} says. A kept part is only resumable with a
+     * {@code resume} context, so {@link PartRetention#KEEP} without one removes it on cancel.
+     */
+    public static Outcome upload(SftpClient client, SftpClient cleanupClient, Path localFile, String remoteTarget,
+            ResumeContext resume, PartRetention retention, TransferProgressListener listener,
+            TransferCancellation cancel) throws IOException {
         Objects.requireNonNull(client, "client");
+        Objects.requireNonNull(retention, "retention");
         Objects.requireNonNull(localFile, "localFile");
         cancel.throwIfCancelled();
         SftpClient cleanup = cleanupClient == null ? client : cleanupClient;
@@ -180,18 +193,27 @@ public final class PartTransfers {
             if (handleOpen) {
                 closeQuietly(handle);
             }
-            if (partPresent) {
-                removeRemoteQuietly(cleanup, part);
-            }
-            if (resume != null) {
-                resume.forget();
+            if (partPresent && retention.keepOnCancel() && resume != null) {
+                recordRemotePart(resume, cleanup, part);
+            } else {
+                if (partPresent) {
+                    removeRemoteQuietly(cleanup, part);
+                }
+                if (resume != null) {
+                    resume.forget();
+                }
             }
             throw cancelled;
         } catch (IOException | RuntimeException failure) {
             if (handleOpen) {
                 closeQuietly(handle);
             }
-            if (resume != null && partPresent) {
+            if (partPresent && !retention.keepOnFailure()) {
+                removeRemoteQuietly(cleanup, part);
+                if (resume != null) {
+                    resume.forget();
+                }
+            } else if (resume != null && partPresent) {
                 recordRemotePart(resume, cleanup, part);
             }
             throw failure;
@@ -215,7 +237,19 @@ public final class PartTransfers {
      */
     public static Outcome download(SftpClient client, String remoteSource, Path localTarget, ResumeContext resume,
             TransferProgressListener listener, TransferCancellation cancel) throws IOException {
+        return download(client, remoteSource, localTarget, resume, PartRetention.KEEP_ON_FAILURE, listener, cancel);
+    }
+
+    /**
+     * Downloads {@code remoteSource} to {@code localTarget} through a local part, keeping or
+     * removing the part of an unfinished run as {@code retention} says (see
+     * {@link #upload(SftpClient, SftpClient, Path, String, ResumeContext, PartRetention, TransferProgressListener, TransferCancellation)}).
+     */
+    public static Outcome download(SftpClient client, String remoteSource, Path localTarget, ResumeContext resume,
+            PartRetention retention, TransferProgressListener listener, TransferCancellation cancel)
+            throws IOException {
         Objects.requireNonNull(client, "client");
+        Objects.requireNonNull(retention, "retention");
         Objects.requireNonNull(localTarget, "localTarget");
         cancel.throwIfCancelled();
         SftpClient.Attributes source = client.stat(remoteSource);
@@ -264,16 +298,14 @@ public final class PartTransfers {
                 resumeFrom, listener, cancel);
             open.channel().force(true);
         } catch (TransferCancelledException cancelled) {
-            discardLocalPart(part, resume);
+            stopLocalPart(part, resume, retention.keepOnCancel() && resume != null);
             throw cancelled;
         } catch (IOException | RuntimeException failure) {
-            if (resume != null) {
-                recordLocalPart(resume, part);
-            }
+            stopLocalPart(part, resume, retention.keepOnFailure());
             throw failure;
         }
         if (cancel.isCancelled()) {
-            discardLocalPart(part, resume);
+            stopLocalPart(part, resume, retention.keepOnCancel() && resume != null);
             throw new TransferCancelledException();
         }
         Integer mode = source.getFlags().contains(SftpClient.Attribute.Perms)
@@ -397,6 +429,15 @@ public final class PartTransfers {
             }
         } catch (IOException | RuntimeException e) {
             logger.debug("Could not look at the partial file {} after a failure: {}", part, e.toString());
+        }
+    }
+
+    /** Keeps the part (recording it when there is a resume context), or removes it and its record. */
+    private static void stopLocalPart(Path part, ResumeContext resume, boolean keep) {
+        if (!keep) {
+            discardLocalPart(part, resume);
+        } else if (resume != null) {
+            recordLocalPart(resume, part);
         }
     }
 

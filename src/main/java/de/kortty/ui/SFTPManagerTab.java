@@ -553,7 +553,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         
         Button uploadButton = new Button(I18n.get("sftp.upload"));
         styleToolbarButton(uploadButton, FileBrowserIcons.UPLOAD);
-        uploadButton.setTooltip(new Tooltip(I18n.get("sftp.uploading", "...")));
+        uploadButton.setTooltip(new Tooltip(transferRefusal(de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD)
+            .orElse(I18n.get("sftp.uploading", "..."))));
         uploadButton.setDisable(true);
         uploadButton.setOnAction(e -> {
             resetAutoCloseTimer();
@@ -562,7 +563,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
 
         Button downloadButton = new Button(I18n.get("sftp.download"));
         styleToolbarButton(downloadButton, FileBrowserIcons.DOWNLOAD);
-        downloadButton.setTooltip(new Tooltip(I18n.get("sftp.downloading", "...")));
+        downloadButton.setTooltip(new Tooltip(transferRefusal(de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD)
+            .orElse(I18n.get("sftp.downloading", "..."))));
         downloadButton.setDisable(true);
         downloadButton.setOnAction(e -> {
             resetAutoCloseTimer();
@@ -605,7 +607,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             SftpFileItem selected = localTable.getSelectionModel().getSelectedItem();
             boolean hasSelection = selected != null && !selected.getName().equals("..");
             // Upload needs a live session and an absolute target: SFTP itself does not expand '~'.
-            uploadButton.setDisable(!hasSelection || !isRemoteConnected() || !remotePathResolved);
+            uploadButton.setDisable(!hasSelection || !isRemoteConnected() || !remotePathResolved
+                || !fileTransferAllowed());
             deleteLocalButton.setDisable(!hasSelection);
             ownerLocalButton.setDisable(!hasSelection);
             editLocalButton.setDisable(!isSingleEditableFileSelection(localTable));
@@ -615,7 +618,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             SftpFileItem selected = remoteTable.getSelectionModel().getSelectedItem();
             boolean hasSelection = selected != null && !selected.getName().equals("..");
             boolean usable = hasSelection && isRemoteConnected();
-            downloadButton.setDisable(!usable);
+            downloadButton.setDisable(!usable || !fileTransferAllowed());
             archiveButton.setDisable(!usable);
             deleteRemoteButton.setDisable(!usable);
             ownerRemoteButton.setDisable(!usable);
@@ -1460,6 +1463,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
      */
     private void uploadPaths(List<Path> paths, String targetDir) {
         if (paths == null || paths.isEmpty()) return;
+        if (refuseTransfer(de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD)) return;
         if (!requireConnected()) return;
         // The target must be the absolute folder a listing returned, not the unexpanded '~'.
         if (!remotePathResolved) return;
@@ -1502,6 +1506,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
 
     private void downloadEntries(List<RemoteEntryRef> entries, Path targetDir) {
         if (entries.isEmpty()) return;
+        if (refuseTransfer(de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD)) return;
         if (!requireConnected()) return;
         if (transferQueueHost.enqueueDownload(entries, targetDir).isPresent()) {
             transferQueuePane.reveal();
@@ -1522,6 +1527,26 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
 
     // ---------- Transfer queue ----------
 
+    /**
+     * Whether the organization's policy lets this tab copy files to or from the server (D6). Cheap:
+     * the policy is resolved once at startup and never changes while korTTY runs.
+     */
+    private boolean fileTransferAllowed() {
+        return de.kortty.policy.FileTransferGate.current(de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD).allowed();
+    }
+
+    /** The policy's refusal for {@code route}, or empty when it may copy files. */
+    private static Optional<String> transferRefusal(de.kortty.policy.FileTransferGate.Route route) {
+        return Optional.ofNullable(de.kortty.policy.FileTransferGate.current(route).reason());
+    }
+
+    /** Says in the status bar why {@code route} is refused and returns true, or returns false. */
+    private boolean refuseTransfer(de.kortty.policy.FileTransferGate.Route route) {
+        Optional<String> refusal = transferRefusal(route);
+        refusal.ifPresent(statusLabel::setText);
+        return refusal.isPresent();
+    }
+
     /** The transfer list and its queue; the queue itself is made once the first session is ready. */
     private void createTransferQueue() {
         transferQueuePane = new SftpTransferQueuePane();
@@ -1529,7 +1554,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             ? connection.getId()
             : connection.getUsername() + "@" + connection.getHost() + ":" + connection.getPort();
         transferQueueHost = new SftpTransferQueueHost(
-            () -> SftpTransferQueueHost.defaultSettings(resumeScope),
+            () -> SftpTransferQueueHost.settingsFrom(
+                app != null && app.getGlobalSettingsManager() != null ? app.getGlobalSettingsManager().getSettings() : null,
+                de.kortty.policy.PolicyManager.effective(), resumeScope),
             () -> new FxConflictResolver(SftpConflictDialog.presenter(this::ownerWindowOrNull)),
             transferQueuePane.listener(),
             () -> transferQueueHost.queue().ifPresent(transferQueuePane::setQueue));
@@ -2098,7 +2125,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         content.put(DragFormats.REMOTE_ITEMS, SftpDragPayload.encode(dragSourceId, items.stream()
             .map(item -> new SftpDragPayload.Entry(item.getPath(), !item.isFile()))
             .toList()));
-        List<File> prepared = prepareDragOut(items);
+        // Under a policy that forbids file transfer the drag stays inside the window, where drops refuse too.
+        List<File> prepared = refuseTransfer(de.kortty.policy.FileTransferGate.Route.SFTP_DRAG_OUT)
+            ? List.of() : prepareDragOut(items);
         if (!prepared.isEmpty()) {
             content.putFiles(prepared);
         }
@@ -2247,6 +2276,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             return false;
         }
         Dragboard dragboard = event.getDragboard();
+        // Under a file-transfer policy denial the drop is still taken, and downloadEntries says why it refuses.
         return (isRemoteConnected() && ownRemoteEntries(dragboard).isPresent()) || dragboard.hasFiles();
     }
 

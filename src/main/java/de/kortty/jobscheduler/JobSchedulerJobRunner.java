@@ -22,6 +22,7 @@ public class JobSchedulerJobRunner {
     private final JobSchedulerAiSwarmSupport aiSwarmSupport;
     private final JobSchedulerSnippetSupport snippetSupport;
     private final JobSchedulerRsyncSupport rsyncSupport;
+    private final java.util.function.Supplier<de.kortty.policy.EffectivePolicy> policy;
 
     public JobSchedulerJobRunner(KorTTYApplication app, JobSchedulerRepository repository) {
         this(app, repository, new JobSchedulerRsyncSupport(app));
@@ -31,7 +32,16 @@ public class JobSchedulerJobRunner {
         KorTTYApplication app,
         JobSchedulerRepository repository,
         JobSchedulerRsyncSupport rsyncSupport) {
+        this(app, repository, rsyncSupport, de.kortty.policy.PolicyManager::effective);
+    }
 
+    JobSchedulerJobRunner(
+        KorTTYApplication app,
+        JobSchedulerRepository repository,
+        JobSchedulerRsyncSupport rsyncSupport,
+        java.util.function.Supplier<de.kortty.policy.EffectivePolicy> policy) {
+
+        this.policy = policy;
         this.app = app;
         this.repository = repository;
         this.connectionResolver = new JobSchedulerConnectionResolver(app);
@@ -52,6 +62,11 @@ public class JobSchedulerJobRunner {
     public JobExecutionOutcome run(ScheduledJob job, String runId, AutomationJournalRun journalRun) {
         AutomationJournalRun journals = journalRun != null ? journalRun : AutomationJournalRun.NONE;
         JobSchedulerSecretRedactor redactor = new JobSchedulerSecretRedactor();
+        Optional<String> refusal = fileTransferRefusal(job.getAction());
+        if (refusal.isPresent()) {
+            // Refused before any connection is made: nothing is resolved, opened or copied.
+            return JobExecutionOutcome.failed(refusal.get(), -1, null, refusal.get(), null);
+        }
         try {
             List<ServerConnection> targets = connectionResolver.resolveTargets(job);
             JobExecutionOutcome outcome;
@@ -73,6 +88,29 @@ public class JobSchedulerJobRunner {
                 job.getJournalDetailMode(),
                 redactor);
         }
+    }
+
+    /**
+     * The policy refusal for an action that copies files between this computer and a server (D6:
+     * SFTP upload, download and sync), or empty when the action may run. Remote-only SFTP actions
+     * are never refused here.
+     */
+    Optional<String> fileTransferRefusal(JobAction action) {
+        if (action == null || action.getType() == null) {
+            return Optional.empty();
+        }
+        de.kortty.policy.FileTransferGate.Route route = switch (action.getType()) {
+            case SFTP_UPLOAD -> de.kortty.policy.FileTransferGate.Route.JOB_SFTP_UPLOAD;
+            case SFTP_DOWNLOAD -> de.kortty.policy.FileTransferGate.Route.JOB_SFTP_DOWNLOAD;
+            case SFTP_SYNC -> de.kortty.policy.FileTransferGate.Route.JOB_SFTP_SYNC;
+            default -> null;
+        };
+        if (route == null) {
+            return Optional.empty();
+        }
+        de.kortty.policy.FileTransferGate.Verdict verdict =
+            de.kortty.policy.FileTransferGate.check(policy.get(), route);
+        return verdict.allowed() ? Optional.empty() : Optional.of(verdict.reason());
     }
 
     public PinnedHostKey probeHostKey(String connectionId) throws Exception {

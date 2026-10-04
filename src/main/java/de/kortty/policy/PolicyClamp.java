@@ -121,6 +121,14 @@ public final class PolicyClamp {
         if (policy.sessionRestoreOutput() != null) {
             settings.setSessionRestoreScrollback(policy.sessionRestoreOutput());
         }
+        if (policy.sftpMaxParallelTransfers() != null) {
+            // A cap, not a fixed value: a user who copies fewer files at once keeps that.
+            settings.setSftpParallelTransfers(
+                policy.sftp().capParallel(settings.getSftpParallelTransfers()));
+        }
+        if (policy.sftpConflictDefault() != null) {
+            settings.setSftpConflictDefault(policy.sftpConflictDefault());
+        }
         if (policy.requireMasterPassword()) {
             settings.setRequireMasterPasswordOnStartup(true);
             // A forced master password rules out the insecure auto-unlock path.

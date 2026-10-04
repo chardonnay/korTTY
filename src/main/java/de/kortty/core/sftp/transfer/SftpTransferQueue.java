@@ -636,7 +636,7 @@ public final class SftpTransferQueue implements AutoCloseable {
                 }
                 ResumeContext resume = resumeContext(TransferDirection.UPLOAD, target, source);
                 PartTransfers.Outcome outcome = PartTransfers.upload(client, cleanupClient(lease), source, target,
-                    resume, progressListener(item), cancel);
+                    resume, settings.partRetention(), progressListener(item), cancel);
                 item.setResumedFrom(outcome.resumedFrom());
                 complete(item, TransferState.DONE, null);
                 return;
@@ -834,7 +834,7 @@ public final class SftpTransferQueue implements AutoCloseable {
                 }
                 ResumeContext resume = resumeContext(TransferDirection.DOWNLOAD, remote, target);
                 PartTransfers.Outcome outcome = PartTransfers.download(client, remote, target, resume,
-                    progressListener(item), cancel);
+                    settings.partRetention(), progressListener(item), cancel);
                 item.setResumedFrom(outcome.resumedFrom());
                 complete(item, TransferState.DONE, null);
                 return;

@@ -11,9 +11,12 @@ package de.kortty.core.sftp.transfer;
  * @param resumeIndex where interrupted transfers are recorded, or {@code null} to never resume
  * @param resumeScope a stable id of the connection (its configuration id), part of every resume key;
  *     {@code null} disables resume
+ * @param keepPartialOnCancel whether a cancelled transfer keeps its partial file (and its resume
+ *     record) so a retry continues it; only while resume is on. Without resume a partial file is
+ *     removed on cancel and on failure, since nothing could continue it.
  */
 public record TransferSettings(int parallelTransfers, ConflictAction conflictDefault, ResumeIndex resumeIndex,
-        String resumeScope) {
+        String resumeScope, boolean keepPartialOnCancel) {
 
     /** Parallel transfers of a standalone SFTP tab unless configured otherwise. */
     public static final int DEFAULT_PARALLEL = 3;
@@ -30,6 +33,12 @@ public record TransferSettings(int parallelTransfers, ConflictAction conflictDef
         if (resumeScope != null && resumeScope.isBlank()) {
             resumeScope = null;
         }
+    }
+
+    /** Settings that remove a cancelled transfer's partial file. */
+    public TransferSettings(int parallelTransfers, ConflictAction conflictDefault, ResumeIndex resumeIndex,
+            String resumeScope) {
+        this(parallelTransfers, conflictDefault, resumeIndex, resumeScope, false);
     }
 
     /** Three parallel transfers, ask on conflicts, no resume. */
@@ -52,16 +61,32 @@ public record TransferSettings(int parallelTransfers, ConflictAction conflictDef
         return resumeIndex != null && resumeScope != null;
     }
 
+    /**
+     * What happens to a transfer's partial file when it is cancelled or fails: with resume, kept on
+     * failure and (when {@link #keepPartialOnCancel()}) on cancel; without resume, always removed.
+     */
+    public PartRetention partRetention() {
+        if (!resumeEnabled()) {
+            return PartRetention.DISCARD;
+        }
+        return keepPartialOnCancel ? PartRetention.KEEP : PartRetention.KEEP_ON_FAILURE;
+    }
+
     public TransferSettings withParallelTransfers(int parallel) {
-        return new TransferSettings(parallel, conflictDefault, resumeIndex, resumeScope);
+        return new TransferSettings(parallel, conflictDefault, resumeIndex, resumeScope, keepPartialOnCancel);
     }
 
     public TransferSettings withConflictDefault(ConflictAction action) {
-        return new TransferSettings(parallelTransfers, action, resumeIndex, resumeScope);
+        return new TransferSettings(parallelTransfers, action, resumeIndex, resumeScope, keepPartialOnCancel);
     }
 
     /** These settings resuming through {@code index} for the connection {@code scope}. */
     public TransferSettings withResume(ResumeIndex index, String scope) {
-        return new TransferSettings(parallelTransfers, conflictDefault, index, scope);
+        return new TransferSettings(parallelTransfers, conflictDefault, index, scope, keepPartialOnCancel);
+    }
+
+    /** These settings keeping (or removing) a cancelled transfer's partial file. */
+    public TransferSettings withKeepPartialOnCancel(boolean keep) {
+        return new TransferSettings(parallelTransfers, conflictDefault, resumeIndex, resumeScope, keep);
     }
 }

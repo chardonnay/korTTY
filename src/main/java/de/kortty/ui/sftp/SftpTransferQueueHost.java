@@ -3,6 +3,7 @@ package de.kortty.ui.sftp;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.RemotePathSupport;
 import de.kortty.core.sftp.SftpChannelSource;
+import de.kortty.core.sftp.transfer.ConflictAction;
 import de.kortty.core.sftp.transfer.ConflictResolver;
 import de.kortty.core.sftp.transfer.PartFiles;
 import de.kortty.core.sftp.transfer.RemoteEntryRef;
@@ -13,6 +14,12 @@ import de.kortty.core.sftp.transfer.TransferDirection;
 import de.kortty.core.sftp.transfer.TransferItem;
 import de.kortty.core.sftp.transfer.TransferQueueListener;
 import de.kortty.core.sftp.transfer.TransferSettings;
+import de.kortty.model.GlobalSettings;
+import de.kortty.model.SftpConflictDefault;
+import de.kortty.policy.EffectivePolicy;
+import de.kortty.telemetry.SftpTransferTelemetry;
+import de.kortty.telemetry.Telemetry;
+import de.kortty.telemetry.TelemetryEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,10 +81,28 @@ public final class SftpTransferQueueHost implements AutoCloseable {
         }
         sessionLost = false;
         if (queue == null) {
-            queue = new SftpTransferQueue(session, settings.get(), resolvers.get());
+            TransferSettings created = settings.get();
+            queue = new SftpTransferQueue(session, created, resolvers.get());
             if (listener != null) {
                 queue.addListener(listener);
             }
+            queue.addListener(new TransferQueueListener() {
+                @Override
+                public void itemsAdded(List<TransferItem> items) {
+                }
+
+                @Override
+                public void itemChanged(TransferItem item) {
+                }
+
+                @Override
+                public void batchFinished(TransferBatch batch) {
+                    SftpChannelSource current = source;
+                    int channels = created.channelsFor(current == null || current.ownsSession());
+                    Telemetry.track(TelemetryEvents.SFTP_TRANSFER_BATCH,
+                        SftpTransferTelemetry.batchFinished(batch, channels));
+                }
+            });
             source = session;
             onQueueCreated.run();
             return;
@@ -208,6 +233,46 @@ public final class SftpTransferQueueHost implements AutoCloseable {
      */
     public static TransferSettings defaultSettings(String connectionId) {
         return TransferSettings.defaults().withResume(sharedResumeIndex(), connectionId);
+    }
+
+    /**
+     * The settings of an SFTP manager tab from Settings › SFTP Manager, capped and pinned by the
+     * organization's {@code [rule.sftp]} (the clamp already wrote them into {@code global}; applied
+     * again here so a stale value can never exceed the cap). Resuming goes through the index in the
+     * configuration folder, keyed by {@code connectionId}.
+     */
+    public static TransferSettings settingsFrom(GlobalSettings global, EffectivePolicy policy, String connectionId) {
+        return settingsFrom(global, policy, connectionId, global == null || global.isSftpResumePartialTransfers()
+            ? sharedResumeIndex() : null);
+    }
+
+    /** {@link #settingsFrom(GlobalSettings, EffectivePolicy, String)} with the resume index given. */
+    static TransferSettings settingsFrom(GlobalSettings global, EffectivePolicy policy, String connectionId,
+            ResumeIndex resumeIndex) {
+        GlobalSettings values = global != null ? global : new GlobalSettings();
+        EffectivePolicy effective = policy != null ? policy : EffectivePolicy.unrestricted();
+        int parallel = effective.sftp().capParallel(values.getSftpParallelTransfers());
+        SftpConflictDefault conflict = effective.sftpConflictDefault() != null
+            ? effective.sftpConflictDefault()
+            : values.getSftpConflictDefault();
+        TransferSettings result = new TransferSettings(parallel, conflictAction(conflict), null, null,
+            values.isSftpKeepPartialOnCancel());
+        if (values.isSftpResumePartialTransfers() && resumeIndex != null) {
+            result = result.withResume(resumeIndex, connectionId);
+        }
+        return result;
+    }
+
+    /** The queue's answer for a conflict default: null asks. */
+    static ConflictAction conflictAction(SftpConflictDefault value) {
+        if (value == null) {
+            return null;
+        }
+        return switch (value) {
+            case ASK -> null;
+            case SKIP -> ConflictAction.SKIP;
+            case OVERWRITE -> ConflictAction.OVERWRITE;
+        };
     }
 
     /**

@@ -399,6 +399,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final TextField sftpDefaultZipPathField;
     private final Spinner<Integer> sftpDefaultZipCompressionSpinner;
     private final TextField jobSchedulerRsyncBinaryPathField;
+    private final Spinner<Integer> sftpParallelTransfersSpinner;
+    private final ComboBox<de.kortty.model.SftpConflictDefault> sftpConflictDefaultCombo;
+    private final CheckBox sftpResumePartialTransfersCheck;
+    private final CheckBox sftpKeepPartialOnCancelCheck;
     
     // Editor settings
     private final ComboBox<String> editorCursorStyleCombo;
@@ -3158,7 +3162,86 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         sftpInfo.setWrapText(true);
         sftpInfo.setMaxWidth(400);
         sftpGrid.add(sftpInfo, 0, sftpRow++, 2, 1);
-        
+
+        // Transfers: parallel channels, conflict default, partial files ([rule.sftp] caps and pins them)
+        sftpGrid.add(new Separator(), 0, sftpRow++, 2, 1);
+        Label transfersTitle = new Label(I18n.get("settings.sftp.transfersTitle"));
+        transfersTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
+        sftpGrid.add(transfersTitle, 0, sftpRow++, 2, 1);
+        GlobalSettings sftpValues = globalSettings != null ? globalSettings : new GlobalSettings();
+        de.kortty.policy.EffectivePolicy sftpPolicy = de.kortty.policy.PolicyManager.effective();
+        Integer parallelCap = sftpPolicy.sftpMaxParallelTransfers();
+        int parallelMax = parallelCap != null
+            ? Math.max(GlobalSettings.MIN_SFTP_PARALLEL_TRANSFERS,
+                Math.min(GlobalSettings.MAX_SFTP_PARALLEL_TRANSFERS, parallelCap))
+            : GlobalSettings.MAX_SFTP_PARALLEL_TRANSFERS;
+        sftpParallelTransfersSpinner = new Spinner<>(GlobalSettings.MIN_SFTP_PARALLEL_TRANSFERS, parallelMax,
+            Math.min(parallelMax, sftpValues.getSftpParallelTransfers()));
+        sftpParallelTransfersSpinner.setEditable(true);
+        sftpParallelTransfersSpinner.setPrefWidth(80);
+        sftpParallelTransfersSpinner.setTooltip(new Tooltip(I18n.get("settings.sftp.parallelTransfers.tooltip")));
+        if (parallelCap != null) {
+            // A cap: the user may still choose fewer, never more.
+            sftpParallelTransfersSpinner.setTooltip(new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+            de.kortty.policy.PolicyUiSupport.lockIf(sftpParallelTransfersSpinner, parallelMax <= 1);
+        }
+        HBox parallelBox = new HBox(10, new Label(I18n.get("settings.sftp.parallelTransfers")),
+            sftpParallelTransfersSpinner);
+        parallelBox.setAlignment(Pos.CENTER_LEFT);
+        sftpGrid.add(parallelBox, 0, sftpRow++, 2, 1);
+
+        sftpConflictDefaultCombo = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(
+            de.kortty.model.SftpConflictDefault.values()));
+        sftpConflictDefaultCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(de.kortty.model.SftpConflictDefault value) {
+                return value == null ? "" : I18n.get("settings.sftp.conflictDefault." + value.id());
+            }
+
+            @Override
+            public de.kortty.model.SftpConflictDefault fromString(String text) {
+                return null;
+            }
+        });
+        sftpConflictDefaultCombo.setValue(sftpPolicy.sftpConflictDefault() != null
+            ? sftpPolicy.sftpConflictDefault() : sftpValues.getSftpConflictDefault());
+        sftpConflictDefaultCombo.setTooltip(new Tooltip(I18n.get("settings.sftp.conflictDefault.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIf(sftpConflictDefaultCombo, sftpPolicy.sftpConflictDefault() != null);
+        HBox conflictBox = new HBox(10, new Label(I18n.get("settings.sftp.conflictDefault")), sftpConflictDefaultCombo);
+        conflictBox.setAlignment(Pos.CENTER_LEFT);
+        sftpGrid.add(conflictBox, 0, sftpRow++, 2, 1);
+
+        sftpResumePartialTransfersCheck = new CheckBox(I18n.get("settings.sftp.resumePartialTransfers"));
+        sftpResumePartialTransfersCheck.setSelected(sftpValues.isSftpResumePartialTransfers());
+        sftpResumePartialTransfersCheck.setTooltip(new Tooltip(I18n.get("settings.sftp.resumePartialTransfers.tooltip")));
+        sftpGrid.add(sftpResumePartialTransfersCheck, 0, sftpRow++, 2, 1);
+
+        sftpKeepPartialOnCancelCheck = new CheckBox(I18n.get("settings.sftp.keepPartialOnCancel"));
+        sftpKeepPartialOnCancelCheck.setSelected(sftpValues.isSftpKeepPartialOnCancel());
+        sftpKeepPartialOnCancelCheck.setTooltip(new Tooltip(I18n.get("settings.sftp.keepPartialOnCancel.tooltip")));
+        // A kept partial file is only useful when something resumes it.
+        sftpKeepPartialOnCancelCheck.disableProperty().bind(sftpResumePartialTransfersCheck.selectedProperty().not());
+        sftpGrid.add(sftpKeepPartialOnCancelCheck, 0, sftpRow++, 2, 1);
+
+        if (sftpPolicy.isManaged(de.kortty.policy.ManagedSetting.SFTP_TRANSFERS)
+                || !sftpPolicy.fileTransferAllowed()) {
+            Label transfersPolicy = new Label(sftpPolicy.fileTransferAllowed()
+                ? de.kortty.policy.PolicyUiSupport.managedByOrganizationText()
+                : de.kortty.policy.FileTransferGate.check(sftpPolicy,
+                    de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD).reason());
+            transfersPolicy.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+            transfersPolicy.setWrapText(true);
+            transfersPolicy.setMaxWidth(400);
+            sftpGrid.add(transfersPolicy, 0, sftpRow++, 2, 1);
+        }
+
+        Label transfersInfo = new Label(I18n.get("settings.sftp.transfersInfo"));
+        transfersInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        transfersInfo.setWrapText(true);
+        transfersInfo.setMaxWidth(400);
+        sftpGrid.add(transfersInfo, 0, sftpRow++, 2, 1);
+
         // Separator
         sftpGrid.add(new Separator(), 0, sftpRow++, 2, 1);
         
@@ -3924,6 +4007,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             String zipPath = sftpDefaultZipPathField.getText().trim();
             globalSettings.setSftpDefaultZipPath(zipPath.isEmpty() ? "/tmp" : zipPath);
             globalSettings.setSftpDefaultZipCompression(sftpDefaultZipCompressionSpinner.getValue());
+            globalSettings.setSftpParallelTransfers(sftpParallelTransfersSpinner.getValue());
+            if (sftpConflictDefaultCombo.getValue() != null) {
+                globalSettings.setSftpConflictDefault(sftpConflictDefaultCombo.getValue());
+            }
+            globalSettings.setSftpResumePartialTransfers(sftpResumePartialTransfersCheck.isSelected());
+            globalSettings.setSftpKeepPartialOnCancel(sftpKeepPartialOnCancelCheck.isSelected());
             globalSettings.setJobSchedulerRsyncBinaryPath(jobSchedulerRsyncBinaryPathField.getText());
             
             // Save Editor settings
@@ -4071,6 +4160,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("ai", "agent_execution_enabled", gs::isTerminalAgentExecutionEnabled, true));
             tracked.add(new TrackedSetting("ai", "confirm_before_send", gs::isAiConfirmBeforeSend, true));
             tracked.add(new TrackedSetting("sftp", "auto_close_minutes", gs::getSftpAutoCloseMinutes, true));
+            tracked.add(new TrackedSetting("sftp", "parallel_transfers", gs::getSftpParallelTransfers, true));
+            tracked.add(new TrackedSetting("sftp", "conflict_default", () -> gs.getSftpConflictDefault().id(), true));
+            tracked.add(new TrackedSetting("sftp", "resume_partial_transfers", gs::isSftpResumePartialTransfers, true));
+            tracked.add(new TrackedSetting("sftp", "keep_partial_on_cancel", gs::isSftpKeepPartialOnCancel, true));
             tracked.add(new TrackedSetting("snippet_editor", "analysis_history_max",
                 gs::getSnippetAnalysisHistoryMaxSize, true));
             tracked.add(new TrackedSetting("snippet_editor", "analysis_content_limit_bytes",
