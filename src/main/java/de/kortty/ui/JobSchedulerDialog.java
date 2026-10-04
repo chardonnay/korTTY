@@ -6,6 +6,8 @@ import de.kortty.jobscheduler.JobAction;
 import de.kortty.jobscheduler.JobActionType;
 import de.kortty.jobscheduler.JobArchiveFormat;
 import de.kortty.jobscheduler.JobJournalEntry;
+import de.kortty.jobscheduler.JobNotificationFormModel;
+import de.kortty.jobscheduler.JobNotificationTrigger;
 import de.kortty.jobscheduler.JobSchedule;
 import de.kortty.jobscheduler.JobSchedulerConnectionResolver;
 import de.kortty.jobscheduler.JobSchedulerRemoteSession;
@@ -213,6 +215,11 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     /** "Session journal per run" editor of the selected job; built in {@link #buildJobEditor()}. */
     private AutomationJournalConfigPane sessionJournalPane;
     private javafx.scene.control.TitledPane sessionJournalSection;
+    private JobNotificationFormModel notificationModel = JobNotificationFormModel.load(null, List.of());
+    private final Map<JobNotificationTrigger, CheckBox> notificationTriggerChecks = new EnumMap<>(JobNotificationTrigger.class);
+    private final CheckBox notificationDesktopCheck = new CheckBox(text("notifications.desktop"));
+    private final VBox notificationTargetsBox = new VBox(4);
+    private final Label notificationWarningLabel = new Label();
     /** Automation journals of JobScheduler jobs, refreshed in the background; read on the FX thread. */
     private List<de.kortty.model.SessionJournalMeta> jobJournals = List.of();
     private final java.util.concurrent.atomic.AtomicBoolean journalMetaRefreshRunning =
@@ -372,7 +379,11 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         Button runButton = new Button(text("button.runNow"));
         runButton.setGraphic(iconLabel("\u25B6", 18));
         runButton.setOnAction(event -> runSelectedJob());
-        HBox buttons = new HBox(8, newButton, saveButton, deleteButton, runButton);
+        Button webhooksButton = new Button(text("button.webhookTargets"));
+        webhooksButton.setGraphic(iconLabel("\uD83D\uDD14", 18));
+        webhooksButton.setOnAction(event -> openWebhookTargets());
+        javafx.scene.layout.FlowPane buttons = new javafx.scene.layout.FlowPane(8, 8, newButton, saveButton, deleteButton,
+            runButton, webhooksButton);
         menuBarStatusCheck.setSelected(isJobSchedulerMenuStatusEnabled());
         menuBarStatusCheck.setOnAction(event -> saveJobSchedulerMenuStatusPreference());
 
@@ -499,7 +510,80 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             hostKeyVerificationDisabledCheck,
             hostKeyVerificationWarningLabel,
             securityButtons,
+            buildNotificationsSection(),
             sessionJournalSection));
+    }
+
+    /** The job's notification triggers, the desktop toggle and its webhook targets. */
+    private javafx.scene.control.TitledPane buildNotificationsSection() {
+        HBox triggerBox = new HBox(12);
+        triggerBox.setAlignment(Pos.CENTER_LEFT);
+        for (JobNotificationTrigger trigger : JobNotificationTrigger.values()) {
+            CheckBox check = new CheckBox(text("notifications.trigger." + trigger.name().toLowerCase(Locale.ROOT)));
+            check.setOnAction(event -> {
+                notificationModel.setTrigger(trigger, check.isSelected());
+                updateNotificationWarning();
+            });
+            notificationTriggerChecks.put(trigger, check);
+            triggerBox.getChildren().add(check);
+        }
+        notificationDesktopCheck.setOnAction(event -> {
+            notificationModel.setDesktop(notificationDesktopCheck.isSelected());
+            updateNotificationWarning();
+        });
+        Button manageButton = new Button(text("button.webhookTargets"));
+        manageButton.setOnAction(event -> openWebhookTargets());
+        notificationWarningLabel.setWrapText(true);
+        notificationWarningLabel.managedProperty().bind(notificationWarningLabel.visibleProperty());
+        Label webhooksLabel = new Label(text("notifications.webhooks"));
+        VBox content = new VBox(8,
+            new Label(text("notifications.triggers")),
+            triggerBox,
+            notificationDesktopCheck,
+            webhooksLabel,
+            notificationTargetsBox,
+            manageButton,
+            notificationWarningLabel);
+        javafx.scene.control.TitledPane section = new javafx.scene.control.TitledPane(text("notifications.title"), content);
+        section.setExpanded(false);
+        syncNotificationControls();
+        return section;
+    }
+
+    /** Mirrors {@link #notificationModel} into the section's controls. */
+    private void syncNotificationControls() {
+        notificationTriggerChecks.forEach((trigger, check) -> check.setSelected(notificationModel.isTrigger(trigger)));
+        notificationDesktopCheck.setSelected(notificationModel.isDesktop());
+        notificationTargetsBox.getChildren().clear();
+        List<JobNotificationFormModel.TargetOption> options = notificationModel.targets();
+        if (options.isEmpty()) {
+            notificationTargetsBox.getChildren().add(new Label(text("notifications.noTargets")));
+        }
+        for (JobNotificationFormModel.TargetOption option : options) {
+            CheckBox check = new CheckBox(option.label() + " · "
+                + text("webhook.format." + option.format().name().toLowerCase(Locale.ROOT))
+                + (option.enabled() ? "" : " " + text("webhook.disabledSuffix")));
+            check.setSelected(notificationModel.isTargetSelected(option.id()));
+            check.setOnAction(event -> {
+                notificationModel.setTargetSelected(option.id(), check.isSelected());
+                updateNotificationWarning();
+            });
+            notificationTargetsBox.getChildren().add(check);
+        }
+        updateNotificationWarning();
+    }
+
+    private void updateNotificationWarning() {
+        List<String> warnings = notificationModel.warningKeys(de.kortty.policy.PolicyManager.effective());
+        notificationWarningLabel.setText(String.join("\n", warnings.stream().map(I18n::get).toList()));
+        notificationWarningLabel.setVisible(!warnings.isEmpty());
+    }
+
+    private void openWebhookTargets() {
+        String jobName = selectedJob != null ? selectedJob.getName() : nameField.getText();
+        new WebhookTargetsDialog(app, dialogWindow(), jobName).showAndWait();
+        notificationModel.setAvailableTargets(schedulerService.getWebhookTargets());
+        syncNotificationControls();
     }
 
     private Window dialogWindow() {
@@ -1198,6 +1282,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         updateConnectionSummary();
         journal.setAll(schedulerService.getJournal());
         refreshJobJournals();
+        notificationModel.setAvailableTargets(schedulerService.getWebhookTargets());
+        syncNotificationControls();
         List<ActiveJobSummary> active = schedulerService.getActiveJobSummaries();
         statusLabel.setText(active.isEmpty()
             ? text("status.noJobsRunning")
@@ -1273,6 +1359,9 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                 sessionJournalPane.setStatsText(null);
                 updateSessionJournalSectionTitle();
             }
+            // A job saved from an empty selection starts with the defaults, not the previous job's.
+            notificationModel = JobNotificationFormModel.load(null, schedulerService.getWebhookTargets());
+            syncNotificationControls();
             return;
         }
         nameField.setText(job.getName());
@@ -1300,6 +1389,8 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         }
         syncAllWeekdaysCheck();
         loadAction(job.getAction());
+        notificationModel = JobNotificationFormModel.load(job.getNotificationConfig(), schedulerService.getWebhookTargets());
+        syncNotificationControls();
         loadSessionJournal(job);
         updateHostKeyLabel();
     }
@@ -1378,6 +1469,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             selectedJob.setSchedule(readSchedule());
             selectedJob.setAction(readAction(true));
             selectedJob.setSessionJournal(sessionJournalPane.read());
+            selectedJob.setNotificationConfig(notificationModel.toConfig());
             schedulerService.saveJob(selectedJob);
             refresh();
         } catch (VaultUnlockSupport.UnlockDeclinedException declined) {

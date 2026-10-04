@@ -1,6 +1,7 @@
 package de.kortty.control;
 
 import de.kortty.codingagent.PaneRef;
+import de.kortty.core.SessionJournalRedactor;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -26,9 +27,13 @@ final class FakeControlSurface implements ControlSurface {
 
     private final Map<String, PaneReader> readers = new LinkedHashMap<>();
 
+    private final Map<String, SessionJournalRedactor> secrets = new LinkedHashMap<>();
+
     private final Map<String, ByteArrayOutputStream> written = new LinkedHashMap<>();
 
     private final Map<String, Boolean> bracketedPaste = new LinkedHashMap<>();
+
+    private final Map<String, McpPaneWriteState> mcpWriteStates = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final Map<String, Charset> charsets = new LinkedHashMap<>();
 
@@ -90,6 +95,15 @@ final class FakeControlSurface implements ControlSurface {
 
     void setReader(String paneId, PaneReader reader) {
         readers.put(paneId, reader);
+    }
+
+    void setSecrets(String paneId, SessionJournalRedactor redactor) {
+        secrets.put(paneId, redactor);
+    }
+
+    /** What {@link #mcpWriteStateOf} answers for the pane; a clear state when never set. */
+    void setMcpWriteState(String paneId, McpPaneWriteState state) {
+        mcpWriteStates.put(paneId, state);
     }
 
     void setBracketedPaste(String paneId, boolean enabled) {
@@ -240,6 +254,18 @@ final class FakeControlSurface implements ControlSurface {
     public Optional<PaneReader> readerFor(String paneId) {
         record("readerFor");
         return Optional.ofNullable(readers.get(paneId));
+    }
+
+    @Override
+    public Optional<SessionJournalRedactor> secretRedactorFor(String paneId) {
+        record("secretRedactorFor");
+        return Optional.ofNullable(secrets.get(paneId));
+    }
+
+    @Override
+    public McpPaneWriteState mcpWriteStateOf(String paneId) {
+        record("mcpWriteStateOf");
+        return mcpWriteStates.getOrDefault(paneId, McpPaneWriteState.clear("tab \u2014 " + paneId));
     }
 
     @Override

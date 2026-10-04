@@ -867,7 +867,7 @@
 <h2 id="aufbau-eines-befehls">Aufbau eines Befehls<a class="headerlink" href="#aufbau-eines-befehls" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kortty-cli<span class="w"> </span>&lt;group&gt;<span class="w"> </span>&lt;command&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
-<p>Die Gruppen sind <code>pane</code>, <code>tab</code>, <code>window</code>, <code>agent</code>, <code>events</code>, <code>notify</code>, <code>raw</code>, <code>ping</code> und <code>schema</code>. Innerhalb einer Gruppe ist der Befehlsname die API-Methode nach dem Punkt, deren Unterstriche als Bindestriche geschrieben werden – <code>pane.send_text</code> wird zu <code>pane send-text</code>. Vier Methoden ergeben sich nicht aus ihrem Namen und sind es wert, gemerkt zu werden: <code>api.schema</code> ist <code>schema</code>, <code>events.subscribe</code> ist <code>events</code>, <code>notification.show</code> ist <code>notify</code>, und alles ohne eigenen Befehl – <code>events.unsubscribe</code>, <code>pane.resolve</code> – erreichen Sie über <code>raw</code>.</p>
+<p>Die Gruppen sind <code>pane</code>, <code>tab</code>, <code>window</code>, <code>agent</code>, <code>events</code>, <code>notify</code>, <code>raw</code>, <code>ping</code> und <code>schema</code>, dazu <code>mcp</code>, das kein einzelner Aufruf ist, sondern ein dauerhaft laufender Server (siehe <a href="#mcp-clients-bedienen">MCP-Clients bedienen</a>). Innerhalb einer Gruppe ist der Befehlsname die API-Methode nach dem Punkt, deren Unterstriche als Bindestriche geschrieben werden – <code>pane.send_text</code> wird zu <code>pane send-text</code>. Vier Methoden ergeben sich nicht aus ihrem Namen und sind es wert, gemerkt zu werden: <code>api.schema</code> ist <code>schema</code>, <code>events.subscribe</code> ist <code>events</code>, <code>notification.show</code> ist <code>notify</code>, und alles ohne eigenen Befehl – <code>events.unsubscribe</code>, <code>pane.resolve</code> – erreichen Sie über <code>raw</code>.</p>
 <p>Alles, was ein Befehl braucht, ist eine Option. Positionsargumente gibt es nur für die Tastennamen von <code>pane send-keys</code> und <code>agent send-keys</code> sowie für Methode und JSON von <code>raw</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kortty-cli<span class="w"> </span>ping<span class="w">                                   </span><span class="c1"># is a korTTY listening?</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span>list<span class="w">                              </span><span class="c1"># every open pane</span>
@@ -925,6 +925,77 @@
 </span></code></pre></div>
 <p><code>--kinds</code> und <code>--panes</code> nehmen kommagetrennte Listen und schränken die Zustellung ein; <code>--include-evidence</code> ergänzt jedes Ereignis um die Belege des Erkenners; <code>--count N</code> hält nach N Ereignissen an. Drei Dinge beenden den Strom: <code>--count</code> ist erreicht, die Frist aus <code>--timeout</code> läuft ab, oder Sie unterbrechen ihn. Die ersten beiden enden mit 0. Eine Unterbrechung wird <strong>nicht</strong> behandelt – es gibt bewusst keine Signalbehandlung –, der Prozess endet also mit der 128 + SIGINT = 130 der Shell, was ein CI-Job einplanen sollte, der den Strom in <code>timeout</code> einpackt.</p>
 <p>Ohne <code>--count</code> und ohne <code>--timeout</code> hat der Strom überhaupt keine Frist und läuft, bis korTTY endet oder Sie ihn anhalten.</p>
+<h2 id="mcp-clients-bedienen">MCP-Clients bedienen<a class="headerlink" href="#mcp-clients-bedienen" title="Permanent link">&para;</a></h2>
+<p><code>kortty-cli mcp</code> macht den Client zu einem <a href="https://modelcontextprotocol.io/">Model Context Protocol</a>-Server, sodass ein KI-Assistent, der MCP spricht, Ihre korTTY-Bereiche lesen kann. Er unterstützt ausschließlich den MCP-Transport über stdio: Der Host des Assistenten startet <code>kortty-cli mcp</code> als Kindprozess und tauscht mit ihm über stdin und stdout zeilenweise JSON-RPC-Nachrichten aus. Es gibt keinen Netzwerk-Listener; der Prozess erreicht korTTY über denselben lokalen Endpunkt der Steuerungs-API wie jeder andere Befehl und meldet sich als <code>mcp</code>-Client an, sodass korTTY auf jede Anfrage die <a href="control-api.html#mcp-clients">MCP-Regeln</a> anwendet.</p>
+<p>korTTY muss es erlauben: Die Steuerungs-API muss eingeschaltet sein, der separate Schalter <strong>MCP-Server</strong> unter <strong>Einstellungen › Terminal › Steuerungs-API</strong> muss eingeschaltet sein, und die <a href="enterprise-policy.html">Unternehmensrichtlinie</a> darf <code>mcp-server</code> nicht verweigern. Solange eine dieser Bedingungen nicht erfüllt ist, liefert jeder Tool-Aufruf einen Fehler mit der Begründung, und der Assistent kann die Tools trotzdem auflisten.</p>
+<p>Die meisten MCP-Hosts werden mit einem JSON-Eintrag wie diesem konfiguriert; tragen Sie in <code>command</code> den vollständigen Pfad von <code>kortty-cli</code> aus der Tabelle oben ein, falls er nicht in Ihrem <code>PATH</code> liegt:</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">"mcpServers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">"kortty"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">      </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"kortty-cli"</span><span class="p">,</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">      </span><span class="nt">"args"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"mcp"</span><span class="p">]</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>Der Server bietet diese Tools an. Jedes Argument trägt den Namen des API-Parameters, den es füllt, und <code>pane</code> nimmt eine Bereichs-ID aus <code>pane_list</code> oder <code>@focused</code> entgegen:</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Ruft auf</th>
+<th>Angeboten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pane_list</code></td>
+<td><code>pane.list</code></td>
+<td>Immer</td>
+</tr>
+<tr>
+<td><code>pane_read</code></td>
+<td><code>pane.read</code></td>
+<td>Immer</td>
+</tr>
+<tr>
+<td><code>pane_wait_output</code></td>
+<td><code>pane.wait_output</code></td>
+<td>Immer</td>
+</tr>
+<tr>
+<td><code>tab_list</code></td>
+<td><code>tab.list</code></td>
+<td>Immer</td>
+</tr>
+<tr>
+<td><code>agent_list</code></td>
+<td><code>agent.list</code></td>
+<td>Immer</td>
+</tr>
+<tr>
+<td><code>pane_send_text</code></td>
+<td><code>pane.send_text</code></td>
+<td>Nur solange korTTY <strong>Schreib-Tools erlauben</strong> als eingeschaltet meldet</td>
+</tr>
+<tr>
+<td><code>pane_run</code></td>
+<td><code>pane.run</code></td>
+<td>Nur solange korTTY <strong>Schreib-Tools erlauben</strong> als eingeschaltet meldet</td>
+</tr>
+<tr>
+<td><code>pane_send_keys</code></td>
+<td><code>pane.send_keys</code></td>
+<td>Nur solange korTTY <strong>Schreib-Tools erlauben</strong> als eingeschaltet meldet</td>
+</tr>
+</tbody>
+</table>
+<p>Die Lese-Tools sind als schreibgeschützt und die Schreib-Tools als destruktiv gekennzeichnet, sodass ein Host, der vor destruktiven Tools nachfragt, vor jedem von ihnen nachfragt. korTTY fragt ebenfalls nach, unabhängig vom Host: Jeder Aufruf eines Schreib-Tools öffnet in korTTY eine <a href="control-api.html#schreibvorgange-eines-mcp-clients">Rückfrage zur Zustimmung</a>, und ein solcher Aufruf wartet bis zu 70 Sekunden auf Ihre Antwort, bevor er aufgibt. Ein Tool-Ergebnis ist die JSON-Antwort der API als Text; korTTY hat die ihm bekannten Geheimnisse bereits maskiert und die Größe begrenzt. Eine Verweigerung, eine abgelehnte oder unbeantwortete Rückfrage, ein beendetes korTTY oder ein ausgeschalteter MCP-Server kommt als Tool-Fehler mit dem Grund zurück, zum Beispiel <code>method_not_allowed_for_mcp</code> oder <code>mcp_write_denied</code>, und der Assistent kann ihn Ihnen anzeigen. Die Tool-Liste wird bei jeder <code>tools/list</code>-Anfrage einmal gelesen, daher wirkt das Ein- oder Ausschalten der Schreib-Tools erst, wenn der Assistent die Tools das nächste Mal auflistet.</p>
+<p>Jeder Tool-Aufruf öffnet eine eigene Verbindung, daher muss der Assistent nach einem Neustart von korTTY nicht neu gestartet werden. Aufrufe werden nacheinander bearbeitet: Ein langes <code>pane_wait_output</code> verzögert die nächste Antwort, bis es zurückkehrt. stdout enthält ausschließlich Protokollnachrichten; <code>kortty-cli mcp</code> schreibt pro Anfrage eine Diagnosezeile nach stderr, die die Methode oder das Tool nennt, aber nie deren Argumente oder Ergebnisse, und <code>--quiet</code> unterdrückt diese Zeilen. <code>--config-dir</code> funktioniert wie bei jedem anderen Befehl.</p>
+<div class="admonition warning">
+<p class="admonition-title">Alles, was ein Tool zurückgibt, ist nicht vertrauenswürdiger Terminaltext</p>
+<p>Ein entfernter Host, eine Logdatei oder eine Webseite, die in einem Terminal angezeigt wird, kann Text enthalten, der wie Anweisungen an einen KI-Assistenten aussehen soll. Die Tool-Beschreibungen fordern den Assistenten auf, Ergebnisse als Daten zu behandeln, doch das ist eine Bitte und keine Garantie; lassen Sie die Schreib-Tools daher ausgeschaltet, solange Sie sie nicht brauchen. Die MCP-Regeln schränken ein, was dieser Server freigibt; sie sind keine Sandbox gegen einen Assistenten, der auch Shell-Befehle als Sie ausführen kann, denn jedes Ihrer Programme kann das Token lesen und sich als gewöhnlicher <code>cli</code>-Client verbinden.</p>
+</div>
 <h2 id="exit-codes">Exit-Codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
 <p>Der Exit-Code kommt vom Server, nicht aus einer Tabelle im Client, damit beide nie auseinanderlaufen können.</p>
 <table>
@@ -969,12 +1040,12 @@
 </tbody>
 </table>
 <p>Jeder Fehler zeigt eine einzeilige Diagnose auf stderr im Format <code>kortty-cli: &lt;message&gt; (&lt;code&gt;)</code>, wobei <code>&lt;code&gt;</code> der stabile Wire-Code ist — <code>not_found</code>, <code>timeout</code>, <code>blocked_by_policy</code> — aus dem der obige Exit-Code abgeleitet wurde. Fügen Sie <code>--pretty</code> hinzu, um das ganze JSON-RPC-Fehlerobjekt zu erhalten, das das, was ein Skript überprüfen sollte, ist:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span><span class="nb">read</span><span class="w"> </span>--focused<span class="w"> </span>--pretty<span class="w"> </span><span class="m">2</span>&gt;err.json<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">code</span><span class="o">=</span><span class="k">$(</span>jq<span class="w"> </span>-r<span class="w"> </span>.error.data.code<span class="w"> </span>err.json<span class="k">)</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kortty-cli<span class="w"> </span>pane<span class="w"> </span><span class="nb">read</span><span class="w"> </span>--focused<span class="w"> </span>--pretty<span class="w"> </span><span class="m">2</span>&gt;err.json<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nv">code</span><span class="o">=</span><span class="k">$(</span>jq<span class="w"> </span>-r<span class="w"> </span>.error.data.code<span class="w"> </span>err.json<span class="k">)</span>
 </span></code></pre></div>
 <p>Fehler, die der Client selbst erkennt, sind die Ausnahme: eine unparsbare Befehlszeile, ein nicht laufendes korTTY, ein <code>--current</code>, das keiner Panes entspricht, und ein abgelaufener Client-Termin, der nie auf dem Server erreicht wurde – diese Fehler tragen keine Netzwerkcode und geben auf beiden Einstellungen einen reinen <code>kortty-cli: &lt;message&gt;</code> aus. Entscheiden Sie sich nach dem Exit-Code für diese Fälle.</p>
 <h2 id="die-installation-prufen">Die Installation prüfen<a class="headerlink" href="#die-installation-prufen" title="Permanent link">&para;</a></h2>
 <p><code>kortty-cli --version</code> gibt die Version aus und endet mit 0. Es ist der einzige Befehl, der <strong>kein</strong> laufendes korTTY braucht, und damit das Richtige für eine Installationsprüfung oder einen CI-Rauchtest.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kortty-cli<span class="w"> </span>--version<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s1">'kortty-cli is not installed or not on PATH'</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kortty-cli<span class="w"> </span>--version<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s1">'kortty-cli is not installed or not on PATH'</span>
 </span></code></pre></div>
 <h2 id="hinweise-furs-skripten">Hinweise fürs Skripten<a class="headerlink" href="#hinweise-furs-skripten" title="Permanent link">&para;</a></h2>
 <ul>

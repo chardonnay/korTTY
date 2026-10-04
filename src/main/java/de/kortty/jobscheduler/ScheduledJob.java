@@ -53,6 +53,10 @@ public class ScheduledJob {
     @XmlElement
     private de.kortty.model.AutomationJournalConfig sessionJournal;
 
+    /** Notification settings; {@code null} means {@link JobNotificationConfig#defaults()}. */
+    @XmlElement(name = "notifications")
+    private JobNotificationConfig notificationConfig;
+
     @XmlElement
     private JobSchedule schedule = new JobSchedule();
 
@@ -176,6 +180,21 @@ public class ScheduledJob {
 
     public void setJournalDetailMode(JournalDetailMode journalDetailMode) {
         this.journalDetailMode = journalDetailMode != null ? journalDetailMode : JournalDetailMode.LIMITED_REDACTED;
+        touch();
+    }
+
+    /** The stored notification settings, or {@code null} when the job uses the defaults. */
+    public JobNotificationConfig getNotificationConfig() {
+        return notificationConfig;
+    }
+
+    /** The notification settings in effect: the stored ones, or the defaults when there are none. */
+    public JobNotificationConfig effectiveNotificationConfig() {
+        return notificationConfig != null ? notificationConfig : JobNotificationConfig.defaults();
+    }
+
+    public void setNotificationConfig(JobNotificationConfig notificationConfig) {
+        this.notificationConfig = notificationConfig;
         touch();
     }
 

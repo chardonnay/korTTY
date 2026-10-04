@@ -9168,6 +9168,21 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * Whether {@code widget}, a pane of this tab, is still sending a paste line by line. FX thread.
+     */
+    public boolean isPanePastePacing(@Nullable SithTermFxWidget widget) {
+        return widget != null && pastePacer.isPacing(widget);
+    }
+
+    /**
+     * Whether a coding agent is detected in {@code widget} or a korTTY agent run drives it, so its
+     * input belongs to that agent. FX thread.
+     */
+    public boolean isPaneDrivenByAgent(@Nullable SithTermFxWidget widget) {
+        return widget != null && (hasTerminalAgentRuns(widget) || codingAgentStateOf(widget) != null);
+    }
+
+    /**
      * The connection {@code widget}'s session was opened for: a split to another server has its own,
      * every other pane belongs to the tab's connection. {@code null} only for a tab without one.
      */

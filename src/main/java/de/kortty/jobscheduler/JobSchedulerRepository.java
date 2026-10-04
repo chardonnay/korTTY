@@ -53,6 +53,10 @@ public class JobSchedulerRepository {
                 PinnedHostKey.class,
                 JobJournalEntry.class,
                 JobRunStatus.class,
+                JobNotificationConfig.class,
+                JobNotificationTrigger.class,
+                WebhookTarget.class,
+                WebhookFormat.class,
                 de.kortty.model.AutomationJournalConfig.class,
                 de.kortty.model.AutomationJournalAiMode.class,
                 de.kortty.model.AutomationJournalKeepMode.class,
@@ -175,6 +179,30 @@ public class JobSchedulerRepository {
             .toList();
     }
 
+    /**
+     * The status of the job's most recent finished run, ignoring {@code RUNNING} entries; among runs
+     * with the same timestamp the later-appended one wins. Empty for a job without finished runs.
+     */
+    public synchronized Optional<JobRunStatus> findLastFinishedStatus(String jobId) {
+        if (jobId == null) {
+            return Optional.empty();
+        }
+        JobJournalEntry latest = null;
+        Instant latestInstant = null;
+        for (JobJournalEntry entry : data.getJournal()) {
+            if (entry == null || !jobId.equals(entry.getJobId())
+                || entry.getStatus() == null || entry.getStatus() == JobRunStatus.RUNNING) {
+                continue;
+            }
+            Instant instant = journalRetentionInstant(entry).orElse(Instant.MIN);
+            if (latestInstant == null || !instant.isBefore(latestInstant)) {
+                latest = entry;
+                latestInstant = instant;
+            }
+        }
+        return Optional.ofNullable(latest).map(JobJournalEntry::getStatus);
+    }
+
     public synchronized void appendJournal(JobJournalEntry entry) {
         if (entry != null) {
             data.getJournal().add(entry);
@@ -278,6 +306,50 @@ public class JobSchedulerRepository {
         data.getPinnedHostKeys().add(hostKey);
     }
 
+    public synchronized List<WebhookTarget> getWebhookTargets() {
+        return new ArrayList<>(data.getWebhookTargets());
+    }
+
+    public synchronized Optional<WebhookTarget> findWebhookTarget(String targetId) {
+        return data.getWebhookTargets().stream()
+            .filter(target -> targetId != null && targetId.equals(target.getId()))
+            .findFirst();
+    }
+
+    public synchronized void upsertWebhookTarget(WebhookTarget target) {
+        if (target == null) {
+            return;
+        }
+        List<WebhookTarget> targets = data.getWebhookTargets();
+        for (int i = 0; i < targets.size(); i++) {
+            if (targets.get(i).getId().equals(target.getId())) {
+                targets.set(i, target);
+                return;
+            }
+        }
+        targets.add(target);
+    }
+
+    /**
+     * Removes a webhook target and drops its id from every job that sends to it, so no job keeps a
+     * dangling reference. Returns whether the target existed.
+     */
+    public synchronized boolean deleteWebhookTarget(String targetId) {
+        if (targetId == null) {
+            return false;
+        }
+        boolean removed = data.getWebhookTargets().removeIf(target -> targetId.equals(target.getId()));
+        for (ScheduledJob job : data.getJobs()) {
+            JobNotificationConfig config = job != null ? job.getNotificationConfig() : null;
+            if (config != null && config.getWebhookTargetIds().contains(targetId)) {
+                List<String> ids = new ArrayList<>(config.getWebhookTargetIds());
+                ids.remove(targetId);
+                config.setWebhookTargetIds(ids);
+            }
+        }
+        return removed;
+    }
+
     private boolean sameSudoScope(SudoCredential left, SudoCredential right) {
         if (left.getScope() != right.getScope()) {
             return false;
@@ -308,6 +380,10 @@ public class JobSchedulerRepository {
         @XmlElementWrapper(name = "journal")
         @XmlElement(name = "journalEntry")
         private List<JobJournalEntry> journal = new ArrayList<>();
+
+        @XmlElementWrapper(name = "webhookTargets")
+        @XmlElement(name = "webhookTarget")
+        private List<WebhookTarget> webhookTargets = new ArrayList<>();
 
         @XmlElement
         private boolean aiAgentAutoApproveDefaultMigrated;
@@ -356,6 +432,17 @@ public class JobSchedulerRepository {
             this.journal = journal != null ? journal : new ArrayList<>();
         }
 
+        public List<WebhookTarget> getWebhookTargets() {
+            if (webhookTargets == null) {
+                webhookTargets = new ArrayList<>();
+            }
+            return webhookTargets;
+        }
+
+        public void setWebhookTargets(List<WebhookTarget> webhookTargets) {
+            this.webhookTargets = webhookTargets != null ? webhookTargets : new ArrayList<>();
+        }
+
         public boolean isAiAgentAutoApproveDefaultMigrated() {
             return aiAgentAutoApproveDefaultMigrated;
         }
@@ -369,6 +456,7 @@ public class JobSchedulerRepository {
             getSudoCredentials();
             getPinnedHostKeys();
             getJournal().forEach(JobJournalEntry::getId);
+            getWebhookTargets().forEach(WebhookTarget::getId);
             migrateAiAgentAutoApproveDefault();
         }
 

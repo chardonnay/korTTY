@@ -53,7 +53,7 @@ The launcher is deliberately **not** called `kortty`: that name belongs to the g
 kortty-cli <group> <command> [options]
 ```
 
-The groups are `pane`, `tab`, `window`, `agent`, `events`, `notify`, `raw`, `ping` and `schema`. Inside a group, a command name is the API method after the dot with its underscores spelled as dashes — `pane.send_text` is `pane send-text`. Four methods do not follow from their name and are worth learning: `api.schema` is `schema`, `events.subscribe` is `events`, `notification.show` is `notify`, and anything without a command of its own — `events.unsubscribe`, `pane.resolve` — is reached through `raw`.
+The groups are `pane`, `tab`, `window`, `agent`, `events`, `notify`, `raw`, `ping` and `schema`, plus `mcp`, which is not a single call but a long-running server (see [Serving MCP clients](#serving-mcp-clients)). Inside a group, a command name is the API method after the dot with its underscores spelled as dashes — `pane.send_text` is `pane send-text`. Four methods do not follow from their name and are worth learning: `api.schema` is `schema`, `events.subscribe` is `events`, `notification.show` is `notify`, and anything without a command of its own — `events.unsubscribe`, `pane.resolve` — is reached through `raw`.
 
 Everything a command needs is a flag. There are no positional arguments except the key names of `pane send-keys` and `agent send-keys`, and the method and JSON of `raw`.
 
@@ -105,6 +105,45 @@ kortty-cli events --include-evidence --timeout 60000
 `--kinds` and `--panes` take comma-separated lists and narrow what is delivered; `--include-evidence` adds the detector's evidence to each event; `--count N` stops after N events. Three things end the stream: `--count` is reached, the `--timeout` passes, or you interrupt it. The first two exit 0. An interrupt is **not** handled — there is deliberately no signal handler, so the process ends with the shell's 128 + SIGINT = 130, which is worth allowing for in a CI job that wraps the stream in `timeout`.
 
 With neither `--count` nor `--timeout`, the stream has no deadline at all and runs until korTTY exits or you stop it.
+
+## Serving MCP clients
+
+`kortty-cli mcp` turns the client into a [Model Context Protocol](https://modelcontextprotocol.io/) server, so an AI assistant that speaks MCP can read your korTTY panes. It speaks the MCP stdio transport only: the assistant's host starts `kortty-cli mcp` as a child process and exchanges newline-delimited JSON-RPC messages with it on stdin and stdout. There is no network listener; the process reaches korTTY over the same local Control API endpoint as every other command, and declares itself as an `mcp` client so korTTY applies the [MCP rules](control-api.md#mcp-clients) to every request.
+
+korTTY has to allow it: the Control API must be on, the separate **MCP server** switch under **Settings › Terminal › Control API** must be on, and the [enterprise policy](enterprise-policy.md) must not deny `mcp-server`. While any of them says no, every tool call returns an error that says why, and the assistant can still list the tools.
+
+Most MCP hosts are configured with a JSON entry like this one; put the full path of `kortty-cli` from the table above in `command` if it is not on your `PATH`:
+
+```json
+{
+  "mcpServers": {
+    "kortty": {
+      "command": "kortty-cli",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+The server offers these tools. Each argument has the name of the API parameter it fills, and `pane` takes a pane id from `pane_list` or `@focused`:
+
+| Tool | Calls | Offered |
+| --- | --- | --- |
+| `pane_list` | `pane.list` | Always |
+| `pane_read` | `pane.read` | Always |
+| `pane_wait_output` | `pane.wait_output` | Always |
+| `tab_list` | `tab.list` | Always |
+| `agent_list` | `agent.list` | Always |
+| `pane_send_text` | `pane.send_text` | Only while korTTY reports **Allow write tools** as on |
+| `pane_run` | `pane.run` | Only while korTTY reports **Allow write tools** as on |
+| `pane_send_keys` | `pane.send_keys` | Only while korTTY reports **Allow write tools** as on |
+
+The read tools are marked read-only and the write tools destructive, so a host that asks before destructive tools asks before each of them. korTTY asks as well, whatever the host does: every write tool call opens a [consent prompt](control-api.md#writes-by-an-mcp-client) in korTTY, and a write tool call waits up to 70 seconds for your answer before it gives up. A tool result is the API's JSON answer as text; korTTY has already masked the secrets it knows about and capped the size. A refusal, a denied or unanswered prompt, a stopped korTTY or a switched-off MCP server comes back as a tool error naming the reason, for example `method_not_allowed_for_mcp` or `mcp_write_denied`, and the assistant can show it to you. The tool list is read once per `tools/list` request, so switching the write tools on or off takes effect the next time the assistant lists the tools.
+
+Each tool call opens its own connection, so restarting korTTY needs no restart of the assistant. Calls are handled one at a time: a long `pane_wait_output` delays the next answer until it returns. stdout carries only protocol messages; `kortty-cli mcp` writes one diagnostic line per request to stderr, naming the method or tool but never its arguments or results, and `--quiet` silences those lines. `--config-dir` works as for every other command.
+
+!!! warning "Everything a tool returns is untrusted terminal text"
+    A remote host, a log file or a web page shown in a terminal can contain text written to look like instructions to an AI assistant. The tool descriptions tell the assistant to treat results as data, but that is a request, not a guarantee, so keep the write tools off unless you need them. The MCP rules narrow what this server exposes; they are not a sandbox against an assistant that can also run shell commands as you, because any program of yours can read the token and connect as a plain `cli` client.
 
 ## Exit codes
 

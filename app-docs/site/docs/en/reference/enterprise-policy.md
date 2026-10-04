@@ -127,6 +127,8 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `multi-exec` | string | `allow`, `deny` | Typing into several terminals at once: [multi-exec](../features/terminal.md#multi-exec) across tabs and windows and a tab's broadcast mode. `deny` locks the include items of *View → Multi-exec*, *View → Panes → Broadcast*, the Multi-exec and Broadcast Mode entries of the tab, pane and Dashboard context menus, and their command palette and shortcut entries; no pane can join from anywhere. **Stop Multi-exec** and switching broadcast mode off keep working. There is no Settings control, so `allow` changes nothing |
 | `file-transfer` | string | `allow`, `deny` | Copying files between this computer and a server. `deny` greys out the [SFTP manager](../features/sftp.md)'s **Upload** and **Download** buttons and the transfer list's **Retry**, rejects drags onto either panel that would copy to or from the server, stops server files being dragged out of the window, rejects files dragged onto a terminal pane while they are dragged, greys out the Snippet Manager's **Copy as file(s) to terminal directory** and **Copy folder to terminal directory** for SSH tabs, greys out the upload and download buttons of the terminal's [remote files sidebar](../features/terminal.md#remote-files-sidebar) and rejects drops onto it and drags out of it, and makes the JobScheduler's SFTP upload, download and sync actions and its rsync action fail with the policy message before they connect. Opening the SFTP manager (also with **Open SFTP Here** on a terminal's session), browsing (also in the remote files sidebar) and remote-only operations (rename, delete, permissions, owner, archives, search, remote copy) keep working, and loading a file into the snippet editor stays under `load-into-snippet-editor`. **Edit in External Editor** needs a local copy, so `deny` greys it out too. Commands such as `scp` or `rsync` typed into a terminal cannot be blocked by korTTY. There is no Settings control, so `allow` changes nothing |
 | `sftp-sudo-edit` | string | `allow`, `deny` | [Editing server files as root](../features/sftp.md#editing-as-root) from the SFTP manager. `deny` greys out **Edit as Root (sudo)...** in the right-click menu and the remote **Edit** menu. It is also greyed out while `file-transfer` is denied or `load-into-snippet-editor` is `read-only` or `deny`, because an edit as root always needs a local copy and always writes back. There is no Settings control, so `allow` changes nothing |
+| `job-webhooks` | string | `allow`, `deny` | JobScheduler [webhook notifications](../features/jobscheduler.md#run-notifications) to Slack, Teams or a generic JSON receiver. `deny` stops every webhook delivery of a run and every test message before anything is decrypted or sent, and the job journal records *notification blocked by policy* for each target; desktop notifications are not affected. Which hosts webhooks may reach is set by `webhook-host-allowlist` in [`[rule.job-scheduler]`](#rulejob-scheduler). There is no Settings control, so `allow` changes nothing |
+| `mcp-server` | string | `allow`, `deny` | korTTY as an [MCP server](control-api.md#mcp-clients): Control API clients that declare themselves MCP clients. `deny` refuses every such connection with `blocked_by_policy` and forces both the **MCP server** switch and **Allow write tools** off; plain Control API clients and `kortty-cli` keep working. It also needs `control-api`. `allow` leaves both switches with the user and never switches them on |
 | `ai-agent-execution` | string | `allow`, `confirm`, `read-only` | `confirm` forces interactive approval of every mutating command set and defeats the auto-approve option; `read-only` lets the agent plan and chat but never execute commands, and greys out **Run** on the [code blocks of an AI chat](../features/ai-assistant.md#code-blocks-in-the-terminal) (**Insert** stays, since it runs nothing). Scheduled jobs: under `confirm` an [AI Agent or AI Swarm job](../features/jobscheduler.md#security-and-secrets) blocks every server-changing command, whatever its **Auto-approve AI commands** says, because nobody is there to approve it; under `read-only` both AI job types end as blocked before they connect. A job is also blocked up front when `ai` or `ai-agent` is denied, and a swarm job when `ai-swarm` is denied |
 
 !!! note "Naming a feature takes it over, whichever way you decide it"
@@ -255,6 +257,25 @@ groups = ["compliance"]
 A malformed policy file falls back to lockdown, which denies `file-transfer` and `sftp-sudo-edit` like every other feature.
 
 Archives created on the server by the SFTP manager never carry a password, whatever the policy says: `zip` and `7z` take a password only on their command line or from a terminal, and on the command line every other user of the server can read it in the process list. Password-protected archives on the server are likewise refused by **Extract Here...**. Archives created on the user's own computer can still have a password, so no policy key is needed to keep server passwords out of process lists.
+
+### `[rule.job-scheduler]`
+
+| Key | Type | Values | Effect |
+| --- | --- | --- | --- |
+| `webhook-host-allowlist` | array of strings | host names, e.g. `["hooks.slack.com"]` | The only hosts JobScheduler webhooks may be sent to. An entry allows its own host and every host below it, matched on whole labels: `hooks.slack.com` allows `hooks.slack.com` and `eu.hooks.slack.com`, but not `evilhooks.slack.com` or `hooks.slack.com.attacker.net`. A leading `*.` or `.` is accepted and means the same. Entries are bare host names: a scheme, path, port or user name is an error. Host names are compared as written in the webhook URL and never resolved through DNS. An empty array allows any host; leaving the key out leaves webhooks unrestricted too. When several rules of the same tier set a list, a host must be allowed by each of them |
+
+The check runs right before every send, the **Send test** button included. A webhook to a host outside the list is not sent, and the job journal records *notification blocked by policy* with the job, the target's name and the host, never the URL. While `job-webhooks` is denied, the **Notifications** section of a job that has webhook targets ticked says that they receive nothing.
+
+```toml
+[[rule]]
+  [rule.features]
+  job-webhooks = "allow"
+
+  [rule.job-scheduler]
+  webhook-host-allowlist = ["hooks.slack.com", "logic.azure.com", "api.powerplatform.com"]
+```
+
+A malformed policy file falls back to lockdown, which denies `job-webhooks` like every other feature.
 
 ### `[rule.logging]`
 

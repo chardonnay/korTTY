@@ -837,6 +837,26 @@
 </tbody>
 </table>
 <p>Das Entfernen des Hakens beendet den Listener und löscht den Socket sofort.</p>
+<p>Zwei weitere Schalter unter der Statuszeile gehören zu den <a href="#mcp-clients">MCP-Clients</a>, etwa <a href="cli.html#mcp-clients-bedienen"><code>kortty-cli mcp</code></a>, und beide sind standardmäßig aus:</p>
+<table>
+<thead>
+<tr>
+<th>Schalter</th>
+<th>Was er bewirkt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MCP-Server</strong></td>
+<td>Bedient Clients, die sich als MCP-Clients ausweisen, mit der schreibgeschützten Methodenliste, maskierter Ausgabe und begrenzten Lesezugriffen, wie unten beschrieben.</td>
+</tr>
+<tr>
+<td><strong>Schreib-Tools erlauben</strong></td>
+<td>Bietet solchen Clients zusätzlich <code>pane.send_text</code>, <code>pane.run</code> und <code>pane.send_keys</code> an. korTTY fragt Sie trotzdem vor jedem Schreibzugriff. Der Schalter lässt sich nur ändern, solange <strong>MCP-Server</strong> angehakt ist.</td>
+</tr>
+</tbody>
+</table>
+<p>Beide Schalter sind ausgegraut, solange das Kontrollkästchen der Steuerungs-API nicht angehakt ist, mit einem entsprechenden Hinweis; sie behalten ihre Werte und wirken wieder, sobald Sie die Steuerungs-API anhaken. Wenn die Unternehmensrichtlinie <code>mcp-server</code> oder <code>control-api</code> verweigert, sind beide nicht angehakt und mit dem Hinweis „Verwaltet von Ihrer Organisation“ gesperrt. Wenn Sie speichern, während einer der beiden Schalter aus ist, werden außerdem alle Antworten „Für diesen Bereich in dieser Sitzung erlauben“ verworfen, sodass nach erneutem Einschalten der Schreib-Tools wieder neu gefragt wird.</p>
 <h2 id="wo-der-endpunkt-liegt">Wo der Endpunkt liegt<a class="headerlink" href="#wo-der-endpunkt-liegt" title="Permanent link">&para;</a></h2>
 <p>Alles, was die API besitzt, liegt in einem eigenen Verzeichnis, <code>~/.kortty/control/</code>, das <strong>vor</strong> jedem Binden mit Rechten nur für den Eigentümer (<code>0700</code>) angelegt wird. Das Verzeichnis, nicht die Socket-Datei, ist der eigentliche Schutz: eine Socket-Inode entsteht mit der umask des Prozesses, die auf den meisten Systemen für alle lesbar ist.</p>
 <table>
@@ -976,6 +996,101 @@
 <div class="admonition note">
 <p class="admonition-title">Schreibzugriffe sind absichtlich nicht auf lokale Shells beschränkt</p>
 <p>Auch in entfernte Bereiche darf getippt werden. Eine Beschränkung würde das Beantworten eines über SSH laufenden Coding-Agents unmöglich machen und wäre ohnehin keine echte Grenze: wer den Socket erreicht, kann stattdessen einfach <code>ssh</code> in einem lokalen Bereich starten. Die ehrlichen Kontrollen sind der standardmäßig ausgeschaltete Schalter, das Richtlinienverbot, die Auditzeile und die Benachrichtigung – nicht ein Filter, der wie eine Grenze aussieht und keine ist.</p>
+</div>
+<h2 id="mcp-clients">MCP-Clients<a class="headerlink" href="#mcp-clients" title="Permanent link">&para;</a></h2>
+<p>Ein Client kann korTTY mit dem optionalen Parameter <code>client_kind</code> von <code>auth</code> mitteilen, welche Art von Client er ist: <code>cli</code>, der Standard, für <code>kortty-cli</code> und jedes Skript, oder <code>mcp</code> für einen MCP-Server, der korTTY an einen KI-Assistenten weiterreicht. korTTY liefert einen solchen Server selbst mit: <a href="cli.html#mcp-clients-bedienen"><code>kortty-cli mcp</code></a>. Jeder andere Wert wird mit <code>invalid_params</code> abgewiesen. Eine Verbindung, die sich als <code>mcp</code> authentifiziert hat, bleibt eine <code>mcp</code>-Verbindung: Ein zweites <code>auth</code> darauf als <code>cli</code> wird mit <code>invalid_params</code> abgewiesen. Ein <code>mcp</code>-Client wird nur bedient, solange drei Dinge es erlauben: die Steuerungs-API selbst, der separate Schalter <strong>MCP-Server</strong>, der standardmäßig aus ist, und der Schlüssel <code>mcp-server</code> der <a href="enterprise-policy.html">Unternehmensrichtlinie</a>. Verweigert einer davon, schlägt der Handshake mit <code>mcp_server_disabled</code> oder <code>blocked_by_policy</code> fehl, und die Prüfung wird vor jeder Anfrage wiederholt, sodass das Ausschalten des MCP-Servers eine bereits offene Verbindung bei ihrem nächsten Aufruf stoppt.</p>
+<p>Ein <code>mcp</code>-Client erhält eine feste Methodenliste nach dem Fail-closed-Prinzip:</p>
+<table>
+<thead>
+<tr>
+<th>Zugriff</th>
+<th>Methoden</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Immer</td>
+<td><code>ping</code>, <code>api.schema</code>, <code>window.list</code>, <code>tab.list</code>, <code>pane.list</code>, <code>pane.current</code>, <code>pane.get</code>, <code>pane.read</code>, <code>pane.wait_output</code>, <code>agent.list</code>, <code>agent.get</code></td>
+</tr>
+<tr>
+<td>Nur mit <strong>Schreib-Tools erlauben</strong>, ebenfalls standardmäßig aus</td>
+<td><code>pane.send_text</code>, <code>pane.run</code>, <code>pane.send_keys</code></td>
+</tr>
+<tr>
+<td>Nie</td>
+<td>alles andere: Ereignisse, Fokussieren, Teilen und Schließen, Benachrichtigungen, jede <code>agent.*</code>-Methode, die etwas bewirkt, die reservierten Verben und jede Methode, die ein späteres korTTY hinzufügt, bis sie für MCP-Clients geprüft ist</td>
+</tr>
+</tbody>
+</table>
+<p>Eine abgewiesene Methode antwortet mit <code>method_not_allowed_for_mcp</code>, wobei <code>data.reason</code> auf <code>write_tools_disabled</code> oder <code>not_exposed</code> gesetzt ist. Die Methodenliste in der <code>auth</code>-Antwort und das <code>api.schema</code>-Dokument zeigen einem <code>mcp</code>-Client nur die Methoden, die er aufrufen darf, und die <code>auth</code>-Antwort gibt in <code>mcp_write_tools</code> an, ob die Schreib-Tools eingeschaltet sind.</p>
+<h3 id="was-ein-mcp-client-liest">Was ein MCP-Client liest<a class="headerlink" href="#was-ein-mcp-client-liest" title="Permanent link">&para;</a></h3>
+<p>Alles, was ein <code>mcp</code>-Client liest, wird immer maskiert, weil sein Modell in der Regel in der Cloud läuft: korTTY behandelt ihn wie ein Cloud-KI-Profil, ohne Möglichkeit zum Abschalten. Bildschirm und Scrollback von <code>pane.read</code>, die passende Zeile und der Bildschirm von <code>pane.wait_output</code>, die Belegzeile und die Prozess-Befehlszeile von <code>agent.list</code>, <code>agent.get</code> und des Agenten in einer Bereichsbeschreibung sowie die Tab- und Fenstertitel verlieren alle das Passwort der Verbindung, die Ersetzungsregeln der Organisation aus der <a href="enterprise-policy.html">Unternehmensrichtlinie</a> und bekannte Tokenformate wie Cloud-Zugriffsschlüssel, jeweils ersetzt durch <code>***</code>. Auch eine Befehlszeile wird maskiert, weil sie einen API-Schlüssel enthalten kann. Ein Geheimnis, das über den rechten Rand einer vollen Zeile in die nächste hineinläuft, wird ebenfalls maskiert; diese Zeilen werden danach wieder auf die Bereichsbreite umgebrochen.</p>
+<p><code>pane.read</code> und <code>pane.wait_output</code> liefern einem <code>mcp</code>-Client höchstens 2000 Zeilen und 64.000 Zeichen, wobei die neuesten erhalten bleiben, und setzen <code>truncated</code>, wenn etwas weggelassen wurde; ein <code>cli</code>-Client behält die eigenen Grenzen des Protokolls. <code>pane.read</code> ergänzt <code>masked_count</code>, die Anzahl der im Ergebnis maskierten Geheimnisse. <code>pane.wait_output</code> durchsucht den maskierten Text, sodass ein Muster ein erratenes Passwort nicht dadurch bestätigen kann, ob es passt. Ein <code>cli</code>-Client liest den Rohtext genau wie bisher.</p>
+<h3 id="schreibvorgange-eines-mcp-clients">Schreibvorgänge eines MCP-Clients<a class="headerlink" href="#schreibvorgange-eines-mcp-clients" title="Permanent link">&para;</a></h3>
+<p>Wenn <strong>Schreib-Tools erlauben</strong> eingeschaltet ist, fragt korTTY Sie trotzdem vor jedem Schreibzugriff, den ein <code>mcp</code>-Client vornehmen möchte. <code>pane.send_text</code>, <code>pane.run</code> und <code>pane.send_keys</code> öffnen in korTTY eine Rückfrage, die den Namen des Clients zeigt (als vom Client angegeben gekennzeichnet, weil nichts ihn belegt), den Zielbereich mit seinem Tab-Titel und Host, ob der Schreibzugriff eine Zeile absendet, sowie den genauen Text oder die Tastennamen. Steuerzeichen und unsichtbare Zeichen werden als Symbole dargestellt, etwa <code>␊</code> für einen Zeilenumbruch, <code>␛</code> für Escape und <code>&lt;U+202E&gt;</code> für eine Richtungsumkehr, sodass nichts den Bereich erreicht, was Sie nicht sehen könnten.</p>
+<table>
+<thead>
+<tr>
+<th>Antwort</th>
+<th>Was sie erlaubt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Ablehnen</strong> (die Standardschaltfläche)</td>
+<td>Nichts; der Aufruf antwortet mit <code>mcp_write_denied</code> und <code>data.reason</code> <code>denied</code></td>
+</tr>
+<tr>
+<td><strong>Einmal erlauben</strong></td>
+<td>Diesen einen Schreibzugriff</td>
+</tr>
+<tr>
+<td><strong>Für diesen Bereich in dieser Sitzung erlauben</strong></td>
+<td>Diesen Schreibzugriff und jedes spätere <code>pane.send_text</code> in denselben Bereich vom selben MCP-Server-Prozess ohne erneute Rückfrage, solange der Text nichts absendet</td>
+</tr>
+</tbody>
+</table>
+<p>Die dritte Antwort wird nur für ein <code>pane.send_text</code> angeboten, dessen Text keinen Zeilenumbruch und kein anderes Steuerzeichen enthält und das <code>submit</code> nicht setzt. <code>pane.run</code>, <code>pane.send_keys</code> und jeder Text, der eine Zeile absendet, fragen immer nach, weil ein einziger Klick einem Assistenten niemals erlauben darf, danach beliebig etwas auszuführen. Die Sitzung ist der <code>kortty-cli mcp</code>-Prozess: Er sendet bei jeder Verbindung eine zufällige <code>mcp_session</code>-ID, sodass die Antwort gilt, bis der Host des Assistenten diesen Prozess beendet oder korTTY beendet wird. Ein Client, der kein <code>mcp_session</code> sendet, behält die Antwort nur für eine Verbindung.</p>
+<p>Eine Rückfrage, die nicht innerhalb von 60 Sekunden beantwortet wird, zählt als Ablehnen (<code>data.reason</code> <code>timeout</code>), ebenso ein korTTY, das keine anzeigen kann (<code>no_prompt</code>). Es ist immer nur eine Rückfrage gleichzeitig offen; ein zweiter Schreibzugriff wartet auf den ersten, innerhalb derselben 60 Sekunden. Der Aufruf wartet auf seiner eigenen Verbindung, während Sie entscheiden, niemals auf der Benutzeroberfläche von korTTY.</p>
+<p>korTTY verweigert manche Schreibzugriffe ohne Rückfrage, mit <code>mcp_write_refused</code> und einem <code>data.reason</code>, weil es selbst auch nicht in einen solchen Bereich tippen würde:</p>
+<table>
+<thead>
+<tr>
+<th><code>data.reason</code></th>
+<th>Der Bereich</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>paste_pacing</code></td>
+<td>sendet noch ein Einfügen Zeile für Zeile</td>
+</tr>
+<tr>
+<td><code>alternate_screen</code></td>
+<td>zeigt ein Vollbildprogramm wie <code>vim</code> oder <code>less</code></td>
+</tr>
+<tr>
+<td><code>foreign_session</code></td>
+<td>läuft vermutlich als anderer Benutzer oder auf einem anderen Host, nach <code>su</code> oder einem verschachtelten <code>ssh</code></td>
+</tr>
+<tr>
+<td><code>broadcast</code></td>
+<td>liegt in einem Tab mit eingeschaltetem Broadcast-Modus</td>
+</tr>
+<tr>
+<td><code>multi_exec</code></td>
+<td>nimmt an Multi-Exec teil</td>
+</tr>
+<tr>
+<td><code>coding_agent</code></td>
+<td>zeigt einen erkannten Coding-Agent, oder ein Agentenlauf von korTTY steuert ihn</td>
+</tr>
+</tbody>
+</table>
+<p>Diese Prüfungen laufen unmittelbar vor dem Tippen des Textes erneut, sodass ein Bereich, der <code>vim</code> öffnet, während Sie die Rückfrage lesen, trotzdem abgelehnt wird. Jede Entscheidung, einschließlich jeder Verweigerung und jedes Schreibzugriffs, den eine Sitzungsantwort erlaubt hat, wird im Log von korTTY als <code>mcp.consent</code>-Zeile mit der Methode, der Entscheidung, dem Grund, der Zeichenanzahl und dem Clientnamen festgehalten, aber niemals mit dem Text.</p>
+<div class="admonition warning">
+<p class="admonition-title">Eine engere Angriffsfläche, keine Sandbox</p>
+<p><code>client_kind</code> wird vom Client angegeben, nicht nachgewiesen. Die Liste begrenzt, was ein MCP-Server einem KI-Assistenten zugänglich macht; sie schützt korTTY nicht vor einem Assistenten, der auch Shell-Befehle als Sie ausführen kann, weil jedes Ihrer Programme das Token lesen und sich als <code>cli</code> verbinden kann. Behandeln Sie jeden MCP-Client wie ein Cloud-Modell und alles, was er aus einem Terminal liest, als nicht vertrauenswürdigen Text.</p>
 </div>
 <h2 id="audit-und-sichtbarkeit">Audit und Sichtbarkeit<a class="headerlink" href="#audit-und-sichtbarkeit" title="Permanent link">&para;</a></h2>
 <p>Jede Aktion der API schreibt genau eine Zeile in korTTYs Protokoll, und zwar <strong>nur Byte-Anzahlen und Formen</strong> – <code>bytes=28 bracketed=false submitted=true</code>, <code>keys=2</code>, <code>orientation=vertical</code> – niemals Terminaltext. Die Zeile steht in korTTYs Protokoll und nur dort – in das Sitzungsjournal eines Tabs schreibt die API nichts.</p>

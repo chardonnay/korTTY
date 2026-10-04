@@ -286,7 +286,7 @@ pages:
     last_synced_ref: "7b75533b"
   - path: app-docs/site/docs/en/features/jobscheduler.md
     owns_i18n: [jobscheduler.dialog., jobscheduler.menu., jobscheduler.quit.]
-    owns_code: [src/main/java/de/kortty/jobscheduler, src/main/java/de/kortty/ui/JobSchedulerDialog.java, src/main/java/de/kortty/ui/JobSchedulerTargetSelectionDialog.java, src/main/java/de/kortty/ui/JobSchedulerRemoteDirectoryDialog.java]
+    owns_code: [src/main/java/de/kortty/jobscheduler, src/main/java/de/kortty/ui/JobSchedulerDialog.java, src/main/java/de/kortty/ui/JobSchedulerTargetSelectionDialog.java, src/main/java/de/kortty/ui/JobSchedulerRemoteDirectoryDialog.java, src/main/java/de/kortty/ui/WebhookTargetsDialog.java]
     diagrams: [jobscheduler-execution.svg]
     last_synced_ref: "ac9c5894c"
   - path: app-docs/site/docs/en/features/projects.md
@@ -486,6 +486,8 @@ pages:
       - src/main/java/de/kortty/core/DeadlineCharSequence.java
       - src/main/java/de/kortty/ui/ControlApiUiBridge.java
       - src/main/java/de/kortty/ui/ControlApiPaneReader.java
+      - src/main/java/de/kortty/ui/McpWriteConsentDialog.java
+      - src/main/java/de/kortty/ui/McpSettingsSupport.java
       - src/main/java/de/kortty/paste/PasteSanitizer.java
     diagrams: []
     screenshots: []

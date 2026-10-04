@@ -1,5 +1,6 @@
 package de.kortty.control;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,15 +47,28 @@ public final class ControlPaneWriter {
 
     private final ControlAuditSink audit;
 
+    private final McpWriteConsent consent;
+
     /**
+     * A writer whose MCP writes are all denied: nobody can be asked.
+     *
      * @param surface the window port
      * @param ui the JavaFX marshaller
      * @param audit the audit sink; {@link ControlAuditSink#LOGGING} when null
      */
     public ControlPaneWriter(ControlSurface surface, UiDispatcher ui, ControlAuditSink audit) {
+        this(surface, ui, audit, null);
+    }
+
+    /**
+     * @param consent asks the user before every write of an MCP client; null denies them all
+     */
+    public ControlPaneWriter(ControlSurface surface, UiDispatcher ui, ControlAuditSink audit,
+                             McpWriteConsent consent) {
         this.surface = Objects.requireNonNull(surface, "surface");
         this.ui = Objects.requireNonNull(ui, "ui");
         this.audit = audit == null ? ControlAuditSink.LOGGING : audit;
+        this.consent = consent == null ? McpWriteConsent.denyingAll(this.audit) : consent;
     }
 
     /**
@@ -73,7 +87,22 @@ public final class ControlPaneWriter {
      */
     public WriteResult sendText(String paneId, String text, boolean submit, String bracketedMode,
                                 boolean allowShortcutConflict) throws ControlApiException {
-        return writeText(VERB_SEND_TEXT, paneId, text, submit, bracketedMode, allowShortcutConflict);
+        return sendText(null, paneId, text, submit, bracketedMode, allowShortcutConflict);
+    }
+
+    /**
+     * The same on behalf of a caller: an MCP session is refused for a guarded pane and asked for
+     * consent first ({@link McpWriteConsent}).
+     *
+     * @param session the caller's connection, or null for korTTY itself
+     * @throws ControlApiException as above, plus {@link ControlErrorCode#MCP_WRITE_REFUSED} and
+     *     {@link ControlErrorCode#MCP_WRITE_DENIED} for an MCP session
+     */
+    public WriteResult sendText(ControlSession session, String paneId, String text, boolean submit,
+                                String bracketedMode, boolean allowShortcutConflict)
+            throws ControlApiException {
+        return writeText(session, VERB_SEND_TEXT, paneId, text, submit, bracketedMode,
+            allowShortcutConflict);
     }
 
     /**
@@ -86,10 +115,32 @@ public final class ControlPaneWriter {
      *     {@link ControlErrorCode#NOT_CONNECTED}, {@link ControlErrorCode#WRITE_FAILED}
      */
     public WriteResult sendKeys(String paneId, List<String> keyNames) throws ControlApiException {
+        return sendKeys(null, paneId, keyNames);
+    }
+
+    /**
+     * The same on behalf of a caller; an MCP session always asks, since keys can submit a line.
+     *
+     * @param session the caller's connection, or null for korTTY itself
+     */
+    public WriteResult sendKeys(ControlSession session, String paneId, List<String> keyNames)
+            throws ControlApiException {
         requirePane(paneId);
         List<String> normalised = ControlKeyTable.normalise(keyNames);
+        boolean mcp = session != null && session.isMcp();
+        if (mcp) {
+            byte[] preview = ControlKeyTable.encodeAll(normalised, StandardCharsets.UTF_8);
+            boolean submits = false;
+            for (byte b : preview) {
+                submits |= b == '\r' || b == '\n';
+            }
+            askMcpConsent(session, VERB_SEND_KEYS, paneId, String.join(" ", normalised), submits);
+        }
         int written = UiCalls.await(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS,
             () -> unchecked(() -> {
+                if (mcp) {
+                    consent.refuseIfGuarded(session, VERB_SEND_KEYS, paneId, surface.mcpWriteStateOf(paneId));
+                }
                 // A single-character key name is typed text, so it follows the pane's encoding.
                 byte[] payload = ControlKeyTable.encodeAll(normalised, surface.charsetOf(paneId));
                 int bytes = surface.write(paneId, payload);
@@ -109,16 +160,26 @@ public final class ControlPaneWriter {
      *     {@link ControlErrorCode#INVALID_PARAMS} for an embedded line break
      */
     public WriteResult run(String paneId, String command) throws ControlApiException {
+        return run(null, paneId, command);
+    }
+
+    /**
+     * The same on behalf of a caller; an MCP session always asks, since a command submits a line.
+     *
+     * @param session the caller's connection, or null for korTTY itself
+     */
+    public WriteResult run(ControlSession session, String paneId, String command)
+            throws ControlApiException {
         if (command != null && (command.indexOf('\n') >= 0 || command.indexOf('\r') >= 0)) {
             throw new ControlApiException(ControlErrorCode.INVALID_PARAMS,
                 "A command must be a single line",
                 Map.of("param", "command", "hint", "send several commands as several pane.run calls"));
         }
-        return writeText(VERB_RUN, paneId, command, true, "never", false);
+        return writeText(session, VERB_RUN, paneId, command, true, "never", false);
     }
 
-    private WriteResult writeText(String verb, String paneId, String text, boolean submit,
-                                  String bracketedMode, boolean allowShortcutConflict)
+    private WriteResult writeText(ControlSession session, String verb, String paneId, String text,
+                                  boolean submit, String bracketedMode, boolean allowShortcutConflict)
             throws ControlApiException {
         requirePane(paneId);
         if (text == null || text.isBlank()) {
@@ -127,7 +188,17 @@ public final class ControlPaneWriter {
         }
         // Reject a bad spelling before the hop so a typo never reaches the terminal.
         BracketedPaste.shouldBracket(bracketedMode, text, false);
+        boolean mcp = session != null && session.isMcp();
+        if (mcp) {
+            askMcpConsent(session, verb, paneId, text,
+                submit || text.indexOf('\n') >= 0 || text.indexOf('\r') >= 0);
+        }
         WriteResult result = UiCalls.await(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS, () -> unchecked(() -> {
+            if (mcp) {
+                // Again inside the write hop: the pane may have started vim or a paste while the user
+                // read the prompt, and nothing can change between this check and the write.
+                consent.refuseIfGuarded(session, verb, paneId, surface.mcpWriteStateOf(paneId));
+            }
             boolean bracketed =
                 BracketedPaste.shouldBracket(bracketedMode, text, surface.isBracketedPasteEnabled(paneId));
             if (!bracketed && !allowShortcutConflict && surface.wouldHostShortcutIntercept(firstLine(text))) {
@@ -145,6 +216,19 @@ public final class ControlPaneWriter {
             return new WriteResult(paneId, written, bracketed, submit, List.of());
         }));
         return result;
+    }
+
+    /**
+     * Refuses a guarded pane without asking, then asks the user. The pane state is read in its own
+     * short UI hop and the prompt is awaited on this worker thread, never on the JavaFX thread.
+     */
+    private void askMcpConsent(ControlSession session, String verb, String paneId, String text,
+                               boolean submits) throws ControlApiException {
+        McpPaneWriteState state = UiCalls.await(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS,
+            () -> unchecked(() -> surface.mcpWriteStateOf(paneId)));
+        consent.refuseIfGuarded(session, verb, paneId, state);
+        consent.authorize(session, verb, paneId, state == null ? paneId : state.paneLabel(), text,
+            submits);
     }
 
     private static String firstLine(String text) {

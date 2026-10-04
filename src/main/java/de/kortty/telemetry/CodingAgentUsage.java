@@ -40,6 +40,8 @@ public final class CodingAgentUsage implements CodingAgentRegistry.Listener {
     private final AtomicInteger detections = new AtomicInteger();
     private final AtomicInteger notifications = new AtomicInteger();
     private final AtomicInteger controlRequests = new AtomicInteger();
+    private final Set<String> mcpToolOutcomes = ConcurrentHashMap.newKeySet();
+    private final AtomicInteger mcpToolCalls = new AtomicInteger();
 
     CodingAgentUsage(BiConsumer<String, Map<String, Object>> tracker) {
         this.tracker = Objects.requireNonNull(tracker, "tracker");
@@ -82,9 +84,12 @@ public final class CodingAgentUsage implements CodingAgentRegistry.Listener {
      * A control-API request passed authentication and reached a registered method.
      *
      * @param method the wire method name
-     * @param client the client name from {@code auth}; reduced to {@code kortty-cli} or {@code other}
+     * @param client the client name from {@code auth}
+     * @param mcp whether the connection declared {@code client_kind = "mcp"}
+     *     ({@code kortty-cli mcp}); the {@code client} prop is reduced to {@code cli}, {@code mcp} or
+     *     {@code other}, never the free-form name
      */
-    public void controlRequestHandled(String method, String client) {
+    public void controlRequestHandled(String method, String client, boolean mcp) {
         if (method == null || method.isBlank()) {
             return;
         }
@@ -92,7 +97,27 @@ public final class CodingAgentUsage implements CodingAgentRegistry.Listener {
         if (usedMethods.add(method)) {
             tracker.accept(TelemetryEvents.CONTROL_API_USED, Map.of(
                 "method", method,
-                "client", CLI_CLIENT.equals(client) ? CLI_CLIENT : "other"));
+                "client", mcp ? "mcp" : CLI_CLIENT.equals(client) ? "cli" : "other"));
+        }
+    }
+
+    /**
+     * A request of an MCP client ({@code client_kind = "mcp"}) was answered, with a result or an error.
+     *
+     * <p>Tracked once per tool and outcome per app run, so an assistant polling a pane never floods
+     * the queue; the run's total goes into {@code usage_snapshot} as {@code mcp_tool_calls}.
+     *
+     * @param method the wire method; reduced to a fixed tool name or {@code other}
+     * @param outcome how the call ended
+     */
+    public void mcpToolCalled(String method, McpToolTelemetry.Outcome outcome) {
+        if (method == null || method.isBlank()) {
+            return;
+        }
+        mcpToolCalls.incrementAndGet();
+        Map<String, Object> props = McpToolTelemetry.props(method, outcome);
+        if (mcpToolOutcomes.add(props.get("tool") + "/" + props.get("outcome"))) {
+            tracker.accept(TelemetryEvents.MCP_TOOL_CALLED, props);
         }
     }
 
@@ -107,6 +132,7 @@ public final class CodingAgentUsage implements CodingAgentRegistry.Listener {
         props.put("coding_agent_notifications", notifications.get());
         props.put("control_api_requests", controlRequests.get());
         props.put("control_api_methods_used", usedMethods.size());
+        props.put("mcp_tool_calls", mcpToolCalls.get());
     }
 
     private static String kindId(CodingAgentKind kind) {

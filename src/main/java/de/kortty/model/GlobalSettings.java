@@ -240,6 +240,20 @@ public class GlobalSettings {
     @XmlElement
     private boolean controlApiEnabled = false;
 
+    /**
+     * korTTY as an MCP server ({@code kortty-cli mcp}): whether a control-API client that declares
+     * itself an MCP client is served at all. Default off; it also needs {@link #controlApiEnabled}.
+     */
+    @XmlElement
+    private boolean mcpServerEnabled = false;
+
+    /**
+     * Whether an MCP client may also use the pane write verbs (send text, run a line, send keys).
+     * Default off: without it the MCP surface is read-only.
+     */
+    @XmlElement
+    private boolean mcpWriteToolsEnabled = false;
+
     @XmlElement
     private String sessionJournalStoragePath; // Blank/null = ~/.kortty/journals
 
@@ -1976,6 +1990,24 @@ public class GlobalSettings {
 
     public void setControlApiEnabled(boolean controlApiEnabled) {
         this.controlApiEnabled = controlApiEnabled;
+    }
+
+    /** Whether MCP clients are served (default off); the control API has to be on as well. */
+    public boolean isMcpServerEnabled() {
+        return mcpServerEnabled;
+    }
+
+    public void setMcpServerEnabled(boolean mcpServerEnabled) {
+        this.mcpServerEnabled = mcpServerEnabled;
+    }
+
+    /** Whether MCP clients may use the pane write verbs (default off: the MCP surface is read-only). */
+    public boolean isMcpWriteToolsEnabled() {
+        return mcpWriteToolsEnabled;
+    }
+
+    public void setMcpWriteToolsEnabled(boolean mcpWriteToolsEnabled) {
+        this.mcpWriteToolsEnabled = mcpWriteToolsEnabled;
     }
 
     /**

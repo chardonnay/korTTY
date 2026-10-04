@@ -876,6 +876,30 @@
 </tbody>
 </table>
 <p>Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsätzen, die Muster und alles, was in die Bereiche eingegeben wird, werden nie gesendet. Änderungen auf den Einstellungsseiten werden als Name der Einstellung gemeldet, bei Schaltern und Auswahlfeldern mit dem neuen Wert; bei den Buchstaben und Mustern der Schnellauswahl und bei neu belegten Tastenkürzeln nur, ob Sie sie geändert haben.</p>
+<h3 id="steuerungs-api-und-mcp-clients">Steuerungs-API und MCP-Clients<a class="headerlink" href="#steuerungs-api-und-mcp-clients" title="Permanent link">&para;</a></h3>
+<p>Wenn ein Programm die <a href="../reference/control-api.html">Steuerungs-API</a> verwendet, meldet korTTY, welche Methoden verwendet werden und welche Art von Client sie verwendet hat. Ein KI-Assistent, der über <code>kortty-cli mcp</code> verbunden ist, wird zusätzlich nach Tool und nach dem Ausgang des Aufrufs gemeldet. Jedes Ereignis wird höchstens einmal pro Methode bzw. pro Tool und Ausgang gesendet, solange korTTY läuft; die Anzahl der Aufrufe fließt in die regelmäßige Nutzungszusammenfassung ein.</p>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>control_api_used</code></td>
+<td>eine Methode der Steuerungs-API wird in diesem Lauf zum ersten Mal verwendet</td>
+<td>der Methodenname, z. B. <code>pane.read</code>, und die Art des Clients: <code>cli</code> für <code>kortty-cli</code>, <code>mcp</code> für einen MCP-Client, <code>other</code> für jedes andere Programm</td>
+</tr>
+<tr>
+<td><code>mcp_tool_called</code></td>
+<td>ein Aufruf eines MCP-Clients endet auf eine Weise, die in diesem Lauf noch nicht gemeldet wurde</td>
+<td>das Tool (<code>pane_list</code>, <code>pane_read</code>, <code>pane_wait_output</code>, <code>tab_list</code>, <code>agent_list</code>, <code>pane_send_text</code>, <code>pane_run</code>, <code>pane_send_keys</code> oder <code>other</code>) und der Ausgang: <code>ok</code>, <code>refused</code> (ausgeschaltet, nicht erlaubt oder in diesem Bereich nicht möglich), <code>denied</code> (Sie haben abgelehnt, oder korTTY konnte nicht fragen), <code>timeout</code> (niemand hat rechtzeitig geantwortet, oder eine Wartezeit ist abgelaufen) oder <code>failed</code> (jeder andere Fehler)</td>
+</tr>
+</tbody>
+</table>
+<p>Der Name des Clients, Bereichs-IDs, Tool-Argumente, der gelesene oder eingegebene Text und Ihre Antworten werden niemals gesendet.</p>
 <h3 id="sftp-ubertragungen">SFTP-Übertragungen<a class="headerlink" href="#sftp-ubertragungen" title="Permanent link">&para;</a></h3>
 <p>Wenn ein SFTP-Manager-Tab geöffnet wird, gibt ein Ereignis an, ob er die Sitzung eines Terminals teilt. Wenn ein Upload oder Download im SFTP-Manager abgeschlossen ist, gibt ein Ereignis an, wie er verlaufen ist. Dateizahlen werden auf 0, 1, 2, 5, 10, 50, 100 oder 1000 abgerundet. Wenn korTTY aufhört, eine Datei zu beobachten, die Sie in einem externen Editor (auch als root) bearbeitet haben, gibt ein Ereignis an, wie die Bearbeitung endete; die Zahl der Uploads wird auf 0, 1, 2, 5, 10 oder 50 abgerundet.</p>
 <table>
@@ -905,6 +929,25 @@
 </tbody>
 </table>
 <p>Datei- und Ordnernamen, Pfade, Servernamen, Editorbefehle, sudo-Passwörter und Dateigrößen werden niemals gesendet.</p>
+<h3 id="jobscheduler-benachrichtigungen">JobScheduler-Benachrichtigungen<a class="headerlink" href="#jobscheduler-benachrichtigungen" title="Permanent link">&para;</a></h3>
+<p>Wenn der JobScheduler eine Desktop-Benachrichtigung für einen Joblauf anzeigt oder eine an ein Webhook-Ziel sendet, gibt ein Ereignis an, wie es ausgegangen ist.</p>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>job_notification_sent</code></td>
+<td>eine Lauf-Benachrichtigung wird auf dem Desktop angezeigt oder für ein Webhook-Ziel zugestellt, abgelehnt oder blockiert</td>
+<td><code>desktop</code> oder <code>webhook</code>, das Payload-Format (<code>slack</code>, <code>teams</code>, <code>generic</code> oder <code>none</code>), ob sie mit <code>ok</code>, <code>failed</code> oder <code>blocked</code> endete, und die Anzahl der Zustellversuche (0 bis 3)</td>
+</tr>
+</tbody>
+</table>
+<p>Job- und Zielnamen, Webhook-URLs und Hosts, Laufstatus-Texte sowie alles aus der Ausgabe des Laufs werden niemals gesendet. Ein mit <strong>Test senden</strong> verschickter Test wird nicht gezählt.</p>
 <h2 id="was-niemals-gesammelt-wird">Was niemals gesammelt wird<a class="headerlink" href="#was-niemals-gesammelt-wird" title="Permanent link">&para;</a></h2>
 <p>korTTY übermittelt niemals Folgendes:</p>
 <ul>

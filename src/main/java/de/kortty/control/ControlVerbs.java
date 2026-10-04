@@ -51,6 +51,22 @@ public final class ControlVerbs {
                                        ControlEventBus events, ControlAuditSink audit,
                                        DesktopNotifier notifier, LongSupplier clockMillis,
                                        String appVersion, String instanceId) {
+        return build(surface, ui, registry, agentActions, events, audit, notifier, clockMillis,
+            appVersion, instanceId, null);
+    }
+
+    /**
+     * The same, with the consent every MCP client's write needs.
+     *
+     * @param mcpConsent asks the user before an MCP client types into a pane; null denies every MCP
+     *     write
+     */
+    public static MethodRegistry build(ControlSurface surface, UiDispatcher ui,
+                                       CodingAgentRegistry registry, CodingAgentActions agentActions,
+                                       ControlEventBus events, ControlAuditSink audit,
+                                       DesktopNotifier notifier, LongSupplier clockMillis,
+                                       String appVersion, String instanceId,
+                                       McpWriteConsent mcpConsent) {
         Objects.requireNonNull(surface, "surface");
         Objects.requireNonNull(ui, "ui");
         Objects.requireNonNull(registry, "registry");
@@ -59,7 +75,8 @@ public final class ControlVerbs {
         ControlAuditSink sink = audit == null ? ControlAuditSink.LOGGING : audit;
 
         ScheduledExecutorService timer = timer();
-        ControlPaneWriter writer = new ControlPaneWriter(surface, ui, sink);
+        ControlPaneWriter writer = new ControlPaneWriter(surface, ui, sink,
+            mcpConsent == null ? McpWriteConsent.denyingAll(sink) : mcpConsent);
         ControlSplitService splits = new ControlSplitService(surface, ui, sink);
         ControlAgentGateway agents = new ControlAgentGateway(surface, ui, registry, agentActions, sink);
         PaneOutputWaiter outputWaiter = new PaneOutputWaiter(surface, ui, timer);

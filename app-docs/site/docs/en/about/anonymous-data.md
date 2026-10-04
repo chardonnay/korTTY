@@ -48,6 +48,17 @@ The search text, the names of commands, tabs, connections, snippets and rule set
 
 The block, its language, the command, the pane, the tab, the host and the reason for a refusal are never sent.
 
+### Control API and MCP clients
+
+When a program uses the [Control API](../reference/control-api.md), korTTY reports which methods are used and what kind of client used them. An AI assistant connected through `kortty-cli mcp` is also reported by tool and by how the call ended. Each event is sent at most once per method, or per tool and outcome, while korTTY runs; the number of calls goes into the periodic usage summary.
+
+| Event | Sent when | Data |
+| --- | --- | --- |
+| `control_api_used` | a Control API method is used for the first time in this run | the method name, such as `pane.read`, and the kind of client: `cli` for `kortty-cli`, `mcp` for an MCP client, `other` for any other program |
+| `mcp_tool_called` | an MCP client's call ends in a way not yet reported in this run | the tool (`pane_list`, `pane_read`, `pane_wait_output`, `tab_list`, `agent_list`, `pane_send_text`, `pane_run`, `pane_send_keys`, or `other`) and the outcome: `ok`, `refused` (switched off, not allowed or not possible in this pane), `denied` (you said no, or korTTY could not ask), `timeout` (nobody answered in time, or a wait ran out) or `failed` (any other error) |
+
+The client's name, pane ids, tool arguments, the text read or typed and the answers you gave are never sent.
+
 ### SFTP transfers
 
 When an SFTP Manager tab opens, one event says whether it shares a terminal's session. When an upload or download in the SFTP Manager finishes, one event says how it went. File counts are rounded down to 0, 1, 2, 5, 10, 50, 100 or 1000. When korTTY stops watching a file you edited in an external editor (also as root), one event says how the edit ended; upload counts are rounded down to 0, 1, 2, 5, 10 or 50.
@@ -59,6 +70,16 @@ When an SFTP Manager tab opens, one event says whether it shares a terminal's se
 | `sftp_remote_edit` | korTTY stops watching a file opened with **Edit in External Editor** or **Edit as Root (sudo)...** | `external` or `sudo`, whether it ended `stopped`, `conflict`, `disconnected`, `closed` or `failed`, and the rounded number of uploads |
 
 File and folder names, paths, server names, editor commands, sudo passwords and file sizes are never sent.
+
+### JobScheduler notifications
+
+When the JobScheduler shows a desktop notification for a job run or sends one to a webhook target, one event says how it went.
+
+| Event | Sent when | Data |
+| --- | --- | --- |
+| `job_notification_sent` | a run notification is shown on the desktop, or delivered, refused or blocked for one webhook target | `desktop` or `webhook`, the payload format (`slack`, `teams`, `generic` or `none`), whether it ended `ok`, `failed` or `blocked`, and the number of delivery attempts (0 to 3) |
+
+Job and target names, webhook URLs and hosts, run status texts and anything of the run's output are never sent. A test sent with **Send test** is not counted.
 
 ## What is never collected
 

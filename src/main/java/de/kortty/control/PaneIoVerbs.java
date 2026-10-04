@@ -1,6 +1,7 @@
 package de.kortty.control;
 
 import com.google.gson.JsonObject;
+import de.kortty.core.SessionJournalRedactor;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -69,20 +70,40 @@ final class PaneIoVerbs {
                 PaneInfo pane = BaseVerbs.requirePane(surface, ui, params);
                 ReadMode mode = ReadMode.parse(
                     ControlJson.optString(params, "mode", ReadMode.VISIBLE.wire()));
-                int lines = readLines(params);
+                boolean mcp = session.isMcp();
+                int lines = mcp ? McpOutputMasking.clampLines(readLines(params)) : readLines(params);
                 if (mode == ReadMode.DETECTION) {
-                    return detection(agents, pane);
+                    if (!mcp) {
+                        return detection(agents, pane, null);
+                    }
+                    McpOutputMasking masking = McpOutputMasking.with(
+                        McpOutputMasking.secretsFor(surface, ui, List.of(pane.paneId())).get(pane.paneId()));
+                    JsonObject result = detection(agents, pane, masking);
+                    result.addProperty(McpOutputMasking.FIELD_MASKED_COUNT, masking.maskedCount());
+                    return result;
                 }
-                PaneReader reader = BaseVerbs.inUi(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS,
-                    () -> surface.readerFor(pane.paneId()).orElse(null));
+                Resolved resolved = BaseVerbs.inUi(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS,
+                    () -> new Resolved(surface.readerFor(pane.paneId()).orElse(null),
+                        mcp ? surface.secretRedactorFor(pane.paneId()).orElse(null) : null));
+                PaneReader reader = resolved.reader();
                 if (reader == null) {
                     throw new ControlApiException(ControlErrorCode.PANE_NOT_FOUND,
                         "No pane " + pane.paneId() + " is open",
                         Map.of(BaseVerbs.PARAM_PANE, pane.paneId()));
                 }
-                // Off the UI thread on purpose: a 10 000-line scrollback read must not stall it.
+                // Off the UI thread on purpose: a 10 000-line scrollback read must not stall it, and
+                // neither must masking two thousand rows for an MCP client.
                 PaneText text = reader.read(mode, lines);
-                return BaseVerbs.tree(truncate(pane.paneId(), mode, text));
+                if (!mcp) {
+                    return BaseVerbs.tree(truncate(pane.paneId(), mode, text));
+                }
+                McpOutputMasking masking = McpOutputMasking.with(resolved.secrets());
+                PaneText masked = masking.text(text == null
+                    ? new PaneText(pane.paneId(), mode.wire(), List.of(), 0, 0, false, null, false)
+                    : text);
+                JsonObject result = BaseVerbs.tree(truncate(pane.paneId(), mode, masked)).getAsJsonObject();
+                result.addProperty(McpOutputMasking.FIELD_MASKED_COUNT, masking.maskedCount());
+                return result;
             });
     }
 
@@ -116,7 +137,7 @@ final class PaneIoVerbs {
                 boolean submit = ControlJson.optBool(params, "submit", false);
                 String bracketed = ControlJson.optString(params, "bracketed", "auto");
                 boolean allow = ControlJson.optBool(params, "allow_shortcut_conflict", false);
-                return BaseVerbs.tree(writer.sendText(pane.paneId(), text, submit, bracketed, allow));
+                return BaseVerbs.tree(writer.sendText(session, pane.paneId(), text, submit, bracketed, allow));
             });
     }
 
@@ -142,7 +163,7 @@ final class PaneIoVerbs {
                 BaseVerbs.requireInstance(params, instanceId);
                 PaneInfo pane = BaseVerbs.requirePane(surface, ui, params);
                 String command = ControlJson.requireString(params, "command");
-                return BaseVerbs.tree(writer.run(pane.paneId(), command));
+                return BaseVerbs.tree(writer.run(session, pane.paneId(), command));
             });
     }
 
@@ -168,7 +189,7 @@ final class PaneIoVerbs {
             (session, params) -> {
                 BaseVerbs.requireInstance(params, instanceId);
                 PaneInfo pane = BaseVerbs.requirePane(surface, ui, params);
-                return BaseVerbs.tree(writer.sendKeys(pane.paneId(), keys(params)));
+                return BaseVerbs.tree(writer.sendKeys(session, pane.paneId(), keys(params)));
             });
     }
 
@@ -208,19 +229,36 @@ final class PaneIoVerbs {
                 String contains = ControlJson.optString(params, "contains", null);
                 ReadMode mode = ReadMode.parse(
                     ControlJson.optString(params, "mode", ReadMode.RECENT.wire()));
-                int lines = readLines(params);
+                boolean mcp = session.isMcp();
+                int lines = mcp ? McpOutputMasking.clampLines(readLines(params)) : readLines(params);
                 long timeout = ControlJson.optLong(params, "timeout_ms",
                     ControlApiProtocol.WAIT_DEFAULT_MILLIS, 1L, Long.MAX_VALUE);
                 long poll = ControlJson.optLong(params, "poll_ms", ControlApiProtocol.WAIT_POLL_MILLIS,
                     1L, ControlApiProtocol.WAIT_HARD_CAP_MILLIS);
-                return BaseVerbs.tree(
-                    capped(mode, waiter.await(pane.paneId(), regex, contains, mode, lines, timeout, poll)));
+                if (!mcp) {
+                    return BaseVerbs.tree(capped(mode,
+                        waiter.await(pane.paneId(), regex, contains, mode, lines, timeout, poll)));
+                }
+                // The pattern is matched against the masked text, so an MCP client can neither read
+                // a secret from the match nor confirm a guessed one by whether it matched at all.
+                SessionJournalRedactor secrets =
+                    McpOutputMasking.secretsFor(surface, ui, List.of(pane.paneId())).get(pane.paneId());
+                return BaseVerbs.tree(capped(mode, waiter.await(pane.paneId(), regex, contains, mode,
+                    lines, timeout, poll, text -> McpOutputMasking.with(secrets).text(text))));
             });
     }
 
-    /** The detection document, built from the registry entry the monitor already published. */
-    private static JsonObject detection(ControlAgentGateway agents, PaneInfo pane)
-            throws ControlApiException {
+    /** The two things a {@code pane.read} resolves in its one UI hop. */
+    private record Resolved(PaneReader reader, SessionJournalRedactor secrets) {
+    }
+
+    /**
+     * The detection document, built from the registry entry the monitor already published.
+     *
+     * @param masking the MCP masking for the evidence and the explanation, or null for a CLI client
+     */
+    private static JsonObject detection(ControlAgentGateway agents, PaneInfo pane,
+                                        McpOutputMasking masking) throws ControlApiException {
         JsonObject result = new JsonObject();
         result.addProperty("pane_id", pane.paneId());
         result.addProperty("mode", ReadMode.DETECTION.wire());
@@ -238,8 +276,9 @@ final class PaneIoVerbs {
         result.addProperty("kind", agent.kind());
         result.addProperty("state", agent.state());
         result.addProperty("matched_rule_id", agent.matchedRuleId());
-        result.addProperty("evidence", agent.evidence());
-        result.addProperty("explain", agents.explain(pane.paneId()));
+        String explain = agents.explain(pane.paneId());
+        result.addProperty("evidence", masking == null ? agent.evidence() : masking.mask(agent.evidence()));
+        result.addProperty("explain", masking == null ? explain : masking.mask(explain));
         return result;
     }
 

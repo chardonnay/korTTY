@@ -50,6 +50,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane | toggle | — | On | `codingAgentNotificationsEnabled` |
 | Show the number of agents waiting for a decision on the app icon | toggle | — | On | `codingAgentAppBadgeEnabled` |
 | Allow a local program to read and control this korTTY | toggle | — | **Off** | `controlApiEnabled` |
+| MCP server | toggle | — | **Off** | `mcpServerEnabled` |
+| Allow write tools | toggle | — | **Off** | `mcpWriteToolsEnabled` |
 
 ## Notes
 
@@ -139,6 +141,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
 !!! warning "Allow a local program to read and control this korTTY"
     This is the Control API, and it is the only setting in this tab that is off by default. While it is on, any program running under your user account on this computer can list your windows, read every open pane — local shells and SSH sessions alike — and type into them, including pressing ++enter++. Nothing is reachable over the network and no other user of the computer can connect, but that is the extent of the boundary: within your own account it is the same power as sitting at your keyboard. A status line under the checkbox reports what the listener is actually doing, because the checkbox and the listener can legitimately disagree — enterprise policy can deny the feature, and a start can fail because another korTTY already owns the socket. Every action is logged with byte counts only, never terminal text, and the first time a program types into a pane you get one desktop notification. See [Control API](../control-api.md) for the security model and [Control CLI](../cli.md) for the `kortty-cli` client that speaks it.
+
+    **MCP server** and **Allow write tools** below it let an AI assistant reach korTTY through `kortty-cli mcp`: the first offers read-only tools with secrets masked and output capped, the second adds tools that type into a pane, each of which korTTY asks you about first. Both are off by default, greyed out while the Control API is off and locked when the enterprise policy denies `mcp-server`. See [MCP clients](../control-api.md#mcp-clients).
 
 !!! note "Detect coding agents"
     When enabled, korTTY watches every local shell pane for a running Claude Code, Codex or Gemini CLI and tracks whether it is working, blocked on a question, done or idle. The screen is analysed locally and nothing leaves the computer; the change applies immediately to open tabs. The two toggles below it control the desktop notification for an agent that needs a decision or finishes while you are not looking at its pane, and the count of waiting agents on the app icon (or in the window title where no icon badge exists); both read the setting live, so a change applies at once. See [Coding agents](../../features/coding-agents.md#app-icon-badge-and-notifications).

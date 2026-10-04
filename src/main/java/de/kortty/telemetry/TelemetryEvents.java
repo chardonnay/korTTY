@@ -50,8 +50,12 @@ public final class TelemetryEvents {
     public static final String CODING_AGENT_DETECTED = "coding_agent_detected";
     public static final String CODING_AGENT_NOTIFICATION = "coding_agent_notification";
     public static final String CONTROL_API_USED = "control_api_used";
+    /** One tool call of an MCP client; props from {@link McpToolTelemetry}. */
+    public static final String MCP_TOOL_CALLED = "mcp_tool_called";
     public static final String JOURNAL_AI_ASK = "journal_ai_ask";
     public static final String JOURNAL_AI_CROSS_SEARCH = "journal_ai_cross_search";
+    /** One JobScheduler run notification on one channel; props from {@link JobNotificationTelemetry}. */
+    public static final String JOB_NOTIFICATION_SENT = "job_notification_sent";
 
     // Security / settings
     public static final String SECURITY_MANAGER_OPENED = "security_manager_opened";
