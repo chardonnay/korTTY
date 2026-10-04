@@ -1098,6 +1098,44 @@
 <p>Selecting a row shows stdout, stderr, and detail text. Use <strong>Delete selected</strong> to remove selected journal entries. By default, KorTTY automatically deletes scheduler journal entries older than 14 days; set the retention value to <code>0</code> to keep entries indefinitely.</p>
 <p>The protocol/detail area below the table is separated by a vertical splitter. Resize it to give the output more or less height; KorTTY stores that divider position in the global settings. In the detail text area, mark text and right-click to copy the selected text to the clipboard.</p>
 <p>Journal statuses include successful, failed, blocked, cancelled, and running/system entries. Reasons such as locked master password, missing host-key pin, missing <code>rsync</code>/<code>ssh</code>, unsupported Mosh target, or shutdown drain are written as journal details.</p>
+<h2 id="run-notifications">Run Notifications<a class="headerlink" href="#run-notifications" title="Permanent link">&para;</a></h2>
+<p>When a job run fails or is blocked, korTTY shows a desktop notification, also while the JobScheduler window is closed. The notification is titled <em>korTTY · Job</em> followed by the job's name, and its text only says how the run ended, its exit code when it had one, and whether it was started manually or by its schedule, for example <em>Failed · Exit code 2 · Scheduled run</em>. It never contains the run's output, detail or summary, because those can name servers, paths or secrets and a notification can appear on the lock screen. Control characters and invisible direction-changing characters are removed from the job name.</p>
+<p>Successful runs and recoveries (a successful run right after a failed or blocked one) do not notify by default, and cancelled runs never do. A job shows at most one notification per minute, so a job that fails every minute does not flood the desktop; its journal still records every run. Notifications use the same desktop notification service as the terminal, so where the operating system offers none, nothing is shown.</p>
+<h3 id="choosing-when-a-job-notifies">Choosing When a Job Notifies<a class="headerlink" href="#choosing-when-a-job-notifies" title="Permanent link">&para;</a></h3>
+<p>Each job has a <strong>Notifications</strong> section on its <strong>Job</strong> tab, just above the session journal section. Tick the run results that notify: <strong>Fails</strong> and <strong>Is blocked</strong> are on for every job, <strong>Recovers (succeeds after a failure)</strong> and <strong>Succeeds</strong> are off until you tick them. <strong>Show a desktop notification</strong> switches the desktop notification off for this job, for example for a job that only reports to a team channel. Below, tick the webhook targets this job sends to; no job sends to a webhook until you tick one. The section warns when nothing is ticked or when the enterprise policy blocks the ticked webhooks. Click <strong>Save</strong> to keep the changes.</p>
+<h3 id="webhook-targets">Webhook Targets<a class="headerlink" href="#webhook-targets" title="Permanent link">&para;</a></h3>
+<p>A webhook target is a receiver that gets a message for every matching run, also when korTTY is in the background: a Slack channel, a Microsoft Teams channel, or any service that accepts JSON over HTTPS. Click <strong>Webhook targets...</strong> in the job list or in the <strong>Notifications</strong> section to add, edit or delete targets. Each target has a <strong>Name</strong>, a <strong>Format</strong> and a <strong>URL</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Sends</th>
+<th>URL to paste</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Slack</strong></td>
+<td>a Slack message with the job name and the run's status, exit code and start reason</td>
+<td>a Slack incoming webhook URL, which starts with <code>https://hooks.slack.com/services/</code></td>
+</tr>
+<tr>
+<td><strong>Microsoft Teams (Workflows)</strong></td>
+<td>an Adaptive Card version 1.4 (schema <code>http://adaptivecards.io/schemas/adaptive-card.json</code>) for a Teams Workflows webhook</td>
+<td>the URL of a Teams workflow that posts a card to a channel when a webhook request is received; the retired Office 365 connectors are not supported</td>
+</tr>
+<tr>
+<td><strong>Generic JSON</strong></td>
+<td>korTTY's own JSON document, schema <code>kortty.job-run/1</code>, with the job's id and name, <code>status</code>, <code>recovered</code>, <code>exitCode</code>, <code>trigger</code> (<code>manual</code> or <code>scheduled</code>) and <code>finishedAt</code></td>
+<td>any HTTPS endpoint of your own</td>
+</tr>
+</tbody>
+</table>
+<p>Webhook URLs carry their credential in the path, so korTTY treats them as secrets. The URL is stored encrypted with the master password, the URL field is masked and never shows a stored URL (leave it empty to keep the stored one), and neither the journal nor korTTY's log ever contains more of it than the host. Only <code>https://</code> URLs are accepted, and <code>http://</code> only for a receiver on <code>localhost</code> or a loopback address; URLs with a user name or password are refused. While the master password is locked, webhooks are skipped and the journal records <em>notification skipped: master password locked</em>. A target can be switched off with <strong>Enabled</strong> without deleting it, and deleting a target removes it from every job.</p>
+<p>Messages never contain the run's output, stdout, stderr or detail. <strong>Include the run's summary (masked)</strong> adds the run's one-line summary; it is off by default because a summary can name servers, paths or text written by an AI, and it is sent to a third-party service. When it is on, known secret patterns and the job's own secrets are masked, control characters are removed and the summary is cut to 1,000 characters, but masking cannot catch everything.</p>
+<p><strong>Send test</strong> sends a sample successful run, named after the selected job, to the target as it is in the editor, also with a URL you have typed but not saved yet, and reports the result below the buttons: delivered, refused with the HTTP status, or blocked. It runs in the background and is the only message you send by hand.</p>
+<p>Delivery runs in the background and never holds up the job or the window. A message that times out after 10 seconds, cannot reach the receiver, or is answered with HTTP 429 or a 5xx status is retried up to 3 attempts in all, honouring the receiver's <code>Retry-After</code> up to 60 seconds; other refusals are not retried, and redirects are never followed. A message that still fails is recorded in the journal as <em>notification failed: webhook delivery unsuccessful</em> with the job, the target's name, the host, the number of attempts and the HTTP status. Webhooks are not throttled: every matching run sends one message.</p>
+<p>Administrators can forbid job webhooks with the policy feature <code>job-webhooks</code> and limit the hosts they may reach with <code>webhook-host-allowlist</code>; a blocked message is recorded as <em>notification blocked by policy</em>. See <a href="../reference/enterprise-policy.html#rulejob-scheduler"><code>[rule.job-scheduler]</code></a>.</p>
 <h2 id="menu-bar-status-and-cancellation">Menu-Bar Status and Cancellation<a class="headerlink" href="#menu-bar-status-and-cancellation" title="Permanent link">&para;</a></h2>
 <p>When <strong>Show Jobs status in menu bar</strong> is enabled, KorTTY shows the scheduler status after <strong>Help</strong> only if an enabled scheduler entry exists or a job is currently running. The status shows the running job, cancellation state, or the next job with a live countdown.</p>
 <p>Click the status menu to see:</p>
@@ -1124,6 +1162,7 @@
 <li>In an AI Swarm job, each server's password is redacted from the journals as soon as its background session connects, so output captured while the swarm is still running is covered too.</li>
 <li>What AI jobs send to a cloud AI profile is masked: the AI Swarm agents and the request that combines their answers (see <a href="ai-tools.html#masking-what-the-agent-sends">Masking what the agent sends</a>), and the request of an AI Agent job, where the server's stored password and the job's sudo password become <code>***</code>. The AI Agent job's request holds only the server name, the working directory and the job prompt, so the masking there only catches a secret typed into the prompt. Integrated models and a trusted local endpoint get the original text.</li>
 <li>If the master password is locked when a job needs SSH, sudo, API, or archive secrets, the job is blocked.</li>
+<li>Webhook URLs are stored encrypted with the master password and are never written to the journal or the log; only their host is.</li>
 <li>AI Agent and AI Swarm jobs follow your organization's <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a>. When the policy denies AI, the AI agent or (for swarm jobs) the AI Swarm, or sets <code>ai-agent-execution</code> to <code>read-only</code>, the job ends as <strong>BLOCKED</strong> before it connects to any server, and the journal names the reason. Under <code>ai-agent-execution = "confirm"</code> a person must approve every server-changing command, which an unattended job cannot ask for: an AI Agent job blocks at the first planned server-changing command and runs nothing of it, and an AI Swarm agent that plans one is stopped and counted as blocked, even when <strong>Auto-approve AI commands</strong> is on. Read-only commands still run.</li>
 </ul>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>

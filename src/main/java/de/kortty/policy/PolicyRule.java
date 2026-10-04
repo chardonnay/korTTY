@@ -53,6 +53,9 @@ import java.util.Set;
  *                                   session; the policy sets and locks the switch ({@code [rule.terminal]
  *                                   session-restore-output}), null leaves it to the user
  * @param sftp                       file-transfer limits from {@code [rule.sftp]}, or null
+ * @param webhookHostAllowlist       normalized host suffixes JobScheduler webhooks may reach
+ *                                   ({@code [rule.job-scheduler] webhook-host-allowlist}); empty allows
+ *                                   any host, null leaves it to a lower tier
  */
 public record PolicyRule(
     String name,
@@ -85,9 +88,11 @@ public record PolicyRule(
     Boolean allowOsc52ClipboardWrite,
     de.kortty.model.SessionRestoreMode sessionRestoreMode,
     Boolean sessionRestoreOutput,
-    SftpRule sftp) {
+    SftpRule sftp,
+    List<String> webhookHostAllowlist) {
 
     public PolicyRule {
+        webhookHostAllowlist = webhookHostAllowlist == null ? null : List.copyOf(webhookHostAllowlist);
         users = Set.copyOf(users);
         groups = Set.copyOf(groups);
         features = Map.copyOf(features);
@@ -243,6 +248,7 @@ public record PolicyRule(
         private de.kortty.model.SessionRestoreMode sessionRestoreMode;
         private Boolean sessionRestoreOutput;
         private SftpRule sftp;
+        private List<String> webhookHostAllowlist;
 
         public Builder name(String value) { this.name = value; return this; }
         public Builder users(Set<String> value) { this.users = value; return this; }
@@ -284,6 +290,7 @@ public record PolicyRule(
         }
         public Builder sessionRestoreOutput(Boolean value) { this.sessionRestoreOutput = value; return this; }
         public Builder sftp(SftpRule value) { this.sftp = value; return this; }
+        public Builder webhookHostAllowlist(List<String> value) { this.webhookHostAllowlist = value; return this; }
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
@@ -292,7 +299,7 @@ public record PolicyRule(
                 aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal,
                 snippetAnalysisMaxStoredContentBytes, pasteWarningFloor, allowOsc52ClipboardWrite,
-                sessionRestoreMode, sessionRestoreOutput, sftp);
+                sessionRestoreMode, sessionRestoreOutput, sftp, webhookHostAllowlist);
         }
     }
 }

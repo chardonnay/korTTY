@@ -4,6 +4,7 @@ import de.kortty.ai.huggingface.HuggingFaceTokenStore;
 import de.kortty.jobscheduler.JobSchedulerRepository;
 import de.kortty.jobscheduler.ScheduledJob;
 import de.kortty.jobscheduler.SudoCredential;
+import de.kortty.jobscheduler.WebhookTarget;
 import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.JumpServer;
@@ -198,7 +199,10 @@ public final class MasterPasswordReEncryptor {
         }
     }
 
-    /** Job Scheduler sudo passwords and password-protected-archive passwords in job-scheduler.xml. */
+    /**
+     * Job Scheduler sudo passwords, password-protected-archive passwords and webhook target URLs
+     * in job-scheduler.xml.
+     */
     public void reEncryptJobScheduler(JobSchedulerRepository repo) {
         if (repo == null) {
             return;
@@ -234,6 +238,20 @@ public final class MasterPasswordReEncryptor {
                 failures++;
                 logger.warn("Could not re-encrypt archive password for job [{}] — leaving it unchanged",
                     job.getId());
+            }
+        }
+        for (WebhookTarget target : repo.getWebhookTargets()) {
+            String current = target.getEncryptedUrl();
+            if (current == null || current.isBlank()) {
+                continue;
+            }
+            try {
+                target.setEncryptedUrl(reEncryptValue(current));
+                repo.upsertWebhookTarget(target);
+                changed = true;
+            } catch (Exception e) {
+                failures++;
+                logger.warn("Could not re-encrypt webhook target [{}] — leaving it unchanged", target.getId());
             }
         }
         if (changed) {

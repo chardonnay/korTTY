@@ -53,5 +53,12 @@ public enum ManagedSetting {
      */
     SFTP_TRANSFERS,
     /** Editing server files as root ({@link PolicyFeature#SFTP_SUDO_EDIT}); no Settings control of its own. */
-    SFTP_SUDO_EDIT
+    SFTP_SUDO_EDIT,
+    /** JobScheduler webhook notifications ({@link PolicyFeature#JOB_WEBHOOKS}); no Settings control of its own. */
+    JOB_WEBHOOKS,
+    /**
+     * The hosts JobScheduler webhooks may be sent to ({@code [rule.job-scheduler] webhook-host-allowlist},
+     * {@link EffectivePolicy#webhookHostAllowlist()}); an empty list allows any host.
+     */
+    WEBHOOK_HOST_ALLOWLIST
 }
