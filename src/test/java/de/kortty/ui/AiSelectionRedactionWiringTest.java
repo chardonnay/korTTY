@@ -28,13 +28,19 @@ class AiSelectionRedactionWiringTest {
 
     private static final Path MAIN_WINDOW = Path.of("src/main/java/de/kortty/ui/MainWindow.java");
     private static final Path RESULT_TAB = Path.of("src/main/java/de/kortty/ui/AiResultTab.java");
+    private static final Path INPUT = Path.of("src/main/java/de/kortty/ui/AiTextActionInput.java");
 
     @Test
     void theSelectionIsMaskedBeforeThePreviewAndEverySend() throws IOException {
-        String body = onlyBody(MAIN_WINDOW, "private void handleAiSelectionAction(");
+        String body = onlyBody(MAIN_WINDOW, "private void handleAiTextAction(");
 
-        int mask = body.indexOf("AiOutboundRedaction.redactFor(effectiveProfile, selectedText, knownSecrets)");
+        int mask = body.indexOf("AiTextActionInput.prepare(origin, effectiveProfile, selectedText, maxSelectionChars, knownSecrets)");
         assertThat(mask).isAtLeast(0);
+        assertThat(onlyBody(INPUT, "static @NotNull Prepared prepare("))
+            .contains("AiOutboundRedaction.redactFor(profile, input, knownSecrets)");
+        // Summarize Recent Output takes the same path, never one of its own.
+        assertThat(onlyBody(MAIN_WINDOW, "private void handleAiRecentOutputAction("))
+            .contains("handleAiTextAction(terminalTab, AiAction.SUMMARIZE, profile, output.text(),");
         assertThat(body.indexOf("confirmAiRequest(")).isGreaterThan(mask);
         assertThat(body).contains("confirmAiRequest(action, effectiveProfile, outboundText,");
         // Without a preview the masked text is sent as well, never the raw selection.

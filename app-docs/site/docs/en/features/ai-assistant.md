@@ -157,6 +157,15 @@ When an AI Agent run uses one or more skills, the terminal-agent activity panel 
 6. Use **Save** in the AI tab to store the conversation under a custom title.
 7. Reopen saved conversations later via **Tools > AI Manager** or ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).
 
+### Summarizing recent output without a selection
+
+Right-click a terminal pane without selecting anything and choose **AI > Summarize Recent Output**, then a profile. korTTY sends what the pane printed last:
+
+* the output of the last finished command, the same text **Copy Last Output** copies, when [shell integration](shell-integration.md) marks the pane's commands,
+* otherwise the last 200 lines of the pane.
+
+Either way the text is cleaned of terminal escape sequences and limited to the last 16,000 characters (and to the profile's selection limit, if that is smaller), so the newest output is what goes out. It then takes the same path as a selection: secrets are masked first (see [Masking secrets before sending](#masking-secrets-before-sending)), the preview dialog shows the exact text unless you turned it off for **Summarize**, and the chat's code blocks go back to the pane you right-clicked (see [Code blocks in the terminal](#code-blocks-in-the-terminal)). While a full-screen program such as an editor or pager runs, or the pane is empty, the status bar says there is nothing to summarize. When your organization's policy does not allow AI chats, the entry is shown greyed out.
+
 ### Masking secrets before sending
 
 Before a terminal selection goes to an AI profile, korTTY replaces the secrets it recognizes with `***`:

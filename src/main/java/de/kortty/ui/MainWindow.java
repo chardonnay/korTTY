@@ -9426,16 +9426,32 @@ public class MainWindow {
         statusLabel.setText(message);
     }
 
-    private void handleAiSelectionAction(
+    /**
+     * Summarize Recent Output: the pane's recent output, read by {@link TerminalRecentOutputSource}
+     * on the FX thread, goes through the same masking, preview and masked count as a selection.
+     */
+    private void handleAiRecentOutputAction(
+        TerminalTab terminalTab,
+        AiProfile profile,
+        TerminalRecentOutputSource.RecentOutput output,
+        TerminalView.TerminalAgentRunContext runContext) {
+        handleAiTextAction(terminalTab, AiAction.SUMMARIZE, profile, output.text(),
+            AiTextActionInput.Origin.RECENT_OUTPUT, runContext);
+    }
+
+    /**
+     * A terminal AI action (Summarize, Solve, Ask) on {@code text} from {@code origin}: a selection
+     * or the pane's recent output. The text is checked and masked by
+     * {@link AiTextActionInput#prepare} before the preview, so both origins send only masked text.
+     */
+    private void handleAiTextAction(
         TerminalTab terminalTab,
         AiAction action,
         AiProfile profile,
         String selectedText,
+        AiTextActionInput.Origin origin,
         TerminalView.TerminalAgentRunContext runContext) {
         if (!isAiFeaturesEnabled()) {
-            return;
-        }
-        if (selectedText == null || selectedText.trim().isEmpty()) {
             return;
         }
         AiProfile effectiveProfile = profile != null
@@ -9444,9 +9460,26 @@ public class MainWindow {
                 terminalTab != null ? terminalTab.getConnection() : null,
                 action.workload());
         int maxSelectionChars = getMaxAiSelectionChars(effectiveProfile);
-        if (selectedText.length() > maxSelectionChars) {
-            showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
-            return;
+        // Mask secrets before the preview, so the user reviews exactly what leaves the computer.
+        // The file name below is resolved from the raw selection; only the outbound text is masked.
+        SessionJournalRedactor knownSecrets = aiSecretRedactor(terminalTab);
+        AiTextActionInput.Prepared maskedSelection =
+            AiTextActionInput.prepare(origin, effectiveProfile, selectedText, maxSelectionChars, knownSecrets);
+        switch (maskedSelection.status()) {
+            case SKIP -> {
+                return;
+            }
+            case NO_OUTPUT -> {
+                updateStatus(I18n.get("ai.recentOutput.none"));
+                return;
+            }
+            case TOO_LARGE -> {
+                showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
+                return;
+            }
+            case READY -> {
+                // Sent below.
+            }
         }
         String effectiveModel = effectiveProfile != null
             && effectiveProfile.getConnectionMode().isEmbedded()
@@ -9473,14 +9506,11 @@ public class MainWindow {
         // When the selection looks like a file name in the pane's current directory, the file's
         // content can travel with the request as an attachment. The candidate is only an offer;
         // existence, readability, text-ness and size are verified on the target before anything
-        // is attached (see loadAiAttachmentAsync).
-        AiAttachmentCandidate attachmentCandidate =
-            resolveAiAttachmentCandidate(terminalTab, runContext, selectedText, maxSelectionChars);
-        // Mask secrets before the preview, so the user reviews exactly what leaves the computer.
-        // The file name above is resolved from the raw selection; only the outbound text is masked.
-        SessionJournalRedactor knownSecrets = aiSecretRedactor(terminalTab);
-        RedactionResult maskedSelection = AiOutboundRedaction.redactFor(effectiveProfile, selectedText, knownSecrets);
-        String outboundText = maskedSelection.text();
+        // is attached (see loadAiAttachmentAsync). Recent output is never a file name.
+        AiAttachmentCandidate attachmentCandidate = origin == AiTextActionInput.Origin.SELECTION
+            ? resolveAiAttachmentCandidate(terminalTab, runContext, selectedText, maxSelectionChars)
+            : null;
+        String outboundText = maskedSelection.outboundText();
         // The pane the selection came from, read now: the chat's code blocks go back to it.
         TerminalPaneRef sourcePane = aiSourcePane(terminalTab, runContext);
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
@@ -10327,7 +10357,10 @@ public class MainWindow {
         de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
         if (policy.aiChatAllowed()) {
             terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText, runContext) ->
-                handleAiSelectionAction(terminalTab, action, profile, selectedText, runContext));
+                handleAiTextAction(terminalTab, action, profile, selectedText, AiTextActionInput.Origin.SELECTION,
+                    runContext));
+            terminalTab.getTerminalView().setAiRecentOutputHandler((profile, output, runContext) ->
+                handleAiRecentOutputAction(terminalTab, profile, output, runContext));
         }
         terminalTab.getTerminalView().setSftpHereHandler(pane -> openSftpHere(terminalTab, pane));
         terminalTab.getTerminalView().setSftpOpenAtHandler((pane, path) -> openSftpHere(terminalTab, pane, path));

@@ -267,7 +267,7 @@ class AiCodeBlockTerminalActionTest {
     void chatsFromATerminalBindTheirPaneAndSavedChatsDoNot() throws Exception {
         String source = java.nio.file.Files.readString(
             java.nio.file.Path.of("src/main/java/de/kortty/ui/MainWindow.java"), StandardCharsets.UTF_8);
-        assertWithMessage("the selection actions and Ask Agent bind the source pane")
+        assertWithMessage("the selection actions, Summarize Recent Output and Ask Agent bind the source pane")
             .that(occurrences(source, "resultTab.setSourcePane(sourcePane);")).isEqualTo(2);
         assertWithMessage("nothing else binds one: a reopened saved chat has no pane")
             .that(occurrences(source, ".setSourcePane(")).isEqualTo(2);

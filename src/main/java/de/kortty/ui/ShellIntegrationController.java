@@ -615,6 +615,23 @@ final class ShellIntegrationController {
     }
 
     /**
+     * The text Copy Last Output would copy from {@code widget}, without touching the clipboard or
+     * the selection; {@code null} while shell integration is off, without marks or a finished
+     * command, or while a full-screen program runs. For "Summarize Recent Output". FX thread.
+     */
+    @Nullable String lastOutputText(@NotNull SithTermFxWidget widget) {
+        if (!isEnabled()) {
+            return null;
+        }
+        PaneCommandMarks marks = panes.get(widget);
+        if (marks == null) {
+            return null;
+        }
+        PaneCommandMarks.LastOutput output = marks.lastOutput(true);
+        return output.status() == PaneCommandMarks.LastOutputStatus.FOUND ? output.text() : null;
+    }
+
+    /**
      * Previous Prompt and Next Prompt as SithTermFX key actions on {@code previousKey} and
      * {@code nextKey}. They are hidden, since korTTY builds the context menu itself, and enabled while
      * {@code available} says so; a disabled action leaves the key to the program in the pane.
