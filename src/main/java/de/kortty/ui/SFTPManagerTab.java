@@ -29,6 +29,7 @@ import de.kortty.model.TemporarySSHKey;
 import de.kortty.ui.sftp.RemoteExtractMessages;
 import de.kortty.ui.sftp.RemoteSearchResultsPane;
 import de.kortty.ui.sftp.SftpDragOutPolicy;
+import de.kortty.ui.sftp.SftpEditGate;
 import de.kortty.ui.sftp.SftpDragPayload;
 import de.kortty.ui.sftp.SftpFileItem;
 import de.kortty.ui.sftp.SftpFileItemComparators;
@@ -615,7 +616,9 @@ public class SFTPManagerTab extends Tab {
             archiveButton.setDisable(!usable);
             deleteRemoteButton.setDisable(!usable);
             ownerRemoteButton.setDisable(!usable);
-            editRemoteButton.setDisable(!isRemoteConnected() || !isSingleEditableFileSelection(remoteTable));
+            // The organization's load-into-snippet-editor policy can deny editing server files.
+            editRemoteButton.setDisable(!isRemoteConnected() || !isSingleEditableFileSelection(remoteTable)
+                || !SftpEditGate.current().remoteEditorAvailable());
             // A new folder goes into the absolute folder a listing returned, not the unexpanded '~'.
             newFolderRemoteButton.setDisable(!isRemoteConnected() || !remotePathResolved);
         };
@@ -2549,8 +2552,9 @@ public class SFTPManagerTab extends Tab {
             archiveItem.setDisable(!hasSelection);
             extractItem.setDisable(!isSingleFile || remoteExtractCancellation != null
                 || RemoteArchiveExtractor.detect(selected.get(0).getName()).isEmpty());
-            editWithSnippetEditorItem.setDisable(!isSingleFile);
-            openImageItem.setDisable(!isImageFile);
+            SftpEditGate editGate = SftpEditGate.current();
+            editWithSnippetEditorItem.setDisable(!isSingleFile || !editGate.remoteEditorAvailable());
+            openImageItem.setDisable(!isImageFile || !editGate.remoteImageAvailable());
         });
 
         return menu;
@@ -4620,7 +4624,8 @@ public class SFTPManagerTab extends Tab {
 
     private void openSelectedRemoteFileInSnippetEditor() {
         SftpFileItem selected = getSingleEditableFileSelection(remoteTable);
-        if (selected == null || !requireConnected()) {
+        if (selected == null || !remoteEditAllowedByPolicy(SftpEditGate.current().remoteEditorAvailable())
+            || !requireConnected()) {
             return;
         }
         SFTPSession session = sftpSession;
@@ -4661,8 +4666,29 @@ public class SFTPManagerTab extends Tab {
         }, "sftp-local-snippet-loader").start();
     }
 
+    /**
+     * The organization's policy denies {@code allowed == false}: says so in the status line and
+     * returns {@code false}. Guards the actions whose menu items the policy already disables.
+     */
+    private boolean remoteEditAllowedByPolicy(boolean allowed) {
+        if (!allowed) {
+            statusLabel.setText(I18n.get("policy.feature.disabled"));
+        }
+        return allowed;
+    }
+
     private void openRemoteSnippetFileDialog(SftpFileItem selected, String content) {
+        // Read-only policy: the file opens and can be saved as a snippet, but the overwrite and
+        // save-as actions that write to the server are locked in the dialog.
+        SftpEditGate editGate = SftpEditGate.current();
+        if (!remoteEditAllowedByPolicy(editGate.remoteEditorAvailable())) {
+            return;
+        }
         Snippet snippet = createFileSnippetDraft(selected.getName(), content);
+        SnippetEditDialog.ExternalFileAction overwrite =
+            draft -> overwriteRemoteSnippetFile(selected.getPath(), draft);
+        SnippetEditDialog.ExternalFileAction saveAs =
+            draft -> saveRemoteSnippetFileAs(selected.getPath(), selected.getName(), draft);
         SnippetEditDialog.ExternalFileActionConfig config = new SnippetEditDialog.ExternalFileActionConfig(
             selected.getPath(),
             I18n.get("sftp.snippetEditor.overwriteRemote"),
@@ -4671,8 +4697,8 @@ public class SFTPManagerTab extends Tab {
             I18n.get("sftp.snippetEditor.savedFile"),
             I18n.get("sftp.snippetEditor.savedFile"),
             I18n.get("sftp.snippetEditor.savedSnippet"),
-            draft -> overwriteRemoteSnippetFile(selected.getPath(), draft),
-            draft -> saveRemoteSnippetFileAs(selected.getPath(), selected.getName(), draft),
+            editGate.remoteWriteAction(overwrite),
+            editGate.remoteWriteAction(saveAs),
             this::saveDraftAsSnippet
         );
         showSnippetFileDialog(snippet, config);
@@ -4719,12 +4745,14 @@ public class SFTPManagerTab extends Tab {
     }
 
     private boolean overwriteRemoteSnippetFile(String remotePath, Snippet draft) throws Exception {
+        SftpEditGate.current().requireRemoteWriteBack(I18n.get("policy.terminal.loadReadOnly"));
         connectedSession().uploadFileBytes(draft.getContent().getBytes(StandardCharsets.UTF_8), remotePath);
         Platform.runLater(this::refreshRemote);
         return true;
     }
 
     private boolean saveRemoteSnippetFileAs(String originalRemotePath, String originalFileName, Snippet draft) throws Exception {
+        SftpEditGate.current().requireRemoteWriteBack(I18n.get("policy.terminal.loadReadOnly"));
         Optional<String> response = callOnFxThread(() -> {
             TextInputDialog dialog = new TextInputDialog(originalFileName);
             dialog.setTitle(I18n.get("sftp.snippetEditor.remoteFileName.title"));
@@ -4897,6 +4925,7 @@ public class SFTPManagerTab extends Tab {
     private void openRemoteImage() {
         var selected = remoteTable.getSelectionModel().getSelectedItem();
         if (selected == null || !selected.isFile()) return;
+        if (!remoteEditAllowedByPolicy(SftpEditGate.current().remoteImageAvailable())) return;
         if (!requireConnected()) return;
         SFTPSession session = sftpSession;
 

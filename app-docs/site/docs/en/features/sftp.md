@@ -158,6 +158,8 @@ The file-mode buttons provide these save choices:
 - **Save as...** — writes a new local file through a file chooser, or for remote files prompts for a new file name in the same remote directory
 - **Save as snippet** — stores the current content as a new Snippet Manager snippet without marking the source file as saved
 
+An organization can restrict editing server files with the `load-into-snippet-editor` key of its [enterprise policy](../reference/enterprise-policy.md). With `read-only`, remote files still open in the Snippet Editor and can be saved as a snippet, but **Overwrite file** and **Save as...** are locked and their tooltip names the policy. With `deny`, **Edit in Snippet Editor** and **Open image** are disabled for remote files. Local files in the left panel are on your own computer and stay editable either way.
+
 ![SFTP dual-panel file manager](../assets/screenshots/sftp/sftp-manager.png)
 
 ## Search
