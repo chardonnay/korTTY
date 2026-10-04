@@ -53,6 +53,7 @@ KorTTY verwendet **SithTermFX 1.2.2** als primären Terminalemulator, der währe
 - **Farbunterstützung**: Konfigurierbare ANSI- und TrueColor-Verarbeitung mit Überschreibungen pro Verbindung
 - **Überprüfte Grenzkorrektur**: Ein angehefteter korTTY-Patch lehnt die nicht vorhandene Zeile bei ab `line == height` beim Hyperlink-Treffertest, um die unterste Zeile zu verhindern `TerminalTextBuffer` Bereichsfehler
 - **Überprüfter Shortcut-Akkord-Fix**: Ein zweiter angehefteter korTTY-Patch verhindert, dass Shortcut-Akkord-`KEY_TYPED`-Zeichen (z. B. ++cmd+shift+d++) die PTY- oder Broadcast-Fenster erreichen
+- **Überprüfte Längenbegrenzung für Steuersequenzen**: Ein dritter angehefteter korTTY-Patch begrenzt den 1024 Zeichen großen Rückschiebepuffer, über den `ControlSequence` die Zeichen, die es in einer CSI nicht unterbringen kann, vor der Sequenz erneut liest: Nicht zuordenbare Zeichen und danach ganze Parameter, die nicht hineinpassen, werden verworfen, und die neu ausgegebene Sequenz behält immer ihr Abschlusszeichen, sodass eine überlange Sequenz in der Ausgabe der Gegenstelle keine `ArrayIndexOutOfBoundsException` mehr im Emulator-Thread auslöst und die Sitzung beendet. `OscEventSplitter` spielt dieselben Zeichen erneut ab, und die Korrektur wartet als `vendor-patches/0003-control-sequence-push-back-bounds.patch` auf eine Upstream-Veröffentlichung
 - **Korrektheit des Bildlaufbereichs**: Der Bildlaufbereich schränkt den Cursor nicht ein, während der Ursprungsmodus (DECOM) deaktiviert ist. Text, der oberhalb des oberen Rands oder unterhalb des unteren Rands adressiert wird, bleibt in dieser Zeile, anstatt in den Bereich gezogen zu werden, und nur ein Zeilenvorschub oder ein automatischer Zeilenumbruch, der tatsächlich den unteren Rand überschreitet, scrollt – so landen die erste Bereichszeile von tmux, seine Statuszeile und der Cursor alle dort, wo die Anwendung sie platziert hat. Wird als korTTY-Patch getragen, bis er in SithTermFX 1.2.2 ausgeliefert wird
 
 ### Build-Integration
@@ -60,9 +61,9 @@ KorTTY verwendet **SithTermFX 1.2.2** als primären Terminalemulator, der währe
 Der Build-Prozess automatisch:
 
 1. Klont SithTermFX am Tag `v1.2.2` in `vendor/sithtermfx` (kein GitHub-Token erforderlich)
-2. Wendet die überprüften Patches in `patches/sithtermfx/` – `1.2.2-terminal-panel-bottom-row.patch` und `1.2.2-terminal-panel-meta-shortcut-key-typed.patch` – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder zutrifft noch bereits mit der Quelle übereinstimmt
+2. Wendet die überprüften Patches in `patches/sithtermfx/` – `1.2.2-control-sequence-bounds.patch`, `1.2.2-terminal-panel-bottom-row.patch` und `1.2.2-terminal-panel-meta-shortcut-key-typed.patch` – der Reihe nach an. Dies schlägt fehl, wenn ein Patch weder zutrifft noch bereits mit der Quelle übereinstimmt
 3. Erstellt es lokal mit Maven über die `installSithtermfxLocal`-Aufgabe
-4. Installiert Artefakte im lokalen Maven-Repository (`mavenLocal()`), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, ein ungepatchtes zwischengespeichertes UI-JAR abzulehnen
+4. Installiert Artefakte im lokalen Maven-Repository (`mavenLocal()`), einschließlich einer Markierungsressource pro Patch, die es Gradle ermöglicht, ein ungepatchtes zwischengespeichertes Kern- oder UI-JAR abzulehnen
 5. Verknüpft SithTermFX-Kern- und UI-Module mit der korTTY-JAR
 
 Nach dem Klonen ist kein Netzwerkzugriff erforderlich; Alle Build-Schritte sind deterministisch und reproduzierbar.
@@ -242,7 +243,7 @@ KorTTY basiert auf sorgfältig kuratierten, produktionsgetesteten Abhängigkeite
 |---|---|---|---|
 | **SSH** | Apache SSHD (Core, Common, SFTP) | 2.19.0 | SSH-Protokollimplementierung |
 | | BouncyCastle (bcprov, bcpkix) | 1.86 | Kryptografieanbieter, SSH-Schlüsselanalyse und Ed25519/EdDSA-Schlüsselunterstützung |
-| **Terminal** | SithTermFX (Kern, UI) | 1.2.2 plus angeheftete KorTTY-Grenz- und Shortcut-Akkord-Patches | Terminal-Emulator-Engine |
+| **Terminal** | SithTermFX (Kern, UI) | 1.2.2 plus angeheftete KorTTY-Grenz-, Shortcut-Akkord- und Steuersequenz-Längen-Patches | Terminal-Emulator-Engine |
 | | Lanterna | 3.1.5 | Textbasierte UI-Komponenten |
 | | pty4j (JetBrains) | 0,12,25 | PTY-Zuweisung für Mosh |
 | **Plattform** | JNA (JNA, JNA-Plattform) | 5.19.1 | Native Desktop-Energieverwaltungsintegration |
