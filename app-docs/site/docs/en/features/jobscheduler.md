@@ -229,6 +229,7 @@ If KorTTY is about to exit while JobScheduler jobs are running, it shows a warni
     - Unsupported Mosh target
     - Missing `rsync` or `ssh` in PATH
     - Old host-key pin without OpenSSH public-key material for Rsync
+    - An AI Agent or AI Swarm job that your organization's [enterprise policy](../reference/enterprise-policy.md#rulefeatures) does not allow: the detail text says whether AI, the AI agent or the AI Swarm is disabled, whether the agent is limited to read-only, or which server-changing commands were blocked because the policy requires a person to approve them
 
     **JobScheduler Rsync cannot start:** Verify local `rsync --version` and `ssh -V`, or configure the Rsync binary path in **Settings > SFTP > JobScheduler Rsync**.
 

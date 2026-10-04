@@ -114,10 +114,10 @@ Patterns match the host string exactly as configured in the connection — korTT
 
 | Key | Type | Values | Restricts |
 | --- | --- | --- | --- |
-| `ai` | string | `allow`, `deny` | Master switch: `deny` disables every AI capability at once |
-| `ai-agent` | string | `allow`, `deny` | AI Agent (menu, terminal context menu, keyboard shortcut, headless job runs) |
+| `ai` | string | `allow`, `deny` | Master switch: `deny` disables every AI capability at once, and scheduled AI Agent and AI Swarm jobs end as blocked before they connect |
+| `ai-agent` | string | `allow`, `deny` | AI Agent (menu, terminal context menu, keyboard shortcut, headless job runs). `deny` also blocks scheduled AI Agent and AI Swarm jobs before they connect, because swarm agents are AI agents |
 | `ai-chat` | string | `allow`, `deny` | AI chat, Saved Chats and the terminal-selection AI actions |
-| `ai-swarm` | string | `allow`, `deny` | AI Swarm, including scheduled swarm jobs |
+| `ai-swarm` | string | `allow`, `deny` | AI Swarm, including scheduled swarm jobs, which end as blocked before they connect |
 | `ai-planning` | string | `allow`, `deny` | AI Planning |
 | `teamwork` | string | `allow`, `deny` | Teamwork shared-connections sync (service is not started, menu locked) |
 | `plugins` | string | `allow`, `deny` | Plugin loading and the Plugins menu (e.g. terminal effects) |
