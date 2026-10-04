@@ -176,7 +176,7 @@ An upload or download never replaces an existing file silently. When the target 
 
 ### When file transfer is turned off by your organization
 
-An organization can switch file transfer off with its [enterprise policy](../reference/enterprise-policy.md#rulefeatures) (`file-transfer = "deny"`). The SFTP Manager then still opens and browses the server, and renaming, deleting, permissions, archives, search and copying on the server keep working, but **Upload** and **Download** stay disabled, drops that would copy to or from the server are refused with a message in the status bar, and remote files cannot be dragged to the desktop. JobScheduler jobs that upload, download or sync with SFTP fail with the same message without connecting. Commands such as `scp` typed into a terminal are not affected.
+An organization can switch file transfer off with its [enterprise policy](../reference/enterprise-policy.md#rulefeatures) (`file-transfer = "deny"`). The SFTP Manager then still opens and browses the server, and renaming, deleting, permissions, archives, search and copying on the server keep working, but **Upload** and **Download** stay disabled, drops that would copy to or from the server are refused with a message in the status bar, and remote files cannot be dragged to the desktop. JobScheduler jobs that upload, download or sync with SFTP, and rsync jobs, fail with the same message without connecting. Commands such as `scp` typed into a terminal are not affected.
 
 ### Permissions
 

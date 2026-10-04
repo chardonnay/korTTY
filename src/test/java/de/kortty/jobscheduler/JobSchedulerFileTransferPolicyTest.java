@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 
 /**
  * The JobScheduler leg of the {@code file-transfer} policy (D6): SFTP upload, download and sync
- * jobs fail with the policy message before anything is resolved or connected, and remote-only SFTP
+ * jobs and rsync jobs fail with the policy message before anything is resolved or connected, and remote-only SFTP
  * actions are not affected.
  */
 class JobSchedulerFileTransferPolicyTest {
@@ -83,7 +83,7 @@ class JobSchedulerFileTransferPolicyTest {
         String expected = FileTransferGate.check(policy(PolicyDecision.DENY),
             FileTransferGate.Route.JOB_SFTP_UPLOAD).reason();
         for (JobActionType type : List.of(JobActionType.SFTP_UPLOAD, JobActionType.SFTP_DOWNLOAD,
-                JobActionType.SFTP_SYNC)) {
+                JobActionType.SFTP_SYNC, JobActionType.RSYNC_SYNC)) {
             Path local = dir.resolve(type.name().toLowerCase() + ".csv");
 
             JobExecutionOutcome outcome = runner.run(job(type, local), "run-1");

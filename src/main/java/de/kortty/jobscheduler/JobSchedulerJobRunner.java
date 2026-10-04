@@ -92,8 +92,8 @@ public class JobSchedulerJobRunner {
 
     /**
      * The policy refusal for an action that copies files between this computer and a server (D6:
-     * SFTP upload, download and sync), or empty when the action may run. Remote-only SFTP actions
-     * are never refused here.
+     * SFTP upload, download and sync, and rsync), or empty when the action may run. Remote-only
+     * SFTP actions are never refused here.
      */
     Optional<String> fileTransferRefusal(JobAction action) {
         if (action == null || action.getType() == null) {
@@ -103,6 +103,9 @@ public class JobSchedulerJobRunner {
             case SFTP_UPLOAD -> de.kortty.policy.FileTransferGate.Route.JOB_SFTP_UPLOAD;
             case SFTP_DOWNLOAD -> de.kortty.policy.FileTransferGate.Route.JOB_SFTP_DOWNLOAD;
             case SFTP_SYNC -> de.kortty.policy.FileTransferGate.Route.JOB_SFTP_SYNC;
+            // rsync copies between this computer and the server as well; leaving it open would
+            // defeat a data-loss-prevention deny.
+            case RSYNC_SYNC -> de.kortty.policy.FileTransferGate.Route.JOB_RSYNC_SYNC;
             default -> null;
         };
         if (route == null) {

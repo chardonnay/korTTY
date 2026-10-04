@@ -396,8 +396,8 @@ public final class EffectivePolicy {
     /**
      * Whether files may be copied between this computer and a server (D6): the SFTP manager's
      * uploads, downloads, drops and drag-out, and the JobScheduler's SFTP upload, download and sync
-     * actions. Allowed unless the policy denies {@code file-transfer}. Browsing and remote-only
-     * operations are never gated by it. Callers ask {@link FileTransferGate}, which adds the reason.
+     * actions and its rsync action. Allowed unless the policy denies {@code file-transfer}. Browsing
+     * and remote-only operations are never gated by it. Callers ask {@link FileTransferGate}, which adds the reason.
      */
     public boolean fileTransferAllowed() {
         return decision(PolicyFeature.FILE_TRANSFER) != PolicyDecision.DENY;

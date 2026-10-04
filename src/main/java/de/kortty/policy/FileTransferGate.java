@@ -37,7 +37,9 @@ public final class FileTransferGate {
         /** The JobScheduler's SFTP download action. */
         JOB_SFTP_DOWNLOAD,
         /** The JobScheduler's SFTP sync action, in either direction. */
-        JOB_SFTP_SYNC
+        JOB_SFTP_SYNC,
+        /** The JobScheduler's rsync action: it copies files between this computer and a server too. */
+        JOB_RSYNC_SYNC
     }
 
     /**

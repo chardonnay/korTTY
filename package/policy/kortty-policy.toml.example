@@ -67,7 +67,7 @@
 #                                     # and a tab's broadcast mode (Stop always works)
 #   file-transfer = "deny"            # copying files to or from servers: SFTP manager uploads,
 #                                     # downloads, drops and drag-out, and JobScheduler SFTP
-#                                     # upload/download/sync. Browsing and remote-only operations
+#                                     # upload/download/sync and rsync. Browsing and remote-only operations
 #                                     # keep working; scp typed into a terminal cannot be blocked.
 #   # Agent execution mode: "allow" (user settings govern), "confirm" (every mutating
 #   # command set needs interactive approval; auto-approve is defeated), "read-only"
