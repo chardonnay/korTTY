@@ -8,7 +8,9 @@ import de.kortty.codingagent.PaneRef;
 import de.kortty.codingagent.desktop.DesktopNotifier;
 import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.core.GlobalSettingsManager;
+import de.kortty.core.highlight.TerminalOutputHighlighter.LineMatch;
 import de.kortty.model.GlobalSettings;
+import de.kortty.policy.PolicyManager;
 import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.RemoteNotificationText;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
@@ -22,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -34,9 +37,10 @@ import java.util.function.Supplier;
  * decides: the attention mark on the pane's tab ({@link TerminalTab#markAttention}) and a desktop
  * notification through the application's {@link DesktopNotifier}. The requests are a bell
  * ({@link #onBell}), a long command the shell marked finished ({@link #onCommandFinished}), a
- * program asking for a notification with OSC 9 or OSC 777 ({@link #onRemoteNotification}), and
+ * program asking for a notification with OSC 9 or OSC 777 ({@link #onRemoteNotification}),
  * activity or silence in a tab the user asked to watch ({@link #onActivity}, {@link #onSilence};
- * {@link TerminalActivityWatcher} reports them).
+ * {@link TerminalActivityWatcher} reports them), and a highlight rule with the notification action
+ * matching new output ({@link #onHighlightTrigger}; {@link HighlightTriggerDispatcher} decides).
  *
  * <p>The notification is titled {@code korTTY · <tab>}, as the Control API's notifications are, so
  * a program in a terminal can never make it look like a message from another application. It never
@@ -86,6 +90,8 @@ public final class TerminalAttentionNotifier {
 
     private final Predicate<SithTermFxWidget> mirroredInput;
 
+    private final HighlightTriggerDispatcher triggers;
+
     /**
      * @param multiExecSession the multi-exec session a pane takes part in, or {@code null}
      *                         ({@link MultiExecCoordinator#sessionOf})
@@ -103,6 +109,8 @@ public final class TerminalAttentionNotifier {
         this.codingAgents = Objects.requireNonNull(codingAgents, "codingAgents");
         this.multiExecSession = Objects.requireNonNull(multiExecSession, "multiExecSession");
         this.mirroredInput = Objects.requireNonNull(mirroredInput, "mirroredInput");
+        this.triggers = new HighlightTriggerDispatcher(policy, () -> HighlightTriggerDispatcher.triggersAllowed(
+            this.settings.get(), PolicyManager.effective()));
     }
 
     /** The notifier of the running application, for every window. JavaFX thread. */
@@ -243,6 +251,31 @@ public final class TerminalAttentionNotifier {
         }
         if (decision.toast()) {
             show(toastTitle(tab.getEffectiveTitle()), text);
+        }
+    }
+
+    /**
+     * Highlight rules with the notification action matched new output in {@code widget}, a pane of
+     * {@code tab} ({@link de.kortty.core.highlight.TerminalOutputHighlighter.TriggerSink}). While the
+     * policy and the user's switch allow triggers, a tab the user is not looking at gets its mark with
+     * the rule's name in the tooltip, and a desktop notification titled {@code korTTY · <tab>} names the
+     * rule, at most once per rule and pane every 30 seconds, or per multi-exec session for its members.
+     * Output right after mirrored keys reached the pane answers them and leads to nothing. JavaFX thread.
+     */
+    public void onHighlightTrigger(TerminalTab tab, SithTermFxWidget widget, List<LineMatch> matches) {
+        if (tab == null || widget == null || matches == null || matches.isEmpty()) {
+            return;
+        }
+        PaneState state = new PaneState(seen.test(tab), false, false, mirroredInputIn(widget));
+        Object session = multiExecSessionOf(widget);
+        for (HighlightTriggerDispatcher.Notice notice : triggers.dispatch(session != null ? session : widget, state,
+                tab.getEffectiveTitle(), matches, I18n::get)) {
+            if (notice.badge()) {
+                tab.markAttention(notice.tooltip());
+            }
+            if (notice.toast()) {
+                show(notice.title(), notice.body());
+            }
         }
     }
 

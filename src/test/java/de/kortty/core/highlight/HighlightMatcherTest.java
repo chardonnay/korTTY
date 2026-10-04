@@ -104,6 +104,37 @@ class HighlightMatcherTest {
     }
 
     @Test
+    void everyRulesFirstHitIsReportedEvenWhereAnotherRuleOwnsTheCharacters() {
+        CompiledHighlightSet set = set(literal("disk full"), literal("full"));
+        HighlightMatcher.Result result = match(set, "ERROR disk full, disk full again");
+
+        assertThat(result.firstHitStart(0)).isEqualTo(6);
+        assertThat(result.firstHitEnd(0)).isEqualTo(15);
+        assertWithMessage("the second rule owns nothing, but it did hit")
+            .that(owners(result)).doesNotContain("1");
+        assertThat(result.hit(1)).isTrue();
+        assertThat(result.firstHitStart(1)).isEqualTo(11);
+        assertThat(result.firstHitEnd(1)).isEqualTo(15);
+        assertThat(match(set, "nothing here").hit(0)).isFalse();
+        assertThat(match(set, "nothing here").firstHitStart(0)).isEqualTo(-1);
+        assertThat(result.firstHitStart(7)).isEqualTo(-1);
+    }
+
+    @Test
+    void aTriggerWithoutALookClaimsNothingSoTheRuleBelowItStillColors() {
+        HighlightRule quiet = new HighlightRule("ERROR", false);
+        quiet.setAction(HighlightRule.Action.NOTIFY);
+        CompiledHighlightSet set = set(quiet, literal("ERROR"));
+
+        HighlightMatcher.Result result = match(set, "ERROR x");
+
+        assertThat(set.rule(0).visual()).isFalse();
+        assertThat(set.rule(0).trigger()).isTrue();
+        assertThat(owners(result)).isEqualTo("11111..");
+        assertThat(result.hit(0)).isTrue();
+    }
+
+    @Test
     void aLineRuleClaimsTheWholeLogicalLine() {
         HighlightRule line = literal("FATAL");
         line.setScope(HighlightRule.Scope.LINE);

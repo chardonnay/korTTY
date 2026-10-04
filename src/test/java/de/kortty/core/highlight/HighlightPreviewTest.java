@@ -66,6 +66,20 @@ class HighlightPreviewTest {
     }
 
     @Test
+    void aTriggerWithoutALookCountsTheLinesItWouldActOnAndLeavesTheTextToTheRulesBelow() {
+        HighlightRule quiet = new HighlightRule("error", false);
+        quiet.setAction(HighlightRule.Action.NOTIFY);
+        HighlightRuleSet set = set(quiet, literal("error"));
+
+        HighlightPreview.Result result = HighlightPreview.evaluate(set, "error error\nfine\nerror");
+
+        assertThat(result.rule(0).evaluated()).isTrue();
+        assertWithMessage("one per line on which it would notify").that(result.rule(0).hits()).isEqualTo(2);
+        assertThat(result.rule(1).hits()).isEqualTo(3);
+        assertThat(owners(result.lines().getFirst())).isEqualTo("11111.11111");
+    }
+
+    @Test
     void thePreviewShowsExactlyWhatTheMatcherGivesAPane() {
         HighlightRule line = literal("timed out");
         line.setScope(HighlightRule.Scope.LINE);

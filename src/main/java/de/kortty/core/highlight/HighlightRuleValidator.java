@@ -75,7 +75,8 @@ public final class HighlightRuleValidator {
         if (!CompiledHighlightSet.isValidColor(rule.getBackground())) {
             problems.add(KEY_BACKGROUND_INVALID);
         }
-        if (!rule.hasVisualEffect()) {
+        if (!rule.hasVisualEffect() && !rule.hasAction()) {
+            // A trigger (a notification when the pattern appears) may leave the text as it is.
             problems.add(KEY_NO_EFFECT);
         }
         return problems;

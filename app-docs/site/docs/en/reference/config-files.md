@@ -168,8 +168,8 @@ Global application preferences and defaults.
 
 #### Keyword highlighting
 
-- The master switch (`terminalHighlightingEnabled`), highlighting in full-screen programs (`terminalHighlightAlternateScreen`) and the default rule set (`defaultHighlightRuleSetId`, the id of a built-in or your own set; empty means none)
-- Your own rule sets (`highlightRuleSets`), as edited in the [rule-set editor](../features/highlighting.md#your-own-rule-sets): each set has a stable id, a name and its rules in priority order, and each rule its id, whether it is on, the pattern, whether it is a regular expression, ignore case, whole word, whether it colors the match or the whole line, the text and background colors (`#RRGGBB`, a theme color `ansi:0` to `ansi:15`, or empty to keep the program's color) and bold, italic and underline
+- The master switch (`terminalHighlightingEnabled`), highlighting in full-screen programs (`terminalHighlightAlternateScreen`), the default rule set (`defaultHighlightRuleSetId`, the id of a built-in or your own set; empty means none) and whether rules that notify may do so (`terminalTriggersEnabled`)
+- Your own rule sets (`highlightRuleSets`), as edited in the [rule-set editor](../features/highlighting.md#your-own-rule-sets): each set has a stable id, a name and its rules in priority order, and each rule its id, whether it is on, the pattern, whether it is a regular expression, ignore case, whole word, whether it colors the match or the whole line, the text and background colors (`#RRGGBB`, a theme color `ansi:0` to `ansi:15`, or empty to keep the program's color), bold, italic and underline, and its action (`NONE` or `NOTIFY`), its optional name and whether a notification carries the matched text (see [Notifications for matching output](../features/highlighting.md#notifications-for-matching-output))
 - The built-in rule sets are not stored: they come with korTTY, so a new version can improve them, and their ids start with `builtin.`, which your own sets cannot use
 
 #### AI, models and knowledge stores

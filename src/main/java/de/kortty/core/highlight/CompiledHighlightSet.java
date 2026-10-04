@@ -40,19 +40,53 @@ public final class CompiledHighlightSet {
      * @param ruleId the rule's stable id, the only thing about a rule that may be logged
      * @param foreground the color to paint the text in, or {@code null} to keep the program's
      * @param background the color to paint behind the text, or {@code null} to keep the program's
+     * @param action what the rule does when its pattern appears in new output ({@link HighlightRule#getAction()})
+     * @param notifyWithText whether a notification of the rule carries the matched text
+     * @param label what a notification calls the rule: its name, or its pattern when it has none. The
+     *              user's own text, but it may quote what they watch for, so it is never logged
      */
     public record Rule(int index, String ruleId, Pattern pattern, HighlightRule.Scope scope,
                        TerminalColor foreground, TerminalColor background,
-                       boolean bold, boolean italic, boolean underline) {
+                       boolean bold, boolean italic, boolean underline,
+                       HighlightRule.Action action, boolean notifyWithText, String label) {
+
+        /** A rule without an action, as every rule was before triggers existed. */
+        public Rule(int index, String ruleId, Pattern pattern, HighlightRule.Scope scope,
+                    TerminalColor foreground, TerminalColor background,
+                    boolean bold, boolean italic, boolean underline) {
+            this(index, ruleId, pattern, scope, foreground, background, bold, italic, underline,
+                HighlightRule.Action.NONE, false, "");
+        }
+
+        public Rule {
+            action = action != null ? action : HighlightRule.Action.NONE;
+            label = label != null ? label : "";
+        }
+
+        /**
+         * True when the rule changes how its match looks. A rule that only acts (a notification) claims no
+         * characters, so it neither restyles them nor takes them away from a rule further down.
+         */
+        public boolean visual() {
+            return foreground != null || background != null || bold || italic || underline;
+        }
+
+        /** True when the rule acts when its pattern appears ({@link HighlightRule.Action#NONE} does not). */
+        public boolean trigger() {
+            return action != HighlightRule.Action.NONE;
+        }
     }
 
     private final String setId;
 
     private final List<Rule> rules;
 
+    private final boolean hasTriggers;
+
     private CompiledHighlightSet(String setId, List<Rule> rules) {
         this.setId = setId;
         this.rules = List.copyOf(rules);
+        this.hasTriggers = this.rules.stream().anyMatch(Rule::trigger);
     }
 
     /** Compiles the usable rules of {@code set} in order; {@code null} gives {@link #NONE}. */
@@ -77,9 +111,20 @@ public final class CompiledHighlightSet {
             }
             compiled.add(new Rule(compiled.size(), rule.getId(), patternFor(rule), rule.getScope(),
                 parseColor(rule.getForeground()), parseColor(rule.getBackground()),
-                rule.isBold(), rule.isItalic(), rule.isUnderline()));
+                rule.isBold(), rule.isItalic(), rule.isUnderline(),
+                rule.getAction(), rule.isNotifyWithText(), labelOf(rule)));
         }
         return new CompiledHighlightSet(set.getId(), compiled);
+    }
+
+    /** What a notification calls {@code rule}: its name, else its pattern as typed. */
+    static String labelOf(HighlightRule rule) {
+        String name = rule.getName();
+        if (name != null) {
+            return name;
+        }
+        String pattern = rule.getPattern();
+        return pattern != null ? pattern.strip() : "";
     }
 
     /**
@@ -168,5 +213,10 @@ public final class CompiledHighlightSet {
     /** True when nothing can ever be highlighted: {@link #NONE}, or a set without a usable rule. */
     public boolean isEmpty() {
         return rules.isEmpty();
+    }
+
+    /** True when at least one usable rule is a trigger ({@link Rule#trigger()}). */
+    public boolean hasTriggers() {
+        return hasTriggers;
     }
 }

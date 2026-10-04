@@ -503,6 +503,11 @@ public class TerminalView extends BorderPane {
      * the still undecoded write; set by the tab, null once the tab is cleaned up.
      */
     private volatile BiConsumer<SithTermFxWidget, ShellIntegrationEvent.ClipboardWrite> clipboardWriteListener;
+    /**
+     * Told on the FX thread which pane's highlight rules with an action matched new output (one pass's
+     * worth, at most one per rule); set by the tab, null once the tab is cleaned up.
+     */
+    private volatile BiConsumer<SithTermFxWidget, List<TerminalOutputHighlighter.LineMatch>> highlightTriggerListener;
 
     /** A bracketed-paste tracker together with the connector it listens on, so a rebind can detach it. */
     private record PasteTracking(BracketedPasteTracker tracker, ObservableTtyConnector connector) {}
@@ -4489,7 +4494,8 @@ public class TerminalView extends BorderPane {
                     highlightSelection(pane),
                     panel != null ? panel::repaint : () -> { },
                     () -> recordRestyledTerminalRecordingSnapshot(pane),
-                    () -> panel != null && panel.getFindResult() != null);
+                    () -> panel != null && panel.getFindResult() != null,
+                    matches -> Platform.runLater(() -> onPaneHighlightTrigger(pane, matches)));
                 attached[0] = highlighter != null;
                 return highlighter;
             });
@@ -4628,6 +4634,49 @@ public class TerminalView extends BorderPane {
             paneConnection = local.getConnection();
         }
         return paneConnection != null ? paneConnection : connection;
+    }
+
+    /**
+     * Highlight rules with an action matched new output in {@code widget} (see
+     * {@link TerminalOutputHighlighter.TriggerSink}); FX thread. A pane closed or a tab cleaned up since
+     * then is ignored.
+     */
+    private void onPaneHighlightTrigger(SithTermFxWidget widget, List<TerminalOutputHighlighter.LineMatch> matches) {
+        BiConsumer<SithTermFxWidget, List<TerminalOutputHighlighter.LineMatch>> listener = highlightTriggerListener;
+        if (listener == null || matches == null || matches.isEmpty() || !getOrderedWidgets().contains(widget)) {
+            return;
+        }
+        try {
+            listener.accept(widget, matches);
+        } catch (RuntimeException e) {
+            logger.debug("Handling a highlight trigger failed: {}", e.toString());
+        }
+    }
+
+    /**
+     * Sets who is told, on the FX thread, that highlight rules with an action (a desktop notification)
+     * matched output that arrived in one of this tab's panes — never output written locally, such as a
+     * project's restored screen.
+     */
+    public void setHighlightTriggerListener(
+            BiConsumer<SithTermFxWidget, List<TerminalOutputHighlighter.LineMatch>> listener) {
+        highlightTriggerListener = listener;
+    }
+
+    /**
+     * Makes everything {@code widget} shows now old output for the highlight triggers, after korTTY wrote
+     * something into it that did not come from the session.
+     */
+    private void markHighlightBaseline(SithTermFxWidget widget) {
+        TerminalOutputHighlighter highlighter = widget != null ? terminalHighlighters.get(widget) : null;
+        if (highlighter == null) {
+            return;
+        }
+        try {
+            highlighter.markBaseline();
+        } catch (RuntimeException e) {
+            logger.warn("Keyword highlighting could not mark restored output as old: {}", e.toString());
+        }
     }
 
     /**
@@ -7780,6 +7829,7 @@ public class TerminalView extends BorderPane {
         commandFinishedListener = null;
         remoteNotificationListener = null;
         clipboardWriteListener = null;
+        highlightTriggerListener = null;
         pastePacer.cancelAll();
         releaseAllShellTitleListeners();
         cancelAllTerminalAgentRuns();
@@ -8735,6 +8785,9 @@ public class TerminalView extends BorderPane {
         } catch (RuntimeException e) {
             // Old output is a convenience; it must never keep the live session from starting.
             logger.warn("Could not show the restored screen output: {}", e.getMessage());
+        } finally {
+            // The restored rows are old output: a highlight trigger must not fire on them.
+            markHighlightBaseline(widget);
         }
     }
 

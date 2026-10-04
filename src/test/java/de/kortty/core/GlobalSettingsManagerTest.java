@@ -173,11 +173,15 @@ class GlobalSettingsManagerTest {
             line.setBackground("#3a0000");
             line.setItalic(true);
             line.setUnderline(true);
+            line.setName("Fatal <errors>");
+            line.setAction(de.kortty.model.HighlightRule.Action.NOTIFY);
+            line.setNotifyWithText(true);
             manager.getSettings().getHighlightRuleSets().add(
                 new de.kortty.model.HighlightRuleSet("ops", "Ops <&> \"alerts\"", List.of(match, line)));
             manager.getSettings().setTerminalHighlightingEnabled(false);
             manager.getSettings().setDefaultHighlightRuleSetId("builtin.network");
             manager.getSettings().setTerminalHighlightAlternateScreen(true);
+            manager.getSettings().setTerminalTriggersEnabled(false);
             manager.save();
 
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
@@ -201,6 +205,9 @@ class GlobalSettingsManagerTest {
             assertThat(first.isBold()).isTrue();
             assertThat(first.isItalic()).isFalse();
             assertThat(first.isUnderline()).isFalse();
+            assertThat(first.getName()).isNull();
+            assertThat(first.getAction()).isEqualTo(de.kortty.model.HighlightRule.Action.NONE);
+            assertThat(first.isNotifyWithText()).isFalse();
             de.kortty.model.HighlightRule second = set.getRules().get(1);
             assertThat(second.getPattern()).isEqualTo("^FATAL\\b.*");
             assertThat(second.isRegex()).isTrue();
@@ -209,9 +216,40 @@ class GlobalSettingsManagerTest {
             assertThat(second.getBackground()).isEqualTo("#3a0000");
             assertThat(second.isItalic()).isTrue();
             assertThat(second.isUnderline()).isTrue();
+            assertThat(second.getName()).isEqualTo("Fatal <errors>");
+            assertThat(second.getAction()).isEqualTo(de.kortty.model.HighlightRule.Action.NOTIFY);
+            assertThat(second.isNotifyWithText()).isTrue();
+            assertThat(settings.isTerminalTriggersEnabled()).isFalse();
             assertThat(settings.isTerminalHighlightingEnabled()).isFalse();
             assertThat(settings.getDefaultHighlightRuleSetId()).isEqualTo("builtin.network");
             assertThat(settings.isTerminalHighlightAlternateScreen()).isTrue();
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void aRuleWrittenBeforeTriggersExistedLoadsWithoutAnAction() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings");
+        try {
+            Files.writeString(dir.resolve("global-settings.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <globalSettings>
+                  <highlightRuleSets>
+                    <ruleSet><id>ops</id><name>Ops</name>
+                      <rules><rule><id>r1</id><enabled>true</enabled><pattern>ERROR</pattern><bold>true</bold></rule></rules>
+                    </ruleSet>
+                  </highlightRuleSets>
+                </globalSettings>
+                """);
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            manager.load();
+            de.kortty.model.HighlightRule rule = manager.getSettings().getHighlightRuleSets().get(0).getRules().get(0);
+            assertThat(rule.getPattern()).isEqualTo("ERROR");
+            assertThat(rule.getAction()).isEqualTo(de.kortty.model.HighlightRule.Action.NONE);
+            assertThat(rule.getName()).isNull();
+            assertThat(rule.isNotifyWithText()).isFalse();
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
@@ -232,6 +270,7 @@ class GlobalSettingsManagerTest {
             assertThat(settings.isTerminalHighlightingEnabled()).isTrue();
             assertThat(settings.getDefaultHighlightRuleSetId()).isNull();
             assertThat(settings.isTerminalHighlightAlternateScreen()).isFalse();
+            assertThat(settings.isTerminalTriggersEnabled()).isTrue();
 
             // Fresh installs start without a set as well: highlighting is opt-in.
             GlobalSettings fresh = GlobalSettings.forFreshInstall();

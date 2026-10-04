@@ -140,4 +140,30 @@ class CompiledHighlightSetTest {
             logger.setLevel(previous);
         }
     }
+
+    @Test
+    void aTriggerKeepsItsActionAndIsLabelledByItsNameOrElseItsPattern() {
+        HighlightRule named = new HighlightRule("No space left", false);
+        named.setName("  Disk full  ");
+        named.setAction(HighlightRule.Action.NOTIFY);
+        named.setNotifyWithText(true);
+        HighlightRule unnamed = new HighlightRule("  oom-killer ", false);
+        unnamed.setAction(HighlightRule.Action.NOTIFY);
+        HighlightRule plain = new HighlightRule("ERROR", false);
+        plain.setBold(true);
+
+        CompiledHighlightSet set = CompiledHighlightSet.compile(
+            new HighlightRuleSet("s", "S", List.of(named, unnamed, plain)));
+
+        assertThat(set.hasTriggers()).isTrue();
+        assertThat(set.rule(0).action()).isEqualTo(HighlightRule.Action.NOTIFY);
+        assertThat(set.rule(0).notifyWithText()).isTrue();
+        assertThat(set.rule(0).label()).isEqualTo("Disk full");
+        assertThat(set.rule(0).visual()).isFalse();
+        assertThat(set.rule(1).label()).isEqualTo("oom-killer");
+        assertThat(set.rule(2).trigger()).isFalse();
+        assertThat(set.rule(2).visual()).isTrue();
+        assertThat(CompiledHighlightSet.compile(new HighlightRuleSet("p", "P", List.of(plain))).hasTriggers()).isFalse();
+        assertThat(CompiledHighlightSet.NONE.hasTriggers()).isFalse();
+    }
 }

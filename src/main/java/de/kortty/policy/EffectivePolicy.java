@@ -176,6 +176,7 @@ public final class EffectivePolicy {
                     case PLUGINS -> ManagedSetting.PLUGINS;
                     case SESSION_JOURNAL -> ManagedSetting.SESSION_JOURNAL;
                     case CONTROL_API -> ManagedSetting.CONTROL_API;
+                    case TERMINAL_TRIGGERS -> ManagedSetting.TERMINAL_TRIGGERS;
                 });
             }
         }
@@ -333,6 +334,16 @@ public final class EffectivePolicy {
      */
     public boolean controlApiAllowed() {
         return decision(PolicyFeature.CONTROL_API) != PolicyDecision.DENY;
+    }
+
+    /**
+     * Whether highlight rules may act when their pattern appears in terminal output (a desktop
+     * notification). Only the policy leg: the user's own switch ({@code GlobalSettings.terminalTriggersEnabled},
+     * on by default) has to be on as well. Highlighting itself is never affected. A policy that mentions
+     * the key locks the switch in the position it chose ({@link PolicyClamp}).
+     */
+    public boolean terminalTriggersAllowed() {
+        return decision(PolicyFeature.TERMINAL_TRIGGERS) != PolicyDecision.DENY;
     }
 
     /** Session journals are NOT chained through {@link #aiAllowed()}: capture works without AI. */

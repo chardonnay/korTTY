@@ -8,6 +8,8 @@ A program in a terminal can ask for your attention while you are working somewhe
 
 You can also ask korTTY to watch a tab for you: to tell you when output appears in a quiet tab, or when a tab that was printing falls silent; see [Watching a tab for activity or silence](#watching-a-tab-for-activity-or-silence).
 
+A [keyword highlighting](highlighting.md) rule of your own can do the same for a word or pattern: it marks the tab and notifies when the pattern appears in new output; see [Notifications for matching output](highlighting.md#notifications-for-matching-output).
+
 A program can also ask to put text on your clipboard. KorTTY allows that only when you switch it on, and the status bar tells you each time; see [Programs copying to the clipboard](#programs-copying-to-the-clipboard-osc-52).
 
 ## When you are looking at a tab

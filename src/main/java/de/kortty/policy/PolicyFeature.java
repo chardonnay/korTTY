@@ -18,7 +18,12 @@ public enum PolicyFeature {
     /** Session journal capture, management and export — not an AI feature; AI summaries additionally require AI. */
     SESSION_JOURNAL("session-journal"),
     /** The local control API and its {@code kortty-cli} client — not an AI feature. */
-    CONTROL_API("control-api");
+    CONTROL_API("control-api"),
+    /**
+     * Highlight-rule triggers: actions a rule takes when its pattern appears in terminal output (a
+     * desktop notification). Highlighting itself is not affected.
+     */
+    TERMINAL_TRIGGERS("terminal-triggers");
 
     private final String tomlKey;
 

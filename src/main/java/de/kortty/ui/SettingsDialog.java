@@ -197,6 +197,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox terminalHighlightingEnabledCheck;
     private final CheckBox terminalHighlightAlternateScreenCheck;
     private final ComboBox<HighlightSettingsSupport.DefaultSetChoice> defaultHighlightSetCombo;
+    private final CheckBox terminalTriggersEnabledCheck;
 
     // Appearance settings
     private final ComboBox<AppDesign> appDesignCombo;
@@ -974,6 +975,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // With the master switch off, neither of the other two has any effect.
         terminalHighlightAlternateScreenCheck.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
         defaultHighlightSetCombo.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
+        // Triggers: what a highlight rule may do besides coloring (a desktop notification). The policy
+        // key terminal-triggers locks the box; otherwise it follows the master switch, as rules only run
+        // while highlighting is on.
+        terminalTriggersEnabledCheck = new CheckBox(I18n.get(HighlightSettingsSupport.TRIGGERS_KEY));
+        terminalTriggersEnabledCheck.setSelected(globalSettings == null || globalSettings.isTerminalTriggersEnabled());
+        terminalTriggersEnabledCheck.setTooltip(new Tooltip(I18n.get(HighlightSettingsSupport.TRIGGERS_TOOLTIP_KEY)));
+        // After setTooltip: lockIfManaged replaces it with the managed-by-your-organization hint. A locked
+        // box must not be bound as well, or setDisable(true) would fail on the bound property.
+        if (!de.kortty.policy.PolicyUiSupport.lockIfManaged(
+                terminalTriggersEnabledCheck, de.kortty.policy.ManagedSetting.TERMINAL_TRIGGERS)) {
+            terminalTriggersEnabledCheck.disableProperty().bind(terminalHighlightingEnabledCheck.selectedProperty().not());
+        }
 
         // Rows are numbered by a counter, as on the Window tab, so a section can be inserted
         // anywhere without renumbering every row below it.
@@ -1015,6 +1028,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         HBox defaultHighlightSetRow = new HBox(8, defaultHighlightSetCombo, editHighlightRulesButton);
         defaultHighlightSetRow.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
         terminalGrid.add(defaultHighlightSetRow, 1, terminalRow++);
+        terminalGrid.add(terminalTriggersEnabledCheck, 0, terminalRow++, 2, 1);
         Label highlightingInfo = new Label(I18n.get(HighlightSettingsSupport.INFO_KEY));
         highlightingInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         highlightingInfo.setWrapText(true);
@@ -3533,6 +3547,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalHighlightAlternateScreen(terminalHighlightAlternateScreenCheck.isSelected());
             globalSettings.setDefaultHighlightRuleSetId(
                 HighlightSettingsSupport.storedValue(defaultHighlightSetCombo.getValue()));
+            globalSettings.setTerminalTriggersEnabled(terminalTriggersEnabledCheck.isSelected());
             globalSettings.setRequireMasterPasswordOnStartup(requireMasterPasswordOnStartupCheck.isSelected());
             boolean skipPrompt = skipMasterPasswordPromptCheck.isSelected();
             // Only touch the remembered-password file when the option actually changes — or when it
@@ -3795,6 +3810,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             // The set's class only (a built-in id, "custom" or "none"), never the name of a user's set.
             tracked.add(new TrackedSetting("terminal", "highlighting_default_set",
                 () -> HighlightSettingsSupport.telemetryValue(gs.getDefaultHighlightRuleSetId()), true));
+            tracked.add(new TrackedSetting("terminal", "highlighting_triggers", gs::isTerminalTriggersEnabled, true));
             tracked.add(new TrackedSetting("video", "recording_enabled", gs::isTerminalRecordingEnabled, true));
             tracked.add(new TrackedSetting("video", "capture_colors", gs::isTerminalRecordingCaptureColorsEnabled, true));
             tracked.add(new TrackedSetting("backup", "max_count", gs::getMaxBackupCount, true));

@@ -16,8 +16,8 @@ import org.testng.annotations.Test;
 
 /**
  * Every text of the terminal notifications, in Settings → Terminal, in the notifications and tab
- * tooltips themselves and in the tab's activity and silence switches, and of programs writing the
- * clipboard (OSC 52), exists in all eight bundled languages with the placeholders of the English
+ * tooltips themselves (highlight triggers included) and in the tab's activity and silence switches, and
+ * of programs writing the clipboard (OSC 52), exists in all eight bundled languages with the placeholders of the English
  * text.
  */
 class TerminalNotificationsI18nCoverageTest {
@@ -59,6 +59,9 @@ class TerminalNotificationsI18nCoverageTest {
         "terminal.notify.activity.body",
         "terminal.notify.activity.tooltip",
         "terminal.notify.silence.body",
+        "terminal.notify.trigger.tooltip",
+        "terminal.notify.trigger.bodyWithText",
+        "terminal.notify.trigger.unnamed",
         "tab.contextMenu.monitorActivity",
         "tab.contextMenu.monitorSilence",
         "settings.terminal.osc52.enabled",

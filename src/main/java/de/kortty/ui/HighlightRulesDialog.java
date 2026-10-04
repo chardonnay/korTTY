@@ -66,6 +66,12 @@ import java.util.function.Consumer;
  * and its live preview, computed by {@link HighlightPreview} with the matcher and time budget a terminal
  * pane uses, so the preview, the hit counts and the slow-rule warnings are what a pane would do.
  *
+ * <p>A rule can also be a trigger: <b>Action</b> makes it show a desktop notification when its pattern
+ * appears in new output ({@link HighlightRule.Action#NOTIFY}), named by its <b>Rule name</b>; the
+ * matched text only with <b>Include the matched text</b>. While the organization's policy forbids
+ * triggers the action controls are locked; while the user's switch in Settings → Terminal is off a hint
+ * says the rule only highlights.
+ *
  * <p>All editing happens on working copies ({@link HighlightRulesEditorModel}); OK stores them in
  * {@link GlobalSettings} and is disabled, with the first problem named in the footer, while any rule or
  * set is invalid. {@link #showAndSave} then writes {@code global-settings.xml} through
@@ -115,6 +121,19 @@ public final class HighlightRulesDialog {
     /** {0} is {@link HighlightPreview#MAX_LINES}. */
     static final String PREVIEW_TRUNCATED_KEY = "highlight.editor.previewTruncated";
     static final String PREVIEW_INCOMPLETE_KEY = "highlight.editor.previewIncomplete";
+    static final String COLUMN_ACTION_KEY = "highlight.editor.column.action";
+    static final String COLUMN_ACTION_NOTIFY_KEY = "highlight.editor.column.action.notify";
+    static final String ACTION_KEY = "highlight.editor.action";
+    static final String ACTION_NONE_KEY = "highlight.editor.action.none";
+    static final String ACTION_NOTIFY_KEY = "highlight.editor.action.notify";
+    static final String NOTIFY_WITH_TEXT_KEY = "highlight.editor.notifyWithText";
+    static final String NOTIFY_WITH_TEXT_TOOLTIP_KEY = "highlight.editor.notifyWithText.tooltip";
+    static final String RULE_NAME_KEY = "highlight.editor.ruleName";
+    static final String RULE_NAME_PROMPT_KEY = "highlight.editor.ruleName.prompt";
+    /** The hint below the action while the user's switch in Settings → Terminal is off. */
+    static final String TRIGGERS_OFF_KEY = "highlight.editor.triggersOff";
+    /** The hint below the action while the organization's policy forbids triggers. */
+    static final String TRIGGERS_FORBIDDEN_KEY = "highlight.editor.triggersForbidden";
 
     /** Every key of the dialog's own texts, for the i18n coverage test. */
     static final List<String> KEYS = List.of(TITLE_KEY, SETS_KEY, NEW_SET_KEY, DUPLICATE_KEY, DELETE_KEY,
@@ -122,7 +141,9 @@ public final class HighlightRulesDialog {
         COLUMN_SCOPE_KEY, COLUMN_HITS_KEY, COLUMN_CHECK_KEY, ADD_RULE_KEY, REMOVE_RULE_KEY, MOVE_UP_KEY, MOVE_DOWN_KEY,
         PRIORITY_HINT_KEY, PATTERN_KEY, REGEX_KEY, IGNORE_CASE_KEY, WHOLE_WORD_KEY, SCOPE_KEY, SCOPE_MATCH_KEY,
         SCOPE_LINE_KEY, FOREGROUND_KEY, BACKGROUND_KEY, STYLE_KEY, BOLD_KEY, ITALIC_KEY, UNDERLINE_KEY, SAMPLE_KEY,
-        PREVIEW_KEY, PREVIEW_TRUNCATED_KEY, PREVIEW_INCOMPLETE_KEY);
+        PREVIEW_KEY, PREVIEW_TRUNCATED_KEY, PREVIEW_INCOMPLETE_KEY, COLUMN_ACTION_KEY, COLUMN_ACTION_NOTIFY_KEY,
+        ACTION_KEY, ACTION_NONE_KEY, ACTION_NOTIFY_KEY, NOTIFY_WITH_TEXT_KEY, NOTIFY_WITH_TEXT_TOOLTIP_KEY,
+        RULE_NAME_KEY, RULE_NAME_PROMPT_KEY, TRIGGERS_OFF_KEY, TRIGGERS_FORBIDDEN_KEY);
 
     /** Where the dialog's size and position are remembered. */
     static final String GEOMETRY_KEY = "highlight.rules";
@@ -190,6 +211,11 @@ public final class HighlightRulesDialog {
     private final CheckBox boldCheck = new CheckBox(I18n.get(BOLD_KEY));
     private final CheckBox italicCheck = new CheckBox(I18n.get(ITALIC_KEY));
     private final CheckBox underlineCheck = new CheckBox(I18n.get(UNDERLINE_KEY));
+    private final ComboBox<HighlightRule.Action> actionCombo =
+        new ComboBox<>(FXCollections.observableArrayList(HighlightRule.Action.values()));
+    private final CheckBox notifyWithTextCheck = new CheckBox(I18n.get(NOTIFY_WITH_TEXT_KEY));
+    private final TextField ruleNameField = new TextField();
+    private final Label triggerHint = new Label();
     private final Label ruleMessage = new Label();
     private final GridPane details = new GridPane();
 
@@ -207,9 +233,17 @@ public final class HighlightRulesDialog {
     /** True while controls are filled from the model, so their listeners do not write back. */
     private boolean loading;
 
+    /** Whether the organization's policy forbids trigger actions: the action controls stay locked. */
+    private final boolean triggersForbidden;
+
+    /** Whether the user's switch for trigger actions (Settings → Terminal) is on. */
+    private final boolean triggersEnabled;
+
     private HighlightRulesDialog(GlobalSettings settings) {
         this.model = new HighlightRulesEditorModel(settings.getHighlightRuleSets());
         this.terminalColors = settings.getDefaultTerminalSettings();
+        this.triggersForbidden = !de.kortty.policy.PolicyManager.effective().terminalTriggersAllowed();
+        this.triggersEnabled = settings.isTerminalTriggersEnabled();
     }
 
     /**
@@ -323,7 +357,7 @@ public final class HighlightRulesDialog {
         problemLabel.managedProperty().bind(problemLabel.textProperty().isNotEmpty());
         problemLabel.visibleProperty().bind(problemLabel.managedProperty());
         VBox content = new VBox(6, split, problemLabel);
-        content.setPrefSize(980, 700);
+        content.setPrefSize(980, 760);
         dialog.getDialogPane().setContent(content);
 
         if (sampleArea.getText() == null || sampleArea.getText().isEmpty()) {
@@ -483,13 +517,20 @@ public final class HighlightRulesDialog {
         hitsColumn.setMaxWidth(80);
         hitsColumn.setSortable(false);
 
+        TableColumn<HighlightRule, String> actionColumn = new TableColumn<>(I18n.get(COLUMN_ACTION_KEY));
+        actionColumn.setCellValueFactory(cell -> new SimpleObjectProperty<>(
+            cell.getValue().getAction() == HighlightRule.Action.NOTIFY ? I18n.get(COLUMN_ACTION_NOTIFY_KEY) : ""));
+        actionColumn.setMinWidth(80);
+        actionColumn.setSortable(false);
+
         TableColumn<HighlightRule, HighlightRule> checkColumn = new TableColumn<>(I18n.get(COLUMN_CHECK_KEY));
         checkColumn.setCellValueFactory(cell -> new SimpleObjectProperty<>(cell.getValue()));
         checkColumn.setCellFactory(column -> new CheckCell());
         checkColumn.setMinWidth(90);
         checkColumn.setSortable(false);
 
-        ruleTable.getColumns().addAll(List.of(enabledColumn, patternColumn, scopeColumn, hitsColumn, checkColumn));
+        ruleTable.getColumns().addAll(List.of(enabledColumn, patternColumn, scopeColumn, actionColumn, hitsColumn,
+            checkColumn));
         ruleTable.getSelectionModel().selectedItemProperty().addListener((obs, old, rule) -> showRule(rule));
         enabledColumn.setSortable(false);
     }
@@ -510,6 +551,23 @@ public final class HighlightRulesDialog {
         boldCheck.selectedProperty().addListener((obs, old, value) -> editRule(rule -> rule.setBold(value)));
         italicCheck.selectedProperty().addListener((obs, old, value) -> editRule(rule -> rule.setItalic(value)));
         underlineCheck.selectedProperty().addListener((obs, old, value) -> editRule(rule -> rule.setUnderline(value)));
+        actionCombo.setCellFactory(view -> new ActionCell());
+        actionCombo.setButtonCell(new ActionCell());
+        actionCombo.valueProperty().addListener((obs, old, value) -> {
+            if (value != null) {
+                editRule(rule -> rule.setAction(value));
+                updateTriggerControls();
+            }
+        });
+        notifyWithTextCheck.setTooltip(new Tooltip(I18n.get(NOTIFY_WITH_TEXT_TOOLTIP_KEY)));
+        notifyWithTextCheck.selectedProperty().addListener(
+            (obs, old, value) -> editRule(rule -> rule.setNotifyWithText(value)));
+        ruleNameField.setPromptText(I18n.get(RULE_NAME_PROMPT_KEY));
+        ruleNameField.textProperty().addListener((obs, old, text) -> editRule(rule -> rule.setName(text)));
+        triggerHint.setWrapText(true);
+        triggerHint.setStyle(HINT_STYLE);
+        triggerHint.managedProperty().bind(triggerHint.textProperty().isNotEmpty());
+        triggerHint.visibleProperty().bind(triggerHint.managedProperty());
 
         details.setHgap(8);
         details.setVgap(6);
@@ -529,7 +587,14 @@ public final class HighlightRulesDialog {
         details.add(new Label(I18n.get(BACKGROUND_KEY)), 0, row);
         details.add(backgroundField.box, 1, row++);
         details.add(new Label(I18n.get(STYLE_KEY)), 0, row);
-        details.add(new HBox(14, boldCheck, italicCheck, underlineCheck), 1, row);
+        details.add(new HBox(14, boldCheck, italicCheck, underlineCheck), 1, row++);
+        details.add(new Label(I18n.get(ACTION_KEY)), 0, row);
+        HBox actionRow = new HBox(14, actionCombo, notifyWithTextCheck);
+        actionRow.setAlignment(Pos.CENTER_LEFT);
+        details.add(actionRow, 1, row++);
+        details.add(new Label(I18n.get(RULE_NAME_KEY)), 0, row);
+        details.add(ruleNameField, 1, row++);
+        details.add(triggerHint, 1, row);
 
         ruleMessage.setWrapText(true);
         ruleMessage.setStyle(WARNING_STYLE);
@@ -625,6 +690,9 @@ public final class HighlightRulesDialog {
             boldCheck.setSelected(rule != null && rule.isBold());
             italicCheck.setSelected(rule != null && rule.isItalic());
             underlineCheck.setSelected(rule != null && rule.isUnderline());
+            actionCombo.setValue(rule != null ? rule.getAction() : HighlightRule.Action.NONE);
+            notifyWithTextCheck.setSelected(rule != null && rule.isNotifyWithText());
+            ruleNameField.setText(rule != null && rule.getName() != null ? rule.getName() : "");
         } finally {
             loading = false;
         }
@@ -635,8 +703,33 @@ public final class HighlightRulesDialog {
             control.setDisable(!editable);
         }
         patternField.setDisable(rule == null);
+        updateTriggerControls();
         updateRuleMessage();
         updateButtons();
+    }
+
+    /**
+     * The action controls: locked while the policy forbids triggers (with the organization's hint),
+     * otherwise editable for a rule of the user's; the matched-text option and the name only matter for a
+     * rule with an action.
+     */
+    private void updateTriggerControls() {
+        boolean editable = currentRule != null && !model.isReadOnly(currentSet);
+        boolean acting = currentRule != null && currentRule.hasAction();
+        actionCombo.setDisable(!editable || (triggersForbidden && !acting));
+        notifyWithTextCheck.setDisable(!editable || !acting || triggersForbidden);
+        ruleNameField.setEditable(editable);
+        ruleNameField.setDisable(currentRule == null);
+        if (triggersForbidden) {
+            actionCombo.setTooltip(new Tooltip(de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+        }
+        String hint = "";
+        if (acting && triggersForbidden) {
+            hint = I18n.get(TRIGGERS_FORBIDDEN_KEY);
+        } else if (acting && !triggersEnabled) {
+            hint = I18n.get(TRIGGERS_OFF_KEY);
+        }
+        triggerHint.setText(hint);
     }
 
     // ==== editing ====
@@ -817,6 +910,16 @@ public final class HighlightRulesDialog {
             List<String> messages = HighlightRulesEditorModel.ruleMessages(rule, stats);
             setTooltip(messages.isEmpty() ? null : new Tooltip(String.join("\n", messages)));
             setStyle(HighlightRulesEditorModel.STATUS_OFF_KEY.equals(key) ? null : WARNING_STYLE);
+        }
+    }
+
+    private static final class ActionCell extends ListCell<HighlightRule.Action> {
+
+        @Override
+        protected void updateItem(HighlightRule.Action action, boolean empty) {
+            super.updateItem(action, empty);
+            setText(empty || action == null ? null
+                : I18n.get(action == HighlightRule.Action.NOTIFY ? ACTION_NOTIFY_KEY : ACTION_NONE_KEY));
         }
     }
 

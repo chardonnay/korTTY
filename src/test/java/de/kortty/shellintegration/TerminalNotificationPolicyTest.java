@@ -34,6 +34,9 @@ import org.testng.annotations.Test;
  *   <li>Activity and silence of a tab the user asked to watch: the same rules, always with a desktop
  *       notification, at most once per slot every 10 seconds; the echo of mirrored keys is no
  *       activity.</li>
+ *   <li>A highlight rule with the notification action: the same rules, always with a desktop
+ *       notification, at most once per rule and slot every 30 seconds; output right after mirrored
+ *       keys counts for nothing.</li>
  * </ul>
  */
 class TerminalNotificationPolicyTest {
@@ -516,6 +519,38 @@ class TerminalNotificationPolicyTest {
         assertThat(Kind.SILENCE.leftToCodingAgents()).isFalse();
         assertThat(policy.decide(Kind.ACTIVITY, new Object(), UNSEEN_AGENT, DEFAULTS)).isEqualTo(new Decision(true, true));
         assertThat(policy.decide(Kind.SILENCE, new Object(), UNSEEN_AGENT, DEFAULTS)).isEqualTo(new Decision(true, true));
+    }
+
+    @Test
+    void aHighlightTriggerNotifiesAtMostOncePerRuleAndSlotEveryThirtySeconds() {
+        assertThat(Kind.TRIGGER.toastIntervalMillis()).isEqualTo(30_000L);
+        assertThat(policy.decideTrigger(pane, "rule-a", UNSEEN)).isEqualTo(new Decision(true, true));
+        assertThat(policy.decideTrigger(pane, "rule-b", UNSEEN))
+            .isEqualTo(new Decision(true, true));
+        now[0] += 29_999L;
+        assertWithMessage("within the interval the tab is still marked")
+            .that(policy.decideTrigger(pane, "rule-a", UNSEEN)).isEqualTo(new Decision(true, false));
+        assertWithMessage("another slot has its own interval")
+            .that(policy.decideTrigger(new Object(), "rule-a", UNSEEN)).isEqualTo(new Decision(true, true));
+        now[0] += 1L;
+        assertThat(policy.decideTrigger(pane, "rule-a", UNSEEN)).isEqualTo(new Decision(true, true));
+    }
+
+    @Test
+    void aHighlightTriggerInASeenTabOrRightAfterMirroredKeysDoesNothingAndTakesNoSlot() {
+        assertThat(policy.decideTrigger(pane, "rule-a", SEEN)).isEqualTo(Decision.NONE);
+        assertThat(policy.decideTrigger(pane, "rule-a", UNSEEN_MIRRORED)).isEqualTo(Decision.NONE);
+        assertThat(Kind.TRIGGER.discountsMirroredInput()).isTrue();
+        assertThat(Kind.TRIGGER.leftToCodingAgents()).isFalse();
+        assertThat(policy.decideTrigger(pane, "rule-a", UNSEEN_AGENT)).isEqualTo(new Decision(true, true));
+    }
+
+    @Test
+    void aHighlightTriggerHasItsOwnMethod() {
+        assertThrows(IllegalArgumentException.class, () -> policy.decide(Kind.TRIGGER, pane, UNSEEN, DEFAULTS));
+        assertThrows(NullPointerException.class, () -> policy.decideTrigger(null, "rule", UNSEEN));
+        assertThrows(NullPointerException.class, () -> policy.decideTrigger(pane, null, UNSEEN));
+        assertThrows(NullPointerException.class, () -> policy.decideTrigger(pane, "rule", null));
     }
 
     @Test

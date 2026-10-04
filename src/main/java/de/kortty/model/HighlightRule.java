@@ -19,6 +19,11 @@ import java.util.UUID;
  * for a theme color that follows the terminal palette, or {@code null} to keep the color the program
  * wrote. Validation lives in {@code de.kortty.core.highlight.HighlightRuleValidator}; this class only
  * normalizes blank text to {@code null}.
+ *
+ * <p>A rule can also be a <em>trigger</em> ({@link #getAction()}): besides, or instead of, changing how
+ * the match looks, it acts when the pattern appears in new output — for now a desktop notification
+ * ({@link Action#NOTIFY}). The notification says the rule's {@link #getName() name}; the matched text
+ * only when {@link #isNotifyWithText()} is set.
  */
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlType(name = "HighlightRule")
@@ -34,8 +39,26 @@ public class HighlightRule {
         LINE
     }
 
+    /**
+     * What a rule does, besides changing how its match looks, when its pattern appears in output that
+     * arrives in a terminal pane. Never anything that types into the terminal: a server decides what it
+     * prints, so an action must not turn its output into keystrokes.
+     */
+    @XmlType(name = "HighlightRuleAction")
+    @XmlEnum
+    public enum Action {
+        /** Only highlight. */
+        NONE,
+        /** Also show a desktop notification (and mark the tab) while the pane is not in view. */
+        NOTIFY
+    }
+
     @XmlElement
     private String id;
+
+    /** What the rule is called in a notification; optional, the pattern stands in when blank. */
+    @XmlElement
+    private String name;
 
     @XmlElement
     private boolean enabled = true;
@@ -72,6 +95,13 @@ public class HighlightRule {
     @XmlElement
     private boolean underline;
 
+    @XmlElement
+    private Action action = Action.NONE;
+
+    /** Put the matched text into the notification (cleaned and shortened); off = the rule's name only. */
+    @XmlElement
+    private boolean notifyWithText;
+
     public HighlightRule() {
         this.id = UUID.randomUUID().toString();
     }
@@ -87,6 +117,7 @@ public class HighlightRule {
         this();
         if (other != null) {
             this.id = other.id;
+            this.name = other.name;
             this.enabled = other.enabled;
             this.pattern = other.pattern;
             this.regex = other.regex;
@@ -98,6 +129,8 @@ public class HighlightRule {
             this.bold = other.bold;
             this.italic = other.italic;
             this.underline = other.underline;
+            this.action = other.action;
+            this.notifyWithText = other.notifyWithText;
         }
     }
 
@@ -110,6 +143,19 @@ public class HighlightRule {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    /** The rule's name as typed, or {@code null} when it has none (blank counts as none). */
+    public String getName() {
+        if (name == null) {
+            return null;
+        }
+        String trimmed = name.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public boolean isEnabled() {
@@ -204,9 +250,31 @@ public class HighlightRule {
         this.underline = underline;
     }
 
-    /** True when the rule changes anything at all: a color or one of bold, italic, underline. */
+    /** {@link Action#NONE} when the file has no value. */
+    public Action getAction() {
+        return action != null ? action : Action.NONE;
+    }
+
+    public void setAction(Action action) {
+        this.action = action != null ? action : Action.NONE;
+    }
+
+    public boolean isNotifyWithText() {
+        return notifyWithText;
+    }
+
+    public void setNotifyWithText(boolean notifyWithText) {
+        this.notifyWithText = notifyWithText;
+    }
+
+    /** True when the rule changes how its match looks: a color or one of bold, italic, underline. */
     public boolean hasVisualEffect() {
         return getForeground() != null || getBackground() != null || bold || italic || underline;
+    }
+
+    /** True when the rule is a trigger: it acts when its pattern appears ({@link #getAction()}). */
+    public boolean hasAction() {
+        return getAction() != Action.NONE;
     }
 
     private static String normalizeColor(String color) {

@@ -130,6 +130,18 @@ class HighlightRuleValidatorTest {
     }
 
     @Test
+    void aNotificationIsAnEffectOfItsOwn() {
+        HighlightRule trigger = new HighlightRule("No space left", false);
+        trigger.setAction(HighlightRule.Action.NOTIFY);
+        assertWithMessage("a trigger may leave the text as it is").that(HighlightRuleValidator.validateRule(trigger))
+            .isEmpty();
+        trigger.setAction(HighlightRule.Action.NONE);
+        assertThat(HighlightRuleValidator.validateRule(trigger)).containsExactly(HighlightRuleValidator.KEY_NO_EFFECT);
+        trigger.setAction(null);
+        assertThat(trigger.getAction()).isEqualTo(HighlightRule.Action.NONE);
+    }
+
+    @Test
     void reportsEveryIndependentProblemOfARule() {
         HighlightRule rule = new HighlightRule("(", true);
         rule.setForeground("#12");

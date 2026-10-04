@@ -8,6 +8,8 @@ korTTY can color words and patterns in terminal output as it arrives — errors 
 
 Highlighting is off until you switch it on, for one pane with a menu or the shortcut, for every terminal of a connection with the [connection's rule set](#rule-set-per-connection), or for every pane with a [default rule set](#default-rule-set-and-settings). Each terminal pane shows at most one **rule set** at a time. korTTY ships three built-in sets, and you can create [your own](#your-own-rule-sets).
 
+A rule of your own can also notify you: when its pattern appears in new output in a tab you are not looking at, such as `No space left on device` during a long backup, korTTY marks the tab and shows a desktop notification. See [Notifications for matching output](#notifications-for-matching-output).
+
 ## Built-in rule sets
 
 | Rule set | What it marks |
@@ -37,13 +39,14 @@ The shortcut also works while the menu bar is hidden and in terminal-only fullsc
 
 ## Default rule set and settings
 
-The **Keyword highlighting** section of *Configuration → Global Settings → Terminal* holds three settings that apply to every pane; see [Terminal settings](../reference/settings/terminal.md#notes) for the details.
+The **Keyword highlighting** section of *Configuration → Global Settings → Terminal* holds four settings that apply to every pane; see [Terminal settings](../reference/settings/terminal.md#notes) for the details.
 
 | Setting | Default | What it does |
 | --- | --- | --- |
 | **Highlight keywords in terminal output** | On | The master switch. Off means no pane is highlighted, whatever was chosen anywhere; the highlighting menus are greyed out and the shortcut only shows a note in the status bar. |
 | **Also highlight in full-screen programs (vim, less, htop)** | Off | Highlights inside programs that use the alternate screen as well. |
 | **Default rule set** | None | The set every pane shows unless its connection or the pane has a set of its own. Choose a set here to have highlighting on in every new and open terminal. |
+| **Run actions of highlight rules (desktop notifications)** | On | Lets rules with an action [notify](#notifications-for-matching-output). Off, those rules only highlight. Greyed out while the master switch is off; an organization can lock it with the policy key `terminal-triggers`. |
 
 A pane shows the first of these that applies:
 
@@ -77,9 +80,10 @@ The rule-set editor creates and changes your own rule sets. Open it with *View �
 
 - **Rule sets** on the left lists the built-in sets, marked *built-in*, and then yours. The built-in sets are read-only, but you can select one to read its patterns. **Duplicate** copies the selected set, built-in or your own, into a new set you can change; **New** starts an empty set with one rule to fill in, and **Delete** removes one of your sets.
 - **Rule set name** is the name the menus and the default rule set dropdown show.
-- **Rules** lists the set's rules in priority order: where two rules match the same text, the upper rule wins, as in the built-in sets. Use ▲ and ▼ to change the order, **Add Rule** to add a rule below the selected one and **Remove Rule** to delete it. **On** switches a rule off without deleting it. **Pattern** shows each pattern in the look it gives, **Applies to** whether it colors the matched text or the whole line, **Hits** how many places it highlights in the test text below, and **Check** whether something is wrong with it.
+- **Rules** lists the set's rules in priority order: where two rules match the same text, the upper rule wins, as in the built-in sets. Use ▲ and ▼ to change the order, **Add Rule** to add a rule below the selected one and **Remove Rule** to delete it. **On** switches a rule off without deleting it. **Pattern** shows each pattern in the look it gives, **Applies to** whether it colors the matched text or the whole line, **Action** shows **Notify** for a rule that notifies, **Hits** how many places it highlights in the test text below (for a rule that only notifies, the lines it would notify for), and **Check** whether something is wrong with it.
 - Below the table you edit the selected rule. **Pattern** is a word or phrase to find, or a Java regular expression when **Regular expression** is on. **Ignore case** matches upper and lower case alike, and **Whole word** only matches where the hit is not part of a longer word, so `error` marks `ERROR:` but not `terror`. **Applies to** colors either the **Matched text** or the **Whole line**, soft-wrapped rows included.
-- **Text color** and **Background** are **Unchanged** (the program's own color), one of the 16 theme colors, or **Custom** with a color picker. Theme colors follow your color settings and the colors of each connection, like the built-in sets; a custom color stays the same everywhere. **Style** adds **Bold**, **Italic** or **Underline**. A rule needs at least one color or style.
+- **Text color** and **Background** are **Unchanged** (the program's own color), one of the 16 theme colors, or **Custom** with a color picker. Theme colors follow your color settings and the colors of each connection, like the built-in sets; a custom color stays the same everywhere. **Style** adds **Bold**, **Italic** or **Underline**. A rule needs at least one color, style or action.
+- **Action** is **Highlight only**, or **Desktop notification** for a rule that [notifies](#notifications-for-matching-output) when its pattern appears in new output. A rule that notifies may leave the text as it is: without a color or style it changes nothing on screen, and the rules below it still color what it matches. **Include the matched text** adds what the pattern matched to the notification. **Rule name** is what the notification and the tab's tooltip call the rule; a rule without a name is called by its pattern.
 
 The **Test text** at the bottom starts with sample log and network-device lines; replace it with output of your own. **Preview** shows it the way a terminal pane would, using the same matching, the same rule order and the same time limit, and it follows every change as you type. The editor keeps your test text until korTTY quits; it is not saved.
 
@@ -89,6 +93,19 @@ The **Test text** at the bottom starts with sample log and network-device lines;
 
 !!! tip
     To adapt a built-in set, select it, click **Duplicate** and change the copy. The built-in sets themselves stay as korTTY ships them, so a later version can improve their patterns.
+
+## Notifications for matching output
+
+A rule whose **Action** is **Desktop notification** watches for you: when its pattern appears in new output in a tab you are not looking at, korTTY marks the tab with 🔔 and shows a desktop notification, by the same rules as the other [terminal notifications](terminal-notifications.md). Use it for the lines you wait for while you work elsewhere, such as `No space left on device`, `BUILD FAILED` or a link going down on a switch console. Like every rule it only works while its rule set is shown in the pane: choose the set for the pane, for the connection or as the default rule set.
+
+- The notification is titled `korTTY · ` and the name of the tab, so a program can never make it look like a message from another application. Its text is the rule's **Rule name**, or its pattern when it has none, and never terminal output. Pointing at the marked tab shows *A highlight rule matched new output in this tab:* and the name.
+- With **Include the matched text** on, the notification also shows what the pattern matched, for example *Disk full: No space left on device*. korTTY removes control characters, line breaks and the invisible characters that change the reading direction, and cuts it to 100 characters. Leave it off for patterns that can match passwords, tokens or customer data: a notification can appear on the lock screen.
+- Each rule notifies at most once every 30 seconds per pane; a match in that time only keeps the mark on the tab. Two rules count on their own. Nothing happens in the tab you are looking at, and the mark goes away as soon as you look at the tab.
+- Only new output counts. A line notifies when the pattern first appears on it, and again only when the match on it changes or the line is cleared and written anew, so a progress line that keeps rewriting `ERROR count: 3` notifies once.
+- Output that was already in the pane never notifies: the saved screen of a [project](projects.md), which korTTY shows again when you open the project, what the pane shows when it gets a rule set or when you edit a rule, and the lines a window resize rebuilds. Full-screen programs such as `vim`, `less`, `htop` and `tmux` never notify, even when you allow highlighting in them.
+- Output that arrives within 2 seconds of keys you typed in another pane reaching the pane through [broadcast mode](terminal.md#broadcast-mode) or [multi-exec](terminal.md#multi-exec), typically their echo, never notifies. The panes that take part in multi-exec share one notification per rule, so an error that every server prints notifies once.
+- A rule only notifies; it never types anything into the terminal. The server decides what it prints, so an action that sends keys would let it type commands for you. To answer prompts automatically, script it with the [control API](../reference/control-api.md#typing-into-a-pane).
+- **Run actions of highlight rules (desktop notifications)** in *Settings → Terminal* switches every notifying rule off at once; the rules then only highlight, and the rule editor says so below the action. In a managed installation the policy key `terminal-triggers` decides and locks that setting (see [Enterprise policy](../reference/enterprise-policy.md#rulefeatures)); while it forbids them, the editor keeps you from giving a rule an action.
 
 ## How highlighting behaves
 
@@ -111,5 +128,7 @@ You can create up to 32 rule sets with up to 64 rules each, and a pattern can be
 
 !!! warning
     A highlight is not a trust signal. The server decides what it prints, so it can print text that matches a rule, just as it can color its own output. Highlighting never changes what is sent or received.
+
+A rule that notifies turns output into notifications, so a server can trigger one by printing the pattern, just as a program can ring the bell. That is why the notification names only your rule and its tab unless you ask for the matched text, why it comes at most every 30 seconds per rule and pane, and why a rule can never type into the terminal.
 
 Rule sets stay on your computer, in `global-settings.xml` (see [Configuration files](../reference/config-files.md#global-settingsxml)), and the log names rules and sets by their ids only, never by their patterns or by the text they matched. If you allowed [anonymous usage statistics](../about/anonymous-data.md), korTTY reports which built-in set was switched on (any set of your own counts only as "custom") and whether that happened from a menu, with the shortcut, through the connection's rule set or through the default rule set, and which of the three settings you changed, with the default rule set again reported only as a built-in set, "custom" or "none" — never patterns, set names or terminal text.

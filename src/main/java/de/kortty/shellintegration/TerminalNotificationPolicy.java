@@ -39,6 +39,10 @@ import java.util.function.LongSupplier;
  * the user asked to watch, with its right-click menu ({@link PaneActivityMonitor}), so that request
  * is their setting: they always notify, within their interval.
  *
+ * <p>A highlight trigger ({@link Kind#TRIGGER}) exists only once the user gave a highlight rule the
+ * notification action, so that rule is its setting too; it has {@link #decideTrigger}, whose slot is
+ * the pane (or multi-exec session) together with the rule, so two rules do not silence each other.
+ *
  * <p>A finished command ({@link Kind#COMMAND_FINISHED}) also has to have run at least the
  * threshold of the settings, and a command that a korTTY terminal-agent run typed into the pane
  * leads to nothing at all: the run reports its own commands. In a multi-exec session a command typed
@@ -88,7 +92,14 @@ public final class TerminalNotificationPolicy {
          * A pane whose tab the user asked to watch for silence stopped printing for the silence
          * threshold ({@link PaneActivityMonitor.Event#SILENCE}).
          */
-        SILENCE(10_000L, false, false);
+        SILENCE(10_000L, false, false),
+        /**
+         * A highlight rule with the notification action matched new output in the pane
+         * ({@code TerminalOutputHighlighter.LineMatch}). One notification per rule and pane every 30
+         * seconds; output that answers mirrored keys does not count, so typing into multi-exec does not
+         * make every member notify.
+         */
+        TRIGGER(30_000L, false, true);
 
         private final long toastIntervalMillis;
         private final boolean leftToCodingAgents;
@@ -221,6 +232,9 @@ public final class TerminalNotificationPolicy {
 
     private final Map<Kind, Map<Object, Long>> lastToastMillis = new EnumMap<>(Kind.class);
 
+    /** Per slot (pane or multi-exec session) and highlight rule id, when the rule last notified. */
+    private final Map<Object, Map<String, Long>> lastTriggerToastMillis = new WeakHashMap<>();
+
     /** The {@code C} marks of the runs each multi-exec session notified about, newest last. */
     private final Map<Object, Deque<Long>> notifiedRunStarts = new WeakHashMap<>();
 
@@ -276,6 +290,8 @@ public final class TerminalNotificationPolicy {
             case ACTIVITY, SILENCE -> true;
             case COMMAND_FINISHED -> throw new IllegalArgumentException(
                 "A finished command needs its runtime and its tab: use decideCommandFinished");
+            case TRIGGER -> throw new IllegalArgumentException(
+                "A highlight trigger needs its rule: use decideTrigger");
         };
         if (kind.discountsMirroredInput() && state.mirroredInput()) {
             return Decision.NONE;
@@ -346,6 +362,40 @@ public final class TerminalNotificationPolicy {
             && claimToast(Kind.COMMAND_FINISHED, run.session());
         if (toast) {
             rememberNotified(run);
+        }
+        return new Decision(true, toast);
+    }
+
+    /**
+     * Decides about a highlight rule with the notification action that matched new output
+     * ({@link Kind#TRIGGER}).
+     *
+     * <ul>
+     *   <li>Nothing in a tab the user is looking at, and nothing while mirrored keys reached the pane
+     *       moments ago ({@link PaneState#mirroredInput()}): the line most likely echoes them.</li>
+     *   <li>Otherwise the tab is marked, and a desktop notification comes at most once per rule and
+     *       slot within {@link Kind#TRIGGER}'s interval; the slot is the pane, or for a member of
+     *       multi-exec its session, so one error printed by every member notifies once.</li>
+     * </ul>
+     *
+     * @param pane   the notification slot, kept weakly: the pane, or the multi-exec session it takes
+     *               part in
+     * @param ruleId the stable id of the rule that matched
+     * @param state  what is known about the pane now
+     */
+    public Decision decideTrigger(Object pane, String ruleId, PaneState state) {
+        Objects.requireNonNull(pane, "pane");
+        Objects.requireNonNull(ruleId, "ruleId");
+        Objects.requireNonNull(state, "state");
+        if (state.seen() || (Kind.TRIGGER.discountsMirroredInput() && state.mirroredInput())) {
+            return Decision.NONE;
+        }
+        Map<String, Long> last = lastTriggerToastMillis.computeIfAbsent(pane, unused -> new java.util.HashMap<>());
+        long now = clockMillis.getAsLong();
+        Long previous = last.get(ruleId);
+        boolean toast = previous == null || now - previous >= Kind.TRIGGER.toastIntervalMillis();
+        if (toast) {
+            last.put(ruleId, now);
         }
         return new Decision(true, toast);
     }

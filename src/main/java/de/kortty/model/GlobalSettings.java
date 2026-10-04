@@ -330,6 +330,14 @@ public class GlobalSettings {
     @XmlElement
     private boolean terminalHighlightAlternateScreen = false;
 
+    /**
+     * Whether highlight rules that are triggers (a desktop notification when their pattern appears) act.
+     * On: a trigger only exists once the user gives a rule an action. The enterprise policy key
+     * {@code terminal-triggers} can force it off ({@code de.kortty.policy.PolicyClamp}).
+     */
+    @XmlElement
+    private boolean terminalTriggersEnabled = true;
+
     // ---- PDF export branding (shared by session journal and AI chat exports) ----
 
     @XmlElement
@@ -2066,6 +2074,14 @@ public class GlobalSettings {
 
     public void setTerminalHighlightAlternateScreen(boolean terminalHighlightAlternateScreen) {
         this.terminalHighlightAlternateScreen = terminalHighlightAlternateScreen;
+    }
+
+    public boolean isTerminalTriggersEnabled() {
+        return terminalTriggersEnabled;
+    }
+
+    public void setTerminalTriggersEnabled(boolean terminalTriggersEnabled) {
+        this.terminalTriggersEnabled = terminalTriggersEnabled;
     }
 
     public boolean isPdfWatermarkEnabled() {

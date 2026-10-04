@@ -34,14 +34,15 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>Builds the REAL {@link HighlightRulesDialog} headless against an isolated {@code user.home}, with a
  * demo rule set ("Web servers") and the editor's own test text, which uses documentation addresses
  * only — no real host ends up in the manual. One rule is switched off so the Check column shows a
- * state, and the regular-expression rule is selected so the details show a theme background color.
+ * state, and the regular-expression rule, which also notifies, is selected so the details show a theme
+ * background color and the notification action.
  *
  * <p>Run via the {@code generateHighlightRulesScreenshot} Gradle task. Exit 0 = OK.
  */
 public final class HighlightRulesScreenshotGenerator {
 
     private static final double WIDTH = 980;
-    private static final double HEIGHT = 700;
+    private static final double HEIGHT = 800;
 
     private static final String OUTPUT_FILE = "app-docs/screenshots/highlighting/rules-dialog.png";
 
@@ -91,7 +92,11 @@ public final class HighlightRulesScreenshotGenerator {
         settings.setLanguage("en");
         List<HighlightRule> rules = new ArrayList<>();
         rules.add(rule("nginx", false, "ansi:6", null, true, false, false));
-        rules.add(rule("HTTP/1\\.1 5\\d\\d", true, "ansi:15", "ansi:1", true, false, false));
+        HighlightRule serverErrors = rule("HTTP/1\\.1 5\\d\\d", true, "ansi:15", "ansi:1", true, false, false);
+        // A rule that also notifies, so the Action column and the action details show something.
+        serverErrors.setAction(HighlightRule.Action.NOTIFY);
+        serverErrors.setName("Server errors");
+        rules.add(serverErrors);
         rules.add(rule("(?:\\d{1,3}\\.){3}\\d{1,3}(?::\\d+)?", true, "ansi:5", null, false, false, true));
         HighlightRule warning = rule("WARNING", false, "ansi:11", null, true, false, false);
         warning.setEnabled(false);
