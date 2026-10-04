@@ -37,14 +37,30 @@ public final class SftpConflictDialog {
         if (prompt.isDone()) {
             return; // cancelled before the FX thread got here
         }
-        SftpConflictViewModel model = SftpConflictViewModel.of(prompt.info());
-        Dialog<Resolution> dialog = new Dialog<>();
-        dialog.setTitle(model.title());
-        dialog.setHeaderText(model.header());
+        Dialog<Resolution> dialog = build(SftpConflictViewModel.of(prompt.info()));
         dialog.initModality(Modality.NONE);
         if (owner != null) {
             dialog.initOwner(owner);
         }
+        dialog.setOnHidden(event -> prompt.answer(dialog.getResult()));
+        prompt.whenDone(() -> Platform.runLater(() -> {
+            if (dialog.isShowing()) {
+                dialog.setResult(Resolution.CANCEL_ALL);
+                dialog.close();
+            }
+        }));
+        dialog.show();
+    }
+
+    /**
+     * The themed dialog for {@code model}, not yet shown and without owner or modality; its result
+     * is the chosen {@link Resolution}, with {@link Resolution#CANCEL_ALL} for the cancel choice.
+     * Package-private for the manual's screenshot generator.
+     */
+    static Dialog<Resolution> build(SftpConflictViewModel model) {
+        Dialog<Resolution> dialog = new Dialog<>();
+        dialog.setTitle(model.title());
+        dialog.setHeaderText(model.header());
 
         GridPane grid = new GridPane();
         grid.setHgap(16);
@@ -55,7 +71,7 @@ public final class SftpConflictDialog {
         addSide(grid, 2, model.existing(), model.newerLabel());
 
         VBox content = new VBox(10, grid);
-        content.setPadding(new Insets(10, 0, 0, 0));
+        content.setPadding(new Insets(10, 12, 0, 12));
         for (String note : model.notes()) {
             Label label = new Label(note);
             label.setWrapText(true);
@@ -81,14 +97,7 @@ public final class SftpConflictDialog {
             return new Resolution(action.action(), applyToAll.isSelected());
         });
         DialogThemeHelper.applyTheme(dialog);
-        dialog.setOnHidden(event -> prompt.answer(dialog.getResult()));
-        prompt.whenDone(() -> Platform.runLater(() -> {
-            if (dialog.isShowing()) {
-                dialog.setResult(Resolution.CANCEL_ALL);
-                dialog.close();
-            }
-        }));
-        dialog.show();
+        return dialog;
     }
 
     private static void addSide(GridPane grid, int column, SftpConflictViewModel.Side side, String newerLabel) {
