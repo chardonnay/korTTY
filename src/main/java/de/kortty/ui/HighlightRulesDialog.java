@@ -170,6 +170,18 @@ public final class HighlightRulesDialog {
     /** Where the dialog's size and position are remembered. */
     static final String GEOMETRY_KEY = "highlight.rules";
 
+    /** The content's preferred width. */
+    static final double PREF_WIDTH = 980;
+
+    /** The content's preferred height: the rule details hold the action, the snippet and the rule name too. */
+    static final double PREF_HEIGHT = 820;
+
+    /** What the title bar, the button bar and a margin take around the content on screen. */
+    static final double DIALOG_CHROME_HEIGHT = 140;
+
+    /** The shortest the content gets to fit a small screen; its split panes shrink instead of the buttons. */
+    static final double MIN_FITTED_HEIGHT = 520;
+
     /**
      * The test text the preview starts with: log and network-device lines that the built-in sets and
      * typical rules hit. Documentation addresses only (RFC 5737, RFC 3849), no real host.
@@ -321,6 +333,7 @@ public final class HighlightRulesDialog {
     public static boolean show(@Nullable Window owner, @NotNull GlobalSettings settings, @Nullable String initialSetId) {
         HighlightRulesDialog editor = new HighlightRulesDialog(settings);
         Dialog<ButtonType> dialog = editor.buildDialog(owner, initialSetId);
+        fitToScreen(dialog, owner);
         boolean confirmed = dialog.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
         sessionSample = editor.sampleArea.getText();
         if (!confirmed || !editor.model.isModified()) {
@@ -383,6 +396,40 @@ public final class HighlightRulesDialog {
         }
     }
 
+    /**
+     * The content's height on a screen whose usable height is {@code visualScreenHeight}: the preferred
+     * height, lowered so the title and the OK button stay on a small screen (a 768-pixel laptop), but never
+     * below {@link #MIN_FITTED_HEIGHT}. An unknown screen gets the preferred height.
+     */
+    static double fittedContentHeight(double visualScreenHeight) {
+        if (!(visualScreenHeight > 0)) {
+            return PREF_HEIGHT;
+        }
+        return Math.max(MIN_FITTED_HEIGHT, Math.min(PREF_HEIGHT, visualScreenHeight - DIALOG_CHROME_HEIGHT));
+    }
+
+    /**
+     * Lowers the content's preferred height to the screen of {@code owner} (else the primary screen) before
+     * the first show; a size the user gave the dialog before still wins ({@link DialogGeometrySupport}).
+     */
+    private static void fitToScreen(Dialog<?> dialog, @Nullable Window owner) {
+        try {
+            javafx.stage.Screen screen = javafx.stage.Screen.getPrimary();
+            if (owner != null && owner.getWidth() > 0 && owner.getHeight() > 0) {
+                List<javafx.stage.Screen> screens = javafx.stage.Screen.getScreensForRectangle(
+                    owner.getX(), owner.getY(), owner.getWidth(), owner.getHeight());
+                if (!screens.isEmpty()) {
+                    screen = screens.getFirst();
+                }
+            }
+            if (dialog.getDialogPane().getContent() instanceof javafx.scene.layout.Region content) {
+                content.setPrefHeight(fittedContentHeight(screen.getVisualBounds().getHeight()));
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Could not fit the highlight rule editor to the screen: {}", e.toString());
+        }
+    }
+
     /** The built, unshown dialog with a set and a rule selected — the manual's screenshot uses it. */
     static Dialog<ButtonType> buildForCapture(GlobalSettings settings, String setId, int ruleIndex, String sample) {
         return buildForCapture(settings, List.of(), setId, ruleIndex, sample);
@@ -429,7 +476,7 @@ public final class HighlightRulesDialog {
         problemLabel.managedProperty().bind(problemLabel.textProperty().isNotEmpty());
         problemLabel.visibleProperty().bind(problemLabel.managedProperty());
         VBox content = new VBox(6, split, problemLabel);
-        content.setPrefSize(980, 820);
+        content.setPrefSize(PREF_WIDTH, PREF_HEIGHT);
         dialog.getDialogPane().setContent(content);
 
         if (sampleArea.getText() == null || sampleArea.getText().isEmpty()) {

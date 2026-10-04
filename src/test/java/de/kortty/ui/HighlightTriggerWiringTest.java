@@ -166,6 +166,23 @@ class HighlightTriggerWiringTest {
     }
 
     @Test
+    void theTallerRuleEditorStillFitsASmallScreen() throws IOException {
+        assertThat(HighlightRulesDialog.fittedContentHeight(1_400)).isEqualTo(HighlightRulesDialog.PREF_HEIGHT);
+        assertWithMessage("a 768-pixel laptop: the title and the OK button stay on screen")
+            .that(HighlightRulesDialog.fittedContentHeight(728) + HighlightRulesDialog.DIALOG_CHROME_HEIGHT)
+            .isAtMost(728.0);
+        assertThat(HighlightRulesDialog.fittedContentHeight(300)).isEqualTo(HighlightRulesDialog.MIN_FITTED_HEIGHT);
+        assertThat(HighlightRulesDialog.fittedContentHeight(0)).isEqualTo(HighlightRulesDialog.PREF_HEIGHT);
+        assertThat(HighlightRulesDialog.fittedContentHeight(Double.NaN)).isEqualTo(HighlightRulesDialog.PREF_HEIGHT);
+
+        String show = body(source("HighlightRulesDialog.java"),
+            "public static boolean show(@Nullable Window owner, @NotNull GlobalSettings settings, @Nullable String initialSetId) {");
+        assertWithMessage("fitted before the first show, so a stored size still wins")
+            .that(show.indexOf("fitToScreen(dialog, owner);")).isIn(com.google.common.collect.Range.open(0,
+                show.indexOf("dialog.showAndWait()")));
+    }
+
+    @Test
     void theRuleEditorLocksTheActionWhileThePolicyForbidsTriggers() throws IOException {
         String editor = source("HighlightRulesDialog.java");
         assertThat(editor).contains("this.triggersForbidden = !de.kortty.policy.PolicyManager.effective().terminalTriggersAllowed();");
