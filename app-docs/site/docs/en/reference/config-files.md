@@ -154,6 +154,7 @@ Global application preferences and defaults.
 - `tabTitleFromShellEnabled`: whether a terminal tab shows the [title its shell sets](../features/terminal.md#title-from-the-shell) in place of the connection's name (on by default)
 - `tabSwitchMostRecentFirst`: whether ++ctrl+tab++ switches tabs in the order they were last used instead of their [tab bar order](settings/window.md#tabs) (off by default)
 - `recentProjectPaths`: the absolute paths of the project files you opened or saved last, newest first, at most 10, which [*File → Open Recent*](../features/projects.md#open-recent) lists; `openRecentClearedAt`: when you last chose **Clear List** there (milliseconds since 1970, `0` for never)
+- `sessionRestoreMode`: what korTTY does at startup with the [previous session](../features/projects.md#at-startup): `ask` offers it in a bar (the default, also for a missing or unknown value), `auto` restores it once no dialog is open, `off` does nothing
 - Docked live session-journal panel: placement (hidden/left/right) and width
 - JobScheduler status display preference
 - Last ASCII Art dialog preview zoom level
@@ -420,7 +421,7 @@ The session snapshots korTTY writes while it runs, so *File > Restore Previous S
 - `previous-session.xml` — the session before this start, which *Restore Previous Session* opens; at each start korTTY moves `last-session.xml` here, but only when that session had at least one tab
 - `session.lock` — held locked by the korTTY that writes the snapshots; a second korTTY started meanwhile reads them but never writes
 
-**Format:** XML. The windows and tabs are written like a [project](#projects) with Auto-Reconnect; the Recently Closed list keeps the id of each closed tab's saved connection, its tab group, name and terminal effect.
+**Format:** XML. The windows and tabs are written like a [project](#projects) with Auto-Reconnect; the Recently Closed list keeps the id of each closed tab's saved connection, its tab group, name and terminal effect. Each snapshot also notes whether korTTY quit normally, whether that run restored its previous session and whether it kept running for a minute afterwards, which tells the next start that korTTY ended right after a restore (see [At startup](../features/projects.md#at-startup)). While the startup offer waits for an answer, `last-session.xml` keeps the offered session, so it is offered again if korTTY quits or crashes before you choose.
 
 **Contains no** screen text, scrollback, command timestamps, passwords or temporary SSH keys. A split pane's working directory and a reference to saved scrollback, which project files never carry, may appear here; korTTY accepts a scrollback reference only as a plain name.
 

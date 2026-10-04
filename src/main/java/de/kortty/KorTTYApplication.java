@@ -628,6 +628,18 @@ public class KorTTYApplication extends Application {
                 Platform.runLater(() -> de.kortty.ui.TelemetryConsentDialog.maybeShow(this, primaryStage));
             }
 
+            // The session before this start: offered in a bar, or restored once no dialog is open.
+            // Posted after the consent prompt, so its connections never ask on top of that dialog.
+            de.kortty.model.SessionRestoreMode sessionRestoreMode =
+                globalSettingsManager.getSettings().getSessionRestoreMode();
+            Platform.runLater(() -> {
+                try {
+                    mainWindow.startSessionRestore(sessionRestoreMode);
+                } catch (RuntimeException e) {
+                    logger.warn("The previous session could not be offered at startup", e);
+                }
+            });
+
             trackUsageSnapshot("startup");
             trackAiProfileSnapshots();
 

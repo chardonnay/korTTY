@@ -45,6 +45,19 @@ public class SessionSnapshot {
     @XmlElement
     private boolean cleanExit;
 
+    /**
+     * Whether the run that wrote this snapshot reopened its previous session (at startup or from
+     * File › Restore Previous Session). Together with {@link #stable} and {@link #cleanExit} it tells
+     * the next start that korTTY ended unexpectedly right after a restore, which then asks instead of
+     * restoring by itself (see {@code de.kortty.core.SessionRestoreDecision}).
+     */
+    @XmlElement
+    private boolean sessionRestored;
+
+    /** Whether korTTY was still running a minute after that restore. */
+    @XmlElement
+    private boolean stable;
+
     /** The windows and their tabs; {@code null} or without windows when nothing was open. */
     @XmlElement
     private Project project;
@@ -58,8 +71,8 @@ public class SessionSnapshot {
     }
 
     /**
-     * A snapshot that shares this one's windows and Recently Closed list and differs only in
-     * {@code cleanExit}. The store writes a copy of what it is given, so sharing is safe.
+     * A snapshot that shares this one's windows, Recently Closed list and restore flags and differs
+     * only in {@code cleanExit}. The store writes a copy of what it is given, so sharing is safe.
      */
     public SessionSnapshot withCleanExit(boolean clean) {
         SessionSnapshot copy = new SessionSnapshot();
@@ -67,6 +80,8 @@ public class SessionSnapshot {
         copy.appVersion = appVersion;
         copy.savedAtMillis = savedAtMillis;
         copy.cleanExit = clean;
+        copy.sessionRestored = sessionRestored;
+        copy.stable = stable;
         copy.project = project;
         copy.recentlyClosed = recentlyClosed;
         return copy;
@@ -102,6 +117,22 @@ public class SessionSnapshot {
 
     public void setCleanExit(boolean cleanExit) {
         this.cleanExit = cleanExit;
+    }
+
+    public boolean isSessionRestored() {
+        return sessionRestored;
+    }
+
+    public void setSessionRestored(boolean sessionRestored) {
+        this.sessionRestored = sessionRestored;
+    }
+
+    public boolean isStable() {
+        return stable;
+    }
+
+    public void setStable(boolean stable) {
+        this.stable = stable;
     }
 
     public Project getProject() {

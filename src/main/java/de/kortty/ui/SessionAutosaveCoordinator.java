@@ -42,6 +42,13 @@ import java.util.function.Supplier;
  *       after every window agreed and before the first window closes, and closing the last window
  *       on Windows and Linux before its tabs close. {@link #sealOnShutdown} covers every other way
  *       out at the end of the shutdown.</li>
+ *   <li><b>The previous session at startup.</b> While the startup offer waits for an answer, the
+ *       previous session stands in for this run's snapshot ({@link #carryForward}): a start that is
+ *       quit or crashes before the user chose offers it again; Dismiss drops it
+ *       ({@link #dropCarriedForward}). Restoring it ({@link #beginSessionRestore}) first writes a
+ *       snapshot marked as restored, and {@link #markStable} marks it stable a minute later, so the
+ *       next start sees when korTTY ended right after a restore
+ *       ({@link de.kortty.core.SessionRestoreDecision}).</li>
  * </ul>
  *
  * <p>Use it on the JavaFX thread, except {@link #sealOnShutdown}. Toolkit-free itself: the timers
@@ -57,6 +64,10 @@ public final class SessionAutosaveCoordinator {
     static final long PERIODIC_MILLIS = 30_000;
     /** How long quitting waits for the snapshot it quits with. */
     static final long QUIT_SAVE_TIMEOUT_MILLIS = 2_000;
+    /** The name of the project a session snapshot holds; shown nowhere, but a project needs one. */
+    static final String SESSION_NAME = "Session";
+    /** How long korTTY must keep running after a restore before that restore counts as stable. */
+    static final long STABLE_AFTER_MILLIS = 60_000;
 
     /** What one capture of the open session holds. */
     record Capture(Project project, List<SessionSnapshot.ClosedEntry> recentlyClosed) {
@@ -105,6 +116,7 @@ public final class SessionAutosaveCoordinator {
     }
 
     private final SessionSnapshotStore store;
+    private final SessionSnapshotStore.@Nullable StartupState startup;
     private final Environment environment;
     private final ExecutorService writer;
     private final Timers timers;
@@ -121,8 +133,17 @@ public final class SessionAutosaveCoordinator {
     private volatile boolean sealed;
     /** File › Restore Previous Session ran in this run. */
     private boolean previousRestored;
-    /** The snapshot on disk as far as this process knows: the last one it wrote, or the one it kept at startup. */
+    /**
+     * The snapshot on disk as far as this process knows: the last one it wrote, the one it kept at
+     * startup, or the previous session while the startup offer waits ({@link #carryForward}).
+     */
     private volatile @Nullable SessionSnapshot saved;
+    /** The previous session {@link #carryForward} put into {@link #saved}, while it is still there; FX thread. */
+    private @Nullable SessionSnapshot carried;
+    /** This run restored the previous session; written into every snapshot from then on. */
+    private volatile boolean sessionRestored;
+    /** korTTY kept running for {@value #STABLE_AFTER_MILLIS} ms after that restore. */
+    private volatile boolean stable;
 
     /**
      * @param startup what {@link SessionSnapshotStore#startUp} found
@@ -131,6 +152,7 @@ public final class SessionAutosaveCoordinator {
     SessionAutosaveCoordinator(SessionSnapshotStore store, SessionSnapshotStore.StartupState startup,
                                Environment environment, ExecutorService writer, Function<Runnable, Timers> timers) {
         this.store = Objects.requireNonNull(store, "store");
+        this.startup = startup;
         this.environment = Objects.requireNonNull(environment, "environment");
         this.writer = Objects.requireNonNull(writer, "writer");
         this.saved = startup != null ? startup.keptLast() : null;
@@ -231,6 +253,106 @@ public final class SessionAutosaveCoordinator {
         }
     }
 
+    /** What {@link SessionSnapshotStore#startUp} found when korTTY started; {@code null} when unknown. */
+    SessionSnapshotStore.@Nullable StartupState startup() {
+        return startup;
+    }
+
+    /**
+     * The startup offer is waiting for an answer: until this run has a tab of its own, the snapshot
+     * keeps the windows of {@code previous} (the session the offer would open), so quitting or a
+     * crash before the user chose leaves it to be offered again at the next start. A no-op once
+     * sealed or once this run has tabs of its own in the snapshot. FX thread.
+     */
+    void carryForward(@Nullable SessionSnapshot previous) {
+        if (sealed || previous == null || SessionSnapshotStore.restorableTabs(previous) == 0
+                || SessionSnapshotStore.restorableTabs(saved) > 0) {
+            return;
+        }
+        SessionSnapshot stand = new SessionSnapshot();
+        stand.setAppVersion(environment.appVersion());
+        stand.setSavedAtMillis(previous.getSavedAtMillis());
+        stand.setProject(previous.getProject());
+        stand.setRecentlyClosed(new java.util.ArrayList<>(previous.getRecentlyClosed()));
+        saved = stand;
+        carried = stand;
+        // On disk soon, so a crash before the user chose still finds it at the next start.
+        markDirty();
+    }
+
+    /**
+     * Dismiss on the startup offer: the previous session no longer stands in for this run's snapshot,
+     * so a start at which nothing opens does not offer it again. File › Restore Previous Session
+     * still opens it in this run. FX thread.
+     */
+    void dropCarriedForward() {
+        SessionSnapshot stand = carried;
+        carried = null;
+        if (stand != null && saved == stand) {
+            saved = null;
+            markDirty();
+        }
+    }
+
+    /**
+     * The previous session is about to be restored: marks this run as one that restored its previous
+     * session and writes that mark right away, waiting for it at most
+     * {@value #QUIT_SAVE_TIMEOUT_MILLIS} ms, so a crash during the restore still leaves it on disk.
+     * The snapshot it writes holds this run's windows and the previous session's, the windows the
+     * restore leads to, so a crash in the middle loses neither. FX thread.
+     */
+    void beginSessionRestore() {
+        if (sealed) {
+            return;
+        }
+        sessionRestored = true;
+        stable = false;
+        carried = null;
+        if (!writable()) {
+            return;
+        }
+        // A copy of its own: the restore works on the project it loads, the writer on this one.
+        Project previous = store.loadPrevious().map(SessionSnapshot::getProject).orElse(null);
+        Project windows = new Project(SESSION_NAME);
+        windows.setAutoReconnect(true);
+        List<SessionSnapshot.ClosedEntry> closed = List.of();
+        try {
+            Capture capture = environment.capture().get();
+            capture.project().getWindows().forEach(windows::addWindow);
+            closed = capture.recentlyClosed();
+        } catch (RuntimeException e) {
+            logger.warn("Could not capture the session before the restore", e);
+        }
+        if (previous != null && previous.getWindows() != null) {
+            previous.getWindows().forEach(windows::addWindow);
+        }
+        SessionSnapshot marked = snapshotOf(windows, closed, false);
+        dirty = false;
+        retry = false;
+        saved = marked;
+        await(submit(marked), QUIT_SAVE_TIMEOUT_MILLIS);
+    }
+
+    /**
+     * korTTY has kept running for {@value #STABLE_AFTER_MILLIS} ms since it restored the previous
+     * session: the next snapshot says so. FX thread.
+     */
+    void markStable() {
+        if (!sessionRestored || stable) {
+            return;
+        }
+        stable = true;
+        markDirty();
+    }
+
+    boolean isSessionRestored() {
+        return sessionRestored;
+    }
+
+    boolean isStable() {
+        return stable;
+    }
+
     /** Whether File › Restore Previous Session has something to open in this run. */
     boolean canRestorePrevious() {
         return !previousRestored && store.isPreviousAvailable();
@@ -304,16 +426,28 @@ public final class SessionAutosaveCoordinator {
             case KEEP_SAVED_WINDOWS -> windows = onDisk != null ? onDisk.getProject() : capture.project();
             default -> windows = capture.project();
         }
+        // The previous session keeps standing in while the snapshot keeps its windows.
+        boolean stillCarried = carried != null && windows == carried.getProject();
+        SessionSnapshot snapshot = snapshotOf(windows, capture.recentlyClosed(), cleanExit);
+        dirty = false;
+        retry = false;
+        carried = stillCarried ? snapshot : null;
+        saved = snapshot;
+        return submit(snapshot);
+    }
+
+    /** A snapshot of {@code windows} as this run writes it now, with its restore marks. */
+    private SessionSnapshot snapshotOf(Project windows, List<SessionSnapshot.ClosedEntry> recentlyClosed,
+                                       boolean cleanExit) {
         SessionSnapshot snapshot = new SessionSnapshot();
         snapshot.setAppVersion(environment.appVersion());
         snapshot.setSavedAtMillis(environment.clock().getAsLong());
         snapshot.setCleanExit(cleanExit);
+        snapshot.setSessionRestored(sessionRestored);
+        snapshot.setStable(stable);
         snapshot.setProject(windows);
-        snapshot.setRecentlyClosed(new java.util.ArrayList<>(capture.recentlyClosed()));
-        dirty = false;
-        retry = false;
-        saved = snapshot;
-        return submit(snapshot);
+        snapshot.setRecentlyClosed(new java.util.ArrayList<>(recentlyClosed));
+        return snapshot;
     }
 
     private Future<?> submit(SessionSnapshot snapshot) {

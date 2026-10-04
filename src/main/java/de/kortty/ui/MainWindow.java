@@ -64,6 +64,7 @@ import de.kortty.core.AiReasoningSupport;
 import de.kortty.core.ProjectManager;
 import de.kortty.core.RecentConnections;
 import de.kortty.core.RecentProjects;
+import de.kortty.core.SessionRestoreDecision;
 import de.kortty.core.SessionSnapshotStore;
 import de.kortty.core.RemoteTextFileSelectionSupport;
 import de.kortty.core.SftpFileTransferService;
@@ -357,6 +358,11 @@ public class MainWindow {
     private RestoreAttentionBar restoreAttentionBar;
     /** Whether Connect… on the restore bar is asking about a waiting tab right now. */
     private boolean connectingDeferredTabs;
+    /**
+     * The startup offer of the previous session above the status line (see
+     * {@link #startSessionRestore}); {@code null} in every window it was never offered in.
+     */
+    private SessionRestoreOfferBar sessionRestoreOfferBar;
     private javafx.animation.PauseTransition journalLiveWidthSaveDelay;
     private CheckMenuItem showJournalLiveLeftMenuItem;
     private CheckMenuItem showJournalLiveRightMenuItem;
@@ -7322,6 +7328,9 @@ public class MainWindow {
         }
         // Once per run: a second restore would open every tab a second time.
         sessionAutosave.markPreviousRestored();
+        hideSessionRestoreOffers();
+        // On disk before the first tab opens: a crash during the restore is seen at the next start.
+        sessionAutosave.beginSessionRestore();
         MainWindow target = this;
         if (!tabPane.getTabs().isEmpty()) {
             // This window keeps its tabs; the previous session's first window gets a window of its own.
@@ -7335,6 +7344,124 @@ public class MainWindow {
         target.updateStatus(I18n.get("session.restore.previous.done"));
         for (MainWindow window : new ArrayList<>(openWindows)) {
             window.syncRestorePreviousSessionMenuItems();
+        }
+        markSessionStableLater();
+    }
+
+    /**
+     * A minute after a restore of the previous session, the session snapshot marks it stable: from
+     * then on, korTTY ending is no longer taken for a crash the restore caused.
+     */
+    private static void markSessionStableLater() {
+        javafx.animation.PauseTransition stableAfter = new javafx.animation.PauseTransition(
+                javafx.util.Duration.millis(SessionAutosaveCoordinator.STABLE_AFTER_MILLIS));
+        stableAfter.setOnFinished(event -> {
+            if (sessionAutosave != null) {
+                sessionAutosave.markStable();
+            }
+        });
+        stableAfter.play();
+    }
+
+    /**
+     * The startup half of the session restore, by Settings › Window › Session Restore: offers the
+     * previous session in a bar above this window's status line ({@code ask}), restores it once no
+     * modal dialog is open ({@code auto}, which offers instead after korTTY ended unexpectedly right
+     * after the last restore), or does nothing ({@code off}); see {@link SessionRestoreDecision} and
+     * {@link SessionRestoreCoordinator}. Only the session the last run left is offered, and only by
+     * the korTTY that holds the snapshot lock. {@code KorTTYApplication} posts it once, after the
+     * telemetry consent prompt. FX thread.
+     */
+    public void startSessionRestore(de.kortty.model.SessionRestoreMode mode) {
+        if (sessionAutosave == null) {
+            return;
+        }
+        SessionSnapshotStore.StartupState startup = sessionAutosave.startup();
+        SessionRestoreDecision.Facts facts = SessionRestoreDecision.Facts.of(startup);
+        SessionRestoreDecision.Decision decision = SessionRestoreDecision.decide(mode, facts);
+        logger.info("Session restore at startup: mode {}, {}{} (previous session: {} window(s), {} tab(s))",
+                mode != null ? mode.id() : "default", decision.action(), decision.afterCrash() ? " after a crash" : "",
+                facts.windows(), facts.tabs());
+        SessionSnapshot previous = startup != null ? startup.last() : null;
+        new SessionRestoreCoordinator(new SessionRestoreCoordinator.Host() {
+            @Override
+            public boolean modalShowing() {
+                return isModalDialogShowing();
+            }
+
+            @Override
+            public boolean previousRestorable() {
+                return sessionAutosave != null && sessionAutosave.canRestorePrevious();
+            }
+
+            @Override
+            public void keepPreviousSession() {
+                sessionAutosave.carryForward(previous);
+            }
+
+            @Override
+            public void offer(String text) {
+                if (openWindows.contains(MainWindow.this)) {
+                    showSessionRestoreOffer(text);
+                }
+            }
+
+            @Override
+            public void restore() {
+                if (openWindows.contains(MainWindow.this)) {
+                    logger.info("Restoring the previous session automatically");
+                    restorePreviousSession();
+                }
+            }
+
+            @Override
+            public void schedule(long delayMillis, Runnable task) {
+                javafx.animation.PauseTransition delay = new javafx.animation.PauseTransition(
+                        javafx.util.Duration.millis(delayMillis));
+                delay.setOnFinished(event -> task.run());
+                delay.play();
+            }
+        }, decision, facts, I18n::get).start();
+    }
+
+    /** Whether a modal dialog (the consent prompt, a confirmation, a password question) is showing. */
+    private static boolean isModalDialogShowing() {
+        for (javafx.stage.Window window : List.copyOf(javafx.stage.Window.getWindows())) {
+            if (window.isShowing() && window instanceof Stage stage
+                    && stage.getModality() != javafx.stage.Modality.NONE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Shows the startup offer above the status line of this window. */
+    private void showSessionRestoreOffer(String text) {
+        if (sessionRestoreOfferBar == null) {
+            sessionRestoreOfferBar = new SessionRestoreOfferBar();
+            sessionRestoreOfferBar.setOnRestore(() -> {
+                sessionRestoreOfferBar.hideOffer();
+                restorePreviousSession();
+            });
+            sessionRestoreOfferBar.setOnDismiss(() -> {
+                sessionRestoreOfferBar.hideOffer();
+                // The previous session is not offered again at the next start; the File menu keeps it.
+                if (sessionAutosave != null) {
+                    sessionAutosave.dropCarriedForward();
+                }
+            });
+            VBox.setMargin(sessionRestoreOfferBar, new javafx.geometry.Insets(0, 0, 4, 0));
+            statusBar.getChildren().add(0, sessionRestoreOfferBar);
+        }
+        sessionRestoreOfferBar.showOffer(text);
+    }
+
+    /** The previous session was restored: no window offers it any more. */
+    private static void hideSessionRestoreOffers() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            if (window.sessionRestoreOfferBar != null) {
+                window.sessionRestoreOfferBar.hideOffer();
+            }
         }
     }
 

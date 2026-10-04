@@ -15,8 +15,9 @@ import java.util.regex.Pattern;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * Every text of the restore bar ({@code session.restore.*}) and of File › Restore Previous Session
- * exists, translated, in all eight bundles,
+ * Every text of the restore bar ({@code session.restore.*}), of File › Restore Previous Session, of
+ * the startup offer and of Settings › Window › Session Restore exists, translated, in all eight
+ * bundles,
  * with the same placeholders as the English text and no doubled apostrophe: LanguageManager fills
  * placeholders with String.replace rather than MessageFormat, so a doubled apostrophe would show up
  * doubled, and a lost {0} would hide the count or the tab name.
@@ -44,6 +45,16 @@ class SessionRestoreI18nCoverageTest {
         "menu.file.restorePreviousSession",
         "session.restore.previous.none",
         "session.restore.previous.done");
+
+    /** Settings › Window › Session Restore. */
+    private static final List<String> SETTINGS_KEYS = List.of(
+        "settings.window.restore.header",
+        "settings.window.restore.mode",
+        "settings.window.restore.mode.ask",
+        "settings.window.restore.mode.auto",
+        "settings.window.restore.mode.off",
+        "settings.window.restore.mode.tooltip",
+        "settings.window.restore.info");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
@@ -112,9 +123,35 @@ class SessionRestoreI18nCoverageTest {
         }
     }
 
+    @Test
+    void theStartupOfferNamesTheWindowsAndTheTabsAndTheSettingTakesNoPlaceholder() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            for (String key : List.of(SessionRestoreCoordinator.PROMPT_KEY, SessionRestoreCoordinator.AFTER_CRASH_KEY)) {
+                assertWithMessage(bundle + " " + key).that(placeholders(localized.getProperty(key)))
+                    .containsExactly("{0}", "{1}");
+            }
+            for (String key : SETTINGS_KEYS) {
+                // Shown with I18n.get(key) and no arguments; a stray {0} would be printed raw.
+                assertWithMessage(bundle + " has a placeholder in " + key)
+                    .that(PLACEHOLDER.matcher(localized.getProperty(key)).find()).isFalse();
+            }
+        }
+    }
+
+    @Test
+    void everyRestoreModeHasItsLabelAndTheOfferReusesTheRestoreBarsDismiss() {
+        for (de.kortty.model.SessionRestoreMode mode : de.kortty.model.SessionRestoreMode.values()) {
+            assertWithMessage("label of " + mode).that(SETTINGS_KEYS).contains("settings.window.restore.mode." + mode.id());
+        }
+        assertWithMessage("the offer bar's Dismiss is the restore bar's").that(keys()).contains(RestoreAttention.DISMISS_KEY);
+    }
+
     private static List<String> keys() {
         List<String> keys = new java.util.ArrayList<>(RestoreAttention.KEYS);
         keys.addAll(PREVIOUS_SESSION_KEYS);
+        keys.addAll(SessionRestoreCoordinator.KEYS);
+        keys.addAll(SETTINGS_KEYS);
         return keys;
     }
 

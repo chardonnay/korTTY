@@ -926,6 +926,14 @@ public class GlobalSettings {
     @XmlElement
     private long openRecentClearedAt = 0L;
 
+    /**
+     * Settings → Window → Session Restore: what korTTY does at startup with the session before this
+     * start, the {@link SessionRestoreMode#id()} {@code ask}, {@code auto} or {@code off}. Missing,
+     * blank or unknown values mean {@code ask}, so a damaged file never opens connections by itself.
+     */
+    @XmlElement
+    private String sessionRestoreMode = SessionRestoreMode.DEFAULT.id();
+
     /** Recent extra instructions from the workflow-script generator (max 10, newest first). */
     @XmlElementWrapper(name = "workflowInstructionsHistory")
     @XmlElement(name = "entry")
@@ -3526,6 +3534,16 @@ public class GlobalSettings {
 
     public void setOpenRecentClearedAt(long openRecentClearedAt) {
         this.openRecentClearedAt = Math.max(0L, openRecentClearedAt);
+    }
+
+    /** What korTTY does at startup with the previous session; never null. */
+    public SessionRestoreMode getSessionRestoreMode() {
+        return SessionRestoreMode.fromId(sessionRestoreMode);
+    }
+
+    /** @param sessionRestoreMode the mode to store; null stores the default ({@code ask}) */
+    public void setSessionRestoreMode(SessionRestoreMode sessionRestoreMode) {
+        this.sessionRestoreMode = (sessionRestoreMode != null ? sessionRestoreMode : SessionRestoreMode.DEFAULT).id();
     }
 
     public java.util.List<String> getWorkflowInstructionsHistory() {
