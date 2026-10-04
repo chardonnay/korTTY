@@ -8,6 +8,7 @@ import de.kortty.telemetry.TerminalUxTelemetry.RestoreTrigger;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KeyTypedResidueGuard.Residue;
 import de.kortty.shellintegration.PromptNavigator;
+import de.kortty.shellintegration.TerminalNotificationPolicy;
 import de.kortty.ui.actions.ActionIds;
 import de.kortty.ui.actions.ActionPaletteSource;
 import de.kortty.ui.actions.ActionRegistry;
@@ -11727,12 +11728,20 @@ public class MainWindow {
         java.util.Set<String> agentTokenActivityIds =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
         String agentModelText = aiModelDisplayText(profile);
+        // One desktop notification for the run's end, whichever path reports it first.
+        java.util.concurrent.atomic.AtomicBoolean agentEndNotified =
+            new java.util.concurrent.atomic.AtomicBoolean();
         Thread worker = new Thread(() -> {
             try {
                 terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
                         if (state != null && isTerminalAgentFinalPhase(state.phase())) {
+                            TerminalNotificationPolicy.AiRunEvent endEvent =
+                                TerminalAttentionNotifier.agentEndEvent(state.phase());
+                            if (endEvent != null && agentEndNotified.compareAndSet(false, true)) {
+                                TerminalAttentionNotifier.postAiRun(terminalTab, endEvent);
+                            }
                             String message = formatTerminalAgentFinalMessage(state);
                             if (message != null && !message.isBlank()) {
                                 // The journal card is written regardless of terminal mirroring:
@@ -11791,11 +11800,15 @@ public class MainWindow {
 
                     @Override
                     public TerminalAgentService.ApprovalDecision requestApproval(TerminalAgentModels.Approval approval) {
+                        TerminalAttentionNotifier.postAiRun(terminalTab,
+                            TerminalNotificationPolicy.AiRunEvent.NEEDS_APPROVAL);
                         return activityPanel.requestApproval(runId, approval);
                     }
 
                     @Override
                     public TerminalAgentModels.PasswordResponse requestPassword(TerminalAgentModels.PasswordRequest passwordRequest) {
+                        TerminalAttentionNotifier.postAiRun(terminalTab,
+                            TerminalNotificationPolicy.AiRunEvent.NEEDS_PASSWORD);
                         return activityPanel.requestPassword(runId, passwordRequest);
                     }
 
@@ -11835,6 +11848,9 @@ public class MainWindow {
                             agentTokensTotal.get());
                     }
                 } else {
+                    if (agentEndNotified.compareAndSet(false, true)) {
+                        TerminalAttentionNotifier.postAiRun(terminalTab, TerminalNotificationPolicy.AiRunEvent.FAILED);
+                    }
                     activityPanel.publishActivity(runId, new TerminalAgentModels.AgentActivity(
                         "failed-" + System.nanoTime(),
                         TerminalAgentModels.AgentActivityType.ERROR,

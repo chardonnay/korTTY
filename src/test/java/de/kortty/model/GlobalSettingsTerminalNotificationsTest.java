@@ -135,6 +135,26 @@ class GlobalSettingsTerminalNotificationsTest {
     }
 
     @Test
+    void aiRunNotificationsAreOnOnAFreshInstallationAndForOldSettings() throws Exception {
+        assertWithMessage("decision D5: an approval in a window behind another one must not block silently")
+            .that(new GlobalSettings().isAiRunToastsEnabled()).isTrue();
+        assertThat(GlobalSettings.forFreshInstall().isAiRunToastsEnabled()).isTrue();
+        assertThat(unmarshal("<globalSettings></globalSettings>").isAiRunToastsEnabled()).isTrue();
+    }
+
+    @Test
+    void theAiRunNotificationChoiceSurvivesAnXmlRoundTrip() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setAiRunToastsEnabled(false);
+        String xml = marshal(settings);
+        assertThat(xml).contains("<aiRunToastsEnabled>false</aiRunToastsEnabled>");
+        assertThat(unmarshal(xml).isAiRunToastsEnabled()).isFalse();
+
+        settings.setAiRunToastsEnabled(true);
+        assertThat(unmarshal(marshal(settings)).isAiRunToastsEnabled()).isTrue();
+    }
+
+    @Test
     void theSilenceThresholdIsThirtySecondsOnAFreshInstallationAndForOldSettings() throws Exception {
         assertThat(new GlobalSettings().getTerminalSilenceSeconds()).isEqualTo(30);
         assertThat(GlobalSettings.forFreshInstall().getTerminalSilenceSeconds()).isEqualTo(30);

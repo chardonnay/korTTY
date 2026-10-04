@@ -74,6 +74,17 @@ When such a request comes from a tab you are not looking at, korTTY marks the ta
 !!! note "Privacy"
     A desktop notification shows the tab's name, which can be a server name, and depending on your operating system's settings it can appear on the lock screen; a program's notification also shows the text the program sent. Turn off the desktop notifications you do not want, or the notifications for korTTY in the operating system; the mark on the tab stays inside korTTY.
 
+## AI agent and AI Swarm runs
+
+korTTY's own [AI Agent](ai-tools.md) and [AI Swarm](ai-swarm.md) runs tell you when they need you or are done while you look elsewhere. When a run in a tab you are not looking at waits for your approval of a command, waits for a password, finishes, or stops without finishing (an error, or the agent gave up blocked), a desktop notification titled `korTTY · ` and the name of the tab says so. Without it, an approval asked for in a window behind another one would hold the run until you happened to look.
+
+- The text is one fixed sentence, such as *The AI run in this tab is waiting for your approval.* It never contains your prompt, the command waiting for approval, the password request's wording or any output, because a notification can appear on the lock screen.
+- A tab shows at most one notification of the same kind every 10 seconds, so a swarm whose agents ask for approvals one after another does not flood your desktop; the run's end still notifies right after an approval.
+- A terminal tab whose agent run asks for you is also marked with 🔔, and the tooltip repeats the sentence. An AI Swarm tab keeps its own blinking indicator instead.
+- Nothing happens in the tab you are looking at, and nothing when you cancel or restart the run yourself.
+
+*Settings → Terminal → Notifications* has **Desktop notification when an AI agent or AI swarm run in a tab you are not looking at finishes or waits for you**, on by default. Switched off, a terminal tab is still marked. See [Terminal settings](../reference/settings/terminal.md#notes).
+
 ## Watching a tab for activity or silence
 
 Right-click a terminal tab and choose **Monitor for Activity** or **Monitor for Silence** to have korTTY watch it while you work elsewhere. Both are also commands of the [command palette](command-palette.md#terminal-and-tab-commands) for the tab you are in, with a check mark while they are on. They work in local shells and SSH sessions alike, need no [shell integration](shell-integration.md) and nothing on the server.

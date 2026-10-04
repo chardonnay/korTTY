@@ -35,6 +35,15 @@ final class PaneSeenOracle {
     }
 
     /**
+     * Whether the user is looking at {@code tab}, a tab of any kind such as an AI swarm's: the selected
+     * tab of the window in front.
+     */
+    static boolean isTabSeen(@Nullable javafx.scene.control.Tab tab) {
+        return tab != null && seenTab(MainWindow.getOpenWindows(), MainWindow::isForegroundWindow,
+            MainWindow::getActiveTab) == tab;
+    }
+
+    /**
      * The selected terminal tab of the first window in front, or {@code null} when no window is in
      * front or that window shows another kind of tab.
      *

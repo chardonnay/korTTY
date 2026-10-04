@@ -193,6 +193,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox commandFinishedNotificationsCheck;
     private final Spinner<Integer> commandFinishedSecondsSpinner;
     private final CheckBox remoteTerminalNotificationsCheck;
+    private final CheckBox aiRunToastsCheck;
     private final Spinner<Integer> terminalSilenceSecondsSpinner;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
@@ -972,6 +973,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         remoteTerminalNotificationsCheck.setSelected(globalSettings == null
             || globalSettings.isRemoteTerminalNotificationsEnabled());
         remoteTerminalNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.remote.tooltip")));
+        // ... and korTTY's own AI runs (terminal agent, swarm) finishing or waiting for an approval.
+        aiRunToastsCheck = new CheckBox(I18n.get("settings.terminal.notify.aiRun"));
+        aiRunToastsCheck.setSelected(globalSettings == null || globalSettings.isAiRunToastsEnabled());
+        aiRunToastsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.aiRun.tooltip")));
         // ... and how long a tab watched for silence (its right-click menu) has to stay silent.
         terminalSilenceSecondsSpinner = new Spinner<>(PaneActivityMonitor.MIN_SILENCE_SECONDS,
             PaneActivityMonitor.MAX_SILENCE_SECONDS,
@@ -1193,6 +1198,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         commandFinishedSecondsBox.setAlignment(Pos.CENTER_LEFT);
         terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);
         terminalGrid.add(remoteTerminalNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(aiRunToastsCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(new Label(I18n.get("settings.terminal.notify.silenceSeconds")), 0, terminalRow);
         HBox terminalSilenceSecondsBox = new HBox(10, terminalSilenceSecondsSpinner,
             new Label(I18n.get("settings.terminal.notify.silenceSeconds.unit")));
@@ -3918,6 +3924,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null
                 ? commandFinishedSecondsSpinner.getValue() : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS);
             globalSettings.setRemoteTerminalNotificationsEnabled(remoteTerminalNotificationsCheck.isSelected());
+            globalSettings.setAiRunToastsEnabled(aiRunToastsCheck.isSelected());
             globalSettings.setTerminalSilenceSeconds(terminalSilenceSecondsSpinner.getValue() != null
                 ? terminalSilenceSecondsSpinner.getValue() : PaneActivityMonitor.DEFAULT_SILENCE_SECONDS);
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
@@ -4214,6 +4221,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::getCommandFinishedNotificationSeconds, true));
             tracked.add(new TrackedSetting("terminal", "remote_notifications",
                 gs::isRemoteTerminalNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "ai_run_notifications", gs::isAiRunToastsEnabled, true));
             tracked.add(new TrackedSetting("terminal", "silence_seconds", gs::getTerminalSilenceSeconds, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",

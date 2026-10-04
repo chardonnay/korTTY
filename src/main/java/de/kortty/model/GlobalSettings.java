@@ -450,6 +450,16 @@ public class GlobalSettings {
     private boolean remoteTerminalNotificationsEnabled = true;
 
     /**
+     * Desktop notification when a korTTY AI run, a terminal-agent run or an AI swarm, in a tab the user
+     * is not looking at finishes, fails or waits for an approval or a password. On by default
+     * (decision D5): an approval in a window behind another one would otherwise block the run
+     * silently. The text is fixed and never carries the prompt, a command or output; at most one per
+     * tab and event every 10 seconds.
+     */
+    @XmlElement
+    private boolean aiRunToastsEnabled = true;
+
+    /**
      * How long a pane of a terminal tab watched for silence (<i>Monitor for Silence</i> in the tab's
      * right-click menu) has to stay without output after printing, in seconds, before the tab is
      * marked and notifies; 5 to 3600. Boxed so a settings file written before this setting existed
@@ -2499,6 +2509,18 @@ public class GlobalSettings {
 
     public void setRemoteTerminalNotificationsEnabled(boolean remoteTerminalNotificationsEnabled) {
         this.remoteTerminalNotificationsEnabled = remoteTerminalNotificationsEnabled;
+    }
+
+    /**
+     * Whether a korTTY AI run (terminal agent, swarm) in a tab the user is not looking at shows a
+     * desktop notification when it finishes, fails or waits for the user. Read on every event.
+     */
+    public boolean isAiRunToastsEnabled() {
+        return aiRunToastsEnabled;
+    }
+
+    public void setAiRunToastsEnabled(boolean aiRunToastsEnabled) {
+        this.aiRunToastsEnabled = aiRunToastsEnabled;
     }
 
     /**

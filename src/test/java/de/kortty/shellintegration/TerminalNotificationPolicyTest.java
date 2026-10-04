@@ -4,6 +4,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.testng.Assert.assertThrows;
 
+import de.kortty.shellintegration.TerminalNotificationPolicy.AiRunEvent;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Decision;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Kind;
 import de.kortty.shellintegration.TerminalNotificationPolicy.MultiExecRun;
@@ -37,6 +38,9 @@ import org.testng.annotations.Test;
  *   <li>A highlight rule with the notification action: the same rules, always with a desktop
  *       notification, at most once per rule and slot every 30 seconds; output right after mirrored
  *       keys counts for nothing.</li>
+ *   <li>korTTY's own AI runs: nothing in a tab the user looks at; otherwise the tab's mark, and with
+ *       its setting on (by default) a desktop notification at most once per tab and event every 10
+ *       seconds.</li>
  * </ul>
  */
 class TerminalNotificationPolicyTest {
@@ -567,5 +571,56 @@ class TerminalNotificationPolicyTest {
         assertThrows(NullPointerException.class, () -> policy.decide(Kind.BELL, pane, null, DEFAULTS));
         assertThrows(NullPointerException.class, () -> policy.decide(Kind.BELL, pane, UNSEEN, null));
         assertThrows(NullPointerException.class, () -> new TerminalNotificationPolicy(null));
+    }
+
+    @Test
+    void anAiRunInAnUnseenTabMarksItAndNotifies() {
+        assertThat(policy.decideAiRun(pane, AiRunEvent.FINISHED, UNSEEN, DEFAULTS)).isEqualTo(new Decision(true, true));
+        assertWithMessage("decision D5: on by default")
+            .that(new Toggles(false, true, true, 30, true).aiRunToasts()).isTrue();
+    }
+
+    @Test
+    void anAiRunInASeenTabLeadsToNothing() {
+        for (AiRunEvent event : AiRunEvent.values()) {
+            assertWithMessage("%s in the tab the user looks at", event)
+                .that(policy.decideAiRun(pane, event, SEEN, DEFAULTS)).isEqualTo(Decision.NONE);
+        }
+        assertWithMessage("a seen tab takes no slot")
+            .that(policy.decideAiRun(pane, AiRunEvent.NEEDS_APPROVAL, UNSEEN, DEFAULTS)).isEqualTo(new Decision(true, true));
+    }
+
+    @Test
+    void anAiRunWithItsToggleOffOnlyMarksTheTab() {
+        Toggles aiRunsOff = new Toggles(false, true, true, 30, true, false);
+        assertThat(policy.decideAiRun(pane, AiRunEvent.NEEDS_APPROVAL, UNSEEN, aiRunsOff))
+            .isEqualTo(new Decision(true, false));
+        assertWithMessage("switching it off took no slot")
+            .that(policy.decideAiRun(pane, AiRunEvent.NEEDS_APPROVAL, UNSEEN, DEFAULTS)).isEqualTo(new Decision(true, true));
+    }
+
+    @Test
+    void anAiRunNotifiesAtMostOncePerTabAndEventEveryTenSeconds() {
+        assertThat(Kind.AI_RUN.toastIntervalMillis()).isEqualTo(10_000L);
+        assertThat(policy.decideAiRun(pane, AiRunEvent.NEEDS_APPROVAL, UNSEEN, DEFAULTS)).isEqualTo(new Decision(true, true));
+        now[0] += 9_999;
+        assertWithMessage("a second approval within the interval only marks the tab")
+            .that(policy.decideAiRun(pane, AiRunEvent.NEEDS_APPROVAL, UNSEEN, DEFAULTS)).isEqualTo(new Decision(true, false));
+        assertWithMessage("the run's end is not swallowed by the approval moments before")
+            .that(policy.decideAiRun(pane, AiRunEvent.FINISHED, UNSEEN, DEFAULTS)).isEqualTo(new Decision(true, true));
+        assertWithMessage("another tab has its own slot")
+            .that(policy.decideAiRun(new Object(), AiRunEvent.NEEDS_APPROVAL, UNSEEN, DEFAULTS))
+            .isEqualTo(new Decision(true, true));
+        now[0] += 1;
+        assertThat(policy.decideAiRun(pane, AiRunEvent.NEEDS_APPROVAL, UNSEEN, DEFAULTS)).isEqualTo(new Decision(true, true));
+    }
+
+    @Test
+    void anAiRunHasItsOwnMethod() {
+        assertThrows(IllegalArgumentException.class, () -> policy.decide(Kind.AI_RUN, pane, UNSEEN, DEFAULTS));
+        assertThrows(NullPointerException.class, () -> policy.decideAiRun(null, AiRunEvent.FAILED, UNSEEN, DEFAULTS));
+        assertThrows(NullPointerException.class, () -> policy.decideAiRun(pane, null, UNSEEN, DEFAULTS));
+        assertThrows(NullPointerException.class, () -> policy.decideAiRun(pane, AiRunEvent.FAILED, null, DEFAULTS));
+        assertThrows(NullPointerException.class, () -> policy.decideAiRun(pane, AiRunEvent.FAILED, UNSEEN, null));
     }
 }

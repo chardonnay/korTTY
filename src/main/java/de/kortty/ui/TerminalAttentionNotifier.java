@@ -11,16 +11,21 @@ import de.kortty.codingagent.desktop.DesktopNotifier;
 import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.core.GlobalSettingsManager;
 import de.kortty.core.highlight.TerminalOutputHighlighter.LineMatch;
+import de.kortty.core.swarm.SwarmModels;
 import de.kortty.model.GlobalSettings;
+import de.kortty.model.TerminalAgentModels;
 import de.kortty.policy.PolicyManager;
 import de.kortty.shellintegration.CommandStatus;
 import de.kortty.shellintegration.RemoteNotificationText;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
+import de.kortty.shellintegration.TerminalNotificationPolicy.AiRunEvent;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Decision;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Kind;
 import de.kortty.shellintegration.TerminalNotificationPolicy.MultiExecRun;
 import de.kortty.shellintegration.TerminalNotificationPolicy.PaneState;
 import de.kortty.shellintegration.TerminalNotificationPolicy.Toggles;
+import javafx.application.Platform;
+import javafx.scene.control.Tab;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +35,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -42,7 +48,9 @@ import java.util.function.Supplier;
  * program asking for a notification with OSC 9 or OSC 777 ({@link #onRemoteNotification}),
  * activity or silence in a tab the user asked to watch ({@link #onActivity}, {@link #onSilence};
  * {@link TerminalActivityWatcher} reports them), and a highlight rule with the notification action
- * matching new output ({@link #onHighlightTrigger}; {@link HighlightTriggerDispatcher} decides).
+ * matching new output ({@link #onHighlightTrigger}; {@link HighlightTriggerDispatcher} decides), and
+ * korTTY's own AI runs, the terminal agent and the AI swarm, finishing, failing or waiting for the
+ * user ({@link #onAiRun}; their worker threads post through {@link #postAiRun}).
  *
  * <p>The notification is titled {@code korTTY · <tab>}, as the Control API's notifications are, so
  * a program in a terminal can never make it look like a message from another application. It never
@@ -94,6 +102,8 @@ public final class TerminalAttentionNotifier {
 
     private final HighlightTriggerDispatcher triggers;
 
+    private final Predicate<Tab> anyTabSeen;
+
     /**
      * @param multiExecSession the multi-exec session a pane takes part in, or {@code null}
      *                         ({@link MultiExecCoordinator#sessionOf})
@@ -104,6 +114,19 @@ public final class TerminalAttentionNotifier {
             Supplier<GlobalSettings> settings, Supplier<DesktopNotifier> notifier,
             Supplier<CodingAgentRegistry> codingAgents, Function<SithTermFxWidget, Object> multiExecSession,
             Predicate<SithTermFxWidget> mirroredInput) {
+        this(policy, seen, settings, notifier, codingAgents, multiExecSession, mirroredInput,
+            PaneSeenOracle::isTabSeen);
+    }
+
+    /**
+     * @param anyTabSeen whether the user is looking at a tab of any kind, such as an AI swarm's
+     *                   ({@link PaneSeenOracle#isTabSeen})
+     */
+    TerminalAttentionNotifier(TerminalNotificationPolicy policy, Predicate<TerminalTab> seen,
+            Supplier<GlobalSettings> settings, Supplier<DesktopNotifier> notifier,
+            Supplier<CodingAgentRegistry> codingAgents, Function<SithTermFxWidget, Object> multiExecSession,
+            Predicate<SithTermFxWidget> mirroredInput, Predicate<Tab> anyTabSeen) {
+        this.anyTabSeen = Objects.requireNonNull(anyTabSeen, "anyTabSeen");
         this.policy = Objects.requireNonNull(policy, "policy");
         this.seen = Objects.requireNonNull(seen, "seen");
         this.settings = Objects.requireNonNull(settings, "settings");
@@ -282,6 +305,117 @@ public final class TerminalAttentionNotifier {
     }
 
     /**
+     * Hands an AI run's event to the JavaFX thread and reports it there ({@link #onAiRun}). For the
+     * worker threads of the terminal agent and the swarm, which must never touch the notifier, the
+     * seen oracle or the tab themselves; does nothing before the toolkit runs.
+     */
+    static void postAiRun(@Nullable Tab tab, @Nullable AiRunEvent event) {
+        if (tab == null || event == null) {
+            return;
+        }
+        try {
+            Platform.runLater(() -> shared().onAiRun(tab, event));
+        } catch (IllegalStateException e) {
+            logger.debug("AI-run notification dropped: the toolkit is not running");
+        }
+    }
+
+    /**
+     * A korTTY AI run in {@code tab}, a terminal tab for the terminal agent or the swarm's own tab,
+     * finished, failed or waits for the user. In a tab the user is not looking at, a terminal tab gets
+     * its mark and, with the setting on, a desktop notification titled {@code korTTY · <tab>} says what
+     * happened, at most once per tab and event every 10 seconds. The text is fixed: it never carries
+     * the prompt, a command, a password request's wording or any output. JavaFX thread.
+     */
+    public void onAiRun(Tab tab, AiRunEvent event) {
+        if (tab == null || event == null) {
+            return;
+        }
+        if (tab instanceof TerminalTab terminalTab) {
+            onAiRun(terminalTab, seen.test(terminalTab), terminalTab.getEffectiveTitle(), event,
+                terminalTab::markAttention, I18n::get);
+        } else {
+            onAiRun(tab, anyTabSeen.test(tab), tab.getText(), event, null, I18n::get);
+        }
+    }
+
+    /**
+     * {@link #onAiRun(Tab, AiRunEvent)} without a tab: {@code slot} stands for it.
+     *
+     * @param markAttention marks the tab with a tooltip line, or {@code null} for a tab without a mark
+     * @return what the policy decided
+     */
+    Decision onAiRun(Object slot, boolean tabSeen, @Nullable String tabName, AiRunEvent event,
+            @Nullable Consumer<String> markAttention, BiFunction<String, Object[], String> i18n) {
+        Decision decision = policy.decideAiRun(slot, event, new PaneState(tabSeen, false, false),
+            toggles(settings.get()));
+        if (!decision.badge() && !decision.toast()) {
+            return decision;
+        }
+        String text = aiRunText(event, i18n);
+        if (decision.badge() && markAttention != null) {
+            markAttention.accept(text);
+        }
+        if (decision.toast()) {
+            show(toastTitle(tabName), text);
+        }
+        return decision;
+    }
+
+    /**
+     * What the end of a terminal-agent run reports: {@link AiRunEvent#FINISHED} when it is done,
+     * {@link AiRunEvent#FAILED} when it failed or gave up blocked, nothing when the user cancelled it
+     * or it has not ended.
+     */
+    static @Nullable AiRunEvent agentEndEvent(@Nullable TerminalAgentModels.Phase phase) {
+        if (phase == null) {
+            return null;
+        }
+        return switch (phase) {
+            case DONE -> AiRunEvent.FINISHED;
+            case FAILED, BLOCKED -> AiRunEvent.FAILED;
+            default -> null;
+        };
+    }
+
+    /**
+     * What the end of an AI swarm run reports: nothing when the user cancelled or restarted it,
+     * {@link AiRunEvent#FAILED} without a result or when no agent got done although there were agents,
+     * else {@link AiRunEvent#FINISHED}.
+     *
+     * @param restartRequested whether the run ends because the user restarts the swarm
+     * @param lastPhase        the run's last reported phase
+     * @param hasResult        whether the run handed back an aggregation result
+     * @param agentStates      the end states of the run's agents
+     */
+    static @Nullable AiRunEvent swarmEndEvent(boolean restartRequested,
+            @Nullable SwarmModels.SwarmPhase lastPhase, boolean hasResult,
+            List<SwarmModels.SwarmAgentState> agentStates) {
+        if (restartRequested || lastPhase == SwarmModels.SwarmPhase.CANCELLED) {
+            return null;
+        }
+        if (!hasResult || lastPhase == SwarmModels.SwarmPhase.FAILED) {
+            return AiRunEvent.FAILED;
+        }
+        if (agentStates != null && !agentStates.isEmpty()
+                && !agentStates.contains(SwarmModels.SwarmAgentState.DONE)) {
+            return AiRunEvent.FAILED;
+        }
+        return AiRunEvent.FINISHED;
+    }
+
+    /** The fixed text of an AI run's notification and tab tooltip; nothing of the run itself. */
+    static String aiRunText(AiRunEvent event, BiFunction<String, Object[], String> i18n) {
+        String key = switch (event) {
+            case FINISHED -> "terminal.notify.aiRun.finished";
+            case FAILED -> "terminal.notify.aiRun.failed";
+            case NEEDS_APPROVAL -> "terminal.notify.aiRun.needsApproval";
+            case NEEDS_PASSWORD -> "terminal.notify.aiRun.needsPassword";
+        };
+        return i18n.apply(key, new Object[0]);
+    }
+
+    /**
      * The text of a silence notification and tab tooltip, for example {@code No output in this tab
      * for 30 sec.}
      *
@@ -331,7 +465,8 @@ public final class TerminalAttentionNotifier {
         GlobalSettings effective = current != null ? current : new GlobalSettings();
         return new Toggles(effective.isTerminalBellNotificationsEnabled(),
             effective.isCodingAgentNotificationsEnabled(), effective.isCommandFinishedNotificationsEnabled(),
-            effective.getCommandFinishedNotificationSeconds(), effective.isRemoteTerminalNotificationsEnabled());
+            effective.getCommandFinishedNotificationSeconds(), effective.isRemoteTerminalNotificationsEnabled(),
+            effective.isAiRunToastsEnabled());
     }
 
     /**
