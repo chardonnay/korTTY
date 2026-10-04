@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import com.sithtermfx.core.compatibility.Point;
+import de.kortty.core.QuickSelectPatterns;
 import de.kortty.core.TerminalLinkDetector;
 import de.kortty.core.TerminalLinkDetector.Kind;
 import de.kortty.ui.QuickSelectScreen.Hit;
@@ -144,6 +145,42 @@ public class QuickSelectScreenTest {
         assertThat(QuickSelectScreen.stillShows(fixture.buffer, hit)).isFalse();
         assertThat(QuickSelectScreen.stillShows(fixture.buffer,
             new Hit(Kind.GIT_HASH, "c0ffee1", new Point(5, 9), new Point(11, 9)))).isFalse();
+    }
+
+    @Test
+    public void theUsersOwnPatternsAreCapturedWithTheirCellsBesideTheBuiltInKinds() {
+        EmulatorTextBufferFixture fixture = fixture(20, 3);
+        fixture.write("fix JIRA-4711\r\n");
+        fixture.writeWrapping("on host web01.prod.example now");
+
+        List<Hit> hits = QuickSelectScreen.capture(fixture.buffer, 0, 3,
+            QuickSelectPatterns.compile(List.of("[A-Z]+-\\d+", "web\\d+\\.prod\\.example")));
+
+        // JIRA-4711 is offered whole instead of the number in it; the host name wraps onto the next row.
+        assertThat(hits).containsExactly(
+            new Hit(Kind.CUSTOM, "JIRA-4711", new Point(4, 0), new Point(12, 0)),
+            new Hit(Kind.CUSTOM, "web01.prod.example", new Point(8, 1), new Point(5, 2))).inOrder();
+        assertThat(QuickSelectScreen.stillShows(fixture.buffer, hits.get(1))).isTrue();
+        // Without patterns the number is what quick select finds.
+        assertThat(QuickSelectScreen.capture(fixture.buffer, 0, 3).stream().map(Hit::text).toList())
+            .containsExactly("4711");
+    }
+
+    @Test
+    public void aPatternMatchAcrossAnEmptyCellStillShowsUntilItIsPrintedOver() {
+        EmulatorTextBufferFixture fixture = fixture(30, 2);
+        fixture.write("user");
+        fixture.terminal.cursorForward(2); // a gap of never-written cells, as a tab leaves
+        fixture.write("42 ok");
+
+        List<Hit> hits = QuickSelectScreen.capture(fixture.buffer, 0, 2,
+            QuickSelectPatterns.compile(List.of("user\\s+\\d+")));
+
+        assertThat(hits).containsExactly(new Hit(Kind.CUSTOM, "user  42", new Point(0, 0), new Point(7, 0)));
+        // The empty cells count as the spaces the match was found with, so the label stays.
+        assertThat(QuickSelectScreen.stillShows(fixture.buffer, hits.get(0))).isTrue();
+        fixture.write("\ruser-");
+        assertThat(QuickSelectScreen.stillShows(fixture.buffer, hits.get(0))).isFalse();
     }
 
     @Test

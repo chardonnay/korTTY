@@ -380,6 +380,23 @@ public class GlobalSettings {
     @XmlElement
     private boolean terminalLinkDetectionEnabled = true; // Cmd/Ctrl+click opens web/e-mail addresses and file paths in plain text
 
+    /**
+     * The letters quick select labels its matches with, in the order it uses them; null for the
+     * default ({@code de.kortty.core.QuickSelectLabels.DEFAULT_ALPHABET}). Checked by
+     * {@code QuickSelectLabels.alphabetProblem}; a value broken by hand falls back to the default.
+     */
+    @XmlElement
+    private String terminalQuickSelectAlphabet;
+
+    /**
+     * The user's own quick-select patterns: regular expressions whose matches quick select labels
+     * too, such as ticket numbers. Checked by {@code de.kortty.core.QuickSelectPatterns}; a pattern
+     * broken by hand is left out rather than breaking quick select. Empty by default.
+     */
+    @XmlElementWrapper(name = "terminalQuickSelectPatterns")
+    @XmlElement(name = "pattern")
+    private java.util.List<String> terminalQuickSelectPatterns = new java.util.ArrayList<>();
+
     @XmlElement
     private boolean closeActiveTerminalWindowsWithoutConfirmation = false; // Ask before closing active terminal windows by default
 
@@ -2194,6 +2211,41 @@ public class GlobalSettings {
 
     public void setTerminalLinkDetectionEnabled(boolean terminalLinkDetectionEnabled) {
         this.terminalLinkDetectionEnabled = terminalLinkDetectionEnabled;
+    }
+
+    /**
+     * The quick-select label letters as stored; {@code null} for the default. Quick select itself
+     * uses {@code QuickSelectLabels.effectiveAlphabet} of it.
+     */
+    public String getTerminalQuickSelectAlphabet() {
+        return terminalQuickSelectAlphabet;
+    }
+
+    /** Stores the label letters, trimmed; blank means the default and is stored as {@code null}. */
+    public void setTerminalQuickSelectAlphabet(String terminalQuickSelectAlphabet) {
+        String trimmed = terminalQuickSelectAlphabet != null ? terminalQuickSelectAlphabet.strip() : null;
+        this.terminalQuickSelectAlphabet = trimmed == null || trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /** The user's own quick-select patterns, in order; never {@code null}. */
+    public java.util.List<String> getTerminalQuickSelectPatterns() {
+        if (terminalQuickSelectPatterns == null) {
+            terminalQuickSelectPatterns = new java.util.ArrayList<>();
+        }
+        return terminalQuickSelectPatterns;
+    }
+
+    /** Stores the patterns in order, without blank or {@code null} entries. */
+    public void setTerminalQuickSelectPatterns(java.util.List<String> terminalQuickSelectPatterns) {
+        java.util.List<String> kept = new java.util.ArrayList<>();
+        if (terminalQuickSelectPatterns != null) {
+            for (String pattern : terminalQuickSelectPatterns) {
+                if (pattern != null && !pattern.isBlank()) {
+                    kept.add(pattern);
+                }
+            }
+        }
+        this.terminalQuickSelectPatterns = kept;
     }
 
     public boolean isCloseActiveTerminalWindowsWithoutConfirmation() {

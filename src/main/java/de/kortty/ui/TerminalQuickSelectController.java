@@ -6,6 +6,7 @@ import com.sithtermfx.ui.split.TerminalSplitPane;
 import com.sithtermfx.ui.split.TerminalSplitPane.PaneOverlayLayer;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.core.QuickSelectLabels;
+import de.kortty.core.QuickSelectSettings;
 import de.kortty.core.TerminalLinkDetector.Kind;
 import de.kortty.ui.QuickSelectScreen.Hit;
 import de.kortty.ui.QuickSelectSession.Outcome;
@@ -51,8 +52,9 @@ import java.util.function.Supplier;
 /**
  * Quick select for the panes of one terminal tab: on request it marks every URL, path, e-mail
  * address, UUID, IP address, git hash and number of four or more digits the focused pane shows
- * ({@link QuickSelectScreen}) with a box and a label of one or two letters ({@link QuickSelectLabels}).
- * Typing a label copies that text to the clipboard through {@link KorttyClipboard}, so the
+ * ({@link QuickSelectScreen}) with a box and a label of one or two letters ({@link QuickSelectLabels}),
+ * and the matches of the user's own patterns too; the patterns and the label letters are the
+ * {@link QuickSelectSettings} in effect when it starts. Typing a label copies that text to the clipboard through {@link KorttyClipboard}, so the
  * enterprise policy's internal clipboard mode applies; Shift with the label opens a web or e-mail
  * address, or a file path in a pane that opens files, the way a Cmd/Ctrl+click does
  * ({@link KorttyTermWidget#openLink}), and copies everything else. The keys are decided by
@@ -87,14 +89,16 @@ final class TerminalQuickSelectController {
 
     private final TerminalSplitPane splitPane;
     private final Supplier<KeyCombination> trigger;
+    private final Supplier<QuickSelectSettings> settings;
     private final QuickSelectInputGuard input = new QuickSelectInputGuard();
     private Consumer<String> copier = KorttyClipboard::setText;
     private @Nullable Shown shown;
 
     private TerminalQuickSelectController(@NotNull TerminalSplitPane splitPane,
-            @NotNull Supplier<KeyCombination> trigger) {
+            @NotNull Supplier<KeyCombination> trigger, @NotNull Supplier<QuickSelectSettings> settings) {
         this.splitPane = Objects.requireNonNull(splitPane, "splitPane");
         this.trigger = Objects.requireNonNull(trigger, "trigger");
+        this.settings = Objects.requireNonNull(settings, "settings");
     }
 
     /**
@@ -115,7 +119,17 @@ final class TerminalQuickSelectController {
      */
     static @NotNull TerminalQuickSelectController install(@NotNull TerminalSplitPane splitPane,
             @NotNull Supplier<KeyCombination> trigger) {
-        TerminalQuickSelectController controller = new TerminalQuickSelectController(splitPane, trigger);
+        return install(splitPane, trigger, () -> QuickSelectSettings.DEFAULTS);
+    }
+
+    /**
+     * {@link #install(TerminalSplitPane, Supplier)} with the user's label letters and own patterns,
+     * which can change while the pane is open: asked each time quick select starts. A supplier that
+     * fails or answers {@code null} means the defaults.
+     */
+    static @NotNull TerminalQuickSelectController install(@NotNull TerminalSplitPane splitPane,
+            @NotNull Supplier<KeyCombination> trigger, @NotNull Supplier<QuickSelectSettings> settings) {
+        TerminalQuickSelectController controller = new TerminalQuickSelectController(splitPane, trigger, settings);
         splitPane.addEventFilter(KeyEvent.KEY_PRESSED, controller::onKeyPressed);
         splitPane.addEventFilter(KeyEvent.KEY_TYPED, controller::onKeyTyped);
         splitPane.addEventFilter(InputMethodEvent.INPUT_METHOD_TEXT_CHANGED, controller::onInputMethod);
@@ -150,8 +164,10 @@ final class TerminalQuickSelectController {
         if (geometry == null || layer == null) {
             return false;
         }
-        List<Hit> hits = QuickSelectScreen.capture(panel.getTerminalTextBuffer(), geometry.scrollOrigin(), geometry.rows());
-        QuickSelectSession session = QuickSelectSession.of(hits, QuickSelectLabels.DEFAULT_ALPHABET, trigger.get());
+        QuickSelectSettings options = currentSettings();
+        List<Hit> hits = QuickSelectScreen.capture(panel.getTerminalTextBuffer(), geometry.scrollOrigin(),
+            geometry.rows(), options.patterns());
+        QuickSelectSession session = QuickSelectSession.of(hits, options.alphabet(), trigger.get());
         if (session.targets().isEmpty()) {
             showFeedback(panel, layer, null, I18n.get("terminal.quickSelect.noMatches"));
             return false;
@@ -161,6 +177,16 @@ final class TerminalQuickSelectController {
         started.draw();
         started.watch();
         return true;
+    }
+
+    /** The label letters and patterns in effect now; the defaults when they cannot be read. */
+    private @NotNull QuickSelectSettings currentSettings() {
+        try {
+            QuickSelectSettings current = settings.get();
+            return current != null ? current : QuickSelectSettings.DEFAULTS;
+        } catch (RuntimeException e) {
+            return QuickSelectSettings.DEFAULTS;
+        }
     }
 
     /** Ends quick select without doing anything; nothing happens while it does not run. */

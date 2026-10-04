@@ -3,6 +3,7 @@ package de.kortty.ui;
 import com.sithtermfx.core.compatibility.Point;
 import com.sithtermfx.core.model.TerminalTextBuffer;
 import com.sithtermfx.core.util.CharUtils;
+import de.kortty.core.QuickSelectPatterns;
 import de.kortty.core.TerminalLinkDetector;
 import de.kortty.core.TerminalLinkDetector.Kind;
 import de.kortty.core.TerminalLinkDetector.Match;
@@ -17,7 +18,8 @@ import java.util.Set;
 
 /**
  * What quick select can pick on the rows a terminal pane shows: every URL, path, e-mail address,
- * UUID, IP address, git hash and number of four or more digits ({@link TerminalLinkDetector}).
+ * UUID, IP address, git hash and number of four or more digits ({@link TerminalLinkDetector}), and
+ * every match of the user's own patterns ({@link QuickSelectPatterns}).
  *
  * <p>{@link #capture} reads the visible rows once, at the scroll origin the pane shows (in the
  * history while scrolled back), joins the rows that wrap into each other so a match that wraps is
@@ -73,9 +75,23 @@ public final class QuickSelectScreen {
      * @param rows         the rows the pane shows
      */
     public static @NotNull List<Hit> capture(@NotNull TerminalTextBuffer buffer, int scrollOrigin, int rows) {
+        return capture(buffer, scrollOrigin, rows, QuickSelectPatterns.NONE);
+    }
+
+    /**
+     * {@link #capture(TerminalTextBuffer, int, int)} plus the matches of the user's own
+     * {@code patterns} as {@link Kind#CUSTOM}, found in the same rows and overlapping the built-in
+     * ones as {@link TerminalLinkDetector#find(CharSequence, Set, boolean, boolean, QuickSelectPatterns.Matching)}
+     * decides. All patterns of this capture share one time budget ({@link QuickSelectPatterns}).
+     */
+    public static @NotNull List<Hit> capture(@NotNull TerminalTextBuffer buffer, int scrollOrigin, int rows,
+            @NotNull QuickSelectPatterns patterns) {
         Objects.requireNonNull(buffer, "buffer");
+        Objects.requireNonNull(patterns, "patterns");
         buffer.lock();
         try {
+            // The budget starts once the buffer is ours: waiting for the emulator thread is no matching.
+            QuickSelectPatterns.Matching custom = patterns.isEmpty() ? null : patterns.start();
             int firstBufferLine = -buffer.getHistoryLinesCount();
             int lastBufferLine = buffer.getHeight() - 1;
             int first = Math.max(scrollOrigin, firstBufferLine);
@@ -103,7 +119,7 @@ public final class QuickSelectScreen {
                     TerminalLinkResolver.Window window = new TerminalLinkResolver.Window(sliceStart, sliceEnd, width,
                         sliceStart > lineStart || continuesBefore, sliceEnd < lineEnd || continuesAfter);
                     for (Match match : TerminalLinkDetector.find(window.text(buffer), ALL_KINDS,
-                            window.continuesBefore(), window.continuesAfter())) {
+                            window.continuesBefore(), window.continuesAfter(), custom)) {
                         hits.add(new Hit(match.kind(), match.text(), window.cellAt(match.start()),
                             window.cellAt(match.end() - 1)));
                     }
@@ -139,7 +155,8 @@ public final class QuickSelectScreen {
             for (int i = from; i <= to && i < cells.length(); i++) {
                 char c = cells.charAt(i);
                 if (c != CharUtils.DWC) {
-                    shown.append(c);
+                    // As the detector saw it: an empty cell inside a match of the user's pattern is a space.
+                    shown.append(TerminalLinkDetector.asMatched(c));
                 }
             }
             return shown.toString().equals(hit.text());
