@@ -150,7 +150,7 @@ Wiedergabedateien enthalten zeitgestempelte Ereignisse im JSONL-Format (ein Erei
 | `recording_stop` | Aufnahme manuell gestoppt |
 | `session_closed` | Terminal-Tab geschlossen |
 
-Jedes Bildschirmereignis umfasst Terminalinhalte, Abmessungen und optionale Farbstilläufe. Text innerhalb eines anklickbaren OSC-8-Links wird mit den Farben, dem Fettdruck und der invertierten Darstellung aufgezeichnet, mit denen er ausgegeben wurde.
+Jedes Bildschirmereignis umfasst Terminalinhalte, Abmessungen und optionale Farbstilläufe. Text innerhalb eines anklickbaren OSC-8-Links wird mit den Farben, dem Fettdruck und der invertierten Darstellung aufgezeichnet, mit denen er ausgegeben wurde, auch wenn sie sich mitten im Link ändern.
 
 ## Tipps und Best Practices
 

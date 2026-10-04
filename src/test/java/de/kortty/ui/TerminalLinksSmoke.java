@@ -5,6 +5,7 @@ import com.sithtermfx.core.compatibility.Point;
 import com.sithtermfx.core.util.TermSize;
 import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
+import com.sithtermfx.ui.settings.ModifierKeys;
 import com.sithtermfx.ui.split.SplitRequest;
 import com.sithtermfx.ui.split.TerminalSplitPane;
 import de.kortty.core.LanguageManager;
@@ -36,13 +37,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Headed JavaFX check of {@link TerminalLinkClickPolicy} in a real {@link KorttyTermWidget}: a
- * program prints an OSC 8 link, and synthetic clicks on it check that only a single, still
- * Cmd/Ctrl+click opens it (a plain click, a double-click, a drag release and AltGr do not), that a
- * plain double or triple click selects the word or the line, that clicks on plain text still reach
- * SithTermFX, that a Cmd/Ctrl+click opens a URL printed as plain text only while plain-text link
- * detection is on (and every other click on it still reaches SithTermFX), and that a click
- * swallowed on a link in another split pane moves the focused pane there.
+ * Headed JavaFX check of {@link TerminalLinkClickPolicy} in a real {@link KorttyTermWidget}, under a
+ * settings provider that answers SithTermFX's {@code isFollowLinkGesture} like korTTY's: a program
+ * prints an OSC 8 link, and synthetic clicks on it check that only a single, still Cmd/Ctrl+click
+ * opens it (a plain click, a double-click, a drag release and AltGr do not; SithTermFX gets every one
+ * of these clicks and navigates the link only on the gesture), that a plain double or triple click
+ * selects the word or the line, that clicks on plain text still reach SithTermFX, that a
+ * Cmd/Ctrl+click opens a URL printed as plain text only while plain-text link detection is on (and
+ * every other click on it still reaches SithTermFX), and that a plain click on a link in another
+ * split pane moves the focused pane there.
  *
  * <p>It also checks the hover: resting on a plain URL shows the hand cursor, an underline in the
  * pane's LINKS layer exactly under the URL's cells (to the right of a timestamp-style gutter), and
@@ -88,8 +91,14 @@ public final class TerminalLinksSmoke {
                 LanguageManager.getInstance().initialize(new GlobalSettings());
                 // A fixed-width left panel stands in for the timestamp gutter, so the hover underline
                 // has to be placed through scene coordinates to land under the text.
+                // Links follow on korTTY's gesture, as under TerminalView's settings provider.
                 TerminalSplitPane splitPane = new TerminalSplitPane(
-                    () -> new DynamicFontSizeSettingsProvider(14f), request -> new FeedingTtyConnector(), widget -> { },
+                    () -> new DynamicFontSizeSettingsProvider(14f) {
+                        @Override
+                        public boolean isFollowLinkGesture(@NotNull ModifierKeys modifiers) {
+                            return TerminalLinkClickPolicy.isFollowLinkGesture(modifiers);
+                        }
+                    }, request -> new FeedingTtyConnector(), widget -> { },
                     widget -> {
                         Region gutter = new Region();
                         gutter.setMinWidth(GUTTER_WIDTH);
@@ -147,7 +156,8 @@ public final class TerminalLinksSmoke {
                 panel.setLinkOpener(new TerminalLinkOpener(opened::add));
                 return null;
             });
-            // Records every click that got past korTTY's filter to the canvas's own handlers.
+            // Records every click that got past korTTY's filter to the canvas's own handlers, which
+            // include SithTermFX's: it follows an OSC 8 link itself.
             AtomicBoolean reachedHandlers = new AtomicBoolean();
             onFxThread(() -> {
                 canvas.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> reachedHandlers.set(true));
@@ -166,25 +176,25 @@ public final class TerminalLinksSmoke {
             check(new Point(6, 0).equals(onFxThread(() -> panel.cellAt(onLink.getX(), onLink.getY()))),
                 "the link cell is not under its own centre");
 
-            // A plain click on the link does nothing and is kept from SithTermFX, which would navigate.
-            check(click(canvas, onLink, 1, false, false, true, reachedHandlers), "a plain click on a link was not swallowed");
+            // A plain click on the link reaches SithTermFX, which does not follow it.
+            check(!click(canvas, onLink, 1, false, false, true, reachedHandlers), "a plain click on a link was swallowed");
             check(opened.isEmpty(), "a plain click opened " + opened);
 
             // A single, still Cmd/Ctrl+click opens it, once.
-            check(click(canvas, onLink, 1, true, false, true, reachedHandlers), "Cmd/Ctrl+click was not swallowed");
+            check(!click(canvas, onLink, 1, true, false, true, reachedHandlers), "Cmd/Ctrl+click was swallowed");
             check(List.of(TARGET).equals(opened), "Cmd/Ctrl+click opened " + opened + " instead of " + TARGET);
 
             // The second click of a Cmd/Ctrl+double-click, a drag released on the link and AltGr do not open it.
-            check(click(canvas, onLink, 2, true, false, true, reachedHandlers), "Cmd/Ctrl+double-click was not swallowed");
-            check(click(canvas, onLink, 1, true, false, false, reachedHandlers), "Cmd/Ctrl+drag release was not swallowed");
-            check(click(canvas, onLink, 1, true, true, true, reachedHandlers), "AltGr+click was not swallowed");
+            check(!click(canvas, onLink, 2, true, false, true, reachedHandlers), "Cmd/Ctrl+double-click was swallowed");
+            check(!click(canvas, onLink, 1, true, false, false, reachedHandlers), "Cmd/Ctrl+drag release was swallowed");
+            check(!click(canvas, onLink, 1, true, true, true, reachedHandlers), "AltGr+click was swallowed");
             check(opened.size() == 1, "a double-click, drag release or AltGr opened the link again: " + opened);
 
             // Plain double and triple clicks select the word and the line, as on other text.
-            check(click(canvas, onLink, 2, false, false, true, reachedHandlers), "a double-click on a link was not handled");
+            check(!click(canvas, onLink, 2, false, false, true, reachedHandlers), "a double-click on a link was swallowed");
             check("docs-link".equals(onFxThread(() -> panel.selectedTextProperty().get())),
                 "double-click selected \"" + onFxThread(() -> panel.selectedTextProperty().get()) + "\"");
-            check(click(canvas, onLink, 3, false, false, true, reachedHandlers), "a triple-click on a link was not handled");
+            check(!click(canvas, onLink, 3, false, false, true, reachedHandlers), "a triple-click on a link was swallowed");
             String line = onFxThread(() -> panel.selectedTextProperty().get());
             check(line != null && line.startsWith("see docs-link now"), "triple-click selected \"" + line + "\"");
             check(opened.size() == 1, "selecting opened the link: " + opened);
@@ -206,8 +216,8 @@ public final class TerminalLinksSmoke {
             });
             check(!click(canvas, onPlainUrl, 1, false, false, true, reachedHandlers), "a plain click on a plain URL was swallowed");
             check(!click(canvas, onPlainUrl, 2, false, false, true, reachedHandlers), "a double-click on a plain URL was swallowed");
-            check(click(canvas, onPlainUrl, 2, true, false, true, reachedHandlers),
-                "Cmd/Ctrl+double-click on a plain URL was not swallowed");
+            check(!click(canvas, onPlainUrl, 2, true, false, true, reachedHandlers),
+                "Cmd/Ctrl+double-click on a plain URL was swallowed");
             check(opened.size() == 1, "a plain URL opened without a single Cmd/Ctrl+click: " + opened);
             check(click(canvas, onPlainUrl, 1, true, false, true, reachedHandlers), "Cmd/Ctrl+click on a plain URL was not swallowed");
             check(List.of(TARGET, PLAIN_URL).equals(opened), "Cmd/Ctrl+click on a plain URL opened " + opened);
@@ -218,7 +228,7 @@ public final class TerminalLinksSmoke {
             TerminalQuickSelectController quickSelect = verifyQuickSelect(splitPane, widget, panel, canvas, connector, opened);
             verifyFileLinks((KorttyTermWidget) widget, panel, canvas, connector, quickSelect, opened, reachedHandlers);
 
-            // A swallowed click on a link in another pane still moves the focused pane there.
+            // A plain click on a link in another pane moves the focused pane there.
             SithTermFxWidget second = onFxThread(() -> splitPane.splitWidget(widget, SplitRequest.SplitMode.NEW_CONNECTION,
                 Orientation.HORIZONTAL, new FeedingTtyConnector()));
             check(second != null, "the split did not happen");
@@ -230,9 +240,9 @@ public final class TerminalLinksSmoke {
             if (onFxThread(stage::isFocused)) {
                 await("the first pane never laid out again after the split", () -> onFxThread(() -> panel.cellGeometry() != null));
                 Point2D onLinkAfterSplit = cellCenter(panel, 6, 0);
-                check(click(canvas, onLinkAfterSplit, 1, false, false, true, reachedHandlers),
-                    "a plain click on a link in the other pane was not swallowed");
-                await("a swallowed click on a link left the focus on the other pane",
+                check(!click(canvas, onLinkAfterSplit, 1, false, false, true, reachedHandlers),
+                    "a plain click on a link in the other pane was swallowed");
+                await("a plain click on a link left the focus on the other pane",
                     () -> onFxThread(() -> splitPane.getFocusedWidget() == widget));
             } else {
                 note.set(" (focus check skipped: the window is not focused)");
@@ -452,16 +462,16 @@ public final class TerminalLinksSmoke {
         check(line >= 0, "the deceptive link is on no screen line");
         Point2D onDeceptive = cellCenter(panel, 3, line);
 
-        check(click(canvas, onDeceptive, 1, true, false, true, reachedHandlers),
-            "Cmd/Ctrl+click on the deceptive link was not swallowed");
+        check(!click(canvas, onDeceptive, 1, true, false, true, reachedHandlers),
+            "Cmd/Ctrl+click on the deceptive link was swallowed");
         await("the host mismatch was not asked about", () -> asked.size() == 1);
         check(asked.get(0).equals("example.com -> " + DECEPTIVE_TARGET), "the question was " + asked);
         Thread.sleep(200);
         check(opened.size() == before, "a declined mismatch opened " + opened);
 
         answer.set(true);
-        check(click(canvas, onDeceptive, 1, true, false, true, reachedHandlers),
-            "Cmd/Ctrl+click on the deceptive link was not swallowed");
+        check(!click(canvas, onDeceptive, 1, true, false, true, reachedHandlers),
+            "Cmd/Ctrl+click on the deceptive link was swallowed");
         await("a confirmed mismatch did not open the link", () -> opened.size() == before + 1);
         check(DECEPTIVE_TARGET.equals(opened.get(before)), "a confirmed mismatch opened " + opened);
     }
@@ -611,11 +621,11 @@ public final class TerminalLinksSmoke {
             "Cmd/Ctrl+click on a path opened " + files);
 
         // An OSC 8 file: link on this host opens its real path; one on another host opens nothing.
-        check(click(canvas, onNotes, 1, true, false, true, reachedHandlers), "Cmd/Ctrl+click on a file link was not swallowed");
+        check(!click(canvas, onNotes, 1, true, false, true, reachedHandlers), "Cmd/Ctrl+click on a file link was swallowed");
         check(files.size() == 2 && "/tmp/notes.txt".equals(files.get(1).path()) && files.get(1).fromOsc8(),
             "Cmd/Ctrl+click on a file link opened " + files);
-        check(click(canvas, onElsewhere, 1, true, false, true, reachedHandlers),
-            "Cmd/Ctrl+click on a file link of another host was not swallowed");
+        check(!click(canvas, onElsewhere, 1, true, false, true, reachedHandlers),
+            "Cmd/Ctrl+click on a file link of another host was swallowed");
         check(files.size() == 2, "a file link of another host opened " + files);
         check(opened.size() == openedBefore, "a file went to the browser: " + opened);
 

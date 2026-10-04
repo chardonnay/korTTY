@@ -9937,21 +9937,17 @@ public class TerminalView extends BorderPane {
         }
 
         /**
-         * OSC 8 link text keeps the colours the program gave it. Every OSC 8 cell carries a
-         * {@code HyperlinkStyle} whose custom style is the text's own colours; the vendor default
-         * ({@code HOVER_WITH_BOTH_COLORS}) drew a link that is not hovered with the bare link style,
-         * which has no colours, so coloured link text showed in the default colour until hovered.
-         * In this mode the custom style is always drawn and only underlined on hover.
-         *
-         * <p>korTTY registers no vendor link filter on any widget, and must not: in this mode the
-         * vendor's filter path overwrites every matched cell, OSC 8 links included, with a new link
-         * style in the vendor's link colour (blue on white), so the text loses its own colours
-         * (NoHyperlinkFilterGuardTest). Links in plain text are to be found on demand with
-         * {@code TerminalLinkDetector}, never through a filter.
+         * Links follow only on Cmd+click (macOS) or Ctrl+click (Windows, Linux), never with Alt,
+         * which Windows also reports for AltGr (user decision D2). SithTermFX asks this for every
+         * click on and hover over an OSC 8 link: a plain click, double click or drag acts as on other
+         * text, and the hover underline shows while the modifier is held. The vendor's default
+         * highlight mode keeps OSC 8 link text in the colours the program gave it (since SithTermFX
+         * 1.2.3), so korTTY no longer overrides it. Links in plain text are found on demand with
+         * {@code TerminalLinkDetector}, never through a vendor filter (NoHyperlinkFilterGuardTest).
          */
         @Override
-        public com.sithtermfx.core.HyperlinkStyle.HighlightMode getHyperlinkHighlightingMode() {
-            return com.sithtermfx.core.HyperlinkStyle.HighlightMode.HOVER_WITH_CUSTOM_COLOR;
+        public boolean isFollowLinkGesture(@NotNull com.sithtermfx.ui.settings.ModifierKeys modifiers) {
+            return TerminalLinkClickPolicy.isFollowLinkGesture(modifiers);
         }
 
         // On Windows/Linux Ctrl+L and Ctrl+F belong to the shell; see clearBufferActionPresentation.

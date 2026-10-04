@@ -12,7 +12,7 @@ import org.jetbrains.annotations.Nullable;
  *
  * <p>Taking a sequence out is only safe where SithTermFX would have read the very same chars as
  * that OSC, so the splitter follows {@code SithEmulator} and {@code SystemCommandSequence} (vendor
- * 1.2.2) char by char rather than the ECMA-48 grammar:
+ * 1.2.3) char by char rather than the ECMA-48 grammar:
  * <ul>
  *   <li>An OSC starts with {@code ESC ]}, or with C1 {@code U+009D} where SithTermFX reads a char
  *       on its own: at the start of the output, after a control char or after a sequence.</li>
@@ -25,6 +25,11 @@ import org.jetbrains.annotations.Nullable;
  *       so {@code ESC ]} inside an OSC never starts a new one.</li>
  *   <li>A DCS ({@code ESC P}) is read up to the same terminators and passes through untouched,
  *       tmux passthrough included.</li>
+ *   <li>SithTermFX keeps at most {@code SystemCommandSequence.MAX_BODY_LENGTH} (64 Ki) chars of an
+ *       OSC or DCS body and drops a longer sequence whole, but reads on to the same terminator, an
+ *       {@code ESC} past the cap included. Where a sequence ends therefore does not depend on its
+ *       length, and the splitter needs no such cap: what it passes through it does not keep, and an
+ *       owned sequence never reaches the emulator and has its own cap ({@link OwnedOsc}).</li>
  *   <li>A CSI ({@code ESC [}) runs to its first char in {@code 0x40..0x7E}; nothing inside it
  *       starts an OSC. The chars SithTermFX cannot place in a CSI are pushed back and read again
  *       afterwards, as many as fit, followed by the sequence itself; the splitter replays them the
@@ -76,8 +81,8 @@ public final class OscEventSplitter {
 
     /**
      * SithTermFX pushes a CSI's stray chars back through a 1024-char array that also holds the
-     * {@code ESC [}, the {@code ! ? >} marker and the final char; korTTY's pinned SithTermFX patch
-     * drops the stray chars that do not fit.
+     * {@code ESC [}, the {@code ! ? >} marker and the final char, and since 1.2.3 drops the stray
+     * chars that do not fit.
      */
     private static final int CSI_PUSH_BACK_LENGTH = 1024;
 

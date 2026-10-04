@@ -16,7 +16,7 @@ import org.testng.annotations.Test;
 /**
  * Pins why keyword highlighting bakes its styles into the cells instead of using SithTermFX's own
  * {@link TerminalLine#addCustomHighlighting} overlay. Each test describes a limit of the overlay in
- * SithTermFX 1.2.2; if a SithTermFX upgrade makes one of them fail, the overlay has changed and the
+ * SithTermFX 1.2.2, all still there in 1.2.3; if a SithTermFX upgrade makes one of them fail, the overlay has changed and the
  * choice is worth re-evaluating — the failure is the reminder, not a bug in korTTY.
  */
 class TerminalLineCustomHighlightingCharacterizationTest {

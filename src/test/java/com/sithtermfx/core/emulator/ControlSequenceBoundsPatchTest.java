@@ -18,18 +18,20 @@ import java.io.IOException;
 import static com.google.common.truth.Truth.assertThat;
 
 /**
- * Regression coverage for korTTY's pinned SithTermFX 1.2.2 control-sequence bounds patch
- * ({@code patches/sithtermfx/1.2.2-control-sequence-bounds.patch}).
+ * Regression coverage for the SithTermFX control-sequence bounds fix. korTTY carried it as a pinned
+ * patch on 1.2.2; it shipped upstream in SithTermFX 1.2.3 (chardonnay/SithTermFX#5, recorded as
+ * {@code vendor-patches/0003-control-sequence-push-back-bounds.patch}).
  *
  * <p>The chars SithTermFX cannot place in a CSI — an intermediate byte, a control character, a
  * misplaced {@code ?} — are pushed back to be read again before the sequence itself. That push-back
  * went through a fixed 1024-char array without a bounds check, so output with an overlong sequence
  * (from a malicious server, a {@code cat}-ed file, a log line) threw
- * {@link ArrayIndexOutOfBoundsException} on the emulator thread and stopped the terminal. The patch
+ * {@link ArrayIndexOutOfBoundsException} on the emulator thread and stopped the terminal. The fix
  * drops what does not fit and always pushes back a terminated sequence; a sequence that fits is
  * pushed back exactly as before.
  *
- * <p>CI builds SithTermFX with {@code -DskipTests}, so these cases are what guards the patch.
+ * <p>CI builds SithTermFX with {@code -DskipTests}, so these cases are what guards the behaviour
+ * against a SithTermFX upgrade that regresses it.
  */
 class ControlSequenceBoundsPatchTest {
 

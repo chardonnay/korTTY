@@ -6,6 +6,7 @@ import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.emulator.ColorPalette;
 import com.sithtermfx.ui.settings.DefaultSettingsProvider;
 import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
+import com.sithtermfx.ui.settings.ModifierKeys;
 import com.sithtermfx.ui.settings.SettingsProvider;
 import de.kortty.model.ConnectionSettings;
 import javafx.scene.paint.Color;
@@ -172,18 +173,19 @@ public class PerPaneSettingsProviderTest {
     }
 
     /**
-     * OSC 8 link text is drawn with its own colours. The vendor default, HOVER_WITH_BOTH_COLORS, drew a
-     * link that is not hovered with the bare link style, which has no colours, so coloured link text
-     * showed in the default colour; in custom-colour mode the link's custom style (the text's own
-     * colours) is always used and only underlined on hover.
+     * OSC 8 link text is drawn with its own colours in the vendor's default highlight mode since
+     * SithTermFX 1.2.3, so a pane keeps that mode; and SithTermFX follows a link only on korTTY's
+     * open gesture, Cmd/Ctrl without Alt (user decision D2), where its default follows every click.
      */
     @Test
-    void osc8LinksKeepTheirTextColours() throws Exception {
+    void osc8LinksKeepTheirTextColoursAndFollowOnlyOnTheGesture() throws Exception {
         SettingsProvider pane = (SettingsProvider) newProvider(baselineSettings(), new DynamicFontSizeSettingsProvider(14f));
 
-        assertThat(pane.getHyperlinkHighlightingMode()).isEqualTo(HyperlinkStyle.HighlightMode.HOVER_WITH_CUSTOM_COLOR);
-        assertThat(new DefaultSettingsProvider().getHyperlinkHighlightingMode())
-                .isEqualTo(HyperlinkStyle.HighlightMode.HOVER_WITH_BOTH_COLORS); // the vendor default it replaces
+        assertThat(pane.getHyperlinkHighlightingMode()).isEqualTo(HyperlinkStyle.HighlightMode.HOVER_WITH_BOTH_COLORS);
+        assertThat(pane.isFollowLinkGesture(ModifierKeys.NONE)).isFalse();
+        assertThat(pane.isFollowLinkGesture(ModifierKeys.of(false, false, false, false, true))).isTrue();
+        assertThat(pane.isFollowLinkGesture(ModifierKeys.of(false, true, true, false, true))).isFalse();
+        assertThat(new DefaultSettingsProvider().isFollowLinkGesture(ModifierKeys.NONE)).isTrue(); // the vendor default it replaces
     }
 
     private static int bufferMaxLines(Object provider) {

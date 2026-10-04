@@ -13,33 +13,50 @@ import java.util.Objects;
  * ({@link TerminalFileLink#fromFileUri}). It keeps the validated target, so korTTY code can read it
  * back from a cell's {@code HyperlinkStyle}.
  *
- * <p>{@link #navigate()} does nothing. SithTermFX calls it on every plain primary click over a link,
- * once per click of a double-click and after a drag-selection that ends on the link, and also while a
- * program has mouse reporting on. korTTY opens links only through {@link TerminalLinkClickPolicy}, on a
- * single Cmd/Ctrl+click: {@link TerminalLinkResolver} reads {@link #target()} or {@link #file()} from
- * the clicked cell, and the policy hands it to the {@link TerminalLinkOpener} or the pane's file
- * handler.
+ * <p>SithTermFX navigates a link only on a click its settings provider accepts as the open gesture,
+ * which korTTY's provider limits to a single, still Cmd/Ctrl+click without Alt
+ * ({@link TerminalLinkClickPolicy}). {@link #navigate()} hands the link to its pane's
+ * {@link Follower}, which opens it the way every other link opens: after the host-mismatch question,
+ * and a file only through the pane's file handler, read-only. The link itself holds no opener.
  */
 public final class KorttyLinkInfo extends LinkInfo {
 
-    /** SithTermFX's own navigation; korTTY's click gate opens links instead. */
-    private static final Runnable NO_NAVIGATION = () -> { };
+    /** Opens a link SithTermFX navigated; the pane's. Called on the JavaFX thread. */
+    @FunctionalInterface
+    public interface Follower {
+        void follow(@NotNull KorttyLinkInfo link);
+    }
+
+    /** For a link in a buffer that no pane shows: navigating it does nothing. */
+    static final Follower NO_PANE = link -> { };
 
     private final @Nullable URI target;
     private final @Nullable TerminalFileLink file;
+    private final Follower follower;
 
     /** A web or mail link. */
-    KorttyLinkInfo(@NotNull URI target) {
-        super(NO_NAVIGATION);
+    KorttyLinkInfo(@NotNull URI target, @NotNull Follower follower) {
+        super(NOT_CALLED);
         this.target = Objects.requireNonNull(target, "target");
         this.file = null;
+        this.follower = Objects.requireNonNull(follower, "follower");
     }
 
     /** A {@code file:} link. */
-    KorttyLinkInfo(@NotNull TerminalFileLink file) {
-        super(NO_NAVIGATION);
+    KorttyLinkInfo(@NotNull TerminalFileLink file, @NotNull Follower follower) {
+        super(NOT_CALLED);
         this.target = null;
         this.file = Objects.requireNonNull(file, "file");
+        this.follower = Objects.requireNonNull(follower, "follower");
+    }
+
+    /** {@link LinkInfo} wants a callback; {@link #navigate()} is overridden, so it is never run. */
+    private static final Runnable NOT_CALLED = () -> { };
+
+    /** Hands the link to its pane, which decides whether and how it opens. */
+    @Override
+    public void navigate() {
+        follower.follow(this);
     }
 
     /** The validated web or mail target, or {@code null} for a {@code file:} link. */

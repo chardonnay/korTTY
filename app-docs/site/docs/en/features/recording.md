@@ -150,7 +150,7 @@ Replay files contain timestamped events in JSONL format (one event per line, gzi
 | `recording_stop` | Recording stopped manually |
 | `session_closed` | Terminal tab closed |
 
-Each screen event includes terminal content, dimensions, and optional color style runs. Text inside a clickable OSC 8 link is recorded with the colors, bold and inverse video it was printed with.
+Each screen event includes terminal content, dimensions, and optional color style runs. Text inside a clickable OSC 8 link is recorded with the colors, bold and inverse video it was printed with, including changes in the middle of the link.
 
 ## Tips and best practices
 

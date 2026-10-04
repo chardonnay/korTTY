@@ -134,7 +134,7 @@ public class TerminalLinkHoverControllerTest {
         // SithTermFX adds its own MOUSE_MOVED handler in TerminalPanel.init(), after the panel's
         // constructor; the hover's goes after it there, so the cursor korTTY sets wins.
         String widget = code("src/main/java/de/kortty/ui/KorttyTermWidget.java");
-        assertThat(widget).contains("public void init() { super.init(); linkHover.followMouseMoves(); }");
+        assertThat(widget).contains("public void init() { super.init(); linkHover.followMouseMoves(); ");
         assertThat(hover).contains("panel.getCanvas().setCursor(showsHandCursor(link) ? Cursor.HAND : Cursor.DEFAULT);");
         assertThat(hover).contains("canvas.addEventHandler(MouseEvent.MOUSE_EXITED, event -> controller.clear());");
         assertThat(hover).contains("canvas.addEventFilter(MouseEvent.MOUSE_DRAGGED, event -> controller.clear());");

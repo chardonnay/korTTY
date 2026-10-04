@@ -6,7 +6,11 @@ import org.testng.annotations.Test;
 
 import static com.google.common.truth.Truth.assertThat;
 
-/** Regression coverage for korTTY's pinned SithTermFX 1.2.1 boundary patch. */
+/**
+ * Regression coverage for the hyperlink hit-test boundary: the row just below the screen is not a
+ * cell. korTTY carried this as a pinned patch until it shipped upstream in SithTermFX 1.2.3; the
+ * test now pins the released behaviour against a regressing upgrade.
+ */
 class TerminalPanelBoundaryPatchTest {
 
     @Test

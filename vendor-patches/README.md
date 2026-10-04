@@ -9,13 +9,16 @@ renderer is a change to **SithTermFX**, not to korTTY, and must ship as a new Si
 This directory holds the SithTermFX source changes a korTTY branch depends on, so the dependency is
 reviewable and reproducible even though `vendor/sithtermfx/` itself is not tracked.
 
-Not every change has to wait for a release: `patches/sithtermfx/` carries reviewed patches that
-`applySithtermfxPatches` re-applies to the pinned tag on every build, which is where a korTTY-specific
-customisation belongs. This directory is for the other kind — a fix that is SithTermFX's own bug and
-should stop being a patch at all. A change can be in both while the release is pending; the
-`patches/sithtermfx/` copy is then dropped once the tag it fixes has shipped.
+Since SithTermFX 1.2.3 korTTY builds the released tag as is and carries no build-time patches: the
+`patches/sithtermfx/` directory, the `applySithtermfxPatches` task, the CI "apply pinned patches"
+steps and the `META-INF` marker checks were removed when every patch they carried shipped upstream.
+A fix that cannot wait for a release would bring that mechanism back; the preferred route is a new
+SithTermFX release, recorded here as a numbered patch.
 
-## `0001-terminal-background-transparency.patch` → SithTermFX **1.2.1**
+Every entry below has shipped. korTTY keeps a pinning test for each, so a later SithTermFX upgrade
+that regresses one fails korTTY's own suite.
+
+## `0001-terminal-background-transparency.patch` → SithTermFX **1.2.1** (released)
 
 Needed by the `feature/terminal-background-transparency` branch (see the Ansicht → Zoom
 "Hintergrund-Transparenz" slider). It:
@@ -37,12 +40,9 @@ git commit -am "Release 1.2.1"
 git tag v1.2.1 && git push origin main --tags
 ```
 
-After the `v1.2.1` tag is pushed, korTTY's `cloneSithtermfx` fetches it automatically on fresh
-checkouts and in CI. Until then the branch builds only where `vendor/sithtermfx/` is already at the
-local `v1.2.1` (source change + pom bump) and the `1.2.1` jars are in `~/.m2` — which is the current
-state on this machine.
+Released as `v1.2.1`; every later tag korTTY pins contains it.
 
-## `0002-terminal-scroll-region-cursor-clamp.patch` → SithTermFX **1.2.2**
+## `0002-terminal-scroll-region-cursor-clamp.patch` → SithTermFX **1.2.2** (released)
 
 A SithTermFX bug inherited from JediTerm, not a korTTY customisation: `SithTerminal.scrollY()`
 enforced the DECSTBM margins on every write, and enforced them by scrolling. But the margins bound
@@ -80,9 +80,10 @@ behaviour from korTTY's own suite regardless of where the fix lives, and would c
 regression in a later SithTermFX release. The patch file is kept here as the record of what 1.2.2
 contains.
 
-## `0003-control-sequence-push-back-bounds.patch` → SithTermFX **1.2.3** (pending)
+## `0003-control-sequence-push-back-bounds.patch` → SithTermFX **1.2.3** (released)
 
-Tracked upstream as [chardonnay/SithTermFX#5](https://github.com/chardonnay/SithTermFX/issues/5).
+Tracked upstream as [chardonnay/SithTermFX#5](https://github.com/chardonnay/SithTermFX/issues/5),
+closed by the 1.2.3 release.
 
 A SithTermFX bug inherited from JediTerm, and a remote-triggerable one: the chars a CSI cannot place
 (an intermediate byte, a control character, a misplaced `?` or `:`) are pushed back to be read again
@@ -101,31 +102,25 @@ fit, whole, as xterm drops the parameters beyond its limit. `addUnhandled()` sto
 what can be pushed back. A sequence that fits is pushed back exactly as before. The patch adds
 `ControlSequenceTest` (five cases, two of which fail without the fix).
 
-Until 1.2.3 ships, korTTY carries the same change as
-`patches/sithtermfx/1.2.2-control-sequence-bounds.patch`, with a `META-INF` marker in the **core** jar
-(`sithtermfxPatchMarkers` now names the artifact each marker lives in). Two korTTY tests pin the
-behaviour regardless of where the fix lives: `ControlSequenceBoundsPatchTest` (the push-back itself
+Until 1.2.3 shipped, korTTY carried the same change as a build-time patch on 1.2.2, with a
+`META-INF` marker in the core jar; both are gone now that korTTY is on 1.2.3. Two korTTY tests pin
+the behaviour regardless of where the fix lives: `ControlSequenceBoundsPatchTest` (the push-back itself
 and the emulator) and `HeadlessTerminalTest.anOverlongControlSequenceDoesNotStopTheEmulator`.
 `OscEventSplitter` replays a CSI's stray chars the way SithTermFX does, so its `CSI_PUSH_BACK_LENGTH`
 budget (1024 minus `ESC [`, the marker and the final char) must follow any change to this limit;
 `OscSplitterDifferentialTest` checks it at the boundary against the real emulator.
 
-Not in this patch, worth doing upstream in the same release: an unterminated CSI still grows `myArgv`
+Not in this patch, still open upstream after 1.2.3: an unterminated CSI still grows `myArgv`
 (one `int` per parameter) and the raw `mySequenceString` debug copy without bound, and a parameter
 value silently overflows `int` (xterm caps both the number of parameters and each value). Neither
 throws; both only cost memory or produce a wrong parameter.
 
-### Releasing it (SithTermFX repo, `github.com/chardonnay/SithTermFX`)
+### Released in 1.2.3
 
-```sh
-git checkout v1.2.2            # base the patch was cut from
-git am /path/to/0003-control-sequence-push-back-bounds.patch
-mvn versions:set -DnewVersion=1.2.3 -DgenerateBackupPoms=false
-git commit -am "Release 1.2.3"
-git tag v1.2.3 && git push origin main --tags
-```
-
-Then move korTTY to 1.2.3: bump `sithtermfxVersion` and the two `com.sithtermfx` dependencies in
-`build.gradle.kts` and the clone tag in `.github/workflows/test.yml` and `build-release.yml`; delete
-`patches/sithtermfx/1.2.2-control-sequence-bounds.patch` and its `sithtermfxPatchMarkers` entry;
-rename the surviving patches to the `1.2.3-` base.
+SithTermFX 1.2.3 contains this fix line for line, together with the two other changes korTTY used
+to patch in on 1.2.2 (the bottom-row hyperlink boundary and the Cmd-shortcut `KEY_TYPED` chord,
+pinned by `TerminalPanelBoundaryPatchTest` and `TerminalPanelShortcutKeyTypedPatchTest`). korTTY is
+on `sithtermfxVersion = "1.2.3"`: the clone tag in `.github/workflows/test.yml` and
+`build-release.yml` follows it, and `patches/sithtermfx/`, `applySithtermfxPatches` and the
+`sithtermfxPatchMarkers` checks are deleted. The patch file is kept here as the record of what 1.2.3
+contains.

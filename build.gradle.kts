@@ -377,14 +377,8 @@ dependencies {
     // with an unfixed signature-malleability flaw (CVE-2020-36843, no patched release exists).
 
     // SithTermFX - Terminal emulator for JavaFX (built from source by installSithtermfxLocal)
-    implementation("com.sithtermfx:sithtermfx-core:1.2.2") {
-        // SithTermFX 1.2.2 accidentally publishes its JUnit API as a runtime dependency.
-        // korTTY supplies its own test dependencies and must not ship test frameworks.
-        exclude(group = "org.junit.jupiter", module = "junit-jupiter-api")
-    }
-    implementation("com.sithtermfx:sithtermfx-ui:1.2.2") {
-        exclude(group = "org.junit.jupiter", module = "junit-jupiter-api")
-    }
+    implementation("com.sithtermfx:sithtermfx-core:1.2.3")
+    implementation("com.sithtermfx:sithtermfx-ui:1.2.3")
     
     // Lanterna - Text-based terminal emulator with better zoom support
     implementation("com.googlecode.lanterna:lanterna:3.1.5")
@@ -498,22 +492,8 @@ tasks.named<JavaExec>("run") {
 
 // ==================== SithTermFX from source (no GitHub token required) ====================
 
-val sithtermfxVersion = "1.2.2"
+val sithtermfxVersion = "1.2.3"
 val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
-// Applied in order. Every patch ships its own marker resource so each one stays independently
-// forward/reverse-checkable against the vendor tree regardless of which patches are present.
-val sithtermfxPatchFiles = listOf(
-    layout.projectDirectory.file("patches/sithtermfx/1.2.2-control-sequence-bounds.patch"),
-    layout.projectDirectory.file("patches/sithtermfx/1.2.2-terminal-panel-bottom-row.patch"),
-    layout.projectDirectory.file("patches/sithtermfx/1.2.2-terminal-panel-meta-shortcut-key-typed.patch"),
-)
-// Artifact, jar entry, and the line that entry must contain for the installed artifact to count
-// as patched. A marker ships in the module its patch changes.
-val sithtermfxPatchMarkers = listOf(
-    Triple("sithtermfx-core", "META-INF/kortty-patch-control-sequence-bounds.properties", "control-sequence-push-back-bounds=1"),
-    Triple("sithtermfx-ui", "META-INF/kortty-patches.properties", "terminal-panel-bottom-row-hyperlink-boundary=1"),
-    Triple("sithtermfx-ui", "META-INF/kortty-patch-meta-shortcut-key-typed.properties", "terminal-panel-meta-shortcut-key-typed=1"),
-)
 
 tasks.register("cloneSithtermfx") {
     group = "build"
@@ -545,74 +525,21 @@ tasks.register("cloneSithtermfx") {
     }
 }
 
-val applySithtermfxPatches = tasks.register("applySithtermfxPatches") {
-    group = "build"
-    description = "Apply korTTY's reviewed patches to the pinned SithTermFX source tree."
-    dependsOn("cloneSithtermfx")
-    inputs.files(sithtermfxPatchFiles)
-    // Always validate the ignored vendor tree. A manually reverted source file must not be
-    // mistaken for a successfully patched clone merely because a previous output marker exists.
-    outputs.upToDateWhen { false }
-    doLast {
-        val vendorDir = sithtermfxDir.asFile
-
-        fun gitApplyCheck(patch: File, reverse: Boolean): Boolean {
-            val command = mutableListOf("git", "apply", "--unidiff-zero")
-            if (reverse) command.add("--reverse")
-            command.add("--check")
-            command.add(patch.absolutePath)
-            return ProcessBuilder(command)
-                .directory(vendorDir)
-                .redirectError(ProcessBuilder.Redirect.DISCARD)
-                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-                .start()
-                .waitFor() == 0
-        }
-
-        for (patchFile in sithtermfxPatchFiles) {
-            val patch = patchFile.asFile
-            if (gitApplyCheck(patch, reverse = false)) {
-                val process = ProcessBuilder("git", "apply", "--unidiff-zero", patch.absolutePath)
-                    .directory(vendorDir)
-                    .inheritIO()
-                    .start()
-                if (process.waitFor() != 0) {
-                    throw GradleException("Applying pinned SithTermFX patch ${patch.name} failed.")
-                }
-            } else if (!gitApplyCheck(patch, reverse = true)) {
-                throw GradleException(
-                    "Pinned SithTermFX patch ${patch.name} neither applies cleanly nor matches the " +
-                        "source tree. Verify tag v$sithtermfxVersion before building."
-                )
-            }
-        }
-    }
-}
-
 fun mavenLocalSithtermfxJar(artifactId: String) = File(System.getProperty("user.home"), ".m2/repository/com/sithtermfx/$artifactId/$sithtermfxVersion/$artifactId-$sithtermfxVersion.jar")
 val mavenLocalSithtermfxCore = mavenLocalSithtermfxJar("sithtermfx-core")
 val mavenLocalSithtermfxUi = mavenLocalSithtermfxJar("sithtermfx-ui")
 
-fun installedSithtermfxHasRequiredPatches(): Boolean {
-    if (!mavenLocalSithtermfxCore.isFile || !mavenLocalSithtermfxUi.isFile) return false
-    return try {
-        sithtermfxPatchMarkers.all { (artifactId, entryName, requiredLine) ->
-            ZipFile(mavenLocalSithtermfxJar(artifactId)).use { archive ->
-                val marker = archive.getEntry(entryName) ?: return false
-                archive.getInputStream(marker).bufferedReader().use { reader ->
-                    reader.readText().lineSequence().any { it.trim() == requiredLine }
-                }
-            }
-        }
-    } catch (_: Exception) {
-        false
-    }
-}
+// SithTermFX 1.2.3 ships every fix korTTY used to patch in (CSI push-back bounds, bottom-row
+// hyperlink boundary, Cmd-shortcut KEY_TYPED), so the tag is built as released. The pinning tests
+// ControlSequenceBoundsPatchTest, TerminalPanelBoundaryPatchTest and
+// TerminalPanelShortcutKeyTypedPatchTest guard that behaviour against a regressing upgrade.
+fun installedSithtermfxIsPresent(): Boolean =
+    mavenLocalSithtermfxCore.isFile && mavenLocalSithtermfxUi.isFile
 
 tasks.register<Exec>("installSithtermfxLocal") {
     group = "build"
     description = "Build SithTermFX from source and install to local Maven repo (requires Maven)."
-    dependsOn(applySithtermfxPatches)
+    dependsOn("cloneSithtermfx")
     workingDir(sithtermfxDir)
     // Use SITHTERMFX_JDK_HOME or -Psithtermfx.jdkHome for Maven (CI may build SithTermFX in workflow instead)
     val jdkHome = project.findProperty("sithtermfx.jdkHome")?.toString()?.takeIf { it.isNotBlank() }
@@ -660,7 +587,7 @@ tasks.register<Exec>("installSithtermfxLocal") {
         commandLine(listOf("mvn") + mavenArguments)
     }
     onlyIf {
-        sithtermfxDir.asFile.resolve("pom.xml").isFile && !installedSithtermfxHasRequiredPatches()
+        sithtermfxDir.asFile.resolve("pom.xml").isFile && !installedSithtermfxIsPresent()
     }
 }
 
