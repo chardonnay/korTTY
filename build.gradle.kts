@@ -4146,6 +4146,14 @@ tasks.register<JavaExec>("generatePasteConfirmationScreenshot") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateAiChatCodeBlockScreenshot") {
+    group = "build"
+    description = "Renders the AI chat code block with its Insert and Run buttons for the manual via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiChatCodeBlockScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateSftpSettingsTabScreenshot") {
     group = "build"
     description = "Renders the Settings > SFTP Manager tab screenshot for the manual via Scene.snapshot."
