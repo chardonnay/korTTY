@@ -4078,7 +4078,47 @@ public class TerminalView extends BorderPane {
         TextStyle newStyle = new TextStyle(fgTc, bgTc);
         styleState.setDefaultStyle(newStyle);
         styleState.reset();
+        applyScrollBarBackground(widget, bgR, bgG, bgB, bgAlpha);
         Platform.runLater(() -> widget.getTerminalPanel().repaint());
+    }
+
+    /**
+     * Paints the pane's scroll bar with the terminal background at the same alpha as the cells, so
+     * in a see-through window it is exactly as translucent as the user set (never fully clear) and
+     * otherwise opaque. Inline styles win over the theme's scroll-bar rules, which some designs
+     * leave transparent. The track is a skin child, so it is styled once the skin exists.
+     */
+    private void applyScrollBarBackground(SithTermFxWidget widget, int r, int g, int b, int alpha) {
+        if (widget.getTerminalPanel() == null) {
+            return;
+        }
+        ScrollBar scrollBar = widget.getTerminalPanel().getScrollBar();
+        if (scrollBar == null) {
+            return;
+        }
+        // Lighten the track slightly over the background so it stays readable at any alpha.
+        double a = Math.max(0.0, Math.min(1.0, alpha / 255.0));
+        double trackAlpha = Math.max(a, 0.35);
+        String barStyle = String.format(java.util.Locale.ROOT,
+                "-fx-background-color: rgba(%d,%d,%d,%.3f);", r, g, b, a);
+        String trackStyle = String.format(java.util.Locale.ROOT,
+                "-fx-background-color: rgba(%d,%d,%d,%.3f);",
+                Math.min(255, r + 24), Math.min(255, g + 24), Math.min(255, b + 24), trackAlpha);
+        Runnable apply = () -> {
+            scrollBar.setStyle(barStyle);
+            javafx.scene.Node track = scrollBar.lookup(".track");
+            if (track != null) {
+                track.setStyle(trackStyle + " -fx-background-radius: 0.35em;");
+            }
+        };
+        apply.run();
+        if (scrollBar.getSkin() == null) {
+            scrollBar.skinProperty().addListener((obs, o, n) -> {
+                if (n != null) {
+                    Platform.runLater(apply);
+                }
+            });
+        }
     }
 
     /**
