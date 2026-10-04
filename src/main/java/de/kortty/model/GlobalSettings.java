@@ -139,6 +139,11 @@ public class GlobalSettings {
     @XmlElement
     private boolean tabTitleFromShellEnabled = true;
 
+    // Ctrl+Tab and Ctrl+Shift+Tab step through the tabs in the order they were last used instead of
+    // their order in the tab bar. Off by default, as positional Ctrl+Tab is the documented behavior.
+    @XmlElement
+    private boolean tabSwitchMostRecentFirst = false;
+
     @XmlElement
     private boolean jobSchedulerMenuStatusEnabled = true; // Show JobScheduler status in the menu bar
 
@@ -1529,6 +1534,15 @@ public class GlobalSettings {
 
     public void setTabTitleFromShellEnabled(boolean tabTitleFromShellEnabled) {
         this.tabTitleFromShellEnabled = tabTitleFromShellEnabled;
+    }
+
+    /** Whether Ctrl+Tab switches tabs in the order they were last used rather than by position (Window settings). */
+    public boolean isTabSwitchMostRecentFirst() {
+        return tabSwitchMostRecentFirst;
+    }
+
+    public void setTabSwitchMostRecentFirst(boolean tabSwitchMostRecentFirst) {
+        this.tabSwitchMostRecentFirst = tabSwitchMostRecentFirst;
     }
 
     public boolean isJobSchedulerMenuStatusEnabled() {

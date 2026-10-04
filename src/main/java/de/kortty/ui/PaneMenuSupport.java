@@ -35,6 +35,12 @@ import java.util.function.Supplier;
  * must not do either in another window. The split, focus and zoom items are routed like <i>Edit →
  * Find</i>.
  *
+ * <p>The labels never change and the submenu is built once per menu bar, so every item is tagged with
+ * its i18n key ({@link ActionIds#tag}) and the command palette harvests it as a command with a stable
+ * id, the menu path View › Panes, its shortcut and, for Zoom Pane and the broadcast item, its check
+ * mark. The palette therefore has no split or broadcast command of its own
+ * ({@link de.kortty.ui.actions.TerminalPaletteActions}).
+ *
  * <p>Menu items are not nodes, so this runs in a unit test without the JavaFX toolkit, except
  * {@link SeparatorMenuItem}, which holds a {@code Separator} control; the package-private builder
  * therefore takes the separator factory.

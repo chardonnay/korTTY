@@ -65,6 +65,39 @@
     -fx-background-color: -fx-control-inner-background;
 }
 
+/* Quick pick popups (snippet quick open, command palette): a result that cannot be chosen now. */
+.quick-pick-unavailable {
+    -fx-opacity: 0.55;
+}
+
+/* Command palette rows and footer (CommandPalettePopup). */
+.palette-kind {
+    -fx-font-size: 0.85em;
+    -fx-padding: 0 5 0 5;
+    /* A literal: a looked-up border colour does not resolve inside a list cell of a raw Popup. */
+    -fx-border-color: rgba(128, 128, 128, 0.6);
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.palette-detail {
+    -fx-opacity: 0.7;
+}
+
+.palette-shortcut {
+    -fx-font-size: 0.9em;
+    -fx-opacity: 0.75;
+}
+
+.palette-footer {
+    -fx-font-size: 0.9em;
+    -fx-padding: 2 2 0 2;
+}
+
+.palette-footer.palette-footer-reason {
+    -fx-font-weight: bold;
+}
+
 .ai-agent-completion-popup {
     -fx-background-color: derive(-fx-base, -8%);
     -fx-border-color: -fx-box-border;

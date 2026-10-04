@@ -289,7 +289,7 @@ class TerminalTabTitleTest {
         assertThat(contextMenu).contains("promptRenameTab(terminalTab)");
 
         String fileMenu = methodBody(window, "private Menu createFileMenu() {");
-        assertThat(fileMenu).contains("I18n.get(\"menu.file.renameTab\")");
+        assertThat(fileMenu).contains("menuItem(\"menu.file.renameTab\")");
         assertThat(fileMenu).contains("promptRenameTab(terminalTab)");
         assertWithMessage("both macOS menu bars compute the state when the menu opens")
             .that(fileMenu).contains("fileMenu.setOnShowing(");

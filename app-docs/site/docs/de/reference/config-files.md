@@ -151,6 +151,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 -  Flag „Toolfenster als Registerkarten öffnen“.
 - `connectionColorBorderEnabled`: ob das Terminal einer Verbindung mit einer [Tab-Farbe](../features/connections.md#tab-farbe) einen Rahmen in dieser Farbe erhält (standardmäßig aktiviert)
 - `tabTitleFromShellEnabled`: ob ein Terminal-Tab statt des Verbindungsnamens den [Titel anzeigt, den seine Shell setzt](../features/terminal.md#titel-aus-der-shell) (standardmäßig aktiviert)
+- `tabSwitchMostRecentFirst`: ob ++ctrl+tab++ die Tabs in der Reihenfolge ihrer letzten Nutzung wechselt statt in ihrer [Reihenfolge in der Tab-Leiste](settings/window.md#tabs) (standardmäßig aus)
 - Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite
 - JobScheduler-Statusanzeigeeinstellung
 - Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds

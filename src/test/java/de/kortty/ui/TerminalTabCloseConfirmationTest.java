@@ -88,7 +88,9 @@ class TerminalTabCloseConfirmationTest {
         int stillOpen = funnel.indexOf("targets.removeIf(tab -> !tabPane.getTabs().contains(tab));");
         int record = funnel.indexOf("recordUserClosedTabs(targets, cause);");
         int dispose = funnel.indexOf("disposeTabContent(tab);");
-        int remove = funnel.indexOf("tabPane.getTabs().removeAll(targets);");
+        // One list change, run as a reorganization: the tabs' most-recently-used order ignores the
+        // selection passing over the closing tabs (TabPaletteWiringTest).
+        int remove = funnel.indexOf("reorganizeTabs(() -> tabPane.getTabs().removeAll(targets));");
         assertThat(confirm).isAtLeast(0);
         assertWithMessage("a tab that closed on its own while the question was open is neither recorded nor released twice")
             .that(stillOpen).isGreaterThan(confirm);
