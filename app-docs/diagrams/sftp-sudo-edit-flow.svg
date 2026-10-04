@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">SFTP edit as root flow</title>
+  <desc id="desc">Editing a server file as root from the SFTP manager: sudo runs over an exec channel without a terminal; the file is read with sudo cat into a private local copy, edited in the user's editor, and each save is checked for conflicts, sent over stdin into a root-owned staging folder, verified by size and SHA-256, written into the target in place and the stage is removed; stopping deletes the local copy and wipes the password.</desc>
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker><style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:16}.guard{stroke:#f59e0b}.out{stroke:#34d399}.clean{stroke:#f472b6}.lane{fill:#0b1a2b;stroke:#1e3a5f;stroke-width:1;stroke-dasharray:6 6;rx:20}.title{font-size:28px;font-weight:700;fill:#f8fafc}.lanelabel{font-size:14px;font-weight:700;fill:#7dd3fc}.small{font-size:13px;fill:#b9c8da}.label{font-size:12px;fill:#67e8f9}.line{stroke:#67e8f9;stroke-width:2;fill:none;marker-end:url(#arrow)}</style></defs>
+  <rect class="bg" width="1280" height="720"/>
+  <text class="title" x="40" y="54">SFTP Edit as Root</text>
+  <text class="small" x="40" y="82">Read via sudo, edit locally, send each save over stdin to a root-owned stage, verify, write in place, clean up.</text>
+
+  <rect class="lane" x="24" y="100" width="1232" height="170"/>
+  <text class="lanelabel" x="1238" y="122" text-anchor="end">THIS COMPUTER</text>
+  <rect class="lane" x="24" y="380" width="1232" height="180"/>
+  <text class="lanelabel" x="1238" y="402" text-anchor="end">SERVER: sudo over an exec channel, no terminal</text>
+
+  <rect class="box guard" x="40" y="136" width="260" height="110"/>
+  <text x="64" y="172">1 · Password</text>
+  <text class="small" x="64" y="198">sudo -n first, then a masked</text>
+  <text class="small" x="64" y="218">dialog; sent only when sudo asks</text>
+
+  <rect class="box" x="350" y="136" width="260" height="110"/>
+  <text x="374" y="172">3 · Private local copy</text>
+  <text class="small" x="374" y="198">kortty-remote-edit-&lt;uuid&gt;</text>
+  <text class="small" x="374" y="218">owner-only folder (rwx------)</text>
+
+  <rect class="box" x="660" y="136" width="260" height="110"/>
+  <text x="684" y="172">4 · Your editor</text>
+  <text class="small" x="684" y="198">started directly, never a shell</text>
+  <text class="small" x="684" y="218">every save is noticed</text>
+
+  <rect class="box guard" x="970" y="136" width="260" height="110"/>
+  <text x="994" y="172">5 · Conflict check</text>
+  <text class="small" x="994" y="198">re-reads stat and hash as root;</text>
+  <text class="small" x="994" y="218">asks if someone changed it</text>
+
+  <rect class="box" x="40" y="420" width="210" height="110"/>
+  <text x="62" y="456">2 · sudo cat</text>
+  <text class="small" x="62" y="482">read the file as root,</text>
+  <text class="small" x="62" y="502">content over stdout</text>
+
+  <rect class="box" x="287" y="420" width="210" height="110"/>
+  <text x="309" y="456">6 · Root-owned stage</text>
+  <text class="small" x="309" y="482">umask 077; mktemp -d</text>
+  <text class="small" x="309" y="502">EXIT trap set at once</text>
+
+  <rect class="box guard" x="534" y="420" width="210" height="110"/>
+  <text x="556" y="456">7 · Verify</text>
+  <text class="small" x="556" y="482">size and SHA-256 match;</text>
+  <text class="small" x="556" y="502">target is not a link</text>
+
+  <rect class="box out" x="781" y="420" width="210" height="110"/>
+  <text x="803" y="456">8 · In-place write</text>
+  <text class="small" x="803" y="482">cat stage &gt; target</text>
+  <text class="small" x="803" y="502">inode, owner, mode kept</text>
+
+  <rect class="box clean" x="1028" y="420" width="210" height="110"/>
+  <text x="1050" y="456">9 · Cleanup</text>
+  <text class="small" x="1050" y="482">trap removes the stage;</text>
+  <text class="small" x="1050" y="502">Stop wipes copy, password</text>
+
+  <path class="line" d="M145 246 V420"/>
+  <path class="line" d="M250 450 C310 450 480 340 480 246"/>
+  <text class="label" x="300" y="336">content over stdout</text>
+  <path class="line" d="M610 191 H660"/>
+  <path class="line" d="M920 191 H970"/>
+  <text class="label" x="930" y="180">save</text>
+  <path class="line" d="M1100 246 C1100 350 392 320 392 420"/>
+  <text class="label" x="760" y="318">new content over stdin</text>
+  <path class="line" d="M497 475 H534"/>
+  <path class="line" d="M744 475 H781"/>
+  <path class="line" d="M991 475 H1028"/>
+
+  <text class="small" x="40" y="612">The login user never owns a file that root later reads: the content travels over the channel, never through a user-writable temp file.</text>
+  <text class="small" x="40" y="634">A failed size or hash check, a link at the target or a broken transfer leaves the target untouched. The password never appears in argv,</text>
+  <text class="small" x="40" y="656">the log, the journal or an error message. A server whose sudo requires a terminal (requiretty) is reported and refused, never worked</text>
+  <text class="small" x="40" y="678">around with a pty, because a pty would mangle the file sent over stdin.</text>
+</svg>

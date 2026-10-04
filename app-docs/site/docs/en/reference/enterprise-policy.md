@@ -245,13 +245,16 @@ groups = ["compliance"]
 [[rule]]
   [rule.features]
   file-transfer = "allow"
+  sftp-sudo-edit = "deny"
 
   [rule.sftp]
   max-parallel-transfers = 2
   conflict-default = "ask"
 ```
 
-A malformed policy file falls back to lockdown, which denies `file-transfer` like every other feature.
+A malformed policy file falls back to lockdown, which denies `file-transfer` and `sftp-sudo-edit` like every other feature.
+
+Archives created on the server by the SFTP manager never carry a password, whatever the policy says: `zip` and `7z` take a password only on their command line or from a terminal, and on the command line every other user of the server can read it in the process list. Password-protected archives on the server are likewise refused by **Extract Here...**. Archives created on the user's own computer can still have a password, so no policy key is needed to keep server passwords out of process lists.
 
 ### `[rule.logging]`
 
