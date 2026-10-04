@@ -119,6 +119,7 @@ Upload copies the selected local files and folders into the remote folder that w
 - **Uploading a folder again merges** into the existing remote folder: files with the same name are replaced, other remote files are kept.
 - **Files are streamed**, so their size is not limited by memory; files larger than 2 GB upload like any other.
 - If the connection drops during an upload or download, the rest of the batch stops with one **Disconnected** state rather than an error per file.
+- **Downloaded names stay inside the target folder.** A server name such as `..` or `a/b` is refused. On Windows, names that Windows reserves for devices (`CON`, `PRN`, `AUX`, `NUL`, `COM1` to `COM9`, `LPT1` to `LPT9`, also with an extension such as `nul.txt`) and names that end in a dot or a space or contain `:` are refused too, because Windows would write them somewhere else or change them.
 
 ### Permissions
 

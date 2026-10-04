@@ -1596,23 +1596,11 @@ public class SFTPManagerTab extends Tab {
     /**
      * The entry {@code name} inside the local {@code folder}. Names come from the server, so one
      * that would end up elsewhere ({@code ..}, {@code a/b}, an absolute path, {@code a\b} on
-     * Windows) is refused instead of being written outside the folder.
+     * Windows) is refused instead of being written outside the folder, and so is, on Windows, a
+     * reserved device name or a name Windows would alter (see {@code LocalNames}).
      */
     static Path localChild(Path folder, String name) throws IOException {
-        if (name == null || name.isEmpty() || ".".equals(name) || "..".equals(name)) {
-            throw new IOException(I18n.get("sftp.error.invalidName", String.valueOf(name)));
-        }
-        Path child;
-        try {
-            child = folder.resolve(name);
-        } catch (java.nio.file.InvalidPathException e) {
-            throw new IOException(I18n.get("sftp.error.invalidName", name), e);
-        }
-        if (!folder.equals(child.getParent()) || child.getFileName() == null
-                || !name.equals(child.getFileName().toString())) {
-            throw new IOException(I18n.get("sftp.error.invalidName", name));
-        }
-        return child;
+        return de.kortty.core.sftp.transfer.LocalNames.localChild(folder, name);
     }
 
     private void copyLocalSelected() {

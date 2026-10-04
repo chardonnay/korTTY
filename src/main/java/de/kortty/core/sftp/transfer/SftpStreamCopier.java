@@ -216,6 +216,44 @@ public final class SftpStreamCopier {
     }
 
     /**
+     * Uploads {@code localPath} from its start into {@code handle}, an already open remote file
+     * (for example a part file created exclusively). The handle stays open, so the caller can
+     * fsync it, set its attributes and close it.
+     *
+     * @return the number of bytes copied
+     */
+    public static long uploadToHandle(SftpClient client, SftpClient.CloseableHandle handle, String remotePath,
+            Path localPath, TransferProgressListener listener, TransferCancellation cancel) throws IOException {
+        Objects.requireNonNull(client, "client");
+        Objects.requireNonNull(handle, "handle");
+        Objects.requireNonNull(localPath, "localPath");
+        TransferProgressListener progress = listener == null ? TransferProgressListener.NONE : listener;
+        try {
+            cancel.throwIfCancelled();
+            try (FileChannel channel = FileChannel.open(localPath, StandardOpenOption.READ)) {
+                long size = channel.size();
+                InputStream in = Channels.newInputStream(channel);
+                int bufferSize = bufferSize(client, false);
+                long done = 0;
+                try (OutputStream out = wrapHandle(client, remotePath, handle, 0, bufferSize, false)) {
+                    byte[] buffer = new byte[bufferSize];
+                    progress.onProgress(done, size);
+                    int read;
+                    while ((read = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, read);
+                        done += read;
+                        progress.onProgress(done, Math.max(size, done));
+                        cancel.throwIfCancelled();
+                    }
+                }
+                return done;
+            }
+        } catch (IOException | RuntimeException e) {
+            throw translate(e, cancel);
+        }
+    }
+
+    /**
      * The request size for {@code client}: the server's announced read or write limit when it
      * offers {@code limits@openssh.com}, clamped to [{@value #MIN_BUFFER_SIZE},
      * {@value #MAX_BUFFER_SIZE}], else {@value #DEFAULT_BUFFER_SIZE}.
@@ -270,16 +308,23 @@ public final class SftpStreamCopier {
             Collection<SftpClient.OpenMode> openModes, long offset, int bufferSize) throws IOException {
         SftpClient.CloseableHandle handle = client.open(remotePath, openModes);
         try {
-            if (client instanceof AbstractSftpClient asyncCapable) {
-                SftpOutputStreamAsync out = new SftpOutputStreamAsync(asyncCapable, bufferSize, remotePath, handle, true);
-                out.setOffset(offset);
-                return out;
-            }
-            return new HandleOutputStream(client, handle, offset);
+            return wrapHandle(client, remotePath, handle, offset, bufferSize, true);
         } catch (RuntimeException e) {
             closeQuietly(handle);
             throw e;
         }
+    }
+
+    /** A pipelined stream over {@code handle}; closing it closes the handle only when it owns it. */
+    private static OutputStream wrapHandle(SftpClient client, String remotePath, SftpClient.CloseableHandle handle,
+            long offset, int bufferSize, boolean ownsHandle) {
+        if (client instanceof AbstractSftpClient asyncCapable) {
+            SftpOutputStreamAsync out = new SftpOutputStreamAsync(asyncCapable, bufferSize, remotePath, handle,
+                ownsHandle);
+            out.setOffset(offset);
+            return out;
+        }
+        return new HandleOutputStream(client, handle, offset, ownsHandle);
     }
 
     private static IOException translate(Exception error, TransferCancellation cancel) {
@@ -318,12 +363,14 @@ public final class SftpStreamCopier {
     private static final class HandleOutputStream extends OutputStream {
         private final SftpClient client;
         private final SftpClient.CloseableHandle handle;
+        private final boolean ownsHandle;
         private long position;
 
-        HandleOutputStream(SftpClient client, SftpClient.CloseableHandle handle, long position) {
+        HandleOutputStream(SftpClient client, SftpClient.CloseableHandle handle, long position, boolean ownsHandle) {
             this.client = client;
             this.handle = handle;
             this.position = position;
+            this.ownsHandle = ownsHandle;
         }
 
         @Override
@@ -339,7 +386,9 @@ public final class SftpStreamCopier {
 
         @Override
         public void close() throws IOException {
-            handle.close();
+            if (ownsHandle) {
+                handle.close();
+            }
         }
     }
 }
