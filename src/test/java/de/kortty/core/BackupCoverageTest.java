@@ -77,6 +77,8 @@ class BackupCoverageTest {
         Map.entry("TelemetryService.SPOOL_FILE", "unsent telemetry spool"),
         Map.entry("SshTunnelApprovals.STORE_FILE_NAME",
             "per-device consent: after a restore, tunnels ask once more before they listen"),
+        Map.entry("ResumeIndex.FILE_NAME",
+            "per-device transfer state; the partial files it describes live on this device and its servers"),
         Map.entry("SessionSnapshotStore.SNAPSHOT_FILE",
             "per-device session state in ~/.kortty/session/, rewritten while korTTY runs"),
         Map.entry("SessionSnapshotStore.PREVIOUS_FILE",
@@ -92,6 +94,7 @@ class BackupCoverageTest {
         "teamwork-cache.xml",
         "journal-search-visited.xml",
         "kortty-policy.toml",
+        "sftp-resume-index.json",
         SessionSnapshotStore.DIRECTORY_NAME + "/" + SessionSnapshotStore.SNAPSHOT_FILE,
         SessionSnapshotStore.DIRECTORY_NAME + "/" + SessionSnapshotStore.PREVIOUS_FILE,
         SessionSnapshotStore.DIRECTORY_NAME + "/" + SessionScrollbackStore.DIRECTORY_NAME);

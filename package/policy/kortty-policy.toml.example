@@ -65,6 +65,10 @@
 #   plugins = "deny"                  # plugins (e.g. terminal effects)
 #   multi-exec = "deny"               # typing into several terminals at once: multi-exec
 #                                     # and a tab's broadcast mode (Stop always works)
+#   file-transfer = "deny"            # copying files to or from servers: SFTP manager uploads,
+#                                     # downloads, drops and drag-out, and JobScheduler SFTP
+#                                     # upload/download/sync and rsync. Browsing and remote-only operations
+#                                     # keep working; scp typed into a terminal cannot be blocked.
 #   # Agent execution mode: "allow" (user settings govern), "confirm" (every mutating
 #   # command set needs interactive approval; auto-approve is defeated), "read-only"
 #   # (the agent may plan and chat but never executes commands).
@@ -122,6 +126,13 @@
 #   # What korTTY does at startup with the previous session's windows and tabs: "off",
 #   # "ask" or "auto". Set and locked; File > Restore Previous Session stays available.
 #   session-restore = "ask"
+#
+#   # SFTP manager transfers.
+#   [rule.sftp]
+#   max-parallel-transfers = 2        # 1..8; a cap on Settings > SFTP Manager (smallest wins)
+#   # Set and locked: "ask" (once per batch), "skip" or "overwrite". Several rules of the
+#   # same tier: ask beats skip beats overwrite.
+#   conflict-default = "ask"
 #
 #   # Where and how korTTY writes its log files. Directory and retention are forced into
 #   # the (locked) user settings; format, compression and rotation apply directly.

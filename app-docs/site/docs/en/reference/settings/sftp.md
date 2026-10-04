@@ -16,7 +16,30 @@ Defaults for the dual-panel [SFTP file manager](../../features/sftp.md) and for 
 | Timeout (minutes) | number | 1–120 | 10 | `sftpAutoCloseMinutes` |
 
 !!! note "Auto-close"
-    An idle SFTP tab closes itself after the timeout, which frees the server-side connection when you forget to close the manager. The timeout field is only editable while the toggle is on, and the two share one stored value: switching the toggle off stores no timeout at all.
+    An idle SFTP tab closes itself after the timeout, which frees the server-side connection when you forget to close the manager. The timeout field is only editable while the toggle is on, and the two share one stored value: switching the toggle off stores no timeout at all. While uploads or downloads are running the tab counts as active, so it never closes itself in the middle of a transfer.
+
+## Transfers
+
+How uploads and downloads in the [transfer list](../../features/sftp.md#transfer-list) work. Changes apply to SFTP tabs opened afterwards.
+
+| Setting | Type | Values | Default | Stored as |
+| --- | --- | --- | --- | --- |
+| Parallel transfers | number | 1–8 | 3 | `sftpParallelTransfers` |
+| When the target already exists | choice | Ask (with "apply to all"), Skip the file, Overwrite | Ask | `sftpConflictDefault` (`ask`, `skip`, `overwrite`) |
+| Resume interrupted transfers | toggle | — | On | `sftpResumePartialTransfers` |
+| Keep the partial file when a transfer is cancelled | toggle | — | Off | `sftpKeepPartialOnCancel` |
+
+!!! note "Parallel transfers"
+    Each parallel transfer uses one SFTP channel of its own next to the one the tab browses with. Three channels give most of the speed on slow links and stay well below the usual server limit of ten sessions per connection; when the server refuses a channel, the tab quietly copies with fewer. A tab that borrows a terminal pane's session uses at most 2, whatever the setting says.
+
+!!! note "When the target already exists"
+    **Ask** shows the [file already exists](../../features/sftp.md#when-a-file-already-exists) dialog once per upload or download, with **Apply to all**. **Skip the file** and **Overwrite** answer it without asking; folders are merged either way. **Overwrite** never replaces a symbolic link, or a file where a folder is expected (and the other way round): those are still asked about.
+
+!!! note "Partial files"
+    Every transfer writes into a `.kortty-part` file next to its target first. With **Resume interrupted transfers** on, a transfer that failed or lost its connection keeps that file, and **Retry** continues where it stopped after checking that the source has not changed. Switched off, the partial file is removed whenever a transfer does not finish, and a retry starts from the beginning. **Keep the partial file when a transfer is cancelled** also keeps it on **Cancel**, so a cancelled transfer can be resumed too; it can only be switched on while resuming is on.
+
+!!! note "Managed by your organization"
+    An organization can cap **Parallel transfers** and set and lock **When the target already exists** with [`[rule.sftp]`](../enterprise-policy.md#rulesftp), and switch file transfer off entirely with `file-transfer = "deny"`; the page then says so below the transfer settings.
 
 ## ZIP Creation Settings
 

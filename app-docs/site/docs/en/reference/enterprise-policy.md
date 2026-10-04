@@ -125,6 +125,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `control-api` | string | `allow`, `deny` | The [control API](control-api.md) and its `kortty-cli` client: `deny` stops the listener, locks the Settings checkbox and forces the setting off. Not chained to `ai` — the API is local automation, not an AI capability |
 | `terminal-triggers` | string | `allow`, `deny` | [Highlight rules that act](../features/highlighting.md#notifications-for-matching-output) when their pattern appears in terminal output (a desktop notification, or [running a snippet](../features/highlighting.md#running-a-snippet-when-output-matches) in the pane): `deny` stops every such action, also a snippet the user already allowed for a connection, locks **Run actions of highlight rules (notifications, snippets)** in *Settings → Terminal* in the off position and keeps the rule editor from giving a rule an action. Keyword highlighting itself is not affected. `allow` locks the setting on |
 | `multi-exec` | string | `allow`, `deny` | Typing into several terminals at once: [multi-exec](../features/terminal.md#multi-exec) across tabs and windows and a tab's broadcast mode. `deny` locks the include items of *View → Multi-exec*, *View → Panes → Broadcast*, the Multi-exec and Broadcast Mode entries of the tab, pane and Dashboard context menus, and their command palette and shortcut entries; no pane can join from anywhere. **Stop Multi-exec** and switching broadcast mode off keep working. There is no Settings control, so `allow` changes nothing |
+| `file-transfer` | string | `allow`, `deny` | Copying files between this computer and a server. `deny` greys out the [SFTP manager](../features/sftp.md)'s **Upload** and **Download** buttons and the transfer list's **Retry**, rejects drags onto either panel that would copy to or from the server, and stops server files being dragged out of the window, and makes the JobScheduler's SFTP upload, download and sync actions and its rsync action fail with the policy message before they connect. Opening the SFTP manager, browsing and remote-only operations (rename, delete, permissions, owner, archives, search, remote copy) keep working, and loading a file into the snippet editor stays under `load-into-snippet-editor`. Commands such as `scp` or `rsync` typed into a terminal cannot be blocked by korTTY. There is no Settings control, so `allow` changes nothing |
 | `ai-agent-execution` | string | `allow`, `confirm`, `read-only` | `confirm` forces interactive approval of every mutating command set and defeats the auto-approve option; `read-only` lets the agent plan and chat but never execute commands |
 
 !!! note "Naming a feature takes it over, whichever way you decide it"
@@ -231,6 +232,25 @@ groups = ["compliance"]
   session-restore = "ask"
   session-restore-output = false
 ```
+
+### `[rule.sftp]`
+
+| Key | Type | Values | Effect |
+| --- | --- | --- | --- |
+| `max-parallel-transfers` | integer | `1` to `8` | The most files the SFTP manager copies at once. A cap on **Parallel transfers** in *Settings → [SFTP Manager](settings/sftp.md)*: a higher stored value is lowered to it and the spinner goes no higher, while users may still choose fewer. When several rules of the same tier set it, the smallest value wins |
+| `conflict-default` | string | `ask`, `skip`, `overwrite` | Sets and locks **When the target already exists** in *Settings → SFTP Manager*: what an upload or download does with a file that is already there. When several rules of the same tier set it, the value that loses less data wins (`ask` over `skip` over `overwrite`) |
+
+```toml
+[[rule]]
+  [rule.features]
+  file-transfer = "allow"
+
+  [rule.sftp]
+  max-parallel-transfers = 2
+  conflict-default = "ask"
+```
+
+A malformed policy file falls back to lockdown, which denies `file-transfer` like every other feature.
 
 ### `[rule.logging]`
 

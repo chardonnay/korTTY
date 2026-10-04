@@ -52,6 +52,7 @@ import java.util.Set;
  * @param sessionRestoreOutput       whether the output of each terminal pane is restored with the
  *                                   session; the policy sets and locks the switch ({@code [rule.terminal]
  *                                   session-restore-output}), null leaves it to the user
+ * @param sftp                       file-transfer limits from {@code [rule.sftp]}, or null
  */
 public record PolicyRule(
     String name,
@@ -83,7 +84,8 @@ public record PolicyRule(
     de.kortty.paste.PasteWarningMode pasteWarningFloor,
     Boolean allowOsc52ClipboardWrite,
     de.kortty.model.SessionRestoreMode sessionRestoreMode,
-    Boolean sessionRestoreOutput) {
+    Boolean sessionRestoreOutput,
+    SftpRule sftp) {
 
     public PolicyRule {
         users = Set.copyOf(users);
@@ -94,6 +96,21 @@ public record PolicyRule(
     /** True when the rule names neither users nor groups and therefore applies to everyone. */
     public boolean appliesToAll() {
         return users.isEmpty() && groups.isEmpty();
+    }
+
+    /**
+     * The {@code [rule.sftp]} table: limits for the SFTP manager's transfers. All fields nullable =
+     * "not set at this tier".
+     *
+     * @param maxParallelTransfers the most files copied at once (1..8); merged by the minimum
+     * @param conflictDefault      what happens when a target exists; merged by the most restrictive
+     *                             value, ask before skip before overwrite
+     */
+    public record SftpRule(Integer maxParallelTransfers, de.kortty.model.SftpConflictDefault conflictDefault) {
+
+        public boolean isEmpty() {
+            return maxParallelTransfers == null && conflictDefault == null;
+        }
     }
 
     /**
@@ -225,6 +242,7 @@ public record PolicyRule(
         private Boolean allowOsc52ClipboardWrite;
         private de.kortty.model.SessionRestoreMode sessionRestoreMode;
         private Boolean sessionRestoreOutput;
+        private SftpRule sftp;
 
         public Builder name(String value) { this.name = value; return this; }
         public Builder users(Set<String> value) { this.users = value; return this; }
@@ -265,6 +283,7 @@ public record PolicyRule(
             return this;
         }
         public Builder sessionRestoreOutput(Boolean value) { this.sessionRestoreOutput = value; return this; }
+        public Builder sftp(SftpRule value) { this.sftp = value; return this; }
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
@@ -273,7 +292,7 @@ public record PolicyRule(
                 aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal,
                 snippetAnalysisMaxStoredContentBytes, pasteWarningFloor, allowOsc52ClipboardWrite,
-                sessionRestoreMode, sessionRestoreOutput);
+                sessionRestoreMode, sessionRestoreOutput, sftp);
         }
     }
 }

@@ -44,5 +44,12 @@ public enum ManagedSetting {
      * "Also restore the output of each terminal pane" and its lines per pane in Settings → Window
      * ({@code [rule.terminal] session-restore-output}).
      */
-    SESSION_RESTORE_OUTPUT
+    SESSION_RESTORE_OUTPUT,
+    /** File transfer as a whole ({@link PolicyFeature#FILE_TRANSFER}); no Settings control of its own. */
+    FILE_TRANSFER,
+    /**
+     * The parallel-transfers spinner and the conflict-default choice in Settings → SFTP Manager
+     * ({@code [rule.sftp] max-parallel-transfers} and {@code conflict-default}).
+     */
+    SFTP_TRANSFERS
 }

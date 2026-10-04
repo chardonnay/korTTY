@@ -4132,6 +4132,23 @@ tasks.register<JavaExec>("generatePasteConfirmationScreenshot") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateSftpSettingsTabScreenshot") {
+    group = "build"
+    description = "Renders the Settings > SFTP Manager tab screenshot for the manual via Scene.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SftpSettingsTabScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateSftpTransferScreenshots") {
+    group = "build"
+    description = "Renders the SFTP transfer list and \"File already exists\" dialog screenshots for the manual " +
+        "(app-docs/screenshots/sftp/sftp-transfer-list.png, sftp-conflict-dialog.png) via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SftpTransferScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateShellIntegrationSetupScreenshot") {
     group = "build"
     description = "Renders the Set Up Shell Integration window screenshot for the manual " +
