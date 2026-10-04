@@ -99,6 +99,11 @@ final class TerminalRemoteSidebar extends VBox {
     static final long CHECK_INTERVAL_MILLIS = 500;
     /** When a typed {@code cd} is checked for its new prompt. */
     private static final long[] PROMPT_PROBE_DELAYS = {500, 1200, 2500};
+    /**
+     * While paused for another user or host, how often the prompt is checked again: leaving
+     * {@code su} with {@code exit} reports no new folder, so nothing else would resume following.
+     */
+    static final long FOREIGN_RECHECK_MILLIS = 1_500;
 
     private final TerminalView view;
     private final RemoteFollowController controller;
@@ -135,6 +140,7 @@ final class TerminalRemoteSidebar extends VBox {
     private @Nullable PauseTransition deferredCheck;
     private final List<Runnable> afterDeferredCheck = new ArrayList<>();
     private final List<PauseTransition> promptProbes = new ArrayList<>();
+    private @Nullable javafx.animation.Timeline foreignRecheck;
     private final AtomicBoolean promptMarkQueued = new AtomicBoolean();
     private final List<Path> dragOutDirectories = new ArrayList<>();
     private @Nullable TransferCancellation dragOutCancel;
@@ -156,6 +162,7 @@ final class TerminalRemoteSidebar extends VBox {
             @Override
             public void stateChanged(RemoteFollowController.State state, @Nullable String path) {
                 updateBanner();
+                updateForeignRecheck(state);
             }
         });
         this.browser = new RemoteSidebarBrowser(this::onResult, Platform::runLater, this::onSessionLost);
@@ -255,14 +262,16 @@ final class TerminalRemoteSidebar extends VBox {
                 }
             }
         });
-        table.setOnDragOver(event -> {
+        // On the whole sidebar, not only the list: a drop on its header, banner or transfer list
+        // must not bubble up to the terminal view, which would copy into the shell's folder instead.
+        setOnDragOver(event -> {
             if (acceptsDrop(event.getDragboard(), event.getGestureSource())) {
                 event.acceptTransferModes(TransferMode.COPY);
             }
             // Consumed either way: a denied drop must not fall through to the terminal below.
             event.consume();
         });
-        table.setOnDragDropped(event -> {
+        setOnDragDropped(event -> {
             boolean accepted = acceptsDrop(event.getDragboard(), event.getGestureSource());
             if (accepted) {
                 List<Path> paths = event.getDragboard().getFiles().stream().map(File::toPath).toList();
@@ -405,6 +414,35 @@ final class TerminalRemoteSidebar extends VBox {
         }
         afterDeferredCheck.clear();
         stopPromptProbes();
+        stopForeignRecheck();
+    }
+
+    /** Re-checks the prompt now and then while paused for another identity, so {@code exit} resumes. */
+    private void updateForeignRecheck(RemoteFollowController.State state) {
+        if (state != RemoteFollowController.State.PAUSED_FOREIGN || disposed) {
+            stopForeignRecheck();
+            return;
+        }
+        if (foreignRecheck != null) {
+            return;
+        }
+        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
+            new javafx.animation.KeyFrame(Duration.millis(FOREIGN_RECHECK_MILLIS), event -> {
+                if (!disposed && controller.state() == RemoteFollowController.State.PAUSED_FOREIGN) {
+                    checkThen(null);
+                }
+            }));
+        timeline.setCycleCount(javafx.animation.Animation.INDEFINITE);
+        foreignRecheck = timeline;
+        timeline.play();
+    }
+
+    private void stopForeignRecheck() {
+        javafx.animation.Timeline timeline = foreignRecheck;
+        foreignRecheck = null;
+        if (timeline != null) {
+            timeline.stop();
+        }
     }
 
     private void stopPromptProbes() {
@@ -491,8 +529,13 @@ final class TerminalRemoteSidebar extends VBox {
             schedulePromptProbes(pane, key, baseline);
             return;
         }
-        controller.directoryChanged(key, change.path(), change.source());
-        checkThen(null);
+        // The identity is checked first: a report from a shell of another user must pause the
+        // sidebar before its folder can be listed, not after the debounce already listed it.
+        checkThen(() -> {
+            if (!disposed && pane == activePane && key.equals(controller.activePane())) {
+                controller.directoryChanged(key, change.path(), change.source());
+            }
+        });
     }
 
     private void schedulePromptProbes(SithTermFxWidget pane, String key, String baseline) {

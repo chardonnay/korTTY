@@ -2326,12 +2326,29 @@ public class TerminalView extends BorderPane {
      * to the panes, for example on the tab's border).
      */
     private @Nullable SithTermFxWidget fileDropPane(DragEvent event) {
+        if (isInsideRemoteSidebarDock(event.getTarget())) {
+            // The sidebar (and its divider) takes its own drops into the folder it shows; never the shell's.
+            return null;
+        }
         for (SithTermFxWidget widget : terminalPanes()) {
             if (widget != null && isUnderPointer(widget.getPane(), event.getSceneX(), event.getSceneY())) {
                 return widget;
             }
         }
         return splitPane != null ? splitPane.getFocusedWidget() : terminalWidget;
+    }
+
+    private boolean isInsideRemoteSidebarDock(@Nullable Object target) {
+        javafx.scene.layout.HBox dock = remoteSidebarDock;
+        if (dock == null || !(target instanceof Node node)) {
+            return false;
+        }
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current == dock) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The pane's connected SSH connector with an open session, or null (local, Mosh, Telnet, closed). */

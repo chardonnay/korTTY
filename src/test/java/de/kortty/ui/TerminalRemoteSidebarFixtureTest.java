@@ -36,6 +36,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
  */
 class TerminalRemoteSidebarFixtureTest {
 
+    private final Object viewStandIn = new Object();
+    private final Object paneStandIn = new Object();
+
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private Path tempDir;
@@ -65,7 +68,8 @@ class TerminalRemoteSidebarFixtureTest {
         int baseline = fixture.stats().openChannels();
         ServerConnection pane = connection();
         AtomicReference<PaneSessionSupplier.PaneSession> now = new AtomicReference<>(paneSession(pane, terminal));
-        PaneSessionSupplier<Object, Object> supplier = new PaneSessionSupplier<>(new Object(), new Object(),
+        // Weakly held by the supplier: fields keep the stand-ins reachable, or a GC empties it.
+        PaneSessionSupplier<Object, Object> supplier = new PaneSessionSupplier<>(viewStandIn, paneStandIn,
             PaneSessionSupplier.Identity.of(pane), (view, p) -> now.get());
 
         List<RemoteSidebarBrowser.Result> results = new CopyOnWriteArrayList<>();
@@ -156,6 +160,34 @@ class TerminalRemoteSidebarFixtureTest {
         assertThat(sidebar).contains("table.getStyleClass().add(\"file-browser-table\");");
         // The emoji type glyphs have no glyph in the table's monospace font: the manager's icons instead.
         assertThat(sidebar).contains("SFTPManagerTab.installTypeIconCell(type);");
+    }
+
+    @Test
+    void dropsOnTheSidebarNeverFallThroughToTheShellsFolder() throws IOException {
+        String sidebar = source("src/main/java/de/kortty/ui/TerminalRemoteSidebar.java");
+        // The whole sidebar takes (or refuses) drops, not only its table: a drop on the header or
+        // the banner bubbled up to the terminal view and was copied into the shell's folder.
+        assertThat(sidebar).contains("\n        setOnDragOver(event -> {");
+        assertThat(sidebar).contains("\n        setOnDragDropped(event -> {");
+        assertThat(sidebar).doesNotContain("table.setOnDragOver(");
+        String view = source("src/main/java/de/kortty/ui/TerminalView.java");
+        int start = view.indexOf("private @Nullable SithTermFxWidget fileDropPane(DragEvent event) {");
+        assertThat(view.substring(start, view.indexOf("\n    }\n", start)))
+            .contains("if (isInsideRemoteSidebarDock(event.getTarget())) {");
+    }
+
+    @Test
+    void theSidebarChecksTheIdentityBeforeFollowingAndRechecksWhilePaused() throws IOException {
+        String sidebar = source("src/main/java/de/kortty/ui/TerminalRemoteSidebar.java");
+        int start = sidebar.indexOf("private void onDirectoryChange(");
+        String method = sidebar.substring(start, sidebar.indexOf("\n    }\n", start));
+        // The reported folder reaches the controller only after the verdict ran.
+        assertThat(method).contains("checkThen(() -> {");
+        assertThat(method.indexOf("checkThen(() -> {"))
+            .isLessThan(method.lastIndexOf("controller.directoryChanged(key, change.path(), change.source());"));
+        // exit from su reports no folder: a paused sidebar polls the prompt to resume.
+        assertThat(sidebar).contains("updateForeignRecheck(state);");
+        assertThat(sidebar).contains("stopForeignRecheck();");
     }
 
     private static String source(String path) throws IOException {

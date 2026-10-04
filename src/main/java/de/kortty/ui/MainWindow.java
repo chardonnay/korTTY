@@ -13677,11 +13677,6 @@ public class MainWindow {
         });
     }
     
-    /**
-     * Opens SFTP Manager for a specific connection.
-     * @param connection The connection to use
-     * @param temporarySSHKey Optional temporary SSH key (only when opened from tab that used temp key)
-     */
     // ---------------------------------------------------------------- Remote files sidebar (SFTP-15)
 
     private javafx.animation.PauseTransition remoteSidebarWidthSaveDelay;
@@ -13856,10 +13851,15 @@ public class MainWindow {
 
     /** A standalone SFTP tab for the pane's connection; the tab's temporary key only for the tab's own connection. */
     private void openSftpHereFallback(TerminalTab terminalTab, ServerConnection paneConnection) {
-        ServerConnection connection = paneConnection != null ? paneConnection : terminalTab.getConnection();
-        de.kortty.model.TemporarySSHKey key = connection == terminalTab.getConnection()
-            || (connection.getId() != null && connection.getId().equals(terminalTab.getConnection().getId()))
-            ? terminalTab.getTemporarySSHKey() : null;
+        ServerConnection tabConnection = terminalTab.getConnection();
+        ServerConnection connection = paneConnection != null ? paneConnection : tabConnection;
+        if (connection == null) {
+            updateStatus(I18n.get("sftp.openHere.noTerminal"));
+            return;
+        }
+        boolean tabsOwnConnection = connection == tabConnection || (tabConnection != null
+            && connection.getId() != null && connection.getId().equals(tabConnection.getId()));
+        de.kortty.model.TemporarySSHKey key = tabsOwnConnection ? terminalTab.getTemporarySSHKey() : null;
         openSFTPManagerForConnection(connection, key);
     }
 
@@ -13920,6 +13920,11 @@ public class MainWindow {
         return 0;
     }
 
+    /**
+     * Opens SFTP Manager for a specific connection.
+     * @param connection The connection to use
+     * @param temporarySSHKey Optional temporary SSH key (only when opened from tab that used temp key)
+     */
     private void openSFTPManagerForConnection(ServerConnection connection, de.kortty.model.TemporarySSHKey temporarySSHKey) {
         Telemetry.track(TelemetryEvents.SFTP_OPENED, Map.of("borrowed", false));
         try {
