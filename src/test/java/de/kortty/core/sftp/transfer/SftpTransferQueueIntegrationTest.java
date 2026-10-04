@@ -262,6 +262,69 @@ class SftpTransferQueueIntegrationTest {
         }
     }
 
+    @Test
+    void aLateFailureOnTheOldConnectionLeavesTheItemsOfTheNewOneAlone() throws Exception {
+        fixture = SftpLoopbackFixture.builder(tmp).requestDelayMillis(1).start();
+        FixtureSource first = new FixtureSource(fixture, true);
+        FixtureSource second = new FixtureSource(fixture, true);
+        SftpTransferQueue queue = queue(first, TransferSettings.defaults().withParallelTransfers(1),
+            ConflictResolver.always(ConflictAction.OVERWRITE));
+        List<Path> files = localFiles("late", 4, 256 * 1024);
+        Files.createDirectories(fixture.root().resolve("dest"));
+        AtomicBoolean dropped = new AtomicBoolean();
+        queue.progressHook = (item, done) -> {
+            if (done > 64 * 1024 && dropped.compareAndSet(false, true)) {
+                // The tab reconnected before the worker on the old connection noticed the loss.
+                queue.useSource(second);
+                first.closeSession();
+                throw new UncheckedIOException(new IOException("simulated connection drop"));
+            }
+        };
+
+        TransferBatch batch = queue.enqueueUpload(files, "/dest");
+        await(batch);
+
+        List<TransferItem> items = batch.items();
+        assertWithMessage(describe(batch)).that(items.get(0).state()).isEqualTo(TransferState.FAILED);
+        assertThat(items.get(0).isConnectionLost()).isTrue();
+        for (TransferItem item : items.subList(1, 4)) {
+            assertWithMessage(describe(batch)).that(item.state()).isEqualTo(TransferState.DONE);
+        }
+    }
+
+    @Test
+    void closingWaitsForCancelledUploadsToRemoveTheirPartsBeforeTheSessionGoes() throws Exception {
+        fixture = SftpLoopbackFixture.builder(tmp).requestDelayMillis(2).start();
+        FixtureSource source = new FixtureSource(fixture, true);
+        SftpTransferQueue queue = queue(source, TransferSettings.defaults(),
+            ConflictResolver.always(ConflictAction.OVERWRITE));
+        List<Path> files = localFiles("closing", 3, 2 * 1024 * 1024);
+        Files.createDirectories(fixture.root().resolve("dest"));
+        java.util.concurrent.CountDownLatch running = new java.util.concurrent.CountDownLatch(3);
+        java.util.Set<String> seen = java.util.concurrent.ConcurrentHashMap.newKeySet();
+        queue.progressHook = (item, done) -> {
+            if (done > 64 * 1024 && seen.add(item.name())) {
+                running.countDown();
+            }
+            try {
+                Thread.sleep(20); // keeps every upload busy until the close
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        };
+
+        TransferBatch batch = queue.enqueueUpload(files, "/dest");
+        assertThat(running.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)).isTrue();
+        queue.close();
+        assertThat(queue.awaitWorkers(TimeUnit.SECONDS.toMillis(TIMEOUT_SECONDS))).isTrue();
+        source.closeSession();
+
+        assertWithMessage(describe(batch)).that(batch.countFiles(TransferState.CANCELLED)).isEqualTo(3);
+        try (Stream<Path> left = Files.list(fixture.root().resolve("dest"))) {
+            assertThat(left.map(path -> path.getFileName().toString()).toList()).isEmpty();
+        }
+    }
+
     // ------------------------------------------------------------------ per-target lock
 
     @Test

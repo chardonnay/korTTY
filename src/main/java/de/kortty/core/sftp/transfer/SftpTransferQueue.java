@@ -408,6 +408,27 @@ public final class SftpTransferQueue implements AutoCloseable {
         }
     }
 
+    /**
+     * Waits until every worker has ended, at most {@code timeoutMillis}; meant for after
+     * {@link #close()}, so the caller closes the session only once cancelled transfers removed their
+     * partial files over it. Never call this on the FX thread.
+     *
+     * @return whether all workers ended in time
+     */
+    public boolean awaitWorkers(long timeoutMillis) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+        synchronized (lock) {
+            while (!workers.isEmpty()) {
+                long left = deadline - System.nanoTime();
+                if (left <= 0) {
+                    return false;
+                }
+                TimeUnit.NANOSECONDS.timedWait(lock, left);
+            }
+            return true;
+        }
+    }
+
     // ------------------------------------------------------------------ workers
 
     private void spawnWorkers() {
@@ -464,6 +485,7 @@ public final class SftpTransferQueue implements AutoCloseable {
                 synchronized (lock) {
                     workers.remove(this);
                     stillPending = !closed && !pending.isEmpty();
+                    lock.notifyAll();
                 }
                 if (stillPending) {
                     spawnWorkers();
@@ -521,7 +543,7 @@ public final class SftpTransferQueue implements AutoCloseable {
                 if (cancel.isCancelled()) {
                     complete(item, TransferState.CANCELLED, null);
                 } else if (!leaseSource.isOpen()) {
-                    connectionLost(item);
+                    connectionLost(item, leaseSource);
                 } else {
                     logger.debug("SFTP transfer of {} failed: {}", item.name(), e.toString());
                     failItem(item, describe(e));
@@ -569,7 +591,7 @@ public final class SftpTransferQueue implements AutoCloseable {
             if (requeue) {
                 fireChanged(item);
             } else {
-                connectionLost(item);
+                connectionLost(item, null);
             }
             return false;
         }
@@ -1117,8 +1139,12 @@ public final class SftpTransferQueue implements AutoCloseable {
         afterTerminal(item);
     }
 
-    /** {@code item} and everything still waiting fail as "connection lost"; all can be retried. */
-    private void connectionLost(TransferItem item) {
+    /**
+     * {@code item} and everything still waiting fail as "connection lost"; all can be retried.
+     * When {@code lostSource} is an earlier connection and the queue already moved on to a live one
+     * ({@link #useSource}), only {@code item} fails: the waiting items belong to the new connection.
+     */
+    private void connectionLost(TransferItem item, SftpChannelSource lostSource) {
         String reason = I18n.get("sftp.queue.error.connectionLost");
         List<TransferItem> failed = new ArrayList<>();
         synchronized (lock) {
@@ -1126,11 +1152,14 @@ public final class SftpTransferQueue implements AutoCloseable {
                 item.fail(reason, true);
                 failed.add(item);
             }
-            for (TransferItem other : pending) {
-                other.fail(reason, true);
-                failed.add(other);
+            boolean movedOn = lostSource != null && source != lostSource && source.isOpen();
+            if (!movedOn) {
+                for (TransferItem other : pending) {
+                    other.fail(reason, true);
+                    failed.add(other);
+                }
+                pending.clear();
             }
-            pending.clear();
         }
         logger.info("SFTP connection lost; {} transfer(s) marked failed", failed.size());
         announceStopped(failed);

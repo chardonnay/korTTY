@@ -225,6 +225,24 @@ public final class SftpTransferQueueHost implements AutoCloseable {
         }
     }
 
+    /**
+     * After {@link #close()}: waits (at most {@code timeoutMillis}) until the cancelled transfers
+     * have stopped and removed their partial files, so the session can be closed under them. Blocks:
+     * never call it on the FX thread. True when nothing is left running.
+     */
+    public boolean awaitStopped(long timeoutMillis) {
+        SftpTransferQueue current = queue;
+        if (current == null) {
+            return true;
+        }
+        try {
+            return current.awaitWorkers(timeoutMillis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
     // ------------------------------------------------------------------ settings
 
     /**

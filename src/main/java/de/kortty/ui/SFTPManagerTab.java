@@ -1134,13 +1134,29 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         cancelDragOut();
         deleteDragOutDirectories();
         // Cancels the transfers and closes their channels before the session goes.
+        boolean transfersRan = transferQueueHost.needsCloseConfirmation();
         transferQueueHost.close();
         transferQueuePane.dispose();
         SFTPSession session = sftpSession;
         if (session != null) {
-            closeQuietly(session);
+            if (transfersRan) {
+                // Cancelled uploads delete their partial files over this session: close it once they
+                // stopped (bounded), off the FX thread.
+                SftpTransferQueueHost host = transferQueueHost;
+                Thread closer = new Thread(() -> {
+                    host.awaitStopped(TRANSFER_STOP_WAIT_MILLIS);
+                    closeQuietly(session);
+                }, "SFTP-Close");
+                closer.setDaemon(true);
+                closer.start();
+            } else {
+                closeQuietly(session);
+            }
         }
     }
+
+    /** How long a closing tab lets cancelled transfers remove their partial files before the session goes. */
+    private static final long TRANSFER_STOP_WAIT_MILLIS = 5_000;
     
     private void removeTabSafely() {
         TabPane tabPane = getTabPane();
