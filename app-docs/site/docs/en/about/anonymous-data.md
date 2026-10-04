@@ -52,6 +52,16 @@ When an SFTP Manager tab opens, one event says whether it shares a terminal's se
 
 File and folder names, paths, server names, editor commands, sudo passwords and file sizes are never sent.
 
+### JobScheduler notifications
+
+When the JobScheduler shows a desktop notification for a job run or sends one to a webhook target, one event says how it went.
+
+| Event | Sent when | Data |
+| --- | --- | --- |
+| `job_notification_sent` | a run notification is shown on the desktop, or delivered, refused or blocked for one webhook target | `desktop` or `webhook`, the payload format (`slack`, `teams`, `generic` or `none`), whether it ended `ok`, `failed` or `blocked`, and the number of delivery attempts (0 to 3) |
+
+Job and target names, webhook URLs and hosts, run status texts and anything of the run's output are never sent. A test sent with **Send Test** is not counted.
+
 ## What is never collected
 
 korTTY never transmits any of the following:

@@ -194,6 +194,30 @@ When a job run fails or is blocked, korTTY shows a desktop notification, also wh
 
 Successful runs and recoveries (a successful run right after a failed or blocked one) do not notify by default, and cancelled runs never do. A job shows at most one notification per minute, so a job that fails every minute does not flood the desktop; its journal still records every run. Notifications use the same desktop notification service as the terminal, so where the operating system offers none, nothing is shown.
 
+### Choosing When a Job Notifies
+
+Each job has a **Notifications** section at the bottom of its **Job** tab. Tick the run results that notify: **Fails** and **Is blocked** are on for every job, **Recovers (succeeds after a failure)** and **Succeeds** are off until you tick them. **Show a desktop notification** switches the desktop notification off for this job, for example for a job that only reports to a team channel. Below, tick the webhook targets this job sends to; no job sends to a webhook until you tick one. The section warns when nothing is ticked or when the enterprise policy blocks the ticked webhooks. Click **Save** to keep the changes.
+
+### Webhook Targets
+
+A webhook target is a receiver that gets a message for every matching run, also when korTTY is in the background: a Slack channel, a Microsoft Teams channel, or any service that accepts JSON over HTTPS. Click **Webhook targets...** in the job list or in the **Notifications** section to add, edit or delete targets. Each target has a **Name**, a **Format** and a **URL**:
+
+| Format | Sends | URL to paste |
+| --- | --- | --- |
+| **Slack** | a Slack message with the job name and the run's status, exit code and start reason | a Slack incoming webhook URL, which starts with `https://hooks.slack.com/services/` |
+| **Microsoft Teams (Workflows)** | an Adaptive Card version 1.4 (schema `http://adaptivecards.io/schemas/adaptive-card.json`) for a Teams Workflows webhook | the URL of a Teams workflow that posts a card to a channel when a webhook request is received; the retired Office 365 connectors are not supported |
+| **Generic JSON** | korTTY's own JSON document, schema `kortty.job-run/1`, with the job's id and name, `status`, `recovered`, `exitCode`, `trigger` (`manual` or `scheduled`) and `finishedAt` | any HTTPS endpoint of your own |
+
+Webhook URLs carry their credential in the path, so korTTY treats them as secrets. The URL is stored encrypted with the master password, the URL field is masked and never shows a stored URL (leave it empty to keep the stored one), and neither the journal nor korTTY's log ever contains more of it than the host. Only `https://` URLs are accepted, and `http://` only for a receiver on `localhost` or a loopback address; URLs with a user name or password are refused. While the master password is locked, webhooks are skipped and the journal records *notification skipped: master password locked*. A target can be switched off with **Enabled** without deleting it, and deleting a target removes it from every job.
+
+Messages never contain the run's output, stdout, stderr or detail. **Include the run's summary (masked)** adds the run's one-line summary; it is off by default because a summary can name servers, paths or text written by an AI, and it is sent to a third-party service. When it is on, known secret patterns and the job's own secrets are masked, control characters are removed and the summary is cut to 1,000 characters, but masking cannot catch everything.
+
+**Send test** sends a sample successful run, named after the selected job, to the target as it is in the editor, also with a URL you have typed but not saved yet, and reports the result below the buttons: delivered, refused with the HTTP status, or blocked. It runs in the background and is the only message you send by hand.
+
+Delivery runs in the background and never holds up the job or the window. A message that times out after 10 seconds, cannot reach the receiver, or is answered with HTTP 429 or a 5xx status is retried up to 3 attempts in all, honouring the receiver's `Retry-After` up to 60 seconds; other refusals are not retried, and redirects are never followed. A message that still fails is recorded in the journal as *notification failed: webhook delivery unsuccessful* with the job, the target's name, the host, the number of attempts and the HTTP status. Webhooks are not throttled: every matching run sends one message.
+
+Administrators can forbid job webhooks with the policy feature `job-webhooks` and limit the hosts they may reach with `webhook-host-allowlist`; a blocked message is recorded as *notification blocked by policy*. See [`[rule.job-scheduler]`](../reference/enterprise-policy.md#rulejob-scheduler).
+
 ## Menu-Bar Status and Cancellation
 
 When **Show Jobs status in menu bar** is enabled, KorTTY shows the scheduler status after **Help** only if an enabled scheduler entry exists or a job is currently running. The status shows the running job, cancellation state, or the next job with a live countdown.
@@ -222,6 +246,7 @@ If KorTTY is about to exit while JobScheduler jobs are running, it shows a warni
 - SSH key passphrases and archive passwords are stored encrypted.
 - KorTTY redacts managed secrets (passwords, passphrases, archive credentials) from journal output before persistence.
 - If the master password is locked when a job needs SSH, sudo, API, or archive secrets, the job is blocked.
+- Webhook URLs are stored encrypted with the master password and are never written to the journal or the log; only their host is.
 
 ## Troubleshooting
 

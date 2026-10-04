@@ -1801,6 +1801,11 @@ public class KorTTYApplication extends Application {
         return snippetVariableManager;
     }
 
+    /** Delivers job-run webhooks and the target manager's test sends; {@code null} without a scheduler. */
+    public de.kortty.jobscheduler.WebhookSender getJobWebhookSender() {
+        return jobWebhookSender;
+    }
+
     public JobSchedulerService getJobSchedulerService() {
         return jobSchedulerService;
     }

@@ -3,6 +3,7 @@ package de.kortty.jobscheduler;
 import de.kortty.codingagent.desktop.DesktopNotifier;
 import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.policy.EffectivePolicy;
+import de.kortty.telemetry.JobNotificationTelemetry;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,6 +149,8 @@ public final class JobNotificationDispatcher implements JobRunEventListener {
             return;
         }
         desktop.notify(title(event.jobName(), i18n), body(event, i18n));
+        JobNotificationTelemetry.track(JobNotificationTelemetry.Channel.DESKTOP, JobNotificationTelemetry.Format.NONE,
+            JobNotificationTelemetry.Outcome.OK, 1);
     }
 
     /** Takes the job's notification slot; false while the job notified less than {@link #THROTTLE} ago. */

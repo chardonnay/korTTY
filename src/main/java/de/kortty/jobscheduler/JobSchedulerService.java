@@ -178,6 +178,31 @@ public class JobSchedulerService {
         scheduleNextTick();
     }
 
+    /** The stored webhook targets of job notifications. */
+    public List<WebhookTarget> getWebhookTargets() {
+        return repository.getWebhookTargets();
+    }
+
+    /** Adds or replaces a webhook target and saves; its URL must already be encrypted. */
+    public void saveWebhookTarget(WebhookTarget target) throws Exception {
+        if (target == null) {
+            return;
+        }
+        repository.upsertWebhookTarget(target);
+        repository.save();
+        notifyListeners();
+    }
+
+    /** Deletes a webhook target, drops it from every job that sends to it, and saves. */
+    public boolean deleteWebhookTarget(String targetId) throws Exception {
+        boolean removed = repository.deleteWebhookTarget(targetId);
+        if (removed) {
+            repository.save();
+            notifyListeners();
+        }
+        return removed;
+    }
+
     public void runJobNow(String jobId) {
         if (draining) {
             appendJournal(JobJournalEntry.system(JobRunStatus.BLOCKED, "Manual job start blocked.", "KorTTY is waiting for running jobs before shutdown."));

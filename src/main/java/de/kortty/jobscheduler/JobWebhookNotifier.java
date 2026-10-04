@@ -2,6 +2,7 @@ package de.kortty.jobscheduler;
 
 import de.kortty.core.DisplayTextSanitizer;
 import de.kortty.policy.EffectivePolicy;
+import de.kortty.telemetry.JobNotificationTelemetry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,6 +102,10 @@ public final class JobWebhookNotifier {
         if (!sender.execute(() -> ids.forEach(id -> deliverTo(event, id)))) {
             logger.warn("Webhook notifications for job {} dropped: the send queue is full or closed", event.jobId());
             record(event, null, JobRunStatus.FAILED, DROPPED_DELIVERY, null);
+            for (String id : ids) {
+                targetLookup.apply(id).filter(WebhookTarget::isEnabled)
+                    .ifPresent(target -> track(target, JobNotificationTelemetry.Outcome.FAILED, 0));
+            }
         }
     }
 
@@ -118,6 +123,7 @@ public final class JobWebhookNotifier {
             if (found.isPresent() && found.get().isEnabled()) {
                 logger.info("Webhook notification for job {} blocked by policy: {}", event.jobId(), reason);
                 record(event, found.get(), JobRunStatus.BLOCKED, BLOCKED_BY_POLICY, reason.journalText());
+                track(found.get(), JobNotificationTelemetry.Outcome.BLOCKED, 0);
             }
         }
     }
@@ -154,12 +160,14 @@ public final class JobWebhookNotifier {
             logger.info("Webhook notification for job {} blocked by policy: {}", event.jobId(),
                 PolicyBlock.FEATURE_DENIED);
             record(event, target, JobRunStatus.BLOCKED, BLOCKED_BY_POLICY, PolicyBlock.FEATURE_DENIED.journalText());
+            track(target, JobNotificationTelemetry.Outcome.BLOCKED, 0);
             return Optional.empty();
         }
         WebhookTargetSecrets.Resolution resolution = secrets.resolve(target, masterPassword.get());
         if (!resolution.resolved()) {
             logger.info("Webhook notification for job {} skipped: {}", event.jobId(), resolution.skipReason());
             record(event, target, JobRunStatus.BLOCKED, resolution.journalText(), null);
+            track(target, JobNotificationTelemetry.Outcome.BLOCKED, 0);
             return Optional.empty();
         }
         Optional<PolicyBlock> block = policyBlock(currentPolicy(), resolution.uri());
@@ -169,6 +177,7 @@ public final class JobWebhookNotifier {
                 block.get());
             record(event, target, JobRunStatus.BLOCKED, BLOCKED_BY_POLICY,
                 "Host: " + host + " · " + block.get().journalText());
+            track(target, JobNotificationTelemetry.Outcome.BLOCKED, 0);
             return Optional.empty();
         }
         String payload = formatter.format(target, event, null);
@@ -179,7 +188,26 @@ public final class JobWebhookNotifier {
             record(event, target, JobRunStatus.FAILED,
                 result.outcome() == WebhookSender.Outcome.DROPPED ? DROPPED_DELIVERY : FAILED_DELIVERY, detail);
         }
+        track(target, result.delivered() ? JobNotificationTelemetry.Outcome.OK : JobNotificationTelemetry.Outcome.FAILED,
+            result.attempts());
         return Optional.of(result);
+    }
+
+    /** The anonymous-statistics id of a payload format. */
+    public static JobNotificationTelemetry.Format telemetryFormat(WebhookFormat format) {
+        if (format == null) {
+            return JobNotificationTelemetry.Format.GENERIC;
+        }
+        return switch (format) {
+            case SLACK -> JobNotificationTelemetry.Format.SLACK;
+            case TEAMS -> JobNotificationTelemetry.Format.TEAMS;
+            case GENERIC_JSON -> JobNotificationTelemetry.Format.GENERIC;
+        };
+    }
+
+    private static void track(WebhookTarget target, JobNotificationTelemetry.Outcome outcome, int attempts) {
+        JobNotificationTelemetry.track(JobNotificationTelemetry.Channel.WEBHOOK, telemetryFormat(target.getFormat()),
+            outcome, attempts);
     }
 
     private EffectivePolicy currentPolicy() {

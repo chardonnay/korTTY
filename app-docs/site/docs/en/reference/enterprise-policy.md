@@ -263,7 +263,7 @@ Archives created on the server by the SFTP manager never carry a password, whate
 | --- | --- | --- | --- |
 | `webhook-host-allowlist` | array of strings | host names, e.g. `["hooks.slack.com"]` | The only hosts JobScheduler webhooks may be sent to. An entry allows its own host and every host below it, matched on whole labels: `hooks.slack.com` allows `hooks.slack.com` and `eu.hooks.slack.com`, but not `evilhooks.slack.com` or `hooks.slack.com.attacker.net`. A leading `*.` or `.` is accepted and means the same. Entries are bare host names: a scheme, path, port or user name is an error. Host names are compared as written in the webhook URL and never resolved through DNS. An empty array allows any host; leaving the key out leaves webhooks unrestricted too. When several rules of the same tier set a list, a host must be allowed by each of them |
 
-The check runs right before every send, the **Send test** button included. A webhook to a host outside the list is not sent, and the job journal records *notification blocked by policy* with the job, the target's name and the host, never the URL.
+The check runs right before every send, the **Send test** button included. A webhook to a host outside the list is not sent, and the job journal records *notification blocked by policy* with the job, the target's name and the host, never the URL. While `job-webhooks` is denied, the **Notifications** section of a job that has webhook targets ticked says that they receive nothing.
 
 ```toml
 [[rule]]
