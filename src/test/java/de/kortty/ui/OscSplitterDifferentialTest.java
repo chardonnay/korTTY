@@ -29,6 +29,8 @@ class OscSplitterDifferentialTest {
     private static final String ST = ESC + "\\";
     private static final char C1_ST = '\u009C';
     private static final char C1_OSC = '\u009D';
+    /** {@code SystemCommandSequence.MAX_BODY_LENGTH} in SithTermFX 1.2.3. */
+    private static final int MAX_BODY = com.sithtermfx.core.emulator.SystemCommandSequence.MAX_BODY_LENGTH;
     private static final String TEXT_CHARS = "abcdefghijklmnopqrstuvwxyz ABCXYZ0123456789-_/.:;,[]{}()<>|\\'\"~=+*&%$#!?éü€─";
 
     @Test
@@ -91,6 +93,44 @@ class OscSplitterDifferentialTest {
                 assertWithMessage("%s in chunks of up to %s", visible(output), maxChunk).that(wrapped).isEqualTo(direct);
             }
         }
+    }
+
+    /**
+     * SithTermFX 1.2.3 keeps at most {@value #MAX_BODY} chars of an OSC or DCS body and drops a longer
+     * sequence whole, but still reads it up to the same terminator. The splitter keeps no such cap
+     * for what it passes through, so the two must still agree where every sequence ends, at the cap
+     * and past it, whatever the terminator and wherever a chunk boundary falls.
+     */
+    @Test
+    void sequencesAtAndPastTheEmulatorsLengthCapLookTheSame() throws IOException {
+        String atCap = "y".repeat(MAX_BODY - 2);
+        String pastCap = atCap + "y";
+        List<String> outputs = new ArrayList<>();
+        for (String terminator : new String[] {BEL, ST, String.valueOf(C1_ST)}) {
+            // A title whose body ("2;" included) is exactly the cap, and one char longer.
+            outputs.add("a" + ESC + "]2;" + atCap + terminator + "b" + ESC + "]133;A" + BEL + "c");
+            outputs.add("a" + ESC + "]2;" + pastCap + terminator + "b" + ESC + "]133;A" + BEL + "c");
+            // A DCS just as long, tmux passthrough style.
+            outputs.add("a" + ESC + "Ptmux;" + "y".repeat(MAX_BODY) + terminator + "b" + ESC + "]133;B" + BEL + "c");
+        }
+        // The ESC of an ESC \ terminator is the first char past the cap: the body is still kept.
+        outputs.add("a" + ESC + "]2;" + atCap + ESC + "\\" + "b");
+        // Past the cap the body still swallows ESC ] and other ESC pairs; only a terminator ends it.
+        outputs.add("a" + ESC + "]2;" + pastCap + ESC + "]133;A" + ESC + "x" + BEL + "b" + ESC + "]133;C" + BEL + "c");
+        // An owned OSC 52 longer than the emulator's cap but within korTTY's own: korTTY takes it out,
+        // and the emulator would have ignored it either way.
+        outputs.add("a" + ESC + "]52;c;" + "QUJD".repeat(MAX_BODY / 4 + 10) + BEL + "b");
+        for (String output : outputs) {
+            for (int maxChunk : new int[] {1, 1024, 70_000}) {
+                String direct = render(output, connector -> connector, 11L, maxChunk, 20);
+                String wrapped = render(output, connector -> new ShellIntegrationTtyConnector(connector, event -> { }),
+                    11L, maxChunk, 20);
+                assertWithMessage("%s in chunks of up to %s", visible(output), maxChunk).that(wrapped).isEqualTo(direct);
+            }
+        }
+        // Not vacuous: the emulator applies a title at the cap and drops one past it.
+        assertThat(render(outputs.get(0), connector -> connector, 11L, 1024, 20)).contains("titles [" + atCap + "]");
+        assertThat(render(outputs.get(1), connector -> connector, 11L, 1024, 20)).contains("titles []");
     }
 
     @Test
