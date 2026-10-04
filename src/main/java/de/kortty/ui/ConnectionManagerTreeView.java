@@ -32,6 +32,8 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private TreeItem<ConnectionTreeItem.ItemData> originalRoot;
     private Predicate<ServerConnection> currentSearchPredicate = null;
     private boolean selectionOnly;
+    /** The connections come from a shared (teamwork) source and are never changed in this tree. */
+    private boolean readOnlyConnections;
     
     // Callbacks
     private Consumer<GroupPath> onCreateGroup;
@@ -74,6 +76,15 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         this.selectionOnly = selectionOnly;
         setContextMenu(selectionOnly ? null : createEmptyAreaContextMenu());
         setCellFactory();
+    }
+
+    /**
+     * Marks the connections in this tree as read-only, as teamwork connections come from a shared source
+     * that korTTY never writes back to: they cannot be dragged into another folder, and their context menu
+     * has no Edit entry.
+     */
+    public void setReadOnlyConnections(boolean readOnlyConnections) {
+        this.readOnlyConnections = readOnlyConnections;
     }
     
     /**
@@ -435,7 +446,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             
             // Drag detected (only for non-placeholder connections)
             cell.setOnDragDetected(event -> {
-                if (selectionOnly) {
+                if (selectionOnly || readOnlyConnections) {
                     return;
                 }
                 if (!cell.isEmpty() && cell.getItem() != null && 
@@ -453,7 +464,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             
             // Drag over (only on groups)
             cell.setOnDragOver(event -> {
-                if (selectionOnly) {
+                if (selectionOnly || readOnlyConnections) {
                     return;
                 }
                 if (event.getGestureSource() != cell && 
@@ -467,7 +478,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             
             // Drag dropped
             cell.setOnDragDropped(event -> {
-                if (selectionOnly) {
+                if (selectionOnly || readOnlyConnections) {
                     return;
                 }
                 Dragboard db = event.getDragboard();
@@ -681,7 +692,10 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             removeTagItem.setDisable(selected.stream().allMatch(conn -> conn.getTag() == null));
         });
 
-        menu.getItems().addAll(editItem, exportItem);
+        if (onEditConnection != null && !readOnlyConnections) {
+            menu.getItems().add(editItem);
+        }
+        menu.getItems().add(exportItem);
         if (onAssignTag != null || onRemoveTag != null) {
             menu.getItems().addAll(new SeparatorMenuItem(), assignTagItem, removeTagItem, new SeparatorMenuItem());
         }
