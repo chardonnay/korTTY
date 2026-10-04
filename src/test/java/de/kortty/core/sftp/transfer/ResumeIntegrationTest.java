@@ -258,6 +258,48 @@ class ResumeIntegrationTest {
     }
 
     @Test
+    void aRecordedOwnerTheServerNoLongerReportsKeepsThePart() throws IOException {
+        Path local = interruptedUpload();
+        assertThat(index.get(uploadContext(local).key()).orElseThrow().partOwner()).isNotNull();
+        Files.write(local, new byte[] {1, 2, 3});
+        Path part = fixture.root().resolve("up.bin" + PartFiles.PART_SUFFIX);
+        long partSize = Files.size(part);
+        SftpClient ownerless = ownerlessServer();
+
+        expectThrows(PartExistsException.class, () -> PartTransfers.upload(ownerless, null, local, "/up.bin",
+            uploadContext(local), null, TransferCancellation.create()));
+
+        assertThat(Files.size(part)).isEqualTo(partSize);
+    }
+
+    @Test
+    void withoutOwnersAnInterruptedUploadStartsOverInsteadOfContinuingAPartItCannotProve() throws IOException {
+        SftpClient ownerless = ownerlessServer();
+        Path local = Files.write(tmp.resolve("local.bin"), data);
+        expectThrows(IOException.class, () -> PartTransfers.upload(ownerless, null, local, "/up.bin",
+            uploadContext(local), failAtFortyPercent(), TransferCancellation.create()));
+        assertThat(index.get(uploadContext(local).key()).orElseThrow().partOwner()).isNull();
+
+        PartTransfers.Outcome outcome = PartTransfers.upload(ownerless, null, local, "/up.bin",
+            uploadContext(local), null, TransferCancellation.create());
+
+        assertThat(outcome.resumedFrom()).isEqualTo(0);
+        assertThat(outcome.method()).isEqualTo(FinalizeMethod.RENAME);
+        assertThat(Files.readAllBytes(fixture.root().resolve("up.bin"))).isEqualTo(data);
+        assertThat(Files.exists(fixture.root().resolve("up.bin" + PartFiles.PART_SUFFIX))).isFalse();
+    }
+
+    /** Replaces the fixture by one over the same folder whose server reports no file owners. */
+    private SftpClient ownerlessServer() throws IOException {
+        if (fixture != null) {
+            fixture.close();
+        }
+        fixture = SftpLoopbackFixture.builder(tmp).ownerReporting(SftpLoopbackFixture.OwnerReporting.NONE).start();
+        client = fixture.openSftp(fixture.connect(), 3);
+        return client;
+    }
+
+    @Test
     void cancelForgetsTheTransferAndDeletesThePart() throws IOException {
         Path target = interruptedDownload();
         TransferCancellation cancel = TransferCancellation.create();
