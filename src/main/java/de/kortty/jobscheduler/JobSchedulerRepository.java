@@ -53,6 +53,8 @@ public class JobSchedulerRepository {
                 PinnedHostKey.class,
                 JobJournalEntry.class,
                 JobRunStatus.class,
+                JobNotificationConfig.class,
+                JobNotificationTrigger.class,
                 de.kortty.model.AutomationJournalConfig.class,
                 de.kortty.model.AutomationJournalAiMode.class,
                 de.kortty.model.AutomationJournalKeepMode.class,
@@ -173,6 +175,30 @@ public class JobSchedulerRepository {
         return getJournal().stream()
             .filter(entry -> jobId != null && jobId.equals(entry.getJobId()))
             .toList();
+    }
+
+    /**
+     * The status of the job's most recent finished run, ignoring {@code RUNNING} entries; among runs
+     * with the same timestamp the later-appended one wins. Empty for a job without finished runs.
+     */
+    public synchronized Optional<JobRunStatus> findLastFinishedStatus(String jobId) {
+        if (jobId == null) {
+            return Optional.empty();
+        }
+        JobJournalEntry latest = null;
+        Instant latestInstant = null;
+        for (JobJournalEntry entry : data.getJournal()) {
+            if (entry == null || !jobId.equals(entry.getJobId())
+                || entry.getStatus() == null || entry.getStatus() == JobRunStatus.RUNNING) {
+                continue;
+            }
+            Instant instant = journalRetentionInstant(entry).orElse(Instant.MIN);
+            if (latestInstant == null || !instant.isBefore(latestInstant)) {
+                latest = entry;
+                latestInstant = instant;
+            }
+        }
+        return Optional.ofNullable(latest).map(JobJournalEntry::getStatus);
     }
 
     public synchronized void appendJournal(JobJournalEntry entry) {

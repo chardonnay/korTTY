@@ -85,10 +85,86 @@ class JobSchedulerRepositoryTest {
             assertThat(repository.getJobs().get(0).getSessionJournal().isEnabled()).isFalse();
             assertThat(repository.getJournal()).isNotEmpty();
             assertThat(repository.getJournal().get(0).getSessionJournalDirs()).isEmpty();
+            ScheduledJob legacy = repository.getJobs().get(0);
+            assertThat(legacy.getNotificationConfig()).isNull();
+            assertThat(legacy.effectiveNotificationConfig().getTriggers())
+                .containsExactly(JobNotificationTrigger.FAILED, JobNotificationTrigger.BLOCKED);
+            assertThat(legacy.effectiveNotificationConfig().isDesktop()).isTrue();
+            assertThat(legacy.effectiveNotificationConfig().getWebhookTargetIds()).isEmpty();
+            assertThat(repository.findLastFinishedStatus("j1")).hasValue(JobRunStatus.SUCCESS);
         } finally {
             Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
             Files.deleteIfExists(dir);
         }
+    }
+
+    @Test
+    void notificationConfigSurvivesAReload() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-scheduler-notifications");
+        try {
+            JobSchedulerRepository repository = new JobSchedulerRepository(dir);
+            ScheduledJob custom = new ScheduledJob();
+            custom.setName("Custom");
+            JobNotificationConfig config = new JobNotificationConfig();
+            config.setTriggers(java.util.EnumSet.of(JobNotificationTrigger.RECOVERED, JobNotificationTrigger.SUCCESS));
+            config.setDesktop(false);
+            config.setWebhookTargetIds(List.of("hook-a", " hook-b ", "hook-a", ""));
+            custom.setNotificationConfig(config);
+            ScheduledJob silent = new ScheduledJob();
+            silent.setName("Silent");
+            JobNotificationConfig none = new JobNotificationConfig();
+            none.setTriggers(List.of());
+            silent.setNotificationConfig(none);
+            ScheduledJob defaults = new ScheduledJob();
+            defaults.setName("Defaults");
+            repository.upsertJob(custom);
+            repository.upsertJob(silent);
+            repository.upsertJob(defaults);
+            repository.save();
+
+            JobSchedulerRepository reloaded = new JobSchedulerRepository(dir);
+            reloaded.load();
+
+            JobNotificationConfig loaded = reloaded.findJob(custom.getId()).orElseThrow().getNotificationConfig();
+            assertThat(loaded).isNotNull();
+            assertThat(loaded.getTriggers())
+                .containsExactly(JobNotificationTrigger.RECOVERED, JobNotificationTrigger.SUCCESS);
+            assertThat(loaded.isDesktop()).isFalse();
+            assertThat(loaded.getWebhookTargetIds()).containsExactly("hook-a", "hook-b").inOrder();
+            JobNotificationConfig loadedNone = reloaded.findJob(silent.getId()).orElseThrow().getNotificationConfig();
+            assertThat(loadedNone).isNotNull();
+            assertThat(loadedNone.getTriggers()).isEmpty();
+            assertThat(reloaded.findJob(defaults.getId()).orElseThrow().getNotificationConfig()).isNull();
+        } finally {
+            Files.deleteIfExists(dir.resolve(JobSchedulerRepository.FILE_NAME));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
+    void lastFinishedStatusIgnoresRunningEntriesAndPrefersTheLatestRun() {
+        JobSchedulerRepository repository = new JobSchedulerRepository(Path.of("unused"));
+        repository.appendJournal(journalEntry("j1", JobRunStatus.FAILED, "2026-05-04T08:00:00Z"));
+        repository.appendJournal(journalEntry("j1", JobRunStatus.SUCCESS, "2026-05-04T07:00:00Z"));
+        repository.appendJournal(journalEntry("j1", JobRunStatus.RUNNING, "2026-05-04T09:00:00Z"));
+        repository.appendJournal(journalEntry("j2", JobRunStatus.BLOCKED, "2026-05-04T10:00:00Z"));
+
+        assertThat(repository.findLastFinishedStatus("j1")).hasValue(JobRunStatus.FAILED);
+        assertThat(repository.findLastFinishedStatus("j2")).hasValue(JobRunStatus.BLOCKED);
+        assertThat(repository.findLastFinishedStatus("missing")).isEmpty();
+        assertThat(repository.findLastFinishedStatus(null)).isEmpty();
+
+        repository.appendJournal(journalEntry("j1", JobRunStatus.CANCELLED, "2026-05-04T08:00:00Z"));
+        assertThat(repository.findLastFinishedStatus("j1")).hasValue(JobRunStatus.CANCELLED);
+    }
+
+    private static JobJournalEntry journalEntry(String jobId, JobRunStatus status, String finishedAt) {
+        JobJournalEntry entry = new JobJournalEntry();
+        entry.setJobId(jobId);
+        entry.setStatus(status);
+        entry.setStartedAt(finishedAt);
+        entry.setFinishedAt(finishedAt);
+        return entry;
     }
 
     @Test
