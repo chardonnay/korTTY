@@ -388,11 +388,24 @@ class ClosedWindowMenuRouterTest {
         }
         assertThat(methodBody(window, "private Menu createConfigurationMenu() {"))
             .contains("ClosedWindowMenuRouter.noWindowNeeded(preventSleep);");
+        // Connections › Open SFTP Here borrows the session of this window's focused pane.
+        String connections = methodBody(window, "private Menu createConnectionsMenu() {");
+        assertThat(connections).contains("MenuItem sftpHere = menuItem(\"menu.connections.sftpHere\");");
+        assertThat(connections).contains("ClosedWindowMenuRouter.ownWindowOnly(sftpHere);");
+        assertThat(connections).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(sftpClient)");
         // Like Find, the command palette opens in the frontmost open window (the default need).
         String view = methodBody(window, "private Menu createViewMenu(MenuBarTarget target) {");
         assertThat(view).contains("MenuItem commandPalette = menuItem(\"menu.view.commandPalette\");");
         assertThat(view).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(commandPalette)");
         assertThat(view).doesNotContain("ClosedWindowMenuRouter.noWindowNeeded(commandPalette)");
+        // View › Remote Files Sidebar moves a global setting that every window applies: no window needed.
+        assertThat(view).contains("CheckMenuItem remoteSidebarLeft = checkMenuItem(\"menu.view.remoteSidebar.left\");");
+        assertThat(view).contains("CheckMenuItem remoteSidebarRight = checkMenuItem(\"menu.view.remoteSidebar.right\");");
+        assertThat(view).contains("MenuItem remoteSidebarToggle = menuItem(\"menu.view.remoteSidebar.toggle\");");
+        for (String item : List.of("remoteSidebarLeft", "remoteSidebarRight", "remoteSidebarToggle")) {
+            assertThat(view).contains("ClosedWindowMenuRouter.noWindowNeeded(" + item + ");");
+            assertThat(view).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(" + item + ")");
+        }
         assertThat(edit).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(find)");
         assertThat(methodBody(window, "private void rebuildJobSchedulerStatusMenuItems(Menu menu) {"))
             .contains("ClosedWindowMenuRouter.noWindowNeeded(cancel);");

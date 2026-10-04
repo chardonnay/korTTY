@@ -2260,6 +2260,11 @@ final class SnippetLibraryPane extends BorderPane {
             showInfo(I18n.get("snippets.noTerminalOpen"));
             return;
         }
+        Optional<String> denied = SnippetTerminalTransfer.policyRefusal(tab);
+        if (denied.isPresent()) {
+            showInfo(denied.get());
+            return;
+        }
         if (!SnippetTerminalTransfer.supports(tab)) {
             showInfo(I18n.get("snippets.transfer.unsupported"));
             return;

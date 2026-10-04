@@ -1884,9 +1884,21 @@ public class MainWindow {
         sftpClient.setAccelerator(new KeyCodeCombination(KeyCode.U, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         sftpClient.setOnAction(e -> showSFTPManager());
 
+        // SFTP on the focused pane's own session, in its folder; acts on this window's terminal.
+        MenuItem sftpHere = menuItem("menu.connections.sftpHere");
+        sftpHere.setOnAction(e -> {
+            if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab
+                    && terminalTab.isConnected()) {
+                openSftpHere(terminalTab, null);
+            } else {
+                updateStatus(I18n.get("sftp.openHere.noTerminal"));
+            }
+        });
+        ClosedWindowMenuRouter.ownWindowOnly(sftpHere);
+
         connectionsMenu.getItems().addAll(quickConnect, manageConnections,
             new SeparatorMenuItem(), importConnections, exportConnections,
-            new SeparatorMenuItem(), sftpClient);
+            new SeparatorMenuItem(), sftpClient, sftpHere);
         return connectionsMenu;
     }
 
@@ -2316,6 +2328,30 @@ public class MainWindow {
         journalLivePanelMenu.getItems().addAll(journalLiveLeftItem, journalLiveRightItem,
             new SeparatorMenuItem(), journalLiveToggleItem);
 
+        // Remote files sidebar (D10): hidden by default, docked right or left in every terminal tab.
+        // A global setting, so it needs no particular window; offered while the active tab has an
+        // SSH pane or the sidebar is on (so it can always be turned off again).
+        Menu remoteSidebarMenu = new Menu(I18n.get("menu.view.remoteSidebar"));
+        CheckMenuItem remoteSidebarLeft = checkMenuItem("menu.view.remoteSidebar.left");
+        remoteSidebarLeft.setOnAction(e -> setTerminalRemoteSidebarPosition(remoteSidebarLeft.isSelected()
+            ? TerminalRemoteSidebarPosition.LEFT : TerminalRemoteSidebarPosition.HIDDEN));
+        CheckMenuItem remoteSidebarRight = checkMenuItem("menu.view.remoteSidebar.right");
+        remoteSidebarRight.setOnAction(e -> setTerminalRemoteSidebarPosition(remoteSidebarRight.isSelected()
+            ? TerminalRemoteSidebarPosition.RIGHT : TerminalRemoteSidebarPosition.HIDDEN));
+        MenuItem remoteSidebarToggle = menuItem("menu.view.remoteSidebar.toggle");
+        remoteSidebarToggle.setOnAction(e -> toggleTerminalRemoteSidebar());
+        ClosedWindowMenuRouter.noWindowNeeded(remoteSidebarLeft);
+        ClosedWindowMenuRouter.noWindowNeeded(remoteSidebarRight);
+        ClosedWindowMenuRouter.noWindowNeeded(remoteSidebarToggle);
+        remoteSidebarMenu.getItems().addAll(remoteSidebarLeft, remoteSidebarRight,
+            new SeparatorMenuItem(), remoteSidebarToggle);
+        remoteSidebarMenu.setOnShowing(e -> {
+            TerminalRemoteSidebarPosition position = terminalRemoteSidebarPosition();
+            remoteSidebarLeft.setSelected(position == TerminalRemoteSidebarPosition.LEFT);
+            remoteSidebarRight.setSelected(position == TerminalRemoteSidebarPosition.RIGHT);
+        });
+        viewMenu.setOnShowing(e -> remoteSidebarMenu.setVisible(remoteSidebarMenuOffered()));
+
         // Coding Agents panel: hidden by default, dockable left/right beside the terminal tabs, plus
         // the cross-window "next blocked agent" jump.
         Menu codingAgentPanelMenu = new Menu(I18n.get("menu.codingAgent.panel"));
@@ -2400,7 +2436,7 @@ public class MainWindow {
 
         viewMenu.getItems().addAll(commandPalette, new SeparatorMenuItem(),
             dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
-            journalLivePanelMenu, codingAgentPanelMenu,
+            journalLivePanelMenu, codingAgentPanelMenu, remoteSidebarMenu,
             new SeparatorMenuItem(),
             zoomIn, zoomOut, resetZoom);
         // The background-transparency slider is a CustomMenuItem, which the macOS native system menu
@@ -4237,6 +4273,7 @@ public class MainWindow {
                 refreshTerminalTabsUsingGlobalDefaults();
                 refreshConnectionColorsInAllWindows();
                 refreshShellTitlesInAllWindows();
+                applyRemoteSidebarToAllWindows();
                 refreshTerminalRecordingControlsVisibility();
                 refreshOpenChatColorProfiles();
                 // The shortcut overrides may have changed: menu accelerators and router chords.
@@ -7285,7 +7322,7 @@ public class MainWindow {
             case SFTP_MANAGER:
                 // Open SFTP Manager for this connection
                 if (terminalTab.isConnected()) {
-                    openSFTPManagerForConnection(terminalTab.getConnection(), terminalTab.getTemporarySSHKey());
+                    openSftpHere(terminalTab, null);
                 } else {
                     showError(I18n.get("error.notConnected"), I18n.get("error.notConnectedMessage"));
                 }
@@ -10253,6 +10290,9 @@ public class MainWindow {
             terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText, runContext) ->
                 handleAiSelectionAction(terminalTab, action, profile, selectedText, runContext));
         }
+        terminalTab.getTerminalView().setSftpHereHandler(pane -> openSftpHere(terminalTab, pane));
+        terminalTab.getTerminalView().setSftpOpenAtHandler((pane, path) -> openSftpHere(terminalTab, pane, path));
+        applyRemoteSidebar(terminalTab);
         if (policy.loadIntoSnippetEditor() != de.kortty.policy.LoadIntoEditorMode.DENY) {
             terminalTab.getTerminalView().setTerminalTextFileLoadHandler((runContext, selectedText) ->
                 loadTerminalSelectionAsTextFile(terminalTab, runContext, selectedText));
@@ -13615,9 +13655,9 @@ public class MainWindow {
         // Check if there's an active connection in the current tab
         Tab selectedTab = tabPane.getSelectionModel().getSelectedItem();
         if (selectedTab instanceof TerminalTab terminalTab && terminalTab.isConnected()) {
-            // Use current connection - pass temporary key if tab was connected with one
+            // The focused pane's session and folder (D7); a separate login when it cannot be borrowed.
             logger.info("Using active connection: {}", terminalTab.getConnection().getDisplayName());
-            openSFTPManagerForConnection(terminalTab.getConnection(), terminalTab.getTemporarySSHKey());
+            openSftpHere(terminalTab, null);
             return;
         }
         
@@ -13637,13 +13677,256 @@ public class MainWindow {
         });
     }
     
+    // ---------------------------------------------------------------- Remote files sidebar (SFTP-15)
+
+    private javafx.animation.PauseTransition remoteSidebarWidthSaveDelay;
+
+    /** Settings: where terminal tabs show the remote files sidebar. */
+    private TerminalRemoteSidebarPosition terminalRemoteSidebarPosition() {
+        var gsm = app != null ? app.getGlobalSettingsManager() : null;
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        return settings != null ? settings.getTerminalRemoteSidebarPosition() : TerminalRemoteSidebarPosition.HIDDEN;
+    }
+
+    /** Whether View › Remote Files Sidebar is offered: an SSH pane in the active tab, or the sidebar is on. */
+    private boolean remoteSidebarMenuOffered() {
+        if (terminalRemoteSidebarPosition() != TerminalRemoteSidebarPosition.HIDDEN) {
+            return true;
+        }
+        TerminalTab active = getActiveTerminalTab();
+        return active != null && active.getTerminalView() != null && active.getTerminalView().hasRemoteSidebarPane();
+    }
+
+    /** Docks (or removes) the remote files sidebar of {@code terminalTab} as the settings say. FX thread. */
+    private void applyRemoteSidebar(TerminalTab terminalTab) {
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        if (view == null) {
+            return;
+        }
+        var gsm = app != null ? app.getGlobalSettingsManager() : null;
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        if (settings == null) {
+            return;
+        }
+        view.setRemoteSidebar(settings.getTerminalRemoteSidebarPosition(), settings.getTerminalRemoteSidebarWidth(),
+            this::persistRemoteSidebarWidth,
+            () -> setTerminalRemoteSidebarPosition(TerminalRemoteSidebarPosition.HIDDEN));
+    }
+
+    /** Applies the remote files sidebar setting to every terminal tab of every window. FX thread. */
+    private static void applyRemoteSidebarToAllWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            for (TerminalTab terminalTab : window.terminalTabs()) {
+                window.applyRemoteSidebar(terminalTab);
+            }
+        }
+    }
+
+    /** View › Remote Files Sidebar › Show/Hide: on the right (D10) when hidden, else hidden. */
+    private void toggleTerminalRemoteSidebar() {
+        setTerminalRemoteSidebarPosition(terminalRemoteSidebarPosition() == TerminalRemoteSidebarPosition.HIDDEN
+            ? TerminalRemoteSidebarPosition.RIGHT : TerminalRemoteSidebarPosition.HIDDEN);
+    }
+
+    /**
+     * Moves the remote files sidebar of all terminal tabs and remembers it. Hiding asks first when
+     * sidebar transfers are still running, since hiding closes the sidebar's SFTP channels.
+     */
+    private void setTerminalRemoteSidebarPosition(TerminalRemoteSidebarPosition position) {
+        var gsm = app != null ? app.getGlobalSettingsManager() : null;
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        if (settings == null) {
+            return;
+        }
+        if (position == TerminalRemoteSidebarPosition.HIDDEN) {
+            int running = 0;
+            for (MainWindow window : new ArrayList<>(openWindows)) {
+                for (TerminalTab terminalTab : window.terminalTabs()) {
+                    TerminalRemoteSidebar sidebar = terminalTab.getTerminalView() != null
+                        ? terminalTab.getTerminalView().remoteSidebar() : null;
+                    running += sidebar != null ? sidebar.activeTransferCount() : 0;
+                }
+            }
+            if (running > 0) {
+                Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
+                    I18n.get("terminal.remoteSidebar.hideConfirm", String.valueOf(running)), ButtonType.OK, ButtonType.CANCEL);
+                confirm.setHeaderText(null);
+                confirm.initOwner(stage);
+                if (confirm.showAndWait().filter(ButtonType.OK::equals).isEmpty()) {
+                    return;
+                }
+            }
+        }
+        settings.setTerminalRemoteSidebarPosition(position);
+        try {
+            gsm.save();
+        } catch (Exception e) {
+            logger.debug("Could not persist the remote files sidebar position: {}", e.getMessage());
+        }
+        applyRemoteSidebarToAllWindows();
+    }
+
+    /** The width the user dragged the sidebar to; saved debounced, like the live journal panel. */
+    private void persistRemoteSidebarWidth(double width) {
+        var gsm = app != null ? app.getGlobalSettingsManager() : null;
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        if (settings == null) {
+            return;
+        }
+        settings.setTerminalRemoteSidebarWidth(width);
+        if (remoteSidebarWidthSaveDelay == null) {
+            remoteSidebarWidthSaveDelay = new javafx.animation.PauseTransition(javafx.util.Duration.millis(350));
+            remoteSidebarWidthSaveDelay.setOnFinished(event -> {
+                try {
+                    gsm.save();
+                } catch (Exception e) {
+                    logger.debug("Could not persist the remote files sidebar width: {}", e.getMessage());
+                }
+            });
+        }
+        remoteSidebarWidthSaveDelay.playFromStart();
+    }
+
+    /**
+     * "Open SFTP here": an SFTP tab on {@code pane}'s own SSH session (its {@link PaneOrigin}, not
+     * the tab's connection), starting in the folder its shell is in (D7). The verdict, folder and
+     * session supplier are taken on the FX thread; the SFTP channel opens off it. When the pane
+     * cannot lend its session (Mosh, local shell, closed) or the server refuses SFTP on it, a
+     * standalone tab with its own login for the pane's connection opens instead. One borrowed tab
+     * per pane (D9): asking again selects it.
+     *
+     * @param pane the pane, or null for the tab's focused pane
+     */
+    void openSftpHere(TerminalTab terminalTab, SithTermFxWidget pane) {
+        openSftpHere(terminalTab, pane, null);
+    }
+
+    /**
+     * {@link #openSftpHere(TerminalTab, SithTermFxWidget)}, starting in {@code startPath} instead of
+     * the shell's folder when given (the remote files sidebar's "Open in SFTP Manager").
+     */
+    void openSftpHere(TerminalTab terminalTab, SithTermFxWidget pane, String startPath) {
+        TerminalView view = terminalTab != null ? terminalTab.getTerminalView() : null;
+        if (view == null) {
+            updateStatus(I18n.get("sftp.openHere.noTerminal"));
+            return;
+        }
+        SithTermFxWidget target = pane != null ? pane : view.focusedPane();
+        TerminalView.SftpOpenRequest captured = view.captureSftpOpenRequest(target);
+        TerminalView.SftpOpenRequest request = captured != null && startPath != null && !startPath.isBlank()
+            ? new TerminalView.SftpOpenRequest(captured.supplier(), captured.paneConnection(), captured.dedupeKey(),
+                new de.kortty.ui.sftp.SftpOpenTargetResolver.OpenTarget(startPath,
+                    de.kortty.ui.sftp.SftpOpenTargetResolver.Reason.TRACKED_DIRECTORY), captured.label())
+            : captured;
+        if (request == null) {
+            if (terminalTab.isConnected()) {
+                openSftpHereFallback(terminalTab, view.paneConnection(target));
+            } else {
+                updateStatus(I18n.get("sftp.openHere.noTerminal"));
+            }
+            return;
+        }
+        if (selectSftpTab(request.dedupeKey())) {
+            return;
+        }
+        Thread attach = new Thread(() -> {
+            try {
+                de.kortty.core.SFTPSession attached = de.kortty.core.SFTPSession.attach(request.supplier(), request.paneConnection(), request.label());
+                Platform.runLater(() -> showBorrowedSftpTab(terminalTab, request, attached));
+            } catch (de.kortty.policy.PolicyRestrictionException e) {
+                Platform.runLater(() -> showError(I18n.get("error.title"),
+                    I18n.get("error.sftpManagerFailed", e.getMessage())));
+            } catch (Exception e) {
+                // The SFTP subsystem was refused, or the pane's session ended: log in separately.
+                logger.info("SFTP could not use the terminal session ({}); opening a separate login", e.getMessage());
+                Platform.runLater(() -> {
+                    updateStatus(I18n.get("sftp.openHere.fallback"));
+                    openSftpHereFallback(terminalTab, request.paneConnection());
+                });
+            }
+        }, "SFTP-Attach");
+        attach.setDaemon(true);
+        attach.start();
+    }
+
+    /** A standalone SFTP tab for the pane's connection; the tab's temporary key only for the tab's own connection. */
+    private void openSftpHereFallback(TerminalTab terminalTab, ServerConnection paneConnection) {
+        ServerConnection tabConnection = terminalTab.getConnection();
+        ServerConnection connection = paneConnection != null ? paneConnection : tabConnection;
+        if (connection == null) {
+            updateStatus(I18n.get("sftp.openHere.noTerminal"));
+            return;
+        }
+        boolean tabsOwnConnection = connection == tabConnection || (tabConnection != null
+            && connection.getId() != null && connection.getId().equals(tabConnection.getId()));
+        de.kortty.model.TemporarySSHKey key = tabsOwnConnection ? terminalTab.getTemporarySSHKey() : null;
+        openSFTPManagerForConnection(connection, key);
+    }
+
+    /** FX thread: shows the SFTP tab for an attached pane session, or closes it when the pane's tab opened meanwhile. */
+    private void showBorrowedSftpTab(TerminalTab terminalTab, TerminalView.SftpOpenRequest request, de.kortty.core.SFTPSession attached) {
+        if (selectSftpTab(request.dedupeKey())) {
+            closeSftpQuietly(attached);
+            return;
+        }
+        Telemetry.track(TelemetryEvents.SFTP_OPENED, Map.of("borrowed", true));
+        ServerConnection paneConnection = request.paneConnection();
+        String hintKey = request.target().hintKey();
+        SFTPManagerTab sftpTab = new SFTPManagerTab(app, paneConnection, attached,
+            () -> de.kortty.core.SFTPSession.attach(request.supplier(), paneConnection, request.label()),
+            request.dedupeKey(), request.target().startPath(), hintKey != null ? I18n.get(hintKey) : null,
+            () -> openSftpHereFallback(terminalTab, paneConnection), sftpAutoCloseMinutes(), this);
+        tabPane.getTabs().add(sftpTab);
+        tabPane.getSelectionModel().select(sftpTab);
+        logger.info("Opened SFTP Manager tab on the terminal session of: {}", paneConnection.getDisplayName());
+    }
+
+    /** Selects the SFTP tab with {@code dedupeKey} and returns true, or returns false when there is none. */
+    private boolean selectSftpTab(String dedupeKey) {
+        if (dedupeKey == null) {
+            return false;
+        }
+        for (Tab tab : tabPane.getTabs()) {
+            if (tab instanceof SFTPManagerTab sftpTab && dedupeKey.equals(sftpTab.getDedupeKey())) {
+                tabPane.getSelectionModel().select(tab);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void closeSftpQuietly(de.kortty.core.SFTPSession session) {
+        Thread closer = new Thread(() -> {
+            try {
+                session.close();
+            } catch (Exception e) {
+                logger.debug("Closing an unused SFTP session failed: {}", e.getMessage());
+            }
+        }, "SFTP-Close");
+        closer.setDaemon(true);
+        closer.start();
+    }
+
+    /** Settings › SFTP Manager's auto-close timeout in minutes; 0 when disabled or unknown. */
+    private int sftpAutoCloseMinutes() {
+        try {
+            var globalSettings = app.getGlobalSettingsManager().getSettings();
+            if (globalSettings != null && globalSettings.getSftpAutoCloseMinutes() != null) {
+                return globalSettings.getSftpAutoCloseMinutes();
+            }
+        } catch (Exception e) {
+            logger.debug("Could not get SFTP timeout setting: {}", e.getMessage());
+        }
+        return 0;
+    }
+
     /**
      * Opens SFTP Manager for a specific connection.
      * @param connection The connection to use
      * @param temporarySSHKey Optional temporary SSH key (only when opened from tab that used temp key)
      */
     private void openSFTPManagerForConnection(ServerConnection connection, de.kortty.model.TemporarySSHKey temporarySSHKey) {
-        Telemetry.track(TelemetryEvents.SFTP_OPENED);
+        Telemetry.track(TelemetryEvents.SFTP_OPENED, Map.of("borrowed", false));
         try {
             de.kortty.model.TemporarySSHKey keyToUse = temporarySSHKey;
             
@@ -13784,28 +14067,12 @@ public class MainWindow {
      * @param temporarySSHKey Optional temporary SSH key
      */
     private void openSFTPManagerTab(ServerConnection connection, String password, de.kortty.model.TemporarySSHKey temporarySSHKey) {
-        // Check if SFTP tab for this connection already exists
-        for (Tab tab : tabPane.getTabs()) {
-            if (tab instanceof SFTPManagerTab sftpTab) {
-                if (sftpTab.getConnection().getId() != null && 
-                    sftpTab.getConnection().getId().equals(connection.getId())) {
-                    // Tab already exists - select it
-                    tabPane.getSelectionModel().select(tab);
-                    return;
-                }
-            }
+        // One standalone tab per connection (D9): an existing one is selected. Tabs on a terminal
+        // pane's session have per-pane keys and never match.
+        if (selectSftpTab(de.kortty.ui.sftp.SftpTabKeys.standalone(connection))) {
+            return;
         }
-        
-        // Get auto-close timeout from global settings (0 = disabled)
-        int autoCloseMinutes = 0;
-        try {
-            var globalSettings = app.getGlobalSettingsManager().getSettings();
-            if (globalSettings != null && globalSettings.getSftpAutoCloseMinutes() != null) {
-                autoCloseMinutes = globalSettings.getSftpAutoCloseMinutes();
-            }
-        } catch (Exception e) {
-            logger.debug("Could not get SFTP timeout setting: {}", e.getMessage());
-        }
+        int autoCloseMinutes = sftpAutoCloseMinutes();
         
         // Create new SFTP tab
         SFTPManagerTab sftpTab = new SFTPManagerTab(app, connection, password, temporarySSHKey, autoCloseMinutes, this);
@@ -14272,6 +14539,11 @@ public class MainWindow {
         });
         contextMenu.getItems().add(reconnectItem);
 
+        // SFTP on the focused pane's own session, in its folder; only while that pane runs SSH.
+        MenuItem sftpHereItem = new MenuItem(I18n.get("tab.contextMenu.sftpHere"));
+        sftpHereItem.setOnAction(e -> openSftpHere(terminalTab, null));
+        contextMenu.getItems().add(sftpHereItem);
+
         if (de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
             Menu journalMenu = new Menu(I18n.get("tab.contextMenu.journal"));
             MenuItem journalToggleItem = new MenuItem(I18n.get(terminalTab.isJournalActive()
@@ -14326,6 +14598,9 @@ public class MainWindow {
         // decided as it opens.
         contextMenu.setOnShowing(e -> {
             syncTabCloseItems(terminalTab, closeOthersItem, closeToRightItem);
+            TerminalView sftpView = terminalTab.getTerminalView();
+            sftpHereItem.setDisable(sftpView == null
+                || sftpView.borrowedSessionSupplier(sftpView.focusedPane()) == null);
             reopenClosedItem.setDisable(closedTabHistory.isEmpty());
             TerminalView multiExecView = terminalTab.getTerminalView();
             multiExecItem.setSelected(multiExecView != null

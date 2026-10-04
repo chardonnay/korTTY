@@ -188,6 +188,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final Spinner<Integer> pasteLargeWarningSpinner;
     private final Spinner<Integer> pasteLineDelaySpinner;
     private final CheckBox shellIntegrationCheck;
+    private final ComboBox<de.kortty.model.TerminalRemoteSidebarPosition> remoteSidebarPositionCombo;
     private final CheckBox terminalBellNotificationsCheck;
     private final CheckBox commandFinishedNotificationsCheck;
     private final Spinner<Integer> commandFinishedSecondsSpinner;
@@ -914,6 +915,27 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         shellIntegrationCheck.setSelected(globalSettings == null || globalSettings.isShellIntegrationEnabled());
         shellIntegrationCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.shellIntegration.enabled.tooltip")));
 
+        // Remote files sidebar (D10): hidden by default; follows the shell of the focused SSH pane.
+        remoteSidebarPositionCombo = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(
+            de.kortty.model.TerminalRemoteSidebarPosition.values()));
+        remoteSidebarPositionCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(de.kortty.model.TerminalRemoteSidebarPosition position) {
+                if (position == null) {
+                    return "";
+                }
+                return I18n.get("settings.terminal.remoteSidebar." + position.name().toLowerCase(java.util.Locale.ROOT));
+            }
+
+            @Override
+            public de.kortty.model.TerminalRemoteSidebarPosition fromString(String text) {
+                return null;
+            }
+        });
+        remoteSidebarPositionCombo.setValue(globalSettings != null
+            ? globalSettings.getTerminalRemoteSidebarPosition() : de.kortty.model.TerminalRemoteSidebarPosition.HIDDEN);
+        remoteSidebarPositionCombo.setTooltip(new Tooltip(I18n.get("settings.terminal.remoteSidebar.tooltip")));
+
         // Notifications: a bell in a tab the user is not looking at.
         terminalBellNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.bell"));
         terminalBellNotificationsCheck.setSelected(globalSettings != null
@@ -1150,6 +1172,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         shellIntegrationInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         shellIntegrationInfo.setWrapText(true);
         terminalGrid.add(shellIntegrationInfo, 0, terminalRow++, 2, 1);
+        Label remoteSidebarLabel = new Label(I18n.get("settings.terminal.remoteSidebar"));
+        terminalGrid.add(remoteSidebarLabel, 0, terminalRow);
+        terminalGrid.add(remoteSidebarPositionCombo, 1, terminalRow++);
 
         // Notifications section
         terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
@@ -3815,6 +3840,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setPasteLineDelayMs(pasteLineDelaySpinner.getValue() != null
                 ? pasteLineDelaySpinner.getValue() : 0);
             globalSettings.setShellIntegrationEnabled(shellIntegrationCheck.isSelected());
+            globalSettings.setTerminalRemoteSidebarPosition(remoteSidebarPositionCombo.getValue());
             globalSettings.setTerminalBellNotificationsEnabled(terminalBellNotificationsCheck.isSelected());
             globalSettings.setCommandFinishedNotificationsEnabled(commandFinishedNotificationsCheck.isSelected());
             globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null

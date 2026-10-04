@@ -10,10 +10,23 @@ The integrated SFTP Manager provides a graphical file manager for transferring f
 
 You can open the SFTP Manager in two ways:
 
-- **Menu:** *Connections → SFTP-Client...* (++ctrl+shift+u++, on macOS ++cmd+shift+u++). With a connected terminal tab in front, it opens for that tab's server; otherwise you pick a connection first.
+- **Menu:** *Connections → SFTP-Client...* (++ctrl+shift+u++, on macOS ++cmd+shift+u++). With a connected terminal tab in front, it opens on that tab's focused pane, as **Open SFTP Here** does; otherwise you pick a connection first.
+- **From a terminal:** *Connections → Open SFTP Here*, **Open SFTP here** in a terminal tab's right-click menu, or **Open SFTP here** in a pane's right-click menu. The command palette finds it too. See [Opening from a terminal tab](#opening-from-a-terminal-tab).
 - **Dashboard:** right-click a connected session > **SFTP-Client...**
 
 If the connection uses a temporary SSH key that has expired, you will be prompted to enter a new key before the connection can proceed.
+
+## Opening from a terminal tab
+
+**Open SFTP Here** opens the SFTP Manager on the SSH session the terminal pane already has, so there is no second login: no second password or MFA prompt, no second hop through a jump server, and no CyberArk access reason asked again. It uses the pane you are typing in (or the pane you right-clicked), and in a split tab whose pane runs another connection it opens as that pane's user and server, not the tab's.
+
+The remote side starts in the folder the shell is in: the one the shell reports (OSC 7 or the korTTY agent hook), else the folder shown in the prompt, else the folder of your last `cd`. `~` and relative folders are resolved against your home folder. If that folder no longer exists, the login folder is shown and the status bar says so. Two cases start in the login folder on purpose, with a note in the status bar: a pane where a different session is active (after `su`, `sudo -i` or a nested `ssh`), because its folder belongs to another user or host, and a connection with a shell startup command, which may switch user before the first prompt.
+
+Each pane gets its own SFTP tab, so two panes of the same server can be browsed side by side; choosing **Open SFTP Here** again for the same pane selects its tab. A tab opened from *Connections → SFTP-Client...* with a connection picked is still one per connection, and the two kinds never replace each other.
+
+Such a tab copies at most two files at once, even when *Settings → SFTP Manager* allows more, so the terminal on the same session stays responsive. Closing the tab never closes the terminal. When the terminal's session ends, or the pane is closed or now runs another user or host, the tab shows **Disconnected** with **Reconnect**, which uses the pane's session again once it is back, and **Separate login**, which closes the tab and opens one with its own login for the pane's connection.
+
+When the pane has no SSH session to share (a Mosh or local shell tab), or the server or a proxy refuses SFTP on it, korTTY opens an SFTP tab with its own login for the pane's connection instead, as before. A saved [project](projects.md#sftp-manager-tabs) restores such a tab as an ordinary SFTP tab with its own login, in the folders it was in.
 
 ## Interface
 
@@ -176,7 +189,7 @@ An upload or download never replaces an existing file silently. When the target 
 
 ### When file transfer is turned off by your organization
 
-An organization can switch file transfer off with its [enterprise policy](../reference/enterprise-policy.md#rulefeatures) (`file-transfer = "deny"`). The SFTP Manager then still opens and browses the server, and renaming, deleting, permissions, archives, search and copying on the server keep working, but **Upload**, **Download** and **Retry** in the transfer list are greyed out, dragging files onto the server panel or server files onto the local panel is not accepted (the pointer shows no copy symbol), and remote files cannot be dragged to the desktop. Files from the desktop can still be dropped onto the local panel. JobScheduler jobs that upload, download or sync with SFTP, and rsync jobs, fail with the same message without connecting. Commands such as `scp` typed into a terminal are not affected.
+An organization can switch file transfer off with its [enterprise policy](../reference/enterprise-policy.md#rulefeatures) (`file-transfer = "deny"`). The SFTP Manager then still opens and browses the server, and renaming, deleting, permissions, archives, search and copying on the server keep working, but **Upload**, **Download** and **Retry** in the transfer list are greyed out, dragging files onto the server panel or server files onto the local panel is not accepted (the pointer shows no copy symbol), and remote files cannot be dragged to the desktop. Files from the desktop can still be dropped onto the local panel. Dropping files onto a terminal pane is refused the same way while you drag, and **Copy as file(s) to terminal directory** and **Copy folder to terminal directory** in the Snippet Manager are greyed out for SSH tabs. **Open SFTP Here** still opens for browsing. JobScheduler jobs that upload, download or sync with SFTP, and rsync jobs, fail with the same message without connecting. Commands such as `scp` typed into a terminal are not affected.
 
 ### Permissions
 

@@ -158,6 +158,7 @@ final class ShellIntegrationController {
     private volatile @Nullable BiConsumer<SithTermFxWidget, CommandStatus> commandFinished;
     private volatile @Nullable Consumer<SithTermFxWidget> remoteNotificationArrived;
     private volatile @Nullable Consumer<SithTermFxWidget> clipboardWriteArrived;
+    private volatile @Nullable Consumer<SithTermFxWidget> promptMarkArrived;
 
     /**
      * @param enabled           whether shell integration is on; asked on the emulator thread and the
@@ -236,6 +237,9 @@ final class ShellIntegrationController {
             // the status bar says which, as for any other write.
             offerClipboardWrite(widget, ShellIntegrationEvent.ClipboardWrite.overCap());
             return;
+        }
+        if (event instanceof ShellIntegrationEvent.PromptStart) {
+            notifyPromptMark(widget);
         }
         if (!PaneCommandMarks.isMark(event) || !isEnabled()) {
             return;
@@ -348,6 +352,28 @@ final class ShellIntegrationController {
         } catch (RuntimeException e) {
             slot.take();
             logger.debug("Could not hand a program's clipboard write of a pane on: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Sets who learns of each prompt-start mark ({@code OSC 133;A}) of a pane, also while shell
+     * integration is off (the mark is only a signal then, nothing is recorded): called on the pane's
+     * emulator thread, so it must only hand off. The remote files sidebar uses it to confirm a typed
+     * {@code cd}.
+     */
+    void setPromptMarkListener(@Nullable Consumer<SithTermFxWidget> listener) {
+        this.promptMarkArrived = listener;
+    }
+
+    private void notifyPromptMark(SithTermFxWidget widget) {
+        Consumer<SithTermFxWidget> listener = promptMarkArrived;
+        if (listener == null) {
+            return;
+        }
+        try {
+            listener.accept(widget);
+        } catch (RuntimeException e) {
+            logger.debug("Could not report a prompt mark of a pane: {}", e.getMessage());
         }
     }
 

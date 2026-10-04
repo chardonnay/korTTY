@@ -151,4 +151,13 @@ public interface ObservableTtyConnector extends TtyConnector {
     default String getExpectedSessionHost() {
         return null;
     }
+
+    /**
+     * Registers a listener for changes of the tracked working directory (see
+     * {@link RemoteDirectoryChange.Listener} for the threading contract). Connectors that do not
+     * report changes return {@link RemoteDirectoryChange.Subscription#NONE}.
+     */
+    default RemoteDirectoryChange.Subscription addRemoteDirectoryListener(RemoteDirectoryChange.Listener listener) {
+        return RemoteDirectoryChange.Subscription.NONE;
+    }
 }
