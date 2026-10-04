@@ -4,7 +4,7 @@ title: Befehlspalette
 
 # Befehlspalette
 
-Die Befehlspalette findet jeden Befehl der Menüs des Hauptfensters und führt ihn aus, wenn Sie ein paar Buchstaben seines Namens eingeben, sodass Sie weder die Maus brauchen noch wissen müssen, wo der Befehl in den Menüs steht. Sie führt außerdem die Rechtsklick-Befehle des Terminals aus, in dem Sie sich befinden, etwa **Puffer löschen** oder eine Teilung, wechselt zu jedem offenen Tab, die zuletzt benutzten zuerst, einschließlich der Terminal-Tabs Ihrer anderen korTTY-Fenster, öffnet einen Tab für jede gespeicherte oder per Teamwork geteilte Verbindung und führt jedes Snippet des [Snippet-Managers](snippets.md) im Terminal aus. Sie erreicht jeden Menübefehl auch bei ausgeblendeter Menüleiste und im Nur-Terminal-Vollbildmodus.
+Die Befehlspalette findet jeden Befehl der Menüs des Hauptfensters und führt ihn aus, wenn Sie ein paar Buchstaben seines Namens eingeben, sodass Sie weder die Maus brauchen noch wissen müssen, wo der Befehl in den Menüs steht. Sie führt außerdem die Rechtsklick-Befehle des Terminals aus, in dem Sie sich befinden, etwa **Puffer löschen** oder **Neu verbinden**, wechselt zu jedem offenen Tab, die zuletzt benutzten zuerst, einschließlich der Terminal-Tabs Ihrer anderen korTTY-Fenster, öffnet einen Tab für jede gespeicherte oder per Teamwork geteilte Verbindung und führt jedes Snippet des [Snippet-Managers](snippets.md) im Terminal aus. Sie erreicht jeden Menübefehl auch bei ausgeblendeter Menüleiste und im Nur-Terminal-Vollbildmodus.
 
 ## Palette öffnen
 
@@ -38,12 +38,12 @@ Die Palette bietet außerdem die Befehle der Rechtsklickmenüs des Terminals und
 | Befehl | Graues Detail | Wirkung |
 | --- | --- | --- |
 | **Puffer löschen** | Terminal | Löscht den Scrollback und den Bildschirm des fokussierten Bereichs, behält aber die Prompt-Zeile bei, wie **Puffer löschen** im Rechtsklickmenü des Terminals. Während ein Vollbildprogramm wie `vim` oder `less` läuft, tut es nichts. Unter macOS zeigt die Zeile die eigene Taste des Terminals, ++cmd+k++. |
-| **Rechts teilen (gleicher Server)** / **Unten teilen (gleicher Server)** | Terminal | Öffnet eine neue Sitzung zum selben Server in einem neuen Bereich rechts neben oder unter dem fokussierten Bereich, genau wie diese Einträge unter **Extras → Terminal teilen** im Rechtsklickmenü, mit demselben Fortschrittsdialog und derselben Prüfung der [Serverrichtlinie](terminal.md#sicher-verbinden). |
-| **Broadcast-Modus** | Terminal | Schaltet den [Broadcast-Modus](terminal.md#broadcast-modus) des Tabs ein oder aus und zeigt ein Häkchen, solange er aktiv ist. Zum Einschalten ist ein zweiter Bereich nötig; das Ausschalten funktioniert immer, auch wenn nur noch ein Bereich übrig ist. |
 | **Duplizieren** | Tabs | Öffnet eine Kopie des Tabs daneben und meldet sich an wie **Duplizieren** im Rechtsklickmenü des Tabs. |
 | **Neu verbinden** | Tabs | Verbindet den Tab erneut, wie **Neu verbinden** in seinem Rechtsklickmenü. |
 
 In allen anderen Arten von Tabs, etwa einem Snippet-Editor, sind diese Zeilen ausgegraut. **Suchen** wird nicht ein zweites Mal aufgeführt: Geben Sie `suchen` für **Bearbeiten → Suchen…** ein, das die Suche des fokussierten Bereichs öffnet.
+
+Die Befehle für Bereiche stehen nicht in dieser Tabelle, weil die Menüleiste sie hat: Die Befehle von *Ansicht → Bereiche* und *Ansicht → Multi-Exec* sind Zeilen wie jeder andere Menübefehl, mit ihrem Menüpfad, ihrem Tastaturkürzel und ihrem Häkchen. Geben Sie `rechts teilen` für **Rechts teilen** Ansicht › Bereiche ein, das den fokussierten Bereich auf dessen eigenem Server teilt wie **Rechts teilen (gleicher Server)** im Rechtsklickmenü, mit demselben Fortschrittsdialog und derselben Prüfung der [Serverrichtlinie](terminal.md#sicher-verbinden), und die Tastatur in den neuen Bereich setzt. **Unten teilen**, **Bereich teilen**, **Bereich schließen**, die Fokusbefehle, **Bereich maximieren** und **Broadcast an alle Bereiche dieses Tabs** funktionieren ebenso; **Bereich maximieren** und der Broadcast-Befehl zeigen ein Häkchen, solange sie eingeschaltet sind, und der [Broadcast-Modus](terminal.md#broadcast-modus) lässt sich immer ausschalten, auch wenn nur noch ein Bereich übrig ist.
 
 ## Tabs wechseln
 

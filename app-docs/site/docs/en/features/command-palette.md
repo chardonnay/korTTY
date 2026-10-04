@@ -4,7 +4,7 @@ title: Command palette
 
 # Command palette
 
-The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also runs the right-click commands of the terminal you are in, such as **Clear Buffer** or a split, switches to any open tab, the ones you used last first, including the terminal tabs of your other korTTY windows, opens a tab for any saved or shared teamwork connection, and runs any snippet of the [Snippet Manager](snippets.md) in the terminal. It reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.
+The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also runs the right-click commands of the terminal you are in, such as **Clear Buffer** or **Reconnect**, switches to any open tab, the ones you used last first, including the terminal tabs of your other korTTY windows, opens a tab for any saved or shared teamwork connection, and runs any snippet of the [Snippet Manager](snippets.md) in the terminal. It reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.
 
 ## Opening the palette
 
@@ -38,12 +38,12 @@ The palette also offers the commands of the terminal's and the tab's right-click
 | Command | Grey detail | What it does |
 | --- | --- | --- |
 | **Clear Buffer** | Terminal | Clears the scrollback and the screen of the focused pane but keeps the prompt line, like **Clear Buffer** in the terminal's right-click menu. While a full-screen program such as `vim` or `less` runs, it does nothing. On macOS the row shows the terminal's own key, ++cmd+k++. |
-| **Split Right (same server)** / **Split Down (same server)** | Terminal | Opens a new session to the same server in a new pane to the right of the focused pane or below it, exactly like these entries under **Extras → Split Terminal** in the right-click menu, with the same progress dialog and the same [server policy](terminal.md#connecting-safely) check. |
-| **Broadcast Mode** | Terminal | Switches [broadcast mode](terminal.md#broadcast-mode) of the tab on or off and shows a check mark while it is on. Switching it on needs a second pane; switching it off always works, also when only one pane is left. |
 | **Duplicate** | Tabs | Opens a copy of the tab next to it and signs in like **Duplicate** in the tab's right-click menu. |
 | **Reconnect** | Tabs | Connects the tab again, like **Reconnect** in its right-click menu. |
 
 In any other kind of tab, such as a snippet editor, these rows are greyed out. **Find** is not listed a second time: type `find` for **Edit → Find…**, which opens the search of the focused pane.
+
+The pane commands are not in this table because the menu bar has them: the commands of *View → Panes* and *View → Multi-exec* are rows like every other menu command, with their menu path, shortcut and check mark. Type `split right` for **Split Right** View › Panes, which splits the focused pane on its own server like **Split Right (same server)** in the right-click menu, with the same progress dialog and the same [server policy](terminal.md#connecting-safely) check, and moves the keyboard into the new pane. **Split Down**, **Split Pane**, **Close Pane**, the focus commands, **Zoom Pane** and **Broadcast to All Panes of This Tab** work the same way; **Zoom Pane** and the broadcast command show a check mark while they are on, and [broadcast mode](terminal.md#broadcast-mode) can always be switched off, also when only one pane is left.
 
 ## Switching tabs
 

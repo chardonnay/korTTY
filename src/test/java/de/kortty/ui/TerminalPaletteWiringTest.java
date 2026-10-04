@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -15,9 +16,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
  * against the source because neither MainWindow nor a terminal tab can be built without a stage:
  * MainWindow hands them the selected terminal tab (nothing in other tabs) after the menu commands,
  * so a menu item with the same id would win, and shows the terminal's own Clear Buffer key; the tab
- * adapter goes to the focused pane's commands and the tab's own Duplicate and Reconnect; and the
- * focused-pane commands of TerminalView take the same paths as the terminal's right-click menu,
- * the same-server split through the split connector factory with its dialogs.
+ * adapter goes to the focused pane's Clear Buffer, which takes the same path as the terminal's
+ * right-click menu, and to the tab's own Duplicate and Reconnect. The splits and broadcast mode are
+ * no commands of the adapter: View → Panes has them and the palette harvests that menu.
  */
 class TerminalPaletteWiringTest {
 
@@ -46,36 +47,25 @@ class TerminalPaletteWiringTest {
 
         assertThat(methodBody(target, "public void clearBuffer() {"))
             .contains("tab.getTerminalView().clearFocusedBuffer();");
-        assertThat(methodBody(target, "public void splitRight() {"))
-            .contains("tab.getTerminalView().splitFocused(Orientation.HORIZONTAL);");
-        assertThat(methodBody(target, "public void splitDown() {"))
-            .contains("tab.getTerminalView().splitFocused(Orientation.VERTICAL);");
-        assertThat(methodBody(target, "public int paneCount() {"))
-            .contains("tab.getTerminalView().getTerminalPaneCount();");
-        assertThat(methodBody(target, "public boolean isBroadcasting() {"))
-            .contains("tab.getTerminalView().isBroadcastMode();");
-        assertThat(methodBody(target, "public void toggleBroadcast() {"))
-            .contains("tab.getTerminalView().toggleBroadcast();");
         assertThat(methodBody(target, "public void duplicate() {")).contains("duplicate.accept(tab);");
         assertThat(methodBody(target, "public void reconnect() {")).contains("tab.triggerReconnect();");
+        for (String paneCommand : List.of("splitFocused", "toggleBroadcast", "isBroadcastMode", "paneCount")) {
+            assertWithMessage("View → Panes splits and switches broadcast mode; the palette lists that menu")
+                .that(target).doesNotContain(paneCommand);
+        }
     }
 
     @Test
-    void theFocusedPaneCommandsTakeTheRightClickMenusPaths() throws IOException {
+    void clearBufferTakesTheRightClickMenusPath() throws IOException {
         String view = source(TERMINAL_VIEW);
 
         assertThat(methodBody(view, "public void clearFocusedBuffer() {"))
             .contains("if (getFocusedWidget() instanceof TerminalPaneActions actions) {\n"
                 + "            actions.clearBuffer();");
-        String split = methodBody(view, "public boolean splitFocused(Orientation orientation) {");
-        assertThat(split).contains("SithTermFxWidget focused = getFocusedWidget();");
-        assertWithMessage("no prepared connector: the split connector factory asks and connects as the menu does")
-            .that(split)
-            .contains("splitPane.splitWidget(focused, SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, orientation, null)");
-        assertThat(methodBody(view, "public boolean canBroadcast() {")).contains("getTerminalPaneCount() > 1");
-        assertThat(methodBody(view, "public void toggleBroadcast() {"))
-            .contains("if (splitPane != null && (splitPane.isBroadcastMode() || canBroadcast())) {\n"
-                + "            splitPane.toggleBroadcastMode();");
+        assertWithMessage("the palette's split is View → Panes → Split Right / Split Down (splitFocusedPane)")
+            .that(view).doesNotContain("public boolean splitFocused(Orientation orientation) {");
+        assertWithMessage("the palette's broadcast toggle is View → Panes → Broadcast to All Panes of This Tab")
+            .that(view).doesNotContain("public void toggleBroadcast() {");
     }
 
     private static String source(Path path) throws IOException {

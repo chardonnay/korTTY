@@ -10,52 +10,24 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * The command palette's terminal and tab commands, run against a stub terminal tab in a registry as
- * MainWindow builds it: enabled only while a terminal tab is selected, Broadcast Mode switchable on
- * with a second pane and off at any time, every command acting on the tab selected when it runs,
- * the right-click menus' labels under Terminal and Tabs, and no second Find.
+ * MainWindow builds it: enabled only while a terminal tab is selected, every command acting on the
+ * tab selected when it runs, the right-click menus' labels under Terminal and Tabs, and no second
+ * row for a command the menu bar has (Find, the same-server splits and broadcast mode, which come
+ * from Edit and View → Panes).
  */
 class TerminalPaletteActionsTest {
 
     /** A terminal tab that records the commands it gets. */
     private static final class StubTerminal implements TerminalPaletteActions.Target {
         final List<String> calls = new ArrayList<>();
-        int panes = 1;
-        boolean broadcasting;
 
         @Override
         public void clearBuffer() {
             calls.add("clearBuffer");
-        }
-
-        @Override
-        public void splitRight() {
-            calls.add("splitRight");
-            panes++;
-        }
-
-        @Override
-        public void splitDown() {
-            calls.add("splitDown");
-            panes++;
-        }
-
-        @Override
-        public int paneCount() {
-            return panes;
-        }
-
-        @Override
-        public boolean isBroadcasting() {
-            return broadcasting;
-        }
-
-        @Override
-        public void toggleBroadcast() {
-            calls.add("toggleBroadcast");
-            broadcasting = !broadcasting;
         }
 
         @Override
@@ -70,8 +42,7 @@ class TerminalPaletteActionsTest {
     }
 
     private static final List<String> IDS = List.of(
-        TerminalPaletteActions.CLEAR_BUFFER, TerminalPaletteActions.SPLIT_RIGHT, TerminalPaletteActions.SPLIT_DOWN,
-        TerminalPaletteActions.BROADCAST, TerminalPaletteActions.DUPLICATE, TerminalPaletteActions.RECONNECT);
+        TerminalPaletteActions.CLEAR_BUFFER, TerminalPaletteActions.DUPLICATE, TerminalPaletteActions.RECONNECT);
 
     /** The key itself in brackets, so a test sees which key a text came from. */
     private static String text(String key) {
@@ -102,27 +73,31 @@ class TerminalPaletteActionsTest {
             assertThat(action.label()).isEqualTo(text(action.id()));
             assertThat(action.stableId()).isTrue();
             assertThat(action.policyLocked()).isFalse();
+            assertThat(action.isCheckable()).isFalse();
         }
         assertThat(find(registry, "terminal.contextMenu.clearBuffer").category())
-            .isEqualTo("[palette.category.terminal]");
-        assertThat(find(registry, "terminal.contextMenu.splitRightSame").category())
-            .isEqualTo("[palette.category.terminal]");
-        assertThat(find(registry, "terminal.contextMenu.splitDownSame").category())
-            .isEqualTo("[palette.category.terminal]");
-        assertThat(find(registry, "terminal.contextMenu.broadcastMode").category())
             .isEqualTo("[palette.category.terminal]");
         assertThat(find(registry, "tab.contextMenu.duplicate").category()).isEqualTo("[palette.category.tab]");
         assertThat(find(registry, "dashboard.reconnect").category()).isEqualTo("[palette.category.tab]");
     }
 
+    /**
+     * A menu-bar item the palette harvests is not listed a second time: Edit → Find…, and View → Panes →
+     * Split Right / Split Down / Broadcast to All Panes of This Tab, which do what the right-click
+     * menu's same-server splits and Broadcast Mode do.
+     */
     @Test
-    void findIsNotListedASecondTime() {
+    void commandsTheMenuBarHasAreNotListedASecondTime() {
         List<String> ids = registry(new AtomicReference<>(), null).snapshot().stream().map(AppAction::id).toList();
 
-        assertThat(ids).doesNotContain("terminal.contextMenu.find");
-        assertThat(TerminalPaletteActions.KEYS).doesNotContain("terminal.contextMenu.find");
-        assertThat(TerminalPaletteActions.KEYS).containsAtLeastElementsIn(IDS);
-        assertThat(TerminalPaletteActions.KEYS).containsAtLeast("palette.category.terminal", "palette.category.tab");
+        for (String duplicate : List.of("terminal.contextMenu.find", "terminal.contextMenu.splitRightSame",
+                "terminal.contextMenu.splitDownSame", "terminal.contextMenu.broadcastMode")) {
+            assertWithMessage("a menu-bar item already offers " + duplicate).that(ids).doesNotContain(duplicate);
+            assertThat(TerminalPaletteActions.KEYS).doesNotContain(duplicate);
+        }
+        assertThat(TerminalPaletteActions.KEYS).containsExactly(TerminalPaletteActions.CLEAR_BUFFER,
+            TerminalPaletteActions.DUPLICATE, TerminalPaletteActions.RECONNECT, "palette.category.terminal",
+            "palette.category.tab").inOrder();
     }
 
     @Test
@@ -139,53 +114,16 @@ class TerminalPaletteActionsTest {
     }
 
     @Test
-    void aTerminalTabWithOnePaneEnablesEverythingButSwitchingBroadcastOn() {
-        StubTerminal terminal = new StubTerminal();
-        ActionRegistry registry = registry(new AtomicReference<>(terminal), null);
-
-        for (String id : IDS) {
-            boolean broadcast = id.equals(TerminalPaletteActions.BROADCAST);
-            assertThat(find(registry, id).isEnabled()).isEqualTo(!broadcast);
-        }
-        assertThat(find(registry, TerminalPaletteActions.BROADCAST).isCheckable()).isTrue();
-        assertThat(registry.run(TerminalPaletteActions.BROADCAST)).isFalse();
-        assertThat(terminal.calls).isEmpty();
-    }
-
-    @Test
-    void broadcastModeNeedsASecondPaneToSwitchOnButAlwaysSwitchesOff() {
-        StubTerminal terminal = new StubTerminal();
-        ActionRegistry registry = registry(new AtomicReference<>(terminal), null);
-        AppAction broadcast = find(registry, TerminalPaletteActions.BROADCAST);
-
-        terminal.panes = 2;
-        assertThat(broadcast.isEnabled()).isTrue();
-        assertThat(broadcast.isChecked()).isFalse();
-        assertThat(registry.run(TerminalPaletteActions.BROADCAST)).isTrue();
-        assertThat(broadcast.isChecked()).isTrue();
-
-        // The second pane closed while broadcast mode was on: it can still be switched off.
-        terminal.panes = 1;
-        assertThat(broadcast.isEnabled()).isTrue();
-        assertThat(registry.run(TerminalPaletteActions.BROADCAST)).isTrue();
-        assertThat(broadcast.isChecked()).isFalse();
-        assertThat(broadcast.isEnabled()).isFalse();
-        assertThat(terminal.calls).containsExactly("toggleBroadcast", "toggleBroadcast").inOrder();
-    }
-
-    @Test
     void everyCommandReachesItsTerminalTab() {
         StubTerminal terminal = new StubTerminal();
         ActionRegistry registry = registry(new AtomicReference<>(terminal), null);
 
         for (String id : IDS) {
+            assertThat(find(registry, id).isEnabled()).isTrue();
             assertThat(registry.run(id)).isTrue();
         }
 
-        // Two splits make a second pane, so Broadcast Mode switches on.
-        assertThat(terminal.calls).containsExactly("clearBuffer", "splitRight", "splitDown", "toggleBroadcast",
-            "duplicate", "reconnect").inOrder();
-        assertThat(terminal.broadcasting).isTrue();
+        assertThat(terminal.calls).containsExactly("clearBuffer", "duplicate", "reconnect").inOrder();
     }
 
     @Test
@@ -229,8 +167,6 @@ class TerminalPaletteActionsTest {
 
         List<PaletteEntry> withoutTerminal = source.entries();
         selected.set(terminal);
-        terminal.panes = 2;
-        terminal.broadcasting = true;
         List<PaletteEntry> withTerminal = source.entries();
 
         assertThat(withoutTerminal.stream().map(PaletteEntry::key).toList())
@@ -242,7 +178,7 @@ class TerminalPaletteActionsTest {
         }
         for (PaletteEntry entry : withTerminal) {
             assertThat(entry.enabled()).isTrue();
-            assertThat(entry.checked()).isEqualTo(entry.key().equals("action:" + TerminalPaletteActions.BROADCAST));
+            assertThat(entry.checked()).isFalse();
         }
         withTerminal.get(0).run().run();
         assertThat(terminal.calls).containsExactly("clearBuffer");

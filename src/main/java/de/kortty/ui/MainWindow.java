@@ -2943,10 +2943,11 @@ public class MainWindow {
 
     /**
      * The actions of this window: every item of the in-window menu bar, harvested afresh each time
-     * the palette opens (the menus that are rebuilt while they open are excluded), then the tab
-     * actions that have no menu item, and then the right-click commands of the selected terminal tab
-     * (Clear Buffer, the same-server splits and Broadcast Mode of its focused pane, Duplicate and
-     * Reconnect), enabled only while a terminal tab is selected.
+     * the palette opens (the menus that are rebuilt while they open are excluded), among them
+     * <i>View → Panes</i> (the splits, the pane focus, Zoom Pane and broadcast mode) and <i>View →
+     * Multi-exec</i>; then the tab actions that have no menu item, and then the right-click commands
+     * of the selected terminal tab that have none either (Clear Buffer of its focused pane, Duplicate
+     * and Reconnect), enabled only while a terminal tab is selected.
      */
     private ActionRegistry actionRegistry() {
         if (actionRegistry == null) {

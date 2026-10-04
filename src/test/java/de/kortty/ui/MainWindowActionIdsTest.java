@@ -48,6 +48,8 @@ class MainWindowActionIdsTest {
         "private Menu createPluginsMenu() {",
         "private Menu createViewMenu(MenuBarTarget target) {",
         "private Menu createHighlightingMenu(MenuBarTarget target) {",
+        "private Menu createPanesMenu(MenuBarTarget target) {",
+        "private Menu createMultiExecMenu(MenuBarTarget target) {",
         "private Menu createHelpMenu() {");
 
     private static final Pattern NEW_ITEM = Pattern.compile("new (?:Check|Radio)?MenuItem\\(");
@@ -147,8 +149,23 @@ class MainWindowActionIdsTest {
         assertThat(highlighting).contains("ActionIds.tag(manage, HighlightMenuSupport.MANAGE_KEY);");
         ids.merge(HighlightMenuSupport.TOGGLE_KEY, 1, Integer::sum);
         ids.merge(HighlightMenuSupport.MANAGE_KEY, 1, Integer::sum);
+        // View > Panes and View > Multi-exec come from PaneMenuSupport and MultiExecMenuSupport, which tag
+        // every item with its key (PaneMenuSupportTest, MultiExecMenuSupportTest, PanesPaletteHarvestTest).
+        String view = methodBody(source, "private Menu createViewMenu(MenuBarTarget target) {");
+        assertThat(view).contains("Menu panesMenu = createPanesMenu(target);");
+        assertThat(view).contains("Menu multiExecMenu = createMultiExecMenu(target);");
+        assertThat(methodBody(source, "private Menu createPanesMenu(MenuBarTarget target) {"))
+            .contains("PaneMenuSupport.create(");
+        assertThat(methodBody(source, "private Menu createMultiExecMenu(MenuBarTarget target) {"))
+            .contains("MultiExecMenuSupport.create(");
+        for (List<String> submenuKeys : List.of(PaneMenuSupport.KEYS, MultiExecMenuSupport.KEYS)) {
+            for (String key : submenuKeys.subList(1, submenuKeys.size())) {
+                ids.merge(key, 1, Integer::sum);
+            }
+        }
 
-        assertThat(ids.size()).isAtLeast(65);
+        assertThat(ids.size()).isAtLeast(80);
+        assertThat(ids).containsKey("menu.view.panes.broadcast");
         assertThat(ids).containsKey("menu.help.about");
         assertThat(ids).containsKey("menu.configuration.preventSleep");
         List<String> missing = ids.keySet().stream().filter(id -> !base.containsKey(id)).toList();

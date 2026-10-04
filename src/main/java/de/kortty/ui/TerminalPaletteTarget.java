@@ -1,15 +1,15 @@
 package de.kortty.ui;
 
 import de.kortty.ui.actions.TerminalPaletteActions;
-import javafx.geometry.Orientation;
 
 import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
  * A terminal tab as the command palette's terminal and tab commands see it
- * ({@link TerminalPaletteActions}): the pane commands go to the tab's {@link TerminalView}, which
- * acts on the focused pane, and Duplicate and Reconnect do what the tab's right-click menu does.
+ * ({@link TerminalPaletteActions}): Clear Buffer goes to the tab's {@link TerminalView}, which acts
+ * on the focused pane, and Duplicate and Reconnect do what the tab's right-click menu does. The
+ * splits and broadcast mode come from <i>View → Panes</i>, which the palette harvests.
  */
 final class TerminalPaletteTarget implements TerminalPaletteActions.Target {
 
@@ -28,31 +28,6 @@ final class TerminalPaletteTarget implements TerminalPaletteActions.Target {
     @Override
     public void clearBuffer() {
         tab.getTerminalView().clearFocusedBuffer();
-    }
-
-    @Override
-    public void splitRight() {
-        tab.getTerminalView().splitFocused(Orientation.HORIZONTAL);
-    }
-
-    @Override
-    public void splitDown() {
-        tab.getTerminalView().splitFocused(Orientation.VERTICAL);
-    }
-
-    @Override
-    public int paneCount() {
-        return tab.getTerminalView().getTerminalPaneCount();
-    }
-
-    @Override
-    public boolean isBroadcasting() {
-        return tab.getTerminalView().isBroadcastMode();
-    }
-
-    @Override
-    public void toggleBroadcast() {
-        tab.getTerminalView().toggleBroadcast();
     }
 
     @Override
