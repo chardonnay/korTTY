@@ -47,6 +47,8 @@ public class SharedFileTeamworkAdapter implements TeamworkConnectionRepository {
                 c.setTeamworkSourceId(source.getId());
                 c.setTeamworkVersionToken(versionToken);
                 stripInlineSecrets(c);
+                // korTTY never starts a shared connection's shell with its shell-integration wrapper.
+                c.setShellIntegrationAutoInject(false);
             }
             return new TeamworkLoadResult(connections, versionToken);
         } catch (Exception e) {

@@ -53,6 +53,17 @@ public class ServerConnection {
     @XmlElement
     private String localShellWorkingDirectory;
 
+    /**
+     * For LOCAL_SHELL connections: start bash, zsh or fish with korTTY's shell-integration wrapper,
+     * which runs the user's own startup files and then the shell-integration snippet. Opt-in; null
+     * (written as nothing) means off. Never applies to SSH, Mosh or Teamwork connections: see
+     * {@link de.kortty.core.LocalShellTtyConnector#wantsShellIntegrationInjection}. Exports leave it
+     * behind and Teamwork files never switch it on, so it is only ever set on the computer the
+     * shell runs on.
+     */
+    @XmlElement
+    private Boolean shellIntegrationAutoInject;
+
     @XmlElement
     private ConnectionSettings settings;
     
@@ -206,6 +217,7 @@ public class ServerConnection {
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.shellIntegrationAutoInject = source.shellIntegrationAutoInject;
         c.settings = source.settings;
         c.windowGeometry = source.windowGeometry;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
@@ -255,6 +267,7 @@ public class ServerConnection {
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.shellIntegrationAutoInject = source.shellIntegrationAutoInject;
         c.authMethod = source.authMethod;
         c.privateKeyPath = source.privateKeyPath;
         c.terminalEffectPluginId = source.terminalEffectPluginId;
@@ -277,9 +290,10 @@ public class ServerConnection {
     /**
      * Copy written to a connection export: configuration is exported unconditionally, while
      * username, password/credential reference, tunnels and jump server follow the export dialog's
-     * checkboxes. Usage statistics, capture configs, temporary keys, AI assignments and teamwork
-     * provenance never leave the machine. Every persisted field must be classified as carried,
-     * conditional or excluded in ServerConnectionCopyPolicyTest.
+     * checkboxes. Usage statistics, capture configs, temporary keys, AI assignments, teamwork
+     * provenance and the local shell's shell-integration wrapper choice never leave the machine.
+     * Every persisted field must be classified as carried, conditional or excluded in
+     * ServerConnectionCopyPolicyTest.
      */
     public static ServerConnection copyForExport(ServerConnection source, boolean includeUsername,
             boolean includePassword, boolean includeTunnels, boolean includeJumpServer) {
@@ -439,6 +453,19 @@ public class ServerConnection {
 
     public void setLocalShellWorkingDirectory(String localShellWorkingDirectory) {
         this.localShellWorkingDirectory = localShellWorkingDirectory;
+    }
+
+    /**
+     * Whether this local shell connection starts its shell with korTTY's shell-integration wrapper;
+     * the stored choice only. Whether a shell actually gets it is decided at its start.
+     */
+    public boolean isShellIntegrationAutoInject() {
+        return Boolean.TRUE.equals(shellIntegrationAutoInject);
+    }
+
+    /** Switches the shell-integration wrapper on or off; off is stored as nothing. */
+    public void setShellIntegrationAutoInject(boolean shellIntegrationAutoInject) {
+        this.shellIntegrationAutoInject = shellIntegrationAutoInject ? Boolean.TRUE : null;
     }
 
     public ConnectionSettings getSettings() {

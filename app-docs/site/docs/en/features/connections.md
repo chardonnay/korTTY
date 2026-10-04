@@ -112,6 +112,8 @@ A **Local Shell** connection spawns a local pseudo-terminal (PTY) on your own ma
 
 A free-form **Custom command** field accepts any executable with arguments (e.g. `pwsh.exe`, `wsl.exe -d Ubuntu`, a Git Bash path), and an optional **start directory** can be set. The command parser is quote-aware, so shell paths containing spaces — like `"C:\Program Files\Git\bin\bash.exe"` — launch correctly.
 
+**Add shell integration automatically**, below the start directory, starts bash, zsh or fish with korTTY's [shell integration](shell-integration.md#local-shells) without a snippet in your startup files, which korTTY never changes: the shell first runs your own startup files and then korTTY's snippet, so you can jump between prompts and see how each command ended. It is off until you tick it, the line under it says when the selected shell cannot get it, and it never applies to SSH or Mosh connections or to connections shared through Teamwork; an export leaves it behind.
+
 When korTTY runs from its Flatpak package, the local shell is started on the host through `flatpak-spawn --host`, including the selected start directory and terminal locale. The package has host-filesystem access so terminal file actions can use host paths. Because the sandbox-side process ID belongs to `flatpak-spawn` rather than the host shell, current-directory tracking uses trusted absolute prompt paths instead of reading `/proc/<pid>/cwd`; if no safe host path can be established, path-dependent actions stop with an explicit error.
 
 ### Terminal features in local shells

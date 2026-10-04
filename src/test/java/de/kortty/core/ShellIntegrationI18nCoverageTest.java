@@ -68,6 +68,7 @@ class ShellIntegrationI18nCoverageTest {
         "terminal.shellIntegration.setup.copied",
         "terminal.shellIntegration.setup.copiedInternal",
         "terminal.shellIntegration.setup.check",
+        "terminal.shellIntegration.setup.local",
         "terminal.shellIntegration.setup.manual");
 
     @Test
