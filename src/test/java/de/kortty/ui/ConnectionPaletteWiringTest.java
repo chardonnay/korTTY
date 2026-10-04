@@ -27,7 +27,8 @@ class ConnectionPaletteWiringTest {
     void aChosenConnectionSignsInLikeTheConnectionManagerAndCountsAsUsed() throws IOException {
         String source = source(MAIN_WINDOW);
 
-        assertThat(methodBody(source, "private void showCommandPalette() {"))
+        assertThat(methodBody(source,
+            "private void showCommandPalette(de.kortty.ui.actions.PaletteEntry.@Nullable Kind scope) {"))
             .contains("ConnectionPaletteRows.source(app,\n"
                 + "                        connection -> connectSavedConnection(connection, true, tab -> { })),");
         assertWithMessage("the Connection Manager keeps not counting its connects")

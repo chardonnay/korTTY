@@ -54,7 +54,7 @@ class CommandPaletteI18nCoverageTest {
         "messages_nl.properties", Set.of("palette.category.terminal"));
 
     private static List<String> keys() {
-        List<String> keys = new ArrayList<>(List.of("menu.view.commandPalette"));
+        List<String> keys = new ArrayList<>(List.of("menu.view.commandPalette", "menu.view.snippetPalette"));
         keys.addAll(CommandPalettePopup.KEYS);
         keys.addAll(TAB_ACTION_KEYS);
         keys.addAll(TabPaletteRows.KEYS);
@@ -92,10 +92,12 @@ class CommandPaletteI18nCoverageTest {
             assertWithMessage(bundle).that(localized.getProperty("palette.scopes")).contains("{0}");
             assertWithMessage(bundle).that(localized.getProperty("palette.detail.window")).contains("{0}");
             assertWithMessage(bundle).that(localized.getProperty("policy.server.blocked.message")).contains("{0}");
-            for (String key : List.of("palette.hint.snippet", "palette.detail.runIn", "palette.detail.runInFirstPane",
+            for (String key : List.of("palette.hint.snippet", "palette.detail.runIn", "palette.detail.runInPane",
                     "palette.snippet.noTerminal")) {
                 assertWithMessage(bundle + " " + key).that(localized.getProperty(key)).contains("{0}");
             }
+            assertWithMessage(bundle + " palette.detail.runInPane names the pane")
+                .that(localized.getProperty("palette.detail.runInPane")).contains("{1}");
         }
     }
 

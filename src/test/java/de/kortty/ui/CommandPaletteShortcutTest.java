@@ -63,16 +63,17 @@ class CommandPaletteShortcutTest {
         assertThat(view).contains("commandPalette.setAccelerator(COMMAND_PALETTE_ACCELERATOR);");
         assertThat(view).contains("commandPalette.setOnAction(e -> Platform.runLater(this::showCommandPalette));");
         assertThat(view).contains("ActionIds.exclude(commandPalette);");
-        assertThat(view).contains("viewMenu.getItems().addAll(commandPalette, new SeparatorMenuItem(),");
+        assertThat(view).contains("viewMenu.getItems().addAll(commandPalette, snippetPalette, new SeparatorMenuItem(),");
     }
 
     @Test
     void thePaletteRefreshesTheMenusAndLetsOnlyItsChordThrough() throws IOException {
         String source = source();
-        String show = methodBody(source, "private void showCommandPalette() {");
+        String show = methodBody(source,
+            "private void showCommandPalette(de.kortty.ui.actions.PaletteEntry.@Nullable Kind scope) {");
         assertWithMessage("states are refreshed before the palette reads them")
             .that(show.indexOf("refreshActionStates();"))
-            .isLessThan(show.indexOf("commandPalette.show(sceneRoot);"));
+            .isLessThan(show.indexOf("commandPalette.show(sceneRoot, scope);"));
         assertWithMessage("the chord in effect, read per key event, so a rebinding reaches an open palette")
             .that(show).contains("PaletteKeys.passThrough(commandPaletteChord::chord, isMacOs())");
         assertThat(show).contains("new ActionPaletteSource(actionRegistry(), KeyCombination::getDisplayText,");
@@ -143,6 +144,13 @@ class CommandPaletteShortcutTest {
         while (field.find()) {
             routedDefaults.put(field.group(1), field.group(2));
         }
+        // An entry without a default chord (RoutedChord.unbound) consumes only a chord the user chose.
+        List<String> unbound = new ArrayList<>();
+        Matcher unboundField = Pattern.compile("private final RoutedChord (\\w+) = RoutedChord\\.unbound\\(").matcher(source);
+        while (unboundField.find()) {
+            unbound.add(unboundField.group(1));
+        }
+        assertThat(unbound).contains("snippetPaletteChord");
         List<String> paneDefaults = new ArrayList<>();
         Matcher pane = Pattern.compile("PaneShortcuts\\.PaneAction\\.\\w+, (PANE_\\w+_ACCELERATOR)").matcher(source);
         while (pane.find()) {
@@ -159,6 +167,8 @@ class CommandPaletteShortcutTest {
             List<String> names = new ArrayList<>();
             if (used.group(1) != null) {
                 names.add(used.group(1));
+            } else if (unbound.contains(used.group(2))) {
+                continue;
             } else if ("paneChord".equals(used.group(2))) {
                 names.addAll(paneDefaults);
             } else {

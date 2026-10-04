@@ -1,5 +1,6 @@
 package de.kortty.ui;
 
+import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.SnippetOneLiner;
@@ -33,7 +34,8 @@ import java.util.function.Supplier;
 /**
  * Resolving a snippet for use and sending it to a terminal: the variable dialogs, the one-liner
  * payload (stderr banner, then the embedded base64 pipe or the compact form), the send into the
- * main window's snippet target terminal and the usage counter. Extracted from
+ * main window's snippet target terminal (or, for the command palette, into one pane of it) and the
+ * usage counter. Extracted from
  * {@link SnippetLibraryPane} so other entry points can run a snippet the same way; the caller
  * supplies the owner of the dialogs and what follows a usage bump (the library refreshes its table).
  */
@@ -146,6 +148,127 @@ final class SnippetTerminalSend {
             }
         } catch (Exception e) {
             logger.error("Failed to insert snippet into terminal", e);
+        }
+    }
+
+    /**
+     * What a pane-precise send needs from the tab that holds the pane: whether the pane is still open,
+     * whether it is busy with input korTTY must not type into ({@link TerminalView#isPaneBusyWithInput}),
+     * and the send itself ({@link TerminalView#sendInputLineToPane}). Generic over the pane type so the
+     * decision can be tested without a toolkit.
+     */
+    interface PaneInput<W> {
+        boolean hasPane(W pane);
+
+        boolean isBusy(W pane);
+
+        boolean sendLine(W pane, String line, boolean generatedOneLiner);
+    }
+
+    /** How a pane-precise send ended. */
+    enum PaneSendOutcome {
+        /** The line went to the pane's session. */
+        SENT,
+        /** The pane, or its tab, closed. */
+        PANE_GONE,
+        /** A full-screen program or a paced paste has the pane; nothing was typed. */
+        PANE_BUSY,
+        /** The pane has no connected session, or the write failed. */
+        NOT_SENT
+    }
+
+    /**
+     * The pane of a tab a snippet from the command palette runs in: {@code focused}, the pane that has
+     * (or last had) the keyboard focus, while it is one of {@code panes}; otherwise the first pane.
+     * {@code null} for a tab without panes.
+     */
+    static <W> W targetPane(List<W> panes, W focused) {
+        if (panes == null || panes.isEmpty()) {
+            return null;
+        }
+        return focused != null && panes.contains(focused) ? focused : panes.get(0);
+    }
+
+    /**
+     * Writes {@code payload} plus a newline to {@code pane} only, after checking that it is still open
+     * and not busy with input; never to another pane, and never mirrored by broadcast or multi-exec.
+     */
+    static <W> PaneSendOutcome deliverToPane(PaneInput<W> input, W pane, String payload, boolean generatedOneLiner) {
+        if (pane == null || !input.hasPane(pane)) {
+            return PaneSendOutcome.PANE_GONE;
+        }
+        if (input.isBusy(pane)) {
+            return PaneSendOutcome.PANE_BUSY;
+        }
+        return input.sendLine(pane, payload, generatedOneLiner) ? PaneSendOutcome.SENT : PaneSendOutcome.NOT_SENT;
+    }
+
+    /** {@link PaneInput} over a terminal tab's view. FX thread. */
+    private static PaneInput<SithTermFxWidget> paneInput(TerminalView view) {
+        return new PaneInput<>() {
+            @Override
+            public boolean hasPane(SithTermFxWidget pane) {
+                return view.hasPane(pane);
+            }
+
+            @Override
+            public boolean isBusy(SithTermFxWidget pane) {
+                return view.isPaneBusyWithInput(pane);
+            }
+
+            @Override
+            public boolean sendLine(SithTermFxWidget pane, String line, boolean generatedOneLiner) {
+                return view.sendInputLineToPane(pane, line, generatedOneLiner);
+            }
+        };
+    }
+
+    /**
+     * Send to Terminal into one pane: the command palette's rows run their snippet in the pane they
+     * named, the focused pane of {@code tab} when the palette opened. Nothing is sent when {@code tab}
+     * left {@code mainWindow}'s window or {@code pane} closed (korTTY says no terminal is open), or when
+     * the pane is busy with a full-screen program or a paste (checked before the variable prompt and
+     * again right before the send). After the send the tab is selected and the pane gets the focus.
+     */
+    void sendToPane(Snippet snippet, Supplier<MainWindow> mainWindow, TerminalTab tab, SithTermFxWidget pane) {
+        MainWindow window = mainWindow.get();
+        if (window == null) {
+            return;
+        }
+        TerminalView view = tab != null && window.holdsTab(tab) ? tab.getTerminalView() : null;
+        if (view == null || !view.hasPane(pane)) {
+            showInfo(I18n.get("snippets.noTerminalOpen"));
+            return;
+        }
+        String paneName = TerminalPaneRef.displayName(tab.getText(), view.getOrderedWidgets().indexOf(pane) + 1,
+            view.getTerminalPaneCount());
+        if (view.isPaneBusyWithInput(pane)) {
+            showInfo(I18n.get("snippets.insertTerminal.paneBusy", paneName));
+            return;
+        }
+
+        SnippetPlaceholderResolver.ResolvedSnippet resolvedSnippet = resolveAndPrompt(snippet);
+        if (resolvedSnippet == null || resolvedSnippet.text().isBlank()) {
+            return;
+        }
+        String toSend = buildOneLinerPayloadForTerminal(resolvedSnippet.text(), snippet.getLanguage(), bannerText(snippet));
+        if (toSend == null) {
+            showInfo(I18n.get("snippets.insertTerminal.onelinerFailed"));
+            return;
+        }
+        // The variable prompt may have taken a while: the tab, the pane and its state are read again.
+        PaneSendOutcome outcome = window.holdsTab(tab)
+            ? deliverToPane(paneInput(view), pane, toSend, SnippetOneLiner.isEmbeddedSupported(snippet.getLanguage()))
+            : PaneSendOutcome.PANE_GONE;
+        switch (outcome) {
+            case SENT -> {
+                window.revealSnippetInsertTarget(tab);
+                view.focusWidget(pane);
+                logger.info("Snippet '{}' sent to a terminal pane (one-liner where supported)", snippet.getName());
+            }
+            case PANE_GONE -> showInfo(I18n.get("snippets.noTerminalOpen"));
+            case PANE_BUSY -> showInfo(I18n.get("snippets.insertTerminal.paneBusy", paneName));
+            case NOT_SENT -> showInfo(I18n.get("snippets.insertTerminal.paneNotSent", paneName));
         }
     }
 

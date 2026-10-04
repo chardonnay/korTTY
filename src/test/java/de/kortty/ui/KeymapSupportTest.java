@@ -295,6 +295,27 @@ class KeymapSupportTest {
     }
 
     @Test
+    void anUnboundRoutedChordMatchesNothingUntilTheUserBindsOne() {
+        RoutedChord chord = RoutedChord.unbound("menu.view.snippetPalette");
+        Map<String, KeyChord> defaults = new java.util.HashMap<>();
+        defaults.put("menu.view.snippetPalette", null);
+
+        assertThat(chord.defaultChord()).isNull();
+        assertThat(chord.chord()).isNull();
+        assertThat(chord.matches(press(KeyCode.J, true, false, false, true, true))).isFalse();
+
+        chord.bind(KeymapOverrides.empty().resolve(defaults, KeymapOverrides.Rules.of(Os.LINUX)));
+        assertWithMessage("no override keeps it without a chord").that(chord.chord()).isNull();
+
+        chord.bind(KeymapOverrides.parse(List.of("menu.view.snippetPalette=Shortcut+Alt+K"))
+            .resolve(defaults, KeymapOverrides.Rules.of(Os.LINUX)));
+        assertThat(chord.chord()).isEqualTo(KeymapSupport.combinationOf(KeyChord.parse("Shortcut+Alt+K")));
+        assertThat(chord.matches(press(KeyCode.K, false, false, true, true, true))).isTrue();
+        assertWithMessage("a chord the user chose swallows whatever it types")
+            .that(chord.residue()).isEqualTo(Residue.anyCharacter());
+    }
+
+    @Test
     void aRoutedChordBindsFromTheResolutionAndFallsBackToItsDefault() {
         RoutedChord chord = new RoutedChord("menu.view.commandPalette", PALETTE, PaletteKeys.RESIDUE);
         Map<String, KeyChord> defaults = Map.of("menu.view.commandPalette", KeyChord.parse("Shortcut+Shift+P"));

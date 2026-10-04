@@ -301,6 +301,10 @@ public class MainWindow {
     // types; applyKeymap() puts it on the user's shortcut override. The router reads them per key.
     private final RoutedChord commandPaletteChord =
         new RoutedChord("menu.view.commandPalette", COMMAND_PALETTE_ACCELERATOR, PaletteKeys.RESIDUE);
+    // View > Snippet Palette: the palette opened on its snippets ('$'). Without a default chord, since
+    // Cmd/Ctrl+Shift+J (the one asked for) is the JobScheduler's; the user can bind one under
+    // Settings > Keyboard, and the router then takes it also while a terminal has the focus.
+    private final RoutedChord snippetPaletteChord = RoutedChord.unbound("menu.view.snippetPalette");
     private final RoutedChord menuBarToggleChord =
         new RoutedChord("menu.view.menuBar", MENU_BAR_TOGGLE_ACCELERATOR, Residue.ofLetter('L'));
     private final RoutedChord terminalOnlyFullscreenChord = new RoutedChord(
@@ -2216,6 +2220,12 @@ public class MainWindow {
         // Not a command of the palette itself.
         ActionIds.exclude(commandPalette);
 
+        // The palette on its snippets alone, '$' already typed, so they run in the focused pane. No
+        // default shortcut (see snippetPaletteChord); a chord bound under Settings > Keyboard shows here.
+        // Like the command palette it opens in the frontmost open window from a closed window's menu bar.
+        MenuItem snippetPalette = menuItem("menu.view.snippetPalette");
+        snippetPalette.setOnAction(e -> Platform.runLater(this::showSnippetPalette));
+
         CheckMenuItem dashboardItem = checkMenuItem("menu.view.dashboard");
         dashboardItem.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         dashboardItem.setSelected(restoreDashboard);
@@ -2435,7 +2445,7 @@ public class MainWindow {
             systemHideFullscreenScrollbarsMenuItem = hideFullscreenScrollbars;
         }
 
-        viewMenu.getItems().addAll(commandPalette, new SeparatorMenuItem(),
+        viewMenu.getItems().addAll(commandPalette, snippetPalette, new SeparatorMenuItem(),
             dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
             journalLivePanelMenu, codingAgentPanelMenu, remoteSidebarMenu,
             new SeparatorMenuItem(),
@@ -3000,6 +3010,10 @@ public class MainWindow {
             // chord's KEY_TYPED goes to the palette, which drops it; on closing, the guard swallows it.
             .consume(commandPaletteChord::matches, SceneShortcutRouter.ALWAYS,
                 this::toggleCommandPalette, commandPaletteChord::residue)
+            // The snippet palette, once the user gave it a chord, as the command palette: pressed
+            // while the palette shows, it closes it.
+            .consume(snippetPaletteChord::matches, SceneShortcutRouter.ALWAYS,
+                this::toggleSnippetPalette, snippetPaletteChord::residue)
             .consume(menuBarToggleChord::matches, SceneShortcutRouter.ALWAYS,
                 () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), menuBarToggleChord::residue)
             .consume(terminalOnlyFullscreenChord::matches, SceneShortcutRouter.ALWAYS,
@@ -3100,7 +3114,7 @@ public class MainWindow {
 
     /** Every rebindable chord of this window's scene shortcut router. */
     private List<RoutedChord> routedChords() {
-        List<RoutedChord> chords = new ArrayList<>(List.of(commandPaletteChord, menuBarToggleChord,
+        List<RoutedChord> chords = new ArrayList<>(List.of(commandPaletteChord, snippetPaletteChord, menuBarToggleChord,
             terminalOnlyFullscreenChord, highlightingToggleChord, credentialsChord, reopenClosedTabChord,
             quickSelectChord));
         chords.addAll(paneChords.values());
@@ -3220,14 +3234,34 @@ public class MainWindow {
         }
     }
 
-    /**
-     * View → Command Palette… and Cmd/Ctrl+Shift+P: brings the menu items' states up to date, then
-     * shows the palette over this window's commands, the open tabs, the saved and teamwork
-     * connections and the snippets, centred at the top of the window. A connection opens like
-     * Connect in the Connection Manager and counts as a use of it; a snippet runs like Send to
-     * Terminal in the Snippet Manager, in the first pane of the terminal tab its row names.
-     */
+    /** The snippet palette's chord, once the user bound one: opens it, or closes the palette while it shows. */
+    private void toggleSnippetPalette() {
+        if (commandPalette != null && commandPalette.isShowing()) {
+            commandPalette.hide();
+        } else {
+            showSnippetPalette();
+        }
+    }
+
+    /** View → Snippet Palette…: the command palette with {@code $} typed, listing only the snippets. */
+    private void showSnippetPalette() {
+        showCommandPalette(de.kortty.ui.actions.PaletteEntry.Kind.SNIPPET);
+    }
+
+    /** View → Command Palette… and Cmd/Ctrl+Shift+P: the whole palette, see {@link #showCommandPalette(de.kortty.ui.actions.PaletteEntry.Kind)}. */
     private void showCommandPalette() {
+        showCommandPalette(null);
+    }
+
+    /**
+     * Brings the menu items' states up to date, then shows the palette over this window's commands,
+     * the open tabs, the saved and teamwork connections and the snippets, centred at the top of the
+     * window; with {@code scope} its scope prefix is already typed and only that kind is listed. A
+     * connection opens like Connect in the Connection Manager and counts as a use of it; a snippet
+     * runs like Send to Terminal in the Snippet Manager, in the pane its row names: the focused pane
+     * of the terminal tab Send to Terminal picks.
+     */
+    private void showCommandPalette(de.kortty.ui.actions.PaletteEntry.@Nullable Kind scope) {
         if (sceneRoot == null || sceneRoot.getScene() == null || sceneRoot.getScene().getWindow() == null) {
             return;
         }
@@ -3242,9 +3276,10 @@ public class MainWindow {
                     ConnectionPaletteRows.source(app,
                         connection -> connectSavedConnection(connection, true, tab -> { })),
                     SnippetPaletteRows.source(app, this)),
-                PaletteKeys.passThrough(commandPaletteChord::chord, isMacOs()));
+                PaletteKeys.passThrough(commandPaletteChord::chord, isMacOs())
+                    .or(PaletteKeys.passThrough(snippetPaletteChord::chord, isMacOs())));
         }
-        commandPalette.show(sceneRoot);
+        commandPalette.show(sceneRoot, scope);
     }
 
     /** This window's tabs for the palette, the most recently used first, and the one it shows. */

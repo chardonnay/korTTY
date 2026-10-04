@@ -582,7 +582,7 @@ JobScheduler snippet jobs and **Run script…** in the AI Swarm cannot ask for a
 
 ## Sending snippets to the terminal
 
-The Snippet Manager can send a selected snippet directly to a terminal of its main window: the selected terminal tab, or — when the Snippet Manager is itself the selected tab — the terminal tab you used last (or the only one that is open). korTTY then switches to that tab and shows **Sent to …** in the status bar. **Insert into editor** picks the file editor tab the same way. The snippet is written to the tab's first pane, the one the tab opened with, also when another pane of a split tab has the focus.
+The Snippet Manager can send a selected snippet directly to a terminal of its main window: the selected terminal tab, or — when the Snippet Manager is itself the selected tab — the terminal tab you used last (or the only one that is open). korTTY then switches to that tab and shows **Sent to …** in the status bar. **Insert into editor** picks the file editor tab the same way. The snippet is written to the tab's first pane, the one the tab opened with, also when another pane of a split tab has the focus. A snippet you run from the [command palette](command-palette.md#running-snippets) goes to the focused pane instead.
 
 Without opening the Snippet Manager, the [command palette](command-palette.md#running-snippets) runs a snippet the same way: press ++ctrl+shift+p++ (++cmd+shift+p++ on macOS), type `$` and part of the snippet's name, and press ++enter++; each row names the terminal it runs in, and ++alt+enter++ (++option+enter++ on macOS) opens the snippet here instead.
 

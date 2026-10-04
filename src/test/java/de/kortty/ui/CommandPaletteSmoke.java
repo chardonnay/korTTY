@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * the chosen command runs, a command that cannot run keeps the palette open and says why, the
  * tab rows list the previous tab first and select it on Enter, the connection rows list the
  * connection used last first, keep a blocked one from connecting and connect the chosen one, and
- * the snippet rows name the first pane they run in, are found by a tag but not by that terminal,
+ * the snippet rows name the pane they run in, are found by a tag but not by that terminal,
  * open on Alt/Option+Enter and run on Enter, and a title as long as a row shows leaves the detail
  * with the real user@host in sight.
  * Key events are fired at the terminal canvas, so they take the real way through the window, which
@@ -144,7 +144,7 @@ public final class CommandPaletteSmoke {
                         }
                     },
                     connection -> log.add("connect " + connection.getName()));
-                // Snippet rows: two snippets that run in web-01's first pane (the tab is split).
+                // Snippet rows: two snippets that run in web-01's second pane (the tab is split, pane 2 focused).
                 Snippet disk = new Snippet("Disk usage", "df -h", "bash");
                 disk.setLastUsed(3_000);
                 disk.setTags(new java.util.ArrayList<>(List.of("storage")));
@@ -152,7 +152,7 @@ public final class CommandPaletteSmoke {
                 SnippetPaletteSource snippets = new SnippetPaletteSource(
                     new SnippetPaletteSource.Library(() -> List.of(restart, disk), snippet -> ""),
                     () -> new SnippetPaletteSource.Target(
-                        SnippetPaletteSource.targetName("web-01", "admin", "web-01.example.org", "web-01"), true,
+                        SnippetPaletteSource.targetName("web-01", "admin", "web-01.example.org", "web-01"), 2,
                         snippet -> log.add("run snippet " + snippet.getName())),
                     new SnippetPaletteSource.Texts() {
                         @Override
@@ -161,8 +161,8 @@ public final class CommandPaletteSmoke {
                         }
 
                         @Override
-                        public String runInFirstPane(String target) {
-                            return I18n.get("palette.detail.runInFirstPane", target);
+                        public String runInPane(String target, int pane) {
+                            return I18n.get("palette.detail.runInPane", target, pane);
                         }
 
                         @Override
@@ -373,7 +373,7 @@ public final class CommandPaletteSmoke {
             await("the connection was never opened", () -> log.contains("connect web-01"));
             check(!onFxThread(palette::isShowing), "connecting left the palette open");
 
-            // 8. '$' lists the snippets, the last used first, each naming the first pane it runs in;
+            // 8. '$' lists the snippets, the last used first, each naming the pane it runs in;
             // the footer names Alt/Option+Enter; Alt/Option+Enter opens instead of running, Enter runs.
             onFxThread(() -> {
                 palette.show(canvas);
@@ -384,7 +384,7 @@ public final class CommandPaletteSmoke {
                 onFxThread(() -> palette.list().getItems().stream().map(e -> e.title()).toList());
             check(snippetTitles.equals(List.of("Disk usage", "Restart nginx")), "unexpected snippet rows: " + snippetTitles);
             String snippetDetail = onFxThread(() -> palette.list().getItems().get(0).detail());
-            check(snippetDetail.equals(I18n.get("palette.detail.runInFirstPane", "admin@web-01.example.org (web-01)")),
+            check(snippetDetail.equals(I18n.get("palette.detail.runInPane", "admin@web-01.example.org (web-01)", 2)),
                 "the snippet row does not name its pane: " + snippetDetail);
             check(onFxThread(() -> palette.footer().getText())
                     .startsWith(I18n.get("palette.hint.snippet", CommandPalettePopup.alternateChordText())),

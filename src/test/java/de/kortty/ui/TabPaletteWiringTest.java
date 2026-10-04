@@ -60,7 +60,8 @@ class TabPaletteWiringTest {
     void thePaletteListsTheTabsInTheirOrderAndRaisesAnotherWindow() throws IOException {
         String source = source(MAIN_WINDOW);
 
-        assertThat(methodBody(source, "private void showCommandPalette() {"))
+        assertThat(methodBody(source,
+            "private void showCommandPalette(de.kortty.ui.actions.PaletteEntry.@Nullable Kind scope) {"))
             .contains("new TabPaletteSource(this::paletteOwnTabs, this::paletteOtherWindowTabs,");
         assertThat(methodBody(source, "private TabPaletteSource.WindowTabs paletteOwnTabs() {"))
             .contains("tabMru.order(tabPane.getTabs())");

@@ -14,8 +14,8 @@ import java.util.function.Consumer;
 import static com.google.common.truth.Truth.assertThat;
 
 /**
- * The command palette's snippet rows: every row names the terminal the snippet would run in, and its
- * first pane when the tab is split; without a terminal the rows cannot run and say why, but
+ * The command palette's snippet rows: every row names the terminal the snippet would run in, and the
+ * pane's number when the tab is split; without a terminal the rows cannot run and say why, but
  * Alt+Enter still opens them; a row runs in exactly the terminal it named when the palette opened;
  * the last used come first; and a row is found by its name, folder, category and tags but never by
  * the terminal it names.
@@ -32,8 +32,8 @@ class SnippetPaletteSourceTest {
         }
 
         @Override
-        public String runInFirstPane(String target) {
-            return "Run in the first pane of " + target;
+        public String runInPane(String target, int pane) {
+            return "Run in pane " + pane + " of " + target;
         }
 
         @Override
@@ -68,7 +68,11 @@ class SnippetPaletteSourceTest {
     }
 
     private static SnippetPaletteSource.Target terminal(String name, boolean split, List<String> sent) {
-        return new SnippetPaletteSource.Target(name, split, snippet -> sent.add(name + ": " + snippet.getName()));
+        return terminal(name, split ? 2 : 0, sent);
+    }
+
+    private static SnippetPaletteSource.Target terminal(String name, int pane, List<String> sent) {
+        return new SnippetPaletteSource.Target(name, pane, snippet -> sent.add(name + ": " + snippet.getName()));
     }
 
     private static List<String> titles(List<PaletteEntry> entries) {
@@ -76,7 +80,7 @@ class SnippetPaletteSourceTest {
     }
 
     @Test
-    void everyRowNamesTheTerminalAndItsFirstPaneWhenTheTabIsSplit() {
+    void everyRowNamesTheTerminalAndItsPaneWhenTheTabIsSplit() {
         List<String> sent = new ArrayList<>();
         AtomicReference<SnippetPaletteSource.Target> target =
             new AtomicReference<>(terminal("web-01 (admin@web-01)", false, sent));
@@ -94,7 +98,13 @@ class SnippetPaletteSourceTest {
         assertThat(single.enabled()).isTrue();
         assertThat(single.disabledReason()).isEmpty();
         assertThat(single.shortcut()).isEmpty();
-        assertThat(split.detail()).isEqualTo("Run in the first pane of web-01 (admin@web-01)");
+        assertThat(split.detail()).isEqualTo("Run in pane 2 of web-01 (admin@web-01)");
+        assertThat(single.disabledReason()).isEmpty();
+
+        target.set(terminal("web-01 (admin@web-01)", 1, sent));
+        assertThat(source.entries().get(0).detail()).isEqualTo("Run in pane 1 of web-01 (admin@web-01)");
+        assertThat(new SnippetPaletteSource.Target("x", 0, s -> { }).split()).isFalse();
+        assertThat(new SnippetPaletteSource.Target("x", 3, s -> { }).split()).isTrue();
     }
 
     @Test
@@ -238,7 +248,7 @@ class SnippetPaletteSourceTest {
 
         String detail = source.entries().get(0).detail();
 
-        assertThat(detail).startsWith("Run in the first pane of evil@attacker.example (prod-db (root@db-01");
+        assertThat(detail).startsWith("Run in pane 2 of evil@attacker.example (prod-db (root@db-01");
         assertThat(detail.length()).isAtMost(PaletteText.MAX_LENGTH);
     }
 
@@ -249,7 +259,7 @@ class SnippetPaletteSourceTest {
         Consumer<Snippet> nothing = s -> { };
         SnippetPaletteSource source = new SnippetPaletteSource(
             new SnippetPaletteSource.Library(() -> List.of(snippet), s -> ""),
-            () -> new SnippetPaletteSource.Target("web‮-01", false, nothing), TEXTS, nothing);
+            () -> new SnippetPaletteSource.Target("web‮-01", 0, nothing), TEXTS, nothing);
 
         PaletteEntry row = source.entries().get(0);
 

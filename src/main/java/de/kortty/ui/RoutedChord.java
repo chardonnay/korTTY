@@ -25,7 +25,7 @@ import java.util.Objects;
 final class RoutedChord {
 
     private final String actionId;
-    private final KeyCombination defaultChord;
+    private final @Nullable KeyCombination defaultChord;
     private final Residue defaultResidue;
     private @Nullable KeyCombination chord;
 
@@ -44,11 +44,28 @@ final class RoutedChord {
         this.chord = defaultChord;
     }
 
+    /** An action whose chord has no default: it has none until the user gives it one. */
+    private RoutedChord(@NotNull String actionId) {
+        this.actionId = Objects.requireNonNull(actionId, "actionId");
+        this.defaultChord = null;
+        this.defaultResidue = Residue.anyCharacter();
+        this.chord = null;
+    }
+
+    /**
+     * A rebindable action without a default chord (its menu item has no accelerator): it matches no
+     * key until the user binds one, and that chord swallows whatever its KEY_TYPED carries.
+     */
+    static RoutedChord unbound(@NotNull String actionId) {
+        return new RoutedChord(actionId);
+    }
+
     @NotNull String actionId() {
         return actionId;
     }
 
-    @NotNull KeyCombination defaultChord() {
+    /** The chord without an override; {@code null} for an action that has none ({@link #unbound}). */
+    @Nullable KeyCombination defaultChord() {
         return defaultChord;
     }
 
