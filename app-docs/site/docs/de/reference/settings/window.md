@@ -4,7 +4,7 @@ title: Fenster
 
 # Fenster
 
-Auf dieser Registerkarte werden das Verhalten der Fenstergeometrie, die Beibehaltung des Dashboard-Status, die Sichtbarkeit der Menüleiste, der Rahmen um das Terminal einer farbigen Verbindung und die Übernahme des von der Shell gesetzten Titels in Terminal-Tabs konfiguriert. Öffnen über **Konfiguration → Globale Einstellungen → Fenster**; in `~/.kortty/global-settings.xml` gespeichert.
+Auf dieser Registerkarte werden das Verhalten der Fenstergeometrie, die Beibehaltung des Dashboard-Status, die Sichtbarkeit der Menüleiste, der Rahmen um das Terminal einer farbigen Verbindung, die Übernahme des von der Shell gesetzten Titels in Terminal-Tabs und die Reihenfolge, in der ++ctrl+tab++ die Tabs wechselt, konfiguriert. Öffnen über **Konfiguration → Globale Einstellungen → Fenster**; in `~/.kortty/global-settings.xml` gespeichert.
 
 ![Window settings tab](../../assets/screenshots/settings/window.png)
 
@@ -15,6 +15,7 @@ Auf dieser Registerkarte werden das Verhalten der Fenstergeometrie, die Beibehal
 | Toolfenster als Registerkarten öffnen | umschalten | – | Aus | `openToolWindowsAsTabs` |
 | Terminal in der Tab-Farbe seiner Verbindung umrahmen | umschalten | — | Ein | `connectionColorBorderEnabled` |
 | Terminal-Tabs nach dem Titel benennen, den die Shell setzt | umschalten | — | Ein | `tabTitleFromShellEnabled` |
+| Strg+Tab wechselt die Tabs in der Reihenfolge ihrer letzten Nutzung | umschalten | — | Aus | `tabSwitchMostRecentFirst` |
 | Feste Fenstergeometrie verwenden | umschalten | – | Aus | `useFixedWindowGeometry` |
 | Breite: | Nummer | 400–4000 | – | `fixedWindowGeometry.width` |
 | Höhe: | Nummer | 300–3000 | – | `fixedWindowGeometry.height` |
@@ -42,3 +43,5 @@ Wenn **Fenstergeometrie merken** aktiviert ist, speichert KorTTY die Position un
     Der Rahmen belegt auf jeder Seite des Terminals 3 Pixel. Das Ein- oder Ausschalten ändert daher die Größe der offenen Terminals jeder farbigen Verbindung, und das Zuweisen oder Entfernen einer Tab-Farbe ändert die Größe der Terminals dieser Verbindung: Die Gegenseite erhält die neue Größe, und Vollbildprogramme wie `vim`, `htop` oder `less` zeichnen sich neu.
 
 **Terminal-Tabs nach dem Titel benennen, den die Shell setzt** lässt einen Terminal-Tab statt des Verbindungsnamens den Titel anzeigen, den die Shell oder ein anderes Programm darin mit der Escape-Sequenz OSC 0 oder OSC 2 setzt, etwa `user@host: directory`; ein Tab mit geteilten Bereichen zeigt den Titel seines fokussierten Bereichs. Ein Name, den Sie einem Tab mit [Tab umbenennen](../../features/terminal.md#arbeiten-mit-tabs) gegeben haben, hat weiterhin Vorrang. Diesen Titel bestimmt der Server, daher wird er von Steuer- und Bidi-Zeichen bereinigt, auf 80 Zeichen gekürzt und ändert nie die Tab-Farbe; wenn Sie auf einen solchen Tab zeigen, sehen Sie die Verbindung, zu der er gehört. Schalten Sie die Option aus, um auf jedem Tab die Verbindungsnamen zu behalten. Die Änderung gilt für die offenen Tabs aller Fenster, sobald Sie speichern. Siehe [Titel aus der Shell](../../features/terminal.md#titel-aus-der-shell).
+
+**Strg+Tab wechselt die Tabs in der Reihenfolge ihrer letzten Nutzung** ändert, was ++ctrl+tab++ und ++ctrl+shift+tab++ tun (++ctrl++ auch unter macOS). Ist die Option aus, gehen sie zum nächsten bzw. vorherigen Tab der Tab-Leiste. Ist sie an, springt ++ctrl+tab++ zu dem Tab zurück, den Sie vor dem aktuellen benutzt haben, sodass ein Tastendruck zwischen Ihren beiden zuletzt benutzten Tabs wechselt. Halten Sie ++ctrl++ gedrückt und drücken Sie erneut ++tab++, um weiter durch die Tabs zurückzugehen, vom zuletzt bis zum am längsten nicht benutzten, nehmen Sie ++shift++ hinzu, um in die andere Richtung zu gehen, und lassen Sie ++ctrl++ beim gewünschten Tab los; ++ctrl+shift+tab++ allein beginnt bei dem Tab, den Sie am längsten nicht benutzt haben. Nur der Tab, bei dem Sie anhalten, zählt als benutzt, sodass die Tabs, die Sie unterwegs passieren, ihren Platz in der Reihenfolge behalten. Eine andere Taste, die Auswahl eines Tabs mit der Maus oder der Wechsel in ein anderes Fenster beendet das Durchblättern ebenfalls bei dem erreichten Tab, und die gedrückte Taste wirkt dann auf diesen Tab. Es ist dieselbe Reihenfolge, in der die [Befehlspalette](../../features/command-palette.md#tabs-wechseln) die Tabs auflistet: Sie gilt, solange das Fenster besteht, und wird nie gespeichert. Die Änderung gilt für alle Fenster, sobald Sie speichern; auch **Nächster Tab** und **Vorheriger Tab** der Palette folgen ihr.

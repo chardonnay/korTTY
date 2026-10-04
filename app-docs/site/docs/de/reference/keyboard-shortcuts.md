@@ -6,13 +6,14 @@ Verwenden Sie unter macOS ++cmd++, wo ++ctrl++ angezeigt wird.
 
 | Verknüpfung | Aktion |
 | --- | --- |
+| ++ctrl+shift+p++ | Die [Befehlspalette](../features/command-palette.md) öffnen oder schließen, um einen beliebigen Menübefehl über seinen Namen zu finden und auszuführen, einen [Terminal- oder Tab-Befehl](../features/command-palette.md#terminal-und-tab-befehle) wie **Puffer löschen** auszuführen, [zu einem offenen Tab zu wechseln](../features/command-palette.md#tabs-wechseln), [eine gespeicherte Verbindung herzustellen](../features/command-palette.md#verbinden) oder [ein Snippet auszuführen](../features/command-palette.md#snippets-ausfuhren) (auch wenn ein Terminal den Fokus hat) |
 | ++ctrl+t++ | Neuer Tab (Schnellverbindung) |
 | ++ctrl+w++ | Tab schließen |
 | ++ctrl+alt+shift+t++ | Zuletzt geschlossenen Terminal-Tab wieder öffnen (auch wenn ein Terminal den Fokus hat) |
 | ++ctrl+shift+n++ | Neues Fenster |
 | ++ctrl+shift+w++ | Fenster schließen |
-| ++ctrl+tab++ | Nächster Tab (++ctrl++ auch auf macOS) |
-| ++ctrl+shift+tab++ | Vorheriger Tab (++ctrl++ auch auf macOS) |
+| ++ctrl+tab++ | Nächster Tab (++ctrl++ auch auf macOS); bei aktivierter [Reihenfolge der letzten Nutzung](settings/window.md#tabs) der Tab, der vor dem aktuellen benutzt wurde |
+| ++ctrl+shift+tab++ | Vorheriger Tab (++ctrl++ auch auf macOS); bei aktivierter Reihenfolge der letzten Nutzung der am längsten nicht benutzte Tab |
 | ++ctrl+1++ … ++ctrl+8++ | Zum ersten bis achten Tab des Fensters springen (obere Reihe oder Nummernblock) |
 | ++ctrl+9++ | Zum letzten Tab des Fensters springen |
 | ++ctrl+o++ | Projekt öffnen |
@@ -65,6 +66,8 @@ Die Zoom-Tasten (++ctrl++ oder ++alt++ mit ++plus++ / ++minus++ / ++0++; ++cmd++
 
 Die Tab-Sprungtasten funktionieren in jedem Tab, auch wenn ein Terminal oder ein Editor den Fokus hat, und eine Zahl, an deren Position kein Tab steht, bewirkt nichts. Auf macOS sind es ++cmd++ mit einer Ziffer, und ++cmd+shift++ mit einer Ziffer funktioniert ebenfalls, sodass ein französischer Mac (AZERTY) seine Ziffern erreichen kann (macOS reserviert ++cmd+shift+3++ bis ++cmd+shift+5++ für Bildschirmfotos). Unter Windows und Linux sind es genau ++ctrl++ mit einer Ziffer: ++alt-graph++-Kombinationen (die als ++ctrl+alt++ ankommen) und ++ctrl+shift+6++ (die Cisco-Break-Sequenz) erreichen weiterhin das Terminal. Eine Zifferntaste, die in Ihrer Tastaturbelegung ++plus++ oder ++minus++ eingibt, etwa die Taste 6 bei AZERTY, bleibt stattdessen eine Zoomtaste. Unter Linux mit einer Tastaturbelegung, deren Zahlenreihe andere Zeichen eingibt, springen die Ziffern der oberen Reihe möglicherweise nicht; die Ziffern des Nummernblocks (bei eingeschaltetem ++num-lock++) schon.
 
+++ctrl+tab++ und ++ctrl+shift+tab++ folgen der Tab-Leiste, es sei denn, **Strg+Tab wechselt die Tabs in der Reihenfolge ihrer letzten Nutzung** ist in den [Fenster-Einstellungen](settings/window.md#tabs) aktiviert. Dann springt ++ctrl+tab++ zu dem Tab zurück, den Sie vor dem aktuellen benutzt haben; halten Sie ++ctrl++ gedrückt und drücken Sie erneut ++tab++, um weiter zurückzugehen, nehmen Sie ++shift++ hinzu, um in die andere Richtung zu gehen, und lassen Sie ++ctrl++ beim gewünschten Tab los. Nur dieser Tab zählt als benutzt. Jede andere Taste beendet zuerst das Durchblättern und wirkt dann auf den Tab, bei dem Sie angehalten haben.
+
 Für „Geschlossenen Tab wieder öffnen“ wird ++ctrl+alt+shift+t++ verwendet, weil ++ctrl+shift+t++ die Befehlszeitstempel umschaltet und ++ctrl+alt+t++ das Sitzungsjournal. Unter Windows kommt ++alt-graph++ als ++ctrl+alt++ an; bei einer Tastaturbelegung, in der ++alt-graph+shift+t++ ein Zeichen eingibt (etwa `Þ` bei US-International), öffnet diese Kombination daher stattdessen einen geschlossenen Tab wieder, und das Zeichen wird nicht eingegeben.
 
 ## Terminal
@@ -91,11 +94,23 @@ Diese Tasten funktionieren, solange ein Terminalbereich den Fokus hat. Wie sie s
 
 Unter Windows und Linux erreichen ++ctrl+1++ bis ++ctrl+9++ das Programm im Terminal nicht mehr: Das Terminal von korTTY hat sie nie als eigene Tasten gesendet, daher verliert kein Programm eine Belegung, die es empfangen könnte.
 
-Auf Windows und Linux haben **Puffer löschen** und **Suchen** keine eigenen Tasten, daher bleiben ++ctrl+l++ und ++ctrl+f++ bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → **Puffer löschen** oder **Suchen** im Terminal, oder **Bearbeiten → Suchen…** mit der Maus. ++ctrl+shift+f++ bleibt **Nur korTTY Applikationsfenster**, und ++ctrl+shift+k++ dockt den Dateibrowser weiterhin links an. ++ctrl+shift+h++ schaltet die Hervorhebung von Schlüsselwörtern um und erreicht das Terminal nicht, während ein einfaches ++ctrl+h++ die Shell weiterhin als Rücktaste erreicht.
+Unter Windows und Linux haben **Puffer löschen** und **Suchen** keine eigenen Tasten, daher bleiben ++ctrl+l++ und ++ctrl+f++ bei den Programmen, die im Terminal laufen. Verwenden Sie Rechtsklick → **Puffer löschen** oder **Suchen** im Terminal, **Bearbeiten → Suchen…** mit der Maus, oder erreichen Sie beide per Tastatur über die [Befehlspalette](../features/command-palette.md#puffer-loschen-und-suchen-unter-windows-und-linux): ++ctrl+shift+p++, `puffer` oder `suchen` eingeben, ++enter++. ++ctrl+shift+f++ bleibt **Nur korTTY Applikationsfenster**, und ++ctrl+shift+k++ dockt den Dateibrowser weiterhin links an. ++ctrl+shift+h++ schaltet die Hervorhebung von Schlüsselwörtern um und erreicht das Terminal nicht, während ein einfaches ++ctrl+h++ die Shell weiterhin als Rücktaste erreicht.
 
 Die Einfügen-Tasten laufen über den [Einfügeschutz](../features/terminal.md#einfugeschutz): Eingefügter Text mit Zeilenumbrüchen, mit Steuerzeichen oder von großem Umfang kann zuerst eine Bestätigung öffnen. In diesem Dialog ist **Abbrechen** die Standardschaltfläche, sodass ++enter++, ++space++ und ++esc++ das Einfügen verwerfen; klicken Sie auf **Einfügen**, oder wechseln Sie mit ++tab++ dorthin und lösen Sie die Schaltfläche mit ++space++ aus. Während eingefügter Text Zeile für Zeile gesendet wird ([Pause nach jeder eingefügten Zeile](../features/terminal.md#einfugen-in-langsame-gerate)), nimmt der Bereich keine anderen Tasten an, und ++esc++ bricht das Einfügen ab.
 
 Jede andere Kombination von ++shift++, ++ctrl++ und ++alt++ mit den Pfeiltasten, ++home++ / ++end++, ++page-up++ / ++page-down++, ++insert++ / ++delete++ und ++f1++ bis ++f11++ wird so gesendet, wie xterm es sendet (++f12++ schaltet immer den Vollbildmodus um), zum Beispiel ++ctrl+page-up++ als `ESC [ 5 ; 5 ~` und ++shift+f1++ als `ESC [ 1 ; 2 P`. Die Pfeiltasten folgen dem Cursor-Key-Modus des Programms: `mc` und `vim` schalten ihn ein und dann empfangen sie `ESC O A`, während eine Shell `ESC [ A` erhält. Verbindungen mit einer Nicht-xterm-Terminalemulation (Wyse, TeleVideo, HP, SCO ANSI, IBM 3270/5250, PETSCII) senden weiterhin feste Sequenzen ohne Modifikatoren.
+
+## Befehlspalette
+
+Diese Tasten funktionieren, solange die [Befehlspalette](../features/command-palette.md) geöffnet ist. Jede andere Taste bleibt in der Palette und erreicht nie das Terminal dahinter.
+
+| Tastaturkürzel | Aktion |
+| --- | --- |
+| ++up++ / ++down++ | Zeile wählen |
+| ++enter++ | Palette schließen und die gewählte Zeile ausführen, oder die erste Zeile, wenn keine gewählt ist |
+| ++alt+enter++ | Das gewählte Snippet im Snippet-Manager öffnen, statt es auszuführen (++option+enter++ unter macOS); in jeder anderen Zeile wie ++enter++ |
+| ++tab++ / ++shift+tab++ | Zwischen Suchfeld und Liste wechseln |
+| ++esc++ oder ++ctrl+shift+p++ | Palette schließen (++cmd+shift+p++ unter macOS) |
 
 ## SFTP-Manager
 
