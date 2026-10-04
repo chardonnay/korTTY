@@ -116,6 +116,8 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
 
     private BooleanSupplier pasteTargetBroadcast = () -> false;
 
+    private BooleanSupplier pasteTargetMultiExec = () -> false;
+
     public KorttyTermWidget(int columns, int lines, SettingsProvider settingsProvider) {
         super(columns, lines, settingsProvider);
         // Replace SithTermFX's default OSC 8 provider before the pane is started: it opens file:
@@ -149,6 +151,19 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
         pasteTargetLabel = Objects.requireNonNull(label, "label");
         pasteTargetCharset = Objects.requireNonNull(charset, "charset");
         pasteTargetBroadcast = Objects.requireNonNull(broadcastActive, "broadcastActive");
+    }
+
+    /**
+     * {@link #describePasteTarget(Supplier, Supplier, BooleanSupplier)}, plus whether the pane takes
+     * part in multi-exec, which {@link PasteTarget#multiExecActive()} reports.
+     *
+     * @param multiExecActive whether what the pane receives as user input is mirrored to a multi-exec
+     *     group
+     */
+    public void describePasteTarget(@NotNull Supplier<String> label, @NotNull Supplier<Charset> charset,
+            @NotNull BooleanSupplier broadcastActive, @NotNull BooleanSupplier multiExecActive) {
+        describePasteTarget(label, charset, broadcastActive);
+        pasteTargetMultiExec = Objects.requireNonNull(multiExecActive, "multiExecActive");
     }
 
     /** The pane as a paste target: one object for the widget's whole life, keyed by the widget. */
@@ -726,6 +741,11 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
         @Override
         public boolean broadcastActive() {
             return pasteTargetBroadcast.getAsBoolean();
+        }
+
+        @Override
+        public boolean multiExecActive() {
+            return pasteTargetMultiExec.getAsBoolean();
         }
     }
 }

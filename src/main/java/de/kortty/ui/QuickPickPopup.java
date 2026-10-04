@@ -150,16 +150,26 @@ final class QuickPickPopup<T> {
 
     /** Shows the popup centred at the top of {@code anchor}, with an empty query. */
     void show(Node anchor) {
+        show(anchor, "");
+    }
+
+    /**
+     * Shows the popup centred at the top of {@code anchor} with {@code initialQuery} already typed and
+     * the caret after it, so what the user types next is added to it.
+     */
+    void show(Node anchor, String initialQuery) {
         if (anchor == null || anchor.getScene() == null || anchor.getScene().getWindow() == null) {
             return;
         }
-        field.clear();
-        refresh("");
+        String query = initialQuery != null ? initialQuery : "";
+        field.setText(query);
+        refresh(query);
         Bounds bounds = anchor.localToScreen(anchor.getBoundsInLocal());
         double x = bounds != null ? bounds.getMinX() + Math.max(0, (bounds.getWidth() - width) / 2) : 0;
         double y = bounds != null ? bounds.getMinY() + 40 : 0;
         popup.show(anchor, x, y);
         field.requestFocus();
+        field.positionCaret(query.length());
     }
 
     void hide() {

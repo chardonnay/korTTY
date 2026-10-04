@@ -20,9 +20,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
  * Every command palette string exists, translated, in all eight bundles: the View menu item, the
  * palette's own texts, the kind badges, the tab actions, the notes on the tab rows, the texts of
  * the connection rows, the labels and categories of the terminal and tab commands and the texts of
- * the snippet rows and of the footer while one is selected. Placeholders survive translation, and
- * an apostrophe is written once, because LanguageManager fills {0} with String.replace rather than
- * MessageFormat. The helpers that build a row's texts are tried on the English bundle.
+ * the snippet rows and of the footer while one is selected, and why a snippet was not sent to its
+ * pane. Placeholders survive translation, and an apostrophe is written once, because LanguageManager
+ * fills {0} with String.replace rather than MessageFormat. The helpers that build a row's texts are tried on the English bundle.
  */
 class CommandPaletteI18nCoverageTest {
 
@@ -39,6 +39,10 @@ class CommandPaletteI18nCoverageTest {
     private static final List<String> TAB_ACTION_KEYS = List.of(
         "palette.category.tab", "palette.action.nextTab", "palette.action.previousTab");
 
+    /** Why a snippet chosen in the palette was not sent to its pane (SnippetTerminalSend.sendToPane). */
+    private static final List<String> PANE_REFUSAL_KEYS = List.of(
+        "snippets.insertTerminal.paneBusy", "snippets.insertTerminal.paneNotSent");
+
     /**
      * Words a language shares with English: "Tab" in German and Croatian, "Snippet" in German, Italian
      * and Portuguese, "Terminal" in every language but Italian.
@@ -54,13 +58,14 @@ class CommandPaletteI18nCoverageTest {
         "messages_nl.properties", Set.of("palette.category.terminal"));
 
     private static List<String> keys() {
-        List<String> keys = new ArrayList<>(List.of("menu.view.commandPalette"));
+        List<String> keys = new ArrayList<>(List.of("menu.view.commandPalette", "menu.view.snippetPalette"));
         keys.addAll(CommandPalettePopup.KEYS);
         keys.addAll(TAB_ACTION_KEYS);
         keys.addAll(TabPaletteRows.KEYS);
         keys.addAll(ConnectionPaletteRows.KEYS);
         keys.addAll(TerminalPaletteActions.KEYS);
         keys.addAll(SnippetPaletteRows.KEYS);
+        keys.addAll(PANE_REFUSAL_KEYS);
         return keys;
     }
 
@@ -92,10 +97,13 @@ class CommandPaletteI18nCoverageTest {
             assertWithMessage(bundle).that(localized.getProperty("palette.scopes")).contains("{0}");
             assertWithMessage(bundle).that(localized.getProperty("palette.detail.window")).contains("{0}");
             assertWithMessage(bundle).that(localized.getProperty("policy.server.blocked.message")).contains("{0}");
-            for (String key : List.of("palette.hint.snippet", "palette.detail.runIn", "palette.detail.runInFirstPane",
-                    "palette.snippet.noTerminal")) {
+            for (String key : List.of("palette.hint.snippet", "palette.detail.runIn", "palette.detail.runInPane",
+                    "palette.snippet.noTerminal", "snippets.insertTerminal.paneBusy",
+                "snippets.insertTerminal.paneNotSent")) {
                 assertWithMessage(bundle + " " + key).that(localized.getProperty(key)).contains("{0}");
             }
+            assertWithMessage(bundle + " palette.detail.runInPane names the pane")
+                .that(localized.getProperty("palette.detail.runInPane")).contains("{1}");
         }
     }
 

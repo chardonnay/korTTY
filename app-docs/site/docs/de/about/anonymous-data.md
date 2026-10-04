@@ -40,6 +40,14 @@ Einige Terminalfunktionen melden, wie sie verwendet werden, und zwar nur mit Sch
 
 Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsätzen, die Muster und alles, was in die Bereiche eingegeben wird, werden nie gesendet. Änderungen auf den Einstellungsseiten werden als Name der Einstellung gemeldet, bei Schaltern und Auswahlfeldern mit dem neuen Wert; bei den Buchstaben und Mustern der Schnellauswahl und bei neu belegten Tastenkürzeln nur, ob Sie sie geändert haben.
 
+### KI-Chat-Codeblöcke
+
+| Ereignis | Gesendet, wenn | Daten |
+| --- | --- | --- |
+| `ai_code_block_action` | **Einfügen** oder **Ausführen** wird auf einem Codeblock eines KI-Chats verwendet | `insert` oder `run` und ob die Aktion mit `sent`, `cancelled` (die Ausführen-Bestätigung wurde abgelehnt) oder `refused` (die Richtlinie, der Block oder der Bereich ließ es nicht zu) endete |
+
+Der Block, seine Sprache, der Befehl, der Bereich, der Tab, der Host und der Grund einer Ablehnung werden nie gesendet.
+
 ### Steuerungs-API und MCP-Clients
 
 Wenn ein Programm die [Steuerungs-API](../reference/control-api.md) verwendet, meldet korTTY, welche Methoden verwendet werden und welche Art von Client sie verwendet hat. Ein KI-Assistent, der über `kortty-cli mcp` verbunden ist, wird zusätzlich nach Tool und nach dem Ausgang des Aufrufs gemeldet. Jedes Ereignis wird höchstens einmal pro Methode bzw. pro Tool und Ausgang gesendet, solange korTTY läuft; die Anzahl der Aufrufe fließt in die regelmäßige Nutzungszusammenfassung ein.

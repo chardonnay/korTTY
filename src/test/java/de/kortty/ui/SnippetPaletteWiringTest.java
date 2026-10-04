@@ -12,10 +12,11 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * How the command palette runs snippets, pinned against the source because MainWindow and a
- * terminal tab cannot be built without a stage: the rows name the terminal tab Send to Terminal
- * picks and whether it is split, a row sends through the Snippet Manager's own Send to Terminal into
- * exactly the tab it named (whose first pane that send writes to), the snippet is looked up again
- * before it runs, and Alt+Enter opens it in the Snippet Manager after the palette closed.
+ * terminal tab cannot be built without a stage: the rows name the focused pane of the terminal tab
+ * Send to Terminal picks (its first pane when the focused one is gone) and its number in a split tab,
+ * a row sends into exactly that pane through the pane-precise send with the busy guard, the snippet
+ * is looked up again before it runs, Alt+Enter opens it in the Snippet Manager after the palette
+ * closed, and View &gt; Snippet Palette opens the palette with {@code $} typed.
  */
 class SnippetPaletteWiringTest {
 
@@ -26,28 +27,46 @@ class SnippetPaletteWiringTest {
 
     @Test
     void thePaletteListsTheSnippetsOfItsWindow() throws IOException {
-        assertThat(methodBody(source(MAIN_WINDOW), "private void showCommandPalette() {"))
+        assertThat(methodBody(source(MAIN_WINDOW),
+            "private void showCommandPalette(de.kortty.ui.actions.PaletteEntry.@Nullable Kind scope) {"))
             .contains("SnippetPaletteRows.source(app, this)),");
     }
 
     @Test
-    void theRowsNameTheTerminalSendToTerminalPicksAndWhetherItIsSplit() throws IOException {
+    void theRowsNameTheFocusedPaneOfTheTabSendToTerminalPicks() throws IOException {
         String target = methodBody(source(ROWS), "private static SnippetPaletteSource.Target target(");
 
         assertThat(target).contains("TerminalTab tab = window.snippetInsertTarget(TerminalTab.class);");
-        assertThat(target).contains("tab.getTerminalView().getTerminalPaneCount() > 1");
-        assertThat(methodBody(source(ROWS), "static String targetName(TerminalTab tab) {"))
+        assertThat(target).contains("SnippetTerminalSend.targetPane(panes, view.getFocusedWidget());");
+        assertThat(target).contains("int number = panes.size() > 1 ? panes.indexOf(pane) + 1 : 0;");
+        assertThat(target).contains("snippet -> send(app, window, tab, pane, snippet));");
+        String name = methodBody(source(ROWS), "static String targetName(TerminalTab tab, SithTermFxWidget pane) {");
+        assertWithMessage("a split to another server is named by its own user@host")
+            .that(name).contains("tab.getTerminalView().connectionOfPane(pane)");
+        assertThat(name)
             .contains("SnippetPaletteSource.targetName(tab.getEffectiveTitle(), username, host, tab.getConnectionTitle());");
     }
 
     @Test
-    void aRowSendsLikeSendToTerminalIntoTheTabItNamedOnly() throws IOException {
+    void aRowSendsIntoThePaneItNamedOnly() throws IOException {
         String send = methodBody(source(ROWS), "private static void send(");
 
         assertWithMessage("the snippet is read again, not taken from the palette's snapshot")
             .that(send).contains("manager.findById(snippet.getId())");
         assertThat(send).contains("new SnippetTerminalSend(manager, window::getStage, () -> { })");
-        assertThat(send).contains(".sendToTerminal(current, () -> window, owner -> owner.holdsTab(tab) ? tab : null);");
+        assertThat(send).contains(".sendToPane(current, () -> window, tab, pane);");
+
+        String toPane = methodBody(source(SEND),
+            "void sendToPane(Snippet snippet, Supplier<MainWindow> mainWindow, TerminalTab tab, SithTermFxWidget pane) {");
+        assertThat(toPane).contains("window.holdsTab(tab) ? tab.getTerminalView() : null;");
+        assertWithMessage("a busy pane is refused before the variable prompt")
+            .that(toPane.indexOf("view.isPaneBusyWithInput(pane)")).isLessThan(toPane.indexOf("resolveAndPrompt(snippet)"));
+        assertWithMessage("and checked again right before the send")
+            .that(toPane).contains("deliverToPane(paneInput(view), pane, toSend,");
+        assertThat(toPane).contains("view.focusWidget(pane);");
+        String input = methodBody(source(SEND), "private static PaneInput<SithTermFxWidget> paneInput(TerminalView view) {");
+        assertThat(input).contains("return view.isPaneBusyWithInput(pane);");
+        assertThat(input).contains("return view.sendInputLineToPane(pane, line, generatedOneLiner);");
 
         String library = source(SEND);
         assertThat(methodBody(library, "void sendToTerminal(Snippet snippet, Supplier<MainWindow> mainWindow) {"))
@@ -56,7 +75,7 @@ class SnippetPaletteWiringTest {
             "void sendToTerminal(Snippet snippet, Supplier<MainWindow> mainWindow, Function<MainWindow, TerminalTab> target) {");
         assertThat(targeted).contains("TerminalTab terminalTab = target.apply(window);");
         assertThat(targeted).contains("window.revealSnippetInsertTarget(terminalTab);");
-        assertWithMessage("Send to Terminal writes to the tab's first pane, the one the rows name")
+        assertWithMessage("the Snippet Manager's Send to Terminal keeps writing to the tab's first pane")
             .that(methodBody(library, "private static void sendPayload("))
             .contains("terminalTab.getTerminalView().sendInputLine(payload);");
     }
@@ -70,6 +89,24 @@ class SnippetPaletteWiringTest {
         assertThat(popup).contains(".alternate(entry -> entry.alternate() != null, this::runAlternate)");
         assertThat(methodBody(popup, "private void runAlternate(PaletteEntry entry) {"))
             .contains("Platform.runLater(entry.alternate());");
+    }
+
+    @Test
+    void theSnippetPaletteOpensThePaletteOnItsSnippets() throws IOException {
+        String window = source(MAIN_WINDOW);
+        assertThat(window).contains("private final RoutedChord snippetPaletteChord = RoutedChord.unbound(\"menu.view.snippetPalette\");");
+        assertThat(methodBody(window, "private void showSnippetPalette() {"))
+            .contains("showCommandPalette(de.kortty.ui.actions.PaletteEntry.Kind.SNIPPET);");
+        assertThat(methodBody(window, "private void toggleSnippetPalette() {")).contains("commandPalette.hide();");
+        assertThat(window).contains(".consume(snippetPaletteChord::matches, SceneShortcutRouter.ALWAYS,\n"
+            + "                this::toggleSnippetPalette, snippetPaletteChord::residue)");
+        assertWithMessage("the snippet palette's chord gets past the open palette's key firewall")
+            .that(window).contains(".or(PaletteKeys.passThrough(snippetPaletteChord::chord, isMacOs())));");
+        assertThat(window).contains("snippetPalette.setOnAction(e -> Platform.runLater(this::showSnippetPalette));");
+
+        String popup = source(POPUP);
+        assertThat(methodBody(popup, "void show(Node anchor, Kind scope) {"))
+            .contains("picker.show(anchor, model.scopedQuery(scope));");
     }
 
     private static String source(Path path) throws IOException {

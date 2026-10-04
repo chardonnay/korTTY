@@ -850,6 +850,15 @@
 <p class="admonition-title">Privacy</p>
 <p>A desktop notification shows the tab's name, which can be a server name, and depending on your operating system's settings it can appear on the lock screen; a program's notification also shows the text the program sent. Turn off the desktop notifications you do not want, or the notifications for korTTY in the operating system; the mark on the tab stays inside korTTY.</p>
 </div>
+<h2 id="ai-agent-and-ai-swarm-runs">AI agent and AI Swarm runs<a class="headerlink" href="#ai-agent-and-ai-swarm-runs" title="Permanent link">&para;</a></h2>
+<p>korTTY's own <a href="ai-tools.html">AI Agent</a> and <a href="ai-swarm.html">AI Swarm</a> runs tell you when they need you or are done while you look elsewhere. When a run in a tab you are not looking at waits for your approval of a command, waits for a password, finishes, or stops without finishing (an error, or the agent gave up blocked), a desktop notification titled <code>korTTY ·</code> and the name of the tab says so. Without it, an approval asked for in a window behind another one would hold the run until you happened to look.</p>
+<ul>
+<li>The text is one fixed sentence, such as <em>The AI run in this tab is waiting for your approval.</em> It never contains your prompt, the command waiting for approval, the password request's wording or any output, because a notification can appear on the lock screen.</li>
+<li>A tab shows at most one notification of the same kind every 10 seconds, so a swarm whose agents ask for approvals one after another does not flood your desktop; the run's end still notifies right after an approval.</li>
+<li>A terminal tab whose agent run asks for you is also marked with 🔔, and the tooltip repeats the sentence. An AI Swarm tab keeps its own blinking indicator instead.</li>
+<li>Nothing happens in the tab you are looking at, and nothing when you cancel or restart the run yourself.</li>
+</ul>
+<p><em>Settings → Terminal → Notifications</em> has <strong>Desktop notification when an AI agent or AI swarm run in a tab you are not looking at finishes or waits for you</strong>, on by default. Switched off, a terminal tab is still marked. See <a href="../reference/settings/terminal.html#notes">Terminal settings</a>.</p>
 <h2 id="watching-a-tab-for-activity-or-silence">Watching a tab for activity or silence<a class="headerlink" href="#watching-a-tab-for-activity-or-silence" title="Permanent link">&para;</a></h2>
 <p>Right-click a terminal tab and choose <strong>Monitor for Activity</strong> or <strong>Monitor for Silence</strong> to have korTTY watch it while you work elsewhere. Both are also commands of the <a href="command-palette.html#terminal-and-tab-commands">command palette</a> for the tab you are in, with a check mark while they are on. They work in local shells and SSH sessions alike, need no <a href="shell-integration.html">shell integration</a> and nothing on the server.</p>
 <ul>

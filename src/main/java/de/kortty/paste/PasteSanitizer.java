@@ -105,6 +105,35 @@ public final class PasteSanitizer {
     }
 
     /**
+     * The text without {@link PasteInspection#isControlCharacter(int) control characters} (C0 except
+     * tab, line feed and carriage return, DEL and C1) and without
+     * {@link PasteInspection#isBidiControl(int) bidi controls}. Text korTTY did not take from the user,
+     * such as an AI answer, goes through this before it is sent, so it can neither press Ctrl+C or
+     * Ctrl+Z in the remote tty, nor send an escape sequence, nor reorder what the preview showed.
+     *
+     * @param text the text to paste
+     * @return {@code text} itself when there was nothing to remove; "" for null
+     */
+    public static String stripControlCharacters(String text) {
+        if (text == null) {
+            return "";
+        }
+        StringBuilder out = null;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            // Neither class has a member outside the Basic Multilingual Plane, so chars suffice.
+            boolean drop = PasteInspection.isControlCharacter(c) || PasteInspection.isBidiControl(c);
+            if (drop && out == null) {
+                out = new StringBuilder(text.length());
+                out.append(text, 0, i);
+            } else if (!drop && out != null) {
+                out.append(c);
+            }
+        }
+        return out == null ? text : out.toString();
+    }
+
+    /**
      * {@link #encode(String, boolean, Charset)} for a pane that types text in UTF-8.
      */
     public static String encode(String text, boolean bracketed) {

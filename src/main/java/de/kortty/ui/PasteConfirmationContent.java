@@ -95,6 +95,7 @@ record PasteConfirmationContent(String title, String header, String summary, Lis
         switch (request.source()) {
             case SELECTION -> notes.add(text(translator, "source.selection"));
             case DROP -> notes.add(text(translator, "source.drop"));
+            case AI -> notes.add(text(translator, "source.ai"));
             case CLIPBOARD -> {
                 // The usual case; nothing to point out.
             }

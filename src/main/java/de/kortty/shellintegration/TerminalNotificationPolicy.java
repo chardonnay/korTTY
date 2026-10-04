@@ -43,6 +43,9 @@ import java.util.function.LongSupplier;
  * notification action, so that rule is its setting too; it has {@link #decideTrigger}, whose slot is
  * the pane (or multi-exec session) together with the rule, so two rules do not silence each other.
  *
+ * <p>korTTY's own AI runs ({@link Kind#AI_RUN}) have {@link #decideAiRun}, whose slot is the run's
+ * tab together with what the run reports ({@link AiRunEvent}).
+ *
  * <p>A finished command ({@link Kind#COMMAND_FINISHED}) also has to have run at least the
  * threshold of the settings, and a command that a korTTY terminal-agent run typed into the pane
  * leads to nothing at all: the run reports its own commands. In a multi-exec session a command typed
@@ -99,7 +102,15 @@ public final class TerminalNotificationPolicy {
          * seconds; output that answers mirrored keys does not count, so typing into multi-exec does not
          * make every member notify.
          */
-        TRIGGER(30_000L, false, true);
+        TRIGGER(30_000L, false, true),
+        /**
+         * A korTTY AI run, a terminal-agent run or an AI swarm, finished, failed or waits for the user
+         * ({@link AiRunEvent}). Its notification slot is the run's tab together with the event, so a run
+         * that asks for several approvals in a row notifies once every 10 seconds, while its end is
+         * never swallowed by an approval it asked for moments before ({@link #decideAiRun}). The
+         * notification carries a fixed text: no prompt, no command, no output.
+         */
+        AI_RUN(10_000L, false, false);
 
         private final long toastIntervalMillis;
         private final boolean leftToCodingAgents;
@@ -131,6 +142,18 @@ public final class TerminalNotificationPolicy {
         public boolean discountsMirroredInput() {
             return discountsMirroredInput;
         }
+    }
+
+    /** What an AI run reports ({@link Kind#AI_RUN}). */
+    public enum AiRunEvent {
+        /** The run ended with its answer. */
+        FINISHED,
+        /** The run stopped without finishing: an error, or the agent gave up blocked. */
+        FAILED,
+        /** The run waits until the user approves or rejects a command. */
+        NEEDS_APPROVAL,
+        /** The run waits for a password the user has to type. */
+        NEEDS_PASSWORD
     }
 
     /**
@@ -214,12 +237,21 @@ public final class TerminalNotificationPolicy {
      *                                 clamped to 1..3600 ({@link TerminalNotificationPolicy#clampCommandFinishedSeconds})
      * @param remoteToasts             desktop notifications that programs ask for with OSC 9 or OSC 777
      *                                 ({@code GlobalSettings.remoteTerminalNotificationsEnabled})
+     * @param aiRunToasts              desktop notifications for korTTY's own AI runs, terminal agent and
+     *                                 swarm ({@code GlobalSettings.aiRunToastsEnabled}, decision D5)
      */
     public record Toggles(boolean bellToasts, boolean codingAgentNotifications, boolean commandFinishedToasts,
-            int commandFinishedSeconds, boolean remoteToasts) {
+            int commandFinishedSeconds, boolean remoteToasts, boolean aiRunToasts) {
 
         public Toggles {
             commandFinishedSeconds = clampCommandFinishedSeconds(commandFinishedSeconds);
+        }
+
+        /** The settings with the AI-run notifications on, as a fresh installation has them. */
+        public Toggles(boolean bellToasts, boolean codingAgentNotifications, boolean commandFinishedToasts,
+                int commandFinishedSeconds, boolean remoteToasts) {
+            this(bellToasts, codingAgentNotifications, commandFinishedToasts, commandFinishedSeconds, remoteToasts,
+                true);
         }
 
         /** {@link #commandFinishedSeconds()} as a duration. */
@@ -234,6 +266,9 @@ public final class TerminalNotificationPolicy {
 
     /** Per slot (pane or multi-exec session) and highlight rule id, when the rule last notified. */
     private final Map<Object, Map<String, Long>> lastTriggerToastMillis = new WeakHashMap<>();
+
+    /** Per AI run's tab and event, when it last notified. */
+    private final Map<Object, Map<String, Long>> lastAiRunToastMillis = new WeakHashMap<>();
 
     /** The {@code C} marks of the runs each multi-exec session notified about, newest last. */
     private final Map<Object, Deque<Long>> notifiedRunStarts = new WeakHashMap<>();
@@ -292,6 +327,8 @@ public final class TerminalNotificationPolicy {
                 "A finished command needs its runtime and its tab: use decideCommandFinished");
             case TRIGGER -> throw new IllegalArgumentException(
                 "A highlight trigger needs its rule: use decideTrigger");
+            case AI_RUN -> throw new IllegalArgumentException(
+                "An AI run needs its event: use decideAiRun");
         };
         if (kind.discountsMirroredInput() && state.mirroredInput()) {
             return Decision.NONE;
@@ -396,6 +433,44 @@ public final class TerminalNotificationPolicy {
         boolean toast = previous == null || now - previous >= Kind.TRIGGER.toastIntervalMillis();
         if (toast) {
             last.put(ruleId, now);
+        }
+        return new Decision(true, toast);
+    }
+
+    /**
+     * Decides about an AI run of korTTY's own, a terminal-agent run or an AI swarm, that finished,
+     * failed or waits for the user ({@link Kind#AI_RUN}).
+     *
+     * <ul>
+     *   <li>Nothing in a tab the user is looking at: the run's panel already shows it.</li>
+     *   <li>Otherwise the tab is marked, and with {@link Toggles#aiRunToasts()} on a desktop
+     *       notification comes at most once per tab and event within {@link Kind#AI_RUN}'s interval:
+     *       a swarm whose agents ask for approvals one after another notifies once every 10 seconds,
+     *       but the run's end still notifies right after an approval.</li>
+     * </ul>
+     *
+     * @param tab     the run's tab, kept weakly
+     * @param event   what the run reports
+     * @param state   what is known about the tab now; only {@link PaneState#seen()} counts
+     * @param toggles the settings now
+     */
+    public Decision decideAiRun(Object tab, AiRunEvent event, PaneState state, Toggles toggles) {
+        Objects.requireNonNull(tab, "tab");
+        Objects.requireNonNull(event, "event");
+        Objects.requireNonNull(state, "state");
+        Objects.requireNonNull(toggles, "toggles");
+        if (state.seen()) {
+            return Decision.NONE;
+        }
+        if (!toggles.aiRunToasts()) {
+            return new Decision(true, false);
+        }
+        Map<String, Long> last = lastAiRunToastMillis.computeIfAbsent(tab, unused -> new java.util.HashMap<>());
+        long now = clockMillis.getAsLong();
+        Long previous = last.get(event.name());
+        boolean toast = previous == null || now - previous >= Kind.AI_RUN.toastIntervalMillis();
+        if (toast) {
+            last.put(event.name(), now);
         }
         return new Decision(true, toast);
     }

@@ -214,6 +214,19 @@ public class TerminalView extends BorderPane {
             @Nullable TerminalAgentRunContext runContext);
     }
 
+    /**
+     * Handles "Summarize Recent Output": {@code output} is what the pane printed last (see
+     * {@link TerminalRecentOutputSource}), read on the FX thread when the item was picked. While
+     * none is set (the policy does not allow AI chats) the item is shown greyed out.
+     */
+    @FunctionalInterface
+    interface AiRecentOutputHandler {
+        void handle(
+            @Nullable AiProfile profile,
+            TerminalRecentOutputSource.RecentOutput output,
+            @Nullable TerminalAgentRunContext runContext);
+    }
+
     @FunctionalInterface
     public interface TerminalTextFileLoadHandler {
         void handle(@Nullable TerminalAgentRunContext runContext, String selectedText);
@@ -433,6 +446,7 @@ public class TerminalView extends BorderPane {
     private Runnable timestampToggleListener;
     private Runnable onReconnectRequested;
     private AiSelectionHandler aiSelectionHandler;
+    private @Nullable AiRecentOutputHandler aiRecentOutputHandler;
     private java.util.function.BooleanSupplier menuBarHiddenSupplier;
     private Runnable menuBarRestoreHandler;
     private TerminalTextFileLoadHandler terminalTextFileLoadHandler;
@@ -796,7 +810,9 @@ public class TerminalView extends BorderPane {
                 items.add(sftpHereItem);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
             }
-            if (shouldShowAiContextMenu(aiProfiles, hasSelectedText, hasAgentActions)) {
+            // Without a selection the menu offers the pane's recent output instead.
+            boolean offersRecentOutput = !hasSelectedText;
+            if (shouldShowAiContextMenu(aiProfiles, hasSelectedText, hasAgentActions, offersRecentOutput)) {
                 javafx.scene.control.Menu aiMenu = new javafx.scene.control.Menu(I18n.get("terminal.contextMenu.ai"));
                 if (hasExecutableAgentAction) {
                     javafx.scene.control.MenuItem agentItem = new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.ai.agent"));
@@ -814,8 +830,11 @@ public class TerminalView extends BorderPane {
                     planningItem.setOnAction(e -> aiPlanningHandler.handle(createTerminalAgentRunContext(widget)));
                     aiMenu.getItems().add(planningItem);
                 }
-                if (!aiMenu.getItems().isEmpty() && hasSelectedText) {
+                if (!aiMenu.getItems().isEmpty() && (hasSelectedText || offersRecentOutput)) {
                     aiMenu.getItems().add(new javafx.scene.control.SeparatorMenuItem());
+                }
+                if (offersRecentOutput) {
+                    aiMenu.getItems().add(createAiRecentOutputMenu(aiProfiles, widget));
                 }
                 if (hasSelectedText) {
                     aiMenu.getItems().addAll(
@@ -1006,6 +1025,11 @@ public class TerminalView extends BorderPane {
 
     public void setAiSelectionHandler(@Nullable AiSelectionHandler aiSelectionHandler) {
         this.aiSelectionHandler = aiSelectionHandler;
+    }
+
+    /** Sets what "Summarize Recent Output" does; {@code null} greys the item out. */
+    void setAiRecentOutputHandler(@Nullable AiRecentOutputHandler aiRecentOutputHandler) {
+        this.aiRecentOutputHandler = aiRecentOutputHandler;
     }
 
     /** Adds a "show menu bar" entry to the terminal context menu while the menu bar is hidden. */
@@ -1958,6 +1982,57 @@ public class TerminalView extends BorderPane {
         return actionMenu;
     }
 
+    /**
+     * "Summarize Recent Output", one entry per profile: reads the pane's recent output on the FX
+     * thread when picked (bounded, see {@link TerminalRecentOutputSource}) and hands it on; the
+     * AI call runs off the FX thread. Greyed out while the policy leaves no handler.
+     */
+    private javafx.scene.control.Menu createAiRecentOutputMenu(List<AiProfile> profiles, SithTermFxWidget widget) {
+        javafx.scene.control.Menu menu = new javafx.scene.control.Menu(
+            I18n.get("terminal.contextMenu.ai.summarizeRecent"));
+        AiRecentOutputHandler handler = aiRecentOutputHandler;
+        if (handler == null) {
+            menu.setDisable(true);
+            return menu;
+        }
+        for (AiProfile profile : profiles) {
+            javafx.scene.control.MenuItem profileItem = new javafx.scene.control.MenuItem(buildAiProfileMenuLabel(profile));
+            profileItem.setOnAction(e -> {
+                TerminalRecentOutputSource.RecentOutput output = readRecentOutput(widget);
+                if (output == null) {
+                    showStatusInWindow(I18n.get("ai.recentOutput.none"));
+                    return;
+                }
+                handler.handle(profile, output, createTerminalAgentRunContext(widget));
+            });
+            menu.getItems().add(profileItem);
+        }
+        return menu;
+    }
+
+    /** The recent output of {@code widget}: its last command's output, else its last lines. FX thread. */
+    private TerminalRecentOutputSource.@Nullable RecentOutput readRecentOutput(SithTermFxWidget widget) {
+        return TerminalRecentOutputSource.read(new TerminalRecentOutputSource.Reader() {
+            @Override
+            public @Nullable String lastCommandOutput() {
+                return shellIntegration.lastOutputText(widget);
+            }
+
+            @Override
+            public @Nullable List<String> tail(int maxLines) {
+                return PaneTailReader.readTail(widget.getTerminalTextBuffer(), maxLines);
+            }
+        });
+    }
+
+    private void showStatusInWindow(String message) {
+        javafx.stage.Window window = getScene() != null ? getScene().getWindow() : null;
+        MainWindow mainWindow = MainWindow.findByStage(window);
+        if (mainWindow != null) {
+            mainWindow.showStatusMessage(message);
+        }
+    }
+
     private List<AiProfile> getConfiguredAiProfiles() {
         try {
             GlobalSettings globalSettings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
@@ -1978,6 +2053,15 @@ public class TerminalView extends BorderPane {
     }
 
     static boolean shouldShowAiContextMenu(List<AiProfile> profiles, boolean hasSelectedText, boolean hasAgentActions) {
+        return shouldShowAiContextMenu(profiles, hasSelectedText, hasAgentActions, false);
+    }
+
+    /**
+     * Whether the terminal context menu shows its AI submenu: with AI features on and a profile,
+     * when there is a selection, an agent action, or the recent output to summarize.
+     */
+    static boolean shouldShowAiContextMenu(List<AiProfile> profiles, boolean hasSelectedText, boolean hasAgentActions,
+                                           boolean offersRecentOutput) {
         try {
             var gs = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
             if (gs != null && !gs.isAiFeaturesEnabled()) {
@@ -1989,7 +2073,7 @@ public class TerminalView extends BorderPane {
         if (profiles == null || profiles.isEmpty()) {
             return false;
         }
-        return hasSelectedText || hasAgentActions;
+        return hasSelectedText || hasAgentActions || offersRecentOutput;
     }
 
     static boolean shouldShowLoadAsTextFileContextItem(@Nullable String selectedText, boolean hasHandler) {
@@ -2157,7 +2241,7 @@ public class TerminalView extends BorderPane {
         boolean pasting = text != null && !text.isEmpty() && pane.pasteTarget().canReceive();
         event.setDropCompleted(pasting);
         if (pasting) {
-            Platform.runLater(() -> pasteDroppedText(pane, text));
+            Platform.runLater(() -> pasteIntoPane(pane, text, PasteSource.DROP));
         }
         return true;
     }
@@ -2170,12 +2254,34 @@ public class TerminalView extends BorderPane {
     }
 
     /**
-     * Makes the pane the text was dropped on the focused pane and pastes the text into it, through
-     * paste protection like every other paste.
+     * Makes {@code pane} the focused pane and pastes {@code text} into exactly that pane, through
+     * paste protection like every other paste: a drop, or text the AI assistant wrote
+     * ({@link PasteSource#AI}), which {@link PasteGuard} confirms more strictly and never sends into a
+     * pane whose input broadcast or multi-exec mirrors. Nothing happens for a pane that is no longer
+     * open in this tab. JavaFX thread.
+     *
+     * @param pane the pane to paste into
+     * @param text the text to paste
+     * @param source where the text came from
      */
-    private void pasteDroppedText(KorttyTermWidget pane, String text) {
+    public void pasteIntoPane(KorttyTermWidget pane, String text, PasteSource source) {
+        pasteIntoPane(pane, text, source, null);
+    }
+
+    /**
+     * {@link #pasteIntoPane(KorttyTermWidget, String, PasteSource)}, telling {@code outcome} how the paste
+     * ended: at once, or when its confirmation is answered ({@link PasteGuard.Outcome}). JavaFX thread.
+     */
+    public void pasteIntoPane(KorttyTermWidget pane, String text, PasteSource source,
+                              java.util.function.@Nullable Consumer<PasteGuard.Outcome> outcome) {
+        java.util.function.Consumer<PasteGuard.Outcome> report = outcome != null ? outcome : unused -> { };
+        if (pane == null || text == null || text.isEmpty()) {
+            report.accept(PasteGuard.Outcome.REFUSED);
+            return;
+        }
         if (!terminalPanes().contains(pane)) {
-            logger.debug("Dropped text not pasted: the pane closed first ({} chars)", text.length());
+            logger.debug("Text not pasted: the pane closed first ({} chars, {})", text.length(), source);
+            report.accept(PasteGuard.Outcome.REFUSED);
             return;
         }
         if (splitPane != null) {
@@ -2186,7 +2292,7 @@ public class TerminalView extends BorderPane {
                 focusTarget.requestFocus();
             }
         }
-        pasteGuard.paste(pane.pasteTarget(), text, PasteSource.DROP);
+        pasteGuard.paste(pane.pasteTarget(), text, source, report);
     }
 
     /**
@@ -4448,7 +4554,8 @@ public class TerminalView extends BorderPane {
             return;
         }
         korttyWidget.describePasteTarget(() -> pasteTargetLabel(korttyWidget), () -> connectorCharset(korttyWidget),
-            () -> splitPane != null && splitPane.isBroadcastMode());
+            () -> splitPane != null && splitPane.isBroadcastMode(),
+            () -> MultiExecCoordinator.shared().isMember(korttyWidget));
         korttyWidget.setPasteHandler(pasteGuard::paste);
     }
 
@@ -9077,19 +9184,46 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /** Whether {@code widget} is one of this tab's open panes. FX thread. */
+    public boolean hasPane(@Nullable SithTermFxWidget widget) {
+        return widget != null && terminalPanes().contains(widget);
+    }
+
+    /** Whether {@code widget}, a pane of this tab, has a connected session that can take input. FX thread. */
+    public boolean isPaneConnected(@Nullable SithTermFxWidget widget) {
+        if (!hasPane(widget)) {
+            return false;
+        }
+        TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        return connector != null && connector.isConnected();
+    }
+
+    /**
+     * Whether the shell of {@code widget}, a pane of this tab, is (suspected to be) running as another user or
+     * host than the tab was opened with ({@link #isForeignSessionActive(TerminalAgentRunContext)}). False for a
+     * pane without a connected session. FX thread (reads the screen buffer).
+     */
+    public boolean isPaneInForeignSession(@Nullable SithTermFxWidget widget) {
+        if (!hasPane(widget)) {
+            return false;
+        }
+        TerminalAgentRunContext context = createTerminalAgentRunContext(widget);
+        return context != null && isForeignSessionActive(context);
+    }
+
+    /**
+     * What the shell-integration marks of {@code widget}, a pane of this tab, say about its prompt: whether
+     * its shell waits for a command, runs one, or cannot tell (no marks). Any thread.
+     */
+    ShellIntegrationController.PromptState panePromptState(@Nullable SithTermFxWidget widget) {
+        return shellIntegration.promptState(widget);
+    }
+
     /**
      * Whether {@code widget}, a pane of this tab, is still sending a paste line by line. FX thread.
      */
     public boolean isPanePastePacing(@Nullable SithTermFxWidget widget) {
         return widget != null && pastePacer.isPacing(widget);
-    }
-
-    /**
-     * Whether {@code widget}, a pane of this tab, is suspected to run as another user or host than it
-     * was opened with ({@code su}, a nested {@code ssh}). FX thread: reads the screen buffer.
-     */
-    public boolean isPaneInForeignSession(@Nullable SithTermFxWidget widget) {
-        return widget != null && isForeignSessionActive(createTerminalAgentRunContext(widget));
     }
 
     /**

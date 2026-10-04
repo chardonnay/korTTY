@@ -30,6 +30,13 @@ class TerminalViewContextMenuTest {
     }
 
     @Test
+    void showsAiContextMenuWithoutASelectionForTheRecentOutput() {
+        assertThat(TerminalView.shouldShowAiContextMenu(List.of(new AiProfile()), false, false, true)).isTrue();
+        assertThat(TerminalView.shouldShowAiContextMenu(List.of(), false, false, true)).isFalse();
+        assertThat(TerminalView.shouldShowAiContextMenu(List.of(new AiProfile()), false, false, false)).isFalse();
+    }
+
+    @Test
     void offersThePromptJumpsOnlyWhileThePaneHasPromptMarks() {
         assertThat(ShellIntegrationController.contextMenuEntries(true, true, true))
             .isEqualTo(ShellIntegrationController.ContextMenuEntries.NAVIGATION);

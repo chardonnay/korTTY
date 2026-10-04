@@ -8,6 +8,7 @@ import de.kortty.telemetry.TerminalUxTelemetry.RestoreTrigger;
 import de.kortty.ui.I18n;
 import de.kortty.ui.KeyTypedResidueGuard.Residue;
 import de.kortty.shellintegration.PromptNavigator;
+import de.kortty.shellintegration.TerminalNotificationPolicy;
 import de.kortty.ui.actions.ActionIds;
 import de.kortty.ui.actions.ActionPaletteSource;
 import de.kortty.ui.actions.ActionRegistry;
@@ -300,6 +301,10 @@ public class MainWindow {
     // types; applyKeymap() puts it on the user's shortcut override. The router reads them per key.
     private final RoutedChord commandPaletteChord =
         new RoutedChord("menu.view.commandPalette", COMMAND_PALETTE_ACCELERATOR, PaletteKeys.RESIDUE);
+    // View > Snippet Palette: the palette opened on its snippets ('$'). Without a default chord, since
+    // Cmd/Ctrl+Shift+J (the one asked for) is the JobScheduler's; the user can bind one under
+    // Settings > Keyboard, and the router then takes it also while a terminal has the focus.
+    private final RoutedChord snippetPaletteChord = RoutedChord.unbound("menu.view.snippetPalette");
     private final RoutedChord menuBarToggleChord =
         new RoutedChord("menu.view.menuBar", MENU_BAR_TOGGLE_ACCELERATOR, Residue.ofLetter('L'));
     private final RoutedChord terminalOnlyFullscreenChord = new RoutedChord(
@@ -2215,6 +2220,12 @@ public class MainWindow {
         // Not a command of the palette itself.
         ActionIds.exclude(commandPalette);
 
+        // The palette on its snippets alone, '$' already typed, so they run in the focused pane. No
+        // default shortcut (see snippetPaletteChord); a chord bound under Settings > Keyboard shows here.
+        // Like the command palette it opens in the frontmost open window from a closed window's menu bar.
+        MenuItem snippetPalette = menuItem("menu.view.snippetPalette");
+        snippetPalette.setOnAction(e -> Platform.runLater(this::showSnippetPalette));
+
         CheckMenuItem dashboardItem = checkMenuItem("menu.view.dashboard");
         dashboardItem.setAccelerator(new KeyCodeCombination(KeyCode.D, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         dashboardItem.setSelected(restoreDashboard);
@@ -2434,7 +2445,7 @@ public class MainWindow {
             systemHideFullscreenScrollbarsMenuItem = hideFullscreenScrollbars;
         }
 
-        viewMenu.getItems().addAll(commandPalette, new SeparatorMenuItem(),
+        viewMenu.getItems().addAll(commandPalette, snippetPalette, new SeparatorMenuItem(),
             dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
             journalLivePanelMenu, codingAgentPanelMenu, remoteSidebarMenu,
             new SeparatorMenuItem(),
@@ -2999,6 +3010,10 @@ public class MainWindow {
             // chord's KEY_TYPED goes to the palette, which drops it; on closing, the guard swallows it.
             .consume(commandPaletteChord::matches, SceneShortcutRouter.ALWAYS,
                 this::toggleCommandPalette, commandPaletteChord::residue)
+            // The snippet palette, once the user gave it a chord, as the command palette: pressed
+            // while the palette shows, it closes it.
+            .consume(snippetPaletteChord::matches, SceneShortcutRouter.ALWAYS,
+                this::toggleSnippetPalette, snippetPaletteChord::residue)
             .consume(menuBarToggleChord::matches, SceneShortcutRouter.ALWAYS,
                 () -> toggleMenuBarVisibility(menuBar == null || !menuBar.isVisible()), menuBarToggleChord::residue)
             .consume(terminalOnlyFullscreenChord::matches, SceneShortcutRouter.ALWAYS,
@@ -3099,7 +3114,7 @@ public class MainWindow {
 
     /** Every rebindable chord of this window's scene shortcut router. */
     private List<RoutedChord> routedChords() {
-        List<RoutedChord> chords = new ArrayList<>(List.of(commandPaletteChord, menuBarToggleChord,
+        List<RoutedChord> chords = new ArrayList<>(List.of(commandPaletteChord, snippetPaletteChord, menuBarToggleChord,
             terminalOnlyFullscreenChord, highlightingToggleChord, credentialsChord, reopenClosedTabChord,
             quickSelectChord));
         chords.addAll(paneChords.values());
@@ -3219,14 +3234,34 @@ public class MainWindow {
         }
     }
 
-    /**
-     * View → Command Palette… and Cmd/Ctrl+Shift+P: brings the menu items' states up to date, then
-     * shows the palette over this window's commands, the open tabs, the saved and teamwork
-     * connections and the snippets, centred at the top of the window. A connection opens like
-     * Connect in the Connection Manager and counts as a use of it; a snippet runs like Send to
-     * Terminal in the Snippet Manager, in the first pane of the terminal tab its row names.
-     */
+    /** The snippet palette's chord, once the user bound one: opens it, or closes the palette while it shows. */
+    private void toggleSnippetPalette() {
+        if (commandPalette != null && commandPalette.isShowing()) {
+            commandPalette.hide();
+        } else {
+            showSnippetPalette();
+        }
+    }
+
+    /** View → Snippet Palette…: the command palette with {@code $} typed, listing only the snippets. */
+    private void showSnippetPalette() {
+        showCommandPalette(de.kortty.ui.actions.PaletteEntry.Kind.SNIPPET);
+    }
+
+    /** View → Command Palette… and Cmd/Ctrl+Shift+P: the whole palette, see {@link #showCommandPalette(de.kortty.ui.actions.PaletteEntry.Kind)}. */
     private void showCommandPalette() {
+        showCommandPalette(null);
+    }
+
+    /**
+     * Brings the menu items' states up to date, then shows the palette over this window's commands,
+     * the open tabs, the saved and teamwork connections and the snippets, centred at the top of the
+     * window; with {@code scope} its scope prefix is already typed and only that kind is listed. A
+     * connection opens like Connect in the Connection Manager and counts as a use of it; a snippet
+     * runs like Send to Terminal in the Snippet Manager, in the pane its row names: the focused pane
+     * of the terminal tab Send to Terminal picks.
+     */
+    private void showCommandPalette(de.kortty.ui.actions.PaletteEntry.@Nullable Kind scope) {
         if (sceneRoot == null || sceneRoot.getScene() == null || sceneRoot.getScene().getWindow() == null) {
             return;
         }
@@ -3241,9 +3276,10 @@ public class MainWindow {
                     ConnectionPaletteRows.source(app,
                         connection -> connectSavedConnection(connection, true, tab -> { })),
                     SnippetPaletteRows.source(app, this)),
-                PaletteKeys.passThrough(commandPaletteChord::chord, isMacOs()));
+                PaletteKeys.passThrough(commandPaletteChord::chord, isMacOs())
+                    .or(PaletteKeys.passThrough(snippetPaletteChord::chord, isMacOs())));
         }
-        commandPalette.show(sceneRoot);
+        commandPalette.show(sceneRoot, scope);
     }
 
     /** This window's tabs for the palette, the most recently used first, and the one it shows. */
@@ -9426,16 +9462,32 @@ public class MainWindow {
         statusLabel.setText(message);
     }
 
-    private void handleAiSelectionAction(
+    /**
+     * Summarize Recent Output: the pane's recent output, read by {@link TerminalRecentOutputSource}
+     * on the FX thread, goes through the same masking, preview and masked count as a selection.
+     */
+    private void handleAiRecentOutputAction(
+        TerminalTab terminalTab,
+        AiProfile profile,
+        TerminalRecentOutputSource.RecentOutput output,
+        TerminalView.TerminalAgentRunContext runContext) {
+        handleAiTextAction(terminalTab, AiAction.SUMMARIZE, profile, output.text(),
+            AiTextActionInput.Origin.RECENT_OUTPUT, runContext);
+    }
+
+    /**
+     * A terminal AI action (Summarize, Solve, Ask) on {@code text} from {@code origin}: a selection
+     * or the pane's recent output. The text is checked and masked by
+     * {@link AiTextActionInput#prepare} before the preview, so both origins send only masked text.
+     */
+    private void handleAiTextAction(
         TerminalTab terminalTab,
         AiAction action,
         AiProfile profile,
         String selectedText,
+        AiTextActionInput.Origin origin,
         TerminalView.TerminalAgentRunContext runContext) {
         if (!isAiFeaturesEnabled()) {
-            return;
-        }
-        if (selectedText == null || selectedText.trim().isEmpty()) {
             return;
         }
         AiProfile effectiveProfile = profile != null
@@ -9444,9 +9496,26 @@ public class MainWindow {
                 terminalTab != null ? terminalTab.getConnection() : null,
                 action.workload());
         int maxSelectionChars = getMaxAiSelectionChars(effectiveProfile);
-        if (selectedText.length() > maxSelectionChars) {
-            showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
-            return;
+        // Mask secrets before the preview, so the user reviews exactly what leaves the computer.
+        // The file name below is resolved from the raw selection; only the outbound text is masked.
+        SessionJournalRedactor knownSecrets = aiSecretRedactor(terminalTab);
+        AiTextActionInput.Prepared maskedSelection =
+            AiTextActionInput.prepare(origin, effectiveProfile, selectedText, maxSelectionChars, knownSecrets);
+        switch (maskedSelection.status()) {
+            case SKIP -> {
+                return;
+            }
+            case NO_OUTPUT -> {
+                updateStatus(I18n.get("ai.recentOutput.none"));
+                return;
+            }
+            case TOO_LARGE -> {
+                showError(I18n.get("ai.error.title"), I18n.get("ai.error.selectionTooLarge", maxSelectionChars));
+                return;
+            }
+            case READY -> {
+                // Sent below.
+            }
         }
         String effectiveModel = effectiveProfile != null
             && effectiveProfile.getConnectionMode().isEmbedded()
@@ -9473,14 +9542,13 @@ public class MainWindow {
         // When the selection looks like a file name in the pane's current directory, the file's
         // content can travel with the request as an attachment. The candidate is only an offer;
         // existence, readability, text-ness and size are verified on the target before anything
-        // is attached (see loadAiAttachmentAsync).
-        AiAttachmentCandidate attachmentCandidate =
-            resolveAiAttachmentCandidate(terminalTab, runContext, selectedText, maxSelectionChars);
-        // Mask secrets before the preview, so the user reviews exactly what leaves the computer.
-        // The file name above is resolved from the raw selection; only the outbound text is masked.
-        SessionJournalRedactor knownSecrets = aiSecretRedactor(terminalTab);
-        RedactionResult maskedSelection = AiOutboundRedaction.redactFor(effectiveProfile, selectedText, knownSecrets);
-        String outboundText = maskedSelection.text();
+        // is attached (see loadAiAttachmentAsync). Recent output is never a file name.
+        AiAttachmentCandidate attachmentCandidate = origin == AiTextActionInput.Origin.SELECTION
+            ? resolveAiAttachmentCandidate(terminalTab, runContext, selectedText, maxSelectionChars)
+            : null;
+        String outboundText = maskedSelection.outboundText();
+        // The pane the selection came from, read now: the chat's code blocks go back to it.
+        TerminalPaneRef sourcePane = aiSourcePane(terminalTab, runContext);
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
         boolean confirmBeforeSend = action == AiAction.ASK || settings == null || settings.isAiConfirmBeforeSend();
         if (confirmBeforeSend) {
@@ -9488,13 +9556,13 @@ public class MainWindow {
                 maxSelectionChars, maskedSelection.count())
                 .ifPresent(draft -> startAiSelectionRequest(
                     action, effectiveProfile, aiService, draft, connectionName, languageCode, maxSelectionChars,
-                    knownSecrets, 0));
+                    knownSecrets, 0, sourcePane));
             return;
         }
         if (attachmentCandidate == null) {
             startAiSelectionRequest(action, effectiveProfile, aiService,
                 new AiRequestDraft(outboundText, null, null), connectionName, languageCode, maxSelectionChars,
-                knownSecrets, maskedSelection.count());
+                knownSecrets, maskedSelection.count(), sourcePane);
             return;
         }
         // No confirmation dialog: attach the file when it validates, otherwise send the selection
@@ -9506,8 +9574,21 @@ public class MainWindow {
             }
             startAiSelectionRequest(action, effectiveProfile, aiService,
                 new AiRequestDraft(outboundText, null, outcome.attachment()), connectionName, languageCode,
-                maxSelectionChars, knownSecrets, maskedSelection.count());
+                maxSelectionChars, knownSecrets, maskedSelection.count(), sourcePane);
         });
+    }
+
+    /**
+     * The pane an AI request from {@code terminalTab} came from, for the chat's code blocks: the run
+     * context's pane, else the tab's focused pane; {@code null} without a terminal pane. FX thread.
+     */
+    private static @Nullable TerminalPaneRef aiSourcePane(@Nullable TerminalTab terminalTab,
+                                                          @Nullable TerminalView.TerminalAgentRunContext runContext) {
+        if (terminalTab == null) {
+            return null;
+        }
+        TerminalPaneRef fromContext = runContext != null ? TerminalPaneRef.of(terminalTab, runContext.widget()) : null;
+        return fromContext != null ? fromContext : TerminalPaneRef.focusedPaneOf(terminalTab);
     }
 
     /** The tab's known secrets (connection password, policy rules) for masking AI-bound text. */
@@ -9537,6 +9618,7 @@ public class MainWindow {
      * @param knownSecrets    the tab's known secrets, for masking the attachment
      * @param unreportedMasks secrets already masked in the selection that no preview dialog showed;
      *                        the status bar reports them together with the attachment's
+     * @param sourcePane      the pane the selection came from, where the chat's code blocks go
      */
     private void startAiSelectionRequest(
         AiAction action,
@@ -9547,7 +9629,8 @@ public class MainWindow {
         String languageCode,
         int maxSelectionChars,
         @Nullable SessionJournalRedactor knownSecrets,
-        int unreportedMasks) {
+        int unreportedMasks,
+        @Nullable TerminalPaneRef sourcePane) {
         String requestText = draft.selectedText();
         if (requestText.trim().isEmpty()) {
             return;
@@ -9587,6 +9670,7 @@ public class MainWindow {
             false);
         // Follow-ups may go to another profile; the tab masks them again with these secrets.
         resultTab.setOutboundSecrets(knownSecrets);
+        resultTab.setSourcePane(sourcePane);
         if (fileAttachment != null) {
             resultTab.setFileAttachment(fileAttachment);
         }
@@ -9597,10 +9681,12 @@ public class MainWindow {
         updateStatusWithMaskedSecrets(
             I18n.get("ai.status.running", getAiActionLabel(action)), unreportedMasks + maskedAttachment.count());
 
+        // The chat shows the answer live while it streams; the final rendering replaces the preview.
+        AiRequest streamedRequest = request.withStreamListener(resultTab.beginStreaming());
         Task<AiExecutionResult> task = new Task<>() {
             @Override
             protected AiExecutionResult call() throws Exception {
-                return aiService.execute(request);
+                return aiService.execute(streamedRequest);
             }
         };
         Thread thread = new Thread(task, "ai-selection-" + action.name().toLowerCase(Locale.ROOT));
@@ -10309,7 +10395,10 @@ public class MainWindow {
         de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
         if (policy.aiChatAllowed()) {
             terminalTab.getTerminalView().setAiSelectionHandler((action, profile, selectedText, runContext) ->
-                handleAiSelectionAction(terminalTab, action, profile, selectedText, runContext));
+                handleAiTextAction(terminalTab, action, profile, selectedText, AiTextActionInput.Origin.SELECTION,
+                    runContext));
+            terminalTab.getTerminalView().setAiRecentOutputHandler((profile, output, runContext) ->
+                handleAiRecentOutputAction(terminalTab, profile, output, runContext));
         }
         terminalTab.getTerminalView().setSftpHereHandler(pane -> openSftpHere(terminalTab, pane));
         terminalTab.getTerminalView().setSftpOpenAtHandler((pane, path) -> openSftpHere(terminalTab, pane, path));
@@ -11513,9 +11602,10 @@ public class MainWindow {
         // No preview here either, so the status bar says how many secrets were masked.
         SessionJournalRedactor knownSecrets = aiSecretRedactor(terminalTab);
         RedactionResult maskedSelection = AiOutboundRedaction.redactFor(profile, selectedText, knownSecrets);
+        TerminalPaneRef sourcePane = aiSourcePane(terminalTab, runContext);
         if (attachmentCandidate == null) {
             openDirectAiAskTab(profile, prompt, maskedSelection.text(), connectionDisplayName, connection, null,
-                knownSecrets);
+                knownSecrets, sourcePane);
             updateStatusWithMaskedSecrets(null, maskedSelection.count());
             return;
         }
@@ -11527,7 +11617,7 @@ public class MainWindow {
             AiOutboundRedaction.MaskedAttachment maskedAttachment =
                 AiOutboundRedaction.redactAttachmentFor(profile, outcome.attachment(), knownSecrets);
             openDirectAiAskTab(profile, prompt, maskedSelection.text(), connectionDisplayName, connection,
-                maskedAttachment.attachment(), knownSecrets);
+                maskedAttachment.attachment(), knownSecrets, sourcePane);
             updateStatusWithMaskedSecrets(skipped, maskedSelection.count() + maskedAttachment.count());
         });
     }
@@ -11539,7 +11629,8 @@ public class MainWindow {
         String connectionDisplayName,
         ServerConnection connection,
         @Nullable AiFileAttachment fileAttachment,
-        @Nullable SessionJournalRedactor knownSecrets) {
+        @Nullable SessionJournalRedactor knownSecrets,
+        @Nullable TerminalPaneRef sourcePane) {
         // Answer the question about the terminal selection when one was captured; without a
         // selection the question itself stays the request text (previous behavior).
         String requestText = askRequestText(selectedText, prompt);
@@ -11557,6 +11648,7 @@ public class MainWindow {
             false);
         // Follow-ups may go to another profile; the tab masks them again with these secrets.
         resultTab.setOutboundSecrets(knownSecrets);
+        resultTab.setSourcePane(sourcePane);
         if (fileAttachment != null) {
             resultTab.setFileAttachment(fileAttachment);
         }
@@ -11564,10 +11656,11 @@ public class MainWindow {
         insertTemporaryTab(resultTab);
 
         AiService aiService = createAiServiceForProfile(profile, connection);
+        AiRequest streamedRequest = request.withStreamListener(resultTab.beginStreaming());
         Task<AiExecutionResult> task = new Task<>() {
             @Override
             protected AiExecutionResult call() throws Exception {
-                return aiService.execute(request);
+                return aiService.execute(streamedRequest);
             }
         };
         Thread thread = new Thread(task, "ai-agent-ask");
@@ -11673,12 +11766,20 @@ public class MainWindow {
         java.util.Set<String> agentTokenActivityIds =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
         String agentModelText = aiModelDisplayText(profile);
+        // One desktop notification for the run's end, whichever path reports it first.
+        java.util.concurrent.atomic.AtomicBoolean agentEndNotified =
+            new java.util.concurrent.atomic.AtomicBoolean();
         Thread worker = new Thread(() -> {
             try {
                 terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
                         if (state != null && isTerminalAgentFinalPhase(state.phase())) {
+                            TerminalNotificationPolicy.AiRunEvent endEvent =
+                                TerminalAttentionNotifier.agentEndEvent(state.phase());
+                            if (endEvent != null && agentEndNotified.compareAndSet(false, true)) {
+                                TerminalAttentionNotifier.postAiRun(terminalTab, endEvent);
+                            }
                             String message = formatTerminalAgentFinalMessage(state);
                             if (message != null && !message.isBlank()) {
                                 // The journal card is written regardless of terminal mirroring:
@@ -11737,11 +11838,15 @@ public class MainWindow {
 
                     @Override
                     public TerminalAgentService.ApprovalDecision requestApproval(TerminalAgentModels.Approval approval) {
+                        TerminalAttentionNotifier.postAiRun(terminalTab,
+                            TerminalNotificationPolicy.AiRunEvent.NEEDS_APPROVAL);
                         return activityPanel.requestApproval(runId, approval);
                     }
 
                     @Override
                     public TerminalAgentModels.PasswordResponse requestPassword(TerminalAgentModels.PasswordRequest passwordRequest) {
+                        TerminalAttentionNotifier.postAiRun(terminalTab,
+                            TerminalNotificationPolicy.AiRunEvent.NEEDS_PASSWORD);
                         return activityPanel.requestPassword(runId, passwordRequest);
                     }
 
@@ -11781,6 +11886,9 @@ public class MainWindow {
                             agentTokensTotal.get());
                     }
                 } else {
+                    if (agentEndNotified.compareAndSet(false, true)) {
+                        TerminalAttentionNotifier.postAiRun(terminalTab, TerminalNotificationPolicy.AiRunEvent.FAILED);
+                    }
                     activityPanel.publishActivity(runId, new TerminalAgentModels.AgentActivity(
                         "failed-" + System.nanoTime(),
                         TerminalAgentModels.AgentActivityType.ERROR,

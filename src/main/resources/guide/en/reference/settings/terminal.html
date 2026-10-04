@@ -1015,6 +1015,13 @@
 <td><code>remoteTerminalNotificationsEnabled</code></td>
 </tr>
 <tr>
+<td>Desktop notification when an AI agent or AI swarm run in a tab you are not looking at finishes or waits for you</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>aiRunToastsEnabled</code></td>
+</tr>
+<tr>
 <td>Monitor for Silence reports after:</td>
 <td>number</td>
 <td>5–3,600 seconds</td>
@@ -1152,6 +1159,7 @@
 <p>A program that rings the terminal bell in a tab you are not looking at always marks that tab with 🔔 until you look at it; this needs no setting. <strong>Desktop notification when the bell rings in a tab you are not looking at</strong> adds a desktop notification titled <code>korTTY ·</code> and the tab's name, at most one per pane every 10 seconds. It is off by default because shells ring the bell on every failed Tab completion, and a pane with a detected coding agent gets none while the coding-agent notifications are on. The setting is read on every bell, so a change applies to open tabs as soon as you save.</p>
 <p>In a shell set up for shell integration, a command that ran at least <strong>Minimum command runtime:</strong> (30 seconds by default) and finishes in a tab you are not looking at marks that tab with 🔔 too, and <strong>Desktop notification when a long-running command finishes in a tab you are not looking at</strong>, on by default, adds a desktop notification saying how the command ended and how long it ran, never the command itself, at most one per tab every 10 seconds. Commands of korTTY's AI Agent never notify. Both are greyed out while <strong>Use the command marks of shells set up for shell integration (OSC 133)</strong> is off, and both are read on every finished command. See <a href="../../features/terminal-notifications.html#long-running-commands">Terminal notifications</a>.</p>
 <p>A program that asks for a desktop notification with OSC 9 or OSC 777, such as a coding agent on a server waiting for your answer, marks its tab with 🔔 too when you are not looking at it, and <strong>Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777)</strong>, on by default, shows the program's text below a title with the tab's name, cleaned of control and bidi characters and cut to 80 characters for the title and 200 for the text, at most one per pane every 5 seconds; what comes in between is dropped. A pane with a detected coding agent gets none while the coding-agent notifications are on. It needs no shell integration and is read on every request. See <a href="../../features/terminal-notifications.html#notifications-from-programs">Notifications from programs</a>.</p>
+<p><strong>Desktop notification when an AI agent or AI swarm run in a tab you are not looking at finishes or waits for you</strong>, on by default, covers korTTY's own AI Agent and AI Swarm: when a run in a tab you are not looking at waits for your approval or a password, finishes or stops without finishing, a desktop notification titled with the tab's name says so in one fixed sentence, never with the prompt, a command or output, at most one per tab and kind every 10 seconds. A terminal tab is marked with 🔔 either way. It is read on every event. See <a href="../../features/terminal-notifications.html#ai-agent-and-ai-swarm-runs">AI agent and AI Swarm runs</a>.</p>
 <p><strong>Monitor for Silence reports after:</strong> is how long a pane has to stay without output, after printing something, before a tab you watch with <strong>Monitor for Silence</strong> in its right-click menu is marked with 🔔 and shows a desktop notification, 30 seconds by default. The watch itself, like <strong>Monitor for Activity</strong>, which reports new output after 10 seconds of quiet, is switched per tab, off until you switch it on, and never saved. The threshold is read every second, so a change applies to the watched tabs as soon as you save. See <a href="../../features/terminal-notifications.html#watching-a-tab-for-activity-or-silence">Watching a tab for activity or silence</a>.</p>
 </div>
 <div class="admonition note">

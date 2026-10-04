@@ -424,6 +424,29 @@ final class ShellIntegrationController {
         return marks != null && isEnabled() && marks.store().commandRunningSince(enterNanos);
     }
 
+    /** What the shell-integration marks of a pane say about its prompt ({@link #promptState}). */
+    enum PromptState {
+        /** No marks to go by: shell integration is off, or the pane's shell is not set up for it. */
+        UNKNOWN,
+        /** The shell waits at its prompt: no marked command runs. */
+        AT_PROMPT,
+        /** The shell marked a command as running and has not reported its end. */
+        COMMAND_RUNNING
+    }
+
+    /**
+     * Whether {@code widget}'s shell waits at its prompt, as its marks tell: {@link PromptState#UNKNOWN}
+     * without marks (shell integration off, or a shell not set up for it), {@link PromptState#COMMAND_RUNNING}
+     * while a marked command has not finished. Any thread.
+     */
+    PromptState promptState(@Nullable SithTermFxWidget widget) {
+        PaneCommandMarks marks = widget != null ? panes.get(widget) : null;
+        if (marks == null || !isEnabled() || marks.store().isEmpty()) {
+            return PromptState.UNKNOWN;
+        }
+        return marks.store().commandRunning() ? PromptState.COMMAND_RUNNING : PromptState.AT_PROMPT;
+    }
+
     /** Whether shell integration is on; a failing settings lookup counts as on, its default. */
     boolean isEnabled() {
         try {
@@ -589,6 +612,23 @@ final class ShellIntegrationController {
                 yield truncated ? LastOutputResult.SELECTED_TRUNCATED : LastOutputResult.SELECTED;
             }
         };
+    }
+
+    /**
+     * The text Copy Last Output would copy from {@code widget}, without touching the clipboard or
+     * the selection; {@code null} while shell integration is off, without marks or a finished
+     * command, or while a full-screen program runs. For "Summarize Recent Output". FX thread.
+     */
+    @Nullable String lastOutputText(@NotNull SithTermFxWidget widget) {
+        if (!isEnabled()) {
+            return null;
+        }
+        PaneCommandMarks marks = panes.get(widget);
+        if (marks == null) {
+            return null;
+        }
+        PaneCommandMarks.LastOutput output = marks.lastOutput(true);
+        return output.status() == PaneCommandMarks.LastOutputStatus.FOUND ? output.text() : null;
     }
 
     /**

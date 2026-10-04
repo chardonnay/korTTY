@@ -40,6 +40,14 @@ A few terminal features report how they are used, with flags, coarse counts and 
 
 The search text, the names of commands, tabs, connections, snippets and rule sets, the patterns, and anything typed into the panes are never sent. Changes on the settings pages are reported as the name of the setting and, for switches and choices, the new value; for the quick-select letters and patterns and for rebound shortcuts only whether you changed them.
 
+### AI chat code blocks
+
+| Event | Sent when | Data |
+| --- | --- | --- |
+| `ai_code_block_action` | **Insert** or **Run** on a code block of an AI chat is used | `insert` or `run`, and whether it ended `sent`, `cancelled` (the Run confirmation was declined) or `refused` (the policy, the block or the pane did not allow it) |
+
+The block, its language, the command, the pane, the tab, the host and the reason for a refusal are never sent.
+
 ### Control API and MCP clients
 
 When a program uses the [Control API](../reference/control-api.md), korTTY reports which methods are used and what kind of client used them. An AI assistant connected through `kortty-cli mcp` is also reported by tool and by how the call ended. Each event is sent at most once per method, or per tool and outcome, while korTTY runs; the number of calls goes into the periodic usage summary.

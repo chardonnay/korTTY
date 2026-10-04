@@ -133,6 +133,8 @@ These keys work while the [command palette](../features/command-palette.md) is o
 | ++tab++ / ++shift+tab++ | Move between the search field and the list |
 | ++esc++ or ++ctrl+shift+p++ | Close the palette (++cmd+shift+p++ on macOS) |
 
+**View → Snippet Palette…** opens the palette with only the snippets listed and has no shortcut by default, because ++ctrl+shift+j++ already opens the JobScheduler. Once you give it one in [Settings → Keyboard](settings/keyboard.md), that key opens the [snippet palette](../features/command-palette.md#snippet-palette) also while a terminal has the focus, and pressing it while the palette is open closes the palette like ++esc++. The snippet you choose runs in the focused pane of its terminal tab.
+
 ## SFTP Manager
 
 These keys work in the local and the remote list of an SFTP Manager tab; see [Keys](../features/sftp.md#keys).

@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiAction;
+import de.kortty.core.AiStreamListener;
 import de.kortty.core.AiChatContentSupport;
 import de.kortty.core.AiChatDiagramSupport;
 import de.kortty.core.AiChatRenderPageSupport;
@@ -33,6 +34,7 @@ import de.kortty.core.TerminalAgentService;
 import de.kortty.core.swarm.SwarmCallback;
 import de.kortty.core.swarm.SwarmModels;
 import de.kortty.core.swarm.SwarmTarget;
+import de.kortty.model.AiChatTerminalActions;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ChatColorProfile;
 import de.kortty.model.TerminalAgentModels;
@@ -53,6 +55,8 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
@@ -95,6 +99,8 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import de.kortty.paste.PasteSource;
+import de.kortty.policy.PolicyManager;
 import de.kortty.telemetry.Telemetry;
 import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryProps;
@@ -105,6 +111,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * AI chat tab that supports follow-up questions, saving, sharing, and reopening.
@@ -140,6 +147,11 @@ public class AiResultTab extends Tab {
      * chat. Volatile: the title suggestion reads it on a background thread.
      */
     private volatile SessionJournalRedactor outboundSecrets;
+    /**
+     * The terminal pane this chat was opened from, where its code blocks go first (see
+     * {@link #setSourcePane}); {@code null} for a reopened saved chat. FX thread.
+     */
+    private TerminalPaneRef sourcePane;
     private String languageCode;
     private final List<SavedAiChatMessage> messageEntries = new ArrayList<>();
     private final StringBuilder plainTranscript = new StringBuilder();
@@ -177,6 +189,8 @@ public class AiResultTab extends Tab {
     // release the native WebKit engines instead of orphaning them (each holds tens of MB).
     private final ChatRenderDisposables renderDisposables = new ChatRenderDisposables();
     private final ChatAutoScrollSupport autoScroll;
+    /** Live plain-text preview of a streamed answer; replaced by the final rendering (see {@link #beginStreaming}). */
+    private final AiChatStreamingView streamingView;
     private HBox searchBar;
     private TextField searchField;
     private Label searchCountLabel;
@@ -227,6 +241,11 @@ public class AiResultTab extends Tab {
         messagesBox.getStyleClass().add("ai-chat-messages");
         messagesBox.setPadding(new Insets(14, 16, 14, 16));
         autoScroll = new ChatAutoScrollSupport(messagesScrollPane, messagesBox);
+        streamingView = new AiChatStreamingView(
+            messagesBox,
+            () -> currentFontSize,
+            this::streamingRoleLabel,
+            this::onStreamingStarted);
 
         profileComboBox = new ComboBox<>();
         profileComboBox.setPrefWidth(240);
@@ -487,6 +506,28 @@ public class AiResultTab extends Tab {
         this.outboundSecrets = secrets;
     }
 
+    /**
+     * Binds the chat to the terminal pane it was opened from: its code blocks are inserted into or run in
+     * that pane while it is open, and in the focused pane of the current terminal tab after it closed
+     * ({@link AiCodeBlockTerminalAction#resolveTarget}). A reopened saved chat has no binding.
+     */
+    void setSourcePane(@Nullable TerminalPaneRef pane) {
+        this.sourcePane = pane;
+    }
+
+    /** The pane this chat was opened from, or {@code null}; it may have closed since. */
+    @Nullable TerminalPaneRef sourcePane() {
+        return sourcePane;
+    }
+
+    /**
+     * The pane a code block of this chat goes to now: the bound source pane while it is open, otherwise the
+     * focused pane of the terminal tab a snippet would go to, otherwise {@code null}. FX thread.
+     */
+    @Nullable TerminalPaneRef terminalTarget() {
+        return AiCodeBlockTerminalAction.resolveTarget(sourcePane, ownerWindow);
+    }
+
     /** The chat's selection, attachment and conversation as they may go to {@code profile}. */
     private AiOutboundRedaction.ChatContext outboundContextFor(AiProfile profile, String conversation) {
         return AiOutboundRedaction.chatContextFor(profile, selectedText, fileAttachment, conversation, outboundSecrets);
@@ -610,6 +651,33 @@ public class AiResultTab extends Tab {
         thread.setDaemon(true);
         attachRunningTask(task, thread, I18n.get("snippets.ai.diagram.generating"));
         thread.start();
+    }
+
+    /**
+     * Starts the live preview for the request this chat is about to send and returns the listener
+     * to set on it ({@code AiRequest.withStreamListener}). Snapshots appear as plain text in a
+     * transient block; when the request ends ({@link #showResult}, {@link #showError},
+     * {@link #showCancelled}) the preview is removed and the final answer is rendered as usual, so
+     * code-block actions only ever appear on the finished answer. A provider that does not stream
+     * never calls the listener and the chat keeps its waiting status. FX thread.
+     */
+    AiStreamListener beginStreaming() {
+        return streamingView.begin();
+    }
+
+    private String streamingRoleLabel() {
+        AiProfile profile = profileComboBox.getSelectionModel().getSelectedItem();
+        SavedAiChatMessage entry = new SavedAiChatMessage();
+        entry.setRole(SavedAiChatMessage.ROLE_ASSISTANT);
+        entry.setAiProfileName(profile != null ? getAiProfileDisplayName(profile) : activeProfileName);
+        return resolveRoleLabel(entry);
+    }
+
+    private void onStreamingStarted() {
+        if (busy) {
+            waitingBaseText = I18n.get("ai.result.streaming");
+            refreshWaitingStatus();
+        }
     }
 
     public void attachRunningTask(Task<?> task, Thread thread, String waitingText) {
@@ -993,15 +1061,18 @@ public class AiResultTab extends Tab {
             prompt,
             outbound.conversation())
             .withFileAttachment(outbound.attachment());
+        AiRequest streamedRequest = request.withStreamListener(beginStreaming());
 
         Task<AiExecutionResult> task = new Task<>() {
             @Override
             protected AiExecutionResult call() throws Exception {
-                return aiService.execute(request);
+                return aiService.execute(streamedRequest);
             }
         };
         task.setOnSucceeded(event -> {
             AiExecutionResult result = task.getValue();
+            // The final answer replaces the live preview.
+            streamingView.end();
             appendAssistantMessage(
                 result != null ? result.content() : "",
                 result != null ? result.reasoning() : null,
@@ -1168,6 +1239,9 @@ public class AiResultTab extends Tab {
     }
 
     private void stopWaiting() {
+        if (streamingView != null) {
+            streamingView.end();
+        }
         waitingTimeline.stop();
         busy = false;
         waitingSinceMillis = 0L;
@@ -1278,6 +1352,7 @@ public class AiResultTab extends Tab {
         for (SavedAiChatMessage entry : messageEntries) {
             renderMessage(entry);
         }
+        streamingView.reattach();
         if (searchBar != null && searchBar.isVisible()) {
             runChatSearch();
         }
@@ -1706,13 +1781,131 @@ public class AiResultTab extends Tab {
         }
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = saveSnippetButton != null
-            ? new HBox(8, languageLabel, spacer, saveSnippetButton, copyCodeButton)
-            : new HBox(8, languageLabel, spacer, copyCodeButton);
+        HBox header = new HBox(8, languageLabel, spacer);
+        AiCodeBlockTerminalButtons terminalButtons =
+            AiCodeBlockTerminalButtons.create(language, code, codeBlockTerminalHost());
+        if (terminalButtons != null) {
+            header.getChildren().addAll(terminalButtons.nodes());
+        }
+        if (saveSnippetButton != null) {
+            header.getChildren().add(saveSnippetButton);
+        }
+        header.getChildren().add(copyCodeButton);
 
         VBox codeBox = new VBox(6, header, createCodeEditorNode(normalizedLanguage, code));
         codeBox.getStyleClass().add("ai-chat-code");
         return codeBox;
+    }
+
+    /**
+     * What the Insert and Run buttons of this chat's code blocks act through: the user setting, the policy in
+     * force, the target pane ({@link #terminalTarget()}), the pane-precise paste and send of its terminal
+     * view, and the Run confirmation.
+     */
+    private AiCodeBlockTerminalButtons.Host codeBlockTerminalHost() {
+        return new AiCodeBlockTerminalButtons.Host() {
+            @Override
+            public AiChatTerminalActions setting() {
+                GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+                return settings != null ? settings.getAiChatTerminalActions() : AiChatTerminalActions.DEFAULT;
+            }
+
+            @Override
+            public AiCodeBlockTerminalAction.Policy policy() {
+                return AiCodeBlockTerminalAction.Policy.of(PolicyManager.effective());
+            }
+
+            @Override
+            public @Nullable TerminalPaneRef target() {
+                return terminalTarget();
+            }
+
+            @Override
+            public AiCodeBlockTerminalAction.PaneState probe(TerminalPaneRef target) {
+                return AiCodeBlockTerminalAction.PaneState.probe(target);
+            }
+
+            @Override
+            public void insert(TerminalPaneRef target, String text,
+                               java.util.function.Consumer<de.kortty.paste.PasteGuard.Outcome> outcome) {
+                TerminalTab tab = target.tab();
+                KorttyTermWidget pane = target.pane();
+                TerminalView view = tab != null ? tab.getTerminalView() : null;
+                if (view != null && pane != null) {
+                    view.pasteIntoPane(pane, text, PasteSource.AI, outcome);
+                } else {
+                    outcome.accept(de.kortty.paste.PasteGuard.Outcome.REFUSED);
+                }
+            }
+
+            @Override
+            public boolean confirmRun(TerminalPaneRef target, String line, AiCodeBlockTerminalAction.Decision decision) {
+                return confirmCodeBlockRun(target, line, decision);
+            }
+
+            @Override
+            public boolean sendLine(TerminalPaneRef target, String line) {
+                TerminalTab tab = target.tab();
+                KorttyTermWidget pane = target.pane();
+                TerminalView view = tab != null ? tab.getTerminalView() : null;
+                return view != null && pane != null && view.sendInputLineToPane(pane, line, false);
+            }
+
+            @Override
+            public void status(String message) {
+                statusLabel.setText(message);
+                ownerWindow.updateStatusMessage(message);
+            }
+        };
+    }
+
+    /**
+     * The Run confirmation: names the pane, shows the exact line, warns that it comes from an AI answer, and
+     * adds the foreign-session warning and the unknown-prompt note (D20) where they apply. Cancel is the default
+     * button, so Enter does not run the line.
+     */
+    private boolean confirmCodeBlockRun(TerminalPaneRef target, String line, AiCodeBlockTerminalAction.Decision decision) {
+        String name = target.displayName();
+        ButtonType runButtonType = new ButtonType(I18n.get("ai.result.terminal.run.confirm.run"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButtonType = new ButtonType(I18n.get("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "", runButtonType, cancelButtonType);
+        DialogThemeHelper.applyTheme(alert);
+        Window owner = getOwnerWindow();
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
+        alert.setTitle(I18n.get("ai.result.terminal.run.confirm.title"));
+        alert.setHeaderText(I18n.get("ai.result.terminal.run.confirm.header", name));
+
+        TextArea command = new TextArea(line);
+        command.setEditable(false);
+        command.setWrapText(true);
+        command.setPrefRowCount(Math.min(6, Math.max(2, line.length() / 70 + 1)));
+        command.setStyle("-fx-font-family: 'monospace';");
+        Label untrusted = new Label(I18n.get("ai.result.terminal.run.confirm.untrusted"));
+        untrusted.setWrapText(true);
+        VBox body = new VBox(8, command, untrusted);
+        if (decision.verdict() == AiCodeBlockTerminalAction.Verdict.FOREIGN_SESSION_CONFIRM) {
+            Label foreign = new Label(I18n.get(decision.verdict().messageKey(), name));
+            foreign.setWrapText(true);
+            foreign.setStyle("-fx-font-weight: bold;");
+            body.getChildren().add(foreign);
+        }
+        if (decision.promptUnknown()) {
+            Label promptUnknown = new Label(I18n.get("ai.result.terminal.promptUnknown", name));
+            promptUnknown.setWrapText(true);
+            body.getChildren().add(promptUnknown);
+        }
+        body.setPrefWidth(560);
+        alert.getDialogPane().setContent(body);
+        alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        if (alert.getDialogPane().lookupButton(runButtonType) instanceof Button runNode) {
+            runNode.setDefaultButton(false);
+        }
+        if (alert.getDialogPane().lookupButton(cancelButtonType) instanceof Button cancelNode) {
+            cancelNode.setDefaultButton(true);
+        }
+        return alert.showAndWait().orElse(cancelButtonType) == runButtonType;
     }
 
     private javafx.scene.Node createCodeEditorNode(String normalizedLanguage, String code) {

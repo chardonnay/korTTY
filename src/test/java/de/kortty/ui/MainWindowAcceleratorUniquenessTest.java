@@ -231,7 +231,7 @@ class MainWindowAcceleratorUniquenessTest {
         assertThat(body(source, "    static void refreshKeymapInAllWindows() {")).contains("window.applyKeymap();");
 
         String routed = body(source, "    private List<RoutedChord> routedChords() {");
-        for (String field : List.of("commandPaletteChord", "menuBarToggleChord", "terminalOnlyFullscreenChord",
+        for (String field : List.of("commandPaletteChord", "snippetPaletteChord", "menuBarToggleChord", "terminalOnlyFullscreenChord",
             "highlightingToggleChord", "credentialsChord", "reopenClosedTabChord", "quickSelectChord")) {
             assertWithMessage(field).that(routed).contains(field);
             assertWithMessage(field + " in the router").that(body(source,

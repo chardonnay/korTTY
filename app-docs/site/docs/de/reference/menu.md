@@ -114,6 +114,7 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
 | Befehlspalette… | ++ctrl+shift+p++ | Öffnen Sie die [Befehlspalette](../features/command-palette.md), um durch Eingabe eines Teils des Namens einen beliebigen Menübefehl oder einen Terminalbefehl wie **Puffer löschen** zu finden und auszuführen, zu einem offenen Tab zu wechseln, eine gespeicherte Verbindung herzustellen oder ein Snippet im Terminal auszuführen; das Tastaturkürzel funktioniert auch, wenn ein Terminal den Fokus hat und die Menüleiste ausgeblendet ist, und schließt die Palette wieder |
+| Snippet-Palette… | keines (weisen Sie unter [Einstellungen → Tastatur](settings/keyboard.md) eines zu) | Öffnen Sie die Befehlspalette mit bereits eingegebenem `$`, sodass sie nur die [Snippets](../features/command-palette.md#snippet-palette) auflistet und das gewählte im fokussierten Bereich des Terminals ausführt; ein zugewiesenes Tastenkürzel funktioniert auch, während ein Terminal den Fokus hat, und schließt die Palette wieder |
 | Dashboard anzeigen | ++ctrl+shift+d++ | Schalten Sie das Verbindungs-Dashboard um |
 | Show Command Timestamps | ++ctrl+shift+t++ | Schalten Sie die Inline-Befehlszeitstempel um |
 | Menüleiste anzeigen | ++ctrl+shift+l++ | Schalten Sie die Menüleiste um |

@@ -464,6 +464,16 @@ public class GlobalSettings {
     private boolean remoteTerminalNotificationsEnabled = true;
 
     /**
+     * Desktop notification when a korTTY AI run, a terminal-agent run or an AI swarm, in a tab the user
+     * is not looking at finishes, fails or waits for an approval or a password. On by default
+     * (decision D5): an approval in a window behind another one would otherwise block the run
+     * silently. The text is fixed and never carries the prompt, a command or output; at most one per
+     * tab and event every 10 seconds.
+     */
+    @XmlElement
+    private boolean aiRunToastsEnabled = true;
+
+    /**
      * How long a pane of a terminal tab watched for silence (<i>Monitor for Silence</i> in the tab's
      * right-click menu) has to stay without output after printing, in seconds, before the tab is
      * marked and notifies; 5 to 3600. Boxed so a settings file written before this setting existed
@@ -726,6 +736,14 @@ public class GlobalSettings {
     /** Selected color profile id for the AI chat surfaces; null/blank = follow the terminal theme. */
     @XmlElement
     private String chatColorProfileId;
+
+    /**
+     * Settings → AI: which terminal actions the code blocks of an AI chat offer, the
+     * {@link AiChatTerminalActions#id()} {@code off}, {@code insert_only} or {@code insert_and_run}. Missing,
+     * blank or unknown values mean {@code insert_and_run}.
+     */
+    @XmlElement
+    private String aiChatTerminalActions = AiChatTerminalActions.DEFAULT.id();
 
     /** Font size used in temporary AI result tabs. */
     @XmlElement
@@ -2526,6 +2544,18 @@ public class GlobalSettings {
     }
 
     /**
+     * Whether a korTTY AI run (terminal agent, swarm) in a tab the user is not looking at shows a
+     * desktop notification when it finishes, fails or waits for the user. Read on every event.
+     */
+    public boolean isAiRunToastsEnabled() {
+        return aiRunToastsEnabled;
+    }
+
+    public void setAiRunToastsEnabled(boolean aiRunToastsEnabled) {
+        this.aiRunToastsEnabled = aiRunToastsEnabled;
+    }
+
+    /**
      * How long a pane of a tab watched for silence has to stay without output before it counts, in
      * seconds, {@code 5..3600}. Read on every poll, so a change applies to the watched tabs at once.
      */
@@ -3156,6 +3186,16 @@ public class GlobalSettings {
             snippetTranslationTargetLanguage != null && !snippetTranslationTargetLanguage.isBlank()
                 ? snippetTranslationTargetLanguage.trim()
                 : null;
+    }
+
+    /** Settings → AI: which terminal actions AI chat code blocks offer. */
+    public AiChatTerminalActions getAiChatTerminalActions() {
+        return AiChatTerminalActions.fromId(aiChatTerminalActions);
+    }
+
+    /** @param actions the actions to store; null stores the default ({@code insert_and_run}) */
+    public void setAiChatTerminalActions(AiChatTerminalActions actions) {
+        this.aiChatTerminalActions = (actions != null ? actions : AiChatTerminalActions.DEFAULT).id();
     }
 
     public String getChatColorProfileId() {

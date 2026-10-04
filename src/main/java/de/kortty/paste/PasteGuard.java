@@ -1,13 +1,16 @@
 package de.kortty.paste;
 
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +32,13 @@ import org.slf4j.LoggerFactory;
  *       line. A paste into a pane that is still pacing an earlier one is dropped.</li>
  *   <li>The rules and the line delay are read for the pane pasted into, so a pane whose connection
  *       sets its own paste protection follows it while the other panes of the tab follow theirs.</li>
+ *   <li>Text from {@link PasteSource#AI} gets a strict floor on top of the pane's rules: a line break
+ *       or a control character always asks, even where the pane's connection relaxes paste
+ *       protection, and control and bidi characters are removed before it is sent
+ *       ({@link PasteSanitizer#stripControlCharacters(String)}). A pane whose input is mirrored
+ *       ({@link PasteTarget#broadcastActive()} or {@link PasteTarget#multiExecActive()}) never
+ *       receives it, without asking: {@link PasteTarget#send(String)} writes as user input, so the
+ *       text would reach every pane of the broadcast or the group.</li>
  *   <li>Only sizes, sources and reason codes are logged, at DEBUG; never the text.</li>
  * </ul>
  *
@@ -104,25 +114,62 @@ public final class PasteGuard {
      * @param source where the text came from
      */
     public void paste(PasteTarget target, String text, PasteSource source) {
+        paste(target, text, source, null);
+    }
+
+    /** How a {@link #paste(PasteTarget, String, PasteSource, Consumer) paste} ended. */
+    public enum Outcome {
+        /** The text was handed to the pane (or to its pacer). */
+        SENT,
+        /** The user declined the confirmation. */
+        CANCELLED,
+        /**
+         * Nothing was sent without the user declining: the pane could not receive it, its input is
+         * mirrored (AI text), it is still pacing or asking about another paste, its session changed
+         * while the confirmation was open, or the text was empty after cleaning.
+         */
+        REFUSED
+    }
+
+    /**
+     * {@link #paste(PasteTarget, String, PasteSource)}, telling {@code outcome} how it ended: at once,
+     * or when the confirmation is answered. Called exactly once, on the thread that pastes or answers.
+     *
+     * @param outcome receives how the paste ended; may be {@code null}
+     */
+    public void paste(PasteTarget target, String text, PasteSource source, @Nullable Consumer<Outcome> outcome) {
+        Consumer<Outcome> report = outcome != null ? outcome : unused -> { };
         if (target == null || text == null || text.isEmpty() || !target.canReceive()) {
+            report.accept(Outcome.REFUSED);
             return;
         }
         PasteSource from = source != null ? source : PasteSource.CLIPBOARD;
+        if (from == PasteSource.AI && mirrored(target)) {
+            logger.debug("AI text refused: the pane's input is mirrored by broadcast or multi-exec ({} chars)",
+                text.length());
+            report.accept(Outcome.REFUSED);
+            return;
+        }
         if (isPacing(target)) {
             logger.debug("Paste dropped: the pane is still pacing a paste ({} chars, {})", text.length(), from);
+            report.accept(Outcome.REFUSED);
             return;
         }
         boolean bracketed = target.bracketedPasteMode();
         PasteRules current = rules.apply(target);
         Set<PasteReason> reasons = reasonsFor(current, text, bracketed);
+        if (from == PasteSource.AI) {
+            reasons = withAiFloor(reasons, text);
+        }
         if (reasons.isEmpty()) {
-            send(target, text, from);
+            report.accept(send(target, text, from) ? Outcome.SENT : Outcome.REFUSED);
             return;
         }
         Object key = target.key();
         if (!pending.add(key)) {
             logger.debug("Paste dropped: the pane already asks to confirm a paste ({} chars, {})",
                 text.length(), from);
+            report.accept(Outcome.REFUSED);
             return;
         }
         Object session = target.session();
@@ -139,17 +186,27 @@ public final class PasteGuard {
                 pending.remove(key);
                 if (!Boolean.TRUE.equals(accepted)) {
                     logger.debug("Paste cancelled ({} chars, {})", text.length(), from);
+                    report.accept(Outcome.CANCELLED);
                 } else if (!target.canReceive() || target.session() != session) {
                     logger.debug("Confirmed paste dropped: the pane's session changed ({} chars, {})",
                         text.length(), from);
+                    report.accept(Outcome.REFUSED);
+                } else if (from == PasteSource.AI && mirrored(target)) {
+                    logger.debug("Confirmed AI text dropped: the pane's input is mirrored now ({} chars)",
+                        text.length());
+                    report.accept(Outcome.REFUSED);
                 } else {
-                    send(target, text, from);
+                    report.accept(send(target, text, from) ? Outcome.SENT : Outcome.REFUSED);
                 }
             });
         } catch (RuntimeException e) {
+            boolean unanswered = !answered[0];
             answered[0] = true;
             pending.remove(key);
             logger.warn("Paste confirmation failed, nothing was pasted: {}", e.toString());
+            if (unanswered) {
+                report.accept(Outcome.REFUSED);
+            }
         }
     }
 
@@ -163,15 +220,45 @@ public final class PasteGuard {
         return reasons != null ? reasons : Set.of();
     }
 
+    /**
+     * The pane's reasons plus the ones AI text always raises: {@link PasteReason#MULTI_LINE} for a
+     * line break, bracketed or not, and {@link PasteReason#CONTROL_CHARACTERS} for control or bidi
+     * characters. A reason the pane's rules raise, such as {@link PasteReason#LARGE}, stays.
+     */
+    static Set<PasteReason> withAiFloor(Set<PasteReason> reasons, String text) {
+        PasteInspection inspection = PasteInspection.of(text);
+        EnumSet<PasteReason> merged = EnumSet.noneOf(PasteReason.class);
+        merged.addAll(reasons);
+        if (inspection.containsLineBreak()) {
+            merged.add(PasteReason.MULTI_LINE);
+        }
+        if (inspection.containsControlCharacters()) {
+            merged.add(PasteReason.CONTROL_CHARACTERS);
+        }
+        return merged.isEmpty() ? Set.of() : Collections.unmodifiableSet(merged);
+    }
+
+    /** Whether what the pane receives as user input also reaches other panes; unreadable counts as yes. */
+    private static boolean mirrored(PasteTarget target) {
+        try {
+            return target.broadcastActive() || target.multiExecActive();
+        } catch (RuntimeException e) {
+            logger.debug("Paste target mirroring unreadable, treating the pane as mirrored: {}", e.toString());
+            return true;
+        }
+    }
+
     private boolean isPacing(PasteTarget target) {
         return pacer != null && pacer.isPacing(target.key());
     }
 
-    private void send(PasteTarget target, String text, PasteSource source) {
-        String payload = PasteSanitizer.encode(text, target.bracketedPasteMode(), target.charset());
+    /** Sends the cleaned text; whether anything was handed to the pane or its pacer. */
+    private boolean send(PasteTarget target, String text, PasteSource source) {
+        String body = source == PasteSource.AI ? PasteSanitizer.stripControlCharacters(text) : text;
+        String payload = PasteSanitizer.encode(body, target.bracketedPasteMode(), target.charset());
         if (payload.isEmpty()) {
             logger.debug("Paste dropped: nothing left after removing bracketed-paste markers ({})", source);
-            return;
+            return false;
         }
         try {
             int delayMs = pacer != null ? currentLineDelayMs(target) : 0;
@@ -180,8 +267,10 @@ public final class PasteGuard {
             } else {
                 target.send(payload);
             }
+            return true;
         } catch (RuntimeException e) {
             logger.warn("Paste could not be sent ({} chars, {}): {}", payload.length(), source, e.toString());
+            return false;
         }
     }
 

@@ -133,6 +133,8 @@ Diese Tasten funktionieren, solange die [Befehlspalette](../features/command-pal
 | ++tab++ / ++shift+tab++ | Zwischen Suchfeld und Liste wechseln |
 | ++esc++ oder ++ctrl+shift+p++ | Palette schließen (++cmd+shift+p++ unter macOS) |
 
+**Ansicht → Snippet-Palette…** öffnet die Palette nur mit den Snippets und hat standardmäßig kein Tastenkürzel, weil ++ctrl+shift+j++ bereits den JobScheduler öffnet. Sobald Sie ihr unter [Einstellungen → Tastatur](settings/keyboard.md) eines zuweisen, öffnet diese Taste die [Snippet-Palette](../features/command-palette.md#snippet-palette) auch, während ein Terminal den Fokus hat, und ein Druck darauf bei geöffneter Palette schließt sie wie ++esc++. Das gewählte Snippet läuft im fokussierten Bereich seines Terminal-Tabs.
+
 ## SFTP-Manager
 
 Diese Tasten funktionieren in der lokalen und der entfernten Liste eines SFTP-Manager-Tabs; siehe [Tasten](../features/sftp.md#tasten).

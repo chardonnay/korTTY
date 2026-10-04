@@ -193,6 +193,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox commandFinishedNotificationsCheck;
     private final Spinner<Integer> commandFinishedSecondsSpinner;
     private final CheckBox remoteTerminalNotificationsCheck;
+    private final CheckBox aiRunToastsCheck;
     private final Spinner<Integer> terminalSilenceSecondsSpinner;
     private final CheckBox terminalRecordingAlwaysEnabledCheck;
     private final CheckBox terminalRecordingCaptureColorsCheck;
@@ -387,6 +388,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<AiProfile> aiDefaultProfileCombo;
     private final ComboBox<AiProfile> aiSecurityCheckProfileCombo;
     private final ComboBox<AiLanguageSupport.LanguageOption> aiCodeTextLanguageCombo;
+    private final ComboBox<de.kortty.model.AiChatTerminalActions> aiChatTerminalActionsCombo;
     private final CheckBox aiSnippetEditorInstructionsCheck;
     private final Spinner<Integer> aiSnippetAlternativeSolutionCountSpinner;
     private final Spinner<Integer> terminalAgentInputHistorySizeSpinner;
@@ -974,6 +976,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         remoteTerminalNotificationsCheck.setSelected(globalSettings == null
             || globalSettings.isRemoteTerminalNotificationsEnabled());
         remoteTerminalNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.remote.tooltip")));
+        // ... and korTTY's own AI runs (terminal agent, swarm) finishing or waiting for an approval.
+        aiRunToastsCheck = new CheckBox(I18n.get("settings.terminal.notify.aiRun"));
+        aiRunToastsCheck.setSelected(globalSettings == null || globalSettings.isAiRunToastsEnabled());
+        aiRunToastsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.aiRun.tooltip")));
         // ... and how long a tab watched for silence (its right-click menu) has to stay silent.
         terminalSilenceSecondsSpinner = new Spinner<>(PaneActivityMonitor.MIN_SILENCE_SECONDS,
             PaneActivityMonitor.MAX_SILENCE_SECONDS,
@@ -1214,6 +1220,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         commandFinishedSecondsBox.setAlignment(Pos.CENTER_LEFT);
         terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);
         terminalGrid.add(remoteTerminalNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(aiRunToastsCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(new Label(I18n.get("settings.terminal.notify.silenceSeconds")), 0, terminalRow);
         HBox terminalSilenceSecondsBox = new HBox(10, terminalSilenceSecondsSpinner,
             new Label(I18n.get("settings.terminal.notify.silenceSeconds.unit")));
@@ -2638,6 +2645,28 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiCodeTextLanguageCombo);
         aiRoot.getChildren().add(aiCodeTextLanguageBox);
 
+        aiChatTerminalActionsCombo = new ComboBox<>();
+        aiChatTerminalActionsCombo.getItems().setAll(de.kortty.model.AiChatTerminalActions.values());
+        aiChatTerminalActionsCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(de.kortty.model.AiChatTerminalActions value) {
+                return value != null ? I18n.get(aiChatTerminalActionsKey(value)) : "";
+            }
+
+            @Override
+            public de.kortty.model.AiChatTerminalActions fromString(String text) {
+                return null;
+            }
+        });
+        aiChatTerminalActionsCombo.getSelectionModel().select(globalSettings != null
+            ? globalSettings.getAiChatTerminalActions() : de.kortty.model.AiChatTerminalActions.DEFAULT);
+        aiChatTerminalActionsCombo.setTooltip(new Tooltip(I18n.get("settings.ai.chatTerminalActions.tooltip")));
+        HBox aiChatTerminalActionsBox = new HBox(10,
+            new Label(I18n.get("settings.ai.chatTerminalActions")),
+            aiChatTerminalActionsCombo);
+        aiChatTerminalActionsBox.setAlignment(Pos.CENTER_LEFT);
+        aiRoot.getChildren().add(aiChatTerminalActionsBox);
+
         aiSnippetEditorInstructionsCheck = new CheckBox(I18n.get("settings.ai.snippetInstructionsEnabled"));
         aiSnippetEditorInstructionsCheck.setSelected(globalSettings != null && globalSettings.isAiSnippetEditorAdditionalInstructionsEnabled());
         aiRoot.getChildren().add(aiSnippetEditorInstructionsCheck);
@@ -3935,6 +3964,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null
                 ? commandFinishedSecondsSpinner.getValue() : TerminalNotificationPolicy.DEFAULT_COMMAND_FINISHED_SECONDS);
             globalSettings.setRemoteTerminalNotificationsEnabled(remoteTerminalNotificationsCheck.isSelected());
+            globalSettings.setAiRunToastsEnabled(aiRunToastsCheck.isSelected());
             globalSettings.setTerminalSilenceSeconds(terminalSilenceSecondsSpinner.getValue() != null
                 ? terminalSilenceSecondsSpinner.getValue() : PaneActivityMonitor.DEFAULT_SILENCE_SECONDS);
             globalSettings.setCloseActiveTerminalWindowsWithoutConfirmation(
@@ -4236,6 +4266,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::getCommandFinishedNotificationSeconds, true));
             tracked.add(new TrackedSetting("terminal", "remote_notifications",
                 gs::isRemoteTerminalNotificationsEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "ai_run_notifications", gs::isAiRunToastsEnabled, true));
             tracked.add(new TrackedSetting("terminal", "silence_seconds", gs::getTerminalSilenceSeconds, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_detection", gs::isCodingAgentDetectionEnabled, true));
             tracked.add(new TrackedSetting("terminal", "coding_agent_notifications",
@@ -4285,6 +4316,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("ai", "features_enabled", gs::isAiFeaturesEnabled, true));
             tracked.add(new TrackedSetting("ai", "agent_execution_enabled", gs::isTerminalAgentExecutionEnabled, true));
             tracked.add(new TrackedSetting("ai", "confirm_before_send", gs::isAiConfirmBeforeSend, true));
+            tracked.add(new TrackedSetting("ai", "chat_terminal_actions", gs::getAiChatTerminalActions, true));
             tracked.add(new TrackedSetting("sftp", "auto_close_minutes", gs::getSftpAutoCloseMinutes, true));
             tracked.add(new TrackedSetting("sftp", "parallel_transfers", gs::getSftpParallelTransfers, true));
             tracked.add(new TrackedSetting("sftp", "conflict_default", () -> gs.getSftpConflictDefault().id(), true));
@@ -4298,6 +4330,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::getSnippetAnalysisMaxStoredContentBytes, true));
         }
         return tracked;
+    }
+
+    /** The label key of a choice of Settings › AI › AI chat code blocks in the terminal. */
+    static String aiChatTerminalActionsKey(de.kortty.model.AiChatTerminalActions value) {
+        return switch (value) {
+            case OFF -> "settings.ai.chatTerminalActions.off";
+            case INSERT_ONLY -> "settings.ai.chatTerminalActions.insertOnly";
+            case INSERT_AND_RUN -> "settings.ai.chatTerminalActions.insertAndRun";
+        };
     }
 
     private java.util.Map<String, Object> captureTrackedSettings() {
@@ -6586,6 +6627,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         AiLanguageSupport.LanguageOption selectedLanguage = aiCodeTextLanguageCombo.getSelectionModel().getSelectedItem();
         globalSettings.setAiCodeTextDefaultLanguage(selectedLanguage != null ? selectedLanguage.code() : null);
         globalSettings.setAiSnippetAlternativeSolutionCount(aiSnippetAlternativeSolutionCountSpinner.getValue());
+        globalSettings.setAiChatTerminalActions(aiChatTerminalActionsCombo.getValue());
         globalSettings.setTerminalAgentInputHistorySize(terminalAgentInputHistorySizeSpinner.getValue());
         if (!saveAiInternetToolSettings(encryptionService)) {
             return false;

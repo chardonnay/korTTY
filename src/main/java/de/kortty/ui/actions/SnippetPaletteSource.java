@@ -19,13 +19,13 @@ import java.util.function.Supplier;
  * executed with Enter. Alt+Enter (Option+Enter on macOS) opens the snippet in the Snippet Manager
  * instead, which runs nothing. FX-free: the window supplies the snippets, the terminal and the texts.
  *
- * <p>Every row names its terminal, because a snippet executes there. That terminal is the one Send
+ * <p>Every row names its terminal, because a snippet executes there. That terminal is the tab Send
  * to Terminal picks (the selected terminal tab, or the terminal tab used last), and within it the
- * tab's first pane, the one Send to Terminal writes to: when the tab is split, the row says "first
- * pane". The terminal is named by the {@code user@host} of the tab's connection, then its tab title
- * ({@link #targetName}), since a program in the terminal can set the title but not the connection.
- * It is read once per palette opening, and the row runs the snippet in exactly the
- * terminal it names. Without a terminal tab the rows are listed but cannot run, and say why;
+ * pane that has, or last had, the keyboard focus, else the tab's first pane: when the tab is split,
+ * the row names the pane by its number. The terminal is named by the {@code user@host} of that
+ * pane's connection, then its tab title ({@link #targetName}), since a program in the terminal can
+ * set the title but not the connection. It is read once per palette opening, and the row runs the
+ * snippet in exactly the pane it names. Without a terminal tab the rows are listed but cannot run, and say why;
  * Alt+Enter still opens them.
  *
  * <p>A row is found by the snippet's name, and besides by its folder, category and tags, never by
@@ -59,15 +59,21 @@ public final class SnippetPaletteSource implements PaletteSource {
     }
 
     /**
-     * The terminal a snippet would run in.
+     * The terminal pane a snippet would run in.
      *
-     * @param name  how the rows name it, see {@link #targetName}
-     * @param split whether its tab has more than one pane, so the rows say which one runs it
-     * @param send  runs a snippet in it, as Send to Terminal does
+     * @param name how the rows name it, see {@link #targetName}
+     * @param pane the pane's number (1-based) when its tab is split, so the rows say which one runs it;
+     *             0 for a tab with one pane
+     * @param send runs a snippet in that pane, as Send to Terminal does
      */
-    public record Target(String name, boolean split, Consumer<Snippet> send) {
+    public record Target(String name, int pane, Consumer<Snippet> send) {
         public Target {
             Objects.requireNonNull(send, "send");
+        }
+
+        /** Whether the pane's tab is split, so the rows name the pane. */
+        public boolean split() {
+            return pane > 0;
         }
     }
 
@@ -76,8 +82,8 @@ public final class SnippetPaletteSource implements PaletteSource {
         /** The detail of a row whose terminal tab has one pane. */
         String runIn(String target);
 
-        /** The detail of a row whose terminal tab is split: the snippet runs in its first pane. */
-        String runInFirstPane(String target);
+        /** The detail of a row whose terminal tab is split: the snippet runs in pane {@code pane} of it. */
+        String runInPane(String target, int pane);
 
         /** The detail of a row while there is no terminal tab. */
         String noTerminal();
@@ -119,7 +125,7 @@ public final class SnippetPaletteSource implements PaletteSource {
         }
         Target terminal = target.get();
         String detail = terminal == null ? texts.noTerminal()
-            : terminal.split() ? texts.runInFirstPane(terminal.name()) : texts.runIn(terminal.name());
+            : terminal.split() ? texts.runInPane(terminal.name(), terminal.pane()) : texts.runIn(terminal.name());
         String reason = terminal == null ? texts.noTerminalReason() : "";
 
         List<Snippet> listed = new ArrayList<>();

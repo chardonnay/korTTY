@@ -398,6 +398,10 @@ class ClosedWindowMenuRouterTest {
         assertThat(view).contains("MenuItem commandPalette = menuItem(\"menu.view.commandPalette\");");
         assertThat(view).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(commandPalette)");
         assertThat(view).doesNotContain("ClosedWindowMenuRouter.noWindowNeeded(commandPalette)");
+        // So does the snippet palette: its rows run in the focused pane of that window's terminal.
+        assertThat(view).contains("MenuItem snippetPalette = menuItem(\"menu.view.snippetPalette\");");
+        assertThat(view).doesNotContain("ClosedWindowMenuRouter.ownWindowOnly(snippetPalette)");
+        assertThat(view).doesNotContain("ClosedWindowMenuRouter.noWindowNeeded(snippetPalette)");
         // View › Remote Files Sidebar moves a global setting that every window applies: no window needed.
         assertThat(view).contains("CheckMenuItem remoteSidebarLeft = checkMenuItem(\"menu.view.remoteSidebar.left\");");
         assertThat(view).contains("CheckMenuItem remoteSidebarRight = checkMenuItem(\"menu.view.remoteSidebar.right\");");

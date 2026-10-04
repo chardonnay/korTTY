@@ -64,6 +64,7 @@ class PasteProtectionI18nCoverageTest {
         "terminal.paste.confirm.notBracketed",
         "terminal.paste.confirm.source.selection",
         "terminal.paste.confirm.source.drop",
+        "terminal.paste.confirm.source.ai",
         "terminal.paste.confirm.markersRemoved",
         "terminal.paste.confirm.broadcast",
         "terminal.paste.confirm.preview",

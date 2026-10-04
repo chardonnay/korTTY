@@ -404,4 +404,19 @@ class CommandBlockStoreTest {
         assertWithMessage("10k commands and 100k one-line trims took " + millis + " ms").that(millis).isLessThan(2_000L);
         assertWithMessage("every finished block left the scrollback").that(store.isEmpty()).isTrue();
     }
+
+    @Test
+    void commandRunningIsTrueOnlyBetweenTheSubmitAndTheEndMark() {
+        CommandBlockStore store = new CommandBlockStore();
+        assertThat(store.commandRunning()).isFalse();
+        store.promptStart(0, 0);
+        store.commandStart(0, 2);
+        assertWithMessage("at the prompt, typing").that(store.commandRunning()).isFalse();
+        store.outputStart(1, 0, 10L);
+        assertThat(store.commandRunning()).isTrue();
+        store.commandFinished(3, 0, 0, 20L);
+        assertThat(store.commandRunning()).isFalse();
+        store.promptStart(3, 0);
+        assertWithMessage("the next prompt").that(store.commandRunning()).isFalse();
+    }
 }

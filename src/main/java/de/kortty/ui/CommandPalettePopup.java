@@ -119,9 +119,18 @@ final class CommandPalettePopup {
 
     /** Reads the sources afresh and shows the palette centred at the top of {@code anchor}, empty. */
     void show(Node anchor) {
+        show(anchor, null);
+    }
+
+    /**
+     * As {@link #show(Node)}, opened for the rows of {@code scope} alone: its scope prefix is already
+     * typed ({@link CommandPaletteModel#scopedQuery}), so {@code $} lists every snippet and what the
+     * user types next searches them. {@code null} opens the whole palette.
+     */
+    void show(Node anchor, Kind scope) {
         model.open();
+        picker.show(anchor, model.scopedQuery(scope));
         showHint();
-        picker.show(anchor);
     }
 
     void hide() {

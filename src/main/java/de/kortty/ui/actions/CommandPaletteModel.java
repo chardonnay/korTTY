@@ -116,6 +116,15 @@ public final class CommandPaletteModel {
         return kinds;
     }
 
+    /**
+     * The query a palette opened for {@code kind} alone starts with: the kind's scope prefix, such as
+     * {@code $} for the snippets, so the rows are those of the kind and what the user types next
+     * narrows them; {@code ""} for {@code null} or a kind without a source, which opens the whole palette.
+     */
+    public String scopedQuery(Kind kind) {
+        return kind != null && kinds().contains(kind) ? String.valueOf(kind.scopePrefix()) : "";
+    }
+
     /** Splits a leading scope prefix off {@code text}, when its kind has a source. */
     public Query parse(String text) {
         String typed = text != null ? text.strip() : "";

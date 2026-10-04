@@ -31,6 +31,12 @@ import java.util.concurrent.atomic.AtomicReference;
  * representative conversation with the real production pieces — {@link ThemeCssSupport#getChatStylesheetUrl}
  * for the palette, the {@code ai-chat-*} style classes, and {@link AiChatRenderSupport#renderInto} for the
  * message content — then snapshots it to {@code build/smoke/ai-chat-<profile>.png}. The stage is never shown.
+ * It also builds the Insert and Run buttons of a code block ({@link AiCodeBlockTerminalButtons}) against stub
+ * policies and checks which buttons render and which are greyed out with which reason, writing
+ * {@code build/smoke/ai-chat-code-block-buttons.png}.
+ * Finally it streams a stubbed answer through {@link AiChatStreamingView} and checks that the live preview is plain
+ * text without Insert/Run buttons, that the final answer replaces it exactly once and that a late drain cannot bring
+ * the preview back ({@code build/smoke/ai-chat-streaming.png}).
  * Run via the {@code aiChatRedesignSmoke} Gradle task. Exit 0 = OK.
  */
 public final class AiChatRedesignSmoke {
@@ -67,6 +73,8 @@ public final class AiChatRedesignSmoke {
                 for (ChatColorProfile profile : ChatColorProfileSupport.all()) {
                     renderProfile(profile);
                 }
+                checkCodeBlockTerminalButtons();
+                checkStreamingPreview();
             } catch (Exception e) {
                 failure.compareAndSet(null, "Setup failed: " + e);
             } finally {
@@ -122,6 +130,246 @@ public final class AiChatRedesignSmoke {
         stage.setScene(scene);
 
         snapshot(scene, "ai-chat-" + profile.id() + ".png");
+    }
+
+    /**
+     * The Insert and Run buttons of a code block: which render for which block and setting, and which are greyed
+     * out with which tooltip under an allowing, a {@code READ_ONLY} and a no-AI-chat policy stub. No terminal is
+     * open, so an allowed action is greyed out for having no target; the policy reason comes first.
+     */
+    private static void checkCodeBlockTerminalButtons() throws Exception {
+        AiCodeBlockTerminalAction.Policy allow =
+            new AiCodeBlockTerminalAction.Policy(true, de.kortty.policy.AgentExecutionMode.ALLOW);
+        AiCodeBlockTerminalAction.Policy readOnly =
+            new AiCodeBlockTerminalAction.Policy(true, de.kortty.policy.AgentExecutionMode.READ_ONLY);
+        AiCodeBlockTerminalAction.Policy noChat =
+            new AiCodeBlockTerminalAction.Policy(false, de.kortty.policy.AgentExecutionMode.ALLOW);
+        String noTarget = I18n.get("ai.result.terminal.verdict.noTarget", "");
+        String denied = I18n.get("ai.result.terminal.verdict.policyDenied", "");
+
+        AiCodeBlockTerminalButtons allowed = buttons("bash", "uptime\n",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN, allow);
+        require(allowed != null && allowed.insertButton() != null && allowed.runButton() != null,
+            "a shell block renders Insert and Run");
+        require(allowed.insertButton().isDisabled() && tooltip(allowed, true).equals(noTarget),
+            "without an open pane Insert is greyed out with the no-target reason");
+        require(allowed.runButton().isDisabled() && tooltip(allowed, false).equals(noTarget),
+            "without an open pane Run is greyed out with the no-target reason");
+
+        AiCodeBlockTerminalButtons underReadOnly = buttons("bash", "uptime",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN, readOnly);
+        require(underReadOnly != null && underReadOnly.runButton() != null && underReadOnly.runButton().isDisabled(),
+            "READ_ONLY greys Run out up front");
+        require(tooltip(underReadOnly, false).equals(denied), "READ_ONLY names the policy on Run");
+        require(tooltip(underReadOnly, true).equals(noTarget), "READ_ONLY leaves Insert to the pane checks");
+
+        AiCodeBlockTerminalButtons withoutChat = buttons("bash", "uptime",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN, noChat);
+        require(withoutChat != null && withoutChat.insertButton().isDisabled() && withoutChat.runButton().isDisabled()
+            && tooltip(withoutChat, true).equals(denied) && tooltip(withoutChat, false).equals(denied),
+            "without AI chat both buttons are greyed out with the policy reason");
+
+        AiCodeBlockTerminalButtons python = buttons("python", "print(1)",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN, allow);
+        require(python != null && python.insertButton() != null && python.runButton() == null,
+            "a python block offers Insert only");
+        AiCodeBlockTerminalButtons insertOnly = buttons("bash", "uptime",
+            de.kortty.model.AiChatTerminalActions.INSERT_ONLY, allow);
+        require(insertOnly != null && insertOnly.runButton() == null, "the Insert-only setting hides Run");
+        require(buttons("bash", "uptime", de.kortty.model.AiChatTerminalActions.OFF, allow) == null,
+            "the Off setting renders no terminal button");
+        AiCodeBlockTerminalButtons hostile = buttons("bash", "echo \u001b[2J",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN, allow);
+        require(hostile != null && hostile.runButton() == null, "a block with an escape sequence offers no Run");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Label language = new Label("bash");
+        language.getStyleClass().add("ai-chat-code-lang");
+        HBox header = new HBox(8, language, spacer);
+        header.getChildren().addAll(underReadOnly.nodes());
+        javafx.scene.control.Button copy = new javafx.scene.control.Button("⧉");
+        copy.getStyleClass().add("ai-chat-icon-button");
+        header.getChildren().add(copy);
+        VBox codeBox = new VBox(6, header, new Label("uptime"));
+        codeBox.getStyleClass().add("ai-chat-code");
+        codeBox.setPadding(new Insets(10));
+        ChatColorProfile profile = ChatColorProfileSupport.all().get(0);
+        ThemeCssSupport.ChatPalette palette = ChatColorProfileSupport.resolvePalette(profile, null);
+        Scene scene = new Scene(new VBox(codeBox), 520, 110);
+        scene.setFill(Color.web(palette.background()));
+        String stylesheet = ThemeCssSupport.getChatStylesheetUrl(palette);
+        if (stylesheet != null) {
+            scene.getStylesheets().add(stylesheet);
+        }
+        new Stage().setScene(scene);
+        snapshot(scene, "ai-chat-code-block-buttons.png");
+    }
+
+    private static final String STREAM_FINAL = "Check the load:\n\n```bash\nuptime\n```\n\nThen **compare** it.";
+
+    /**
+     * A stubbed streaming service sends growing snapshots (answer with a code fence, plus reasoning) through the real
+     * {@link AiChatStreamingView} and {@link AiStreamCoalescer}; drains are queued by a manual scheduler and run here
+     * on the FX thread. The preview must be plain text with no code block and no Insert/Run button; ending the request
+     * removes it, the final answer is rendered once, and a drain still queued after the end changes nothing.
+     */
+    private static void checkStreamingPreview() throws Exception {
+        VBox messagesBox = new VBox(16);
+        messagesBox.getStyleClass().add("ai-chat-messages");
+        messagesBox.setFillWidth(true);
+        messagesBox.setPadding(new Insets(14, 16, 14, 16));
+        java.util.List<Runnable> drains = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        java.util.concurrent.atomic.AtomicInteger firstSnapshots = new java.util.concurrent.atomic.AtomicInteger();
+        AiChatStreamingView view = new AiChatStreamingView(
+            messagesBox, () -> FONT, () -> "KI · Stub", firstSnapshots::incrementAndGet, (drain, delay) -> drains.add(drain));
+
+        de.kortty.core.AiService streaming = new de.kortty.core.AiService() {
+            @Override
+            public de.kortty.core.AiExecutionResult execute(de.kortty.core.AiRequest request) {
+                de.kortty.core.AiStreamListener listener = request.streamListener();
+                listener.onProgress("", "Thinking about");
+                listener.onProgress("Ignore this first try", "Thinking about");
+                listener.onRestart();
+                StringBuilder answer = new StringBuilder();
+                for (char c : STREAM_FINAL.substring(0, STREAM_FINAL.indexOf("```", 20)).toCharArray()) {
+                    answer.append(c);
+                    listener.onProgress(answer.toString(), "Thinking about the load");
+                }
+                return null;
+            }
+
+            @Override
+            public boolean testConnection() {
+                return true;
+            }
+        };
+        de.kortty.core.AiRequest request = new de.kortty.core.AiRequest(
+            de.kortty.core.AiAction.ASK, "", "stub", "en", "load?").withStreamListener(view.begin());
+        Thread worker = new Thread(() -> {
+            try {
+                streaming.execute(request);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        }, "smoke-stream");
+        worker.start();
+        worker.join(10_000);
+        requireStream(!worker.isAlive(), "the stubbed stream finished");
+        requireStream(drains.size() == 1, "one drain is queued for the whole burst of snapshots");
+        new java.util.ArrayList<>(drains).forEach(Runnable::run);
+        drains.clear();
+
+        javafx.scene.Node preview = view.node();
+        requireStream(preview != null && messagesBox.getChildren().size() == 1, "the preview block is shown");
+        requireStream(firstSnapshots.get() == 1, "the chat is told once that the answer started arriving");
+        String shown = ((Label) preview.lookup(".ai-chat-streaming-text")).getText();
+        requireStream(shown.contains("```bash") && shown.contains("uptime") && !shown.contains("first try"),
+            "the preview shows the latest snapshot as raw text, the restarted attempt is gone");
+        requireStream(preview.lookupAll(".ai-chat-code-area").isEmpty(), "the preview renders no code block");
+        String insert = I18n.get("ai.result.terminal.insert");
+        String run = I18n.get("ai.result.terminal.run");
+        boolean actionButton = preview.lookupAll(".button").stream()
+            .map(node -> ((javafx.scene.control.Button) node).getText())
+            .anyMatch(text -> text != null && (text.contains(insert) || text.contains(run)));
+        requireStream(!actionButton, "no Insert or Run button while the answer streams");
+
+        ScrollPane streamScroll = new ScrollPane(messagesBox);
+        streamScroll.getStyleClass().add("ai-chat-scroll");
+        streamScroll.setFitToWidth(true);
+        Scene scene = new Scene(streamScroll, 700, 260);
+        ChatColorProfile profile = ChatColorProfileSupport.all().get(0);
+        ThemeCssSupport.ChatPalette palette = ChatColorProfileSupport.resolvePalette(profile, null);
+        scene.setFill(Color.web(palette.background()));
+        String stylesheet = ThemeCssSupport.getChatStylesheetUrl(palette);
+        if (stylesheet != null) {
+            scene.getStylesheets().add(stylesheet);
+        }
+        new Stage().setScene(scene);
+        snapshot(scene, "ai-chat-streaming.png");
+
+        // A snapshot that arrives just before the task ends still queues a drain.
+        request.streamListener().onProgress(STREAM_FINAL, "Thinking about the load");
+        request.streamListener().onComplete();
+        // Task succeeded: the tab ends the preview and renders the final answer the normal way.
+        view.end();
+        VBox finalBlock = assistantBlock(STREAM_FINAL, false, null);
+        AiCodeBlockTerminalButtons finalButtons = buttons("bash", "uptime\n",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN,
+            new AiCodeBlockTerminalAction.Policy(true, de.kortty.policy.AgentExecutionMode.ALLOW));
+        finalBlock.getChildren().add(new HBox(8, finalButtons.nodes().toArray(new javafx.scene.Node[0])));
+        messagesBox.getChildren().add(finalBlock);
+        new java.util.ArrayList<>(drains).forEach(Runnable::run);
+
+        requireStream(view.node() == null && messagesBox.lookupAll(".ai-chat-streaming").isEmpty(),
+            "ending the request removes the preview and a late drain does not bring it back");
+        requireStream(messagesBox.lookupAll(".ai-chat-assistant").size() == 1, "the final answer is rendered once");
+        requireStream(!finalBlock.lookupAll(".ai-chat-code-area").isEmpty() && finalButtons.insertButton() != null
+            && finalButtons.runButton() != null, "the final answer carries the code block with Insert and Run");
+    }
+
+    private static void requireStream(boolean condition, String what) {
+        if (!condition) {
+            throw new IllegalStateException("Streaming preview: " + what);
+        }
+        System.out.println("ok: " + what);
+    }
+
+    private static AiCodeBlockTerminalButtons buttons(String language, String code,
+            de.kortty.model.AiChatTerminalActions setting, AiCodeBlockTerminalAction.Policy policy) {
+        return AiCodeBlockTerminalButtons.create(language, code, new AiCodeBlockTerminalButtons.Host() {
+            @Override
+            public de.kortty.model.AiChatTerminalActions setting() {
+                return setting;
+            }
+
+            @Override
+            public AiCodeBlockTerminalAction.Policy policy() {
+                return policy;
+            }
+
+            @Override
+            public TerminalPaneRef target() {
+                return null;
+            }
+
+            @Override
+            public AiCodeBlockTerminalAction.PaneState probe(TerminalPaneRef target) {
+                throw new IllegalStateException("no pane to probe");
+            }
+
+            @Override
+            public void insert(TerminalPaneRef target, String text,
+                               java.util.function.Consumer<de.kortty.paste.PasteGuard.Outcome> outcome) {
+                throw new IllegalStateException("nothing may be inserted without a target");
+            }
+
+            @Override
+            public boolean confirmRun(TerminalPaneRef target, String line, AiCodeBlockTerminalAction.Decision decision) {
+                throw new IllegalStateException("nothing may be confirmed without a target");
+            }
+
+            @Override
+            public boolean sendLine(TerminalPaneRef target, String line) {
+                throw new IllegalStateException("nothing may be sent without a target");
+            }
+
+            @Override
+            public void status(String message) {
+            }
+        });
+    }
+
+    private static String tooltip(AiCodeBlockTerminalButtons buttons, boolean insert) {
+        String text = insert ? buttons.insertTooltipText() : buttons.runTooltipText();
+        return text != null ? text : "";
+    }
+
+    private static void require(boolean condition, String what) {
+        if (!condition) {
+            throw new IllegalStateException("Code block buttons: " + what);
+        }
+        System.out.println("ok: " + what);
     }
 
     /** Full-width assistant turn; {@code highlight} marks it as the current search hit. */

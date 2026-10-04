@@ -714,6 +714,13 @@ public class SwarmAgentTab extends Tab {
         timer.stop();
         busy = false;
         boolean restartRequested = restartPending;
+        List<SwarmModels.SwarmAgentState> agentStates = new ArrayList<>(rowsByAgentId.size());
+        for (SwarmAgentRow row : rowsByAgentId.values()) {
+            agentStates.add(row.state);
+        }
+        // Already on the JavaFX thread; the tab is not marked, its own indicator shows the end.
+        TerminalAttentionNotifier.postAiRun(this, TerminalAttentionNotifier.swarmEndEvent(
+            restartRequested, lastSwarmPhase, result != null, agentStates));
         restartPending = false;
         swarmControl = null;
         lastSwarmPhase = null;
@@ -1258,6 +1265,8 @@ public class SwarmAgentTab extends Tab {
         TerminalAgentModels.Approval approval, String agentId, SwarmRunControl control) {
         SwarmAgentRow row = rowsByAgentId.get(agentId);
         String serverName = row != null ? row.displayName : agentId;
+        TerminalAttentionNotifier.postAiRun(this,
+            de.kortty.shellintegration.TerminalNotificationPolicy.AiRunEvent.NEEDS_APPROVAL);
         return SwarmApprovalDialogSupport.requestBlocking(
             approval, serverName, ownerWindowRef(), () -> control != null && control.isSwarmCancelled());
     }
