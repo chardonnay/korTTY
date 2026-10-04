@@ -33,6 +33,7 @@ import de.kortty.core.TerminalAgentService;
 import de.kortty.core.swarm.SwarmCallback;
 import de.kortty.core.swarm.SwarmModels;
 import de.kortty.core.swarm.SwarmTarget;
+import de.kortty.model.AiChatTerminalActions;
 import de.kortty.model.AiProfile;
 import de.kortty.model.ChatColorProfile;
 import de.kortty.model.TerminalAgentModels;
@@ -53,6 +54,8 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
@@ -95,6 +98,8 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import de.kortty.paste.PasteSource;
+import de.kortty.policy.PolicyManager;
 import de.kortty.telemetry.Telemetry;
 import de.kortty.telemetry.TelemetryEvents;
 import de.kortty.telemetry.TelemetryProps;
@@ -1734,13 +1739,128 @@ public class AiResultTab extends Tab {
         }
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox header = saveSnippetButton != null
-            ? new HBox(8, languageLabel, spacer, saveSnippetButton, copyCodeButton)
-            : new HBox(8, languageLabel, spacer, copyCodeButton);
+        HBox header = new HBox(8, languageLabel, spacer);
+        AiCodeBlockTerminalButtons terminalButtons =
+            AiCodeBlockTerminalButtons.create(language, code, codeBlockTerminalHost());
+        if (terminalButtons != null) {
+            header.getChildren().addAll(terminalButtons.nodes());
+        }
+        if (saveSnippetButton != null) {
+            header.getChildren().add(saveSnippetButton);
+        }
+        header.getChildren().add(copyCodeButton);
 
         VBox codeBox = new VBox(6, header, createCodeEditorNode(normalizedLanguage, code));
         codeBox.getStyleClass().add("ai-chat-code");
         return codeBox;
+    }
+
+    /**
+     * What the Insert and Run buttons of this chat's code blocks act through: the user setting, the policy in
+     * force, the target pane ({@link #terminalTarget()}), the pane-precise paste and send of its terminal
+     * view, and the Run confirmation.
+     */
+    private AiCodeBlockTerminalButtons.Host codeBlockTerminalHost() {
+        return new AiCodeBlockTerminalButtons.Host() {
+            @Override
+            public AiChatTerminalActions setting() {
+                GlobalSettings settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+                return settings != null ? settings.getAiChatTerminalActions() : AiChatTerminalActions.DEFAULT;
+            }
+
+            @Override
+            public AiCodeBlockTerminalAction.Policy policy() {
+                return AiCodeBlockTerminalAction.Policy.of(PolicyManager.effective());
+            }
+
+            @Override
+            public @Nullable TerminalPaneRef target() {
+                return terminalTarget();
+            }
+
+            @Override
+            public AiCodeBlockTerminalAction.PaneState probe(TerminalPaneRef target) {
+                return AiCodeBlockTerminalAction.PaneState.probe(target);
+            }
+
+            @Override
+            public void insert(TerminalPaneRef target, String text) {
+                TerminalTab tab = target.tab();
+                KorttyTermWidget pane = target.pane();
+                TerminalView view = tab != null ? tab.getTerminalView() : null;
+                if (view != null && pane != null) {
+                    view.pasteIntoPane(pane, text, PasteSource.AI);
+                }
+            }
+
+            @Override
+            public boolean confirmRun(TerminalPaneRef target, String line, AiCodeBlockTerminalAction.Decision decision) {
+                return confirmCodeBlockRun(target, line, decision);
+            }
+
+            @Override
+            public boolean sendLine(TerminalPaneRef target, String line) {
+                TerminalTab tab = target.tab();
+                KorttyTermWidget pane = target.pane();
+                TerminalView view = tab != null ? tab.getTerminalView() : null;
+                return view != null && pane != null && view.sendInputLineToPane(pane, line, false);
+            }
+
+            @Override
+            public void status(String message) {
+                statusLabel.setText(message);
+                ownerWindow.updateStatusMessage(message);
+            }
+        };
+    }
+
+    /**
+     * The Run confirmation: names the pane, shows the exact line, warns that it comes from an AI answer, and
+     * adds the foreign-session warning and the unknown-prompt note (D20) where they apply. Cancel is the default
+     * button, so Enter does not run the line.
+     */
+    private boolean confirmCodeBlockRun(TerminalPaneRef target, String line, AiCodeBlockTerminalAction.Decision decision) {
+        String name = target.displayName();
+        ButtonType runButtonType = new ButtonType(I18n.get("ai.result.terminal.run.confirm.run"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButtonType = new ButtonType(I18n.get("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "", runButtonType, cancelButtonType);
+        DialogThemeHelper.applyTheme(alert);
+        Window owner = getOwnerWindow();
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
+        alert.setTitle(I18n.get("ai.result.terminal.run.confirm.title"));
+        alert.setHeaderText(I18n.get("ai.result.terminal.run.confirm.header", name));
+
+        TextArea command = new TextArea(line);
+        command.setEditable(false);
+        command.setWrapText(true);
+        command.setPrefRowCount(Math.min(6, Math.max(2, line.length() / 70 + 1)));
+        command.setStyle("-fx-font-family: 'monospace';");
+        Label untrusted = new Label(I18n.get("ai.result.terminal.run.confirm.untrusted"));
+        untrusted.setWrapText(true);
+        VBox body = new VBox(8, command, untrusted);
+        if (decision.verdict() == AiCodeBlockTerminalAction.Verdict.FOREIGN_SESSION_CONFIRM) {
+            Label foreign = new Label(I18n.get(decision.verdict().messageKey(), name));
+            foreign.setWrapText(true);
+            foreign.setStyle("-fx-font-weight: bold;");
+            body.getChildren().add(foreign);
+        }
+        if (decision.promptUnknown()) {
+            Label promptUnknown = new Label(I18n.get("ai.result.terminal.promptUnknown", name));
+            promptUnknown.setWrapText(true);
+            body.getChildren().add(promptUnknown);
+        }
+        body.setPrefWidth(560);
+        alert.getDialogPane().setContent(body);
+        alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
+        if (alert.getDialogPane().lookupButton(runButtonType) instanceof Button runNode) {
+            runNode.setDefaultButton(false);
+        }
+        if (alert.getDialogPane().lookupButton(cancelButtonType) instanceof Button cancelNode) {
+            cancelNode.setDefaultButton(true);
+        }
+        return alert.showAndWait().orElse(cancelButtonType) == runButtonType;
     }
 
     private javafx.scene.Node createCodeEditorNode(String normalizedLanguage, String code) {

@@ -713,6 +713,14 @@ public class GlobalSettings {
     @XmlElement
     private String chatColorProfileId;
 
+    /**
+     * Settings → AI: which terminal actions the code blocks of an AI chat offer, the
+     * {@link AiChatTerminalActions#id()} {@code off}, {@code insert_only} or {@code insert_and_run}. Missing,
+     * blank or unknown values mean {@code insert_and_run}.
+     */
+    @XmlElement
+    private String aiChatTerminalActions = AiChatTerminalActions.DEFAULT.id();
+
     /** Font size used in temporary AI result tabs. */
     @XmlElement
     private Integer aiResultFontSize = 13;
@@ -3124,6 +3132,16 @@ public class GlobalSettings {
             snippetTranslationTargetLanguage != null && !snippetTranslationTargetLanguage.isBlank()
                 ? snippetTranslationTargetLanguage.trim()
                 : null;
+    }
+
+    /** Settings → AI: which terminal actions AI chat code blocks offer. */
+    public AiChatTerminalActions getAiChatTerminalActions() {
+        return AiChatTerminalActions.fromId(aiChatTerminalActions);
+    }
+
+    /** @param actions the actions to store; null stores the default ({@code insert_and_run}) */
+    public void setAiChatTerminalActions(AiChatTerminalActions actions) {
+        this.aiChatTerminalActions = (actions != null ? actions : AiChatTerminalActions.DEFAULT).id();
     }
 
     public String getChatColorProfileId() {

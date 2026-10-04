@@ -2,12 +2,16 @@ package de.kortty.ui;
 
 import de.kortty.codingagent.CodingAgentState;
 import de.kortty.core.SessionJournalRedactor;
+import de.kortty.core.SnippetLanguageSupport;
+import de.kortty.model.AiChatTerminalActions;
+import de.kortty.paste.PasteInspection;
 import de.kortty.policy.AgentExecutionMode;
 import de.kortty.policy.EffectivePolicy;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -257,6 +261,54 @@ final class AiCodeBlockTerminalAction {
         }
         boolean promptUnknown = pane.promptState() == ShellIntegrationController.PromptState.UNKNOWN;
         return new Decision(pane.foreignSession() ? Verdict.FOREIGN_SESSION_CONFIRM : Verdict.OK, promptUnknown);
+    }
+
+    /** The normalized languages ({@link SnippetLanguageSupport#detectSnippetLanguage}) a pane's shell reads. */
+    private static final Set<String> SHELL_LANGUAGES = Set.of("bash", "powershell");
+
+    /**
+     * Whether a code block offers {@code action} at all, before any verdict: the user setting
+     * ({@link AiChatTerminalActions}) must include it, and Run is offered only for a block in a shell language
+     * ({@link #isShellLanguage}) whose command line has no control characters
+     * ({@link #containsControlCharacters}). A block that is offered but cannot act now (the policy, several
+     * lines, the mask placeholder, the pane) shows a greyed-out button with the reason from {@link #decide}.
+     */
+    static boolean offers(Action action, @Nullable AiChatTerminalActions setting, @Nullable String language,
+            @Nullable String block) {
+        AiChatTerminalActions actions = setting != null ? setting : AiChatTerminalActions.DEFAULT;
+        if (action == Action.INSERT) {
+            return actions.allowsInsert();
+        }
+        return actions.allowsRun() && isShellLanguage(language, block)
+            && !containsControlCharacters(runLine(block));
+    }
+
+    /**
+     * Whether the block is in a language a pane's shell reads: its fence says {@code bash}, {@code sh},
+     * {@code shell}, {@code zsh} or a PowerShell name, or an unlabelled block starts with such a shebang.
+     */
+    static boolean isShellLanguage(@Nullable String language, @Nullable String block) {
+        return SHELL_LANGUAGES.contains(SnippetLanguageSupport.detectSnippetLanguage(language, block));
+    }
+
+    /**
+     * Whether {@code text} contains a character Run must not type into a shell: a tab (it would ask the
+     * shell to complete the line), any other {@link PasteInspection#isControlCharacter control character}
+     * (an escape sequence, Ctrl+C) or a {@link PasteInspection#isBidiControl bidi control} (the confirmation
+     * would show another order than the shell reads). Line breaks do not count here: a block of several
+     * lines is offered and refused by {@link #decide} with {@link Verdict#RUN_MULTILINE_INSERT_ONLY}.
+     */
+    static boolean containsControlCharacters(@Nullable String text) {
+        if (text == null) {
+            return false;
+        }
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\t' || PasteInspection.isControlCharacter(c) || PasteInspection.isBidiControl(c)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Whether {@code text} contains the placeholder masking puts in place of a secret. */

@@ -5,6 +5,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 import de.kortty.codingagent.CodingAgentState;
 import de.kortty.core.SessionJournalRedactor;
+import de.kortty.model.AiChatTerminalActions;
 import de.kortty.policy.AgentExecutionMode;
 import de.kortty.ui.AiCodeBlockTerminalAction.Action;
 import de.kortty.ui.AiCodeBlockTerminalAction.Decision;
@@ -272,6 +273,129 @@ class AiCodeBlockTerminalActionTest {
             .that(occurrences(source, ".setSourcePane(")).isEqualTo(2);
         assertThat(occurrences(source, "TerminalPaneRef sourcePane = aiSourcePane(terminalTab, runContext);"))
             .isEqualTo(2);
+    }
+
+    @Test
+    void insertIsOfferedForEveryBlockUnlessTheSettingIsOff() {
+        for (String language : new String[] {"bash", "python", "", null, "yaml"}) {
+            assertWithMessage(String.valueOf(language))
+                .that(AiCodeBlockTerminalAction.offers(Action.INSERT, AiChatTerminalActions.INSERT_ONLY, language, "x"))
+                .isTrue();
+            assertThat(AiCodeBlockTerminalAction.offers(Action.INSERT, AiChatTerminalActions.INSERT_AND_RUN, language, "x"))
+                .isTrue();
+            assertThat(AiCodeBlockTerminalAction.offers(Action.INSERT, AiChatTerminalActions.OFF, language, "x"))
+                .isFalse();
+        }
+        assertWithMessage("a missing setting means the default, Insert and Run")
+            .that(AiCodeBlockTerminalAction.offers(Action.RUN, null, "bash", "ls -la")).isTrue();
+    }
+
+    @Test
+    void runIsOfferedOnlyForShellBlocksWhenTheSettingIncludesIt() {
+        for (String shell : new String[] {"bash", "sh", "shell", "zsh", "Bash", "powershell", "pwsh", "ps1"}) {
+            assertWithMessage(shell)
+                .that(AiCodeBlockTerminalAction.offers(Action.RUN, AiChatTerminalActions.INSERT_AND_RUN, shell, "ls -la\n"))
+                .isTrue();
+            assertWithMessage(shell + " under Insert only")
+                .that(AiCodeBlockTerminalAction.offers(Action.RUN, AiChatTerminalActions.INSERT_ONLY, shell, "ls -la"))
+                .isFalse();
+            assertThat(AiCodeBlockTerminalAction.offers(Action.RUN, AiChatTerminalActions.OFF, shell, "ls -la")).isFalse();
+        }
+        for (String other : new String[] {"python", "sql", "yaml", "json", "text", "", null, "console"}) {
+            assertWithMessage(String.valueOf(other))
+                .that(AiCodeBlockTerminalAction.offers(Action.RUN, AiChatTerminalActions.INSERT_AND_RUN, other, "ls -la"))
+                .isFalse();
+        }
+        assertWithMessage("an unlabelled block with a shell shebang is a shell block")
+            .that(AiCodeBlockTerminalAction.isShellLanguage("", "#!/bin/bash\nls")).isTrue();
+        assertWithMessage("a python shebang is not")
+            .that(AiCodeBlockTerminalAction.isShellLanguage("", "#!/usr/bin/env python3\nprint(1)")).isFalse();
+    }
+
+    @Test
+    void runIsNotOfferedForAShellBlockWithControlCharacters() {
+        String[] hostile = {
+            "echo hi\u001b[2J",       // escape sequence
+            "sleep 9\u0003",          // Ctrl+C
+            "rm -rf\u0000 /tmp/x",   // NUL
+            "echo \u009b31m",         // C1 CSI
+            "ls\u007f",               // DEL
+            "ls\t-la",                // a tab asks the shell to complete the line
+            "echo \u202egnp.exe",     // right-to-left override
+            "echo \u2066x\u2069",     // bidi isolate
+        };
+        for (String line : hostile) {
+            assertWithMessage(line.codePoints().mapToObj(Integer::toHexString).toList().toString())
+                .that(AiCodeBlockTerminalAction.offers(Action.RUN, AiChatTerminalActions.INSERT_AND_RUN, "bash", line))
+                .isFalse();
+            assertThat(AiCodeBlockTerminalAction.containsControlCharacters(line)).isTrue();
+            assertWithMessage("Insert stays offered: paste protection strips the controls")
+                .that(AiCodeBlockTerminalAction.offers(Action.INSERT, AiChatTerminalActions.INSERT_AND_RUN, "bash", line))
+                .isTrue();
+        }
+        assertWithMessage("the trailing line break of a block is not a control character")
+            .that(AiCodeBlockTerminalAction.offers(Action.RUN, AiChatTerminalActions.INSERT_AND_RUN, "bash", "uptime\r\n"))
+            .isTrue();
+        assertThat(AiCodeBlockTerminalAction.containsControlCharacters("grep -E 'a|b' /var/log/syslog | tail -n 5"))
+            .isFalse();
+        assertThat(AiCodeBlockTerminalAction.containsControlCharacters(null)).isFalse();
+    }
+
+    @Test
+    void aMultiLineShellBlockOffersRunGreyedOutWithTheReason() {
+        String block = "cd /srv\nls\n";
+        assertThat(AiCodeBlockTerminalAction.offers(Action.RUN, AiChatTerminalActions.INSERT_AND_RUN, "bash", block))
+            .isTrue();
+        assertThat(AiCodeBlockTerminalAction.decide(Action.RUN, block, new Policy(true, AgentExecutionMode.ALLOW), null)
+            .verdict()).isEqualTo(Verdict.RUN_MULTILINE_INSERT_ONLY);
+    }
+
+    @Test
+    void theButtonAndConfirmationTextsAreTranslatedInEveryBundle() throws Exception {
+        List<String> keys = List.of(
+            "ai.result.terminal.insert", "ai.result.terminal.insert.tooltip", "ai.result.terminal.run",
+            "ai.result.terminal.run.tooltip", "ai.result.terminal.run.confirm.title",
+            "ai.result.terminal.run.confirm.header", "ai.result.terminal.run.confirm.untrusted",
+            "ai.result.terminal.run.confirm.run", "ai.result.terminal.status.inserted",
+            "ai.result.terminal.status.ran", "ai.result.terminal.status.cancelled",
+            "ai.result.terminal.status.failed", "settings.ai.chatTerminalActions",
+            "settings.ai.chatTerminalActions.tooltip", "settings.ai.chatTerminalActions.off",
+            "settings.ai.chatTerminalActions.insertOnly", "settings.ai.chatTerminalActions.insertAndRun");
+        for (String bundle : BUNDLES) {
+            Properties properties = new Properties();
+            try (InputStream in = AiCodeBlockTerminalActionTest.class.getResourceAsStream("/i18n/" + bundle)) {
+                assertWithMessage(bundle).that(in).isNotNull();
+                properties.load(new InputStreamReader(in, StandardCharsets.UTF_8));
+            }
+            for (String key : keys) {
+                String value = properties.getProperty(key);
+                assertWithMessage(bundle + ": " + key).that(value).isNotNull();
+                assertWithMessage(bundle + ": " + key).that(value.isBlank()).isFalse();
+                assertWithMessage(bundle + ": " + key + " uses single apostrophes").that(value).doesNotContain("''");
+            }
+            for (String named : List.of("ai.result.terminal.insert.tooltip", "ai.result.terminal.run.tooltip",
+                    "ai.result.terminal.run.confirm.header", "ai.result.terminal.status.inserted")) {
+                assertWithMessage(bundle + ": " + named + " names the pane")
+                    .that(properties.getProperty(named)).contains("{0}");
+            }
+        }
+        for (AiChatTerminalActions value : AiChatTerminalActions.values()) {
+            assertThat(SettingsDialog.aiChatTerminalActionsKey(value)).startsWith("settings.ai.chatTerminalActions.");
+        }
+    }
+
+    @Test
+    void theChatSendsThroughThePanePrecisePrimitivesOnly() throws Exception {
+        String source = java.nio.file.Files.readString(
+            java.nio.file.Path.of("src/main/java/de/kortty/ui/AiResultTab.java"), StandardCharsets.UTF_8)
+            .replace("\r\n", "\n");
+        assertWithMessage("Insert goes through paste protection as AI text")
+            .that(source).contains("view.pasteIntoPane(pane, text, PasteSource.AI);");
+        assertWithMessage("Run writes one line to that pane only, never as a hidden one-liner")
+            .that(source).contains("view.sendInputLineToPane(pane, line, false)");
+        assertWithMessage("Cancel is the default button of the Run confirmation")
+            .that(source).contains("cancelNode.setDefaultButton(true);");
+        assertThat(occurrences(source, "AiCodeBlockTerminalButtons.create(")).isEqualTo(1);
     }
 
     private static int occurrences(String text, String needle) {

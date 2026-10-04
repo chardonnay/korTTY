@@ -14,6 +14,9 @@ Configure AI profiles and terminal AI Agent settings. This is the largest settin
 | --- | --- | --- | --- | --- |
 | Enable AI features | toggle | — | On | `aiFeaturesEnabled` |
 | Show confirmation dialog before sending AI requests | toggle | — | On | `aiConfirmBeforeSend` |
+| AI chat code blocks in the terminal | dropdown | Off (copy and save only), Insert only, Insert and Run | Insert and Run | `aiChatTerminalActions` |
+
+**AI chat code blocks in the terminal** decides which buttons the code blocks of an AI chat offer: **Insert** types a block at the prompt of a terminal pane without pressing Enter, and **Run** runs a single shell command line after a confirmation. The enterprise policy can only take more away. See [Code blocks in the terminal](../../features/ai-assistant.md#code-blocks-in-the-terminal).
 
 ## Terminal AI Agent
 

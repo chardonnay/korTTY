@@ -198,11 +198,25 @@ When the selection looks like a single file name — for example a name from `ls
 * Closing the chat tab cancels a request that is still running, including a question sent to all open terminals, whether you close it with its close button, **Close Tab** (++ctrl+w++, ++cmd+w++ on macOS), **Close Other Tabs**, **Close Tabs to the Right**, **Close All Tabs**, by opening a project or by closing the window.
 * The response language defaults to the current GUI language. You can change the response language and the active AI profile per chat before sending a follow-up prompt.
 * Follow-up prompts in **Summarize** and **Solve Problem** continue as normal chat questions; they are not forced back into the original summarizing/problem-analysis prompt.
-* Detected code blocks get their own copy button and can also be saved directly into the Snippet Manager. Blocks that contain images, diagrams, or math render as images instead — see [Rendered images, diagrams, and math](#rendered-images-diagrams-and-math).
+* Detected code blocks get their own copy button and can also be saved directly into the Snippet Manager, inserted into a terminal pane or, for a single shell command, run there — see [Code blocks in the terminal](#code-blocks-in-the-terminal). Blocks that contain images, diagrams, or math render as images instead — see [Rendered images, diagrams, and math](#rendered-images-diagrams-and-math).
 * Rendered markdown tables can be copied as a whole table, a single column, or a single cell.
 * The chosen AI tab font size is stored globally and reused for future AI result tabs.
 * Token usage is recorded per AI profile after successful requests so warnings and reset cycles remain accurate. AI Swarm agents, scheduled AI jobs and session journal calls count towards the same quota.
 * If a saved chat references an AI profile that no longer exists, korTTY asks you to choose a replacement profile before you continue with follow-up prompts.
+
+### Code blocks in the terminal
+
+Code blocks in a chat answer have two more buttons beside the copy button. **Insert** types the block at the prompt of a terminal pane without pressing ++enter++, so you can read and change it before you run it. **Run** appears only on blocks in a shell language (` ```bash `, ` ```sh `, ` ```zsh `, ` ```shell `, PowerShell, or an unlabelled block that starts with such a shebang) and runs one command line: it always asks first, in a confirmation that names the pane and shows the exact line, and **Cancel** is the default button, so pressing ++enter++ by habit runs nothing.
+
+* **Which pane.** A chat opened from a terminal (the selection actions and *Ask Agent…*) sends to the pane it came from while that pane is open. Otherwise, and for a reopened saved chat, it sends to the focused pane of the terminal tab a snippet would go to. The tooltip of each button and the Run confirmation always name the pane, as the tab title plus the pane number in a split tab.
+* **Insert** goes through [paste protection](terminal.md#paste-protection) with stricter rules than a clipboard paste: a block with a line break or with control characters always asks, whatever the pane's paste settings say, and control characters and invisible direction-changing characters are removed before the text is typed. The line breaks a block ends with are dropped, so nothing is submitted.
+* **Run** takes a single line. A block of several lines shows Run greyed out; insert it instead. A shell block with a tab, an escape sequence, another control character or a direction-changing character offers no Run at all.
+* **Greyed out up front.** A button that cannot act right now is greyed out, and its tooltip says why: no open terminal pane, a pane that is not connected, broadcast mode or multi-exec mirroring the pane's input to other panes (AI text is never sent there), a coding agent in the pane waiting for an approval, an AI agent at work in the pane (and, for Run, any coding agent), a full-screen program such as `vim` or a paste still being sent, a block that contains the mask placeholder `***` of a secret masked on the way to the AI, or your organization's policy. Run is also refused while shell integration reports a command still running in the pane. The verdict is checked again right before anything is sent, also after the Run confirmation.
+* **Without shell integration** korTTY cannot tell whether a shell prompt is waiting, for example inside `mysql` or `python`, so the Run confirmation says so; the line goes to whatever program reads the pane.
+* **After `su`, `sudo -i` or a nested `ssh`** the Run confirmation warns that the pane may be logged in as another user or on another host: the line runs as whoever that shell is.
+* **The answer is untrusted.** Terminal output the AI has read can steer what it suggests, so read every part of a command before you run it.
+
+Choose which buttons appear under *Settings → AI → AI chat code blocks in the terminal*: **Insert and Run** (the default), **Insert only**, or **Off (copy and save only)**. With the `ai-chat` policy denied both buttons are greyed out, and with `ai-agent-execution = "read-only"` Run is greyed out; see [Enterprise policy](../reference/enterprise-policy.md).
 
 ### Rendered images, diagrams, and math
 

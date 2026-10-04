@@ -31,6 +31,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * representative conversation with the real production pieces — {@link ThemeCssSupport#getChatStylesheetUrl}
  * for the palette, the {@code ai-chat-*} style classes, and {@link AiChatRenderSupport#renderInto} for the
  * message content — then snapshots it to {@code build/smoke/ai-chat-<profile>.png}. The stage is never shown.
+ * It also builds the Insert and Run buttons of a code block ({@link AiCodeBlockTerminalButtons}) against stub
+ * policies and checks which buttons render and which are greyed out with which reason, writing
+ * {@code build/smoke/ai-chat-code-block-buttons.png}.
  * Run via the {@code aiChatRedesignSmoke} Gradle task. Exit 0 = OK.
  */
 public final class AiChatRedesignSmoke {
@@ -67,6 +70,7 @@ public final class AiChatRedesignSmoke {
                 for (ChatColorProfile profile : ChatColorProfileSupport.all()) {
                     renderProfile(profile);
                 }
+                checkCodeBlockTerminalButtons();
             } catch (Exception e) {
                 failure.compareAndSet(null, "Setup failed: " + e);
             } finally {
@@ -122,6 +126,136 @@ public final class AiChatRedesignSmoke {
         stage.setScene(scene);
 
         snapshot(scene, "ai-chat-" + profile.id() + ".png");
+    }
+
+    /**
+     * The Insert and Run buttons of a code block: which render for which block and setting, and which are greyed
+     * out with which tooltip under an allowing, a {@code READ_ONLY} and a no-AI-chat policy stub. No terminal is
+     * open, so an allowed action is greyed out for having no target; the policy reason comes first.
+     */
+    private static void checkCodeBlockTerminalButtons() throws Exception {
+        AiCodeBlockTerminalAction.Policy allow =
+            new AiCodeBlockTerminalAction.Policy(true, de.kortty.policy.AgentExecutionMode.ALLOW);
+        AiCodeBlockTerminalAction.Policy readOnly =
+            new AiCodeBlockTerminalAction.Policy(true, de.kortty.policy.AgentExecutionMode.READ_ONLY);
+        AiCodeBlockTerminalAction.Policy noChat =
+            new AiCodeBlockTerminalAction.Policy(false, de.kortty.policy.AgentExecutionMode.ALLOW);
+        String noTarget = I18n.get("ai.result.terminal.verdict.noTarget", "");
+        String denied = I18n.get("ai.result.terminal.verdict.policyDenied", "");
+
+        AiCodeBlockTerminalButtons allowed = buttons("bash", "uptime\n",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN, allow);
+        require(allowed != null && allowed.insertButton() != null && allowed.runButton() != null,
+            "a shell block renders Insert and Run");
+        require(allowed.insertButton().isDisabled() && tooltip(allowed, true).equals(noTarget),
+            "without an open pane Insert is greyed out with the no-target reason");
+        require(allowed.runButton().isDisabled() && tooltip(allowed, false).equals(noTarget),
+            "without an open pane Run is greyed out with the no-target reason");
+
+        AiCodeBlockTerminalButtons underReadOnly = buttons("bash", "uptime",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN, readOnly);
+        require(underReadOnly != null && underReadOnly.runButton() != null && underReadOnly.runButton().isDisabled(),
+            "READ_ONLY greys Run out up front");
+        require(tooltip(underReadOnly, false).equals(denied), "READ_ONLY names the policy on Run");
+        require(tooltip(underReadOnly, true).equals(noTarget), "READ_ONLY leaves Insert to the pane checks");
+
+        AiCodeBlockTerminalButtons withoutChat = buttons("bash", "uptime",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN, noChat);
+        require(withoutChat != null && withoutChat.insertButton().isDisabled() && withoutChat.runButton().isDisabled()
+            && tooltip(withoutChat, true).equals(denied) && tooltip(withoutChat, false).equals(denied),
+            "without AI chat both buttons are greyed out with the policy reason");
+
+        AiCodeBlockTerminalButtons python = buttons("python", "print(1)",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN, allow);
+        require(python != null && python.insertButton() != null && python.runButton() == null,
+            "a python block offers Insert only");
+        AiCodeBlockTerminalButtons insertOnly = buttons("bash", "uptime",
+            de.kortty.model.AiChatTerminalActions.INSERT_ONLY, allow);
+        require(insertOnly != null && insertOnly.runButton() == null, "the Insert-only setting hides Run");
+        require(buttons("bash", "uptime", de.kortty.model.AiChatTerminalActions.OFF, allow) == null,
+            "the Off setting renders no terminal button");
+        AiCodeBlockTerminalButtons hostile = buttons("bash", "echo \u001b[2J",
+            de.kortty.model.AiChatTerminalActions.INSERT_AND_RUN, allow);
+        require(hostile != null && hostile.runButton() == null, "a block with an escape sequence offers no Run");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Label language = new Label("bash");
+        language.getStyleClass().add("ai-chat-code-lang");
+        HBox header = new HBox(8, language, spacer);
+        header.getChildren().addAll(underReadOnly.nodes());
+        javafx.scene.control.Button copy = new javafx.scene.control.Button("⧉");
+        copy.getStyleClass().add("ai-chat-icon-button");
+        header.getChildren().add(copy);
+        VBox codeBox = new VBox(6, header, new Label("uptime"));
+        codeBox.getStyleClass().add("ai-chat-code");
+        codeBox.setPadding(new Insets(10));
+        ChatColorProfile profile = ChatColorProfileSupport.all().get(0);
+        ThemeCssSupport.ChatPalette palette = ChatColorProfileSupport.resolvePalette(profile, null);
+        Scene scene = new Scene(new VBox(codeBox), 520, 110);
+        scene.setFill(Color.web(palette.background()));
+        String stylesheet = ThemeCssSupport.getChatStylesheetUrl(palette);
+        if (stylesheet != null) {
+            scene.getStylesheets().add(stylesheet);
+        }
+        new Stage().setScene(scene);
+        snapshot(scene, "ai-chat-code-block-buttons.png");
+    }
+
+    private static AiCodeBlockTerminalButtons buttons(String language, String code,
+            de.kortty.model.AiChatTerminalActions setting, AiCodeBlockTerminalAction.Policy policy) {
+        return AiCodeBlockTerminalButtons.create(language, code, new AiCodeBlockTerminalButtons.Host() {
+            @Override
+            public de.kortty.model.AiChatTerminalActions setting() {
+                return setting;
+            }
+
+            @Override
+            public AiCodeBlockTerminalAction.Policy policy() {
+                return policy;
+            }
+
+            @Override
+            public TerminalPaneRef target() {
+                return null;
+            }
+
+            @Override
+            public AiCodeBlockTerminalAction.PaneState probe(TerminalPaneRef target) {
+                throw new IllegalStateException("no pane to probe");
+            }
+
+            @Override
+            public void insert(TerminalPaneRef target, String text) {
+                throw new IllegalStateException("nothing may be inserted without a target");
+            }
+
+            @Override
+            public boolean confirmRun(TerminalPaneRef target, String line, AiCodeBlockTerminalAction.Decision decision) {
+                throw new IllegalStateException("nothing may be confirmed without a target");
+            }
+
+            @Override
+            public boolean sendLine(TerminalPaneRef target, String line) {
+                throw new IllegalStateException("nothing may be sent without a target");
+            }
+
+            @Override
+            public void status(String message) {
+            }
+        });
+    }
+
+    private static String tooltip(AiCodeBlockTerminalButtons buttons, boolean insert) {
+        String text = insert ? buttons.insertTooltipText() : buttons.runTooltipText();
+        return text != null ? text : "";
+    }
+
+    private static void require(boolean condition, String what) {
+        if (!condition) {
+            throw new IllegalStateException("Code block buttons: " + what);
+        }
+        System.out.println("ok: " + what);
     }
 
     /** Full-width assistant turn; {@code highlight} marks it as the current search hit. */

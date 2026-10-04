@@ -69,6 +69,7 @@ public final class TelemetryEvents {
     public static final String AI_PLAN_RUN_STARTED = "ai_plan_run_started";
     public static final String AI_CHAT_SAVED = "ai_chat_saved";
     public static final String AI_SAVED_CHAT_OPENED = "ai_saved_chat_opened";
+    public static final String AI_CODE_BLOCK_ACTION = "ai_code_block_action";
 
     // Snippet editor
     public static final String SNIPPET_AI_ACTION = "snippet_ai_action";

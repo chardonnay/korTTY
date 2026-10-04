@@ -40,6 +40,14 @@ A few terminal features report how they are used, with flags, coarse counts and 
 
 The search text, the names of commands, tabs, connections, snippets and rule sets, the patterns, and anything typed into the panes are never sent. Changes on the settings pages are reported as the name of the setting and, for switches and choices, the new value; for the quick-select letters and patterns and for rebound shortcuts only whether you changed them.
 
+### AI chat code blocks
+
+| Event | Sent when | Data |
+| --- | --- | --- |
+| `ai_code_block_action` | **Insert** or **Run** on a code block of an AI chat is used | `insert` or `run`, and whether it ended `sent`, `cancelled` (the Run confirmation was declined) or `refused` (the policy, the block or the pane did not allow it) |
+
+The block, its language, the command, the pane, the tab, the host and the reason for a refusal are never sent.
+
 ### SFTP transfers
 
 When an SFTP Manager tab opens, one event says whether it shares a terminal's session. When an upload or download in the SFTP Manager finishes, one event says how it went. File counts are rounded down to 0, 1, 2, 5, 10, 50, 100 or 1000. When korTTY stops watching a file you edited in an external editor (also as root), one event says how the edit ended; upload counts are rounded down to 0, 1, 2, 5, 10 or 50.

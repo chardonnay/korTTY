@@ -384,6 +384,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<AiProfile> aiDefaultProfileCombo;
     private final ComboBox<AiProfile> aiSecurityCheckProfileCombo;
     private final ComboBox<AiLanguageSupport.LanguageOption> aiCodeTextLanguageCombo;
+    private final ComboBox<de.kortty.model.AiChatTerminalActions> aiChatTerminalActionsCombo;
     private final CheckBox aiSnippetEditorInstructionsCheck;
     private final Spinner<Integer> aiSnippetAlternativeSolutionCountSpinner;
     private final Spinner<Integer> terminalAgentInputHistorySizeSpinner;
@@ -2605,6 +2606,28 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             aiCodeTextLanguageCombo);
         aiRoot.getChildren().add(aiCodeTextLanguageBox);
 
+        aiChatTerminalActionsCombo = new ComboBox<>();
+        aiChatTerminalActionsCombo.getItems().setAll(de.kortty.model.AiChatTerminalActions.values());
+        aiChatTerminalActionsCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(de.kortty.model.AiChatTerminalActions value) {
+                return value != null ? I18n.get(aiChatTerminalActionsKey(value)) : "";
+            }
+
+            @Override
+            public de.kortty.model.AiChatTerminalActions fromString(String text) {
+                return null;
+            }
+        });
+        aiChatTerminalActionsCombo.getSelectionModel().select(globalSettings != null
+            ? globalSettings.getAiChatTerminalActions() : de.kortty.model.AiChatTerminalActions.DEFAULT);
+        aiChatTerminalActionsCombo.setTooltip(new Tooltip(I18n.get("settings.ai.chatTerminalActions.tooltip")));
+        HBox aiChatTerminalActionsBox = new HBox(10,
+            new Label(I18n.get("settings.ai.chatTerminalActions")),
+            aiChatTerminalActionsCombo);
+        aiChatTerminalActionsBox.setAlignment(Pos.CENTER_LEFT);
+        aiRoot.getChildren().add(aiChatTerminalActionsBox);
+
         aiSnippetEditorInstructionsCheck = new CheckBox(I18n.get("settings.ai.snippetInstructionsEnabled"));
         aiSnippetEditorInstructionsCheck.setSelected(globalSettings != null && globalSettings.isAiSnippetEditorAdditionalInstructionsEnabled());
         aiRoot.getChildren().add(aiSnippetEditorInstructionsCheck);
@@ -4238,6 +4261,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("ai", "features_enabled", gs::isAiFeaturesEnabled, true));
             tracked.add(new TrackedSetting("ai", "agent_execution_enabled", gs::isTerminalAgentExecutionEnabled, true));
             tracked.add(new TrackedSetting("ai", "confirm_before_send", gs::isAiConfirmBeforeSend, true));
+            tracked.add(new TrackedSetting("ai", "chat_terminal_actions", gs::getAiChatTerminalActions, true));
             tracked.add(new TrackedSetting("sftp", "auto_close_minutes", gs::getSftpAutoCloseMinutes, true));
             tracked.add(new TrackedSetting("sftp", "parallel_transfers", gs::getSftpParallelTransfers, true));
             tracked.add(new TrackedSetting("sftp", "conflict_default", () -> gs.getSftpConflictDefault().id(), true));
@@ -4251,6 +4275,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 gs::getSnippetAnalysisMaxStoredContentBytes, true));
         }
         return tracked;
+    }
+
+    /** The label key of a choice of Settings › AI › AI chat code blocks in the terminal. */
+    static String aiChatTerminalActionsKey(de.kortty.model.AiChatTerminalActions value) {
+        return switch (value) {
+            case OFF -> "settings.ai.chatTerminalActions.off";
+            case INSERT_ONLY -> "settings.ai.chatTerminalActions.insertOnly";
+            case INSERT_AND_RUN -> "settings.ai.chatTerminalActions.insertAndRun";
+        };
     }
 
     private java.util.Map<String, Object> captureTrackedSettings() {
@@ -6539,6 +6572,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         AiLanguageSupport.LanguageOption selectedLanguage = aiCodeTextLanguageCombo.getSelectionModel().getSelectedItem();
         globalSettings.setAiCodeTextDefaultLanguage(selectedLanguage != null ? selectedLanguage.code() : null);
         globalSettings.setAiSnippetAlternativeSolutionCount(aiSnippetAlternativeSolutionCountSpinner.getValue());
+        globalSettings.setAiChatTerminalActions(aiChatTerminalActionsCombo.getValue());
         globalSettings.setTerminalAgentInputHistorySize(terminalAgentInputHistorySizeSpinner.getValue());
         if (!saveAiInternetToolSettings(encryptionService)) {
             return false;
