@@ -7152,6 +7152,18 @@ public class MainWindow {
         return project;
     }
     
+    /**
+     * Tells the status bar when a restored tab could not reopen all its split panes, and why; a
+     * complete restore says nothing.
+     */
+    private void reportSplitLayoutRestore(String tabName, SplitLayoutRestorePlan.Summary summary) {
+        if (summary.missingPanes() <= 0) {
+            return;
+        }
+        updateStatus(I18n.get("project.splitRestore.incomplete", tabName, summary.missingPanes(),
+                summary.plannedPanes(), summary.reasonsText(I18n::get)));
+    }
+
     private void loadProject(Project project) {
         // Close existing tabs
         closeAllTabs();
@@ -7213,19 +7225,15 @@ public class MainWindow {
                                     if (fontSizeOverride != null && fontSizeOverride > 0) {
                                         restoredTab.getTerminalView().setFontSize(fontSizeOverride);
                                     }
-                                    // Restore split pane structure if saved (delayed until connection is ready)
+                                    // The split panes come back once the tab's own session is up, and
+                                    // only then: never again after an automatic reconnect.
                                     de.kortty.model.SplitPaneState splitState = sessionState.getSplitPaneState();
-                                    if (splitState != null) {
-                                        logger.info("Scheduling split structure restoration for tab: {}", connection.getDisplayName());
-                                        // Wait for initial connection to be fully established before restoring splits
-                                        Platform.runLater(() -> {
-                                            try {
-                                                Thread.sleep(1000); // Give time for initial connection
-                                            } catch (InterruptedException e) {
-                                                Thread.currentThread().interrupt();
-                                            }
-                                            restoredTab.getTerminalView().restoreSplitState(splitState);
-                                        });
+                                    if (splitState != null && splitState.isSplit()) {
+                                        String tabName = connection.getDisplayName();
+                                        logger.info("Restoring the split panes of tab {} once it is connected", tabName);
+                                        restoredTab.addOnFirstConnected(() -> restoredTab.getTerminalView()
+                                                .restoreSplitLayout(splitState,
+                                                        summary -> reportSplitLayoutRestore(tabName, summary)));
                                     }
                                     logger.info("Restoring tab for {} with {} chars of history", 
                                             connection.getDisplayName(), 

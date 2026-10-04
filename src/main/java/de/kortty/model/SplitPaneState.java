@@ -6,6 +6,18 @@ import javafx.geometry.Orientation;
 /**
  * Represents the split structure of a terminal tab.
  * Can be a single terminal or a recursive split (left/right or top/bottom).
+ *
+ * <p>A leaf names the pane by its position ({@code widgetIndex}, the panes counted from left to
+ * right and top to bottom) and may carry optional fields that files written before them simply do
+ * not have:
+ * <ul>
+ *   <li>{@code connectionId}: the saved connection the pane runs when it is not the tab's (a pane
+ *       split to another server); absent for a pane on the tab's own connection.</li>
+ *   <li>{@code currentDirectory} and {@code scrollbackRef}: session-only. Only a session snapshot
+ *       of this device may carry them; a project file is shareable, so
+ *       {@code ProjectLeafFieldSanitizer} removes them from every project that is loaded or
+ *       saved.</li>
+ * </ul>
  */
 @XmlRootElement(name = "splitPane")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -30,6 +42,18 @@ public class SplitPaneState {
     /** Right/bottom child (for split nodes). */
     @XmlElement
     private SplitPaneState rightChild;
+
+    /** Leaf only: the saved connection the pane runs when it is not the tab's; null for the tab's. */
+    @XmlElement
+    private String connectionId;
+
+    /** Leaf only, session snapshots only: the local shell's working directory. */
+    @XmlElement
+    private String currentDirectory;
+
+    /** Leaf only, session snapshots only: the name of the pane's saved scrollback file. */
+    @XmlElement
+    private String scrollbackRef;
     
     public SplitPaneState() {
     }
@@ -38,8 +62,17 @@ public class SplitPaneState {
      * Creates a leaf node (single terminal widget).
      */
     public static SplitPaneState createLeaf(int widgetIndex) {
+        return createLeaf(widgetIndex, null);
+    }
+
+    /**
+     * Creates a leaf node for a pane that runs {@code connectionId}, or the tab's connection when it
+     * is {@code null}.
+     */
+    public static SplitPaneState createLeaf(int widgetIndex, String connectionId) {
         SplitPaneState state = new SplitPaneState();
         state.widgetIndex = widgetIndex;
+        state.connectionId = connectionId;
         return state;
     }
     
@@ -82,8 +115,16 @@ public class SplitPaneState {
         this.orientation = orientation;
     }
     
+    /** The split's orientation, or {@code null} for a leaf and for a value that names none (a hand-made file). */
     public Orientation getOrientationEnum() {
-        return orientation != null ? Orientation.valueOf(orientation) : null;
+        if (orientation == null) {
+            return null;
+        }
+        try {
+            return Orientation.valueOf(orientation);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
     
     public Double getDividerPosition() {
@@ -109,11 +150,36 @@ public class SplitPaneState {
     public void setRightChild(SplitPaneState rightChild) {
         this.rightChild = rightChild;
     }
+
+    public String getConnectionId() {
+        return connectionId;
+    }
+
+    public void setConnectionId(String connectionId) {
+        this.connectionId = connectionId;
+    }
+
+    public String getCurrentDirectory() {
+        return currentDirectory;
+    }
+
+    public void setCurrentDirectory(String currentDirectory) {
+        this.currentDirectory = currentDirectory;
+    }
+
+    public String getScrollbackRef() {
+        return scrollbackRef;
+    }
+
+    public void setScrollbackRef(String scrollbackRef) {
+        this.scrollbackRef = scrollbackRef;
+    }
     
     @Override
     public String toString() {
         if (isLeaf()) {
-            return "Leaf[widget=" + widgetIndex + "]";
+            // The working directory is not printed: a log line need not show where someone works.
+            return "Leaf[widget=" + widgetIndex + (connectionId != null ? ", connection=" + connectionId : "") + "]";
         }
         return "Split[" + orientation + ", divider=" + dividerPosition + ", left=" + leftChild + ", right=" + rightChild + "]";
     }
