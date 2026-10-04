@@ -228,7 +228,8 @@ public final class AiChatCodeBlockScreenshotGenerator {
             }
 
             @Override
-            public void insert(TerminalPaneRef target, String text) {
+            public void insert(TerminalPaneRef target, String text,
+                               java.util.function.Consumer<de.kortty.paste.PasteGuard.Outcome> outcome) {
                 throw new IllegalStateException("the screenshot never inserts");
             }
 

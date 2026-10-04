@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import de.kortty.model.AiChatTerminalActions;
+import de.kortty.paste.PasteGuard;
 import de.kortty.telemetry.AiCodeBlockTelemetry;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -12,6 +13,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /**
  * The <i>Insert</i> and <i>Run</i> buttons in the header of an AI chat code block (design decisions D1, D3,
@@ -46,8 +49,11 @@ final class AiCodeBlockTerminalButtons {
         /** A snapshot of {@code target} ({@link AiCodeBlockTerminalAction.PaneState#probe}). */
         AiCodeBlockTerminalAction.PaneState probe(TerminalPaneRef target);
 
-        /** Types {@code text} at the prompt of {@code target} through paste protection, without Enter. */
-        void insert(TerminalPaneRef target, String text);
+        /**
+         * Types {@code text} at the prompt of {@code target} through paste protection, without Enter, and
+         * tells {@code outcome} how it ended: at once, or once paste protection's confirmation is answered.
+         */
+        void insert(TerminalPaneRef target, String text, Consumer<PasteGuard.Outcome> outcome);
 
         /**
          * Asks whether {@code line} should run in {@code target}, showing both and what {@code decision} adds
@@ -151,9 +157,29 @@ final class AiCodeBlockTerminalButtons {
             refuse(AiCodeBlockTelemetry.Action.INSERT, decision, target);
             return;
         }
-        host.insert(target, AiCodeBlockTerminalAction.runLine(code));
-        AiCodeBlockTelemetry.track(AiCodeBlockTelemetry.Action.INSERT, AiCodeBlockTelemetry.Outcome.SENT);
-        host.status(I18n.get("ai.result.terminal.status.inserted", target.displayName()));
+        String name = target.displayName();
+        AtomicBoolean reported = new AtomicBoolean();
+        host.insert(target, AiCodeBlockTerminalAction.runLine(code), outcome -> {
+            if (reported.compareAndSet(false, true)) {
+                inserted(outcome, name);
+            }
+        });
+    }
+
+    /**
+     * What Insert reports once paste protection is done: only text that really reached the pane counts as
+     * inserted; a declined confirmation or a paste the pane refused says that nothing was inserted.
+     */
+    private void inserted(@Nullable PasteGuard.Outcome outcome, String name) {
+        if (outcome == PasteGuard.Outcome.SENT) {
+            AiCodeBlockTelemetry.track(AiCodeBlockTelemetry.Action.INSERT, AiCodeBlockTelemetry.Outcome.SENT);
+            host.status(I18n.get("ai.result.terminal.status.inserted", name));
+        } else {
+            AiCodeBlockTelemetry.track(AiCodeBlockTelemetry.Action.INSERT,
+                outcome == PasteGuard.Outcome.CANCELLED
+                    ? AiCodeBlockTelemetry.Outcome.CANCELLED : AiCodeBlockTelemetry.Outcome.REFUSED);
+            host.status(I18n.get("ai.result.terminal.status.notInserted", name));
+        }
         refresh();
     }
 

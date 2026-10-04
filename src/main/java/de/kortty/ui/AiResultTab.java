@@ -1826,12 +1826,15 @@ public class AiResultTab extends Tab {
             }
 
             @Override
-            public void insert(TerminalPaneRef target, String text) {
+            public void insert(TerminalPaneRef target, String text,
+                               java.util.function.Consumer<de.kortty.paste.PasteGuard.Outcome> outcome) {
                 TerminalTab tab = target.tab();
                 KorttyTermWidget pane = target.pane();
                 TerminalView view = tab != null ? tab.getTerminalView() : null;
                 if (view != null && pane != null) {
-                    view.pasteIntoPane(pane, text, PasteSource.AI);
+                    view.pasteIntoPane(pane, text, PasteSource.AI, outcome);
+                } else {
+                    outcome.accept(de.kortty.paste.PasteGuard.Outcome.REFUSED);
                 }
             }
 

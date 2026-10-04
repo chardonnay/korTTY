@@ -239,6 +239,68 @@ class PasteGuardAiSourceTest {
     }
 
     @Test
+    void theOutcomeSaysWhetherTheTextReachedThePane() {
+        RecordingConfirmer confirmer = new RecordingConfirmer();
+        PasteGuard guard = new PasteGuard(() -> PasteRules.NONE, confirmer);
+        List<PasteGuard.Outcome> outcomes = new ArrayList<>();
+
+        guard.paste(new FakeTarget(), "ls", PasteSource.AI, outcomes::add);
+        assertWithMessage("a single clean line goes straight through")
+            .that(outcomes).containsExactly(PasteGuard.Outcome.SENT);
+
+        outcomes.clear();
+        FakeTarget asked = new FakeTarget();
+        guard.paste(asked, "a\nb", PasteSource.AI, outcomes::add);
+        assertWithMessage("nothing is reported while the confirmation is open").that(outcomes).isEmpty();
+        confirmer.answers.get(0).accept(false);
+        assertThat(outcomes).containsExactly(PasteGuard.Outcome.CANCELLED);
+        assertThat(asked.sent).isEmpty();
+
+        outcomes.clear();
+        guard.paste(asked, "a\nb", PasteSource.AI, outcomes::add);
+        confirmer.answers.get(1).accept(true);
+        assertThat(outcomes).containsExactly(PasteGuard.Outcome.SENT);
+
+        outcomes.clear();
+        FakeTarget mirrored = new FakeTarget();
+        mirrored.broadcast = true;
+        guard.paste(mirrored, "ls", PasteSource.AI, outcomes::add);
+        assertWithMessage("a mirrored pane refuses AI text, which is not the user declining")
+            .that(outcomes).containsExactly(PasteGuard.Outcome.REFUSED);
+
+        outcomes.clear();
+        FakeTarget changing = new FakeTarget();
+        guard.paste(changing, "a\nb", PasteSource.AI, outcomes::add);
+        changing.multiExec = true;
+        confirmer.answers.get(2).accept(true);
+        assertThat(outcomes).containsExactly(PasteGuard.Outcome.REFUSED);
+        assertThat(changing.sent).isEmpty();
+    }
+
+    @Test
+    void aFailingConfirmationReportsARefusalOnce() {
+        PasteGuard guard = new PasteGuard(() -> PasteRules.NONE, (request, answer) -> {
+            throw new IllegalStateException("no window");
+        });
+        List<PasteGuard.Outcome> outcomes = new ArrayList<>();
+
+        guard.paste(new FakeTarget(), "a\nb", PasteSource.AI, outcomes::add);
+
+        assertThat(outcomes).containsExactly(PasteGuard.Outcome.REFUSED);
+    }
+
+    @Test
+    void insertReportsInsertedOnlyForTextThatReachedThePane() throws IOException {
+        String buttons = source("src/main/java/de/kortty/ui/AiCodeBlockTerminalButtons.java");
+        assertThat(buttons).contains("host.insert(target, AiCodeBlockTerminalAction.runLine(code), outcome -> {");
+        assertThat(buttons).contains("if (outcome == PasteGuard.Outcome.SENT) {\n"
+            + "            AiCodeBlockTelemetry.track(AiCodeBlockTelemetry.Action.INSERT, AiCodeBlockTelemetry.Outcome.SENT);\n"
+            + "            host.status(I18n.get(\"ai.result.terminal.status.inserted\", name));");
+        assertThat(source("src/main/java/de/kortty/ui/AiResultTab.java"))
+            .contains("view.pasteIntoPane(pane, text, PasteSource.AI, outcome);");
+    }
+
+    @Test
     void stripControlCharactersKeepsTabsAndLineBreaksAndReturnsTheSameStringWhenClean() {
         String clean = "a\tb\r\nc";
         assertThat(PasteSanitizer.stripControlCharacters(clean)).isSameInstanceAs(clean);

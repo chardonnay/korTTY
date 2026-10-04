@@ -62,6 +62,7 @@ class AiI18nCoverageTest {
         Map.entry("ai.result.terminal.run.tooltip", Set.of("{0}")),
         Map.entry("ai.result.terminal.run.confirm.header", Set.of("{0}")),
         Map.entry("ai.result.terminal.status.inserted", Set.of("{0}")),
+        Map.entry("ai.result.terminal.status.notInserted", Set.of("{0}")),
         Map.entry("ai.result.terminal.status.ran", Set.of("{0}")),
         Map.entry("ai.result.terminal.status.failed", Set.of("{0}")));
 

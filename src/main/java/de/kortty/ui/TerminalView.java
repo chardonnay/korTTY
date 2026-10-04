@@ -2265,11 +2265,23 @@ public class TerminalView extends BorderPane {
      * @param source where the text came from
      */
     public void pasteIntoPane(KorttyTermWidget pane, String text, PasteSource source) {
+        pasteIntoPane(pane, text, source, null);
+    }
+
+    /**
+     * {@link #pasteIntoPane(KorttyTermWidget, String, PasteSource)}, telling {@code outcome} how the paste
+     * ended: at once, or when its confirmation is answered ({@link PasteGuard.Outcome}). JavaFX thread.
+     */
+    public void pasteIntoPane(KorttyTermWidget pane, String text, PasteSource source,
+                              java.util.function.@Nullable Consumer<PasteGuard.Outcome> outcome) {
+        java.util.function.Consumer<PasteGuard.Outcome> report = outcome != null ? outcome : unused -> { };
         if (pane == null || text == null || text.isEmpty()) {
+            report.accept(PasteGuard.Outcome.REFUSED);
             return;
         }
         if (!terminalPanes().contains(pane)) {
             logger.debug("Text not pasted: the pane closed first ({} chars, {})", text.length(), source);
+            report.accept(PasteGuard.Outcome.REFUSED);
             return;
         }
         if (splitPane != null) {
@@ -2280,7 +2292,7 @@ public class TerminalView extends BorderPane {
                 focusTarget.requestFocus();
             }
         }
-        pasteGuard.paste(pane.pasteTarget(), text, source);
+        pasteGuard.paste(pane.pasteTarget(), text, source, report);
     }
 
     /**

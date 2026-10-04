@@ -390,7 +390,7 @@ class AiCodeBlockTerminalActionTest {
             java.nio.file.Path.of("src/main/java/de/kortty/ui/AiResultTab.java"), StandardCharsets.UTF_8)
             .replace("\r\n", "\n");
         assertWithMessage("Insert goes through paste protection as AI text")
-            .that(source).contains("view.pasteIntoPane(pane, text, PasteSource.AI);");
+            .that(source).contains("view.pasteIntoPane(pane, text, PasteSource.AI, outcome);");
         assertWithMessage("Run writes one line to that pane only, never as a hidden one-liner")
             .that(source).contains("view.sendInputLineToPane(pane, line, false)");
         assertWithMessage("Cancel is the default button of the Run confirmation")

@@ -339,7 +339,8 @@ public final class AiChatRedesignSmoke {
             }
 
             @Override
-            public void insert(TerminalPaneRef target, String text) {
+            public void insert(TerminalPaneRef target, String text,
+                               java.util.function.Consumer<de.kortty.paste.PasteGuard.Outcome> outcome) {
                 throw new IllegalStateException("nothing may be inserted without a target");
             }
 
