@@ -8860,11 +8860,6 @@ public class MainWindow {
             : I18n.get("ai.agent.connection.unknown");
     }
 
-    private boolean isTerminalPromptHookEnabled() {
-        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
-        return settings == null || settings.isDefaultPromptHookEnabled();
-    }
-
     private void showAiAgent() {
         if (!isAiFeaturesEnabled()) {
             return;

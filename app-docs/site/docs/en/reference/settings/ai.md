@@ -21,7 +21,6 @@ Configure AI profiles and terminal AI Agent settings. This is the largest settin
 | --- | --- | --- | --- | --- |
 | Enable AI Agent execution | toggle | — | On | `terminalAgentExecutionEnabled` |
 | Ask before AI Agent changes the target system | toggle | — | Off | `terminalAgentConfirmMutatingCommandSets` |
-| Use OSC 133 prompt markers when the shell already provides them | toggle | — | On | `defaultPromptHookEnabled` |
 | Show agent debug messages | toggle | — | Off | `terminalAgentShowDebugMessages` |
 | Show agent runtime messages | toggle | — | Off | `terminalAgentShowRuntimeMessages` |
 | Show terminal agent setup dialog before each run | toggle | — | On | `terminalAgentShowRunDialog` |

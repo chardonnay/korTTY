@@ -490,6 +490,9 @@ public class TerminalView extends BorderPane {
     private final Map<SithTermFxWidget, StringBuilder> agentShortcutBuffers = new ConcurrentHashMap<>();
     private final StringBuilder agentShortcutPromptTail = new StringBuilder();
     private final Map<SshTtyConnector, StringBuilder> terminalAgentOscBuffers = new ConcurrentHashMap<>();
+    /** The start of an OSC 133 shell-integration mark in raw output, before its letter (A, B, C, D). */
+    private static final String OSC_133_PREFIX = "\u001B]133;";
+    // At a shell prompt: from the OSC 133 marks while shell integration is on, else from the prompt's text.
     private volatile boolean agentShortcutPromptReady;
     private TerminalAgentCompletionPopup agentCompletionPopup;
     private volatile boolean timestampGuttersVisibleState;
@@ -5234,16 +5237,6 @@ public class TerminalView extends BorderPane {
         return !caseInsensitiveCommandName || canInterceptBufferedAgentShortcut(rawCommand, commandName, false);
     }
 
-    private boolean isTerminalAgentPromptHookEnabled() {
-        try {
-            var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
-            var gs = gsm != null ? gsm.getSettings() : null;
-            return gs == null || gs.isDefaultPromptHookEnabled();
-        } catch (Exception e) {
-            return true;
-        }
-    }
-
     private boolean isTerminalAgentShortcutEnabled() {
         try {
             var gsm = KorTTYApplication.getInstance().getGlobalSettingsManager();
@@ -5312,11 +5305,9 @@ public class TerminalView extends BorderPane {
             sourceConnector,
             data,
             payload -> dispatchTerminalAgentOscPayload(sourceConnector, payload));
-        if (data.contains("\u001B]133;A") || data.contains("\u001B]133;B")) {
-            agentShortcutPromptReady = true;
-        }
-        if (data.contains("\u001B]133;C")) {
-            agentShortcutPromptReady = false;
+        Boolean markedPromptReady = promptReadinessFromOsc133(data, TerminalView::isShellIntegrationEnabled);
+        if (markedPromptReady != null) {
+            agentShortcutPromptReady = markedPromptReady;
         }
 
         synchronized (agentShortcutPromptTail) {
@@ -5338,6 +5329,27 @@ public class TerminalView extends BorderPane {
                 }
             }
         }
+    }
+
+    /**
+     * What the OSC 133 marks in a chunk of raw SSH output say about the shell's prompt, for the AI
+     * Agent's commands and the close question: {@code true} when the chunk's last mark is a prompt
+     * mark (A or B), {@code false} when it is a command start (C), and {@code null} when the chunk
+     * has neither or shell integration is off. Then only the prompt's text tells ({@link
+     * #looksLikeShellPrompt}). The last mark decides because a short command's start, output, end
+     * and the next prompt often arrive in one chunk. The setting is read only for a chunk with a
+     * mark in it, so plain output never touches the settings.
+     */
+    static @Nullable Boolean promptReadinessFromOsc133(@Nullable String data, BooleanSupplier shellIntegrationEnabled) {
+        if (data == null || !data.contains(OSC_133_PREFIX)) {
+            return null;
+        }
+        int prompt = Math.max(data.lastIndexOf(OSC_133_PREFIX + 'A'), data.lastIndexOf(OSC_133_PREFIX + 'B'));
+        int command = data.lastIndexOf(OSC_133_PREFIX + 'C');
+        if ((prompt < 0 && command < 0) || !shellIntegrationEnabled.getAsBoolean()) {
+            return null;
+        }
+        return prompt > command;
     }
 
     /**

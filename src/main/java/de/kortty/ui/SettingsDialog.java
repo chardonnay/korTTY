@@ -342,7 +342,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox aiConfirmBeforeSendCheck;
     private final CheckBox aiTerminalAgentExecutionEnabledCheck;
     private final CheckBox aiTerminalAgentConfirmMutatingCommandSetsCheck;
-    private final CheckBox aiPromptHookEnabledCheck;
     private final CheckBox aiShowDebugMessagesCheck;
     private final CheckBox aiShowRuntimeMessagesCheck;
     private final CheckBox aiTerminalAgentShowRunDialogCheck;
@@ -2244,10 +2243,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiTerminalAgentConfirmMutatingHint.setWrapText(true);
         aiTerminalAgentConfirmMutatingHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         aiRoot.getChildren().add(aiTerminalAgentConfirmMutatingHint);
-
-        aiPromptHookEnabledCheck = new CheckBox(I18n.get("settings.ai.promptHook"));
-        aiPromptHookEnabledCheck.setSelected(globalSettings == null || globalSettings.isDefaultPromptHookEnabled());
-        aiRoot.getChildren().add(aiPromptHookEnabledCheck);
 
         aiShowDebugMessagesCheck = new CheckBox(I18n.get("settings.ai.showDebugMessages"));
         aiShowDebugMessagesCheck.setSelected(globalSettings != null && globalSettings.isTerminalAgentShowDebugMessages());
@@ -6132,9 +6127,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
         if (aiTerminalAgentConfirmMutatingCommandSetsCheck != null) {
             targetSettings.setTerminalAgentConfirmMutatingCommandSets(aiTerminalAgentConfirmMutatingCommandSetsCheck.isSelected());
-        }
-        if (aiPromptHookEnabledCheck != null) {
-            targetSettings.setDefaultPromptHookEnabled(aiPromptHookEnabledCheck.isSelected());
         }
         if (aiShowDebugMessagesCheck != null) {
             targetSettings.setTerminalAgentShowDebugMessages(aiShowDebugMessagesCheck.isSelected());

@@ -363,7 +363,8 @@ public class GlobalSettings {
 
     /**
      * Shell integration: korTTY reads the OSC 133 command marks that a shell set up for shell integration sends, and offers
-     * prompt navigation. On by default; nothing changes for a shell that sends no marks.
+     * prompt navigation. On by default; nothing changes for a shell that sends no marks. While it is on, the AI Agent's
+     * commands also use the marks to tell that the shell is at its prompt; it replaced {@link #defaultPromptHookEnabled}.
      */
     @XmlElement
     private boolean shellIntegrationEnabled = true;
@@ -724,7 +725,13 @@ public class GlobalSettings {
     @XmlElement
     private boolean terminalAgentConfirmMutatingCommandSets = false;
 
-    /** Prefer OSC 133 prompt markers when the shell emits them. */
+    /**
+     * The former AI setting "Use OSC 133 prompt markers when the shell already provides them". It
+     * never changed anything and is no longer shown: the OSC 133 marks follow
+     * {@link #shellIntegrationEnabled} alone, also for the AI Agent's prompt detection. The value is
+     * still read and written, so settings files of older versions load as before and an older
+     * version started again finds the choice it saved.
+     */
     @XmlElement
     private boolean defaultPromptHookEnabled = true;
 
@@ -2848,6 +2855,7 @@ public class GlobalSettings {
         this.terminalAgentConfirmMutatingCommandSets = terminalAgentConfirmMutatingCommandSets;
     }
 
+    /** The former AI prompt-marker setting, kept for settings files only; see {@link #defaultPromptHookEnabled}. */
     public boolean isDefaultPromptHookEnabled() {
         return defaultPromptHookEnabled;
     }

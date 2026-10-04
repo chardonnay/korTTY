@@ -342,6 +342,8 @@ At the shell prompt, TAB completion is enhanced for agent commands:
 
 History size is configurable in **Settings > AI** (default 20, range 5–100).
 
+In an SSH session korTTY tells that the shell is at its prompt from the OSC 133 marks of a shell set up for [shell integration](shell-integration.md), while **Use the command marks of shells set up for shell integration (OSC 133)** in *Settings → Terminal* is on, and otherwise from the prompt's text, such as `user@host:~$`.
+
 ### How the AI Agent works
 
 The Terminal AI Agent is a controlled terminal automation workflow. It does not run arbitrary model output directly in the interactive terminal. Instead, each turn follows this pattern:
