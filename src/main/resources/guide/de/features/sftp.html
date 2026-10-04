@@ -931,7 +931,11 @@
 </tr>
 <tr>
 <td><strong>Archivieren</strong></td>
-<td><strong>Archivieren</strong> in der Remote-Werkzeugleiste, oder <strong>Archivieren...</strong> im jeweiligen Kontextmenü, packt die Auswahl als ZIP, TAR.BZ2 oder 7z, je nach verfügbaren Tools auf dieser Seite</td>
+<td><strong>Archivieren</strong> in der Remote-Werkzeugleiste, oder <strong>Archivieren...</strong> im jeweiligen Kontextmenü, packt die Auswahl als ZIP, TAR.BZ2 oder 7z, je nach verfügbaren Tools auf dieser Seite. Ein lokales Archiv kann ein Passwort haben, ein Archiv auf dem Server nicht, weil <code>zip</code> und <code>7z</code> das Passwort auf der Befehlszeile des Servers bräuchten, wo andere Benutzer des Servers es lesen können</td>
+</tr>
+<tr>
+<td><strong>Hier entpacken</strong></td>
+<td>Klicken Sie mit der rechten Maustaste auf ein Archiv auf dem Server (<code>.zip</code>, <code>.tar</code>, <code>.tar.gz</code>/<code>.tgz</code>, <code>.tar.bz2</code>, <code>.tar.xz</code> oder <code>.7z</code>) und wählen Sie <strong>Hier entpacken...</strong>. Es wird auf dem Server in einen neuen Ordner daneben entpackt; siehe <a href="#archive-auf-dem-server-entpacken">Archive auf dem Server entpacken</a></td>
 </tr>
 <tr>
 <td><strong>Besitzer/Berechtigungen setzen</strong></td>
@@ -940,6 +944,15 @@
 </tbody>
 </table>
 <p>Ein Name für <strong>Umbenennen</strong> oder <strong>Neuer Ordner</strong> muss ein einzelnes Element im angezeigten Ordner sein: er darf nicht leer, <code>.</code> oder <code>..</code> sein, und darf <code>/</code> oder <code>\</code> nicht enthalten. Das Dialogfeld bleibt mit einem Fehler offen, bis der Name nutzbar ist.</p>
+<h3 id="archive-auf-dem-server-entpacken">Archive auf dem Server entpacken<a class="headerlink" href="#archive-auf-dem-server-entpacken" title="Permanent link">&para;</a></h3>
+<p><strong>Hier entpacken...</strong> im Remote-Kontextmenü entpackt das ausgewählte Archiv direkt auf dem Server, sodass nichts heruntergeladen oder hochgeladen wird. Nach Ihrer Bestätigung zeigt ein Fortschrittsfenster jeden Schritt an, und <strong>Abbrechen</strong> stoppt das Entpacken und entfernt, was bereits entpackt wurde.</p>
+<ul>
+<li><strong>Immer ein neuer Ordner</strong> — die Dateien landen in einem neuen Ordner neben dem Archiv, der nach ihm ohne Dateiendung benannt ist (aus <code>site-1.2.tar.gz</code> wird <code>site-1.2</code>). Ist dieser Name vergeben, verwendet korTTY <code>site-1.2 (1)</code>, <code>site-1.2 (2)</code> und so weiter; eine vorhandene Datei oder ein vorhandener Ordner wird nie überschrieben oder zusammengeführt.</li>
+<li><strong>Geprüft, bevor etwas geschrieben wird</strong> — korTTY listet zuerst den Inhalt des Archivs auf und lehnt es als Ganzes ab, wenn ein Eintrag außerhalb des neuen Ordners landen würde: ein absoluter Pfad, <code>..</code>, das über den Ordner hinausführt, ein Laufwerksbuchstabe wie <code>C:</code>, ein Name mit Zeilenumbruch, eine Gerätedatei oder ein Link, dessen Ziel außerhalb liegt. In diesem Fall wird nichts geschrieben.</li>
+<li><strong>Nach dem Entpacken erneut geprüft</strong> — das Archiv wird in einen versteckten Staging-Ordner (<code>.kortty-extract.</code> plus zufällige Zeichen) entpackt, den nur Sie öffnen können, ohne die im Archiv gespeicherten Eigentümer zu übernehmen. korTTY prüft dann jeden symbolischen Link darin; zeigt einer aus dem Ordner hinaus, wird der Staging-Ordner gelöscht und Sie erhalten einen Fehler. Nur ein sauberes Ergebnis wird in den neuen Ordner umbenannt, sodass dieser vollständig oder gar nicht erscheint.</li>
+<li><strong>Werkzeuge auf dem Server</strong> — ZIP benötigt <code>unzip</code>, die tar-Formate <code>tar</code> und 7z <code>7z</code> oder <code>7za</code>. Fehlt das Werkzeug, nennt die Fehlermeldung es. Mit einem anderen tar als GNU tar (zum Beispiel BusyBox) werden Archive mit Hardlinks abgelehnt, weil deren Ziele nicht geprüft werden können.</li>
+<li><strong>Keine Passwörter</strong> — passwortgeschützte Archive werden mit einer Meldung abgelehnt: Die Werkzeuge bräuchten das Passwort auf der Befehlszeile des Servers, wo andere Benutzer des Servers es lesen können.</li>
+</ul>
 <h3 id="ziehen-und-ablegen">Ziehen und Ablegen<a class="headerlink" href="#ziehen-und-ablegen" title="Permanent link">&para;</a></h3>
 <p>Sie können Einträge zwischen den beiden Panels ziehen, von Ihrem Desktop in den SFTP-Manager und in kleinen Mengen vom Server auf Ihren Desktop. Während Sie ziehen, wird das Panel oder die Ordnerzeile, in die der Drop erfolgen würde, hervorgehoben; ein Drop auf eine Ordnerzeile legt die Einträge in diesen Ordner, ein Drop an einer anderen Stelle in den angezeigten Ordner.</p>
 <table>
@@ -1124,7 +1137,32 @@
 <li><strong>Speichern unter...</strong> – schreibt eine neue lokale Datei über eine Dateiauswahl oder fordert für Remote-Dateien zur Eingabe eines neuen Dateinamens im selben Remote-Verzeichnis auf</li>
 <li><strong>Als Snippet speichern</strong> – speichert den aktuellen Inhalt als neues Snippet-Manager-Snippet, ohne die Quelldatei als gespeichert zu markieren</li>
 </ul>
+<p>Eine Organisation kann das Bearbeiten von Serverdateien mit dem Schlüssel <code>load-into-snippet-editor</code> ihrer <a href="../reference/enterprise-policy.html">Unternehmensrichtlinie</a> einschränken. Mit <code>read-only</code> öffnen sich Remote-Dateien weiterhin im Snippet-Editor und können als Snippet gespeichert werden, aber <strong>Datei überschreiben</strong> und <strong>Speichern unter...</strong> sind gesperrt, und ihr Tooltip nennt die Richtlinie. Mit <code>deny</code> sind <strong>Im Snippet-Editor bearbeiten</strong> und <strong>Bild öffnen</strong> für Remote-Dateien deaktiviert. Lokale Dateien im linken Panel liegen auf Ihrem eigenen Computer und bleiben in jedem Fall bearbeitbar.</p>
 <p><img alt="SFTP dual-panel file manager" src="../assets/screenshots/sftp/sftp-manager.png" /></p>
+<h3 id="im-eigenen-editor-bearbeiten">Im eigenen Editor bearbeiten<a class="headerlink" href="#im-eigenen-editor-bearbeiten" title="Permanent link">&para;</a></h3>
+<p><strong>In externem Editor bearbeiten</strong> (im Rechtsklickmenü einer Serverdatei und im Remote-Menü <strong>Bearbeiten</strong>) öffnet die ausgewählte Serverdatei in Ihrem eigenen Texteditor und kopiert jedes Speichern zurück auf den Server. Den Editor wählen Sie unter <a href="../reference/settings/sftp.html#externer-editor"><em>Einstellungen → SFTP-Manager → Externer Editor</em></a>; ist keiner festgelegt, öffnet sich die Datei als Text im Editor des Systems.</p>
+<ul>
+<li><strong>Lokale Kopie</strong> — die Datei wird in einen privaten Ordner namens <code>kortty-remote-edit-…</code> im temporären Ordner des Systems heruntergeladen, den nur Sie öffnen können, und zwar unter einem bereinigten Namen: Andere Zeichen als Buchstaben, Ziffern, <code>.</code>, <code>_</code>, <code>-</code> und Leerzeichen werden zu <code>_</code>, und Windows-Gerätenamen wie <code>CON</code> erhalten ein vorangestelltes <code>_</code>. Einem symbolischen Link wird einmal gefolgt, und bearbeitet wird die Datei, auf die er zeigt.</li>
+<li><strong>Automatischer Upload</strong> — korTTY prüft die Kopie jede Sekunde. Etwa eine Sekunde nach dem Speichern wird der neue Inhalt hochgeladen, und die Statusleiste meldet <strong>hochgeladen</strong> mit dem Dateinamen; erneutes Speichern desselben Inhalts lädt nichts hoch. Der Upload funktioniert wie jeder andere: über eine <code>.kortty-part</code>-Datei, die die Berechtigungen der Datei beibehält, oder direkt an Ort und Stelle geschrieben, wenn die Datei einem anderen Benutzer gehört, sodass ihr Eigentümer erhalten bleibt.</li>
+<li><strong>Bearbeitete Serverdateien</strong> — die Liste unter der Übertragungsliste zeigt jede bearbeitete Datei, ob sie auf ein Speichern wartet, gerade hochlädt oder hochgeladen wurde (mit Uhrzeit), und bietet <strong>Jetzt hochladen</strong> für Editoren, deren Speichern nicht erkannt wird, sowie <strong>Stoppen</strong>.</li>
+<li><strong>Konflikte</strong> — vor jedem Upload prüft korTTY, ob die Serverdatei noch die ist, die es heruntergeladen hat (Größe, Zeit, Eigentümer und bis 10 MB auch der Inhalt). Hat jemand anderes sie geändert oder gelöscht, fragt es nach: <strong>Serverdatei überschreiben</strong>, <strong>Lokale Kopie speichern unter...</strong> (behält Ihre Version auf diesem Computer und beendet die Beobachtung), <strong>Beobachten beenden</strong> oder <strong>Später entscheiden</strong> (beobachtet weiter; hochgeladen wird erst beim nächsten Speichern oder mit <strong>Jetzt hochladen</strong>).</li>
+<li><strong>Aufräumen</strong> — <strong>Stoppen</strong>, das Schließen des SFTP-Tabs und das Beenden von korTTY löschen die lokale Kopie. Geht die Verbindung verloren, bevor Ihr letztes Speichern hochgeladen wurde, bietet korTTY zuerst <strong>Kopie speichern unter...</strong> an. Ordner, die ein Absturz hinterlassen hat, werden beim nächsten Start entfernt, sobald sie einen Tag alt sind.</li>
+</ul>
+<p>Der Editor wird immer direkt gestartet, nie über eine Shell oder als Standardanwendung der Datei, sodass ein heruntergeladenes Skript nie ausgeführt wird. Mit <code>load-into-snippet-editor = "read-only"</code> in der <a href="../reference/enterprise-policy.html">Unternehmensrichtlinie</a> öffnet sich die Datei, aber gespeicherte Änderungen bleiben auf Ihrem Computer, und die Liste weist darauf hin; <code>load-into-snippet-editor = "deny"</code> oder <code>file-transfer = "deny"</code> graut <strong>In externem Editor bearbeiten</strong> aus.</p>
+<h3 id="als-root-bearbeiten">Als root bearbeiten<a class="headerlink" href="#als-root-bearbeiten" title="Permanent link">&para;</a></h3>
+<p><strong>Öffnen mit → Als root bearbeiten (sudo)...</strong> (im Rechtsklickmenü einer Serverdatei, sowie <strong>Als root bearbeiten (sudo)...</strong> im Remote-Menü <strong>Bearbeiten</strong>) öffnet eine Datei, die nur root ändern darf, etwa eine Konfigurationsdatei unter <code>/etc</code>, in Ihrem eigenen Editor, genauso wie unter <a href="#im-eigenen-editor-bearbeiten">Im eigenen Editor bearbeiten</a>. Die Zeile in <strong>Bearbeitete Serverdateien</strong> trägt ein <strong>sudo</strong>-Badge.</p>
+<p><img alt="Als root bearbeiten: mit sudo cat lesen, lokal bearbeiten, jedes Speichern über stdin in einen root gehörenden Staging-Ordner senden, prüfen, an Ort und Stelle schreiben, aufräumen" src="../assets/diagrams/sftp-sudo-edit-flow.svg" /></p>
+<ul>
+<li><strong>Passwort</strong> — korTTY versucht zuerst <code>sudo -n</code>, sodass mit <code>NOPASSWD</code> oder einem noch gültigen sudo-Ticket nichts abgefragt wird. Andernfalls fragt es in einem maskierten Dialog nach Ihrem Passwort. Hat der <a href="jobscheduler.html">JobScheduler</a> für den Server oder dessen Gruppe ein sudo-Passwort gespeichert, bietet der Dialog an, es ab jetzt für diesen Server zu verwenden; ohne diese Wahl verwendet korTTY es nie, und wenn Sie das Kästchen später abwählen, wird sie zurückgenommen. Das Passwort wird nur so lange aufbewahrt, wie die Datei bearbeitet wird, nur dann an sudo übergeben, wenn sudo tatsächlich danach fragt, und beim Stoppen gelöscht. Es erscheint nie in einer Befehlszeile, im Log, in einer Fehlermeldung oder im Sitzungsjournal.</li>
+<li><strong>Lesen</strong> — die Datei wird mit <code>sudo cat</code> direkt in die private lokale Kopie gelesen; dafür wird auf dem Server nichts geschrieben.</li>
+<li><strong>Speichern</strong> — jedes Speichern wird über die Verbindung auf den Server übertragen, in einen Staging-Ordner, den root anlegt und besitzt, und erst wenn Größe und SHA-256 übereinstimmen, wird es in die Datei selbst geschrieben. Die Datei behält Inode, Eigentümer, Berechtigungen, ACLs und SELinux-Label, und eine abgebrochene Übertragung lässt sie nie halb geschrieben zurück. Der Staging-Ordner wird in jedem Fall entfernt. Vor jedem Speichern liest korTTY die Datei erneut als root; hat jemand anderes sie inzwischen geändert, erscheint dieselbe Konfliktfrage wie oben.</li>
+<li><strong>Links</strong> — ist der Pfad ein symbolischer Link oder führt er durch einen Ordner, der einer ist, zeigt korTTY an, wo die Datei wirklich liegt, und bearbeitet sie dort erst nach Ihrer Bestätigung. Unmittelbar vor jedem Lesen und Schreiben prüft root erneut, dass die Datei kein Link ist und ihr Ordner noch derselbe reale Ordner ist.</li>
+<li><strong>Abgelehnt</strong> — eine Datei in einem Ordner, in den Sie ohne sudo schreiben können, oder irgendwo unterhalb eines solchen Ordners, wird nicht als root bearbeitet, weil alles, was unter Ihrem Benutzer läuft, die Datei oder einen Ordner auf dem Weg dorthin zwischenzeitlich ersetzen könnte; die Meldung nennt diesen Ordner, und Sie bearbeiten die Datei normal. Dateien über 64 MB werden ebenfalls abgelehnt.</li>
+<li><strong>Journal</strong> — zeichnet ein Terminal auf derselben Verbindung ein <a href="session-journal.html">Sitzungsjournal</a> auf, erhält es eine Zeile mit <code>sudo-edit</code> und dem Pfad, nie den Inhalt.</li>
+<li><strong>Was der Server braucht</strong> — <code>sudo</code>, eine POSIX-<code>sh</code> mit <code>mktemp</code>, <code>cat</code> und <code>stat</code> sowie <code>sha256sum</code> oder <code>shasum</code> für die Inhaltsprüfung. Ohne eines der beiden Hash-Werkzeuge vergleicht korTTY vor dem Schreiben weiterhin die Größe, kann aber den Inhalt nicht vergleichen.</li>
+<li><strong>Server mit <code>requiretty</code></strong> — enthält die sudo-Konfiguration des Servers <code>Defaults requiretty</code>, verweigert sudo die Ausführung ohne Terminal, und korTTY meldet <strong>sudo verlangt auf diesem Server ein Terminal (requiretty), und korTTY führt sudo nie mit einem Terminal aus</strong>. korTTY umgeht das nicht, indem es ein Terminal öffnet: Ein Terminal verändert die durchlaufenden Bytes (Zeilenenden, Steuerzeichen) und gibt das Gesendete als Echo zurück, sodass weder die Datei noch das Passwort unverändert und ungesehen ankämen. Ein Administrator kann die Regel für Ihr Konto mit einer Zeile wie <code>Defaults:alice !requiretty</code> (bearbeitet mit <code>visudo</code>) aufheben; bis dahin bearbeiten Sie die Datei in einem Terminal-Tab, zum Beispiel mit <code>sudoedit</code>.</li>
+</ul>
+<p>Die <a href="../reference/enterprise-policy.html">Unternehmensrichtlinie</a> kann die Funktion mit <code>sftp-sudo-edit = "deny"</code> abschalten; sie ist außerdem ausgegraut, solange <code>file-transfer</code> verweigert wird oder <code>load-into-snippet-editor</code> nicht <code>allow</code> ist.</p>
 <h2 id="suche">Suche<a class="headerlink" href="#suche" title="Permanent link">&para;</a></h2>
 <p>Das Suchfeld über jeder Liste filtert den angezeigten Ordner während der Eingabe, ohne ihn zu verlassen; der übergeordnete Eintrag <code>..</code> bleibt sichtbar. korTTY bewertet die Platzhalter selbst, gleichartig für lokale und entfernte Namen. Ein Muster mit einem Platzhalter muss den gesamten Namen entsprechen, ohne Groß-/Kleinschreibung:</p>
 <table>
@@ -1159,6 +1197,31 @@
 </tbody>
 </table>
 <p>Text ohne Platzhalter passt überall im Namen, Groß-/Kleinschreibung ignorierend: <code>rep</code> findet <code>Report.txt</code>. Ein Muster, das nicht gelesen werden kann, wie ein nicht geschlossenes <code>[</code>, wird als einfacher Text gesucht.</p>
+<h3 id="unterordner-auf-dem-server-durchsuchen">Unterordner auf dem Server durchsuchen<a class="headerlink" href="#unterordner-auf-dem-server-durchsuchen" title="Permanent link">&para;</a></h3>
+<p>Aktivieren Sie <strong>Unterordner einbeziehen</strong> neben dem Remote-Suchfeld und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>, um den angezeigten Remote-Ordner und jeden Ordner darunter zu durchsuchen, mit denselben Platzhaltern und ebenfalls ohne Unterscheidung von Groß- und Kleinschreibung. Die Remote-Liste wechselt zu den Ergebnissen: Jeder Treffer zeigt seinen Pfad unterhalb des durchsuchten Ordners, und die Zeile über der Liste zählt die Treffer, während die Suche läuft, und meldet, wie sie endete, zum Beispiel <em>120 Treffer</em> oder <em>5000 Treffer, am Limit gestoppt</em>. Doppelklicken Sie auf einen Treffer oder wählen Sie ihn aus und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>, um seinen Ordner mit dem ausgewählten Treffer zu öffnen. <strong>Zurück zum Ordner</strong> kehrt zur Ordnerliste zurück, und <span class="keys"><kbd class="key-escape">Esc</kbd></span> im Suchfeld stoppt eine laufende Suche (ein zweites <span class="keys"><kbd class="key-escape">Esc</kbd></span> verlässt die Ergebnisse).</p>
+<table>
+<thead>
+<tr>
+<th>Limit</th>
+<th>Wert</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ordnerebenen unterhalb des durchsuchten Ordners</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Treffer</td>
+<td>5000</td>
+</tr>
+<tr>
+<td>Zeit</td>
+<td>60 Sekunden</td>
+</tr>
+</tbody>
+</table>
+<p>Wenn der Server korTTY Befehle ausführen lässt und <code>find</code> vorhanden ist, läuft die Suche dort, und nur die passenden Pfade werden über die Verbindung übertragen; andernfalls durchläuft korTTY die Ordner per SFTP, was langsamer ist und nach 200.000 gelesenen Einträgen stoppt. Symbolische Links werden aufgelistet, aber nie verfolgt, sodass ein Link, der im Baum nach oben zurückzeigt, die Suche nicht in eine Schleife schicken kann. <strong>Auf diesem Dateisystem bleiben</strong> (standardmäßig aktiviert) hält <code>find</code> aus anderen eingehängten Dateisystemen wie Netzwerkfreigaben und <code>/proc</code> heraus; der Durchlauf per SFTP kann Dateisysteme nicht unterscheiden. Ordner, die Sie nicht lesen können, werden übersprungen. Die Suche liest auf dem Server nur Namen, daher bleibt sie verfügbar, wenn eine Unternehmensrichtlinie Dateiübertragungen blockiert.</p>
 <hr /></p>
     </article>
 </section>
