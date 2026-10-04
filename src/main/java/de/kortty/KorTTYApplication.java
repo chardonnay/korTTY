@@ -1360,6 +1360,13 @@ public class KorTTYApplication extends Application {
         Path configDir = getConfigDirectory();
         List<Path> movedAside = new java.util.ArrayList<>();
         List<Path> blocked = new java.util.ArrayList<>();
+        java.util.Optional<GlobalSettingsManager.LoadRecovery> settingsRecovery = java.util.Optional.empty();
+        if (globalSettingsManager != null) {
+            settingsRecovery = globalSettingsManager.getLoadRecovery();
+            settingsRecovery.filter(recovery -> recovery.backup() == null
+                    && recovery.outcome() == GlobalSettingsManager.LoadRecovery.Outcome.RESET)
+                .ifPresent(recovery -> blocked.add(configDir.resolve(GlobalSettingsManager.SETTINGS_FILE)));
+        }
         if (configManager != null) {
             collectStoreLoadFailure(configManager.getLoadFailureBackup(), configManager.isSaveBlocked(),
                 configDir.resolve(de.kortty.persistence.XMLConnectionRepository.CONNECTIONS_FILE), movedAside, blocked);
@@ -1389,8 +1396,10 @@ public class KorTTYApplication extends Application {
             collectStoreLoadFailure(schedulerRepository.getLoadFailureBackup(), schedulerRepository.isSaveBlocked(),
                 configDir.resolve(de.kortty.jobscheduler.JobSchedulerRepository.FILE_NAME), movedAside, blocked);
         }
-        if (!movedAside.isEmpty() || !blocked.isEmpty()) {
-            mainWindow.showStoreLoadFailureNotice(movedAside, blocked);
+        GlobalSettingsManager.LoadRecovery settingsNotice = settingsRecovery
+            .filter(recovery -> recovery.backup() != null).orElse(null);
+        if (!movedAside.isEmpty() || !blocked.isEmpty() || settingsNotice != null) {
+            mainWindow.showStoreLoadFailureNotice(movedAside, blocked, settingsNotice);
         }
     }
 

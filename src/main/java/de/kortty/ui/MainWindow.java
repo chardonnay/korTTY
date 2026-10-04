@@ -13273,15 +13273,24 @@ public class MainWindow {
     /**
      * Tells the user at startup which data files could not be read: {@code movedAside} lists the
      * {@code *.corrupt-<timestamp>} copies korTTY continues without, {@code blocked} the files it
-     * left in place and will not save over in this session. Non-modal, so korTTY stays usable.
+     * left in place and will not save over in this session; {@code settingsRecovery} (nullable) says
+     * whether an unreadable {@code global-settings.xml} was repaired or reset and where its copy is.
+     * Non-modal, so korTTY stays usable.
      */
-    public void showStoreLoadFailureNotice(List<java.nio.file.Path> movedAside, List<java.nio.file.Path> blocked) {
+    public void showStoreLoadFailureNotice(List<java.nio.file.Path> movedAside, List<java.nio.file.Path> blocked,
+                                           de.kortty.core.GlobalSettingsManager.LoadRecovery settingsRecovery) {
         List<java.nio.file.Path> moved = movedAside != null ? movedAside : List.of();
         List<java.nio.file.Path> unwritable = blocked != null ? blocked : List.of();
-        if (moved.isEmpty() && unwritable.isEmpty()) {
+        if (moved.isEmpty() && unwritable.isEmpty() && settingsRecovery == null) {
             return;
         }
         List<String> sections = new ArrayList<>();
+        if (settingsRecovery != null && settingsRecovery.backup() != null) {
+            sections.add(settingsRecovery.outcome() == de.kortty.core.GlobalSettingsManager.LoadRecovery.Outcome.RECOVERED
+                ? I18n.get("storage.loadFailed.settingsRecovered",
+                    String.valueOf(settingsRecovery.removedCharacters()), settingsRecovery.backup().toString())
+                : I18n.get("storage.loadFailed.settingsReset", settingsRecovery.backup().toString()));
+        }
         if (!moved.isEmpty()) {
             sections.add(I18n.get("storage.loadFailed.content", joinPaths(moved)));
         }

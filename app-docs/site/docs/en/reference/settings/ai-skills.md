@@ -37,6 +37,8 @@ When you select or create a skill, the right panel shows per-skill fields. Each 
 | Active | toggle | — | On | `enabled` |
 | Skill Markdown | text | Markdown-formatted skill content | — | `content` |
 
+The skill library is stored in `global-settings.xml`, which cannot hold certain invisible characters: control characters other than tab, line feed and carriage return, U+FFFE, U+FFFF and half of a surrogate pair. Such a character can arrive when you paste into the **Skill Markdown** editor. A field that contains one shows a message below it that names the character, for example `U+0007`, and **Save** refuses to save the library and selects the skill until you remove the character. When you close the AI Manager with such a skill, korTTY saves your other changes and keeps the last saved version of that skill, or leaves out a skill that was never saved. **Import** removes such characters from the name, description, tags and Markdown of the imported file.
+
 ## Built-in skills
 
 korTTY ships 39 built-in best-practice skills covering shells (Bash, KornShell, Zsh, Csh, POSIX sh, PowerShell), programming languages (Python, C, C++, Java, C#, JavaScript, Visual Basic, SQL, R, Rust, Go, PHP, Swift, Assembly, Macro Assembler, Ruby, Perl, Lua, Groovy, TypeScript, Kotlin, Dart), markup and data formats (HTML, XML, YAML, JSON) and automation/observability tools (Puppet, Ansible, Azure DevOps Pipelines, Jenkins Declarative and Scripted Pipelines, Filebeat, Logstash). Each skill carries professional guidance on code commenting, robustness, common pitfalls to avoid, and language-specific security practices. They are added to the library on first start and appear with a **Built-in** badge.
