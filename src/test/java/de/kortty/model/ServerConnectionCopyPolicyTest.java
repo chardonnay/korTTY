@@ -13,8 +13,8 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
- * Guard for the partial copy sites {@link ServerConnection#copyForDuplicate} and
- * {@link ServerConnection#copyForExport}: unlike copyForAuth they leave fields behind on purpose
+ * Guard for the partial copy sites {@link ServerConnection#copyForDuplicate},
+ * {@link ServerConnection#copyForExport} and {@link ServerConnection#copyForImport}: unlike copyForAuth they leave fields behind on purpose
  * (credentials, usage statistics, machine-local state), so a blanket carries-everything check does
  * not apply. Instead every persisted field must be classified here as carried, conditional (export
  * checkboxes) or excluded — a new field fails until it is classified, which turns a silent
@@ -68,6 +68,24 @@ public class ServerConnectionCopyPolicyTest {
             // korTTY's shell-integration wrapper.
             "shellIntegrationAutoInject");
 
+    /**
+     * Read back from an exported file except for the host-key check override, which the import has
+     * never taken over.
+     */
+    private static final Set<String> IMPORT_NOT_READ_BACK = Set.of("disableHostKeyCheck");
+
+    /**
+     * Import reads back what export writes. Built from the export sets, so a field export leaves
+     * behind (machine-local state) is excluded from import too, even when a hand-edited file
+     * carries it.
+     */
+    private static final Set<String> IMPORT_CARRIED = without(EXPORT_CARRIED, IMPORT_NOT_READ_BACK);
+
+    /** Imported only when the matching import-dialog checkbox is set. */
+    private static final Set<String> IMPORT_CONDITIONAL = EXPORT_CONDITIONAL;
+
+    private static final Set<String> IMPORT_EXCLUDED = union(EXPORT_EXCLUDED, IMPORT_NOT_READ_BACK);
+
     @Test
     void duplicateClassifiesAndCarriesEveryPersistedField() throws Exception {
         assertClassificationCoversAllFields("copyForDuplicate",
@@ -113,6 +131,74 @@ public class ServerConnectionCopyPolicyTest {
         assertThat(copy.getEncryptedPassword()).isNull();
         assertThat(copy.getCredentialId()).isNull();
         assertThat(copy.getJumpServer()).isNull();
+    }
+
+    @Test
+    void importWithAllOptionsReadsBackWhatExportWrites() throws Exception {
+        assertClassificationCoversAllFields("copyForImport",
+                List.of(IMPORT_CARRIED, IMPORT_CONDITIONAL, IMPORT_EXCLUDED));
+
+        ServerConnection source = new ServerConnection();
+        ServerConnectionFieldFixture.populateAllDistinct(source, DEEP_COPIED_FIELDS);
+
+        ServerConnection copy = ServerConnection.copyForImport(source, true, true, true, true);
+
+        assertCarried("copyForImport(all options)", source, copy, IMPORT_CARRIED);
+        assertCarried("copyForImport(all options)", source, copy, IMPORT_CONDITIONAL);
+        assertNotCarried("copyForImport(all options)", source, copy, IMPORT_EXCLUDED);
+        assertThat(copy.getSettings()).isNotSameInstanceAs(source.getSettings());
+    }
+
+    @Test
+    void importWithoutOptionsStillReadsBackConfiguration() throws Exception {
+        ServerConnection source = new ServerConnection();
+        ServerConnectionFieldFixture.populateAllDistinct(source, DEEP_COPIED_FIELDS);
+
+        ServerConnection copy = ServerConnection.copyForImport(source, false, false, false, false);
+
+        assertCarried("copyForImport(no options)", source, copy, IMPORT_CARRIED);
+        assertNotCarried("copyForImport(no options)", source, copy, IMPORT_CONDITIONAL);
+        assertNotCarried("copyForImport(no options)", source, copy, IMPORT_EXCLUDED);
+        assertThat(copy.getUsername()).isEmpty();
+        assertThat(copy.getEncryptedPassword()).isNull();
+        assertThat(copy.getCredentialId()).isNull();
+        assertThat(copy.getJumpServer()).isNull();
+    }
+
+    @Test
+    void importKeepsTheLocalShellAndMoshProtocols() {
+        // The reported bug: the import built a fresh connection and never set the protocol, so an
+        // exported Local Shell (or Mosh) connection came back as SSH and lost its shell.
+        ServerConnection localShell = new ServerConnection();
+        localShell.setProtocol(ConnectionProtocol.LOCAL_SHELL);
+        localShell.setLocalShellCommand("/usr/bin/fish");
+        localShell.setLocalShellWorkingDirectory("/srv/work");
+        ServerConnection mosh = new ServerConnection("Mosh", "mosh.example.test", 22, "demo");
+        mosh.setProtocol(ConnectionProtocol.MOSH);
+
+        ServerConnection importedShell = ServerConnection.copyForImport(
+                ServerConnection.copyForExport(localShell, false, false, false, false),
+                false, false, false, false);
+        ServerConnection importedMosh = ServerConnection.copyForImport(
+                ServerConnection.copyForExport(mosh, false, false, false, false),
+                false, false, false, false);
+
+        assertThat(importedShell.isLocalShell()).isTrue();
+        assertThat(importedShell.getLocalShellCommand()).isEqualTo("/usr/bin/fish");
+        assertThat(importedShell.getLocalShellWorkingDirectory()).isEqualTo("/srv/work");
+        assertThat(importedMosh.getProtocol()).isEqualTo(ConnectionProtocol.MOSH);
+    }
+
+    private static Set<String> union(Set<String> a, Set<String> b) {
+        Set<String> result = new HashSet<>(a);
+        result.addAll(b);
+        return Set.copyOf(result);
+    }
+
+    private static Set<String> without(Set<String> a, Set<String> b) {
+        Set<String> result = new HashSet<>(a);
+        result.removeAll(b);
+        return Set.copyOf(result);
     }
 
     /** Every persisted field must appear in exactly one classification set. */
