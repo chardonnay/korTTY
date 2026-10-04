@@ -366,6 +366,11 @@ public class SFTPSession {
         return result;
     }
     
+    /** The attributes of {@code remotePath} itself: a symlink is reported as a link, never followed. */
+    public SftpClient.Attributes getLinkAttributes(String remotePath) throws IOException {
+        return sftpClient.lstat(remotePath);
+    }
+
     /**
      * Gets file attributes.
      */

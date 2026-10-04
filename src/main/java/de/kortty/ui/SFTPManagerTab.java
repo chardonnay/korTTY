@@ -9,6 +9,12 @@ import de.kortty.core.SftpFileTransferService;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.remote.RemoteArchiveCommands;
+import de.kortty.core.remote.RemoteCommandCancellation;
+import de.kortty.core.remote.search.RemoteSearchHit;
+import de.kortty.core.remote.search.RemoteSearchOutcome;
+import de.kortty.core.remote.search.RemoteSearchRequest;
+import de.kortty.core.remote.search.RemoteSearchService;
+import de.kortty.core.remote.search.RemoteTreeReader;
 import de.kortty.core.remote.RemoteShell;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
@@ -17,6 +23,7 @@ import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.SnippetDiagram;
 import de.kortty.model.TemporarySSHKey;
+import de.kortty.ui.sftp.RemoteSearchResultsPane;
 import de.kortty.ui.sftp.SftpDragOutPolicy;
 import de.kortty.ui.sftp.SftpDragPayload;
 import de.kortty.ui.sftp.SftpFileItem;
@@ -104,6 +111,17 @@ public class SFTPManagerTab extends Tab {
     private final ExecutorService remoteListExecutor;
     /** Bumped for every remote listing request (FX thread); only the newest result is applied. */
     private long remoteListGeneration;
+    /** Runs recursive remote searches (find or an SFTP walk) off the FX thread. */
+    private final ExecutorService remoteSearchExecutor;
+    /** Bumped for every recursive search and when one is left (FX thread); stale batches are dropped. */
+    private long remoteSearchGeneration;
+    /** The cancel switch of the running recursive search, or null when none runs (FX thread). */
+    private RemoteCommandCancellation remoteSearchCancellation;
+    private RemoteSearchResultsPane remoteSearchResults;
+    private CheckBox remoteRecursiveToggle;
+    private CheckBox remoteSameFilesystemToggle;
+    /** A search hit to select once its folder was listed (FX thread). */
+    private String pendingRemoteSelection;
     /** Whether {@link #currentRemotePath} is an absolute path a listing returned; SFTP does not expand '~'. */
     private boolean remotePathResolved;
     /**
@@ -200,6 +218,12 @@ public class SFTPManagerTab extends Tab {
         String listThreadName = "SFTP-List-" + connection.getHost();
         this.remoteListExecutor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, listThreadName);
+            thread.setDaemon(true);
+            return thread;
+        });
+        String searchThreadName = "SFTP-Search-" + connection.getHost();
+        this.remoteSearchExecutor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, searchThreadName);
             thread.setDaemon(true);
             return thread;
         });
@@ -770,11 +794,30 @@ public class SFTPManagerTab extends Tab {
         pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), remotePathField, upButton, homeButton);
         HBox.setHgrow(remotePathField, Priority.ALWAYS);
         
-        // Search field
+        // Search field: filters the folder as you type; with "Include subfolders", Enter searches
+        // the folder and everything below it on the server, Esc stops that search.
         HBox searchBox = new HBox(5);
+        searchBox.setAlignment(Pos.CENTER_LEFT);
         remoteSearchField = new TextField();
         remoteSearchField.setPromptText(I18n.get("sftp.searchPrompt"));
-        searchBox.getChildren().addAll(new Label(I18n.get("sftp.search")), remoteSearchField);
+        remoteRecursiveToggle = new CheckBox(I18n.get("sftp.search.recursive"));
+        remoteRecursiveToggle.setTooltip(new Tooltip(I18n.get("sftp.search.recursiveTooltip")));
+        remoteSameFilesystemToggle = new CheckBox(I18n.get("sftp.search.sameFilesystem"));
+        remoteSameFilesystemToggle.setTooltip(new Tooltip(I18n.get("sftp.search.sameFilesystemTooltip")));
+        remoteSameFilesystemToggle.setSelected(true);
+        remoteSameFilesystemToggle.disableProperty().bind(remoteRecursiveToggle.selectedProperty().not());
+        remoteSearchField.setOnAction(e -> {
+            if (remoteRecursiveToggle.isSelected()) {
+                startRemoteSearch();
+            }
+        });
+        remoteSearchField.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.ESCAPE && handleRemoteSearchEscape()) {
+                e.consume();
+            }
+        });
+        searchBox.getChildren().addAll(new Label(I18n.get("sftp.search")), remoteSearchField,
+            remoteRecursiveToggle, remoteSameFilesystemToggle);
         HBox.setHgrow(remoteSearchField, Priority.ALWAYS);
         
         // File table
@@ -877,7 +920,15 @@ public class SFTPManagerTab extends Tab {
         
         // Remote folders are listed in the background; the overlay shows while one loads.
         remoteLoadingOverlay = FileBrowserLoadingOverlay.create();
-        StackPane remoteStack = new StackPane(remoteTable, remoteLoadingOverlay);
+        remoteSearchResults = new RemoteSearchResultsPane(this::leaveRemoteSearchResults);
+        remoteSearchResults.setOnOpen(this::openRemoteSearchHit);
+        remoteSearchResults.setVisible(false);
+        remoteSearchResults.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.ESCAPE && handleRemoteSearchEscape()) {
+                e.consume();
+            }
+        });
+        StackPane remoteStack = new StackPane(remoteTable, remoteSearchResults, remoteLoadingOverlay);
         panel.getChildren().addAll(titleLabel, pathBox, searchBox, remoteStack);
         VBox.setVgrow(remoteStack, Priority.ALWAYS);
         
@@ -1000,6 +1051,8 @@ public class SFTPManagerTab extends Tab {
         remoteState = RemoteState.DISCONNECTED;
         // Drop a listing that is still on its way from the dead session.
         remoteListGeneration++;
+        pendingRemoteSelection = null;
+        cancelRemoteSearch();
         FileBrowserLoadingOverlay.show(remoteLoadingOverlay, false);
         statusLabel.setText(I18n.get("sftp.status.disconnected", connection.getHost()));
         setReconnectVisible(true);
@@ -1093,6 +1146,8 @@ public class SFTPManagerTab extends Tab {
         }
         remoteListExecutor.shutdownNow();
         deleteDragOutDirectories();
+        cancelRemoteSearch();
+        remoteSearchExecutor.shutdownNow();
         SFTPSession session = sftpSession;
         if (session != null) {
             closeQuietly(session);
@@ -1262,6 +1317,7 @@ public class SFTPManagerTab extends Tab {
         }
         FileBrowserLoadingOverlay.show(remoteLoadingOverlay, false);
         if (error != null) {
+            pendingRemoteSelection = null;
             // Back to the folder that is still shown.
             remotePathField.setText(currentRemotePath);
             SFTPSession session = sftpSession;
@@ -1285,7 +1341,156 @@ public class SFTPManagerTab extends Tab {
         remotePathField.setText(currentRemotePath);
         // Re-apply sort after refresh
         remoteTable.sort();
+        selectPendingRemoteEntry();
         refreshActionStates();
+    }
+
+    /** Selects the search hit that asked for this folder, once its listing is shown. */
+    private void selectPendingRemoteEntry() {
+        String wanted = pendingRemoteSelection;
+        pendingRemoteSelection = null;
+        if (wanted == null) {
+            return;
+        }
+        for (SftpFileItem item : remoteTable.getItems()) {
+            if (wanted.equals(item.getPath())) {
+                remoteTable.getSelectionModel().clearSelection();
+                remoteTable.getSelectionModel().select(item);
+                remoteTable.scrollTo(item);
+                remoteTable.requestFocus();
+                return;
+            }
+        }
+    }
+
+    /**
+     * Starts a recursive search below the folder shown: {@code find} over an exec channel when the
+     * server has it, otherwise an SFTP walk (D17). Hits arrive in batches; a newer search, leaving
+     * the results or a disconnect drops the older one's batches through the generation guard.
+     */
+    private void startRemoteSearch() {
+        if (!requireConnected() || !remotePathResolved) {
+            return;
+        }
+        String text = remoteSearchField.getText();
+        if (text == null || text.isBlank()) {
+            statusLabel.setText(I18n.get("sftp.search.emptyPattern"));
+            return;
+        }
+        RemoteSearchRequest request;
+        try {
+            request = RemoteSearchRequest.of(currentRemotePath, text.trim(), FileBrowserPaths.isGlobFilter(text),
+                    FileBrowserPaths.compileNameFilter(text))
+                .withSameFilesystem(remoteSameFilesystemToggle.isSelected());
+        } catch (IllegalArgumentException e) {
+            statusLabel.setText(I18n.get("sftp.search.failed", e.getMessage()));
+            return;
+        }
+        cancelRemoteSearch();
+        long generation = ++remoteSearchGeneration;
+        RemoteCommandCancellation cancellation = new RemoteCommandCancellation();
+        remoteSearchCancellation = cancellation;
+        SFTPSession session = sftpSession;
+        remoteSearchResults.clear();
+        remoteSearchResults.setStatus(RemoteSearchResultsPane.runningText(request.root(), 0));
+        remoteSearchResults.setVisible(true);
+        try {
+            CompletableFuture
+                .supplyAsync(() -> runRemoteSearch(session, request, generation, cancellation), remoteSearchExecutor)
+                .whenComplete((outcome, error) -> Platform.runLater(
+                    () -> applyRemoteSearchOutcome(generation, request.root(), outcome, error)));
+        } catch (RejectedExecutionException e) {
+            // The tab is closing.
+            remoteSearchCancellation = null;
+        }
+    }
+
+    /** Runs on the search thread. */
+    private RemoteSearchOutcome runRemoteSearch(SFTPSession session, RemoteSearchRequest request, long generation,
+                                                RemoteCommandCancellation cancellation) {
+        RemoteTreeReader reader = new RemoteTreeReader() {
+            @Override
+            public List<SftpClient.DirEntry> list(String folder) throws IOException {
+                return session.listFiles(folder);
+            }
+
+            @Override
+            public SftpClient.Attributes lstat(String path) throws IOException {
+                return session.getLinkAttributes(path);
+            }
+        };
+        try {
+            return new RemoteSearchService(session.commandRunner(), reader).search(request,
+                batch -> Platform.runLater(() -> applyRemoteSearchBatch(generation, request.root(), batch)),
+                cancellation);
+        } catch (IOException e) {
+            throw new CompletionException(e);
+        }
+    }
+
+    private void applyRemoteSearchBatch(long generation, String root, List<RemoteSearchHit> batch) {
+        if (closing || generation != remoteSearchGeneration) {
+            return;
+        }
+        remoteSearchResults.addAll(batch);
+        if (remoteSearchCancellation != null) {
+            remoteSearchResults.setStatus(RemoteSearchResultsPane.runningText(root, remoteSearchResults.size()));
+        }
+    }
+
+    private void applyRemoteSearchOutcome(long generation, String root, RemoteSearchOutcome outcome, Throwable error) {
+        if (closing || generation != remoteSearchGeneration) {
+            return;
+        }
+        remoteSearchCancellation = null;
+        if (error != null) {
+            Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
+            logger.warn("Remote search below {} failed: {}", root, cause.getClass().getSimpleName());
+            remoteSearchResults.setStatus(I18n.get("sftp.search.failed", failureMessage(cause)));
+            return;
+        }
+        logger.info("Remote search below {} ended: {} results via {} ({})", root, outcome.results(),
+            outcome.strategy(), outcome.stop());
+        remoteSearchResults.setStatus(RemoteSearchResultsPane.outcomeText(outcome));
+    }
+
+    /** Stops the running recursive search, if any; its hits so far stay listed. */
+    private void cancelRemoteSearch() {
+        RemoteCommandCancellation running = remoteSearchCancellation;
+        if (running != null) {
+            running.cancel();
+        }
+    }
+
+    /** Esc: stops a running search, or else leaves the results. Returns whether it did something. */
+    private boolean handleRemoteSearchEscape() {
+        if (remoteSearchCancellation != null) {
+            cancelRemoteSearch();
+            return true;
+        }
+        if (remoteSearchResults != null && remoteSearchResults.isVisible()) {
+            leaveRemoteSearchResults();
+            return true;
+        }
+        return false;
+    }
+
+    /** Back to the folder listing; a running search is stopped and its later batches dropped. */
+    private void leaveRemoteSearchResults() {
+        cancelRemoteSearch();
+        remoteSearchCancellation = null;
+        remoteSearchGeneration++;
+        if (remoteSearchResults != null) {
+            remoteSearchResults.setVisible(false);
+            remoteSearchResults.clear();
+        }
+    }
+
+    /** Opens the folder of a hit and selects the hit there. */
+    private void openRemoteSearchHit(RemoteSearchHit hit) {
+        leaveRemoteSearchResults();
+        pendingRemoteSelection = hit.path();
+        loadRemote(hit.parentPath());
     }
 
     /**
@@ -1389,10 +1594,12 @@ public class SFTPManagerTab extends Tab {
     
     private void navigateRemote(String path) {
         // The current path changes only once the new folder was listed.
+        leaveRemoteSearchResults();
         loadRemote(path);
     }
 
     private void navigateRemoteUp() {
+        leaveRemoteSearchResults();
         if (remotePathResolved && !"/".equals(currentRemotePath)) {
             loadRemote(RemotePathSupport.parentRemotePath(currentRemotePath));
         }

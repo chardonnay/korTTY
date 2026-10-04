@@ -162,5 +162,17 @@ The search field above each list filters the folder shown as you type, without l
 
 Text without a wildcard matches anywhere in the name, ignoring case: `rep` finds `Report.txt`. A pattern that cannot be read, such as an unclosed `[`, is searched for as plain text.
 
+### Searching subfolders on the server
+
+Check **Include subfolders** next to the remote search field and press ++enter++ to search the remote folder shown and every folder below it, with the same wildcards and the same case-insensitive matching. The remote list switches to the results: each hit shows its path below the searched folder, and the line above the list counts the hits while the search runs and says how it ended, for example *120 results* or *5000 results, stopped at limit*. Double-click a hit, or select it and press ++enter++, to open its folder with the hit selected. **Back to folder** returns to the folder listing, and ++esc++ in the search field stops a running search (a second ++esc++ leaves the results).
+
+| Limit | Value |
+|-------|-------|
+| Folder levels below the searched folder | 10 |
+| Results | 5000 |
+| Time | 60 seconds |
+
+When the server lets korTTY run commands and has `find`, the search runs there and only the matching paths travel over the connection; otherwise korTTY walks the folders over SFTP, which is slower and stops after reading 200,000 entries. Symbolic links are listed but never followed, so a link that points back up the tree cannot make the search loop. **Stay on this file system** (on by default) keeps `find` out of other mounted file systems such as network shares and `/proc`; the walk over SFTP cannot tell file systems apart. Folders you cannot read are skipped. The search only reads names on the server, so it stays available when an enterprise policy blocks file transfers.
+
 ---
 

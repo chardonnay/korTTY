@@ -147,6 +147,18 @@ final class FileBrowserPaths {
         return name -> matchesFilter(name, trimmed);
     }
 
+    /**
+     * Whether {@link #compileNameFilter} treats {@code filter} as a glob (it has glob syntax and
+     * parses); otherwise it is a substring filter.
+     */
+    static boolean isGlobFilter(String filter) {
+        if (filter == null || filter.isBlank()) {
+            return false;
+        }
+        String trimmed = filter.trim();
+        return hasGlobSyntax(trimmed) && globPattern(trimmed) != null;
+    }
+
     private static boolean hasGlobSyntax(String filter) {
         for (int i = 0; i < filter.length(); i++) {
             char c = filter.charAt(i);

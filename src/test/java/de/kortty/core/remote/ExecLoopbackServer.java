@@ -35,12 +35,25 @@ final class ExecLoopbackServer implements AutoCloseable {
     private volatile long lastFirstStdinMillis;
 
     ExecLoopbackServer(Path hostKey, Path pathPrefix) throws IOException {
+        this(hostKey, pathPrefix, true, false);
+    }
+
+    /**
+     * @param exec whether exec channels run commands; without it the server refuses them
+     * @param sftp whether the server also offers the SFTP subsystem over the local file system
+     */
+    ExecLoopbackServer(Path hostKey, Path pathPrefix, boolean exec, boolean sftp) throws IOException {
         server = SshServer.setUpDefaultServer();
         server.setHost("127.0.0.1");
         server.setPort(0);
         server.setKeyPairProvider(new SimpleGeneratorHostKeyProvider(hostKey));
         server.setPasswordAuthenticator((username, password, session) -> true);
-        server.setCommandFactory((channel, command) -> new ProcessCommand(command, pathPrefix));
+        if (exec) {
+            server.setCommandFactory((channel, command) -> new ProcessCommand(command, pathPrefix));
+        }
+        if (sftp) {
+            server.setSubsystemFactories(java.util.List.of(new org.apache.sshd.sftp.server.SftpSubsystemFactory()));
+        }
         server.addChannelListener(new ChannelListener() {
             @Override
             public void channelClosed(Channel channel, Throwable reason) {
