@@ -118,6 +118,18 @@ public class SshTtyConnector implements ObservableTtyConnector {
         new CopyOnWriteArrayList<>();
     private boolean tabCompletionPending;
     
+    /**
+     * A fresh redactor with this connection's password and the organisation's replacement rules,
+     * for masking text before it leaves for an AI profile. The password itself stays private.
+     */
+    public SessionJournalRedactor createSecretRedactor() {
+        SessionJournalRedactor redactor = AiOutboundRedaction.newPolicyRedactor();
+        if (password != null && !password.isBlank()) {
+            redactor.addSecret(password);
+        }
+        return redactor;
+    }
+
     public SshTtyConnector(ServerConnection connection, String password) {
         this(connection, password, SshHostKeyTrustManager.shared());
     }

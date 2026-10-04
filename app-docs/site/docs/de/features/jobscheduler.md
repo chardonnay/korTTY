@@ -215,7 +215,10 @@ Wenn KorTTY kurz vor dem Beenden steht, während JobScheduler-Jobs ausgeführt w
 - Sudo-Passwörter werden verschlüsselt mit dem Master-Passwort gespeichert.
 - SSH-Schlüsselpassphrasen und Archivpasswörter werden verschlüsselt gespeichert.
 - KorTTY geschwärzt verwaltete Geheimnisse (Passwörter, Passphrasen, Archivanmeldeinformationen) aus der Journalausgabe vor der Persistenz.
+- In einem KI-Swarm-Job wird das Passwort jedes Servers aus den Journalen entfernt, sobald dessen Hintergrundsitzung verbunden ist, sodass auch Ausgaben abgedeckt sind, die erfasst werden, während der Swarm noch läuft.
+- Was KI-Jobs an ein Cloud-KI-Profil senden, wird maskiert: die KI-Swarm-Agenten und die Anfrage, die ihre Antworten zusammenführt (siehe [Maskieren dessen, was der Agent sendet](ai-tools.md#maskieren-dessen-was-der-agent-sendet)), sowie die Anfrage eines KI-Agent-Jobs, bei der das gespeicherte Passwort des Servers und das sudo-Passwort des Jobs zu `***` werden. Die Anfrage eines KI-Agent-Jobs enthält nur den Servernamen, das Arbeitsverzeichnis und den Job-Prompt, daher erfasst die Maskierung dort nur ein Geheimnis, das in den Prompt eingegeben wurde. Integrierte Modelle und ein vertrauenswürdiger lokaler Endpunkt erhalten den Originaltext.
 - Wenn das Hauptkennwort gesperrt ist, wenn ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert.
+- KI-Agent- und KI-Swarm-Jobs folgen der [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulefeatures) Ihrer Organisation. Wenn die Richtlinie KI, den KI-Agenten oder (bei Swarm-Jobs) den KI-Swarm verweigert oder `ai-agent-execution` auf `read-only` setzt, endet der Job als **BLOCKED**, bevor er sich mit einem Server verbindet, und das Journal nennt den Grund. Unter `ai-agent-execution = "confirm"` muss eine Person jeden serverändernden Befehl genehmigen, was ein unbeaufsichtigter Job nicht anfordern kann: Ein KI-Agent-Job blockiert beim ersten geplanten serverändernden Befehl und führt nichts davon aus, und ein KI-Swarm-Agent, der einen solchen Befehl plant, wird gestoppt und als blockiert gezählt, selbst wenn **Automatisch genehmigende KI-Befehle** aktiviert ist. Schreibgeschützte Befehle laufen weiterhin.
 
 ## Fehlerbehebung
 
@@ -226,6 +229,7 @@ Wenn KorTTY kurz vor dem Beenden steht, während JobScheduler-Jobs ausgeführt w
     - Nicht unterstütztes Mosh-Ziel
     - Fehlendes `rsync` oder `ssh` im PATH
     - Alte Hostschlüssel-PIN ohne OpenSSH-Public-Key-Material für Rsync
+    - Ein KI-Agent- oder KI-Swarm-Job, den die [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulefeatures) Ihrer Organisation nicht zulässt: Der Detailtext gibt an, ob KI, der KI-Agent oder der KI-Swarm deaktiviert ist, ob der Agent auf schreibgeschützte Befehle beschränkt ist oder welche serverändernden Befehle blockiert wurden, weil die Richtlinie verlangt, dass eine Person sie genehmigt
 
     **JobScheduler Rsync kann nicht gestartet werden:** Überprüfen Sie die lokalen Werte `rsync --version` und `ssh -V` oder konfigurieren Sie den Rsync-Binärpfad unter **Einstellungen > SFTP > JobScheduler Rsync**.
 

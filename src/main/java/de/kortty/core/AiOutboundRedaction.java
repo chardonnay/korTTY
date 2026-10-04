@@ -58,10 +58,24 @@ public final class AiOutboundRedaction {
      * {@link #appliesTo}).
      */
     public static RedactionResult redactFor(AiProfile profile, String text, SessionJournalRedactor knownSecrets) {
+        return redactFor(profile, text, knownSecrets, null);
+    }
+
+    /**
+     * Same as {@link #redactFor(AiProfile, String, SessionJournalRedactor)}, and hands every
+     * masked value to {@code maskedValues}, so a caller that sends the same text several times
+     * (the AI agent resends its history every turn) can count distinct secrets instead of
+     * occurrences. The values are secrets: the consumer must not keep or log them as they are.
+     */
+    public static RedactionResult redactFor(
+        AiProfile profile,
+        String text,
+        SessionJournalRedactor knownSecrets,
+        java.util.function.Consumer<String> maskedValues) {
         if (!appliesTo(profile)) {
             return RedactionResult.unchanged(text);
         }
-        return redact(text, knownSecrets);
+        return redact(text, knownSecrets, maskedValues);
     }
 
     /**
@@ -133,12 +147,26 @@ public final class AiOutboundRedaction {
      *                     formats are masked then
      */
     public static RedactionResult redact(String text, SessionJournalRedactor knownSecrets) {
+        return redact(text, knownSecrets, null);
+    }
+
+    /** {@link #redact(String, SessionJournalRedactor)} that also reports every masked value. */
+    public static RedactionResult redact(
+        String text, SessionJournalRedactor knownSecrets, java.util.function.Consumer<String> maskedValues) {
         if (text == null || text.isEmpty()) {
             return RedactionResult.unchanged(text);
         }
         SessionJournalRedactor secrets = knownSecrets != null ? knownSecrets : policyRedactor();
-        RedactionResult known = secrets.redactCounting(text);
-        return known.then(SecretTokenPatterns.redact(known.text()));
+        RedactionResult known = secrets.redactCounting(text, maskedValues);
+        return known.then(SecretTokenPatterns.redact(known.text(), maskedValues));
+    }
+
+    /**
+     * A fresh redactor with the organisation's {@code [[rule.session-journal.replace]]} rules and
+     * no known secrets, for a caller that adds its own secrets.
+     */
+    public static SessionJournalRedactor newPolicyRedactor() {
+        return policyRedactor();
     }
 
     /** The organisation's {@code [[rule.session-journal.replace]]} rules alone, without a password. */

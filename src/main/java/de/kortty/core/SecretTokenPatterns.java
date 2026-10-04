@@ -90,6 +90,15 @@ public final class SecretTokenPatterns {
 
     /** Masks every known secret format in the text and reports how many matches were masked. */
     public static RedactionResult redact(String text) {
+        return redact(text, null);
+    }
+
+    /**
+     * Same as {@link #redact(String)}, and hands every masked secret part to {@code maskedValues}
+     * — for a caller that counts distinct secrets across several texts. The values are secrets:
+     * the consumer must not keep or log them as they are.
+     */
+    public static RedactionResult redact(String text, java.util.function.Consumer<String> maskedValues) {
         if (text == null || text.isEmpty()) {
             return RedactionResult.unchanged(text);
         }
@@ -102,18 +111,22 @@ public final class SecretTokenPatterns {
             }
             matcher.reset();
             int[] masked = {0};
-            result = matcher.replaceAll(match -> Matcher.quoteReplacement(mask(rule, match, masked)));
+            result = matcher.replaceAll(match -> Matcher.quoteReplacement(mask(rule, match, masked, maskedValues)));
             total += masked[0];
         }
         return new RedactionResult(result, total);
     }
 
-    private static String mask(Rule rule, MatchResult match, int[] masked) {
+    private static String mask(
+        Rule rule, MatchResult match, int[] masked, java.util.function.Consumer<String> maskedValues) {
         String secret = match.group(SECRET);
         if (secret == null || secret.isEmpty() || secret.contains(SessionJournalRedactor.REPLACEMENT)) {
             return match.group();
         }
         masked[0]++;
+        if (maskedValues != null) {
+            maskedValues.accept(secret);
+        }
         String tail = rule.hasTail() ? match.group(TAIL) : null;
         return match.group(KEEP) + SessionJournalRedactor.REPLACEMENT + (tail != null ? tail : "");
     }

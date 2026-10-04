@@ -46,7 +46,7 @@ public class JobSchedulerJobRunner {
         this.repository = repository;
         this.connectionResolver = new JobSchedulerConnectionResolver(app);
         this.sudoService = new JobSchedulerSudoService(repository);
-        this.aiSupport = new JobSchedulerAiSupport(app);
+        this.aiSupport = new JobSchedulerAiSupport(app, null, policy);
         this.aiSwarmSupport = new JobSchedulerAiSwarmSupport(app, this.aiSupport);
         this.snippetSupport = new JobSchedulerSnippetSupport(
             app != null ? app.getSnippetManager() : null,
@@ -66,6 +66,12 @@ public class JobSchedulerJobRunner {
         if (refusal.isPresent()) {
             // Refused before any connection is made: nothing is resolved, opened or copied.
             return JobExecutionOutcome.failed(refusal.get(), -1, null, refusal.get(), null);
+        }
+        Optional<String> aiRefusal = aiPolicyRefusal(job.getAction());
+        if (aiRefusal.isPresent()) {
+            // Blocked before any connection is made: no target is resolved, no session opened,
+            // no AI service created.
+            return JobExecutionOutcome.blocked(aiRefusal.get(), aiRefusal.get());
         }
         try {
             List<ServerConnection> targets = connectionResolver.resolveTargets(job);
@@ -114,6 +120,37 @@ public class JobSchedulerJobRunner {
         de.kortty.policy.FileTransferGate.Verdict verdict =
             de.kortty.policy.FileTransferGate.check(policy.get(), route);
         return verdict.allowed() ? Optional.empty() : Optional.of(verdict.reason());
+    }
+
+    /**
+     * The policy refusal for a scheduled AI job, or empty when it may run (D8). An AI agent job
+     * needs the agent allowed (which includes AI as a whole); an AI swarm job needs the swarm and
+     * the agent allowed, because every swarm member is a full agent run. Agent execution READ_ONLY
+     * refuses both: the terminal agent refuses every run under it, and an unattended job cannot
+     * get anything done without the agent.
+     */
+    Optional<String> aiPolicyRefusal(JobAction action) {
+        return aiPolicyRefusal(action, policy.get());
+    }
+
+    static Optional<String> aiPolicyRefusal(JobAction action, de.kortty.policy.EffectivePolicy effective) {
+        if (action == null
+            || (action.getType() != JobActionType.AI_AGENT && action.getType() != JobActionType.AI_SWARM)) {
+            return Optional.empty();
+        }
+        de.kortty.policy.EffectivePolicy current =
+            effective != null ? effective : de.kortty.policy.EffectivePolicy.unrestricted();
+        boolean swarm = action.getType() == JobActionType.AI_SWARM;
+        if (!current.aiAgentAllowed()) {
+            return Optional.of(de.kortty.ui.I18n.get("jobscheduler.dialog.policy.aiAgentDenied"));
+        }
+        if (swarm && !current.aiSwarmAllowed()) {
+            return Optional.of(de.kortty.ui.I18n.get("jobscheduler.dialog.policy.aiSwarmDenied"));
+        }
+        if (current.agentExecution() == de.kortty.policy.AgentExecutionMode.READ_ONLY) {
+            return Optional.of(de.kortty.ui.I18n.get("jobscheduler.dialog.policy.aiReadOnly"));
+        }
+        return Optional.empty();
     }
 
     public PinnedHostKey probeHostKey(String connectionId) throws Exception {

@@ -163,10 +163,34 @@ public final class SwarmOrchestrator {
         AiPromptService aggregationService = safeBuildService(aiServiceFactory);
         SwarmModels.SwarmAggregationResult aggregation = aggregator.aggregate(
             new SwarmModels.SwarmAggregationRequest(request.query(), orderedResults(targetsById, results)),
-            aggregationService);
+            aggregationService,
+            profile,
+            knownSecretsOf(targets));
         recordAggregationUsage(aggregation);
         callback.onAggregationResult(aggregation);
         callback.onSwarmState(rollup(SwarmModels.SwarmPhase.DONE, states, total, start, null));
+    }
+
+    /**
+     * The known secrets of every target, merged into one fresh redactor for the aggregation
+     * prompt. Read after the agents ran, so a lazily connected runner already knows its password.
+     */
+    static de.kortty.core.SessionJournalRedactor knownSecretsOf(List<SwarmTarget> targets) {
+        List<de.kortty.core.SessionJournalRedactor> sources = new ArrayList<>();
+        for (SwarmTarget target : targets) {
+            if (target == null) {
+                continue;
+            }
+            try {
+                sources.add(TerminalAgentService.knownSecretsFor(target.terminalTab(), target.runner()));
+            } catch (RuntimeException e) {
+                // A target whose secrets cannot be read still has the token formats masked.
+                logger.debug("Could not read the known secrets of swarm target {}: {}",
+                    target.displayName(), e.getMessage());
+            }
+        }
+        return de.kortty.core.agent.AgentOutboundContext.combine(
+            sources.toArray(de.kortty.core.SessionJournalRedactor[]::new));
     }
 
     private void recordAggregationUsage(SwarmModels.SwarmAggregationResult aggregation) {

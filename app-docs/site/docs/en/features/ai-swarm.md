@@ -88,6 +88,8 @@ The approval dialog also offers **Cancel swarm** to stop the whole run.
 
 When all agents finish, the swarm combines the per-server answers into one Markdown comparison table with exactly one row per server. The last column is always titled **"Fehler"** and lists deviations, missing data, and errors (or `-` when there is nothing to report), regardless of the response language.
 
+The request that combines the answers carries every server's answer and output excerpt, so it is masked like the agents' own prompts before it goes to a profile other than an integrated model or a trusted local endpoint: the connection passwords of all servers, your organization's replacement rules and well-known token formats become `***` (see [Masking secrets before sending](ai-assistant.md#masking-secrets-before-sending)). The rows and the table shown when the AI cannot be reached keep the original text, because they never leave your computer.
+
 Table cells are often too small for full command output — **click any table row** to open it in a separate *Row details* window with a readable layout, **A− / A+** font-size buttons, and a copy-to-clipboard button.
 
 ## Conversation copy, export, and saving
@@ -151,3 +153,5 @@ Typical combinations of swarm + scheduler:
 
 !!! warning "Unattended changes"
     A scheduled swarm with **read-only off** and **auto-approve on** changes systems without anyone watching. Keep scheduled swarms read-only unless the prompt is deliberately designed (and tested interactively) to make changes.
+
+An organization's [enterprise policy](../reference/enterprise-policy.md#rulefeatures) also applies to scheduled swarms: with the AI Swarm or the AI agent denied, or `ai-agent-execution` set to `read-only`, the job ends as blocked before it connects; with `ai-agent-execution = "confirm"`, every agent that plans a server-changing command is stopped and counted as blocked, even when auto-approve is on.

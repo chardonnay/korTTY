@@ -197,11 +197,11 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/reference/settings/ai.md
     owns_i18n: [settings.ai.]
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/AiReasoningDiscoveryService.java, src/main/java/de/kortty/core/LocalLmModelResolver.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/SettingsDialog.java]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/AiReasoningDiscoveryService.java, src/main/java/de/kortty/core/LocalLmModelResolver.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/AnthropicAiService.java, src/main/java/de/kortty/core/AnthropicModelLimits.java]
     screenshots:
       - settings/ai.png
       - ai/ai-profiles.png
-    last_synced_ref: "659b3bd9"
+    last_synced_ref: "ac9c5894c"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
     owns_i18n: [settings.aiSkills.]
     owns_code: [src/main/java/de/kortty/model/AiSkill.java, src/main/java/de/kortty/model/AiSkillTarget.java, src/main/java/de/kortty/model/AiSkillBuiltinBaseline.java, src/main/java/de/kortty/core/AiSkillRelevanceSelector.java, src/main/java/de/kortty/core/AiSkillRelevanceClassifier.java, src/main/java/de/kortty/core/AiSkillPromptSupport.java, src/main/java/de/kortty/core/AiSkillMarkdownCodec.java, src/main/java/de/kortty/core/BuiltinAiSkillSupport.java, src/main/java/de/kortty/core/BuiltinAiSkillCatalog.java, src/main/java/de/kortty/core/BuiltinAiSkillProvisioner.java, src/main/java/de/kortty/ui/AiSkillPickerControl.java, src/main/java/de/kortty/ui/AiSkillsPane.java, src/main/java/de/kortty/ui/AiSkillListFormat.java, src/main/java/de/kortty/ui/AiSkillStorageGuard.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
@@ -288,7 +288,7 @@ pages:
     owns_i18n: [jobscheduler.dialog., jobscheduler.menu., jobscheduler.quit.]
     owns_code: [src/main/java/de/kortty/jobscheduler, src/main/java/de/kortty/ui/JobSchedulerDialog.java, src/main/java/de/kortty/ui/JobSchedulerTargetSelectionDialog.java, src/main/java/de/kortty/ui/JobSchedulerRemoteDirectoryDialog.java]
     diagrams: [jobscheduler-execution.svg]
-    last_synced_ref: "38bcd2b4"
+    last_synced_ref: "ac9c5894c"
   - path: app-docs/site/docs/en/features/projects.md
     owns_i18n: [project., session.restore.]
     owns_code: [src/main/java/de/kortty/model/Project.java, src/main/java/de/kortty/model/WindowState.java, src/main/java/de/kortty/model/SessionState.java, src/main/java/de/kortty/model/SplitPaneState.java, src/main/java/de/kortty/core/ProjectManager.java, src/main/java/de/kortty/persistence/HistoryStorage.java, src/main/java/de/kortty/ui/RestoredHistoryReplay.java, src/main/java/de/kortty/ui/ProjectSettingsDialog.java, src/main/java/de/kortty/ui/ProjectPreviewDialog.java, src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/SftpSessionRestoreSupport.java, src/main/java/de/kortty/ui/FileEditorTab.java, src/main/java/de/kortty/ui/UnsavedChangesClose.java, src/main/java/de/kortty/core/RecentProjects.java, src/main/java/de/kortty/ui/SplitLayoutRestorePlan.java, src/main/java/com/sithtermfx/ui/split/PaneLayout.java, src/main/java/de/kortty/core/ProjectLeafFieldSanitizer.java, src/main/java/de/kortty/ui/OneShotRunnables.java, src/main/java/de/kortty/ui/ProjectRestoreOrder.java, src/main/java/de/kortty/ui/TabRestoreTriage.java, src/main/java/de/kortty/ui/RestoreAttention.java, src/main/java/de/kortty/ui/RestoreAttentionBar.java, src/main/java/de/kortty/model/SessionSnapshot.java, src/main/java/de/kortty/core/SessionSnapshotStore.java, src/main/java/de/kortty/ui/SessionAutosaveRule.java, src/main/java/de/kortty/ui/SessionAutosaveCoordinator.java, src/main/java/de/kortty/ui/ClosedTabSnapshots.java, src/main/java/de/kortty/core/SessionRestoreDecision.java, src/main/java/de/kortty/ui/SessionRestoreCoordinator.java, src/main/java/de/kortty/ui/SessionRestoreOfferBar.java, src/main/java/de/kortty/core/SessionWorkingDirectory.java, src/main/java/de/kortty/ui/PaneWorkingDirectoryTracker.java, src/main/java/de/kortty/core/ScrollbackSnapshotCodec.java, src/main/java/de/kortty/core/SessionScrollbackStore.java, src/main/java/de/kortty/ui/PaneTailReader.java, src/main/java/de/kortty/ui/SessionScrollbackRecorder.java, src/main/java/de/kortty/ui/SessionScrollbackCoordinator.java]
@@ -303,7 +303,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java, src/main/java/de/kortty/ui/ChatMarkdownView.java, src/main/java/de/kortty/ui/ChatAutoScrollSupport.java, src/main/java/de/kortty/ui/AiChatRenderSupport.java, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-mermaid.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-sequence.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-state.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-class.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-er.md]
     diagrams: [ai-api-integration.svg]
     screenshots: [ai/ai-manager.png]
-    last_synced_ref: "53a0d88a"
+    last_synced_ref: "ac9c5894c"
   - path: app-docs/site/docs/en/features/local-models.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/llama, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/ui/LocalModelManagerPane.java, src/main/java/de/kortty/ui/LocalAiSetupWizardDialog.java, src/main/java/de/kortty/ui/LocalAiSetupWizardModel.java, src/main/java/de/kortty/ui/LocalAiSetupWorkflow.java, src/main/java/de/kortty/ui/AiLocalPreferencesPane.java, src/main/java/de/kortty/model/AiWorkload.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/LlamaRuntimeUpdatePolicy.java, ai-catalog/model-prompt-catalog-v1.json, .github/workflows/ai-catalog-release.yml, .github/workflows/llama-runtime.yml, build.gradle.kts]
@@ -318,15 +318,15 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/ai-tools.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/TerminalAgentCommandSupport.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/agent, src/main/java/de/kortty/ui/TerminalAgentShortcutInputFilter.java, src/main/java/de/kortty/ui/WorkflowScriptGenerator.java, src/main/java/de/kortty/platform/FlatpakSupport.java, src/main/java/de/kortty/ui/AiAgentPlanTab.java]
     diagrams: [ai-agent-execution-loop.svg]
-    last_synced_ref: "ab5f2d9d"
+    last_synced_ref: "ac9c5894c"
   - path: app-docs/site/docs/en/features/ai-swarm.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/swarm, src/main/java/de/kortty/ui/SwarmAgentTab.java]
     diagrams: [swarm-status-strip.svg]
     screenshots: [ai/swarm-status-strip-states.png, ai/swarm-status-strip-many.png]
-    last_synced_ref: "659b3bd9"
+    last_synced_ref: "ac9c5894c"
   - path: app-docs/site/docs/en/features/security.md
     owns_i18n: [credential.environments.color]
     owns_code: [src/main/java/de/kortty/security, src/main/java/de/kortty/core/CredentialManager.java, src/main/java/de/kortty/core/EnvironmentManager.java, src/main/java/de/kortty/model/EnvironmentColor.java, src/main/java/de/kortty/ui/EnvironmentManagementDialog.java, src/main/java/de/kortty/ui/CredentialManagementDialog.java, src/main/java/de/kortty/ui/VaultUnlockSupport.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/core/HostKeyCheckPolicy.java, src/main/java/de/kortty/core/HostKeyCheckMode.java, src/main/java/de/kortty/core/HostKeyCheckGroupExemptions.java, src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/llama/LlamaRuntimeManager.java, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/rag/HttpQdrantRestAdapter.java, src/main/java/de/kortty/rag/RagSourceScanner.java, src/main/java/de/kortty/rag/RagContextBuilder.java, src/main/java/de/kortty/rag/RagSecretSupport.java, src/main/java/de/kortty/core/AtomicFileWriter.java, src/main/java/de/kortty/core/CorruptFileQuarantine.java, src/main/java/de/kortty/core/StoreFileGuard.java]
@@ -504,10 +504,10 @@ pages:
     last_synced_ref: "0dad374"
   - path: app-docs/site/docs/en/reference/enterprise-policy.md
     owns_i18n: [policy.]
-    owns_code: [src/main/java/de/kortty/policy, package/policy, src/main/java/de/kortty/ui/SplitConnectionPolicy.java, src/main/java/de/kortty/ui/ConnectionAuthResolver.java]
+    owns_code: [src/main/java/de/kortty/policy, package/policy, src/main/java/de/kortty/ui/SplitConnectionPolicy.java, src/main/java/de/kortty/ui/ConnectionAuthResolver.java, src/main/java/de/kortty/jobscheduler/JobSchedulerJobRunner.java]
     diagrams: []
     screenshots: []
-    last_synced_ref: "38bcd2b4"
+    last_synced_ref: "ac9c5894c"
   - path: app-docs/site/docs/en/reference/hardening-options.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java, src/main/java/de/kortty/ui/HardeningOptionsSelector.java, src/main/java/de/kortty/ui/WorkflowScriptDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetAnalysisPanel.java]

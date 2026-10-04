@@ -1121,7 +1121,10 @@
 <li>Sudo-Passwörter werden verschlüsselt mit dem Master-Passwort gespeichert.</li>
 <li>SSH-Schlüsselpassphrasen und Archivpasswörter werden verschlüsselt gespeichert.</li>
 <li>KorTTY geschwärzt verwaltete Geheimnisse (Passwörter, Passphrasen, Archivanmeldeinformationen) aus der Journalausgabe vor der Persistenz.</li>
+<li>In einem KI-Swarm-Job wird das Passwort jedes Servers aus den Journalen entfernt, sobald dessen Hintergrundsitzung verbunden ist, sodass auch Ausgaben abgedeckt sind, die erfasst werden, während der Swarm noch läuft.</li>
+<li>Was KI-Jobs an ein Cloud-KI-Profil senden, wird maskiert: die KI-Swarm-Agenten und die Anfrage, die ihre Antworten zusammenführt (siehe <a href="ai-tools.html#maskieren-dessen-was-der-agent-sendet">Maskieren dessen, was der Agent sendet</a>), sowie die Anfrage eines KI-Agent-Jobs, bei der das gespeicherte Passwort des Servers und das sudo-Passwort des Jobs zu <code>***</code> werden. Die Anfrage eines KI-Agent-Jobs enthält nur den Servernamen, das Arbeitsverzeichnis und den Job-Prompt, daher erfasst die Maskierung dort nur ein Geheimnis, das in den Prompt eingegeben wurde. Integrierte Modelle und ein vertrauenswürdiger lokaler Endpunkt erhalten den Originaltext.</li>
 <li>Wenn das Hauptkennwort gesperrt ist, wenn ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert.</li>
+<li>KI-Agent- und KI-Swarm-Jobs folgen der <a href="../reference/enterprise-policy.html#rulefeatures">Unternehmensrichtlinie</a> Ihrer Organisation. Wenn die Richtlinie KI, den KI-Agenten oder (bei Swarm-Jobs) den KI-Swarm verweigert oder <code>ai-agent-execution</code> auf <code>read-only</code> setzt, endet der Job als <strong>BLOCKED</strong>, bevor er sich mit einem Server verbindet, und das Journal nennt den Grund. Unter <code>ai-agent-execution = "confirm"</code> muss eine Person jeden serverändernden Befehl genehmigen, was ein unbeaufsichtigter Job nicht anfordern kann: Ein KI-Agent-Job blockiert beim ersten geplanten serverändernden Befehl und führt nichts davon aus, und ein KI-Swarm-Agent, der einen solchen Befehl plant, wird gestoppt und als blockiert gezählt, selbst wenn <strong>Automatisch genehmigende KI-Befehle</strong> aktiviert ist. Schreibgeschützte Befehle laufen weiterhin.</li>
 </ul>
 <h2 id="fehlerbehebung">Fehlerbehebung<a class="headerlink" href="#fehlerbehebung" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
@@ -1131,7 +1134,8 @@
 - Fehlende Hostschlüssel-PIN
 - Nicht unterstütztes Mosh-Ziel
 - Fehlendes <code>rsync</code> oder <code>ssh</code> im PATH
-- Alte Hostschlüssel-PIN ohne OpenSSH-Public-Key-Material für Rsync</p>
+- Alte Hostschlüssel-PIN ohne OpenSSH-Public-Key-Material für Rsync
+- Ein KI-Agent- oder KI-Swarm-Job, den die <a href="../reference/enterprise-policy.html#rulefeatures">Unternehmensrichtlinie</a> Ihrer Organisation nicht zulässt: Der Detailtext gibt an, ob KI, der KI-Agent oder der KI-Swarm deaktiviert ist, ob der Agent auf schreibgeschützte Befehle beschränkt ist oder welche serverändernden Befehle blockiert wurden, weil die Richtlinie verlangt, dass eine Person sie genehmigt</p>
 <p><strong>JobScheduler Rsync kann nicht gestartet werden:</strong> Überprüfen Sie die lokalen Werte <code>rsync --version</code> und <code>ssh -V</code> oder konfigurieren Sie den Rsync-Binärpfad unter <strong>Einstellungen &gt; SFTP &gt; JobScheduler Rsync</strong>.</p>
 <p><strong>JobScheduler-Remotebrowser kann nicht geöffnet werden:</strong> Wählen Sie genau ein Ziel aus und bestätigen Sie zuerst den Hostschlüssel, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.</p>
 </div>
