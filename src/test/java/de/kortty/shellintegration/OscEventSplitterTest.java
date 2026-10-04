@@ -317,6 +317,24 @@ class OscEventSplitterTest {
     }
 
     @Test
+    void onlyTheStrayCharsSithTermFxPushesBackAreReplayed() {
+        // SithTermFX pushes back as many stray chars as fit into 1024 chars beside ESC [, the marker
+        // and the final char, and drops the rest. After NULs a U+009D opens an OSC wherever it lands.
+        for (String marker : List.of("", "?", ">", "!")) {
+            int pushedBack = 1024 - 3 - marker.length();
+            String lastKept = ESC + "[" + marker + "\0".repeat(pushedBack - 1) + C1_OSC + "h"
+                + ESC + "]133;A" + BEL;
+            String firstDropped = ESC + "[" + marker + "\0".repeat(pushedBack) + C1_OSC + "h"
+                + ESC + "]133;A" + BEL;
+
+            assertWithMessage("marker '%s': the replayed U+009D swallows the mark", marker)
+                .that(events(lastKept)).isEmpty();
+            assertWithMessage("marker '%s': a dropped U+009D opens nothing", marker)
+                .that(events(firstDropped)).containsExactly(new PromptStart());
+        }
+    }
+
+    @Test
     void aCsiWithPrintableStrayCharsStillEndsInGround() {
         // DECSCUSR has a space SithTermFX cannot place; it re-reads it, then the CSI.
         assertThat(split(ESC + "[2 q" + ESC + "]133;A" + BEL).parts)
