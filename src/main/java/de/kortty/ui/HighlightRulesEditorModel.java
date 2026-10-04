@@ -72,7 +72,9 @@ final class HighlightRulesEditorModel {
 
         /** The footer text: which set, which rule and what is wrong. */
         String message() {
-            String text = I18n.get(key, HighlightRuleValidator.messageArguments(key));
+            HighlightRule rule = set != null && ruleIndex >= 0 && ruleIndex < set.getRules().size()
+                ? set.getRules().get(ruleIndex) : null;
+            String text = I18n.get(key, HighlightRuleValidator.messageArguments(key, set, rule));
             if (set == null) {
                 return text;
             }
@@ -266,7 +268,7 @@ final class HighlightRulesEditorModel {
             return messages;
         }
         for (String key : ruleProblems(rule)) {
-            messages.add(I18n.get(key, HighlightRuleValidator.messageArguments(key)));
+            messages.add(I18n.get(key, HighlightRuleValidator.messageArguments(key, null, rule)));
         }
         if (messages.isEmpty() && rule.isEnabled() && stats != null && stats.evaluated()) {
             if (stats.speed() == HighlightPreview.Speed.TOO_SLOW) {
@@ -274,6 +276,21 @@ final class HighlightRulesEditorModel {
             } else if (stats.speed() == HighlightPreview.Speed.SLOW) {
                 messages.add(I18n.get(SLOW_MESSAGE_KEY));
             }
+        }
+        return messages;
+    }
+
+    /**
+     * What the editor explains below the name of a user set: the set's own problems — a missing name, a
+     * character the settings file cannot store, too many rules. Empty for a built-in, which is not edited.
+     */
+    List<String> setMessages(@Nullable HighlightRuleSet set) {
+        List<String> messages = new ArrayList<>();
+        if (set == null || isReadOnly(set)) {
+            return messages;
+        }
+        for (String key : HighlightRuleValidator.validateUserSet(set)) {
+            messages.add(I18n.get(key, HighlightRuleValidator.messageArguments(key, set, null)));
         }
         return messages;
     }

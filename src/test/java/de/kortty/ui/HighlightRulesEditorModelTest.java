@@ -144,6 +144,39 @@ class HighlightRulesEditorModelTest {
     }
 
     @Test
+    void aCharacterTheSettingsFileCannotHoldIsNamedBelowItsFieldAndBlocksSaving() {
+        HighlightRulesEditorModel model = new HighlightRulesEditorModel(List.of(userSet("ops", "Ops", rule("disk full"))));
+        HighlightRuleSet set = model.userSets().getFirst();
+        HighlightRule rule = set.getRules().getFirst();
+
+        // Pasted from colored log output: saved, the escape character would keep global-settings.xml from loading.
+        rule.setPattern("\u001b[31mERROR");
+        String patternMessage = I18n.get(HighlightRuleValidator.KEY_PATTERN_UNSTORABLE, "U+001B");
+        assertThat(HighlightRulesEditorModel.ruleMessages(rule, null)).containsExactly(patternMessage);
+        assertThat(model.firstProblem().orElseThrow().message()).contains(patternMessage);
+        assertThat(model.canSave()).isFalse();
+
+        rule.setPattern("ERROR");
+        rule.setName("Disk\u0007alert");
+        assertThat(HighlightRulesEditorModel.ruleMessages(rule, null))
+            .containsExactly(I18n.get(HighlightRuleValidator.KEY_RULE_NAME_UNSTORABLE, "U+0007"));
+        assertThat(model.canSave()).isFalse();
+
+        rule.setName("Disk alert");
+        set.setName("Ops\u000Cteam");
+        String nameMessage = I18n.get(HighlightRuleValidator.KEY_NAME_UNSTORABLE, "U+000C");
+        assertThat(model.setMessages(set)).containsExactly(nameMessage);
+        assertThat(model.firstProblem().orElseThrow().message()).contains(nameMessage);
+        assertThat(model.canSave()).isFalse();
+
+        set.setName("Ops team");
+        assertThat(model.setMessages(set)).isEmpty();
+        assertThat(model.canSave()).isTrue();
+        // A built-in set is only looked at, so there is nothing to say below its name.
+        assertThat(model.setMessages(model.find(HighlightBuiltinSets.IDS.getFirst()))).isEmpty();
+    }
+
+    @Test
     void theSharedValidatorDecidesWhatMayBeSaved() {
         HighlightRule broken = new HighlightRule("(", true);
         broken.setBold(true);

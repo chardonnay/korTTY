@@ -225,6 +225,55 @@ class HighlightRuleValidatorTest {
     }
 
     @Test
+    void aPatternWithACharacterTheSettingsFileCannotHoldIsRejectedQuotingItsCode() {
+        // Each compiles, but written to global-settings.xml it keeps the whole file from loading.
+        for (String pattern : List.of("ticket\u0007\\d+", "\u001b\\[0m", "end\uFFFF", "half\uD800", "\u001F")) {
+            for (HighlightRule rule : List.of(literal(pattern), regex(pattern))) {
+                assertWithMessage(pattern).that(HighlightRuleValidator.validateRule(rule))
+                    .containsExactly(HighlightRuleValidator.KEY_PATTERN_UNSTORABLE);
+            }
+        }
+        HighlightRule bell = regex("ticket\u0007\\d+");
+        assertThat(HighlightRuleValidator.messageArguments(HighlightRuleValidator.KEY_PATTERN_UNSTORABLE, null, bell))
+            .asList().containsExactly("U+0007");
+        assertThat(HighlightRuleValidator.messageArguments(
+            HighlightRuleValidator.KEY_PATTERN_UNSTORABLE, null, literal("half\uD800"))).asList().containsExactly("U+D800");
+        // A tab, the regex escape for a control character and a character outside the BMP can be stored.
+        assertThat(HighlightRuleValidator.validateRule(literal("a\tb"))).isEmpty();
+        assertThat(HighlightRuleValidator.validateRule(regex("\\u0007\\d+"))).isEmpty();
+        assertThat(HighlightRuleValidator.validateRule(literal("deploy \uD83D\uDE80"))).isEmpty();
+        // The terminal never runs such a rule either.
+        HighlightRuleSet set = new HighlightRuleSet("s", "S", List.of(literal("ok"), regex("bad\u0001\\d+")));
+        assertThat(CompiledHighlightSet.compile(set).rules()).hasSize(1);
+    }
+
+    @Test
+    void aRuleNameOrSetNameWithSuchACharacterIsRejectedQuotingItsCode() {
+        HighlightRule named = literal("disk full");
+        named.setName("Disk\u0007alert");
+        assertThat(HighlightRuleValidator.validateRule(named))
+            .containsExactly(HighlightRuleValidator.KEY_RULE_NAME_UNSTORABLE);
+        assertThat(HighlightRuleValidator.messageArguments(HighlightRuleValidator.KEY_RULE_NAME_UNSTORABLE, null, named))
+            .asList().containsExactly("U+0007");
+        // At either end it is trimmed away with the spaces, so it never reaches the file.
+        named.setName("\u0007Disk alert\u001b");
+        assertThat(named.getName()).isEqualTo("Disk alert");
+        assertThat(HighlightRuleValidator.validateRule(named)).isEmpty();
+
+        HighlightRuleSet set = new HighlightRuleSet("ops", "Ops\u000Bteam", List.of(literal("x")));
+        assertThat(HighlightRuleValidator.validateUserSet(set))
+            .containsExactly(HighlightRuleValidator.KEY_NAME_UNSTORABLE);
+        assertThat(HighlightRuleValidator.messageArguments(HighlightRuleValidator.KEY_NAME_UNSTORABLE, set, null))
+            .asList().containsExactly("U+000B");
+        // A name that is nothing but such characters is named as such, not as a missing name.
+        set.setName("\u001C");
+        assertThat(HighlightRuleValidator.validateSet(set)).containsExactly(HighlightRuleValidator.KEY_NAME_UNSTORABLE);
+        // Every other message keeps its own arguments.
+        assertThat(HighlightRuleValidator.messageArguments(HighlightRuleValidator.KEY_PATTERN_TOO_LONG, set, named))
+            .asList().containsExactly(512);
+    }
+
+    @Test
     void messagesThatQuoteALimitGetItAsTheirArgument() {
         assertThat(HighlightRuleValidator.messageArguments(HighlightRuleValidator.KEY_PATTERN_TOO_LONG))
             .asList().containsExactly(512);
@@ -248,5 +297,6 @@ class HighlightRuleValidatorTest {
             HighlightRuleValidator.KEY_NO_EFFECT, HighlightRuleValidator.KEY_NAME_REQUIRED,
             HighlightRuleValidator.KEY_TOO_MANY_RULES, HighlightRuleValidator.KEY_RESERVED_ID,
             HighlightRuleValidator.KEY_TOO_MANY_SETS, HighlightRuleValidator.KEY_DUPLICATE_ID);
+        assertThat(HighlightRuleValidator.MESSAGE_KEYS).containsAtLeastElementsIn(HighlightRuleValidator.UNSTORABLE_KEYS);
     }
 }

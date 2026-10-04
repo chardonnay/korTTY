@@ -18,7 +18,9 @@ import java.util.UUID;
  * <p>Colors are stored as text: {@code #RRGGBB} for a fixed color, {@code ansi:0} to {@code ansi:15}
  * for a theme color that follows the terminal palette, or {@code null} to keep the color the program
  * wrote. Validation lives in {@code de.kortty.core.highlight.HighlightRuleValidator}; this class only
- * normalizes blank text to {@code null}.
+ * normalizes blank text to {@code null}. The setters keep text {@code global-settings.xml} cannot hold
+ * ({@link XmlStorableText}), so the rule editor can say what is wrong with it; {@link #storable()} is
+ * what keeps it out of the file.
  *
  * <p>A rule can also be a <em>trigger</em> ({@link #getAction()}): besides, or instead of, changing how
  * the match looks, it acts when the pattern appears in new output — a desktop notification
@@ -167,8 +169,13 @@ public class HighlightRule {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    /**
+     * Stored trimmed, blank as none, so the name the validator checks is the text the file gets: trimming
+     * on read alone would hide a control character at either end that is still written.
+     */
     public void setName(String name) {
-        this.name = name;
+        String trimmed = name != null ? name.trim() : null;
+        this.name = trimmed == null || trimmed.isEmpty() ? null : trimmed;
     }
 
     public boolean isEnabled() {
@@ -304,6 +311,40 @@ public class HighlightRule {
     /** True when the rule is a trigger: it acts when its pattern appears ({@link #getAction()}). */
     public boolean hasAction() {
         return getAction() != Action.NONE;
+    }
+
+    /**
+     * Whether {@code global-settings.xml} can hold every text of the rule ({@link XmlStorableText}): its
+     * id, name, pattern, colors and snippet id.
+     */
+    boolean isStorable() {
+        return XmlStorableText.isStorable(id) && XmlStorableText.isStorable(name) && XmlStorableText.isStorable(pattern)
+            && XmlStorableText.isStorable(foreground) && XmlStorableText.isStorable(background)
+            && XmlStorableText.isStorable(snippetId);
+    }
+
+    /**
+     * The rule as {@code global-settings.xml} can hold it: itself when the file can hold all of its text;
+     * {@code null} when the pattern holds a character the file cannot store, because the pattern without
+     * it would look for something else; otherwise a copy in which every other such text is cleared — no
+     * name, no color, no snippet — and such an id is replaced by a fresh one.
+     */
+    HighlightRule storable() {
+        if (isStorable()) {
+            return this;
+        }
+        if (!XmlStorableText.isStorable(pattern)) {
+            return null;
+        }
+        HighlightRule copy = new HighlightRule(this);
+        if (!XmlStorableText.isStorable(copy.id)) {
+            copy.id = UUID.randomUUID().toString();
+        }
+        copy.name = XmlStorableText.isStorable(copy.name) ? copy.name : null;
+        copy.foreground = XmlStorableText.isStorable(copy.foreground) ? copy.foreground : null;
+        copy.background = XmlStorableText.isStorable(copy.background) ? copy.background : null;
+        copy.snippetId = XmlStorableText.isStorable(copy.snippetId) ? copy.snippetId : null;
+        return copy;
     }
 
     private static String normalizeColor(String color) {
