@@ -3708,6 +3708,14 @@ tasks.register<JavaExec>("paneConnectionFrameSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("connectionGroupColorSmoke") {
+    group = "verification"
+    description = "Shows the Connection Manager tree with a colored folder and checks that the folder shows a dot of its color with a tooltip and screen-reader text naming it, that folders without a color of their own show none, that the folder menu offers Tab Color..., and that the folder color dialog names an inherited color and returns the choice on OK and nothing on Cancel; pass a directory via --args to save PNG snapshots (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.ConnectionGroupColorSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("multiExecSmoke") {
     group = "verification"
     description = "Lets three panes of two tabs take part in multi-exec, one of them with a connection whose writes never return, and checks that typed keys and Enter reach the member in the other tab while the FX thread keeps answering, that a pane outside multi-exec and one its tab's guard holds back get nothing, that the members show the badge and the status chip counts panes and tabs, and that Stop and closing a pane take panes out; pass a PNG path via --args to save a snapshot (needs a display)."

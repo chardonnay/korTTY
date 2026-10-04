@@ -254,13 +254,13 @@ class PaneConnectionColorsTest {
         String apply = methodBody(source("MainWindow.java"), "private void applyConnectionColor(TerminalTab tab) {");
 
         assertThat(apply).contains("boolean showFrame = TabColorPresentation.frameEnabled(app.getGlobalSettingsManager().getSettings());");
-        assertThat(apply).contains("tab.applyConnectionColor(color != null ? color.hex() : null, environmentName, showFrame);");
+        assertThat(apply).contains("tab.applyConnectionColor(color != null ? color.hex() : null,\n"
+                + "                color != null ? color.source() : null, colorSourceName(color), showFrame);");
         assertThat(apply).contains("tab.applyPaneConnectionColors(color != null ? color.hex() : null, showFrame, paneConnection -> {");
-        assertWithMessage("a pane's color is resolved like the tab's: saved connection, own, credential environment")
+        assertWithMessage("a pane's color is resolved like the tab's: saved connection, own, group, credential environment")
                 .that(apply.substring(apply.indexOf("paneConnection -> {")))
-                .contains("ConnectionColorSupport.effectiveTabColor(\n                    paneConnection, "
-                        + "app.getConfigManager()::getConnectionById,\n                    this::credentialEnvironmentId, "
-                        + "this::environmentColor);");
+                .contains("ConnectionColorSupport.TabColor paneColor = effectiveTabColor(paneConnection);");
+        assertThat(apply).contains("ConnectionColorSupport.TabColor color = effectiveTabColor(tab.getConnection());");
         assertWithMessage("the refresh after saving connections, credentials or settings reaches the panes too")
                 .that(methodBody(source("MainWindow.java"), "static void refreshConnectionColorsInAllWindows() {"))
                 .contains("window.applyConnectionColor(terminalTab);");

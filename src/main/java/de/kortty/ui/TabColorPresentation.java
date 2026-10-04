@@ -16,8 +16,8 @@ import java.util.Locale;
 
 /**
  * How a connection's tab color looks on a terminal tab: a small dot in the tab header (the tab's
- * graphic), named in the tab's tooltip and in the dot's accessible text so the color is never the
- * only cue, and optionally a frame of that color around the terminal. The tab's style stays with
+ * graphic), named in the tab's tooltip and in the dot's accessible text together with where it comes
+ * from (the connection, its group or its credential environment) so the color is never the only cue, and optionally a frame of that color around the terminal. The tab's style stays with
  * the connection-status colors (connecting, failed), which a connection color must never overwrite.
  */
 final class TabColorPresentation {
@@ -33,6 +33,9 @@ final class TabColorPresentation {
 
     /** The longest environment name a tab's tooltip shows, in characters. */
     static final int MAX_ENVIRONMENT_NAME_LENGTH = 60;
+
+    /** The longest group path a tab's tooltip shows, in characters. */
+    static final int MAX_GROUP_NAME_LENGTH = 80;
 
     private TabColorPresentation() {
     }
@@ -109,6 +112,42 @@ final class TabColorPresentation {
     static String environmentLabel(String displayName, String environmentId) {
         String name = DisplayTextSanitizer.sanitize(displayName, MAX_ENVIRONMENT_NAME_LENGTH);
         return name.isEmpty() ? DisplayTextSanitizer.sanitize(environmentId, MAX_ENVIRONMENT_NAME_LENGTH) : name;
+    }
+
+    /**
+     * The group a tab's color comes from, as its tooltip shows it: the group's path
+     * ({@code Work/Production}) with control and bidi characters removed and capped at
+     * {@link #MAX_GROUP_NAME_LENGTH} characters.
+     */
+    static String groupLabel(String groupPath) {
+        return DisplayTextSanitizer.sanitize(groupPath, MAX_GROUP_NAME_LENGTH);
+    }
+
+    /**
+     * The i18n key of the tooltip line that names a tab's color and where it comes from: set on the
+     * connection ({@code null} counts as that), from its group or from its credential environment.
+     */
+    static String colorLineKey(ConnectionColorSupport.Source source) {
+        if (source == null) {
+            return "tab.tooltip.connectionColor";
+        }
+        return switch (source) {
+            case CONNECTION -> "tab.tooltip.connectionColor";
+            case GROUP -> "tab.tooltip.groupColor";
+            case ENVIRONMENT -> "tab.tooltip.environmentColor";
+        };
+    }
+
+    /**
+     * The tooltip line that names a tab's color by {@code familyName} and {@code hex} and says where
+     * it comes from; {@code sourceName} is the group or environment ({@link #groupLabel},
+     * {@link #environmentLabel}) and is not used for a color set on the connection.
+     */
+    static String colorLine(ConnectionColorSupport.Source source, String sourceName, String familyName, String hex) {
+        String key = colorLineKey(source);
+        return key.equals("tab.tooltip.connectionColor")
+                ? I18n.get(key, familyName, hex)
+                : I18n.get(key, familyName, hex, sourceName != null ? sourceName : "");
     }
 
     /**

@@ -3940,28 +3940,54 @@ public class MainWindow {
 
     /**
      * Shows the tab color of {@code tab}'s connection on the tab: the saved connection's, so edits
-     * in the Connection Manager apply, else the tab's own, else the color of the environment of the
-     * stored credential the tab signed in with (see {@link ConnectionColorSupport#effectiveTabColor}),
-     * with the frame around the terminal unless the Window settings switch it off. A split pane that
-     * runs another connection whose color, resolved the same way, differs from the tab's gets a frame
-     * of its own color (see {@link PaneConnectionColors}).
+     * in the Connection Manager apply, else the tab's own, else the color of the connection's group,
+     * else the color of the environment of the stored credential the tab signed in with (see
+     * {@link #effectiveTabColor}), with the frame around the terminal unless the Window settings
+     * switch it off. A split pane that runs another connection whose color, resolved the same way,
+     * differs from the tab's gets a frame of its own color (see {@link PaneConnectionColors}).
      */
     private void applyConnectionColor(TerminalTab tab) {
-        ConnectionColorSupport.TabColor color = ConnectionColorSupport.effectiveTabColor(
-                tab.getConnection(), app.getConfigManager()::getConnectionById,
-                this::credentialEnvironmentId, this::environmentColor);
-        String environmentName = color != null && color.source() == ConnectionColorSupport.Source.ENVIRONMENT
-                ? TabColorPresentation.environmentLabel(
-                        app.getEnvironmentManager().getDisplayName(color.environmentId()), color.environmentId())
-                : null;
+        ConnectionColorSupport.TabColor color = effectiveTabColor(tab.getConnection());
         boolean showFrame = TabColorPresentation.frameEnabled(app.getGlobalSettingsManager().getSettings());
-        tab.applyConnectionColor(color != null ? color.hex() : null, environmentName, showFrame);
+        tab.applyConnectionColor(color != null ? color.hex() : null,
+                color != null ? color.source() : null, colorSourceName(color), showFrame);
         tab.applyPaneConnectionColors(color != null ? color.hex() : null, showFrame, paneConnection -> {
-            ConnectionColorSupport.TabColor paneColor = ConnectionColorSupport.effectiveTabColor(
-                    paneConnection, app.getConfigManager()::getConnectionById,
-                    this::credentialEnvironmentId, this::environmentColor);
+            ConnectionColorSupport.TabColor paneColor = effectiveTabColor(paneConnection);
             return paneColor != null ? paneColor.hex() : null;
         });
+    }
+
+    /**
+     * The color a tab or split pane of {@code connection} shows, and where it comes from: the
+     * connection's own color, then its group's, then its credential environment's (see
+     * {@link ConnectionColorSupport#effectiveTabColor}).
+     */
+    private ConnectionColorSupport.TabColor effectiveTabColor(ServerConnection connection) {
+        return ConnectionColorSupport.effectiveTabColor(connection, app.getConfigManager()::getConnectionById,
+                this::groupColor, this::credentialEnvironmentId, this::environmentColor);
+    }
+
+    /**
+     * What a tab's tooltip names as the source of {@code color}: the credential environment or the
+     * group it comes from, cleaned for display; {@code null} for a color set on the connection.
+     */
+    private String colorSourceName(ConnectionColorSupport.TabColor color) {
+        if (color == null) {
+            return null;
+        }
+        return switch (color.source()) {
+            case ENVIRONMENT -> TabColorPresentation.environmentLabel(
+                    app.getEnvironmentManager().getDisplayName(color.environmentId()), color.environmentId());
+            case GROUP -> TabColorPresentation.groupLabel(color.groupPath());
+            case CONNECTION -> null;
+        };
+    }
+
+    /** The tab color the connection group {@code groupPath} has of its own, or null (see {@link GlobalSettings#getConnectionGroupColor}). */
+    private String groupColor(String groupPath) {
+        GlobalSettings settings = app.getGlobalSettingsManager() != null
+                ? app.getGlobalSettingsManager().getSettings() : null;
+        return settings != null ? settings.getConnectionGroupColor(groupPath) : null;
     }
 
     /** The environment id of the stored credential {@code credentialId}, or null when there is no such credential. */
@@ -3981,9 +4007,10 @@ public class MainWindow {
 
     /**
      * Re-applies the connection colors of every open terminal tab, in every window, after connections,
-     * credentials, environments or the global settings were saved: a color set, changed or removed in
-     * the Connection Manager or the Environments dialog, a credential moved to another environment, and
-     * the frame switched on or off in the Window settings, show at once. FX thread only.
+     * credentials, environments, group colors or the global settings were saved: a color set, changed
+     * or removed in the Connection Manager (on a connection or a group) or the Environments dialog, a
+     * connection moved to another group, a credential moved to another environment, and the frame
+     * switched on or off in the Window settings, show at once. FX thread only.
      */
     static void refreshConnectionColorsInAllWindows() {
         for (MainWindow window : new ArrayList<>(openWindows)) {

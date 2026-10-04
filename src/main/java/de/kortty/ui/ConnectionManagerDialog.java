@@ -2,7 +2,9 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.ConfigurationManager;
+import de.kortty.core.ConnectionGroupColors;
 import de.kortty.core.CredentialManager;
+import de.kortty.model.GlobalSettings;
 import de.kortty.model.GroupPath;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SSHKey;
@@ -26,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import javax.crypto.SecretKey;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -231,6 +234,11 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         treeView.setOnRemoveTagFromGroup(this::removeTagFromGroup);
         treeView.setGroupHostKeyCheckDisabledProbe(this::isGroupHostKeyCheckDisabled);
         treeView.setOnToggleGroupHostKeyCheck(this::toggleGroupHostKeyCheck);
+        // Folder tab colors: only the local tree, as they never apply to teamwork connections.
+        treeView.setOnEditGroupColor(this::editGroupColor);
+        treeView.setGroupColorProbe(this::groupColorOf);
+        // A connection dragged into another folder takes that folder's color in its open tabs.
+        treeView.setOnConnectionsMoved(MainWindow::refreshConnectionColorsInAllWindows);
         
         // Teamwork tree: no group ops, same connect/edit/delete/export
         teamworkTreeView.setOnDoubleClick(() -> {
@@ -907,6 +915,79 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         }
     }
 
+    /** The tab color the folder {@code groupPath} has of its own, or null. */
+    private String groupColorOf(GroupPath groupPath) {
+        GlobalSettings settings = globalSettings();
+        return settings != null ? settings.getConnectionGroupColor(groupPath.getPath()) : null;
+    }
+
+    private GlobalSettings globalSettings() {
+        var gsm = app.getGlobalSettingsManager();
+        return gsm != null ? gsm.getSettings() : null;
+    }
+
+    /**
+     * Lets the user give the folder {@code groupPath} a tab color of its own or remove it, then
+     * stores the colors and recolors the open tabs in every window.
+     */
+    private void editGroupColor(GroupPath groupPath) {
+        GlobalSettings settings = globalSettings();
+        if (settings == null) {
+            return;
+        }
+        Map<String, String> colors = settings.getConnectionGroupColors();
+        ConnectionGroupColorDialog dialog = new ConnectionGroupColorDialog(groupPath, colors);
+        dialog.initOwner(getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : owner);
+        dialog.showAndWait().ifPresent(choice -> {
+            String key = ConnectionGroupColors.key(groupPath.getPath());
+            if (key == null) {
+                return;
+            }
+            if (choice.color() != null) {
+                colors.put(key, choice.color());
+            } else {
+                colors.remove(key);
+            }
+            if (storeGroupColors(colors)) {
+                treeView.refreshPreservingFilter();
+                MainWindow.refreshConnectionColorsInAllWindows();
+            }
+        });
+    }
+
+    /**
+     * Makes {@code colors} the tab colors of the folders and saves the global settings; a failed save
+     * puts the previous colors back and says so. Unchanged colors are not saved again.
+     *
+     * @return whether the colors are now {@code colors}
+     */
+    private boolean storeGroupColors(Map<String, String> colors) {
+        var gsm = app.getGlobalSettingsManager();
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        if (settings == null) {
+            return false;
+        }
+        Map<String, String> previous = settings.getConnectionGroupColors();
+        if (previous.equals(ConnectionGroupColors.copyOf(colors))) {
+            return true;
+        }
+        settings.setConnectionGroupColors(colors);
+        try {
+            gsm.save();
+            return true;
+        } catch (Exception e) {
+            settings.setConnectionGroupColors(previous);
+            logger.error("Could not save the folder tab colors", e);
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            DialogThemeHelper.applyTheme(alert);
+            alert.setTitle(I18n.get("error.title"));
+            alert.setHeaderText(I18n.get("error.saveFailed"));
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+            return false;
+        }
+    }
+
     private void renameGroup(GroupPath oldPath) {
         TextInputDialog dialog = new TextInputDialog(oldPath.getName());
         dialog.setTitle(I18n.get("connManager.renameFolder"));
@@ -940,6 +1021,12 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                             configManager.updateConnection(conn);
                         }
                     }
+                }
+                // The folder's tab color, and those of its subfolders, move along with the name.
+                GlobalSettings settings = globalSettings();
+                if (settings != null) {
+                    storeGroupColors(ConnectionGroupColors.renamed(
+                        settings.getConnectionGroupColors(), oldPath.getPath(), newPath.getPath()));
                 }
                 
                 treeView.refreshTree();
@@ -977,6 +1064,12 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 for (ServerConnection conn : toRemove) {
                     connections.remove(conn);
                     configManager.removeConnection(conn);
+                }
+                // A new folder of the same name starts without the deleted one's tab color.
+                GlobalSettings settings = globalSettings();
+                if (settings != null) {
+                    storeGroupColors(ConnectionGroupColors.deleted(
+                        settings.getConnectionGroupColors(), groupPath.getPath()));
                 }
                 
                 treeView.refreshTree();

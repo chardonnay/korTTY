@@ -1873,22 +1873,25 @@ public class TerminalTab extends Tab {
      * Marks the tab with its connection's color: a dot in the tab header, a tooltip that names the
      * connection and the color, which is also what screen readers read for the dot, and, when
      * {@code showFrame} is set (Window settings), a frame of that color around the terminal.
-     * {@code environmentName} is the credential environment the color comes from, which the tooltip
-     * names; {@code null} when the color is set on the connection itself. {@code null} or a value
-     * that is not a hex color removes all three. The tab's style is left alone: it shows the
-     * connection status (yellow while connecting, dark red when the connection failed). Safe to
+     * {@code source} says where the color comes from and {@code sourceName} names the group or the
+     * credential environment for the tooltip; for a color set on the connection itself
+     * ({@link ConnectionColorSupport.Source#CONNECTION} or {@code null}) it is not used. {@code null}
+     * or a value that is not a hex color removes all three. The tab's style is left alone: it shows
+     * the connection status (yellow while connecting, dark red when the connection failed). Safe to
      * call from any thread.
      */
-    public void applyConnectionColor(String hex, String environmentName, boolean showFrame) {
+    public void applyConnectionColor(String hex, ConnectionColorSupport.Source source, String sourceName,
+                                     boolean showFrame) {
         String color = ConnectionColorSupport.normalizeHex(hex);
         if (Platform.isFxApplicationThread()) {
-            showConnectionColor(color, environmentName, showFrame);
+            showConnectionColor(color, source, sourceName, showFrame);
         } else {
-            Platform.runLater(() -> showConnectionColor(color, environmentName, showFrame));
+            Platform.runLater(() -> showConnectionColor(color, source, sourceName, showFrame));
         }
     }
 
-    private void showConnectionColor(String color, String environmentName, boolean showFrame) {
+    private void showConnectionColor(String color, ConnectionColorSupport.Source source, String sourceName,
+                                     boolean showFrame) {
         // The frame is the content's border, outside the panes: never the terminal view's style,
         // which the see-through window mode owns. Turning it on or off resizes the terminal by 3 px,
         // so an unchanged frame is left in place rather than replaced by an equal one.
@@ -1904,9 +1907,7 @@ public class TerminalTab extends Tab {
             connectionColorLine = null;
         } else {
             String family = I18n.get(TabColorPresentation.familyKey(ConnectionColorSupport.family(color)));
-            String colorLine = environmentName == null
-                ? I18n.get("tab.tooltip.connectionColor", family, color)
-                : I18n.get("tab.tooltip.environmentColor", family, color, environmentName);
+            String colorLine = TabColorPresentation.colorLine(source, sourceName, family, color);
             String connectionLine = I18n.get("tab.tooltip.connection", connectionEndpoint());
             connectionColorSwatch = TabColorPresentation.swatch(color,
                 TabColorPresentation.describe(colorLine, connectionLine, ", "));
