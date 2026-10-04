@@ -138,8 +138,8 @@ class TabCloseTargetsTest {
         String window = source("MainWindow.java");
 
         String fileMenu = methodBody(window, "private Menu createFileMenu() {");
-        assertThat(fileMenu).contains("I18n.get(\"menu.file.closeOtherTabs\")");
-        assertThat(fileMenu).contains("I18n.get(\"menu.file.closeTabsToRight\")");
+        assertThat(fileMenu).contains("menuItem(\"menu.file.closeOtherTabs\")");
+        assertThat(fileMenu).contains("menuItem(\"menu.file.closeTabsToRight\")");
         assertThat(fileMenu).contains("closeOtherTabs(tabPane.getSelectionModel().getSelectedItem())");
         assertThat(fileMenu).contains("closeTabsToTheRight(tabPane.getSelectionModel().getSelectedItem())");
         String fileShowing = fileMenu.substring(fileMenu.indexOf("fileMenu.setOnShowing("));
@@ -176,7 +176,9 @@ class TabCloseTargetsTest {
         int confirm = funnel.indexOf("if (!confirmUserCloseAll(targets)) {");
         int select = funnel.indexOf("tabPane.getSelectionModel().select(keepSelected);");
         int dispose = funnel.indexOf("disposeTabContent(tab);");
-        int remove = funnel.indexOf("tabPane.getTabs().removeAll(targets);");
+        // One list change, run as a reorganization: the tabs' most-recently-used order ignores the
+        // selection passing over the closing tabs (TabPaletteWiringTest).
+        int remove = funnel.indexOf("reorganizeTabs(() -> tabPane.getTabs().removeAll(targets));");
         assertThat(confirm).isAtLeast(0);
         assertWithMessage("the anchor is selected only once every question passed")
             .that(select).isGreaterThan(confirm);

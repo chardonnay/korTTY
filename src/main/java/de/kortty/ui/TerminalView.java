@@ -7987,6 +7987,17 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * Clears the scrollback and the screen of the focused pane but keeps the prompt line, as
+     * <b>Clear Buffer</b> in the terminal's right-click menu does; while a full-screen program runs it
+     * does nothing (see {@link TerminalPaneActions#clearBuffer()}). The command palette runs it.
+     */
+    public void clearFocusedBuffer() {
+        if (getFocusedWidget() instanceof TerminalPaneActions actions) {
+            actions.clearBuffer();
+        }
+    }
+
+    /**
      * Starts quick select in the focused pane: every URL, path, address, hash and long number on
      * screen gets a label to copy it with, or to open it with Shift. See
      * {@link TerminalQuickSelectController}.

@@ -118,7 +118,9 @@ Sobald eine Quelle synchronisiert ist:
 3. Doppelklicken Sie auf eine Teamwork-Verbindung, um sich zu verbinden.
 4. **Nur lesen** — Teamwork-Verbindungen sind nur lesbar, und korTTY schreibt niemals Änderungen zurück in eine Quelle. Um eine geteilte Verbindung zu ändern, bearbeiten Sie sie im Repository oder der gemeinsamen Datei; die Änderung wird mit dem nächsten Sync übernommen.
 
-Das Löschen einer Teamwork-Verbindung versteckt sie nur auf diesem Computer; die Quelle wird nicht geändert. In der Schaltflächenspalte des Connection-Manager **Gelöschte wiederherstellen** bringt versteckte Verbindungen zurück und **Aktualisieren** lädt die Liste aus dem letzten Sync neu, ohne die Quelle erneut abzurufen.
+Die [Befehlspalette](command-palette.md#verbinden) listet die Teamwork-Verbindungen ebenfalls auf, gekennzeichnet mit **Geteilt (Teamwork)**, sodass Sie sich auch verbinden können, indem Sie `@` und einen Teil eines Namens eingeben.
+
+Das Löschen einer Teamwork-Verbindung versteckt sie nur auf diesem Computer, auch in der Befehlspalette; die Quelle wird nicht geändert. In der Schaltflächenspalte des Connection-Managers holt **Gelöschte wiederherstellen** versteckte Verbindungen zurück, und **Aktualisieren** lädt die Liste aus der letzten Synchronisierung neu, ohne die Quelle erneut abzurufen.
 
 ### Lokale Überschreibungen
 

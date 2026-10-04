@@ -62,7 +62,7 @@ class ReopenClosedTabShortcutTest {
         String source = Files.readString(SOURCE, StandardCharsets.UTF_8).replace("\r\n", "\n");
 
         String fileMenu = methodBody(source, "private Menu createFileMenu() {");
-        assertThat(fileMenu).contains("I18n.get(\"menu.file.reopenClosedTab\")");
+        assertThat(fileMenu).contains("menuItem(\"menu.file.reopenClosedTab\")");
         assertThat(fileMenu).contains("I18n.get(\"menu.file.recentlyClosed\")");
         assertThat(fileMenu).contains("closeAllTabs,\n            reopenClosedTab, recentlyClosed, new SeparatorMenuItem(),");
         assertThat(fileMenu.substring(fileMenu.indexOf("fileMenu.setOnShowing("))).contains("syncRecentlyClosedMenus();");

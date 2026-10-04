@@ -12,8 +12,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * The keys of the tab basics (rename, close others, reopen closed tabs, the connection's tab color,
- * its frame, the credential environment colors, the title the shell sets, and the tab commands that
- * follow) exist in every bundled language. Grows with each tab feature.
+ * its frame, the credential environment colors, the title the shell sets, Ctrl+Tab in
+ * most-recently-used order, and the tab commands that follow) exist in every bundled language.
+ * Grows with each tab feature.
  */
 class TabBasicsI18nCoverageTest {
 
@@ -67,7 +68,10 @@ class TabBasicsI18nCoverageTest {
             "settings.window.tabTitleFromShell.tooltip",
             "settings.window.tabTitleFromShell.info",
             "tab.tooltip.shellTitle",
-            "dialog.renameTab.headerShellTitle");
+            "dialog.renameTab.headerShellTitle",
+            "settings.window.tabSwitchMostRecentFirst",
+            "settings.window.tabSwitchMostRecentFirst.tooltip",
+            "settings.window.tabSwitchMostRecentFirst.info");
 
     @Test
     void everyTabBasicsKeyExistsInEveryBundledLocale() throws Exception {

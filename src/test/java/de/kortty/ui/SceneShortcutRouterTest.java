@@ -21,8 +21,8 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.testng.Assert.assertThrows;
 
 /**
- * The main window's scene shortcut router: ordered first-match routing, observers that do not
- * consume, the residue swallow of consumed chords, and the guard reset at the top of every
+ * The main window's scene shortcut router: ordered first-match routing, observers of presses and
+ * releases that do not consume, the residue swallow of consumed chords, and the guard reset at the top of every
  * KEY_PRESSED (zoom used to reset its flag only after the menu-bar and fullscreen chords had
  * returned). Toolkit-free: key events are built directly and {@link KeyPress#matches} never asks the
  * toolkit for the platform's shortcut key.
@@ -179,6 +179,36 @@ class SceneShortcutRouterTest {
     }
 
     @Test
+    void releaseObserversRunWhileTheirScopeHoldsAndNeverConsume() {
+        List<String> ran = new ArrayList<>();
+        boolean[] cycling = {true};
+        SceneShortcutRouter router = new SceneShortcutRouter(false)
+            .consume(press -> press.code() == KeyCode.TAB && press.ctrl(), SceneShortcutRouter.ALWAYS,
+                () -> ran.add("tab"), Residue.of("\t"))
+            .observeRelease(release -> release.code() == KeyCode.CONTROL, () -> cycling[0], () -> ran.add("first"))
+            .observeRelease(release -> release.code() == KeyCode.CONTROL, SceneShortcutRouter.ALWAYS,
+                () -> ran.add("second"));
+
+        KeyEvent ctrlReleased = keyReleased(KeyCode.CONTROL, false);
+        router.onKeyReleased(ctrlReleased);
+        assertThat(ran).containsExactly("first", "second").inOrder();
+        assertThat(ctrlReleased.isConsumed()).isFalse();
+
+        ran.clear();
+        cycling[0] = false;
+        router.onKeyReleased(keyReleased(KeyCode.CONTROL, false));
+        router.onKeyReleased(keyReleased(KeyCode.SHIFT, true));
+        assertThat(ran).containsExactly("second");
+
+        // A release between a chord and its KEY_TYPED leaves the residue guard armed.
+        router.onKeyPressed(keyPressed(KeyCode.TAB, "\t", false, true, false, false));
+        router.onKeyReleased(keyReleased(KeyCode.TAB, true));
+        KeyEvent residue = keyTyped("\t");
+        router.onKeyTyped(residue);
+        assertThat(residue.isConsumed()).isTrue();
+    }
+
+    @Test
     void mainWindowRegistersItsSceneKeyFiltersOnlyThroughTheRouter() throws IOException {
         String source = Files.readString(Path.of("src/main/java/de/kortty/ui/MainWindow.java"), StandardCharsets.UTF_8)
             .replace("\r\n", "\n");
@@ -197,6 +227,10 @@ class SceneShortcutRouterTest {
     private static KeyEvent keyPressed(KeyCode code, String text, boolean shift, boolean ctrl, boolean alt,
                                        boolean meta) {
         return new KeyEvent(KeyEvent.KEY_PRESSED, KeyEvent.CHAR_UNDEFINED, text, code, shift, ctrl, alt, meta);
+    }
+
+    private static KeyEvent keyReleased(KeyCode code, boolean ctrl) {
+        return new KeyEvent(KeyEvent.KEY_RELEASED, KeyEvent.CHAR_UNDEFINED, "", code, false, ctrl, false, false);
     }
 
     private static KeyEvent keyTyped(String character) {

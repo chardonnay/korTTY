@@ -27,7 +27,8 @@ import java.util.function.Predicate;
  * KEY_PRESSED and arms a {@link KeyTypedResidueGuard} with the chord's residue. The router's single
  * KEY_TYPED filter then swallows that residue before the terminal, or broadcast
  * mode's KEY_TYPED mirror in TerminalSplitPane, can type it. The guard is cleared at the top of
- * every KEY_PRESSED, before any entry is tried.
+ * every KEY_PRESSED, before any entry is tried. Release observers watch the KEY_RELEASED events
+ * the same way and never consume them.
  *
  * <p>Every new window-wide chord registers here. Its KeyCodeCombination constant stays in
  * MainWindow and is also set on its menu item for display, so MainWindowAcceleratorUniquenessTest
@@ -41,6 +42,7 @@ final class SceneShortcutRouter {
 
     private final boolean macOs;
     private final List<Entry> entries = new ArrayList<>();
+    private final List<Entry> releaseObservers = new ArrayList<>();
     private final KeyTypedResidueGuard residueGuard = new KeyTypedResidueGuard();
 
     SceneShortcutRouter(boolean macOs) {
@@ -67,9 +69,21 @@ final class SceneShortcutRouter {
         return this;
     }
 
+    /**
+     * Registers a key release that, while {@code scope} holds, runs {@code action}. Every release
+     * observer whose release and scope hold runs, in registration order; the KEY_RELEASED is never
+     * consumed and the residue guard is left alone.
+     */
+    SceneShortcutRouter observeRelease(@NotNull Predicate<KeyPress> release, @NotNull BooleanSupplier scope,
+                                       @NotNull Runnable action) {
+        releaseObservers.add(new Entry(release, scope, action, null));
+        return this;
+    }
+
     void install(@NotNull Scene scene) {
         scene.addEventFilter(KeyEvent.KEY_PRESSED, this::onKeyPressed);
         scene.addEventFilter(KeyEvent.KEY_TYPED, this::onKeyTyped);
+        scene.addEventFilter(KeyEvent.KEY_RELEASED, this::onKeyReleased);
     }
 
     void onKeyPressed(@NotNull KeyEvent event) {
@@ -97,12 +111,27 @@ final class SceneShortcutRouter {
         }
     }
 
+    void onKeyReleased(@NotNull KeyEvent event) {
+        if (releaseObservers.isEmpty()) {
+            return;
+        }
+        KeyPress release = KeyPress.of(event, macOs);
+        for (Entry observer : releaseObservers) {
+            if (observer.chord().test(release) && observer.scope().getAsBoolean()) {
+                observer.action().run();
+            }
+        }
+    }
+
     /** A registered chord; a {@code null} residue marks an observer that does not consume. */
     private record Entry(Predicate<KeyPress> chord, BooleanSupplier scope, Runnable action,
                          @Nullable Residue residue) {
     }
 
-    /** The facts of one KEY_PRESSED, read once so that every chord predicate is a pure function of them. */
+    /**
+     * The facts of one KEY_PRESSED (or, for a release observer, one KEY_RELEASED), read once so that
+     * every chord predicate is a pure function of them.
+     */
     record KeyPress(@NotNull KeyCode code, @NotNull String text, @NotNull String character,
                     boolean shift, boolean ctrl, boolean alt, boolean meta, boolean macOs) {
 

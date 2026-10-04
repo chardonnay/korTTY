@@ -54,7 +54,7 @@ public class TerminalQuickSelectControllerTest {
             + "newKeyCodeCombination(KeyCode.SPACE,KeyCombination.SHORTCUT_DOWN,KeyCombination.SHIFT_DOWN);");
         assertThat(mainWindow).contains(".consume(press->press.matches(QUICK_SELECT_ACCELERATOR),"
             + "this::isKeyboardInSelectedTerminal,this::quickSelectInCurrentTab,QUICK_SELECT_RESIDUE)");
-        assertThat(mainWindow).contains("newMenuItem(I18n.get(\"menu.edit.quickSelect\"));"
+        assertThat(mainWindow).contains("=menuItem(\"menu.edit.quickSelect\");"
             + "quickSelect.setAccelerator(QUICK_SELECT_ACCELERATOR);");
         assertThat(mainWindow).contains("booleandisableQuickSelect=!(currentTabinstanceofTerminalTab);");
     }

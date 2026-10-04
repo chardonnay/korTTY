@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+        <title>Command palette - korTTY Guide</title>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/en/features/command-palette.html">
+        <meta name="author" content="korTTY">
+        <link rel="stylesheet" href="../assets/css/darcula-highlight.min.css">
+        <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
+        <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
+        <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
+        <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
+        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+
+
+</head>
+
+<body class="drac-bg-black-secondary drac-text-grey-ternary drac-text drac-scrollbar-purple">
+
+    <main class="d-flex">
+
+        <!-- block sidebar -->
+            <nav id="sidebar" class="sidebar drac-bg-black">
+    <div class="custom-menu">
+        <button type="button" id="sidebarCollapse" class="btn btn-primary">
+            <i class="fa fa-bars"></i>
+            <span class="sr-only">Menu</span>
+        </button>
+    </div>
+
+    <div class="p-4">
+        
+            <img class="logo" src="../assets/images/favicon.png" height="150px">
+        
+
+        <div class="drac-text-center">
+            
+                <span class="drac-text drac-line-height drac-text-white">korTTY Guide</span>
+            
+        </div>
+
+        <div class="drac-box flex-column">
+            <ul class="dot-ul">
+                <li><div class="dot-li drac-bg-cyan"></div></li>
+                <li><div class="dot-li drac-bg-green"></div></li>
+                <li><div class="dot-li drac-bg-orange"></div></li>
+                <li><div class="dot-li drac-bg-pink"></div></li>
+                <li><div class="dot-li drac-bg-purple"></div></li>
+                <li><div class="dot-li drac-bg-red"></div></li>
+                <li><div class="dot-li drac-bg-yellow"></div></li>
+            </ul>
+        </div>
+
+        <hr class="drac-divider" />
+
+        <!-- block menu -->
+        <ul class="mb-5 drac-list drac-list-none">
+            
+            <li class="drac-box">
+                <a href="../index.html"
+                    class="
+                    drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+                    Home
+                </a>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#getting-started-collapse" aria-expanded="false">
+                    Getting started
+                </a>
+                <div class="collapse" id="getting-started-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/installation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Installation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/building-packages.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Building korTTY packages
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/first-launch.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            First launch — master password
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../getting-started/main-window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Main window overview
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#reference-collapse" aria-expanded="false">
+                    Reference
+                </a>
+                <div class="collapse" id="reference-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/menu.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Menu reference
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/keyboard-shortcuts.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyboard shortcuts
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/architecture.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Architecture
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/config-files.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Configuration files
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/enterprise-policy.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Policy configuration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../reference/cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Control CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#settings-collapse" aria-expanded="false">
+            Settings
+        </a>
+
+        <div class="collapse" id="settings-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Settings reference
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/appearance.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Appearance, themes & font
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/colors.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Colors
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Window
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/resources.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Resources
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/logging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Logging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/export.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Export
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Backup
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/updates.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Updates
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Security
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/language.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Language
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/translation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Translation
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/video.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Video
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/ai.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/ai-skills.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI Skills
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP Manager
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/editor.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#snippet-editor-collapse" aria-expanded="false">
+            Snippet editor
+        </a>
+
+        <div class="collapse" id="snippet-editor-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/settings/snippet-editor/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/hardening-options.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hardening options
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/input-hardening.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Input hardening
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../reference/language-migration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Language unification
+        </a>
+    </li>
+            </ul>
+        </div>
+    </li>
+            </ul>
+        </div>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class=" active 
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover"
+                    data-bs-toggle="collapse" data-bs-target="#features-collapse" aria-expanded="true">
+                    Features
+                </a>
+                <div class="collapse show" id="features-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="connections.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Connections
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal sessions
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Keyword highlighting
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="command-palette.html"
+            class=" active 
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Command palette
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="tunnels.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SSH Tunnels (Port Forwarding)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="jump-server.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Jump Server (Bastion Host)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP file manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="file-browser.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            File browser
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="snippets.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="jobscheduler.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            JobScheduler
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="projects.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Projects (workspaces)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="teamwork.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Teamwork (shared connections)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-assistant.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI assistant
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="local-models.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Local models (llama.cpp and MLX)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="rag.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            RAG knowledge stores
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-tools.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal AI agent & tools
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ai-swarm.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI Swarm
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Security — credentials, keys & encryption
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Backup & restore
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="recording.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal recording
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="session-journal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Session journal
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="ascii-art.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            ASCII art
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal-effect-plugins.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal effect plugins
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="i18n.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Languages & dynamic translation
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href=".."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#about-collapse" aria-expanded="false">
+                    About
+                </a>
+                <div class="collapse" id="about-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/release-notes.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Release notes
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/feedback.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Feedback & support
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../about/anonymous-data.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Anonymous data for application optimization
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        <!-- endblock -->
+    </div>
+</nav>
+        <!-- endblock -->
+
+        <nav class="divider drac-bg-purple-cyan"></nav>
+
+        <div class="content">
+            <!-- block header -->
+
+                <header>
+    <nav class="navbar navbar-expand-xl drac-bg-purple">
+        <div class="container-fluid">
+            
+            <button class="navbar-toggler w-100 text-center" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsMenu"
+                aria-controls="navbarsMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse flex-column ml-auto" id="navbarsMenu">
+                <ul class="navbar-nav text-md-center">
+
+                    <!-- block preview -->
+                    <li class="nav-item">
+                            
+        <div class="container">
+            <div class="row row-preview">
+                <div class="col">
+                    <a href="highlighting.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover">
+                        <i class="fa fa-arrow-left"></i> Previous
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="tunnels.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
+                        Next <i class="fa fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block search -->
+                    <li class="nav-item">
+
+
+
+
+
+<div role="search" class="search-box kt-search">
+	<form id="rtd-search-form" class="wy-form kt-search-form" action="../search.html" method="get">
+		<input type="text" name="q" id="mkdocs-search-query"
+		class="kt-search-input drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
+		placeholder="Search"
+		autocomplete="off" title="Type search term here" /><button type="button" class="kt-search-clear" hidden
+		        aria-label="Clear search" title="Clear search">&times;</button>
+	</form>
+	<div id="mkdocs-search-results" class="kt-search-suggest"
+	     data-no-results-text="No results found"
+	     data-preparing-text="Preparing search …"
+	     data-more-text="Show {n} more results"></div>
+	<script>
+	  (function () {
+	    var box = document.currentScript.parentNode;
+	    var panel = box.querySelector('.kt-search-suggest');
+	    var input = box.querySelector('#mkdocs-search-query');
+	    var clear = box.querySelector('.kt-search-clear');
+
+	    // Emptying the panel is what hides it (CSS :empty), so closing is just that.
+	    function close () { while (panel.firstChild) { panel.removeChild(panel.firstChild); } }
+	    // The button is only useful once there is something to clear.
+	    function sync () { clear.hidden = !input.value; }
+
+	    input.addEventListener('input', sync);
+	    clear.addEventListener('click', function () {
+	      input.value = '';
+	      sync();
+	      // search/main.js renders on keyup, which a programmatic clear never fires, so
+	      // the panel has to be emptied here or the old hits would outlive the query.
+	      close();
+	      input.focus();
+	    });
+
+	    document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
+
+	    // Escape has to be handled on keyUP, and on the document rather than the input.
+	    // search/main.js binds doSearch to the field's keyup, so anything that closed the
+	    // panel on keydown was undone microseconds later by that re-render — which is why
+	    // Escape appeared to do nothing at all. Listening on the document means this runs
+	    // after the field's own handler has already re-rendered, so closing sticks.
+	    // What the panel looked like BEFORE that re-render is the interesting state, so it
+	    // is captured on keydown: the usual two steps, Escape dismisses the suggestions,
+	    // Escape again empties the box.
+	    var panelWasOpen = false;
+	    document.addEventListener('keydown', function (e) {
+	      if (e.key === 'Escape') {
+	        panelWasOpen = !!panel.firstChild;
+	      }
+	    });
+	    document.addEventListener('keyup', function (e) {
+	      if (e.key !== 'Escape') {
+	        return;
+	      }
+	      // Only clear the field while it has focus — Escape elsewhere on the page is not ours.
+	      if (!panelWasOpen && document.activeElement === input && input.value) {
+	        input.value = '';
+	        sync();
+	      }
+	      close();
+	    });
+
+	    sync();  // a ?q= deep link arrives with the field already filled
+	  })();
+	</script>
+</div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block source -->
+                    <li class="nav-item">
+                        
+                    </li>
+                    <!--  endblock -->
+
+                </ul>
+            </div>
+
+        </div>
+    </nav>
+</header>
+<div class="kt-lang-bar">
+  <a class="kt-lang-switch" href="../../de/features/command-palette.html"
+     title="Deutsch" hreflang="de">DE</a>
+</div>
+
+            <!-- endblock -->
+
+            <!-- block content -->
+                <section class="p-md-5 section-content">
+    <article>
+        <p><h1 id="command-palette">Command palette<a class="headerlink" href="#command-palette" title="Permanent link">&para;</a></h1>
+<p>The command palette finds and runs any command of the main window's menus when you type a few letters of its name, so you need neither the mouse nor the place of the command in the menus. It also runs the right-click commands of the terminal you are in, such as <strong>Clear Buffer</strong> or <strong>Reconnect</strong>, switches to any open tab, the ones you used last first, including the terminal tabs of your other korTTY windows, opens a tab for any saved or shared teamwork connection, and runs any snippet of the <a href="snippets.html">Snippet Manager</a> in the terminal. It reaches every menu command while the menu bar is hidden and in terminal-only fullscreen.</p>
+<h2 id="opening-the-palette">Opening the palette<a class="headerlink" href="#opening-the-palette" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> on macOS), or choose <strong>View → Command Palette…</strong>. The same keys close it again.</li>
+<li>The keys work in every tab of a main window, also while a terminal, a snippet editor or another tool tab has the keyboard focus, with the menu bar hidden and in terminal-only fullscreen. A tool that opens in a window of its own, instead of as a tab, has no palette.</li>
+<li>On Windows and Linux korTTY keeps <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> for itself, so it does not reach the program in the terminal, while plain <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-p">P</kbd></span> (the previous command in bash) still reaches the shell. <span class="keys"><kbd class="key-alt-graph">AltGr</kbd></span> combinations, which arrive as <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd></span>, are left alone too.</li>
+</ul>
+<p>The palette opens at the top of the window with an empty search field. On macOS, when the menu bar of a window you closed is still shown, <strong>View → Command Palette…</strong> opens the palette in the frontmost open window.</p>
+<h2 id="finding-a-command">Finding a command<a class="headerlink" href="#finding-a-command" title="Permanent link">&para;</a></h2>
+<p>Type part of a command's name. The letters have to appear in that order but not next to each other, and case does not matter, so <code>nwin</code> finds <strong>New Window</strong>. Each row shows:</p>
+<ul>
+<li>a <strong>Command</strong> badge;</li>
+<li>the command's name as its menu shows it, followed by its menu path in grey, for example <strong>Dock Left</strong> View › Live Journal;</li>
+<li>a check mark when the command is a setting that is on, such as <strong>Show Dashboard</strong>;</li>
+<li>its keyboard shortcut, if it has one.</li>
+</ul>
+<p>The menu path is searched as well, which keeps the commands with the same name apart: <code>journal left</code> finds <strong>View › Live Journal › Dock Left</strong>, and <code>file left</code> finds <strong>View › File Browser › Show on Left</strong>. A match in the name ranks above a match in the path, and among equally good matches the commands you chose recently come first.</p>
+<p>With nothing typed, the palette lists the commands and connections you chose recently, up to eight and newest first, then the <a href="#switching-tabs">open tabs</a>, and then every command, menu by menu. Other connections only appear once you type. <a href="#running-snippets">Snippets</a> never appear before you type, not even the ones you ran recently, because a snippet runs a command in the terminal. Next to the menu commands it offers <strong>Next Tab</strong> and <strong>Previous Tab</strong>, which switch tabs like <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span>, and the <a href="#terminal-and-tab-commands">terminal and tab commands</a>.</p>
+<p>Typed first, a scope character limits the list to one kind of row: <code>&gt;</code> lists only commands, <code>#</code> only tabs, <code>@</code> only connections and <code>$</code> only snippets, so <code>&gt;close</code> finds the close commands but no tab whose name contains "close". The line below the list names these characters.</p>
+<p>The list of recent choices lasts until korTTY quits; all windows share it and it is never saved. What you type into the palette is neither logged nor sent anywhere.</p>
+<h2 id="terminal-and-tab-commands">Terminal and tab commands<a class="headerlink" href="#terminal-and-tab-commands" title="Permanent link">&para;</a></h2>
+<p>The palette also offers the commands of the terminal's and the tab's right-click menus that the menu bar does not have. They act on the terminal tab you are in, and the terminal commands on its focused pane, the one your typing goes to and that <strong>Edit → Find…</strong> searches:</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Grey detail</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Clear Buffer</strong></td>
+<td>Terminal</td>
+<td>Clears the scrollback and the screen of the focused pane but keeps the prompt line, like <strong>Clear Buffer</strong> in the terminal's right-click menu. While a full-screen program such as <code>vim</code> or <code>less</code> runs, it does nothing. On macOS the row shows the terminal's own key, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-k">K</kbd></span>.</td>
+</tr>
+<tr>
+<td><strong>Duplicate</strong></td>
+<td>Tabs</td>
+<td>Opens a copy of the tab next to it and signs in like <strong>Duplicate</strong> in the tab's right-click menu.</td>
+</tr>
+<tr>
+<td><strong>Reconnect</strong></td>
+<td>Tabs</td>
+<td>Connects the tab again, like <strong>Reconnect</strong> in its right-click menu.</td>
+</tr>
+</tbody>
+</table>
+<p>In any other kind of tab, such as a snippet editor, these rows are greyed out. <strong>Find</strong> is not listed a second time: type <code>find</code> for <strong>Edit → Find…</strong>, which opens the search of the focused pane.</p>
+<p>The pane commands are not in this table because the menu bar has them: the commands of <em>View → Panes</em> and <em>View → Multi-exec</em> are rows like every other menu command, with their menu path, shortcut and check mark. Type <code>split right</code> for <strong>Split Right</strong> View › Panes, which splits the focused pane on its own server like <strong>Split Right (same server)</strong> in the right-click menu, with the same progress dialog and the same <a href="terminal.html#connecting-safely">server policy</a> check, and moves the keyboard into the new pane. <strong>Split Down</strong>, <strong>Split Pane</strong>, <strong>Close Pane</strong>, the focus commands, <strong>Next Pane</strong>, <strong>Previous Pane</strong>, <strong>Zoom Pane</strong>, <strong>Broadcast to All Panes of This Tab</strong> and the <em>Multi-exec</em> commands are found the same way and do exactly what their menu items do; a row is greyed out while its menu item is, so the commands that close, focus or zoom a pane need two or more panes. <strong>Zoom Pane</strong>, the broadcast command, <strong>Include This Pane</strong> and <strong>Include All Panes of This Tab</strong> show a check mark while they are on, and <a href="terminal.html#broadcast-mode">broadcast mode</a> can always be switched off, also when only one pane is left.</p>
+<h2 id="switching-tabs">Switching tabs<a class="headerlink" href="#switching-tabs" title="Permanent link">&para;</a></h2>
+<p>Every tab of the window is a row with a <strong>Tab</strong> badge, named as the tab bar names it: the name you gave it with <strong>Rename Tab</strong>, the title its shell set, or the name of its connection, without the group prefix and the connection status. The grey detail of a terminal tab names where it is connected, as <code>user@host</code> taken from the saved connection (or the connection's name for a local shell), and its tab group, for example <strong>root@db-01 · Production</strong>. A program in the terminal can set the tab's title but not this detail, so a title that imitates another server does not hide where the tab really is; a long title is cut at half the row, so it cannot push the detail out of sight either.</p>
+<p>The tabs are listed in the order you last used them, the most recent first, and when you type, equally good matches keep that order. The tab you are in comes last and is marked <strong>Current tab</strong>, so typing <code>#</code> and pressing <span class="keys"><kbd class="key-enter">Enter</kbd></span> goes back to the tab you used before it. A tab counts as used when you select it, with the mouse, with keys such as <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-1">1</kbd></span>, or from the palette. With <a href="../reference/settings/window.html#tabs"><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span> in this order</a> switched on, stepping through the tabs with <span class="keys"><kbd class="key-control">Ctrl</kbd></span> held counts only the tab you stop at. Closing several tabs at once, regrouping them or dragging a tab to another place counts only the tab shown afterwards, not the tabs the selection passes over on the way. The order lasts as long as the window and is never saved.</p>
+<p>The terminal tabs of your other korTTY windows follow, each window's tabs in the order they were used there, with the window's number in front of the detail, such as <strong>Window 2 · admin@web-01</strong>; a window's number is its place among the open windows, in the order they opened. Choosing such a tab brings its window to the front, restores it when it is minimized, and selects the tab there. Other kinds of tabs of the other windows, such as editors or AI results, are not listed.</p>
+<h2 id="connecting">Connecting<a class="headerlink" href="#connecting" title="Permanent link">&para;</a></h2>
+<p>Every connection saved in the <a href="connections.html#connection-manager">Connection Manager</a> is a row with a <strong>Connection</strong> badge, named as the Connection Manager names it. The grey detail says where it connects, as <code>user@host</code> (<strong>Local Shell</strong> for a local shell), and its group, for example <strong>postgres@db-01.example.org · Production</strong>; a connection without a name of its own shows only its group there, because its name already is <code>user@host</code>. The detail never shows a password, a stored credential or an SSH key.</p>
+<p>When your organization's policy allows <a href="teamwork.html">teamwork</a>, the connections shared with you follow, with <strong>Shared (Teamwork)</strong> in front of the detail. Their names come from a file someone else writes, so their rows always name <code>user@host</code> as well, even when the name looks like an address, and a long name is cut at half the row so that the detail stays in sight. Teamwork connections you deleted on this computer are not listed.</p>
+<p>Saved connections are listed with the one you used last first, and the ones you never used by name; the teamwork connections follow by name. When you type, the connections you chose in the palette recently come first among equally good matches, and the others keep that order. Type <code>@</code> to list only connections, the ones you chose in the palette recently first.</p>
+<p>Choosing a connection opens a tab for it in this window and signs in exactly like <strong>Connect</strong> in the Connection Manager (see <a href="connections.html#signing-in">Signing in</a>): korTTY checks the server policy first, then uses the saved password or key and asks only for what is missing. Cancelling a question opens no tab. Unlike the Connection Manager, a connection opened from the palette counts as used, so it moves up in the palette and among Quick Connect's frequently used connections.</p>
+<p>A connection whose server or jump server your organization's <a href="../reference/enterprise-policy.html#server-access-control">server access policy</a> blocks is greyed out. Choosing it keeps the palette open, and the line below the list names the blocked server and says that your organization manages it.</p>
+<h2 id="running-snippets">Running snippets<a class="headerlink" href="#running-snippets" title="Permanent link">&para;</a></h2>
+<p>Every snippet of the <a href="snippets.html">Snippet Manager</a> is a row with a <strong>Snippet</strong> badge, named as the library names it. Type part of its name, or of its folder, category or tags. Type <code>$</code> first to list only snippets: the ones you ran from the palette recently come first, then the others, the most recently used first and the ones never used by name; among equally good matches the same order applies. The grey detail names the terminal the snippet runs in, for example <strong>Run in root@db-01.example.org (prod-db)</strong>: the <code>user@host</code> of the tab's connection, then the tab's name. A program in the terminal can change the tab's title but not its connection, and the connection comes first, so a long title is what gets cut when the row is too narrow, never the server. Typing a tab's or a server's name does not list every snippet, because a snippet is not found by the terminal its row names.</p>
+<p>Choosing a snippet runs it exactly like <a href="snippets.html#send-to-terminal">Send to Terminal</a> in the Snippet Manager: korTTY replaces its <a href="snippets.html#placeholder-variables">placeholders</a>, asks for a declared variable that has no stored value (cancelling sends nothing), sends it as a one-liner where the language allows, executes it with <span class="keys"><kbd class="key-enter">Enter</kbd></span>, switches to the tab and shows <strong>Sent to …</strong> in the status bar. It runs in the terminal tab you are in, or, when another kind of tab such as the Snippet Manager is selected, in the terminal tab you used last (or the only one that is open), and always in that tab's first pane, the one the tab opened with, not the pane that has the focus. When the tab is split, the detail says so: <strong>Run in the first pane of root@db-01.example.org (prod-db)</strong>. The snippet runs in exactly the tab its row named; if that tab was closed in the meantime, korTTY says that no terminal is open instead of picking another one.</p>
+<p>Press <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> (<span class="keys"><kbd class="key-option">Option</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> on macOS) instead to open the snippet in the Snippet Manager without running it; the line below the list names this key while a snippet row is chosen. Without a terminal tab in the window the snippet rows are greyed out and say so, and <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> still opens them.</p>
+<div class="admonition warning">
+<p class="admonition-title">A snippet runs on the server at once</p>
+<p>Choosing a snippet row executes the snippet in the named terminal straight away, with <span class="keys"><kbd class="key-enter">Enter</kbd></span>, on whatever server that pane is connected to. Read the grey detail before you press <span class="keys"><kbd class="key-enter">Enter</kbd></span>, and use <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> to look at a snippet first. The palette never lists snippets before you type, so <span class="keys"><kbd class="key-enter">Enter</kbd></span> on an empty palette cannot run one.</p>
+</div>
+<h2 id="running-a-command">Running a command<a class="headerlink" href="#running-a-command" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="keys"><kbd class="key-arrow-up">Up</kbd></span> / <span class="keys"><kbd class="key-arrow-down">Down</kbd></span></td>
+<td>Choose a row</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-enter">Enter</kbd></span> or a double click</td>
+<td>Run the chosen row, or the first row when none is chosen</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> (<span class="keys"><kbd class="key-option">Option</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> on macOS)</td>
+<td>Open the chosen snippet in the Snippet Manager instead of running it; on any other row the same as <span class="keys"><kbd class="key-enter">Enter</kbd></span></td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-tab">Tab</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-tab">Tab</kbd></span></td>
+<td>Move between the search field and the list</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-escape">Esc</kbd></span></td>
+<td>Close the palette</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> on macOS)</td>
+<td>Close the palette</td>
+</tr>
+</tbody>
+</table>
+<p>The palette closes first and then runs the command exactly as its menu item does: a dialog opens, a setting such as <strong>Show Dashboard</strong> is switched, and <strong>Edit → Find…</strong> opens the search of the active terminal. A tab row selects its tab, a connection row opens a tab for its connection, and a snippet row runs its snippet in the terminal it names. A click outside the palette closes it as well.</p>
+<p>Commands that cannot run right now are greyed out, such as <strong>Unlock Vault…</strong> while the vault is already open or <strong>Rename Tab…</strong> outside a terminal tab. Choosing one keeps the palette open, and the line below the list says why: <strong>Not available right now</strong>, or that your organization manages the feature when its <a href="../reference/enterprise-policy.html">policy</a> switched the feature off.</p>
+<div class="admonition note">
+<p class="admonition-title">Keys stay in the palette</p>
+<p>While the palette is open, every key you press goes to the palette. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-d">D</kbd></span>, <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span>, <span class="keys"><kbd class="key-page-up">Page Up</kbd></span> or a function key never reach the terminal behind it, nor the other panes in <a href="terminal.html#broadcast-mode">broadcast mode</a>, and closing the palette with its shortcut leaves no character in the terminal either.</p>
+</div>
+<h2 id="clear-buffer-and-find-on-windows-and-linux">Clear Buffer and Find on Windows and Linux<a class="headerlink" href="#clear-buffer-and-find-on-windows-and-linux" title="Permanent link">&para;</a></h2>
+<p>On Windows and Linux <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> and <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> go to the program in the terminal, so the terminal's <strong>Clear Buffer</strong> and its search have no key of their own there. Open the palette and type <code>clear</code> for <strong>Clear Buffer</strong> or <code>find</code> for <strong>Edit → Find…</strong> to reach them from the keyboard.</p></p>
+    </article>
+</section>
+            <!-- endblock -->
+
+            <!-- block footer -->
+<footer class="kt-footer">
+  <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
+  <div class="kt-footer__line">korTTY <strong>v2.18.0</strong></div>
+</footer>
+
+            <!-- endblock -->
+        </div>
+
+    </main>
+
+        <script>var base_url = '..';</script>
+        <script src="../assets/js/jquery-3.3.1.slim.min.js"></script>
+        <script src="../assets/js/bootstrap.bundle.min.js"></script>
+        <script src="../assets/js/mkdocs.js"></script>
+			<script src="../assets/javascripts/kt-zoom.js" defer></script>
+			<script src="../search/main.js" defer></script>
+
+</body>
+
+</html>

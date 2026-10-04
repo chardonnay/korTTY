@@ -6,8 +6,9 @@ import javafx.scene.input.KeyCode;
 
 /**
  * The main window's built-in scene chords that are matched by key facts rather than by an
- * accelerator constant: F12 fullscreen, terminal zoom and Ctrl+Tab tab cycling. Pure functions of a
- * {@link KeyPress}, so the platform rules are unit-tested without the JavaFX toolkit.
+ * accelerator constant: F12 fullscreen, terminal zoom and Ctrl+Tab tab cycling, with the keys that
+ * end a cycle in most-recently-used order. Pure functions of a {@link KeyPress}, so the platform
+ * rules are unit-tested without the JavaFX toolkit.
  */
 final class SceneShortcutKeys {
 
@@ -72,5 +73,22 @@ final class SceneShortcutKeys {
     /** Ctrl+Shift+Tab, with Ctrl on macOS too. */
     static boolean isPreviousTab(KeyPress press) {
         return press.ctrl() && press.code() == KeyCode.TAB && press.shift();
+    }
+
+    /**
+     * A key press that ends a Ctrl+Tab cycle through the tabs in most-recently-used order: any key
+     * but Ctrl+Tab and Ctrl+Shift+Tab. A modifier key does not end it, so Shift can be added to step
+     * backwards, and Windows, which repeats a held Ctrl as further presses, does not end it either.
+     */
+    static boolean endsTabCycle(KeyPress press) {
+        return !isNextTab(press) && !isPreviousTab(press) && !press.code().isModifierKey();
+    }
+
+    /**
+     * A key release that ends a Ctrl+Tab cycle: Ctrl itself, or any key released while Ctrl is no
+     * longer down (its own release may have gone to another window).
+     */
+    static boolean endsTabCycleOnRelease(KeyPress release) {
+        return release.code() == KeyCode.CONTROL || !release.ctrl();
     }
 }

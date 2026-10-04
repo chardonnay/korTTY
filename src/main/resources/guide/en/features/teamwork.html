@@ -417,6 +417,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="command-palette.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Command palette
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="tunnels.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -876,7 +884,8 @@
 <li>Double-click a teamwork connection to connect.</li>
 <li><strong>Read-only</strong> — Teamwork connections are read-only, and korTTY never writes changes back to a source. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.</li>
 </ol>
-<p>Deleting a teamwork connection only hides it on this computer; the source is not changed. In the Connection Manager's button column, <strong>Restore deleted</strong> brings hidden connections back and <strong>Refresh</strong> reloads the list from the last sync without fetching the source again.</p>
+<p>The <a href="command-palette.html#connecting">command palette</a> lists the teamwork connections as well, marked <strong>Shared (Teamwork)</strong>, so you can also connect by typing <code>@</code> and part of a name.</p>
+<p>Deleting a teamwork connection only hides it on this computer, also in the command palette; the source is not changed. In the Connection Manager's button column, <strong>Restore deleted</strong> brings hidden connections back and <strong>Refresh</strong> reloads the list from the last sync without fetching the source again.</p>
 <h3 id="local-overrides">Local overrides<a class="headerlink" href="#local-overrides" title="Permanent link">&para;</a></h3>
 <ul>
 <li>The credential and SSH key references (<code>credentialId</code>, <code>sshKeyId</code>) of a shared connection are resolved from your local storage.</li>

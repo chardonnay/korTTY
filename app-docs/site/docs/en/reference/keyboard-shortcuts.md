@@ -6,13 +6,14 @@ On macOS, use ++cmd++ where ++ctrl++ is shown.
 
 | Shortcut | Action |
 | --- | --- |
+| ++ctrl+shift+p++ | Open or close the [command palette](../features/command-palette.md) to find and run any menu command by name, run a [terminal or tab command](../features/command-palette.md#terminal-and-tab-commands) such as **Clear Buffer**, [switch to an open tab](../features/command-palette.md#switching-tabs), [connect to a saved connection](../features/command-palette.md#connecting) or [run a snippet](../features/command-palette.md#running-snippets) (also while a terminal has the focus) |
 | ++ctrl+t++ | New Tab (Quick Connect) |
 | ++ctrl+w++ | Close Tab |
 | ++ctrl+alt+shift+t++ | Reopen the last closed terminal tab (also while a terminal has the focus) |
 | ++ctrl+shift+n++ | New Window |
 | ++ctrl+shift+w++ | Close Window |
-| ++ctrl+tab++ | Next Tab (++ctrl++ on macOS too) |
-| ++ctrl+shift+tab++ | Previous Tab (++ctrl++ on macOS too) |
+| ++ctrl+tab++ | Next Tab (++ctrl++ on macOS too); with [most-recently-used order](settings/window.md#tabs) on, the tab used before the current one |
+| ++ctrl+shift+tab++ | Previous Tab (++ctrl++ on macOS too); with most-recently-used order on, the tab used longest ago |
 | ++ctrl+1++ … ++ctrl+8++ | Jump to the first to eighth tab of the window (top row or numpad) |
 | ++ctrl+9++ | Jump to the last tab of the window |
 | ++ctrl+o++ | Open Project |
@@ -65,6 +66,8 @@ The zoom keys (++ctrl++ or ++alt++ with ++plus++ / ++minus++ / ++0++; ++cmd++ on
 
 The tab jump keys work in every tab, also while a terminal or an editor has the focus, and a number with no tab at its position does nothing. On macOS they are ++cmd++ with a digit, and ++cmd+shift++ with a digit works too, so a French (AZERTY) Mac can reach its digits (macOS keeps ++cmd+shift+3++ to ++cmd+shift+5++ for screenshots). On Windows and Linux they are exactly ++ctrl++ with a digit: ++alt-graph++ combinations (which arrive as ++ctrl+alt++) and ++ctrl+shift+6++ (the Cisco break sequence) still reach the terminal. A digit key that types ++plus++ or ++minus++ in your layout, such as the AZERTY 6 key, stays a zoom key instead. On Linux with a layout whose number row types other characters, the top-row digits may not jump; the numpad digits (with ++num-lock++ on) do.
 
+++ctrl+tab++ and ++ctrl+shift+tab++ follow the tab bar unless **Ctrl+Tab switches tabs in the order they were last used** is on in the [Window settings](settings/window.md#tabs). Then ++ctrl+tab++ goes back to the tab you used before the current one; keep ++ctrl++ held and press ++tab++ again to go further back, add ++shift++ to step the other way, and release ++ctrl++ at the tab you want. Only that tab counts as used. Any other key ends the step-through first and then acts on the tab you stopped at.
+
 Reopen Closed Tab uses ++ctrl+alt+shift+t++ because ++ctrl+shift+t++ toggles the command timestamps and ++ctrl+alt+t++ the session journal. On Windows, ++alt-graph++ arrives as ++ctrl+alt++, so on a layout where ++alt-graph+shift+t++ types a character (such as `Þ` on US-International) that combination reopens a closed tab instead, and the character is not typed.
 
 ## Terminal
@@ -91,7 +94,7 @@ These keys work while a terminal pane has the focus. For how they behave with se
 
 On Windows and Linux, ++ctrl+1++ to ++ctrl+9++ no longer reach the program in the terminal: korTTY's terminal never sent them as keys of their own, so no program loses a binding it could receive.
 
-On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, or **Edit → Find…** with the mouse. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left. ++ctrl+shift+h++ switches keyword highlighting and does not reach the terminal, while plain ++ctrl+h++ still reaches the shell as backspace.
+On Windows and Linux, **Clear Buffer** and **Find** have no key of their own, so ++ctrl+l++ and ++ctrl+f++ stay with the programs running in the terminal. Use right-click → **Clear Buffer** or **Find** in the terminal, **Edit → Find…** with the mouse, or reach both from the keyboard through the [command palette](../features/command-palette.md#clear-buffer-and-find-on-windows-and-linux): ++ctrl+shift+p++, type `clear` or `find`, ++enter++. ++ctrl+shift+f++ stays Terminal-only Fullscreen and ++ctrl+shift+k++ still docks the file browser on the left. ++ctrl+shift+h++ switches keyword highlighting and does not reach the terminal, while plain ++ctrl+h++ still reaches the shell as backspace.
 
 The paste keys go through [paste protection](../features/terminal.md#paste-protection): a paste with line breaks, with control characters or of a large size can open a confirmation first. In that dialog **Cancel** is the default button, so ++enter++, ++space++ and ++esc++ drop the paste; click **Paste**, or press ++tab++ to reach it and ++space++ to press it. While a paste is sent line by line ([Pause after each pasted line](../features/terminal.md#pasting-into-slow-devices)), the pane takes no other keys and ++esc++ stops the paste.
 
@@ -110,10 +113,22 @@ These keys split the active terminal tab, move the keyboard focus between its pa
 
 The split key works in every terminal tab while the keyboard is in it. On Windows and Linux it no longer reaches the shell, which received it as ++ctrl+o++; ++ctrl+o++ itself still does, so `nano` still saves with it.
 
-The focus keys and the zoom key act only while a terminal tab with two or more panes is active and the keyboard is in that tab; with a single pane they reach the program in the terminal as before, ++ctrl+shift+enter++ as ++enter++. At the edge of the tab the focus stays where it is. When several panes lie on that side, the focus goes to the one that lies beside the focused pane rather than only touching its corner, and among those to the nearest one. Moving the focus while a pane is zoomed shows all panes again. *View → Panes* has the same commands, **Split Right** and **Split Down** to choose the side of a split, **Close Pane**, **Zoom Pane**, and **Next Pane** and **Previous Pane**, which go through all panes of the tab and start over after the last one.
+The focus keys and the zoom key act only while a terminal tab with two or more panes is active and the keyboard is in that tab; with a single pane they reach the program in the terminal as before, ++ctrl+shift+enter++ as ++enter++. At the edge of the tab the focus stays where it is. When several panes lie on that side, the focus goes to the one that lies beside the focused pane rather than only touching its corner, and among those to the nearest one. Moving the focus while a pane is zoomed shows all panes again. *View → Panes* has the same commands, **Split Right** and **Split Down** to choose the side of a split, **Close Pane**, **Zoom Pane**, and **Next Pane** and **Previous Pane**, which go through all panes of the tab and start over after the last one. The [command palette](../features/command-palette.md#terminal-and-tab-commands) runs every one of them by name, and its rows show the keys of the table above.
 
 !!! note "A desktop shortcut can take these keys first"
     Some Linux desktops, such as GNOME, Xfce and Cinnamon, switch workspaces with ++ctrl+alt++ and an arrow key, and some Windows graphics drivers (Intel) rotate the screen with it, before korTTY sees the key. Use *View → Panes* there, or switch off the desktop's shortcut.
+
+## Command palette
+
+These keys work while the [command palette](../features/command-palette.md) is open. Every other key stays in the palette and never reaches the terminal behind it.
+
+| Shortcut | Action |
+| --- | --- |
+| ++up++ / ++down++ | Choose a row |
+| ++enter++ | Close the palette and run the chosen row, or the first row when none is chosen |
+| ++alt+enter++ | Open the chosen snippet in the Snippet Manager instead of running it (++option+enter++ on macOS); on any other row the same as ++enter++ |
+| ++tab++ / ++shift+tab++ | Move between the search field and the list |
+| ++esc++ or ++ctrl+shift+p++ | Close the palette (++cmd+shift+p++ on macOS) |
 
 ## SFTP Manager
 
