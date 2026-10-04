@@ -2221,10 +2221,14 @@ public class GlobalSettings {
         return terminalQuickSelectAlphabet;
     }
 
-    /** Stores the label letters, trimmed; blank means the default and is stored as {@code null}. */
+    /**
+     * Stores the label letters, trimmed; blank means the default and is stored as {@code null}, and
+     * so is text this file cannot hold ({@link XmlStorableText}).
+     */
     public void setTerminalQuickSelectAlphabet(String terminalQuickSelectAlphabet) {
         String trimmed = terminalQuickSelectAlphabet != null ? terminalQuickSelectAlphabet.strip() : null;
-        this.terminalQuickSelectAlphabet = trimmed == null || trimmed.isEmpty() ? null : trimmed;
+        this.terminalQuickSelectAlphabet = trimmed == null || trimmed.isEmpty() || !XmlStorableText.isStorable(trimmed)
+            ? null : trimmed;
     }
 
     /** The user's own quick-select patterns, in order; never {@code null}. */
@@ -2235,12 +2239,15 @@ public class GlobalSettings {
         return terminalQuickSelectPatterns;
     }
 
-    /** Stores the patterns in order, without blank or {@code null} entries. */
+    /**
+     * Stores the patterns in order, without blank or {@code null} entries and without one this file
+     * cannot hold ({@link XmlStorableText}): written anyway, it would keep every setting from loading.
+     */
     public void setTerminalQuickSelectPatterns(java.util.List<String> terminalQuickSelectPatterns) {
         java.util.List<String> kept = new java.util.ArrayList<>();
         if (terminalQuickSelectPatterns != null) {
             for (String pattern : terminalQuickSelectPatterns) {
-                if (pattern != null && !pattern.isBlank()) {
+                if (pattern != null && !pattern.isBlank() && XmlStorableText.isStorable(pattern)) {
                     kept.add(pattern);
                 }
             }

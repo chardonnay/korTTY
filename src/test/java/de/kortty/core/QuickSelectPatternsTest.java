@@ -68,6 +68,24 @@ class QuickSelectPatternsTest {
     }
 
     @Test
+    void aPatternWithACharacterTheSettingsFileCannotHoldIsRejectedQuotingItsCode() {
+        // Each compiles, but written to global-settings.xml it keeps the whole file from loading.
+        for (String pattern : List.of("ticket\u0007\\d+", "\u001b\\[0m", "end￿", "half\uD800")) {
+            Problem problem = QuickSelectPatterns.problem(pattern);
+            assertWithMessage(pattern).that(problem).isNotNull();
+            assertWithMessage(pattern).that(problem.key()).isEqualTo(QuickSelectPatterns.KEY_UNSTORABLE_CHARACTER);
+        }
+        assertThat(QuickSelectPatterns.problem("ticket\u0007\\d+").arguments()).containsExactly("U+0007");
+        assertThat(QuickSelectPatterns.problem("half\uD800").arguments()).containsExactly("U+D800");
+        // A tab, the escape for a control character and a character outside the BMP can be stored.
+        assertThat(QuickSelectPatterns.problem("a\tb")).isNull();
+        assertThat(QuickSelectPatterns.problem("\\u0007\\d+")).isNull();
+        assertThat(QuickSelectPatterns.problem("deploy 🚀")).isNull();
+        // A hand-edited list cannot bring one in either.
+        assertThat(QuickSelectPatterns.compile(List.of("ok\\d+", "bad\u0001\\d+")).size()).isEqualTo(1);
+    }
+
+    @Test
     void moreThanTheCapOfPatternsIsAProblemOfTheList() {
         assertThat(QuickSelectPatterns.countProblem(QuickSelectPatterns.MAX_PATTERNS)).isNull();
         Problem problem = QuickSelectPatterns.countProblem(QuickSelectPatterns.MAX_PATTERNS + 1);

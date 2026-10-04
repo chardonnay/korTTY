@@ -83,6 +83,16 @@ public class QuickSelectSettingsSupportTest {
     }
 
     @Test
+    public void aPastedControlCharacterKeepsTheFieldFromBeingSaved() {
+        // Saved, it would keep global-settings.xml from loading at the next start.
+        String text = "INC\\d+\nbell\u0007\\d+";
+
+        assertThat(QuickSelectSettingsSupport.patternMessages(text, MESSAGES)).containsExactly(
+            QuickSelectSettingsSupport.PATTERN_LINE_KEY + "[2, " + QuickSelectPatterns.KEY_UNSTORABLE_CHARACTER + "[U+0007]]");
+        assertThat(QuickSelectSettingsSupport.canSave("", text)).isFalse();
+    }
+
+    @Test
     public void tooManyPatternsIsReportedOnceForTheList() {
         String text = String.join("\n", Collections.nCopies(QuickSelectPatterns.MAX_PATTERNS + 1, "INC\\d+"));
 
@@ -121,7 +131,8 @@ public class QuickSelectSettingsSupportTest {
             // The messages fill in the letter, the limit or the line; a translation must keep the place.
             for (String key : List.of(QuickSelectLabels.KEY_ALPHABET_UPPERCASE, QuickSelectLabels.KEY_ALPHABET_DUPLICATE,
                     QuickSelectLabels.KEY_ALPHABET_INVALID_CHARACTER, QuickSelectPatterns.KEY_TOO_LONG,
-                    QuickSelectPatterns.KEY_INVALID, QuickSelectPatterns.KEY_TOO_MANY)) {
+                    QuickSelectPatterns.KEY_INVALID, QuickSelectPatterns.KEY_TOO_MANY,
+                    QuickSelectPatterns.KEY_UNSTORABLE_CHARACTER)) {
                 assertThat(properties.getProperty(key)).contains("{0}");
             }
             assertThat(properties.getProperty(QuickSelectSettingsSupport.PATTERN_LINE_KEY)).contains("{0}");

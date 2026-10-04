@@ -1,12 +1,14 @@
 package de.kortty.core;
 
 import de.kortty.core.QuickSelectSettings.Problem;
+import de.kortty.model.XmlStorableText;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -24,8 +26,9 @@ import java.util.regex.PatternSyntaxException;
  * limits keep it bounded:
  * <ul>
  *   <li>at most {@value #MAX_PATTERNS} patterns of at most {@value #MAX_PATTERN_CHARS} characters
- *       each; a pattern that does not compile or that also matches empty text is rejected by
- *       {@link #problem(String)} in the settings and dropped by {@link #compile(List)};</li>
+ *       each; a pattern that does not compile, that also matches empty text or that holds a
+ *       character the settings file cannot store is rejected by {@link #problem(String)} in the
+ *       settings and dropped by {@link #compile(List)};</li>
  *   <li>each pattern matches through a {@link DeadlineCharSequence}: one run over one line may take
  *       {@link #PATTERN_BUDGET_NANOS}, and a pattern that runs out (or overflows the stack) is
  *       skipped for the rest of that quick select;</li>
@@ -58,9 +61,11 @@ public final class QuickSelectPatterns {
     public static final String KEY_INVALID = "settings.terminal.quickSelect.patterns.invalid";
     public static final String KEY_MATCHES_EMPTY = "settings.terminal.quickSelect.patterns.matchesEmpty";
     public static final String KEY_TOO_MANY = "settings.terminal.quickSelect.patterns.tooMany";
+    public static final String KEY_UNSTORABLE_CHARACTER = "settings.terminal.quickSelect.patterns.unstorableCharacter";
 
     /** Every key {@link #problem(String)} and {@link #countProblem(int)} can return. */
-    public static final List<String> MESSAGE_KEYS = List.of(KEY_TOO_LONG, KEY_INVALID, KEY_MATCHES_EMPTY, KEY_TOO_MANY);
+    public static final List<String> MESSAGE_KEYS =
+        List.of(KEY_TOO_LONG, KEY_UNSTORABLE_CHARACTER, KEY_INVALID, KEY_MATCHES_EMPTY, KEY_TOO_MANY);
 
     /** No patterns: quick select marks only what the detector finds. */
     public static final QuickSelectPatterns NONE = new QuickSelectPatterns(List.of());
@@ -94,6 +99,13 @@ public final class QuickSelectPatterns {
         }
         if (pattern.length() > MAX_PATTERN_CHARS) {
             return Problem.of(KEY_TOO_LONG, MAX_PATTERN_CHARS);
+        }
+        // A pasted control character compiles, but global-settings.xml cannot hold it: the next
+        // start would fail to read the file and every setting would be back at its default. It
+        // could not match anyway: the detector sees every control cell as a space.
+        int unstorable = XmlStorableText.firstUnstorableCodePoint(pattern);
+        if (unstorable >= 0) {
+            return Problem.of(KEY_UNSTORABLE_CHARACTER, String.format(Locale.ROOT, "U+%04X", unstorable));
         }
         Pattern compiled;
         try {

@@ -90,6 +90,33 @@ class GlobalSettingsQuickSelectTest {
     }
 
     @Test
+    void textTheFileCannotHoldIsNeverStoredSoTheSettingsStillLoad() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        settings.setTerminalLinkDetectionEnabled(false);
+        // A control character pasted into a pattern: JAXB writes it raw, and XML 1.0 cannot read it back.
+        settings.setTerminalQuickSelectPatterns(List.of("INC\\d+", "bell\u0007\\d+", "half\uD800"));
+        settings.setTerminalQuickSelectAlphabet("hj\u0001k");
+
+        assertThat(settings.getTerminalQuickSelectPatterns()).containsExactly("INC\\d+");
+        assertThat(settings.getTerminalQuickSelectAlphabet()).isNull();
+        GlobalSettings restored = unmarshal(marshal(settings));
+        assertThat(restored.isTerminalLinkDetectionEnabled()).isFalse();
+        assertThat(restored.getTerminalQuickSelectPatterns()).containsExactly("INC\\d+");
+    }
+
+    @Test
+    void storableTextIsTheTextXml10CanHold() {
+        assertThat(XmlStorableText.firstUnstorableCodePoint("a\tb\nc\rd 🚀 �")).isEqualTo(-1);
+        assertThat(XmlStorableText.firstUnstorableCodePoint(null)).isEqualTo(-1);
+        assertThat(XmlStorableText.firstUnstorableCodePoint("ok\u0000")).isEqualTo(0);
+        assertThat(XmlStorableText.firstUnstorableCodePoint("ok\u001b[0m")).isEqualTo(0x1b);
+        assertThat(XmlStorableText.firstUnstorableCodePoint("￾")).isEqualTo(0xFFFE);
+        assertThat(XmlStorableText.firstUnstorableCodePoint("x\uDC00y")).isEqualTo(0xDC00);
+        assertThat(XmlStorableText.isStorable("JIRA-\\d+")).isTrue();
+        assertThat(XmlStorableText.isStorable("\u0007")).isFalse();
+    }
+
+    @Test
     void valuesBrokenByHandFallBackInsteadOfBreakingQuickSelect() throws Exception {
         GlobalSettings restored = unmarshal("<globalSettings>"
             + "<terminalQuickSelectAlphabet>ABC</terminalQuickSelectAlphabet>"
