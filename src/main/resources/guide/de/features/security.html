@@ -1006,6 +1006,16 @@
 <td>KI-Profil-API-Schlüssel, Übersetzungs-API-Schlüssel, optionales Hugging Face-Token</td>
 <td>AES-256-GCM</td>
 </tr>
+<tr>
+<td><code>session/last-session.xml</code>, <code>session/previous-session.xml</code></td>
+<td>Die offenen Fenster und Tabs, mit den IDs ihrer gespeicherten Verbindungen und dem Ordner, in dem sich jede lokale Shell befand; keine Passwörter, Schlüssel oder Bildschirmtext</td>
+<td>Nicht verschlüsselt; Dateiberechtigungen nur für den Besitzer, nicht Teil von Backups</td>
+</tr>
+<tr>
+<td><code>session/scrollback/*.enc</code></td>
+<td>Nur wenn <a href="projects.html#die-ausgabe-wiederherstellen">das Wiederherstellen der Ausgabe</a> eingeschaltet ist (standardmäßig aus): die neueste Ausgabe jedes Terminalbereichs, die alles enthalten kann, was ein Terminal angezeigt hat</td>
+<td>AES-256-GCM mit dem Schlüssel des Master-Passworts; wird nie geschrieben, solange der Tresor gesperrt ist, nur für den Besitzer, nicht Teil von Backups, gelöscht, wenn sich das Master-Passwort ändert, ein Backup wiederhergestellt oder die Option ausgeschaltet wird</td>
+</tr>
 </tbody>
 </table>
 <p>korTTY schreibt diese Dateien nicht an Ort und Stelle neu: ein Speichern erfolgt in einer temporären Datei in <code>~/.kortty</code>, die dann über die alte Datei umbenannt wird, für Verbindungen, Anmeldedaten, SSH-Schlüssel, geplante Aufgaben und <code>master.key</code> nach dem Flush auf die Festplatte. So bleibt bei einem Absturz, einer vollen Festplatte oder einem beendeten Prozess die vorherige Version intakt. Unter macOS und Linux behält korTTY <code>~/.kortty</code> bei <code>rwx------</code> und schreibt <code>connections.xml</code>, <code>credentials.xml</code>, <code>ssh-keys.xml</code>, <code>job-scheduler.xml</code> und <code>master.key</code> auf Besitzer-Nur (<code>rw-------</code>), auch wenn eine ältere Version sie für andere Benutzer lesbar ließ; unter Windows sind sie durch die Berechtigungen Ihres Benutzerprofils geschützt.</p>

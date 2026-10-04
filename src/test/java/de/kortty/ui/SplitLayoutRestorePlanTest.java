@@ -275,6 +275,68 @@ class SplitLayoutRestorePlanTest {
     }
 
     @Test
+    void aProjectCaptureNamesNoDirectoryAndASessionCaptureNamesEachLocalShells() {
+        PaneLayout<String> live = PaneLayout.split(HORIZONTAL, 0.5,
+            PaneLayout.split(VERTICAL, 0.5, PaneLayout.leaf("local"), PaneLayout.leaf("remote")),
+            PaneLayout.leaf("unsafe"));
+        Map<String, String> directories = Map.of("local", "/home/me/src", "unsafe", "relative/dir");
+
+        SplitPaneState project = SplitLayoutRestorePlan.capture(live, pane -> null);
+        assertThat(project.getLeftChild().getLeftChild().getCurrentDirectory()).isNull();
+
+        SplitPaneState session = SplitLayoutRestorePlan.capture(live, pane -> null, directories::get);
+        assertThat(session.getLeftChild().getLeftChild().getCurrentDirectory()).isEqualTo("/home/me/src");
+        assertWithMessage("a remote pane names no directory")
+            .that(session.getLeftChild().getRightChild().getCurrentDirectory()).isNull();
+        assertThat(session.getRightChild().getCurrentDirectory()).isNull();
+
+        SplitLayoutRestorePlan plan = SplitLayoutRestorePlan.plan(session);
+        assertThat(plan.directoryOf(0)).isEqualTo("/home/me/src");
+        assertThat(plan.directoryOf(1)).isNull();
+        assertThat(plan.directoryOf(2)).isNull();
+    }
+
+    @Test
+    void onlyASessionCaptureNamesEachPanesSavedOutputAndThePlanPassesOnlyPlainNames() {
+        PaneLayout<String> live = PaneLayout.split(HORIZONTAL, 0.5,
+            PaneLayout.split(VERTICAL, 0.5, PaneLayout.leaf("first"), PaneLayout.leaf("quiet")),
+            PaneLayout.leaf("crafted"));
+        Map<String, String> refs = Map.of("first", "ref-1", "crafted", "../x");
+
+        SplitPaneState project = SplitLayoutRestorePlan.capture(live, pane -> null);
+        assertThat(project.getLeftChild().getLeftChild().getScrollbackRef()).isNull();
+        SplitPaneState withoutOutput = SplitLayoutRestorePlan.capture(live, pane -> null, pane -> "/tmp");
+        assertThat(withoutOutput.getLeftChild().getLeftChild().getScrollbackRef()).isNull();
+
+        SplitPaneState session = SplitLayoutRestorePlan.capture(live, pane -> null, pane -> null, refs::get);
+        assertThat(session.getLeftChild().getLeftChild().getScrollbackRef()).isEqualTo("ref-1");
+        assertWithMessage("a pane without output names no file")
+            .that(session.getLeftChild().getRightChild().getScrollbackRef()).isNull();
+        assertThat(session.getRightChild().getScrollbackRef()).isNull();
+
+        session.getRightChild().setScrollbackRef("../../.ssh/id_ed25519");
+        SplitLayoutRestorePlan plan = SplitLayoutRestorePlan.plan(session);
+        assertThat(plan.scrollbackRefOf(0)).isEqualTo("ref-1");
+        assertThat(plan.scrollbackRefOf(1)).isNull();
+        assertWithMessage("a crafted reference is never passed on").that(plan.scrollbackRefOf(2)).isNull();
+    }
+
+    @Test
+    void aPlanIgnoresAnUnsafeSavedDirectory() {
+        SplitPaneState first = leaf(0);
+        SplitPaneState second = leaf(1);
+        second.setCurrentDirectory("/tmp/a\nrm -rf ~");
+        SplitPaneState third = leaf(2);
+        third.setCurrentDirectory("/srv/work");
+
+        SplitLayoutRestorePlan plan = SplitLayoutRestorePlan.plan(split(HORIZONTAL, 0.5, first,
+            split(VERTICAL, 0.5, second, third)));
+
+        assertThat(plan.directoryOf(1)).isNull();
+        assertThat(plan.directoryOf(2)).isEqualTo("/srv/work");
+    }
+
+    @Test
     void everySignInStatusHasAReason() {
         assertThat(SplitLayoutRestorePlan.reasonFor(ConnectionAuthResolver.Status.NEEDS_PASSWORD))
             .isEqualTo(SplitLayoutRestorePlan.SkipReason.SIGN_IN);

@@ -861,6 +861,20 @@
 <td><code>sessionRestoreMode</code> (<code>ask</code> / <code>auto</code> / <code>off</code>)</td>
 </tr>
 <tr>
+<td>Auch die Ausgabe jedes Terminalbereichs wiederherstellen (verschlüsselt)</td>
+<td>umschalten</td>
+<td>—</td>
+<td>Aus</td>
+<td><code>sessionRestoreScrollback</code></td>
+</tr>
+<tr>
+<td>Ausgabezeilen pro Bereich:</td>
+<td>Nummer</td>
+<td>100–5000</td>
+<td>1000</td>
+<td><code>sessionRestoreScrollbackLines</code></td>
+</tr>
+<tr>
 <td>Feste Fenstergeometrie verwenden</td>
 <td>umschalten</td>
 <td>–</td>
@@ -926,7 +940,8 @@
 <li><strong>Vorherige Sitzung automatisch wiederherstellen</strong> öffnet sie von selbst wieder, sobald kein Dialog offen ist, damit die Fragen, die ihre Verbindungen stellen können, nie über einem anderen Dialog erscheinen; bleibt ein Dialog eine Minute lang offen, bietet korTTY sie stattdessen in der Leiste an.</li>
 <li><strong>Nichts tun</strong> zeigt beim Start nichts an.</li>
 </ul>
-<p><em>Datei → Vorherige Sitzung wiederherstellen</em> öffnet die vorherige Sitzung in jedem Modus. In jedem Fall öffnen sich die Tabs, ohne etwas zu fragen: Ein Tab, der ein Passwort, einen neuen temporären SSH-Schlüssel oder den gesperrten Tresor braucht, wartet in der <a href="../../features/projects.html#tabs-die-auf-sie-warten">Wiederherstellungsleiste</a>. Endet korTTY innerhalb einer Minute nach einer Wiederherstellung unerwartet, bietet der nächste Start die Sitzung an, statt sie automatisch wiederherzustellen, sodass eine Sitzung, die korTTY abstürzen lässt, das nicht bei jedem Start tun kann. Ein fehlender oder unbekannter Wert in <code>global-settings.xml</code> bedeutet <strong>Wiederherstellen der vorherigen Sitzung anbieten</strong>, sodass eine beschädigte Datei nie von selbst Verbindungen öffnet. Die Einstellung wird beim nächsten Start wirksam. Siehe <a href="../../features/projects.html#beim-start">Beim Start</a>.</p></p>
+<p><em>Datei → Vorherige Sitzung wiederherstellen</em> öffnet die vorherige Sitzung in jedem Modus. In jedem Fall öffnen sich die Tabs, ohne etwas zu fragen: Ein Tab, der ein Passwort, einen neuen temporären SSH-Schlüssel oder den gesperrten Tresor braucht, wartet in der <a href="../../features/projects.html#tabs-die-auf-sie-warten">Wiederherstellungsleiste</a>. Endet korTTY innerhalb einer Minute nach einer Wiederherstellung unerwartet, bietet der nächste Start die Sitzung an, statt sie automatisch wiederherzustellen, sodass eine Sitzung, die korTTY abstürzen lässt, das nicht bei jedem Start tun kann. Ein fehlender oder unbekannter Wert in <code>global-settings.xml</code> bedeutet <strong>Wiederherstellen der vorherigen Sitzung anbieten</strong>, sodass eine beschädigte Datei nie von selbst Verbindungen öffnet. Die Einstellung wird beim nächsten Start wirksam. Siehe <a href="../../features/projects.html#beim-start">Beim Start</a>.</p>
+<p><strong>Auch die Ausgabe jedes Terminalbereichs wiederherstellen (verschlüsselt)</strong> speichert die neuesten Zeilen jedes Terminalbereichs mit dem Sitzungs-Snapshot, und ein wiederhergestellter Tab oder Bereich zeigt sie abgedunkelt über seiner neuen Sitzung wieder an; sie werden nur auf Ihrem Computer angezeigt, nie an den Server gesendet oder in die Shell eingegeben. Die Option ist standardmäßig aus, weil Terminalausgaben Geheimnisse enthalten können: korTTY schreibt sie nur verschlüsselt mit dem Schlüssel Ihres Master-Passworts, nur für Sie lesbar und nie in Backups oder Projektdateien. Ohne Master-Passwort oder solange der Tresor gesperrt ist, wird nichts gespeichert oder wiederhergestellt, und die Statusleiste weist darauf hin, wenn eine Wiederherstellung gespeicherte Ausgabe findet, die sie nicht lesen kann. <strong>Ausgabezeilen pro Bereich</strong> legt fest, wie viele der neuesten Zeilen behalten werden, von 100 bis 5000. Das Ausschalten der Option löscht die gespeicherte Ausgabe sofort, ebenso eine Änderung des Master-Passworts und das Wiederherstellen eines Backups. Siehe <a href="../../features/projects.html#die-ausgabe-wiederherstellen">Die Ausgabe wiederherstellen</a>.</p></p>
     </article>
 </section>
             <!-- endblock -->

@@ -28,7 +28,7 @@ class TabServerPolicyGateTest {
         assertWithMessage("a new path that builds a TerminalTab needs its own server-policy gate")
             .that(count(main, "new TerminalTab(")).isEqualTo(3);
 
-        String open = methodBody(main, "Double terminalEffectAnimationSpeed) {");
+        String open = methodBody(main, "java.util.function.Consumer<TerminalView> beforeConnect) {");
         assertThat(open.indexOf("ServerAccessPolicy.firstBlockedTarget(connection)"))
             .isLessThan(open.indexOf("new TerminalTab("));
         assertThat(count(methodBody(main, "private void openGroupConnections("), "new TerminalTab(")).isEqualTo(1);

@@ -66,9 +66,9 @@ class SessionSnapshotWiringTest {
     void aSessionCaptureHoldsNoScreenTextAndKeepsTheTabsAWindowStillWaitsFor() throws IOException {
         String window = read(MAIN_WINDOW);
 
-        String options = methodBody(window, "record CaptureOptions(boolean includeScreen, boolean includeWaitingTabs) {");
-        assertThat(options).contains("static final CaptureOptions SESSION = new CaptureOptions(false, true);");
-        assertThat(options).contains("static final CaptureOptions PROJECT = new CaptureOptions(true, false);");
+        String options = methodBody(window, "record CaptureOptions(boolean includeScreen, boolean includeWaitingTabs, boolean includeWorkingDirectories) {");
+        assertThat(options).contains("static final CaptureOptions SESSION = new CaptureOptions(false, true, true);");
+        assertThat(options).contains("static final CaptureOptions PROJECT = new CaptureOptions(true, false, false);");
         String session = methodBody(window, "private static SessionAutosaveCoordinator.Capture captureSession() {");
         assertThat(session).contains("window.captureWindowState(CaptureOptions.SESSION)");
         assertThat(session).contains("project.setAutoReconnect(true);");
