@@ -1,17 +1,23 @@
 package de.kortty.jobscheduler;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class JobSchedulerSecretRedactor {
 
     private static final int LIMITED_TEXT_CHARS = 4_000;
-    private final List<String> secrets = new ArrayList<>();
+    /** Thread-safe: AI-swarm runners add their session password from agent worker threads. */
+    private final List<String> secrets = new CopyOnWriteArrayList<>();
 
     public void addSecret(String secret) {
-        if (secret != null && !secret.isBlank()) {
+        if (secret != null && !secret.isBlank() && !secrets.contains(secret)) {
             secrets.add(secret);
         }
+    }
+
+    /** The secrets added so far, for masking an AI prompt with the same values. */
+    List<String> secrets() {
+        return List.copyOf(secrets);
     }
 
     public String prepare(String text, JournalDetailMode mode) {

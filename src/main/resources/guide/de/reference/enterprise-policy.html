@@ -1024,13 +1024,13 @@
 <td><code>ai</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>deny</code></td>
-<td>Hauptschalter: <code>deny</code> deaktiviert alle KI-Funktionen auf einmal.</td>
+<td>Hauptschalter: <code>deny</code> deaktiviert alle KI-Funktionen auf einmal, und geplante KI-Agent- und KI-Swarm-Jobs enden als blockiert, bevor sie sich verbinden</td>
 </tr>
 <tr>
 <td><code>ai-agent</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>deny</code></td>
-<td>AI Agent (Menü, Terminal-Kontextmenü, Tastaturkürzel, Headless-Job-Ausführungen)</td>
+<td>KI-Agent (Menü, Terminal-Kontextmenü, Tastaturkürzel, Headless-Job-Ausführungen). <code>deny</code> blockiert außerdem geplante KI-Agent- und KI-Swarm-Jobs, bevor sie sich verbinden, weil Swarm-Agenten KI-Agenten sind</td>
 </tr>
 <tr>
 <td><code>ai-chat</code></td>
@@ -1042,7 +1042,7 @@
 <td><code>ai-swarm</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>deny</code></td>
-<td>KI-Schwarm, einschließlich geplanter Schwarmjobs</td>
+<td>KI-Swarm, einschließlich geplanter Swarm-Jobs, die als blockiert enden, bevor sie sich verbinden</td>
 </tr>
 <tr>
 <td><code>ai-planning</code></td>
@@ -1102,7 +1102,7 @@
 <td><code>ai-agent-execution</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
-<td><code>confirm</code> erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und deaktiviert die Option zur automatischen Genehmigung; <code>read-only</code> lässt den Agenten planen und chatten, aber niemals Befehle ausführen</td>
+<td><code>confirm</code> erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und hebelt die Option zur automatischen Genehmigung aus; <code>read-only</code> lässt den Agenten planen und chatten, aber niemals Befehle ausführen. Geplante Jobs: Unter <code>confirm</code> blockiert ein <a href="../features/jobscheduler.html#sicherheit-und-geheimnisse">KI-Agent- oder KI-Swarm-Job</a> jeden serverändernden Befehl, unabhängig von seiner Einstellung <strong>Automatisch genehmigende KI-Befehle</strong>, weil niemand da ist, der ihn genehmigen könnte; unter <code>read-only</code> enden beide KI-Jobtypen als blockiert, bevor sie sich verbinden. Ein Job wird auch dann vorab blockiert, wenn <code>ai</code> oder <code>ai-agent</code> verweigert wird, und ein Swarm-Job, wenn <code>ai-swarm</code> verweigert wird</td>
 </tr>
 </tbody>
 </table>

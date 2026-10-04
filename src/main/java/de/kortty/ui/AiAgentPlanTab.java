@@ -212,13 +212,22 @@ public class AiAgentPlanTab extends Tab {
         applyPlanFontSize();
     }
 
+    /**
+     * The session's known secrets for masking the planning prompts. Built per request on the
+     * worker thread; it only reads the tab's stored password and the runner's.
+     */
+    private de.kortty.core.SessionJournalRedactor outboundSecrets() {
+        return TerminalAgentService.knownSecretsFor(terminalTab, runConnector);
+    }
+
     public void start() {
         statusLabel.setText(I18n.get("ai.plan.status.probing"));
         Task<TerminalAgentService.PlanningQuestions> task = new Task<>() {
             @Override
             protected TerminalAgentService.PlanningQuestions call() throws Exception {
                 probeSnapshot = service.probeTerminalSession(terminalTab, runConnector);
-                return service.requestPlanningQuestions(profile, aiService, request, probeSnapshot);
+                return service.requestPlanningQuestions(
+                    profile, aiService, request, probeSnapshot, outboundSecrets());
             }
         };
         task.setOnSucceeded(event -> applyQuestions(task.getValue()));
@@ -360,7 +369,8 @@ public class AiAgentPlanTab extends Tab {
                     probeSnapshot,
                     currentQuestions,
                     answers,
-                    refinement);
+                    refinement,
+                    outboundSecrets());
             }
         };
         task.setOnSucceeded(event -> applyOptions(task.getValue()));
@@ -470,7 +480,8 @@ public class AiAgentPlanTab extends Tab {
                     currentQuestions,
                     latestAnswers,
                     acceptedOption,
-                    latestRefinement);
+                    latestRefinement,
+                    outboundSecrets());
             }
         };
         task.setOnSucceeded(event -> applyReport(task.getValue()));

@@ -168,6 +168,51 @@ class AiRequestTest {
         assertThat(delegate.request.selectedText()).isEqualTo("log lines");
     }
 
+    // ---- The stream listener survives every copy and every decorator ----
+
+    private static final AiStreamListener LISTENER = (content, reasoning) -> { };
+
+    @Test
+    void everyWithMethodKeepsTheStreamListener() {
+        AiRequest original = fullyPopulated().withStreamListener(LISTENER);
+
+        assertThat(original.streamListener()).isSameInstanceAs(LISTENER);
+        assertThat(original.withCodeTextLanguage(CodeTextLanguage.keep("de")).streamListener()).isSameInstanceAs(LISTENER);
+        assertThat(original.withDiagramType(SnippetDiagramType.CLASS).streamListener()).isSameInstanceAs(LISTENER);
+        assertThat(original.withAsciiArtOptions(null).streamListener()).isSameInstanceAs(LISTENER);
+        assertThat(original.withPromptPreset(AiPromptPreset.GENERIC).streamListener()).isSameInstanceAs(LISTENER);
+        assertThat(original.withRetrievedContext("ctx").streamListener()).isSameInstanceAs(LISTENER);
+        assertThat(original.withFileAttachment(null).streamListener()).isSameInstanceAs(LISTENER);
+        assertThat(original.withStreamListener(null).withStreamListener(LISTENER)).isEqualTo(original);
+        assertThat(original.withStreamListener(null).streamListener()).isNull();
+    }
+
+    @Test
+    void compatibilityConstructorsLeaveTheStreamListenerUnset() {
+        assertThat(fullyPopulated().streamListener()).isNull();
+        assertThat(new AiRequest(AiAction.ASK, "ls", "box", "en").streamListener()).isNull();
+        // withStreamListener keeps every other component.
+        assertThat(fullyPopulated().withStreamListener(LISTENER).withStreamListener(null)).isEqualTo(fullyPopulated());
+    }
+
+    @Test
+    void decoratingServicesForwardTheStreamListener() throws Exception {
+        AiRequest request = new AiRequest(AiAction.SUMMARIZE, "log lines", null, "en").withStreamListener(LISTENER);
+
+        RecordingService presetDelegate = new RecordingService();
+        new AiPromptPresetService(presetDelegate, AiPromptPreset.QWEN).execute(request);
+        RecordingService ragDelegate = new RecordingService();
+        new RagAugmentedAiService(ragDelegate, List.of("knowledge"), 8_000, AiRequestTest::retrieveStubContext)
+            .execute(request);
+        RecordingService loggingDelegate = new RecordingService();
+        LoggingAiService.wrap(loggingDelegate, null, "m", null).execute(request);
+
+        assertThat(presetDelegate.request.streamListener()).isSameInstanceAs(LISTENER);
+        assertThat(ragDelegate.request.retrievedContext()).contains("<retrieved_context>");
+        assertThat(ragDelegate.request.streamListener()).isSameInstanceAs(LISTENER);
+        assertThat(loggingDelegate.request.streamListener()).isSameInstanceAs(LISTENER);
+    }
+
     private static RagContextBuilder.RagContext retrieveStubContext(
         List<String> storeIds,
         String query,

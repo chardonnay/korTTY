@@ -193,12 +193,14 @@ public final class AiServiceFactory {
             if (anthropicModel == null) {
                 throw new IllegalStateException(MISSING_MODEL_MESSAGE);
             }
-            return decorate(profile, anthropicModel, effectiveReasoningEffort(profile, reasoningEffortOverride), new AnthropicAiService(
+            AnthropicAiService anthropic = new AnthropicAiService(
                 apiUrl,
                 anthropicModel,
                 apiKey,
                 effectiveReasoningEffort(profile, reasoningEffortOverride),
-                effectiveSkillSupport));
+                effectiveSkillSupport);
+            anthropic.setMaxOutputTokens(profile.getMaxOutputTokens());
+            return decorate(profile, anthropicModel, effectiveReasoningEffort(profile, reasoningEffortOverride), anthropic);
         }
         if (apiUrl.matches("^https?://[^/]+/?$") && !LocalLmModelResolver.isLocalLmStudioBaseUrl(apiUrl)) {
             return null;
@@ -253,14 +255,20 @@ public final class AiServiceFactory {
                 throw new IllegalStateException(CLOUD_MODEL_REQUIRED_MESSAGE);
             }
         }
-        return decorate(profile, model, effectiveReasoningEffort(profile, reasoningEffortOverride), new OpenAiCompatibleAiService(
+        OpenAiCompatibleAiService openAiCompatible = new OpenAiCompatibleAiService(
             normalizeOpenAiCompatibleChatCompletionsUrl(apiUrl),
             serviceModel,
             modelSelectionMode,
             normalizedApiKey,
             effectiveReasoningEffort(profile, reasoningEffortOverride),
             webSearchTool,
-            effectiveSkillSupport));
+            effectiveSkillSupport);
+        // The profile's output limit is only the default: an action's safety cap (Mermaid,
+        // full-replacement edits) still wins over it, see AiOutputTokenLimitSupport.resolve.
+        if (profile.getMaxOutputTokens() != null) {
+            openAiCompatible.setDefaultMaxCompletionTokens(profile.getMaxOutputTokens());
+        }
+        return decorate(profile, model, effectiveReasoningEffort(profile, reasoningEffortOverride), openAiCompatible);
     }
 
     private static AiService decorate(

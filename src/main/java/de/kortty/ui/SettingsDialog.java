@@ -370,6 +370,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final Spinner<Integer> aiGlobalRequestTimeoutSpinner;
     private final CheckBox aiRequestTimeoutOverrideCheck;
     private final Spinner<Integer> aiRequestTimeoutSpinner;
+    private final CheckBox aiMaxOutputTokensOverrideCheck;
+    private final Spinner<Integer> aiMaxOutputTokensSpinner;
     private final ComboBox<AiTokenizerType> aiTokenizerCombo;
     private final Spinner<Integer> aiTokenLimitAmountSpinner;
     private final ComboBox<AiTokenLimitUnit> aiTokenLimitUnitCombo;
@@ -3039,6 +3041,26 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             6, aiRequestTimeoutOverrideCheck, aiRequestTimeoutSpinner, aiProfileTimeoutHint);
         aiProfileTimeoutBox.setAlignment(Pos.CENTER_LEFT);
         aiEditorGrid.add(aiProfileTimeoutBox, 1, aiRow++);
+
+        aiEditorGrid.add(new Label(I18n.get("settings.ai.maxOutput")), 0, aiRow);
+        aiMaxOutputTokensOverrideCheck = new CheckBox(I18n.get("settings.ai.maxOutput.override"));
+        aiMaxOutputTokensSpinner = new Spinner<>(
+            AiProfile.MIN_MAX_OUTPUT_TOKENS, AiProfile.MAX_MAX_OUTPUT_TOKENS, AiProfile.DEFAULT_MAX_OUTPUT_TOKENS, 1024);
+        aiMaxOutputTokensSpinner.setEditable(true);
+        aiMaxOutputTokensSpinner.setPrefWidth(110);
+        // Without the override korTTY resolves the limit per model and action, so an enabled spinner
+        // would only show a number that has no effect.
+        aiMaxOutputTokensSpinner.disableProperty().bind(aiMaxOutputTokensOverrideCheck.selectedProperty().not());
+        Tooltip maxOutputTooltip = new Tooltip(I18n.get("settings.ai.maxOutput.tooltip"));
+        maxOutputTooltip.setWrapText(true);
+        maxOutputTooltip.setMaxWidth(480);
+        aiMaxOutputTokensOverrideCheck.setTooltip(maxOutputTooltip);
+        aiMaxOutputTokensSpinner.setTooltip(maxOutputTooltip);
+        Label maxOutputHint = new Label(I18n.get("settings.ai.maxOutput.hint"));
+        maxOutputHint.setStyle(MutedTextStyle.HINT);
+        HBox maxOutputBox = new HBox(6, aiMaxOutputTokensOverrideCheck, aiMaxOutputTokensSpinner, maxOutputHint);
+        maxOutputBox.setAlignment(Pos.CENTER_LEFT);
+        aiEditorGrid.add(maxOutputBox, 1, aiRow++);
 
         aiEditorGrid.add(new Label(I18n.get("settings.ai.tokenizer")), 0, aiRow);
         aiTokenizerCombo = new ComboBox<>();
@@ -6373,6 +6395,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         selectedAiProfile.setMaxSelectionChars(aiMaxSelectionCharsSpinner.getValue() != null ? aiMaxSelectionCharsSpinner.getValue() : AiProfile.DEFAULT_MAX_SELECTION_CHARS);
         selectedAiProfile.setRequestTimeoutMinutes(
             aiRequestTimeoutOverrideCheck.isSelected() ? aiRequestTimeoutSpinner.getValue() : null);
+        selectedAiProfile.setMaxOutputTokens(aiMaxOutputTokensOverrideCheck.isSelected() ? aiMaxOutputTokensSpinner.getValue() : null);
         selectedAiProfile.setTokenizerType(aiTokenizerCombo.getValue());
         selectedAiProfile.setTokenLimitAmount(aiTokenLimitAmountSpinner.getValue() != null ? aiTokenLimitAmountSpinner.getValue().longValue() : 0L);
         selectedAiProfile.setTokenLimitUnit(aiTokenLimitUnitCombo.getValue());
@@ -6456,6 +6479,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiRequestTimeoutOverrideCheck.setSelected(aiProfileTimeoutMinutes != null);
         aiRequestTimeoutSpinner.getValueFactory().setValue(
             aiProfileTimeoutMinutes != null ? aiProfileTimeoutMinutes : 0);
+        Integer profileMaxOutputTokens = profile.getMaxOutputTokens();
+        aiMaxOutputTokensOverrideCheck.setSelected(profileMaxOutputTokens != null);
+        aiMaxOutputTokensSpinner.getValueFactory().setValue(
+            profileMaxOutputTokens != null ? profileMaxOutputTokens : AiProfile.DEFAULT_MAX_OUTPUT_TOKENS);
         aiTokenizerCombo.setValue(profile.getTokenizerType() != null ? profile.getTokenizerType() : AiTokenizerType.ESTIMATE);
         aiTokenLimitAmountSpinner.getValueFactory().setValue(profile.getTokenLimitAmount() != null ? profile.getTokenLimitAmount().intValue() : 0);
         aiTokenLimitUnitCombo.setValue(profile.getTokenLimitUnit() != null ? profile.getTokenLimitUnit() : AiTokenLimitUnit.THOUSANDS);

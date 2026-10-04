@@ -18,6 +18,10 @@ import java.util.List;
 public class AiProfile {
 
     public static final int DEFAULT_MAX_SELECTION_CHARS = 1_000_000;
+    /** Spinner bounds and the value shown when a profile's own output limit is first switched on. */
+    public static final int MIN_MAX_OUTPUT_TOKENS = 256;
+    public static final int MAX_MAX_OUTPUT_TOKENS = 1_048_576;
+    public static final int DEFAULT_MAX_OUTPUT_TOKENS = 16_000;
 
     @XmlElement
     private String id;
@@ -103,6 +107,16 @@ public class AiProfile {
      */
     @XmlElement
     private Integer requestTimeoutMinutes;
+
+    /**
+     * Optional upper bound for the tokens one answer may use. {@code null} (the default, omitted
+     * from the XML) resolves the limit automatically per model and action. The value is only ever
+     * a ceiling: it never loosens an action's safety cap (Mermaid, full-replacement snippet edits)
+     * and, on the native Anthropic API, never exceeds a known model's limit or the non-streaming
+     * ceiling.
+     */
+    @XmlElement
+    private Integer maxOutputTokens;
 
     @XmlElement
     private AiTokenizerType tokenizerType = AiTokenizerType.ESTIMATE;
@@ -192,6 +206,7 @@ public class AiProfile {
         this.cliArgumentsTemplate = source.cliArgumentsTemplate;
         this.maxSelectionChars = source.maxSelectionChars;
         this.requestTimeoutMinutes = source.requestTimeoutMinutes;
+        this.maxOutputTokens = source.maxOutputTokens;
         this.tokenizerType = source.tokenizerType;
         this.tokenLimitAmount = source.tokenLimitAmount;
         this.tokenLimitUnit = source.tokenLimitUnit;
@@ -426,6 +441,16 @@ public class AiProfile {
         this.requestTimeoutMinutes = requestTimeoutMinutes != null && requestTimeoutMinutes >= 0
             ? requestTimeoutMinutes
             : null;
+    }
+
+    /** @return the profile's own output-token limit, or {@code null} for automatic. */
+    public Integer getMaxOutputTokens() {
+        return maxOutputTokens;
+    }
+
+    /** Sets the output-token limit; {@code null} or a non-positive value means automatic. */
+    public void setMaxOutputTokens(Integer maxOutputTokens) {
+        this.maxOutputTokens = maxOutputTokens != null && maxOutputTokens > 0 ? maxOutputTokens : null;
     }
 
     public AiTokenizerType getTokenizerType() {

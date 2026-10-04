@@ -1288,6 +1288,24 @@ class OpenAiCompatibleAiServiceTest {
     }
 
     @Test
+    void profileOutputLimitNeverLoosensAnActionCap() {
+        OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+            "http://localhost:1234/v1/chat/completions",
+            "qwen-test",
+            "");
+        // AiServiceFactory hands AiProfile.maxOutputTokens over as the transport default.
+        service.setDefaultMaxCompletionTokens(100_000);
+
+        String mermaidBody = service.buildRequestBody(
+            new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "print('ok')", null, "en"));
+        String summaryBody = service.buildRequestBody(
+            new AiRequest(AiAction.SUMMARIZE, "text", null, "en"));
+
+        assertThat(mermaidBody).contains("\"max_tokens\":32768");
+        assertThat(summaryBody).contains("\"max_tokens\":100000");
+    }
+
+    @Test
     void retriesUnsupportedMaxTokensOnceWithModernParameter() throws Exception {
         SequencedInputStreamHttpClient client = new SequencedInputStreamHttpClient(
             new StubResponse(400, """
