@@ -23,7 +23,13 @@ public enum PolicyFeature {
      * Highlight-rule triggers: actions a rule takes when its pattern appears in terminal output (a
      * desktop notification, running a snippet). Highlighting itself is not affected.
      */
-    TERMINAL_TRIGGERS("terminal-triggers");
+    TERMINAL_TRIGGERS("terminal-triggers"),
+    /**
+     * Typing into several terminals at once: multi-exec (panes of several tabs and windows) and a tab's
+     * broadcast mode. Denied, no pane can join and broadcast mode cannot be switched on; leaving and
+     * Stop Multi-exec always work.
+     */
+    MULTI_EXEC("multi-exec");
 
     private final String tomlKey;
 

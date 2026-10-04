@@ -1207,7 +1207,11 @@ public class DashboardView extends VBox {
                     }
                 });
                 contextMenu.getItems().addAll(new SeparatorMenuItem(), multiExec);
-                contextMenu.setOnShowing(e -> multiExec.setSelected(multiExecSelected(item)));
+                contextMenu.setOnShowing(e -> {
+                    multiExec.setSelected(multiExecSelected(item));
+                    // Denied by the organization's policy: a pane that takes part can leave, none can join.
+                    multiExec.setDisable(!multiExec.isSelected() && !MultiExecCoordinator.shared().joinAllowed());
+                });
             }
             if (entry != null) {
                 if (item.getType() != NodeType.PANE && !singleAgentConnection) {

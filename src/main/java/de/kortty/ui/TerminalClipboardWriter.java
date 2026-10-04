@@ -115,7 +115,7 @@ public final class TerminalClipboardWriter {
             return;
         }
         GlobalSettings current = settings.get();
-        Outcome outcome = write(write, current != null && current.isOsc52ClipboardWriteEnabled(), clipboard);
+        Outcome outcome = write(write, allowed(current, de.kortty.policy.PolicyManager.effective()), clipboard);
         switch (outcome.result()) {
             case WRITTEN -> logger.info("A program in a terminal pane put {} bytes on the clipboard (OSC 52)",
                 outcome.bytes());
@@ -128,6 +128,17 @@ public final class TerminalClipboardWriter {
         if (message != null) {
             status.accept(tab, message);
         }
+    }
+
+    /**
+     * Whether a program may put text on the clipboard now: the setting in Settings → Terminal is on and
+     * the organization's policy does not forbid it ({@code allow-osc52-clipboard-write = false}). The
+     * policy is asked here as well as clamped into the settings, so a hand-edited settings file between
+     * two loads cannot let a write through.
+     */
+    static boolean allowed(GlobalSettings settings, de.kortty.policy.EffectivePolicy policy) {
+        return settings != null && settings.isOsc52ClipboardWriteEnabled()
+            && (policy == null || policy.osc52ClipboardWriteAllowed());
     }
 
     /**

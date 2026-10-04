@@ -41,6 +41,17 @@ import java.util.Set;
  *                                   stored with each Full-code analysis ({@code [rule.snippets]
  *                                   analysis-max-stored-content-bytes}); 0 forbids storing script
  *                                   text, null leaves it to the user
+ * @param pasteWarningFloor          the least a terminal paste warning may ask ({@code [rule.terminal]
+ *                                   paste-warning}); applied on top of Settings, the connection's own
+ *                                   mode and a teamwork connection's mode, null leaves it to the user
+ * @param allowOsc52ClipboardWrite   false forbids programs in a terminal to put text on the clipboard
+ *                                   with OSC 52 ({@code [rule.security] allow-osc52-clipboard-write});
+ *                                   true or null leaves the (default-off) choice to the user
+ * @param sessionRestoreMode         the startup session restore mode the policy sets and locks
+ *                                   ({@code [rule.terminal] session-restore}), or null
+ * @param sessionRestoreOutput       whether the output of each terminal pane is restored with the
+ *                                   session; the policy sets and locks the switch ({@code [rule.terminal]
+ *                                   session-restore-output}), null leaves it to the user
  */
 public record PolicyRule(
     String name,
@@ -68,7 +79,11 @@ public record PolicyRule(
     LoadIntoEditorMode loadIntoSnippetEditor,
     LoggingRule logging,
     SessionJournalRule sessionJournal,
-    Long snippetAnalysisMaxStoredContentBytes) {
+    Long snippetAnalysisMaxStoredContentBytes,
+    de.kortty.paste.PasteWarningMode pasteWarningFloor,
+    Boolean allowOsc52ClipboardWrite,
+    de.kortty.model.SessionRestoreMode sessionRestoreMode,
+    Boolean sessionRestoreOutput) {
 
     public PolicyRule {
         users = Set.copyOf(users);
@@ -206,6 +221,10 @@ public record PolicyRule(
         private LoggingRule logging;
         private SessionJournalRule sessionJournal;
         private Long snippetAnalysisMaxStoredContentBytes;
+        private de.kortty.paste.PasteWarningMode pasteWarningFloor;
+        private Boolean allowOsc52ClipboardWrite;
+        private de.kortty.model.SessionRestoreMode sessionRestoreMode;
+        private Boolean sessionRestoreOutput;
 
         public Builder name(String value) { this.name = value; return this; }
         public Builder users(Set<String> value) { this.users = value; return this; }
@@ -236,6 +255,16 @@ public record PolicyRule(
             this.snippetAnalysisMaxStoredContentBytes = value;
             return this;
         }
+        public Builder pasteWarningFloor(de.kortty.paste.PasteWarningMode value) {
+            this.pasteWarningFloor = value;
+            return this;
+        }
+        public Builder allowOsc52ClipboardWrite(Boolean value) { this.allowOsc52ClipboardWrite = value; return this; }
+        public Builder sessionRestoreMode(de.kortty.model.SessionRestoreMode value) {
+            this.sessionRestoreMode = value;
+            return this;
+        }
+        public Builder sessionRestoreOutput(Boolean value) { this.sessionRestoreOutput = value; return this; }
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
@@ -243,7 +272,8 @@ public record PolicyRule(
                 allowPortForwarding, allowCustomTeamworkSources, allowCustomScriptHeaders, aiProfileAllowCreate,
                 aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal,
-                snippetAnalysisMaxStoredContentBytes);
+                snippetAnalysisMaxStoredContentBytes, pasteWarningFloor, allowOsc52ClipboardWrite,
+                sessionRestoreMode, sessionRestoreOutput);
         }
     }
 }

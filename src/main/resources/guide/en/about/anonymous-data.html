@@ -842,6 +842,40 @@
 </tbody>
 </table>
 <p>The session ID is <strong>not</strong> a persistent identifier: it is newly generated each time and cannot be traced back to you across launches.</p>
+<h3 id="terminal-features">Terminal features<a class="headerlink" href="#terminal-features" title="Permanent link">&para;</a></h3>
+<p>A few terminal features report how they are used, with flags, coarse counts and fixed names only. Counts are rounded down to 0, 1, 2, 3, 5, 10 or 20, so seven panes are reported as 5.</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Sent when</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command_palette_used</code></td>
+<td>a row of the command palette runs</td>
+<td>the kind of row (<code>action</code>, <code>tab</code>, <code>connection</code> or <code>snippet</code>) and whether the search started with a scope prefix such as <code>&gt;</code> or <code>@</code></td>
+</tr>
+<tr>
+<td><code>terminal_highlight_applied</code></td>
+<td>a pane starts showing another highlighting rule set</td>
+<td>a built-in set's id, or <code>custom</code> or <code>none</code>, and where the choice came from (menu, shortcut, connection or default)</td>
+</tr>
+<tr>
+<td><code>multi_exec_changed</code></td>
+<td>you add panes to multi-exec, remove them or stop it</td>
+<td>whether multi-exec is still on, and the rounded number of panes, tabs and windows taking part</td>
+</tr>
+<tr>
+<td><code>session_restored</code></td>
+<td>the previous session is opened again</td>
+<td>the Session Restore setting (<code>ask</code>, <code>auto</code> or <code>off</code>), whether the menu, the startup bar or the automatic restore opened it, and the rounded number of windows and tabs</td>
+</tr>
+</tbody>
+</table>
+<p>The search text, the names of commands, tabs, connections, snippets and rule sets, the patterns, and anything typed into the panes are never sent. Changes on the settings pages are reported as the name of the setting and, for switches and choices, the new value; for the quick-select letters and patterns and for rebound shortcuts only whether you changed them.</p>
 <h2 id="what-is-never-collected">What is never collected<a class="headerlink" href="#what-is-never-collected" title="Permanent link">&para;</a></h2>
 <p>korTTY never transmits any of the following:</p>
 <ul>
