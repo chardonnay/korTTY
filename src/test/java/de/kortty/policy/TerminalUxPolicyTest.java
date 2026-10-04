@@ -84,6 +84,7 @@ class TerminalUxPolicyTest {
             [rule.terminal]
             paste-warning = "Always"
             session-restore = "off"
+            session-restore-output = false
             """);
         assertThat(result.errors()).isEmpty();
         assertThat(result.warnings()).isEmpty();
@@ -92,6 +93,7 @@ class TerminalUxPolicyTest {
         assertThat(rule.allowOsc52ClipboardWrite()).isFalse();
         assertThat(rule.pasteWarningFloor()).isEqualTo(PasteWarningMode.ALWAYS);
         assertThat(rule.sessionRestoreMode()).isEqualTo(SessionRestoreMode.OFF);
+        assertThat(rule.sessionRestoreOutput()).isFalse();
     }
 
     @Test
@@ -116,6 +118,16 @@ class TerminalUxPolicyTest {
     }
 
     @Test
+    void aNonBooleanSessionRestoreOutputRejectsTheFile() throws IOException {
+        PolicyLoadResult result = load("""
+            [rule.terminal]
+            session-restore-output = "off"
+            """);
+        assertThat(result.isValid()).isFalse();
+        assertThat(result.errors().get(0)).contains("session-restore-output must be true or false");
+    }
+
+    @Test
     void anInvalidMultiExecDecisionRejectsTheFile() throws IOException {
         PolicyLoadResult result = load("""
             [rule.features]
@@ -134,6 +146,7 @@ class TerminalUxPolicyTest {
             load-into-snippet-editor = "allow"
             paste-warning = "unless-bracketed"
             session-restore = "ask"
+            session-restore-output = true
             """);
         assertThat(result.errors()).isEmpty();
         assertThat(result.warnings()).isEmpty();
@@ -151,6 +164,8 @@ class TerminalUxPolicyTest {
         assertThat(policy.isManaged(ManagedSetting.PASTE_WARNING)).isFalse();
         assertThat(policy.isManaged(ManagedSetting.MULTI_EXEC)).isFalse();
         assertThat(policy.isManaged(ManagedSetting.SESSION_RESTORE)).isFalse();
+        assertThat(policy.sessionRestoreOutput()).isNull();
+        assertThat(policy.isManaged(ManagedSetting.SESSION_RESTORE_OUTPUT)).isFalse();
         assertThat(policy.isManaged(ManagedSetting.CLIPBOARD)).isFalse();
     }
 
@@ -164,6 +179,9 @@ class TerminalUxPolicyTest {
         assertThat(lockdown.isManaged(ManagedSetting.PASTE_WARNING)).isTrue();
         assertThat(lockdown.isManaged(ManagedSetting.MULTI_EXEC)).isTrue();
         assertThat(lockdown.isManaged(ManagedSetting.SESSION_RESTORE)).isTrue();
+        assertWithMessage("lockdown writes no terminal output to disk")
+            .that(lockdown.sessionRestoreOutput()).isFalse();
+        assertThat(lockdown.isManaged(ManagedSetting.SESSION_RESTORE_OUTPUT)).isTrue();
         assertThat(lockdown.isManaged(ManagedSetting.CLIPBOARD)).isTrue();
     }
 
@@ -176,6 +194,8 @@ class TerminalUxPolicyTest {
         assertThat(policy.sessionRestoreMode()).isNull();
         assertThat(policy.isManaged(ManagedSetting.PASTE_WARNING)).isFalse();
         assertThat(policy.isManaged(ManagedSetting.SESSION_RESTORE)).isFalse();
+        assertThat(policy.sessionRestoreOutput()).isNull();
+        assertThat(policy.isManaged(ManagedSetting.SESSION_RESTORE_OUTPUT)).isFalse();
         assertThat(policy.isManaged(ManagedSetting.MULTI_EXEC)).isFalse();
     }
 
@@ -185,12 +205,14 @@ class TerminalUxPolicyTest {
             .pasteWarningFloor(PasteWarningMode.OFF)
             .allowOsc52ClipboardWrite(true)
             .sessionRestoreMode(SessionRestoreMode.AUTO)
+            .sessionRestoreOutput(true)
             .features(Map.of(PolicyFeature.MULTI_EXEC, PolicyDecision.ALLOW))
             .build();
         PolicyRule strict = PolicyRule.builder()
             .pasteWarningFloor(PasteWarningMode.UNLESS_BRACKETED)
             .allowOsc52ClipboardWrite(false)
             .sessionRestoreMode(SessionRestoreMode.ASK)
+            .sessionRestoreOutput(false)
             .features(Map.of(PolicyFeature.MULTI_EXEC, PolicyDecision.DENY))
             .build();
         EffectivePolicy policy = resolve(lax, strict);
@@ -199,6 +221,9 @@ class TerminalUxPolicyTest {
         assertWithMessage("ask opens fewer connections by itself than auto")
             .that(policy.sessionRestoreMode()).isEqualTo(SessionRestoreMode.ASK);
         assertThat(policy.multiExecAllowed()).isFalse();
+        assertWithMessage("off keeps terminal output off the disk")
+            .that(policy.sessionRestoreOutput()).isFalse();
+        assertThat(policy.isManaged(ManagedSetting.SESSION_RESTORE_OUTPUT)).isTrue();
         assertThat(policy.isManaged(ManagedSetting.PASTE_WARNING)).isTrue();
         assertThat(policy.isManaged(ManagedSetting.SESSION_RESTORE)).isTrue();
         assertThat(policy.isManaged(ManagedSetting.MULTI_EXEC)).isTrue();
@@ -276,6 +301,18 @@ class TerminalUxPolicyTest {
     }
 
     @Test
+    void theClampSetsTheSessionRestoreOutputSwitchWhicheverWay() {
+        GlobalSettings on = new GlobalSettings();
+        on.setSessionRestoreScrollback(true);
+        new PolicyClamp(resolve(PolicyRule.builder().sessionRestoreOutput(false).build())).apply(on);
+        assertThat(on.isSessionRestoreScrollback()).isFalse();
+
+        GlobalSettings off = new GlobalSettings();
+        new PolicyClamp(resolve(PolicyRule.builder().sessionRestoreOutput(true).build())).apply(off);
+        assertThat(off.isSessionRestoreScrollback()).isTrue();
+    }
+
+    @Test
     void allowingOsc52DoesNotSwitchItOn() {
         PolicyClamp clamp = new PolicyClamp(resolve(PolicyRule.builder().allowOsc52ClipboardWrite(true).build()));
         GlobalSettings settings = new GlobalSettings();
@@ -292,14 +329,16 @@ class TerminalUxPolicyTest {
         settings.setPasteWarningMode(PasteWarningMode.OFF);
         settings.setOsc52ClipboardWriteEnabled(true);
         settings.setSessionRestoreMode(SessionRestoreMode.AUTO);
+        settings.setSessionRestoreScrollback(true);
         new PolicyClamp(EffectivePolicy.unrestricted()).apply(settings);
         assertThat(settings.getPasteWarningMode()).isEqualTo(PasteWarningMode.OFF);
         assertThat(settings.isOsc52ClipboardWriteEnabled()).isTrue();
         assertThat(settings.getSessionRestoreMode()).isEqualTo(SessionRestoreMode.AUTO);
+        assertThat(settings.isSessionRestoreScrollback()).isTrue();
     }
 
     @Test
-    void lockdownClampsAllThreeOnLoadAndSave() throws Exception {
+    void lockdownClampsAllFourOnLoadAndSave() throws Exception {
         GlobalSettingsManager manager = new GlobalSettingsManager(dir());
         manager.setPolicyClamp(new PolicyClamp(EffectivePolicy.lockdown()));
         manager.load();
@@ -307,14 +346,17 @@ class TerminalUxPolicyTest {
         assertThat(settings.getPasteWarningMode()).isEqualTo(PasteWarningMode.ALWAYS);
         assertThat(settings.isOsc52ClipboardWriteEnabled()).isFalse();
         assertThat(settings.getSessionRestoreMode()).isEqualTo(SessionRestoreMode.OFF);
+        assertThat(settings.isSessionRestoreScrollback()).isFalse();
 
         settings.setPasteWarningMode(PasteWarningMode.OFF);
         settings.setOsc52ClipboardWriteEnabled(true);
         settings.setSessionRestoreMode(SessionRestoreMode.AUTO);
+        settings.setSessionRestoreScrollback(true);
         manager.save();
         assertThat(settings.getPasteWarningMode()).isEqualTo(PasteWarningMode.ALWAYS);
         assertThat(settings.isOsc52ClipboardWriteEnabled()).isFalse();
         assertThat(settings.getSessionRestoreMode()).isEqualTo(SessionRestoreMode.OFF);
+        assertThat(settings.isSessionRestoreScrollback()).isFalse();
     }
 
     // ---- SessionRestoreMode helpers ---------------------------------------------------------------

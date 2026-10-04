@@ -49,7 +49,7 @@ public final class PolicyLoader {
         Set.of("allow-runtime-downloads", "allow-model-downloads", "allow-user-models");
     private static final Set<String> UPDATES_KEYS = Set.of("enabled", "feed-url");
     private static final Set<String> TERMINAL_KEYS = Set.of("load-into-snippet-editor", "paste-warning",
-        "session-restore");
+        "session-restore", "session-restore-output");
     private static final Set<String> LOGGING_KEYS = Set.of("directory", "retention-days",
         "compress", "format", "rotation-max-files", "rotation-total-size-mb");
     private static final Set<String> SESSION_JOURNAL_KEYS = Set.of("enforced", "log-format",
@@ -389,6 +389,7 @@ public final class PolicyLoader {
                 builder.sessionRestoreMode(mode);
             }
         }
+        builder.sessionRestoreOutput(getBoolean(table, "session-restore-output", tableContext));
     }
 
     private void parseRuleLogging(TomlTable rule, String context, PolicyRule.Builder builder) {

@@ -260,8 +260,11 @@ public final class EffectivePolicy {
         if (sessionRestoreMode != null) {
             managed.add(ManagedSetting.SESSION_RESTORE);
         }
+        // Off wins: two rules of the same tier that disagree keep terminal output off the disk.
+        Boolean sessionRestoreOutput = resolver.resolveAllow(PolicyRule::sessionRestoreOutput);
+        markManaged(managed, ManagedSetting.SESSION_RESTORE_OUTPUT, sessionRestoreOutput);
         TerminalPolicy terminal = new TerminalPolicy(pasteWarningFloor,
-            orDefault(allowOsc52ClipboardWrite, true), sessionRestoreMode);
+            orDefault(allowOsc52ClipboardWrite, true), sessionRestoreMode, sessionRestoreOutput);
 
         List<ServerRestriction> serverRestrictions = resolver.resolveServerRestrictions();
         if (!serverRestrictions.isEmpty()) {
@@ -537,7 +540,7 @@ public final class EffectivePolicy {
         return loadIntoSnippetEditor;
     }
 
-    /** The terminal dimensions of the policy: paste warning floor, OSC 52 and session restore. */
+    /** The terminal dimensions of the policy: paste warning floor, OSC 52, session restore and its output. */
     public TerminalPolicy terminal() {
         return terminal;
     }
@@ -562,6 +565,15 @@ public final class EffectivePolicy {
     /** The startup session restore mode the policy sets and locks, or null when it leaves it to the user. */
     public de.kortty.model.SessionRestoreMode sessionRestoreMode() {
         return terminal.sessionRestoreMode();
+    }
+
+    /**
+     * Whether the output of each terminal pane is restored with the session, as the policy sets and
+     * locks it, or null when it leaves the switch to the user. Lockdown forces it off, since it writes
+     * terminal output to disk.
+     */
+    public Boolean sessionRestoreOutput() {
+        return terminal.sessionRestoreOutput();
     }
 
     /**
@@ -618,17 +630,23 @@ public final class EffectivePolicy {
      * @param pasteWarningFloor          the least a paste warning may ask; null = left to the user
      * @param osc52ClipboardWriteAllowed false forbids OSC 52 clipboard writes
      * @param sessionRestoreMode         the forced startup session restore mode; null = left to the user
+     * @param sessionRestoreOutput       the forced "restore the output of each pane" switch; null = left
+     *                                   to the user
      */
     public record TerminalPolicy(de.kortty.paste.PasteWarningMode pasteWarningFloor,
                                  boolean osc52ClipboardWriteAllowed,
-                                 de.kortty.model.SessionRestoreMode sessionRestoreMode) {
+                                 de.kortty.model.SessionRestoreMode sessionRestoreMode,
+                                 Boolean sessionRestoreOutput) {
 
         /** Nothing set: the user decides everything. */
-        static final TerminalPolicy NONE = new TerminalPolicy(null, true, null);
+        static final TerminalPolicy NONE = new TerminalPolicy(null, true, null, null);
 
-        /** The fail-safe: every paste with a line break asks, no OSC 52 writes, nothing reopens by itself. */
+        /**
+         * The fail-safe: every paste with a line break asks, no OSC 52 writes, nothing reopens by itself
+         * and no terminal output is written to disk.
+         */
         static final TerminalPolicy LOCKDOWN = new TerminalPolicy(
-            de.kortty.paste.PasteWarningMode.ALWAYS, false, de.kortty.model.SessionRestoreMode.OFF);
+            de.kortty.paste.PasteWarningMode.ALWAYS, false, de.kortty.model.SessionRestoreMode.OFF, false);
     }
 
     // ---- resolution internals --------------------------------------------------------------

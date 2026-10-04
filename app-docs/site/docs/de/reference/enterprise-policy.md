@@ -21,7 +21,7 @@ korTTY lädt die Richtlinie ausschließlich aus dem Ordner `policy/` seines Inst
 
 Das Durchsetzungsmodell basiert auf den Dateiberechtigungen des Betriebssystems: Das Installationsverzeichnis darf nur von Administratoren beschreibbar sein, was für die oben genannten Speicherorte die Standardeinstellung ist. korTTY protokolliert zusätzlich eine Warnung, wenn die aktive Richtliniendatei vom aktuellen Benutzer beschreibbar ist. Während der Entwicklung (niemals in einer Paketinstallation) kann eine Richtlinie mit `-Dkortty.policy.file=/path/to/policy.toml` getestet werden.
 
-Wenn die Datei existiert, aber nicht geparst werden kann oder einen ungültigen Wert enthält, startet korTTY in einer fehlersicheren Sperre: Jede per Richtlinie steuerbare Funktion wird verweigert, keine Serververbindung ist erlaubt, jedes Einfügen mit Zeilenumbruch ins Terminal fragt nach einer Bestätigung, Programme können keinen Text per OSC 52 in die Zwischenablage legen, die vorherige Sitzung wird beim Start nicht wieder geöffnet, und ein Dialog beim Start nennt die Datei und die genaue Fehlerposition. Ein Tippfehler kann die Durchsetzung daher nie stillschweigend abschalten. Eine einzige ungültige Regel verwirft die gesamte Datei; unbekannte Schlüssel erzeugen nur Warnungen im Log, sodass eine für ein neueres korTTY geschriebene Richtlinie Benutzer einer älteren Version nicht aussperrt.
+Wenn die Datei existiert, aber nicht geparst werden kann oder einen ungültigen Wert enthält, startet korTTY in einer fehlersicheren Sperre: Jede per Richtlinie steuerbare Funktion wird verweigert, keine Serververbindung ist erlaubt, jedes Einfügen mit Zeilenumbruch ins Terminal fragt nach einer Bestätigung, Programme können keinen Text per OSC 52 in die Zwischenablage legen, die vorherige Sitzung wird beim Start nicht wieder geöffnet, die Ausgabe der Terminalbereiche wird dafür nicht gespeichert, und ein Dialog beim Start nennt die Datei und die genaue Fehlerposition. Ein Tippfehler kann die Durchsetzung daher nie stillschweigend abschalten. Eine einzige ungültige Regel verwirft die gesamte Datei; unbekannte Schlüssel erzeugen nur Warnungen im Log, sodass eine für ein neueres korTTY geschriebene Richtlinie Benutzer einer älteren Version nicht aussperrt.
 
 ## Benutzer, Gruppen und Regelpriorität
 
@@ -216,6 +216,7 @@ groups = ["compliance"]
 | `load-into-snippet-editor` | Zeichenfolge | `allow`, `read-only`, `deny` | `read-only` lädt weiterhin entfernte Dateien in den Snippet-Editor, verbietet jedoch das Zurückschreiben in das Zielsystem; `deny` entfernt die Funktion vollständig, einschließlich des Öffnens von Dateipfaden und `file:`-Links aus der Terminalausgabe ([Links in der Terminalausgabe](../features/terminal.md#links-in-der-terminalausgabe)) |
 | `paste-warning` | string | `off`, `unless-bracketed`, `always` | Wie oft eine [Einfügewarnung](../features/terminal.md#einfugeschutz) mindestens nachfragt. Es ist eine Untergrenze, die zusätzlich zu *Einstellungen → Terminal → Einfügeschutz*, der eigenen Einfügewarnung einer Verbindung und der Einfügewarnung einer Teamwork-Verbindung gilt, sodass keine von ihnen seltener nachfragen kann; eine, die öfter nachfragt, tut das weiterhin. Die gespeicherte Einstellung wird auf die Untergrenze angehoben, und das Auswahlfeld trägt den Hinweis „Verwaltet von Ihrer Organisation“ und bietet nur die Untergrenze und strengere Optionen an; mit `always` ist es gesperrt. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt der strengere (`always` vor `unless-bracketed` vor `off`) |
 | `session-restore` | string | `off`, `ask`, `auto` | Legt fest, was korTTY beim Start mit den Fenstern und Tabs der vorherigen Sitzung tut (*Einstellungen → Fenster → [Sitzungswiederherstellung](settings/window.md#sitzungswiederherstellung)*), und sperrt das Auswahlfeld. `off` öffnet von selbst nichts; **Datei → Vorherige Sitzung wiederherstellen** bleibt verfügbar. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt der Wert, der von selbst weniger Verbindungen öffnet (`off` vor `ask` vor `auto`) |
+| `session-restore-output` | boolean | `true`, `false` | Legt **Auch die Ausgabe jedes Terminalbereichs wiederherstellen (verschlüsselt)** in *Einstellungen → Fenster → [Sitzungswiederherstellung](settings/window.md#sitzungswiederherstellung)* fest und sperrt die Option zusammen mit **Ausgabezeilen pro Bereich**. `false` schaltet sie aus, wodurch die bisher gespeicherte Ausgabe beim nächsten Start gelöscht wird; `true` schaltet sie ein, und die Ausgabe wird weiterhin nur gespeichert, solange ein Master-Passwort existiert und der Tresor entsperrt ist. Legen mehrere Regeln derselben Stufe den Wert fest, gewinnt `false` |
 
 ```toml
 [[rule]]
@@ -228,6 +229,7 @@ groups = ["compliance"]
   [rule.terminal]
   paste-warning = "always"
   session-restore = "ask"
+  session-restore-output = false
 ```
 
 ### `[rule.logging]`

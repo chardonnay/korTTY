@@ -39,5 +39,10 @@ public enum ManagedSetting {
     /** Multi-exec and broadcast mode ({@link PolicyFeature#MULTI_EXEC}); no Settings control of its own. */
     MULTI_EXEC,
     /** The startup session restore in Settings → Window ({@code [rule.terminal] session-restore}). */
-    SESSION_RESTORE
+    SESSION_RESTORE,
+    /**
+     * "Also restore the output of each terminal pane" and its lines per pane in Settings → Window
+     * ({@code [rule.terminal] session-restore-output}).
+     */
+    SESSION_RESTORE_OUTPUT
 }

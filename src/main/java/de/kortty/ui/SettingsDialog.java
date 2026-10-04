@@ -1827,7 +1827,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         sessionRestoreScrollbackLinesSpinner.setPrefWidth(110);
         sessionRestoreScrollbackLinesSpinner.setTooltip(
             new Tooltip(I18n.get("settings.window.restore.scrollbackLines.tooltip")));
-        sessionRestoreScrollbackLinesSpinner.disableProperty().bind(sessionRestoreScrollbackCheck.selectedProperty().not());
+        // [rule.terminal] session-restore-output sets the switch (PolicyClamp) and locks it with the lines
+        // spinner; otherwise the spinner only follows the switch.
+        if (de.kortty.policy.PolicyUiSupport.lockIfManaged(
+                sessionRestoreScrollbackCheck, de.kortty.policy.ManagedSetting.SESSION_RESTORE_OUTPUT)) {
+            de.kortty.policy.PolicyUiSupport.lockIf(sessionRestoreScrollbackLinesSpinner, true);
+        } else {
+            sessionRestoreScrollbackLinesSpinner.disableProperty().bind(sessionRestoreScrollbackCheck.selectedProperty().not());
+        }
         windowGrid.add(new Label(I18n.get("settings.window.restore.scrollbackLines")), 0, windowRow);
         windowGrid.add(sessionRestoreScrollbackLinesSpinner, 1, windowRow++);
 
@@ -4043,6 +4050,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("window", "tools_as_tabs", gs::isOpenToolWindowsAsTabs, true));
             tracked.add(new TrackedSetting("window", "fixed_geometry", gs::isUseFixedWindowGeometry, true));
             tracked.add(new TrackedSetting("window", "session_restore_mode", () -> gs.getSessionRestoreMode().id(), true));
+            tracked.add(new TrackedSetting("window", "session_restore_output", gs::isSessionRestoreScrollback, true));
+            tracked.add(new TrackedSetting("window", "session_restore_output_lines",
+                gs::getSessionRestoreScrollbackLines, true));
             tracked.add(new TrackedSetting("window", "tab_title_from_shell", gs::isTabTitleFromShellEnabled, true));
             tracked.add(new TrackedSetting("window", "tab_switch_most_recent_first", gs::isTabSwitchMostRecentFirst, true));
             // Whether any shortcut was rebound, never which action or which keys.

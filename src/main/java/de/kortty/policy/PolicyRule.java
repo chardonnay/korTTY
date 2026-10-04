@@ -49,6 +49,9 @@ import java.util.Set;
  *                                   true or null leaves the (default-off) choice to the user
  * @param sessionRestoreMode         the startup session restore mode the policy sets and locks
  *                                   ({@code [rule.terminal] session-restore}), or null
+ * @param sessionRestoreOutput       whether the output of each terminal pane is restored with the
+ *                                   session; the policy sets and locks the switch ({@code [rule.terminal]
+ *                                   session-restore-output}), null leaves it to the user
  */
 public record PolicyRule(
     String name,
@@ -79,7 +82,8 @@ public record PolicyRule(
     Long snippetAnalysisMaxStoredContentBytes,
     de.kortty.paste.PasteWarningMode pasteWarningFloor,
     Boolean allowOsc52ClipboardWrite,
-    de.kortty.model.SessionRestoreMode sessionRestoreMode) {
+    de.kortty.model.SessionRestoreMode sessionRestoreMode,
+    Boolean sessionRestoreOutput) {
 
     public PolicyRule {
         users = Set.copyOf(users);
@@ -220,6 +224,7 @@ public record PolicyRule(
         private de.kortty.paste.PasteWarningMode pasteWarningFloor;
         private Boolean allowOsc52ClipboardWrite;
         private de.kortty.model.SessionRestoreMode sessionRestoreMode;
+        private Boolean sessionRestoreOutput;
 
         public Builder name(String value) { this.name = value; return this; }
         public Builder users(Set<String> value) { this.users = value; return this; }
@@ -259,6 +264,7 @@ public record PolicyRule(
             this.sessionRestoreMode = value;
             return this;
         }
+        public Builder sessionRestoreOutput(Boolean value) { this.sessionRestoreOutput = value; return this; }
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
@@ -267,7 +273,7 @@ public record PolicyRule(
                 aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal,
                 snippetAnalysisMaxStoredContentBytes, pasteWarningFloor, allowOsc52ClipboardWrite,
-                sessionRestoreMode);
+                sessionRestoreMode, sessionRestoreOutput);
         }
     }
 }

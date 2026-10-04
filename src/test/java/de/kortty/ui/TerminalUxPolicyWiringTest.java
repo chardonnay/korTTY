@@ -109,6 +109,9 @@ class TerminalUxPolicyWiringTest {
         assertThat(dialog).contains("isManaged(de.kortty.policy.ManagedSetting.PASTE_WARNING)");
         assertThat(dialog).contains("pasteWarningModeCombo.getItems().size() <= 1)) {");
         assertThat(dialog).contains("sessionRestoreModeCombo, de.kortty.policy.ManagedSetting.SESSION_RESTORE);");
+        assertThat(dialog).contains(
+            "sessionRestoreScrollbackCheck, de.kortty.policy.ManagedSetting.SESSION_RESTORE_OUTPUT)) {");
+        assertThat(dialog).contains("PolicyUiSupport.lockIf(sessionRestoreScrollbackLinesSpinner, true);");
         assertThat(dialog).contains("""
             de.kortty.policy.PolicyUiSupport.lockIf(osc52ClipboardWriteCheck,
                         !de.kortty.policy.PolicyManager.effective().osc52ClipboardWriteAllowed());""");
@@ -119,5 +122,9 @@ class TerminalUxPolicyWiringTest {
             .isLessThan(dialog.indexOf("isManaged(de.kortty.policy.ManagedSetting.PASTE_WARNING)"));
         assertThat(dialog.indexOf("sessionRestoreModeCombo.setTooltip("))
             .isLessThan(dialog.indexOf("sessionRestoreModeCombo, de.kortty.policy.ManagedSetting.SESSION_RESTORE"));
+        assertThat(dialog.indexOf("sessionRestoreScrollbackCheck.setTooltip("))
+            .isLessThan(dialog.indexOf("ManagedSetting.SESSION_RESTORE_OUTPUT"));
+        assertThat(dialog.indexOf("sessionRestoreScrollbackLinesSpinner.setTooltip("))
+            .isLessThan(dialog.indexOf("lockIf(sessionRestoreScrollbackLinesSpinner, true)"));
     }
 }

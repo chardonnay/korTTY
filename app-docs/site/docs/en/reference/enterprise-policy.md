@@ -21,7 +21,7 @@ korTTY loads the policy exclusively from the `policy/` folder of its installatio
 
 The enforcement model relies on the operating system's file permissions: the installation directory must be writable only by administrators, which is the default for the locations above. korTTY additionally logs a warning when the active policy file is writable by the current user. During development (never in a packaged installation) a policy can be tested with `-Dkortty.policy.file=/path/to/policy.toml`.
 
-If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, every terminal paste with a line break asks for confirmation, programs cannot put text on the clipboard with OSC 52, the previous session is not reopened at startup, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version.
+If the file exists but cannot be parsed or contains an invalid value, korTTY starts in a fail-safe lockdown: every policy-controllable feature is denied, no server connection is allowed, every terminal paste with a line break asks for confirmation, programs cannot put text on the clipboard with OSC 52, the previous session is not reopened at startup, the output of terminal panes is not saved for it, and a startup dialog names the file and the exact error position. A typo can therefore never silently disable enforcement. One invalid rule rejects the entire file; unknown keys only produce log warnings, so a policy written for a newer korTTY does not lock out users of an older version.
 
 ## Users, groups and rule precedence
 
@@ -216,6 +216,7 @@ groups = ["compliance"]
 | `load-into-snippet-editor` | string | `allow`, `read-only`, `deny` | `read-only` keeps loading remote files into the snippet editor but forbids writing back to the target system; `deny` removes the feature entirely, including opening file paths and `file:` links from terminal output ([Links in terminal output](../features/terminal.md#links-in-terminal-output)) |
 | `paste-warning` | string | `off`, `unless-bracketed`, `always` | The least a [paste warning](../features/terminal.md#paste-protection) may ask. It is a floor, applied on top of *Settings → Terminal → Paste protection*, a connection's own paste warning and the paste warning of a teamwork connection, so none of them can ask less often; one that asks more often keeps doing so. The stored setting is raised to the floor, and the dropdown carries the "Managed by your organization" hint and offers only the floor and stricter choices; with `always` it is locked. When several rules of the same tier set it, the stricter value wins (`always` over `unless-bracketed` over `off`) |
 | `session-restore` | string | `off`, `ask`, `auto` | Sets what korTTY does at startup with the previous session's windows and tabs (*Settings → Window → [Session Restore](settings/window.md#session-restore)*) and locks the dropdown. `off` reopens nothing by itself; **File → Restore Previous Session** stays available. When several rules of the same tier set it, the value that opens fewer connections by itself wins (`off` over `ask` over `auto`) |
+| `session-restore-output` | boolean | `true`, `false` | Sets and locks **Also restore the output of each terminal pane (encrypted)** in *Settings → Window → [Session Restore](settings/window.md#session-restore)*, together with **Lines of output per pane**. `false` switches it off, which deletes the output saved so far at the next start; `true` switches it on, and the output is still saved only while a master password exists and the vault is unlocked. When several rules of the same tier set it, `false` wins |
 
 ```toml
 [[rule]]
@@ -228,6 +229,7 @@ groups = ["compliance"]
   [rule.terminal]
   paste-warning = "always"
   session-restore = "ask"
+  session-restore-output = false
 ```
 
 ### `[rule.logging]`

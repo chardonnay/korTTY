@@ -118,6 +118,9 @@ public final class PolicyClamp {
         if (policy.sessionRestoreMode() != null) {
             settings.setSessionRestoreMode(policy.sessionRestoreMode());
         }
+        if (policy.sessionRestoreOutput() != null) {
+            settings.setSessionRestoreScrollback(policy.sessionRestoreOutput());
+        }
         if (policy.requireMasterPassword()) {
             settings.setRequireMasterPasswordOnStartup(true);
             // A forced master password rules out the insecure auto-unlock path.
