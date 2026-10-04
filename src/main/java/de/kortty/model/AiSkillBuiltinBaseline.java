@@ -103,4 +103,21 @@ public class AiSkillBuiltinBaseline {
     public void setVersion(int version) {
         this.version = Math.max(1, version);
     }
+
+    /** Removes the characters {@code global-settings.xml} cannot hold, as {@link AiSkill#stripUnstorableText()}. */
+    boolean stripUnstorableText() {
+        String strippedName = AiSkill.withoutUnstorable(name);
+        String strippedDescription = AiSkill.withoutUnstorable(description);
+        String strippedContent = AiSkill.withoutUnstorable(content);
+        List<String> strippedTags = AiSkill.withoutUnstorable(getTags());
+        boolean changed = !java.util.Objects.equals(strippedName, name)
+            || !java.util.Objects.equals(strippedDescription, description)
+            || !java.util.Objects.equals(strippedContent, content)
+            || !strippedTags.equals(getTags());
+        name = strippedName;
+        description = strippedDescription;
+        content = strippedContent;
+        tags = strippedTags;
+        return changed;
+    }
 }

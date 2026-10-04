@@ -57,6 +57,7 @@ final class AiSkillsPane extends VBox {
     private final Window owner;
 
     private static final String MUTED_STYLE_CLASS = "ai-skill-muted";
+    private static final String WARNING_STYLE = "-fx-text-fill: #d97706;";
 
     private final CheckBox aiSkillsEnabledCheck;
     private final CheckBox aiSkillAutoDetectionCheck;
@@ -71,6 +72,11 @@ final class AiSkillsPane extends VBox {
     private final CheckBox aiSkillEnabledCheck;
     private final ComboBox<AiSkillTarget> aiSkillTargetCombo;
     private final MonacoEditorPane aiSkillContentArea;
+    /** Below each field: names a character the settings file cannot store ({@link AiSkillStorageGuard}). */
+    private final Label aiSkillNameMessage = createFieldMessage();
+    private final Label aiSkillDescriptionMessage = createFieldMessage();
+    private final Label aiSkillTagsMessage = createFieldMessage();
+    private final Label aiSkillContentMessage = createFieldMessage();
     private final Label statusLabel = new Label();
     private final HBox builtinBanner;
     private final Label builtinStateLabel;
@@ -179,6 +185,7 @@ final class AiSkillsPane extends VBox {
                 selectedAiSkill.setName(newValue);
                 aiSkillListView.refresh();
             }
+            refreshFieldMessages();
         });
 
         aiSkillDescriptionField = new TextField();
@@ -187,6 +194,7 @@ final class AiSkillsPane extends VBox {
             if (!loadingAiSkillEditor && selectedAiSkill != null) {
                 selectedAiSkill.setDescription(newValue);
             }
+            refreshFieldMessages();
         });
 
         aiSkillTagsField = new TextField();
@@ -197,6 +205,7 @@ final class AiSkillsPane extends VBox {
                 selectedAiSkill.setTagsFromString(newValue);
                 aiSkillListView.refresh();
             }
+            refreshFieldMessages();
         });
 
         aiSkillEnabledCheck = new CheckBox(I18n.get("settings.aiSkills.active"));
@@ -245,6 +254,7 @@ final class AiSkillsPane extends VBox {
                 selectedAiSkill.setContent(newValue);
                 // Debounced: the live "modified" badge must not refresh the list per keystroke.
                 refreshBuiltinIndicatorsSoon();
+                refreshFieldMessages();
             }
             Platform.runLater(this::applyAiSkillContentTextStyle);
         });
@@ -266,11 +276,11 @@ final class AiSkillsPane extends VBox {
         aiSkillEditorGrid.setHgap(10);
         aiSkillEditorGrid.setVgap(10);
         aiSkillEditorGrid.add(new Label(I18n.get("settings.aiSkills.name")), 0, 0);
-        aiSkillEditorGrid.add(aiSkillNameField, 1, 0);
+        aiSkillEditorGrid.add(new VBox(4, aiSkillNameField, aiSkillNameMessage), 1, 0);
         aiSkillEditorGrid.add(new Label(I18n.get("settings.aiSkills.description")), 0, 1);
-        aiSkillEditorGrid.add(aiSkillDescriptionField, 1, 1);
+        aiSkillEditorGrid.add(new VBox(4, aiSkillDescriptionField, aiSkillDescriptionMessage), 1, 1);
         aiSkillEditorGrid.add(new Label(I18n.get("settings.aiSkills.tags")), 0, 2);
-        aiSkillEditorGrid.add(aiSkillTagsField, 1, 2);
+        aiSkillEditorGrid.add(new VBox(4, aiSkillTagsField, aiSkillTagsMessage), 1, 2);
         aiSkillEditorGrid.add(new Label(I18n.get("settings.aiSkills.target")), 0, 3);
         aiSkillEditorGrid.add(new HBox(12, aiSkillTargetCombo, aiSkillEnabledCheck), 1, 3);
         GridPane.setHgrow(aiSkillNameField, Priority.ALWAYS);
@@ -297,7 +307,8 @@ final class AiSkillsPane extends VBox {
             builtinBanner,
             aiSkillEditorGrid,
             new Label(I18n.get("settings.aiSkills.content")),
-            aiSkillContentScrollPane);
+            aiSkillContentScrollPane,
+            aiSkillContentMessage);
         VBox.setVgrow(aiSkillContentScrollPane, Priority.ALWAYS);
 
         BorderPane aiSkillEditorPane = new BorderPane(aiSkillEditorBox);
@@ -349,10 +360,24 @@ final class AiSkillsPane extends VBox {
         save(false);
     }
 
+    /**
+     * {@code quiet} is the save on closing: it can no longer ask for a fix, so a skill whose text the
+     * settings file cannot store keeps its stored version there. The Save button instead refuses to
+     * save anything, selects that skill and names the character below the field.
+     */
     void save(boolean quiet) {
         GlobalSettings settings = currentSettings();
         if (settings == null) {
             return;
+        }
+        if (!quiet) {
+            snapshotSelectedAiSkillEditorState();
+            AiSkillStorageGuard.Refusal refusal = AiSkillStorageGuard.firstRefusal(aiSkills);
+            if (refusal != null) {
+                showRefusedSkill(refusal.skill());
+                statusLabel.setText(I18n.get("settings.aiSkills.save.failed", refusal.message()));
+                return;
+            }
         }
         writeInto(settings);
         try {
@@ -384,7 +409,44 @@ final class AiSkillsPane extends VBox {
         }
         targetSettings.setAiSkillsEnabled(aiSkillsEnabledCheck == null || aiSkillsEnabledCheck.isSelected());
         targetSettings.setAiSkillAutoDetectionEnabled(aiSkillAutoDetectionCheck == null || aiSkillAutoDetectionCheck.isSelected());
-        targetSettings.setAiSkills(skillsToSave);
+        targetSettings.setAiSkills(
+            AiSkillStorageGuard.withStoredVersionOfRefused(skillsToSave, targetSettings.getAiSkills()));
+    }
+
+    /** Brings {@code skill} into view and into the editor, so the message below the field is seen. */
+    private void showRefusedSkill(AiSkill skill) {
+        aiSkillSearchField.clear();
+        if (skill.isHidden() && !showHiddenCheck.isSelected()) {
+            showHiddenCheck.setSelected(true);
+        }
+        aiSkillListView.getItems().setAll(visibleAiSkills());
+        aiSkillListView.getSelectionModel().clearSelection();
+        aiSkillListView.getSelectionModel().select(skill);
+        aiSkillListView.scrollTo(skill);
+        refreshFieldMessages();
+    }
+
+    private static Label createFieldMessage() {
+        Label message = new Label();
+        message.setWrapText(true);
+        message.setStyle(WARNING_STYLE);
+        message.managedProperty().bind(message.textProperty().isNotEmpty());
+        message.visibleProperty().bind(message.managedProperty());
+        return message;
+    }
+
+    /** Names, below each field of the selected skill, a character the settings file cannot store. */
+    private void refreshFieldMessages() {
+        boolean editing = selectedAiSkill != null;
+        setFieldMessage(aiSkillNameMessage, editing ? aiSkillNameField.getText() : null);
+        setFieldMessage(aiSkillDescriptionMessage, editing ? aiSkillDescriptionField.getText() : null);
+        setFieldMessage(aiSkillTagsMessage, editing ? aiSkillTagsField.getText() : null);
+        setFieldMessage(aiSkillContentMessage, editing ? selectedAiSkill.getContent() : null);
+    }
+
+    private static void setFieldMessage(Label label, String text) {
+        String message = AiSkillStorageGuard.messageFor(text);
+        label.setText(message != null ? message : "");
     }
 
     private GlobalSettings currentSettings() {
@@ -906,6 +968,7 @@ final class AiSkillsPane extends VBox {
         } finally {
             loadingAiSkillEditor = false;
         }
+        refreshFieldMessages();
     }
 
     private void installAiSkillEditorInputGuards() {

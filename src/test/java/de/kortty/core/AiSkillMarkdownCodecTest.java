@@ -41,6 +41,30 @@ class AiSkillMarkdownCodecTest {
     }
 
     @Test
+    void importStripsCharactersTheSettingsFileCannotStore() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-ai-skill-control-chars");
+        try {
+            Path file = dir.resolve("bell.md");
+            Files.writeString(file, "---\nkortty-ai-skill: 1\nname: Bell\u0007 skill\n"
+                + "description: Rings\uFFFF\ntags: bash, \u001b[1m\n---\n\nEcho\u0000 the bell.\n\tIndented.\n");
+
+            AiSkill imported = AiSkillMarkdownCodec.importFromMarkdown(file);
+
+            assertThat(imported.getName()).isEqualTo("Bell skill");
+            assertThat(imported.getDescription()).isEqualTo("Rings");
+            assertThat(imported.getTags()).containsExactly("bash", "[1m").inOrder();
+            assertThat(imported.getContent()).isEqualTo("Echo the bell.\n\tIndented.\n");
+            assertThat(imported.firstUnstorableText()).isNull();
+
+            Path plain = dir.resolve("plain.md");
+            Files.writeString(plain, "No front matter\u0008.");
+            assertThat(AiSkillMarkdownCodec.importFromMarkdown(plain).getContent()).isEqualTo("No front matter.");
+        } finally {
+            deleteDirectory(dir);
+        }
+    }
+
+    @Test
     void plainMarkdownImportsDisabledWithFileNameAndBothTarget() throws Exception {
         Path dir = Files.createTempDirectory("kortty-ai-skill-plain-markdown");
         try {

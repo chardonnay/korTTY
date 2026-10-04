@@ -8,10 +8,15 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
  * User-defined instructions that can be attached to AI prompts.
+ *
+ * <p>The setters keep text {@code global-settings.xml} cannot hold ({@link XmlStorableText}), so the
+ * AI-skills editor can say what is wrong with it ({@link #firstUnstorableText()});
+ * {@link #stripUnstorableText()} is what keeps it out of the file.
  */
 @XmlRootElement(name = "aiSkill")
 @XmlAccessorType(XmlAccessType.FIELD)
@@ -210,6 +215,108 @@ public class AiSkill {
 
     public void setBuiltinBaseline(AiSkillBuiltinBaseline builtinBaseline) {
         this.builtinBaseline = builtinBaseline;
+    }
+
+    /** A text field of a skill the user edits, as {@link #firstUnstorableText()} names it. */
+    public enum TextField {
+        NAME, DESCRIPTION, TAGS, CONTENT
+    }
+
+    /**
+     * The first character of a skill's {@code field} that {@code global-settings.xml} cannot hold.
+     *
+     * @param codePoint the character; a lone surrogate is reported as its own value
+     */
+    public record UnstorableText(TextField field, int codePoint) {
+
+        /** The character as {@code U+0007}: it is invisible in the editor, so a message names it. */
+        public String codePointLabel() {
+            return String.format(Locale.ROOT, "U+%04X", codePoint);
+        }
+    }
+
+    /**
+     * The first text field, in editor order (name, description, tags, content), holding a character
+     * {@code global-settings.xml} cannot store ({@link XmlStorableText}), or {@code null} when the file
+     * can hold every one of them.
+     */
+    public UnstorableText firstUnstorableText() {
+        int codePoint = XmlStorableText.firstUnstorableCodePoint(name);
+        if (codePoint >= 0) {
+            return new UnstorableText(TextField.NAME, codePoint);
+        }
+        codePoint = XmlStorableText.firstUnstorableCodePoint(description);
+        if (codePoint >= 0) {
+            return new UnstorableText(TextField.DESCRIPTION, codePoint);
+        }
+        for (String tag : getTags()) {
+            codePoint = XmlStorableText.firstUnstorableCodePoint(tag);
+            if (codePoint >= 0) {
+                return new UnstorableText(TextField.TAGS, codePoint);
+            }
+        }
+        codePoint = XmlStorableText.firstUnstorableCodePoint(content);
+        return codePoint >= 0 ? new UnstorableText(TextField.CONTENT, codePoint) : null;
+    }
+
+    /**
+     * Removes every character {@code global-settings.xml} cannot hold from all text of the skill — the
+     * fields the user edits as well as its ids, built-in topics and built-in baseline — and reports
+     * whether anything was removed. Written anyway, one such character would keep every setting from
+     * loading at the next start. An id that ends up blank is replaced by a fresh one.
+     */
+    public boolean stripUnstorableText() {
+        String previousId = id;
+        setId(withoutUnstorable(id));
+        boolean changed = !java.util.Objects.equals(previousId, id);
+        String strippedName = withoutUnstorable(name);
+        changed |= !java.util.Objects.equals(strippedName, name);
+        name = strippedName;
+        String strippedDescription = withoutUnstorable(description);
+        changed |= !java.util.Objects.equals(strippedDescription, description);
+        description = strippedDescription;
+        String strippedContent = withoutUnstorable(content);
+        changed |= !java.util.Objects.equals(strippedContent, content);
+        content = strippedContent;
+        List<String> strippedTags = withoutUnstorable(getTags());
+        if (!strippedTags.equals(getTags())) {
+            setTags(strippedTags);
+            changed = true;
+        }
+        String strippedBuiltinId = withoutUnstorable(builtinId);
+        if (!java.util.Objects.equals(strippedBuiltinId, builtinId)) {
+            setBuiltinId(strippedBuiltinId);
+            changed = true;
+        }
+        List<String> strippedTopics = withoutUnstorable(getBuiltinTopics());
+        if (!strippedTopics.equals(getBuiltinTopics())) {
+            setBuiltinTopics(strippedTopics);
+            changed = true;
+        }
+        if (builtinBaseline != null) {
+            changed |= builtinBaseline.stripUnstorableText();
+        }
+        return changed;
+    }
+
+    /** {@code text} without the characters {@code global-settings.xml} cannot hold; {@code null} stays {@code null}. */
+    static String withoutUnstorable(String text) {
+        if (text == null || XmlStorableText.isStorable(text)) {
+            return text;
+        }
+        StringBuilder kept = new StringBuilder(text.length());
+        text.codePoints()
+            .filter(codePoint -> XmlStorableText.isStorable(new String(Character.toChars(codePoint))))
+            .forEach(kept::appendCodePoint);
+        return kept.toString();
+    }
+
+    static List<String> withoutUnstorable(List<String> texts) {
+        List<String> kept = new ArrayList<>(texts.size());
+        for (String text : texts) {
+            kept.add(withoutUnstorable(text));
+        }
+        return kept;
     }
 
     private void normalizeTags() {
