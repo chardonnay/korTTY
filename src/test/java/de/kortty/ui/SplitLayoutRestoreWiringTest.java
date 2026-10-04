@@ -58,13 +58,13 @@ class SplitLayoutRestoreWiringTest {
         assertThat(restore).contains("new Thread(() -> {");
         assertThat(restore).contains("worker.setDaemon(true);");
         assertThat(restore).contains("prepareRestoredSplitPane(step, directory, tab, tabConnectionId)");
-        assertThat(restore).contains("attachRestoredSplitPane(source, step.orientation(), prepared)");
+        assertThat(restore).contains("attachRestoredSplitPane(source, step.orientation(), prepared,");
         assertWithMessage("a closed tab stops the restore before its next pane").that(restore).contains("if (cleanedUp) {");
         assertThat(methodBody(view, "public void cleanup(")).contains("cleanedUp = true;");
 
         String attach = methodBody(view, "private @Nullable SithTermFxWidget attachRestoredSplitPane(");
         int expect = attach.indexOf("paneOrigins.expect(connector, prepared.ownOrigin());");
-        int split = attach.indexOf("attachSplitPane(source, orientation, connector)");
+        int split = attach.indexOf("splitPane.splitWidget(source, SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, orientation,");
         assertWithMessage("the origin is recorded before the decorator binds the new pane").that(expect).isAtLeast(0);
         assertThat(split).isGreaterThan(expect);
         assertThat(attach).contains("discardRestoredSplitConnector(connector);");

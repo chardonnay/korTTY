@@ -135,6 +135,31 @@ class ProjectLeafFieldSanitizerTest {
     }
 
     @Test
+    void theTabsOwnScrollbackFileIsSessionOnlyToo() {
+        Project shared = projectWithTabScrollback("3f2a9c4e-0d1b-4c8e");
+        ProjectLeafFieldSanitizer.sanitize(shared, ProjectLeafFieldSanitizer.Source.PROJECT_FILE);
+        assertThat(shared.getWindows().get(0).getTabs().get(0).getScrollbackRef()).isNull();
+
+        Project session = projectWithTabScrollback("3f2a9c4e-0d1b-4c8e");
+        ProjectLeafFieldSanitizer.sanitize(session, ProjectLeafFieldSanitizer.Source.SESSION_SNAPSHOT);
+        assertThat(session.getWindows().get(0).getTabs().get(0).getScrollbackRef()).isEqualTo("3f2a9c4e-0d1b-4c8e");
+
+        Project crafted = projectWithTabScrollback("../../.ssh/id_ed25519");
+        ProjectLeafFieldSanitizer.sanitize(crafted, ProjectLeafFieldSanitizer.Source.SESSION_SNAPSHOT);
+        assertThat(crafted.getWindows().get(0).getTabs().get(0).getScrollbackRef()).isNull();
+    }
+
+    private static Project projectWithTabScrollback(String ref) {
+        SessionState session = new SessionState("session-1", "connection-1");
+        session.setScrollbackRef(ref);
+        WindowState window = new WindowState("window-1");
+        window.addTab(session);
+        Project project = new Project("p");
+        project.addWindow(window);
+        return project;
+    }
+
+    @Test
     void aSharedProjectFileOpensWithoutTheSessionOnlyFields() throws Exception {
         Path projectFile = configDir.resolve("shared.kortty");
         Files.writeString(projectFile, """
@@ -150,6 +175,7 @@ class ProjectLeafFieldSanitizerTest {
                                     <sessionId>session-1</sessionId>
                                     <connectionId>connection-1</connectionId>
                                     <currentDirectory>/tmp/prepared-tab</currentDirectory>
+                                    <scrollbackRef>chosen-by-the-sender</scrollbackRef>
                                     <splitPaneState>
                                         <orientation>HORIZONTAL</orientation>
                                         <dividerPosition>0.5</dividerPosition>
@@ -179,11 +205,13 @@ class ProjectLeafFieldSanitizerTest {
         assertThat(layout.getLeftChild().getCurrentDirectory()).isNull();
         assertThat(layout.getRightChild().getScrollbackRef()).isNull();
         assertThat(layout.getRightChild().getConnectionId()).isEqualTo("connection-b");
+        assertThat(loaded.getWindows().get(0).getTabs().get(0).getScrollbackRef()).isNull();
 
         // Saving it again writes neither field back.
         layout.getLeftChild().setCurrentDirectory("/tmp/again");
         // Nor the tab's own working directory, its first pane's.
         loaded.getWindows().get(0).getTabs().get(0).setCurrentDirectory("/tmp/tab-again");
+        loaded.getWindows().get(0).getTabs().get(0).setScrollbackRef("tab-again");
         Path resaved = configDir.resolve("resaved.kortty");
         projectManager.saveProject(loaded, resaved);
         String xml = Files.readString(resaved, StandardCharsets.UTF_8);

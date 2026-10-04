@@ -369,6 +369,16 @@ public class TerminalView extends BorderPane {
      * starts there on its first successful connect, while the directory still exists.
      */
     private final AtomicReference<String> restoredWorkingDirectory = new AtomicReference<>();
+    /**
+     * The saved output (session snapshot, Settings › Window › Session Restore) the primary pane shows
+     * on its first successful connect: the file name, until it was loaded on the connect thread.
+     */
+    private final AtomicReference<String> pendingScrollbackRef = new AtomicReference<>();
+    /** The file name of the primary pane's saved output; a split pane never shows the same file. */
+    private volatile @Nullable String restoredPrimaryScrollbackRef;
+    /** Loads a pane's saved output by its file name, off the FX thread; null while none is restored. */
+    private volatile java.util.function.@Nullable Function<String, Optional<de.kortty.core.ScrollbackSnapshotCodec.Decoded>>
+        restoredScrollbackLoader;
     /** The working directory each local-shell pane is saved with in the session snapshot. */
     private final PaneWorkingDirectoryTracker<SithTermFxWidget> paneWorkingDirectories =
         new PaneWorkingDirectoryTracker<>(TerminalView::scheduleWorkingDirectoryRead, this::fireSessionStateChanged);
@@ -7313,6 +7323,8 @@ public class TerminalView extends BorderPane {
                     if (connected) {
                         // Used once: a later reconnect starts where the connection says.
                         restoredWorkingDirectory.set(null);
+                        // Decrypted here, off the FX thread: the replay below shows it before the first byte.
+                        loadPendingRestoredScrollback();
                         if (ttyConnector instanceof SshTtyConnector sshConnector) {
                             sshConnector.addDataListener(getTerminalAgentPromptDataListener(sshConnector));
                         }
@@ -9016,8 +9028,20 @@ public class TerminalView extends BorderPane {
         if (splitPane == null || splitPane.getWidgetCount() <= 1) {
             return null;
         }
+        return getSessionSplitState(pane -> null);
+    }
+
+    /**
+     * {@link #getSessionSplitState()} with each pane's saved-output file, as {@code scrollbackRefOf}
+     * names it (Settings › Window › Session Restore). Never blocks. JavaFX thread.
+     */
+    public de.kortty.model.SplitPaneState getSessionSplitState(
+            java.util.function.Function<SithTermFxWidget, String> scrollbackRefOf) {
+        if (splitPane == null || splitPane.getWidgetCount() <= 1) {
+            return null;
+        }
         return SplitLayoutRestorePlan.capture(splitPane.snapshotLayout(), this::savedConnectionIdOf,
-            this::sessionWorkingDirectoryOf);
+            this::sessionWorkingDirectoryOf, scrollbackRefOf::apply);
     }
 
     /**
@@ -9104,6 +9128,15 @@ public class TerminalView extends BorderPane {
         if (pending == null) {
             return;
         }
+        replayRestoredOutput(widget, pending);
+    }
+
+    /**
+     * Writes restored rows into {@code widget} through {@link RestoredHistoryReplay}: sanitized, dimmed,
+     * between two marker rows, into the emulator only — never to the connection. Then marks the
+     * highlight baseline, so a trigger does not fire on old output. FX thread, before {@code start()}.
+     */
+    private void replayRestoredOutput(SithTermFxWidget widget, PendingRestoredHistory pending) {
         try {
             String header = pending.savedAt() != null
                 ? I18n.get("terminal.restoredHistory.header",
@@ -9111,14 +9144,105 @@ public class TerminalView extends BorderPane {
                 : I18n.get("terminal.restoredHistory.headerUndated");
             RestoredHistoryReplay.replay(widget.getTerminal(), pending.lines(), header,
                 I18n.get("terminal.restoredHistory.footer"));
-            logger.info("Showed {} restored screen rows locally", pending.lines().size());
+            logger.info("Showed {} restored rows locally", pending.lines().size());
         } catch (RuntimeException e) {
             // Old output is a convenience; it must never keep the live session from starting.
-            logger.warn("Could not show the restored screen output: {}", e.getMessage());
+            logger.warn("Could not show the restored output: {}", e.getMessage());
         } finally {
             // The restored rows are old output: a highlight trigger must not fire on them.
             markHighlightBaseline(widget);
         }
+    }
+
+    /**
+     * Restores the output the session snapshot saved for this tab's panes (Settings › Window ›
+     * Session Restore). Call it on the FX thread before {@link #connect()}.
+     *
+     * <p>{@code loader} runs off the FX thread only: the primary pane's file ({@code primaryRef}) is
+     * read on the connect thread once the connection is up and shown like a project's saved screen
+     * ({@link #setPendingRestoredHistory}); each split pane's file is read while its pane is prepared
+     * and shown right before the pane starts. Either way the rows go into the emulator only,
+     * sanitized and dimmed, and never to the server.
+     *
+     * @param primaryRef the primary pane's file name, or null
+     * @param loader     reads and decrypts a file by its name; null restores nothing
+     */
+    public void setRestoredScrollback(@Nullable String primaryRef,
+            java.util.function.@Nullable Function<String, Optional<de.kortty.core.ScrollbackSnapshotCodec.Decoded>> loader) {
+        restoredScrollbackLoader = loader;
+        restoredPrimaryScrollbackRef = loader != null ? primaryRef : null;
+        pendingScrollbackRef.set(loader != null ? primaryRef : null);
+    }
+
+    /** Loads the primary pane's saved output into the pending restored block; connect thread. */
+    private void loadPendingRestoredScrollback() {
+        String ref = pendingScrollbackRef.getAndSet(null);
+        PendingRestoredHistory loaded = ref != null ? loadRestoredScrollback(ref) : null;
+        if (loaded != null) {
+            // A project's saved screen, if there is one, stays: a session snapshot has none.
+            pendingRestoredHistory.compareAndSet(null, loaded);
+        }
+    }
+
+    /** One file of saved output as rows to replay, or null; never on the FX thread. */
+    private @Nullable PendingRestoredHistory loadRestoredScrollback(@Nullable String ref) {
+        java.util.function.Function<String, Optional<de.kortty.core.ScrollbackSnapshotCodec.Decoded>> loader =
+            restoredScrollbackLoader;
+        if (ref == null || loader == null) {
+            return null;
+        }
+        try {
+            Optional<de.kortty.core.ScrollbackSnapshotCodec.Decoded> decoded = loader.apply(ref);
+            if (decoded.isEmpty()) {
+                return null;
+            }
+            List<String> lines = RestoredHistoryReplay.sanitize(String.join("\n", decoded.get().lines()));
+            if (lines.isEmpty()) {
+                return null;
+            }
+            LocalDateTime savedAt = decoded.get().savedAtMillis() > 0
+                ? LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(decoded.get().savedAtMillis()),
+                    java.time.ZoneId.systemDefault())
+                : null;
+            return new PendingRestoredHistory(lines, savedAt);
+        } catch (RuntimeException e) {
+            logger.warn("Saved terminal output could not be loaded: {}", e.toString());
+            return null;
+        }
+    }
+
+    /**
+     * The file name the session snapshot names for this tab's primary pane's saved output: the one it
+     * is still waiting to show, else {@code refOf}'s. JavaFX thread.
+     */
+    public @Nullable String getSessionScrollbackRef(java.util.function.Function<SithTermFxWidget, String> refOf) {
+        String waiting = pendingScrollbackRef.get();
+        if (waiting != null) {
+            return waiting;
+        }
+        return terminalWidget != null ? refOf.apply(terminalWidget) : null;
+    }
+
+    /** Every open pane of this tab: the split panes, or the single pane. JavaFX thread. */
+    public List<SithTermFxWidget> getOpenPanes() {
+        if (splitPane != null) {
+            return splitPane.getAllWidgets();
+        }
+        return terminalWidget != null ? List.of(terminalWidget) : List.of();
+    }
+
+    /** When {@code pane} last received output ({@link PaneOutputClock#NEVER} for never). Any thread. */
+    public long lastPaneOutputNanos(@Nullable SithTermFxWidget pane) {
+        PaneOutputClock clock = pane != null ? paneOutputClocks.get(pane) : null;
+        return clock != null ? clock.lastOutputNanos() : PaneOutputClock.NEVER;
+    }
+
+    /**
+     * The newest {@code maxLines} lines of {@code pane}, read under its buffer lock and bounded
+     * ({@link PaneTailReader}); null while the pane shows the alternate screen. Any thread.
+     */
+    public @Nullable List<String> readPaneTail(@Nullable SithTermFxWidget pane, int maxLines) {
+        return pane != null ? PaneTailReader.readTail(pane.getTerminalTextBuffer(), maxLines) : List.of();
     }
 
     private static @Nullable Locale currentUiLocale() {
@@ -9216,7 +9340,14 @@ public class TerminalView extends BorderPane {
                         skipped.put(step.newLeafId(), prepared.skipReason());
                         continue;
                     }
-                    SithTermFxWidget pane = attachRestoredSplitPane(source, step.orientation(), prepared);
+                    // The pane's saved output from the session snapshot, decrypted here off the FX
+                    // thread; the primary pane's own file is never shown a second time.
+                    String scrollbackRef = plan.scrollbackRefOf(step.newLeafId());
+                    PendingRestoredHistory restoredOutput = scrollbackRef != null
+                        && !scrollbackRef.equals(restoredPrimaryScrollbackRef)
+                        ? loadRestoredScrollback(scrollbackRef) : null;
+                    SithTermFxWidget pane = attachRestoredSplitPane(source, step.orientation(), prepared,
+                        restoredOutput);
                     if (pane == null) {
                         skipped.put(step.newLeafId(), SplitLayoutRestorePlan.SkipReason.FAILED);
                         continue;
@@ -9314,7 +9445,8 @@ public class TerminalView extends BorderPane {
      * @return the new pane, or null
      */
     private @Nullable SithTermFxWidget attachRestoredSplitPane(SithTermFxWidget source, Orientation orientation,
-                                                               PreparedSplitPane prepared) {
+                                                               PreparedSplitPane prepared,
+                                                               @Nullable PendingRestoredHistory restoredOutput) {
         TtyConnector connector = prepared.connector();
         CompletableFuture<SithTermFxWidget> attached = new CompletableFuture<>();
         boolean posted = runOnFxThread(() -> {
@@ -9323,7 +9455,13 @@ public class TerminalView extends BorderPane {
                 if (!cleanedUp && splitPane != null && splitPane.getAllWidgets().contains(source)) {
                     // Recorded against the base connector first, so the decorator binds it to the new pane.
                     paneOrigins.expect(connector, prepared.ownOrigin());
-                    pane = attachSplitPane(source, orientation, connector).orElse(null);
+                    // The saved output goes in right before the pane starts reading its session.
+                    pane = splitPane.splitWidget(source, SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, orientation,
+                        connector, restoredOutput == null ? null : widget -> {
+                            if (widget.getTerminal() != null) {
+                                replayRestoredOutput(widget, restoredOutput);
+                            }
+                        });
                 }
                 attached.complete(pane);
             } catch (RuntimeException e) {

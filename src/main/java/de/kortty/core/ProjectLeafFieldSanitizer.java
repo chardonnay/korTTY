@@ -88,16 +88,22 @@ public final class ProjectLeafFieldSanitizer {
     }
 
     /**
-     * The tab's own working directory (its first pane's, {@link SessionState#getCurrentDirectory}) is
-     * session-only as well: a project file loses it, a session snapshot keeps it only when
-     * {@link SessionWorkingDirectory#forSnapshot} would save it.
+     * The tab's own working directory and scrollback file (its first pane's,
+     * {@link SessionState#getCurrentDirectory} and {@link SessionState#getScrollbackRef}) are
+     * session-only as well: a project file loses both, a session snapshot keeps the directory only
+     * when {@link SessionWorkingDirectory#forSnapshot} would save it and the reference only when it is
+     * a plain name.
      */
     private static void sanitizeTab(SessionState session, Source source) {
         if (source == Source.PROJECT_FILE) {
             session.setCurrentDirectory(null);
+            session.setScrollbackRef(null);
             return;
         }
         session.setCurrentDirectory(SessionWorkingDirectory.forSnapshot(session.getCurrentDirectory()));
+        if (session.getScrollbackRef() != null && !isValidScrollbackRef(session.getScrollbackRef())) {
+            session.setScrollbackRef(null);
+        }
     }
 
     private static void sanitizeNode(SplitPaneState node, Source source) {

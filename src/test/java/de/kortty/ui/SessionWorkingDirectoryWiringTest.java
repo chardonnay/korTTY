@@ -27,8 +27,8 @@ class SessionWorkingDirectoryWiringTest {
         String capture = methodBody(read(MAIN_WINDOW), "private SessionState captureTabState(Tab tab, CaptureOptions options) {");
 
         assertThat(capture).contains("options.includeWorkingDirectories()\n"
-            + "                    ? terminalTab.getTerminalView().getSessionSplitState()\n"
-            + "                    : terminalTab.getTerminalView().getSplitState();");
+            + "                    ? view.getSessionSplitState(scrollbackRefOf)\n"
+            + "                    : view.getSplitState();");
         assertWithMessage("a project save must not strip the layout a restored tab still rebuilds")
             .that(capture).contains("splitState = terminalTab.getPendingSplitLayout().deepCopy();");
         assertThat(capture).contains("ProjectLeafFieldSanitizer.sanitize(splitState, ProjectLeafFieldSanitizer.Source.PROJECT_FILE);");
@@ -50,6 +50,8 @@ class SessionWorkingDirectoryWiringTest {
         assertWithMessage("the live read is only handed to the tracker, which runs it in the background")
             .that(paneDirectory).doesNotContain("readLiveWorkingDirectory()");
         assertThat(methodBody(view, "public de.kortty.model.SplitPaneState getSessionSplitState() {"))
+            .contains("getSessionSplitState(pane -> null)");
+        assertThat(methodBody(view, "public de.kortty.model.SplitPaneState getSessionSplitState(\n"))
             .contains("this::sessionWorkingDirectoryOf");
         assertThat(methodBody(view, "public de.kortty.model.SplitPaneState getSplitState() {"))
             .doesNotContain("sessionWorkingDirectoryOf");
@@ -61,8 +63,8 @@ class SessionWorkingDirectoryWiringTest {
         String window = read(MAIN_WINDOW);
         String view = read(TERMINAL_VIEW);
 
-        assertThat(methodBody(window, "private void restoreSavedTab(")).contains("sessionState.getCurrentDirectory());");
-        String open = window.substring(window.indexOf("            String restoredWorkingDirectory) {"));
+        assertThat(methodBody(window, "private void restoreSavedTab(")).contains("sessionState.getCurrentDirectory(),");
+        String open = window.substring(window.indexOf("            java.util.function.Consumer<TerminalView> beforeConnect) {"));
         open = open.substring(0, open.indexOf("// Connect in background"));
         assertThat(open).contains("if (restoredWorkingDirectory != null\n"
             + "                    && connection.getProtocol() == de.kortty.model.ConnectionProtocol.LOCAL_SHELL) {");
