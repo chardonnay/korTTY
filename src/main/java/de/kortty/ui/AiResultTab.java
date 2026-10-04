@@ -105,6 +105,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * AI chat tab that supports follow-up questions, saving, sharing, and reopening.
@@ -140,6 +141,11 @@ public class AiResultTab extends Tab {
      * chat. Volatile: the title suggestion reads it on a background thread.
      */
     private volatile SessionJournalRedactor outboundSecrets;
+    /**
+     * The terminal pane this chat was opened from, where its code blocks go first (see
+     * {@link #setSourcePane}); {@code null} for a reopened saved chat. FX thread.
+     */
+    private TerminalPaneRef sourcePane;
     private String languageCode;
     private final List<SavedAiChatMessage> messageEntries = new ArrayList<>();
     private final StringBuilder plainTranscript = new StringBuilder();
@@ -485,6 +491,28 @@ public class AiResultTab extends Tab {
      */
     void setOutboundSecrets(SessionJournalRedactor secrets) {
         this.outboundSecrets = secrets;
+    }
+
+    /**
+     * Binds the chat to the terminal pane it was opened from: its code blocks are inserted into or run in
+     * that pane while it is open, and in the focused pane of the current terminal tab after it closed
+     * ({@link AiCodeBlockTerminalAction#resolveTarget}). A reopened saved chat has no binding.
+     */
+    void setSourcePane(@Nullable TerminalPaneRef pane) {
+        this.sourcePane = pane;
+    }
+
+    /** The pane this chat was opened from, or {@code null}; it may have closed since. */
+    @Nullable TerminalPaneRef sourcePane() {
+        return sourcePane;
+    }
+
+    /**
+     * The pane a code block of this chat goes to now: the bound source pane while it is open, otherwise the
+     * focused pane of the terminal tab a snippet would go to, otherwise {@code null}. FX thread.
+     */
+    @Nullable TerminalPaneRef terminalTarget() {
+        return AiCodeBlockTerminalAction.resolveTarget(sourcePane, ownerWindow);
     }
 
     /** The chat's selection, attachment and conversation as they may go to {@code profile}. */

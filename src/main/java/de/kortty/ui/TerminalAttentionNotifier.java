@@ -3,7 +3,9 @@ package de.kortty.ui;
 import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.ui.SithTermFxWidget;
 import de.kortty.KorTTYApplication;
+import de.kortty.codingagent.CodingAgentEntry;
 import de.kortty.codingagent.CodingAgentRegistry;
+import de.kortty.codingagent.CodingAgentState;
 import de.kortty.codingagent.PaneRef;
 import de.kortty.codingagent.desktop.DesktopNotifier;
 import de.kortty.core.DisplayTextSanitizer;
@@ -357,19 +359,35 @@ public final class TerminalAttentionNotifier {
         return tab != null && widget != null && hasCodingAgent(tab, widget);
     }
 
+    /**
+     * The state of the coding agent detected in {@code widget}, a pane of {@code tab}, or empty when there is
+     * none: AI chat code blocks are not typed into an agent waiting for an approval
+     * ({@link AiCodeBlockTerminalAction}).
+     */
+    Optional<CodingAgentState> codingAgentStateIn(TerminalTab tab, SithTermFxWidget widget) {
+        if (tab == null || widget == null) {
+            return Optional.empty();
+        }
+        return codingAgentEntry(tab, widget).map(CodingAgentEntry::state);
+    }
+
     /** Whether a coding agent was detected in the pane, so its own notifications speak for it. */
     private boolean hasCodingAgent(TerminalTab tab, SithTermFxWidget widget) {
+        return codingAgentEntry(tab, widget).isPresent();
+    }
+
+    private Optional<CodingAgentEntry> codingAgentEntry(TerminalTab tab, SithTermFxWidget widget) {
         CodingAgentRegistry registry = codingAgents.get();
         TerminalView view = tab.getTerminalView();
         if (registry == null || view == null) {
-            return false;
+            return Optional.empty();
         }
         try {
             Optional<PaneRef> pane = view.paneRefOf(widget);
-            return pane.isPresent() && registry.entry(pane.get()).isPresent();
+            return pane.isPresent() ? registry.entry(pane.get()) : Optional.empty();
         } catch (RuntimeException e) {
             logger.debug("Coding-agent lookup for a pane's notification failed: {}", e.toString());
-            return false;
+            return Optional.empty();
         }
     }
 

@@ -245,6 +245,15 @@ public final class CommandBlockStore implements PromptNavigator.Prompts {
     }
 
     /**
+     * Whether the newest block is a command that runs now: the shell marked it as submitted ({@code C}) and
+     * has not reported its end ({@code D}) yet, so a line typed now goes to that command, not to the shell.
+     */
+    public synchronized boolean commandRunning() {
+        Map.Entry<Long, CommandBlock> last = blocks.lastEntry();
+        return last != null && last.getValue().running();
+    }
+
+    /**
      * Whether the newest block is a command that runs now and was submitted ({@code C}) at or after
      * {@code nanos} ({@link System#nanoTime()}): its {@code D} mark will say when it finished.
      */

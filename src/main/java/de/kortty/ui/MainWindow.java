@@ -9481,6 +9481,8 @@ public class MainWindow {
         SessionJournalRedactor knownSecrets = aiSecretRedactor(terminalTab);
         RedactionResult maskedSelection = AiOutboundRedaction.redactFor(effectiveProfile, selectedText, knownSecrets);
         String outboundText = maskedSelection.text();
+        // The pane the selection came from, read now: the chat's code blocks go back to it.
+        TerminalPaneRef sourcePane = aiSourcePane(terminalTab, runContext);
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
         boolean confirmBeforeSend = action == AiAction.ASK || settings == null || settings.isAiConfirmBeforeSend();
         if (confirmBeforeSend) {
@@ -9488,13 +9490,13 @@ public class MainWindow {
                 maxSelectionChars, maskedSelection.count())
                 .ifPresent(draft -> startAiSelectionRequest(
                     action, effectiveProfile, aiService, draft, connectionName, languageCode, maxSelectionChars,
-                    knownSecrets, 0));
+                    knownSecrets, 0, sourcePane));
             return;
         }
         if (attachmentCandidate == null) {
             startAiSelectionRequest(action, effectiveProfile, aiService,
                 new AiRequestDraft(outboundText, null, null), connectionName, languageCode, maxSelectionChars,
-                knownSecrets, maskedSelection.count());
+                knownSecrets, maskedSelection.count(), sourcePane);
             return;
         }
         // No confirmation dialog: attach the file when it validates, otherwise send the selection
@@ -9506,8 +9508,21 @@ public class MainWindow {
             }
             startAiSelectionRequest(action, effectiveProfile, aiService,
                 new AiRequestDraft(outboundText, null, outcome.attachment()), connectionName, languageCode,
-                maxSelectionChars, knownSecrets, maskedSelection.count());
+                maxSelectionChars, knownSecrets, maskedSelection.count(), sourcePane);
         });
+    }
+
+    /**
+     * The pane an AI request from {@code terminalTab} came from, for the chat's code blocks: the run
+     * context's pane, else the tab's focused pane; {@code null} without a terminal pane. FX thread.
+     */
+    private static @Nullable TerminalPaneRef aiSourcePane(@Nullable TerminalTab terminalTab,
+                                                          @Nullable TerminalView.TerminalAgentRunContext runContext) {
+        if (terminalTab == null) {
+            return null;
+        }
+        TerminalPaneRef fromContext = runContext != null ? TerminalPaneRef.of(terminalTab, runContext.widget()) : null;
+        return fromContext != null ? fromContext : TerminalPaneRef.focusedPaneOf(terminalTab);
     }
 
     /** The tab's known secrets (connection password, policy rules) for masking AI-bound text. */
@@ -9537,6 +9552,7 @@ public class MainWindow {
      * @param knownSecrets    the tab's known secrets, for masking the attachment
      * @param unreportedMasks secrets already masked in the selection that no preview dialog showed;
      *                        the status bar reports them together with the attachment's
+     * @param sourcePane      the pane the selection came from, where the chat's code blocks go
      */
     private void startAiSelectionRequest(
         AiAction action,
@@ -9547,7 +9563,8 @@ public class MainWindow {
         String languageCode,
         int maxSelectionChars,
         @Nullable SessionJournalRedactor knownSecrets,
-        int unreportedMasks) {
+        int unreportedMasks,
+        @Nullable TerminalPaneRef sourcePane) {
         String requestText = draft.selectedText();
         if (requestText.trim().isEmpty()) {
             return;
@@ -9587,6 +9604,7 @@ public class MainWindow {
             false);
         // Follow-ups may go to another profile; the tab masks them again with these secrets.
         resultTab.setOutboundSecrets(knownSecrets);
+        resultTab.setSourcePane(sourcePane);
         if (fileAttachment != null) {
             resultTab.setFileAttachment(fileAttachment);
         }
@@ -11513,9 +11531,10 @@ public class MainWindow {
         // No preview here either, so the status bar says how many secrets were masked.
         SessionJournalRedactor knownSecrets = aiSecretRedactor(terminalTab);
         RedactionResult maskedSelection = AiOutboundRedaction.redactFor(profile, selectedText, knownSecrets);
+        TerminalPaneRef sourcePane = aiSourcePane(terminalTab, runContext);
         if (attachmentCandidate == null) {
             openDirectAiAskTab(profile, prompt, maskedSelection.text(), connectionDisplayName, connection, null,
-                knownSecrets);
+                knownSecrets, sourcePane);
             updateStatusWithMaskedSecrets(null, maskedSelection.count());
             return;
         }
@@ -11527,7 +11546,7 @@ public class MainWindow {
             AiOutboundRedaction.MaskedAttachment maskedAttachment =
                 AiOutboundRedaction.redactAttachmentFor(profile, outcome.attachment(), knownSecrets);
             openDirectAiAskTab(profile, prompt, maskedSelection.text(), connectionDisplayName, connection,
-                maskedAttachment.attachment(), knownSecrets);
+                maskedAttachment.attachment(), knownSecrets, sourcePane);
             updateStatusWithMaskedSecrets(skipped, maskedSelection.count() + maskedAttachment.count());
         });
     }
@@ -11539,7 +11558,8 @@ public class MainWindow {
         String connectionDisplayName,
         ServerConnection connection,
         @Nullable AiFileAttachment fileAttachment,
-        @Nullable SessionJournalRedactor knownSecrets) {
+        @Nullable SessionJournalRedactor knownSecrets,
+        @Nullable TerminalPaneRef sourcePane) {
         // Answer the question about the terminal selection when one was captured; without a
         // selection the question itself stays the request text (previous behavior).
         String requestText = askRequestText(selectedText, prompt);
@@ -11557,6 +11577,7 @@ public class MainWindow {
             false);
         // Follow-ups may go to another profile; the tab masks them again with these secrets.
         resultTab.setOutboundSecrets(knownSecrets);
+        resultTab.setSourcePane(sourcePane);
         if (fileAttachment != null) {
             resultTab.setFileAttachment(fileAttachment);
         }

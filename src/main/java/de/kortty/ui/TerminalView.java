@@ -9048,6 +9048,41 @@ public class TerminalView extends BorderPane {
         }
     }
 
+    /** Whether {@code widget} is one of this tab's open panes. FX thread. */
+    public boolean hasPane(@Nullable SithTermFxWidget widget) {
+        return widget != null && terminalPanes().contains(widget);
+    }
+
+    /** Whether {@code widget}, a pane of this tab, has a connected session that can take input. FX thread. */
+    public boolean isPaneConnected(@Nullable SithTermFxWidget widget) {
+        if (!hasPane(widget)) {
+            return false;
+        }
+        TtyConnector connector = unwrapTerminalEffectConnector(widget.getTtyConnector());
+        return connector != null && connector.isConnected();
+    }
+
+    /**
+     * Whether the shell of {@code widget}, a pane of this tab, is (suspected to be) running as another user or
+     * host than the tab was opened with ({@link #isForeignSessionActive(TerminalAgentRunContext)}). False for a
+     * pane without a connected session. FX thread (reads the screen buffer).
+     */
+    public boolean isPaneInForeignSession(@Nullable SithTermFxWidget widget) {
+        if (!hasPane(widget)) {
+            return false;
+        }
+        TerminalAgentRunContext context = createTerminalAgentRunContext(widget);
+        return context != null && isForeignSessionActive(context);
+    }
+
+    /**
+     * What the shell-integration marks of {@code widget}, a pane of this tab, say about its prompt: whether
+     * its shell waits for a command, runs one, or cannot tell (no marks). Any thread.
+     */
+    ShellIntegrationController.PromptState panePromptState(@Nullable SithTermFxWidget widget) {
+        return shellIntegration.promptState(widget);
+    }
+
     /**
      * The connection {@code widget}'s session was opened for: a split to another server has its own,
      * every other pane belongs to the tab's connection. {@code null} only for a tab without one.
