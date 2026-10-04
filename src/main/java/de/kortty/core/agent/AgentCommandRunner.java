@@ -55,4 +55,15 @@ public interface AgentCommandRunner {
 
     /** Whether the backend is currently usable (SSH session open / local shell alive). */
     boolean isConnected();
+
+    /**
+     * A fresh redactor with the secrets this backend knows (the connection's password), so the
+     * agent can mask them in what it sends to a cloud AI profile. {@code null} when the backend
+     * knows none (a local shell); the organisation's replacement rules and the token formats are
+     * masked anyway. Called after the first probe, when a lazily connected session has its
+     * password.
+     */
+    default de.kortty.core.SessionJournalRedactor knownSecrets() {
+        return null;
+    }
 }

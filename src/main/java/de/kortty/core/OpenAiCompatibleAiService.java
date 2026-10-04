@@ -320,6 +320,21 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     }
 
     AiExecutionResult executeWithClient(AiRequest request, HttpClient client, Duration timeout) throws Exception {
+        // Streamed snapshots follow the chat path only; every executePrompt path passes null.
+        AiStreamProgress progress = AiStreamProgress.of(request != null ? request.streamListener() : null);
+        AiExecutionResult result = executeWithClient(request, client, timeout, progress);
+        if (progress != null) {
+            progress.complete();
+        }
+        return result;
+    }
+
+    private AiExecutionResult executeWithClient(
+        AiRequest request,
+        HttpClient client,
+        Duration timeout,
+        AiStreamProgress progress) throws Exception {
+
         String effectiveModel = resolveModelForRequest(client);
         AiSkillRelevanceClassifier skillClassifier = createSkillClassifier(client, effectiveModel);
         if (webSearchTool != null && AiInternetPromptSupport.isInternetEligible(request)) {
@@ -340,14 +355,14 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         }
         try {
             return executeAiRequestWithStructuredOutputFallback(
-                request, client, timeout, skillClassifier, effectiveModel);
+                request, client, timeout, skillClassifier, effectiveModel, progress);
         } catch (ModelNotLoadedException e) {
             String retryModel = reresolveForRetry(client);
             if (retryModel == null || retryModel.equals(effectiveModel)) {
                 throw e;
             }
             return executeAiRequestWithStructuredOutputFallback(
-                request, client, timeout, skillClassifier, retryModel);
+                request, client, timeout, skillClassifier, retryModel, progress);
         }
     }
 
@@ -356,12 +371,13 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         HttpClient client,
         Duration timeout,
         AiSkillRelevanceClassifier skillClassifier,
-        String effectiveModel) throws Exception {
+        String effectiveModel,
+        AiStreamProgress progress) throws Exception {
 
         AiExecutionResult result;
         try {
             result = executeAiRequestWithTokenParameterFallback(
-                request, client, timeout, skillClassifier, effectiveModel, true, false);
+                request, client, timeout, skillClassifier, effectiveModel, true, false, progress);
         } catch (EmptyResponseException e) {
             AiExecutionResult salvaged = salvageAnswerFromReasoning(request, e);
             if (salvaged != null) {
@@ -381,7 +397,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             return withCarriedOverUsage(
                 e.partialResult(),
                 executeAiRequestWithTokenParameterFallback(
-                    request, client, timeout, skillClassifier, effectiveModel, false, true));
+                    request, client, timeout, skillClassifier, effectiveModel, false, true, progress));
         } catch (AiApiException e) {
             if (!usesStructuredJsonSchema(request) || !isUnsupportedStructuredOutputError(e)) {
                 throw e;
@@ -391,7 +407,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             // bug and must stay visible. Endpoints that accept and then ignore the parameter are
             // caught after the fact by the unusable-content check below.
             return executeAiRequestWithTokenParameterFallback(
-                request, client, timeout, skillClassifier, effectiveModel, false, true);
+                request, client, timeout, skillClassifier, effectiveModel, false, true, progress);
         }
         if (!needsPlainJsonRetry(request, result)) {
             return result;
@@ -404,7 +420,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         return withCarriedOverUsage(
             result,
             executeAiRequestWithTokenParameterFallback(
-                request, client, timeout, skillClassifier, effectiveModel, false, true));
+                request, client, timeout, skillClassifier, effectiveModel, false, true, progress));
     }
 
     /**
@@ -584,7 +600,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         AiSkillRelevanceClassifier skillClassifier,
         String effectiveModel,
         boolean includeStructuredResponseFormat,
-        boolean enforceJsonOnlyInstruction) throws Exception {
+        boolean enforceJsonOnlyInstruction,
+        AiStreamProgress progress) throws Exception {
 
         try {
             return executeRequestWithClient(
@@ -597,7 +614,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                     enforceJsonOnlyInstruction),
                 timeout,
                 client,
-                AiOutputTokenLimitSupport.actionLimit(request) != null);
+                AiOutputTokenLimitSupport.actionLimit(request) != null,
+                progress);
         } catch (AiApiException e) {
             if (AiOutputTokenLimitSupport.resolve(request, defaultMaxCompletionTokens) == null
                 || !isUnsupportedMaxTokensError(e)) {
@@ -613,7 +631,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                     enforceJsonOnlyInstruction),
                 timeout,
                 client,
-                AiOutputTokenLimitSupport.actionLimit(request) != null);
+                AiOutputTokenLimitSupport.actionLimit(request) != null,
+                progress);
         }
     }
 
@@ -706,7 +725,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             jsonResponseFormat,
             effectiveModel);
         try {
-            return executeRequestWithClient(requestBody, timeout, client, false);
+            return executeRequestWithClient(requestBody, timeout, client, false, null);
         } catch (ModelNotLoadedException e) {
             String retryModel = reresolveForRetry(client);
             if (retryModel == null || retryModel.equals(effectiveModel)) {
@@ -716,7 +735,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 buildPromptRequestBody(effectiveSystemPrompt, userPrompt, images, 0.2, jsonResponseFormat, retryModel),
                 timeout,
                 client,
-                false);
+                false,
+                null);
         }
     }
 
@@ -730,12 +750,15 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
      * generates; a buffered request stays byte-silent for the whole generation, which lets
      * API gateways cut the idle connection during multi-minute runs (observed with MiniMax
      * as "EOF reached while reading" after ~4.5 minutes of full code analysis).
+     *
+     * @param progress the chat request's stream snapshots, or {@code null} for every prompt path
      */
     private AiExecutionResult executeRequestWithClient(
         String requestBody,
         Duration timeout,
         HttpClient client,
-        boolean returnTruncatedResult) throws Exception {
+        boolean returnTruncatedResult,
+        AiStreamProgress progress) throws Exception {
 
         if (apiUrl.isBlank()) {
             throw new IllegalStateException("AI API URL must be configured.");
@@ -745,7 +768,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                 buildJsonPostRequest(enableStreaming(requestBody), timeout),
                 timeout,
                 client,
-                returnTruncatedResult);
+                returnTruncatedResult,
+                progress);
             if (!result.streamInterrupted()) {
                 return result;
             }
@@ -754,15 +778,23 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             // again. One more attempt is worth it because the alternative is discarding a
             // multi-minute generation — and, for a staged workflow, every stage before it.
             logger.warn("AI response stream was cut short; retrying the request once.");
+            if (progress != null) {
+                progress.restart();
+            }
             return executeStreamingRequest(
                 buildJsonPostRequest(enableStreaming(requestBody), timeout),
                 timeout,
                 client,
-                returnTruncatedResult);
+                returnTruncatedResult,
+                progress);
         } catch (AiApiException e) {
             if (isUnsupportedStreamingError(e)) {
                 logger.info("AI endpoint rejected streaming ({}); retrying without streaming.", e.getMessage());
-                return executeBufferedRequest(buildJsonPostRequest(requestBody, timeout), client, returnTruncatedResult);
+                if (progress != null) {
+                    progress.restart();
+                }
+                return executeBufferedRequest(
+                    buildJsonPostRequest(requestBody, timeout), client, returnTruncatedResult, progress);
             }
             // The thinking object is only sent to endpoints that look like MiniMax, so this is a
             // safety net for a proxy or an older deployment that does not know it — without it,
@@ -770,7 +802,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             if (isUnsupportedThinkingError(e) && carriesThinkingMode(requestBody)) {
                 logger.info("AI endpoint rejected the thinking parameter ({}); retrying without it.", e.getMessage());
                 return executeRequestWithClient(
-                    withoutThinkingMode(requestBody), timeout, client, returnTruncatedResult);
+                    withoutThinkingMode(requestBody), timeout, client, returnTruncatedResult, progress);
             }
             throw e;
         }
@@ -780,19 +812,28 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         HttpRequest httpRequest,
         Duration timeout,
         HttpClient client,
-        boolean returnTruncatedResult) throws Exception {
+        boolean returnTruncatedResult,
+        AiStreamProgress progress) throws Exception {
 
         // The model generates while the body streams, so the power-management scope must cover
         // the body read as well — the send only delivers the response headers here.
         AiCancellation.throwIfCancelled();
+        if (progress != null) {
+            // A retry further up (plain-JSON, max_tokens, thinking, model reload) re-sends the
+            // request: whatever the previous attempt showed is void.
+            progress.beginAttempt();
+        }
         return AiPowerManagementScope.call(() -> {
             HttpResponse<InputStream> response = client.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+            boolean success = response.statusCode() >= 200 && response.statusCode() < 300;
+            // An error body is never shown as an answer, so only a successful stream is observed.
+            InputStream bodyStream = progress != null && success ? progress.observe(response.body()) : response.body();
             ResponseBody body;
             // A stop closes the stream from the stopping thread, so a read blocked on a silent
             // connection ends at once and the server sees the disconnect (llama-server and the
             // MLX sidecar stop generating when the client goes away).
             try (AiCancellation.Registration ignored = AiCancellation.onCancel(() -> closeQuietly(response.body()))) {
-                body = readResponseBodyDetailed(response.body(), timeout);
+                body = readResponseBodyDetailed(bodyStream, timeout);
             }
             String responseBody = body.text();
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -812,9 +853,16 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
                     logger.warn("AI response stream ended without a finish_reason or [DONE] after {} content chars; "
                         + "raw stream: {}", content.length(), archived != null ? archived : "not archived");
                 }
+                if (progress != null) {
+                    progress.flush();
+                }
             } else {
                 throwIfProviderError(responseBody);
                 result = parseResponseBody(responseBody);
+                if (progress != null && result != null) {
+                    // The endpoint ignored stream=true and answered in one piece.
+                    progress.emitOnce(result.content(), result.reasoning());
+                }
             }
             // A stream cut short never delivers a finish_reason, so the aggregated result would
             // look complete. The buffered path marks a salvaged body fail-closed for the same
@@ -831,7 +879,8 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
     private AiExecutionResult executeBufferedRequest(
         HttpRequest httpRequest,
         HttpClient client,
-        boolean returnTruncatedResult) throws Exception {
+        boolean returnTruncatedResult,
+        AiStreamProgress progress) throws Exception {
 
         AiCancellation.throwIfCancelled();
         HttpResponse<InputStream> response = AiPowerManagementScope.call(
@@ -845,6 +894,9 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         }
         throwIfProviderError(responseBody);
         AiExecutionResult parsedResult = parseResponseBody(responseBody);
+        if (progress != null && parsedResult != null) {
+            progress.emitOnce(parsedResult.content(), parsedResult.reasoning());
+        }
         logEmptyReply(parsedResult, returnTruncatedResult, response.statusCode(), contentTypeOf(response), responseBody);
         return finishExecutionResult(parsedResult, returnTruncatedResult);
     }
@@ -1021,7 +1073,7 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
      * reply in its final chunk after streaming the deltas. Appending that would double the answer
      * ({@code {...}{...}}), so a message that extends what was already received replaces it.
      */
-    private static void appendStreamed(StringBuilder buffer, String piece, boolean isDelta) {
+    static void appendStreamed(StringBuilder buffer, String piece, boolean isDelta) {
         if (isDelta || buffer.length() == 0) {
             buffer.append(piece);
             return;

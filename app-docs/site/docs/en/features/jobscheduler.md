@@ -245,8 +245,11 @@ If KorTTY is about to exit while JobScheduler jobs are running, it shows a warni
 - Sudo passwords are stored encrypted with the master password.
 - SSH key passphrases and archive passwords are stored encrypted.
 - KorTTY redacts managed secrets (passwords, passphrases, archive credentials) from journal output before persistence.
+- In an AI Swarm job, each server's password is redacted from the journals as soon as its background session connects, so output captured while the swarm is still running is covered too.
+- What AI jobs send to a cloud AI profile is masked: the AI Swarm agents and the request that combines their answers (see [Masking what the agent sends](ai-tools.md#masking-what-the-agent-sends)), and the request of an AI Agent job, where the server's stored password and the job's sudo password become `***`. The AI Agent job's request holds only the server name, the working directory and the job prompt, so the masking there only catches a secret typed into the prompt. Integrated models and a trusted local endpoint get the original text.
 - If the master password is locked when a job needs SSH, sudo, API, or archive secrets, the job is blocked.
 - Webhook URLs are stored encrypted with the master password and are never written to the journal or the log; only their host is.
+- AI Agent and AI Swarm jobs follow your organization's [enterprise policy](../reference/enterprise-policy.md#rulefeatures). When the policy denies AI, the AI agent or (for swarm jobs) the AI Swarm, or sets `ai-agent-execution` to `read-only`, the job ends as **BLOCKED** before it connects to any server, and the journal names the reason. Under `ai-agent-execution = "confirm"` a person must approve every server-changing command, which an unattended job cannot ask for: an AI Agent job blocks at the first planned server-changing command and runs nothing of it, and an AI Swarm agent that plans one is stopped and counted as blocked, even when **Auto-approve AI commands** is on. Read-only commands still run.
 
 ## Troubleshooting
 
@@ -257,6 +260,7 @@ If KorTTY is about to exit while JobScheduler jobs are running, it shows a warni
     - Unsupported Mosh target
     - Missing `rsync` or `ssh` in PATH
     - Old host-key pin without OpenSSH public-key material for Rsync
+    - An AI Agent or AI Swarm job that your organization's [enterprise policy](../reference/enterprise-policy.md#rulefeatures) does not allow: the detail text says whether AI, the AI agent or the AI Swarm is disabled, whether the agent is limited to read-only, or which server-changing commands were blocked because the policy requires a person to approve them
 
     **JobScheduler Rsync cannot start:** Verify local `rsync --version` and `ssh -V`, or configure the Rsync binary path in **Settings > SFTP > JobScheduler Rsync**.
 

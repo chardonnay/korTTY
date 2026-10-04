@@ -72,6 +72,11 @@ public final class JournalingAgentCommandRunner implements AgentCommandRunner {
     }
 
     @Override
+    public de.kortty.core.SessionJournalRedactor knownSecrets() {
+        return delegate.knownSecrets();
+    }
+
+    @Override
     public String currentWorkingDirectory() {
         return delegate.currentWorkingDirectory();
     }

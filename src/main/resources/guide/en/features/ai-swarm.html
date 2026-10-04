@@ -920,6 +920,7 @@
 <p>The approval dialog also offers <strong>Cancel swarm</strong> to stop the whole run.</p>
 <h2 id="combined-answer-and-row-details">Combined answer and row details<a class="headerlink" href="#combined-answer-and-row-details" title="Permanent link">&para;</a></h2>
 <p>When all agents finish, the swarm combines the per-server answers into one Markdown comparison table with exactly one row per server. The last column is always titled <strong>"Fehler"</strong> and lists deviations, missing data, and errors (or <code>-</code> when there is nothing to report), regardless of the response language.</p>
+<p>The request that combines the answers carries every server's answer and output excerpt, so it is masked like the agents' own prompts before it goes to a profile other than an integrated model or a trusted local endpoint: the connection passwords of all servers, your organization's replacement rules and well-known token formats become <code>***</code> (see <a href="ai-assistant.html#masking-secrets-before-sending">Masking secrets before sending</a>). The rows and the table shown when the AI cannot be reached keep the original text, because they never leave your computer.</p>
 <p>Table cells are often too small for full command output — <strong>click any table row</strong> to open it in a separate <em>Row details</em> window with a readable layout, <strong>A− / A+</strong> font-size buttons, and a copy-to-clipboard button.</p>
 <h2 id="conversation-copy-export-and-saving">Conversation copy, export, and saving<a class="headerlink" href="#conversation-copy-export-and-saving" title="Permanent link">&para;</a></h2>
 <p>The conversation header has a <strong>Copy</strong> button (whole conversation to the clipboard) and an <strong>Export</strong> menu with <strong>Plain text</strong>, <strong>Markdown</strong>, and <strong>PDF</strong>. <strong>Save</strong> stores the conversation as a named swarm chat; saved swarm chats appear in a dedicated <strong>Swarm Chats</strong> section of the <a href="ai-assistant.html#ai-manager">AI Manager</a> and can be reopened later.</p>
@@ -1012,7 +1013,8 @@
 <div class="admonition warning">
 <p class="admonition-title">Unattended changes</p>
 <p>A scheduled swarm with <strong>read-only off</strong> and <strong>auto-approve on</strong> changes systems without anyone watching. Keep scheduled swarms read-only unless the prompt is deliberately designed (and tested interactively) to make changes.</p>
-</div></p>
+</div>
+<p>An organization's <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a> also applies to scheduled swarms: with the AI Swarm or the AI agent denied, or <code>ai-agent-execution</code> set to <code>read-only</code>, the job ends as blocked before it connects; with <code>ai-agent-execution = "confirm"</code>, every agent that plans a server-changing command is stopped and counted as blocked, even when auto-approve is on.</p></p>
     </article>
 </section>
             <!-- endblock -->

@@ -36,6 +36,11 @@ public final class SshAgentCommandRunner implements AgentCommandRunner {
     }
 
     @Override
+    public de.kortty.core.SessionJournalRedactor knownSecrets() {
+        return connector != null ? connector.createSecretRedactor() : null;
+    }
+
+    @Override
     public ExecResult exec(
         String command,
         byte[] stdin,

@@ -5,20 +5,26 @@ import com.google.gson.JsonSyntaxException;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiInternetAccessConfiguration;
+import de.kortty.core.AiOutboundRedaction;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiServiceFactory;
 import de.kortty.core.AiSkillPromptSupport;
 import de.kortty.core.AiUsageRecorder;
+import de.kortty.core.SessionJournalRedactor;
 import de.kortty.core.TerminalAgentService;
 import de.kortty.model.AiInternetAccessMode;
 import de.kortty.model.AiProfile;
 import de.kortty.model.GlobalSettings;
+import de.kortty.policy.AgentExecutionMode;
+import de.kortty.policy.EffectivePolicy;
+import de.kortty.policy.PolicyManager;
 import de.kortty.security.EncryptionService;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,13 +38,33 @@ public class JobSchedulerAiSupport {
     /** Overrides the application's recorder; null = use the application's. For tests. */
     private final AiUsageRecorder usageRecorderOverride;
 
+    /** The enterprise policy, read per run so a reloaded policy applies to the next job. */
+    private final Supplier<EffectivePolicy> policy;
+
     public JobSchedulerAiSupport(KorTTYApplication app) {
         this(app, null);
     }
 
     JobSchedulerAiSupport(KorTTYApplication app, AiUsageRecorder usageRecorderOverride) {
+        this(app, usageRecorderOverride, PolicyManager::effective);
+    }
+
+    JobSchedulerAiSupport(
+        KorTTYApplication app, AiUsageRecorder usageRecorderOverride, Supplier<EffectivePolicy> policy) {
         this.app = app;
         this.usageRecorderOverride = usageRecorderOverride;
+        this.policy = policy != null ? policy : PolicyManager::effective;
+    }
+
+    /** The policy as of now; never null. */
+    EffectivePolicy currentPolicy() {
+        EffectivePolicy effective = policy.get();
+        return effective != null ? effective : EffectivePolicy.unrestricted();
+    }
+
+    /** The supplier the swarm job hands to its headless approval callback. */
+    Supplier<EffectivePolicy> policySupplier() {
+        return this::currentPolicy;
     }
 
     public JobExecutionOutcome runAiAgent(
@@ -49,6 +75,13 @@ public class JobSchedulerAiSupport {
         JobSchedulerSecretRedactor redactor) throws Exception {
 
         JobAction action = job.getAction();
+        EffectivePolicy effective = currentPolicy();
+        // Backstop for callers that skip JobSchedulerJobRunner's gate: nothing is sent to the AI.
+        java.util.Optional<String> refusal = JobSchedulerJobRunner.aiPolicyRefusal(action, effective);
+        if (refusal.isPresent()) {
+            return JobExecutionOutcome.blocked(refusal.get(), refusal.get());
+        }
+        boolean confirmRequired = effective.agentExecution() == AgentExecutionMode.CONFIRM;
         AiProfile profile = findAiProfile(action.getAiProfileId());
         if (profile == null) {
             return JobExecutionOutcome.blocked("AI profile is not available.", "AI profile id: " + action.getAiProfileId());
@@ -64,6 +97,11 @@ public class JobSchedulerAiSupport {
         String userPrompt = "Server: " + connectionContext.displayName() + "\n"
             + "Working directory: " + (job.getWorkingDirectory() != null ? job.getWorkingDirectory() : "~") + "\n"
             + "Job prompt:\n" + action.getAiPrompt();
+        // The plan is one-shot and sends no terminal output; what can leak is a secret typed into
+        // the job prompt (or a server name / working directory). Mask it for a profile that may
+        // forward it, with the job's known secrets: connection and sudo passwords.
+        userPrompt = AiOutboundRedaction.redactFor(
+            profile, userPrompt, knownSecrets(remoteSession, sudoPassword, redactor)).text();
         AiExecutionResult result = executeAgentJsonPrompt(aiService, systemPrompt, userPrompt);
         // The token count is bookkeeping, not a secret: book it against the profile quota.
         usageRecorder().record(profile, AiUsageRecorder.usageOrEstimate(result, systemPrompt, userPrompt, profile));
@@ -88,11 +126,20 @@ public class JobSchedulerAiSupport {
                     command.command());
             }
             String normalizedCommand = TerminalAgentService.normalizeSudoForAgentExecution(command.command());
-            if (!action.isAiAutoApproveCommands()
-                && requiresAutoApprovalForServerChange(command, normalizedCommand)) {
-                return JobExecutionOutcome.blocked(
-                    "AI agent planned a server-changing command without job auto-approval.",
-                    normalizedCommand);
+            if (requiresAutoApprovalForServerChange(command, normalizedCommand)) {
+                if (confirmRequired && action.isAiAutoApproveCommands()) {
+                    // D8: CONFIRM means a person approves every server-changing command; an
+                    // unattended job has nobody to ask, so the job's auto-approve does not count.
+                    // Without auto-approve the job blocks below anyway, with the usual reason.
+                    return JobExecutionOutcome.blocked(
+                        de.kortty.ui.I18n.get("jobscheduler.dialog.policy.aiConfirmBlocked"),
+                        normalizedCommand);
+                }
+                if (!action.isAiAutoApproveCommands()) {
+                    return JobExecutionOutcome.blocked(
+                        "AI agent planned a server-changing command without job auto-approval.",
+                        normalizedCommand);
+                }
             }
             String stdin = null;
             if (sudoPassword != null && !sudoPassword.isBlank()) {
@@ -123,6 +170,26 @@ public class JobSchedulerAiSupport {
             stdout.toString(),
             stderr.toString(),
             detail.toString());
+    }
+
+    /**
+     * The job's known secrets for masking the AI prompt: the organisation's replacement rules, the
+     * connection password, the sudo password and whatever the job's journal redactor already
+     * holds. A fresh redactor; the sources are not changed.
+     */
+    static SessionJournalRedactor knownSecrets(
+        JobSchedulerRemoteSession remoteSession, String sudoPassword, JobSchedulerSecretRedactor redactor) {
+        SessionJournalRedactor known = AiOutboundRedaction.newPolicyRedactor();
+        if (remoteSession != null) {
+            remoteSession.getPassword().ifPresent(known::addSecret);
+        }
+        if (sudoPassword != null && !sudoPassword.isBlank()) {
+            known.addSecret(sudoPassword);
+        }
+        if (redactor != null) {
+            redactor.secrets().forEach(known::addSecret);
+        }
+        return known;
     }
 
     private AiUsageRecorder usageRecorder() {

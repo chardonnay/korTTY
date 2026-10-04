@@ -1,8 +1,11 @@
 package de.kortty.core.swarm;
 
 import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiOutboundRedaction;
 import de.kortty.core.AiPromptService;
 import de.kortty.core.AiTokenUsage;
+import de.kortty.core.SessionJournalRedactor;
+import de.kortty.model.AiProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +15,11 @@ import java.util.List;
  * Synthesizes the per-server agent answers into one bundled Markdown answer (preferably a comparison
  * table). Falls back to a deterministic local table if the LLM call fails, so the swarm always
  * yields a result.
+ *
+ * <p>The per-server answers and transcript excerpts come from the servers, so the aggregation
+ * prompt is masked for the run's profile with {@link AiOutboundRedaction#redactFor} — the known
+ * secrets of every target first, then the well-known token formats. The local fallback table never
+ * leaves the computer and stays raw.</p>
  */
 public final class SwarmAggregator {
 
@@ -19,9 +27,29 @@ public final class SwarmAggregator {
     private static final int PER_SERVER_ANSWER_CAP = 2_000;
     private static final int PER_SERVER_TRANSCRIPT_CAP = 800;
 
+    /**
+     * Compatibility overload without a profile: the prompt is masked as for a profile that may
+     * forward it (fail closed), with the organisation's replacement rules and the token formats.
+     */
     public SwarmModels.SwarmAggregationResult aggregate(
         SwarmModels.SwarmAggregationRequest request,
         AiPromptService aiService) {
+        return aggregate(request, aiService, null, null);
+    }
+
+    /**
+     * Aggregates with the AI and masks the prompt for {@code profile}.
+     *
+     * @param profile      the profile the aggregation is sent to; {@code null} masks (fail closed)
+     * @param knownSecrets the known secrets of every target (connection passwords and the
+     *                     organisation's rules); {@code null} masks the organisation's rules and the
+     *                     token formats only
+     */
+    public SwarmModels.SwarmAggregationResult aggregate(
+        SwarmModels.SwarmAggregationRequest request,
+        AiPromptService aiService,
+        AiProfile profile,
+        SessionJournalRedactor knownSecrets) {
 
         List<SwarmModels.SwarmAgentStatus> results = request != null ? request.perAgentResults() : List.of();
         String query = request != null ? request.userQuery() : "";
@@ -32,7 +60,8 @@ public final class SwarmAggregator {
             return localFallback(query, results, "AI service unavailable");
         }
         try {
-            AiExecutionResult result = aiService.executePrompt(buildSystemPrompt(), buildUserPrompt(query, results));
+            String userPrompt = AiOutboundRedaction.redactFor(profile, buildUserPrompt(query, results), knownSecrets).text();
+            AiExecutionResult result = aiService.executePrompt(buildSystemPrompt(), userPrompt);
             String content = result != null ? result.content() : null;
             if (content == null || content.isBlank()) {
                 return localFallback(query, results, "Empty aggregation response");

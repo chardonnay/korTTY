@@ -1121,7 +1121,10 @@
 <li>Sudo passwords are stored encrypted with the master password.</li>
 <li>SSH key passphrases and archive passwords are stored encrypted.</li>
 <li>KorTTY redacts managed secrets (passwords, passphrases, archive credentials) from journal output before persistence.</li>
+<li>In an AI Swarm job, each server's password is redacted from the journals as soon as its background session connects, so output captured while the swarm is still running is covered too.</li>
+<li>What AI jobs send to a cloud AI profile is masked: the AI Swarm agents and the request that combines their answers (see <a href="ai-tools.html#masking-what-the-agent-sends">Masking what the agent sends</a>), and the request of an AI Agent job, where the server's stored password and the job's sudo password become <code>***</code>. The AI Agent job's request holds only the server name, the working directory and the job prompt, so the masking there only catches a secret typed into the prompt. Integrated models and a trusted local endpoint get the original text.</li>
 <li>If the master password is locked when a job needs SSH, sudo, API, or archive secrets, the job is blocked.</li>
+<li>AI Agent and AI Swarm jobs follow your organization's <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a>. When the policy denies AI, the AI agent or (for swarm jobs) the AI Swarm, or sets <code>ai-agent-execution</code> to <code>read-only</code>, the job ends as <strong>BLOCKED</strong> before it connects to any server, and the journal names the reason. Under <code>ai-agent-execution = "confirm"</code> a person must approve every server-changing command, which an unattended job cannot ask for: an AI Agent job blocks at the first planned server-changing command and runs nothing of it, and an AI Swarm agent that plans one is stopped and counted as blocked, even when <strong>Auto-approve AI commands</strong> is on. Read-only commands still run.</li>
 </ul>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
@@ -1131,7 +1134,8 @@
 - Missing host-key pin
 - Unsupported Mosh target
 - Missing <code>rsync</code> or <code>ssh</code> in PATH
-- Old host-key pin without OpenSSH public-key material for Rsync</p>
+- Old host-key pin without OpenSSH public-key material for Rsync
+- An AI Agent or AI Swarm job that your organization's <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a> does not allow: the detail text says whether AI, the AI agent or the AI Swarm is disabled, whether the agent is limited to read-only, or which server-changing commands were blocked because the policy requires a person to approve them</p>
 <p><strong>JobScheduler Rsync cannot start:</strong> Verify local <code>rsync --version</code> and <code>ssh -V</code>, or configure the Rsync binary path in <strong>Settings &gt; SFTP &gt; JobScheduler Rsync</strong>.</p>
 <p><strong>JobScheduler remote browser cannot open:</strong> Select exactly one target and confirm the host key first, unless the job explicitly disables host-key verification.</p>
 </div>

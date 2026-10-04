@@ -4,6 +4,7 @@ import de.kortty.model.SessionJournalReplacement;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 
 /**
  * Known-secret literal redaction for captured terminal output. Seeded with the connection's own
@@ -65,6 +66,16 @@ public final class SessionJournalRedactor {
      * {@link #redact}, which does not pay for counting.
      */
     public RedactionResult redactCounting(String text) {
+        return redactCounting(text, null);
+    }
+
+    /**
+     * Same as {@link #redactCounting(String)}, and hands every masked value to
+     * {@code maskedValues} (once per known secret found, once per policy-rule match) — for a
+     * caller that counts distinct secrets across several texts. The values are secrets: the
+     * consumer must not keep or log them as they are.
+     */
+    public RedactionResult redactCounting(String text, Consumer<String> maskedValues) {
         if (text == null || text.isEmpty()) {
             return RedactionResult.unchanged(text);
         }
@@ -75,9 +86,26 @@ public final class SessionJournalRedactor {
             if (occurrences > 0) {
                 result = result.replace(secret, REPLACEMENT);
                 count += occurrences;
+                if (maskedValues != null) {
+                    maskedValues.accept(secret);
+                }
             }
         }
-        return new RedactionResult(result, count).then(replacer.applyCounting(result));
+        return new RedactionResult(result, count).then(replacer.applyCounting(result, maskedValues));
+    }
+
+    /**
+     * Adds every known secret of {@code other} to this redactor (its policy rules are not
+     * copied). Lets a caller build one redactor for a run from several sources — the terminal
+     * tab, the command runner, a sudo password typed during the run — without changing theirs.
+     */
+    public void addSecretsFrom(SessionJournalRedactor other) {
+        if (other == null || other == this) {
+            return;
+        }
+        for (String secret : other.secrets) {
+            addSecret(secret);
+        }
     }
 
     /** Non-overlapping, left to right — the occurrences {@link String#replace} replaces. */

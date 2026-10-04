@@ -196,6 +196,13 @@ KorTTY erzwingt mehrere Leitplanken rund um die Agentenausführung:
 
 - **Ein Reparaturversuch** – Wenn die KI-Antwort nicht mit dem erforderlichen JSON-Schema übereinstimmt, fordert KorTTY eine Reparatur an. Schlägt auch die Reparatur fehl, wird der Lauf mit einer Begründung gesperrt.
 
+### Maskieren dessen, was der Agent sendet
+
+- **Alles, was hinausgeht, wird maskiert** — Bevor der Agent einen Prompt an ein Profil sendet, das kein integriertes Modell (llama.cpp, MLX) und kein vertrauenswürdiger lokaler Endpunkt ist, ersetzt korTTY die erkannten Geheimnisse durch `***`: das Passwort der Verbindung, ein während des Laufs eingegebenes sudo-Passwort, die Ersetzungsregeln Ihrer Organisation und bekannte Tokenformate (siehe [Geheimnisse vor dem Senden maskieren](ai-assistant.md#geheimnisse-vor-dem-senden-maskieren)). Das umfasst die Umgebungsprobe, die Ausgabe jedes Befehls, die Planungsfragen, die Optionen und den Bericht, die Reparaturversuche und die abschließende Antwort beim Rundenlimit.
+- **Der Lauf behält das Original** — Maskiert wird nur, was an das Modell geht. Das Terminal, das Aktivitätspanel, der Genehmigungsdialog und das Sitzungsjournal zeigen die echten Befehle und ihre echte Ausgabe.
+- **Zähler im Aktivitätspanel** — Ein Eintrag **Vor dem Senden maskiert** gibt an, wie viele verschiedene Werte im Lauf maskiert wurden. Ein Wert, der in jeder Runde wiederkommt, weil der Agent seinen Befehlsverlauf erneut sendet, zählt einmal.
+- **Keine Befehle mit dem Platzhalter** — Das Modell erfährt, dass `***` für ein maskiertes Geheimnis steht. Plant es trotzdem einen Befehl, der `***` enthält, führt korTTY ihn nicht aus, vermerkt dies im Transkript und teilt es dem Modell in der nächsten Runde mit, weil der Befehl sonst mit den drei wörtlichen Zeichen statt des Geheimnisses liefe.
+
 ## Workflow-Skript generieren
 
 Nachdem eine fertige Agentenausführung erfolgreich abgeschlossen wurde, konvertiert eine **Workflow**-Schaltfläche die Ausführung in ein einzelnes eigenständiges, reproduzierbares Skript in einer ausgewählten Sprache (Bash, Python, Perl, Ruby, PowerShell, Ansible Playbook, **Windows-CMD**-Batch oder **AppleScript**) mit robuster Fehlerbehandlung, detaillierten Kommentaren und einem deterministischen Metadaten-Header (Skriptname, Ersteller, Datum/Uhrzeit).
