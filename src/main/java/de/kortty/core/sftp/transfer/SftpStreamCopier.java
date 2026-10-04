@@ -224,18 +224,35 @@ public final class SftpStreamCopier {
      */
     public static long uploadToHandle(SftpClient client, SftpClient.CloseableHandle handle, String remotePath,
             Path localPath, TransferProgressListener listener, TransferCancellation cancel) throws IOException {
+        return uploadToHandle(client, handle, remotePath, localPath, 0, listener, cancel);
+    }
+
+    /**
+     * Uploads {@code localPath} from {@code offset} to its end into {@code handle}, writing at the
+     * same offset (a resumed part file). The handle stays open.
+     *
+     * @return the number of bytes copied (excluding the offset)
+     */
+    public static long uploadToHandle(SftpClient client, SftpClient.CloseableHandle handle, String remotePath,
+            Path localPath, long offset, TransferProgressListener listener, TransferCancellation cancel)
+            throws IOException {
         Objects.requireNonNull(client, "client");
         Objects.requireNonNull(handle, "handle");
+        requireOffset(offset);
         Objects.requireNonNull(localPath, "localPath");
         TransferProgressListener progress = listener == null ? TransferProgressListener.NONE : listener;
         try {
             cancel.throwIfCancelled();
             try (FileChannel channel = FileChannel.open(localPath, StandardOpenOption.READ)) {
                 long size = channel.size();
+                if (offset > size) {
+                    throw new IOException("Resume offset " + offset + " is beyond the local size " + size);
+                }
+                channel.position(offset);
                 InputStream in = Channels.newInputStream(channel);
                 int bufferSize = bufferSize(client, false);
-                long done = 0;
-                try (OutputStream out = wrapHandle(client, remotePath, handle, 0, bufferSize, false)) {
+                long done = offset;
+                try (OutputStream out = wrapHandle(client, remotePath, handle, offset, bufferSize, false)) {
                     byte[] buffer = new byte[bufferSize];
                     progress.onProgress(done, size);
                     int read;
@@ -246,7 +263,7 @@ public final class SftpStreamCopier {
                         cancel.throwIfCancelled();
                     }
                 }
-                return done;
+                return done - offset;
             }
         } catch (IOException | RuntimeException e) {
             throw translate(e, cancel);

@@ -10,6 +10,7 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -18,6 +19,7 @@ import java.nio.file.attribute.AclEntry;
 import java.nio.file.attribute.AclEntryPermission;
 import java.nio.file.attribute.AclEntryType;
 import java.nio.file.attribute.AclFileAttributeView;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -93,6 +95,56 @@ public final class LocalFinalizer {
             deleteQuietly(part);
             throw e;
         }
+    }
+
+    /**
+     * Opens an existing part to continue it at {@code offset}: the part must be a regular file
+     * (a symbolic link is never followed) holding at least {@code offset} bytes. It is made
+     * owner-only again and cut to exactly {@code offset}, and the channel is positioned there.
+     */
+    public static LocalPart openPartForResume(Path part, long offset) throws IOException {
+        if (offset < 0) {
+            throw new IllegalArgumentException("offset must not be negative: " + offset);
+        }
+        BasicFileAttributes attributes = Files.readAttributes(part, BasicFileAttributes.class,
+            LinkOption.NOFOLLOW_LINKS);
+        if (!attributes.isRegularFile()) {
+            throw new IOException(I18n.get("sftp.error.partExists", part.toString()));
+        }
+        boolean posix = part.getFileSystem().supportedFileAttributeViews().contains("posix");
+        FileChannel channel = FileChannel.open(part, StandardOpenOption.WRITE, LinkOption.NOFOLLOW_LINKS);
+        try {
+            List<AclEntry> inherited = null;
+            if (posix) {
+                Files.getFileAttributeView(part, PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS)
+                    .setPermissions(OWNER_ONLY);
+            } else {
+                Path folder = part.toAbsolutePath().getParent();
+                inherited = folder == null ? null : inheritedAcl(folder);
+                restrictAclToOwner(part);
+            }
+            if (channel.size() < offset) {
+                throw new IOException("The partial file is shorter than the resume offset: " + part);
+            }
+            channel.truncate(offset);
+            channel.position(offset);
+            return new LocalPart(part, channel, inherited);
+        } catch (IOException | RuntimeException e) {
+            channel.close();
+            throw e;
+        }
+    }
+
+    /** {@code lstat} of a local part as the {@link ResumePlanner} needs it. */
+    public static ResumePlanner.PartState partState(Path part) throws IOException {
+        BasicFileAttributes attributes;
+        try {
+            attributes = Files.readAttributes(part, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        } catch (NoSuchFileException e) {
+            return ResumePlanner.PartState.ABSENT;
+        }
+        return new ResumePlanner.PartState(true, attributes.isRegularFile(), attributes.size(),
+            attributes.lastModifiedTime().toMillis(), null);
     }
 
     /**
@@ -173,6 +225,21 @@ public final class LocalFinalizer {
             Files.deleteIfExists(part);
         } catch (IOException e) {
             logger.warn("Could not delete the partial file {}: {}", part, e.toString());
+        }
+    }
+
+    /**
+     * The ACL a new file in {@code folder} inherits, read from a short-lived probe file; a resumed
+     * part has lost its own inherited ACL long ago. {@code null} when the folder has no ACL view.
+     */
+    private static List<AclEntry> inheritedAcl(Path folder) throws IOException {
+        Path probe = Files.createTempFile(folder, ".kortty-acl-", ".probe");
+        try {
+            AclFileAttributeView view = Files.getFileAttributeView(probe, AclFileAttributeView.class,
+                LinkOption.NOFOLLOW_LINKS);
+            return view == null ? null : view.getAcl();
+        } finally {
+            Files.deleteIfExists(probe);
         }
     }
 

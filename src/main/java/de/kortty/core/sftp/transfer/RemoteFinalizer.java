@@ -63,6 +63,23 @@ public final class RemoteFinalizer {
     }
 
     /**
+     * The owner of {@code attributes} as one comparable string ({@code uid:1000}, or
+     * {@code owner:name} when the server reports names only), {@code null} when it reports neither.
+     */
+    public static String ownerKey(SftpClient.Attributes attributes) {
+        if (attributes == null) {
+            return null;
+        }
+        if (attributes.getFlags().contains(SftpClient.Attribute.UidGid)) {
+            return "uid:" + attributes.getUserId();
+        }
+        if (attributes.getOwner() != null && !attributes.getOwner().isEmpty()) {
+            return "owner:" + attributes.getOwner();
+        }
+        return null;
+    }
+
+    /**
      * Gives the open part the group and permission bits of the target it will replace. The group is
      * best effort (the login user may not be in it); the permission bits are required.
      */
