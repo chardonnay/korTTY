@@ -1,6 +1,7 @@
 package de.kortty.core.highlight;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.testng.Assert.expectThrows;
 
 import ch.qos.logback.classic.Level;
@@ -139,5 +140,54 @@ class CompiledHighlightSetTest {
             logger.detachAppender(appender);
             logger.setLevel(previous);
         }
+    }
+
+    @Test
+    void aRuleThatRunsASnippetCarriesItsSnippetAndOnlyThatOne() {
+        HighlightRule runs = new HighlightRule("BUILD FAILED", false);
+        runs.setAction(HighlightRule.Action.RUN_SNIPPET);
+        runs.setSnippetId(" snippet-1 ");
+        HighlightRule notifies = new HighlightRule("ERROR", false);
+        notifies.setAction(HighlightRule.Action.NOTIFY);
+        notifies.setSnippetId("left-over");
+        HighlightRule withoutSnippet = new HighlightRule("oops", false);
+        withoutSnippet.setAction(HighlightRule.Action.RUN_SNIPPET);
+
+        CompiledHighlightSet set = CompiledHighlightSet.compile(
+            new HighlightRuleSet("s", "S", List.of(runs, notifies, withoutSnippet)));
+
+        assertThat(set.size()).isEqualTo(2);
+        assertThat(set.hasTriggers()).isTrue();
+        assertThat(set.rule(0).action()).isEqualTo(HighlightRule.Action.RUN_SNIPPET);
+        assertThat(set.rule(0).snippetId()).isEqualTo("snippet-1");
+        assertThat(set.rule(0).trigger()).isTrue();
+        assertWithMessage("a snippet kept from an earlier action is not the notification's")
+            .that(set.rule(1).snippetId()).isNull();
+    }
+
+    @Test
+    void aTriggerKeepsItsActionAndIsLabelledByItsNameOrElseItsPattern() {
+        HighlightRule named = new HighlightRule("No space left", false);
+        named.setName("  Disk full  ");
+        named.setAction(HighlightRule.Action.NOTIFY);
+        named.setNotifyWithText(true);
+        HighlightRule unnamed = new HighlightRule("  oom-killer ", false);
+        unnamed.setAction(HighlightRule.Action.NOTIFY);
+        HighlightRule plain = new HighlightRule("ERROR", false);
+        plain.setBold(true);
+
+        CompiledHighlightSet set = CompiledHighlightSet.compile(
+            new HighlightRuleSet("s", "S", List.of(named, unnamed, plain)));
+
+        assertThat(set.hasTriggers()).isTrue();
+        assertThat(set.rule(0).action()).isEqualTo(HighlightRule.Action.NOTIFY);
+        assertThat(set.rule(0).notifyWithText()).isTrue();
+        assertThat(set.rule(0).label()).isEqualTo("Disk full");
+        assertThat(set.rule(0).visual()).isFalse();
+        assertThat(set.rule(1).label()).isEqualTo("oom-killer");
+        assertThat(set.rule(2).trigger()).isFalse();
+        assertThat(set.rule(2).visual()).isTrue();
+        assertThat(CompiledHighlightSet.compile(new HighlightRuleSet("p", "P", List.of(plain))).hasTriggers()).isFalse();
+        assertThat(CompiledHighlightSet.NONE.hasTriggers()).isFalse();
     }
 }

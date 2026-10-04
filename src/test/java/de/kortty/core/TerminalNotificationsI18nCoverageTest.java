@@ -15,9 +15,10 @@ import java.util.regex.Pattern;
 import org.testng.annotations.Test;
 
 /**
- * Every text of the terminal notifications, in Settings → Terminal and in the notifications and tab
- * tooltips themselves, and of programs writing the clipboard (OSC 52), exists in all eight bundled
- * languages with the placeholders of the English text.
+ * Every text of the terminal notifications, in Settings → Terminal, in the notifications and tab
+ * tooltips themselves (highlight triggers included) and in the tab's activity and silence switches, and
+ * of programs writing the clipboard (OSC 52), exists in all eight bundled languages with the placeholders of the English
+ * text.
  */
 class TerminalNotificationsI18nCoverageTest {
 
@@ -32,7 +33,7 @@ class TerminalNotificationsI18nCoverageTest {
         "messages_nl.properties");
 
     private static final List<String> PREFIXES = List.of("settings.terminal.notify.", "terminal.notify.",
-        "settings.terminal.osc52.", "terminal.osc52.");
+        "settings.terminal.osc52.", "terminal.osc52.", "tab.contextMenu.monitor");
 
     private static final List<String> REQUIRED_KEYS = List.of(
         "settings.terminal.notify.header",
@@ -45,6 +46,9 @@ class TerminalNotificationsI18nCoverageTest {
         "settings.terminal.notify.commandFinishedSeconds.tooltip",
         "settings.terminal.notify.remote",
         "settings.terminal.notify.remote.tooltip",
+        "settings.terminal.notify.silenceSeconds",
+        "settings.terminal.notify.silenceSeconds.unit",
+        "settings.terminal.notify.silenceSeconds.tooltip",
         "settings.terminal.notify.info",
         "terminal.notify.bell.body",
         "terminal.notify.bell.tooltip",
@@ -52,6 +56,14 @@ class TerminalNotificationsI18nCoverageTest {
         "terminal.notify.commandFinished.failed",
         "terminal.notify.commandFinished.noStatus",
         "terminal.notify.remote.tooltip",
+        "terminal.notify.activity.body",
+        "terminal.notify.activity.tooltip",
+        "terminal.notify.silence.body",
+        "terminal.notify.trigger.tooltip",
+        "terminal.notify.trigger.bodyWithText",
+        "terminal.notify.trigger.unnamed",
+        "tab.contextMenu.monitorActivity",
+        "tab.contextMenu.monitorSilence",
         "settings.terminal.osc52.enabled",
         "settings.terminal.osc52.enabled.tooltip",
         "terminal.osc52.copied",
@@ -116,6 +128,15 @@ class TerminalNotificationsI18nCoverageTest {
             .containsExactly("{0}", "{1}");
         assertThat(placeholders(english.getProperty("terminal.notify.commandFinished.noStatus")))
             .containsExactly("{0}");
+    }
+
+    @Test
+    void activityAndSilenceNeverCarryTerminalOutput() throws Exception {
+        // Activity has no placeholder at all; silence has one, the duration korTTY words itself.
+        Properties english = load("messages.properties");
+        assertThat(placeholders(english.getProperty("terminal.notify.activity.body"))).isEmpty();
+        assertThat(placeholders(english.getProperty("terminal.notify.activity.tooltip"))).isEmpty();
+        assertThat(placeholders(english.getProperty("terminal.notify.silence.body"))).containsExactly("{0}");
     }
 
     @Test

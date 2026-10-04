@@ -1067,6 +1067,12 @@
 <td>Die <a href="control-api.html">Steuerungs-API</a> und ihr Client <code>kortty-cli</code>: <code>deny</code> beendet den Listener, sperrt das Kontrollkästchen in den Einstellungen und erzwingt die Einstellung aus. Nicht an <code>ai</code> gekoppelt – die API ist lokale Automatisierung, keine KI-Funktion</td>
 </tr>
 <tr>
+<td><code>terminal-triggers</code></td>
+<td>Zeichenfolge</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td><a href="../features/highlighting.html#benachrichtigungen-bei-passender-ausgabe">Hervorhebungsregeln, die eine Aktion auslösen</a>, wenn ihr Muster in der Terminalausgabe erscheint (eine Desktop-Benachrichtigung oder das <a href="../features/highlighting.html#ein-snippet-ausfuhren-wenn-die-ausgabe-passt">Ausführen eines Snippets</a> im Bereich): <code>deny</code> stoppt jede solche Aktion, auch ein Snippet, das der Benutzer für eine Verbindung bereits erlaubt hat, sperrt <strong>Aktionen von Hervorhebungsregeln ausführen (Benachrichtigungen, Snippets)</strong> unter <em>Einstellungen → Terminal</em> in ausgeschalteter Stellung und hindert den Regelsatz-Editor daran, einer Regel eine Aktion zu geben. Die Hervorhebung von Schlüsselwörtern selbst ist nicht betroffen. <code>allow</code> sperrt die Einstellung eingeschaltet</td>
+</tr>
+<tr>
 <td><code>ai-agent-execution</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>

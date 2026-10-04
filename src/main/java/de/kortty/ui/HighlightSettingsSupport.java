@@ -13,7 +13,7 @@ import java.util.function.Function;
 
 /**
  * The <b>Keyword highlighting</b> section of <i>Settings → Terminal</i>: the master switch, the
- * option for full-screen programs and the default rule set. Only the choices of the default-set
+ * option for full-screen programs, the default rule set and the switch for trigger actions. Only the choices of the default-set
  * dropdown and their round trip to {@code GlobalSettings.defaultHighlightRuleSetId} live here, so
  * they are unit-tested without the JavaFX toolkit; {@code SettingsDialog} lays out the controls.
  *
@@ -45,11 +45,14 @@ final class HighlightSettingsSupport {
     /** The button next to the default-set dropdown that opens the rule-set editor. */
     static final String EDIT_RULES_KEY = "settings.terminal.highlighting.editRules";
     static final String EDIT_RULES_TOOLTIP_KEY = "settings.terminal.highlighting.editRules.tooltip";
+    /** The switch for what rules with an action do (a desktop notification, a snippet); the policy can lock it. */
+    static final String TRIGGERS_KEY = "settings.terminal.highlighting.triggers";
+    static final String TRIGGERS_TOOLTIP_KEY = "settings.terminal.highlighting.triggers.tooltip";
 
     /** Every key of the section, for the i18n coverage test. */
     static final List<String> KEYS = List.of(HEADER_KEY, ENABLED_KEY, ENABLED_TOOLTIP_KEY, ALTERNATE_SCREEN_KEY,
         ALTERNATE_SCREEN_TOOLTIP_KEY, DEFAULT_SET_KEY, DEFAULT_SET_TOOLTIP_KEY, DEFAULT_SET_NONE_KEY,
-        DEFAULT_SET_UNKNOWN_KEY, INFO_KEY, EDIT_RULES_KEY, EDIT_RULES_TOOLTIP_KEY);
+        DEFAULT_SET_UNKNOWN_KEY, INFO_KEY, EDIT_RULES_KEY, EDIT_RULES_TOOLTIP_KEY, TRIGGERS_KEY, TRIGGERS_TOOLTIP_KEY);
 
     private HighlightSettingsSupport() {
     }

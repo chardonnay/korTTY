@@ -4,6 +4,7 @@ import de.kortty.ai.llama.LlamaBackend;
 import de.kortty.paste.PastePacer;
 import de.kortty.paste.PasteProtectionSettings;
 import de.kortty.paste.PasteWarningMode;
+import de.kortty.shellintegration.PaneActivityMonitor;
 import de.kortty.shellintegration.TerminalNotificationPolicy;
 import jakarta.xml.bind.annotation.*;
 
@@ -329,6 +330,15 @@ public class GlobalSettings {
     @XmlElement
     private boolean terminalHighlightAlternateScreen = false;
 
+    /**
+     * Whether highlight rules that are triggers (a desktop notification or a snippet run when their pattern
+     * appears) act.
+     * On: a trigger only exists once the user gives a rule an action. The enterprise policy key
+     * {@code terminal-triggers} can force it off ({@code de.kortty.policy.PolicyClamp}).
+     */
+    @XmlElement
+    private boolean terminalTriggersEnabled = true;
+
     // ---- PDF export branding (shared by session journal and AI chat exports) ----
 
     @XmlElement
@@ -406,6 +416,15 @@ public class GlobalSettings {
      */
     @XmlElement
     private boolean remoteTerminalNotificationsEnabled = true;
+
+    /**
+     * How long a pane of a terminal tab watched for silence (<i>Monitor for Silence</i> in the tab's
+     * right-click menu) has to stay without output after printing, in seconds, before the tab is
+     * marked and notifies; 5 to 3600. Boxed so a settings file written before this setting existed
+     * falls back to the default of 30. The watch itself is switched per tab and never saved.
+     */
+    @XmlElement
+    private Integer terminalSilenceSeconds = PaneActivityMonitor.DEFAULT_SILENCE_SECONDS;
 
     /**
      * When a terminal paste with line breaks asks for confirmation: the {@link PasteWarningMode#id()}
@@ -2058,6 +2077,14 @@ public class GlobalSettings {
         this.terminalHighlightAlternateScreen = terminalHighlightAlternateScreen;
     }
 
+    public boolean isTerminalTriggersEnabled() {
+        return terminalTriggersEnabled;
+    }
+
+    public void setTerminalTriggersEnabled(boolean terminalTriggersEnabled) {
+        this.terminalTriggersEnabled = terminalTriggersEnabled;
+    }
+
     public boolean isPdfWatermarkEnabled() {
         return pdfWatermarkEnabled;
     }
@@ -2212,6 +2239,21 @@ public class GlobalSettings {
 
     public void setRemoteTerminalNotificationsEnabled(boolean remoteTerminalNotificationsEnabled) {
         this.remoteTerminalNotificationsEnabled = remoteTerminalNotificationsEnabled;
+    }
+
+    /**
+     * How long a pane of a tab watched for silence has to stay without output before it counts, in
+     * seconds, {@code 5..3600}. Read on every poll, so a change applies to the watched tabs at once.
+     */
+    public int getTerminalSilenceSeconds() {
+        return terminalSilenceSeconds != null
+            ? PaneActivityMonitor.clampSilenceSeconds(terminalSilenceSeconds)
+            : PaneActivityMonitor.DEFAULT_SILENCE_SECONDS;
+    }
+
+    /** @param terminalSilenceSeconds the silence threshold in seconds, clamped to {@code 5..3600} */
+    public void setTerminalSilenceSeconds(int terminalSilenceSeconds) {
+        this.terminalSilenceSeconds = PaneActivityMonitor.clampSilenceSeconds(terminalSilenceSeconds);
     }
 
     /** When a terminal paste with line breaks asks for confirmation; never null. */

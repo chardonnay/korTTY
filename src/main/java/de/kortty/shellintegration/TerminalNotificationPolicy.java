@@ -29,10 +29,19 @@ import java.util.function.LongSupplier;
  *       detected while the coding-agent notifications are on: the agent rings the bell or asks for a
  *       notification when it waits for a decision, and its own notification already says so
  *       ({@link Kind#leftToCodingAgents()}).</li>
- *   <li>No bell counts while keys typed in another pane reached the pane through broadcast mode or
- *       multi-exec moments ago ({@link PaneState#mirroredInput()}): it answers those keys, typically
- *       a failed Tab completion that rings in every mirrored pane at once.</li>
+ *   <li>No bell and no activity counts while keys typed in another pane reached the pane through
+ *       broadcast mode or multi-exec moments ago ({@link PaneState#mirroredInput()}): it answers
+ *       those keys, typically a failed Tab completion that rings in every mirrored pane at once, or
+ *       the echo every mirrored pane prints ({@link Kind#discountsMirroredInput()}).</li>
  * </ul>
+ *
+ * <p>Activity and silence ({@link Kind#ACTIVITY}, {@link Kind#SILENCE}) are reported only for a tab
+ * the user asked to watch, with its right-click menu ({@link PaneActivityMonitor}), so that request
+ * is their setting: they always notify, within their interval.
+ *
+ * <p>A highlight trigger ({@link Kind#TRIGGER}) exists only once the user gave a highlight rule the
+ * notification action, so that rule is its setting too; it has {@link #decideTrigger}, whose slot is
+ * the pane (or multi-exec session) together with the rule, so two rules do not silence each other.
  *
  * <p>A finished command ({@link Kind#COMMAND_FINISHED}) also has to have run at least the
  * threshold of the settings, and a command that a korTTY terminal-agent run typed into the pane
@@ -60,27 +69,46 @@ public final class TerminalNotificationPolicy {
     /** Why a pane asks for attention. */
     public enum Kind {
         /** A program in the pane rang the terminal bell (BEL). */
-        BELL(10_000L, true),
+        BELL(10_000L, true, true),
         /**
          * A command the shell marked with {@code OSC 133} finished ({@code D}) after running at
          * least the threshold. Its notification slot is the tab, so the same command finishing in
          * several panes that broadcast mirrors into notifies once.
          */
-        COMMAND_FINISHED(10_000L, false),
+        COMMAND_FINISHED(10_000L, false, false),
         /**
          * A program in the pane asked for a desktop notification with {@code OSC 9} or
          * {@code OSC 777;notify}, typically a coding agent on a server that waits for an answer. Its
          * text is the program's, so it gets a shorter interval than the others but drops what comes
          * within it: a program cannot flood the desktop.
          */
-        REMOTE(5_000L, true);
+        REMOTE(5_000L, true, false),
+        /**
+         * Output arrived after a quiet spell in a pane whose tab the user asked to watch for activity
+         * ({@link PaneActivityMonitor.Event#ACTIVITY}). The echo of mirrored keys is no activity.
+         */
+        ACTIVITY(10_000L, false, true),
+        /**
+         * A pane whose tab the user asked to watch for silence stopped printing for the silence
+         * threshold ({@link PaneActivityMonitor.Event#SILENCE}).
+         */
+        SILENCE(10_000L, false, false),
+        /**
+         * A highlight rule with the notification action matched new output in the pane
+         * ({@code TerminalOutputHighlighter.LineMatch}). One notification per rule and pane every 30
+         * seconds; output that answers mirrored keys does not count, so typing into multi-exec does not
+         * make every member notify.
+         */
+        TRIGGER(30_000L, false, true);
 
         private final long toastIntervalMillis;
         private final boolean leftToCodingAgents;
+        private final boolean discountsMirroredInput;
 
-        Kind(long toastIntervalMillis, boolean leftToCodingAgents) {
+        Kind(long toastIntervalMillis, boolean leftToCodingAgents, boolean discountsMirroredInput) {
             this.toastIntervalMillis = toastIntervalMillis;
             this.leftToCodingAgents = leftToCodingAgents;
+            this.discountsMirroredInput = discountsMirroredInput;
         }
 
         /** The shortest time between two desktop notifications of this kind for the same slot. */
@@ -94,6 +122,14 @@ public final class TerminalNotificationPolicy {
          */
         public boolean leftToCodingAgents() {
             return leftToCodingAgents;
+        }
+
+        /**
+         * Whether a request of this kind leads to nothing while mirrored keys reached the pane moments
+         * ago ({@link PaneState#mirroredInput()}), because it most likely answers them.
+         */
+        public boolean discountsMirroredInput() {
+            return discountsMirroredInput;
         }
     }
 
@@ -196,6 +232,9 @@ public final class TerminalNotificationPolicy {
 
     private final Map<Kind, Map<Object, Long>> lastToastMillis = new EnumMap<>(Kind.class);
 
+    /** Per slot (pane or multi-exec session) and highlight rule id, when the rule last notified. */
+    private final Map<Object, Map<String, Long>> lastTriggerToastMillis = new WeakHashMap<>();
+
     /** The {@code C} marks of the runs each multi-exec session notified about, newest last. */
     private final Map<Object, Deque<Long>> notifiedRunStarts = new WeakHashMap<>();
 
@@ -224,16 +263,18 @@ public final class TerminalNotificationPolicy {
     }
 
     /**
-     * Decides about one request of a kind that needs nothing but the pane, {@link Kind#BELL} or
-     * {@link Kind#REMOTE}; the pane is its own notification slot. A decision with a toast counts as the
-     * slot's last notification of this kind, so call it only when the notification will really be
-     * shown. A bell in a pane that got mirrored keys moments ago leads to nothing
-     * ({@link PaneState#mirroredInput()}).
+     * Decides about one request of a kind that needs nothing but the pane, {@link Kind#BELL},
+     * {@link Kind#REMOTE}, {@link Kind#ACTIVITY} or {@link Kind#SILENCE}; the pane is its own
+     * notification slot. A decision with a toast counts as the slot's last notification of this kind,
+     * so call it only when the notification will really be shown. A bell or activity in a pane that
+     * got mirrored keys moments ago leads to nothing ({@link PaneState#mirroredInput()}). Activity and
+     * silence need no setting: the user switched their watch on for the tab.
      *
      * @param kind    why the pane asks; not {@link Kind#COMMAND_FINISHED}, which has
      *                {@link #decideCommandFinished}
      * @param pane    the notification slot, kept weakly: the pane, a terminal widget compared by
-     *                identity, or for a bell the multi-exec session the pane takes part in
+     *                identity, or for a bell, activity or silence the multi-exec session the pane
+     *                takes part in
      * @param state   what is known about the pane now
      * @param toggles the settings now
      * @throws IllegalArgumentException for {@link Kind#COMMAND_FINISHED}
@@ -246,10 +287,13 @@ public final class TerminalNotificationPolicy {
         boolean toastEnabled = switch (kind) {
             case BELL -> toggles.bellToasts();
             case REMOTE -> toggles.remoteToasts();
+            case ACTIVITY, SILENCE -> true;
             case COMMAND_FINISHED -> throw new IllegalArgumentException(
                 "A finished command needs its runtime and its tab: use decideCommandFinished");
+            case TRIGGER -> throw new IllegalArgumentException(
+                "A highlight trigger needs its rule: use decideTrigger");
         };
-        if (kind == Kind.BELL && state.mirroredInput()) {
+        if (kind.discountsMirroredInput() && state.mirroredInput()) {
             return Decision.NONE;
         }
         return decide(kind, pane, state, toggles, toastEnabled);
@@ -318,6 +362,40 @@ public final class TerminalNotificationPolicy {
             && claimToast(Kind.COMMAND_FINISHED, run.session());
         if (toast) {
             rememberNotified(run);
+        }
+        return new Decision(true, toast);
+    }
+
+    /**
+     * Decides about a highlight rule with the notification action that matched new output
+     * ({@link Kind#TRIGGER}).
+     *
+     * <ul>
+     *   <li>Nothing in a tab the user is looking at, and nothing while mirrored keys reached the pane
+     *       moments ago ({@link PaneState#mirroredInput()}): the line most likely echoes them.</li>
+     *   <li>Otherwise the tab is marked, and a desktop notification comes at most once per rule and
+     *       slot within {@link Kind#TRIGGER}'s interval; the slot is the pane, or for a member of
+     *       multi-exec its session, so one error printed by every member notifies once.</li>
+     * </ul>
+     *
+     * @param pane   the notification slot, kept weakly: the pane, or the multi-exec session it takes
+     *               part in
+     * @param ruleId the stable id of the rule that matched
+     * @param state  what is known about the pane now
+     */
+    public Decision decideTrigger(Object pane, String ruleId, PaneState state) {
+        Objects.requireNonNull(pane, "pane");
+        Objects.requireNonNull(ruleId, "ruleId");
+        Objects.requireNonNull(state, "state");
+        if (state.seen() || (Kind.TRIGGER.discountsMirroredInput() && state.mirroredInput())) {
+            return Decision.NONE;
+        }
+        Map<String, Long> last = lastTriggerToastMillis.computeIfAbsent(pane, unused -> new java.util.HashMap<>());
+        long now = clockMillis.getAsLong();
+        Long previous = last.get(ruleId);
+        boolean toast = previous == null || now - previous >= Kind.TRIGGER.toastIntervalMillis();
+        if (toast) {
+            last.put(ruleId, now);
         }
         return new Decision(true, toast);
     }

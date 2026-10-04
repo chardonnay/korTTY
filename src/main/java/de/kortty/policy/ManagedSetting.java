@@ -26,5 +26,7 @@ public enum ManagedSetting {
     LOGGING,
     SESSION_JOURNAL,
     CONTROL_API,
-    SNIPPET_ANALYSIS_CONTENT
+    SNIPPET_ANALYSIS_CONTENT,
+    /** The "Run highlight trigger actions" switch in Settings → Terminal ({@link PolicyFeature#TERMINAL_TRIGGERS}). */
+    TERMINAL_TRIGGERS
 }

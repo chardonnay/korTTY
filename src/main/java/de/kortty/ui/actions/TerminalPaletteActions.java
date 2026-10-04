@@ -8,13 +8,15 @@ import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
  * The command palette's commands for the selected terminal tab that the menu bar does not have:
- * <b>Clear Buffer</b> of the focused pane, and <b>Duplicate</b> and <b>Reconnect</b> of the tab.
- * They carry the labels of the terminal's and the tab's right-click menus (and the Dashboard's
- * Reconnect), under the categories Terminal and Tabs.
+ * <b>Clear Buffer</b> of the focused pane, <b>Duplicate</b> and <b>Reconnect</b> of the tab, and the
+ * tab's two watch switches <b>Monitor for Activity</b> and <b>Monitor for Silence</b>, which show a
+ * check mark while they are on. They carry the labels of the terminal's and the tab's right-click
+ * menus (and the Dashboard's Reconnect), under the categories Terminal and Tabs.
  *
  * <p>Not among them, because a menu-bar item does the same and the palette harvests that item with
  * its menu path, shortcut and check mark: <b>Find</b> (<i>Edit → Find…</i>), the same-server splits
@@ -39,6 +41,10 @@ public final class TerminalPaletteActions {
     public static final String DUPLICATE = "tab.contextMenu.duplicate";
     /** Reconnect of the tab. */
     public static final String RECONNECT = "dashboard.reconnect";
+    /** Monitor for Activity of the tab, a switch. */
+    public static final String MONITOR_ACTIVITY = "tab.contextMenu.monitorActivity";
+    /** Monitor for Silence of the tab, a switch. */
+    public static final String MONITOR_SILENCE = "tab.contextMenu.monitorSilence";
 
     /** The category of the pane commands. */
     public static final String TERMINAL_CATEGORY = "palette.category.terminal";
@@ -46,8 +52,8 @@ public final class TerminalPaletteActions {
     public static final String TAB_CATEGORY = "palette.category.tab";
 
     /** Every text these commands show: their labels, then their categories. */
-    public static final List<String> KEYS = List.of(CLEAR_BUFFER, DUPLICATE, RECONNECT, TERMINAL_CATEGORY,
-        TAB_CATEGORY);
+    public static final List<String> KEYS = List.of(CLEAR_BUFFER, DUPLICATE, RECONNECT, MONITOR_ACTIVITY,
+        MONITOR_SILENCE, TERMINAL_CATEGORY, TAB_CATEGORY);
 
     /** The selected terminal tab and its focused pane, the pane the keyboard types into. */
     public interface Target {
@@ -60,6 +66,18 @@ public final class TerminalPaletteActions {
 
         /** Connects the tab again. */
         void reconnect();
+
+        /** Whether the tab is watched for activity. */
+        boolean isMonitoringActivity();
+
+        /** Watches the tab for activity, or no longer when it is. */
+        void toggleMonitoringActivity();
+
+        /** Whether the tab is watched for silence. */
+        boolean isMonitoringSilence();
+
+        /** Watches the tab for silence, or no longer when it is. */
+        void toggleMonitoringSilence();
     }
 
     private TerminalPaletteActions() {
@@ -83,16 +101,32 @@ public final class TerminalPaletteActions {
         String tab = text.apply(TAB_CATEGORY);
         BooleanSupplier aTerminal = () -> selectedTerminal.get() != null;
         return List.of(
-            action(CLEAR_BUFFER, text, terminal, clearBufferChord, aTerminal, selectedTerminal, Target::clearBuffer),
-            action(DUPLICATE, text, tab, null, aTerminal, selectedTerminal, Target::duplicate),
-            action(RECONNECT, text, tab, null, aTerminal, selectedTerminal, Target::reconnect));
+            action(CLEAR_BUFFER, text, terminal, clearBufferChord, aTerminal, null, selectedTerminal,
+                Target::clearBuffer),
+            action(DUPLICATE, text, tab, null, aTerminal, null, selectedTerminal, Target::duplicate),
+            action(RECONNECT, text, tab, null, aTerminal, null, selectedTerminal, Target::reconnect),
+            action(MONITOR_ACTIVITY, text, tab, null, aTerminal,
+                checked(selectedTerminal, Target::isMonitoringActivity), selectedTerminal,
+                Target::toggleMonitoringActivity),
+            action(MONITOR_SILENCE, text, tab, null, aTerminal,
+                checked(selectedTerminal, Target::isMonitoringSilence), selectedTerminal,
+                Target::toggleMonitoringSilence));
+    }
+
+    /** The state of a switch of the selected terminal tab; off while none is selected. */
+    private static BooleanSupplier checked(Supplier<? extends Target> selectedTerminal, Predicate<Target> state) {
+        return () -> {
+            Target target = selectedTerminal.get();
+            return target != null && state.test(target);
+        };
     }
 
     private static AppAction action(String key, Function<String, String> text, String category,
                                     @Nullable KeyCombination chord, BooleanSupplier enabled,
+                                    @Nullable BooleanSupplier checked,
                                     Supplier<? extends Target> selectedTerminal,
                                     Consumer<Target> command) {
-        return new AppAction(key, text.apply(key), category, chord, List.of(), enabled, null,
+        return new AppAction(key, text.apply(key), category, chord, List.of(), enabled, checked,
             () -> {
                 Target target = selectedTerminal.get();
                 if (target != null) {
