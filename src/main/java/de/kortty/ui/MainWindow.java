@@ -7553,6 +7553,27 @@ public class MainWindow {
         return application.getGlobalSettingsManager() != null ? application.getGlobalSettingsManager().getSettings() : null;
     }
 
+    /**
+     * Adds {@code text} as a note to the session journal of every capturing terminal on the
+     * connection {@code connectionId} (the SFTP manager's "sudo-edit <path>" line). Terminals that
+     * do not capture get nothing. FX thread.
+     */
+    static void noteInConnectionJournals(String connectionId, String text) {
+        if (connectionId == null || text == null) {
+            return;
+        }
+        for (TerminalView view : openTerminalViews()) {
+            ServerConnection viewConnection = view != null ? view.getConnection() : null;
+            if (viewConnection == null || !connectionId.equals(viewConnection.getId())) {
+                continue;
+            }
+            de.kortty.core.SessionJournalSession journal = view.getSessionJournalSession();
+            if (journal != null && journal.isActive()) {
+                journal.appendUserNote(text);
+            }
+        }
+    }
+
     /** The views of every terminal tab in every open window. FX thread. */
     private static List<TerminalView> openTerminalViews() {
         List<TerminalView> views = new ArrayList<>();

@@ -92,10 +92,21 @@ Each panel has its own group of toolbar buttons below the lists (local on the le
 | **Delete** | Select entries and click **Delete**, choose **Delete** in the context menu, or press ++delete++ (++ctrl+backspace++, on macOS ++cmd+backspace++). You confirm before anything is deleted |
 | **Copy** | **Copy to...** in the context menu copies within the same side: locally into a folder you pick (in the background), remotely into a folder path you type. A remote folder copied where a folder of that name exists merges into it; copying an item onto itself or into one of its own subfolders is refused with an error |
 | **Edit in Snippet Editor** | Select exactly one local or remote file, then use the *Edit* toolbar menu or the right-click context menu |
-| **Archive** | **Archive** in the remote toolbar, or **Archive...** in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side |
+| **Archive** | **Archive** in the remote toolbar, or **Archive...** in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side. A local archive can have a password; an archive on the server cannot, because `zip` and `7z` would need the password on the server's command line, where other users of the server can read it |
+| **Extract Here** | Right-click one archive on the server (`.zip`, `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz` or `.7z`) and choose **Extract Here...**. It is unpacked on the server into a new folder next to it; see [Extracting archives on the server](#extracting-archives-on-the-server) |
 | **Set Owner/Permissions** | Select entries, then click **Rights** or choose **Set Owner/Permissions...** in the context menu. Separate fields for User, Group, and octal permissions (e.g., 755) |
 
 A name for **Rename** or **New Folder** must be a single entry in the folder shown: it may not be empty, `.` or `..`, or contain `/` or `\`. The dialog stays open with an error until the name is usable.
+
+### Extracting archives on the server
+
+**Extract Here...** in the remote context menu unpacks the selected archive on the server itself, so nothing is downloaded or uploaded. After you confirm, a progress window shows each step, and **Cancel** stops the extraction and removes what was already unpacked.
+
+- **Always a new folder** — the files land in a new folder next to the archive, named after it without the extension (`site-1.2.tar.gz` becomes `site-1.2`). If that name is taken, korTTY uses `site-1.2 (1)`, `site-1.2 (2)` and so on; an existing file or folder is never overwritten or merged into.
+- **Checked before anything is written** — korTTY first lists the archive and refuses it as a whole when an entry would land outside the new folder: an absolute path, `..` that climbs above the folder, a drive letter such as `C:`, a name with a line break, a device file, or a link whose target lies outside. Nothing is written in that case.
+- **Checked again after unpacking** — the archive is unpacked into a hidden staging folder (`.kortty-extract.` plus random characters) that only you can open, without taking over the owners stored in the archive. korTTY then checks every symbolic link in it; if one points outside the folder, the staging folder is deleted and you get an error. Only a clean result is renamed to the new folder, so it appears complete or not at all.
+- **Tools on the server** — ZIP needs `unzip`, the tar formats `tar`, and 7z `7z` or `7za`. If the tool is missing, the error names it. With a tar other than GNU tar (for example BusyBox), archives with hard links are refused, because their targets cannot be checked.
+- **No passwords** — password-protected archives are refused with a message: the tools would need the password on the server's command line, where other users of the server can read it.
 
 ### Drag and drop
 
@@ -218,7 +229,38 @@ The file-mode buttons provide these save choices:
 - **Save as...** — writes a new local file through a file chooser, or for remote files prompts for a new file name in the same remote directory
 - **Save as snippet** — stores the current content as a new Snippet Manager snippet without marking the source file as saved
 
+An organization can restrict editing server files with the `load-into-snippet-editor` key of its [enterprise policy](../reference/enterprise-policy.md). With `read-only`, remote files still open in the Snippet Editor and can be saved as a snippet, but **Overwrite file** and **Save as...** are locked and their tooltip names the policy. With `deny`, **Edit in Snippet Editor** and **Open image** are disabled for remote files. Local files in the left panel are on your own computer and stay editable either way.
+
 ![SFTP dual-panel file manager](../assets/screenshots/sftp/sftp-manager.png)
+
+### Editing in your own editor
+
+**Edit in External Editor** (in the right-click menu of a server file and in the remote **Edit** menu) opens the selected server file in your own text editor and copies every save back to the server. Choose the editor under [*Settings → SFTP Manager → External editor*](../reference/settings/sftp.md#external-editor); without one, the file opens as text in the system's editor.
+
+- **Local copy** — the file is downloaded into a private folder named `kortty-remote-edit-…` in the system temp folder that only you can open, under a cleaned-up name: characters other than letters, digits, `.`, `_`, `-` and spaces become `_`, and Windows device names such as `CON` get a `_` in front. A symbolic link is followed once and the file it points to is edited.
+- **Auto-upload** — korTTY checks the copy every second. About a second after you save, the new content is uploaded and the status bar says **Uploaded** with the file name; saving the same content again uploads nothing. The upload works like any other: through a `.kortty-part` file that keeps the file's permissions, or written in place when the file belongs to another user, so its owner stays.
+- **Remote edits** — the list below the transfer list shows each file being edited, whether it waits for saves, uploads or was uploaded (with the time), and offers **Upload now** for editors whose saves are not noticed, and **Stop**.
+- **Conflicts** — before each upload korTTY checks that the server file is still the one it downloaded (size, time, owner and, up to 10 MB, the content). If someone else changed or deleted it, it asks: **Overwrite server file**, **Save local copy as...** (keeps your version on this computer and stops watching), **Stop watching** or **Decide later** (keeps watching; nothing is uploaded until the next save or **Upload now**).
+- **Cleanup** — **Stop**, closing the SFTP tab and quitting korTTY delete the local copy. When the connection is lost before your last save was uploaded, korTTY first offers **Save copy as...**. Folders a crash left behind are removed at the next start once they are a day old.
+
+The editor is always started directly, never through a shell or as the file's default application, so a downloaded script never runs. With the [enterprise policy](../reference/enterprise-policy.md)'s `load-into-snippet-editor = "read-only"` the file opens but saves stay on your computer and the list says so; `load-into-snippet-editor = "deny"` or `file-transfer = "deny"` grey out **Edit in External Editor**.
+
+### Editing as root
+
+**Open With → Edit as Root (sudo)...** (in the right-click menu of a server file, and **Edit as Root (sudo)...** in the remote **Edit** menu) opens a file that only root may change, such as a configuration file under `/etc`, in your own editor, the same way as [Editing in your own editor](#editing-in-your-own-editor). The row in **Remote edits** carries a **sudo** badge.
+
+![Editing as root: read with sudo cat, edit locally, send each save over stdin to a root-owned stage, verify, write in place, clean up](../assets/diagrams/sftp-sudo-edit-flow.svg)
+
+- **Password** — korTTY first tries `sudo -n`, so with `NOPASSWD` or a still-valid sudo ticket nothing is asked. Otherwise it asks for your password in a masked dialog. When the [JobScheduler](jobscheduler.md) has a sudo password saved for the server or its group, the dialog offers to use it for this server from now on; korTTY never uses it without that choice, and unticking the box later takes it back. The password is kept only while the file is being edited, is handed to sudo only when sudo actually asks for it, and is wiped when you stop. It never appears in a command line, the log, an error message or the session journal.
+- **Reading** — the file is read with `sudo cat` straight into the private local copy; nothing is written on the server for that.
+- **Saving** — each save travels to the server over the connection, into a staging folder that root creates and owns, and only after its size and SHA-256 match is it written into the file itself. The file keeps its inode, owner, permissions, ACLs and SELinux label, and a broken transfer never leaves it half written. The staging folder is removed in every case. Before each save korTTY reads the file again as root; if someone else changed it meanwhile, the same conflict question as above appears.
+- **Links** — when the path is a symbolic link, or leads through a folder that is one, korTTY shows where the file really is and edits it there only after you confirm. Right before every read and write, root checks again that the file is no link and its folder is still the same real folder.
+- **Refused** — a file in a folder you can write to without sudo, or anywhere below such a folder, is not edited as root, because anything running as you could replace the file or a folder on its way in the meantime; the message names that folder, and you edit the file normally. Files larger than 64 MB are refused too.
+- **Journal** — when a terminal on the same connection records a [session journal](session-journal.md), it gets one line, `sudo-edit` and the path; never the content.
+- **What the server needs** — `sudo`, a POSIX `sh` with `mktemp`, `cat` and `stat`, and `sha256sum` or `shasum` for the content check. Without either hash tool korTTY still compares the size before it writes, but cannot compare the content.
+- **Servers with `requiretty`** — when the server's sudo configuration contains `Defaults requiretty`, sudo refuses to run without a terminal, and korTTY says **sudo on this server requires a terminal (requiretty), and korTTY never runs sudo with one**. korTTY does not work around this by opening a terminal: a terminal changes the bytes passing through it (line endings, control characters) and echoes what it is sent, so neither the file nor the password would arrive intact and unseen. An administrator can lift the rule for your account with a line such as `Defaults:alice !requiretty` (edited with `visudo`); until then, edit the file in a terminal tab, for example with `sudoedit`.
+
+The [enterprise policy](../reference/enterprise-policy.md) can switch the feature off with `sftp-sudo-edit = "deny"`; it is also greyed out while `file-transfer` is denied or `load-into-snippet-editor` is not `allow`.
 
 ## Search
 
@@ -232,6 +274,18 @@ The search field above each list filters the folder shown as you type, without l
 | `{py,sh}` | One of the alternatives | `*.{py,sh}` finds Python and shell files |
 
 Text without a wildcard matches anywhere in the name, ignoring case: `rep` finds `Report.txt`. A pattern that cannot be read, such as an unclosed `[`, is searched for as plain text.
+
+### Searching subfolders on the server
+
+Check **Include subfolders** next to the remote search field and press ++enter++ to search the remote folder shown and every folder below it, with the same wildcards and the same case-insensitive matching. The remote list switches to the results: each hit shows its path below the searched folder, and the line above the list counts the hits while the search runs and says how it ended, for example *120 results* or *5000 results, stopped at limit*. Double-click a hit, or select it and press ++enter++, to open its folder with the hit selected. **Back to folder** returns to the folder listing, and ++esc++ in the search field stops a running search (a second ++esc++ leaves the results).
+
+| Limit | Value |
+|-------|-------|
+| Folder levels below the searched folder | 10 |
+| Results | 5000 |
+| Time | 60 seconds |
+
+When the server lets korTTY run commands and has `find`, the search runs there and only the matching paths travel over the connection; otherwise korTTY walks the folders over SFTP, which is slower and stops after reading 200,000 entries. Symbolic links are listed but never followed, so a link that points back up the tree cannot make the search loop. **Stay on this file system** (on by default) keeps `find` out of other mounted file systems such as network shares and `/proc`; the walk over SFTP cannot tell file systems apart. Folders you cannot read are skipped. The search only reads names on the server, so it stays available when an enterprise policy blocks file transfers.
 
 ---
 

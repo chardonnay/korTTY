@@ -73,6 +73,39 @@ class GlobalSettingsSftpTransfersTest {
         return writer.toString();
     }
 
+    @Test
+    void theSudoEditOptInIsPerConnectionAndOffByDefault() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        assertThat(settings.isSftpSudoEditStoredPasswordAllowed("c1")).isFalse();
+        assertThat(marshal(settings)).doesNotContain("sftpSudoEditStoredPasswordConnection");
+
+        settings.setSftpSudoEditStoredPasswordAllowed("c1", true);
+        settings.setSftpSudoEditStoredPasswordAllowed("c1", true);
+        GlobalSettings restored = unmarshal(marshal(settings));
+
+        assertThat(restored.isSftpSudoEditStoredPasswordAllowed("c1")).isTrue();
+        assertThat(restored.isSftpSudoEditStoredPasswordAllowed("c2")).isFalse();
+        assertThat(restored.isSftpSudoEditStoredPasswordAllowed(null)).isFalse();
+        restored.setSftpSudoEditStoredPasswordAllowed("c1", false);
+        assertThat(restored.isSftpSudoEditStoredPasswordAllowed("c1")).isFalse();
+        assertThat(marshal(restored)).doesNotContain("sftpSudoEditStoredPasswordConnection");
+    }
+
+    @Test
+    void theExternalEditorCommandSurvivesTheRoundTripAndBlankStoresNone() throws Exception {
+        GlobalSettings settings = new GlobalSettings();
+        assertThat(settings.getSftpExternalEditorCommand()).isEmpty();
+        settings.setSftpExternalEditorCommand("  code --wait {file} ");
+
+        String xml = marshal(settings);
+        GlobalSettings restored = unmarshal(xml);
+
+        assertThat(restored.getSftpExternalEditorCommand()).isEqualTo("code --wait {file}");
+        restored.setSftpExternalEditorCommand("   ");
+        assertThat(marshal(restored)).doesNotContain("sftpExternalEditorCommand");
+        assertThat(restored.getSftpExternalEditorCommand()).isEmpty();
+    }
+
     private static GlobalSettings unmarshal(String xml) throws Exception {
         return (GlobalSettings) JAXBContext.newInstance(GlobalSettings.class)
                 .createUnmarshaller().unmarshal(new StringReader(xml));

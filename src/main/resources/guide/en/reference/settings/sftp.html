@@ -891,6 +891,32 @@
 <p class="admonition-title">Managed by your organization</p>
 <p>An organization can cap <strong>Parallel transfers</strong> and set and lock <strong>When the target already exists</strong> with <a href="../enterprise-policy.html#rulesftp"><code>[rule.sftp]</code></a>, and switch file transfer off entirely with <code>file-transfer = "deny"</code>; the page then says so below the transfer settings.</p>
 </div>
+<h2 id="external-editor">External editor<a class="headerlink" href="#external-editor" title="Permanent link">&para;</a></h2>
+<p>The editor that <strong>Edit in External Editor</strong> in the <a href="../../features/sftp.html#editing-in-your-own-editor">SFTP file manager</a> opens server files with.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Type</th>
+<th>Values</th>
+<th>Default</th>
+<th>Stored as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Editor command</td>
+<td>text</td>
+<td>A program and its arguments; <code>{file}</code> stands for the file</td>
+<td>empty (System text editor)</td>
+<td><code>sftpExternalEditorCommand</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Editor command</p>
+<p>Examples: <code>code --wait {file}</code>, <code>subl -w {file}</code>, <code>"C:\Program Files\Notepad++\notepad++.exe" -multiInst {file}</code>. Words are separated by spaces; put a path with spaces in double or single quotes. <code>{file}</code> is replaced by the full path of the local copy as one argument, and without <code>{file}</code> the path is added at the end. The command runs directly, never through a shell, so <code>$VAR</code>, <code>%VAR%</code>, <code>;</code> and <code>|</code> have no special meaning. A command with an unclosed quote is marked red and not saved. Leave the field empty to open files as text with the system's editor: TextEdit (or your default text editor) on macOS, the <strong>Edit</strong> action (usually Notepad) on Windows, and on Linux the default application for text files; on Linux a file that is not plain text asks for an editor command first, which is then stored here.</p>
+</div>
 <h2 id="zip-creation-settings">ZIP Creation Settings<a class="headerlink" href="#zip-creation-settings" title="Permanent link">&para;</a></h2>
 <p>These are the defaults for creating a ZIP archive <strong>on the remote server</strong> from the SFTP manager.</p>
 <table>

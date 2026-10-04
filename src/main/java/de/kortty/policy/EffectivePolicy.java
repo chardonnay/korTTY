@@ -186,6 +186,7 @@ public final class EffectivePolicy {
                     case TERMINAL_TRIGGERS -> ManagedSetting.TERMINAL_TRIGGERS;
                     case MULTI_EXEC -> ManagedSetting.MULTI_EXEC;
                     case FILE_TRANSFER -> ManagedSetting.FILE_TRANSFER;
+                    case SFTP_SUDO_EDIT -> ManagedSetting.SFTP_SUDO_EDIT;
                 });
             }
         }
@@ -401,6 +402,17 @@ public final class EffectivePolicy {
      */
     public boolean fileTransferAllowed() {
         return decision(PolicyFeature.FILE_TRANSFER) != PolicyDecision.DENY;
+    }
+
+    /**
+     * Whether the SFTP manager may edit server files as root (D16): allowed unless the policy denies
+     * {@code sftp-sudo-edit}, and only while {@code file-transfer} is allowed (the edit needs a local
+     * copy) and {@code load-into-snippet-editor} is {@code allow} (a root edit always writes back).
+     */
+    public boolean sudoEditAllowed() {
+        return decision(PolicyFeature.SFTP_SUDO_EDIT) != PolicyDecision.DENY
+            && fileTransferAllowed()
+            && (loadIntoSnippetEditor == null || loadIntoSnippetEditor == LoadIntoEditorMode.ALLOW);
     }
 
     /** The {@code [rule.sftp]} limits: parallel transfers cap and the forced conflict default. */

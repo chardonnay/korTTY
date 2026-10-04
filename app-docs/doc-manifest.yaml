@@ -270,9 +270,10 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/sftp.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/ui/sftp, src/main/java/de/kortty/ui/SFTPManagerTab.java, src/main/java/de/kortty/core/SftpFileTransferService.java, src/main/java/de/kortty/core/sftp, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/ui/PaneSessionSupplier.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/ui/TerminalView.java]
+    owns_code: [src/main/java/de/kortty/ui/sftp, src/main/java/de/kortty/ui/SFTPManagerTab.java, src/main/java/de/kortty/core/SftpFileTransferService.java, src/main/java/de/kortty/core/sftp, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/ui/PaneSessionSupplier.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/core/remote]
+    diagrams: [sftp-sudo-edit-flow.svg]
     screenshots: [sftp/sftp-manager.png, sftp/sftp-transfer-list.png, sftp/sftp-conflict-dialog.png]
-    last_synced_ref: "93e01dde"
+    last_synced_ref: "e8fcb677"
   - path: app-docs/site/docs/en/features/file-browser.md
     owns_i18n: ["filebrowser."]
     owns_code: [src/main/java/de/kortty/ui/LocalFileBrowser.java, src/main/java/de/kortty/ui/LocalFileBrowserManager.java, src/main/java/de/kortty/ui/FileBrowserPaths.java, src/main/java/de/kortty/ui/FileBrowserIcons.java, src/main/java/de/kortty/ui/FileBrowserHistory.java, src/main/java/de/kortty/ui/FileBrowserSort.java, src/main/java/de/kortty/ui/FileBrowserLoadingOverlay.java]

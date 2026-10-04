@@ -8,6 +8,17 @@ import de.kortty.core.SFTPSession;
 import de.kortty.core.SftpFileTransferService;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetManager;
+import de.kortty.core.remote.RemoteArchiveCommands;
+import de.kortty.core.remote.RemoteCommandCancellation;
+import de.kortty.core.remote.RemoteCommandCancelledException;
+import de.kortty.core.remote.extract.ArchiveExtractException;
+import de.kortty.core.remote.extract.RemoteArchiveExtractor;
+import de.kortty.core.remote.search.RemoteSearchHit;
+import de.kortty.core.remote.search.RemoteSearchOutcome;
+import de.kortty.core.remote.search.RemoteSearchRequest;
+import de.kortty.core.remote.search.RemoteSearchService;
+import de.kortty.core.remote.search.RemoteTreeReader;
+import de.kortty.core.remote.RemoteShell;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SessionState;
@@ -15,7 +26,11 @@ import de.kortty.model.Snippet;
 import de.kortty.model.SnippetCategory;
 import de.kortty.model.SnippetDiagram;
 import de.kortty.model.TemporarySSHKey;
+import de.kortty.ui.sftp.RemoteExtractMessages;
+import de.kortty.ui.sftp.RemoteSearchResultsPane;
 import de.kortty.ui.sftp.SftpDragOutPolicy;
+import de.kortty.ui.sftp.SftpEditGate;
+import de.kortty.ui.sftp.SftpRemoteEdits;
 import de.kortty.ui.sftp.SftpDragPayload;
 import de.kortty.ui.sftp.SftpFileItem;
 import de.kortty.ui.sftp.SftpFileItemComparators;
@@ -117,6 +132,19 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     private final ExecutorService remoteListExecutor;
     /** Bumped for every remote listing request (FX thread); only the newest result is applied. */
     private long remoteListGeneration;
+    /** Runs recursive remote searches (find or an SFTP walk) off the FX thread. */
+    private final ExecutorService remoteSearchExecutor;
+    /** Bumped for every recursive search and when one is left (FX thread); stale batches are dropped. */
+    private long remoteSearchGeneration;
+    /** The cancel switch of the running recursive search, or null when none runs (FX thread). */
+    private RemoteCommandCancellation remoteSearchCancellation;
+    /** The running "Extract Here" job, if any; FX thread. */
+    private RemoteCommandCancellation remoteExtractCancellation;
+    private RemoteSearchResultsPane remoteSearchResults;
+    private CheckBox remoteRecursiveToggle;
+    private CheckBox remoteSameFilesystemToggle;
+    /** A search hit to select once its folder was listed (FX thread). */
+    private String pendingRemoteSelection;
     /** Whether {@link #currentRemotePath} is an absolute path a listing returned; SFTP does not expand '~'. */
     private boolean remotePathResolved;
     /**
@@ -189,6 +217,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
 
     /** The transfer list at the bottom of the tab and the queue behind it (FX thread). */
     private SftpTransferQueuePane transferQueuePane;
+    /** Files opened in an external editor, with their auto-upload ("Remote edits"); FX thread. */
+    private SftpRemoteEdits remoteEdits;
     private SftpTransferQueueHost transferQueueHost;
     /** The drag-out download that may still run on its worker; FX thread. */
     private TransferCancellation dragOutCancel;
@@ -298,6 +328,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         String listThreadName = "SFTP-List-" + connection.getHost();
         this.remoteListExecutor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, listThreadName);
+            thread.setDaemon(true);
+            return thread;
+        });
+        String searchThreadName = "SFTP-Search-" + connection.getHost();
+        this.remoteSearchExecutor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, searchThreadName);
             thread.setDaemon(true);
             return thread;
         });
@@ -480,8 +516,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         
         // Transfer list: appears with the first upload or download, collapsible to its header.
         createTransferQueue();
+        createRemoteEdits();
 
-        mainBox.getChildren().addAll(splitPane, buttonBox, transferQueuePane, statusBox);
+        mainBox.getChildren().addAll(splitPane, buttonBox, transferQueuePane, remoteEdits, statusBox);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
         
         return mainBox;
@@ -678,7 +715,17 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             resetAutoCloseTimer();
             openSelectedRemoteFileInSnippetEditor();
         });
-        editRemoteButton.getItems().add(editRemoteSnippetItem);
+        MenuItem editRemoteExternalItem = new MenuItem(I18n.get("sftp.edit.externalEditor"));
+        editRemoteExternalItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openSelectedRemoteFileInExternalEditor();
+        });
+        MenuItem editRemoteSudoItem = new MenuItem(I18n.get("sftp.edit.asRoot"));
+        editRemoteSudoItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openSelectedRemoteFileAsRoot();
+        });
+        editRemoteButton.getItems().addAll(editRemoteSnippetItem, editRemoteExternalItem, editRemoteSudoItem);
         
         remoteButtons.getChildren().addAll(remoteLabel, refreshRemoteButton, newFolderRemoteButton, deleteRemoteButton,
                 ownerRemoteButton,
@@ -709,7 +756,15 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             archiveButton.setDisable(!usable);
             deleteRemoteButton.setDisable(!usable);
             ownerRemoteButton.setDisable(!usable);
-            editRemoteButton.setDisable(!isRemoteConnected() || !isSingleEditableFileSelection(remoteTable));
+            // The organization's load-into-snippet-editor policy can deny editing server files, and
+            // the file-transfer policy the local copy an external editor needs: both grey out up front.
+            SftpEditGate editGate = SftpEditGate.current();
+            boolean editableFile = isRemoteConnected() && isSingleEditableFileSelection(remoteTable);
+            editRemoteSnippetItem.setDisable(!editableFile || !editGate.remoteEditorAvailable());
+            editRemoteExternalItem.setDisable(!editableFile || !externalEditAvailable(editGate));
+            editRemoteSudoItem.setDisable(!editableFile || !sudoEditAvailable());
+            editRemoteButton.setDisable(editRemoteSnippetItem.isDisable() && editRemoteExternalItem.isDisable()
+                && editRemoteSudoItem.isDisable());
             // A new folder goes into the absolute folder a listing returned, not the unexpanded '~'.
             newFolderRemoteButton.setDisable(!isRemoteConnected() || !remotePathResolved);
         };
@@ -894,11 +949,30 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), remotePathField, upButton, homeButton);
         HBox.setHgrow(remotePathField, Priority.ALWAYS);
         
-        // Search field
+        // Search field: filters the folder as you type; with "Include subfolders", Enter searches
+        // the folder and everything below it on the server, Esc stops that search.
         HBox searchBox = new HBox(5);
+        searchBox.setAlignment(Pos.CENTER_LEFT);
         remoteSearchField = new TextField();
         remoteSearchField.setPromptText(I18n.get("sftp.searchPrompt"));
-        searchBox.getChildren().addAll(new Label(I18n.get("sftp.search")), remoteSearchField);
+        remoteRecursiveToggle = new CheckBox(I18n.get("sftp.search.recursive"));
+        remoteRecursiveToggle.setTooltip(new Tooltip(I18n.get("sftp.search.recursiveTooltip")));
+        remoteSameFilesystemToggle = new CheckBox(I18n.get("sftp.search.sameFilesystem"));
+        remoteSameFilesystemToggle.setTooltip(new Tooltip(I18n.get("sftp.search.sameFilesystemTooltip")));
+        remoteSameFilesystemToggle.setSelected(true);
+        remoteSameFilesystemToggle.disableProperty().bind(remoteRecursiveToggle.selectedProperty().not());
+        remoteSearchField.setOnAction(e -> {
+            if (remoteRecursiveToggle.isSelected()) {
+                startRemoteSearch();
+            }
+        });
+        remoteSearchField.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.ESCAPE && handleRemoteSearchEscape()) {
+                e.consume();
+            }
+        });
+        searchBox.getChildren().addAll(new Label(I18n.get("sftp.search")), remoteSearchField,
+            remoteRecursiveToggle, remoteSameFilesystemToggle);
         HBox.setHgrow(remoteSearchField, Priority.ALWAYS);
         
         // File table
@@ -1001,7 +1075,15 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         
         // Remote folders are listed in the background; the overlay shows while one loads.
         remoteLoadingOverlay = FileBrowserLoadingOverlay.create();
-        StackPane remoteStack = new StackPane(remoteTable, remoteLoadingOverlay);
+        remoteSearchResults = new RemoteSearchResultsPane(this::leaveRemoteSearchResults);
+        remoteSearchResults.setOnOpen(this::openRemoteSearchHit);
+        remoteSearchResults.setVisible(false);
+        remoteSearchResults.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, e -> {
+            if (e.getCode() == KeyCode.ESCAPE && handleRemoteSearchEscape()) {
+                e.consume();
+            }
+        });
+        StackPane remoteStack = new StackPane(remoteTable, remoteSearchResults, remoteLoadingOverlay);
         panel.getChildren().addAll(titleLabel, pathBox, searchBox, remoteStack);
         VBox.setVgrow(remoteStack, Priority.ALWAYS);
         
@@ -1186,6 +1268,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         // A replaced session (after Reconnect) is ignored.
         if (session == sftpSession) {
             transferQueueHost.onSessionLost();
+            if (!closing) {
+                remoteEdits.onDisconnected();
+            }
             showDisconnectedState();
         }
     }
@@ -1201,6 +1286,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         remoteState = RemoteState.DISCONNECTED;
         // Drop a listing that is still on its way from the dead session.
         remoteListGeneration++;
+        pendingRemoteSelection = null;
+        cancelRemoteSearch();
         FileBrowserLoadingOverlay.show(remoteLoadingOverlay, false);
         statusLabel.setText(I18n.get("sftp.status.disconnected", connection.getHost()));
         setReconnectVisible(true);
@@ -1300,6 +1387,13 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         remoteListExecutor.shutdownNow();
         cancelDragOut();
         deleteDragOutDirectories();
+        cancelRemoteSearch();
+        remoteSearchExecutor.shutdownNow();
+        if (remoteExtractCancellation != null) {
+            remoteExtractCancellation.cancel();
+        }
+        // Stops watching externally edited files and deletes their local copies.
+        remoteEdits.dispose();
         // Cancels the transfers and closes their channels before the session goes.
         boolean transfersRan = transferQueueHost.needsCloseConfirmation();
         transferQueueHost.close();
@@ -1488,6 +1582,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         }
         FileBrowserLoadingOverlay.show(remoteLoadingOverlay, false);
         if (error != null) {
+            pendingRemoteSelection = null;
             // Back to the folder that is still shown.
             remotePathField.setText(currentRemotePath);
             SFTPSession session = sftpSession;
@@ -1511,7 +1606,156 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         remotePathField.setText(currentRemotePath);
         // Re-apply sort after refresh
         remoteTable.sort();
+        selectPendingRemoteEntry();
         refreshActionStates();
+    }
+
+    /** Selects the search hit that asked for this folder, once its listing is shown. */
+    private void selectPendingRemoteEntry() {
+        String wanted = pendingRemoteSelection;
+        pendingRemoteSelection = null;
+        if (wanted == null) {
+            return;
+        }
+        for (SftpFileItem item : remoteTable.getItems()) {
+            if (wanted.equals(item.getPath())) {
+                remoteTable.getSelectionModel().clearSelection();
+                remoteTable.getSelectionModel().select(item);
+                remoteTable.scrollTo(item);
+                remoteTable.requestFocus();
+                return;
+            }
+        }
+    }
+
+    /**
+     * Starts a recursive search below the folder shown: {@code find} over an exec channel when the
+     * server has it, otherwise an SFTP walk (D17). Hits arrive in batches; a newer search, leaving
+     * the results or a disconnect drops the older one's batches through the generation guard.
+     */
+    private void startRemoteSearch() {
+        if (!requireConnected() || !remotePathResolved) {
+            return;
+        }
+        String text = remoteSearchField.getText();
+        if (text == null || text.isBlank()) {
+            statusLabel.setText(I18n.get("sftp.search.emptyPattern"));
+            return;
+        }
+        RemoteSearchRequest request;
+        try {
+            request = RemoteSearchRequest.of(currentRemotePath, text.trim(), FileBrowserPaths.isGlobFilter(text),
+                    FileBrowserPaths.compileNameFilter(text))
+                .withSameFilesystem(remoteSameFilesystemToggle.isSelected());
+        } catch (IllegalArgumentException e) {
+            statusLabel.setText(I18n.get("sftp.search.failed", e.getMessage()));
+            return;
+        }
+        cancelRemoteSearch();
+        long generation = ++remoteSearchGeneration;
+        RemoteCommandCancellation cancellation = new RemoteCommandCancellation();
+        remoteSearchCancellation = cancellation;
+        SFTPSession session = sftpSession;
+        remoteSearchResults.clear();
+        remoteSearchResults.setStatus(RemoteSearchResultsPane.runningText(request.root(), 0));
+        remoteSearchResults.setVisible(true);
+        try {
+            CompletableFuture
+                .supplyAsync(() -> runRemoteSearch(session, request, generation, cancellation), remoteSearchExecutor)
+                .whenComplete((outcome, error) -> Platform.runLater(
+                    () -> applyRemoteSearchOutcome(generation, request.root(), outcome, error)));
+        } catch (RejectedExecutionException e) {
+            // The tab is closing.
+            remoteSearchCancellation = null;
+        }
+    }
+
+    /** Runs on the search thread. */
+    private RemoteSearchOutcome runRemoteSearch(SFTPSession session, RemoteSearchRequest request, long generation,
+                                                RemoteCommandCancellation cancellation) {
+        RemoteTreeReader reader = new RemoteTreeReader() {
+            @Override
+            public List<SftpClient.DirEntry> list(String folder) throws IOException {
+                return session.listFiles(folder);
+            }
+
+            @Override
+            public SftpClient.Attributes lstat(String path) throws IOException {
+                return session.getLinkAttributes(path);
+            }
+        };
+        try {
+            return new RemoteSearchService(session.commandRunner(), reader).search(request,
+                batch -> Platform.runLater(() -> applyRemoteSearchBatch(generation, request.root(), batch)),
+                cancellation);
+        } catch (IOException e) {
+            throw new CompletionException(e);
+        }
+    }
+
+    private void applyRemoteSearchBatch(long generation, String root, List<RemoteSearchHit> batch) {
+        if (closing || generation != remoteSearchGeneration) {
+            return;
+        }
+        remoteSearchResults.addAll(batch);
+        if (remoteSearchCancellation != null) {
+            remoteSearchResults.setStatus(RemoteSearchResultsPane.runningText(root, remoteSearchResults.size()));
+        }
+    }
+
+    private void applyRemoteSearchOutcome(long generation, String root, RemoteSearchOutcome outcome, Throwable error) {
+        if (closing || generation != remoteSearchGeneration) {
+            return;
+        }
+        remoteSearchCancellation = null;
+        if (error != null) {
+            Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
+            logger.warn("Remote search below {} failed: {}", root, cause.getClass().getSimpleName());
+            remoteSearchResults.setStatus(I18n.get("sftp.search.failed", failureMessage(cause)));
+            return;
+        }
+        logger.info("Remote search below {} ended: {} results via {} ({})", root, outcome.results(),
+            outcome.strategy(), outcome.stop());
+        remoteSearchResults.setStatus(RemoteSearchResultsPane.outcomeText(outcome));
+    }
+
+    /** Stops the running recursive search, if any; its hits so far stay listed. */
+    private void cancelRemoteSearch() {
+        RemoteCommandCancellation running = remoteSearchCancellation;
+        if (running != null) {
+            running.cancel();
+        }
+    }
+
+    /** Esc: stops a running search, or else leaves the results. Returns whether it did something. */
+    private boolean handleRemoteSearchEscape() {
+        if (remoteSearchCancellation != null) {
+            cancelRemoteSearch();
+            return true;
+        }
+        if (remoteSearchResults != null && remoteSearchResults.isVisible()) {
+            leaveRemoteSearchResults();
+            return true;
+        }
+        return false;
+    }
+
+    /** Back to the folder listing; a running search is stopped and its later batches dropped. */
+    private void leaveRemoteSearchResults() {
+        cancelRemoteSearch();
+        remoteSearchCancellation = null;
+        remoteSearchGeneration++;
+        if (remoteSearchResults != null) {
+            remoteSearchResults.setVisible(false);
+            remoteSearchResults.clear();
+        }
+    }
+
+    /** Opens the folder of a hit and selects the hit there. */
+    private void openRemoteSearchHit(RemoteSearchHit hit) {
+        leaveRemoteSearchResults();
+        pendingRemoteSelection = hit.path();
+        loadRemote(hit.parentPath());
     }
 
     /**
@@ -1615,10 +1859,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     
     private void navigateRemote(String path) {
         // The current path changes only once the new folder was listed.
+        leaveRemoteSearchResults();
         loadRemote(path);
     }
 
     private void navigateRemoteUp() {
+        leaveRemoteSearchResults();
         if (remotePathResolved && !"/".equals(currentRemotePath)) {
             loadRemote(RemotePathSupport.parentRemotePath(currentRemotePath));
         }
@@ -2696,6 +2942,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             resetAutoCloseTimer();
             createRemoteArchive();
         });
+
+        MenuItem extractItem = new MenuItem(I18n.get("sftp.contextMenu.extractHere"));
+        extractItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            extractSelectedRemoteArchive();
+        });
         
         MenuItem editWithSnippetEditorItem = new MenuItem(I18n.get("sftp.contextMenu.editWithSnippetEditor"));
         editWithSnippetEditorItem.setOnAction(e -> {
@@ -2703,6 +2955,21 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             openSelectedRemoteFileInSnippetEditor();
         });
         
+        MenuItem editExternalItem = new MenuItem(I18n.get("sftp.contextMenu.editExternal"));
+        editExternalItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openSelectedRemoteFileInExternalEditor();
+        });
+
+        // "Open with" holds the ways of editing that need more than the login user's rights.
+        MenuItem sudoEditItem = new MenuItem(I18n.get("sftp.contextMenu.editAsRoot"));
+        sudoEditItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            openSelectedRemoteFileAsRoot();
+        });
+        Menu openWithMenu = new Menu(I18n.get("sftp.contextMenu.openWith"));
+        openWithMenu.getItems().add(sudoEditItem);
+
         MenuItem openImageItem = new MenuItem(I18n.get("sftp.contextMenu.openImage"));
         openImageItem.setOnAction(e -> {
             resetAutoCloseTimer();
@@ -2716,9 +2983,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             new SeparatorMenuItem(),
             ownerItem,
             new SeparatorMenuItem(), 
-            archiveItem,
+            archiveItem, extractItem,
             new SeparatorMenuItem(),
-            editWithSnippetEditorItem, openImageItem
+            editWithSnippetEditorItem, editExternalItem, openWithMenu, openImageItem
         );
         
         // Disable items when nothing is selected
@@ -2735,8 +3002,14 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             newFolderItem.setDisable(!isRemoteConnected() || !remotePathResolved);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
-            editWithSnippetEditorItem.setDisable(!isSingleFile);
-            openImageItem.setDisable(!isImageFile);
+            extractItem.setDisable(!isSingleFile || remoteExtractCancellation != null
+                || RemoteArchiveExtractor.detect(selected.get(0).getName()).isEmpty());
+            SftpEditGate editGate = SftpEditGate.current();
+            editWithSnippetEditorItem.setDisable(!isSingleFile || !editGate.remoteEditorAvailable());
+            editExternalItem.setDisable(!isSingleFile || !externalEditAvailable(editGate));
+            sudoEditItem.setDisable(!isSingleFile || !sudoEditAvailable());
+            openWithMenu.setDisable(sudoEditItem.isDisable());
+            openImageItem.setDisable(!isImageFile || !editGate.remoteImageAvailable());
         });
 
         addRemovePartsItem(menu, true);
@@ -3320,6 +3593,106 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         public String toString() { return displayName; }
     }
     
+    /**
+     * "Extract Here...": unpacks the selected archive on the server into a new folder next to it
+     * (see {@link RemoteArchiveExtractor}). The data never leaves the server, so this is not a file
+     * transfer. FX thread.
+     */
+    private void extractSelectedRemoteArchive() {
+        SftpFileItem item = singleNamedSelection(remoteTable);
+        if (item == null || !item.isFile() || !requireConnected() || remoteExtractCancellation != null) {
+            return;
+        }
+        String archivePath = item.getPath();
+        if (RemoteArchiveExtractor.detect(item.getName()).isEmpty() || archivePath == null
+                || !archivePath.startsWith("/")) {
+            showError(I18n.get("sftp.extract.failedTitle"), I18n.get("sftp.extract.error.unsupported", item.getName()));
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle(I18n.get("sftp.extract.title"));
+        confirm.setHeaderText(I18n.get("sftp.extract.header", item.getName()));
+        confirm.setContentText(I18n.get("sftp.extract.content"));
+        applyDarkTheme(confirm);
+        if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
+            return;
+        }
+        SFTPSession session = sftpSession;
+        RemoteCommandCancellation cancellation = new RemoteCommandCancellation();
+        remoteExtractCancellation = cancellation;
+
+        Dialog<Void> progress = new Dialog<>();
+        progress.setTitle(I18n.get("sftp.extract.title"));
+        progress.setHeaderText(item.getName());
+        Label phaseLabel = new Label(RemoteExtractMessages.phaseText(RemoteArchiveExtractor.Phase.CHECKING));
+        ProgressBar bar = new ProgressBar(ProgressIndicator.INDETERMINATE_PROGRESS);
+        bar.setMaxWidth(Double.MAX_VALUE);
+        VBox content = new VBox(10, phaseLabel, bar);
+        content.setPadding(new Insets(10));
+        content.setPrefWidth(380);
+        progress.getDialogPane().setContent(content);
+        progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+        progress.setOnCloseRequest(event -> {
+            if (remoteExtractCancellation == cancellation) {
+                // the job closes the dialog once it has cleaned up
+                cancellation.cancel();
+                phaseLabel.setText(I18n.get("sftp.extract.cancelling"));
+                event.consume();
+            }
+        });
+        applyDarkTheme(progress);
+        progress.show();
+        statusLabel.setText(I18n.get("sftp.extract.running", item.getName()));
+
+        Thread.ofPlatform().daemon().name("SFTP-Extract").start(() -> {
+            RemoteArchiveExtractor.Result result = null;
+            Throwable failure = null;
+            try {
+                if (session == null) {
+                    throw new IOException(I18n.get("sftp.notConnected"));
+                }
+                result = new RemoteArchiveExtractor(session.commandRunner()).extract(archivePath, cancellation,
+                    phase -> Platform.runLater(() -> phaseLabel.setText(RemoteExtractMessages.phaseText(phase))));
+            } catch (IOException | RuntimeException e) {
+                failure = e;
+            }
+            RemoteArchiveExtractor.Result done = result;
+            Throwable error = failure;
+            Platform.runLater(() -> finishRemoteExtract(cancellation, progress, item.getName(), done, error));
+        });
+    }
+
+    private void finishRemoteExtract(RemoteCommandCancellation cancellation, Dialog<Void> progress, String name,
+                                     RemoteArchiveExtractor.Result result, Throwable failure) {
+        if (remoteExtractCancellation == cancellation) {
+            remoteExtractCancellation = null;
+        }
+        progress.close();
+        if (closing) {
+            return;
+        }
+        if (result != null) {
+            statusLabel.setText(I18n.get("sftp.extract.done", name, result.folder()));
+            String parent = RemotePathSupport.parentRemotePath(result.folder());
+            if (parent != null && parent.equals(currentRemotePath)) {
+                pendingRemoteSelection = result.folder();
+                refreshRemote();
+            }
+            return;
+        }
+        if (failure instanceof RemoteCommandCancelledException) {
+            statusLabel.setText(I18n.get("sftp.extract.cancelled"));
+            return;
+        }
+        String message = failure instanceof ArchiveExtractException refused
+            ? RemoteExtractMessages.errorText(refused)
+            : I18n.get("sftp.extract.error.failed", failureMessage(failure));
+        logger.warn("Extracting {} failed: {}", name, failure instanceof ArchiveExtractException refused
+            ? refused.reason() : failure.getClass().getSimpleName());
+        statusLabel.setText(message);
+        showError(I18n.get("sftp.extract.failedTitle"), message);
+    }
+
     private void createRemoteArchive() {
         var selected = remoteTable.getSelectionModel().getSelectedItems();
         if (selected == null || selected.isEmpty()) {
@@ -3492,11 +3865,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         permissionsField.setPromptText("644");
         grid.add(permissionsField, 1, row++);
         
-        // Password (optional) - only for ZIP and 7z
+        // No password: zip/7z would need it on the command line (visible in ps) or on a terminal.
         grid.add(new Label(I18n.get("sftp.archive.password")), 0, row);
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText(I18n.get("sftp.archive.passwordPrompt"));
-        grid.add(passwordField, 1, row++);
+        Label passwordUnsupported = new Label(I18n.get("sftp.archive.passwordUnsupportedRemote"));
+        passwordUnsupported.setWrapText(true);
+        passwordUnsupported.setMaxWidth(350);
+        grid.add(passwordUnsupported, 1, row++);
         
         // Exclude (optional) - patterns to exclude from archive
         grid.add(new Label(I18n.get("sftp.archive.exclude")), 0, row);
@@ -3519,13 +3893,6 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 }
             }
             pathField.setText(currentPath + getSelectedFormat.get().getExtension());
-            
-            // Disable password for tar.bz2
-            ArchiveFormat selectedFmt = getSelectedFormat.get();
-            passwordField.setDisable(selectedFmt == ArchiveFormat.TAR_BZ2);
-            if (selectedFmt == ArchiveFormat.TAR_BZ2) {
-                passwordField.clear();
-            }
         });
         
         // Separator
@@ -3589,7 +3956,6 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 
                 String owner = ownerField.getText().trim();
                 String permissions = permissionsField.getText().trim();
-                String password = passwordField.getText();
                 List<String> excludePatterns = java.util.Arrays.stream(excludeField.getText().split("\n"))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
@@ -3602,7 +3968,6 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 compressionCombo.setDisable(true);
                 ownerField.setDisable(true);
                 permissionsField.setDisable(true);
-                passwordField.setDisable(true);
                 excludeField.setDisable(true);
                 
                 // Show progress
@@ -3613,7 +3978,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 
                 // Create archive in background
                 executeRemoteArchiveCreation(dialog, filesToArchive, archivePath, format, compression, 
-                        owner, permissions, password, excludePatterns, progressLabel, progressBar, timeLabel, sizeLabel);
+                        owner, permissions, excludePatterns, progressLabel, progressBar, timeLabel, sizeLabel);
             }
             return null;
         });
@@ -3623,7 +3988,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     
     private void executeRemoteArchiveCreation(Dialog<Void> dialog, List<String> filesToArchive, String archivePath,
                                               ArchiveFormat format, int compression, String owner, String permissions, 
-                                              String password, List<String> excludePatterns,
+                                              List<String> excludePatterns,
                                               Label progressLabel, ProgressBar progressBar, 
                                               Label timeLabel, Label sizeLabel) {
         long startTime = System.currentTimeMillis();
@@ -3651,15 +4016,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 if (session == null) {
                     throw new IOException(I18n.get("sftp.notConnected"));
                 }
-                // Build the archive command based on format
-                String archiveCommand = buildArchiveCommand(filesToArchive, archivePath, format, compression, password, excludePatterns);
+                // Build the archive command based on format (never with a password: see RemoteArchiveCommands)
+                String archiveCommand = RemoteArchiveCommands.build(toRemoteArchiveFormat(format), filesToArchive,
+                    archivePath, compression, excludePatterns);
 
-                // Log archive metadata instead of the command line: any buildArchiveCommand result
-                // can embed the archive password, and the old regex masks were bypassable via
-                // quote-escaping ('\'') — CodeQL java/sensitive-log.
-                logger.info("Executing remote archive command: format={} target={} files={} passwordProtected={}",
-                    format, archivePath, filesToArchive.size(),
-                    password != null && !password.isEmpty());
+                logger.info("Executing remote archive command: format={} target={} files={}",
+                    format, archivePath, filesToArchive.size());
                 
                 Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.archive.creating")));
                 
@@ -3690,7 +4052,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 
                 // Set owner if specified
                 if (owner != null && !owner.isEmpty()) {
-                    String chownCmd = "chown '" + owner.replace("'", "'\\''") + "' '" + archivePath.replace("'", "'\\''") + "'";
+                    String chownCmd = "chown " + RemoteShell.quote(owner) + " " + RemoteArchiveCommands.pathArgument(archivePath);
                     try {
                         session.executeCommand(chownCmd);
                     } catch (Exception e) {
@@ -3701,7 +4063,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 // Set permissions if specified (validated in the dialog; re-checked before the shell sees it)
                 if (permissions != null && !permissions.isEmpty()
                         && LocalFileBrowser.isValidOctalPermissions(permissions)) {
-                    String chmodCmd = "chmod " + permissions + " '" + archivePath.replace("'", "'\\''") + "'";
+                    String chmodCmd = "chmod " + permissions + " " + RemoteArchiveCommands.pathArgument(archivePath);
                     try {
                         session.executeCommand(chmodCmd);
                     } catch (Exception e) {
@@ -3710,7 +4072,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 }
                 
                 // Get actual file size and duration
-                String sizeCmd = "stat -c%s '" + archivePath.replace("'", "'\\''") + "' 2>/dev/null || stat -f%z '" + archivePath.replace("'", "'\\''") + "'";
+                String quotedArchive = RemoteArchiveCommands.pathArgument(archivePath);
+                String sizeCmd = "stat -c%s " + quotedArchive + " 2>/dev/null || stat -f%z " + quotedArchive;
                 String actualSize = "";
                 long actualSizeBytes = 0;
                 try {
@@ -3774,61 +4137,14 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         }, "Remote-Archive-Creator").start();
     }
     
-    private String buildArchiveCommand(List<String> files, String archivePath, ArchiveFormat format, int compression, String password, List<String> excludePatterns) {
-        StringBuilder cmd = new StringBuilder();
-        String escapedPath = archivePath.replace("'", "'\\''");
-        List<String> exclude = excludePatterns != null ? excludePatterns : List.of();
-        
-        switch (format) {
-            case ZIP:
-                if (password != null && !password.isEmpty()) {
-                    cmd.append("zip -r -").append(compression)
-                       .append(" -P '").append(password.replace("'", "'\\''")).append("' ");
-                } else {
-                    cmd.append("zip -r -").append(compression).append(" ");
-                }
-                cmd.append("'").append(escapedPath).append("' ");
-                for (String pattern : exclude) {
-                    cmd.append("-x '").append(pattern.replace("'", "'\\''")).append("' ");
-                }
-                for (String file : files) {
-                    cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
-                }
-                break;
-                
-            case TAR_BZ2:
-                // tar with bzip2 compression
-                // -j = bzip2, compression level via BZIP2 env var
-                cmd.append("BZIP2=-").append(compression).append(" tar -cjf '")
-                   .append(escapedPath).append("' ");
-                for (String pattern : exclude) {
-                    cmd.append("--exclude='").append(pattern.replace("'", "'\\''")).append("' ");
-                }
-                for (String file : files) {
-                    cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
-                }
-                break;
-                
-            case SEVEN_ZIP:
-                // 7z archive - try 7z first, then 7za (p7zip uses 7za on some systems)
-                // -mx=compression level, -p for password, -x! for exclude
-                cmd.append("$(command -v 7z || command -v 7za) a -mx=").append(compression);
-                if (password != null && !password.isEmpty()) {
-                    cmd.append(" -p'").append(password.replace("'", "'\\''")).append("' -mhe=on");
-                }
-                for (String pattern : exclude) {
-                    cmd.append(" -x!'").append(pattern.replace("'", "'\\''")).append("'");
-                }
-                cmd.append(" '").append(escapedPath).append("' ");
-                for (String file : files) {
-                    cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
-                }
-                break;
-        }
-        
-        return cmd.toString().trim();
+    private static RemoteArchiveCommands.Format toRemoteArchiveFormat(ArchiveFormat format) {
+        return switch (format) {
+            case ZIP -> RemoteArchiveCommands.Format.ZIP;
+            case TAR_BZ2 -> RemoteArchiveCommands.Format.TAR_BZ2;
+            case SEVEN_ZIP -> RemoteArchiveCommands.Format.SEVEN_ZIP;
+        };
     }
-    
+
     private String formatSize(long bytes) {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
@@ -4764,7 +5080,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
 
     private void openSelectedRemoteFileInSnippetEditor() {
         SftpFileItem selected = getSingleEditableFileSelection(remoteTable);
-        if (selected == null || !requireConnected()) {
+        if (selected == null || !remoteEditAllowedByPolicy(SftpEditGate.current().remoteEditorAvailable())
+            || !requireConnected()) {
             return;
         }
         SFTPSession session = sftpSession;
@@ -4782,6 +5099,159 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 });
             }
         }, "sftp-remote-snippet-loader").start();
+    }
+
+    /**
+     * Whether "Edit in External Editor" is offered: the load-into-snippet-editor policy must not
+     * deny editing server files, and the file-transfer policy must allow the download of the local
+     * copy. Read-only policies still open the file, without uploads.
+     */
+    private boolean externalEditAvailable(SftpEditGate editGate) {
+        return editGate.externalEditAvailable(
+            de.kortty.policy.FileTransferGate.current(de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD).allowed());
+    }
+
+    /** Downloads the selected server file and opens it in the external editor (see {@link SftpRemoteEdits}). */
+    private void openSelectedRemoteFileInExternalEditor() {
+        SftpFileItem selected = getSingleEditableFileSelection(remoteTable);
+        if (selected == null) {
+            return;
+        }
+        SftpEditGate editGate = SftpEditGate.current();
+        if (!remoteEditAllowedByPolicy(editGate.remoteEditorAvailable())
+                || refuseTransfer(de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD)
+                || !requireConnected()) {
+            return;
+        }
+        boolean uploads = editGate.externalEditUploads(
+            de.kortty.policy.FileTransferGate.current(de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD).allowed());
+        remoteEdits.open(selected.getPath(), selected.getName(), uploads);
+    }
+
+    /**
+     * Whether "Edit as root (sudo)..." is offered (D16): the policy must not deny
+     * {@code sftp-sudo-edit}, must allow file transfer, and {@code load-into-snippet-editor} must be
+     * {@code allow}, because an edit as root always writes back.
+     */
+    private boolean sudoEditAvailable() {
+        return de.kortty.policy.PolicyManager.effective().sudoEditAllowed();
+    }
+
+    /** Reads the selected server file as root and opens it in the external editor (see {@link SftpRemoteEdits}). */
+    private void openSelectedRemoteFileAsRoot() {
+        SftpFileItem selected = getSingleEditableFileSelection(remoteTable);
+        if (selected == null) {
+            return;
+        }
+        if (!remoteEditAllowedByPolicy(sudoEditAvailable()) || !requireConnected()) {
+            return;
+        }
+        String path = selected.getPath();
+        if (path == null || !path.startsWith("/")) {
+            statusLabel.setText(I18n.get("sftp.sudoEdit.error.relative"));
+            return;
+        }
+        remoteEdits.openAsRoot(path, selected.getName());
+    }
+
+    /** The JobScheduler's sudo credential store, or null when the scheduler is not running. */
+    private de.kortty.jobscheduler.JobSchedulerRepository sudoCredentialRepository() {
+        return app != null && app.getJobSchedulerService() != null ? app.getJobSchedulerService().getRepository() : null;
+    }
+
+    /** The "Remote edits" list below the transfer list; hidden while nothing is edited. */
+    private void createRemoteEdits() {
+        remoteEdits = new SftpRemoteEdits(new SftpRemoteEdits.Host() {
+            @Override
+            public de.kortty.core.remote.edit.RemoteEditSession.ClientSource clientSource() {
+                return () -> connectedSession().primaryClient();
+            }
+
+            @Override
+            public javafx.stage.Window ownerWindow() {
+                return ownerWindowOrNull();
+            }
+
+            @Override
+            public void status(String text) {
+                if (!closing) {
+                    statusLabel.setText(text);
+                }
+            }
+
+            @Override
+            public String editorCommand() {
+                return app != null && app.getGlobalSettingsManager() != null
+                    ? app.getGlobalSettingsManager().getSettings().getSftpExternalEditorCommand()
+                    : "";
+            }
+
+            @Override
+            public void saveEditorCommand(String command) {
+                if (app != null && app.getGlobalSettingsManager() != null) {
+                    app.getGlobalSettingsManager().getSettings().setSftpExternalEditorCommand(command);
+                    app.getGlobalSettingsManager().scheduleSave();
+                }
+            }
+
+            @Override
+            public void styleDialog(Dialog<?> dialog) {
+                applyDarkTheme(dialog);
+            }
+
+            @Override
+            public de.kortty.core.remote.RemoteCommandRunner commandRunner() throws IOException {
+                return connectedSession().commandRunner();
+            }
+
+            @Override
+            public boolean storedSudoPasswordAvailable() {
+                de.kortty.jobscheduler.JobSchedulerRepository repository = sudoCredentialRepository();
+                return repository != null && (repository.findServerSudoCredential(connection.getId()).isPresent()
+                    || repository.findGroupSudoCredential(connection.getGroup()).isPresent());
+            }
+
+            @Override
+            public boolean storedSudoPasswordOptedIn() {
+                return app != null && app.getGlobalSettingsManager() != null
+                    && app.getGlobalSettingsManager().getSettings().isSftpSudoEditStoredPasswordAllowed(connection.getId());
+            }
+
+            @Override
+            public void setStoredSudoPasswordOptedIn(boolean optedIn) {
+                if (app != null && app.getGlobalSettingsManager() != null) {
+                    app.getGlobalSettingsManager().getSettings()
+                        .setSftpSudoEditStoredPasswordAllowed(connection.getId(), optedIn);
+                    app.getGlobalSettingsManager().scheduleSave();
+                }
+            }
+
+            @Override
+            public Optional<char[]> storedSudoPassword() {
+                de.kortty.jobscheduler.JobSchedulerRepository repository = sudoCredentialRepository();
+                char[] master = app != null && app.getMasterPasswordManager() != null
+                    ? app.getMasterPasswordManager().getMasterPassword() : null;
+                if (repository == null || master == null) {
+                    return Optional.empty();
+                }
+                try {
+                    // The scheduler hands out a String (D15 accepts that for the opted-in case);
+                    // korTTY's own copy is a char[] that the edit session wipes.
+                    return new de.kortty.jobscheduler.JobSchedulerSudoService(repository)
+                        .resolveSudoPassword(connection, master)
+                        .filter(value -> !value.isEmpty())
+                        .map(String::toCharArray);
+                } catch (Exception e) {
+                    logger.warn("The saved sudo password could not be read: {}", e.getClass().getSimpleName());
+                    return Optional.empty();
+                }
+            }
+
+            @Override
+            public void journalNote(String text) {
+                MainWindow.noteInConnectionJournals(connection.getId(), text);
+            }
+        }, "SFTP-RemoteEdit-" + connection.getHost());
     }
 
     private void openSelectedLocalFileInSnippetEditor() {
@@ -4805,8 +5275,29 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         }, "sftp-local-snippet-loader").start();
     }
 
+    /**
+     * The organization's policy denies {@code allowed == false}: says so in the status line and
+     * returns {@code false}. Guards the actions whose menu items the policy already disables.
+     */
+    private boolean remoteEditAllowedByPolicy(boolean allowed) {
+        if (!allowed) {
+            statusLabel.setText(I18n.get("policy.feature.disabled"));
+        }
+        return allowed;
+    }
+
     private void openRemoteSnippetFileDialog(SftpFileItem selected, String content) {
+        // Read-only policy: the file opens and can be saved as a snippet, but the overwrite and
+        // save-as actions that write to the server are locked in the dialog.
+        SftpEditGate editGate = SftpEditGate.current();
+        if (!remoteEditAllowedByPolicy(editGate.remoteEditorAvailable())) {
+            return;
+        }
         Snippet snippet = createFileSnippetDraft(selected.getName(), content);
+        SnippetEditDialog.ExternalFileAction overwrite =
+            draft -> overwriteRemoteSnippetFile(selected.getPath(), draft);
+        SnippetEditDialog.ExternalFileAction saveAs =
+            draft -> saveRemoteSnippetFileAs(selected.getPath(), selected.getName(), draft);
         SnippetEditDialog.ExternalFileActionConfig config = new SnippetEditDialog.ExternalFileActionConfig(
             selected.getPath(),
             I18n.get("sftp.snippetEditor.overwriteRemote"),
@@ -4815,8 +5306,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             I18n.get("sftp.snippetEditor.savedFile"),
             I18n.get("sftp.snippetEditor.savedFile"),
             I18n.get("sftp.snippetEditor.savedSnippet"),
-            draft -> overwriteRemoteSnippetFile(selected.getPath(), draft),
-            draft -> saveRemoteSnippetFileAs(selected.getPath(), selected.getName(), draft),
+            editGate.remoteWriteAction(overwrite),
+            editGate.remoteWriteAction(saveAs),
             this::saveDraftAsSnippet
         );
         showSnippetFileDialog(snippet, config);
@@ -4863,12 +5354,14 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     }
 
     private boolean overwriteRemoteSnippetFile(String remotePath, Snippet draft) throws Exception {
+        SftpEditGate.current().requireRemoteWriteBack(I18n.get("policy.terminal.loadReadOnly"));
         connectedSession().uploadFileBytes(draft.getContent().getBytes(StandardCharsets.UTF_8), remotePath);
         Platform.runLater(this::refreshRemote);
         return true;
     }
 
     private boolean saveRemoteSnippetFileAs(String originalRemotePath, String originalFileName, Snippet draft) throws Exception {
+        SftpEditGate.current().requireRemoteWriteBack(I18n.get("policy.terminal.loadReadOnly"));
         Optional<String> response = callOnFxThread(() -> {
             TextInputDialog dialog = new TextInputDialog(originalFileName);
             dialog.setTitle(I18n.get("sftp.snippetEditor.remoteFileName.title"));
@@ -5041,6 +5534,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     private void openRemoteImage() {
         var selected = remoteTable.getSelectionModel().getSelectedItem();
         if (selected == null || !selected.isFile()) return;
+        if (!remoteEditAllowedByPolicy(SftpEditGate.current().remoteImageAvailable())) return;
         if (!requireConnected()) return;
         SFTPSession session = sftpSession;
 

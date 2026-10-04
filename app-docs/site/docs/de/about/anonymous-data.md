@@ -42,14 +42,15 @@ Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsät
 
 ### SFTP-Übertragungen
 
-Wenn ein SFTP-Manager-Tab geöffnet wird, gibt ein Ereignis an, ob er die Sitzung eines Terminals mitbenutzt. Wenn ein Upload oder Download im SFTP-Manager abgeschlossen ist, beschreibt ein Ereignis, wie er verlaufen ist. Dateianzahlen werden auf 0, 1, 2, 5, 10, 50, 100 oder 1000 abgerundet.
+Wenn ein SFTP-Manager-Tab geöffnet wird, gibt ein Ereignis an, ob er die Sitzung eines Terminals teilt. Wenn ein Upload oder Download im SFTP-Manager abgeschlossen ist, gibt ein Ereignis an, wie er verlaufen ist. Dateizahlen werden auf 0, 1, 2, 5, 10, 50, 100 oder 1000 abgerundet. Wenn korTTY aufhört, eine Datei zu beobachten, die Sie in einem externen Editor (auch als root) bearbeitet haben, gibt ein Ereignis an, wie die Bearbeitung endete; die Zahl der Uploads wird auf 0, 1, 2, 5, 10 oder 50 abgerundet.
 
 | Ereignis | Gesendet, wenn | Daten |
 | --- | --- | --- |
 | `sftp_opened` | ein SFTP-Manager-Tab wird geöffnet | ob er die SSH-Sitzung eines Terminalbereichs oder eine eigene Anmeldung verwendet |
 | `sftp_transfer_batch` | ein Upload- oder Download-Stapel (ein Klick auf eine Schaltfläche oder ein Ablegen) ist abgeschlossen | `upload` oder `download`, die gerundete Anzahl der Dateien, ob er mit `done`, `partial`, `failed` oder `cancelled` endete, ob eine Datei eine Teildatei fortgesetzt hat und wie viele Dateien gleichzeitig kopiert wurden |
+| `sftp_remote_edit` | korTTY beendet die Beobachtung einer mit **In externem Editor bearbeiten** oder **Als root bearbeiten (sudo)...** geöffneten Datei | `external` oder `sudo`, ob sie mit `stopped`, `conflict`, `disconnected`, `closed` oder `failed` endete, und die abgerundete Zahl der Uploads |
 
-Datei- und Ordnernamen, Pfade, Servernamen und Dateigrößen werden niemals gesendet.
+Datei- und Ordnernamen, Pfade, Servernamen, Editorbefehle, sudo-Passwörter und Dateigrößen werden niemals gesendet.
 
 ## Was niemals gesammelt wird
 

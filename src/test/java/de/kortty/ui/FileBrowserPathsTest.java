@@ -106,6 +106,18 @@ class FileBrowserPathsTest {
     }
 
     @Test
+    void globFilterDetectionMatchesTheCompiledFilter() {
+        assertThat(FileBrowserPaths.isGlobFilter("*.log")).isTrue();
+        assertThat(FileBrowserPaths.isGlobFilter(" *.{py,sh} ")).isTrue();
+        assertThat(FileBrowserPaths.isGlobFilter("report")).isFalse();
+        assertThat(FileBrowserPaths.isGlobFilter("[abc")).isFalse();
+        assertThat(FileBrowserPaths.isGlobFilter("[z-a]")).isFalse();
+        assertThat(FileBrowserPaths.isGlobFilter("{a,{b}}")).isFalse();
+        assertThat(FileBrowserPaths.isGlobFilter("")).isFalse();
+        assertThat(FileBrowserPaths.isGlobFilter(null)).isFalse();
+    }
+
+    @Test
     void nameFilterStarMatchesTheWholeNameIgnoringCase() {
         Predicate<String> logs = FileBrowserPaths.compileNameFilter("*.log");
         assertThat(logs.test("app.log")).isTrue();

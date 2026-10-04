@@ -213,6 +213,13 @@ public class KorTTYApplication extends Application {
         // Delete private keys that earlier versions wrote to the temp folder for temporary SSH
         // keys and never removed. Best-effort as well, and limited to the current user's files.
         LegacyTemporaryKeyFileCleanup.cleanupAtStartup();
+        // Remove the private folders of remote files edited in an external editor that a crashed
+        // or killed session left behind (older than a day, own folders only, links never
+        // followed). In the background: a large temp folder must not delay the start.
+        Thread remoteEditSweep = new Thread(de.kortty.core.remote.edit.RemoteEditTempSweeper::sweepAtStartup,
+            "kortty-remote-edit-sweep");
+        remoteEditSweep.setDaemon(true);
+        remoteEditSweep.start();
         
         // Install global exception handler to suppress SithTermFX bug
         installGlobalExceptionHandler();
@@ -845,6 +852,9 @@ public class KorTTYApplication extends Application {
         if (jobSchedulerService != null) {
             shutdownStep("stop job scheduler", () -> jobSchedulerService.shutdownSchedulerThreads(saveStores));
         }
+        // Runtime.halt(0) skips deleteOnExit: delete the local copies of remote files still open
+        // in an external editor here.
+        shutdownStep("delete remote-edit folders", de.kortty.core.remote.edit.RemoteEditTempDirs::deleteAllLive);
         shutdownStep("stop local knowledge-store coordination",
             de.kortty.rag.RagCoordinator::shutdownDefault);
         if (llamaRuntimeStatusSubscription != null) {

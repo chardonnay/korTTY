@@ -891,6 +891,32 @@
 <p class="admonition-title">Von Ihrer Organisation verwaltet</p>
 <p>Eine Organisation kann mit <a href="../enterprise-policy.html#rulesftp"><code>[rule.sftp]</code></a> <strong>Parallele Übertragungen</strong> begrenzen sowie <strong>Wenn das Ziel bereits existiert</strong> festlegen und sperren und mit <code>file-transfer = "deny"</code> die Dateiübertragung ganz abschalten; die Seite weist dann unterhalb der Übertragungseinstellungen darauf hin.</p>
 </div>
+<h2 id="externer-editor">Externer Editor<a class="headerlink" href="#externer-editor" title="Permanent link">&para;</a></h2>
+<p>Der Editor, mit dem <strong>In externem Editor bearbeiten</strong> im <a href="../../features/sftp.html#im-eigenen-editor-bearbeiten">SFTP-Manager</a> Dateien vom Server öffnet.</p>
+<table>
+<thead>
+<tr>
+<th>Einstellung</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Standard</th>
+<th>Gespeichert als</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Editor-Befehl</td>
+<td>Text</td>
+<td>Ein Programm und seine Argumente; <code>{file}</code> steht für die Datei</td>
+<td>leer (Texteditor des Systems)</td>
+<td><code>sftpExternalEditorCommand</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Editor-Befehl</p>
+<p>Beispiele: <code>code --wait {file}</code>, <code>subl -w {file}</code>, <code>"C:\Program Files\Notepad++\notepad++.exe" -multiInst {file}</code>. Wörter werden durch Leerzeichen getrennt; setzen Sie einen Pfad mit Leerzeichen in doppelte oder einfache Anführungszeichen. <code>{file}</code> wird als ein Argument durch den vollständigen Pfad der lokalen Kopie ersetzt, und ohne <code>{file}</code> wird der Pfad am Ende angehängt. Der Befehl läuft direkt, nie über eine Shell, daher haben <code>$VAR</code>, <code>%VAR%</code>, <code>;</code> und <code>|</code> keine besondere Bedeutung. Ein Befehl mit einem nicht geschlossenen Anführungszeichen wird rot markiert und nicht gespeichert. Lassen Sie das Feld leer, um Dateien als Text mit dem Editor des Systems zu öffnen: unter macOS TextEdit (oder Ihr Standard-Texteditor), unter Windows die Aktion <strong>Bearbeiten</strong> (meist Notepad) und unter Linux die Standardanwendung für Textdateien; unter Linux fragt eine Datei, die kein reiner Text ist, zuerst nach einem Editor-Befehl, der dann hier gespeichert wird.</p>
+</div>
 <h2 id="zip-erstellungseinstellungen">ZIP-Erstellungseinstellungen<a class="headerlink" href="#zip-erstellungseinstellungen" title="Permanent link">&para;</a></h2>
 <p>Dies sind die Standardeinstellungen für die Erstellung eines ZIP-Archivs <strong>auf dem Remote-Server</strong> über den SFTP-Manager.</p>
 <table>

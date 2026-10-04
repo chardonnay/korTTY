@@ -1043,6 +1043,20 @@ public class GlobalSettings {
     @XmlElement
     private Boolean sftpKeepPartialOnCancel;
 
+    /**
+     * The editor command the SFTP manager opens remote files with, such as {@code code --wait {file}};
+     * null or blank = open as text through the operating system.
+     */
+    @XmlElement
+    private String sftpExternalEditorCommand;
+
+    /**
+     * Ids of the connections whose "Edit as root" may use the JobScheduler's saved sudo password
+     * (D15: only after the user opted in per server); null = none.
+     */
+    @XmlElement(name = "sftpSudoEditStoredPasswordConnection")
+    private java.util.List<String> sftpSudoEditStoredPasswordConnections;
+
     /** {@link TerminalRemoteSidebarPosition#name()} of the terminal's remote files sidebar; null = hidden. */
     @XmlElement
     private String terminalRemoteSidebarPosition;
@@ -4080,6 +4094,42 @@ public class GlobalSettings {
 
     public void setSftpKeepPartialOnCancel(boolean value) {
         this.sftpKeepPartialOnCancel = value;
+    }
+
+    /** The external editor command for remote files; empty = the system's text editor. */
+    public String getSftpExternalEditorCommand() {
+        return sftpExternalEditorCommand != null ? sftpExternalEditorCommand : "";
+    }
+
+    /** @param value the editor command template; null or blank stores none */
+    public void setSftpExternalEditorCommand(String value) {
+        this.sftpExternalEditorCommand = value == null || value.isBlank() ? null : value.strip();
+    }
+
+    /** Whether "Edit as root" on {@code connectionId} may use the JobScheduler's saved sudo password. */
+    public boolean isSftpSudoEditStoredPasswordAllowed(String connectionId) {
+        return connectionId != null && sftpSudoEditStoredPasswordConnections != null
+            && sftpSudoEditStoredPasswordConnections.contains(connectionId);
+    }
+
+    /** Opts {@code connectionId} in or out of using the saved sudo password for "Edit as root". */
+    public void setSftpSudoEditStoredPasswordAllowed(String connectionId, boolean allowed) {
+        if (connectionId == null || connectionId.isBlank()) {
+            return;
+        }
+        if (allowed) {
+            if (sftpSudoEditStoredPasswordConnections == null) {
+                sftpSudoEditStoredPasswordConnections = new java.util.ArrayList<>();
+            }
+            if (!sftpSudoEditStoredPasswordConnections.contains(connectionId)) {
+                sftpSudoEditStoredPasswordConnections.add(connectionId);
+            }
+        } else if (sftpSudoEditStoredPasswordConnections != null) {
+            sftpSudoEditStoredPasswordConnections.remove(connectionId);
+            if (sftpSudoEditStoredPasswordConnections.isEmpty()) {
+                sftpSudoEditStoredPasswordConnections = null;
+            }
+        }
     }
 
     /** Allowed range and default of the terminal's remote files sidebar width. */

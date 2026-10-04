@@ -931,7 +931,11 @@
 </tr>
 <tr>
 <td><strong>Archive</strong></td>
-<td><strong>Archive</strong> in the remote toolbar, or <strong>Archive...</strong> in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side</td>
+<td><strong>Archive</strong> in the remote toolbar, or <strong>Archive...</strong> in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side. A local archive can have a password; an archive on the server cannot, because <code>zip</code> and <code>7z</code> would need the password on the server's command line, where other users of the server can read it</td>
+</tr>
+<tr>
+<td><strong>Extract Here</strong></td>
+<td>Right-click one archive on the server (<code>.zip</code>, <code>.tar</code>, <code>.tar.gz</code>/<code>.tgz</code>, <code>.tar.bz2</code>, <code>.tar.xz</code> or <code>.7z</code>) and choose <strong>Extract Here...</strong>. It is unpacked on the server into a new folder next to it; see <a href="#extracting-archives-on-the-server">Extracting archives on the server</a></td>
 </tr>
 <tr>
 <td><strong>Set Owner/Permissions</strong></td>
@@ -940,6 +944,15 @@
 </tbody>
 </table>
 <p>A name for <strong>Rename</strong> or <strong>New Folder</strong> must be a single entry in the folder shown: it may not be empty, <code>.</code> or <code>..</code>, or contain <code>/</code> or <code>\</code>. The dialog stays open with an error until the name is usable.</p>
+<h3 id="extracting-archives-on-the-server">Extracting archives on the server<a class="headerlink" href="#extracting-archives-on-the-server" title="Permanent link">&para;</a></h3>
+<p><strong>Extract Here...</strong> in the remote context menu unpacks the selected archive on the server itself, so nothing is downloaded or uploaded. After you confirm, a progress window shows each step, and <strong>Cancel</strong> stops the extraction and removes what was already unpacked.</p>
+<ul>
+<li><strong>Always a new folder</strong> — the files land in a new folder next to the archive, named after it without the extension (<code>site-1.2.tar.gz</code> becomes <code>site-1.2</code>). If that name is taken, korTTY uses <code>site-1.2 (1)</code>, <code>site-1.2 (2)</code> and so on; an existing file or folder is never overwritten or merged into.</li>
+<li><strong>Checked before anything is written</strong> — korTTY first lists the archive and refuses it as a whole when an entry would land outside the new folder: an absolute path, <code>..</code> that climbs above the folder, a drive letter such as <code>C:</code>, a name with a line break, a device file, or a link whose target lies outside. Nothing is written in that case.</li>
+<li><strong>Checked again after unpacking</strong> — the archive is unpacked into a hidden staging folder (<code>.kortty-extract.</code> plus random characters) that only you can open, without taking over the owners stored in the archive. korTTY then checks every symbolic link in it; if one points outside the folder, the staging folder is deleted and you get an error. Only a clean result is renamed to the new folder, so it appears complete or not at all.</li>
+<li><strong>Tools on the server</strong> — ZIP needs <code>unzip</code>, the tar formats <code>tar</code>, and 7z <code>7z</code> or <code>7za</code>. If the tool is missing, the error names it. With a tar other than GNU tar (for example BusyBox), archives with hard links are refused, because their targets cannot be checked.</li>
+<li><strong>No passwords</strong> — password-protected archives are refused with a message: the tools would need the password on the server's command line, where other users of the server can read it.</li>
+</ul>
 <h3 id="drag-and-drop">Drag and drop<a class="headerlink" href="#drag-and-drop" title="Permanent link">&para;</a></h3>
 <p>You can drag entries between the two panels, from your desktop into the SFTP Manager, and in small amounts from the server to your desktop. While you drag, the panel or the folder row that would take the drop is highlighted; dropping on a folder row puts the entries into that folder, dropping anywhere else into the folder shown.</p>
 <table>
@@ -1124,7 +1137,32 @@
 <li><strong>Save as...</strong> — writes a new local file through a file chooser, or for remote files prompts for a new file name in the same remote directory</li>
 <li><strong>Save as snippet</strong> — stores the current content as a new Snippet Manager snippet without marking the source file as saved</li>
 </ul>
+<p>An organization can restrict editing server files with the <code>load-into-snippet-editor</code> key of its <a href="../reference/enterprise-policy.html">enterprise policy</a>. With <code>read-only</code>, remote files still open in the Snippet Editor and can be saved as a snippet, but <strong>Overwrite file</strong> and <strong>Save as...</strong> are locked and their tooltip names the policy. With <code>deny</code>, <strong>Edit in Snippet Editor</strong> and <strong>Open image</strong> are disabled for remote files. Local files in the left panel are on your own computer and stay editable either way.</p>
 <p><img alt="SFTP dual-panel file manager" src="../assets/screenshots/sftp/sftp-manager.png" /></p>
+<h3 id="editing-in-your-own-editor">Editing in your own editor<a class="headerlink" href="#editing-in-your-own-editor" title="Permanent link">&para;</a></h3>
+<p><strong>Edit in External Editor</strong> (in the right-click menu of a server file and in the remote <strong>Edit</strong> menu) opens the selected server file in your own text editor and copies every save back to the server. Choose the editor under <a href="../reference/settings/sftp.html#external-editor"><em>Settings → SFTP Manager → External editor</em></a>; without one, the file opens as text in the system's editor.</p>
+<ul>
+<li><strong>Local copy</strong> — the file is downloaded into a private folder named <code>kortty-remote-edit-…</code> in the system temp folder that only you can open, under a cleaned-up name: characters other than letters, digits, <code>.</code>, <code>_</code>, <code>-</code> and spaces become <code>_</code>, and Windows device names such as <code>CON</code> get a <code>_</code> in front. A symbolic link is followed once and the file it points to is edited.</li>
+<li><strong>Auto-upload</strong> — korTTY checks the copy every second. About a second after you save, the new content is uploaded and the status bar says <strong>Uploaded</strong> with the file name; saving the same content again uploads nothing. The upload works like any other: through a <code>.kortty-part</code> file that keeps the file's permissions, or written in place when the file belongs to another user, so its owner stays.</li>
+<li><strong>Remote edits</strong> — the list below the transfer list shows each file being edited, whether it waits for saves, uploads or was uploaded (with the time), and offers <strong>Upload now</strong> for editors whose saves are not noticed, and <strong>Stop</strong>.</li>
+<li><strong>Conflicts</strong> — before each upload korTTY checks that the server file is still the one it downloaded (size, time, owner and, up to 10 MB, the content). If someone else changed or deleted it, it asks: <strong>Overwrite server file</strong>, <strong>Save local copy as...</strong> (keeps your version on this computer and stops watching), <strong>Stop watching</strong> or <strong>Decide later</strong> (keeps watching; nothing is uploaded until the next save or <strong>Upload now</strong>).</li>
+<li><strong>Cleanup</strong> — <strong>Stop</strong>, closing the SFTP tab and quitting korTTY delete the local copy. When the connection is lost before your last save was uploaded, korTTY first offers <strong>Save copy as...</strong>. Folders a crash left behind are removed at the next start once they are a day old.</li>
+</ul>
+<p>The editor is always started directly, never through a shell or as the file's default application, so a downloaded script never runs. With the <a href="../reference/enterprise-policy.html">enterprise policy</a>'s <code>load-into-snippet-editor = "read-only"</code> the file opens but saves stay on your computer and the list says so; <code>load-into-snippet-editor = "deny"</code> or <code>file-transfer = "deny"</code> grey out <strong>Edit in External Editor</strong>.</p>
+<h3 id="editing-as-root">Editing as root<a class="headerlink" href="#editing-as-root" title="Permanent link">&para;</a></h3>
+<p><strong>Open With → Edit as Root (sudo)...</strong> (in the right-click menu of a server file, and <strong>Edit as Root (sudo)...</strong> in the remote <strong>Edit</strong> menu) opens a file that only root may change, such as a configuration file under <code>/etc</code>, in your own editor, the same way as <a href="#editing-in-your-own-editor">Editing in your own editor</a>. The row in <strong>Remote edits</strong> carries a <strong>sudo</strong> badge.</p>
+<p><img alt="Editing as root: read with sudo cat, edit locally, send each save over stdin to a root-owned stage, verify, write in place, clean up" src="../assets/diagrams/sftp-sudo-edit-flow.svg" /></p>
+<ul>
+<li><strong>Password</strong> — korTTY first tries <code>sudo -n</code>, so with <code>NOPASSWD</code> or a still-valid sudo ticket nothing is asked. Otherwise it asks for your password in a masked dialog. When the <a href="jobscheduler.html">JobScheduler</a> has a sudo password saved for the server or its group, the dialog offers to use it for this server from now on; korTTY never uses it without that choice, and unticking the box later takes it back. The password is kept only while the file is being edited, is handed to sudo only when sudo actually asks for it, and is wiped when you stop. It never appears in a command line, the log, an error message or the session journal.</li>
+<li><strong>Reading</strong> — the file is read with <code>sudo cat</code> straight into the private local copy; nothing is written on the server for that.</li>
+<li><strong>Saving</strong> — each save travels to the server over the connection, into a staging folder that root creates and owns, and only after its size and SHA-256 match is it written into the file itself. The file keeps its inode, owner, permissions, ACLs and SELinux label, and a broken transfer never leaves it half written. The staging folder is removed in every case. Before each save korTTY reads the file again as root; if someone else changed it meanwhile, the same conflict question as above appears.</li>
+<li><strong>Links</strong> — when the path is a symbolic link, or leads through a folder that is one, korTTY shows where the file really is and edits it there only after you confirm. Right before every read and write, root checks again that the file is no link and its folder is still the same real folder.</li>
+<li><strong>Refused</strong> — a file in a folder you can write to without sudo, or anywhere below such a folder, is not edited as root, because anything running as you could replace the file or a folder on its way in the meantime; the message names that folder, and you edit the file normally. Files larger than 64 MB are refused too.</li>
+<li><strong>Journal</strong> — when a terminal on the same connection records a <a href="session-journal.html">session journal</a>, it gets one line, <code>sudo-edit</code> and the path; never the content.</li>
+<li><strong>What the server needs</strong> — <code>sudo</code>, a POSIX <code>sh</code> with <code>mktemp</code>, <code>cat</code> and <code>stat</code>, and <code>sha256sum</code> or <code>shasum</code> for the content check. Without either hash tool korTTY still compares the size before it writes, but cannot compare the content.</li>
+<li><strong>Servers with <code>requiretty</code></strong> — when the server's sudo configuration contains <code>Defaults requiretty</code>, sudo refuses to run without a terminal, and korTTY says <strong>sudo on this server requires a terminal (requiretty), and korTTY never runs sudo with one</strong>. korTTY does not work around this by opening a terminal: a terminal changes the bytes passing through it (line endings, control characters) and echoes what it is sent, so neither the file nor the password would arrive intact and unseen. An administrator can lift the rule for your account with a line such as <code>Defaults:alice !requiretty</code> (edited with <code>visudo</code>); until then, edit the file in a terminal tab, for example with <code>sudoedit</code>.</li>
+</ul>
+<p>The <a href="../reference/enterprise-policy.html">enterprise policy</a> can switch the feature off with <code>sftp-sudo-edit = "deny"</code>; it is also greyed out while <code>file-transfer</code> is denied or <code>load-into-snippet-editor</code> is not <code>allow</code>.</p>
 <h2 id="search">Search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h2>
 <p>The search field above each list filters the folder shown as you type, without leaving it; the parent entry <code>..</code> stays visible. korTTY evaluates the wildcards itself, the same way for local and remote names. A pattern with a wildcard has to match the whole name, ignoring case:</p>
 <table>
@@ -1159,6 +1197,31 @@
 </tbody>
 </table>
 <p>Text without a wildcard matches anywhere in the name, ignoring case: <code>rep</code> finds <code>Report.txt</code>. A pattern that cannot be read, such as an unclosed <code>[</code>, is searched for as plain text.</p>
+<h3 id="searching-subfolders-on-the-server">Searching subfolders on the server<a class="headerlink" href="#searching-subfolders-on-the-server" title="Permanent link">&para;</a></h3>
+<p>Check <strong>Include subfolders</strong> next to the remote search field and press <span class="keys"><kbd class="key-enter">Enter</kbd></span> to search the remote folder shown and every folder below it, with the same wildcards and the same case-insensitive matching. The remote list switches to the results: each hit shows its path below the searched folder, and the line above the list counts the hits while the search runs and says how it ended, for example <em>120 results</em> or <em>5000 results, stopped at limit</em>. Double-click a hit, or select it and press <span class="keys"><kbd class="key-enter">Enter</kbd></span>, to open its folder with the hit selected. <strong>Back to folder</strong> returns to the folder listing, and <span class="keys"><kbd class="key-escape">Esc</kbd></span> in the search field stops a running search (a second <span class="keys"><kbd class="key-escape">Esc</kbd></span> leaves the results).</p>
+<table>
+<thead>
+<tr>
+<th>Limit</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Folder levels below the searched folder</td>
+<td>10</td>
+</tr>
+<tr>
+<td>Results</td>
+<td>5000</td>
+</tr>
+<tr>
+<td>Time</td>
+<td>60 seconds</td>
+</tr>
+</tbody>
+</table>
+<p>When the server lets korTTY run commands and has <code>find</code>, the search runs there and only the matching paths travel over the connection; otherwise korTTY walks the folders over SFTP, which is slower and stops after reading 200,000 entries. Symbolic links are listed but never followed, so a link that points back up the tree cannot make the search loop. <strong>Stay on this file system</strong> (on by default) keeps <code>find</code> out of other mounted file systems such as network shares and <code>/proc</code>; the walk over SFTP cannot tell file systems apart. Folders you cannot read are skipped. The search only reads names on the server, so it stays available when an enterprise policy blocks file transfers.</p>
 <hr /></p>
     </article>
 </section>
