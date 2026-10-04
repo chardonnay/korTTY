@@ -150,7 +150,7 @@ Global application preferences and defaults.
 - Menu bar visibility preference
 - Dashboard visibility state
 - "Open tool windows as tabs" flag
-- `connectionColorBorderEnabled`: whether the terminal of a connection with a [tab color](../features/connections.md#tab-color) gets a frame in that color (on by default)
+- `connectionColorBorderEnabled`: whether the terminal of a connection with a [tab color](../features/connections.md#tab-color) gets a frame in that color, and a split pane of a connection with a different color a frame of its own (on by default)
 - `tabTitleFromShellEnabled`: whether a terminal tab shows the [title its shell sets](../features/terminal.md#title-from-the-shell) in place of the connection's name (on by default)
 - `tabSwitchMostRecentFirst`: whether ++ctrl+tab++ switches tabs in the order they were last used instead of their [tab bar order](settings/window.md#tabs) (off by default)
 - `keyBindingOverrides`: your own [keyboard shortcuts](settings/keyboard.md), one `binding` entry per changed command, such as `menu.view.commandPalette=Shortcut+Alt+P` or `menu.view.dashboard=none`; without it every command keeps its default shortcut

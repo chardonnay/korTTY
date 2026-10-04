@@ -3942,7 +3942,9 @@ public class MainWindow {
      * Shows the tab color of {@code tab}'s connection on the tab: the saved connection's, so edits
      * in the Connection Manager apply, else the tab's own, else the color of the environment of the
      * stored credential the tab signed in with (see {@link ConnectionColorSupport#effectiveTabColor}),
-     * with the frame around the terminal unless the Window settings switch it off.
+     * with the frame around the terminal unless the Window settings switch it off. A split pane that
+     * runs another connection whose color, resolved the same way, differs from the tab's gets a frame
+     * of its own color (see {@link PaneConnectionColors}).
      */
     private void applyConnectionColor(TerminalTab tab) {
         ConnectionColorSupport.TabColor color = ConnectionColorSupport.effectiveTabColor(
@@ -3952,8 +3954,14 @@ public class MainWindow {
                 ? TabColorPresentation.environmentLabel(
                         app.getEnvironmentManager().getDisplayName(color.environmentId()), color.environmentId())
                 : null;
-        tab.applyConnectionColor(color != null ? color.hex() : null, environmentName,
-            TabColorPresentation.frameEnabled(app.getGlobalSettingsManager().getSettings()));
+        boolean showFrame = TabColorPresentation.frameEnabled(app.getGlobalSettingsManager().getSettings());
+        tab.applyConnectionColor(color != null ? color.hex() : null, environmentName, showFrame);
+        tab.applyPaneConnectionColors(color != null ? color.hex() : null, showFrame, paneConnection -> {
+            ConnectionColorSupport.TabColor paneColor = ConnectionColorSupport.effectiveTabColor(
+                    paneConnection, app.getConfigManager()::getConnectionById,
+                    this::credentialEnvironmentId, this::environmentColor);
+            return paneColor != null ? paneColor.hex() : null;
+        });
     }
 
     /** The environment id of the stored credential {@code credentialId}, or null when there is no such credential. */

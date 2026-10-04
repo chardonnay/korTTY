@@ -12,9 +12,9 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * The keys of the tab basics (rename, close others, reopen closed tabs, the connection's tab color,
- * its frame, the credential environment colors, the title the shell sets, Ctrl+Tab in
- * most-recently-used order, and the tab commands that follow) exist in every bundled language.
- * Grows with each tab feature.
+ * its frame, the frames of split panes of another color, the credential environment colors, the
+ * title the shell sets, Ctrl+Tab in most-recently-used order, and the tab commands that follow)
+ * exist in every bundled language. Grows with each tab feature.
  */
 class TabBasicsI18nCoverageTest {
 
@@ -71,7 +71,12 @@ class TabBasicsI18nCoverageTest {
             "dialog.renameTab.headerShellTitle",
             "settings.window.tabSwitchMostRecentFirst",
             "settings.window.tabSwitchMostRecentFirst.tooltip",
-            "settings.window.tabSwitchMostRecentFirst.info");
+            "settings.window.tabSwitchMostRecentFirst.info",
+            "terminal.pane.connectionColor",
+            "terminal.pane.connectionNoColor",
+            "tab.tooltip.mixedConnections",
+            "tab.tooltip.mixedConnection.color",
+            "tab.tooltip.mixedConnection.noColor");
 
     @Test
     void everyTabBasicsKeyExistsInEveryBundledLocale() throws Exception {
@@ -140,6 +145,25 @@ class TabBasicsI18nCoverageTest {
             assertWithMessage(bundle + ": the File menu and the tab menu call it the same")
                     .that(localized.getProperty("tab.contextMenu.reopenClosed"))
                     .isEqualTo(localized.getProperty("menu.file.reopenClosedTab"));
+        }
+    }
+
+    @Test
+    void aSplitPaneOfAnotherColorIsNamedWithItsConnectionColorAndCode() throws Exception {
+        for (String bundle : BUNDLES) {
+            Properties localized = loadBundle(bundle);
+            for (String key : List.of("terminal.pane.connectionColor", "tab.tooltip.mixedConnection.color")) {
+                String value = localized.getProperty(key);
+                for (String placeholder : List.of("{0}", "{1}", "{2}")) {
+                    assertWithMessage(bundle + " drops " + placeholder + " from " + key)
+                            .that(value).contains(placeholder);
+                }
+            }
+            for (String key : List.of("terminal.pane.connectionNoColor", "tab.tooltip.mixedConnections",
+                    "tab.tooltip.mixedConnection.noColor")) {
+                assertWithMessage(bundle + " drops the connection from " + key)
+                        .that(localized.getProperty(key)).contains("{0}");
+            }
         }
     }
 

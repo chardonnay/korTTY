@@ -337,6 +337,12 @@ public class TerminalView extends BorderPane {
     // The connection each split pane runs when it is not the tab's (a "new connection" split and
     // the same-server splits made from it), so a same-server split opens on the pane's own server.
     private final PaneOrigins<SithTermFxWidget, TtyConnector> paneOrigins = new PaneOrigins<>();
+    // The tab's color, the frame switch and the color resolver the window last applied, so a pane
+    // whose own connection has another color can be framed in it; null until then and after cleanup.
+    // FX thread.
+    private PaneConnectionColors.Scheme paneColorScheme;
+    // Told the tab tooltip's line about such panes (null for none) whenever it may have changed. FX thread.
+    private Consumer<String> paneConnectionsListener;
 
     private TerminalSplitPane splitPane;
     // Quick select (Edit > Quick Select): its key filters are the split pane's first.
@@ -674,6 +680,8 @@ public class TerminalView extends BorderPane {
         splitPane.setOnWidgetSplitCreated((widget, request) -> { // New split panes inherit the source pane's highlight choice and effect
             inheritHighlightOnSplit(widget, request);
             inheritEffectOnSplit(widget, request);
+            // Its origin is bound by now: a pane of another connection with another color gets its frame.
+            refreshPaneConnectionColors(null);
         });
         // The first pane is set up now (it was configured inside the constructor above): report the
         // rule set it starts with, if any.
@@ -1320,6 +1328,8 @@ public class TerminalView extends BorderPane {
         paneProviders.remove(widget);
         discardTerminalAgentRunsForWidget(widget);
         releasePaneState(widget);
+        // The pane is still in the split pane while this runs: leave it out of the tab's tooltip.
+        refreshPaneConnectionColors(widget);
         if (closingConnector != null && closingConnector == tunnelOwnerConnector) {
             // The pane is still part of the split pane while this hook runs; look for a new
             // owner once it is gone.
@@ -3920,6 +3930,71 @@ public class TerminalView extends BorderPane {
         ServerConnection shown = pane != null ? pane : tab;
         String label = shown != null ? shown.getDisplayName() : null;
         return label != null ? label : "";
+    }
+
+    /**
+     * Marks the panes of this tab that run a connection of their own whose tab color differs from
+     * the tab's ({@link PaneConnectionColors}): a frame in that color over the pane's edge while
+     * {@code frameEnabled} (Window settings), and the connection and its color for screen readers and
+     * in the tab's tooltip. Kept for the panes split or closed later. FX thread.
+     *
+     * @param tabHex the tab's color ({@code #RRGGBB}), or {@code null} without one
+     * @param colorOf the color of another connection, as the tab's would be resolved, or {@code null}
+     */
+    void applyPaneConnectionColors(@Nullable String tabHex, boolean frameEnabled,
+                                   @Nullable java.util.function.Function<ServerConnection, String> colorOf) {
+        paneColorScheme = new PaneConnectionColors.Scheme(tabHex, frameEnabled, colorOf);
+        refreshPaneConnectionColors(null);
+    }
+
+    /** Tells {@code listener} the tab tooltip's line about panes of other colors, {@code null} for none. FX thread. */
+    void setPaneConnectionsListener(@Nullable Consumer<String> listener) {
+        this.paneConnectionsListener = listener;
+    }
+
+    /**
+     * Brings the connection marks of every pane up to date with the scheme the window applied: a pane
+     * with an origin of its own ({@link PaneOrigins}) whose connection's color differs from the tab's
+     * is marked, every other pane is not. Does nothing before the window applied a scheme and after
+     * {@link #cleanup}.
+     *
+     * @param closing a pane that is closing but still in the split pane, left out; or {@code null}
+     */
+    private void refreshPaneConnectionColors(@Nullable SithTermFxWidget closing) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> refreshPaneConnectionColors(closing));
+            return;
+        }
+        PaneConnectionColors.Scheme scheme = paneColorScheme;
+        TerminalSplitPane split = splitPane;
+        if (scheme == null || split == null) {
+            return;
+        }
+        try {
+            List<PaneConnectionColors.PaneInput<SithTermFxWidget>> panes = new ArrayList<>();
+            for (SithTermFxWidget pane : split.getAllWidgets()) {
+                if (pane == closing) {
+                    continue;
+                }
+                PaneOrigin recorded = paneOrigins.recorded(pane);
+                panes.add(PaneConnectionColors.input(pane, recorded != null ? recorded.connection() : null, scheme));
+            }
+            List<PaneConnectionColors.MixedPane<SithTermFxWidget>> mixed =
+                PaneConnectionColors.mixedPanes(scheme.tabHex(), panes, scheme.frameEnabled());
+            Map<SithTermFxWidget, TerminalSplitPane.PaneConnectionMark> marks = new java.util.HashMap<>();
+            for (PaneConnectionColors.MixedPane<SithTermFxWidget> pane : mixed) {
+                marks.put(pane.pane(), new TerminalSplitPane.PaneConnectionMark(
+                    pane.frameHex() != null ? javafx.scene.paint.Color.web(pane.frameHex()) : null,
+                    PaneConnectionColors.accessibleText(pane)));
+            }
+            split.setPaneConnectionMarks(marks);
+            Consumer<String> listener = paneConnectionsListener;
+            if (listener != null) {
+                listener.accept(PaneConnectionColors.tooltipLine(mixed));
+            }
+        } catch (RuntimeException e) {
+            logger.debug("Marking the panes of other connections failed: {}", e.toString());
+        }
     }
 
     /** The connection a base connector (without korTTY's wrappers) runs, or null when it does not say. */
@@ -7928,6 +8003,9 @@ public class TerminalView extends BorderPane {
         // must not mark or announce a closed tab, nor may a program's clipboard write still change
         // the clipboard.
         bellListener = null;
+        // Closing the panes below must not recolor them one by one, nor update the closed tab's tooltip.
+        paneColorScheme = null;
+        paneConnectionsListener = null;
         commandFinishedListener = null;
         remoteNotificationListener = null;
         clipboardWriteListener = null;

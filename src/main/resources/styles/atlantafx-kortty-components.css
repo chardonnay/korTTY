@@ -759,6 +759,20 @@
     -fx-border-insets: 2;
 }
 
+/*
+ * A pane that runs another connection than its tab, with another tab colour, shows a 3 px frame of
+ * its connection's colour over its edge, drawn by a region in its DECORATION layer whose border
+ * TerminalSplitPane sets. Like the ring it never resizes the terminal. While the frame shows, the
+ * focus ring and the multi-exec outline move inside it, so all of them stay visible.
+ */
+.kortty-pane-cell:connection-framed .kortty-pane-focus-ring {
+    -fx-border-insets: 3;
+}
+
+.kortty-pane-cell:connection-framed .kortty-pane-mirror-outline {
+    -fx-border-insets: 5;
+}
+
 .kortty-pane-mirror-badge {
     -fx-background-color: -kortty-pane-badge-background;
     -fx-background-radius: 4;

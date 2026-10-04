@@ -3700,6 +3700,14 @@ tasks.register<JavaExec>("paneKeyboardSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("paneConnectionFrameSmoke") {
+    group = "verification"
+    description = "Splits a terminal with the base stylesheet, marks one pane as running another connection and checks that it shows a 3 px frame of that color at its edge with the focus ring inside it, names the connection for screen readers, resizes no terminal, keeps the frame through a further split and alone in the tab, and drops it when the marks are cleared; pass a PNG path via --args to save a snapshot (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("com.sithtermfx.ui.split.PaneConnectionFrameSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("multiExecSmoke") {
     group = "verification"
     description = "Lets three panes of two tabs take part in multi-exec, one of them with a connection whose writes never return, and checks that typed keys and Enter reach the member in the other tab while the FX thread keeps answering, that a pane outside multi-exec and one its tab's guard holds back get nothing, that the members show the badge and the status chip counts panes and tabs, and that Stop and closing a pane take panes out; pass a PNG path via --args to save a snapshot (needs a display)."
