@@ -152,7 +152,8 @@ public class SudoEditIntegrationTest {
         SudoEditService service = new SudoEditService(runner);
         char[] password = secret == null ? null : secret.toCharArray();
         try {
-            service.refuseUserWritableFolder(file.toString());
+            // The folder check would refuse every path below the test's own temp folder (the test
+            // user can write there); it has tests of its own below.
             return service.open(file.toString(), Optional.ofNullable(password), editRoot);
         } catch (IOException e) {
             errorTexts.add(String.valueOf(e.getMessage()));
@@ -398,6 +399,62 @@ public class SudoEditIntegrationTest {
 
         assertThrows(SudoEditService.UserWritableFolderException.class,
             () -> new SudoEditService(runner).refuseUserWritableFolder(file.toString()));
+    }
+
+    @Test
+    public void aFileBelowAFolderTheUserCanWriteIsRefusedNamingThatFolder() throws Exception {
+        // etc itself is read-only, but the folder above it is the test user's.
+        Path file = targetFile("deep.conf", ORIGINAL);
+
+        SudoEditService.UserWritableFolderException refused = org.testng.Assert.expectThrows(
+            SudoEditService.UserWritableFolderException.class,
+            () -> new SudoEditService(runner).refuseUserWritableFolder(file.toString()));
+        assertThat(refused).hasMessageThat().contains(dir.toString());
+    }
+
+    @Test
+    public void aFileWhoseFoldersOnlyRootCanWriteIsNotRefused() throws Exception {
+        if ("root".equals(System.getProperty("user.name"))) {
+            throw new SkipException("root can write every folder");
+        }
+        new SudoEditService(runner).refuseUserWritableFolder("/usr/bin/env");
+    }
+
+    @Test
+    public void aFolderSwappedForALinkAfterOpeningStopsTheWriteBack() throws Exception {
+        Path file = targetFile("swap.conf", ORIGINAL);
+        Path elsewhere = Files.createDirectories(dir.resolve("elsewhere-" + System.nanoTime()));
+        Path decoy = elsewhere.resolve("swap.conf");
+        Files.writeString(decoy, "decoy\n");
+        try (SudoEditSession edit = open(file, SECRET)) {
+            Files.writeString(edit.localFile(), "changed\n");
+            etc.toFile().setWritable(true, true);
+            Path moved = dir.resolve(etc.getFileName() + "-moved");
+            Files.move(etc, moved);
+            Files.createSymbolicLink(etc, elsewhere);
+            try {
+                expectIo(edit::forceUpload);
+                assertThat(Files.readString(decoy)).isEqualTo("decoy\n");
+            } finally {
+                Files.delete(etc);
+                Files.move(moved, etc);
+            }
+        }
+        assertThat(Files.readString(file)).isEqualTo(ORIGINAL);
+    }
+
+    @Test
+    public void inspectTreatsAFileReachedThroughALinkedFolderLikeALink() throws Exception {
+        Path file = targetFile("real.conf", ORIGINAL);
+        Path linkedFolder = dir.resolve("linked-" + System.nanoTime());
+        Files.createSymbolicLink(linkedFolder, etc);
+
+        SudoEditService.Target target = new SudoEditService(runner)
+            .inspect(linkedFolder.resolve("real.conf").toString(), Optional.of(SECRET.toCharArray()));
+        assertThat(target.kind()).isEqualTo(SudoEditService.TargetKind.LINK);
+        assertThat(target.resolvedPath()).isEqualTo(file.toString());
+        assertThat(new SudoEditService(runner).inspect(file.toString(), Optional.of(SECRET.toCharArray())).kind())
+            .isEqualTo(SudoEditService.TargetKind.FILE);
     }
 
     @Test

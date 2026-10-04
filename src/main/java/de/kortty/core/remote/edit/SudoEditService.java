@@ -19,12 +19,12 @@ import java.util.Optional;
  * <ol>
  *   <li>{@link #needsPassword()}: {@code sudo -n true} decides whether a password is asked for at
  *       all (D15).</li>
- *   <li>{@link #inspect}: as root, whether the path is a file or a symbolic link. A link is never
- *       followed silently: the caller shows the {@code readlink -f} target and, once confirmed,
- *       continues with that path.</li>
- *   <li>{@link #refuseUserWritableFolder}: like sudoedit, a file whose folder the login user can
- *       write is refused, because anything running as that user could swap it for a link between
- *       korTTY's checks and root's write.</li>
+ *   <li>{@link #inspect}: as root, whether the path is a file or a symbolic link, or a file reached
+ *       through a linked folder. A link is never followed silently: the caller shows the resolved
+ *       target and, once confirmed, continues with that path.</li>
+ *   <li>{@link #refuseUserWritableFolder}: like sudoedit, a file in a folder the login user can
+ *       write, or below one, is refused, because anything running as that user could swap the
+ *       file or a folder on its way for a link between korTTY's checks and root's write.</li>
  *   <li>{@link #open}: reads the file into a private local copy ({@link SudoEditSession}).</li>
  * </ol>
  * Every remote path is absolute and goes through {@link SudoEditCommands}; no command contains the
@@ -74,13 +74,23 @@ public final class SudoEditService {
         int newline = out.indexOf('\n');
         String kind = newline < 0 ? out.strip() : out.substring(0, newline);
         return switch (kind) {
-            case "file" -> new Target(TargetKind.FILE, path, path);
+            case "file" -> {
+                // The physical folder: when a folder on the way is a link, the file really lives
+                // elsewhere, and that is shown and confirmed like a link.
+                String folder = firstLineAfter(out, newline);
+                if (!folder.startsWith("/")) {
+                    throw new IOException(I18n.get("sftp.sudoEdit.error.read", path));
+                }
+                String resolved = (folder.equals("/") ? "" : folder) + "/" + nameOf(path);
+                yield resolved.equals(path)
+                    ? new Target(TargetKind.FILE, path, path)
+                    : new Target(TargetKind.LINK, path, resolved);
+            }
             case "other" -> new Target(TargetKind.OTHER, path, path);
             case "missing" -> new Target(TargetKind.MISSING, path, path);
             case "link" -> {
-                String rest = newline < 0 ? "" : out.substring(newline + 1);
                 // readlink ends its answer with one newline; a newline inside a name stays.
-                String resolved = rest.endsWith("\n") ? rest.substring(0, rest.length() - 1) : rest;
+                String resolved = firstLineAfter(out, newline);
                 if (!resolved.startsWith("/")) {
                     throw new IOException(I18n.get("sftp.sudoEdit.error.read", path));
                 }
@@ -90,15 +100,30 @@ public final class SudoEditService {
         };
     }
 
+    /** The text after the first line of {@code out}, without readlink's or pwd's closing newline. */
+    private static String firstLineAfter(String out, int newline) {
+        String rest = newline < 0 ? "" : out.substring(newline + 1);
+        return rest.endsWith("\n") ? rest.substring(0, rest.length() - 1) : rest;
+    }
+
+    private static String nameOf(String path) {
+        return path.substring(path.lastIndexOf('/') + 1);
+    }
+
     /**
-     * Refuses {@code path} when its folder is writable by the login user (checked as that user,
-     * not as root).
+     * Refuses {@code path} when its folder, or any folder above it, is writable by the login user
+     * (checked as that user, not as root). A check that does not run through also refuses.
      */
     public void refuseUserWritableFolder(String path) throws IOException {
         RemoteCommandRunner.Result result = runner.run(SudoEditCommands.userWritableFolder(path), Optional.empty(),
-            TIMEOUT, 4096, new RemoteCommandCancellation());
-        if (result.stdoutText().strip().equals("writable")) {
-            throw new UserWritableFolderException(path);
+            TIMEOUT, 64 * 1024, new RemoteCommandCancellation());
+        for (String line : result.stdoutText().split("\n")) {
+            if (line.startsWith(SudoEditCommands.WRITABLE)) {
+                throw new UserWritableFolderException(line.substring(SudoEditCommands.WRITABLE.length()));
+            }
+        }
+        if (result.exitCode() != 0) {
+            throw new IOException(I18n.get("sftp.sudoEdit.error.read", path));
         }
     }
 
@@ -107,10 +132,11 @@ public final class SudoEditService {
         return SudoEditSession.open(runner, path, secret, tempRoot);
     }
 
-    /** The file's folder is writable by the login user, so it is not edited as root. */
+    /** The file's folder, or one above it, is writable by the login user, so it is not edited as root. */
     public static final class UserWritableFolderException extends IOException {
-        public UserWritableFolderException(String path) {
-            super(I18n.get("sftp.sudoEdit.error.userWritable", SudoEditCommands.parentOf(path)));
+        /** @param folder the folder the login user can write to */
+        public UserWritableFolderException(String folder) {
+            super(I18n.get("sftp.sudoEdit.error.userWritable", folder));
         }
     }
 }

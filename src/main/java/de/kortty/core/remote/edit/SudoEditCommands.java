@@ -29,7 +29,10 @@ import java.util.regex.Pattern;
  */
 public final class SudoEditCommands {
 
-    /** Exit code of {@link #read} and {@link #write}: the target is a link or not a regular file. */
+    /**
+     * Exit code of {@link #read} and {@link #write}: the target is a link or not a regular file, or
+     * its folder is no longer the physical folder it was opened in.
+     */
     public static final int EXIT_NOT_A_FILE = 3;
     /** Exit code of {@link #write}: no stage could be created. */
     public static final int EXIT_NO_STAGE = 70;
@@ -48,6 +51,8 @@ public final class SudoEditCommands {
     public static final String NO_HASH = "nohash";
     /** The prefix of the line {@link #write} prints after a successful write, before the stat line. */
     public static final String WRITTEN = "ok ";
+    /** The prefix of the line {@link #userWritableFolder} prints before the writable folder. */
+    public static final String WRITABLE = "writable ";
     /** What the stat line says when neither GNU nor BSD {@code stat} answered. */
     public static final String UNKNOWN_STAT = "? ? ?";
 
@@ -57,13 +62,16 @@ public final class SudoEditCommands {
     }
 
     /**
-     * Prints {@code link} and the {@code readlink -f} result, {@code file}, {@code other} or
-     * {@code missing}.
+     * Prints {@code link} and the {@code readlink -f} result, {@code file} and the physical folder
+     * ({@code pwd -P}), {@code other} or {@code missing}.
      */
     public static String inspect(String path) {
         String p = quotedPath(path);
+        // For a file, the folder as the kernel resolves it: a folder reached through a link shows
+        // up as a different path, which the caller treats like a link.
+        String folder = RemoteShell.quote(parentOf(path));
         return "if [ -L " + p + " ]; then printf 'link\\n'; readlink -f -- " + p + " || exit 2; "
-            + "elif [ -f " + p + " ]; then printf 'file\\n'; "
+            + "elif [ -f " + p + " ]; then printf 'file\\n'; cd -P " + folder + " && pwd -P || exit 2; "
             + "elif [ -e " + p + " ]; then printf 'other\\n'; "
             + "else printf 'missing\\n'; fi";
     }
@@ -71,7 +79,7 @@ public final class SudoEditCommands {
     /** Prints the stat line ({@code uid gid mode}) and then the content of a regular file. */
     public static String read(String path) {
         String p = quotedPath(path);
-        return notAFileGuard(p) + statLine(p) + "printf '%s\\n' \"$s\"; exec cat -- " + p;
+        return notAFileGuard(path) + statLine(p) + "printf '%s\\n' \"$s\"; exec cat -- " + p;
     }
 
     /**
@@ -97,21 +105,31 @@ public final class SudoEditCommands {
             + "elif command -v shasum >/dev/null 2>&1; then h=$(shasum -a 256 < \"$f\"); "
             + "else h=; printf '" + NO_HASH + "\\n'; fi; "
             + "if [ -n \"$h\" ] && [ \"${h%% *}\" != " + sha256 + " ]; then exit " + EXIT_HASH_MISMATCH + "; fi; "
-            + notAFileGuard(p)
+            + notAFileGuard(path)
             + "cat -- \"$f\" > " + p + " || exit " + EXIT_TARGET_WRITE + "; "
             + statLine(p) + "printf '" + WRITTEN + "%s\\n' \"$s\"";
     }
 
     /**
-     * A command for the login user (not root) that prints {@code writable} when the folder of
-     * {@code path} is writable by that user. Then anyone running as the user could replace the
-     * file between korTTY's checks and root's write, so the edit as root is refused, as sudoedit
-     * does.
+     * A command for the login user (not root) that prints {@value #WRITABLE} and the folder when
+     * the folder of {@code path} or any folder above it is writable by that user. Then anyone
+     * running as the user could replace the file, or a folder on its way, between korTTY's checks
+     * and root's write (with a link or a hard link to a root-only file), so the edit as root is
+     * refused, as sudoedit does.
      */
     public static String userWritableFolder(String path) {
         quotedPath(path);
-        String parent = parentOf(path);
-        return "if [ -w " + RemoteShell.quote(parent) + " ]; then printf 'writable\\n'; fi";
+        StringBuilder folders = new StringBuilder();
+        String folder = parentOf(path);
+        while (true) {
+            folders.append(' ').append(RemoteShell.quote(folder));
+            if (folder.equals("/")) {
+                break;
+            }
+            folder = parentOf(folder);
+        }
+        return "for d in" + folders + "; do if [ -w \"$d\" ]; then printf '" + WRITABLE
+            + "%s\\n' \"$d\"; exit 0; fi; done";
     }
 
     /** The folder of an absolute path ({@code /} for a file in the root folder). */
@@ -124,8 +142,17 @@ public final class SudoEditCommands {
         return slash <= 0 ? "/" : trimmed.substring(0, slash);
     }
 
-    private static String notAFileGuard(String quoted) {
-        return "if [ -L " + quoted + " ] || [ ! -f " + quoted + " ]; then exit " + EXIT_NOT_A_FILE + "; fi; ";
+    /**
+     * Right before root acts: the target must be a regular file, not a link, and its folder must
+     * still be the physical folder it was when it was opened, so no folder on the way was swapped
+     * for a link meanwhile.
+     */
+    private static String notAFileGuard(String path) {
+        String quoted = quotedPath(path);
+        String folder = RemoteShell.quote(parentOf(path));
+        return "if [ -L " + quoted + " ] || [ ! -f " + quoted + " ]; then exit " + EXIT_NOT_A_FILE + "; fi; "
+            + "if [ \"$(cd -P " + folder + " 2>/dev/null && pwd -P)\" != " + folder + " ]; then exit "
+            + EXIT_NOT_A_FILE + "; fi; ";
     }
 
     /** Sets {@code s} to {@code uid gid mode} via GNU or BSD stat, or {@value #UNKNOWN_STAT}. */

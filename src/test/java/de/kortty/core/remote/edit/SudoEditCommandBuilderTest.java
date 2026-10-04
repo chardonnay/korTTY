@@ -129,6 +129,19 @@ public class SudoEditCommandBuilderTest {
     }
 
     @Test
+    public void everyFolderOnTheWayIsCheckedForWriteAccessAndGuardedAgainstLinks() {
+        String check = SudoEditCommands.userWritableFolder("/srv/app/conf/site.conf");
+        assertThat(check).contains("for d in '/srv/app/conf' '/srv/app' '/srv' '/'; do");
+        assertThat(SudoEditCommands.userWritableFolder("/x.conf")).contains("for d in '/'; do");
+        // Right before root reads or writes, the folder must still be the physical one it was.
+        for (String command : List.of(SudoEditCommands.read("/srv/app/x"), SudoEditCommands.write("/srv/app/x", 1, SHA))) {
+            assertThat(command).contains("\"$(cd -P '/srv/app' 2>/dev/null && pwd -P)\" != '/srv/app'");
+        }
+        String write = SudoEditCommands.write("/srv/app/x", 1, SHA);
+        assertThat(write.indexOf("pwd -P")).isLessThan(write.indexOf("cat -- \"$f\" > '/srv/app/x'"));
+    }
+
+    @Test
     public void parentOfAbsolutePaths() {
         assertThat(SudoEditCommands.parentOf("/etc/app.conf")).isEqualTo("/etc");
         assertThat(SudoEditCommands.parentOf("/app.conf")).isEqualTo("/");
@@ -137,7 +150,13 @@ public class SudoEditCommandBuilderTest {
 
     @Test
     public void inspectAnswersAreParsedStrictly() throws IOException {
-        assertThat(SudoEditService.parseInspect("/etc/x", "file\n").kind()).isEqualTo(SudoEditService.TargetKind.FILE);
+        assertThat(SudoEditService.parseInspect("/etc/x", "file\n/etc\n").kind()).isEqualTo(SudoEditService.TargetKind.FILE);
+        assertThat(SudoEditService.parseInspect("/x", "file\n/\n").kind()).isEqualTo(SudoEditService.TargetKind.FILE);
+        // A folder on the way is a link: the file really lives elsewhere and is confirmed like a link.
+        SudoEditService.Target viaLinkedFolder = SudoEditService.parseInspect("/etc/x", "file\n/private/etc\n");
+        assertThat(viaLinkedFolder.kind()).isEqualTo(SudoEditService.TargetKind.LINK);
+        assertThat(viaLinkedFolder.resolvedPath()).isEqualTo("/private/etc/x");
+        assertThrows(IOException.class, () -> SudoEditService.parseInspect("/etc/x", "file\n"));
         assertThat(SudoEditService.parseInspect("/etc/x", "missing\n").kind())
             .isEqualTo(SudoEditService.TargetKind.MISSING);
         SudoEditService.Target link = SudoEditService.parseInspect("/etc/x", "link\n/srv/real\nname\n");
