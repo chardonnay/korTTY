@@ -30,13 +30,21 @@ import java.util.Locale;
  * reject the request with an HTTP 400; the service then retries once without thinking, so the
  * default (reasoning disabled) configuration and non-thinking models keep working unchanged.
  * Web-search tools are intentionally not used here.
+ *
+ * <p>{@code max_tokens} is resolved per request by {@link AnthropicModelLimits}: the smallest of the
+ * action's safety cap, the profile's own limit, the model's documented limit and the non-streaming
+ * ceiling. A thinking budget is fitted strictly below it, and a 400 naming {@code max_tokens} is
+ * retried once with the limit the error states.
  */
 public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker, AiRequestTimeoutAware {
 
     private static final Logger logger = LoggerFactory.getLogger(AnthropicAiService.class);
     private static final Gson GSON = new Gson();
     private static final String ANTHROPIC_VERSION = "2023-06-01";
-    private static final int DEFAULT_MAX_TOKENS = 4096;
+    /** Smallest thinking budget Anthropic accepts for extended thinking. */
+    private static final int MIN_THINKING_BUDGET_TOKENS = 1024;
+    /** Smallest share of {@code max_tokens} kept free for the answer when thinking is on. */
+    private static final int MIN_ANSWER_TOKENS = 1024;
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(20);
     private static final Duration TEST_TIMEOUT = Duration.ofSeconds(30);
 
@@ -48,6 +56,8 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
     private final HttpClient httpClient;
     /** {@code null} lets a request run to completion — see {@link AiRequestTimeoutSupport}. */
     private Duration requestTimeout;
+    /** The profile's own output limit; {@code null} resolves it per model and action. */
+    private volatile Integer maxOutputTokens;
 
     public AnthropicAiService(
         String apiUrl,
@@ -81,7 +91,7 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
             ? skillPromptSupport.appendChatSkills(systemPrompt, request)
             : normalize(systemPrompt);
         effectiveSystem = AiPromptPipeline.appendAfterSkills(effectiveSystem, request);
-        return send(effectiveSystem, userPrompt, requestTimeout);
+        return send(effectiveSystem, userPrompt, null, requestTimeout, maxTokensFor(request));
     }
 
     @Override
@@ -133,18 +143,32 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
         this.requestTimeout = requestTimeout;
     }
 
+    /**
+     * Sets the profile's own output limit ({@code AiProfile.maxOutputTokens}). {@code null} or a
+     * non-positive value means automatic. The value is one more ceiling: it never raises an action's
+     * safety cap, a known model's limit or {@link AnthropicModelLimits#NON_STREAMING_MAX_TOKENS}.
+     */
+    public void setMaxOutputTokens(Integer maxOutputTokens) {
+        this.maxOutputTokens = maxOutputTokens != null && maxOutputTokens > 0 ? maxOutputTokens : null;
+    }
+
+    /** The {@code max_tokens} a request carrying {@code request} (or none) is sent with. */
+    int maxTokensFor(AiRequest request) {
+        return AnthropicModelLimits.effectiveMaxTokens(request, maxOutputTokens, model);
+    }
+
     @Override
     public List<AiSkillPromptSupport.SkillUsage> drainSkillUsages() {
         return skillPromptSupport.drainSkillUsages();
     }
 
     private AiExecutionResult send(String systemPrompt, String userPrompt, Duration timeout) throws Exception {
-        return send(systemPrompt, userPrompt, null, timeout, DEFAULT_MAX_TOKENS);
+        return send(systemPrompt, userPrompt, null, timeout, maxTokensFor(null));
     }
 
     private AiExecutionResult send(
         String systemPrompt, String userPrompt, List<AiImageInput> images, Duration timeout) throws Exception {
-        return send(systemPrompt, userPrompt, images, timeout, DEFAULT_MAX_TOKENS);
+        return send(systemPrompt, userPrompt, images, timeout, maxTokensFor(null));
     }
 
     private AiExecutionResult send(String systemPrompt, String userPrompt, Duration timeout, int maxTokens) throws Exception {
@@ -154,26 +178,25 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
     private AiExecutionResult send(
         String systemPrompt, String userPrompt, List<AiImageInput> images, Duration timeout, int maxTokens)
         throws Exception {
-        // Only request extended thinking for full-size requests; the tiny connection test (16 tokens)
-        // cannot fit the minimum thinking budget and must never enable it.
-        boolean allowThinking = thinkingBudgetTokens() > 0 && maxTokens >= DEFAULT_MAX_TOKENS;
-        return send(systemPrompt, userPrompt, images, timeout, maxTokens, allowThinking);
+        return send(systemPrompt, userPrompt, images, timeout, maxTokens, thinkingBudgetTokens() > 0, false);
     }
 
     private AiExecutionResult send(
         String systemPrompt, String userPrompt, List<AiImageInput> images, Duration timeout, int maxTokens,
-        boolean allowThinking) throws Exception {
+        boolean allowThinking, boolean maxTokensClamped) throws Exception {
         if (model.isBlank()) {
             throw new IllegalStateException("AI model must be configured.");
         }
         if (apiKey.isBlank()) {
             throw new IllegalStateException("Anthropic API key must be configured.");
         }
-        int thinkingBudget = allowThinking ? thinkingBudgetTokens() : 0;
+        // Extended thinking consumes tokens from max_tokens, so the budget must stay strictly below
+        // it; a budget that does not fit is shrunk, and dropped below Anthropic's minimum (the tiny
+        // connection test can never think).
+        int thinkingBudget = allowThinking ? fitThinkingBudget(thinkingBudgetTokens(), maxTokens) : 0;
         JsonObject body = new JsonObject();
         body.addProperty("model", model);
-        // Extended thinking consumes tokens from max_tokens, so max_tokens must exceed the budget.
-        body.addProperty("max_tokens", thinkingBudget > 0 ? thinkingBudget + maxTokens : maxTokens);
+        body.addProperty("max_tokens", maxTokens);
         if (thinkingBudget > 0) {
             JsonObject thinking = new JsonObject();
             thinking.addProperty("type", "enabled");
@@ -219,8 +242,10 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
             .POST(HttpRequest.BodyPublishers.ofString(GSON.toJson(body), StandardCharsets.UTF_8));
         // Leaving the timeout unset is what makes a long request run to completion; HttpRequest
         // rejects a null argument, so the field must not be handed over blindly.
-        if (timeout != null) {
-            requestBuilder.timeout(timeout);
+        // A larger output budget needs a longer request; a configured timeout is raised to match.
+        Duration effectiveTimeout = AnthropicModelLimits.timeoutFor(timeout, maxTokens);
+        if (effectiveTimeout != null) {
+            requestBuilder.timeout(effectiveTimeout);
         }
         HttpRequest httpRequest = requestBuilder.build();
 
@@ -234,7 +259,16 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
             String error = extractError(responseBody);
             if (thinkingBudget > 0 && indicatesThinkingUnsupported(error)) {
                 logger.debug("Anthropic model rejected extended thinking, retrying without it: {}", error);
-                return send(systemPrompt, userPrompt, images, timeout, maxTokens, false);
+                return send(systemPrompt, userPrompt, images, timeout, maxTokens, false, maxTokensClamped);
+            }
+            if (status == 400 && !maxTokensClamped) {
+                // A model whose real limit is below what korTTY sent (an unknown or older model with
+                // a profile override) names max_tokens in the 400; retry once with the clamped value.
+                int clamped = AnthropicModelLimits.clampFromError(error, maxTokens);
+                if (clamped < maxTokens) {
+                    logger.debug("Anthropic rejected max_tokens={}, retrying once with {}: {}", maxTokens, clamped, error);
+                    return send(systemPrompt, userPrompt, images, timeout, clamped, allowThinking, true);
+                }
             }
             throw new IllegalStateException("Anthropic request failed (HTTP " + status + "): " + error);
         }
@@ -256,6 +290,20 @@ public class AnthropicAiService implements AiPromptService, AiSkillUsageTracker,
             case XHIGH -> 12288;
             case NONE, DISABLED -> 0;
         };
+    }
+
+    /**
+     * Fits a thinking budget into {@code maxTokens}: at least a quarter of the budget (and never less
+     * than {@link #MIN_ANSWER_TOKENS}) stays free for the answer, and a budget below Anthropic's
+     * minimum is dropped ({@code 0}).
+     */
+    static int fitThinkingBudget(int configuredBudget, int maxTokens) {
+        if (configuredBudget <= 0) {
+            return 0;
+        }
+        int answerReserve = Math.max(MIN_ANSWER_TOKENS, maxTokens / 4);
+        int budget = Math.min(configuredBudget, maxTokens - answerReserve);
+        return budget >= MIN_THINKING_BUDGET_TOKENS && budget < maxTokens ? budget : 0;
     }
 
     private static boolean indicatesThinkingUnsupported(String error) {

@@ -21,6 +21,14 @@ class AiCloudModelCatalogTest {
     }
 
     @Test
+    void everySuggestedAnthropicModelHasAKnownOutputLimit() {
+        assertThat(AiCloudModelCatalog.suggestedModelsForUrl("https://api.anthropic.com/v1/messages")).isNotEmpty();
+        for (String model : AiCloudModelCatalog.suggestedModelsForUrl("https://api.anthropic.com/v1/messages")) {
+            assertThat(AnthropicModelLimits.knownMaxOutputTokens(model)).isNotNull();
+        }
+    }
+
+    @Test
     void returnsEmptyForUnknownOrBlankUrl() {
         assertThat(AiCloudModelCatalog.suggestedModelsForUrl("https://unknown.example.com/v1/chat/completions")).isEmpty();
         assertThat(AiCloudModelCatalog.suggestedModelsForUrl("")).isEmpty();

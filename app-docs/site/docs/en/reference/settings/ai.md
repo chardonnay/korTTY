@@ -66,6 +66,7 @@ The same fields are edited in **AI > AI Manager > Profiles**, where the whole fo
 | API Key (optional) | text | (password field) | — | (profile `encryptedApiKey` field) |
 | Max characters | number | 1–50,000,000 | 100,000 | (profile `maxSelectionChars` field) |
 | Timeout for this profile | check box + number | Own timeout off = follow the global timeout; on: 0–1440 minutes (0 = never time out) | Off | (profile `requestTimeoutMinutes` field) |
+| Max output tokens | check box + number | Own limit off = automatic per model and action; on: 256–1,048,576 tokens per answer | Off | (profile `maxOutputTokens` field) |
 | Tokenizer | dropdown | Estimate, OpenAI cl100k_base, OpenAI o200k_base, OpenAI p50k_base, OpenAI r50k_base | Estimate | (profile `tokenizerType` field) |
 | Max tokens | number + unit | (amount: 0–1,000,000; unit: Thousands or Millions) | 0 (unlimited) | (profile `tokenLimitAmount`, `tokenLimitUnit` fields) |
 | Warning thresholds | number pair | Yellow %: 0–100, Red %: 0–100 | 75%, 90% | (profile `tokenWarningYellowPercent`, `tokenWarningRedPercent` fields) |
@@ -156,7 +157,15 @@ For MiniMax endpoints (directly or through an aggregator whose model name contai
 
 For MiniMax, use the OpenAI-compatible URL `https://api.minimax.io/v1/chat/completions` rather than the native `/text/chatcompletion_v2` endpoint: the native one answers a wrong key, model or an empty balance with HTTP 200 and an error object, which korTTY now shows as the provider's own message but which the OpenAI-compatible endpoint reports with a proper HTTP status.
 
-For the native Anthropic (Claude) endpoint, an enabled reasoning level requests **extended thinking** with a level-dependent thinking budget; models that do not support extended thinking are retried once without it. The model's reasoning is shown in the Terminal AI Agent's 💭 thinking rows.
+For the native Anthropic (Claude) endpoint, an enabled reasoning level requests **extended thinking** with a level-dependent thinking budget; models that do not support extended thinking are retried once without it. The budget always stays below the request's output limit — see [Output limit per answer](#output-limit-per-answer). The model's reasoning is shown in the Terminal AI Agent's 💭 thinking rows.
+
+### Output limit per answer
+
+**Max output tokens** caps how many tokens one answer may use, thinking included. With **Own limit** off, korTTY picks the limit automatically. The value can only lower a limit, never raise one: actions that carry their own safety limit — a Mermaid diagram (32,768 tokens), a full-replacement snippet edit, code completion (4,096 tokens) or ASCII art — keep that limit even when the profile allows more.
+
+On the native Anthropic (Claude) endpoint the limit of each request is the smallest of the action's safety limit, the profile's **Max output tokens**, the model's documented output limit and 16,000 tokens. korTTY knows the output limits of the current Claude families (Opus, Sonnet and Fable 5.x, Opus 4.6–4.8 and Sonnet 4.6 at 128,000 tokens; Opus 4.5, Sonnet 4.5 and Haiku 4.5 at 64,000 tokens); any other model gets 4,096 tokens unless the profile sets its own limit. The 16,000-token ceiling applies because korTTY does not stream Anthropic answers yet, and Anthropic advises streaming for larger outputs so that a long, silent request is not cut off. A thinking budget is always fitted strictly below the limit — shrunk when it would leave too little room for the answer, and dropped when it would fall below Anthropic's minimum of 1,024 tokens. If the API rejects a request because `max_tokens` is too high for the model, korTTY retries it once with the limit named in the error. When a request timeout is set, korTTY raises it for a large limit so that the answer has time to arrive (about 7.5 minutes for 16,000 tokens); without a timeout nothing changes.
+
+On OpenAI-compatible endpoints the profile value is sent as `max_tokens` for every request that has no action limit of its own.
 
 ### Image input (vision)
 

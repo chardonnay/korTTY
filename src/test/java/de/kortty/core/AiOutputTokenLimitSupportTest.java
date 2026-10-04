@@ -19,6 +19,18 @@ class AiOutputTokenLimitSupportTest {
     }
 
     @Test
+    void actionCapWinsOverALargerProfileValue() {
+        AiRequest mermaid = new AiRequest(AiAction.GENERATE_SNIPPET_MERMAID, "print('ok')", null, "en");
+        AiRequest completion = new AiRequest(AiAction.COMPLETE_SNIPPET_CODE, "print(", null, "en");
+        AiRequest chat = new AiRequest(AiAction.SUMMARIZE, "text", null, "en");
+
+        // A profile's maxOutputTokens arrives here as the configured default.
+        assertThat(AiOutputTokenLimitSupport.resolve(mermaid, 200_000)).isEqualTo(32_768);
+        assertThat(AiOutputTokenLimitSupport.resolve(completion, 200_000)).isEqualTo(4_096);
+        assertThat(AiOutputTokenLimitSupport.resolve(chat, 200_000)).isEqualTo(200_000);
+    }
+
+    @Test
     void sizesFullReplacementLimitWithinFiniteBounds() {
         AiRequest ordinary = new AiRequest(AiAction.SUMMARIZE, "text", null, "en");
         AiRequest shortApply = new AiRequest(AiAction.APPLY_SNIPPET_IMPROVEMENTS, "short", null, "en");

@@ -197,7 +197,7 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/reference/settings/ai.md
     owns_i18n: [settings.ai.]
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/AiReasoningDiscoveryService.java, src/main/java/de/kortty/core/LocalLmModelResolver.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/SettingsDialog.java]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/AiReasoningDiscoveryService.java, src/main/java/de/kortty/core/LocalLmModelResolver.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/AnthropicAiService.java, src/main/java/de/kortty/core/AnthropicModelLimits.java]
     screenshots:
       - settings/ai.png
       - ai/ai-profiles.png

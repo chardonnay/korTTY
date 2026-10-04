@@ -23,7 +23,7 @@ public final class AiCloudModelCatalog {
     private static Map<String, List<String>> buildCatalog() {
         Map<String, List<String>> catalog = new LinkedHashMap<>();
         catalog.put("api.openai.com", List.of("gpt-4o-mini", "gpt-4o", "o4-mini"));
-        catalog.put("api.anthropic.com", List.of("claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"));
+        catalog.put("api.anthropic.com", List.of("claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-4-5"));
         catalog.put("generativelanguage.googleapis.com", List.of("gemini-2.0-flash", "gemini-1.5-pro"));
         catalog.put("api.mistral.ai", List.of("mistral-large-latest", "mistral-small-latest"));
         catalog.put("api.deepseek.com", List.of("deepseek-chat", "deepseek-reasoner"));
