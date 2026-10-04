@@ -27,6 +27,12 @@ class Osc52ClipboardWiringTest {
         assertWithMessage("a clipboard write needs no shell integration, so it comes before the marks' setting check")
             .that(write).isAtLeast(0);
         assertThat(write).isLessThan(onEvent.indexOf("if (!PaneCommandMarks.isMark(event) || !isEnabled()) {"));
+        int tooLarge = onEvent.indexOf(
+            "if (event instanceof ShellIntegrationEvent.Oversize oversize && oversize.kind() == OwnedOsc.CLIPBOARD) {");
+        assertWithMessage("a write too long to keep is still a write, so the status bar can say it was refused")
+            .that(tooLarge).isAtLeast(0);
+        assertThat(onEvent.substring(tooLarge)).contains("offerClipboardWrite(widget, ShellIntegrationEvent.ClipboardWrite.overCap());");
+        assertThat(tooLarge).isLessThan(onEvent.indexOf("if (!PaneCommandMarks.isMark(event) || !isEnabled()) {"));
         String offer = body(controller,
             "private void offerClipboardWrite(SithTermFxWidget widget, ShellIntegrationEvent.ClipboardWrite write) {");
         assertWithMessage("only the first write of a burst schedules the FX thread; later ones replace it")

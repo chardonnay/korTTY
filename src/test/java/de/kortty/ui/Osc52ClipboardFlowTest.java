@@ -4,6 +4,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import de.kortty.shellintegration.Osc52Support.Rejection;
+import de.kortty.shellintegration.OwnedOsc;
 import de.kortty.shellintegration.ShellIntegrationEvent;
 import de.kortty.shellintegration.ShellIntegrationEvent.ClipboardWrite;
 import de.kortty.ui.OscEmulatorHarness.Screen;
@@ -92,6 +93,29 @@ class Osc52ClipboardFlowTest {
         assertThat(invalid).isEqualTo(new Outcome(Result.REJECTED, 0, 0, Rejection.NOT_BASE64));
         assertThat(notText).isEqualTo(new Outcome(Result.REJECTED, 0, 0, Rejection.NOT_UTF8));
         assertThat(empty).isEqualTo(new Outcome(Result.IGNORED, 0, 0, Rejection.EMPTY));
+    }
+
+    @Test
+    void aWriteTooLongToKeepIsRefusedWithAMessageNotDroppedUnnoticed() throws IOException {
+        Screen screen = new Screen(60, 4, 100);
+        String tooLong = "QUFB".repeat(OwnedOsc.CLIPBOARD.maxPayloadLength() / 4 + 10);
+        List<ShellIntegrationEvent> events = new ArrayList<>();
+
+        screen.run(new ShellIntegrationTtyConnector(
+            ScriptedConnector.inChunksOf("x" + ESC + "]52;c;" + tooLong + BEL + "y", 4096), events::add));
+
+        assertWithMessage("the splitter keeps none of it and reports its size")
+            .that(events).containsExactly(new ShellIntegrationEvent.Oversize(OwnedOsc.CLIPBOARD));
+        assertThat(screen.buffer.getLine(0).getText().strip()).isEqualTo("xy");
+        List<String> clipboard = new ArrayList<>();
+        assertWithMessage("allowed, it is refused as too large, which the status bar says")
+            .that(TerminalClipboardWriter.write(ClipboardWrite.overCap(), true, clipboard::add))
+            .isEqualTo(new Outcome(Result.REJECTED, 0, 0, Rejection.TOO_LARGE));
+        assertWithMessage("not allowed, it is a blocked attempt like any other write")
+            .that(TerminalClipboardWriter.write(ClipboardWrite.overCap(), false, clipboard::add).result())
+            .isEqualTo(Result.BLOCKED);
+        assertThat(clipboard).isEmpty();
+        assertThat(ClipboardWrite.overCap().summary()).isEqualTo("ClipboardWrite(too large)");
     }
 
     @Test

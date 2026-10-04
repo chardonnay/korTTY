@@ -11,6 +11,7 @@ import de.kortty.core.KorttyClipboard;
 import de.kortty.shellintegration.ClipboardWriteSlot;
 import de.kortty.shellintegration.CommandBlockStore;
 import de.kortty.shellintegration.CommandStatus;
+import de.kortty.shellintegration.OwnedOsc;
 import de.kortty.shellintegration.PromptNavigator;
 import de.kortty.shellintegration.PromptNavigator.Direction;
 import de.kortty.shellintegration.RemoteNotificationSlot;
@@ -228,6 +229,12 @@ final class ShellIntegrationController {
         }
         if (event instanceof ShellIntegrationEvent.ClipboardWrite write) {
             offerClipboardWrite(widget, write);
+            return;
+        }
+        if (event instanceof ShellIntegrationEvent.Oversize oversize && oversize.kind() == OwnedOsc.CLIPBOARD) {
+            // Too long to keep, but still a write: the setting blocks it or its size is refused, and
+            // the status bar says which, as for any other write.
+            offerClipboardWrite(widget, ShellIntegrationEvent.ClipboardWrite.overCap());
             return;
         }
         if (!PaneCommandMarks.isMark(event) || !isEnabled()) {

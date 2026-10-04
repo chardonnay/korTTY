@@ -132,11 +132,14 @@ public final class TerminalClipboardWriter {
 
     /**
      * Decodes {@code write} and puts its text on {@code clipboard} when {@code allowed}; nothing is
-     * decoded, let alone written, when not.
+     * decoded, let alone written, when not. A write too long to keep is refused as too large.
      */
     static Outcome write(ClipboardWrite write, boolean allowed, Consumer<String> clipboard) {
         if (!allowed) {
             return Outcome.blocked();
+        }
+        if (write.tooLarge()) {
+            return Outcome.refused(Rejection.TOO_LARGE);
         }
         Decoded decoded = Osc52Support.decode(write.data());
         String text = decoded.text();

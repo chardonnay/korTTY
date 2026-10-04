@@ -79,12 +79,31 @@ public sealed interface ShellIntegrationEvent {
      *
      * @param selection the {@code Pc} parameter as sent: empty or made of {@code c p q s 0-7}, all of
      *                  which mean the one clipboard korTTY has
-     * @param data      the base64 text as sent, line breaks and all; never empty
+     * @param data      the base64 text as sent, line breaks and all; never empty unless
+     *                  {@code tooLarge}
+     * @param tooLarge  whether the sequence was longer than {@link OwnedOsc#CLIPBOARD} keeps
+     *                  ({@link #overCap()}): nothing of it was kept, so {@code selection} and
+     *                  {@code data} are empty, and the write can only be refused
      */
-    record ClipboardWrite(String selection, String data) implements ShellIntegrationEvent {
+    record ClipboardWrite(String selection, String data, boolean tooLarge) implements ShellIntegrationEvent {
+
+        /** A write as the program sent it. */
+        public ClipboardWrite(String selection, String data) {
+            this(selection, data, false);
+        }
+
+        /**
+         * A write too long to keep, which the splitter reports as {@link Oversize} of
+         * {@link OwnedOsc#CLIPBOARD}: still a program's attempt to change the clipboard, so whoever
+         * handles writes can say that it was refused.
+         */
+        public static ClipboardWrite overCap() {
+            return new ClipboardWrite("", "", true);
+        }
+
         @Override
         public String summary() {
-            return "ClipboardWrite(" + data.length() + " chars)";
+            return tooLarge ? "ClipboardWrite(too large)" : "ClipboardWrite(" + data.length() + " chars)";
         }
     }
 
