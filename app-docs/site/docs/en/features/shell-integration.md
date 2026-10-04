@@ -119,17 +119,21 @@ if [[ $- == *i* && ${TERM:-dumb} != dumb && -z ${__kortty_si_loaded-} ]] &&
     }
 
     # Runs first in PROMPT_COMMAND, while $? still holds the command's exit status: D, then OSC 7.
+    # It returns that status again, so the PROMPT_COMMAND hooks after it still see it.
     __kortty_si_precmd() {
         local exit_code=$?
         printf '\e]133;D;%s\a' "$exit_code"
         __kortty_si_cwd
+        return "$exit_code"
     }
 
     # Runs last in PROMPT_COMMAND: A at the start of the prompt and B at its end, put back whenever
-    # a theme rewrote PS1.
+    # a theme rewrote PS1. It leaves $? as it found it, for a prompt that shows it.
     __kortty_si_prompt() {
+        local exit_code=$?
         [[ $PS1 == *'\e]133;A\a'* ]] || PS1='\[\e]133;A\a\]'$PS1
         [[ $PS1 == *'\e]133;B\a'* ]] || PS1=$PS1'\[\e]133;B\a\]'
+        return "$exit_code"
     }
 
     # C: bash prints PS0 after it read a command line, right before the command runs.

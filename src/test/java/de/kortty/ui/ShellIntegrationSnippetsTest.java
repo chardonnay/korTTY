@@ -63,6 +63,9 @@ class ShellIntegrationSnippetsTest {
         assertThat(bash).contains("PROMPT_COMMAND=__kortty_si_precmd${PROMPT_COMMAND:+$'\\n'$PROMPT_COMMAND}$'\\n'__kortty_si_prompt");
         assertWithMessage("bash 4.4 brought PS0").that(bash).contains("BASH_VERSINFO[1] >= 4");
         assertThat(bash.indexOf("local exit_code=$?")).isLessThan(bash.indexOf("printf '\\e]133;D;%s\\a' \"$exit_code\""));
+        String precmd = bash.substring(bash.indexOf("__kortty_si_precmd() {"), bash.indexOf("__kortty_si_prompt() {"));
+        assertWithMessage("the hooks after D still see the command's $?")
+            .that(precmd).contains("return \"$exit_code\"");
     }
 
     @Test
@@ -140,15 +143,21 @@ class ShellIntegrationSnippetsTest {
         int[] version = requireBash(4, 4);
         Path dir = Files.createTempDirectory("kortty-bash");
         try {
-            String output = runInteractive(List.of("bash", "--norc", "--noprofile", "-i"), dir,
-                "PROMPT_COMMAND='true'\nsource " + quoted(resource("kortty.bash")) + "\nfalse\nexit\n");
+            // bash prints its prompts and PS0, which carries C, to stderr: read both streams, as a
+            // terminal shows both.
+            String output = runInteractive(List.of("bash", "--norc", "--noprofile", "-i"), dir, true,
+                "PROMPT_COMMAND='echo \"hook saw $?\"'\nsource " + quoted(resource("kortty.bash")) + "\nfalse\nexit\n");
             assertThat(output).contains(ESC + "]133;C" + BEL);
             assertThat(output).contains(ESC + "]133;D;1" + BEL);
+            assertWithMessage("a PROMPT_COMMAND hook the user had still sees the command's exit status")
+                .that(output).contains("hook saw 1\n");
             if (version[0] > 5 || (version[0] == 5 && version[1] >= 1)) {
                 // bash 5.1 and later also take PROMPT_COMMAND as an array.
-                String arrayOutput = runInteractive(List.of("bash", "--norc", "--noprofile", "-i"), dir,
-                    "PROMPT_COMMAND=(true true)\nsource " + quoted(resource("kortty.bash")) + "\nfalse\nexit\n");
+                String arrayOutput = runInteractive(List.of("bash", "--norc", "--noprofile", "-i"), dir, true,
+                    "PROMPT_COMMAND=(true 'echo \"hook saw $?\"')\nsource " + quoted(resource("kortty.bash"))
+                        + "\nfalse\nexit\n");
                 assertThat(arrayOutput).contains(ESC + "]133;D;1" + BEL);
+                assertThat(arrayOutput).contains("hook saw 1\n");
             }
         } finally {
             deleteQuietly(dir);
@@ -184,13 +193,26 @@ class ShellIntegrationSnippetsTest {
 
     private static String runInteractive(List<String> command, Path dir, String input, String... environment)
             throws Exception {
+        return runInteractive(command, dir, false, input, environment);
+    }
+
+    /**
+     * Runs {@code command} on {@code input} and returns what it printed: its stdout, and with
+     * {@code withErrors} also its stderr, where an interactive bash writes its prompts and PS0.
+     */
+    private static String runInteractive(List<String> command, Path dir, boolean withErrors, String input,
+            String... environment) throws Exception {
         ProcessBuilder builder = new ProcessBuilder(command).directory(dir.toFile());
         builder.environment().put("TERM", "xterm-256color");
         builder.environment().put("HOME", dir.toString());
         for (int index = 0; index + 1 < environment.length; index += 2) {
             builder.environment().put(environment[index], environment[index + 1]);
         }
-        builder.redirectError(ProcessBuilder.Redirect.DISCARD);
+        if (withErrors) {
+            builder.redirectErrorStream(true);
+        } else {
+            builder.redirectError(ProcessBuilder.Redirect.DISCARD);
+        }
         Process process = builder.start();
         process.getOutputStream().write(input.getBytes(StandardCharsets.UTF_8));
         process.getOutputStream().close();
