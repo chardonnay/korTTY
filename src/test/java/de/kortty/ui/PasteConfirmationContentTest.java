@@ -76,6 +76,33 @@ class PasteConfirmationContentTest {
     }
 
     @Test
+    void aPasteThatAsksOnlyForItsSizePointsToSettingsEvenWhenTheConnectionSetsItsOwnWarning() {
+        String text = "x".repeat(6 * 1024);
+        PasteConfirmationRequest request = new PasteConfirmationRequest("prod-db", text,
+            EnumSet.of(PasteReason.LARGE), false, PasteSource.CLIPBOARD, false, true);
+
+        PasteConfirmationContent content = PasteConfirmationContent.of(request, PasteInspection.of(text),
+            translator, Locale.ENGLISH);
+
+        assertWithMessage("the size check is only in Settings → Terminal, never in the connection editor")
+            .that(content.settingsHint()).isEqualTo("terminal.paste.confirm.settingsHint");
+    }
+
+    @Test
+    void aPasteThatAsksForTheConnectionsWarningAndItsSizeNamesBothPlaces() {
+        String text = "x".repeat(6 * 1024) + "\n" + ESC;
+        PasteConfirmationRequest request = new PasteConfirmationRequest("prod-db", text,
+            EnumSet.of(PasteReason.CONTROL_CHARACTERS, PasteReason.LARGE), false, PasteSource.CLIPBOARD, false,
+            true);
+
+        PasteConfirmationContent content = PasteConfirmationContent.of(request, PasteInspection.of(text),
+            translator, Locale.ENGLISH);
+
+        assertThat(content.settingsHint())
+            .isEqualTo("terminal.paste.confirm.settingsHint.connection terminal.paste.confirm.settingsHint.size");
+    }
+
+    @Test
     void aPaneWithoutANameIsCalledTheTerminal() {
         assertThat(content("a\nb", EnumSet.of(PasteReason.MULTI_LINE), false, PasteSource.CLIPBOARD, false, "  ")
             .header()).isEqualTo("terminal.paste.confirm.header.unnamed");
@@ -207,6 +234,8 @@ class PasteConfirmationContentTest {
         }
         PasteConfirmationContent.of(new PasteConfirmationRequest("x", "a\nb", EnumSet.of(PasteReason.MULTI_LINE),
             false, PasteSource.CLIPBOARD, false, true), PasteInspection.of("a\nb"), translator, Locale.ENGLISH);
+        PasteConfirmationContent.of(new PasteConfirmationRequest("x", text, EnumSet.allOf(PasteReason.class),
+            false, PasteSource.CLIPBOARD, false, true), PasteInspection.of(text), translator, Locale.ENGLISH);
         PasteConfirmationContent.formatSize(10, translator, Locale.ENGLISH);
         PasteConfirmationContent.formatSize(10_000, translator, Locale.ENGLISH);
 

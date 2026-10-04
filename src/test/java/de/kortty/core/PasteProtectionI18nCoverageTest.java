@@ -71,6 +71,7 @@ class PasteProtectionI18nCoverageTest {
         "terminal.paste.confirm.previewTruncated",
         "terminal.paste.confirm.settingsHint",
         "terminal.paste.confirm.settingsHint.connection",
+        "terminal.paste.confirm.settingsHint.size",
         "terminal.paste.confirm.paste",
         "terminal.paste.pacing.progress",
         // The connection editor's per-connection paste protection.
