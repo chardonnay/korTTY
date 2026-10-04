@@ -37,6 +37,9 @@ import static org.testng.Assert.expectThrows;
  */
 class SftpOpenHereIntegrationTest {
 
+    private final Object viewStandIn = new Object();
+    private final Object paneStandIn = new Object();
+
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private Path tempDir;
@@ -147,7 +150,9 @@ class SftpOpenHereIntegrationTest {
 
     private PaneSessionSupplier<Object, Object> supplier(ServerConnection attached,
             AtomicReference<PaneSessionSupplier.PaneSession> now) {
-        return new PaneSessionSupplier<>(new Object(), new Object(), PaneSessionSupplier.Identity.of(attached),
+        // The supplier holds view and pane weakly: the stand-ins stay reachable through fields, or a
+        // GC during the test makes get() return null as for a closed pane.
+        return new PaneSessionSupplier<>(viewStandIn, paneStandIn, PaneSessionSupplier.Identity.of(attached),
             (view, pane) -> now.get());
     }
 
