@@ -139,7 +139,7 @@
 #   [rule.job-scheduler]
 #   # Each entry allows that host and the hosts below it (whole labels only, no DNS);
 #   # [] allows any host. Several rules of the same tier: a host must pass every list.
-#   webhook-host-allowlist = ["hooks.slack.com", "acme.webhook.office.com"]
+#   webhook-host-allowlist = ["hooks.slack.com", "logic.azure.com", "api.powerplatform.com"]
 #
 #   # Where and how korTTY writes its log files. Directory and retention are forced into
 #   # the (locked) user settings; format, compression and rotation apply directly.

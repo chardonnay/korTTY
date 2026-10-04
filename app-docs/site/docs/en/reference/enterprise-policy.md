@@ -271,7 +271,7 @@ The check runs right before every send, the **Send test** button included. A web
   job-webhooks = "allow"
 
   [rule.job-scheduler]
-  webhook-host-allowlist = ["hooks.slack.com", "acme.webhook.office.com"]
+  webhook-host-allowlist = ["hooks.slack.com", "logic.azure.com", "api.powerplatform.com"]
 ```
 
 A malformed policy file falls back to lockdown, which denies `job-webhooks` like every other feature.

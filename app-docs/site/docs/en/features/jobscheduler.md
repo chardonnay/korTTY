@@ -196,7 +196,7 @@ Successful runs and recoveries (a successful run right after a failed or blocked
 
 ### Choosing When a Job Notifies
 
-Each job has a **Notifications** section at the bottom of its **Job** tab. Tick the run results that notify: **Fails** and **Is blocked** are on for every job, **Recovers (succeeds after a failure)** and **Succeeds** are off until you tick them. **Show a desktop notification** switches the desktop notification off for this job, for example for a job that only reports to a team channel. Below, tick the webhook targets this job sends to; no job sends to a webhook until you tick one. The section warns when nothing is ticked or when the enterprise policy blocks the ticked webhooks. Click **Save** to keep the changes.
+Each job has a **Notifications** section on its **Job** tab, just above the session journal section. Tick the run results that notify: **Fails** and **Is blocked** are on for every job, **Recovers (succeeds after a failure)** and **Succeeds** are off until you tick them. **Show a desktop notification** switches the desktop notification off for this job, for example for a job that only reports to a team channel. Below, tick the webhook targets this job sends to; no job sends to a webhook until you tick one. The section warns when nothing is ticked or when the enterprise policy blocks the ticked webhooks. Click **Save** to keep the changes.
 
 ### Webhook Targets
 

@@ -1359,6 +1359,9 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
                 sessionJournalPane.setStatsText(null);
                 updateSessionJournalSectionTitle();
             }
+            // A job saved from an empty selection starts with the defaults, not the previous job's.
+            notificationModel = JobNotificationFormModel.load(null, schedulerService.getWebhookTargets());
+            syncNotificationControls();
             return;
         }
         nameField.setText(job.getName());
