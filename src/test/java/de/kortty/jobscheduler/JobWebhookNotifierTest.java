@@ -3,6 +3,11 @@ package de.kortty.jobscheduler;
 import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpServer;
 import de.kortty.policy.EffectivePolicy;
+import de.kortty.policy.PolicyDecision;
+import de.kortty.policy.PolicyFeature;
+import de.kortty.policy.PolicyFile;
+import de.kortty.policy.PolicyIdentity;
+import de.kortty.policy.PolicyRule;
 import de.kortty.security.EncryptionService;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -42,6 +47,7 @@ class JobWebhookNotifierTest {
     private final List<JobJournalEntry> journal = Collections.synchronizedList(new ArrayList<>());
     private CountDownLatch journaled;
     private char[] master = MASTER;
+    private EffectivePolicy policy = EffectivePolicy.unrestricted();
     private WebhookSender sender;
 
     @BeforeMethod
@@ -52,6 +58,7 @@ class JobWebhookNotifierTest {
         journal.clear();
         journaled = new CountDownLatch(1);
         master = MASTER;
+        policy = EffectivePolicy.unrestricted();
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext(SECRET_PATH, exchange -> {
             received.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
@@ -88,7 +95,7 @@ class JobWebhookNotifierTest {
             () -> master, new WebhookPayloadFormatter(JobNotificationDispatcherTest.I18N), sender, entry -> {
                 journal.add(entry);
                 journaled.countDown();
-            });
+            }, () -> policy);
     }
 
     private static JobRunEvent failedRun() {
@@ -197,6 +204,79 @@ class JobWebhookNotifierTest {
         dispatcher.onJobRunFinished(new JobRunEvent("job-2", "B", JobRunStatus.FAILED, null, 1, "manual", null, null));
 
         assertThat(received.poll(500, TimeUnit.MILLISECONDS)).isNull();
+    }
+
+    private static EffectivePolicy policy(PolicyRule rule) {
+        return EffectivePolicy.resolve(new PolicyFile(1, "ACME", Map.of(), List.of(rule),
+            List.of(), List.of(), List.of(), List.of()), new PolicyIdentity() {
+                @Override
+                public String userName() {
+                    return "u";
+                }
+
+                @Override
+                public java.util.Set<String> osGroups() {
+                    return java.util.Set.of();
+                }
+            });
+    }
+
+    @Test
+    void aHostOutsideThePolicyAllowlistIsBlockedAndJournaledWithoutTheUrl() throws Exception {
+        target("t1", WebhookFormat.GENERIC_JSON, false);
+        policy = policy(PolicyRule.builder().webhookHostAllowlist(List.of("hooks.slack.com")).build());
+
+        assertThat(notifier().deliverTo(failedRun(), "t1")).isEmpty();
+
+        assertThat(received.poll(300, TimeUnit.MILLISECONDS)).isNull();
+        assertThat(journal).hasSize(1);
+        JobJournalEntry entry = journal.get(0);
+        assertThat(entry.getSummary()).isEqualTo(JobWebhookNotifier.BLOCKED_BY_POLICY);
+        assertThat(entry.getStatus()).isEqualTo(JobRunStatus.BLOCKED);
+        assertThat(entry.getDetailText()).contains("Host: 127.0.0.1");
+        assertThat(entry.getDetailText()).contains(JobWebhookNotifier.PolicyBlock.HOST_NOT_ALLOWED.journalText());
+        assertThat(entry.getDetailText()).doesNotContain("T0SECRET");
+    }
+
+    @Test
+    void anAllowlistedHostIsDelivered() throws Exception {
+        target("t1", WebhookFormat.GENERIC_JSON, false);
+        policy = policy(PolicyRule.builder().webhookHostAllowlist(List.of("127.0.0.1")).build());
+
+        assertThat(notifier().deliverTo(failedRun(), "t1").orElseThrow().delivered()).isTrue();
+        assertThat(journal).isEmpty();
+    }
+
+    @Test
+    void aDeniedFeatureBlocksEverySendBeforeTheUrlIsDecrypted() throws Exception {
+        target("t1", WebhookFormat.GENERIC_JSON, false);
+        policy = policy(PolicyRule.builder()
+            .features(Map.of(PolicyFeature.JOB_WEBHOOKS, PolicyDecision.DENY)).build());
+        master = null; // a decryption attempt would journal SKIPPED_LOCKED instead
+
+        assertThat(notifier().deliverTo(failedRun(), "t1")).isEmpty();
+
+        assertThat(received.poll(300, TimeUnit.MILLISECONDS)).isNull();
+        assertThat(journal).hasSize(1);
+        assertThat(journal.get(0).getSummary()).isEqualTo(JobWebhookNotifier.BLOCKED_BY_POLICY);
+        assertThat(journal.get(0).getDetailText())
+            .contains(JobWebhookNotifier.PolicyBlock.FEATURE_DENIED.journalText());
+    }
+
+    @Test
+    void policyBlockIsTheCheckForTestSendsToo() throws Exception {
+        java.net.URI slack = java.net.URI.create("https://hooks.slack.com/services/T/B/x");
+        java.net.URI evil = java.net.URI.create("https://hooks.slack.com.attacker.net/services/T/B/x");
+        EffectivePolicy allowlist = policy(PolicyRule.builder()
+            .webhookHostAllowlist(List.of("hooks.slack.com")).build());
+
+        assertThat(JobWebhookNotifier.policyBlock(EffectivePolicy.unrestricted(), evil)).isEmpty();
+        assertThat(JobWebhookNotifier.policyBlock(null, evil)).isEmpty();
+        assertThat(JobWebhookNotifier.policyBlock(allowlist, slack)).isEmpty();
+        assertThat(JobWebhookNotifier.policyBlock(allowlist, evil))
+            .hasValue(JobWebhookNotifier.PolicyBlock.HOST_NOT_ALLOWED);
+        assertThat(JobWebhookNotifier.policyBlock(EffectivePolicy.lockdown(), slack))
+            .hasValue(JobWebhookNotifier.PolicyBlock.FEATURE_DENIED);
     }
 
     @Test

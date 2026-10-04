@@ -37,7 +37,7 @@ public final class EffectivePolicy {
         true, true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
         EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, null, TerminalPolicy.NONE,
         List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of(),
-        SftpPolicy.NONE);
+        SftpPolicy.NONE, WebhookHostAllowlist.NONE);
 
     private final boolean fromPolicyFile;
     private final boolean lockdown;
@@ -72,6 +72,7 @@ public final class EffectivePolicy {
     private final List<PolicyFile.RuntimeModel> runtimeModels;
     private final List<PolicyFile.TeamworkSourceDef> teamworkSources;
     private final SftpPolicy sftp;
+    private final WebhookHostAllowlist webhookHostAllowlist;
 
     private EffectivePolicy(boolean fromPolicyFile, boolean lockdown, String organization,
                             Map<PolicyFeature, PolicyDecision> features, AgentExecutionMode agentExecution,
@@ -95,7 +96,8 @@ public final class EffectivePolicy {
                             List<PolicyFile.AiProfileDef> aiProfiles,
                             List<PolicyFile.RuntimeModel> runtimeModels,
                             List<PolicyFile.TeamworkSourceDef> teamworkSources,
-                            SftpPolicy sftp) {
+                            SftpPolicy sftp,
+                            WebhookHostAllowlist webhookHostAllowlist) {
         this.fromPolicyFile = fromPolicyFile;
         this.lockdown = lockdown;
         this.organization = organization;
@@ -129,6 +131,7 @@ public final class EffectivePolicy {
         this.runtimeModels = List.copyOf(runtimeModels);
         this.teamworkSources = List.copyOf(teamworkSources);
         this.sftp = sftp;
+        this.webhookHostAllowlist = webhookHostAllowlist;
     }
 
     /** No policy present: everything allowed. */
@@ -149,7 +152,7 @@ public final class EffectivePolicy {
             true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false, false,
             false, false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, 0L,
             TerminalPolicy.LOCKDOWN, List.of(), EnumSet.allOf(ManagedSetting.class),
-            List.of(), List.of(), List.of(), List.of(), SftpPolicy.LOCKDOWN);
+            List.of(), List.of(), List.of(), List.of(), SftpPolicy.LOCKDOWN, WebhookHostAllowlist.NONE);
     }
 
     /** Resolves the policy file for {@code identity}. */
@@ -187,6 +190,7 @@ public final class EffectivePolicy {
                     case MULTI_EXEC -> ManagedSetting.MULTI_EXEC;
                     case FILE_TRANSFER -> ManagedSetting.FILE_TRANSFER;
                     case SFTP_SUDO_EDIT -> ManagedSetting.SFTP_SUDO_EDIT;
+                    case JOB_WEBHOOKS -> ManagedSetting.JOB_WEBHOOKS;
                 });
             }
         }
@@ -298,6 +302,14 @@ public final class EffectivePolicy {
             managed.add(ManagedSetting.SFTP_TRANSFERS);
         }
 
+        // Every list of the winning tier applies; an empty list (any host) adds no limit of its own.
+        WebhookHostAllowlist webhookHosts = resolver.resolve(
+            rule -> rule.webhookHostAllowlist() != null ? WebhookHostAllowlist.of(rule.webhookHostAllowlist()) : null,
+            WebhookHostAllowlist::and);
+        if (webhookHosts != null) {
+            managed.add(ManagedSetting.WEBHOOK_HOST_ALLOWLIST);
+        }
+
         return new EffectivePolicy(true, false, file.organization(), features,
             orDefault(agentExecution, AgentExecutionMode.ALLOW),
             orDefault(requireMasterPassword, false), orDefault(enforceHostKeyCheck, false),
@@ -311,7 +323,8 @@ public final class EffectivePolicy {
             orDefault(allowUserModels, true), orDefault(updatesEnabled, true), updateFeedUrl,
             orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), logging, sessionJournal,
             analysisMaxStoredContentBytes, terminal, serverRestrictions, managed,
-            file.scriptHeaders(), file.aiProfiles(), file.runtimeModels(), file.teamworkSources(), sftp);
+            file.scriptHeaders(), file.aiProfiles(), file.runtimeModels(), file.teamworkSources(), sftp,
+            orDefault(webhookHosts, WebhookHostAllowlist.NONE));
     }
 
     // ---- accessors -------------------------------------------------------------------------
@@ -413,6 +426,30 @@ public final class EffectivePolicy {
         return decision(PolicyFeature.SFTP_SUDO_EDIT) != PolicyDecision.DENY
             && fileTransferAllowed()
             && (loadIntoSnippetEditor == null || loadIntoSnippetEditor == LoadIntoEditorMode.ALLOW);
+    }
+
+    /**
+     * Whether JobScheduler runs and test messages may be sent to webhooks (Slack, Teams, generic
+     * JSON): allowed unless the policy denies {@code job-webhooks}. Checked on every send.
+     */
+    public boolean jobWebhooksAllowed() {
+        return decision(PolicyFeature.JOB_WEBHOOKS) != PolicyDecision.DENY;
+    }
+
+    /**
+     * The hosts webhooks may be sent to ({@code [rule.job-scheduler] webhook-host-allowlist});
+     * {@link WebhookHostAllowlist#NONE} when the policy sets none.
+     */
+    public WebhookHostAllowlist webhookHostAllowlist() {
+        return webhookHostAllowlist;
+    }
+
+    /**
+     * Whether a webhook may be sent to {@code host}: the feature is allowed and the host equals an
+     * allowlist entry or lies below one (label boundaries; any host when no list is set).
+     */
+    public boolean webhookHostAllowed(String host) {
+        return jobWebhooksAllowed() && webhookHostAllowlist.allows(host);
     }
 
     /** The {@code [rule.sftp]} limits: parallel transfers cap and the forced conflict default. */

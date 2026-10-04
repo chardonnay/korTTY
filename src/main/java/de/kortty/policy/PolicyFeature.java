@@ -42,7 +42,13 @@ public enum PolicyFeature {
      * Editing server files as root from the SFTP manager ("Edit as root (sudo)..."). Allowed unless
      * denied; it also needs {@link #FILE_TRANSFER} and {@code load-into-snippet-editor = "allow"}.
      */
-    SFTP_SUDO_EDIT("sftp-sudo-edit");
+    SFTP_SUDO_EDIT("sftp-sudo-edit"),
+    /**
+     * JobScheduler webhook notifications (Slack, Teams, generic JSON). Allowed unless denied; denied,
+     * no run result and no test message leaves the machine through a webhook. The hosts webhooks may
+     * reach are limited separately ({@link ManagedSetting#WEBHOOK_HOST_ALLOWLIST}).
+     */
+    JOB_WEBHOOKS("job-webhooks");
 
     private final String tomlKey;
 

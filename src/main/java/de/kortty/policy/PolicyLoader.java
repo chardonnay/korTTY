@@ -35,7 +35,7 @@ public final class PolicyLoader {
     private static final Set<String> META_KEYS = Set.of("schema-version", "organization");
     private static final Set<String> RULE_KEYS = Set.of("name", "users", "groups", "servers",
         "features", "security", "teamwork", "snippets", "ai-profiles", "ai-runtime", "updates",
-        "terminal", "logging", "session-journal", "sftp");
+        "terminal", "logging", "session-journal", "sftp", "job-scheduler");
     private static final Set<String> SERVERS_KEYS = Set.of("mode", "hosts");
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
         "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "allow-port-forwarding",
@@ -50,6 +50,7 @@ public final class PolicyLoader {
     private static final Set<String> UPDATES_KEYS = Set.of("enabled", "feed-url");
     private static final Set<String> TERMINAL_KEYS = Set.of("load-into-snippet-editor", "paste-warning",
         "session-restore", "session-restore-output");
+    private static final Set<String> JOB_SCHEDULER_KEYS = Set.of("webhook-host-allowlist");
     private static final Set<String> SFTP_KEYS = Set.of("max-parallel-transfers", "conflict-default");
     private static final Set<String> LOGGING_KEYS = Set.of("directory", "retention-days",
         "compress", "format", "rotation-max-files", "rotation-total-size-mb");
@@ -180,6 +181,7 @@ public final class PolicyLoader {
             parseRuleLogging(table, context, builder);
             parseRuleSessionJournal(table, context, builder);
             parseRuleSftp(table, context, builder);
+            parseRuleJobScheduler(table, context, builder);
             rules.add(builder.build());
         }
         return rules;
@@ -452,6 +454,54 @@ public final class PolicyLoader {
         PolicyRule.SftpRule sftp = new PolicyRule.SftpRule(maxParallel, conflictDefault);
         if (!sftp.isEmpty()) {
             builder.sftp(sftp);
+        }
+    }
+
+    /**
+     * The {@code [rule.job-scheduler]} table: the hosts JobScheduler webhooks may reach. Each entry is
+     * a bare host name ({@code hooks.slack.com}, optionally written {@code *.example.com}); it allows
+     * that host and every host below it. An empty array allows any host.
+     */
+    private void parseRuleJobScheduler(TomlTable rule, String context, PolicyRule.Builder builder) {
+        TomlTable table = getTable(rule, "job-scheduler", context);
+        if (table == null) {
+            return;
+        }
+        String tableContext = context + " [rule.job-scheduler]";
+        warnUnknownKeys(table, JOB_SCHEDULER_KEYS, tableContext);
+        boolean empty;
+        try {
+            TomlArray array = table.getArray("webhook-host-allowlist");
+            if (array == null) {
+                return;
+            }
+            empty = array.isEmpty();
+        } catch (TomlInvalidTypeException e) {
+            errors.add(tableContext + ": webhook-host-allowlist must be an array of host names");
+            return;
+        }
+        if (empty) {
+            builder.webhookHostAllowlist(List.of());
+            return;
+        }
+        List<String> raw = getStringArray(table, "webhook-host-allowlist", tableContext);
+        if (raw == null) {
+            return;
+        }
+        List<String> hosts = new ArrayList<>();
+        boolean valid = true;
+        for (String entry : raw) {
+            String normalized = WebhookHostAllowlist.normalizeEntry(entry);
+            if (normalized == null) {
+                errors.add(tableContext + ": webhook-host-allowlist entry \"" + entry
+                    + "\" must be a host name such as \"hooks.slack.com\" (no scheme, path, port or user)");
+                valid = false;
+            } else if (!hosts.contains(normalized)) {
+                hosts.add(normalized);
+            }
+        }
+        if (valid) {
+            builder.webhookHostAllowlist(hosts);
         }
     }
 

@@ -59,8 +59,8 @@ public final class JobNotificationDispatcher implements JobRunEventListener {
 
     private final Supplier<DesktopNotifier> notifier;
     /**
-     * The enterprise policy. Desktop notifications have no policy switch of their own; webhook
-     * deliveries consult it on every send.
+     * The enterprise policy. Desktop notifications have no policy switch of their own; a denied
+     * {@code job-webhooks} feature stops webhook deliveries before anything is queued.
      */
     private final Supplier<EffectivePolicy> policy;
     private final Clock clock;
@@ -119,8 +119,16 @@ public final class JobNotificationDispatcher implements JobRunEventListener {
             notifyDesktop(event);
         }
         if (webhooks != null && !config.getWebhookTargetIds().isEmpty()) {
+            EffectivePolicy current = policy();
+            if (current != null && !current.jobWebhooksAllowed()) {
+                // Denied as a whole: nothing is queued or decrypted, the journal says why.
+                webhooks.recordBlockedByPolicy(event, config.getWebhookTargetIds(),
+                    JobWebhookNotifier.PolicyBlock.FEATURE_DENIED);
+                return;
+            }
             // Webhooks are not throttled: every matching run is a separate message in the channel,
-            // and the sender's bounded queue caps the load.
+            // and the sender's bounded queue caps the load. The notifier checks the policy again,
+            // host allowlist included, right before each send.
             webhooks.notify(event, config.getWebhookTargetIds());
         }
     }

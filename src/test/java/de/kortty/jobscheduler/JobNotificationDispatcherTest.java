@@ -261,4 +261,58 @@ class JobNotificationDispatcherTest {
         assertThat(body).doesNotContain(SECRET_OUTPUT);
         assertThat(body).isEqualTo("Failed · Exit code 127 · Started manually");
     }
+
+    @Test
+    void aPolicyDenialSkipsTheWebhookSendAndJournalsIt() throws Exception {
+        WebhookTarget target = new WebhookTarget();
+        target.setId("t1");
+        target.setName("Ops channel");
+        target.setEncryptedUrl("not-decrypted-while-denied");
+        WebhookTarget disabled = new WebhookTarget();
+        disabled.setId("t2");
+        disabled.setEnabled(false);
+        Map<String, WebhookTarget> targets = Map.of("t1", target, "t2", disabled);
+        List<JobJournalEntry> journal = new ArrayList<>();
+        java.util.concurrent.atomic.AtomicInteger decryptions = new java.util.concurrent.atomic.AtomicInteger();
+        // A closed sender: anything queued would be journaled as DROPPED_DELIVERY instead.
+        WebhookSender sender = new WebhookSender();
+        sender.shutdown(Duration.ofMillis(100));
+        JobWebhookNotifier webhooks = new JobWebhookNotifier(id -> java.util.Optional.ofNullable(targets.get(id)),
+            new WebhookTargetSecrets(new de.kortty.security.EncryptionService()), () -> {
+                decryptions.incrementAndGet();
+                return "pw".toCharArray();
+            }, new WebhookPayloadFormatter(I18N), sender, journal::add, EffectivePolicy::unrestricted);
+        EffectivePolicy denied = EffectivePolicy.resolve(new de.kortty.policy.PolicyFile(1, "ACME", Map.of(),
+            List.of(de.kortty.policy.PolicyRule.builder()
+                .features(Map.of(de.kortty.policy.PolicyFeature.JOB_WEBHOOKS, de.kortty.policy.PolicyDecision.DENY))
+                .build()),
+            List.of(), List.of(), List.of(), List.of()), new de.kortty.policy.PolicyIdentity() {
+                @Override
+                public String userName() {
+                    return "u";
+                }
+
+                @Override
+                public java.util.Set<String> osGroups() {
+                    return java.util.Set.of();
+                }
+            });
+        JobNotificationConfig config = JobNotificationConfig.defaults();
+        config.setWebhookTargetIds(List.of("t1", "t2", "gone"));
+        configs.put("j1", config);
+
+        new JobNotificationDispatcher(() -> notifier, () -> denied, clock, configs::get, webhooks, I18N)
+            .onJobRunFinished(event("j1", "Nightly backup", JobRunStatus.FAILED, null, 2, "scheduled"));
+
+        // The desktop notification has no policy switch and still shows.
+        assertThat(backend.shown).hasSize(1);
+        assertThat(journal).hasSize(1);
+        JobJournalEntry entry = journal.get(0);
+        assertThat(entry.getSummary()).isEqualTo(JobWebhookNotifier.BLOCKED_BY_POLICY);
+        assertThat(entry.getStatus()).isEqualTo(JobRunStatus.BLOCKED);
+        assertThat(entry.getDetailText()).contains("Nightly backup");
+        assertThat(entry.getDetailText()).contains("Ops channel");
+        assertThat(entry.getDetailText()).contains(JobWebhookNotifier.PolicyBlock.FEATURE_DENIED.journalText());
+        assertThat(decryptions.get()).isEqualTo(0);
+    }
 }

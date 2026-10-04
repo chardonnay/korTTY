@@ -134,6 +134,13 @@
 #   # same tier: ask beats skip beats overwrite.
 #   conflict-default = "ask"
 #
+#   # JobScheduler webhook notifications (Slack, Teams, generic JSON). Deny them as a
+#   # whole with job-webhooks = "deny" under [rule.features], or limit the receivers:
+#   [rule.job-scheduler]
+#   # Each entry allows that host and the hosts below it (whole labels only, no DNS);
+#   # [] allows any host. Several rules of the same tier: a host must pass every list.
+#   webhook-host-allowlist = ["hooks.slack.com", "acme.webhook.office.com"]
+#
 #   # Where and how korTTY writes its log files. Directory and retention are forced into
 #   # the (locked) user settings; format, compression and rotation apply directly.
 #   [rule.logging]

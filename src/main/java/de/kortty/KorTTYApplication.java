@@ -543,7 +543,8 @@ public class KorTTYApplication extends Application {
                     () -> getMasterPasswordManager() != null ? getMasterPasswordManager().getMasterPassword() : null,
                     new de.kortty.jobscheduler.WebhookPayloadFormatter(),
                     jobWebhookSender,
-                    scheduler::appendNotificationJournal);
+                    scheduler::appendNotificationJournal,
+                    de.kortty.policy.PolicyManager::effective);
                 jobSchedulerService.addRunEventListener(new de.kortty.jobscheduler.JobNotificationDispatcher(
                     this::getDesktopNotifier, de.kortty.policy.PolicyManager::effective, java.time.Clock.systemUTC(),
                     jobId -> scheduler.findJob(jobId)

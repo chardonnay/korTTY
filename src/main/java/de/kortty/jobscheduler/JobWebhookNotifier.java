@@ -1,9 +1,11 @@
 package de.kortty.jobscheduler;
 
 import de.kortty.core.DisplayTextSanitizer;
+import de.kortty.policy.EffectivePolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -20,6 +22,10 @@ import java.util.function.Supplier;
  * deleted or has no URL is left out; a URL that cannot be used (master password locked,
  * unreadable, rejected) and a delivery that finally failed are written to the run journal as a
  * system entry naming the job, the target and at most the receiver's host.
+ *
+ * <p>The enterprise policy is consulted on every send ({@link #policyBlock}): while it denies
+ * {@code job-webhooks}, or the receiver's host is outside its webhook host allowlist, nothing is
+ * sent and the run journal records {@link #BLOCKED_BY_POLICY}.
  */
 public final class JobWebhookNotifier {
 
@@ -30,7 +36,29 @@ public final class JobWebhookNotifier {
     /** The journal summary of a delivery the full or closed send queue dropped. */
     public static final String DROPPED_DELIVERY = "notification dropped: webhook send queue full or closed";
 
+    /** The journal summary of a delivery the enterprise policy did not allow. */
+    public static final String BLOCKED_BY_POLICY = "notification blocked by policy";
+
     private static final int MAX_NAME_CHARS = 80;
+
+    /** Why the policy stops a webhook delivery. */
+    public enum PolicyBlock {
+        /** The policy denies {@code job-webhooks}. */
+        FEATURE_DENIED("Policy: job-webhooks denied"),
+        /** The receiver's host is not in {@code webhook-host-allowlist}. */
+        HOST_NOT_ALLOWED("Policy: host not in webhook-host-allowlist");
+
+        private final String journalText;
+
+        PolicyBlock(String journalText) {
+            this.journalText = journalText;
+        }
+
+        /** The fixed text the journal entry's detail carries. */
+        public String journalText() {
+            return journalText;
+        }
+    }
 
     private final Function<String, Optional<WebhookTarget>> targetLookup;
     private final WebhookTargetSecrets secrets;
@@ -38,6 +66,7 @@ public final class JobWebhookNotifier {
     private final WebhookPayloadFormatter formatter;
     private final WebhookSender sender;
     private final Consumer<JobJournalEntry> journal;
+    private final Supplier<EffectivePolicy> policy;
 
     /**
      * @param targetLookup   the stored webhook target by id
@@ -46,10 +75,12 @@ public final class JobWebhookNotifier {
      * @param formatter      builds the payloads
      * @param sender         delivers them on its own executor
      * @param journal        records a skipped or failed delivery in the run journal
+     * @param policy         the current enterprise policy, consulted on every send
      */
     public JobWebhookNotifier(Function<String, Optional<WebhookTarget>> targetLookup, WebhookTargetSecrets secrets,
             Supplier<char[]> masterPassword, WebhookPayloadFormatter formatter, WebhookSender sender,
-            Consumer<JobJournalEntry> journal) {
+            Consumer<JobJournalEntry> journal, Supplier<EffectivePolicy> policy) {
+        this.policy = Objects.requireNonNull(policy, "policy");
         this.targetLookup = Objects.requireNonNull(targetLookup, "targetLookup");
         this.secrets = Objects.requireNonNull(secrets, "secrets");
         this.masterPassword = Objects.requireNonNull(masterPassword, "masterPassword");
@@ -74,6 +105,40 @@ public final class JobWebhookNotifier {
     }
 
     /**
+     * Journals {@link #BLOCKED_BY_POLICY} for each enabled target of {@code targetIds} without
+     * handing anything to the sender; for a policy that denies {@code job-webhooks} as a whole, so
+     * not even a URL is decrypted.
+     */
+    public void recordBlockedByPolicy(JobRunEvent event, Collection<String> targetIds, PolicyBlock reason) {
+        if (event == null || targetIds == null || reason == null) {
+            return;
+        }
+        for (String id : targetIds) {
+            Optional<WebhookTarget> found = id != null ? targetLookup.apply(id) : Optional.empty();
+            if (found.isPresent() && found.get().isEnabled()) {
+                logger.info("Webhook notification for job {} blocked by policy: {}", event.jobId(), reason);
+                record(event, found.get(), JobRunStatus.BLOCKED, BLOCKED_BY_POLICY, reason.journalText());
+            }
+        }
+    }
+
+    /**
+     * Whether the policy stops a webhook to {@code uri}; empty when it may be sent. A missing policy
+     * counts as unrestricted. Every send asks, the "Send test" button included.
+     */
+    public static Optional<PolicyBlock> policyBlock(EffectivePolicy policy, URI uri) {
+        EffectivePolicy effective = policy != null ? policy : EffectivePolicy.unrestricted();
+        if (!effective.jobWebhooksAllowed()) {
+            return Optional.of(PolicyBlock.FEATURE_DENIED);
+        }
+        String host = uri != null ? uri.getHost() : null;
+        if (!effective.webhookHostAllowlist().allows(host)) {
+            return Optional.of(PolicyBlock.HOST_NOT_ALLOWED);
+        }
+        return Optional.empty();
+    }
+
+    /**
      * Delivers the run to one target on the calling thread and journals a skip or failure; for the
      * sender's executor (and tests) only.
      *
@@ -85,10 +150,25 @@ public final class JobWebhookNotifier {
             return Optional.empty();
         }
         WebhookTarget target = found.get();
+        if (!currentPolicy().jobWebhooksAllowed()) {
+            logger.info("Webhook notification for job {} blocked by policy: {}", event.jobId(),
+                PolicyBlock.FEATURE_DENIED);
+            record(event, target, JobRunStatus.BLOCKED, BLOCKED_BY_POLICY, PolicyBlock.FEATURE_DENIED.journalText());
+            return Optional.empty();
+        }
         WebhookTargetSecrets.Resolution resolution = secrets.resolve(target, masterPassword.get());
         if (!resolution.resolved()) {
             logger.info("Webhook notification for job {} skipped: {}", event.jobId(), resolution.skipReason());
             record(event, target, JobRunStatus.BLOCKED, resolution.journalText(), null);
+            return Optional.empty();
+        }
+        Optional<PolicyBlock> block = policyBlock(currentPolicy(), resolution.uri());
+        if (block.isPresent()) {
+            String host = WebhookSender.host(resolution.uri());
+            logger.info("Webhook notification for job {} to host {} blocked by policy: {}", event.jobId(), host,
+                block.get());
+            record(event, target, JobRunStatus.BLOCKED, BLOCKED_BY_POLICY,
+                "Host: " + host + " · " + block.get().journalText());
             return Optional.empty();
         }
         String payload = formatter.format(target, event, null);
@@ -100,6 +180,11 @@ public final class JobWebhookNotifier {
                 result.outcome() == WebhookSender.Outcome.DROPPED ? DROPPED_DELIVERY : FAILED_DELIVERY, detail);
         }
         return Optional.of(result);
+    }
+
+    private EffectivePolicy currentPolicy() {
+        EffectivePolicy current = policy.get();
+        return current != null ? current : EffectivePolicy.unrestricted();
     }
 
     private void record(JobRunEvent event, WebhookTarget target, JobRunStatus status, String summary, String extra) {
