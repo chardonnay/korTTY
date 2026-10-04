@@ -409,6 +409,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="shell-integration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Shell-Integration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="terminal-notifications.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal-Benachrichtigungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="highlighting.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -777,7 +793,7 @@
 <p>korTTY erkennt, wenn ein terminalbasierter Coding-Agent – <strong>Claude Code</strong>, <strong>Codex</strong> oder <strong>Gemini CLI</strong> – innerhalb eines Ihrer <a href="terminal.html#lokale-shell-registerkarten">lokalen Shell-Tabs</a> läuft und verfolgt, was er derzeit tut: Arbeitet, wartet auf Ihre Antwort, ist abgeschlossen oder sitzt untätig an seinem Prompt. Die Analyse erfolgt vollständig innerhalb von korTTY auf Ihrem eigenen Gerät. Was gefunden wird, wird überall angezeigt: als Symbol im Tab-Titel, als Chips und Akzente im Dashboard, in einem anziehbaren <strong>Coding-Agents</strong>-Panel mit schnellen Antworten und einem Prompt-Feld, als Balken in der Statusleiste, als Zähler auf der App-Icon und, wenn Sie den Pane nicht betrachten, als Desktop-Benachrichtigung. Diese Seite erklärt, was erkannt wird, wie jede dieser Oberflächen funktioniert, wie die Funktionen deaktiviert werden können und wie die Bildschirmregeln angepasst oder erweitert werden können, wenn ein Agent seine Benutzeroberfläche ändert.</p>
 <p><img alt="Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier" src="../assets/diagrams/coding-agents.svg" /></p>
 <h2 id="was-erkannt-wird">Was erkannt wird<a class="headerlink" href="#was-erkannt-wird" title="Permanent link">&para;</a></h2>
-<p>Die Erkennung umfasst die drei unten aufgeführten Agents, gestartet aus einer <strong>Lokale Shell</strong>-Registerkarte – direkt, über einen Paketmanager-Wrapper wie <code>npx</code> oder als <code>node</code>-, <code>bun</code>- oder <code>deno</code>-Skript. SSH- und Mosh-Registerkarten werden nicht analysiert, weil der Agent dort auf dem entfernten Rechner läuft und korTTY seinen Prozess nicht sehen kann.</p>
+<p>Die Erkennung umfasst die drei unten aufgeführten Agents, gestartet aus einer <strong>Lokale Shell</strong>-Registerkarte – direkt, über einen Paketmanager-Wrapper wie <code>npx</code> oder als <code>node</code>-, <code>bun</code>- oder <code>deno</code>-Skript. SSH- und Mosh-Registerkarten werden nicht analysiert, weil der Agent dort auf dem entfernten Rechner läuft und korTTY seinen Prozess nicht sehen kann; ein Agent auf einem Server kann Ihnen trotzdem mit einer Terminal-Benachrichtigung mitteilen, dass er auf Sie wartet, siehe <a href="terminal-notifications.html#benachrichtigungen-von-programmen">Benachrichtigungen von Programmen</a>.</p>
 <table>
 <thead>
 <tr>

@@ -409,6 +409,22 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/shell-integration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Shell integration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../features/terminal-notifications.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal notifications
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/highlighting.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -1565,7 +1581,7 @@ at an internal endpoint.</p>
 </table>
 <h2 id="internal-clipboard-mode">Internal clipboard mode<a class="headerlink" href="#internal-clipboard-mode" title="Permanent link">&para;</a></h2>
 <p>With <code>clipboard-mode = "internal"</code> korTTY detaches from the operating system clipboard entirely and uses its own in-memory clipboard instead: text copied in another application cannot be pasted anywhere in korTTY, and text copied in korTTY never reaches the OS clipboard — while copy, cut and paste <em>within</em> korTTY keep working everywhere, because terminals, SFTP views, the snippet editor and all dialogs share the same internal buffer. Because this is pure application logic and no OS clipboard isolation API is involved, it behaves identically on macOS, Windows and Linux, including the X11 primary selection (middle-click paste): pasting middle-click content from other applications is blocked, middle-click paste of korTTY-internal copies keeps working.</p>
-<p>The mode covers the terminal (shortcuts, context menu, middle-click, and text dropped onto it from another application, which is refused), the code editor, all copy buttons, the <code>${clipboard}</code> snippet variable, and the copy/cut/paste shortcuts of plain input fields. Copying images (AI-generated pictures, diagram exports) is unavailable in internal mode, since an image can only be shared via the OS clipboard.</p>
+<p>The mode covers the terminal (shortcuts, context menu, middle-click, text dropped onto it from another application, which is refused, and text that a program in the terminal copies with OSC 52 where <em>Settings → Terminal</em> allows it, which lands in the internal clipboard only), the code editor, all copy buttons, the <code>${clipboard}</code> snippet variable, and the copy/cut/paste shortcuts of plain input fields. Copying images (AI-generated pictures, diagram exports) is unavailable in internal mode, since an image can only be shared via the OS clipboard.</p>
 <div class="admonition note">
 <p class="admonition-title">Scope</p>
 <p>The internal clipboard is a policy tool against casual data transfer through the clipboard, not a hard air gap: a user can still read text on screen. The right-click <em>Paste</em> entry of plain text fields is provided by the UI toolkit and may still access the OS clipboard — the keyboard shortcut and every korTTY-provided menu are covered.</p>
