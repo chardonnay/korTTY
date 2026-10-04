@@ -49,8 +49,9 @@ class HighlightConnectionWiringTest {
         String baseCopy = region(source("QuickConnectDialog.java"), "private ServerConnection baseCopyOf(", "\n    }\n");
         assertThat(baseCopy).contains("modified.setHighlightRuleSetId(selected.getHighlightRuleSetId());");
 
+        // copyForImport carries highlightRuleSetId; ServerConnectionCopyPolicyTest pins that.
         assertThat(source("ConnectionManagerDialog.java"))
-            .contains("imported.setHighlightRuleSetId(conn.getHighlightRuleSetId());");
+            .contains("ServerConnection imported = ServerConnection.copyForImport(conn,");
     }
 
     @Test
