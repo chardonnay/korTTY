@@ -240,7 +240,9 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         // A connection dragged into another folder takes that folder's color in its open tabs.
         treeView.setOnConnectionsMoved(MainWindow::refreshConnectionColorsInAllWindows);
         
-        // Teamwork tree: no group ops, same connect/edit/delete/export
+        // Teamwork tree: connect, export and delete (hide) only. Teamwork connections are read-only, as
+        // korTTY never writes back to a source: no edit, no group ops, no dragging into another folder.
+        teamworkTreeView.setReadOnlyConnections(true);
         teamworkTreeView.setOnDoubleClick(() -> {
             List<ServerConnection> selected = teamworkTreeView.getSelectedConnections();
             if (!selected.isEmpty()) {
@@ -248,7 +250,6 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 close();
             }
         });
-        teamworkTreeView.setOnEditConnection(this::editConnection);
         teamworkTreeView.setOnExportConnections(this::exportConnections);
         teamworkTreeView.setOnDeleteConnections(this::deleteConnections);
         
@@ -482,7 +483,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         boolean canExport = hasConnections || (local && hasSingleGroup);
         
         addButton.setDisable(!local);
-        editButton.setDisable(!hasSingleConnection);
+        editButton.setDisable(!local || !hasSingleConnection);
         deleteButton.setDisable(!hasConnections);
         duplicateButton.setDisable(!local || !hasSingleConnection);
         exportButton.setDisable(!canExport);
@@ -686,17 +687,41 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
     
     private void editConnection(ServerConnection connection) {
         ServerConnection selected = connection != null ? connection : getSelectedConnection();
-        if (selected != null && !selected.isPlaceholder()) {
-            ConnectionEditDialog dialog = new ConnectionEditDialog(owner, selected, credentialManager, 
-                app.getSSHKeyManager(), masterPassword);
-            dialog.showAndWait().ifPresent(editedConnection -> {
-                int index = connections.indexOf(selected);
-                connections.set(index, editedConnection);
-                configManager.updateConnection(editedConnection);
-                treeView.refreshTree();
-                saveConnections();
-            });
+        // The editor writes the form into the object it is given, so only a local connection may reach it:
+        // a teamwork connection is the live copy of a shared source that korTTY never writes back to.
+        if (localEditIndex(connections, selected) < 0) {
+            return;
         }
+        ConnectionEditDialog dialog = new ConnectionEditDialog(owner, selected, credentialManager, 
+            app.getSSHKeyManager(), masterPassword);
+        dialog.showAndWait().ifPresent(editedConnection -> {
+            int index = localEditIndex(connections, selected);
+            if (index < 0) {
+                return;
+            }
+            connections.set(index, editedConnection);
+            configManager.updateConnection(editedConnection);
+            treeView.refreshTree();
+            saveConnections();
+        });
+    }
+
+    /**
+     * Where {@code connection} sits in the Connection Manager's own (local) list, or -1 when it cannot be
+     * edited there: null, a placeholder, or any object that is not in that list, such as a teamwork
+     * connection. Looked up by identity, as {@code indexOf} matches by id and a teamwork connection can carry
+     * the id of a local one, which it would then replace.
+     */
+    static int localEditIndex(List<ServerConnection> localConnections, ServerConnection connection) {
+        if (connection == null || connection.isPlaceholder()) {
+            return -1;
+        }
+        for (int i = 0; i < localConnections.size(); i++) {
+            if (localConnections.get(i) == connection) {
+                return i;
+            }
+        }
+        return -1;
     }
     
     private void deleteConnection() {
