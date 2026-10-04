@@ -689,6 +689,15 @@ public class SFTPSession {
     }
     
     /**
+     * A runner for exec-channel commands on this session (sudo with a nonce-driven password, stdin
+     * data, timeout, output cap and cancel). It resolves the session at run time, so it keeps
+     * working across a reconnect of this object and fails cleanly while disconnected.
+     */
+    public de.kortty.core.remote.RemoteCommandRunner commandRunner() {
+        return new de.kortty.core.remote.RemoteCommandRunner(() -> session);
+    }
+
+    /**
      * Executes a shell command on the remote server.
      * @param command The command to execute
      * @return The command output

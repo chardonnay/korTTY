@@ -8,6 +8,8 @@ import de.kortty.core.SFTPSession;
 import de.kortty.core.SftpFileTransferService;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetManager;
+import de.kortty.core.remote.RemoteArchiveCommands;
+import de.kortty.core.remote.RemoteShell;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
 import de.kortty.model.SessionState;
@@ -3079,11 +3081,12 @@ public class SFTPManagerTab extends Tab {
         permissionsField.setPromptText("644");
         grid.add(permissionsField, 1, row++);
         
-        // Password (optional) - only for ZIP and 7z
+        // No password: zip/7z would need it on the command line (visible in ps) or on a terminal.
         grid.add(new Label(I18n.get("sftp.archive.password")), 0, row);
-        PasswordField passwordField = new PasswordField();
-        passwordField.setPromptText(I18n.get("sftp.archive.passwordPrompt"));
-        grid.add(passwordField, 1, row++);
+        Label passwordUnsupported = new Label(I18n.get("sftp.archive.passwordUnsupportedRemote"));
+        passwordUnsupported.setWrapText(true);
+        passwordUnsupported.setMaxWidth(350);
+        grid.add(passwordUnsupported, 1, row++);
         
         // Exclude (optional) - patterns to exclude from archive
         grid.add(new Label(I18n.get("sftp.archive.exclude")), 0, row);
@@ -3106,13 +3109,6 @@ public class SFTPManagerTab extends Tab {
                 }
             }
             pathField.setText(currentPath + getSelectedFormat.get().getExtension());
-            
-            // Disable password for tar.bz2
-            ArchiveFormat selectedFmt = getSelectedFormat.get();
-            passwordField.setDisable(selectedFmt == ArchiveFormat.TAR_BZ2);
-            if (selectedFmt == ArchiveFormat.TAR_BZ2) {
-                passwordField.clear();
-            }
         });
         
         // Separator
@@ -3176,7 +3172,6 @@ public class SFTPManagerTab extends Tab {
                 
                 String owner = ownerField.getText().trim();
                 String permissions = permissionsField.getText().trim();
-                String password = passwordField.getText();
                 List<String> excludePatterns = java.util.Arrays.stream(excludeField.getText().split("\n"))
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
@@ -3189,7 +3184,6 @@ public class SFTPManagerTab extends Tab {
                 compressionCombo.setDisable(true);
                 ownerField.setDisable(true);
                 permissionsField.setDisable(true);
-                passwordField.setDisable(true);
                 excludeField.setDisable(true);
                 
                 // Show progress
@@ -3200,7 +3194,7 @@ public class SFTPManagerTab extends Tab {
                 
                 // Create archive in background
                 executeRemoteArchiveCreation(dialog, filesToArchive, archivePath, format, compression, 
-                        owner, permissions, password, excludePatterns, progressLabel, progressBar, timeLabel, sizeLabel);
+                        owner, permissions, excludePatterns, progressLabel, progressBar, timeLabel, sizeLabel);
             }
             return null;
         });
@@ -3210,7 +3204,7 @@ public class SFTPManagerTab extends Tab {
     
     private void executeRemoteArchiveCreation(Dialog<Void> dialog, List<String> filesToArchive, String archivePath,
                                               ArchiveFormat format, int compression, String owner, String permissions, 
-                                              String password, List<String> excludePatterns,
+                                              List<String> excludePatterns,
                                               Label progressLabel, ProgressBar progressBar, 
                                               Label timeLabel, Label sizeLabel) {
         long startTime = System.currentTimeMillis();
@@ -3238,15 +3232,12 @@ public class SFTPManagerTab extends Tab {
                 if (session == null) {
                     throw new IOException(I18n.get("sftp.notConnected"));
                 }
-                // Build the archive command based on format
-                String archiveCommand = buildArchiveCommand(filesToArchive, archivePath, format, compression, password, excludePatterns);
+                // Build the archive command based on format (never with a password: see RemoteArchiveCommands)
+                String archiveCommand = RemoteArchiveCommands.build(toRemoteArchiveFormat(format), filesToArchive,
+                    archivePath, compression, excludePatterns);
 
-                // Log archive metadata instead of the command line: any buildArchiveCommand result
-                // can embed the archive password, and the old regex masks were bypassable via
-                // quote-escaping ('\'') — CodeQL java/sensitive-log.
-                logger.info("Executing remote archive command: format={} target={} files={} passwordProtected={}",
-                    format, archivePath, filesToArchive.size(),
-                    password != null && !password.isEmpty());
+                logger.info("Executing remote archive command: format={} target={} files={}",
+                    format, archivePath, filesToArchive.size());
                 
                 Platform.runLater(() -> progressLabel.setText(I18n.get("sftp.archive.creating")));
                 
@@ -3277,7 +3268,7 @@ public class SFTPManagerTab extends Tab {
                 
                 // Set owner if specified
                 if (owner != null && !owner.isEmpty()) {
-                    String chownCmd = "chown '" + owner.replace("'", "'\\''") + "' '" + archivePath.replace("'", "'\\''") + "'";
+                    String chownCmd = "chown " + RemoteShell.quote(owner) + " " + RemoteArchiveCommands.pathArgument(archivePath);
                     try {
                         session.executeCommand(chownCmd);
                     } catch (Exception e) {
@@ -3288,7 +3279,7 @@ public class SFTPManagerTab extends Tab {
                 // Set permissions if specified (validated in the dialog; re-checked before the shell sees it)
                 if (permissions != null && !permissions.isEmpty()
                         && LocalFileBrowser.isValidOctalPermissions(permissions)) {
-                    String chmodCmd = "chmod " + permissions + " '" + archivePath.replace("'", "'\\''") + "'";
+                    String chmodCmd = "chmod " + permissions + " " + RemoteArchiveCommands.pathArgument(archivePath);
                     try {
                         session.executeCommand(chmodCmd);
                     } catch (Exception e) {
@@ -3297,7 +3288,8 @@ public class SFTPManagerTab extends Tab {
                 }
                 
                 // Get actual file size and duration
-                String sizeCmd = "stat -c%s '" + archivePath.replace("'", "'\\''") + "' 2>/dev/null || stat -f%z '" + archivePath.replace("'", "'\\''") + "'";
+                String quotedArchive = RemoteArchiveCommands.pathArgument(archivePath);
+                String sizeCmd = "stat -c%s " + quotedArchive + " 2>/dev/null || stat -f%z " + quotedArchive;
                 String actualSize = "";
                 long actualSizeBytes = 0;
                 try {
@@ -3361,61 +3353,14 @@ public class SFTPManagerTab extends Tab {
         }, "Remote-Archive-Creator").start();
     }
     
-    private String buildArchiveCommand(List<String> files, String archivePath, ArchiveFormat format, int compression, String password, List<String> excludePatterns) {
-        StringBuilder cmd = new StringBuilder();
-        String escapedPath = archivePath.replace("'", "'\\''");
-        List<String> exclude = excludePatterns != null ? excludePatterns : List.of();
-        
-        switch (format) {
-            case ZIP:
-                if (password != null && !password.isEmpty()) {
-                    cmd.append("zip -r -").append(compression)
-                       .append(" -P '").append(password.replace("'", "'\\''")).append("' ");
-                } else {
-                    cmd.append("zip -r -").append(compression).append(" ");
-                }
-                cmd.append("'").append(escapedPath).append("' ");
-                for (String pattern : exclude) {
-                    cmd.append("-x '").append(pattern.replace("'", "'\\''")).append("' ");
-                }
-                for (String file : files) {
-                    cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
-                }
-                break;
-                
-            case TAR_BZ2:
-                // tar with bzip2 compression
-                // -j = bzip2, compression level via BZIP2 env var
-                cmd.append("BZIP2=-").append(compression).append(" tar -cjf '")
-                   .append(escapedPath).append("' ");
-                for (String pattern : exclude) {
-                    cmd.append("--exclude='").append(pattern.replace("'", "'\\''")).append("' ");
-                }
-                for (String file : files) {
-                    cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
-                }
-                break;
-                
-            case SEVEN_ZIP:
-                // 7z archive - try 7z first, then 7za (p7zip uses 7za on some systems)
-                // -mx=compression level, -p for password, -x! for exclude
-                cmd.append("$(command -v 7z || command -v 7za) a -mx=").append(compression);
-                if (password != null && !password.isEmpty()) {
-                    cmd.append(" -p'").append(password.replace("'", "'\\''")).append("' -mhe=on");
-                }
-                for (String pattern : exclude) {
-                    cmd.append(" -x!'").append(pattern.replace("'", "'\\''")).append("'");
-                }
-                cmd.append(" '").append(escapedPath).append("' ");
-                for (String file : files) {
-                    cmd.append("'").append(file.replace("'", "'\\''")).append("' ");
-                }
-                break;
-        }
-        
-        return cmd.toString().trim();
+    private static RemoteArchiveCommands.Format toRemoteArchiveFormat(ArchiveFormat format) {
+        return switch (format) {
+            case ZIP -> RemoteArchiveCommands.Format.ZIP;
+            case TAR_BZ2 -> RemoteArchiveCommands.Format.TAR_BZ2;
+            case SEVEN_ZIP -> RemoteArchiveCommands.Format.SEVEN_ZIP;
+        };
     }
-    
+
     private String formatSize(long bytes) {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
