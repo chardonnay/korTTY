@@ -49,6 +49,7 @@ Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von 
 | Importieren… | Verbindungen von anderen Clients importieren |
 | Export… | Exportverbindungen |
 | SFTP-Client… | Öffnen Sie den Dual-Panel-SFTP-Dateimanager |
+| SFTP hier öffnen | Öffnen Sie den SFTP-Dateimanager über die eigene SSH-Sitzung des fokussierten Terminalbereichs, in dem Ordner, in dem sich dessen Shell befindet |
 
 ## Sicherheit
 
@@ -145,6 +146,8 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 | Coding-Agents ▸ Links andocken / Rechts andocken | | Das [Coding-Agents-Komponente](../features/coding-agents.md#das-coding-agents-panel) neben dem Terminal anordnen; die Aktivierung einer Seite verdeckt sie |
 | Coding-Agents ▸ Ein-/Ausblenden | ++ctrl+alt+g++ | Blenden Sie das Coding-Agents-Panel auf seiner zuletzt verwendeten Seite ein oder aus (standardmäßig rechts) |
 | Coding-Agents ▸ Nächster wartender Agent | ++ctrl+alt+n++ | Holen Sie den nächsten Coding-Agent, der auf eine Entscheidung wartet, über Fenster hinweg nach vorne |
+| Seitenleiste Remote-Dateien ▸ Links andocken / Rechts andocken | | Die [Seitenleiste Remote-Dateien](../features/terminal.md#seitenleiste-remote-dateien) neben den Bereichen jedes Terminal-Tabs andocken; das Abwählen der aktiven Seite blendet sie aus. Verfügbar, solange der aktive Tab einen SSH-Bereich hat oder die Seitenleiste eingeschaltet ist |
+| Seitenleiste Remote-Dateien ▸ Seitenleiste Remote-Dateien ein-/ausblenden | | Die Seitenleiste Remote-Dateien rechts einblenden oder ausblenden; beim Ausblenden wird zuerst nachgefragt, solange Übertragungen der Seitenleiste laufen |
 
 ## Teamarbeit
 

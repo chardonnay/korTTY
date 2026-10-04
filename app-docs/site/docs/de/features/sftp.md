@@ -10,10 +10,23 @@ Der integrierte SFTP-Manager bietet einen grafischen Dateimanager zum Übertrage
 
 Sie können den SFTP-Manager auf zwei Arten öffnen:
 
-- **Menü:** *Verbindungen → SFTP-Client...* (++ctrl+shift+u++, unter macOS ++cmd+shift+u++). Mit einem verbundenen Terminal-Tab vor sich öffnet es für den Server dieses Tabs; andernfalls wählen Sie zuerst eine Verbindung.
+- **Menü:** *Verbindungen → SFTP-Client...* (++ctrl+shift+u++, unter macOS ++cmd+shift+u++). Ist ein verbundener Terminal-Tab im Vordergrund, öffnet er sich auf dem fokussierten Bereich dieses Tabs, wie bei **SFTP hier öffnen**; andernfalls wählen Sie zuerst eine Verbindung aus.
+- **Aus einem Terminal:** *Verbindungen → SFTP hier öffnen*, **SFTP hier öffnen** im Rechtsklickmenü eines Terminal-Tabs oder **SFTP hier öffnen** im Rechtsklickmenü eines Bereichs. Auch die Befehlspalette findet den Befehl. Siehe [Aus einem Terminal-Tab öffnen](#aus-einem-terminal-tab-offnen).
 - **Dashboard:** Rechtsklick auf eine verbundene Sitzung > **SFTP-Client...**
 
 Wenn die Verbindung einen temporären SSH-Schlüssel verwendet, der abgelaufen ist, werden Sie aufgefordert, einen neuen Schlüssel einzugeben, bevor die Verbindung fortgesetzt werden kann.
+
+## Aus einem Terminal-Tab öffnen
+
+**SFTP hier öffnen** öffnet den SFTP-Manager über die SSH-Sitzung, die der Terminalbereich bereits hat, sodass keine zweite Anmeldung nötig ist: keine zweite Passwort- oder MFA-Abfrage, kein zweiter Sprung über einen Jump-Server und keine erneute Abfrage des CyberArk-Zugriffsgrunds. Verwendet wird der Bereich, in dem Sie tippen (oder der Bereich, den Sie mit der rechten Maustaste angeklickt haben), und in einem geteilten Tab, dessen Bereich eine andere Verbindung ausführt, öffnet er sich als Benutzer und Server dieses Bereichs, nicht als die des Tabs.
+
+Die Serverseite startet in dem Ordner, in dem sich die Shell befindet: dem Ordner, den die Shell meldet (OSC 7 oder der korTTY-Agent-Hook), sonst dem im Prompt angezeigten Ordner, sonst dem Ordner Ihres letzten `cd`. `~` und relative Ordner werden relativ zu Ihrem Home-Ordner aufgelöst. Existiert dieser Ordner nicht mehr, wird der Anmeldeordner angezeigt, und die Statusleiste weist darauf hin. In zwei Fällen startet er absichtlich im Anmeldeordner, mit einem Hinweis in der Statusleiste: bei einem Bereich, in dem eine andere Sitzung aktiv ist (nach `su`, `sudo -i` oder einem verschachtelten `ssh`), weil dessen Ordner einem anderen Benutzer oder Host gehört, und bei einer Verbindung mit einem Shell-Startbefehl, der vor dem ersten Prompt den Benutzer wechseln kann.
+
+Jeder Bereich erhält einen eigenen SFTP-Tab, sodass sich zwei Bereiche desselben Servers nebeneinander durchsuchen lassen; wählen Sie für denselben Bereich erneut **SFTP hier öffnen**, wird dessen Tab ausgewählt. Einen Tab, der über *Verbindungen → SFTP-Client...* mit einer ausgewählten Verbindung geöffnet wurde, gibt es weiterhin einmal pro Verbindung, und die beiden Arten ersetzen einander nie.
+
+Ein solcher Tab kopiert höchstens zwei Dateien gleichzeitig, auch wenn *Einstellungen → SFTP-Manager* mehr erlaubt, damit das Terminal auf derselben Sitzung reaktionsfähig bleibt. Das Schließen des Tabs schließt nie das Terminal. Endet die Sitzung des Terminals, wird der Bereich geschlossen oder läuft darin inzwischen ein anderer Benutzer oder Host, zeigt der Tab **Getrennt** mit **Neu verbinden**, das die Sitzung des Bereichs wieder verwendet, sobald sie zurück ist, und **Eigene Anmeldung**, das den Tab schließt und einen Tab mit eigener Anmeldung für die Verbindung des Bereichs öffnet.
+
+Hat der Bereich keine SSH-Sitzung, die er teilen kann (ein Mosh- oder lokaler Shell-Tab), oder verweigert der Server oder ein Proxy SFTP darüber, öffnet korTTY stattdessen wie bisher einen SFTP-Tab mit eigener Anmeldung für die Verbindung des Bereichs. Ein gespeichertes [Projekt](projects.md#sftp-manager-tabs) stellt einen solchen Tab als gewöhnlichen SFTP-Tab mit eigener Anmeldung wieder her, in den Ordnern, in denen er sich befand.
 
 ## Schnittstelle
 
@@ -176,7 +189,7 @@ Ein Upload oder Download ersetzt nie stillschweigend eine vorhandene Datei. Enth
 
 ### Wenn Ihre Organisation die Dateiübertragung abgeschaltet hat
 
-Eine Organisation kann die Dateiübertragung mit ihrer [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulefeatures) abschalten (`file-transfer = "deny"`). Der SFTP-Manager öffnet und durchsucht den Server dann weiterhin, und Umbenennen, Löschen, Berechtigungen, Archive, Suche und Kopieren auf dem Server funktionieren weiter, aber **Hochladen**, **Herunterladen** und **Wiederholen** in der Übertragungsliste sind ausgegraut, das Ziehen von Dateien auf das Server-Panel oder von Serverdateien auf das lokale Panel wird nicht angenommen (der Mauszeiger zeigt kein Kopiersymbol), und Remote-Dateien lassen sich nicht auf den Desktop ziehen. Dateien vom Desktop können weiterhin auf dem lokalen Panel abgelegt werden. JobScheduler-Jobs, die per SFTP hochladen, herunterladen oder synchronisieren, sowie rsync-Jobs schlagen mit derselben Meldung fehl, ohne eine Verbindung aufzubauen. Befehle wie `scp`, die in ein Terminal eingegeben werden, sind davon nicht betroffen.
+Eine Organisation kann die Dateiübertragung mit ihrer [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulefeatures) abschalten (`file-transfer = "deny"`). Der SFTP-Manager öffnet und durchsucht den Server dann weiterhin, und Umbenennen, Löschen, Berechtigungen, Archive, Suche und Kopieren auf dem Server funktionieren weiter, aber **Hochladen**, **Herunterladen** und **Wiederholen** in der Übertragungsliste sind ausgegraut, das Ziehen von Dateien auf das Server-Panel oder von Serverdateien auf das lokale Panel wird nicht angenommen (der Mauszeiger zeigt kein Kopiersymbol), und Remote-Dateien lassen sich nicht auf den Desktop ziehen. Dateien vom Desktop können weiterhin auf dem lokalen Panel abgelegt werden. Das Ablegen von Dateien auf einem Terminalbereich wird ebenso schon beim Ziehen abgelehnt, und **Als Datei(en) ins Terminal-Verzeichnis kopieren** und **Ordner ins Terminal-Verzeichnis kopieren** im Snippet-Manager sind für SSH-Tabs ausgegraut. **SFTP hier öffnen** öffnet den SFTP-Manager weiterhin zum Durchsuchen. JobScheduler-Jobs, die per SFTP hochladen, herunterladen oder synchronisieren, sowie rsync-Jobs schlagen mit derselben Meldung fehl, ohne eine Verbindung aufzubauen. Befehle wie `scp`, die in ein Terminal eingegeben werden, sind davon nicht betroffen.
 
 ### Berechtigungen
 
