@@ -81,6 +81,8 @@ public class SshTtyConnector implements ObservableTtyConnector, de.kortty.isolat
     private volatile de.kortty.core.worker.SessionWorkerProcess worker;
     /** The sandboxed worker's own folder; deleted with the connector. */
     private volatile java.nio.file.Path sandboxSessionDirectory;
+    /** korTTY's relay for a worker without a network of its own (the Linux sandbox), or null. */
+    private volatile de.kortty.core.worker.NetworkRelay networkRelay;
     /** The key pairs a worker signs with, loaded once per attempt; never sent to the worker. */
     private volatile java.util.List<java.security.KeyPair> workerKeyPairs = java.util.List.of();
     private volatile java.util.List<java.security.KeyPair> workerJumpKeyPairs = java.util.List.of();
@@ -534,6 +536,17 @@ public class SshTtyConnector implements ObservableTtyConnector, de.kortty.isolat
             throw new ConnectionConfigurationException(e.getMessage(), e);
         }
         sandboxSessionDirectory = prepared.sessionDirectory();
+        if (prepared.networkRelay()) {
+            // No network of its own: korTTY connects the worker to this connection's servers, and only to them.
+            java.util.Set<de.kortty.core.worker.NetworkRelay.Destination> allowed = new java.util.HashSet<>();
+            allowed.add(new de.kortty.core.worker.NetworkRelay.Destination(init.host, init.port));
+            if (init.jump != null) {
+                allowed.add(new de.kortty.core.worker.NetworkRelay.Destination(init.jump.host, init.jump.port));
+            }
+            networkRelay = new de.kortty.core.worker.NetworkRelay(prepared.sessionDirectory(), allowed, null);
+            networkRelay.start();
+            init.netnsFolder = prepared.sessionDirectory().toString();
+        }
         de.kortty.core.worker.SessionWorkerProcess started = de.kortty.core.worker.SessionWorkerProcess.start(
             prepared.command(), prepared.environment(), init, this::handleWorkerRequest, connection.getHost());
         worker = started;
@@ -562,7 +575,8 @@ public class SshTtyConnector implements ObservableTtyConnector, de.kortty.isolat
         client.setServerKeyVerifier((clientSession, address, key) ->
             org.apache.sshd.common.config.keys.KeyUtils.compareKeys(workerKey, key));
         client.start();
-        ClientSession workerSession = client.connect("kortty", "127.0.0.1", ready.port())
+        int endpointPort = networkRelay != null ? networkRelay.endpointPort() : ready.port();
+        ClientSession workerSession = client.connect("kortty", "127.0.0.1", endpointPort)
             .verify(Duration.ofSeconds(15)).getSession();
         workerSession.setKeyIdentityProvider(null);
         workerSession.addPasswordIdentity(init.token);
@@ -1111,6 +1125,11 @@ public class SshTtyConnector implements ObservableTtyConnector, de.kortty.isolat
             de.kortty.core.worker.SessionWorkerProcess current = worker;
             if (current != null) {
                 current.close();
+            }
+            de.kortty.core.worker.NetworkRelay relay = networkRelay;
+            networkRelay = null;
+            if (relay != null) {
+                relay.close();
             }
             de.kortty.isolation.sandbox.SandboxSupport.deleteSessionDirectory(sandboxSessionDirectory);
             sandboxSessionDirectory = null;

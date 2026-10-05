@@ -19,6 +19,14 @@ public interface SandboxBackend {
         return false;
     }
 
+    /**
+     * Whether this backend limits the network by giving the process none of its own: it then needs
+     * korTTY to relay the connections it may make ({@code de.kortty.core.worker.NetworkRelay}).
+     */
+    default boolean needsNetworkRelay() {
+        return false;
+    }
+
     /** The command that starts {@code command} inside the sandbox {@code spec} describes. */
     List<String> wrap(List<String> command, SandboxSpec spec);
 }

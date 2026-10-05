@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.time.Duration;
@@ -114,10 +115,11 @@ public final class SessionWorkerMain {
         endpoint.start();
         endpoint.ended().thenRun(done::countDown);
 
+        IsolatedNetwork network = init.netnsFolder != null ? new IsolatedNetwork(Path.of(init.netnsFolder)) : null;
         if ("mosh".equals(init.mode)) {
-            return runMosh(init, endpoint, done);
+            return runMosh(init, endpoint, done, network);
         }
-        Upstream upstream = new Upstream(init, endpoint);
+        Upstream upstream = new Upstream(init, endpoint, network);
         try {
             upstream.connect();
         } catch (ConnectFailure failure) {
@@ -132,6 +134,9 @@ public final class SessionWorkerMain {
         }
 
         SshServer server = startEndpoint(init, upstream, done);
+        if (network != null) {
+            network.serveEndpoint(server.getPort());
+        }
         JsonObject ready = new JsonObject();
         ready.addProperty("type", "ready");
         ready.addProperty("port", server.getPort());
@@ -163,7 +168,8 @@ public final class SessionWorkerMain {
      * The Mosh mode: no SSH upstream; korTTY's terminal channel on the loopback endpoint runs a
      * built-in Mosh session to the server mosh-server was started on.
      */
-    private static int runMosh(WorkerInit init, WorkerEndpoint endpoint, CountDownLatch done) throws Exception {
+    private static int runMosh(WorkerInit init, WorkerEndpoint endpoint, CountDownLatch done, IsolatedNetwork network)
+            throws Exception {
         if (init.moshKey == null || init.moshPort <= 0 || init.moshClasspath == null || init.moshClasspath.isEmpty()) {
             logger.error("Unusable Mosh init from korTTY");
             endpoint.close();
@@ -171,9 +177,12 @@ public final class SessionWorkerMain {
         }
         SshServer server = SshServer.setUpDefaultServer();
         configureEndpoint(server, init, done);
-        server.setShellFactory(channel -> new MoshShellCommand(init, endpoint));
+        server.setShellFactory(channel -> new MoshShellCommand(init, endpoint, network));
         server.setChannelFactories(List.of(ChannelSessionFactory.INSTANCE));
         server.start();
+        if (network != null) {
+            network.serveEndpoint(server.getPort());
+        }
         JsonObject ready = new JsonObject();
         ready.addProperty("type", "ready");
         ready.addProperty("port", server.getPort());
@@ -286,6 +295,8 @@ public final class SessionWorkerMain {
 
         private final WorkerInit init;
         private final WorkerEndpoint endpoint;
+        /** Where connections go in the Linux sandbox, or null to connect directly. */
+        private final IsolatedNetwork network;
         private final AtomicLong inboundBytes = new AtomicLong();
         private final AtomicBoolean hostKeyRejected = new AtomicBoolean();
         private SshClient client;
@@ -293,9 +304,10 @@ public final class SessionWorkerMain {
         private ClientSession jumpSession;
         volatile ClientSession session;
 
-        Upstream(WorkerInit init, WorkerEndpoint endpoint) {
+        Upstream(WorkerInit init, WorkerEndpoint endpoint, IsolatedNetwork network) {
             this.init = init;
             this.endpoint = endpoint;
+            this.network = network;
         }
 
         void connect() throws ConnectFailure {
@@ -303,6 +315,11 @@ public final class SessionWorkerMain {
             String connectHost = init.host;
             int connectPort = init.port;
             try {
+                if (init.jump == null && network != null) {
+                    java.net.InetSocketAddress via = network.tcpVia(init.host, init.port);
+                    connectHost = via.getHostString();
+                    connectPort = via.getPort();
+                }
                 if (init.jump != null) {
                     SshdSocketAddress local = openJump(timeout);
                     connectHost = local.getHostName();
@@ -336,8 +353,15 @@ public final class SessionWorkerMain {
             WorkerInit.Jump jump = init.jump;
             jumpClient = newClient("jump", jump.host, jump.port, "key".equals(jump.auth), false);
             jumpClient.start();
+            String jumpHost = jump.host;
+            int jumpPort = jump.port;
+            if (network != null) {
+                java.net.InetSocketAddress via = network.tcpVia(jump.host, jump.port);
+                jumpHost = via.getHostString();
+                jumpPort = via.getPort();
+            }
             try {
-                jumpSession = jumpClient.connect(jump.username, jump.host, jump.port).verify(timeout).getSession();
+                jumpSession = jumpClient.connect(jump.username, jumpHost, jumpPort).verify(timeout).getSession();
                 jumpSession.setKeyIdentityProvider(null);
                 if (!"key".equals(jump.auth)) {
                     if (jump.password == null || jump.password.isEmpty()) {

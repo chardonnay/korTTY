@@ -101,6 +101,8 @@ public class Mosh4jTtyConnector implements TtyConnector, de.kortty.isolation.Iso
     private volatile de.kortty.core.worker.WorkerLogin workerLogin;
     private volatile org.apache.sshd.client.channel.ChannelShell workerChannel;
     private volatile java.nio.file.Path sandboxSessionDirectory;
+    /** korTTY's relay for a worker without a network of its own (the Linux sandbox), or null. */
+    private volatile de.kortty.core.worker.NetworkRelay networkRelay;
     /** What the worker reported about the end of the session ({@code mosh.ended}), or null. */
     private volatile String workerEnd;
     private volatile String workerEndMessage;
@@ -385,6 +387,13 @@ public class Mosh4jTtyConnector implements TtyConnector, de.kortty.isolation.Iso
             throw new IOException(e.getMessage(), e);
         }
         sandboxSessionDirectory = prepared.sessionDirectory();
+        if (prepared.networkRelay()) {
+            // No network of its own: korTTY passes the datagrams to the Mosh server, and only there.
+            networkRelay = new de.kortty.core.worker.NetworkRelay(prepared.sessionDirectory(), java.util.Set.of(),
+                new InetSocketAddress(host, udpPort));
+            networkRelay.start();
+            init.netnsFolder = prepared.sessionDirectory().toString();
+        }
         de.kortty.core.worker.SessionWorkerProcess started = de.kortty.core.worker.SessionWorkerProcess.start(
             prepared.command(), prepared.environment(), init,
             (method, params) -> {
@@ -393,6 +402,10 @@ public class Mosh4jTtyConnector implements TtyConnector, de.kortty.isolation.Iso
         worker = started;
         started.setEventConsumer(this::onWorkerEvent);
         de.kortty.core.worker.SessionWorkerProcess.Ready ready = started.awaitReady(Duration.ofSeconds(30));
+        if (networkRelay != null) {
+            ready = new de.kortty.core.worker.SessionWorkerProcess.Ready(networkRelay.endpointPort(), ready.hostKey(),
+                ready.pid());
+        }
         workerLogin = de.kortty.core.worker.WorkerLogin.connect(ready, init.token);
         org.apache.sshd.client.channel.ChannelShell channel = workerLogin.session().createShellChannel();
         channel.setPtyType("xterm-256color");
@@ -745,6 +758,11 @@ public class Mosh4jTtyConnector implements TtyConnector, de.kortty.isolation.Iso
         de.kortty.core.worker.SessionWorkerProcess localWorker = worker;
         if (localWorker != null) {
             localWorker.close();
+        }
+        de.kortty.core.worker.NetworkRelay relay = networkRelay;
+        networkRelay = null;
+        if (relay != null) {
+            relay.close();
         }
         de.kortty.isolation.sandbox.SandboxSupport.deleteSessionDirectory(sandboxSessionDirectory);
         sandboxSessionDirectory = null;
