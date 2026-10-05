@@ -10656,6 +10656,12 @@ public class TerminalView extends BorderPane {
             return TerminalPaletteSupport.boldTextMode(settings);
         }
 
+        /** The find bar in the UI language; SithTermFX reads the texts each time the bar opens. */
+        @Override
+        public @NotNull com.sithtermfx.ui.settings.SearchBarText getSearchBarText() {
+            return TerminalFindBarText.INSTANCE;
+        }
+
         @Override
         public @NotNull TextStyle getSelectionColor() {
             PaletteColors colors = paletteColors;
