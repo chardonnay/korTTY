@@ -887,6 +887,7 @@
 <ul>
 <li><strong>Für eine Verbindung:</strong> Connection-Manager → Verbindung bearbeiten → Tab <strong>Terminal-Einstellungen</strong> → <strong>Sitzungs-Isolation</strong> (unter <strong>Terminal-Verhalten</strong>) → <strong>Isolation:</strong>. <strong>Standard verwenden</strong> folgt dem Ordner der Verbindung oder den Einstellungen und nennt, was davon gilt.</li>
 <li><strong>Für einen Ordner:</strong> Rechtsklick auf den Ordner im Connection-Manager → <strong>Sitzungs-Isolation</strong> → <strong>Standard verwenden</strong>, <strong>Keine</strong>, <strong>Eigener Prozess</strong> oder <strong>Eigener Prozess + Sandbox</strong>. Ordner darunter erben die Stufe, ebenso die Verbindungen darin, die keine eigene festlegen. Die Stufe zieht mit, wenn der Ordner umbenannt wird, und wird entfernt, wenn der Ordner gelöscht wird.</li>
+<li><strong>Für einen Tab aus einem Skript:</strong> <code>kortty-cli tab create --connection &lt;Name&gt; --isolation sandbox</code> öffnet die Verbindung mit dieser Stufe statt ihrer eigenen, nur für diesen Tab (siehe <a href="../reference/cli.html#eine-verbindung-offnen">Steuerungs-CLI</a>).</li>
 <li><strong>Für alles andere:</strong> <strong>Konfiguration → Globale Einstellungen → Sicherheit</strong> → <strong>Sitzungs-Isolation</strong> → <strong>Standard-Isolation:</strong>. Der Abschnitt zeigt auch, ob dieser Computer eine funktionierende Sandbox hat.</li>
 </ul>
 <p>Eine Verbindung aus einer geteilten Teamwork-Datei kann die Isolation nur strenger machen als Ihr Ordner oder die Einstellungen, nie lockerer.</p>

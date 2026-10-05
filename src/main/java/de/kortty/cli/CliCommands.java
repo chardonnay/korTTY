@@ -120,6 +120,9 @@ public final class CliCommands {
     /** The split orientations. */
     private static final List<String> ORIENTATION_FLAGS = List.of("vertical", "horizontal");
 
+    /** The isolation levels of {@code tab create --isolation}. */
+    private static final List<String> ISOLATION_LEVELS = List.of("none", "process", "sandbox");
+
     private static final String SELECTOR_SYNTAX = "--pane <id> | --tab <id> | --focused | --current";
 
     private static final String RESERVED_TAB =
@@ -240,6 +243,20 @@ public final class CliCommands {
                 params.addProperty("alias", invocation.flag("alias", ""));
             }
             case "agent.start" -> agentStart(invocation, command, params);
+            case "tab.create" -> {
+                params.addProperty("connection", invocation.flag("connection", null));
+                copyString(invocation, params, "window", "window");
+                if (invocation.has("isolation")) {
+                    String isolation = invocation.flag("isolation", "").strip().toLowerCase(java.util.Locale.ROOT);
+                    if (!ISOLATION_LEVELS.contains(isolation)) {
+                        throw new CliSyntaxException("--isolation must be one of none, process, sandbox");
+                    }
+                    params.addProperty("isolation", isolation);
+                }
+                if (invocation.has("incognito")) {
+                    params.addProperty("incognito", true);
+                }
+            }
             case "notification.show" -> {
                 params.addProperty("title", invocation.flag("title", null));
                 params.addProperty("body", invocation.flag("body", null));
@@ -565,7 +582,11 @@ public final class CliCommands {
         table.add(new Command("tab", "focus", "tab.focus", Selector.NONE, Set.of("tab"),
             List.of(Set.of("tab")), null, false, null, "tab focus --tab <id>",
             "Raises the window and selects the tab."));
-        table.add(reserved("tab", "create"));
+        table.add(new Command("tab", "create", "tab.create", Selector.NONE,
+            Set.of("connection", "window", "isolation", "incognito"), List.of(Set.of("connection")), null, false,
+            null, "tab create --connection <id|name> [--isolation none|process|sandbox] [--incognito]"
+                + " [--window <id>]",
+            "Opens a saved connection in a new tab, optionally isolated or incognito."));
         table.add(reserved("tab", "close"));
         table.add(reserved("tab", "rename"));
 

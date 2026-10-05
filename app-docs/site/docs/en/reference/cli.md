@@ -87,6 +87,14 @@ Giving none of them, or more than one, is a syntax error (exit 2) that names the
 !!! warning "`--current` needs a local shell"
     It matches against the operating-system process id of a pane's local shell. Inside an SSH session, inside a container, or in the Flatpak package — where local shells run on the host through `flatpak-spawn` and korTTY never sees their process ids — there is nothing to match and `--current` cannot resolve. Address the pane explicitly there.
 
+## Opening a connection
+
+`kortty-cli tab create --connection <id|name>` opens a saved or teamwork connection in a new tab and prints the tab. `--isolation none|process|sandbox` runs it with that [session isolation](../features/session-isolation.md) instead of the connection's own, `--incognito` opens it as an incognito session, and `--window w2` picks the window. The organization's minimum isolation is never undercut: asking for less is refused with exit 3. When signing in needs a question, the answer says `"pending": true` and korTTY asks you before it opens the tab.
+
+```bash
+kortty-cli tab create --connection web-01 --isolation sandbox --incognito
+```
+
 ## Waiting
 
 Commands that wait — `pane wait-output`, `agent wait`, `agent prompt --wait-until`, `agent start --wait` — block until the condition is met or the timeout expires, and exit 4 on a timeout. Every wait has a server-side hard cap of ten minutes; a longer request is clamped and the answer says so.
@@ -152,7 +160,7 @@ The exit code comes from the server, not from a table the client keeps, so the t
 | Code | Meaning | Retry? |
 | --- | --- | --- |
 | 0 | Success | — |
-| 1 | The request was valid but could not be carried out: no such pane, tab or agent; not connected; the write failed; the last pane cannot be closed | Sometimes — the answer's `retryable` field says |
+| 1 | The request was valid but could not be carried out: no such pane, tab, agent or connection; not connected; the write failed; the last pane cannot be closed | Sometimes — the answer's `retryable` field says |
 | 2 | The request itself was wrong: a bad selector, an unknown key name, an invalid regular expression, a missing or out-of-range parameter, an unknown command | No |
 | 3 | Refused: the Control API is off, enterprise policy denies it, the token was rejected, korTTY is not ready yet, or too many connections are open | No, until you change something |
 | 4 | A wait timed out | Usually |

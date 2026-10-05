@@ -62,6 +62,10 @@ public final class SessionIsolationSmoke {
                 created.add(addTab(tabPane, "sandboxed", IsolationLevel.SANDBOX, true));
                 created.add(addTab(tabPane, "process", IsolationLevel.PROCESS, false));
                 created.add(addTab(tabPane, "plain", IsolationLevel.NONE, false));
+                // As kortty-cli tab create --isolation sandbox opens it: the connection says none.
+                TerminalTab requested = addTab(tabPane, "requested", IsolationLevel.NONE, false);
+                requested.getTerminalView().setIsolationRequested(IsolationLevel.SANDBOX);
+                created.add(requested);
                 Stage stage = new Stage();
                 Scene scene = new Scene(new BorderPane(tabPane), 720, 200);
                 scene.getStylesheets().add(SessionIsolationSmoke.class.getResource("/styles/terminal.css").toExternalForm());
@@ -76,11 +80,14 @@ public final class SessionIsolationSmoke {
             TerminalTab sandboxed = tabs.get(0);
             TerminalTab process = tabs.get(1);
             TerminalTab plain = tabs.get(2);
+            TerminalTab requested = tabs.get(3);
 
             waitFor("the sandboxed tab shows its shield",
                 () -> onFxQuiet(() -> sandboxed.getIsolationMarkers().shield() == IsolationState.SANDBOXED));
             waitFor("the process tab shows its shield",
                 () -> onFxQuiet(() -> process.getIsolationMarkers().shield() == IsolationState.PROCESS));
+            waitFor("a tab opened with --isolation sandbox runs sandboxed whatever its connection says",
+                () -> onFxQuiet(() -> requested.getIsolationMarkers().shield() == IsolationState.SANDBOXED));
             check("the plain tab shows no shield",
                 onFx(() -> plain.getIsolationMarkers().shield() == IsolationState.NONE
                     && styledNodes(plain, TerminalTab.ISOLATION_MARKER_STYLE_CLASS).isEmpty()));
@@ -111,10 +118,13 @@ public final class SessionIsolationSmoke {
             onFx(() -> {
                 sandboxed.getTerminalView().sendInputLine(probe);
                 plain.getTerminalView().sendInputLine(probe);
+                requested.getTerminalView().sendInputLine(probe);
                 return null;
             });
             waitFor("the sandboxed shell cannot read the configuration folder",
                 () -> onFxQuiet(() -> screenContainsLine(sandboxed, "PROBE-BLOCKED")));
+            waitFor("the shell opened with --isolation sandbox cannot either",
+                () -> onFxQuiet(() -> screenContainsLine(requested, "PROBE-BLOCKED")));
             waitFor("the unisolated shell can",
                 () -> onFxQuiet(() -> screenContainsLine(plain, "PROBE-READ")));
 

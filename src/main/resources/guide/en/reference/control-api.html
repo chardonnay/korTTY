@@ -921,8 +921,8 @@
 </tr>
 <tr>
 <td><code>window</code> / <code>tab</code></td>
-<td><code>window.list</code>, <code>tab.list</code>, <code>tab.focus</code></td>
-<td>Enumerate the windows and tabs, and bring one to the front.</td>
+<td><code>window.list</code>, <code>tab.list</code>, <code>tab.focus</code>, <code>tab.create</code></td>
+<td>Enumerate the windows and tabs, bring one to the front, and open a saved connection in a new tab.</td>
 </tr>
 <tr>
 <td><code>pane</code></td>
@@ -942,7 +942,8 @@
 </tbody>
 </table>
 <p>The title <code>tab.list</code> reports for a terminal tab is its name without the coding-agent glyph, the group prefix or the <code>(DISCONNECT)</code> suffix: the name you gave it with <a href="../features/terminal.html#working-with-tabs">Rename Tab</a>, otherwise the <a href="../features/terminal.html#title-from-the-shell">title its shell set</a>, otherwise the connection's name. The shell's title is chosen by the server, so a client that needs to know which host a tab is connected to should not rely on the title alone. Renaming stays with you in the user interface.</p>
-<p><code>tab.create</code>, <code>tab.close</code> and <code>tab.rename</code> are <strong>reserved</strong>: they answer a definite "not implemented in this version" rather than an unknown-method error, and they are listed as reserved in <code>api.schema</code>, so a client can tell "korTTY will never do this for you" apart from "you spelled it wrong".</p>
+<p><code>tab.create</code> opens a saved or teamwork connection — by its id, or by its name as the Connection Manager shows it — in a new tab of the focused window (or of <code>window</code>), with <code>isolation</code> (<code>none</code>, <code>process</code> or <code>sandbox</code>) in place of the connection's own <a href="../features/session-isolation.html">session isolation</a> and <code>incognito</code> for an <a href="../features/session-isolation.html#incognito-sessions">incognito session</a>. A name two connections share is refused with <code>ambiguous_connection</code> and their ids, an unknown one with <code>connection_not_found</code>. The organization's policy still applies: a blocked server, an isolation below <code>[rule.isolation] minimum</code> or an incognito session the policy forbids is refused with <code>blocked_by_policy</code>, and a teamwork connection can only be made stricter. korTTY never waits for a question while the call is open: when signing in needs a password, a temporary key or the vault unlocked, the answer is <code>pending: true</code> without a tab, and korTTY asks you and opens the tab afterwards. MCP clients cannot call it.</p>
+<p><code>tab.close</code> and <code>tab.rename</code> are <strong>reserved</strong>: they answer a definite "not implemented in this version" rather than an unknown-method error, and they are listed as reserved in <code>api.schema</code>, so a client can tell "korTTY will never do this for you" apart from "you spelled it wrong".</p>
 <h3 id="addressing-a-pane">Addressing a pane<a class="headerlink" href="#addressing-a-pane" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

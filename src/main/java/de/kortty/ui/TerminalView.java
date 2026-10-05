@@ -425,6 +425,8 @@ public class TerminalView extends BorderPane {
     private de.kortty.core.TerminalLogger terminalLogger;
     /** Opened with File › New Incognito Session: incognito whatever the connection says. */
     private volatile boolean incognitoRequested;
+    /** The isolation this tab was opened with ({@code kortty-cli tab create --isolation}), or null. */
+    private volatile de.kortty.isolation.IsolationLevel isolationRequested;
     private NewConnectionCallback newConnectionCallback;
     
     // Timestamp gutter support: maps each widget to its gutter
@@ -3232,6 +3234,28 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * Opens this tab's sessions with {@code level} in place of the connection's own isolation choice
+     * ({@code kortty-cli tab create --isolation}). It applies to every pane of the tab's connection, for the
+     * tab's life; a teamwork connection can only be made stricter and the organization's minimum stays.
+     * Call before it connects.
+     */
+    public void setIsolationRequested(de.kortty.isolation.IsolationLevel level) {
+        this.isolationRequested = level;
+    }
+
+    /**
+     * {@link #isolationRequestFor(ServerConnection)} with the level this tab was opened with, when
+     * {@code target} is the tab's own connection.
+     */
+    private de.kortty.isolation.IsolationRequest isolationRequestForPane(ServerConnection target) {
+        de.kortty.isolation.IsolationLevel requested = isolationRequested;
+        ServerConnection own = connection;
+        boolean ownConnection = target != null && own != null
+            && (target == own || (target.getId() != null && target.getId().equals(own.getId())));
+        return isolationRequestFor(target, ownConnection ? requested : null);
+    }
+
+    /**
      * Makes this tab incognito whatever its connection says (File › New Incognito Session). Call before
      * it connects; the organization's policy can still forbid it.
      */
@@ -3723,7 +3747,7 @@ public class TerminalView extends BorderPane {
     private TtyConnector createConnectorForConnection(ServerConnection targetConnection, String targetPassword) {
         TtyConnector connector;
         if (targetConnection.getProtocol() == ConnectionProtocol.MOSH) {
-            de.kortty.isolation.IsolationRequest moshIsolation = isolationRequestFor(targetConnection);
+            de.kortty.isolation.IsolationRequest moshIsolation = isolationRequestForPane(targetConnection);
             if (moshIsolation.level() != de.kortty.isolation.IsolationLevel.NONE
                     && !de.kortty.core.worker.SessionWorkerProcess.available()
                     && NativeMoshTtyConnector.isNativeMoshAvailable()) {
@@ -3770,14 +3794,14 @@ public class TerminalView extends BorderPane {
                 );
             }
             nativeMosh.setAccessReasonMemory(accessReasonMemory);
-            nativeMosh.setIsolationRequest(isolationRequestFor(targetConnection));
+            nativeMosh.setIsolationRequest(isolationRequestForPane(targetConnection));
             connector = nativeMosh;
         } else if (targetConnection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
             LocalShellTtyConnector localShell = new LocalShellTtyConnector(targetConnection);
-            localShell.setIsolationRequest(isolationRequestFor(targetConnection));
+            localShell.setIsolationRequest(isolationRequestForPane(targetConnection));
             connector = localShell;
         } else {
-            de.kortty.isolation.IsolationRequest sshIsolation = isolationRequestFor(targetConnection);
+            de.kortty.isolation.IsolationRequest sshIsolation = isolationRequestForPane(targetConnection);
             de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
             SshTtyConnector sshConnector = sshConnectorWithVault(targetConnection, targetPassword,
                     app != null ? app.getSSHKeyManager() : null, masterPasswordOf(app));
@@ -3799,23 +3823,36 @@ public class TerminalView extends BorderPane {
      *     so the session is not opened at all
      */
     static de.kortty.isolation.IsolationRequest isolationRequestFor(ServerConnection target) {
+        return isolationRequestFor(target, null);
+    }
+
+    /** {@link #isolationRequestFor(ServerConnection)} for a session opened with {@code requested} (or null). */
+    static de.kortty.isolation.IsolationRequest isolationRequestFor(ServerConnection target,
+            @Nullable de.kortty.isolation.IsolationLevel requested) {
         de.kortty.isolation.IsolationLevel floor;
         try {
             floor = de.kortty.policy.PolicyManager.effective().isolationFloor();
         } catch (RuntimeException e) {
             floor = null;
         }
-        return isolationRequestFor(readOrNull(TerminalView::readGlobalSettings), target, floor);
+        return isolationRequestFor(readOrNull(TerminalView::readGlobalSettings), target, floor, requested);
     }
 
     /** {@link #isolationRequestFor(ServerConnection)} from its parts; for tests. */
     static de.kortty.isolation.IsolationRequest isolationRequestFor(@Nullable GlobalSettings global,
             ServerConnection target, @Nullable de.kortty.isolation.IsolationLevel floor) {
+        return isolationRequestFor(global, target, floor, null);
+    }
+
+    /** {@link #isolationRequestFor(ServerConnection, de.kortty.isolation.IsolationLevel)} from its parts; for tests. */
+    static de.kortty.isolation.IsolationRequest isolationRequestFor(@Nullable GlobalSettings global,
+            ServerConnection target, @Nullable de.kortty.isolation.IsolationLevel floor,
+            @Nullable de.kortty.isolation.IsolationLevel requested) {
         if (target == null) {
             return de.kortty.isolation.IsolationRequest.NONE;
         }
         de.kortty.isolation.IsolationSettings.Resolution resolution =
-            de.kortty.isolation.IsolationSettings.resolve(global, target, floor);
+            de.kortty.isolation.IsolationSettings.resolve(global, target, floor, requested);
         boolean workers = de.kortty.core.worker.SessionWorkerProcess.available();
         // Only asked for a built-in Mosh connection that wants isolation: it starts a process.
         boolean nativeMosh = target.getProtocol() == ConnectionProtocol.MOSH && !workers
@@ -5178,7 +5215,7 @@ public class TerminalView extends BorderPane {
                     + (target == null ? "unconnected" : String.valueOf(target.getProtocol())));
         }
         LocalShellTtyConnector connector = new LocalShellTtyConnector(target);
-        connector.setIsolationRequest(isolationRequestFor(target));
+        connector.setIsolationRequest(isolationRequestForPane(target));
         boolean connected;
         try {
             connected = connector.connect();

@@ -46,6 +46,7 @@ In a sandboxed local shell the history file (`HISTFILE`) and `TMPDIR` point to t
 
 - **For one connection:** Connection Manager → edit the connection → **Terminal Settings** tab → **Session isolation** (below **Terminal behavior**) → **Isolation:**. **Use the default** follows the connection's folder or Settings and names which one applies.
 - **For a folder:** right-click the folder in the Connection Manager → **Session Isolation** → **Use the Default**, **None**, **Own process** or **Own process + sandbox**. Folders below inherit the level, and so do the connections in them that set none of their own. The level moves along when the folder is renamed and is removed when the folder is deleted.
+- **For one tab from a script:** `kortty-cli tab create --connection <name> --isolation sandbox` opens the connection with that level instead of its own, for this tab only (see [Control CLI](../reference/cli.md#opening-a-connection)).
 - **For everything else:** **Configuration → Global Settings → Security** → **Session isolation** → **Default isolation:**. The section also shows whether this computer has a working sandbox.
 
 A connection from a shared teamwork file can only make isolation stricter than your folder or Settings, never less strict.

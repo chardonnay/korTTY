@@ -61,6 +61,15 @@ final class FakeControlSurface implements ControlSurface {
 
     private String focusedPaneId;
 
+    /** The saved connections {@link #createTab} can open: id to name. */
+    private final Map<String, String> connections = new LinkedHashMap<>();
+
+    /** Connection ids whose sign-in needs a question, so {@link #createTab} answers pending. */
+    private final java.util.Set<String> needsSignIn = new java.util.HashSet<>();
+
+    /** What {@link #createTab} was asked: connection id, isolation (or "-") and incognito. */
+    private final List<String> createdTabs = new ArrayList<>();
+
     /** A pane with the fields the verbs actually read; everything else is a harmless default. */
     static PaneInfo pane(String paneId, String tabId, String windowId, int index, boolean localShell,
                          boolean connected, long shellPid) {
@@ -146,6 +155,18 @@ final class FakeControlSurface implements ControlSurface {
     byte[] written(String paneId) {
         ByteArrayOutputStream out = written.get(paneId);
         return out == null ? new byte[0] : out.toByteArray();
+    }
+
+    void addConnection(String id, String name) {
+        connections.put(id, name);
+    }
+
+    void requireSignIn(String id) {
+        needsSignIn.add(id);
+    }
+
+    List<String> createdTabs() {
+        return List.copyOf(createdTabs);
     }
 
     List<String> focusedPanes() {
@@ -361,6 +382,39 @@ final class FakeControlSurface implements ControlSurface {
             throw closeFailure;
         }
         panes.removeIf(pane -> pane.paneId().equals(paneId));
+    }
+
+    @Override
+    public Optional<TabInfo> createTab(String connectionRef, String windowIdOrNull, String isolationOrNull,
+                                       boolean incognito) throws ControlApiException {
+        record("createTab");
+        String windowId = windowIdOrNull != null ? windowIdOrNull : windows.isEmpty() ? null : windows.get(0).windowId();
+        if (windowIdOrNull != null && windows.stream().noneMatch(window -> window.windowId().equals(windowIdOrNull))) {
+            throw new ControlApiException(ControlErrorCode.WINDOW_NOT_FOUND, "No window " + windowIdOrNull,
+                Map.of("window", windowIdOrNull));
+        }
+        String id = connections.containsKey(connectionRef) ? connectionRef : null;
+        if (id == null) {
+            List<String> named = connections.entrySet().stream()
+                .filter(entry -> entry.getValue().equalsIgnoreCase(connectionRef)).map(Map.Entry::getKey).toList();
+            if (named.size() > 1) {
+                throw new ControlApiException(ControlErrorCode.AMBIGUOUS_CONNECTION, "ambiguous",
+                    Map.of("connection", connectionRef, "candidates", named));
+            }
+            if (named.isEmpty()) {
+                throw new ControlApiException(ControlErrorCode.CONNECTION_NOT_FOUND, "no connection",
+                    Map.of("connection", connectionRef));
+            }
+            id = named.get(0);
+        }
+        createdTabs.add(id + "|" + (isolationOrNull == null ? "-" : isolationOrNull) + "|" + incognito);
+        if (needsSignIn.contains(id)) {
+            return Optional.empty();
+        }
+        TabInfo tab = new TabInfo("tnew" + createdTabs.size(), windowId, connections.get(id), "SSH", "host",
+            true, false, 1, new AgentRollupInfo(0, 0, 0, 0, 0, "unknown"));
+        tabs.add(tab);
+        return Optional.of(tab);
     }
 
     private void record(String call) {

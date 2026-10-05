@@ -72,7 +72,7 @@ public final class CliArguments {
     private static final Set<String> VALUE_FLAGS = Set.of(FLAG_CONFIG_DIR, FLAG_TIMEOUT, "pane",
         "tab", "window", "method", "kinds", "panes", "count", "lines", "text", "command", "bracketed",
         "regex", "contains", "timeout-ms", "poll-ms", "state", "kind", "until", "wait-until", "alias",
-        "prompt", "split-from", "title", "body");
+        "prompt", "split-from", "title", "body", "connection", "isolation");
 
     /** Flags whose value must be a whole number. */
     private static final Set<String> NUMBER_FLAGS = Set.of(FLAG_TIMEOUT, "lines", "count",

@@ -75,14 +75,16 @@ Rather than duplicating the method list here, ask korTTY: `api.schema` returns t
 | --- | --- | --- |
 | `api` | `ping`, `auth`, `api.schema` | Handshake and discovery. |
 | `events` | `events.subscribe`, `events.unsubscribe` | Push notifications when a coding agent changes state. |
-| `window` / `tab` | `window.list`, `tab.list`, `tab.focus` | Enumerate the windows and tabs, and bring one to the front. |
+| `window` / `tab` | `window.list`, `tab.list`, `tab.focus`, `tab.create` | Enumerate the windows and tabs, bring one to the front, and open a saved connection in a new tab. |
 | `pane` | `pane.list`, `pane.current`, `pane.get`, `pane.resolve`, `pane.focus`, `pane.read`, `pane.send_text`, `pane.run`, `pane.send_keys`, `pane.wait_output`, `pane.split`, `pane.close` | Read a pane, type into it, wait for output, split a local shell or close a split. |
 | `agent` | `agent.list`, `agent.get`, `agent.explain`, `agent.prompt`, `agent.send_keys`, `agent.wait`, `agent.rename`, `agent.start` | Work with the coding agents korTTY has detected — see [Coding agents](../features/coding-agents.md). |
 | `notification` | `notification.show` | Raise one desktop notification. |
 
 The title `tab.list` reports for a terminal tab is its name without the coding-agent glyph, the group prefix or the `(DISCONNECT)` suffix: the name you gave it with [Rename Tab](../features/terminal.md#working-with-tabs), otherwise the [title its shell set](../features/terminal.md#title-from-the-shell), otherwise the connection's name. The shell's title is chosen by the server, so a client that needs to know which host a tab is connected to should not rely on the title alone. Renaming stays with you in the user interface.
 
-`tab.create`, `tab.close` and `tab.rename` are **reserved**: they answer a definite "not implemented in this version" rather than an unknown-method error, and they are listed as reserved in `api.schema`, so a client can tell "korTTY will never do this for you" apart from "you spelled it wrong".
+`tab.create` opens a saved or teamwork connection — by its id, or by its name as the Connection Manager shows it — in a new tab of the focused window (or of `window`), with `isolation` (`none`, `process` or `sandbox`) in place of the connection's own [session isolation](../features/session-isolation.md) and `incognito` for an [incognito session](../features/session-isolation.md#incognito-sessions). A name two connections share is refused with `ambiguous_connection` and their ids, an unknown one with `connection_not_found`. The organization's policy still applies: a blocked server, an isolation below `[rule.isolation] minimum` or an incognito session the policy forbids is refused with `blocked_by_policy`, and a teamwork connection can only be made stricter. korTTY never waits for a question while the call is open: when signing in needs a password, a temporary key or the vault unlocked, the answer is `pending: true` without a tab, and korTTY asks you and opens the tab afterwards. MCP clients cannot call it.
+
+`tab.close` and `tab.rename` are **reserved**: they answer a definite "not implemented in this version" rather than an unknown-method error, and they are listed as reserved in `api.schema`, so a client can tell "korTTY will never do this for you" apart from "you spelled it wrong".
 
 ### Addressing a pane
 

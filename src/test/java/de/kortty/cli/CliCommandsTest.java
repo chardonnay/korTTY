@@ -278,8 +278,38 @@ class CliCommandsTest {
     }
 
     @Test
+    void tabCreateMapsTheConnectionIsolationAndIncognito() throws Exception {
+        CliCommands.Call call = CliCommands.toCall(CliArguments.parse(new String[] {
+            "tab", "create", "--connection", "web-01", "--isolation", "Sandbox", "--incognito", "--window", "w2"}));
+
+        assertThat(call.method()).isEqualTo("tab.create");
+        assertThat(call.params().get("connection").getAsString()).isEqualTo("web-01");
+        assertThat(call.params().get("isolation").getAsString()).isEqualTo("sandbox");
+        assertThat(call.params().get("incognito").getAsBoolean()).isTrue();
+        assertThat(call.params().get("window").getAsString()).isEqualTo("w2");
+    }
+
+    @Test
+    void tabCreateLeavesIsolationAndIncognitoOutWhenNotGiven() throws Exception {
+        CliCommands.Call call = CliCommands.toCall(CliArguments.parse(new String[] {
+            "tab", "create", "--connection", "web-01"}));
+
+        assertThat(call.params().has("isolation")).isFalse();
+        assertThat(call.params().has("incognito")).isFalse();
+    }
+
+    @Test
+    void tabCreateRefusesAnUnknownIsolationLocally() throws Exception {
+        CliInvocation invocation = CliArguments.parse(new String[] {
+            "tab", "create", "--connection", "web-01", "--isolation", "container"});
+
+        assertThat(expectThrows(CliSyntaxException.class, () -> CliCommands.toCall(invocation)).message())
+            .contains("none, process, sandbox");
+    }
+
+    @Test
     void aReservedTabVerbIsRefusedWithTheDocumentedHint() throws Exception {
-        for (String verb : new String[] {"create", "close", "rename"}) {
+        for (String verb : new String[] {"close", "rename"}) {
             CliInvocation invocation = CliArguments.parse(new String[] {"tab", verb});
             CliSyntaxException failure = expectThrows(CliSyntaxException.class,
                 () -> CliCommands.toCall(invocation));

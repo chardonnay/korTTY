@@ -129,19 +129,19 @@ class ControlVerbsSchemaTest {
     }
 
     @Test
-    void theReservedListIsExactlyTheThreeTabVerbs() {
+    void theReservedListIsExactlyTheTwoTabVerbs() {
         List<String> names = new ArrayList<>();
         for (ReservedSpec spec : registry.reserved()) {
             names.add(spec.name());
             assertThat(spec.reason()).isEqualTo("not_implemented_in_this_version");
         }
-        assertThat(names).containsExactly("tab.create", "tab.close", "tab.rename");
+        assertThat(names).containsExactly("tab.close", "tab.rename");
     }
 
     @Test
     void aReservedVerbIsUnsupportedRatherThanUnknown() {
         ControlApiException failure = expectThrows(ControlApiException.class,
-            () -> registry.dispatch(session(), new ControlRequest(new JsonPrimitive(1), "tab.create",
+            () -> registry.dispatch(session(), new ControlRequest(new JsonPrimitive(1), "tab.close",
                 new JsonObject())));
         assertThat(failure.code()).isEqualTo(ControlErrorCode.UNSUPPORTED);
         assertThat(failure.data().get("reason")).isEqualTo("not_implemented_in_this_version");

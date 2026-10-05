@@ -75,14 +75,16 @@ Statt die Methodenliste hier zu wiederholen, fragen Sie korTTY: `api.schema` lie
 | --- | --- | --- |
 | `api` | `ping`, `auth`, `api.schema` | Handshake und Erkundung. |
 | `events` | `events.subscribe`, `events.unsubscribe` | Meldungen, wenn ein Coding-Agent seinen Zustand ändert. |
-| `window` / `tab` | `window.list`, `tab.list`, `tab.focus` | Fenster und Tabs auflisten und eines nach vorn holen. |
+| `window` / `tab` | `window.list`, `tab.list`, `tab.focus`, `tab.create` | Fenster und Tabs auflisten, eines nach vorn holen und eine gespeicherte Verbindung in einem neuen Tab öffnen. |
 | `pane` | `pane.list`, `pane.current`, `pane.get`, `pane.resolve`, `pane.focus`, `pane.read`, `pane.send_text`, `pane.run`, `pane.send_keys`, `pane.wait_output`, `pane.split`, `pane.close` | Einen Bereich lesen, darin tippen, auf Ausgabe warten, eine lokale Shell teilen oder einen geteilten Bereich schließen. |
 | `agent` | `agent.list`, `agent.get`, `agent.explain`, `agent.prompt`, `agent.send_keys`, `agent.wait`, `agent.rename`, `agent.start` | Mit den von korTTY erkannten Coding-Agents arbeiten – siehe [Coding-Agents](../features/coding-agents.md). |
 | `notification` | `notification.show` | Eine Desktop-Benachrichtigung auslösen. |
 
 Der Titel, den `tab.list` für einen Terminal-Tab meldet, ist sein Name ohne das Coding-Agent-Symbol, das Gruppenpräfix und das Suffix `(DISCONNECT)`: der Name, den Sie ihm mit [Tab umbenennen](../features/terminal.md#arbeiten-mit-tabs) gegeben haben, andernfalls der [Titel, den seine Shell gesetzt hat](../features/terminal.md#titel-aus-der-shell), andernfalls der Name der Verbindung. Den Titel der Shell wählt der Server, daher sollte sich ein Client, der wissen muss, mit welchem Host ein Tab verbunden ist, nicht allein auf den Titel verlassen. Umbenennen können nur Sie selbst in der Benutzeroberfläche.
 
-`tab.create`, `tab.close` und `tab.rename` sind **reserviert**: sie antworten mit einem eindeutigen „in dieser Version nicht implementiert“ statt mit einem Unbekannte-Methode-Fehler und stehen in `api.schema` als reserviert, damit ein Client „korTTY wird das nie für dich tun“ von „du hast dich vertippt“ unterscheiden kann.
+`tab.create` öffnet eine gespeicherte oder Teamwork-Verbindung – über ihre ID oder ihren Namen, wie ihn der Connection-Manager zeigt – in einem neuen Tab des fokussierten Fensters (oder von `window`), mit `isolation` (`none`, `process` oder `sandbox`) anstelle der eigenen [Sitzungs-Isolation](../features/session-isolation.md) der Verbindung und `incognito` für eine [Inkognito-Sitzung](../features/session-isolation.md#inkognito-sitzungen). Einen Namen, den zwei Verbindungen tragen, lehnt korTTY mit `ambiguous_connection` und deren IDs ab, einen unbekannten mit `connection_not_found`. Die Richtlinie der Organisation gilt weiter: ein gesperrter Server, eine Isolation unter `[rule.isolation] minimum` oder eine von der Richtlinie verbotene Inkognito-Sitzung wird mit `blocked_by_policy` abgelehnt, und eine Teamwork-Verbindung kann nur strenger werden. korTTY wartet nie auf eine Rückfrage, solange der Aufruf offen ist: braucht die Anmeldung ein Passwort, einen temporären Schlüssel oder den entsperrten Tresor, lautet die Antwort `pending: true` ohne Tab, und korTTY fragt Sie und öffnet den Tab danach. MCP-Clients können sie nicht aufrufen.
+
+`tab.close` und `tab.rename` sind **reserviert**: sie antworten mit einem eindeutigen „in dieser Version nicht implementiert“ statt mit einem Unbekannte-Methode-Fehler und stehen in `api.schema` als reserviert, damit ein Client „korTTY wird das nie für dich tun“ von „du hast dich vertippt“ unterscheiden kann.
 
 ### Einen Bereich adressieren
 

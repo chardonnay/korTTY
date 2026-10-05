@@ -4111,6 +4111,71 @@ public class MainWindow {
     }
 
     /**
+     * The connections {@code tab.create} can open: the saved ones and, while the policy allows teamwork,
+     * the teamwork ones that are not in the recycle bin — what the command palette offers.
+     */
+    List<ServerConnection> connectionsForControl() {
+        List<ServerConnection> all = new ArrayList<>(app.getConfigManager().getConnections());
+        if (de.kortty.policy.PolicyManager.effective().teamworkAllowed() && app.getTeamworkSyncService() != null) {
+            de.kortty.teamwork.TeamworkRecycleBinService recycleBin = app.getTeamworkRecycleBinService();
+            java.util.Set<String> deleted = recycleBin != null ? recycleBin.getDeletedIds() : java.util.Set.of();
+            for (ServerConnection shared : app.getTeamworkSyncService().getTeamworkConnections()) {
+                if (shared != null && !deleted.contains(shared.getId())) {
+                    all.add(shared);
+                }
+            }
+        }
+        return all;
+    }
+
+    /**
+     * Opens a tab for a saved or teamwork connection for the control API ({@code kortty-cli tab create}),
+     * with the isolation and incognito state the caller asked for. Never asks anything while the caller
+     * waits: when sign-in is ready (key, stored password, local shell, valid temporary key) the tab opens
+     * now; when it needs a question — a password, a new temporary key, the vault unlocked — the question and
+     * the tab follow in an event of their own, and this returns null. The caller checks the server policy
+     * first; a target it blocks never gets here.
+     *
+     * <p>JavaFX application thread.
+     *
+     * @param isolation the isolation level in place of the connection's own, or null for its own
+     * @return the new tab, or null when it opens after a question
+     */
+    TerminalTab openConnectionForControl(ServerConnection connection,
+            de.kortty.isolation.IsolationLevel isolation, boolean incognito) {
+        ConnectionAuthResolver.Resolution auth = connectionAuthResolver().resolve(connection, false);
+        if (auth.isReady()) {
+            return openResolvedForControl(auth, isolation, incognito);
+        }
+        Platform.runLater(() -> {
+            ConnectionAuthResolver.Resolution asked = resolveConnectionAuthInteractively(connection);
+            if (asked.isReady()) {
+                openResolvedForControl(asked, isolation, incognito);
+            }
+        });
+        return null;
+    }
+
+    private TerminalTab openResolvedForControl(ConnectionAuthResolver.Resolution auth,
+            de.kortty.isolation.IsolationLevel isolation, boolean incognito) {
+        ServerConnection resolved = auth.connection();
+        TerminalTab tab = openConnectionAndReturnTab(resolved, auth.password(), null, null, auth.temporaryKey(),
+                resolved.getTerminalEffectPluginId(), resolved.getTerminalEffectAnimationSpeed(), null,
+                view -> {
+                    if (isolation != null) {
+                        view.setIsolationRequested(isolation);
+                    }
+                    if (incognito) {
+                        view.setIncognitoRequested(true);
+                    }
+                });
+        if (tab != null) {
+            recordConnectionUsage(resolved);
+        }
+        return tab;
+    }
+
+    /**
      * {@link ConnectionAuthResolver#resolve resolves} sign-in for {@code connection}, asking for what
      * is missing, and shows the policy message when the server policy blocks the target. The policy
      * is checked before any prompt.
