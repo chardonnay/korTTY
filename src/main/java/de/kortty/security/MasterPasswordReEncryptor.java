@@ -48,13 +48,33 @@ public final class MasterPasswordReEncryptor {
     private final EncryptionService enc;
     private final char[] oldPassword;
     private final char[] newPassword;
+    private final boolean clearUndecryptable;
     private int reEncrypted;
     private int failures;
+    private int cleared;
 
     public MasterPasswordReEncryptor(EncryptionService enc, char[] oldPassword, char[] newPassword) {
+        this(enc, oldPassword, newPassword, false);
+    }
+
+    private MasterPasswordReEncryptor(EncryptionService enc, char[] oldPassword, char[] newPassword,
+                                      boolean clearUndecryptable) {
         this.enc = Objects.requireNonNull(enc, "enc");
         this.oldPassword = oldPassword;
         this.newPassword = newPassword;
+        this.clearUndecryptable = clearUndecryptable;
+    }
+
+    /**
+     * A re-encryptor for data imported from a backup made under another master password
+     * ({@code backupPassword}). Unlike the password-change migration it never leaves a value it
+     * cannot decrypt in place: such a value is encrypted under a key the current installation
+     * does not have, so it is cleared instead (see {@link #clearedCount()}). Nothing encrypted
+     * under a foreign key ever reaches the local stores.
+     */
+    public static MasterPasswordReEncryptor forImport(EncryptionService enc, char[] backupPassword,
+                                                      char[] currentPassword) {
+        return new MasterPasswordReEncryptor(enc, backupPassword, currentPassword, true);
     }
 
     /** Number of secrets successfully re-encrypted so far. */
@@ -65,6 +85,24 @@ public final class MasterPasswordReEncryptor {
     /** Number of secrets that could not be re-encrypted (left unchanged). */
     public int failureCount() {
         return failures;
+    }
+
+    /**
+     * Number of undecryptable secrets an {@linkplain #forImport import} re-encryptor cleared
+     * instead of leaving them encrypted under a foreign key (always 0 otherwise).
+     */
+    public int clearedCount() {
+        return cleared;
+    }
+
+    /** Clears a value that could not be re-encrypted, when this re-encryptor imports. */
+    private boolean clearIfImporting(Consumer<String> setter) {
+        if (!clearUndecryptable) {
+            return false;
+        }
+        setter.accept(null);
+        cleared++;
+        return true;
     }
 
     // --- shared helpers ------------------------------------------------------------------------
@@ -97,7 +135,11 @@ public final class MasterPasswordReEncryptor {
             }
         } catch (Exception e) {
             failures++;
-            logger.warn("Could not re-encrypt secret [{}] — leaving it unchanged", label);
+            if (clearIfImporting(setter)) {
+                logger.warn("Could not decrypt imported secret [{}] — cleared it", label);
+            } else {
+                logger.warn("Could not re-encrypt secret [{}] — leaving it unchanged", label);
+            }
         }
     }
 
@@ -194,8 +236,22 @@ public final class MasterPasswordReEncryptor {
                 reEncrypted++;
             } catch (Exception e) {
                 failures++;
-                logger.warn("Could not re-encrypt RAG store secret [{}] — leaving it unchanged", store.id());
+                if (clearUndecryptable && clearRagSecret(rag, store)) {
+                    logger.warn("Could not decrypt imported RAG store secret [{}] — cleared it", store.id());
+                } else {
+                    logger.warn("Could not re-encrypt RAG store secret [{}] — leaving it unchanged", store.id());
+                }
             }
+        }
+    }
+
+    private boolean clearRagSecret(RagConfigurationManager rag, RagStore store) {
+        try {
+            rag.update(store.withApiKey(""));
+            cleared++;
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -219,7 +275,12 @@ public final class MasterPasswordReEncryptor {
                 changed = true;
             } catch (Exception e) {
                 failures++;
-                logger.warn("Could not re-encrypt sudo credential [{}] — leaving it unchanged", cred.getId());
+                if (clearIfImporting(cred::setEncryptedPassword)) {
+                    repo.upsertSudoCredential(cred);
+                    changed = true;
+                }
+                logger.warn("Could not re-encrypt sudo credential [{}]{}", cred.getId(),
+                    clearUndecryptable ? " — cleared it" : " — leaving it unchanged");
             }
         }
         for (ScheduledJob job : repo.getJobs()) {
@@ -236,8 +297,12 @@ public final class MasterPasswordReEncryptor {
                 changed = true;
             } catch (Exception e) {
                 failures++;
-                logger.warn("Could not re-encrypt archive password for job [{}] — leaving it unchanged",
-                    job.getId());
+                if (clearIfImporting(job.getAction()::setEncryptedArchivePassword)) {
+                    repo.upsertJob(job);
+                    changed = true;
+                }
+                logger.warn("Could not re-encrypt archive password for job [{}]{}", job.getId(),
+                    clearUndecryptable ? " — cleared it" : " — leaving it unchanged");
             }
         }
         for (WebhookTarget target : repo.getWebhookTargets()) {
@@ -251,7 +316,12 @@ public final class MasterPasswordReEncryptor {
                 changed = true;
             } catch (Exception e) {
                 failures++;
-                logger.warn("Could not re-encrypt webhook target [{}] — leaving it unchanged", target.getId());
+                if (clearIfImporting(target::setEncryptedUrl)) {
+                    repo.upsertWebhookTarget(target);
+                    changed = true;
+                }
+                logger.warn("Could not re-encrypt webhook target [{}]{}", target.getId(),
+                    clearUndecryptable ? " — cleared it" : " — leaving it unchanged");
             }
         }
         if (changed) {

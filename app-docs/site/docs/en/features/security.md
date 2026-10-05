@@ -24,6 +24,8 @@ On first launch, you are prompted to create a master password (minimum 6 charact
 
 The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in `~/.kortty/master.key`.
 
+Every secret is encrypted with the master password it was saved under. Importing a backup made with another master password without overwriting your files therefore asks for the backup's master password once and re-encrypts the backup's secrets with your current one before they are copied; without it, the files that hold secrets are not imported, so no secret encrypted with a foreign master password ever reaches your profile. See [A backup with another master password](backup.md#importing-a-backup).
+
 On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off **Require master password on startup** in **Settings > Security** hides this prompt and starts with the vault locked: stored passwords and keys stay unavailable until you unlock it (see [Unlocking the vault later](#unlocking-the-vault-later)).
 
 !!! danger "Optional auto-login weakens at-rest protection"

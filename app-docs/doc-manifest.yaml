@@ -334,7 +334,7 @@ pages:
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/backup.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/core/BackupManager.java]
+    owns_code: [src/main/java/de/kortty/core/BackupManager.java, src/main/java/de/kortty/core/BackupSecretReKeyer.java]
     diagrams: [backup-restore.svg]
     last_synced_ref: "7b75533b"
   - path: app-docs/site/docs/en/features/recording.md

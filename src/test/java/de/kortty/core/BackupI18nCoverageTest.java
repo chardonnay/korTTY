@@ -27,14 +27,25 @@ class BackupI18nCoverageTest {
             "backup.import.filter.backups",
             "backup.import.filter.all",
             "backup.import.restartRequired.header",
-            "backup.import.restartRequired.message");
+            "backup.import.restartRequired.message",
+            "backup.import.foreignKey.title",
+            "backup.import.foreignKey.header",
+            "backup.import.foreignKey.content",
+            "backup.import.foreignKey.wrong",
+            "backup.import.foreignKey.reEncrypted",
+            "backup.import.foreignKey.cleared",
+            "backup.import.foreignKey.skipped");
 
     /** Messages whose placeholders the backup dialogs fill in. */
     private static final List<String> PLACEHOLDER_KEYS = List.of(
             "backup.import.unknownFormat",
             "backup.import.restartRequired.message",
             "backup.createdMessage",
-            "backup.import.successMessage");
+            "backup.import.successMessage",
+            "backup.import.foreignKey.content",
+            "backup.import.foreignKey.reEncrypted",
+            "backup.import.foreignKey.cleared",
+            "backup.import.foreignKey.skipped");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d+}");
 
