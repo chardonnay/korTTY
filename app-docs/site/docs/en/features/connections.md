@@ -31,13 +31,21 @@ The connection editor has these tabs:
 | Tab | Contents |
 | --- | --- |
 | Connection | Host, port, username, protocol (SSH / Mosh / Local Shell), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment and an optional free-text [tag](#tags). For **Local Shell** connections host, port, username and authentication are not required and are disabled. See [Character encoding](#character-encoding). |
-| Terminal Settings | Per-connection colors, font, ANSI/TrueColor handling, the **Terminal behavior** section with the [tab color](#tab-color), the [keyword highlighting](#keyword-highlighting) rule set and the [paste protection](#paste-protection), terminal effect |
+| Terminal Settings | **Use the global terminal settings** or **Own settings for this connection** with per-connection colors, font and ANSI/TrueColor handling (see [Own terminal settings](#own-terminal-settings)), the **Terminal behavior** section with the [tab color](#tab-color), the [keyword highlighting](#keyword-highlighting) rule set and the [paste protection](#paste-protection), terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
 | Terminal Logging | Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See [Terminal logging](terminal.md#terminal-logging). |
 | Journal | Per-connection [session journal](session-journal.md): enable journaling for this connection and configure its capture log and AI summarization |
 | Window Geometry | Saved size/position for this connection |
 | AI | Per-connection AI defaults: the [AI profile](ai-assistant.md) and AI Skills used by terminal AI features on this connection |
+
+### Own terminal settings
+
+The top of the *Terminal Settings* tab chooses where the connection's terminal look comes from. **Use the global terminal settings**, the choice for every new connection, follows *Settings → Terminal* and the colors there, so changing them later changes this connection too; the fields below then show the global values and cannot be edited. **Own settings for this connection** unlocks the theme, font, size, text and background colors, the terminal colors switch, **Close tab without confirmation** and **Show command timestamps**, starting from the values that apply at that moment. Saving in the Connection Manager applies the choice to the connection's open tabs in every window, and new and reconnected tabs use it as well. Switching back to the global settings shows the global values again and makes the connection follow *Settings → Terminal* once you save; switching to own settings again before saving brings back the values you had entered, while after saving with the global settings, choosing **Own settings for this connection** later starts from the global values of that moment. The **Terminal behavior** section and the terminal effect apply either way.
+
+Connections saved by earlier versions keep using the global settings after the update, even when their *Terminal Settings* tab still holds values from back then: those values never applied, so korTTY does not switch them on by itself. Choose **Own settings for this connection** and save to give such a connection its own look. The same applies to exports and teamwork files written by earlier versions; exports and teamwork files written now carry each connection's choice.
+
+In [Quick Connect](#quick-connect), the **Terminal Appearance** section shows the values the connection would use; when you change them there, that session draws with them, and a new connection saved with **Save Connection** keeps them as its own settings. For a saved connection picked from the list, a changed appearance applies to that session only and the saved connection stays as it is.
 
 ### Character encoding
 

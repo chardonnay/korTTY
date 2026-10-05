@@ -189,6 +189,28 @@ public class ServerConnectionCopyPolicyTest {
         assertThat(importedMosh.getProtocol()).isEqualTo(ConnectionProtocol.MOSH);
     }
 
+    @Test
+    void duplicateExportAndImportCarryTheTerminalSettingsChoice() {
+        // "settings" is carried as a whole; this pins that the global-vs-own choice inside it is too,
+        // in both directions, so an exported own-settings connection keeps drawing with its values
+        // and a global-following one keeps following the importer's global settings.
+        for (boolean useGlobal : new boolean[] {true, false}) {
+            ServerConnection source = new ServerConnection("Demo", "demo.example.test", 22, "demo");
+            source.getSettings().setUseGlobalSettings(useGlobal);
+            source.getSettings().setFontFamily("Own Mono");
+
+            ServerConnection duplicate = ServerConnection.copyForDuplicate(source);
+            ServerConnection imported = ServerConnection.copyForImport(
+                    ServerConnection.copyForExport(source, false, false, false, false),
+                    false, false, false, false);
+
+            for (ServerConnection copy : List.of(duplicate, imported)) {
+                assertThat(copy.getSettings().isUseGlobalSettings()).isEqualTo(useGlobal);
+                assertThat(copy.getSettings().getFontFamily()).isEqualTo("Own Mono");
+            }
+        }
+    }
+
     private static Set<String> union(Set<String> a, Set<String> b) {
         Set<String> result = new HashSet<>(a);
         result.addAll(b);

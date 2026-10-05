@@ -10,6 +10,7 @@ import de.kortty.model.ServerConnection;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.SSHKey;
 import de.kortty.core.ConnectionColorSupport;
+import de.kortty.core.ConnectionSettingsSupport;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.SSHKeyManager;
 import de.kortty.core.ThemeManager;
@@ -97,7 +98,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private Label shellIntegrationAutoInjectHint;
     
     // Connection-specific settings
-    private CheckBox useCustomSettingsCheck;
+    /** "Use the global terminal settings" vs "Own settings for this connection"; one is always selected. */
+    private RadioButton useGlobalSettingsRadio;
+    private RadioButton ownSettingsRadio;
+    /** The own values shown before switching to the global settings, restored when switching back. */
+    private ConnectionSettings ownSettingsDraft;
     private ComboBox<Theme> themeCombo;
     
     // Tunnel and Jump Server
@@ -174,7 +179,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
                 GlobalSettings globalSettings = gsm.getSettings();
                 if (globalSettings != null && globalSettings.getDefaultTerminalSettings() != null) {
-                    newConnection.setSettings(new ConnectionSettings(globalSettings.getDefaultTerminalSettings()));
+                    ConnectionSettings seeded = new ConnectionSettings(globalSettings.getDefaultTerminalSettings());
+                    // A new connection follows the global settings until the user picks own ones.
+                    seeded.setUseGlobalSettings(true);
+                    newConnection.setSettings(seeded);
                 }
             } catch (Exception e) {
                 // Ignore, use default settings
@@ -708,28 +716,12 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     // Note: Password should be encrypted before saving
                 }
                 
-                // Save connection-specific settings if enabled
-                if (useCustomSettingsCheck != null && useCustomSettingsCheck.isSelected()) {
-                    ConnectionSettings customSettings;
-                    Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
-                    if (selTheme != null) {
-                        customSettings = new ConnectionSettings();
-                        selTheme.applyTo(customSettings, isThemeFontApplyEnabled());
-                        customSettings.setThemeId(selTheme.getId());
-                    } else {
-                        customSettings = new ConnectionSettings();
-                    }
-                    if (fontFamilyCombo != null) customSettings.setFontFamily(fontFamilyCombo.getValue());
-                    if (fontSizeSpinner != null) customSettings.setFontSize(fontSizeSpinner.getValue());
-                    if (foregroundColorPicker != null) customSettings.setForegroundColor(toHex(foregroundColorPicker.getValue()));
-                    if (backgroundColorPicker != null) customSettings.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
-                    if (terminalColorsEnabledCheck != null) customSettings.setTerminalColorsEnabled(terminalColorsEnabledCheck.isSelected());
-                    if (closeWithoutConfirmCheck != null) customSettings.setCloseWithoutConfirmation(closeWithoutConfirmCheck.isSelected());
-                    if (commandTimestampsCheck != null) customSettings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
-                    connection.setSettings(customSettings);
-                } else {
-                    connection.setSettings(null); // Use global settings
-                }
+                // Terminal settings: "own" stores the edited values with useGlobalSettings=false, so
+                // new and reconnected tabs draw with them; "global" keeps the stored values but
+                // follows the global settings again.
+                boolean ownSettings = ownSettingsRadio != null && ownSettingsRadio.isSelected();
+                connection.setSettings(ConnectionSettingsSupport.settingsToSave(
+                    ownSettings, connection.getSettings(), globalTerminalDefaults(), this::writeEditedTerminalSettings));
                 saveTerminalEffectSettings();
                 if (highlightRuleSetCombo != null) {
                     connection.setHighlightRuleSetId(HighlightConnectionSupport.storedValue(highlightRuleSetCombo.getValue()));
@@ -1220,17 +1212,24 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         VBox vbox = new VBox(15);
         vbox.setPadding(new Insets(20));
         
-        // Use custom settings checkbox
-        useCustomSettingsCheck = new CheckBox(I18n.get("connEdit.useCustomSettings"));
-        ConnectionSettings connSettings = connection.getSettings();
-        useCustomSettingsCheck.setSelected(connSettings != null);
+        // Global vs own terminal settings: only an explicit choice of "own" switches the flag off.
+        boolean ownSettings = ConnectionSettingsSupport.usesOwnTerminalSettings(connection.getSettings());
+        ToggleGroup settingsChoiceGroup = new ToggleGroup();
+        useGlobalSettingsRadio = new RadioButton(I18n.get("connEdit.terminalSettings.useGlobal"));
+        useGlobalSettingsRadio.setToggleGroup(settingsChoiceGroup);
+        ownSettingsRadio = new RadioButton(I18n.get("connEdit.terminalSettings.own"));
+        ownSettingsRadio.setToggleGroup(settingsChoiceGroup);
+        (ownSettings ? ownSettingsRadio : useGlobalSettingsRadio).setSelected(true);
+        // The fields show what applies now: the connection's own values, or the global defaults.
+        ConnectionSettings connSettings = ConnectionSettingsSupport.editorSeed(
+            connection.getSettings(), globalTerminalDefaults());
         
         // Settings grid
         GridPane settingsGrid = new GridPane();
         settingsGrid.setHgap(10);
         settingsGrid.setVgap(10);
         settingsGrid.setPadding(new Insets(10));
-        settingsGrid.setDisable(connSettings == null);
+        settingsGrid.setDisable(!ownSettings);
         
         // Font settings
         fontFamilyCombo = new ComboBox<>();
@@ -1339,9 +1338,20 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         settingsGrid.add(closeWithoutConfirmCheck, 0, row++, 2, 1);
         settingsGrid.add(commandTimestampsCheck, 0, row++, 2, 1);
         
-        // Enable/disable settings grid based on checkbox
-        useCustomSettingsCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {
+        // The fields are editable only with own settings, and always show what applies: switching to
+        // the global settings shows the global values and keeps the own values typed so far, which
+        // come back when switching to own settings again in this dialog.
+        ownSettingsRadio.selectedProperty().addListener((obs, oldVal, newVal) -> {
             settingsGrid.setDisable(!newVal);
+            if (newVal) {
+                if (ownSettingsDraft != null) {
+                    loadTerminalFields(ownSettingsDraft);
+                }
+            } else {
+                ownSettingsDraft = new ConnectionSettings(connSettings);
+                writeEditedTerminalSettings(ownSettingsDraft);
+                loadTerminalFields(ConnectionSettingsSupport.editorSeed(null, globalTerminalDefaults()));
+            }
         });
 
         GridPane terminalEffectGrid = new GridPane();
@@ -1361,7 +1371,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         terminalBehaviorLabel.setStyle("-fx-font-weight: bold;");
         
         vbox.getChildren().addAll(
-                useCustomSettingsCheck,
+                useGlobalSettingsRadio,
+                ownSettingsRadio,
                 new Label(I18n.get("connEdit.customSettingsInfo")),
                 settingsGrid,
                 new Separator(),
@@ -1378,6 +1389,61 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         tab.setContent(vbox);
         return tab;
+    }
+
+    /** Shows {@code source}'s values in the terminal settings grid (theme first: it sets font and colors). */
+    private void loadTerminalFields(ConnectionSettings source) {
+        if (source == null) {
+            return;
+        }
+        if (themeCombo != null) {
+            Theme theme = null;
+            try {
+                ThemeManager tm = de.kortty.KorTTYApplication.getInstance().getThemeManager();
+                if (tm != null && source.getThemeId() != null) {
+                    theme = tm.getTheme(source.getThemeId()).orElse(null);
+                }
+            } catch (Exception e) {
+                // Theme manager not available
+            }
+            themeCombo.setValue(theme);
+        }
+        if (fontFamilyCombo != null) fontFamilyCombo.setValue(source.getFontFamily());
+        if (fontSizeSpinner != null) fontSizeSpinner.getValueFactory().setValue(source.getFontSize());
+        if (foregroundColorPicker != null) foregroundColorPicker.setValue(Color.web(source.getForegroundColor()));
+        if (backgroundColorPicker != null) backgroundColorPicker.setValue(Color.web(source.getBackgroundColor()));
+        if (terminalColorsEnabledCheck != null) terminalColorsEnabledCheck.setSelected(source.isTerminalColorsEnabled());
+        if (closeWithoutConfirmCheck != null) closeWithoutConfirmCheck.setSelected(source.isCloseWithoutConfirmation());
+        if (commandTimestampsCheck != null) commandTimestampsCheck.setSelected(source.isCommandTimestampsEnabled());
+    }
+
+    /** Writes the fields of the terminal settings grid into {@code target} (own settings only). */
+    private void writeEditedTerminalSettings(ConnectionSettings target) {
+        Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
+        if (selTheme != null) {
+            selTheme.applyTo(target, isThemeFontApplyEnabled());
+            target.setThemeId(selTheme.getId());
+        } else {
+            target.setThemeId(null);
+        }
+        if (fontFamilyCombo != null) target.setFontFamily(fontFamilyCombo.getValue());
+        if (fontSizeSpinner != null) target.setFontSize(fontSizeSpinner.getValue());
+        if (foregroundColorPicker != null) target.setForegroundColor(toHex(foregroundColorPicker.getValue()));
+        if (backgroundColorPicker != null) target.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
+        if (terminalColorsEnabledCheck != null) target.setTerminalColorsEnabled(terminalColorsEnabledCheck.isSelected());
+        if (closeWithoutConfirmCheck != null) target.setCloseWithoutConfirmation(closeWithoutConfirmCheck.isSelected());
+        if (commandTimestampsCheck != null) target.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
+    }
+
+    /** The global default terminal settings, or null when they cannot be read (tests, capture stages). */
+    private static ConnectionSettings globalTerminalDefaults() {
+        try {
+            de.kortty.core.GlobalSettingsManager gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            return settings != null ? settings.getDefaultTerminalSettings() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

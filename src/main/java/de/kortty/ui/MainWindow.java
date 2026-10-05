@@ -4139,9 +4139,15 @@ public class MainWindow {
                 if (conn != null && conn.getId() != null) {
                     ServerConnection stored = app.getConfigManager().getConnectionById(conn.getId());
                     if (stored != null) {
-                        if (stored.getSettings() != null) {
-                            terminalTab.applyConnectionSettings(stored.getSettings());
+                        // The tab's connection may be a copy holding the settings object it was
+                        // opened with; give it the saved one, so the live global refresh and the
+                        // next reconnect see whether the connection now uses its own settings.
+                        if (conn != stored && stored.getSettings() != null) {
+                            conn.setSettings(stored.getSettings());
                         }
+                        // Own settings apply as saved; a connection switched back to the global
+                        // settings (or without settings) gets the global defaults again.
+                        terminalTab.applyConnectionSettings(stored.getSettings());
                         // Propagate the connection's group to the open tab only when it
                         // actually changed since the tab last saw it (baseline snapshot) —
                         // a manually assigned tab group must survive unrelated saves.
@@ -4334,6 +4340,18 @@ public class MainWindow {
                 swarmAgentTab.refreshChatColorProfile();
             }
         }
+    }
+
+    /** The font size a tab of a connection with {@code connSettings} opens with (own or global). */
+    private int sessionFontSizeBaseline(ConnectionSettings connSettings) {
+        ConnectionSettings globalDefaults = null;
+        try {
+            var gs = app.getGlobalSettingsManager().getSettings();
+            globalDefaults = gs != null ? gs.getDefaultTerminalSettings() : null;
+        } catch (Exception e) {
+            logger.debug("Could not read global defaults for the session font baseline: {}", e.getMessage());
+        }
+        return de.kortty.core.ConnectionSettingsSupport.effectiveTerminalSettings(connSettings, globalDefaults).getFontSize();
     }
 
     private void refreshTerminalTabsUsingGlobalDefaults() {
@@ -8040,7 +8058,11 @@ public class MainWindow {
             sessionState.setTabTitle(terminalTab.getCustomTitle());
             // Save current font size (zoom level) - may differ from settings when user zoomed
             int currentFontSize = terminalTab.getTerminalView().getCurrentFontSize();
-            if (connection.getSettings() == null || currentFontSize != connection.getSettings().getFontSize()) {
+            // Compared with the size the connection opens with: one that follows the global settings
+            // may still hold stale values of its own, which would pin today's global size as an
+            // override and ignore a later change of the global font size.
+            if (connection.getSettings() == null
+                    || currentFontSize != sessionFontSizeBaseline(connection.getSettings())) {
                 sessionState.setFontSizeOverride(currentFontSize);
             }
             // Save split pane structure (if terminal has splits). Only the session snapshot keeps
