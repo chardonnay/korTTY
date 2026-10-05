@@ -128,6 +128,21 @@ public final class DialogFirstOpenFitSmoke {
             dialog.getDialogPane().getProperties().put(LAPTOP_KEY, Boolean.TRUE);
             return dialog;
         });
+        // A remembered geometry narrower than the labels need (a 600px-wide connection editor was
+        // stored by an earlier release): restored as stored, then widened once it shows.
+        factories.put("connectionEditRestoredNarrow", () -> {
+            ConnectionEditDialog dialog = new ConnectionEditDialog(stage, connection, app.getCredentialManager(),
+                app.getSSHKeyManager(), app.getMasterPasswordManager().getMasterPassword());
+            // Applied the way DialogGeometrySupport restores it: on the window, once it shows.
+            dialog.addEventHandler(DialogEvent.DIALOG_SHOWN, event -> {
+                Stage restored = (Stage) dialog.getDialogPane().getScene().getWindow();
+                DialogGeometrySupport.whenShowing(restored, () -> {
+                    restored.setWidth(600);
+                    restored.setHeight(800);
+                });
+            });
+            return dialog;
+        });
         factories.put("aiManager", () -> owned(new AiManagerDialog(window), stage));
         factories.put("jobScheduler", () -> new JobSchedulerDialog(app, stage));
         factories.put("snippetWorkspace", () -> owned(new SnippetWorkspaceDialog(app.getSnippetManager(), window), stage));

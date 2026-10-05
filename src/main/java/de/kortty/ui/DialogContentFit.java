@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import javafx.animation.PauseTransition;
+import de.kortty.model.WindowGeometry;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -16,7 +18,9 @@ import javafx.scene.control.TreeView;
 import javafx.scene.layout.Region;
 import javafx.scene.text.Text;
 import javafx.stage.Screen;
+import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.util.Duration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +38,9 @@ import java.util.List;
  * heightens) the pane by what is missing, a few rounds until nothing is cut or the screen is full.
  * Everything happens before the window is mapped, so the dialog simply appears at the right size —
  * no visible jump. A dialog whose designed size exceeds the screen is held to it instead, so its
- * buttons stay reachable. A remembered geometry is the user's choice and is never second-guessed.</p>
+ * buttons stay reachable. A remembered geometry that cuts labels short is widened once when the
+ * window opens (the same measurement, on the showing window); otherwise it is restored as the user
+ * left it.</p>
  */
 final class DialogContentFit {
 
@@ -58,6 +64,9 @@ final class DialogContentFit {
 
     /** Share of the screen a fitted dialog may take, leaving room for the window frame. */
     private static final double SCREEN_SHARE = 0.92;
+
+    /** How long after a restored window shows before it is measured. */
+    private static final double RESTORE_SETTLE_MILLIS = 150;
 
     /** Below this a measured shortfall is rounding noise, not a cut label. */
     private static final double EPSILON = 0.5;
@@ -93,6 +102,66 @@ final class DialogContentFit {
                 fit(pane, screen.getWidth() * SCREEN_SHARE, screen.getHeight() * SCREEN_SHARE);
             }
         });
+        // A remembered size is restored as stored, but a window stored narrower than its labels
+        // need (often from a release whose dialog was laid out differently) is widened once on
+        // open. Deferred, so it runs after every restore handler has placed the window.
+        dialog.addEventHandler(DialogEvent.DIALOG_SHOWN, event -> {
+            if (dialog instanceof ThemeAwareDialog<?> themed && themed.isHostedInTab()) {
+                return;
+            }
+            Window window = pane.getScene() != null ? pane.getScene().getWindow() : null;
+            if (window instanceof Stage stage) {
+                DialogGeometrySupport.whenShowing(stage, () -> {
+                    // The restored size reaches the scene only after the native resize round-trip;
+                    // measuring earlier would judge the dialog at its preferred size.
+                    PauseTransition settle = new PauseTransition(Duration.millis(RESTORE_SETTLE_MILLIS));
+                    settle.setOnFinished(done -> widenShowing(pane, stage));
+                    settle.play();
+                });
+            }
+        });
+    }
+
+    /**
+     * Grows a showing window until no growable label in its pane is cut short, keeping it on its
+     * screen. Does nothing when everything is readable at the current size.
+     */
+    static void widenShowing(DialogPane pane, Stage stage) {
+        // Not stage.isMaximized(): macOS reports a freshly shown dialog as maximized. A window that
+        // fills its screen is treated as maximized instead, as DialogGeometrySupport does.
+        if (!stage.isShowing() || stage.isFullScreen() || stage.isIconified() || pane.getScene() == null) {
+            return;
+        }
+        Rectangle2D screen = screenFor(stage);
+        if (screen == null || DialogGeometrySupport.fillsScreen(
+                new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight()), List.of(screen))) {
+            return;
+        }
+        double width = pane.getWidth();
+        double height = pane.getHeight();
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+        double maxWidth = Math.max(width, screen.getWidth() * SCREEN_SHARE - (stage.getWidth() - width));
+        double maxHeight = Math.max(height, screen.getHeight() * SCREEN_SHARE - (stage.getHeight() - height));
+        double neededWidth = grow(pane, width, height, maxWidth, true);
+        double neededHeight = grow(pane, neededWidth, height, maxHeight, false);
+        // Put the pane back as it was; the window resize below (if any) lays it out afresh.
+        pane.resize(width, height);
+        pane.layout();
+        if (neededWidth <= width + EPSILON && neededHeight <= height + EPSILON) {
+            return;
+        }
+        double stageWidth = stage.getWidth() + Math.ceil(neededWidth - width);
+        double stageHeight = stage.getHeight() + Math.max(0, Math.ceil(neededHeight - height));
+        stage.setWidth(stageWidth);
+        stage.setHeight(stageHeight);
+        if (stage.getX() + stageWidth > screen.getMaxX()) {
+            stage.setX(Math.max(screen.getMinX(), screen.getMaxX() - stageWidth));
+        }
+        if (stage.getY() + stageHeight > screen.getMaxY()) {
+            stage.setY(Math.max(screen.getMinY(), screen.getMaxY() - stageHeight));
+        }
     }
 
     /**
