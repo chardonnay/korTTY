@@ -104,13 +104,19 @@ public final class SessionWorkerMain {
         WorkerEndpoint endpoint = new WorkerEndpoint(stdin, stdout, "worker");
         CountDownLatch done = new CountDownLatch(1);
         endpoint.setEventListener(event -> {
-            if ("shutdown".equals(event.has("type") ? event.get("type").getAsString() : "")) {
+            String type = event.has("type") ? event.get("type").getAsString() : "";
+            if ("shutdown".equals(type)) {
                 done.countDown();
+            } else if ("mosh.active".equals(type) && event.has("active")) {
+                MoshShellCommand.setTerminalActive(event.get("active").getAsBoolean());
             }
         });
         endpoint.start();
         endpoint.ended().thenRun(done::countDown);
 
+        if ("mosh".equals(init.mode)) {
+            return runMosh(init, endpoint, done);
+        }
         Upstream upstream = new Upstream(init, endpoint);
         try {
             upstream.connect();
@@ -153,6 +159,38 @@ public final class SessionWorkerMain {
         return 0;
     }
 
+    /**
+     * The Mosh mode: no SSH upstream; korTTY's terminal channel on the loopback endpoint runs a
+     * built-in Mosh session to the server mosh-server was started on.
+     */
+    private static int runMosh(WorkerInit init, WorkerEndpoint endpoint, CountDownLatch done) throws Exception {
+        if (init.moshKey == null || init.moshPort <= 0 || init.moshClasspath == null || init.moshClasspath.isEmpty()) {
+            logger.error("Unusable Mosh init from korTTY");
+            endpoint.close();
+            return EXIT_BAD_INIT;
+        }
+        SshServer server = SshServer.setUpDefaultServer();
+        configureEndpoint(server, init, done);
+        server.setShellFactory(channel -> new MoshShellCommand(init, endpoint));
+        server.setChannelFactories(List.of(ChannelSessionFactory.INSTANCE));
+        server.start();
+        JsonObject ready = new JsonObject();
+        ready.addProperty("type", "ready");
+        ready.addProperty("port", server.getPort());
+        ready.addProperty("hostKey", PublicKeyEntry.toString(hostKey(server)));
+        ready.addProperty("pid", ProcessHandle.current().pid());
+        endpoint.send(ready);
+        done.await();
+        logger.info("Mosh session worker ends");
+        try {
+            server.stop(true);
+        } catch (IOException ignored) {
+            // Exiting anyway.
+        }
+        endpoint.close();
+        return 0;
+    }
+
     /** Reads one line of bytes without buffering past it, so the endpoint gets every byte after it. */
     private static String readLine(InputStream in) throws IOException {
         java.io.ByteArrayOutputStream line = new java.io.ByteArrayOutputStream();
@@ -173,6 +211,21 @@ public final class SessionWorkerMain {
     /** The loopback endpoint korTTY logs in to with its token. */
     private static SshServer startEndpoint(WorkerInit init, Upstream upstream, CountDownLatch done) throws IOException {
         SshServer server = SshServer.setUpDefaultServer();
+        configureEndpoint(server, init, done);
+        server.setShellFactory(channel -> new RelayCommand(upstream.session, RelayCommand.Kind.SHELL, null));
+        server.setCommandFactory((channel, command) -> new RelayCommand(upstream.session, RelayCommand.Kind.EXEC, command));
+        server.setSubsystemFactories(List.of(relaySubsystem(upstream, "sftp")));
+        server.setChannelFactories(List.of(ChannelSessionFactory.INSTANCE,
+            DirectTcpipRelayChannel.factory(() -> upstream.session)));
+        server.start();
+        return server;
+    }
+
+    /**
+     * What every loopback endpoint shares: loopback only, an ephemeral host key, korTTY's token as the
+     * only login, no forwarding of its own, and the end of the worker once korTTY's last session ends.
+     */
+    private static void configureEndpoint(SshServer server, WorkerInit init, CountDownLatch done) {
         server.setHost("127.0.0.1");
         server.setPort(0);
         SimpleGeneratorHostKeyProvider hostKeys = new SimpleGeneratorHostKeyProvider();
@@ -185,11 +238,6 @@ public final class SessionWorkerMain {
         server.setPublickeyAuthenticator(null);
         server.setKeyboardInteractiveAuthenticator(null);
         server.setForwardingFilter(RejectAllForwardingFilter.INSTANCE);
-        server.setShellFactory(channel -> new RelayCommand(upstream.session, RelayCommand.Kind.SHELL, null));
-        server.setCommandFactory((channel, command) -> new RelayCommand(upstream.session, RelayCommand.Kind.EXEC, command));
-        server.setSubsystemFactories(List.of(relaySubsystem(upstream, "sftp")));
-        server.setChannelFactories(List.of(ChannelSessionFactory.INSTANCE,
-            DirectTcpipRelayChannel.factory(() -> upstream.session)));
         AtomicBoolean hadSession = new AtomicBoolean();
         AtomicLong openSessions = new AtomicLong();
         server.addSessionListener(new SessionListener() {
@@ -206,8 +254,6 @@ public final class SessionWorkerMain {
                 }
             }
         });
-        server.start();
-        return server;
     }
 
     private static SubsystemFactory relaySubsystem(Upstream upstream, String name) {

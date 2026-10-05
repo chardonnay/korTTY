@@ -162,7 +162,7 @@ final class IsolationConnectionSupport {
     static @Nullable String hint(@Nullable ConnectionProtocol protocol, @NotNull IsolationLevel effective,
                                  @Nullable String sandboxUnavailableReason) {
         boolean workers = de.kortty.core.worker.SessionWorkerProcess.available();
-        boolean nativeMosh = protocol == ConnectionProtocol.MOSH && effective != IsolationLevel.NONE
+        boolean nativeMosh = protocol == ConnectionProtocol.MOSH && !workers && effective != IsolationLevel.NONE
             && de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable();
         IsolationLevel supported = IsolationSettings.strongestSupported(protocol, workers, workers, nativeMosh);
         if (nativeMosh) {

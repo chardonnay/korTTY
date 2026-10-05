@@ -106,6 +106,16 @@ public final class LocalProcessSandbox {
      */
     public static Prepared prepareWorker(IsolationRequest request, List<String> command, List<Integer> outboundPorts)
             throws IOException {
+        return prepareWorker(request, command, outboundPorts, List.of(), List.of());
+    }
+
+    /**
+     * {@link #prepareWorker(IsolationRequest, List, List)} for a worker that also sends UDP
+     * ({@code outboundUdpPorts}, a Mosh session) and reads files inside a hidden folder
+     * ({@code readable}, the mosh4j JARs korTTY keeps in its configuration folder).
+     */
+    public static Prepared prepareWorker(IsolationRequest request, List<String> command, List<Integer> outboundPorts,
+                                         List<Integer> outboundUdpPorts, List<Path> readable) throws IOException {
         IsolationRequest req = request != null ? request : IsolationRequest.NONE;
         Map<String, String> env = new HashMap<>(System.getenv());
         if (req.level() != IsolationLevel.SANDBOX) {
@@ -126,7 +136,7 @@ public final class LocalProcessSandbox {
         Path sessionDirectory = SandboxSupport.createSessionDirectory();
         SandboxSpec spec = new SandboxSpec(
             SandboxSupport.sensitivePaths(de.kortty.KorTTYApplication.getConfigDirectory()),
-            List.of(), true, List.of(sessionDirectory), outboundPorts);
+            readable, true, List.of(sessionDirectory), outboundPorts, outboundUdpPorts);
         env.put("TMPDIR", sessionDirectory.toString());
         env.put("KORTTY_SANDBOX", backend.id());
         String detail = backend.limitsNetwork() ? null : I18n.get("isolation.sandbox.noNetworkLimit");

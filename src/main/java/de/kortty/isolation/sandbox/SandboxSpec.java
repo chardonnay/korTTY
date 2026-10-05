@@ -17,20 +17,29 @@ import java.util.List;
  * @param outboundPorts        the remote TCP ports the process may connect to (plus this computer and
  *                             name resolution), or null for no limit. Backends that cannot limit the
  *                             network ignore it ({@link SandboxBackend#limitsNetwork()}).
+ * @param outboundUdpPorts     the remote UDP ports the process may send to (Mosh), used with
+ *                             {@code outboundPorts}; empty for none
  */
 public record SandboxSpec(List<Path> hiddenPaths, List<Path> readableInsideHidden, boolean restrictWrites,
-                          List<Path> writablePaths, List<Integer> outboundPorts) {
+                          List<Path> writablePaths, List<Integer> outboundPorts, List<Integer> outboundUdpPorts) {
 
     public SandboxSpec {
         hiddenPaths = hiddenPaths != null ? List.copyOf(hiddenPaths) : List.of();
         readableInsideHidden = readableInsideHidden != null ? List.copyOf(readableInsideHidden) : List.of();
         writablePaths = writablePaths != null ? List.copyOf(writablePaths) : List.of();
         outboundPorts = outboundPorts != null ? List.copyOf(outboundPorts) : null;
+        outboundUdpPorts = outboundUdpPorts != null ? List.copyOf(outboundUdpPorts) : List.of();
+    }
+
+    /** A spec that limits TCP connections only. */
+    public SandboxSpec(List<Path> hiddenPaths, List<Path> readableInsideHidden, boolean restrictWrites,
+                       List<Path> writablePaths, List<Integer> outboundPorts) {
+        this(hiddenPaths, readableInsideHidden, restrictWrites, writablePaths, outboundPorts, List.of());
     }
 
     /** A spec without a network limit. */
     public SandboxSpec(List<Path> hiddenPaths, List<Path> readableInsideHidden, boolean restrictWrites,
                        List<Path> writablePaths) {
-        this(hiddenPaths, readableInsideHidden, restrictWrites, writablePaths, null);
+        this(hiddenPaths, readableInsideHidden, restrictWrites, writablePaths, null, List.of());
     }
 }

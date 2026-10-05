@@ -117,6 +117,8 @@ class IsolationSettingsTest {
         assertThat(IsolationSettings.strongestSupported(ConnectionProtocol.MOSH_CLIENT, false, false))
             .isEqualTo(IsolationLevel.SANDBOX);
         assertThat(IsolationSettings.strongestSupported(ConnectionProtocol.MOSH, true, true))
+            .isEqualTo(IsolationLevel.SANDBOX);
+        assertThat(IsolationSettings.strongestSupported(ConnectionProtocol.MOSH, false, false))
             .isEqualTo(IsolationLevel.NONE);
         assertThat(IsolationSettings.strongestSupported(ConnectionProtocol.SSH_TCP, false, false))
             .isEqualTo(IsolationLevel.NONE);

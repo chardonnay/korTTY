@@ -21,9 +21,9 @@ What each connection type can get in this version:
 | Local shell | yes | yes (a local shell is always a process of its own) | yes |
 | Mosh (native `mosh-client`) | yes | yes | yes: `mosh-client` runs in the sandbox; the short SSH start of `mosh-server` stays in korTTY |
 | SSH | yes | yes, in a session worker (see below) | yes |
-| Mosh (built-in client) | yes | with the native `mosh-client`, when it is installed | with the native `mosh-client`, when it is installed |
+| Mosh (built-in client) | yes | yes, in a session worker | yes |
 
-The built-in Mosh client runs inside korTTY and cannot be isolated yet. A built-in Mosh connection that asks for isolation therefore runs with the native `mosh-client` instead, when it is installed: `mosh-client` then runs in its own process or in the sandbox, and the SSH login that starts `mosh-server` runs in a session worker. Without `mosh-client` it runs as before. A connection that asks for more than its type can get runs with the strongest level it can get, and the connection editor says so under **Isolation:**. If your organization demands a level that the connection type cannot get, the session is not opened at all.
+An isolated session of the built-in Mosh client runs in a session worker too: the SSH login that starts `mosh-server` and the Mosh session itself (UDP, its encryption and the screen updates) run in worker processes of their own, and in the sandbox the Mosh worker may send only to the UDP port `mosh-server` reported. Only when this installation cannot start session workers does a built-in Mosh connection that asks for isolation run with the native `mosh-client` instead, if it is installed. A connection that asks for more than its type can get runs with the strongest level it can get, and the connection editor says so under **Isolation:**. If your organization demands a level that the connection type cannot get, the session is not opened at all.
 
 ## SSH sessions in a session worker
 

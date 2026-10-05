@@ -38,6 +38,14 @@ public final class WorkerInit {
     /** The password korTTY logs in to the worker's loopback endpoint with. */
     public String token;
 
+    /** {@code ssh} (the default) or {@code mosh}: a built-in Mosh session (mosh4j) instead of SSH. */
+    public String mode = "ssh";
+
+    /** For {@code mosh}: the UDP port and session key mosh-server reported, and the mosh4j JARs. */
+    public int moshPort;
+    public String moshKey;
+    public java.util.List<String> moshClasspath;
+
     /** A jump server hop. */
     public static final class Jump {
         public String host;
