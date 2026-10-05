@@ -986,7 +986,7 @@
 <td>Die Aufgabe wird an jeden Zielserver gesendet</td>
 </tr>
 <tr>
-<td><strong>Automatisch genehmigen</strong></td>
+<td><strong>Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern</strong></td>
 <td>Genehmigen Sie systemverändernde Befehle ohne Dialog (bei unbeaufsichtigten Ausführungen muss niemand gefragt werden)</td>
 </tr>
 <tr>
@@ -1012,7 +1012,7 @@
 </ul>
 <div class="admonition warning">
 <p class="admonition-title">Unbeaufsichtigte Änderungen</p>
-<p>Ein geplanter Schwarm mit <strong>Schreibgeschützt aus</strong> und <strong>Auto-Genehmigung ein</strong> ändert Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die Eingabeaufforderung ist absichtlich darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.</p>
+<p>Ein geplanter Schwarm mit <strong>Schreibgeschützt aus</strong> und <strong>Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern</strong> ein ändert Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die Eingabeaufforderung ist absichtlich darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.</p>
 </div>
 <p>Die <a href="../reference/enterprise-policy.html#rulefeatures">Unternehmensrichtlinie</a> einer Organisation gilt auch für geplante Swarms: Ist der KI-Swarm oder der KI-Agent verweigert oder <code>ai-agent-execution</code> auf <code>read-only</code> gesetzt, endet der Job als blockiert, bevor er sich verbindet; bei <code>ai-agent-execution = "confirm"</code> wird jeder Agent, der einen serverändernden Befehl plant, gestoppt und als blockiert gezählt, selbst wenn die automatische Genehmigung aktiviert ist.</p></p>
     </article>

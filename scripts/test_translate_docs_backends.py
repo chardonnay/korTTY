@@ -288,6 +288,102 @@ class TranslateMasked(unittest.TestCase):
         self.assertEqual((tr.batches, failed), (0, []))
 
 
+class MetaReplies(unittest.TestCase):
+    """A chat model's reply ABOUT the request ("Bitte geben Sie die zu übersetzende Zeile an.")
+    must never be written as the German line."""
+
+    SEEN = ["Bitte geben Sie die zu übersetzende Zeile an.",
+            "Sure, please provide the line you would like me to translate.",
+            "Please provide the text to translate.",
+            "Welche Zeile möchten Sie übersetzen?",
+            "Here is the translation:",
+            "Es tut mir leid, aber ich kann diese Anfrage nicht bearbeiten.",
+            "Es gibt keinen Text, den ich übersetzen könnte.",
+            "Gerne! Bitte senden Sie mir den Text."]
+
+    def test_known_meta_phrases_are_detected(self):
+        for reply in self.SEEN:
+            with self.subTest(reply=reply):
+                self.assertTrue(td.is_meta_reply("Open the file with the editor.", reply))
+                self.assertTrue(td.is_meta_reply("and", reply))
+
+    def test_ordinary_translations_are_not_meta(self):
+        pairs = [
+            ("Open the file with the editor.", "Öffnen Sie die Datei mit dem Editor."),
+            ("Please enter the text to search for.", "Bitte geben Sie den Text ein, nach dem gesucht werden soll."),
+            ("## What is encrypted", "## Was ist verschlüsselt?"),
+            ("Is the host reachable?", "Ist der Host erreichbar? Prüfen Sie das."),
+            ("KorTTY stores KTPH000 in 3 places, e.g. on disk.",
+             "korTTY speichert KTPH000 an 3 Orten, z. B. auf der Festplatte."),
+            ("Profiles store foreground/background colors.", "Profile speichern Vordergrund-/Hintergrundfarben."),
+            ("Edit settings.json and JavaFX options.", "Bearbeiten Sie settings.json und die JavaFX-Optionen."),
+        ]
+        for source, out in pairs:
+            with self.subTest(source=source):
+                self.assertFalse(td.is_meta_reply(source, out), td.meta_reply_reason(source, out))
+
+    def test_a_phrase_the_source_itself_contains_is_not_meta(self):
+        self.assertFalse(td.is_meta_reply("Here is the translation of the menu labels.",
+                                          "Hier ist die Übersetzung der Menübeschriftungen."))
+
+    def test_question_addressing_the_reader_is_a_request_for_input(self):
+        self.assertTrue(td.is_meta_reply("Save the snippet.", "Was genau möchten Sie speichern?"))
+        self.assertEqual("question", td.meta_reply_reason("Save the snippet.", "Could you clarify what you mean?"))
+
+    def test_reply_without_any_carry_over_token_is_meta(self):
+        self.assertEqual("no-carry-over", td.meta_reply_reason(
+            "Set KTPH000 to 30 seconds in korTTY.", "Das kann ich so nicht beantworten."))
+        self.assertFalse(td.is_meta_reply("Set the timeout to 30 seconds.", "Setzen Sie das Zeitlimit auf 30 Sekunden."))
+        self.assertFalse(td.is_meta_reply("Set the timeout.", "Setzen Sie das Zeitlimit."))
+
+    def test_meta_line_is_retried_then_failed(self):
+        masked, store = td.mask("Open the file with the editor.")
+        tr = _Translator(lambda t, n: MetaReplies.SEEN[0], fragment=lambda t: MetaReplies.SEEN[0])
+        results, stats = td.translate_masked(tr, [(masked, store)])
+        self.assertEqual(results, [None])
+        self.assertEqual((stats["retried"], stats["failed"]), (1, 1))
+        self.assertGreaterEqual(stats["meta_replies"], 2)
+
+    def test_meta_retry_answer_is_not_span_repaired(self):
+        masked, store = td.mask("Open the file with the editor.")
+        tr = _Translator(lambda t, n: MetaReplies.SEEN[1],
+                         fragment=lambda t: "Öffnen Sie die Datei mit dem Editor.")
+        results, _stats = td.translate_masked(tr, [(masked, store)])
+        self.assertEqual(results, ["Öffnen Sie die Datei mit dem Editor."])  # fragment fallback
+
+    def test_meta_reply_for_a_fragment_fails_the_line(self):
+        masked, store = td.mask("Press ++ctrl+s++ and then `save`.")
+        tr = _Translator(lambda t, n: None,
+                         fragment=lambda t: MetaReplies.SEEN[0] if t == "and then" else "Drücken Sie")
+        results, stats = td.translate_masked(tr, [(masked, store)])
+        self.assertEqual(results, [None])
+        self.assertEqual(stats["failed"], 1)
+        page = "Press ++ctrl+s++ and then `save`.\n"
+        out, _r, _f, failed = td.translate_md(page, tr)
+        self.assertEqual(out, page)
+        self.assertEqual(len(failed), 1)
+
+    def test_good_answer_after_a_meta_answer_is_accepted(self):
+        masked, store = td.mask("Open the file with the editor.")
+        tr = _Translator(lambda t, n: MetaReplies.SEEN[0] if n == 1 else "Öffnen Sie die Datei mit dem Editor.")
+        results, stats = td.translate_masked(tr, [(masked, store)])
+        self.assertEqual(results, ["Öffnen Sie die Datei mit dem Editor."])
+        self.assertEqual((stats["retry_ok"], stats["meta_replies"]), (1, 1))
+
+    def test_llm_backend_redoes_a_meta_batch_line_and_fails_a_meta_single(self):
+        def reply(_system, user):
+            if '{"lines"' in user:
+                return json.dumps({"translations": [
+                    {"id": 1, "text": "Öffnen KTPH000"},
+                    {"id": 2, "text": "Sure, please provide the line you want translated."}]})
+            return MetaReplies.SEEN[0]
+        backend = ScriptedBackend(reply, batch_lines=2)
+        self.assertEqual(backend.translate_lines(["Open KTPH000", "Open the file"]), ["Öffnen KTPH000", None])
+        self.assertEqual(len(backend.calls), 2)  # the batch + one single-line retry
+        with self.assertRaises(RuntimeError):
+            backend.translate("and")
+
+
 class TermContextTests(unittest.TestCase):
     def test_bold_and_menu_path_labels(self):
         labels = TERMS.matched_labels("Click **Save** under Tools → Snippet Manager")

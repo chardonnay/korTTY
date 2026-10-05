@@ -414,7 +414,7 @@ def build_result(args, backend, model: str, samples: list[dict], m: dict, terms,
         "placeholder_first_pass_rate": round(100 * stats["first_pass_ok"] / max(1, stats["lines"]), 1)
         if not m["partial"] else None,
         "retried": stats["retried"], "fragment_fallback": stats["fragment_fallback"],
-        "failed": stats["failed"],
+        "failed": stats["failed"], "meta_replies": stats.get("meta_replies", 0),
         "term_adherence_rate": round(100 * expected_hit / expected_total, 1) if expected_total else None,
         "expected_terms": expected_total,
         "chrf": round(corpus_chrf(hyps, refs), 1) if hyps else None,
@@ -553,7 +553,8 @@ def markdown_report(results: list[dict], meta: dict) -> str:
                 f"- completion tokens {r['completion_tokens']} (reasoning {r['reasoning_tokens']}), "
                 f"per-request decode {r['tokens_per_s_per_request']} tok/s, "
                 f"answers found only in the reasoning channel: {r['answers_in_reasoning']}",
-                f"- retried {r['retried']}, fragment fallback {r['fragment_fallback']}, failed {r['failed']}",
+                f"- retried {r['retried']}, fragment fallback {r['fragment_fallback']}, failed {r['failed']}, "
+                f"meta replies {r.get('meta_replies', 0)}",
                 f"- chrF++ by kind: {r['chrf_by_kind']}", ""]
         worst = sorted(r["per_line"], key=lambda x: x["chrf"])[:5]
         if worst and not meta.get("sweep"):
