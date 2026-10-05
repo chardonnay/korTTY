@@ -220,6 +220,9 @@ public class ServerConnection {
     /**
      * Creates a shallow copy of the given connection (same id; references to settings, tunnels, etc. are shared).
      * Used when resolving default auth for teamwork connections so the original is not modified.
+     * The shared {@link ConnectionSettings} still belong to the stored connection: runtime-only
+     * changes (a theme picked from the terminal context menu, zoom) must go to a tab-owned copy,
+     * never into {@code getSettings()}, or they reach connections.xml on the next save.
      */
     public static ServerConnection copyForAuth(ServerConnection source) {
         ServerConnection c = new ServerConnection();

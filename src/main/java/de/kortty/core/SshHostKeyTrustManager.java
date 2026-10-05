@@ -77,6 +77,8 @@ public final class SshHostKeyTrustManager {
 
     static final String STORE_FILE_NAME = "ssh-host-keys.properties";
     private static final String STORE_FORMAT = "1";
+    /** The store refuses to load more entries than this, so no write may exceed it either. */
+    private static final int MAX_STORE_ENTRIES = 100_000;
     private static final Logger logger = LoggerFactory.getLogger(SshHostKeyTrustManager.class);
     private static final ConcurrentHashMap<Path, Object> PROCESS_STORE_LOCKS = new ConcurrentHashMap<>();
     private static final Comparator<HostKeyPin> PIN_ORDER =
@@ -214,6 +216,103 @@ public final class SshHostKeyTrustManager {
                 endpoint.host(), endpoint.port(), expectedFingerprintSha256);
         }
         return removed;
+    }
+
+    /**
+     * Adds the keys of a parsed OpenSSH {@code known_hosts} file as trusted keys, in one atomic
+     * read-modify-write of the store.
+     *
+     * <p>korTTY trusts one key per {@code host:port}. An endpoint already trusted with any of the
+     * file's keys counts as already trusted. An endpoint trusted with a different key is a conflict
+     * and is never changed here: the next connection shows the changed key and, where allowed, the
+     * usual review-and-replace flow. For a new endpoint with several keys in the file, the key the
+     * SSH client negotiates first is pinned ({@link OpenSshKnownHostsParser#preferenceRank}); the
+     * others are counted as additional keys. A key that the same file lists as {@code @revoked} is
+     * never imported. Importing only adds pins, so it is not affected by the enterprise policy that
+     * locks removing and replacing them.</p>
+     *
+     * @param dryRun compute the outcome without writing, for the confirmation before an import
+     */
+    public KnownHostsImportResult importKnownHosts(OpenSshKnownHostsParser.KnownHostsFile file, boolean dryRun)
+            throws IOException {
+        Objects.requireNonNull(file, "file");
+        Map<Endpoint, List<OpenSshKnownHostsParser.KnownHostsEntry>> byEndpoint = new java.util.LinkedHashMap<>();
+        int revokedSkipped = 0;
+        for (OpenSshKnownHostsParser.KnownHostsEntry entry : file.entries()) {
+            if (file.revokedFingerprints().contains(entry.fingerprintSha256())) {
+                revokedSkipped++;
+                continue;
+            }
+            List<OpenSshKnownHostsParser.KnownHostsEntry> keys = byEndpoint.computeIfAbsent(
+                new Endpoint(normalizeHost(entry.host()), effectivePort(entry.port())), ignored -> new ArrayList<>());
+            if (keys.stream().noneMatch(known -> known.fingerprintSha256().equals(entry.fingerprintSha256()))) {
+                keys.add(entry);
+            }
+        }
+        int skippedRevoked = revokedSkipped;
+        StoreMutation<KnownHostsImportResult> mutation = currentPins -> {
+            Map<Endpoint, HostKeyPin> updated = new HashMap<>(currentPins);
+            List<TrustedHostKey> added = new ArrayList<>();
+            List<KnownHostsConflict> conflicts = new ArrayList<>();
+            List<TrustedHostKey> trustedButRevoked = new ArrayList<>();
+            int alreadyTrusted = 0;
+            int additionalKeys = 0;
+            for (Map.Entry<Endpoint, List<OpenSshKnownHostsParser.KnownHostsEntry>> group : byEndpoint.entrySet()) {
+                Endpoint endpoint = group.getKey();
+                List<OpenSshKnownHostsParser.KnownHostsEntry> keys = new ArrayList<>(group.getValue());
+                keys.sort(Comparator.comparingInt(
+                    (OpenSshKnownHostsParser.KnownHostsEntry key) -> OpenSshKnownHostsParser.preferenceRank(key.keyType()))
+                    .thenComparingInt(OpenSshKnownHostsParser.KnownHostsEntry::lineNumber));
+                OpenSshKnownHostsParser.KnownHostsEntry preferred = keys.getFirst();
+                HostKeyPin existing = currentPins.get(endpoint);
+                if (existing != null) {
+                    if (keys.stream().anyMatch(key -> key.fingerprintSha256().equals(existing.fingerprintSha256()))) {
+                        alreadyTrusted++;
+                    } else {
+                        conflicts.add(new KnownHostsConflict(endpoint.host(), endpoint.port(),
+                            existing.algorithm(), existing.fingerprintSha256(),
+                            preferred.keyType(), preferred.fingerprintSha256(), preferred.lineNumber()));
+                    }
+                    continue;
+                }
+                HostKeyPin pin = new HostKeyPin(endpoint, preferred.keyType(), preferred.fingerprintSha256(),
+                    preferred.publicKeyLine(), Instant.now().toString());
+                updated.put(endpoint, pin);
+                added.add(new TrustedHostKey(endpoint.host(), endpoint.port(), pin.algorithm(),
+                    pin.fingerprintSha256(), pin.trustedAt()));
+                additionalKeys += keys.size() - 1;
+            }
+            for (HostKeyPin pin : currentPins.values()) {
+                if (file.revokedFingerprints().contains(pin.fingerprintSha256())) {
+                    trustedButRevoked.add(new TrustedHostKey(pin.endpoint().host(), pin.endpoint().port(),
+                        pin.algorithm(), pin.fingerprintSha256(), pin.trustedAt()));
+                }
+            }
+            if (updated.size() > MAX_STORE_ENTRIES) {
+                throw new IOException("The import would exceed " + MAX_STORE_ENTRIES + " trusted host keys.");
+            }
+            added.sort(Comparator.comparing(TrustedHostKey::host).thenComparingInt(TrustedHostKey::port));
+            conflicts.sort(Comparator.comparing(KnownHostsConflict::host).thenComparingInt(KnownHostsConflict::port));
+            trustedButRevoked.sort(Comparator.comparing(TrustedHostKey::host).thenComparingInt(TrustedHostKey::port));
+            KnownHostsImportResult result = new KnownHostsImportResult(file, added, alreadyTrusted, conflicts,
+                additionalKeys, skippedRevoked, trustedButRevoked, dryRun);
+            return dryRun || added.isEmpty() ? Mutation.unchanged(result) : Mutation.write(updated, result);
+        };
+        KnownHostsImportResult result;
+        if (dryRun) {
+            Map<Endpoint, HostKeyPin> pins;
+            synchronized (stateLock) {
+                pins = readPins();
+            }
+            result = mutation.apply(pins).result();
+        } else {
+            result = mutateStore(mutation);
+            if (!result.added().isEmpty()) {
+                logger.info("Imported {} SSH host keys from a known_hosts file ({} already trusted, {} conflicts)",
+                    result.added().size(), result.alreadyTrusted(), result.conflicts().size());
+            }
+        }
+        return result;
     }
 
     boolean verify(String host, int port, PublicKey serverKey) {
@@ -633,7 +732,7 @@ public final class SshHostKeyTrustManager {
     private static int parseEntryCount(String value) throws IOException {
         try {
             int count = Integer.parseInt(value);
-            if (count < 1 || count > 100_000) {
+            if (count < 1 || count > MAX_STORE_ENTRIES) {
                 throw new IOException("Invalid SSH host-key entry count.");
             }
             return count;
@@ -752,6 +851,46 @@ public final class SshHostKeyTrustManager {
         String algorithm,
         String fingerprintSha256,
         String trustedAt) {
+    }
+
+    /**
+     * A host in an imported known_hosts file whose key differs from the one korTTY already trusts.
+     * The trusted key is kept.
+     */
+    public record KnownHostsConflict(
+        String host,
+        int port,
+        String trustedAlgorithm,
+        String trustedFingerprintSha256,
+        String fileAlgorithm,
+        String fileFingerprintSha256,
+        int lineNumber) {
+    }
+
+    /**
+     * The outcome of {@link #importKnownHosts}.
+     *
+     * @param additionalKeys further keys of newly added hosts that were not pinned, because korTTY
+     *        trusts one key per host
+     * @param revokedSkipped file entries whose key the same file lists as {@code @revoked}
+     * @param trustedButRevoked keys korTTY already trusts that the file lists as {@code @revoked}
+     * @param dryRun whether nothing was written
+     */
+    public record KnownHostsImportResult(
+        OpenSshKnownHostsParser.KnownHostsFile source,
+        List<TrustedHostKey> added,
+        int alreadyTrusted,
+        List<KnownHostsConflict> conflicts,
+        int additionalKeys,
+        int revokedSkipped,
+        List<TrustedHostKey> trustedButRevoked,
+        boolean dryRun) {
+
+        public KnownHostsImportResult {
+            added = List.copyOf(added);
+            conflicts = List.copyOf(conflicts);
+            trustedButRevoked = List.copyOf(trustedButRevoked);
+        }
     }
 
     public record HostKeyDetails(

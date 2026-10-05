@@ -4139,9 +4139,15 @@ public class MainWindow {
                 if (conn != null && conn.getId() != null) {
                     ServerConnection stored = app.getConfigManager().getConnectionById(conn.getId());
                     if (stored != null) {
-                        if (stored.getSettings() != null) {
-                            terminalTab.applyConnectionSettings(stored.getSettings());
+                        // The tab's connection may be a copy holding the settings object it was
+                        // opened with; give it the saved one, so the live global refresh and the
+                        // next reconnect see whether the connection now uses its own settings.
+                        if (conn != stored && stored.getSettings() != null) {
+                            conn.setSettings(stored.getSettings());
                         }
+                        // Own settings apply as saved; a connection switched back to the global
+                        // settings (or without settings) gets the global defaults again.
+                        terminalTab.applyConnectionSettings(stored.getSettings());
                         // Propagate the connection's group to the open tab only when it
                         // actually changed since the tab last saw it (baseline snapshot) —
                         // a manually assigned tab group must survive unrelated saves.
@@ -4334,6 +4340,18 @@ public class MainWindow {
                 swarmAgentTab.refreshChatColorProfile();
             }
         }
+    }
+
+    /** The font size a tab of a connection with {@code connSettings} opens with (own or global). */
+    private int sessionFontSizeBaseline(ConnectionSettings connSettings) {
+        ConnectionSettings globalDefaults = null;
+        try {
+            var gs = app.getGlobalSettingsManager().getSettings();
+            globalDefaults = gs != null ? gs.getDefaultTerminalSettings() : null;
+        } catch (Exception e) {
+            logger.debug("Could not read global defaults for the session font baseline: {}", e.getMessage());
+        }
+        return de.kortty.core.ConnectionSettingsSupport.effectiveTerminalSettings(connSettings, globalDefaults).getFontSize();
     }
 
     private void refreshTerminalTabsUsingGlobalDefaults() {
@@ -8040,7 +8058,11 @@ public class MainWindow {
             sessionState.setTabTitle(terminalTab.getCustomTitle());
             // Save current font size (zoom level) - may differ from settings when user zoomed
             int currentFontSize = terminalTab.getTerminalView().getCurrentFontSize();
-            if (connection.getSettings() == null || currentFontSize != connection.getSettings().getFontSize()) {
+            // Compared with the size the connection opens with: one that follows the global settings
+            // may still hold stale values of its own, which would pin today's global size as an
+            // override and ignore a later change of the global font size.
+            if (connection.getSettings() == null
+                    || currentFontSize != sessionFontSizeBaseline(connection.getSettings())) {
                 sessionState.setFontSizeOverride(currentFontSize);
             }
             // Save split pane structure (if terminal has splits). Only the session snapshot keeps
@@ -14503,11 +14525,24 @@ public class MainWindow {
             @Override
             protected de.kortty.core.BackupManager.ImportResult call() throws Exception {
                 updateMessage(I18n.get("backup.import.importing"));
-                return app.getBackupManager().restoreBackup(
-                    backupFilePath,
-                    password[0],
-                    overwriteExisting
-                );
+                char[] current = app.getMasterPasswordManager() != null
+                    ? app.getMasterPasswordManager().getMasterPassword() : null;
+                char[] currentCopy = current != null ? current.clone() : null;
+                try {
+                    // A merge import of a backup made under another master password asks for that
+                    // password and re-encrypts the backup's secrets with the current one.
+                    return app.getBackupManager().restoreBackup(
+                        backupFilePath,
+                        password[0],
+                        overwriteExisting,
+                        currentCopy,
+                        MainWindow.this::askBackupMasterPassword
+                    );
+                } finally {
+                    if (currentCopy != null) {
+                        java.util.Arrays.fill(currentCopy, '\0');
+                    }
+                }
             }
         };
         
@@ -14532,11 +14567,12 @@ public class MainWindow {
                 return;
             }
             
-            Alert success = new Alert(Alert.AlertType.INFORMATION);
+            boolean secretsSkipped = !result.skippedSecretFiles().isEmpty();
+            Alert success = new Alert(secretsSkipped ? Alert.AlertType.WARNING : Alert.AlertType.INFORMATION);
             DialogThemeHelper.applyTheme(success);
             success.setTitle(I18n.get("backup.import.success"));
             success.setHeaderText(I18n.get("backup.import.successHeader"));
-            success.setContentText(I18n.get("backup.import.successMessage", filesImported));
+            success.setContentText(backupImportSummary(result));
             success.showAndWait();
             
             reloadStoresAfterBackupImport();
@@ -14558,6 +14594,79 @@ public class MainWindow {
         Thread thread = new Thread(importTask);
         thread.setDaemon(true);
         thread.start();
+    }
+
+    /** The success text, with what happened to secrets from a backup under another master password. */
+    private static String backupImportSummary(de.kortty.core.BackupManager.ImportResult result) {
+        StringBuilder text = new StringBuilder(I18n.get("backup.import.successMessage", result.filesImported()));
+        if (result.secretsReEncrypted() > 0) {
+            text.append("\n\n").append(I18n.get("backup.import.foreignKey.reEncrypted", result.secretsReEncrypted()));
+        }
+        if (result.secretsCleared() > 0) {
+            text.append("\n\n").append(I18n.get("backup.import.foreignKey.cleared", result.secretsCleared()));
+        }
+        if (!result.skippedSecretFiles().isEmpty()) {
+            text.append("\n\n").append(I18n.get("backup.import.foreignKey.skipped",
+                String.join(", ", result.skippedSecretFiles())));
+        }
+        return text.toString();
+    }
+
+    /**
+     * Asks for the master password a backup was made with (masked). Called by the import's worker
+     * thread, which waits for the answer; the dialog itself runs on the FX thread. Returns null
+     * when the user cancels.
+     */
+    private char[] askBackupMasterPassword(int attempt, java.util.List<String> secretFiles) {
+        if (Platform.isFxApplicationThread()) {
+            return showBackupMasterPasswordDialog(attempt, secretFiles);
+        }
+        java.util.concurrent.CompletableFuture<char[]> answer = new java.util.concurrent.CompletableFuture<>();
+        Platform.runLater(() -> {
+            try {
+                answer.complete(showBackupMasterPasswordDialog(attempt, secretFiles));
+            } catch (Throwable t) {
+                answer.completeExceptionally(t);
+            }
+        });
+        try {
+            return answer.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (java.util.concurrent.ExecutionException e) {
+            logger.warn("Could not ask for the backup's master password", e.getCause());
+            return null;
+        }
+    }
+
+    private char[] showBackupMasterPasswordDialog(int attempt, java.util.List<String> secretFiles) {
+        Dialog<char[]> dialog = new Dialog<>();
+        DialogThemeHelper.applyTheme(dialog);
+        dialog.initOwner(stage);
+        dialog.setTitle(I18n.get("backup.import.foreignKey.title"));
+        dialog.setHeaderText(I18n.get("backup.import.foreignKey.header"));
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        PasswordField field = new PasswordField();
+        field.setPromptText(I18n.get("dialog.enterPassword"));
+        Label explanation = new Label(I18n.get("backup.import.foreignKey.content", String.join(", ", secretFiles)));
+        explanation.setWrapText(true);
+        explanation.setMaxWidth(460);
+        VBox content = new VBox(10, explanation);
+        if (attempt > 1) {
+            Label wrong = new Label(I18n.get("backup.import.foreignKey.wrong"));
+            wrong.setStyle("-fx-font-weight: bold;");
+            wrong.setWrapText(true);
+            content.getChildren().add(wrong);
+        }
+        content.getChildren().add(field);
+        content.setPadding(new javafx.geometry.Insets(20));
+        dialog.getDialogPane().setContent(content);
+        Platform.runLater(field::requestFocus);
+        dialog.setResultConverter(bt -> bt == ButtonType.OK ? field.getText().toCharArray() : null);
+        char[] result = dialog.showAndWait().orElse(null);
+        field.clear();
+        return result;
     }
 
     private void showBackupImportError(String detail) {

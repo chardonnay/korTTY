@@ -487,4 +487,24 @@ class EffectivePolicyResolveTest {
     void nullPolicyFileResolvesToUnrestricted() {
         assertThat(EffectivePolicy.resolve(null, identity("u")).fromPolicyFile()).isFalse();
     }
+
+    private static PolicyRule.SessionJournalRule clickableLinksRule(Boolean value) {
+        return new PolicyRule.SessionJournalRule(
+            null, null, null, null, null, null, null, null, null, null, null, List.of(),
+            null, null, null, null, value);
+    }
+
+    @Test
+    void clickableLinksResolveRestrictively() {
+        PolicyFile conflicting = file(Map.of(),
+            PolicyRule.builder().sessionJournal(clickableLinksRule(true)).build(),
+            PolicyRule.builder().sessionJournal(clickableLinksRule(false)).build());
+        assertThat(EffectivePolicy.resolve(conflicting, identity("anyone"))
+            .sessionJournalClickableLinksAllowed()).isFalse();
+
+        PolicyFile unset = file(Map.of(), PolicyRule.builder()
+            .features(Map.of(PolicyFeature.AI_AGENT, PolicyDecision.DENY)).build());
+        assertThat(EffectivePolicy.resolve(unset, identity("anyone"))
+            .sessionJournalClickableLinksAllowed()).isTrue();
+    }
 }

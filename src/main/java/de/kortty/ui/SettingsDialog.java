@@ -250,6 +250,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private TextField exportFooterTextField;
     private TextField sessionJournalStoragePathField;
     private CheckBox sessionJournalAiSummariesCheck;
+    private CheckBox sessionJournalClickableLinksCheck;
     private Spinner<Integer> sessionJournalIntervalSpinner;
     private ComboBox<de.kortty.model.AiProfile> sessionJournalAiProfileCombo;
     private ComboBox<de.kortty.model.AiProfile> automationJournalAiProfileCombo;
@@ -1573,6 +1574,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
         }
         loggingGrid.add(sessionJournalAiSummariesCheck, 0, loggingRow++, 2, 1);
+
+        sessionJournalClickableLinksCheck = new CheckBox(I18n.get("settings.journal.clickableLinks"));
+        sessionJournalClickableLinksCheck.setSelected(globalSettings == null
+            || globalSettings.isSessionJournalClickableLinks());
+        sessionJournalClickableLinksCheck.setTooltip(new Tooltip(I18n.get("settings.journal.clickableLinks.tooltip")));
+        if (!journalPolicy.sessionJournalClickableLinksAllowed()) {
+            sessionJournalClickableLinksCheck.setSelected(false);
+            sessionJournalClickableLinksCheck.setDisable(true);
+            sessionJournalClickableLinksCheck.setTooltip(new Tooltip(
+                de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
+        }
+        loggingGrid.add(sessionJournalClickableLinksCheck, 0, loggingRow++, 2, 1);
 
         sessionJournalIntervalSpinner = new Spinner<>(1, 240,
             globalSettings != null ? globalSettings.getSessionJournalSummarizeIntervalMinutes() : 5);
@@ -4452,6 +4465,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         if (sessionJournalStoragePathField != null && !sessionJournalStoragePathField.isDisabled()) {
             globalSettings.setSessionJournalStoragePath(sessionJournalStoragePathField.getText());
+        }
+        if (sessionJournalClickableLinksCheck != null && !sessionJournalClickableLinksCheck.isDisabled()) {
+            globalSettings.setSessionJournalClickableLinks(sessionJournalClickableLinksCheck.isSelected());
         }
         if (sessionJournalAiSummariesCheck != null && !sessionJournalAiSummariesCheck.isDisabled()) {
             globalSettings.setSessionJournalAiSummariesEnabled(sessionJournalAiSummariesCheck.isSelected());

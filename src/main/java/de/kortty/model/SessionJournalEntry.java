@@ -121,6 +121,18 @@ public class SessionJournalEntry {
     @XmlElement
     private String aiAnalysisModel;
 
+    /**
+     * The user the summarized commands ran as when it is not the login user — after {@code su},
+     * {@code sudo -i} or {@code sudo -u}. Null for the login user; {@code root} shows a ROOT badge.
+     */
+    @XmlElement
+    private String runAsUser;
+
+    /** Commands the AI summary marks in backticks, with the explanation shown on hover. */
+    @XmlElementWrapper(name = "commands")
+    @XmlElement(name = "command")
+    private List<SessionJournalCommandInfo> commands;
+
     /** Display text of the LLM behind an AGENT entry's run (profile/model); null otherwise. */
     @XmlElement
     private String agentModel;
@@ -168,6 +180,38 @@ public class SessionJournalEntry {
         this.agentModel = other.agentModel;
         this.agentDurationMillis = other.agentDurationMillis;
         this.agentTokens = other.agentTokens;
+        this.runAsUser = other.runAsUser;
+        if (other.commands != null) {
+            this.commands = new ArrayList<>();
+            for (SessionJournalCommandInfo command : other.commands) {
+                this.commands.add(new SessionJournalCommandInfo(command));
+            }
+        }
+    }
+
+    public String getRunAsUser() {
+        return runAsUser;
+    }
+
+    public void setRunAsUser(String runAsUser) {
+        this.runAsUser = runAsUser != null && !runAsUser.isBlank() ? runAsUser.strip() : null;
+    }
+
+    /** True when the entry's commands ran in a root shell. */
+    public boolean isRunAsRoot() {
+        return "root".equals(runAsUser);
+    }
+
+    /** Live list; only AI summaries ever carry command explanations. */
+    public List<SessionJournalCommandInfo> getCommands() {
+        if (commands == null) {
+            commands = new ArrayList<>();
+        }
+        return commands;
+    }
+
+    public void setCommands(List<SessionJournalCommandInfo> commands) {
+        this.commands = commands != null ? new ArrayList<>(commands) : null;
     }
 
     public String getAgentModel() {
@@ -399,6 +443,9 @@ public class SessionJournalEntry {
         }
         if (aiTags != null && aiTags.isEmpty()) {
             aiTags = null;
+        }
+        if (commands != null && commands.isEmpty()) {
+            commands = null;
         }
     }
 }

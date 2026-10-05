@@ -207,6 +207,63 @@ class MasterPasswordReEncryptorTest {
     }
 
     @Test
+    void importReEncryptorClearsUndecryptableSecretsInsteadOfKeepingForeignCiphertext() throws Exception {
+        // Imported data must never keep a value encrypted under a key this installation lacks.
+        String foreign = ENC.encryptPassword("foreign", "different-pass".toCharArray());
+        ServerConnection c = new ServerConnection();
+        c.setEncryptedPassword(foreign);
+        c.setPrivateKeyPassphrase(encOld("key-pass"));
+
+        MasterPasswordReEncryptor r = MasterPasswordReEncryptor.forImport(ENC, OLD, NEW);
+        r.reEncryptConnections(List.of(c));
+
+        assertThat(c.getEncryptedPassword()).isNull();
+        assertThat(decNew(c.getPrivateKeyPassphrase())).isEqualTo("key-pass");
+        assertThat(r.reEncryptedCount()).isEqualTo(1);
+        assertThat(r.clearedCount()).isEqualTo(1);
+    }
+
+    @Test
+    void importReEncryptorClearsUndecryptableJobSchedulerAndRagSecrets() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-rex-import");
+        try {
+            String foreign = ENC.encryptPassword("foreign", "different-pass".toCharArray());
+            JobSchedulerRepository repo = new JobSchedulerRepository(dir);
+            SudoCredential sudo = new SudoCredential();
+            sudo.setId("sudo-1");
+            sudo.setEncryptedPassword(foreign);
+            repo.upsertSudoCredential(sudo);
+            RagConfigurationManager rag = new RagConfigurationManager(dir.resolve("stores.json"));
+            rag.create(new RagStore(null, "Q", RagStoreType.QDRANT, null,
+                URI.create("http://localhost:6333"), "coll", RAG_PREFIX + foreign));
+
+            MasterPasswordReEncryptor r = MasterPasswordReEncryptor.forImport(ENC, OLD, NEW);
+            r.reEncryptJobScheduler(repo);
+            r.reEncryptRagStores(rag);
+
+            assertThat(repo.getSudoCredentials().get(0).getEncryptedPassword()).isNull();
+            assertThat(rag.listStores().get(0).apiKey()).isEmpty();
+            assertThat(r.clearedCount()).isEqualTo(2);
+            assertThat(r.reEncryptedCount()).isEqualTo(0);
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    @Test
+    void passwordChangeReEncryptorNeverClears() throws Exception {
+        String foreign = ENC.encryptPassword("foreign", "different-pass".toCharArray());
+        ServerConnection c = new ServerConnection();
+        c.setEncryptedPassword(foreign);
+
+        MasterPasswordReEncryptor r = rex();
+        r.reEncryptConnections(List.of(c));
+
+        assertThat(c.getEncryptedPassword()).isEqualTo(foreign);
+        assertThat(r.clearedCount()).isEqualTo(0);
+    }
+
+    @Test
     void skipsBlankAndPolicyManagedValues() throws Exception {
         GlobalSettings gs = new GlobalSettings();
         gs.setEncryptedAiApiKey("");                                  // blank → skipped

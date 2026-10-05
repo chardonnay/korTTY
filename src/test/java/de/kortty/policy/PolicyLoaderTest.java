@@ -726,4 +726,19 @@ class PolicyLoaderTest {
             };
         }
     }
+
+    @Test
+    void parsesTheClickableLinksMandate() throws IOException {
+        PolicyLoadResult off = PolicyLoader.load(write("""
+            [meta]
+            schema-version = 1
+
+            [[rule]]
+              [rule.session-journal]
+              clickable-links = false
+            """));
+        assertThat(off.errors()).isEmpty();
+        assertThat(off.warnings()).isEmpty();
+        assertThat(off.file().rules().get(0).sessionJournal().clickableLinks()).isFalse();
+    }
 }

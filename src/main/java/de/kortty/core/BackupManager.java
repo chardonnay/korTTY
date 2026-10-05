@@ -7,6 +7,7 @@ import de.kortty.model.GlobalSettings;
 import de.kortty.model.StoredCredential;
 import de.kortty.model.GPGKey;
 import de.kortty.persistence.XMLConnectionRepository;
+import de.kortty.security.EncryptionService;
 import de.kortty.security.MasterPasswordManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,10 @@ public class BackupManager {
     /** A backup is written under this suffix and only moved into place once it is complete. */
     private static final String PART_SUFFIX = ".part";
     private static final String ARMORED_PGP_MESSAGE = "-----BEGIN PGP MESSAGE-----";
+    /** The RAG store registry relative to the configuration directory. */
+    static final String RAG_STORES_FILE = "rag/stores.json";
+    /** How often a merge import asks for the backup's master password before it gives up. */
+    static final int MAX_BACKUP_MASTER_PASSWORD_ATTEMPTS = 3;
     /**
      * Every store file a backup carries, built from the stores' own constants so a renamed file
      * cannot silently fall out of the backup; {@code BackupCoverageTest} fails when a new store
@@ -82,7 +87,7 @@ public class BackupManager {
         AiChatManager.AI_CHATS_FILE,
         "llm/" + LlamaModelRegistry.REGISTRY_FILE_NAME,
         // RagConfigurationManager.DEFAULT_FILE is an absolute Path, not a name.
-        "rag/stores.json",
+        RAG_STORES_FILE,
         ThemeManager.THEMES_FILE,
         EnvironmentManager.ENVIRONMENTS_FILE,
         SwarmChatManager.SWARM_CHATS_FILE,
@@ -106,6 +111,35 @@ public class BackupManager {
         JobSchedulerRepository.FILE_NAME,
         MasterPasswordManager.MASTER_KEY_FILE);
     
+    /**
+     * The managed files holding values encrypted with the master password (or with the key derived
+     * from it). A merge import of a backup made under another master password re-encrypts them —
+     * see {@link BackupSecretReKeyer} — or does not import them.
+     */
+    static final List<String> SECRET_BEARING_FILES = List.of(
+        XMLConnectionRepository.CONNECTIONS_FILE,
+        CredentialManager.CREDENTIALS_FILE,
+        SSHKeyManager.SSH_KEYS_FILE,
+        GlobalSettingsManager.SETTINGS_FILE,
+        JobSchedulerRepository.FILE_NAME,
+        RAG_STORES_FILE);
+
+    /**
+     * Asks for the master password a backup was made with, when a merge import would bring
+     * secrets encrypted under it. Called on the import's worker thread; the implementation shows a
+     * masked prompt and blocks until it is answered. The returned array belongs to the caller,
+     * which wipes it after use.
+     */
+    @FunctionalInterface
+    public interface BackupMasterPasswordPrompt {
+        /**
+         * @param attempt     1 for the first prompt, higher after a wrong password
+         * @param secretFiles the backup files that hold secrets and would be imported
+         * @return the password, or {@code null} when the user cancels
+         */
+        char[] requestBackupMasterPassword(int attempt, List<String> secretFiles);
+    }
+
     /** What a backup file holds, read from its first bytes rather than from its name. */
     public enum BackupFormat {
         /** A ZIP archive: a password-protected backup (or an unencrypted ZIP). */
@@ -116,8 +150,22 @@ public class BackupManager {
         UNKNOWN
     }
 
-    /** The outcome of {@link #restoreBackup}. */
-    public record ImportResult(int filesImported, boolean masterKeyReplaced) {
+    /**
+     * The outcome of {@link #restoreBackup}. {@code secretsReEncrypted} and {@code secretsCleared}
+     * count the secrets of a merge import that came from a backup made under another master
+     * password: re-encrypted with the current one, or cleared because the backup's password did not
+     * decrypt them. {@code skippedSecretFiles} are the files with secrets that were not imported
+     * because the backup's master password was not given (cancelled, wrong, or the vault is locked).
+     */
+    public record ImportResult(int filesImported, boolean masterKeyReplaced, int secretsReEncrypted,
+                               int secretsCleared, List<String> skippedSecretFiles) {
+        public ImportResult {
+            skippedSecretFiles = skippedSecretFiles == null ? List.of() : List.copyOf(skippedSecretFiles);
+        }
+
+        public ImportResult(int filesImported, boolean masterKeyReplaced) {
+            this(filesImported, masterKeyReplaced, 0, 0, List.of());
+        }
     }
 
     /** Decrypts {@code input} into {@code output}; the seam tests replace. */
@@ -524,6 +572,24 @@ public class BackupManager {
      * @param overwriteExisting If true, existing files will be overwritten
      */
     public ImportResult restoreBackup(Path backupFile, String password, boolean overwriteExisting) throws Exception {
+        return restoreBackup(backupFile, password, overwriteExisting, null, null);
+    }
+
+    /**
+     * Imports a backup like {@link #restoreBackup(Path, String, boolean)}. When a merge import
+     * would copy files with secrets from a backup whose {@code master.key} differs from the local
+     * one (which stays), {@code prompt} is asked for the backup's master password (verified against
+     * the backup's {@code master.key}); those files are then re-encrypted with
+     * {@code currentMasterPassword} before they are copied. Without a correct password — cancelled,
+     * wrong {@value #MAX_BACKUP_MASTER_PASSWORD_ATTEMPTS} times, no prompt, or no unlocked current
+     * password — the files with secrets are not imported and are reported in
+     * {@link ImportResult#skippedSecretFiles()}: ciphertext under a foreign key is never written.
+     *
+     * @param currentMasterPassword the unlocked master password of this installation (not wiped)
+     */
+    public ImportResult restoreBackup(Path backupFile, String password, boolean overwriteExisting,
+                                      char[] currentMasterPassword, BackupMasterPasswordPrompt prompt)
+            throws Exception {
         logger.info("Importing backup from: {}", backupFile);
         
         if (!Files.exists(backupFile)) {
@@ -575,6 +641,10 @@ public class BackupManager {
                 logger.warn("The backup carries a different master key; korTTY must restart after the import");
             }
 
+            ForeignSecrets foreign = masterKeyReplaced
+                ? ForeignSecrets.NONE
+                : reKeyForeignSecrets(extractDir, overwriteExisting, currentMasterPassword, prompt);
+
             // Copy files to config directory
             int filesImported = copyBackupFiles(extractDir, overwriteExisting);
             // The saved terminal output belongs to the session before the restore, and may be encrypted
@@ -582,7 +652,8 @@ public class BackupManager {
             SessionScrollbackStore.purge(configDir);
 
             logger.info("Backup imported successfully: {} files", filesImported);
-            return new ImportResult(filesImported, masterKeyReplaced);
+            return new ImportResult(filesImported, masterKeyReplaced, foreign.reEncrypted(), foreign.cleared(),
+                foreign.skippedFiles());
         } finally {
             SessionJournalExportProtection.deleteRecursively(work);
         }
@@ -637,6 +708,112 @@ public class BackupManager {
             return true;
         }
         return overwriteExisting && !sameMasterKey(local, restored);
+    }
+
+    private record ForeignSecrets(int reEncrypted, int cleared, List<String> skippedFiles) {
+        static final ForeignSecrets NONE = new ForeignSecrets(0, 0, List.of());
+    }
+
+    /**
+     * The files with secrets this import would copy although they were encrypted under another
+     * master password: the backup's {@code master.key} differs from the local one and the local
+     * {@code master.key} stays (a merge import, where only files missing locally are copied).
+     */
+    List<String> foreignSecretFilesToImport(Path extractDir, boolean overwriteExisting) throws IOException {
+        Path restored = extractDir.resolve(MasterPasswordManager.MASTER_KEY_FILE);
+        Path local = configDir.resolve(MasterPasswordManager.MASTER_KEY_FILE);
+        if (!Files.isRegularFile(restored) || !Files.isRegularFile(local) || sameMasterKey(local, restored)) {
+            return List.of();
+        }
+        List<String> files = new java.util.ArrayList<>();
+        for (String name : SECRET_BEARING_FILES) {
+            if (Files.isRegularFile(extractDir.resolve(name))
+                    && (overwriteExisting || !Files.exists(configDir.resolve(name)))) {
+                files.add(name);
+            }
+        }
+        return files;
+    }
+
+    /**
+     * Re-encrypts the files with secrets that a merge import would bring from a backup made under
+     * another master password, or — without that password — removes them from the extraction so
+     * they are not imported. The passwords are never logged; the backup's is wiped after use.
+     */
+    private ForeignSecrets reKeyForeignSecrets(Path extractDir, boolean overwriteExisting,
+                                               char[] currentMasterPassword, BackupMasterPasswordPrompt prompt)
+            throws IOException {
+        List<String> files = foreignSecretFilesToImport(extractDir, overwriteExisting);
+        if (files.isEmpty()) {
+            return ForeignSecrets.NONE;
+        }
+        logger.info("The backup was made with another master password; {} file(s) with secrets need re-encryption",
+            files.size());
+        Properties backupKey = readMasterKey(extractDir.resolve(MasterPasswordManager.MASTER_KEY_FILE));
+        Properties localKey = readMasterKey(configDir.resolve(MasterPasswordManager.MASTER_KEY_FILE));
+        byte[] backupSalt = decodeSalt(backupKey);
+        byte[] localSalt = decodeSalt(localKey);
+        String backupHash = backupKey != null ? backupKey.getProperty("hash") : null;
+        boolean usable = currentMasterPassword != null && currentMasterPassword.length > 0 && prompt != null
+            && backupSalt != null && localSalt != null && backupHash != null && !backupHash.isBlank();
+        char[] backupPassword = usable ? askBackupMasterPassword(prompt, files, backupSalt, backupHash.trim()) : null;
+        if (backupPassword == null) {
+            return skipSecretFiles(extractDir, files);
+        }
+        try {
+            BackupSecretReKeyer.Result result = new BackupSecretReKeyer(new EncryptionService(),
+                backupPassword, backupSalt, currentMasterPassword, localSalt).reKey(extractDir, files);
+            logger.info("Re-encrypted {} secret(s) from the backup with the current master password ({} cleared, "
+                + "{} file(s) not imported)", result.reEncrypted(), result.cleared(), result.skippedFiles().size());
+            return new ForeignSecrets(result.reEncrypted(), result.cleared(), result.skippedFiles());
+        } finally {
+            Arrays.fill(backupPassword, '\0');
+        }
+    }
+
+    /** Prompts until the password matches the backup's {@code master.key}; null when it never does. */
+    private static char[] askBackupMasterPassword(BackupMasterPasswordPrompt prompt, List<String> files,
+                                                  byte[] backupSalt, String backupHash) {
+        EncryptionService enc = new EncryptionService();
+        for (int attempt = 1; attempt <= MAX_BACKUP_MASTER_PASSWORD_ATTEMPTS; attempt++) {
+            char[] candidate = prompt.requestBackupMasterPassword(attempt, List.copyOf(files));
+            if (candidate == null) {
+                logger.info("The backup's master password was not given; files with secrets are not imported");
+                return null;
+            }
+            try {
+                if (candidate.length > 0 && enc.verifyPassword(candidate, backupSalt, backupHash)) {
+                    return candidate;
+                }
+            } catch (Exception e) {
+                logger.warn("Could not verify the backup's master password ({})", e.getClass().getSimpleName());
+            }
+            Arrays.fill(candidate, '\0');
+            logger.info("Wrong master password for the backup (attempt {} of {})",
+                attempt, MAX_BACKUP_MASTER_PASSWORD_ATTEMPTS);
+        }
+        return null;
+    }
+
+    private static ForeignSecrets skipSecretFiles(Path extractDir, List<String> files) throws IOException {
+        for (String name : files) {
+            Files.deleteIfExists(extractDir.resolve(name));
+        }
+        logger.warn("Not importing {} file(s) with secrets encrypted under another master password: {}",
+            files.size(), files);
+        return new ForeignSecrets(0, 0, files);
+    }
+
+    private static byte[] decodeSalt(Properties masterKey) {
+        String salt = masterKey != null ? masterKey.getProperty("salt") : null;
+        if (salt == null || salt.isBlank()) {
+            return null;
+        }
+        try {
+            return java.util.Base64.getDecoder().decode(salt.trim());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**

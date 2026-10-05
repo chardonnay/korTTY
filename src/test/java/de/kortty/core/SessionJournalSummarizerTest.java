@@ -30,6 +30,8 @@ class SessionJournalSummarizerTest {
         volatile boolean fail = false;
         /** Usage attached to every answer; null mimics a provider that reports none. */
         volatile AiTokenUsage usage;
+        /** Replaces the default window-summary reply when set. */
+        volatile String summaryReply;
 
         @Override
         public boolean isAvailable() {
@@ -50,6 +52,9 @@ class SessionJournalSummarizerTest {
             }
             if (systemPrompt.contains("name terminal session journals")) {
                 return new AiExecutionResult("Nginx-Wartung auf web01", null, null);
+            }
+            if (summaryReply != null) {
+                return new AiExecutionResult(summaryReply, usage, null);
             }
             return new AiExecutionResult(
                 "{\"title\":\"Checked nginx\",\"summary\":\"The user checked nginx; it is running.\",\"category\":\"info\"}",
@@ -319,5 +324,185 @@ class SessionJournalSummarizerTest {
         assertThat(wrapUps).hasSize(1);
         assertThat(wrapUps.get(0).getText()).contains("Nginx wurde geprüft");
         assertThat(document.getMeta().getTitle()).isEqualTo("Nginx-Wartung auf web01");
+    }
+    @Test
+    void anIdlePromptWritesNoEntryButCountsAsDone() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        session.appendOutputChunk("daniel@fedora:~/Dokumente$ \n");
+        session.appendOutputChunk("\n");
+        session.appendOutputChunk("daniel@fedora:~/Dokumente$ \n");
+        waitForLogEntries(session.getDirectory(), 2);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        assertThat(invoker.userPrompts).isEmpty();
+        assertThat(entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY)).isEmpty();
+        assertThat(service.loadDocument(session.getDirectory()).getMeta().getLastSummarizedSeq())
+            .isGreaterThan(0L);
+        session.close();
+    }
+
+    @Test
+    void theModelsSkipVerdictWritesNoEntry() throws Exception {
+        invoker.summaryReply = "{\"skip\": true}";
+        SessionJournalSession session = newLiveSession();
+        appendLines(session, 5, 3);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        assertThat(invoker.userPrompts).hasSize(1);
+        assertThat(entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY)).isEmpty();
+        session.close();
+    }
+
+    @Test
+    void aRootPromptMarksTheEntryAndCommandsCarryTheirOrigin() throws Exception {
+        invoker.summaryReply = """
+            {"title":"Root-Shell","summary":"Als root wurde `deploy.sh` gestartet und `links` geöffnet.",
+             "category":"important","runAs":"",
+             "commands":[{"name":"deploy.sh","description":"Deploy-Skript","known":false},
+                         {"name":"links","description":"Open-Source-Textbrowser für HTML","known":true},
+                         {"name":"frobnicate","description":"Unbekanntes Programm","known":false}]}
+            """;
+        summarizer.setSnippetLookup(command -> "deploy.sh".equals(command) ? "Deploy web01" : null);
+        SessionJournalSession session = newLiveSession();
+        session.appendInputLine("sudo -i");
+        session.appendOutputChunk("[root@fedora ~]# ./deploy.sh\n");
+        session.appendOutputChunk("deploying...\n");
+        session.appendOutputChunk("[root@fedora ~]# links www.heise.de\n");
+        session.appendOutputChunk("[root@fedora ~]# \n");
+        waitForLogEntries(session.getDirectory(), 5);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        assertThat(invoker.userPrompts.get(0)).contains("Login user: daniel");
+        SessionJournalEntry entry = entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY).get(0);
+        assertThat(entry.getRunAsUser()).isEqualTo("root");
+        assertThat(entry.isRunAsRoot()).isTrue();
+        assertThat(entry.getCommands()).hasSize(3);
+        assertThat(entry.getCommands().get(0).getOrigin())
+            .isEqualTo(de.kortty.model.SessionJournalCommandInfo.Origin.SNIPPET);
+        assertThat(entry.getCommands().get(0).getSnippetName()).isEqualTo("Deploy web01");
+        assertThat(entry.getCommands().get(1).getOrigin())
+            .isEqualTo(de.kortty.model.SessionJournalCommandInfo.Origin.DISTRIBUTION);
+        assertThat(entry.getCommands().get(2).getOrigin())
+            .isEqualTo(de.kortty.model.SessionJournalCommandInfo.Origin.UNKNOWN);
+        session.close();
+    }
+
+    @Test
+    void theLoginUserIsNeverRecordedAsRunAsUser() throws Exception {
+        invoker.summaryReply = "{\"title\":\"t\",\"summary\":\"s\",\"category\":\"none\",\"runAs\":\"daniel\"}";
+        SessionJournalSession session = newLiveSession();
+        session.appendInputLine("ls");
+        session.appendOutputChunk("daniel@fedora:~$ ls\n");
+        session.appendOutputChunk("Dokumente\n");
+        waitForLogEntries(session.getDirectory(), 3);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        SessionJournalEntry entry = entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY).get(0);
+        assertThat(entry.getRunAsUser()).isNull();
+        session.close();
+    }
+
+    @Test
+    void theClosingLineNamesTheDurationAndEveryUserOnce() {
+        SessionJournalDocument document = new SessionJournalDocument();
+        document.getMeta().setUsername("daniel");
+        document.getMeta().setStartedAt(java.time.OffsetDateTime.parse("2026-10-05T11:36:00+02:00"));
+        document.getMeta().setEndedAt(java.time.OffsetDateTime.parse("2026-10-05T11:47:30+02:00"));
+        SessionJournalEntry asRoot = new SessionJournalEntry();
+        asRoot.setRunAsUser("root");
+        SessionJournalEntry asRootAgain = new SessionJournalEntry();
+        asRootAgain.setRunAsUser("root");
+        document.getEntries().addAll(List.of(asRoot, asRootAgain));
+
+        String line = SessionJournalSummarizer.closingLine(document);
+
+        assertThat(line).contains("11");
+        assertThat(line).contains("daniel, root");
+    }
+
+    @Test
+    void theWrapUpEndsWithTheClosingLineAndCarriesTheCommandsOfTheSession() throws Exception {
+        invoker.summaryReply = """
+            {"title":"T","summary":"`links` lief.","category":"none",
+             "commands":[{"name":"links","description":"Textbrowser","known":true}]}
+            """;
+        SessionJournalSession session = newLiveSession();
+        appendLines(session, 5, 3);
+        session.appendInputLine("links www.heise.de");
+        waitForLogEntries(session.getDirectory(), 9);
+        Path dir = session.getDirectory();
+        summarizer.register(session);
+        summarizer.onSessionClosing(session);
+        session.close();
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (entriesOf(dir, SessionJournalEntryKind.SESSION_SUMMARY).isEmpty()
+                && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50);
+        }
+
+        SessionJournalEntry wrapUp = entriesOf(dir, SessionJournalEntryKind.SESSION_SUMMARY).get(0);
+        assertThat(wrapUp.getText()).startsWith("Nginx wurde geprüft und läuft.\n\n");
+        assertThat(wrapUp.getText()).isEqualTo(
+            "Nginx wurde geprüft und läuft.\n\n" + SessionJournalSummarizer.closingLine(service.loadDocument(dir)));
+        assertThat(wrapUp.getCommands()).hasSize(1);
+        assertThat(wrapUp.getCommands().get(0).getName()).isEqualTo("links");
+    }
+
+    @Test
+    void aMistypedCommandAloneWritesNoEntryAndNeverReachesTheAi() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        session.appendInputLine("lnks");
+        session.appendOutputChunk("daniel@fedora:~$ lnks\n");
+        session.appendOutputChunk("bash: lnks: Befehl nicht gefunden...\n");
+        session.appendOutputChunk("daniel@fedora:~$ \n");
+        waitForLogEntries(session.getDirectory(), 4);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        assertThat(invoker.userPrompts).isEmpty();
+        assertThat(entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY)).isEmpty();
+        assertThat(service.loadDocument(session.getDirectory()).getMeta().getLastSummarizedSeq())
+            .isGreaterThan(0L);
+        session.close();
+    }
+
+    @Test
+    void aTypoNextToRealWorkIsLeftOutOfThePrompt() throws Exception {
+        SessionJournalSession session = newLiveSession();
+        session.appendInputLine("lnks");
+        session.appendOutputChunk("daniel@fedora:~$ lnks\n");
+        session.appendOutputChunk("bash: lnks: command not found\n");
+        session.appendInputLine("uptime");
+        session.appendOutputChunk("daniel@fedora:~$ uptime\n");
+        session.appendOutputChunk(" 11:40 up 3 days, load average: 0.42\n");
+        waitForLogEntries(session.getDirectory(), 6);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        assertThat(invoker.userPrompts).hasSize(1);
+        assertThat(invoker.userPrompts.get(0)).doesNotContain("lnks");
+        assertThat(invoker.userPrompts.get(0)).contains("uptime");
+        session.close();
+    }
+
+    @Test
+    void aSummaryNamingAUrlTheLogNeverShowedLosesThatSentence() throws Exception {
+        invoker.summaryReply = "{\"title\":\"links\",\"summary\":\"Mit `links` wurde www.heise.de geöffnet. "
+            + "Danach wurde https://checkip.dyndns.org/ abgefragt.\",\"category\":\"none\"}";
+        SessionJournalSession session = newLiveSession();
+        session.appendInputLine("links www.heise.de");
+        session.appendOutputChunk("daniel@fedora:~$ links www.heise.de\n");
+        session.appendOutputChunk("heise online - IT-News\n");
+        waitForLogEntries(session.getDirectory(), 3);
+        summarizer.register(session);
+        summarizer.summarizeNow(session).get();
+
+        SessionJournalEntry entry = entriesOf(session.getDirectory(), SessionJournalEntryKind.AI_SUMMARY).get(0);
+        assertThat(entry.getText()).isEqualTo("Mit `links` wurde www.heise.de geöffnet.");
+        session.close();
     }
 }

@@ -41,4 +41,15 @@ class ConnectionSettingsCopyCompletenessTest {
         assertThat(ConnectionSettingsFieldValues.persistedFields().stream().map(Field::getName).toList())
                 .contains("ansiPaletteCustomized");
     }
+
+    @Test
+    void theGuardCoversTheOwnSettingsFlag() {
+        // useGlobalSettings=false is what makes a connection draw with its own settings; a copy that
+        // reset it would silently switch the connection back to the global settings.
+        assertThat(ConnectionSettingsFieldValues.persistedFields().stream().map(Field::getName).toList())
+                .contains("useGlobalSettings");
+        ConnectionSettings own = new ConnectionSettings();
+        own.setUseGlobalSettings(false);
+        assertThat(new ConnectionSettings(own).isUseGlobalSettings()).isFalse();
+    }
 }
