@@ -862,12 +862,12 @@
 <tr>
 <td>Mosh (built-in client)</td>
 <td>yes</td>
-<td>with the native <code>mosh-client</code>, when it is installed</td>
-<td>with the native <code>mosh-client</code>, when it is installed</td>
+<td>yes, in a session worker</td>
+<td>yes</td>
 </tr>
 </tbody>
 </table>
-<p>The built-in Mosh client runs inside korTTY and cannot be isolated yet. A built-in Mosh connection that asks for isolation therefore runs with the native <code>mosh-client</code> instead, when it is installed: <code>mosh-client</code> then runs in its own process or in the sandbox, and the SSH login that starts <code>mosh-server</code> runs in a session worker. Without <code>mosh-client</code> it runs as before. A connection that asks for more than its type can get runs with the strongest level it can get, and the connection editor says so under <strong>Isolation:</strong>. If your organization demands a level that the connection type cannot get, the session is not opened at all.</p>
+<p>An isolated session of the built-in Mosh client runs in a session worker too: the SSH login that starts <code>mosh-server</code> and the Mosh session itself (UDP, its encryption and the screen updates) run in worker processes of their own, and in the sandbox the Mosh worker may send only to the UDP port <code>mosh-server</code> reported. Only when this installation cannot start session workers does a built-in Mosh connection that asks for isolation run with the native <code>mosh-client</code> instead, if it is installed. A connection that asks for more than its type can get runs with the strongest level it can get, and the connection editor says so under <strong>Isolation:</strong>. If your organization demands a level that the connection type cannot get, the session is not opened at all.</p>
 <h2 id="ssh-sessions-in-a-session-worker">SSH sessions in a session worker<a class="headerlink" href="#ssh-sessions-in-a-session-worker" title="Permanent link">&para;</a></h2>
 <p>An isolated SSH session runs in a <strong>session worker</strong>, a small process of its own that korTTY starts for this one connection. The worker connects to the server (through the jump server, if there is one), authenticates and keeps the encrypted connection; korTTY talks to it over a connection on this computer (<code>127.0.0.1</code>) that only accepts a one-time token korTTY created for it and whose key korTTY pins. The worker passes every channel korTTY opens on to the server, so the terminal, SFTP on the terminal's session, file drops, the AI agent's commands and <code>-L</code> and <code>-D</code> tunnels work as with a direct session.</p>
 <ul>

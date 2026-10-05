@@ -126,30 +126,26 @@ class IsolationMarkersTest {
     }
 
     @Test
-    void anIsolatedBuiltInMoshRunsWithTheNativeClientWhenItIsInstalled() {
+    void anIsolatedBuiltInMoshRunsInAWorkerElseWithTheNativeClient() {
         ServerConnection mosh = new ServerConnection();
         mosh.setProtocol(ConnectionProtocol.MOSH);
         mosh.setIsolationLevel(IsolationLevel.SANDBOX);
-        boolean nativeMosh = de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable();
-        assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), mosh, null).level())
-            .isEqualTo(nativeMosh ? IsolationLevel.SANDBOX : IsolationLevel.NONE);
+        if (de.kortty.core.worker.SessionWorkerProcess.available()) {
+            assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), mosh, null).level())
+                .isEqualTo(IsolationLevel.SANDBOX);
+            assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.MOSH, IsolationLevel.SANDBOX, null)).isNull();
+        }
+        // Workers first, else the native mosh-client, else nothing.
+        assertThat(de.kortty.isolation.IsolationSettings.strongestSupported(ConnectionProtocol.MOSH, true, true, false))
+            .isEqualTo(IsolationLevel.SANDBOX);
         assertThat(de.kortty.isolation.IsolationSettings.strongestSupported(ConnectionProtocol.MOSH, false, false, true))
             .isEqualTo(IsolationLevel.SANDBOX);
-        assertThat(de.kortty.isolation.IsolationSettings.strongestSupported(ConnectionProtocol.MOSH, true, true, false))
+        assertThat(de.kortty.isolation.IsolationSettings.strongestSupported(ConnectionProtocol.MOSH, false, false, false))
             .isEqualTo(IsolationLevel.NONE);
-        if (nativeMosh) {
-            assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.MOSH, IsolationLevel.SANDBOX, null))
-                .isEqualTo(I18n.get(IsolationConnectionSupport.NATIVE_MOSH_KEY));
-        }
     }
 
     @Test
     void theHintNamesWhatTheProtocolCannotGet() {
-        if (!de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable()) {
-            assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.MOSH, IsolationLevel.SANDBOX, null))
-                .isEqualTo(I18n.get(IsolationConnectionSupport.UNSUPPORTED_KEY,
-                    IsolationConnectionSupport.levelName(IsolationLevel.NONE)));
-        }
         assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.LOCAL_SHELL, IsolationLevel.SANDBOX, null)).isNull();
         assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.LOCAL_SHELL, IsolationLevel.SANDBOX, "why"))
             .isEqualTo(I18n.get(IsolationConnectionSupport.SANDBOX_UNAVAILABLE_KEY, "why"));
@@ -182,25 +178,6 @@ class IsolationMarkersTest {
         ssh.setIsolationLevel(IsolationLevel.SANDBOX);
         assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), ssh, null).level())
             .isEqualTo(de.kortty.core.worker.SessionWorkerProcess.available() ? IsolationLevel.SANDBOX : IsolationLevel.NONE);
-    }
-
-    @Test
-    void theBuiltInMoshFallsBackUnlessThePolicyDemandsIsolation() {
-        if (de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable()) {
-            throw new org.testng.SkipException("mosh-client is installed: it stands in for the built-in client");
-        }
-        ServerConnection mosh = new ServerConnection();
-        mosh.setProtocol(ConnectionProtocol.MOSH);
-        mosh.setIsolationLevel(IsolationLevel.SANDBOX);
-        assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), mosh, null).level())
-            .isEqualTo(IsolationLevel.NONE);
-        try {
-            TerminalView.isolationRequestFor(new GlobalSettings(), mosh, IsolationLevel.PROCESS);
-            throw new AssertionError("a demanded isolation SSH cannot get must refuse the session");
-        } catch (IllegalStateException expected) {
-            assertThat(expected.getMessage()).isEqualTo(I18n.get("isolation.error.protocolUnsupported",
-                I18n.get("isolation.level.process")));
-        }
     }
 
     @Test

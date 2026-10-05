@@ -5,6 +5,7 @@ import com.sithtermfx.core.util.TermSize;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.ConnectionProtocol;
 import de.kortty.model.ServerConnection;
+import de.kortty.ui.I18n;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,12 +14,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PipedReader;
 import java.io.PipedWriter;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,7 +32,7 @@ import java.util.regex.Pattern;
  * Mosh connector that uses mosh4j release artifacts instead of native mosh-client.
  * Release jars are loaded dynamically so korTTY does not need compile-time mosh4j dependencies.
  */
-public class Mosh4jTtyConnector implements TtyConnector {
+public class Mosh4jTtyConnector implements TtyConnector, de.kortty.isolation.IsolationAware {
 
     private static final Logger logger = LoggerFactory.getLogger(Mosh4jTtyConnector.class);
     /**
@@ -78,9 +75,6 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     private static final int PIPE_BUFFER_CHARS = 1_048_576;
     private static final boolean DEBUG = Boolean.parseBoolean(System.getenv("KORTTY_MOSH_DEBUG"));
-    private static final long KEEPALIVE_INTERVAL_MS = 2500L;
-    /** No host bytes for this long → show "connection interrupted" (longer than KEEPALIVE to avoid false positives when app is idle). */
-    private static final long NO_HOST_BYTES_INTERRUPTION_MS = 15_000L;
     private static final String LOCAL_MOSH4J_REPO_ENV = "KORTTY_MOSH4J_LOCAL_REPO";
     private static final String MOSH4J_RELEASE_DIR_ENV = "KORTTY_MOSH4J_RELEASE_DIR";
     private static final String MOSH4J_SNAPSHOT_DIR_ENV = "KORTTY_MOSH4J_SNAPSHOT_DIR"; // legacy fallback
@@ -96,32 +90,30 @@ public class Mosh4jTtyConnector implements TtyConnector {
     private volatile Runnable onRecoveredCallback;
     private volatile Runnable onInterruptedCallback;
 
-    private volatile URLClassLoader classLoader;
-    private volatile Object frontend;
-    private volatile Method frontendSendUserInput;
-    private volatile Method frontendSendResize;
-    private volatile Method frontendTakeRenderedOutput;
-    private volatile Method frontendTakeHostBytes;
-    private volatile Method frontendSendInitialWakeUp;
-    private volatile Method frontendSendHeartbeat;
-    private volatile Method frontendStart;
-    private volatile Method frontendClose;
-    private volatile Method frontendIsRunning;
+    /** The mosh4j session when it runs inside korTTY; null while not connected or in a worker. */
+    private volatile Mosh4jEngine engine;
+
+    /** The isolation this session is asked for; set before {@link #connect()}. */
+    private volatile de.kortty.isolation.IsolationRequest isolationRequest = de.kortty.isolation.IsolationRequest.NONE;
+    private volatile de.kortty.isolation.IsolationReport isolationReport = de.kortty.isolation.IsolationReport.NONE;
+    /** The session worker running mosh4j, and korTTY's terminal channel on its endpoint; null in korTTY. */
+    private volatile de.kortty.core.worker.SessionWorkerProcess worker;
+    private volatile de.kortty.core.worker.WorkerLogin workerLogin;
+    private volatile org.apache.sshd.client.channel.ChannelShell workerChannel;
+    private volatile java.nio.file.Path sandboxSessionDirectory;
+    /** What the worker reported about the end of the session ({@code mosh.ended}), or null. */
+    private volatile String workerEnd;
+    private volatile String workerEndMessage;
+    /** When the worker reported an interruption, or -1. */
+    private volatile long workerInterruptedAtMs = -1L;
 
     private volatile PipedReader reader;
     private volatile PipedWriter writer;
-    private volatile Thread outputDrainThread;
-    private volatile long connectStartedAtMs;
     private volatile long totalCharsWrittenToPipe;
     private volatile long totalCharsReadFromPipe;
     private volatile int readLogCounter;
-    private volatile long interruptionStartedAtMs = -1L;
-    private volatile long lastUserInputAtMs = -1L;
-    private volatile long logoutRequestedAtMs = -1L;
     /** True when this tab is the selected/focused terminal tab; used to avoid false "interrupted" when user switched away. */
     private volatile boolean terminalActive = true;
-    /** When terminal became active (tab focused); used to avoid immediate "interrupted" right after switching back. */
-    private volatile long lastActivatedAtMs = System.currentTimeMillis();
 
     public Mosh4jTtyConnector(ServerConnection connection, String password) {
         this.connection = connection;
@@ -170,9 +162,11 @@ public class Mosh4jTtyConnector implements TtyConnector {
      */
     public void setTerminalActive(boolean active) {
         this.terminalActive = active;
-        if (active) {
-            this.lastActivatedAtMs = System.currentTimeMillis();
+        Mosh4jEngine localEngine = engine;
+        if (localEngine != null) {
+            localEngine.setTerminalActive(active);
         }
+        sendTerminalActive(active);
     }
 
     public static boolean isReleaseSupported() {
@@ -208,13 +202,13 @@ public class Mosh4jTtyConnector implements TtyConnector {
             int udpPort = Integer.parseInt(m.group(1));
             String key = m.group(2);
 
-            initMosh4jSession(connection.getHost(), udpPort, key);
+            if (isolationRequest.level() != de.kortty.isolation.IsolationLevel.NONE
+                    && de.kortty.core.worker.SessionWorkerProcess.available()) {
+                initIsolatedSession(connection.getHost(), udpPort, key);
+            } else {
+                initMosh4jSession(connection.getHost(), udpPort, key);
+            }
             connected.set(true);
-            connectStartedAtMs = System.currentTimeMillis();
-            interruptionStartedAtMs = -1L;
-            lastUserInputAtMs = -1L;
-            logoutRequestedAtMs = -1L;
-            startOutputDrainLoop();
             logger.info("mosh4j {} session started for {}", MOSH4J_VERSION, connection.getDisplayName());
             return true;
         } catch (SshTtyConnector.AuthenticationException e) {
@@ -230,6 +224,8 @@ public class Mosh4jTtyConnector implements TtyConnector {
     private String sshBootstrapMoshServer() throws Exception {
         ServerConnection bootstrapConnection = resolveBootstrapConnection();
         SshTtyConnector bootstrap = new SshTtyConnector(bootstrapConnection, password);
+        // The SSH login that starts mosh-server runs isolated as well.
+        bootstrap.setIsolationRequest(isolationRequest);
         if (bootstrapConnection.getAuthMethod() == AuthMethod.PUBLIC_KEY && sshKeyManager != null) {
             bootstrap.setSSHKeyManager(sshKeyManager, masterPassword);
         }
@@ -305,59 +301,198 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     private void initMosh4jSession(String host, int udpPort, String keyBase64) throws Exception {
         List<Path> jars = ensureReleaseClasspathJars();
-        URL[] urls = new URL[jars.size()];
-        for (int i = 0; i < jars.size(); i++) {
-            urls[i] = jars.get(i).toUri().toURL();
-        }
-        classLoader = new URLClassLoader(urls, getClass().getClassLoader());
-
-        Class<?> moshKeyClass = classLoader.loadClass("org.mosh4j.crypto.MoshKey");
-        Method fromBase64 = moshKeyClass.getMethod("fromBase64", String.class);
-        Object moshKey = fromBase64.invoke(null, keyBase64);
-
-        Class<?> sessionClass = classLoader.loadClass("org.mosh4j.core.MoshClientSession");
-        Constructor<?> ctor = sessionClass.getConstructor(InetSocketAddress.class, moshKeyClass, int.class, int.class);
-
         int cols = connection.getSettings() != null ? connection.getSettings().getTerminalColumns() : 80;
         int rows = connection.getSettings() != null ? connection.getSettings().getTerminalRows() : 24;
-        if (cols <= 0) cols = 80;
-        if (rows <= 0) rows = 24;
-
-        Object session = ctor.newInstance(new InetSocketAddress(host, udpPort), moshKey, cols, rows);
-
-        Class<?> frontendClass = classLoader.loadClass("org.mosh4j.core.MoshTerminalFrontend");
-        Constructor<?> frontendCtor = frontendClass.getConstructor(sessionClass);
-        frontend = frontendCtor.newInstance(session);
-
-        frontendSendUserInput = frontendClass.getMethod("sendUserInput", byte[].class);
-        frontendSendResize = frontendClass.getMethod("sendResize", int.class, int.class);
-        frontendTakeRenderedOutput = frontendClass.getMethod("takeRenderedOutput", long.class);
-        try {
-            frontendTakeHostBytes = frontendClass.getMethod("takeHostBytes", long.class);
-        } catch (NoSuchMethodException ignored) {
-            frontendTakeHostBytes = null;
-        }
-        frontendSendInitialWakeUp = frontendClass.getMethod("sendInitialWakeUp");
-        try {
-            frontendSendHeartbeat = frontendClass.getMethod("sendHeartbeat");
-        } catch (NoSuchMethodException ignored) {
-            frontendSendHeartbeat = null;
-        }
-        frontendStart = frontendClass.getMethod("start");
-        frontendClose = frontendClass.getMethod("close");
-        frontendIsRunning = frontendClass.getMethod("isRunning");
-
-        frontendSendInitialWakeUp.invoke(frontend);
-        frontendStart.invoke(frontend);
-        // Native mosh-client sends an early resize; do the same to make sure
-        // server-side PTY state is initialized before first prompt rendering.
-        frontendSendResize.invoke(frontend, cols, rows);
-
         writer = new PipedWriter();
         reader = new PipedReader(writer, PIPE_BUFFER_CHARS);
         totalCharsWrittenToPipe = 0;
         totalCharsReadFromPipe = 0;
         readLogCounter = 0;
+        Mosh4jEngine started = new Mosh4jEngine(jars, host, udpPort, keyBase64, cols, rows, new Mosh4jEngine.Listener() {
+            @Override
+            public void output(String chunk) throws IOException {
+                PipedWriter localWriter = writer;
+                if (localWriter == null) {
+                    throw new IOException("closed");
+                }
+                localWriter.write(chunk);
+                localWriter.flush();
+                totalCharsWrittenToPipe += chunk.length();
+            }
+
+            @Override
+            public void interrupted() {
+                notifyInterrupted();
+            }
+
+            @Override
+            public void recovered() {
+                notifyRecovered(1L);
+            }
+
+            @Override
+            public void ended(Mosh4jEngine.End end, String message) {
+                connected.set(false);
+                if (disconnectListener != null) {
+                    disconnectListener.onDisconnect(endReason(end, message), end == Mosh4jEngine.End.FAILED);
+                }
+            }
+        });
+        engine = started;
+        started.setTerminalActive(terminalActive);
+        started.start();
+    }
+
+    /**
+     * Asks for {@code request}'s isolation: {@link de.kortty.isolation.IsolationLevel#PROCESS} and above
+     * run the mosh4j session in a session worker. Call before {@link #connect()}.
+     */
+    public void setIsolationRequest(de.kortty.isolation.IsolationRequest request) {
+        this.isolationRequest = request != null ? request : de.kortty.isolation.IsolationRequest.NONE;
+    }
+
+    @Override
+    public de.kortty.isolation.IsolationReport isolationReport() {
+        return isolationReport;
+    }
+
+    /**
+     * Runs the mosh4j session in a session worker in Mosh mode: korTTY resolves (and if needed
+     * downloads) the JARs, the worker loads them, talks UDP to the server and serves the terminal on
+     * its loopback endpoint, in the sandbox when asked, which then reaches only the server's UDP port.
+     */
+    private void initIsolatedSession(String host, int udpPort, String keyBase64) throws Exception {
+        List<Path> jars = ensureReleaseClasspathJars();
+        int cols = connection.getSettings() != null ? connection.getSettings().getTerminalColumns() : 80;
+        int rows = connection.getSettings() != null ? connection.getSettings().getTerminalRows() : 24;
+        de.kortty.core.worker.WorkerInit init = new de.kortty.core.worker.WorkerInit();
+        init.mode = "mosh";
+        init.host = host;
+        init.username = "mosh";
+        init.moshPort = udpPort;
+        init.moshKey = keyBase64;
+        init.moshClasspath = jars.stream().map(path -> path.toAbsolutePath().toString()).toList();
+        byte[] token = new byte[32];
+        new java.security.SecureRandom().nextBytes(token);
+        init.token = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(token);
+
+        List<Path> jarFolders = jars.stream().map(path -> path.toAbsolutePath().getParent()).distinct().toList();
+        de.kortty.isolation.sandbox.LocalProcessSandbox.Prepared prepared;
+        try {
+            prepared = de.kortty.isolation.sandbox.LocalProcessSandbox.prepareWorker(isolationRequest,
+                de.kortty.core.worker.SessionWorkerProcess.defaultCommand(), List.of(), List.of(udpPort), jarFolders);
+        } catch (de.kortty.isolation.IsolationUnavailableException e) {
+            throw new IOException(e.getMessage(), e);
+        }
+        sandboxSessionDirectory = prepared.sessionDirectory();
+        de.kortty.core.worker.SessionWorkerProcess started = de.kortty.core.worker.SessionWorkerProcess.start(
+            prepared.command(), prepared.environment(), init,
+            (method, params) -> {
+                throw new IOException("a Mosh worker asks nothing: " + method);
+            }, host);
+        worker = started;
+        started.setEventConsumer(this::onWorkerEvent);
+        de.kortty.core.worker.SessionWorkerProcess.Ready ready = started.awaitReady(Duration.ofSeconds(30));
+        workerLogin = de.kortty.core.worker.WorkerLogin.connect(ready, init.token);
+        org.apache.sshd.client.channel.ChannelShell channel = workerLogin.session().createShellChannel();
+        channel.setPtyType("xterm-256color");
+        channel.setPtyColumns(cols > 0 ? cols : 80);
+        channel.setPtyLines(rows > 0 ? rows : 24);
+        channel.open().verify(Duration.ofSeconds(15));
+        workerChannel = channel;
+        isolationReport = prepared.report();
+        started.describe(connection.getDisplayName(), isolationReport.state());
+        sendTerminalActive(terminalActive);
+
+        writer = new PipedWriter();
+        reader = new PipedReader(writer, PIPE_BUFFER_CHARS);
+        Thread pump = new Thread(() -> pumpWorkerOutput(channel), "MOSH4J-Worker-Output");
+        pump.setDaemon(true);
+        pump.start();
+        logger.info("mosh4j session for {}:{} runs in worker process {}", host, udpPort, ready.pid());
+    }
+
+    /** Copies the worker's terminal output into the pipe korTTY reads, then reports how it ended. */
+    private void pumpWorkerOutput(org.apache.sshd.client.channel.ChannelShell channel) {
+        try (java.io.Reader in = new java.io.InputStreamReader(channel.getInvertedOut(), MOSH_CHARSET)) {
+            char[] buffer = new char[8192];
+            int count;
+            while ((count = in.read(buffer)) >= 0) {
+                PipedWriter localWriter = writer;
+                if (localWriter == null) {
+                    break;
+                }
+                localWriter.write(buffer, 0, count);
+                localWriter.flush();
+            }
+        } catch (IOException e) {
+            logger.debug("Mosh worker output ended: {}", e.getMessage());
+        }
+        boolean wasConnected = connected.getAndSet(false);
+        if (!wasConnected || disconnectListener == null) {
+            return;
+        }
+        String end = workerEnd;
+        String reason;
+        boolean wasError;
+        if (end != null) {
+            Mosh4jEngine.End kind = Mosh4jEngine.End.valueOf(end);
+            reason = endReason(kind, workerEndMessage);
+            wasError = kind == Mosh4jEngine.End.FAILED;
+        } else {
+            de.kortty.core.worker.SessionWorkerProcess current = worker;
+            java.util.List<String> tail = current != null ? current.stderrTail() : java.util.List.of();
+            reason = I18n.get("isolation.worker.crashed",
+                current != null ? current.exitCode().orElse(-1) : -1, tail.isEmpty() ? "" : tail.get(tail.size() - 1));
+            wasError = true;
+        }
+        disconnectListener.onDisconnect(reason, wasError);
+    }
+
+    private void onWorkerEvent(com.google.gson.JsonObject event) {
+        String type = event.has("type") ? event.get("type").getAsString() : "";
+        switch (type) {
+            case "mosh.interrupted" -> {
+                if (workerInterruptedAtMs < 0) {
+                    workerInterruptedAtMs = System.currentTimeMillis();
+                }
+                notifyInterrupted();
+            }
+            case "mosh.recovered" -> {
+                long was = workerInterruptedAtMs;
+                workerInterruptedAtMs = -1L;
+                notifyRecovered(was > 0 ? was : 1L);
+            }
+            case "mosh.ended" -> {
+                workerEnd = event.has("end") ? event.get("end").getAsString() : Mosh4jEngine.End.ENDED.name();
+                workerEndMessage = event.has("message") ? event.get("message").getAsString() : null;
+            }
+            default -> logger.debug("Mosh worker sent {}", type);
+        }
+    }
+
+    private void sendTerminalActive(boolean active) {
+        de.kortty.core.worker.SessionWorkerProcess current = worker;
+        if (current == null) {
+            return;
+        }
+        com.google.gson.JsonObject event = new com.google.gson.JsonObject();
+        event.addProperty("type", "mosh.active");
+        event.addProperty("active", active);
+        try {
+            current.send(event);
+        } catch (IOException e) {
+            logger.debug("Could not tell the Mosh worker about the tab: {}", e.getMessage());
+        }
+    }
+
+    /** The disconnect message for how a session ended. */
+    static String endReason(Mosh4jEngine.End end, String message) {
+        return switch (end) {
+            case REMOTE_LOGOUT -> i18n("mosh.mosh4j.remoteLogout");
+            case FAILED -> i18n("mosh.mosh4j.frontendFailed", message != null ? message : "");
+            case ENDED, STOPPED -> i18n("mosh.mosh4j.sessionEnded");
+        };
     }
 
     private List<Path> ensureReleaseClasspathJars() throws Exception {
@@ -564,175 +699,6 @@ public class Mosh4jTtyConnector implements TtyConnector {
         }
     }
 
-    private void startOutputDrainLoop() {
-        outputDrainThread = new Thread(() -> {
-            String disconnectReason = i18n("mosh.mosh4j.sessionEnded");
-            boolean wasError = false;
-            long lastHostBytesAt = System.currentTimeMillis();
-            long lastKeepaliveAt = 0;
-            boolean promptNudgeSent = false;
-            try {
-                while (connected.get()) {
-                    try {
-                        if (!isFrontendRunning()) {
-                            if (interruptionStartedAtMs < 0) {
-                                interruptionStartedAtMs = System.currentTimeMillis();
-                                notifyInterrupted();
-                            }
-                            // Network glitches should not kill the mosh tab; try to revive
-                            // the frontend receive loop and continue.
-                            frontendStart.invoke(frontend);
-                            Thread.sleep(100);
-                            continue;
-                        }
-                        // Do not clear interruptionStartedAtMs here: only clear when we actually
-                        // receive host bytes (data from server). Otherwise isFrontendRunning() can
-                        // flicker and the status bar would appear/disappear repeatedly.
-
-                        if (frontendTakeHostBytes != null) {
-                            byte[] hostBytes = (byte[]) frontendTakeHostBytes.invoke(frontend, 250L);
-                            if (hostBytes != null && hostBytes.length > 0) {
-                                String chunk = new String(hostBytes, MOSH_CHARSET);
-                                writer.write(chunk);
-                                writer.flush();
-                                totalCharsWrittenToPipe += chunk.length();
-                                lastHostBytesAt = System.currentTimeMillis();
-                                long wasInterrupted = interruptionStartedAtMs;
-                                interruptionStartedAtMs = -1L;
-                                notifyRecovered(wasInterrupted);
-                                // Any fresh server output confirms the path is healthy again.
-                                lastUserInputAtMs = -1L;
-                                if (DEBUG) {
-                                    String preview = chunk.replace("\u001B", "<ESC>")
-                                            .replace("\r", "<CR>")
-                                            .replace("\n", "<LF>");
-                                    if (preview.length() > 220) {
-                                        preview = preview.substring(0, 220) + "...";
-                                    }
-                                    logger.info("MOSH4J host-bytes chars={} totalWritten={} sinceConnectMs={} preview={}",
-                                            chunk.length(), totalCharsWrittenToPipe,
-                                            System.currentTimeMillis() - connectStartedAtMs, preview);
-                                }
-                                if (!promptNudgeSent) {
-                                    frontendSendUserInput.invoke(frontend, (Object) "\r".getBytes(MOSH_CHARSET));
-                                    promptNudgeSent = true;
-                                    if (DEBUG) {
-                                        logger.info("MOSH4J prompt nudge sent (CR)");
-                                    }
-                                }
-                                continue;
-                            }
-                            long now = System.currentTimeMillis();
-                            // Show "interrupted" only when this tab is active and we have had no host bytes for a long time.
-                            // When the user switched to another tab, we do not treat idle as disconnected.
-                            long activeForMs = now - lastActivatedAtMs;
-                            if (terminalActive && activeForMs > 2_000L
-                                    && now - lastHostBytesAt >= NO_HOST_BYTES_INTERRUPTION_MS && interruptionStartedAtMs < 0) {
-                                interruptionStartedAtMs = now;
-                                notifyInterrupted();
-                            }
-                            // Keep mosh session active with protocol heartbeat only. Do not send NUL (0x00)
-                            // as "user input" — it appears as ^@ on screen and corrupts prompt/input.
-                            if (now - lastHostBytesAt >= KEEPALIVE_INTERVAL_MS
-                                    && now - lastKeepaliveAt >= KEEPALIVE_INTERVAL_MS
-                                    && frontendSendHeartbeat != null) {
-                                frontendSendHeartbeat.invoke(frontend);
-                                lastKeepaliveAt = now;
-                                if (DEBUG) {
-                                    logger.info("MOSH4J keepalive heartbeat sent");
-                                }
-                            }
-                            continue;
-                        }
-
-                        // Fallback for older frontend builds that don't expose raw host bytes.
-                        String frame = (String) frontendTakeRenderedOutput.invoke(frontend, 250L);
-                        if (frame == null || frame.isEmpty()) {
-                            continue;
-                        }
-                        writer.write(frame);
-                        writer.flush();
-                        totalCharsWrittenToPipe += frame.length();
-                        if (DEBUG) {
-                            String preview = frame.replace("\u001B", "<ESC>")
-                                    .replace("\r", "<CR>")
-                                    .replace("\n", "<LF>");
-                            if (preview.length() > 220) {
-                                preview = preview.substring(0, 220) + "...";
-                            }
-                            logger.info("MOSH4J frontend frame chars={} totalWritten={} sinceConnectMs={} preview={}",
-                                    frame.length(), totalCharsWrittenToPipe,
-                                    System.currentTimeMillis() - connectStartedAtMs, preview);
-                        }
-                    } catch (Exception loopError) {
-                        Throwable cause = loopError instanceof InvocationTargetException ite ? ite.getCause() : loopError;
-                        if (cause instanceof InterruptedException || Thread.currentThread().isInterrupted()) {
-                            Thread.currentThread().interrupt();
-                            break;
-                        }
-                        if (interruptionStartedAtMs < 0) {
-                            interruptionStartedAtMs = System.currentTimeMillis();
-                            notifyInterrupted();
-                        }
-                        if (DEBUG) {
-                            logger.info("MOSH4J transient frontend loop issue: {}", cause != null ? cause.getMessage() : loopError.getMessage());
-                        }
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            break;
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                Throwable cause = e instanceof InvocationTargetException ite ? ite.getCause() : e;
-                if (cause instanceof InterruptedException || Thread.currentThread().isInterrupted()) {
-                    Thread.currentThread().interrupt();
-                    wasError = false;
-                    disconnectReason = i18n("mosh.mosh4j.frontendStopped");
-                } else {
-                    wasError = true;
-                    disconnectReason = i18n("mosh.mosh4j.frontendFailed", e.getMessage());
-                    logger.warn(disconnectReason, e);
-                }
-            } finally {
-                if (!wasError && logoutRequestedAtMs > 0) {
-                    long now = System.currentTimeMillis();
-                    // If Ctrl+D was sent recently, classify as remote logout so UI can close tab.
-                    if (now - logoutRequestedAtMs <= 5000L) {
-                        disconnectReason = i18n("mosh.mosh4j.remoteLogout");
-                    }
-                }
-                connected.set(false);
-                // Ensure transport is closed even when the UI keeps the tab open.
-                // This avoids leaving a detached local mosh client state behind.
-                Object localFrontend = frontend;
-                frontend = null;
-                if (localFrontend != null && frontendClose != null) {
-                    try {
-                        frontendClose.invoke(localFrontend);
-                    } catch (Exception ignored) {
-                    }
-                }
-                if (disconnectListener != null) {
-                    disconnectListener.onDisconnect(disconnectReason, wasError);
-                }
-            }
-        }, "MOSH4J-Frontend-" + connection.getDisplayName());
-        outputDrainThread.setDaemon(true);
-        outputDrainThread.start();
-    }
-
-    private boolean isFrontendRunning() {
-        try {
-            Object running = frontendIsRunning.invoke(frontend);
-            return running instanceof Boolean b && b;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
     private static boolean commandExists(String command) {
         if (command == null || !command.matches("[a-zA-Z0-9._-]+")) {
             return false;
@@ -766,23 +732,27 @@ public class Mosh4jTtyConnector implements TtyConnector {
     @Override
     public void close() {
         connected.set(false);
-        interruptionStartedAtMs = -1L;
-        lastUserInputAtMs = -1L;
-        logoutRequestedAtMs = -1L;
-
-        Thread localOutputThread = outputDrainThread;
-        outputDrainThread = null;
-        if (localOutputThread != null) {
-            localOutputThread.interrupt();
+        org.apache.sshd.client.channel.ChannelShell localChannel = workerChannel;
+        workerChannel = null;
+        if (localChannel != null) {
+            localChannel.close(false);
         }
+        de.kortty.core.worker.WorkerLogin localLogin = workerLogin;
+        workerLogin = null;
+        if (localLogin != null) {
+            localLogin.close();
+        }
+        de.kortty.core.worker.SessionWorkerProcess localWorker = worker;
+        if (localWorker != null) {
+            localWorker.close();
+        }
+        de.kortty.isolation.sandbox.SandboxSupport.deleteSessionDirectory(sandboxSessionDirectory);
+        sandboxSessionDirectory = null;
 
-        Object localFrontend = frontend;
-        frontend = null;
-        if (localFrontend != null && frontendClose != null) {
-            try {
-                frontendClose.invoke(localFrontend);
-            } catch (Exception ignored) {
-            }
+        Mosh4jEngine localEngine = engine;
+        engine = null;
+        if (localEngine != null) {
+            localEngine.close();
         }
 
         PipedWriter localWriter = writer;
@@ -803,14 +773,6 @@ public class Mosh4jTtyConnector implements TtyConnector {
             }
         }
 
-        URLClassLoader localLoader = classLoader;
-        classLoader = null;
-        if (localLoader != null) {
-            try {
-                localLoader.close();
-            } catch (IOException ignored) {
-            }
-        }
     }
 
     @Override
@@ -841,21 +803,20 @@ public class Mosh4jTtyConnector implements TtyConnector {
         if (!connected.get() || bytes == null || bytes.length == 0) {
             return;
         }
-        lastUserInputAtMs = System.currentTimeMillis();
-        for (byte b : bytes) {
-            if (b == 0x04) { // Ctrl+D / EOT
-                logoutRequestedAtMs = lastUserInputAtMs;
-                break;
-            }
+        org.apache.sshd.client.channel.ChannelShell localChannel = workerChannel;
+        if (localChannel != null) {
+            OutputStream toWorker = localChannel.getInvertedIn();
+            toWorker.write(bytes);
+            toWorker.flush();
+            return;
         }
-        Object localFrontend = frontend;
-        Method localSend = frontendSendUserInput;
-        if (localFrontend == null || localSend == null) {
+        Mosh4jEngine localEngine = engine;
+        if (localEngine == null) {
             return;
         }
         try {
-            localSend.invoke(localFrontend, (Object) bytes);
-        } catch (Exception e) {
+            localEngine.sendInput(bytes);
+        } catch (IOException e) {
             throw new IOException(i18n("mosh.mosh4j.sendInputFailed"), e);
         }
     }
@@ -877,11 +838,19 @@ public class Mosh4jTtyConnector implements TtyConnector {
     }
 
     public boolean isNetworkInterrupted() {
-        return connected.get() && interruptionStartedAtMs > 0;
+        Mosh4jEngine localEngine = engine;
+        if (worker != null) {
+            return connected.get() && workerInterruptedAtMs > 0;
+        }
+        return connected.get() && localEngine != null && localEngine.isInterrupted();
     }
 
     public long getInterruptionStartedAtMs() {
-        return interruptionStartedAtMs;
+        Mosh4jEngine localEngine = engine;
+        if (worker != null) {
+            return workerInterruptedAtMs;
+        }
+        return localEngine != null ? localEngine.interruptionStartedAtMs() : -1L;
     }
 
     private void notifyInterrupted() {
@@ -910,9 +879,14 @@ public class Mosh4jTtyConnector implements TtyConnector {
 
     @Override
     public int waitFor() throws InterruptedException {
-        Thread localThread = outputDrainThread;
-        if (localThread != null) {
-            localThread.join();
+        org.apache.sshd.client.channel.ChannelShell localChannel = workerChannel;
+        if (localChannel != null) {
+            localChannel.waitFor(java.util.EnumSet.of(org.apache.sshd.client.channel.ClientChannelEvent.CLOSED), 0L);
+            return 0;
+        }
+        Mosh4jEngine localEngine = engine;
+        if (localEngine != null) {
+            localEngine.join();
         }
         return 0;
     }
@@ -928,15 +902,18 @@ public class Mosh4jTtyConnector implements TtyConnector {
         if (!connected.get() || termSize == null) {
             return;
         }
-        Object localFrontend = frontend;
-        Method localResize = frontendSendResize;
-        if (localFrontend == null || localResize == null) {
+        org.apache.sshd.client.channel.ChannelShell localChannel = workerChannel;
+        if (localChannel != null) {
+            try {
+                localChannel.sendWindowChange(termSize.getColumns(), termSize.getRows());
+            } catch (IOException e) {
+                logger.debug("Failed to send the window change to the Mosh worker: {}", e.getMessage());
+            }
             return;
         }
-        try {
-            localResize.invoke(localFrontend, termSize.getColumns(), termSize.getRows());
-        } catch (Exception e) {
-            logger.debug("Failed to send mosh4j resize: {}", e.getMessage());
+        Mosh4jEngine localEngine = engine;
+        if (localEngine != null) {
+            localEngine.resize(termSize.getColumns(), termSize.getRows());
         }
     }
 

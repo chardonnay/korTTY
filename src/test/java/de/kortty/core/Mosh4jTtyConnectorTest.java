@@ -33,12 +33,24 @@ class Mosh4jTtyConnectorTest {
                 new ServerConnection("Test", "example.com", 22, "daniel"),
                 "secret");
 
+        // A mosh session stays connected while its transport is interrupted (the engine revives it),
+        // so the terminal keeps forwarding keystrokes; only close() ends it.
         setField(connector, "connected", new java.util.concurrent.atomic.AtomicBoolean(true));
-        setField(connector, "interruptionStartedAtMs", 1L);
-        setField(connector, "frontend", new TestFrontend(false));
-        setField(connector, "frontendIsRunning", TestFrontend.class.getDeclaredMethod("isRunning"));
 
         assertThat(connector.isConnected()).isTrue();
+        assertThat(connector.isNetworkInterrupted()).isFalse();
+    }
+
+    @Test
+    void howASessionEndedBecomesItsDisconnectMessage() {
+        assertThat(Mosh4jTtyConnector.endReason(Mosh4jEngine.End.REMOTE_LOGOUT, null))
+            .isEqualTo(LanguageManager.getInstance().getString("mosh.mosh4j.remoteLogout"));
+        assertThat(Mosh4jTtyConnector.endReason(Mosh4jEngine.End.ENDED, null))
+            .isEqualTo(LanguageManager.getInstance().getString("mosh.mosh4j.sessionEnded"));
+        assertThat(Mosh4jTtyConnector.endReason(Mosh4jEngine.End.STOPPED, null))
+            .isEqualTo(LanguageManager.getInstance().getString("mosh.mosh4j.sessionEnded"));
+        assertThat(Mosh4jTtyConnector.endReason(Mosh4jEngine.End.FAILED, "boom"))
+            .isEqualTo(LanguageManager.getInstance().getString("mosh.mosh4j.frontendFailed", "boom"));
     }
 
     @Test
@@ -74,18 +86,5 @@ class Mosh4jTtyConnectorTest {
         Field field = target.getClass().getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(target, value);
-    }
-
-    private static final class TestFrontend {
-        private final boolean running;
-
-        private TestFrontend(boolean running) {
-            this.running = running;
-        }
-
-        @SuppressWarnings("unused")
-        public boolean isRunning() {
-            return running;
-        }
     }
 }

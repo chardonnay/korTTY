@@ -70,6 +70,8 @@ public final class SessionWorkerProcess implements AutoCloseable {
     private final Deque<String> stderrTail = new ArrayDeque<>();
     private final CompletableFuture<Ready> ready = new CompletableFuture<>();
     private volatile boolean closing;
+    /** Told every event the worker sends besides {@code ready} and {@code failed}. */
+    private volatile java.util.function.Consumer<JsonObject> eventConsumer = event -> { };
     /** What the Session processes window shows for this worker: the connection's name, without secrets. */
     private volatile String displayName;
     /** The isolation the session got, for the Session processes window. */
@@ -205,7 +207,7 @@ public final class SessionWorkerProcess implements AutoCloseable {
             case "failed" -> ready.completeExceptionally(new ConnectFailedException(
                 event.has("kind") ? event.get("kind").getAsString() : "network",
                 event.has("message") ? event.get("message").getAsString() : "connection failed"));
-            default -> logger.debug("Session worker {} sent {}", label, type);
+            default -> eventConsumer.accept(event);
         }
     }
 
@@ -245,6 +247,16 @@ public final class SessionWorkerProcess implements AutoCloseable {
 
     public de.kortty.isolation.IsolationState isolationState() {
         return isolationState;
+    }
+
+    /** Hands every other event of the worker (such as Mosh's interruptions) to {@code consumer}. */
+    public void setEventConsumer(java.util.function.Consumer<JsonObject> consumer) {
+        this.eventConsumer = consumer != null ? consumer : event -> { };
+    }
+
+    /** Sends an event to the worker. */
+    public void send(JsonObject event) throws IOException {
+        endpoint.send(event);
     }
 
     /** The worker's last stderr lines, oldest first. */

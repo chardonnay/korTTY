@@ -123,7 +123,8 @@ public final class IsolationSettings {
      */
     public static IsolationLevel strongestSupported(ConnectionProtocol protocol, boolean sshWorkerAvailable,
                                                     boolean sshSandboxAvailable, boolean nativeMoshClientAvailable) {
-        if (protocol == ConnectionProtocol.MOSH && nativeMoshClientAvailable) {
+        if (protocol == ConnectionProtocol.MOSH && (sshWorkerAvailable || nativeMoshClientAvailable)) {
+            // The built-in client runs in a session worker, else the native mosh-client stands in.
             return IsolationLevel.SANDBOX;
         }
         if (protocol == null) {

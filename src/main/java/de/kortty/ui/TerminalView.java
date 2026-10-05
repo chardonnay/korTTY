@@ -3725,6 +3725,7 @@ public class TerminalView extends BorderPane {
         if (targetConnection.getProtocol() == ConnectionProtocol.MOSH) {
             de.kortty.isolation.IsolationRequest moshIsolation = isolationRequestFor(targetConnection);
             if (moshIsolation.level() != de.kortty.isolation.IsolationLevel.NONE
+                    && !de.kortty.core.worker.SessionWorkerProcess.available()
                     && NativeMoshTtyConnector.isNativeMoshAvailable()) {
                 // The built-in client runs inside korTTY and cannot be isolated yet; the native
                 // mosh-client can, so it stands in for this session.
@@ -3750,6 +3751,7 @@ public class TerminalView extends BorderPane {
                     );
                 }
                 mosh4jConnector.setAccessReasonMemory(accessReasonMemory);
+                mosh4jConnector.setIsolationRequest(moshIsolation);
                 connector = mosh4jConnector;
                 return connector;
             }
@@ -3816,7 +3818,7 @@ public class TerminalView extends BorderPane {
             de.kortty.isolation.IsolationSettings.resolve(global, target, floor);
         boolean workers = de.kortty.core.worker.SessionWorkerProcess.available();
         // Only asked for a built-in Mosh connection that wants isolation: it starts a process.
-        boolean nativeMosh = target.getProtocol() == ConnectionProtocol.MOSH
+        boolean nativeMosh = target.getProtocol() == ConnectionProtocol.MOSH && !workers
             && resolution.level() != de.kortty.isolation.IsolationLevel.NONE
             && NativeMoshTtyConnector.isNativeMoshAvailable();
         de.kortty.isolation.IsolationLevel supported = de.kortty.isolation.IsolationSettings.strongestSupported(

@@ -78,6 +78,10 @@ class SandboxBackendTest {
         assertThat(profile).contains("mDNSResponder");
         assertThat(MacSandboxBackend.profile(new SandboxSpec(List.of(), List.of(), false, List.of())))
             .doesNotContain("network-outbound");
+        String mosh = MacSandboxBackend.profile(new SandboxSpec(List.of(), List.of(), false, List.of(),
+            List.of(), List.of(60001)));
+        assertThat(mosh).contains("(remote udp \"*:60001\")");
+        assertThat(mosh).doesNotContain("remote tcp");
     }
 
     @Test

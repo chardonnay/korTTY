@@ -70,6 +70,11 @@ public final class MacSandboxBackend implements SandboxBackend {
                     sb.append(" (remote tcp \"*:").append(port).append("\")");
                 }
             }
+            for (Integer port : spec.outboundUdpPorts()) {
+                if (port != null && port > 0 && port < 65536) {
+                    sb.append(" (remote udp \"*:").append(port).append("\")");
+                }
+            }
             sb.append(" (literal \"/private/var/run/mDNSResponder\"))\n");
         }
         if (!spec.hiddenPaths().isEmpty()) {
