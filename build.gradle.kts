@@ -3681,6 +3681,14 @@ tasks.register<JavaExec>("paneConnectionFrameSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("transparentSplitDividerSmoke") {
+    group = "verification"
+    description = "Splits a terminal twice under the AtlantaFX Primer Dark design over a red backdrop, turns the split pane see-through with a divider fill and checks that every divider (also one created afterwards) is drawn in that fill at full opacity with no backdrop showing through, and that leaving transparent mode restores the design's divider; pass a PNG path via --args to save a snapshot (needs a display)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("com.sithtermfx.ui.split.TransparentSplitDividerSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("connectionGroupColorSmoke") {
     group = "verification"
     description = "Shows the Connection Manager tree with a colored folder and checks that the folder shows a dot of its color with a tooltip and screen-reader text naming it, that folders without a color of their own show none, that the folder menu offers Tab Color..., and that the folder color dialog names an inherited color and returns the choice on OK and nothing on Cancel; pass a directory via --args to save PNG snapshots (needs a display)."

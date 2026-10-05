@@ -4367,6 +4367,7 @@ public class TerminalView extends BorderPane {
         styleState.setDefaultStyle(newStyle);
         styleState.reset();
         applyScrollBarBackground(widget, bgR, bgG, bgB, bgAlpha);
+        applySplitDividerColor();
         Platform.runLater(() -> widget.getTerminalPanel().repaint());
     }
 
@@ -4384,13 +4385,8 @@ public class TerminalView extends BorderPane {
         if (scrollBar == null) {
             return;
         }
-        // Lighten the track slightly over the background so it stays readable at any alpha.
-        double a = Math.max(0.0, Math.min(1.0, alpha / 255.0));
-        double trackAlpha = Math.max(a, 0.35);
         String barStyle = terminalScrollBarStyle(r, g, b, alpha);
-        String trackStyle = String.format(java.util.Locale.ROOT,
-                "-fx-background-color: rgba(%d,%d,%d,%.3f);",
-                Math.min(255, r + 24), Math.min(255, g + 24), Math.min(255, b + 24), trackAlpha);
+        String trackStyle = "-fx-background-color: " + terminalTrackColor(r, g, b, alpha) + ";";
         Runnable apply = () -> {
             scrollBar.setStyle(barStyle);
             javafx.scene.Node track = scrollBar.lookup(".track");
@@ -4421,6 +4417,17 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * The scroll-bar track's colour, also used for the dividers between split panes in a see-through
+     * window: the terminal background lightened slightly so it stays readable at any alpha, and never
+     * more transparent than 0.35 so it is never fully clear.
+     */
+    static String terminalTrackColor(int r, int g, int b, int alpha) {
+        double a = Math.max(0.0, Math.min(1.0, alpha / 255.0));
+        return String.format(java.util.Locale.ROOT, "rgba(%d,%d,%d,%.3f)",
+                Math.min(255, r + 24), Math.min(255, g + 24), Math.min(255, b + 24), Math.max(a, 0.35));
+    }
+
+    /**
      * Maps a background-transparency percentage (0 = opaque, 100 = fully transparent) to an alpha
      * value in 0..255. Shared by the per-pane settings provider and applyStyleStateColors so the
      * window background and the default cell background use exactly the same alpha.
@@ -4448,6 +4455,27 @@ public class TerminalView extends BorderPane {
             // JavaFX SplitPane. Otherwise the first split reinstates the theme's opaque background.
             splitPane.setBackgroundTransparent(transparent);
         }
+        applySplitDividerColor();
+    }
+
+    /**
+     * Gives the dividers between split panes the scroll-bar track's colour (the tab's terminal
+     * background at its alpha) while the window is see-through. Only matters in that mode: the split
+     * pane ignores the colour while its background is opaque.
+     */
+    private void applySplitDividerColor() {
+        if (splitPane == null || settings == null) {
+            return;
+        }
+        Color bg;
+        try {
+            bg = Color.web(settings.getBackgroundColor());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            bg = Color.BLACK;
+        }
+        splitPane.setTransparentDividerColor(terminalTrackColor(
+                (int) (bg.getRed() * 255), (int) (bg.getGreen() * 255), (int) (bg.getBlue() * 255),
+                alphaForTransparencyPercent(backgroundTransparencyPercent)));
     }
 
     /** Current terminal background transparency (0 = opaque, 100 = fully transparent). */

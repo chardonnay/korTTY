@@ -272,6 +272,9 @@ public class TerminalSplitPane extends StackPane {
     // JavaFX creates a new themed SplitPane for every split level. Remember see-through mode so both
     // existing and future nested controls stay transparent instead of restoring the opaque theme.
     private boolean backgroundTransparent = false;
+    // The fill of the dividers between panes while the background is transparent; null keeps the
+    // design's divider, which is drawn half see-through over nothing and leaves a clear gap.
+    private @Nullable String transparentDividerColor;
 
     // Optional left-side panels (e.g. timestamp gutters) per widget
     private final Map<SithTermFxWidget, Region> widgetLeftPanels = new HashMap<>();
@@ -1517,8 +1520,45 @@ public class TerminalSplitPane extends StackPane {
         }
     }
 
+    /**
+     * Sets the fill of the dividers between panes while the background is transparent, as a CSS
+     * colour. The designs draw the divider as a thin, half see-through line over the split control's
+     * background; with that background transparent the divider showed as a clear gap to the desktop
+     * between the panes. {@code null} keeps the design's divider.
+     */
+    public void setTransparentDividerColor(@Nullable String cssColor) {
+        if (java.util.Objects.equals(transparentDividerColor, cssColor)) {
+            return;
+        }
+        transparentDividerColor = cssColor;
+        if (rootCell != null) {
+            rootCell.refreshBackgroundStyle();
+        }
+    }
+
     private void applyBackgroundStyle(@NotNull Region region) {
         region.setStyle(backgroundTransparent ? TRANSPARENT_BACKGROUND_STYLE : null);
+        if (region instanceof SplitPane split) {
+            applyDividerStyle(split);
+        }
+    }
+
+    /** Styles the split control's own dividers, which its skin creates (and recreates) as children. */
+    private void applyDividerStyle(@NotNull SplitPane split) {
+        String style = transparentDividerStyle(backgroundTransparent, transparentDividerColor);
+        for (Node node : split.lookupAll(".split-pane-divider")) {
+            if (node.getParent() == split) {
+                node.setStyle(style);
+            }
+        }
+    }
+
+    /** The inline style of a divider: the given fill at full opacity while transparent, else none. */
+    static @Nullable String transparentDividerStyle(boolean transparent, @Nullable String cssColor) {
+        if (!transparent || cssColor == null || cssColor.isBlank()) {
+            return null;
+        }
+        return "-fx-background-color: " + cssColor + "; -fx-opacity: 1;";
     }
 
     private void notifyWidgetClosed(@Nullable SithTermFxWidget widget) {
@@ -2538,6 +2578,11 @@ public class TerminalSplitPane extends StackPane {
             splitPane.setMaxWidth(Double.MAX_VALUE);
             splitPane.setMaxHeight(Double.MAX_VALUE);
             applyBackgroundStyle(splitPane);
+            // The skin builds the dividers later and rebuilds them when the items change.
+            splitPane.skinProperty().addListener((obs, oldSkin, newSkin) -> applyDividerStyle(splitPane));
+            splitPane.getDividers().addListener(
+                    (javafx.collections.ListChangeListener<SplitPane.Divider>) change ->
+                            Platform.runLater(() -> applyDividerStyle(splitPane)));
             this.node = splitPane;
             Platform.runLater(() -> splitPane.setDividerPositions(0.5));
         }
