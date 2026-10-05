@@ -236,7 +236,7 @@ final class McpOutputMasking {
         return new PaneInfo(info.paneId(), info.tabId(), info.windowId(), info.index(), info.focused(),
             info.protocol(), info.connected(), info.localShell(), info.workingDirectory(),
             info.shellPid(), info.columns(), info.rows(), info.alternateScreen(),
-            info.bracketedPaste(), agent(info.agent()));
+            info.bracketedPaste(), agent(info.agent()), info.isolation(), info.incognito());
     }
 
     /** A tab as an MCP client may see it: the title, which a remote OSC sequence can set, masked. */

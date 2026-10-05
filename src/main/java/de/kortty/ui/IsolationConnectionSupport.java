@@ -35,6 +35,8 @@ final class IsolationConnectionSupport {
     static final String UNSUPPORTED_KEY = "connEdit.isolation.unsupported";
     /** Hint when a sandbox is chosen but this computer has none; {0} says why. */
     static final String SANDBOX_UNAVAILABLE_KEY = "connEdit.isolation.sandboxUnavailable";
+    /** Hint for a built-in Mosh connection that asks for isolation: the native mosh-client runs it. */
+    static final String NATIVE_MOSH_KEY = "connEdit.isolation.nativeMosh";
     static final String TEAMWORK_KEY = "connEdit.isolation.teamwork";
     static final String STRICT_LABEL_KEY = "connEdit.isolation.strict";
     static final String STRICT_TOOLTIP_KEY = "connEdit.isolation.strict.tooltip";
@@ -48,7 +50,7 @@ final class IsolationConnectionSupport {
     static final List<String> KEYS = List.of(SECTION_KEY, LEVEL_LABEL_KEY, LEVEL_TOOLTIP_KEY, DEFAULT_GLOBAL_KEY,
         DEFAULT_FOLDER_KEY, UNSUPPORTED_KEY, SANDBOX_UNAVAILABLE_KEY, TEAMWORK_KEY, STRICT_LABEL_KEY,
         STRICT_TOOLTIP_KEY, STRICT_AUTO_KEY, STRICT_ON_KEY, STRICT_OFF_KEY, INCOGNITO_KEY, INCOGNITO_TOOLTIP_KEY,
-        INCOGNITO_DENIED_KEY, "isolation.level.none", "isolation.level.process", "isolation.level.sandbox");
+        INCOGNITO_DENIED_KEY, NATIVE_MOSH_KEY, "isolation.level.none", "isolation.level.process", "isolation.level.sandbox");
 
     private IsolationConnectionSupport() {
     }
@@ -159,7 +161,13 @@ final class IsolationConnectionSupport {
      */
     static @Nullable String hint(@Nullable ConnectionProtocol protocol, @NotNull IsolationLevel effective,
                                  @Nullable String sandboxUnavailableReason) {
-        IsolationLevel supported = IsolationSettings.strongestSupported(protocol, false, false);
+        boolean workers = de.kortty.core.worker.SessionWorkerProcess.available();
+        boolean nativeMosh = protocol == ConnectionProtocol.MOSH && effective != IsolationLevel.NONE
+            && de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable();
+        IsolationLevel supported = IsolationSettings.strongestSupported(protocol, workers, workers, nativeMosh);
+        if (nativeMosh) {
+            return I18n.get(NATIVE_MOSH_KEY);
+        }
         if (effective.ordinal() > supported.ordinal()) {
             return I18n.get(UNSUPPORTED_KEY, levelName(supported));
         }

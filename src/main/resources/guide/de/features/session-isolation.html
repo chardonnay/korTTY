@@ -856,18 +856,28 @@
 <tr>
 <td>SSH</td>
 <td>ja</td>
-<td>noch nicht</td>
-<td>noch nicht</td>
+<td>ja, in einem Session-Worker (siehe unten)</td>
+<td>ja</td>
 </tr>
 <tr>
 <td>Mosh (eingebauter Client)</td>
 <td>ja</td>
-<td>noch nicht</td>
-<td>noch nicht</td>
+<td>mit dem nativen <code>mosh-client</code>, wenn er installiert ist</td>
+<td>mit dem nativen <code>mosh-client</code>, wenn er installiert ist</td>
 </tr>
 </tbody>
 </table>
-<p>Eine Verbindung, die mehr verlangt, als ihre Verbindungsart bekommen kann, läuft mit der stärksten Stufe, die möglich ist, und der Verbindungseditor sagt das unter <strong>Isolation:</strong>. Verlangt Ihre Organisation eine Stufe, die die Verbindungsart nicht bekommen kann, wird die Sitzung gar nicht erst geöffnet.</p>
+<p>Der eingebaute Mosh-Client läuft innerhalb von korTTY und kann noch nicht isoliert werden. Eine Verbindung mit dem eingebauten Mosh-Client, die Isolation verlangt, läuft deshalb stattdessen mit dem nativen <code>mosh-client</code>, wenn er installiert ist: <code>mosh-client</code> läuft dann im eigenen Prozess oder in der Sandbox, und der SSH-Login, der <code>mosh-server</code> startet, läuft in einem Session-Worker. Ohne <code>mosh-client</code> läuft sie wie bisher. Eine Verbindung, die mehr verlangt, als ihre Verbindungsart bekommen kann, läuft mit der stärksten Stufe, die möglich ist, und der Verbindungseditor sagt das unter <strong>Isolation:</strong>. Verlangt Ihre Organisation eine Stufe, die die Verbindungsart nicht bekommen kann, wird die Sitzung gar nicht erst geöffnet.</p>
+<h2 id="ssh-sitzungen-in-einem-session-worker">SSH-Sitzungen in einem Session-Worker<a class="headerlink" href="#ssh-sitzungen-in-einem-session-worker" title="Permanent link">&para;</a></h2>
+<p>Eine isolierte SSH-Sitzung läuft in einem <strong>Session-Worker</strong>, einem kleinen eigenen Prozess, den korTTY für genau diese Verbindung startet. Der Worker verbindet sich mit dem Server (über den Jump-Server, falls es einen gibt), authentifiziert sich und hält die verschlüsselte Verbindung; korTTY spricht mit ihm über eine Verbindung auf diesem Computer (<code>127.0.0.1</code>), die nur ein einmaliges Token annimmt, das korTTY dafür erzeugt hat, und deren Schlüssel korTTY festhält. Der Worker reicht jeden Kanal, den korTTY öffnet, an den Server weiter, sodass das Terminal, SFTP auf der Sitzung des Terminals, abgelegte Dateien, die Befehle des KI-Agenten sowie <code>-L</code>- und <code>-D</code>-Tunnel wie bei einer direkten Sitzung funktionieren.</p>
+<ul>
+<li><strong>Ihr privater Schlüssel bleibt in korTTY.</strong> Der Worker bekommt nie einen Schlüssel: Wenn der Server eine Signatur verlangt, fragt der Worker korTTY, das mit dem wie gewohnt geladenen Schlüssel signiert. Der Worker bekommt das Passwort eines Passwort-Logins und das des Jump-Servers, aber nie den Tresor oder das Master-Passwort.</li>
+<li><strong>Host-Keys und Abfragen wie bisher.</strong> korTTY prüft den Host-Key des Servers mit den gewohnten Dialogen gegen seine bekannten Hosts und beantwortet Keyboard-Interactive-Abfragen, auch den Zugriffsgrund, mit den gewohnten Dialogen.</li>
+<li><strong>Mit einer Sandbox</strong> kann der Worker <code>~/.kortty</code>, <code>~/.ssh</code>, <code>~/.gnupg</code> und die Schlüsselbunde weder lesen noch schreiben und schreibt nur in einen eigenen Ordner. Auf macOS darf er sich außerdem nur mit diesem Computer und mit dem Port des Servers und des Jump-Servers verbinden; auf Linux schränkt bubblewrap das Netzwerk nicht ein, was der Tooltip des Schildes sagt.</li>
+<li><strong>Remote-Tunnel (<code>-R</code>) gibt es in einer isolierten SSH-Sitzung noch nicht</strong>; die Statusleiste meldet sie als abgelehnt. Verwenden Sie für eine Verbindung, die sie braucht, die Stufe <strong>Keine</strong>.</li>
+<li><strong>Stürzt der Worker ab</strong>, meldet der Tab <em>Sitzungsprozess abgestürzt (Exit N)</em> mit der letzten Meldung des Workers und bietet an, neu zu verbinden; das Log von korTTY enthält seine letzte Ausgabe. Eine im Netzwerk verlorene Verbindung wird wie bei einer direkten Sitzung als <em>Connection lost</em> gemeldet.</li>
+</ul>
+<p><strong>Werkzeuge → Sitzungsprozesse...</strong> listet jede Sitzung, die in einem Worker läuft: Verbindung, Prozess-ID, Isolation, Speicher, CPU-Anteil und Laufzeit, alle zwei Sekunden aktualisiert. Eine Zeile wird markiert, solange ihr Worker einen CPU-Kern auslastet, und <strong>Prozess beenden</strong> beendet den ausgewählten Worker; sein Tab bietet dann an, neu zu verbinden. Worker laufen mit niedrigerer Priorität, sodass ein ausgelasteter Worker das Fenster von korTTY nicht bremst.</p>
 <div class="admonition note">
 <p class="admonition-title">Die Sandbox auf jedem Betriebssystem</p>
 <p>Auf macOS verwendet korTTY <code>sandbox-exec</code> mit einem Profil, das es für jede Sitzung erzeugt. Auf Linux verwendet es bubblewrap (<code>bwrap</code>), das installiert sein muss; es braucht unprivilegierte User-Namespaces, die manche Container nicht erlauben. Auf Windows und wenn korTTY in Flatpak läuft (selbst eine Sandbox, die keine weitere darin erlaubt), gibt es noch keine Sandbox. Vor der ersten Sitzung in der Sandbox führt korTTY einen Selbsttest aus: Eine geheime Datei in seinem Konfigurationsordner muss aus der Sandbox heraus unlesbar sein, während ein harmloser Befehl weiterhin läuft. Nur eine Sandbox, die den Test besteht, gilt als verfügbar.</p>
@@ -880,6 +890,7 @@
 <li><strong>Für alles andere:</strong> <strong>Konfiguration → Globale Einstellungen → Sicherheit</strong> → <strong>Sitzungs-Isolation</strong> → <strong>Standard-Isolation:</strong>. Der Abschnitt zeigt auch, ob dieser Computer eine funktionierende Sandbox hat.</li>
 </ul>
 <p>Eine Verbindung aus einer geteilten Teamwork-Datei kann die Isolation nur strenger machen als Ihr Ordner oder die Einstellungen, nie lockerer.</p>
+<p>Ein Session-Journal vermerkt bei jedem Verbindungsaufbau die Isolation der Sitzung (zum Beispiel <em>isolation: sandboxed (sandbox-exec)</em>), und <code>pane.list</code> und <code>pane.get</code> der Control-API melden für jeden Bereich <code>isolation</code> (<code>none</code>, <code>process</code>, <code>sandboxed</code> oder <code>degraded</code>) und ob sein Tab <code>incognito</code> ist.</p>
 <h2 id="was-der-tab-anzeigt">Was der Tab anzeigt<a class="headerlink" href="#was-der-tab-anzeigt" title="Permanent link">&para;</a></h2>
 <p><img alt="Tabs mit gefülltem Schild und Spion, mit Schild-Umriss und ohne Markierung" src="../assets/screenshots/main/session-isolation-tabs.png" /></p>
 <table>

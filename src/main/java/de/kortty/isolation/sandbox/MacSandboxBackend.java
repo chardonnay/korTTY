@@ -30,6 +30,11 @@ public final class MacSandboxBackend implements SandboxBackend {
     }
 
     @Override
+    public boolean limitsNetwork() {
+        return true;
+    }
+
+    @Override
     public List<String> wrap(List<String> command, SandboxSpec spec) {
         List<String> wrapped = new ArrayList<>();
         wrapped.add(SANDBOX_EXEC.toString());
@@ -54,6 +59,18 @@ public final class MacSandboxBackend implements SandboxBackend {
                 }
             }
             sb.append(")\n");
+        }
+        if (spec.outboundPorts() != null) {
+            // The sandbox filters by port only (a host other than localhost cannot be named), so the
+            // process reaches this computer, name resolution and the given ports, nothing else.
+            sb.append("(deny network-outbound)\n");
+            sb.append("(allow network-outbound (remote ip \"localhost:*\")");
+            for (Integer port : spec.outboundPorts()) {
+                if (port != null && port > 0 && port < 65536) {
+                    sb.append(" (remote tcp \"*:").append(port).append("\")");
+                }
+            }
+            sb.append(" (literal \"/private/var/run/mDNSResponder\"))\n");
         }
         if (!spec.hiddenPaths().isEmpty()) {
             sb.append("(deny file-read* file-write*");

@@ -856,18 +856,28 @@
 <tr>
 <td>SSH</td>
 <td>yes</td>
-<td>not yet</td>
-<td>not yet</td>
+<td>yes, in a session worker (see below)</td>
+<td>yes</td>
 </tr>
 <tr>
 <td>Mosh (built-in client)</td>
 <td>yes</td>
-<td>not yet</td>
-<td>not yet</td>
+<td>with the native <code>mosh-client</code>, when it is installed</td>
+<td>with the native <code>mosh-client</code>, when it is installed</td>
 </tr>
 </tbody>
 </table>
-<p>A connection that asks for more than its type can get runs with the strongest level it can get, and the connection editor says so under <strong>Isolation:</strong>. If your organization demands a level that the connection type cannot get, the session is not opened at all.</p>
+<p>The built-in Mosh client runs inside korTTY and cannot be isolated yet. A built-in Mosh connection that asks for isolation therefore runs with the native <code>mosh-client</code> instead, when it is installed: <code>mosh-client</code> then runs in its own process or in the sandbox, and the SSH login that starts <code>mosh-server</code> runs in a session worker. Without <code>mosh-client</code> it runs as before. A connection that asks for more than its type can get runs with the strongest level it can get, and the connection editor says so under <strong>Isolation:</strong>. If your organization demands a level that the connection type cannot get, the session is not opened at all.</p>
+<h2 id="ssh-sessions-in-a-session-worker">SSH sessions in a session worker<a class="headerlink" href="#ssh-sessions-in-a-session-worker" title="Permanent link">&para;</a></h2>
+<p>An isolated SSH session runs in a <strong>session worker</strong>, a small process of its own that korTTY starts for this one connection. The worker connects to the server (through the jump server, if there is one), authenticates and keeps the encrypted connection; korTTY talks to it over a connection on this computer (<code>127.0.0.1</code>) that only accepts a one-time token korTTY created for it and whose key korTTY pins. The worker passes every channel korTTY opens on to the server, so the terminal, SFTP on the terminal's session, file drops, the AI agent's commands and <code>-L</code> and <code>-D</code> tunnels work as with a direct session.</p>
+<ul>
+<li><strong>Your private key stays in korTTY.</strong> The worker never receives a key: when the server asks for a signature, the worker asks korTTY, which signs with the key it loaded as usual. The worker gets the password of a password login and of the jump server, but never the vault or the master password.</li>
+<li><strong>Host keys and prompts as before.</strong> korTTY checks the server's host key against its known hosts with the usual dialogs and answers keyboard-interactive prompts, including the access reason, with the usual dialogs.</li>
+<li><strong>With a sandbox</strong> the worker can neither read nor write <code>~/.kortty</code>, <code>~/.ssh</code>, <code>~/.gnupg</code> or the keychains, and writes only to a folder of its own. On macOS it may also connect only to this computer and to the port of the server and of the jump server; on Linux bubblewrap does not limit the network, which the shield's tooltip says.</li>
+<li><strong>Remote tunnels (<code>-R</code>) are not available</strong> in an isolated SSH session yet; they are reported as refused in the status bar. Use the level <strong>None</strong> for a connection that needs them.</li>
+<li><strong>If the worker crashes</strong>, the tab says <em>Session process crashed (exit N)</em> with the worker's last message and offers to reconnect; korTTY's log has its last output. A connection lost on the network is reported as <em>Connection lost</em>, as for a direct session.</li>
+</ul>
+<p><strong>Tools → Session Processes...</strong> lists every session that runs in a worker: its connection, process id, isolation, memory, CPU share and how long it has been running, refreshed every two seconds. A row is marked while its worker keeps a CPU core busy, and <strong>End Process</strong> ends the selected worker; its tab then offers to reconnect. Workers run with a lower priority, so a busy one does not slow down korTTY's window.</p>
 <div class="admonition note">
 <p class="admonition-title">The sandbox on each operating system</p>
 <p>On macOS korTTY uses <code>sandbox-exec</code> with a profile it generates for each session. On Linux it uses bubblewrap (<code>bwrap</code>), which has to be installed; it needs unprivileged user namespaces, which some containers do not allow. On Windows, and when korTTY runs in Flatpak (itself a sandbox that does not allow another one inside), no sandbox is available yet. Before the first sandboxed session korTTY runs a self-test: a secret file in its configuration folder must be unreadable from inside the sandbox while a harmless command still runs. Only a sandbox that passes counts as available.</p>
@@ -880,6 +890,7 @@
 <li><strong>For everything else:</strong> <strong>Configuration → Global Settings → Security</strong> → <strong>Session isolation</strong> → <strong>Default isolation:</strong>. The section also shows whether this computer has a working sandbox.</li>
 </ul>
 <p>A connection from a shared teamwork file can only make isolation stricter than your folder or Settings, never less strict.</p>
+<p>A session journal notes the isolation of the session each time it connects (for example <em>isolation: sandboxed (sandbox-exec)</em>), and the control API's <code>pane.list</code> and <code>pane.get</code> report each pane's <code>isolation</code> (<code>none</code>, <code>process</code>, <code>sandboxed</code> or <code>degraded</code>) and whether its tab is <code>incognito</code>.</p>
 <h2 id="what-the-tab-shows">What the tab shows<a class="headerlink" href="#what-the-tab-shows" title="Permanent link">&para;</a></h2>
 <p><img alt="Tabs with a filled shield and a spy, an outline shield, and no marker" src="../assets/screenshots/main/session-isolation-tabs.png" /></p>
 <table>

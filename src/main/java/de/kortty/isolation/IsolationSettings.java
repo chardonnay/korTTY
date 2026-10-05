@@ -104,13 +104,28 @@ public final class IsolationSettings {
      * The strongest level this version of korTTY can give a session of {@code protocol}: a local shell and
      * the native {@code mosh-client} are processes of their own already and can run in a sandbox; SSH runs
      * in a session worker process; the built-in Mosh client (mosh4j) runs inside korTTY and cannot be
-     * isolated yet.
+     * isolated yet (see the four-argument variant for its stand-in).
      *
      * @param sshWorkerAvailable  whether SSH sessions can run in a session worker process
      * @param sshSandboxAvailable whether such a worker can additionally run in a sandbox
      */
     public static IsolationLevel strongestSupported(ConnectionProtocol protocol, boolean sshWorkerAvailable,
                                                     boolean sshSandboxAvailable) {
+        return strongestSupported(protocol, sshWorkerAvailable, sshSandboxAvailable, false);
+    }
+
+    /**
+     * {@link #strongestSupported(ConnectionProtocol, boolean, boolean)}, where a built-in Mosh connection
+     * that asks for isolation runs with the native {@code mosh-client} instead when it is installed, and
+     * then gets what that client gets.
+     *
+     * @param nativeMoshClientAvailable whether {@code mosh-client} is installed on this computer
+     */
+    public static IsolationLevel strongestSupported(ConnectionProtocol protocol, boolean sshWorkerAvailable,
+                                                    boolean sshSandboxAvailable, boolean nativeMoshClientAvailable) {
+        if (protocol == ConnectionProtocol.MOSH && nativeMoshClientAvailable) {
+            return IsolationLevel.SANDBOX;
+        }
         if (protocol == null) {
             return IsolationLevel.NONE;
         }

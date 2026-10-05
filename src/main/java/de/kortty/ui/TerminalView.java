@@ -3723,6 +3723,23 @@ public class TerminalView extends BorderPane {
     private TtyConnector createConnectorForConnection(ServerConnection targetConnection, String targetPassword) {
         TtyConnector connector;
         if (targetConnection.getProtocol() == ConnectionProtocol.MOSH) {
+            de.kortty.isolation.IsolationRequest moshIsolation = isolationRequestFor(targetConnection);
+            if (moshIsolation.level() != de.kortty.isolation.IsolationLevel.NONE
+                    && NativeMoshTtyConnector.isNativeMoshAvailable()) {
+                // The built-in client runs inside korTTY and cannot be isolated yet; the native
+                // mosh-client can, so it stands in for this session.
+                logger.info("{}:{} asks for {} isolation: running it with the native mosh-client",
+                    targetConnection.getHost(), targetConnection.getPort(), moshIsolation.level().id());
+                NativeMoshTtyConnector standIn = new NativeMoshTtyConnector(targetConnection, targetPassword);
+                de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+                if (app != null && app.getSSHKeyManager() != null) {
+                    standIn.setSSHKeyManager(app.getSSHKeyManager(), app.getMasterPasswordManager().getMasterPassword());
+                }
+                standIn.setAccessReasonMemory(accessReasonMemory);
+                standIn.runAsIsolatedStandInForBuiltInMosh();
+                standIn.setIsolationRequest(moshIsolation);
+                return standIn;
+            }
             if (Mosh4jTtyConnector.isReleaseSupported()) {
                 Mosh4jTtyConnector mosh4jConnector = new Mosh4jTtyConnector(targetConnection, targetPassword);
                 de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
@@ -3758,8 +3775,7 @@ public class TerminalView extends BorderPane {
             localShell.setIsolationRequest(isolationRequestFor(targetConnection));
             connector = localShell;
         } else {
-            // Not isolated yet: refuse here when the organization demands isolation for every session.
-            isolationRequestFor(targetConnection);
+            de.kortty.isolation.IsolationRequest sshIsolation = isolationRequestFor(targetConnection);
             de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
             SshTtyConnector sshConnector = sshConnectorWithVault(targetConnection, targetPassword,
                     app != null ? app.getSSHKeyManager() : null, masterPasswordOf(app));
@@ -3767,6 +3783,7 @@ public class TerminalView extends BorderPane {
             // The user opened this tab and sees its dialogs, so a changed host key may be reviewed
             // and replaced here; background connections keep the plain warning.
             sshConnector.setHostKeyReplacePolicy(de.kortty.core.SshHostKeyTrustManager.ReplacePolicy.INTERACTIVE);
+            sshConnector.setIsolationRequest(sshIsolation);
             connector = sshConnector;
         }
         return connector;
@@ -3797,8 +3814,13 @@ public class TerminalView extends BorderPane {
         }
         de.kortty.isolation.IsolationSettings.Resolution resolution =
             de.kortty.isolation.IsolationSettings.resolve(global, target, floor);
+        boolean workers = de.kortty.core.worker.SessionWorkerProcess.available();
+        // Only asked for a built-in Mosh connection that wants isolation: it starts a process.
+        boolean nativeMosh = target.getProtocol() == ConnectionProtocol.MOSH
+            && resolution.level() != de.kortty.isolation.IsolationLevel.NONE
+            && NativeMoshTtyConnector.isNativeMoshAvailable();
         de.kortty.isolation.IsolationLevel supported = de.kortty.isolation.IsolationSettings.strongestSupported(
-            target.getProtocol(), false, false);
+            target.getProtocol(), workers, workers, nativeMosh);
         if (resolution.level().ordinal() <= supported.ordinal()) {
             return de.kortty.isolation.IsolationRequest.of(resolution, floor);
         }
@@ -8122,6 +8144,7 @@ public class TerminalView extends BorderPane {
                         if (ttyConnector instanceof SshTtyConnector sshConnector) {
                             sshConnector.addDataListener(getTerminalAgentPromptDataListener(sshConnector));
                         }
+                        trackSessionIsolation(ttyConnector);
                         // Start terminal logger if enabled
                         startLogger();
                         // Start (or re-attach after reconnect) the session journal if enabled
@@ -8487,6 +8510,7 @@ public class TerminalView extends BorderPane {
             if (isSessionJournalActive()) {
                 attachJournalDataListener();
                 journalSession.noteReconnect();
+                noteJournalIsolation();
                 return;
             }
             de.kortty.model.SessionJournalConfig config = connection.getSessionJournalConfig();
@@ -8500,10 +8524,42 @@ public class TerminalView extends BorderPane {
             }
             createAndStartSessionJournal(false, java.util.List.of());
             runJournalAiPreflight();
+            noteJournalIsolation();
         } catch (Exception e) {
             logger.error("Failed to start session journal for {}:{}: {}",
                 connection.getHost(), connection.getPort(), e.getMessage(), e);
         }
+    }
+
+    /**
+     * Counts an isolated or incognito session in the anonymous statistics (when the user allowed them):
+     * the level asked for, the state reached, the OS family and whether the tab is incognito. Nothing
+     * about the connection itself.
+     */
+    private void trackSessionIsolation(TtyConnector connector) {
+        de.kortty.isolation.IsolationReport report = connector instanceof de.kortty.isolation.IsolationAware aware
+            ? aware.isolationReport() : de.kortty.isolation.IsolationReport.NONE;
+        boolean incognito = isIncognito();
+        if (report.requested() == de.kortty.isolation.IsolationLevel.NONE && !incognito) {
+            return;
+        }
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.SESSION_ISOLATION, Map.of(
+            "level", report.requested().id(),
+            "state", report.state().name().toLowerCase(Locale.ROOT),
+            "os", os.contains("mac") ? "macos" : os.contains("win") ? "windows" : "linux",
+            "incognito", incognito));
+    }
+
+    /** Writes the session's isolation into its journal, once per (re)connect. */
+    private void noteJournalIsolation() {
+        de.kortty.core.SessionJournalSession journal = journalSession;
+        if (journal == null || !(ttyConnector instanceof de.kortty.isolation.IsolationAware aware)) {
+            return;
+        }
+        de.kortty.isolation.IsolationReport report = aware.isolationReport();
+        String state = report.state().name().toLowerCase(Locale.ROOT);
+        journal.noteIsolation(report.backendId() != null ? state + " (" + report.backendId() + ")" : state);
     }
 
     /**

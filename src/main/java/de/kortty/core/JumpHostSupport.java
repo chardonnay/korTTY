@@ -258,6 +258,32 @@ public final class JumpHostSupport {
         }
     }
 
+    /**
+     * The stored jump server password, decrypted with {@code masterPassword}; null when none is
+     * stored. For a session worker, which gets the password but never the vault.
+     */
+    static String resolveJumpPassword(JumpServer jump, char[] masterPassword) throws PermanentJumpFailure {
+        return decryptJumpPassword(jump, masterPassword);
+    }
+
+    /** The jump server's key pairs from its key file (no passphrase, as for a direct hop). */
+    static java.util.List<java.security.KeyPair> loadJumpKeyPairs(JumpServer jump) throws PermanentJumpFailure {
+        String keyPath = jump.getPrivateKeyPath();
+        if (keyPath == null || keyPath.isBlank()) {
+            throw new PermanentJumpFailure(PermanentJumpFailure.Kind.CONFIGURATION,
+                "Jump server is set to key authentication but no key file is configured.");
+        }
+        try {
+            java.util.List<java.security.KeyPair> keys = new java.util.ArrayList<>();
+            new FileKeyPairProvider(Path.of(keyPath)).loadKeys(null).forEach(keys::add);
+            return keys;
+        } catch (Exception e) {
+            throw new PermanentJumpFailure(PermanentJumpFailure.Kind.CONFIGURATION,
+                "Jump server key could not be loaded (passphrase-protected keys are not supported for the hop): "
+                    + e.getMessage(), e);
+        }
+    }
+
     private static String decryptJumpPassword(JumpServer jump, char[] masterPassword) throws PermanentJumpFailure {
         String encrypted = jump.getEncryptedPassword();
         if (encrypted == null || encrypted.isBlank()) {

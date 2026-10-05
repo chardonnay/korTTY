@@ -20,10 +20,22 @@ Was jede Verbindungsart in dieser Version bekommen kann:
 | --- | --- | --- | --- |
 | Lokale Shell | ja | ja (eine lokale Shell ist immer ein eigener Prozess) | ja |
 | Mosh (nativer `mosh-client`) | ja | ja | ja: `mosh-client` läuft in der Sandbox; der kurze SSH-Start von `mosh-server` bleibt in korTTY |
-| SSH | ja | noch nicht | noch nicht |
-| Mosh (eingebauter Client) | ja | noch nicht | noch nicht |
+| SSH | ja | ja, in einem Session-Worker (siehe unten) | ja |
+| Mosh (eingebauter Client) | ja | mit dem nativen `mosh-client`, wenn er installiert ist | mit dem nativen `mosh-client`, wenn er installiert ist |
 
-Eine Verbindung, die mehr verlangt, als ihre Verbindungsart bekommen kann, läuft mit der stärksten Stufe, die möglich ist, und der Verbindungseditor sagt das unter **Isolation:**. Verlangt Ihre Organisation eine Stufe, die die Verbindungsart nicht bekommen kann, wird die Sitzung gar nicht erst geöffnet.
+Der eingebaute Mosh-Client läuft innerhalb von korTTY und kann noch nicht isoliert werden. Eine Verbindung mit dem eingebauten Mosh-Client, die Isolation verlangt, läuft deshalb stattdessen mit dem nativen `mosh-client`, wenn er installiert ist: `mosh-client` läuft dann im eigenen Prozess oder in der Sandbox, und der SSH-Login, der `mosh-server` startet, läuft in einem Session-Worker. Ohne `mosh-client` läuft sie wie bisher. Eine Verbindung, die mehr verlangt, als ihre Verbindungsart bekommen kann, läuft mit der stärksten Stufe, die möglich ist, und der Verbindungseditor sagt das unter **Isolation:**. Verlangt Ihre Organisation eine Stufe, die die Verbindungsart nicht bekommen kann, wird die Sitzung gar nicht erst geöffnet.
+
+## SSH-Sitzungen in einem Session-Worker
+
+Eine isolierte SSH-Sitzung läuft in einem **Session-Worker**, einem kleinen eigenen Prozess, den korTTY für genau diese Verbindung startet. Der Worker verbindet sich mit dem Server (über den Jump-Server, falls es einen gibt), authentifiziert sich und hält die verschlüsselte Verbindung; korTTY spricht mit ihm über eine Verbindung auf diesem Computer (`127.0.0.1`), die nur ein einmaliges Token annimmt, das korTTY dafür erzeugt hat, und deren Schlüssel korTTY festhält. Der Worker reicht jeden Kanal, den korTTY öffnet, an den Server weiter, sodass das Terminal, SFTP auf der Sitzung des Terminals, abgelegte Dateien, die Befehle des KI-Agenten sowie `-L`- und `-D`-Tunnel wie bei einer direkten Sitzung funktionieren.
+
+- **Ihr privater Schlüssel bleibt in korTTY.** Der Worker bekommt nie einen Schlüssel: Wenn der Server eine Signatur verlangt, fragt der Worker korTTY, das mit dem wie gewohnt geladenen Schlüssel signiert. Der Worker bekommt das Passwort eines Passwort-Logins und das des Jump-Servers, aber nie den Tresor oder das Master-Passwort.
+- **Host-Keys und Abfragen wie bisher.** korTTY prüft den Host-Key des Servers mit den gewohnten Dialogen gegen seine bekannten Hosts und beantwortet Keyboard-Interactive-Abfragen, auch den Zugriffsgrund, mit den gewohnten Dialogen.
+- **Mit einer Sandbox** kann der Worker `~/.kortty`, `~/.ssh`, `~/.gnupg` und die Schlüsselbunde weder lesen noch schreiben und schreibt nur in einen eigenen Ordner. Auf macOS darf er sich außerdem nur mit diesem Computer und mit dem Port des Servers und des Jump-Servers verbinden; auf Linux schränkt bubblewrap das Netzwerk nicht ein, was der Tooltip des Schildes sagt.
+- **Remote-Tunnel (`-R`) gibt es in einer isolierten SSH-Sitzung noch nicht**; die Statusleiste meldet sie als abgelehnt. Verwenden Sie für eine Verbindung, die sie braucht, die Stufe **Keine**.
+- **Stürzt der Worker ab**, meldet der Tab *Sitzungsprozess abgestürzt (Exit N)* mit der letzten Meldung des Workers und bietet an, neu zu verbinden; das Log von korTTY enthält seine letzte Ausgabe. Eine im Netzwerk verlorene Verbindung wird wie bei einer direkten Sitzung als *Connection lost* gemeldet.
+
+**Werkzeuge → Sitzungsprozesse...** listet jede Sitzung, die in einem Worker läuft: Verbindung, Prozess-ID, Isolation, Speicher, CPU-Anteil und Laufzeit, alle zwei Sekunden aktualisiert. Eine Zeile wird markiert, solange ihr Worker einen CPU-Kern auslastet, und **Prozess beenden** beendet den ausgewählten Worker; sein Tab bietet dann an, neu zu verbinden. Worker laufen mit niedrigerer Priorität, sodass ein ausgelasteter Worker das Fenster von korTTY nicht bremst.
 
 !!! note "Die Sandbox auf jedem Betriebssystem"
     Auf macOS verwendet korTTY `sandbox-exec` mit einem Profil, das es für jede Sitzung erzeugt. Auf Linux verwendet es bubblewrap (`bwrap`), das installiert sein muss; es braucht unprivilegierte User-Namespaces, die manche Container nicht erlauben. Auf Windows und wenn korTTY in Flatpak läuft (selbst eine Sandbox, die keine weitere darin erlaubt), gibt es noch keine Sandbox. Vor der ersten Sitzung in der Sandbox führt korTTY einen Selbsttest aus: Eine geheime Datei in seinem Konfigurationsordner muss aus der Sandbox heraus unlesbar sein, während ein harmloser Befehl weiterhin läuft. Nur eine Sandbox, die den Test besteht, gilt als verfügbar.
@@ -37,6 +49,8 @@ In einer lokalen Shell in der Sandbox zeigen die History-Datei (`HISTFILE`) und 
 - **Für alles andere:** **Konfiguration → Globale Einstellungen → Sicherheit** → **Sitzungs-Isolation** → **Standard-Isolation:**. Der Abschnitt zeigt auch, ob dieser Computer eine funktionierende Sandbox hat.
 
 Eine Verbindung aus einer geteilten Teamwork-Datei kann die Isolation nur strenger machen als Ihr Ordner oder die Einstellungen, nie lockerer.
+
+Ein Session-Journal vermerkt bei jedem Verbindungsaufbau die Isolation der Sitzung (zum Beispiel *isolation: sandboxed (sandbox-exec)*), und `pane.list` und `pane.get` der Control-API melden für jeden Bereich `isolation` (`none`, `process`, `sandboxed` oder `degraded`) und ob sein Tab `incognito` ist.
 
 ## Was der Tab anzeigt
 

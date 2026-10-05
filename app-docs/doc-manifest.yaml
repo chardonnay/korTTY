@@ -333,8 +333,8 @@ pages:
     diagrams: [credential-flow.svg, persistence-encryption-flow.svg]
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/features/session-isolation.md
-    owns_i18n: [isolation., connEdit.isolation., connManager.group.isolation, menu.file.newIncognitoSession]
-    owns_code: [src/main/java/de/kortty/isolation, src/main/java/de/kortty/ui/IsolationMarkers.java, src/main/java/de/kortty/ui/IsolationConnectionSupport.java, src/main/java/de/kortty/model/ConnectionGroupIsolationEntry.java]
+    owns_i18n: [isolation., connEdit.isolation., connManager.group.isolation, menu.file.newIncognitoSession, menu.tools.sessionProcesses, sessionProcesses.]
+    owns_code: [src/main/java/de/kortty/isolation, src/main/java/de/kortty/ui/IsolationMarkers.java, src/main/java/de/kortty/ui/IsolationConnectionSupport.java, src/main/java/de/kortty/model/ConnectionGroupIsolationEntry.java, src/main/java/de/kortty/core/worker, src/main/java/de/kortty/ui/SessionProcessesDialog.java]
     screenshots: [main/session-isolation-tabs.png]
     last_synced_ref: "248508e58"
   - path: app-docs/site/docs/en/features/backup.md

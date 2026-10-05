@@ -66,6 +66,21 @@ class SandboxBackendTest {
     }
 
     @Test
+    void aPortListLimitsOutboundConnectionsToThoseAndThisComputer() {
+        String profile = MacSandboxBackend.profile(new SandboxSpec(List.of(), List.of(), false, List.of(),
+            List.of(22, 2222, 0, 70000)));
+        assertThat(profile).contains("(deny network-outbound)");
+        assertThat(profile).contains("(remote ip \"localhost:*\")");
+        assertThat(profile).contains("(remote tcp \"*:22\")");
+        assertThat(profile).contains("(remote tcp \"*:2222\")");
+        assertThat(profile).doesNotContain("*:0\"");
+        assertThat(profile).doesNotContain("*:70000");
+        assertThat(profile).contains("mDNSResponder");
+        assertThat(MacSandboxBackend.profile(new SandboxSpec(List.of(), List.of(), false, List.of())))
+            .doesNotContain("network-outbound");
+    }
+
+    @Test
     void theMacProfileQuotesPaths() {
         assertThat(MacSandboxBackend.quote("/a \"b\"\\c")).isEqualTo("\"/a \\\"b\\\"\\\\c\"");
     }

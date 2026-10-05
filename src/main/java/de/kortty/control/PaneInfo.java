@@ -21,9 +21,26 @@ package de.kortty.control;
  * @param alternateScreen whether the alternate screen buffer is active
  * @param bracketedPaste whether the pane has enabled DECSET 2004
  * @param agent the coding agent in this pane; never null, see {@link AgentInfo#undetected}
+ * @param isolation the session's isolation: {@code none}, {@code process}, {@code sandboxed} or
+ *     {@code degraded} (a sandbox was asked for but is not active); see Session isolation in the guide
+ * @param incognito whether the pane's tab is incognito (nothing of it is written down)
  */
 public record PaneInfo(String paneId, String tabId, String windowId, int index, boolean focused,
                        String protocol, boolean connected, boolean localShell,
                        String workingDirectory, long shellPid, int columns, int rows,
-                       boolean alternateScreen, boolean bracketedPaste, AgentInfo agent) {
+                       boolean alternateScreen, boolean bracketedPaste, AgentInfo agent,
+                       String isolation, boolean incognito) {
+
+    public PaneInfo {
+        isolation = isolation != null ? isolation : "none";
+    }
+
+    /** A pane without isolation that is not incognito. */
+    public PaneInfo(String paneId, String tabId, String windowId, int index, boolean focused,
+                    String protocol, boolean connected, boolean localShell,
+                    String workingDirectory, long shellPid, int columns, int rows,
+                    boolean alternateScreen, boolean bracketedPaste, AgentInfo agent) {
+        this(paneId, tabId, windowId, index, focused, protocol, connected, localShell, workingDirectory, shellPid,
+            columns, rows, alternateScreen, bracketedPaste, agent, "none", false);
+    }
 }

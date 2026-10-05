@@ -126,14 +126,34 @@ class IsolationMarkersTest {
     }
 
     @Test
+    void anIsolatedBuiltInMoshRunsWithTheNativeClientWhenItIsInstalled() {
+        ServerConnection mosh = new ServerConnection();
+        mosh.setProtocol(ConnectionProtocol.MOSH);
+        mosh.setIsolationLevel(IsolationLevel.SANDBOX);
+        boolean nativeMosh = de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable();
+        assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), mosh, null).level())
+            .isEqualTo(nativeMosh ? IsolationLevel.SANDBOX : IsolationLevel.NONE);
+        assertThat(de.kortty.isolation.IsolationSettings.strongestSupported(ConnectionProtocol.MOSH, false, false, true))
+            .isEqualTo(IsolationLevel.SANDBOX);
+        assertThat(de.kortty.isolation.IsolationSettings.strongestSupported(ConnectionProtocol.MOSH, true, true, false))
+            .isEqualTo(IsolationLevel.NONE);
+        if (nativeMosh) {
+            assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.MOSH, IsolationLevel.SANDBOX, null))
+                .isEqualTo(I18n.get(IsolationConnectionSupport.NATIVE_MOSH_KEY));
+        }
+    }
+
+    @Test
     void theHintNamesWhatTheProtocolCannotGet() {
-        assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.SSH_TCP, IsolationLevel.SANDBOX, null))
-            .isEqualTo(I18n.get(IsolationConnectionSupport.UNSUPPORTED_KEY,
-                IsolationConnectionSupport.levelName(IsolationLevel.NONE)));
+        if (!de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable()) {
+            assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.MOSH, IsolationLevel.SANDBOX, null))
+                .isEqualTo(I18n.get(IsolationConnectionSupport.UNSUPPORTED_KEY,
+                    IsolationConnectionSupport.levelName(IsolationLevel.NONE)));
+        }
         assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.LOCAL_SHELL, IsolationLevel.SANDBOX, null)).isNull();
         assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.LOCAL_SHELL, IsolationLevel.SANDBOX, "why"))
             .isEqualTo(I18n.get(IsolationConnectionSupport.SANDBOX_UNAVAILABLE_KEY, "why"));
-        assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.SSH_TCP, IsolationLevel.NONE, "why")).isNull();
+        assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.MOSH, IsolationLevel.NONE, "why")).isNull();
     }
 
     // ---- TerminalView decisions ---------------------------------------------------------------------
@@ -156,14 +176,26 @@ class IsolationMarkersTest {
     }
 
     @Test
-    void sshFallsBackWhileItCannotBeIsolatedUnlessThePolicyDemandsIt() {
+    void sshGetsWhatItAsksForThroughASessionWorker() {
         ServerConnection ssh = new ServerConnection();
         ssh.setProtocol(ConnectionProtocol.SSH_TCP);
         ssh.setIsolationLevel(IsolationLevel.SANDBOX);
         assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), ssh, null).level())
+            .isEqualTo(de.kortty.core.worker.SessionWorkerProcess.available() ? IsolationLevel.SANDBOX : IsolationLevel.NONE);
+    }
+
+    @Test
+    void theBuiltInMoshFallsBackUnlessThePolicyDemandsIsolation() {
+        if (de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable()) {
+            throw new org.testng.SkipException("mosh-client is installed: it stands in for the built-in client");
+        }
+        ServerConnection mosh = new ServerConnection();
+        mosh.setProtocol(ConnectionProtocol.MOSH);
+        mosh.setIsolationLevel(IsolationLevel.SANDBOX);
+        assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), mosh, null).level())
             .isEqualTo(IsolationLevel.NONE);
         try {
-            TerminalView.isolationRequestFor(new GlobalSettings(), ssh, IsolationLevel.PROCESS);
+            TerminalView.isolationRequestFor(new GlobalSettings(), mosh, IsolationLevel.PROCESS);
             throw new AssertionError("a demanded isolation SSH cannot get must refuse the session");
         } catch (IllegalStateException expected) {
             assertThat(expected.getMessage()).isEqualTo(I18n.get("isolation.error.protocolUnsupported",
@@ -207,6 +239,14 @@ class IsolationMarkersTest {
         assertThat(TerminalView.incognito(false, teamwork, true)).isFalse();
     }
 
+    @Test
+    void theSessionProcessesWindowFormatsItsFigures() {
+        assertThat(SessionProcessesDialog.uptime(java.time.Duration.ofSeconds(3_725))).isEqualTo("1:02:05");
+        assertThat(SessionProcessesDialog.stateText(IsolationState.SANDBOXED))
+            .isEqualTo(I18n.get("sessionProcesses.state.sandboxed"));
+        assertThat(ControlApiUiBridge.isolationOf(null)).isEqualTo("none");
+    }
+
     // ---- translations -------------------------------------------------------------------------------
 
     private static final List<String> BUNDLES = List.of("messages.properties", "messages_de.properties",
@@ -226,7 +266,13 @@ class IsolationMarkersTest {
             "settings.security.isolation.default.tooltip", "settings.security.isolation.minimum",
             "settings.security.isolation.sandbox.checking", "settings.security.isolation.sandbox.available",
             "settings.security.isolation.sandbox.unavailable", "settings.security.isolation.protocols",
-            "connManager.group.isolation", "connManager.group.isolation.default", "menu.file.newIncognitoSession"));
+            "connManager.group.isolation", "connManager.group.isolation.default", "menu.file.newIncognitoSession",
+            "isolation.error.workerUnavailable", "isolation.worker.crashed", "isolation.sandbox.noNetworkLimit",
+            "menu.tools.sessionProcesses", "sessionProcesses.title", "sessionProcesses.header", "sessionProcesses.empty",
+            "sessionProcesses.column.connection", "sessionProcesses.column.pid", "sessionProcesses.column.isolation",
+            "sessionProcesses.column.memory", "sessionProcesses.column.cpu", "sessionProcesses.column.uptime",
+            "sessionProcesses.end", "sessionProcesses.hint", "sessionProcesses.busy", "sessionProcesses.state.process",
+            "sessionProcesses.state.sandboxed", "sessionProcesses.state.degraded"));
         return keys;
     }
 

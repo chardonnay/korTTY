@@ -29,6 +29,8 @@ public final class TelemetryEvents {
     public static final String COMMAND_PALETTE_USED = "command_palette_used";
     public static final String MULTI_EXEC_CHANGED = "multi_exec_changed";
     public static final String SESSION_RESTORED = "session_restored";
+    /** An isolated or incognito terminal session connected: level, state, OS family and incognito (bool). */
+    public static final String SESSION_ISOLATION = "session_isolation";
 
     // Projects / backups / connections / panels
     public static final String PROJECT_ACTION = "project_action";
