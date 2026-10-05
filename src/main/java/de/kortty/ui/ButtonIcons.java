@@ -65,6 +65,10 @@ final class ButtonIcons {
         "M12 2 L15.09 8.26 L22 9.27 L17 14.14 L18.18 21.02 L12 17.77 L5.82 21.02 L7 14.14 "
         + "L2 9.27 L8.91 8.26 Z";
 
+    /** Chevrons for stepping between tabs (MORE turned left and right). */
+    static final String CHEVRON_LEFT = "M15.41 7.41 L10.83 12 L15.41 16.59 L14 18 L8 12 L14 6 Z";
+    static final String CHEVRON_RIGHT = "M8.59 16.59 L13.17 12 L8.59 7.41 L10 6 L16 12 L10 18 Z";
+
     private ButtonIcons() {
     }
 

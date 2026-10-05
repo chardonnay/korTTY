@@ -589,7 +589,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         for (Tab tab : tabPane.getTabs()) {
             tab.setContent(scrollable(tab.getContent()));
         }
-        getDialogPane().setContent(tabPane);
+        // Eight tabs no longer fit in one row: arrows step through them besides the overflow menu.
+        getDialogPane().setContent(TabPaneArrowNavigation.wrap(tabPane));
         
         // Buttons
         ButtonType saveButtonType = new ButtonType(I18n.get("dialog.save"), ButtonBar.ButtonData.OK_DONE);
