@@ -3722,7 +3722,7 @@ tasks.register<JavaExec>("multiExecSmoke") {
 
 tasks.register<JavaExec>("sessionIsolationSmoke") {
     group = "verification"
-    description = "Opens three local-shell tabs (sandbox + incognito, own process, none) and checks the filled shield and the spy, the outline shield and no marker, their screen-reader texts, and that the sandboxed shell cannot read korTTY's configuration folder while the unisolated one can; pass a PNG path via --args to save a snapshot (needs a display and a working sandbox, skips otherwise)."
+    description = "Opens four local-shell tabs (sandbox + incognito, own process, none, and one opened with a requested sandbox as tab create --isolation does) and checks the filled shield and the spy, the outline shield and no marker, their screen-reader texts, and that the sandboxed shell cannot read korTTY's configuration folder while the unisolated one can; pass a PNG path via --args to save a snapshot (needs a display and a working sandbox, skips otherwise)."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.SessionIsolationSmoke")
     classpath = sourceSets.test.get().runtimeClasspath

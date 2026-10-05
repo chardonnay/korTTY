@@ -46,6 +46,7 @@ In einer lokalen Shell in der Sandbox zeigen die History-Datei (`HISTFILE`) und 
 
 - **Für eine Verbindung:** Connection-Manager → Verbindung bearbeiten → Tab **Terminal-Einstellungen** → **Sitzungs-Isolation** (unter **Terminal-Verhalten**) → **Isolation:**. **Standard verwenden** folgt dem Ordner der Verbindung oder den Einstellungen und nennt, was davon gilt.
 - **Für einen Ordner:** Rechtsklick auf den Ordner im Connection-Manager → **Sitzungs-Isolation** → **Standard verwenden**, **Keine**, **Eigener Prozess** oder **Eigener Prozess + Sandbox**. Ordner darunter erben die Stufe, ebenso die Verbindungen darin, die keine eigene festlegen. Die Stufe zieht mit, wenn der Ordner umbenannt wird, und wird entfernt, wenn der Ordner gelöscht wird.
+- **Für einen Tab aus einem Skript:** `kortty-cli tab create --connection <Name> --isolation sandbox` öffnet die Verbindung mit dieser Stufe statt ihrer eigenen, nur für diesen Tab (siehe [Steuerungs-CLI](../reference/cli.md#eine-verbindung-offnen)).
 - **Für alles andere:** **Konfiguration → Globale Einstellungen → Sicherheit** → **Sitzungs-Isolation** → **Standard-Isolation:**. Der Abschnitt zeigt auch, ob dieser Computer eine funktionierende Sandbox hat.
 
 Eine Verbindung aus einer geteilten Teamwork-Datei kann die Isolation nur strenger machen als Ihr Ordner oder die Einstellungen, nie lockerer.

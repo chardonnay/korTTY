@@ -55,6 +55,10 @@ public enum ControlErrorCode {
     AMBIGUOUS_PANE(-32014, 2, false),
     /** The {@code instance} param does not match the running korTTY. */
     STALE_INSTANCE(-32015, 1, false),
+    /** No saved or teamwork connection has that id or name ({@code tab.create}). */
+    CONNECTION_NOT_FOUND(-32019, 1, false),
+    /** More than one connection has that name; {@code data.candidates} lists their ids. */
+    AMBIGUOUS_CONNECTION(-32026, 2, false),
 
     // --- input ---
     /** Key name not in {@link ControlKeyTable}; {@code data.known} lists the vocabulary. */

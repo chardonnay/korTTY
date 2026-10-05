@@ -230,6 +230,68 @@ class LayoutVerbsTest {
     }
 
     @Test
+    void tabCreateOpensTheNamedConnectionWithTheAskedIsolationAndIncognito() throws Exception {
+        surface.addConnection("c-web", "web-01");
+        JsonObject params = params();
+        params.addProperty("connection", "WEB-01");
+        params.addProperty("isolation", "sandbox");
+        params.addProperty("incognito", true);
+
+        JsonObject result = call("tab.create", params);
+
+        assertThat(result.get("pending").getAsBoolean()).isFalse();
+        assertThat(result.getAsJsonObject("tab").get("title").getAsString()).isEqualTo("web-01");
+        assertThat(result.get("instance").getAsString()).isEqualTo("test-instance");
+        assertThat(surface.createdTabs()).containsExactly("c-web|sandbox|true");
+    }
+
+    @Test
+    void tabCreateWithoutIsolationKeepsTheConnectionsOwnChoice() throws Exception {
+        surface.addConnection("c-web", "web-01");
+        JsonObject params = params();
+        params.addProperty("connection", "c-web");
+
+        call("tab.create", params);
+
+        assertThat(surface.createdTabs()).containsExactly("c-web|-|false");
+    }
+
+    @Test
+    void tabCreateIsPendingWhenSigningInNeedsAQuestion() throws Exception {
+        surface.addConnection("c-pw", "asks-password");
+        surface.requireSignIn("c-pw");
+        JsonObject params = params();
+        params.addProperty("connection", "asks-password");
+
+        JsonObject result = call("tab.create", params);
+
+        assertThat(result.get("pending").getAsBoolean()).isTrue();
+        assertThat(result.get("tab").isJsonNull()).isTrue();
+    }
+
+    @Test
+    void tabCreateRefusesAnUnknownIsolationLevelBeforeTouchingTheWindows() {
+        surface.addConnection("c-web", "web-01");
+        JsonObject params = params();
+        params.addProperty("connection", "web-01");
+        params.addProperty("isolation", "container");
+
+        ControlApiException failure =
+            expectThrows(ControlApiException.class, () -> call("tab.create", params));
+
+        assertThat(failure.code()).isEqualTo(ControlErrorCode.INVALID_PARAMS);
+        assertThat(surface.createdTabs()).isEmpty();
+    }
+
+    @Test
+    void tabCreateNeedsAConnection() {
+        ControlApiException failure =
+            expectThrows(ControlApiException.class, () -> call("tab.create", params()));
+
+        assertThat(failure.code()).isEqualTo(ControlErrorCode.INVALID_PARAMS);
+    }
+
+    @Test
     void anUnknownTabIsTabNotFound() {
         JsonObject params = params();
         params.addProperty("tab", "t99");

@@ -236,9 +236,9 @@ public class CliServerRoundTripTest {
 
     @Test(timeOut = 60_000)
     void aReservedTabVerbIsRefusedLocallyWithExitTwo() {
-        int code = run("tab", "create");
+        int code = run("tab", "close");
 
-        assertWithMessage("tab create is not a CLI command at all, so it must never reach the wire")
+        assertWithMessage("tab close is not a CLI command at all, so it must never reach the wire")
             .that(code).isEqualTo(KorttyCli.EXIT_SYNTAX);
         assertThat(stdout()).isEmpty();
         assertThat(stderr()).contains("not implemented in this version");

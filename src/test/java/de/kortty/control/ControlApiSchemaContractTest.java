@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
  * {@code api.schema.keys} is compared with {@link ControlKeyTable#knownKeys()}, which is what
  * {@code pane.send_keys} will really accept.
  *
- * <p>The reserved verbs are the other half of the contract: {@code tab.create}, {@code tab.close} and
+ * <p>The reserved verbs are the other half of the contract: {@code tab.close} and
  * {@code tab.rename} exist in the vocabulary and must answer {@code unsupported} with a reason, never
  * {@code unknown_method}, so a herdr-shaped client gets a definite answer instead of guessing whether
  * it spelled the verb wrong.
@@ -46,7 +46,7 @@ public class ControlApiSchemaContractTest {
     private static final Set<String> DOCUMENTED_METHODS = new LinkedHashSet<>(List.of(
         "ping", "auth", "api.schema",
         "events.subscribe", "events.unsubscribe",
-        "window.list", "tab.list", "tab.focus",
+        "window.list", "tab.list", "tab.focus", "tab.create",
         "pane.list", "pane.current", "pane.get", "pane.resolve", "pane.focus", "pane.read",
         "pane.send_text", "pane.run", "pane.send_keys", "pane.wait_output", "pane.split", "pane.close",
         "agent.list", "agent.get", "agent.explain", "agent.prompt", "agent.send_keys", "agent.wait",
@@ -69,6 +69,7 @@ public class ControlApiSchemaContractTest {
         Map.entry("window.list", List.of()),
         Map.entry("tab.list", List.of("window")),
         Map.entry("tab.focus", List.of("tab", "instance")),
+        Map.entry("tab.create", List.of("connection", "window", "isolation", "incognito", "instance")),
         Map.entry("pane.list", List.of("window", "tab", "local_shell_only")),
         Map.entry("pane.current", List.of()),
         Map.entry("pane.get", List.of("pane")),
@@ -98,6 +99,7 @@ public class ControlApiSchemaContractTest {
     private static final Map<String, List<String>> REQUIRED_PARAMS = Map.ofEntries(
         Map.entry("auth", List.of("token")),
         Map.entry("tab.focus", List.of("tab")),
+        Map.entry("tab.create", List.of("connection")),
         Map.entry("pane.get", List.of("pane")),
         Map.entry("pane.resolve", List.of("pids")),
         Map.entry("pane.focus", List.of("pane")),
@@ -135,6 +137,7 @@ public class ControlApiSchemaContractTest {
         Map.entry("window.list", List.of("instance", "windows", "WindowInfo")),
         Map.entry("tab.list", List.of("instance", "tabs", "TabInfo")),
         Map.entry("tab.focus", List.of("ok", "tab", "TabInfo")),
+        Map.entry("tab.create", List.of("instance", "pending", "tab", "TabInfo")),
         Map.entry("pane.list", List.of("instance", "panes", "PaneInfo")),
         Map.entry("pane.current", List.of("pane", "PaneInfo")),
         Map.entry("pane.get", List.of("pane", "PaneInfo")),
@@ -174,6 +177,8 @@ public class ControlApiSchemaContractTest {
         Map.entry("window.list", List.of()),
         Map.entry("tab.list", List.of("window_not_found")),
         Map.entry("tab.focus", List.of("tab_not_found", "stale_instance")),
+        Map.entry("tab.create", List.of("connection_not_found", "ambiguous_connection", "window_not_found",
+            "blocked_by_policy", "stale_instance")),
         Map.entry("pane.list", List.of("window_not_found", "tab_not_found")),
         Map.entry("pane.current", List.of()),
         Map.entry("pane.get", List.of("pane_not_found", "ambiguous_pane")),
@@ -209,7 +214,7 @@ public class ControlApiSchemaContractTest {
         List.of("pane_not_found", "invalid_regex", "invalid_params", "timeout");
 
     /** The three verbs §6 reserves, with the reason it prints. */
-    private static final List<String> RESERVED_METHODS = List.of("tab.create", "tab.close", "tab.rename");
+    private static final List<String> RESERVED_METHODS = List.of("tab.close", "tab.rename");
 
     /** The reason string §6 prints for every reserved verb. */
     private static final String RESERVED_REASON = "not_implemented_in_this_version";

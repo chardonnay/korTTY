@@ -13,7 +13,8 @@ import java.util.Optional;
 /**
  * The enumeration, addressing and layout verbs: {@code window.list}, {@code tab.list},
  * {@code tab.focus}, {@code pane.list}, {@code pane.current}, {@code pane.get}, {@code pane.resolve},
- * {@code pane.focus}, {@code pane.split} and {@code pane.close}, plus the three reserved tab verbs.
+ * {@code pane.focus}, {@code pane.split}, {@code pane.close} and {@code tab.create}, plus the two reserved
+ * tab verbs.
  *
  * <p>Any thread, never the JavaFX application thread.
  */
@@ -46,8 +47,8 @@ final class LayoutVerbs {
         registerPaneFocus(builder, surface, ui, instanceId);
         registerPaneSplit(builder, surface, ui, splits, instanceId);
         registerPaneClose(builder, surface, ui, splits, instanceId);
+        registerTabCreate(builder, surface, ui, instanceId);
 
-        builder.reserve(new ReservedSpec("tab.create", RESERVED_REASON));
         builder.reserve(new ReservedSpec("tab.close", RESERVED_REASON));
         builder.reserve(new ReservedSpec("tab.rename", RESERVED_REASON));
     }
@@ -124,6 +125,63 @@ final class LayoutVerbs {
                 JsonObject result = new JsonObject();
                 result.addProperty("ok", true);
                 result.add(BaseVerbs.PARAM_TAB, BaseVerbs.tree(focused));
+                return result;
+            });
+    }
+
+    /** The isolation levels {@code tab.create} accepts. */
+    static final List<String> ISOLATION_LEVELS = List.of("none", "process", "sandbox");
+
+    private static void registerTabCreate(MethodRegistry.Builder builder, ControlSurface surface,
+                                          UiDispatcher ui, String instanceId) {
+        builder.register(new MethodSpec("tab.create",
+                "Opens a new tab for a saved or teamwork connection, optionally with its own session"
+                    + " isolation or as an incognito session. Never waits for a sign-in question: when one"
+                    + " is needed, korTTY asks the user and opens the tab afterwards, and the result is"
+                    + " pending.",
+                List.of(new ParamSpec("connection", "string", true, null,
+                        "The connection's id, or its name (case-insensitive) as the Connection Manager"
+                            + " shows it."),
+                    new ParamSpec(BaseVerbs.PARAM_WINDOW, "string", false, null,
+                        "A window id; omit for the focused window."),
+                    new ParamSpec("isolation", "string", false, null,
+                        "none, process or sandbox in place of the connection's own choice; never below the"
+                            + " organization's minimum."),
+                    new ParamSpec("incognito", "bool", false, "false",
+                        "Open it as an incognito session: no log, journal, recording or restore."),
+                    new ParamSpec(BaseVerbs.PARAM_INSTANCE, "string", false, null,
+                        "The instance the caller enumerated against.")),
+                "{instance, pending, tab:TabInfo|null}",
+                List.of(ControlErrorCode.CONNECTION_NOT_FOUND, ControlErrorCode.AMBIGUOUS_CONNECTION,
+                    ControlErrorCode.WINDOW_NOT_FOUND, ControlErrorCode.BLOCKED_BY_POLICY,
+                    ControlErrorCode.STALE_INSTANCE),
+                true, false,
+                "kortty-cli tab create --connection <s> --isolation sandbox",
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tab.create\",\"params\":"
+                    + "{\"connection\":\"web-01\",\"isolation\":\"sandbox\"}}",
+                "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"pending\":false,"
+                    + "\"tab\":{\"tab_id\":\"t9f3a\"}}}"),
+            (session, params) -> {
+                BaseVerbs.requireInstance(params, instanceId);
+                String connection = ControlJson.requireString(params, "connection").strip();
+                if (connection.isEmpty()) {
+                    throw new ControlApiException(ControlErrorCode.INVALID_PARAMS,
+                        "connection must name a saved connection");
+                }
+                String windowId = ControlJson.optString(params, BaseVerbs.PARAM_WINDOW, null);
+                String isolation = ControlJson.optString(params, "isolation", null);
+                if (isolation != null && !ISOLATION_LEVELS.contains(isolation)) {
+                    throw new ControlApiException(ControlErrorCode.INVALID_PARAMS,
+                        "isolation must be one of none, process, sandbox",
+                        Map.of("isolation", isolation, "known", ISOLATION_LEVELS));
+                }
+                boolean incognito = ControlJson.optBool(params, "incognito", false);
+                Optional<TabInfo> created = BaseVerbs.inUi(ui, ControlApiProtocol.UI_TIMEOUT_MILLIS,
+                    () -> surface.createTab(connection, windowId, isolation, incognito));
+                JsonObject result = new JsonObject();
+                result.addProperty(BaseVerbs.PARAM_INSTANCE, instanceId);
+                result.addProperty("pending", created.isEmpty());
+                result.add(BaseVerbs.PARAM_TAB, created.<JsonElement>map(BaseVerbs::tree).orElse(JsonNull.INSTANCE));
                 return result;
             });
     }

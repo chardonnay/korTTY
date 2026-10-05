@@ -181,6 +181,17 @@ class IsolationMarkersTest {
     }
 
     @Test
+    void aTabOpenedWithAnIsolationLevelUsesItInPlaceOfTheConnections() {
+        GlobalSettings global = new GlobalSettings();
+        assertThat(TerminalView.isolationRequestFor(global, local(null), null, IsolationLevel.SANDBOX).level())
+            .isEqualTo(IsolationLevel.SANDBOX);
+        assertThat(TerminalView.isolationRequestFor(global, local(IsolationLevel.SANDBOX), null, IsolationLevel.NONE)
+            .level()).isEqualTo(IsolationLevel.NONE);
+        assertThat(TerminalView.isolationRequestFor(global, local(null), IsolationLevel.PROCESS, IsolationLevel.NONE)
+            .level()).isEqualTo(IsolationLevel.PROCESS);
+    }
+
+    @Test
     void thePolicyMinimumMakesASandboxRequestEnforced() {
         assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), local(null), IsolationLevel.SANDBOX).enforced())
             .isTrue();

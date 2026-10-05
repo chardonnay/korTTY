@@ -169,6 +169,28 @@ public interface ControlSurface {
         throws ControlApiException;
 
     /**
+     * JavaFX thread. Opens a new tab for a saved or teamwork connection ({@code tab.create}), in the
+     * window {@code windowIdOrNull} or else the focused (or first) window, without asking anything while
+     * the caller waits: when signing in needs a question — a password, a temporary key, the vault — the
+     * question and the tab follow on their own and the result is empty.
+     *
+     * @param connectionRef the connection's id, or its name (case-insensitive)
+     * @param isolationOrNull {@code none}, {@code process} or {@code sandbox} in place of the connection's own
+     *     choice, or null to keep it; the organization's minimum is never undercut
+     * @param incognito open the tab as an incognito session
+     * @return the new tab, or empty when it opens after a sign-in question
+     * @throws ControlApiException {@link ControlErrorCode#CONNECTION_NOT_FOUND},
+     *     {@link ControlErrorCode#AMBIGUOUS_CONNECTION}, {@link ControlErrorCode#WINDOW_NOT_FOUND},
+     *     {@link ControlErrorCode#UI_UNAVAILABLE} without a window, {@link ControlErrorCode#BLOCKED_BY_POLICY}
+     *     when the server policy blocks the target, the isolation is below the organization's minimum or
+     *     incognito sessions are forbidden
+     */
+    default Optional<TabInfo> createTab(String connectionRef, String windowIdOrNull, String isolationOrNull,
+                                        boolean incognito) throws ControlApiException {
+        throw new ControlApiException(ControlErrorCode.UNSUPPORTED, "This korTTY cannot open tabs");
+    }
+
+    /**
      * JavaFX thread. Closes one split pane.
      *
      * @throws ControlApiException {@link ControlErrorCode#PANE_NOT_FOUND},

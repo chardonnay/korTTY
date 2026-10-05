@@ -671,6 +671,78 @@ public final class ControlApiUiBridge implements ControlSurface, UiDispatcher {
             "No pane " + paneId + " is open", Map.of("pane", paneId));
     }
 
+    @Override
+    public Optional<TabInfo> createTab(String connectionRef, String windowIdOrNull, String isolationOrNull,
+                                       boolean incognito) throws ControlApiException {
+        requireUiThread("createTab");
+        MainWindow window = windowIdOrNull != null ? windowsFor(windowIdOrNull).get(0)
+            : MainWindow.getFocusedWindow().orElseGet(() -> {
+                List<MainWindow> open = snapshotWindows();
+                return open.isEmpty() ? null : open.get(0);
+            });
+        if (window == null) {
+            throw new ControlApiException(ControlErrorCode.UI_UNAVAILABLE, "No korTTY window is open");
+        }
+        ServerConnection connection = matchConnection(window.connectionsForControl(), connectionRef);
+        Optional<String> blocked = de.kortty.policy.ServerAccessPolicy.firstBlockedTarget(connection);
+        if (blocked.isPresent()) {
+            throw new ControlApiException(ControlErrorCode.BLOCKED_BY_POLICY,
+                "The organization's server policy blocks this connection", Map.of("target", blocked.get()));
+        }
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+        de.kortty.isolation.IsolationLevel isolation = isolationOrNull == null ? null
+            : de.kortty.isolation.IsolationLevel.parseId(isolationOrNull);
+        de.kortty.isolation.IsolationLevel floor = policy.isolationFloor();
+        if (isolation != null && floor != null && isolation.ordinal() < floor.ordinal()) {
+            throw new ControlApiException(ControlErrorCode.BLOCKED_BY_POLICY,
+                "The organization demands at least " + floor.id() + " isolation",
+                Map.of("isolation", isolation.id(), "minimum", floor.id()));
+        }
+        if (incognito && !policy.incognitoSessionsAllowed()) {
+            throw new ControlApiException(ControlErrorCode.BLOCKED_BY_POLICY,
+                "The organization does not allow incognito sessions");
+        }
+        TerminalTab tab = window.openConnectionForControl(connection, isolation, incognito);
+        if (tab == null) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(tabInfo(window, tab, true));
+    }
+
+    /**
+     * The connection {@code ref} names: the one whose id it is, else the one whose name it is, ignoring
+     * case. Two connections of the same name are refused rather than guessed at, as an ambiguous pane is.
+     *
+     * @throws ControlApiException {@link ControlErrorCode#CONNECTION_NOT_FOUND},
+     *     {@link ControlErrorCode#AMBIGUOUS_CONNECTION} with the candidates' ids
+     */
+    static ServerConnection matchConnection(List<ServerConnection> connections, String ref)
+            throws ControlApiException {
+        String wanted = ref == null ? "" : ref.strip();
+        for (ServerConnection connection : connections) {
+            if (connection != null && wanted.equals(connection.getId())) {
+                return connection;
+            }
+        }
+        List<ServerConnection> byName = new ArrayList<>();
+        for (ServerConnection connection : connections) {
+            if (connection != null && connection.getName() != null
+                    && connection.getName().strip().equalsIgnoreCase(wanted)) {
+                byName.add(connection);
+            }
+        }
+        if (byName.size() == 1) {
+            return byName.get(0);
+        }
+        if (byName.isEmpty()) {
+            throw new ControlApiException(ControlErrorCode.CONNECTION_NOT_FOUND,
+                "No saved connection has the id or name " + wanted, Map.of("connection", wanted));
+        }
+        throw new ControlApiException(ControlErrorCode.AMBIGUOUS_CONNECTION,
+            byName.size() + " connections are called " + wanted + "; pass the id instead",
+            Map.of("connection", wanted, "candidates", byName.stream().map(ServerConnection::getId).toList()));
+    }
+
     private List<MainWindow> windowsFor(String windowIdOrNull) throws ControlApiException {
         if (windowIdOrNull == null) {
             return snapshotWindows();

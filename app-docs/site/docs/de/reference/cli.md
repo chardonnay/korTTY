@@ -87,6 +87,14 @@ Keinen oder mehr als einen anzugeben ist ein Syntaxfehler (Code 2), der die vier
 !!! warning "`--current` braucht eine lokale Shell"
     Es vergleicht mit der Prozesskennung der lokalen Shell eines Bereichs. In einer SSH-Sitzung, in einem Container oder im Flatpak-Paket – wo lokale Shells über `flatpak-spawn` auf dem Wirtssystem laufen und korTTY deren Prozesskennungen nie sieht – gibt es nichts zu vergleichen, und `--current` kann nicht auflösen. Sprechen Sie den Bereich dort ausdrücklich an.
 
+## Eine Verbindung öffnen
+
+`kortty-cli tab create --connection <id|name>` öffnet eine gespeicherte oder Teamwork-Verbindung in einem neuen Tab und gibt den Tab aus. `--isolation none|process|sandbox` führt sie mit dieser [Sitzungs-Isolation](../features/session-isolation.md) statt der eigenen der Verbindung aus, `--incognito` öffnet sie als Inkognito-Sitzung, und `--window w2` wählt das Fenster. Die Mindest-Isolation der Organisation wird nie unterschritten: wer weniger verlangt, wird mit Exit-Code 3 abgelehnt. Braucht die Anmeldung eine Rückfrage, meldet die Antwort `"pending": true`, und korTTY fragt Sie, bevor es den Tab öffnet.
+
+```bash
+kortty-cli tab create --connection web-01 --isolation sandbox --incognito
+```
+
 ## Warten
 
 Befehle, die warten – `pane wait-output`, `agent wait`, `agent prompt --wait-until`, `agent start --wait` – blockieren, bis die Bedingung erfüllt ist oder die Zeit abläuft, und enden bei Zeitüberschreitung mit Code 4. Jede Wartezeit hat serverseitig eine harte Obergrenze von zehn Minuten; eine längere Anforderung wird gekappt, und die Antwort sagt es.
@@ -152,7 +160,7 @@ Der Exit-Code kommt vom Server, nicht aus einer Tabelle im Client, damit beide n
 | Code | Bedeutung | Wiederholen? |
 | --- | --- | --- |
 | 0 | Erfolg | — |
-| 1 | Die Anfrage war gültig, konnte aber nicht ausgeführt werden: Bereich, Tab oder Agent gibt es nicht; nicht verbunden; Schreiben fehlgeschlagen; der letzte Bereich lässt sich nicht schließen | Manchmal – das Feld `retryable` der Antwort sagt es |
+| 1 | Die Anfrage war gültig, konnte aber nicht ausgeführt werden: Bereich, Tab, Agent oder Verbindung gibt es nicht; nicht verbunden; Schreiben fehlgeschlagen; der letzte Bereich lässt sich nicht schließen | Manchmal – das Feld `retryable` der Antwort sagt es |
 | 2 | Die Anfrage selbst war falsch: ungültiger Selektor, unbekannter Tastenname, ungültiger regulärer Ausdruck, fehlender oder unzulässiger Parameter, unbekannter Befehl | Nein |
 | 3 | Abgelehnt: die Steuerungs-API ist aus, die Unternehmensrichtlinie verbietet sie, das Token wurde abgelehnt, korTTY ist noch nicht bereit, oder zu viele Verbindungen sind offen | Nein, solange sich nichts ändert |
 | 4 | Eine Wartezeit ist abgelaufen | Meistens |

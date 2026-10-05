@@ -887,6 +887,7 @@
 <ul>
 <li><strong>For one connection:</strong> Connection Manager → edit the connection → <strong>Terminal Settings</strong> tab → <strong>Session isolation</strong> (below <strong>Terminal behavior</strong>) → <strong>Isolation:</strong>. <strong>Use the default</strong> follows the connection's folder or Settings and names which one applies.</li>
 <li><strong>For a folder:</strong> right-click the folder in the Connection Manager → <strong>Session Isolation</strong> → <strong>Use the Default</strong>, <strong>None</strong>, <strong>Own process</strong> or <strong>Own process + sandbox</strong>. Folders below inherit the level, and so do the connections in them that set none of their own. The level moves along when the folder is renamed and is removed when the folder is deleted.</li>
+<li><strong>For one tab from a script:</strong> <code>kortty-cli tab create --connection &lt;name&gt; --isolation sandbox</code> opens the connection with that level instead of its own, for this tab only (see <a href="../reference/cli.html#opening-a-connection">Control CLI</a>).</li>
 <li><strong>For everything else:</strong> <strong>Configuration → Global Settings → Security</strong> → <strong>Session isolation</strong> → <strong>Default isolation:</strong>. The section also shows whether this computer has a working sandbox.</li>
 </ul>
 <p>A connection from a shared teamwork file can only make isolation stricter than your folder or Settings, never less strict.</p>

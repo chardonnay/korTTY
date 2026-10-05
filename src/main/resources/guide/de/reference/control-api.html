@@ -921,8 +921,8 @@
 </tr>
 <tr>
 <td><code>window</code> / <code>tab</code></td>
-<td><code>window.list</code>, <code>tab.list</code>, <code>tab.focus</code></td>
-<td>Fenster und Tabs auflisten und eines nach vorn holen.</td>
+<td><code>window.list</code>, <code>tab.list</code>, <code>tab.focus</code>, <code>tab.create</code></td>
+<td>Fenster und Tabs auflisten, eines nach vorn holen und eine gespeicherte Verbindung in einem neuen Tab öffnen.</td>
 </tr>
 <tr>
 <td><code>pane</code></td>
@@ -942,7 +942,8 @@
 </tbody>
 </table>
 <p>Der Titel, den <code>tab.list</code> für einen Terminal-Tab meldet, ist sein Name ohne das Coding-Agent-Symbol, das Gruppenpräfix und das Suffix <code>(DISCONNECT)</code>: der Name, den Sie ihm mit <a href="../features/terminal.html#arbeiten-mit-tabs">Tab umbenennen</a> gegeben haben, andernfalls der <a href="../features/terminal.html#titel-aus-der-shell">Titel, den seine Shell gesetzt hat</a>, andernfalls der Name der Verbindung. Den Titel der Shell wählt der Server, daher sollte sich ein Client, der wissen muss, mit welchem Host ein Tab verbunden ist, nicht allein auf den Titel verlassen. Umbenennen können nur Sie selbst in der Benutzeroberfläche.</p>
-<p><code>tab.create</code>, <code>tab.close</code> und <code>tab.rename</code> sind <strong>reserviert</strong>: sie antworten mit einem eindeutigen „in dieser Version nicht implementiert“ statt mit einem Unbekannte-Methode-Fehler und stehen in <code>api.schema</code> als reserviert, damit ein Client „korTTY wird das nie für dich tun“ von „du hast dich vertippt“ unterscheiden kann.</p>
+<p><code>tab.create</code> öffnet eine gespeicherte oder Teamwork-Verbindung – über ihre ID oder ihren Namen, wie ihn der Connection-Manager zeigt – in einem neuen Tab des fokussierten Fensters (oder von <code>window</code>), mit <code>isolation</code> (<code>none</code>, <code>process</code> oder <code>sandbox</code>) anstelle der eigenen <a href="../features/session-isolation.html">Sitzungs-Isolation</a> der Verbindung und <code>incognito</code> für eine <a href="../features/session-isolation.html#inkognito-sitzungen">Inkognito-Sitzung</a>. Einen Namen, den zwei Verbindungen tragen, lehnt korTTY mit <code>ambiguous_connection</code> und deren IDs ab, einen unbekannten mit <code>connection_not_found</code>. Die Richtlinie der Organisation gilt weiter: ein gesperrter Server, eine Isolation unter <code>[rule.isolation] minimum</code> oder eine von der Richtlinie verbotene Inkognito-Sitzung wird mit <code>blocked_by_policy</code> abgelehnt, und eine Teamwork-Verbindung kann nur strenger werden. korTTY wartet nie auf eine Rückfrage, solange der Aufruf offen ist: braucht die Anmeldung ein Passwort, einen temporären Schlüssel oder den entsperrten Tresor, lautet die Antwort <code>pending: true</code> ohne Tab, und korTTY fragt Sie und öffnet den Tab danach. MCP-Clients können sie nicht aufrufen.</p>
+<p><code>tab.close</code> und <code>tab.rename</code> sind <strong>reserviert</strong>: sie antworten mit einem eindeutigen „in dieser Version nicht implementiert“ statt mit einem Unbekannte-Methode-Fehler und stehen in <code>api.schema</code> als reserviert, damit ein Client „korTTY wird das nie für dich tun“ von „du hast dich vertippt“ unterscheiden kann.</p>
 <h3 id="einen-bereich-adressieren">Einen Bereich adressieren<a class="headerlink" href="#einen-bereich-adressieren" title="Permanent link">&para;</a></h3>
 <table>
 <thead>

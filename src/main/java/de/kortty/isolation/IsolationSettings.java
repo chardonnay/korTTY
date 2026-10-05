@@ -27,7 +27,9 @@ public final class IsolationSettings {
         /** Settings → Security → Session isolation. */
         GLOBAL,
         /** The organization's policy raised it to its minimum. */
-        POLICY
+        POLICY,
+        /** Asked for when the session was opened ({@code kortty-cli tab create --isolation}). */
+        REQUEST
     }
 
     /**
@@ -75,21 +77,48 @@ public final class IsolationSettings {
      */
     public static Resolution resolve(IsolationLevel globalLevel, Function<String, IsolationLevel> levelOfGroup,
                                      ServerConnection connection, IsolationLevel floor) {
+        return resolve(globalLevel, levelOfGroup, connection, floor, null);
+    }
+
+    /**
+     * {@link #resolve(GlobalSettings, ServerConnection, IsolationLevel)} for a session opened with a level of
+     * its own ({@code kortty-cli tab create --isolation}): it takes the place of the connection's own choice,
+     * so for a teamwork connection it can only make the session stricter, and the organization's minimum
+     * still applies on top.
+     *
+     * @param requested the level asked for; null resolves as without one
+     */
+    public static Resolution resolve(GlobalSettings global, ServerConnection connection, IsolationLevel floor,
+                                     IsolationLevel requested) {
+        IsolationLevel globalLevel = global != null ? global.getConnectionIsolationDefault() : IsolationLevel.DEFAULT;
+        Function<String, IsolationLevel> folderLevels =
+            global != null ? global::getConnectionGroupIsolationLevel : group -> null;
+        return resolve(globalLevel, folderLevels, connection, floor, requested);
+    }
+
+    /** {@link #resolve(GlobalSettings, ServerConnection, IsolationLevel, IsolationLevel)} from its parts. */
+    public static Resolution resolve(IsolationLevel globalLevel, Function<String, IsolationLevel> levelOfGroup,
+                                     ServerConnection connection, IsolationLevel floor, IsolationLevel requested) {
         IsolationLevel base = globalLevel != null ? globalLevel : IsolationLevel.DEFAULT;
         Resolution resolved = new Resolution(base, Source.GLOBAL, null);
         ConnectionGroupIsolation.Inherited folder = connection != null
             ? ConnectionGroupIsolation.inherited(connection.getGroup(), levelOfGroup) : null;
         IsolationLevel own = connection != null ? connection.getIsolationLevel() : null;
+        Source ownSource = Source.CONNECTION;
+        if (requested != null) {
+            own = requested;
+            ownSource = Source.REQUEST;
+        }
 
         if (connection != null && connection.isTeamworkConnection()) {
             if (folder != null && folder.level().ordinal() > resolved.level().ordinal()) {
                 resolved = new Resolution(folder.level(), Source.FOLDER, folder.groupPath());
             }
             if (own != null && own.ordinal() > resolved.level().ordinal()) {
-                resolved = new Resolution(own, Source.CONNECTION, null);
+                resolved = new Resolution(own, ownSource, null);
             }
         } else if (own != null) {
-            resolved = new Resolution(own, Source.CONNECTION, null);
+            resolved = new Resolution(own, ownSource, null);
         } else if (folder != null) {
             resolved = new Resolution(folder.level(), Source.FOLDER, folder.groupPath());
         }

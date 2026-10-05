@@ -126,6 +126,12 @@ public final class ControlApiScenarioFixtures {
         reader(surface, "p1a2b", "user@host:~$ ");
         reader(surface, "p2c3d", "second pane");
         reader(surface, "p3e4f", "third pane");
+        // Saved connections for tab.create: one by a unique name, two sharing one, one needing a password.
+        surface.addConnection("c-web", "web-01");
+        surface.addConnection("c-db1", "db");
+        surface.addConnection("c-db2", "db");
+        surface.addConnection("c-pw", "asks-password");
+        surface.requireSignIn("c-pw");
         return surface;
     }
 

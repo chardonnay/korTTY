@@ -217,6 +217,9 @@ public final class ControlApiSchema {
         docs.put(ControlErrorCode.AGENT_NOT_FOUND, "The pane has no registered coding agent.");
         docs.put(ControlErrorCode.AMBIGUOUS_PANE, "The selector matches more than one pane.");
         docs.put(ControlErrorCode.STALE_INSTANCE, "The instance parameter names a previous korTTY run.");
+        docs.put(ControlErrorCode.CONNECTION_NOT_FOUND, "No saved or teamwork connection has that id or name.");
+        docs.put(ControlErrorCode.AMBIGUOUS_CONNECTION,
+            "More than one connection has that name; data.candidates lists their ids.");
         docs.put(ControlErrorCode.UNKNOWN_KEY, "A key name is not in the vocabulary; see data.known.");
         docs.put(ControlErrorCode.INVALID_REGEX, "The pattern did not compile; see data.detail.");
         docs.put(ControlErrorCode.EMPTY_INPUT, "There was nothing to write.");

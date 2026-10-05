@@ -160,4 +160,33 @@ class IsolationSettingsTest {
         assertThat(IsolationState.aggregate(List.of(IsolationState.SANDBOXED, IsolationState.SANDBOXED)))
             .isEqualTo(IsolationState.SANDBOXED);
     }
+
+    @Test
+    void aRequestedLevelReplacesTheConnectionsOwnChoice() {
+        IsolationSettings.Resolution r = IsolationSettings.resolve(IsolationLevel.PROCESS,
+            folders(Map.of("Customers", IsolationLevel.SANDBOX)), connection("Customers", IsolationLevel.SANDBOX),
+            null, IsolationLevel.NONE);
+        assertThat(r.level()).isEqualTo(IsolationLevel.NONE);
+        assertThat(r.source()).isEqualTo(IsolationSettings.Source.REQUEST);
+    }
+
+    @Test
+    void aRequestedLevelOnlyTightensATeamworkConnection() {
+        IsolationSettings.Resolution relaxed = IsolationSettings.resolve(IsolationLevel.PROCESS,
+            group -> null, teamwork(null, null), null, IsolationLevel.NONE);
+        assertThat(relaxed.level()).isEqualTo(IsolationLevel.PROCESS);
+        assertThat(relaxed.source()).isEqualTo(IsolationSettings.Source.GLOBAL);
+        IsolationSettings.Resolution tightened = IsolationSettings.resolve(IsolationLevel.PROCESS,
+            group -> null, teamwork(null, null), null, IsolationLevel.SANDBOX);
+        assertThat(tightened.level()).isEqualTo(IsolationLevel.SANDBOX);
+        assertThat(tightened.source()).isEqualTo(IsolationSettings.Source.REQUEST);
+    }
+
+    @Test
+    void theOrganizationsMinimumStaysAboveARequestedLevel() {
+        IsolationSettings.Resolution r = IsolationSettings.resolve(IsolationLevel.NONE, group -> null,
+            connection(null, null), IsolationLevel.PROCESS, IsolationLevel.NONE);
+        assertThat(r.level()).isEqualTo(IsolationLevel.PROCESS);
+        assertThat(r.enforcedByPolicy()).isTrue();
+    }
 }

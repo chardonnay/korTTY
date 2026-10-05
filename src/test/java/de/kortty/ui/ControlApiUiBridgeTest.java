@@ -85,6 +85,41 @@ class ControlApiUiBridgeTest {
         assertThat(refusal(() -> bridge.attachSplitPane("p1", "vertical", new Object(), false)))
             .hasMessageThat().contains("attachSplitPane");
         assertThat(refusal(() -> bridge.closePane("p1"))).hasMessageThat().contains("closePane");
+        assertThat(refusal(() -> bridge.createTab("web-01", null, "sandbox", false)))
+            .hasMessageThat().contains("createTab");
+    }
+
+    @Test
+    void aConnectionIsFoundByItsIdBeforeItsName() throws Exception {
+        de.kortty.model.ServerConnection named = savedConnection("a", "b");
+        de.kortty.model.ServerConnection byId = savedConnection("b", "something else");
+        assertThat(ControlApiUiBridge.matchConnection(List.of(named, byId), "b")).isSameInstanceAs(byId);
+    }
+
+    @Test
+    void aConnectionIsFoundByItsNameIgnoringCaseAndBlanks() throws Exception {
+        de.kortty.model.ServerConnection web = savedConnection("c1", "Web-01");
+        assertThat(ControlApiUiBridge.matchConnection(List.of(web), "  web-01 ")).isSameInstanceAs(web);
+    }
+
+    @Test
+    void aSharedNameIsAmbiguousAndAnUnknownOneIsNotFound() {
+        List<de.kortty.model.ServerConnection> connections =
+            List.of(savedConnection("c1", "db"), savedConnection("c2", "DB"));
+        de.kortty.control.ControlApiException ambiguous = org.testng.Assert.expectThrows(
+            de.kortty.control.ControlApiException.class, () -> ControlApiUiBridge.matchConnection(connections, "db"));
+        assertThat(ambiguous.code()).isEqualTo(ControlErrorCode.AMBIGUOUS_CONNECTION);
+        assertThat(ambiguous.data().get("candidates")).isEqualTo(List.of("c1", "c2"));
+        de.kortty.control.ControlApiException missing = org.testng.Assert.expectThrows(
+            de.kortty.control.ControlApiException.class, () -> ControlApiUiBridge.matchConnection(connections, "web"));
+        assertThat(missing.code()).isEqualTo(ControlErrorCode.CONNECTION_NOT_FOUND);
+    }
+
+    private static de.kortty.model.ServerConnection savedConnection(String id, String name) {
+        de.kortty.model.ServerConnection connection = new de.kortty.model.ServerConnection();
+        connection.setId(id);
+        connection.setName(name);
+        return connection;
     }
 
     @Test

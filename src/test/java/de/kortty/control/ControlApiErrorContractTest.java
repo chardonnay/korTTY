@@ -78,6 +78,8 @@ public class ControlApiErrorContractTest {
         {"agent_not_found", "-32013", "1", "false"},
         {"ambiguous_pane", "-32014", "2", "false"},
         {"stale_instance", "-32015", "1", "false"},
+        {"connection_not_found", "-32019", "1", "false"},
+        {"ambiguous_connection", "-32026", "2", "false"},
         {"unknown_key", "-32016", "2", "false"},
         {"invalid_regex", "-32017", "2", "false"},
         {"empty_input", "-32022", "2", "false"},
@@ -474,6 +476,22 @@ public class ControlApiErrorContractTest {
     }
 
     @Test(timeOut = 60_000)
+    void anUnknownConnectionIsConnectionNotFound() throws Exception {
+        JsonObject data = assertError(
+            callOnServer("tab.create", ControlApiScenarioFixtures.params("connection", "no-such-server")),
+            ControlErrorCode.CONNECTION_NOT_FOUND);
+        assertThat(data.get("connection").getAsString()).isEqualTo("no-such-server");
+    }
+
+    @Test(timeOut = 60_000)
+    void aNameTwoConnectionsShareIsAmbiguousConnection() throws Exception {
+        JsonObject data = assertError(
+            callOnServer("tab.create", ControlApiScenarioFixtures.params("connection", "db")),
+            ControlErrorCode.AMBIGUOUS_CONNECTION);
+        assertThat(data.getAsJsonArray("candidates").toString()).contains("c-db1");
+    }
+
+    @Test(timeOut = 60_000)
     void anUnknownPaneIsPaneNotFound() throws Exception {
         JsonObject data = assertError(
             callOnServer("pane.get", ControlApiScenarioFixtures.params("pane", "p0000")),
@@ -679,9 +697,9 @@ public class ControlApiErrorContractTest {
                     + " weakening the table above", code.wire())
                 .that(ControlErrorCode.forWire(code.wire())).isPresent();
         }
-        // All 34 codes now have a provoking test in this class. Keeping the count here means a code
+        // All 36 codes now have a provoking test in this class. Keeping the count here means a code
         // added to the enum without a scenario fails this test rather than passing unnoticed.
-        assertThat(ControlErrorCode.values().length - WITHOUT_A_WIRE_SCENARIO.size()).isEqualTo(34);
+        assertThat(ControlErrorCode.values().length - WITHOUT_A_WIRE_SCENARIO.size()).isEqualTo(36);
     }
 
     @Test(timeOut = 60_000)
