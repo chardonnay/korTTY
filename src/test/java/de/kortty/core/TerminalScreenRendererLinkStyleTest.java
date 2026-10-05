@@ -78,6 +78,26 @@ public class TerminalScreenRendererLinkStyleTest {
     }
 
     @Test
+    public void brightColourModeWithoutTheBoldFontDropsTheBoldOptionButKeepsTheBrightColour() {
+        Screen screen = new Screen();
+        screen.styleState.setCurrent(new TextStyle.Builder()
+            .setForeground(TerminalColor.index(1))
+            .setOption(TextStyle.Option.BOLD, true)
+            .build());
+        screen.terminal.writeString("err");
+
+        TerminalScreenRenderer.Palette brightOnly = new TerminalScreenRenderer.Palette(
+            TerminalScreenRenderer::defaultAnsiColor, true, false);
+        TerminalRecordingStyleRun bright = screen.run("err", brightOnly);
+        assertThat(bright.foreground()).isEqualTo("#FF0000");
+        assertThat(bright.options()).doesNotContain("BOLD");
+
+        TerminalRecordingStyleRun plain = screen.run("err", TerminalScreenRenderer.Palette.DEFAULT);
+        assertThat(plain.foreground()).isEqualTo("#CD0000");
+        assertThat(plain.options()).contains("BOLD");
+    }
+
+    @Test
     public void linkOpenedInsideAnotherLinkReplacesItAndReportsItsText() {
         Screen screen = new Screen();
         screen.styleState.setCurrent(BOLD_RED_ON_NAVY);

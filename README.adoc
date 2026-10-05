@@ -153,7 +153,7 @@ SithTermFX is built from source during the build (no GitHub token required). You
 ./gradlew build
 ----
 
-On first run, Gradle will clone link:https://github.com/chardonnay/SithTermFX[SithTermFX] at tag `v1.2.3` into `vendor/sithtermfx`, build it with Maven, and install it to your local Maven repo. Subsequent builds reuse the clone unless you remove `vendor/sithtermfx`.
+On first run, Gradle will clone link:https://github.com/chardonnay/SithTermFX[SithTermFX] at tag `v1.2.4` into `vendor/sithtermfx`, build it with Maven, and install it to your local Maven repo. Subsequent builds reuse the clone unless you remove `vendor/sithtermfx`.
 
 == Run
 
@@ -190,10 +190,10 @@ To *manually trigger* a release build, go to *Actions → Build Release Binaries
 
 == SithTermFX Integration
 
-KorTTY uses *SithTermFX 1.2.3*, built from source. No GitHub token required (local or CI).
+KorTTY uses *SithTermFX 1.2.4*, built from source. No GitHub token required (local or CI).
 
-* *Local build:* The first time you run `./gradlew build`, the task `cloneSithtermfx` clones the link:https://github.com/chardonnay/SithTermFX[SithTermFX] repo at tag `v1.2.3` into `vendor/sithtermfx`, pins Maven compiler release 17, and then `installSithtermfxLocal` runs `mvn -q -DskipTests install` there. The artifacts are installed to your local Maven repo (`mavenLocal()`). Requirements: *Git* and *Maven* on your PATH.
-* *CI (GitHub Actions):* The workflow clones SithTermFX at tag `v1.2.3` into `vendor/sithtermfx`, installs Maven, and then builds korTTY against the locally installed artifacts. No GitHub token required.
+* *Local build:* The first time you run `./gradlew build`, the task `cloneSithtermfx` clones the link:https://github.com/chardonnay/SithTermFX[SithTermFX] repo at tag `v1.2.4` into `vendor/sithtermfx`, pins Maven compiler release 17, and then `installSithtermfxLocal` runs `mvn -q -DskipTests install` there. The artifacts are installed to your local Maven repo (`mavenLocal()`). Requirements: *Git* and *Maven* on your PATH.
+* *CI (GitHub Actions):* The workflow clones SithTermFX at tag `v1.2.4` into `vendor/sithtermfx`, installs Maven, and then builds korTTY against the locally installed artifacts. No GitHub token required.
 * *OSC 8 hyperlinks:* The terminal supports OSC 8 explicit hyperlinks — clickable links that programs print around their text. They open with Cmd+click (macOS) or Ctrl+click (Windows, Linux); a plain click, a double-click or a drag-selection released over a link never opens it. korTTY replaces SithTermFX's default link handler in every pane: only `http`, `https`, `ftp`, `ftps` and `mailto` links open in the default browser or mail program (`file:` links open as text, see below). `news:` and every other scheme, as well as targets with control or bidi characters or more than 8 KB and `mailto` links with fields other than `to`, `cc`, `bcc`, `subject`, `body` and `in-reply-to` (an `attach` field makes some mail programs attach a local file), stay plain text, so terminal output can never launch a local file or program. Linked text keeps the colors, bold, italic and inverse video it was printed with and is underlined while Cmd or Ctrl is held over it. The same Cmd/Ctrl+click opens web and e-mail addresses that programs print as plain text; korTTY finds them only when you click, so terminal output is not slowed down (*Settings → Terminal → Links*). Resting the mouse on a link shows its real target in a tooltip (international host names in punycode), and a link whose text shows another host than it opens asks before it opens. Right-clicking a link offers *Open Link* and *Copy Link Address* at the top of the context menu, so no modifier key is needed. In SSH and local-shell tabs, file paths in the output (`/var/log/syslog`, `src/App.java:42`) and OSC 8 `file:` links (as printed by `ls --hyperlink` or `eza --hyperlink`) open with the same click as text in the Snippet Editor, read over SFTP or from disk with a 10 MB cap; a `file:` link opens read-only and only for the session's own host, and network paths are never read. *Edit → Quick Select* (Cmd/Ctrl+Shift+Space) labels every web address, path, e-mail address, UUID, IP address, git hash and longer number on screen, so one or two keystrokes copy it, or open a web or e-mail address or a file path with Shift, and none of those keys reach the shell.
 
 == Terminal Effect Plugins

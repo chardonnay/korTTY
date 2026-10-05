@@ -3164,12 +3164,10 @@ public class TerminalView extends BorderPane {
     private static List<TerminalRecordingStyleRun> captureTerminalStyleRuns(
         com.sithtermfx.core.model.TerminalTextBuffer textBuffer,
         ConnectionSettings settings) {
-        // The palette the live terminal draws (built-in until customised), so recordings match the screen.
-        return de.kortty.core.TerminalScreenRenderer.styleRuns(textBuffer, settings != null
-            ? new de.kortty.core.TerminalScreenRenderer.Palette(
-                (index, bright) -> TerminalPaletteSupport.effectiveHex(settings, index, bright),
-                settings.isBoldAsBright())
-            : de.kortty.core.TerminalScreenRenderer.Palette.DEFAULT);
+        // The palette and bold text mode the live terminal draws (built-in palette until customised),
+        // so recordings match the screen.
+        return de.kortty.core.TerminalScreenRenderer.styleRuns(textBuffer,
+            TerminalPaletteSupport.recordingPalette(settings));
     }
 
     private TtyConnector decorateTerminalConnector(SithTermFxWidget widget, TtyConnector connector) {
@@ -9577,7 +9575,7 @@ public class TerminalView extends BorderPane {
         settings.setCursorColor(effective.getCursorColor());
         settings.setCursorStyle(effective.getCursorStyle());
         settings.setTerminalColorsEnabled(effective.isTerminalColorsEnabled());
-        // ANSI palette, selection colour and bold-as-bright (recordings): every pane provider reads this
+        // ANSI palette, selection colour and bold text mode: every pane provider reads this
         // settings object, but caches the resolved palette, so refresh them before the repaint below.
         settings.copyTerminalPaletteFrom(effective);
         refreshPanePalettes();
@@ -10646,6 +10644,16 @@ public class TerminalView extends BorderPane {
         public com.sithtermfx.core.emulator.ColorPalette getTerminalColorPalette() {
             PaletteColors colors = paletteColors;
             return colors != null && colors.palette() != null ? colors.palette() : super.getTerminalColorPalette();
+        }
+
+        /**
+         * Settings → Terminal → Bold text. SithTermFX asks on every repaint, so a saved change shows
+         * at once; the bright colour is entry 8–15 of {@link #getTerminalColorPalette()}, so a
+         * customised palette applies. Effects do not override it.
+         */
+        @Override
+        public @NotNull com.sithtermfx.ui.settings.BoldTextMode getBoldTextMode() {
+            return TerminalPaletteSupport.boldTextMode(settings);
         }
 
         @Override

@@ -377,8 +377,8 @@ dependencies {
     // with an unfixed signature-malleability flaw (CVE-2020-36843, no patched release exists).
 
     // SithTermFX - Terminal emulator for JavaFX (built from source by installSithtermfxLocal)
-    implementation("com.sithtermfx:sithtermfx-core:1.2.3")
-    implementation("com.sithtermfx:sithtermfx-ui:1.2.3")
+    implementation("com.sithtermfx:sithtermfx-core:1.2.4")
+    implementation("com.sithtermfx:sithtermfx-ui:1.2.4")
     
     // Lanterna - Text-based terminal emulator with better zoom support
     implementation("com.googlecode.lanterna:lanterna:3.1.5")
@@ -492,7 +492,7 @@ tasks.named<JavaExec>("run") {
 
 // ==================== SithTermFX from source (no GitHub token required) ====================
 
-val sithtermfxVersion = "1.2.3"
+val sithtermfxVersion = "1.2.4"
 val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
 
 tasks.register("cloneSithtermfx") {
@@ -529,7 +529,7 @@ fun mavenLocalSithtermfxJar(artifactId: String) = File(System.getProperty("user.
 val mavenLocalSithtermfxCore = mavenLocalSithtermfxJar("sithtermfx-core")
 val mavenLocalSithtermfxUi = mavenLocalSithtermfxJar("sithtermfx-ui")
 
-// SithTermFX 1.2.3 ships every fix korTTY used to patch in (CSI push-back bounds, bottom-row
+// SithTermFX 1.2.3+ ships every fix korTTY used to patch in (CSI push-back bounds, bottom-row
 // hyperlink boundary, Cmd-shortcut KEY_TYPED), so the tag is built as released. The pinning tests
 // ControlSequenceBoundsPatchTest, TerminalPanelBoundaryPatchTest and
 // TerminalPanelShortcutKeyTypedPatchTest guard that behaviour against a regressing upgrade.

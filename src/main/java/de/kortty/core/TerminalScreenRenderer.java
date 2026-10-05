@@ -19,13 +19,23 @@ import java.util.Locale;
  */
 public final class TerminalScreenRenderer {
 
-    /** How ANSI colours 0–15 are resolved; the 256-colour cube and grey ramp are fixed. */
-    public record Palette(AnsiColors ansiColors, boolean boldAsBright) {
+    /**
+     * How ANSI colours 0–15 are resolved; the 256-colour cube and grey ramp are fixed. Bold text in
+     * colour 0–7 takes the bright variant when {@code boldAsBright}, and keeps its {@code BOLD}
+     * option (a bold font in the export) only when {@code boldFont}, matching the terminal's
+     * Bold text setting.
+     */
+    public record Palette(AnsiColors ansiColors, boolean boldAsBright, boolean boldFont) {
         /** xterm's default ANSI colours. */
         public static final Palette DEFAULT = new Palette(TerminalScreenRenderer::defaultAnsiColor, false);
 
         public Palette {
             ansiColors = ansiColors != null ? ansiColors : TerminalScreenRenderer::defaultAnsiColor;
+        }
+
+        /** Bold text keeps its bold font. */
+        public Palette(AnsiColors ansiColors, boolean boldAsBright) {
+            this(ansiColors, boldAsBright, true);
         }
     }
 
@@ -77,7 +87,7 @@ public final class TerminalScreenRenderer {
                         text,
                         colorToHex(style != null ? style.getForeground() : null, style, effective, true),
                         colorToHex(style != null ? style.getBackground() : null, style, effective, false),
-                        styleOptions(style)));
+                        styleOptions(style, effective)));
                 }
                 column += Math.max(0, entry.getLength());
             }
@@ -108,12 +118,15 @@ public final class TerminalScreenRenderer {
         return out.toByteArray();
     }
 
-    private static List<String> styleOptions(TextStyle style) {
+    private static List<String> styleOptions(TextStyle style, Palette palette) {
         if (style == null) {
             return List.of();
         }
         List<String> options = new ArrayList<>();
         for (TextStyle.Option option : TextStyle.Option.values()) {
+            if (option == TextStyle.Option.BOLD && !palette.boldFont()) {
+                continue;
+            }
             if (style.hasOption(option)) {
                 options.add(option.name());
             }
