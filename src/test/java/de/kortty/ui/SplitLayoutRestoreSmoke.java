@@ -110,6 +110,21 @@ public final class SplitLayoutRestoreSmoke {
             if (panes != 4) {
                 problems.add("the tab has " + panes + " panes");
             }
+            // Every pane gets the terminal colours, its scroll bar included: a restored or split pane
+            // with an unstyled scroll bar shows a fully clear strip in a see-through window.
+            List<String> scrollBarStyles = onFxThread(() -> {
+                List<String> styles = new ArrayList<>();
+                for (var widget : tabRef.get().getTerminalView().getOrderedWidgets()) {
+                    styles.add(widget.getTerminalPanel().getScrollBar().getStyle());
+                }
+                return styles;
+            });
+            for (int i = 0; i < scrollBarStyles.size(); i++) {
+                String style = scrollBarStyles.get(i);
+                if (style == null || !style.contains("-fx-background-color")) {
+                    problems.add("pane " + i + " has an unstyled scroll bar: '" + style + "'");
+                }
+            }
             if (!problems.isEmpty()) {
                 failure.set(String.join("; ", problems));
             }
