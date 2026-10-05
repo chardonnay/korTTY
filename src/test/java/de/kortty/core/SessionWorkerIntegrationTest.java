@@ -48,7 +48,7 @@ import static com.google.common.truth.Truth.assertThat;
 /**
  * Runs SSH sessions through a real session worker process against a loopback server: the shell, an
  * exec channel (the AI agent's path), SFTP on the terminal's session, a {@code direct-tcpip} channel
- * (an {@code -L} tunnel), key authentication signed by korTTY for the worker, and a killed worker
+ * (an {@code -L} tunnel), a remote tunnel ({@code -R}) with and without the sandbox, key authentication signed by korTTY for the worker, and a killed worker
  * reported as a lost connection with the crash reason.
  */
 class SessionWorkerIntegrationTest {
@@ -179,6 +179,59 @@ class SessionWorkerIntegrationTest {
             byte[] reply = tunnel.getInvertedOut().readNBytes(7);
             assertThat(new String(reply, StandardCharsets.UTF_8)).isEqualTo("tunnel\n");
         }
+    }
+
+    @Test
+    void aRemoteTunnelDeliversTheServersConnectionsToKortty() throws Exception {
+        startServer(null);
+        connector = isolatedConnector(new ServerConnection("w", "127.0.0.1", server.getPort(), "tester"), PASSWORD);
+        assertThat(connector.connect()).isTrue();
+        assertRemoteTunnelWorks(connector.getSession());
+    }
+
+    @Test
+    void aRemoteTunnelWorksFromASandboxedWorker() throws Exception {
+        if (!de.kortty.isolation.sandbox.SandboxSupport.availability().available()) {
+            throw new SkipException("no working sandbox on this computer");
+        }
+        startServer(null);
+        connector = new SshTtyConnector(new ServerConnection("w", "127.0.0.1", server.getPort(), "tester"), PASSWORD,
+            TemporaryKeyTestFixtures.acceptingTrustManager(tmp.resolve("hostkeys.properties")));
+        connector.setIsolationRequest(new IsolationRequest(IsolationLevel.SANDBOX, null));
+        assertThat(connector.connect()).isTrue();
+        assertThat(connector.isolationReport().state()).isEqualTo(IsolationState.SANDBOXED);
+        assertRemoteTunnelWorks(connector.getSession());
+    }
+
+    /**
+     * Opens {@code -R 0:127.0.0.1:<echo>} on korTTY's session, connects to the port the server bound and
+     * expects the echo back through server, worker and korTTY; after a cancel the port is gone.
+     */
+    private void assertRemoteTunnelWorks(ClientSession session) throws Exception {
+        int echoPort = startEchoServer();
+        SshdSocketAddress bound = session.startRemotePortForwarding(
+            new SshdSocketAddress("127.0.0.1", 0), new SshdSocketAddress("127.0.0.1", echoPort));
+        assertThat(bound.getPort()).isGreaterThan(0);
+
+        try (Socket client = new Socket(InetAddress.getLoopbackAddress(), bound.getPort())) {
+            client.setSoTimeout((int) TIMEOUT_MS);
+            client.getOutputStream().write("reverse\n".getBytes(StandardCharsets.UTF_8));
+            client.getOutputStream().flush();
+            byte[] reply = client.getInputStream().readNBytes(8);
+            assertThat(new String(reply, StandardCharsets.UTF_8)).isEqualTo("reverse\n");
+        }
+
+        session.stopRemotePortForwarding(bound);
+        long deadline = System.currentTimeMillis() + TIMEOUT_MS;
+        boolean closed = false;
+        while (!closed && System.currentTimeMillis() < deadline) {
+            try (Socket ignored = new Socket(InetAddress.getLoopbackAddress(), bound.getPort())) {
+                Thread.sleep(50);
+            } catch (IOException refused) {
+                closed = true;
+            }
+        }
+        assertThat(closed).isTrue();
     }
 
     @Test
