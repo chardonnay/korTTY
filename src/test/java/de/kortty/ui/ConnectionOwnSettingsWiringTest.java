@@ -33,6 +33,27 @@ class ConnectionOwnSettingsWiringTest {
     }
 
     @Test
+    void switchingTheChoiceShowsTheValuesThatApply() throws IOException {
+        String tab = region(source("ConnectionEditDialog.java"), "private Tab createSettingsTab() {", "\n    }\n");
+
+        assertWithMessage("switching to global shows the global values, not the greyed-out own ones")
+            .that(tab).contains("loadTerminalFields(ConnectionSettingsSupport.editorSeed(null, globalTerminalDefaults()));");
+        assertWithMessage("the own values typed so far come back when switching to own again")
+            .that(tab).contains("ownSettingsDraft = new ConnectionSettings(connSettings);");
+        assertThat(tab).contains("loadTerminalFields(ownSettingsDraft);");
+    }
+
+    @Test
+    void aSavedSessionComparesZoomWithTheFontTheConnectionOpensWith() throws IOException {
+        String main = source("MainWindow.java");
+
+        assertWithMessage("stale own values of a global connection must not pin the global size as an override")
+            .that(main).contains("currentFontSize != sessionFontSizeBaseline(connection.getSettings())");
+        assertThat(region(main, "private int sessionFontSizeBaseline(ConnectionSettings connSettings) {", "\n    }\n"))
+            .contains("ConnectionSettingsSupport.effectiveTerminalSettings(connSettings, globalDefaults).getFontSize()");
+    }
+
+    @Test
     void savingStoresTheChoiceWithTheFlag() throws IOException {
         String dialog = source("ConnectionEditDialog.java");
         String converter = region(dialog, "setResultConverter(dialogButton -> {", "saveTerminalEffectSettings();");

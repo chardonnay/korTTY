@@ -4342,6 +4342,18 @@ public class MainWindow {
         }
     }
 
+    /** The font size a tab of a connection with {@code connSettings} opens with (own or global). */
+    private int sessionFontSizeBaseline(ConnectionSettings connSettings) {
+        ConnectionSettings globalDefaults = null;
+        try {
+            var gs = app.getGlobalSettingsManager().getSettings();
+            globalDefaults = gs != null ? gs.getDefaultTerminalSettings() : null;
+        } catch (Exception e) {
+            logger.debug("Could not read global defaults for the session font baseline: {}", e.getMessage());
+        }
+        return de.kortty.core.ConnectionSettingsSupport.effectiveTerminalSettings(connSettings, globalDefaults).getFontSize();
+    }
+
     private void refreshTerminalTabsUsingGlobalDefaults() {
         ConnectionSettings globalDefaults = null;
         try {
@@ -8046,7 +8058,11 @@ public class MainWindow {
             sessionState.setTabTitle(terminalTab.getCustomTitle());
             // Save current font size (zoom level) - may differ from settings when user zoomed
             int currentFontSize = terminalTab.getTerminalView().getCurrentFontSize();
-            if (connection.getSettings() == null || currentFontSize != connection.getSettings().getFontSize()) {
+            // Compared with the size the connection opens with: one that follows the global settings
+            // may still hold stale values of its own, which would pin today's global size as an
+            // override and ignore a later change of the global font size.
+            if (connection.getSettings() == null
+                    || currentFontSize != sessionFontSizeBaseline(connection.getSettings())) {
                 sessionState.setFontSizeOverride(currentFontSize);
             }
             // Save split pane structure (if terminal has splits). Only the session snapshot keeps

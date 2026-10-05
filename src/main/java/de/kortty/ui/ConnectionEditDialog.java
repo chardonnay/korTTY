@@ -101,6 +101,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     /** "Use the global terminal settings" vs "Own settings for this connection"; one is always selected. */
     private RadioButton useGlobalSettingsRadio;
     private RadioButton ownSettingsRadio;
+    /** The own values shown before switching to the global settings, restored when switching back. */
+    private ConnectionSettings ownSettingsDraft;
     private ComboBox<Theme> themeCombo;
     
     // Tunnel and Jump Server
@@ -1336,8 +1338,21 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         settingsGrid.add(closeWithoutConfirmCheck, 0, row++, 2, 1);
         settingsGrid.add(commandTimestampsCheck, 0, row++, 2, 1);
         
-        // The fields are editable only with own settings
-        ownSettingsRadio.selectedProperty().addListener((obs, oldVal, newVal) -> settingsGrid.setDisable(!newVal));
+        // The fields are editable only with own settings, and always show what applies: switching to
+        // the global settings shows the global values and keeps the own values typed so far, which
+        // come back when switching to own settings again in this dialog.
+        ownSettingsRadio.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            settingsGrid.setDisable(!newVal);
+            if (newVal) {
+                if (ownSettingsDraft != null) {
+                    loadTerminalFields(ownSettingsDraft);
+                }
+            } else {
+                ownSettingsDraft = new ConnectionSettings(connSettings);
+                writeEditedTerminalSettings(ownSettingsDraft);
+                loadTerminalFields(ConnectionSettingsSupport.editorSeed(null, globalTerminalDefaults()));
+            }
+        });
 
         GridPane terminalEffectGrid = new GridPane();
         terminalEffectGrid.setHgap(10);
@@ -1374,6 +1389,32 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         
         tab.setContent(vbox);
         return tab;
+    }
+
+    /** Shows {@code source}'s values in the terminal settings grid (theme first: it sets font and colors). */
+    private void loadTerminalFields(ConnectionSettings source) {
+        if (source == null) {
+            return;
+        }
+        if (themeCombo != null) {
+            Theme theme = null;
+            try {
+                ThemeManager tm = de.kortty.KorTTYApplication.getInstance().getThemeManager();
+                if (tm != null && source.getThemeId() != null) {
+                    theme = tm.getTheme(source.getThemeId()).orElse(null);
+                }
+            } catch (Exception e) {
+                // Theme manager not available
+            }
+            themeCombo.setValue(theme);
+        }
+        if (fontFamilyCombo != null) fontFamilyCombo.setValue(source.getFontFamily());
+        if (fontSizeSpinner != null) fontSizeSpinner.getValueFactory().setValue(source.getFontSize());
+        if (foregroundColorPicker != null) foregroundColorPicker.setValue(Color.web(source.getForegroundColor()));
+        if (backgroundColorPicker != null) backgroundColorPicker.setValue(Color.web(source.getBackgroundColor()));
+        if (terminalColorsEnabledCheck != null) terminalColorsEnabledCheck.setSelected(source.isTerminalColorsEnabled());
+        if (closeWithoutConfirmCheck != null) closeWithoutConfirmCheck.setSelected(source.isCloseWithoutConfirmation());
+        if (commandTimestampsCheck != null) commandTimestampsCheck.setSelected(source.isCommandTimestampsEnabled());
     }
 
     /** Writes the fields of the terminal settings grid into {@code target} (own settings only). */
