@@ -21,6 +21,21 @@ public final class BubblewrapSandboxBackend implements SandboxBackend {
         return "bubblewrap";
     }
 
+    /**
+     * With a network limit ({@link SandboxSpec#outboundPorts()} set) the process gets an empty network
+     * namespace ({@code --unshare-net}, only loopback) and korTTY relays the connections it may make,
+     * to exactly this connection's hosts and ports.
+     */
+    @Override
+    public boolean limitsNetwork() {
+        return true;
+    }
+
+    @Override
+    public boolean needsNetworkRelay() {
+        return true;
+    }
+
     @Override
     public boolean installed() {
         return executable() != null;
@@ -33,6 +48,9 @@ public final class BubblewrapSandboxBackend implements SandboxBackend {
         wrapped.add(bwrap != null ? bwrap.toString() : "bwrap");
         wrapped.add("--die-with-parent");
         wrapped.add("--unshare-pid");
+        if (spec.outboundPorts() != null) {
+            wrapped.add("--unshare-net");
+        }
         wrapped.add(spec.restrictWrites() ? "--ro-bind" : "--bind");
         wrapped.add("/");
         wrapped.add("/");

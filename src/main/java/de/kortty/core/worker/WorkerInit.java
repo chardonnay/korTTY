@@ -41,6 +41,12 @@ public final class WorkerInit {
     /** {@code ssh} (the default) or {@code mosh}: a built-in Mosh session (mosh4j) instead of SSH. */
     public String mode = "ssh";
 
+    /**
+     * The session folder when the worker runs without a network of its own (the Linux sandbox): its
+     * connections go through korTTY's relay sockets there. Null for a worker with the network.
+     */
+    public String netnsFolder;
+
     /** For {@code mosh}: the UDP port and session key mosh-server reported, and the mosh4j JARs. */
     public int moshPort;
     public String moshKey;

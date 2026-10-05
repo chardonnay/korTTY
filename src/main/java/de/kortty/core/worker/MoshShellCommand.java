@@ -29,6 +29,8 @@ final class MoshShellCommand implements Command {
 
     private final WorkerInit init;
     private final WorkerEndpoint endpoint;
+    /** Where the Mosh datagrams go in the Linux sandbox, or null to send them directly. */
+    private final IsolatedNetwork network;
     private InputStream in;
     private OutputStream out;
     private ExitCallback exitCallback;
@@ -37,9 +39,10 @@ final class MoshShellCommand implements Command {
     /** The command korTTY's terminal channel is running, for {@code mosh.active} events. */
     private static volatile MoshShellCommand current;
 
-    MoshShellCommand(WorkerInit init, WorkerEndpoint endpoint) {
+    MoshShellCommand(WorkerInit init, WorkerEndpoint endpoint, IsolatedNetwork network) {
         this.init = init;
         this.endpoint = endpoint;
+        this.network = network;
     }
 
     /** Applies korTTY's {@code mosh.active} event to the running session. */
@@ -75,7 +78,14 @@ final class MoshShellCommand implements Command {
         int columns = parse(env.getEnv().get(Environment.ENV_COLUMNS), 80);
         int rows = parse(env.getEnv().get(Environment.ENV_LINES), 24);
         List<Path> classpath = init.moshClasspath.stream().map(Path::of).toList();
-        Mosh4jEngine started = new Mosh4jEngine(classpath, init.host, init.moshPort, init.moshKey, columns, rows,
+        String host = init.host;
+        int port = init.moshPort;
+        if (network != null) {
+            java.net.InetSocketAddress via = network.udpVia();
+            host = via.getHostString();
+            port = via.getPort();
+        }
+        Mosh4jEngine started = new Mosh4jEngine(classpath, host, port, init.moshKey, columns, rows,
             new Mosh4jEngine.Listener() {
                 @Override
                 public void output(String chunk) throws IOException {

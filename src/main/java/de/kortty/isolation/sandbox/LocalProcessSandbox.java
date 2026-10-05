@@ -34,9 +34,16 @@ public final class LocalProcessSandbox {
      * @param environment      the environment to start it with
      * @param report           the isolation the session will have
      * @param sessionDirectory the session's own folder to delete when it ends, or null
+     * @param networkRelay     whether the process has no network of its own and korTTY must relay its
+     *                         connections (a worker in the Linux sandbox)
      */
     public record Prepared(List<String> command, Map<String, String> environment, IsolationReport report,
-                           Path sessionDirectory) {
+                           Path sessionDirectory, boolean networkRelay) {
+
+        public Prepared(List<String> command, Map<String, String> environment, IsolationReport report,
+                        Path sessionDirectory) {
+            this(command, environment, report, sessionDirectory, false);
+        }
     }
 
     private LocalProcessSandbox() {
@@ -142,7 +149,7 @@ public final class LocalProcessSandbox {
         String detail = backend.limitsNetwork() ? null : I18n.get("isolation.sandbox.noNetworkLimit");
         return new Prepared(backend.wrap(command, spec), env,
             new IsolationReport(IsolationState.SANDBOXED, IsolationLevel.SANDBOX, backend.id(), detail),
-            sessionDirectory);
+            sessionDirectory, outboundPorts != null && backend.needsNetworkRelay());
     }
 
     /**

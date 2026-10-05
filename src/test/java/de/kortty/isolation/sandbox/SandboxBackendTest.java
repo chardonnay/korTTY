@@ -113,6 +113,10 @@ class SandboxBackendTest {
         assertThat(line.indexOf("--tmpfs " + hidden)).isLessThan(line.indexOf("--ro-bind " + inner));
         assertThat(command.subList(command.size() - 4, command.size()))
             .containsExactly("--", "/bin/sh", "-c", "true").inOrder();
+        assertThat(line).doesNotContain("--unshare-net");
+        List<String> limited = new BubblewrapSandboxBackend().wrap(List.of("/bin/true"),
+            new SandboxSpec(List.of(hidden), List.of(), true, List.of(work), List.of(22)));
+        assertThat(limited).contains("--unshare-net");
     }
 
     @Test
