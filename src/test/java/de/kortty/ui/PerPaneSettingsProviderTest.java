@@ -247,6 +247,14 @@ public class PerPaneSettingsProviderTest {
     }
 
     @Test
+    void trackColorLightensTheBackgroundAndIsNeverFullyClear() {
+        // Shared by the scroll-bar track and the split dividers of a see-through window.
+        assertThat(TerminalView.terminalTrackColor(10, 20, 30, 255)).isEqualTo("rgba(34,44,54,1.000)");
+        assertThat(TerminalView.terminalTrackColor(250, 20, 30, 128)).isEqualTo("rgba(255,44,54,0.502)");
+        assertThat(TerminalView.terminalTrackColor(10, 20, 30, 0)).isEqualTo("rgba(34,44,54,0.350)");
+    }
+
+    @Test
     void defaultBackgroundIsOpaqueWhenTransparencyIsZero() throws Exception {
         DynamicFontSizeSettingsProvider shared = new DynamicFontSizeSettingsProvider(14f);
         Object pane = newProvider(baselineSettings(), shared, () -> 0);
