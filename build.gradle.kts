@@ -362,9 +362,9 @@ dependencies {
     }
 
     // SSH
-    implementation("org.apache.sshd:sshd-core:2.19.0")
-    implementation("org.apache.sshd:sshd-common:2.19.0")
-    implementation("org.apache.sshd:sshd-sftp:2.19.0")
+    implementation("org.apache.sshd:sshd-core:2.20.0")
+    implementation("org.apache.sshd:sshd-common:2.20.0")
+    implementation("org.apache.sshd:sshd-sftp:2.20.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // 1.86 is the first release since 1.85 that ships both artifacts, so the version skew the
     // 1.85.2 bcprov-only patch forced is gone; keep them on the same version from here.
@@ -401,7 +401,7 @@ dependencies {
     implementation("com.nulab-inc:zxcvbn:1.9.0")
     
     // TOML parsing for the enterprise admin policy file (kortty-policy.toml)
-    implementation("org.tomlj:tomlj:1.3.0")
+    implementation("org.tomlj:tomlj:2.2.0")
 
     // JSON parsing for translation API responses
     implementation("com.google.code.gson:gson:2.14.0")
@@ -409,7 +409,7 @@ dependencies {
     implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.30.0")
     implementation("com.knuddels:jtokkit:1.1.0")
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
-    implementation("com.google.googlejavaformat:google-java-format:1.36.1")
+    implementation("com.google.googlejavaformat:google-java-format:1.37.0")
 
     // The JDK's built-in jdk.jsobject module is deprecated for removal on JDK 25,
     // so on JDK 25+ we supply it externally via the JavaFX artifact. On JDK 21
@@ -447,7 +447,7 @@ dependencies {
 
     // Logging
     implementation("org.slf4j:slf4j-api:2.0.20")
-    implementation("ch.qos.logback:logback-classic:1.6.4")
+    implementation("ch.qos.logback:logback-classic:1.6.5")
     
     // Testing
     testImplementation("com.google.truth:truth:1.4.5")
@@ -1431,8 +1431,8 @@ tasks.register("copyBundledFormatterManifest") {
         target.parentFile.mkdirs()
         target.writeText(
             """
-            google-java-format.version=1.36.1
-            google-java-format.source=https://central.sonatype.com/artifact/com.google.googlejavaformat/google-java-format/1.36.1
+            google-java-format.version=1.37.0
+            google-java-format.source=https://central.sonatype.com/artifact/com.google.googlejavaformat/google-java-format/1.37.0
             web-formatter.engine=javafx-web
             shfmt.version=$formatterShfmtVersion
             shfmt.source=https://github.com/mvdan/sh/releases/tag/v$formatterShfmtVersion

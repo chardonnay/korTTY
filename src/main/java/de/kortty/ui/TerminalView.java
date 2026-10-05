@@ -352,6 +352,8 @@ public class TerminalView extends BorderPane {
     
     private final ServerConnection connection;
     private final ConnectionSettings settings;
+    // The theme picked from the context menu: this tab only, for the session, never saved. FX thread.
+    private final RuntimeThemeOverride runtimeThemeOverride = new RuntimeThemeOverride();
     private final String password;
     private de.kortty.model.TemporarySSHKey temporarySSHKey;  // For split connections with temporary key
     // The connection each split pane runs when it is not the tab's (a "new connection" split and
@@ -1402,6 +1404,11 @@ public class TerminalView extends BorderPane {
         return connector != null
             ? baseSessionId + ":" + Integer.toHexString(System.identityHashCode(connector))
             : baseSessionId;
+    }
+
+    /** The theme picked from the context menu for this tab, or null while it follows its connection. */
+    public @Nullable Theme getRuntimeThemeOverride() {
+        return runtimeThemeOverride.theme();
     }
 
     public void applyTerminalAgentActivityTheme(@Nullable Theme theme) {
@@ -4109,13 +4116,9 @@ public class TerminalView extends BorderPane {
      */
     private void applyThemeAtRuntime(Theme theme) {
         if (theme == null || settings == null) return;
-        boolean includeFont = isThemeFontApplyEnabled();
-        theme.applyTo(settings, includeFont);
-        ConnectionSettings connSettings = connection.getSettings();
-        if (connSettings != null) {
-            theme.applyTo(connSettings, includeFont);
-            connSettings.setThemeId(theme.getId());
-        }
+        // Session-only and tab-local: only the tab's own settings copy changes. The connection's
+        // settings are shared with the stored connection (copyForAuth) and must stay untouched.
+        runtimeThemeOverride.select(theme, settings, isThemeFontApplyEnabled());
         if (splitPane != null) {
             for (SithTermFxWidget w : splitPane.getAllWidgets()) {
                 applyStyleStateColors(w);
@@ -9556,7 +9559,8 @@ public class TerminalView extends BorderPane {
      */
     public void applyConnectionSettings(ConnectionSettings s) {
         if (s == null) return;
-        ConnectionSettings resolved = resolveEffectiveSettings(s);
+        // A theme picked from the context menu stays on this tab across refreshes.
+        ConnectionSettings resolved = runtimeThemeOverride.applyOver(resolveEffectiveSettings(s), isThemeFontApplyEnabled());
         ConnectionSettings effective = resolved;
         String themeId = resolved.getThemeId();
         if (themeId != null && !themeId.isEmpty()) {

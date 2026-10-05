@@ -1700,7 +1700,9 @@ public class TerminalTab extends Tab {
     }
 
     private void applyAiAgentActivityTheme(ConnectionSettings connectionSettings) {
-        Theme theme = resolveAiAgentTheme(connectionSettings);
+        // A theme picked from the context menu wins for this tab (session-only, see RuntimeThemeOverride).
+        Theme runtimeTheme = terminalView.getRuntimeThemeOverride();
+        Theme theme = runtimeTheme != null ? runtimeTheme : resolveAiAgentTheme(connectionSettings);
         terminalView.applyTerminalAgentActivityTheme(theme);
     }
 
