@@ -4387,8 +4387,7 @@ public class TerminalView extends BorderPane {
         // Lighten the track slightly over the background so it stays readable at any alpha.
         double a = Math.max(0.0, Math.min(1.0, alpha / 255.0));
         double trackAlpha = Math.max(a, 0.35);
-        String barStyle = String.format(java.util.Locale.ROOT,
-                "-fx-background-color: rgba(%d,%d,%d,%.3f);", r, g, b, a);
+        String barStyle = terminalScrollBarStyle(r, g, b, alpha);
         String trackStyle = String.format(java.util.Locale.ROOT,
                 "-fx-background-color: rgba(%d,%d,%d,%.3f);",
                 Math.min(255, r + 24), Math.min(255, g + 24), Math.min(255, b + 24), trackAlpha);
@@ -4407,6 +4406,18 @@ public class TerminalView extends BorderPane {
                 }
             });
         }
+    }
+
+    /**
+     * The inline style of a pane's scroll bar: the terminal background at the cells' alpha, and
+     * always full opacity. The AtlantaFX designs dim every {@code .scroll-bar} to half opacity and
+     * only bring it back on hover, which left the terminal scroll bar half faded until the mouse
+     * touched it; the inline value wins over that rule, so the bar always shows fully.
+     */
+    static String terminalScrollBarStyle(int r, int g, int b, int alpha) {
+        double a = Math.max(0.0, Math.min(1.0, alpha / 255.0));
+        return String.format(java.util.Locale.ROOT,
+                "-fx-background-color: rgba(%d,%d,%d,%.3f); -fx-opacity: 1;", r, g, b, a);
     }
 
     /**
