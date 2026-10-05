@@ -76,7 +76,7 @@ public final class OpenSshKnownHostsParser {
     /** Parses known_hosts content; LF and CRLF line endings are both accepted. */
     public static KnownHostsFile parse(String content) {
         String text = content == null ? "" : content;
-        if (text.startsWith("﻿")) {
+        if (text.startsWith("\uFEFF")) {
             text = text.substring(1);
         }
         Builder builder = new Builder();

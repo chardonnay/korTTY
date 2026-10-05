@@ -313,7 +313,10 @@ public class KnownHostsDialog extends ThemeAwareDialog<Void> {
         if (answer.isEmpty() || answer.get() != importType) {
             return;
         }
-        runImportStep(() -> trustManager.importKnownHosts(OpenSshKnownHostsParser.read(file), false), result -> {
+        // Import exactly the file content the confirmation showed: re-reading the file here would
+        // trust keys added to it after the user confirmed.
+        OpenSshKnownHostsParser.KnownHostsFile confirmed = preview.source();
+        runImportStep(() -> trustManager.importKnownHosts(confirmed, false), result -> {
             if (!result.added().isEmpty()) {
                 Telemetry.track(TelemetryEvents.SECURITY_ENTRY_CHANGED,
                     Map.of("manager", "known_hosts", "op", "import", "via", "known_hosts_file"));

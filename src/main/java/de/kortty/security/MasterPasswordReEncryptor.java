@@ -236,7 +236,12 @@ public final class MasterPasswordReEncryptor {
                 reEncrypted++;
             } catch (Exception e) {
                 failures++;
-                if (clearUndecryptable && clearRagSecret(rag, store)) {
+                if (clearUndecryptable) {
+                    if (!clearRagSecret(rag, store)) {
+                        // An import must never keep a secret under a foreign key: fail the store so
+                        // the caller does not import it at all.
+                        throw new IllegalStateException("Could not clear imported RAG store secret " + store.id());
+                    }
                     logger.warn("Could not decrypt imported RAG store secret [{}] — cleared it", store.id());
                 } else {
                     logger.warn("Could not re-encrypt RAG store secret [{}] — leaving it unchanged", store.id());

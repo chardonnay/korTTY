@@ -93,7 +93,11 @@ class KnownHostsDialogImportSummaryTest {
         assertThat(source).contains("new Thread(() -> {");
         assertThat(source).contains("importButton.setMnemonicParsing(false);");
         assertThat(source).contains("OpenSshKnownHostsParser.read(file), true)");
-        assertThat(source).contains("OpenSshKnownHostsParser.read(file), false)");
+        // The confirmed import uses the content the confirmation showed, never a second read of
+        // the file, so keys added to the file after the confirmation are not trusted.
+        assertThat(source).contains("OpenSshKnownHostsParser.KnownHostsFile confirmed = preview.source();");
+        assertThat(source).contains("trustManager.importKnownHosts(confirmed, false)");
+        assertThat(source).doesNotContain("OpenSshKnownHostsParser.read(file), false)");
         assertThat(source).contains("Platform.runLater(() -> {");
         assertThat(source).contains("((Button) confirm.getDialogPane().lookupButton(ButtonType.CANCEL)).setDefaultButton(true);");
     }
