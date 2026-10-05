@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logging of a session worker (de.kortty.core.worker.SessionWorkerMain): stderr only. The worker's
+  stdout carries the control channel to korTTY, and korTTY copies the worker's stderr into its own
+  log with the session's name, so the worker never writes a log file (and needs no write access to
+  korTTY's configuration folder, which its sandbox hides).
+-->
+<configuration>
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%-5level %logger{24} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <logger name="org.apache.sshd" level="WARN"/>
+    <root level="INFO">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>

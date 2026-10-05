@@ -722,7 +722,15 @@ public final class ControlApiUiBridge implements ControlSurface, UiDispatcher {
             view.workingDirectoryOf(widget), shellPid.orElse(UNKNOWN_PID),
             geometry.columns(), geometry.rows(), geometry.alternateScreen(),
             view.isBracketedPasteEnabled(widget), agentInfo(view, widget, paneId, tabId,
-                window.getWindowId()));
+                window.getWindowId()), isolationOf(connector), view.isIncognito());
+    }
+
+    /** The pane's isolation as the control API names it: {@code none}, {@code process}, {@code sandboxed}, {@code degraded}. */
+    static String isolationOf(TtyConnector connector) {
+        TtyConnector base = TerminalView.unwrapTerminalEffectConnector(connector);
+        de.kortty.isolation.IsolationState state = base instanceof de.kortty.isolation.IsolationAware aware
+            ? aware.isolationReport().state() : de.kortty.isolation.IsolationState.NONE;
+        return state.name().toLowerCase(java.util.Locale.ROOT);
     }
 
     /** The pane's cell geometry; three field reads under the buffer's own lock. */

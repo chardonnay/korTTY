@@ -2087,6 +2087,9 @@ public class MainWindow {
             lockByPolicy(journalScreenshot);
         }
 
+        MenuItem sessionProcesses = menuItem("menu.tools.sessionProcesses");
+        sessionProcesses.setOnAction(e -> showSessionProcesses());
+
         MenuItem asciiArt = menuItem("menu.tools.asciiArt");
         asciiArt.setAccelerator(new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         asciiArt.setOnAction(e -> showAsciiArtBanner());
@@ -2102,6 +2105,8 @@ public class MainWindow {
             sessionJournals,
             toggleSessionJournal,
             journalScreenshot,
+            new SeparatorMenuItem(),
+            sessionProcesses,
             new SeparatorMenuItem(),
             asciiArt);
         return toolsMenu;
@@ -13364,6 +13369,25 @@ public class MainWindow {
             dialog.showAndWait();
         } catch (Exception e) {
             logger.error("Failed to open ASCII Art Banner dialog", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    /** Tools › Session Processes: the session workers running now, with their figures. */
+    private void showSessionProcesses() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "session_processes"));
+        try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("session-processes") == null) {
+                    hostToolTab("session-processes", new SessionProcessesDialog(), null);
+                }
+                return;
+            }
+            SessionProcessesDialog dialog = new SessionProcessesDialog();
+            dialog.initOwner(stage);
+            dialog.show();
+        } catch (Exception e) {
+            logger.error("Failed to open the session processes window", e);
             showError(I18n.get("error.title"), e.getMessage());
         }
     }

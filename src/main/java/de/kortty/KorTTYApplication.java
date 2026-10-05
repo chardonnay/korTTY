@@ -747,6 +747,8 @@ public class KorTTYApplication extends Application {
         }
         shuttingDown = true;
         logger.info("Shutting down {}...", APP_NAME);
+        // Session workers would end on their own once korTTY's process is gone; end them now, cleanly.
+        de.kortty.core.worker.SessionWorkerRegistry.terminateAll();
         // After an import that replaced master.key the in-memory stores belong to the old key:
         // writing them now would overwrite the restored files (and re-encrypt the restored
         // connections with the wrong key), so the restored files are left as they are.

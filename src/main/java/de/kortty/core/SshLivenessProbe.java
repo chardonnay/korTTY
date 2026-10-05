@@ -36,13 +36,13 @@ import java.util.function.BooleanSupplier;
  * <p>The kill-switch only arms after the server answered one probe: a server that never replies to
  * global requests (violating RFC 4254) must not have healthy sessions killed.</p>
  */
-final class SshLivenessProbe {
+public final class SshLivenessProbe {
 
     /** Consecutive counted misses that declare the transport dead. */
-    static final int MISSES_TO_DECLARE_DEAD = 2;
+    public static final int MISSES_TO_DECLARE_DEAD = 2;
 
     /** What the loop probes: one SSH session (or a fake in tests). */
-    interface Transport {
+    public interface Transport {
         /** False once the session is closed or closing; the connection monitor reports that. */
         boolean isOpen();
 
@@ -55,11 +55,11 @@ final class SshLivenessProbe {
 
     /** Waits one interval; {@link Thread#sleep(long)} in production, a clock advance in tests. */
     @FunctionalInterface
-    interface Sleeper {
+    public interface Sleeper {
         void sleep(long millis) throws InterruptedException;
     }
 
-    enum Outcome {
+    public enum Outcome {
         /** Two consecutive probes got no reply while the transport was silent. */
         DEAD,
         /** The connector stopped or the session closed by itself. */
@@ -69,7 +69,7 @@ final class SshLivenessProbe {
     private final long intervalMillis;
     private final Sleeper sleeper;
 
-    SshLivenessProbe(long intervalMillis, Sleeper sleeper) {
+    public SshLivenessProbe(long intervalMillis, Sleeper sleeper) {
         if (intervalMillis <= 0) {
             throw new IllegalArgumentException("intervalMillis must be positive");
         }
@@ -81,7 +81,7 @@ final class SshLivenessProbe {
      * Probes until {@code running} turns false, the transport closes, or the transport is declared
      * dead.
      */
-    Outcome run(Transport transport, BooleanSupplier running) throws InterruptedException {
+    public Outcome run(Transport transport, BooleanSupplier running) throws InterruptedException {
         boolean armed = false;
         boolean sleepFirst = true;
         int countedMisses = 0;
@@ -121,7 +121,7 @@ final class SshLivenessProbe {
      * {@code inboundBytes} before SSHD decodes it. Install it with
      * {@code client.setSessionFactory(...)} before {@code client.start()}.
      */
-    static SessionFactory inboundCountingSessionFactory(ClientFactoryManager client, AtomicLong inboundBytes) {
+    public static SessionFactory inboundCountingSessionFactory(ClientFactoryManager client, AtomicLong inboundBytes) {
         Objects.requireNonNull(inboundBytes, "inboundBytes");
         return new SessionFactory(client) {
             @Override

@@ -84,6 +84,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Sitzungsjournale… | Manage [session journals](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
 | Sitzungsjournal starten/stoppen | Toggle the session journal of the active terminal tab; starting mid-session imports the existing scrollback (++ctrl+alt+t++) |
 | Journal-Screenshot hinzufügen | Erstellen Sie einen Schnappschuss des aktiven Terminals in das laufende Sitzungsjournal (++ctrl+alt+c++) |
+| Sitzungsprozesse… | Listet die [Session-Worker](../features/session-isolation.md#ssh-sitzungen-in-einem-session-worker) isolierter SSH-Sitzungen mit Speicher, CPU-Anteil und Laufzeit und beendet einen davon |
 | ASCII-Art… | Zwei Tabs in einem Dialog: **Text-Banner** rendert Text als FIGlet-Banner in mehreren Schriftstilen, **KI-Bild** lässt ein KI-Profil ein Thema als ASCII-Art zeichnen |
 
 Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktiviert, wenn eine [Unternehmensrichtlinie](../features/session-journal.md#unternehmensrichtlinie) die Funktion des Sitzungsjournals ablehnt.

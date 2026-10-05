@@ -20,10 +20,22 @@ What each connection type can get in this version:
 | --- | --- | --- | --- |
 | Local shell | yes | yes (a local shell is always a process of its own) | yes |
 | Mosh (native `mosh-client`) | yes | yes | yes: `mosh-client` runs in the sandbox; the short SSH start of `mosh-server` stays in korTTY |
-| SSH | yes | not yet | not yet |
+| SSH | yes | yes, in a session worker (see below) | yes |
 | Mosh (built-in client) | yes | not yet | not yet |
 
 A connection that asks for more than its type can get runs with the strongest level it can get, and the connection editor says so under **Isolation:**. If your organization demands a level that the connection type cannot get, the session is not opened at all.
+
+## SSH sessions in a session worker
+
+An isolated SSH session runs in a **session worker**, a small process of its own that korTTY starts for this one connection. The worker connects to the server (through the jump server, if there is one), authenticates and keeps the encrypted connection; korTTY talks to it over a connection on this computer (`127.0.0.1`) that only accepts a one-time token korTTY created for it and whose key korTTY pins. The worker passes every channel korTTY opens on to the server, so the terminal, SFTP on the terminal's session, file drops, the AI agent's commands and `-L` and `-D` tunnels work as with a direct session.
+
+- **Your private key stays in korTTY.** The worker never receives a key: when the server asks for a signature, the worker asks korTTY, which signs with the key it loaded as usual. The worker gets the password of a password login and of the jump server, but never the vault or the master password.
+- **Host keys and prompts as before.** korTTY checks the server's host key against its known hosts with the usual dialogs and answers keyboard-interactive prompts, including the access reason, with the usual dialogs.
+- **With a sandbox** the worker can neither read nor write `~/.kortty`, `~/.ssh`, `~/.gnupg` or the keychains, and writes only to a folder of its own. On macOS it may also connect only to this computer and to the port of the server and of the jump server; on Linux bubblewrap does not limit the network, which the shield's tooltip says.
+- **Remote tunnels (`-R`) are not available** in an isolated SSH session yet; they are reported as refused in the status bar. Use the level **None** for a connection that needs them.
+- **If the worker crashes**, the tab says *Session process crashed (exit N)* with the worker's last message and offers to reconnect; korTTY's log has its last output. A connection lost on the network is reported as *Connection lost*, as for a direct session.
+
+**Tools → Session Processes...** lists every session that runs in a worker: its connection, process id, isolation, memory, CPU share and how long it has been running, refreshed every two seconds. A row is marked while its worker keeps a CPU core busy, and **End Process** ends the selected worker; its tab then offers to reconnect. Workers run with a lower priority, so a busy one does not slow down korTTY's window.
 
 !!! note "The sandbox on each operating system"
     On macOS korTTY uses `sandbox-exec` with a profile it generates for each session. On Linux it uses bubblewrap (`bwrap`), which has to be installed; it needs unprivileged user namespaces, which some containers do not allow. On Windows, and when korTTY runs in Flatpak (itself a sandbox that does not allow another one inside), no sandbox is available yet. Before the first sandboxed session korTTY runs a self-test: a secret file in its configuration folder must be unreadable from inside the sandbox while a harmless command still runs. Only a sandbox that passes counts as available.
@@ -37,6 +49,8 @@ In a sandboxed local shell the history file (`HISTFILE`) and `TMPDIR` point to t
 - **For everything else:** **Configuration → Global Settings → Security** → **Session isolation** → **Default isolation:**. The section also shows whether this computer has a working sandbox.
 
 A connection from a shared teamwork file can only make isolation stricter than your folder or Settings, never less strict.
+
+A session journal notes the isolation of the session each time it connects (for example *isolation: sandboxed (sandbox-exec)*), and the control API's `pane.list` and `pane.get` report each pane's `isolation` (`none`, `process`, `sandboxed` or `degraded`) and whether its tab is `incognito`.
 
 ## What the tab shows
 

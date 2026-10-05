@@ -84,6 +84,7 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | Session Journals… | Manage [session journals](../features/session-journal.md): search, open, rename, describe, export and delete them, and set the journal options (++ctrl+alt+j++) |
 | Start/Stop Session Journal | Toggle the session journal of the active terminal tab; starting mid-session imports the existing scrollback (++ctrl+alt+t++) |
 | Add Journal Screenshot | Snapshot the active terminal into its running session journal (++ctrl+alt+c++) |
+| Session Processes… | List the [session workers](../features/session-isolation.md#ssh-sessions-in-a-session-worker) of isolated SSH sessions with their memory, CPU share and running time, and end one |
 | ASCII Art… | Two tabs in one dialog: **Text Banner** renders text as a FIGlet banner in multiple font styles, **AI Picture** lets an AI profile draw a subject as ASCII art |
 
 The three session-journal items stay visible but are disabled when an [enterprise policy](../features/session-journal.md#enterprise-policy) denies the session-journal feature.

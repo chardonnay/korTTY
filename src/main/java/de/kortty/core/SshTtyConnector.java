@@ -48,7 +48,7 @@ import java.util.regex.Pattern;
  * instead; this class only installs the {@linkplain SshTunnelManager#clientForwardingFilter()
  * client forwarding filter} remote tunnels need.
  */
-public class SshTtyConnector implements ObservableTtyConnector {
+public class SshTtyConnector implements ObservableTtyConnector, de.kortty.isolation.IsolationAware {
     
     private static final Logger logger = LoggerFactory.getLogger(SshTtyConnector.class);
     public static final String SHELL_STARTUP_CLEANUP_MARKER = "\u001B]777;korTTY-startup-cleanup\u0007";
@@ -71,6 +71,19 @@ public class SshTtyConnector implements ObservableTtyConnector {
     private ChannelShell channel;
     /** Established bastion hop when the connection has an enabled jump server; null otherwise. */
     private JumpHostSupport.JumpTunnel jumpTunnel;
+    /** The target's host-key check of the attempt in progress, so a rejection is told apart. */
+    private volatile SshHostKeyTrustManager.ConnectionVerifier hostKeyVerifier;
+    /** The isolation this session is asked for; set before {@link #connect()}. */
+    private volatile de.kortty.isolation.IsolationRequest isolationRequest = de.kortty.isolation.IsolationRequest.NONE;
+    /** The isolation the session has. */
+    private volatile de.kortty.isolation.IsolationReport isolationReport = de.kortty.isolation.IsolationReport.NONE;
+    /** The session worker carrying this session, or null for a direct session. */
+    private volatile de.kortty.core.worker.SessionWorkerProcess worker;
+    /** The sandboxed worker's own folder; deleted with the connector. */
+    private volatile java.nio.file.Path sandboxSessionDirectory;
+    /** The key pairs a worker signs with, loaded once per attempt; never sent to the worker. */
+    private volatile java.util.List<java.security.KeyPair> workerKeyPairs = java.util.List.of();
+    private volatile java.util.List<java.security.KeyPair> workerJumpKeyPairs = java.util.List.of();
     private InputStream inputStream;
     private OutputStream outputStream;
     private InputStreamReader reader;
@@ -237,7 +250,7 @@ public class SshTtyConnector implements ObservableTtyConnector {
      * This should be called before start() on the terminal widget.
      */
     public boolean connect() throws AuthenticationException {
-        SshHostKeyTrustManager.ConnectionVerifier hostKeyVerifier = null;
+        hostKeyVerifier = null;
         lastFailureMessage = null;
         replayedAccessReasonPrompts.clear();
         sessionChangeTracker.reset();
@@ -248,215 +261,12 @@ public class SshTtyConnector implements ObservableTtyConnector {
         try {
             logger.info("Connecting to {}@{}:{}", connection.getUsername(), connection.getHost(), connection.getPort());
             
-            // Create and start SSH client
-            client = SshClient.setUpDefaultClient();
-            // MINA's client default rejects every channel the server opens, which would refuse each
-            // connection a remote tunnel delivers. Splits register no remote forwards, so for them
-            // the filter admits nothing either.
-            client.setForwardingFilter(SshTunnelManager.clientForwardingFilter());
-            // Counts inbound bytes so the liveness probe can tell a reply queued behind bulk data
-            // (an SFTP transfer sharing this session) from a dead link.
-            client.setSessionFactory(SshLivenessProbe.inboundCountingSessionFactory(client, inboundBytes));
-            configureKeepAlive(client, connection.getSettings());
-            
-            // Configure supported auth methods explicitly.
-            // For password logins we must include UserAuthPasswordFactory, otherwise
-            // servers that do not offer keyboard-interactive password prompts will fail.
-            if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                // CyberArk requires keyboard-interactive after publickey for access reason prompts.
-                client.setUserAuthFactories(java.util.Arrays.asList(
-                    new UserAuthPublicKeyFactory(),
-                    new UserAuthKeyboardInteractiveFactory(),
-                    new UserAuthPasswordFactory()
-                ));
+            if (workerCommand() != null) {
+                session = connectViaWorker();
             } else {
-                client.setUserAuthFactories(java.util.Arrays.asList(
-                    new UserAuthPasswordFactory(),
-                    new UserAuthKeyboardInteractiveFactory(),
-                    new UserAuthPublicKeyFactory()
-                ));
-            }
-            
-            // Set up keyboard-interactive handler for CyberArk prompts
-            // CyberArk asks for "reason for this operation" after SSH key auth succeeds
-            client.setUserInteraction(new org.apache.sshd.client.auth.keyboard.UserInteraction() {
-                @Override
-                public boolean isInteractionAllowed(ClientSession session) {
-                    return true;
-                }
-                
-                @Override
-                public String[] interactive(ClientSession session, String name, String instruction, 
-                                           String lang, String[] prompt, boolean[] echo) {
-                    logger.info("Keyboard-interactive request: name='{}', instruction='{}'", name, instruction);
-                    
-                    if (prompt == null || prompt.length == 0) {
-                        return new String[0];
-                    }
-                    
-                    String[] responses = new String[prompt.length];
-                    
-                    // Use JavaFX dialog to get user input for each prompt
-                    final String[] finalResponses = responses;
-                    final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
-                    
-                    javafx.application.Platform.runLater(() -> {
-                        try {
-                            for (int i = 0; i < prompt.length; i++) {
-                                logger.debug("  Prompt[{}]: '{}' (echo={})", i, prompt[i], echo[i]);
-                                
-                                // Check if this is an access reason prompt (contains "reason")
-                                boolean isAccessReasonPrompt = prompt[i].toLowerCase().contains("reason");
-                                
-                                if (isAccessReasonPrompt) {
-                                    // Answered once per tab; a split replays the answer instead of
-                                    // asking again. The reply is still sent — a server that asks
-                                    // for a reason closes the connection on an empty one.
-                                    final String reasonPrompt = prompt[i];
-                                    finalResponses[i] = resolveAccessReason(instruction, reasonPrompt);
-                                } else {
-                                    // If a temporary SSH key is used, never fall back to passwords
-                                    if (isTemporaryKeyAuthActive() && isPasswordPrompt(prompt[i])) {
-                                        logger.warn("Temporary SSH key auth: rejecting password prompt '{}'", prompt[i]);
-                                        finalResponses[i] = "";
-                                        continue;
-                                    }
-                                    // Password/passphrase prompt: use masked input and "Passphrase for SSH key" title
-                                    if (!echo[i] && isPasswordPrompt(prompt[i])) {
-                                        javafx.scene.control.Dialog<String> passDialog = new javafx.scene.control.Dialog<>();
-                                        passDialog.setTitle(I18n.get("dialog.sshKeyPassphraseRequired"));
-                                        passDialog.setHeaderText(prompt[i]);
-                                        passDialog.getDialogPane().getButtonTypes().addAll(
-                                            javafx.scene.control.ButtonType.OK,
-                                            javafx.scene.control.ButtonType.CANCEL);
-                                        javafx.scene.control.PasswordField pf = new javafx.scene.control.PasswordField();
-                                        pf.setPromptText(I18n.get("dialog.sshKeyPassphrasePrompt"));
-                                        javafx.scene.layout.VBox content = new javafx.scene.layout.VBox(10);
-                                        content.getChildren().addAll(
-                                            new javafx.scene.control.Label(I18n.get("dialog.sshKeyPassphrasePrompt")),
-                                            pf);
-                                        content.setPadding(new javafx.geometry.Insets(20));
-                                        passDialog.getDialogPane().setContent(content);
-                                        passDialog.setResultConverter(bt ->
-                                            bt == javafx.scene.control.ButtonType.OK ? pf.getText() : null);
-                                        java.util.Optional<String> result = passDialog.showAndWait();
-                                        finalResponses[i] = (result != null && result.isPresent() && result.get() != null)
-                                            ? result.get() : "";
-                                    } else {
-                                        // Plain text prompt (e.g. reason, one-time code)
-                                        javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
-                                        dialog.setTitle("SSH Authentication");
-                                        dialog.setHeaderText(instruction != null && !instruction.isEmpty() ? instruction : "Authentication Required");
-                                        dialog.setContentText(prompt[i]);
-                                        java.util.Optional<String> result = dialog.showAndWait();
-                                        finalResponses[i] = result.orElse("");
-                                    }
-                                }
-                            }
-                        } catch (Exception e) {
-                            logger.error("Error showing keyboard-interactive dialog: {}", e.getMessage());
-                            for (int i = 0; i < prompt.length; i++) {
-                                finalResponses[i] = "";
-                            }
-                        } finally {
-                            latch.countDown();
-                        }
-                    });
-                    
-                    try {
-                        // Wait for UI thread to complete (max 5 minutes for user input)
-                        latch.await(5, java.util.concurrent.TimeUnit.MINUTES);
-                    } catch (InterruptedException e) {
-                        logger.warn("Keyboard-interactive dialog interrupted");
-                        Thread.currentThread().interrupt();
-                    }
-                    
-                    return finalResponses;
-                }
-                
-                @Override
-                public String getUpdatedPassword(ClientSession session, String prompt, String lang) {
-                    return null;
-                }
-            });
-            
-            // Note: EdDSA signature support is automatically enabled when the eddsa dependency
-            // is on the classpath. The client will detect and use EdDSA signatures automatically.
-            
-            SshHostKeyTrustManager.ReplacePolicy replacePolicy = hostKeyReplacePolicy;
-            hostKeyVerifier = hostKeyTrustManager.verifierFor(
-                connection, HostKeyCheckPolicy.resolveFromSettings(connection), replacePolicy);
-            client.setServerKeyVerifier(hostKeyVerifier);
-            client.start();
-            
-            // Get timeout from connection settings
-            int timeoutSeconds = connection.getConnectionTimeoutSeconds();
-            if (timeoutSeconds <= 0) {
-                timeoutSeconds = 15; // Default fallback
-            }
-            
-            // Connect to server
-            String username = connection.getUsername();
-            logger.debug("Connecting with username: '{}'", username);
-            logger.debug("Username length: {}, contains @: {}", username.length(), username.contains("@"));
-            
-            // Clear default key identity provider on client to avoid loading ~/.ssh keys
-            client.setKeyIdentityProvider(null);
-
-            // With an enabled jump server, hop first: authenticate to the bastion with its own
-            // credentials and open a loopback forward to the target. The session below then
-            // connects to that forward — but hostKeyVerifier was built for the target's real
-            // host:port, so the target's key is still pinned under its real name, and a bastion
-            // that answered with a different key would be rejected, not silently trusted.
-            String connectHost = connection.getHost();
-            int connectPort = connection.getPort();
-            if (JumpHostSupport.isActive(connection)) {
-                jumpTunnel = JumpHostSupport.open(
-                    connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds),
-                    replacePolicy);
-                connectHost = jumpTunnel.localHost();
-                connectPort = jumpTunnel.localPort();
-                // Log raw host:port rather than connection.getDisplayName(): the latter can fall back
-                // to "username@host", and CodeQL's coarse sensitive-data heuristic treats any getter on
-                // ServerConnection as tainted once the class holds an encryptedPassword field. Host/port
-                // carry no credential and give the same diagnostic value.
-                logger.info("Connecting to {}:{} via jump server {}:{}",
-                    connection.getHost(), connection.getPort(),
-                    connection.getJumpServer().getHost(), connection.getJumpServer().getPort());
+                connectDirect();
             }
 
-            session = client.connect(username, connectHost, connectPort)
-                    .verify(Duration.ofSeconds(timeoutSeconds))
-                    .getSession();
-            
-            // Verify the session username is exactly what we set
-            logger.debug("Session username after connect: '{}'", session.getUsername());
-            
-            // Clear any default key identity providers to avoid interference
-            session.setKeyIdentityProvider(null);
-            
-            // Authenticate
-            if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
-                try {
-                    authenticateWithKey();
-                } catch (AuthenticationException e) {
-                    throw e;
-                } catch (Exception e) {
-                    // A key file that is missing or cannot be parsed is still missing on the next
-                    // attempt, so this is not a connection failure to retry.
-                    throw new AuthenticationException(e.getMessage(), e);
-                }
-                // Log available authentication methods after adding key
-                logger.debug("Authentication methods available after adding key identity");
-            } else {
-                session.addPasswordIdentity(password);
-            }
-            
-            // Perform authentication
-            logger.debug("Starting authentication process...");
-            session.auth().verify(Duration.ofSeconds(timeoutSeconds));
-            logger.info("Authentication successful for user: {}", username);
-            
             // Create shell channel
             channel = session.createShellChannel();
             channel.setPtyType(TerminalEmulationSupport.termName(connection));
@@ -563,6 +373,484 @@ public class SshTtyConnector implements ObservableTtyConnector {
         }
     }
 
+    /**
+     * Answers keyboard-interactive prompts with korTTY's dialogs on the JavaFX thread: an access
+     * reason from the tab's memory or the reason dialog, a password or passphrase in a masked field,
+     * anything else in a text field. Blocks the calling (SSH) thread for up to five minutes. Used for
+     * a direct session and for the prompts a session worker forwards.
+     */
+    String[] answerInteractive(String name, String instruction, String[] prompt, boolean[] echo) {
+        logger.info("Keyboard-interactive request: name='{}', instruction='{}'", name, instruction);
+        
+        if (prompt == null || prompt.length == 0) {
+            return new String[0];
+        }
+        
+        String[] responses = new String[prompt.length];
+        
+        // Use JavaFX dialog to get user input for each prompt
+        final String[] finalResponses = responses;
+        final java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        
+        javafx.application.Platform.runLater(() -> {
+            try {
+                for (int i = 0; i < prompt.length; i++) {
+                    logger.debug("  Prompt[{}]: '{}' (echo={})", i, prompt[i], echo[i]);
+                    
+                    // Check if this is an access reason prompt (contains "reason")
+                    boolean isAccessReasonPrompt = prompt[i].toLowerCase().contains("reason");
+                    
+                    if (isAccessReasonPrompt) {
+                        // Answered once per tab; a split replays the answer instead of
+                        // asking again. The reply is still sent — a server that asks
+                        // for a reason closes the connection on an empty one.
+                        final String reasonPrompt = prompt[i];
+                        finalResponses[i] = resolveAccessReason(instruction, reasonPrompt);
+                    } else {
+                        // If a temporary SSH key is used, never fall back to passwords
+                        if (isTemporaryKeyAuthActive() && isPasswordPrompt(prompt[i])) {
+                            logger.warn("Temporary SSH key auth: rejecting password prompt '{}'", prompt[i]);
+                            finalResponses[i] = "";
+                            continue;
+                        }
+                        // Password/passphrase prompt: use masked input and "Passphrase for SSH key" title
+                        if (!echo[i] && isPasswordPrompt(prompt[i])) {
+                            javafx.scene.control.Dialog<String> passDialog = new javafx.scene.control.Dialog<>();
+                            passDialog.setTitle(I18n.get("dialog.sshKeyPassphraseRequired"));
+                            passDialog.setHeaderText(prompt[i]);
+                            passDialog.getDialogPane().getButtonTypes().addAll(
+                                javafx.scene.control.ButtonType.OK,
+                                javafx.scene.control.ButtonType.CANCEL);
+                            javafx.scene.control.PasswordField pf = new javafx.scene.control.PasswordField();
+                            pf.setPromptText(I18n.get("dialog.sshKeyPassphrasePrompt"));
+                            javafx.scene.layout.VBox content = new javafx.scene.layout.VBox(10);
+                            content.getChildren().addAll(
+                                new javafx.scene.control.Label(I18n.get("dialog.sshKeyPassphrasePrompt")),
+                                pf);
+                            content.setPadding(new javafx.geometry.Insets(20));
+                            passDialog.getDialogPane().setContent(content);
+                            passDialog.setResultConverter(bt ->
+                                bt == javafx.scene.control.ButtonType.OK ? pf.getText() : null);
+                            java.util.Optional<String> result = passDialog.showAndWait();
+                            finalResponses[i] = (result != null && result.isPresent() && result.get() != null)
+                                ? result.get() : "";
+                        } else {
+                            // Plain text prompt (e.g. reason, one-time code)
+                            javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
+                            dialog.setTitle("SSH Authentication");
+                            dialog.setHeaderText(instruction != null && !instruction.isEmpty() ? instruction : "Authentication Required");
+                            dialog.setContentText(prompt[i]);
+                            java.util.Optional<String> result = dialog.showAndWait();
+                            finalResponses[i] = result.orElse("");
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("Error showing keyboard-interactive dialog: {}", e.getMessage());
+                for (int i = 0; i < prompt.length; i++) {
+                    finalResponses[i] = "";
+                }
+            } finally {
+                latch.countDown();
+            }
+        });
+        
+        try {
+            // Wait for UI thread to complete (max 5 minutes for user input)
+            latch.await(5, java.util.concurrent.TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            logger.warn("Keyboard-interactive dialog interrupted");
+            Thread.currentThread().interrupt();
+        }
+        
+        return finalResponses;
+    }
+
+    /**
+     * Asks for {@code request}'s isolation: {@link de.kortty.isolation.IsolationLevel#PROCESS} and above
+     * run the session in a session worker. Call before {@link #connect()}.
+     */
+    public void setIsolationRequest(de.kortty.isolation.IsolationRequest request) {
+        this.isolationRequest = request != null ? request : de.kortty.isolation.IsolationRequest.NONE;
+    }
+
+    @Override
+    public de.kortty.isolation.IsolationReport isolationReport() {
+        return isolationReport;
+    }
+
+    /** The session worker carrying this session, or null for a direct session. */
+    public de.kortty.core.worker.SessionWorkerProcess getWorker() {
+        return worker;
+    }
+
+    /**
+     * The command that starts this session's worker, or null to connect directly: when no isolation
+     * is asked for, or when workers cannot run here and the policy does not demand one.
+     *
+     * @throws ConnectionConfigurationException when the policy demands a worker that cannot run
+     */
+    private java.util.List<String> workerCommand() throws ConnectionConfigurationException {
+        de.kortty.isolation.IsolationRequest request = isolationRequest;
+        if (request.level() == de.kortty.isolation.IsolationLevel.NONE) {
+            isolationReport = de.kortty.isolation.IsolationReport.NONE;
+            return null;
+        }
+        java.util.List<String> command = de.kortty.core.worker.SessionWorkerProcess.defaultCommand();
+        if (command == null) {
+            if (request.enforced()) {
+                throw new ConnectionConfigurationException(I18n.get("isolation.error.workerUnavailable"), null);
+            }
+            logger.warn("Session worker not available in this installation; {}:{} connects directly",
+                connection.getHost(), connection.getPort());
+            isolationReport = new de.kortty.isolation.IsolationReport(de.kortty.isolation.IsolationState.NONE,
+                request.level(), null, I18n.get("isolation.error.workerUnavailable"));
+            return null;
+        }
+        return command;
+    }
+
+    /**
+     * Starts a session worker for this connection, waits until it is connected and logs in to its
+     * loopback endpoint with the token, pinning the key the worker reported. Prompts, host keys and
+     * signatures the worker needs are answered by {@link #handleWorkerRequest}.
+     *
+     * @return the authenticated session on the worker's endpoint, which relays every channel
+     */
+    private ClientSession connectViaWorker() throws Exception {
+        de.kortty.core.worker.WorkerInit init = buildWorkerInit();
+        hostKeyVerifier = hostKeyTrustManager.verifierFor(
+            connection, HostKeyCheckPolicy.resolveFromSettings(connection), hostKeyReplacePolicy);
+        logger.info("Starting session worker for {}:{}", connection.getHost(), connection.getPort());
+        java.util.List<Integer> ports = new java.util.ArrayList<>(java.util.List.of(connection.getPort()));
+        if (init.jump != null) {
+            ports.add(init.jump.port);
+        }
+        de.kortty.isolation.sandbox.LocalProcessSandbox.Prepared prepared;
+        try {
+            prepared = de.kortty.isolation.sandbox.LocalProcessSandbox.prepareWorker(isolationRequest, workerCommand(), ports);
+        } catch (de.kortty.isolation.IsolationUnavailableException e) {
+            // The policy demands a sandbox this computer cannot give: retrying cannot help.
+            throw new ConnectionConfigurationException(e.getMessage(), e);
+        }
+        sandboxSessionDirectory = prepared.sessionDirectory();
+        de.kortty.core.worker.SessionWorkerProcess started = de.kortty.core.worker.SessionWorkerProcess.start(
+            prepared.command(), prepared.environment(), init, this::handleWorkerRequest, connection.getHost());
+        worker = started;
+        de.kortty.core.worker.SessionWorkerProcess.Ready ready;
+        try {
+            // Long enough for a person to answer the host-key and keyboard-interactive dialogs.
+            ready = started.awaitReady(Duration.ofSeconds(Math.max(15, connection.getConnectionTimeoutSeconds()) + 360L));
+        } catch (de.kortty.core.worker.SessionWorkerProcess.ConnectFailedException e) {
+            switch (e.kind()) {
+                case "hostkey" -> throw new HostKeyVerificationException(hostKeyRejectionMessage(), e);
+                case "auth" -> {
+                    forgetReplayedAccessReasons();
+                    throw new AuthenticationException(e.getMessage(), e);
+                }
+                case "config" -> throw new ConnectionConfigurationException(e.getMessage(), e);
+                default -> throw new IOException(e.getMessage(), e);
+            }
+        }
+        client = SshClient.setUpDefaultClient();
+        client.setForwardingFilter(SshTunnelManager.clientForwardingFilter());
+        client.setSessionFactory(SshLivenessProbe.inboundCountingSessionFactory(client, inboundBytes));
+        configureKeepAlive(client, null);
+        client.setKeyIdentityProvider(null);
+        client.setUserAuthFactories(java.util.List.of(new UserAuthPasswordFactory()));
+        java.security.PublicKey workerKey = ready.hostKey();
+        client.setServerKeyVerifier((clientSession, address, key) ->
+            org.apache.sshd.common.config.keys.KeyUtils.compareKeys(workerKey, key));
+        client.start();
+        ClientSession workerSession = client.connect("kortty", "127.0.0.1", ready.port())
+            .verify(Duration.ofSeconds(15)).getSession();
+        workerSession.setKeyIdentityProvider(null);
+        workerSession.addPasswordIdentity(init.token);
+        workerSession.auth().verify(Duration.ofSeconds(15));
+        isolationReport = prepared.report();
+        started.describe(connection.getDisplayName(), isolationReport.state());
+        logger.info("Session for {}:{} runs in worker process {}", connection.getHost(), connection.getPort(),
+            ready.pid());
+        return workerSession;
+    }
+
+    /** What the worker needs for this one connection: never the vault, never a private key. */
+    private de.kortty.core.worker.WorkerInit buildWorkerInit() throws Exception {
+        de.kortty.core.worker.WorkerInit init = new de.kortty.core.worker.WorkerInit();
+        init.host = connection.getHost();
+        init.port = connection.getPort();
+        init.username = connection.getUsername();
+        boolean keyAuth = connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
+        init.auth = keyAuth ? "key" : "password";
+        if (keyAuth) {
+            try {
+                workerKeyPairs = loadAuthKeyPairs(null);
+            } catch (AuthenticationException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new AuthenticationException(e.getMessage(), e);
+            }
+        } else {
+            init.password = password;
+        }
+        init.keyOnly = isTemporaryKeyAuthActive();
+        int timeout = connection.getConnectionTimeoutSeconds();
+        init.timeoutSeconds = timeout > 0 ? timeout : 15;
+        ConnectionSettings settings = connection.getSettings();
+        init.keepAliveEnabled = settings == null || settings.isSshKeepAliveEnabled();
+        init.keepAliveIntervalSeconds = settings != null ? settings.getSshKeepAliveInterval() : 60;
+        if (JumpHostSupport.isActive(connection)) {
+            de.kortty.model.JumpServer jump = connection.getJumpServer();
+            if (jump.getUsername() == null || jump.getUsername().isBlank()) {
+                throw new ConnectionConfigurationException("Jump server username is missing.", null);
+            }
+            de.kortty.core.worker.WorkerInit.Jump hop = new de.kortty.core.worker.WorkerInit.Jump();
+            hop.host = jump.getHost();
+            hop.port = jump.getPort();
+            hop.username = jump.getUsername();
+            boolean jumpKey = jump.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY;
+            hop.auth = jumpKey ? "key" : "password";
+            try {
+                if (jumpKey) {
+                    workerJumpKeyPairs = JumpHostSupport.loadJumpKeyPairs(jump);
+                } else {
+                    hop.password = JumpHostSupport.resolveJumpPassword(jump, masterPassword);
+                    if (hop.password == null || hop.password.isEmpty()) {
+                        throw new ConnectionConfigurationException(
+                            "Jump server password is not available. Store it in the connection settings, "
+                                + "or unlock the master password vault.", null);
+                    }
+                }
+            } catch (JumpHostSupport.PermanentJumpFailure e) {
+                throw new ConnectionConfigurationException(e.getMessage(), e);
+            }
+            init.jump = hop;
+        }
+        byte[] token = new byte[32];
+        new java.security.SecureRandom().nextBytes(token);
+        init.token = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(token);
+        return init;
+    }
+
+    /** Answers a request of this session's worker. Runs on a pool thread and may block on a dialog. */
+    private com.google.gson.JsonObject handleWorkerRequest(String method, com.google.gson.JsonObject params)
+            throws Exception {
+        String role = params.has("role") ? params.get("role").getAsString() : "target";
+        com.google.gson.JsonObject result = new com.google.gson.JsonObject();
+        switch (method) {
+            case "hostKey.verify" -> {
+                java.security.PublicKey key = de.kortty.core.worker.WorkerKeys.parse(params.get("key").getAsString());
+                boolean accepted;
+                if ("jump".equals(role)) {
+                    ServerConnection jumpEndpoint = new ServerConnection();
+                    jumpEndpoint.setHost(connection.getJumpServer().getHost());
+                    jumpEndpoint.setPort(connection.getJumpServer().getPort());
+                    accepted = hostKeyTrustManager.verifierFor(jumpEndpoint, HostKeyCheckMode.STRICT, hostKeyReplacePolicy)
+                        .verifyServerKey(null, null, key);
+                } else {
+                    accepted = hostKeyVerifier.verifyServerKey(null, null, key);
+                }
+                result.addProperty("accepted", accepted);
+            }
+            case "auth.interactive" -> {
+                com.google.gson.JsonArray prompts = params.getAsJsonArray("prompts");
+                com.google.gson.JsonArray echoes = params.getAsJsonArray("echo");
+                String[] prompt = new String[prompts.size()];
+                boolean[] echo = new boolean[prompts.size()];
+                for (int i = 0; i < prompt.length; i++) {
+                    prompt[i] = prompts.get(i).getAsString();
+                    echo[i] = echoes != null && i < echoes.size() && echoes.get(i).getAsBoolean();
+                }
+                String name = params.has("name") && !params.get("name").isJsonNull() ? params.get("name").getAsString() : "";
+                String instruction = params.has("instruction") && !params.get("instruction").isJsonNull()
+                    ? params.get("instruction").getAsString() : "";
+                String[] answers = answerInteractive(name, instruction, prompt, echo);
+                com.google.gson.JsonArray replies = new com.google.gson.JsonArray();
+                for (String answer : answers) {
+                    replies.add(answer != null ? answer : "");
+                }
+                result.add("answers", replies);
+            }
+            case "agent.identities" -> {
+                com.google.gson.JsonArray keys = new com.google.gson.JsonArray();
+                for (java.security.KeyPair pair : "jump".equals(role) ? workerJumpKeyPairs : workerKeyPairs) {
+                    keys.add(org.apache.sshd.common.config.keys.PublicKeyEntry.toString(pair.getPublic()));
+                }
+                result.add("keys", keys);
+            }
+            case "agent.sign" -> {
+                java.security.PublicKey key = de.kortty.core.worker.WorkerKeys.parse(params.get("key").getAsString());
+                java.util.List<java.security.KeyPair> pairs = "jump".equals(role) ? workerJumpKeyPairs : workerKeyPairs;
+                java.security.KeyPair pair = pairs.stream()
+                    .filter(candidate -> org.apache.sshd.common.config.keys.KeyUtils.compareKeys(candidate.getPublic(), key))
+                    .findFirst().orElseThrow(() -> new IOException("not one of this connection's keys"));
+                String algorithm = params.get("algorithm").getAsString();
+                byte[] data = java.util.Base64.getDecoder().decode(params.get("data").getAsString());
+                result.addProperty("algorithm", algorithm);
+                result.addProperty("signature", java.util.Base64.getEncoder().encodeToString(
+                    de.kortty.core.worker.WorkerKeys.sign(pair, algorithm, data)));
+            }
+            default -> throw new IOException("unknown request " + method);
+        }
+        return result;
+    }
+
+    /**
+     * Why the session worker ended by itself, for the disconnect message; null when it did not crash.
+     * Waits briefly, since the worker's exit can trail its closed channel.
+     */
+    private String workerCrashReason() {
+        de.kortty.core.worker.SessionWorkerProcess current = worker;
+        if (current == null) {
+            return null;
+        }
+        try {
+            current.handle().onExit().get(1, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception ignored) {
+            // Still running: not a crash.
+        }
+        if (!current.crashed()) {
+            return null;
+        }
+        java.util.List<String> tail = current.stderrTail();
+        String last = tail.isEmpty() ? "" : tail.get(tail.size() - 1);
+        logger.warn("Session worker for {}:{} crashed (exit {}); last output:\n{}", connection.getHost(),
+            connection.getPort(), current.exitCode().orElse(-1), String.join("\n", tail));
+        return I18n.get("isolation.worker.crashed", current.exitCode().orElse(-1), last);
+    }
+
+    /**
+     * Connects and authenticates to the server from this process, through the jump server if there is
+     * one: how every session ran before session workers, and still the default.
+     */
+    private void connectDirect() throws Exception {
+        // Create and start SSH client
+        client = SshClient.setUpDefaultClient();
+        // MINA's client default rejects every channel the server opens, which would refuse each
+        // connection a remote tunnel delivers. Splits register no remote forwards, so for them
+        // the filter admits nothing either.
+        client.setForwardingFilter(SshTunnelManager.clientForwardingFilter());
+        // Counts inbound bytes so the liveness probe can tell a reply queued behind bulk data
+        // (an SFTP transfer sharing this session) from a dead link.
+        client.setSessionFactory(SshLivenessProbe.inboundCountingSessionFactory(client, inboundBytes));
+        configureKeepAlive(client, connection.getSettings());
+        
+        // Configure supported auth methods explicitly.
+        // For password logins we must include UserAuthPasswordFactory, otherwise
+        // servers that do not offer keyboard-interactive password prompts will fail.
+        if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+            // CyberArk requires keyboard-interactive after publickey for access reason prompts.
+            client.setUserAuthFactories(java.util.Arrays.asList(
+                new UserAuthPublicKeyFactory(),
+                new UserAuthKeyboardInteractiveFactory(),
+                new UserAuthPasswordFactory()
+            ));
+        } else {
+            client.setUserAuthFactories(java.util.Arrays.asList(
+                new UserAuthPasswordFactory(),
+                new UserAuthKeyboardInteractiveFactory(),
+                new UserAuthPublicKeyFactory()
+            ));
+        }
+        
+        // Set up keyboard-interactive handler for CyberArk prompts
+        // CyberArk asks for "reason for this operation" after SSH key auth succeeds
+        client.setUserInteraction(new org.apache.sshd.client.auth.keyboard.UserInteraction() {
+            @Override
+            public boolean isInteractionAllowed(ClientSession session) {
+                return true;
+            }
+            
+            @Override
+            public String[] interactive(ClientSession session, String name, String instruction, 
+                                       String lang, String[] prompt, boolean[] echo) {
+                return answerInteractive(name, instruction, prompt, echo);
+            }
+            
+            @Override
+            public String getUpdatedPassword(ClientSession session, String prompt, String lang) {
+                return null;
+            }
+        });
+        
+        // Note: EdDSA signature support is automatically enabled when the eddsa dependency
+        // is on the classpath. The client will detect and use EdDSA signatures automatically.
+        
+        SshHostKeyTrustManager.ReplacePolicy replacePolicy = hostKeyReplacePolicy;
+        hostKeyVerifier = hostKeyTrustManager.verifierFor(
+            connection, HostKeyCheckPolicy.resolveFromSettings(connection), replacePolicy);
+        client.setServerKeyVerifier(hostKeyVerifier);
+        client.start();
+        
+        // Get timeout from connection settings
+        int timeoutSeconds = connection.getConnectionTimeoutSeconds();
+        if (timeoutSeconds <= 0) {
+            timeoutSeconds = 15; // Default fallback
+        }
+        
+        // Connect to server
+        String username = connection.getUsername();
+        logger.debug("Connecting with username: '{}'", username);
+        logger.debug("Username length: {}, contains @: {}", username.length(), username.contains("@"));
+        
+        // Clear default key identity provider on client to avoid loading ~/.ssh keys
+        client.setKeyIdentityProvider(null);
+
+        // With an enabled jump server, hop first: authenticate to the bastion with its own
+        // credentials and open a loopback forward to the target. The session below then
+        // connects to that forward — but hostKeyVerifier was built for the target's real
+        // host:port, so the target's key is still pinned under its real name, and a bastion
+        // that answered with a different key would be rejected, not silently trusted.
+        String connectHost = connection.getHost();
+        int connectPort = connection.getPort();
+        if (JumpHostSupport.isActive(connection)) {
+            jumpTunnel = JumpHostSupport.open(
+                connection, hostKeyTrustManager, masterPassword, Duration.ofSeconds(timeoutSeconds),
+                replacePolicy);
+            connectHost = jumpTunnel.localHost();
+            connectPort = jumpTunnel.localPort();
+            // Log raw host:port rather than connection.getDisplayName(): the latter can fall back
+            // to "username@host", and CodeQL's coarse sensitive-data heuristic treats any getter on
+            // ServerConnection as tainted once the class holds an encryptedPassword field. Host/port
+            // carry no credential and give the same diagnostic value.
+            logger.info("Connecting to {}:{} via jump server {}:{}",
+                connection.getHost(), connection.getPort(),
+                connection.getJumpServer().getHost(), connection.getJumpServer().getPort());
+        }
+
+        session = client.connect(username, connectHost, connectPort)
+                .verify(Duration.ofSeconds(timeoutSeconds))
+                .getSession();
+        
+        // Verify the session username is exactly what we set
+        logger.debug("Session username after connect: '{}'", session.getUsername());
+        
+        // Clear any default key identity providers to avoid interference
+        session.setKeyIdentityProvider(null);
+        
+        // Authenticate
+        if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+            try {
+                authenticateWithKey();
+            } catch (AuthenticationException e) {
+                throw e;
+            } catch (Exception e) {
+                // A key file that is missing or cannot be parsed is still missing on the next
+                // attempt, so this is not a connection failure to retry.
+                throw new AuthenticationException(e.getMessage(), e);
+            }
+            // Log available authentication methods after adding key
+            logger.debug("Authentication methods available after adding key identity");
+        } else {
+            session.addPasswordIdentity(password);
+        }
+        
+        // Perform authentication
+        logger.debug("Starting authentication process...");
+        session.auth().verify(Duration.ofSeconds(timeoutSeconds));
+        logger.info("Authentication successful for user: {}", username);
+    }
+
     private static String hostKeyRejectionMessage() {
         String key = "ssh.hostKey.connectionRejected";
         String localized = I18n.get(key);
@@ -621,8 +909,10 @@ public class SshTtyConnector implements ObservableTtyConnector {
                     );
                     
                     // Connection closed - check if it was normal or error
-                    ChannelCloseClassification classification =
-                        classifyChannelClose(channel.getExitStatus(), channel.getExitSignal());
+                    String crash = workerCrashReason();
+                    ChannelCloseClassification classification = crash != null
+                        ? new ChannelCloseClassification(crash, true)
+                        : classifyChannelClose(channel.getExitStatus(), channel.getExitSignal());
 
                     logger.info("SSH connection ended: {} (wasError={})",
                         classification.reason(), classification.wasError());
@@ -818,6 +1108,12 @@ public class SshTtyConnector implements ObservableTtyConnector {
                 jumpTunnel.close();
                 jumpTunnel = null;
             }
+            de.kortty.core.worker.SessionWorkerProcess current = worker;
+            if (current != null) {
+                current.close();
+            }
+            de.kortty.isolation.sandbox.SandboxSupport.deleteSessionDirectory(sandboxSessionDirectory);
+            sandboxSessionDirectory = null;
         }
         logger.info("Disconnected from {}", connection.getDisplayName());
     }
@@ -1881,6 +2177,42 @@ public class SshTtyConnector implements ObservableTtyConnector {
      * Authenticates using a private key file.
      */
     private void authenticateWithKey() throws Exception {
+        String configuredPath = configuredKeyPath();
+        java.util.List<java.security.KeyPair> keyPairs = loadAuthKeyPairs(session);
+        if (TemporarySshKeyMaterial.isTemporaryKeyPath(configuredPath)) {
+            // Offer ONLY the temporary key, so no other identity interferes with authentication.
+            session.setKeyIdentityProvider(null);
+        }
+        keyPairs.forEach(session::addPublicKeyIdentity);
+    }
+
+    /** The key path authentication uses: the managed key's, else the connection's own; null for none. */
+    private String configuredKeyPath() {
+        if (connection.getSshKeyId() != null && sshKeyManager != null && masterPassword != null) {
+            try {
+                var managed = sshKeyManager.findKeyById(connection.getSshKeyId());
+                if (managed.isPresent()) {
+                    String path = sshKeyManager.getEffectiveKeyPath(managed.get());
+                    if (path != null && !path.isBlank()) {
+                        return path;
+                    }
+                }
+            } catch (Exception e) {
+                logger.debug("Managed key path not available: {}", e.getMessage());
+            }
+        }
+        return connection.getPrivateKeyPath();
+    }
+
+    /**
+     * Loads the key pairs this connection authenticates with: the managed key (with its passphrase
+     * from the vault), else the connection's key file (with its stored passphrase), or a temporary key
+     * parsed in memory. A session worker gets only the public halves; korTTY signs for it.
+     *
+     * @param sessionContext the session the keys are loaded for, or null outside one
+     */
+    java.util.List<java.security.KeyPair> loadAuthKeyPairs(org.apache.sshd.common.session.SessionContext sessionContext)
+            throws Exception {
         String[] keyPathRef = new String[1];
         String[] passphraseRef = new String[1];
         
@@ -1913,12 +2245,9 @@ public class SshTtyConnector implements ObservableTtyConnector {
         // A temporary SSH key is parsed in memory and never written to disk.
         if (TemporarySshKeyMaterial.isTemporaryKeyPath(keyPath)) {
             try {
-                java.security.KeyPair keyPair = TemporarySshKeyMaterial.load(session, keyPath).get(0);
-                // Offer ONLY the temporary key, so no other identity interferes with authentication.
-                session.setKeyIdentityProvider(null);
-                session.addPublicKeyIdentity(keyPair);
+                java.security.KeyPair keyPair = TemporarySshKeyMaterial.load(sessionContext, keyPath).get(0);
                 logger.info("Using temporary SSH key (algorithm: {})", keyPair.getPublic().getAlgorithm());
-                return;
+                return java.util.List.of(keyPair);
             } catch (Exception e) {
                 logger.error("Failed to load temporary SSH key", e);
                 throw new Exception("Error loading temporary SSH key: " + e.getMessage(), e);
@@ -1957,24 +2286,24 @@ public class SshTtyConnector implements ObservableTtyConnector {
             }
             
             // Load the key pair
-            Iterable<java.security.KeyPair> keyPairs = keyPairProvider.loadKeys(session);
+            Iterable<java.security.KeyPair> keyPairs = keyPairProvider.loadKeys(sessionContext);
             
             if (keyPairs == null) {
                 throw new Exception("Konnte SSH-Key nicht laden: " + keyPath);
             }
             
-            // Add all key pairs to session
-            int count = 0;
+            java.util.List<java.security.KeyPair> loaded = new java.util.ArrayList<>();
             for (java.security.KeyPair keyPair : keyPairs) {
-                session.addPublicKeyIdentity(keyPair);
-                count++;
+                loaded.add(keyPair);
             }
+            int count = loaded.size();
             
             if (count == 0) {
                 throw new Exception("Keine KeyPairs in SSH-Key-Datei gefunden: " + keyPath);
             }
             
-            logger.info("Added {} public key identity/identities from {}", count, keyPath);
+            logger.info("Loaded {} key pair(s) from {}", count, keyPath);
+            return loaded;
         } catch (Exception e) {
             logger.error("Failed to load SSH key from " + keyPath, e);
             throw new Exception("SSH-Key-Authentifizierung fehlgeschlagen: " + e.getMessage(), e);

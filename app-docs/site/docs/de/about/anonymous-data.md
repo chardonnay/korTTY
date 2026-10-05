@@ -37,6 +37,7 @@ Einige Terminalfunktionen melden, wie sie verwendet werden, und zwar nur mit Sch
 | `terminal_highlight_applied` | ein Bereich einen anderen Regelsatz für die Hervorhebung anzeigt | die ID eines eingebauten Regelsatzes oder `custom` bzw. `none` und woher die Auswahl kam (Menü, Tastenkürzel, Verbindung oder Standard) |
 | `multi_exec_changed` | Sie Bereiche zu Multi-Exec hinzufügen, sie entfernen oder Multi-Exec beenden | ob Multi-Exec noch aktiv ist, und die gerundete Anzahl der beteiligten Bereiche, Tabs und Fenster |
 | `session_restored` | die vorherige Sitzung wieder geöffnet wird | die Einstellung Sitzungswiederherstellung (`ask`, `auto` oder `off`), ob das Menü, die Leiste beim Start oder die automatische Wiederherstellung sie geöffnet hat, und die gerundete Anzahl der Fenster und Tabs |
+| `session_isolation` | eine isolierte oder Inkognito-Terminal-Sitzung verbindet sich | die angeforderte Isolationsstufe (`none`, `process`, `sandbox`), der erreichte Zustand (`none`, `process`, `sandboxed`, `degraded`), die Betriebssystemfamilie und ob der Tab inkognito ist |
 
 Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsätzen, die Muster und alles, was in die Bereiche eingegeben wird, werden nie gesendet. Änderungen auf den Einstellungsseiten werden als Name der Einstellung gemeldet, bei Schaltern und Auswahlfeldern mit dem neuen Wert; bei den Buchstaben und Mustern der Schnellauswahl und bei neu belegten Tastenkürzeln nur, ob Sie sie geändert haben.
 

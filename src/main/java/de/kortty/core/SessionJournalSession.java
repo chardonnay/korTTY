@@ -385,6 +385,18 @@ public class SessionJournalSession implements AutoCloseable {
     }
 
     /**
+     * Notes how isolated the session runs ({@code isolation: sandboxed (sandbox-exec)}), so the
+     * journal says what the session could reach. Any thread.
+     */
+    public void noteIsolation(String description) {
+        if (!running || closed || description == null || description.isBlank()) {
+            return;
+        }
+        coalescer.tryFlushPending();
+        enqueueBounded(newEntry(SessionJournalLogEntry.Kind.NOTE, "isolation: " + description, false, false, null));
+    }
+
+    /**
      * Stores a PNG screenshot in the journal directory, records it in the capture log, and
      * appends a SCREENSHOT entry to the journal document. Safe to call from any thread; the
      * image bytes are written on the caller's thread.

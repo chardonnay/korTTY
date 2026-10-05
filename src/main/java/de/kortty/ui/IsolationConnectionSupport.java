@@ -159,7 +159,8 @@ final class IsolationConnectionSupport {
      */
     static @Nullable String hint(@Nullable ConnectionProtocol protocol, @NotNull IsolationLevel effective,
                                  @Nullable String sandboxUnavailableReason) {
-        IsolationLevel supported = IsolationSettings.strongestSupported(protocol, false, false);
+        boolean workers = de.kortty.core.worker.SessionWorkerProcess.available();
+        IsolationLevel supported = IsolationSettings.strongestSupported(protocol, workers, workers);
         if (effective.ordinal() > supported.ordinal()) {
             return I18n.get(UNSUPPORTED_KEY, levelName(supported));
         }

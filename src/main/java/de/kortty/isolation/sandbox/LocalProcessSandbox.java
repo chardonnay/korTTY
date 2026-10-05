@@ -96,6 +96,46 @@ public final class LocalProcessSandbox {
     }
 
     /**
+     * Prepares a session worker (the process an SSH session runs in) for {@code request}: with
+     * {@link IsolationLevel#SANDBOX} it starts in the sandbox with korTTY's configuration folder, the
+     * SSH and GnuPG keys and the keychains hidden, writing limited to a folder of its own and, where the
+     * backend can, connections limited to this computer and {@code outboundPorts}. The worker needs no
+     * key file: korTTY signs for it.
+     *
+     * @throws IsolationUnavailableException when the policy demands a sandbox that cannot be used
+     */
+    public static Prepared prepareWorker(IsolationRequest request, List<String> command, List<Integer> outboundPorts)
+            throws IOException {
+        IsolationRequest req = request != null ? request : IsolationRequest.NONE;
+        Map<String, String> env = new HashMap<>(System.getenv());
+        if (req.level() != IsolationLevel.SANDBOX) {
+            return new Prepared(command, env,
+                new IsolationReport(IsolationState.PROCESS, req.level(), null, null), null);
+        }
+        SandboxSupport.Availability availability = SandboxSupport.availability();
+        if (!availability.available()) {
+            String reason = reason(availability);
+            if (req.enforced()) {
+                throw new IsolationUnavailableException(I18n.get("isolation.error.sandboxRequired", reason));
+            }
+            return new Prepared(command, env,
+                new IsolationReport(IsolationState.DEGRADED, IsolationLevel.SANDBOX, availability.backendId(), reason),
+                null);
+        }
+        SandboxBackend backend = SandboxSupport.backend();
+        Path sessionDirectory = SandboxSupport.createSessionDirectory();
+        SandboxSpec spec = new SandboxSpec(
+            SandboxSupport.sensitivePaths(de.kortty.KorTTYApplication.getConfigDirectory()),
+            List.of(), true, List.of(sessionDirectory), outboundPorts);
+        env.put("TMPDIR", sessionDirectory.toString());
+        env.put("KORTTY_SANDBOX", backend.id());
+        String detail = backend.limitsNetwork() ? null : I18n.get("isolation.sandbox.noNetworkLimit");
+        return new Prepared(backend.wrap(command, spec), env,
+            new IsolationReport(IsolationState.SANDBOXED, IsolationLevel.SANDBOX, backend.id(), detail),
+            sessionDirectory);
+    }
+
+    /**
      * The message to refuse a session with before anything starts, when the policy demands a sandbox this
      * computer cannot give; null when the session may start. Runs the self-test the first time.
      */

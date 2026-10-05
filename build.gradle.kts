@@ -679,11 +679,14 @@ val jpackageInput = layout.buildDirectory.dir("jpackage-input")
 // app/ directory, so a properties file there would ship inside the application.
 val jpackageLauncherDir = layout.buildDirectory.dir("jpackage-launchers")
 val cliLauncherProperties = jpackageLauncherDir.map { it.file("kortty-cli.properties") }
+// The session worker (de.kortty.core.worker.SessionWorkerMain): one isolated SSH session per process.
+val workerLauncherProperties = jpackageLauncherDir.map { it.file("kortty-session-worker.properties") }
 
 val prepareCliLauncherProperties = tasks.register("prepareCliLauncherProperties") {
     group = "build"
-    description = "Writes the jpackage --add-launcher properties for the kortty-cli control launcher."
+    description = "Writes the jpackage --add-launcher properties for the kortty-cli control launcher and the session worker."
     outputs.file(cliLauncherProperties)
+    outputs.file(workerLauncherProperties)
     doLast {
         val target = cliLauncherProperties.get().asFile
         target.parentFile.mkdirs()
@@ -710,6 +713,26 @@ val prepareCliLauncherProperties = tasks.register("prepareCliLauncherProperties"
             lines.add("win-shortcut=false")
         }
         target.writeText(lines.joinToString("\n") + "\n")
+
+        // The session worker: a small heap, no perf-data file (its sandbox forbids writing it), logging
+        // to stderr only (its stdout is the control channel). Never a menu entry or shortcut.
+        val worker = workerLauncherProperties.get().asFile
+        val workerLines = mutableListOf(
+            "main-class=de.kortty.core.worker.SessionWorkerMain",
+            "description=korTTY session worker",
+            "java-options=-XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xms16m -Xmx128m -XX:-UsePerfData " +
+                "-Djava.awt.headless=true -Dlogback.configurationFile=logback-worker.xml"
+        )
+        if (isLinux) {
+            workerLines.add("linux-shortcut=false")
+        }
+        if (isWindows) {
+            // GUI subsystem: started by korTTY through pipes, it must never open a console window.
+            workerLines.add("win-console=false")
+            workerLines.add("win-menu=false")
+            workerLines.add("win-shortcut=false")
+        }
+        worker.writeText(workerLines.joinToString("\n") + "\n")
     }
 }
 
@@ -2040,11 +2063,11 @@ fun verifyDmgAppImage(dmgFile: File, sourceAppImage: File) {
  * resource the user runs.</p>
  */
 fun bundlePayloadHash(bundle: File): String {
-    // Contents/MacOS/kortty-cli is ignored for exactly the reason Contents/MacOS/korTTY is: jpackage
-    // re-signs the app image it copies into the DMG, and a second Mach-O in the same directory is in
-    // the same position. Its architecture set is asserted separately in build-release.yml.
+    // Contents/MacOS/kortty-cli and kortty-session-worker are ignored for exactly the reason
+    // Contents/MacOS/korTTY is: jpackage re-signs the app image it copies into the DMG, and every
+    // further Mach-O in the same directory is in the same position. Its architecture set is asserted separately in build-release.yml.
     val ignored = setOf("Contents/app/.jpackage.xml", "Contents/app/.package",
-        "Contents/MacOS/korTTY", "Contents/MacOS/kortty-cli")
+        "Contents/MacOS/korTTY", "Contents/MacOS/kortty-cli", "Contents/MacOS/kortty-session-worker")
     val digest = MessageDigest.getInstance("SHA-256")
     bundle.walkTopDown()
         .filter { it.isFile && !Files.isSymbolicLink(it.toPath()) }
@@ -2289,8 +2312,12 @@ fun getJpackageBaseArgs(appName: String, appVersion: String, mainJar: String, in
     // app-image, the Windows app-image and msi, and the Linux app-image, deb and rpm. jpackageDmg
     // builds its own argument list and repackages the finished .app via --app-image, so it must NOT
     // receive this — it inherits the launcher with the bundle.
-    args.addAll(listOf("--add-launcher",
-        "kortty-cli=" + cliLauncherProperties.get().asFile.absolutePath))
+    // The control CLI and the session worker (one isolated SSH session per process).
+    for (launcher in listOf(
+            "kortty-cli=" + cliLauncherProperties.get().asFile.absolutePath,
+            "kortty-session-worker=" + workerLauncherProperties.get().asFile.absolutePath)) {
+        args.addAll(listOf("--add-launcher", launcher))
+    }
     if (externalRuntimeImage) {
         // The image from prepareRuntimeImage (same modules/options, minus lib/ct.sym).
         args.addAll(listOf("--runtime-image", runtimeImageDir.get().asFile.absolutePath))

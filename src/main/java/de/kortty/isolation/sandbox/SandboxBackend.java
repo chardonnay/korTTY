@@ -14,6 +14,11 @@ public interface SandboxBackend {
      */
     boolean installed();
 
+    /** Whether this backend applies {@link SandboxSpec#outboundPorts()}. */
+    default boolean limitsNetwork() {
+        return false;
+    }
+
     /** The command that starts {@code command} inside the sandbox {@code spec} describes. */
     List<String> wrap(List<String> command, SandboxSpec spec);
 }
