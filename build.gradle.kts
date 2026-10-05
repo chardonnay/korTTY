@@ -3482,13 +3482,14 @@ tasks.register<JavaExec>("atlantaFxDesignSmoke") {
 tasks.register<JavaExec>("settingsTabScreenshotStage") {
     group = "documentation"
     description = "Shows a chosen Settings tab on screen for the docs screenshot capture " +
-        "(-Pkortty.screenshotTabKey=settings.tab.<name>, default settings.tab.window)."
+        "(-Pkortty.screenshotTabKey=settings.tab.<name>, default settings.tab.window; " +
+        "-Pkortty.screenshotThemeId=<color profile id> selects a profile on Colors and Themes)."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.SettingsTabScreenshotStage")
     classpath = sourceSets.test.get().runtimeClasspath
     args = listOf((findProperty("kortty.captureDoneFlag") as String?) ?: "")
     listOf("kortty.screenshotTabKey", "kortty.screenshotPaneWidth",
-           "kortty.screenshotPaneHeight", "kortty.screenshotHome").forEach { key ->
+           "kortty.screenshotPaneHeight", "kortty.screenshotHome", "kortty.screenshotThemeId").forEach { key ->
         (findProperty(key) as String?)?.let { systemProperty(key, it) }
     }
 }

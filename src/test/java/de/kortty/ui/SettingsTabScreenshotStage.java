@@ -1,10 +1,12 @@
 package de.kortty.ui;
 
 import de.kortty.JavaFxPlatformSupport;
+import de.kortty.KorTTYApplication;
 import de.kortty.core.ConfigurationManager;
 import de.kortty.core.CredentialManager;
 import de.kortty.core.GPGKeyManager;
 import de.kortty.core.LanguageManager;
+import de.kortty.core.ThemeManager;
 import de.kortty.model.GlobalSettings;
 import javafx.application.Platform;
 import javafx.scene.control.DialogPane;
@@ -32,6 +34,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>The tab to show is the i18n key given by the {@code kortty.screenshotTabKey} system property
  * (e.g. {@code settings.tab.security}); it defaults to {@code settings.tab.window}. The dialog runs
  * against an isolated temp home in English so no real credentials or German labels appear.
+ *
+ * <p>The Colors and Themes tabs list the color profiles of the application's {@link ThemeManager},
+ * so the dialog gets an application object that carries one, filled with the built-in profiles.
+ * {@code kortty.screenshotThemeId} (e.g. {@code github-dark}) selects a profile on both tabs; without
+ * it the terminal defaults are shown with no profile selected, as on a new installation.</p>
  */
 public final class SettingsTabScreenshotStage {
 
@@ -106,9 +113,13 @@ public final class SettingsTabScreenshotStage {
         GlobalSettings settings = new GlobalSettings();
         settings.setLanguage("en");
         LanguageManager.getInstance().initialize(settings);
+        String themeId = System.getProperty("kortty.screenshotThemeId");
+        if (themeId != null && !themeId.isBlank()) {
+            settings.getDefaultTerminalSettings().setThemeId(themeId.trim());
+        }
 
         SettingsDialog dialog = new SettingsDialog(
-            null, null,
+            null, applicationWithThemes(isolatedHome.resolve(".kortty")),
             new ConfigurationManager(isolatedHome), settings,
             new CredentialManager(isolatedHome), new GPGKeyManager(isolatedHome));
         DialogThemeHelper.applyTheme(dialog);
@@ -170,6 +181,23 @@ public final class SettingsTabScreenshotStage {
             done.countDown();
         });
         poll.play();
+    }
+
+    /**
+     * An application object that only carries a {@link ThemeManager} with the built-in profiles,
+     * which is all the Colors and Themes tabs read from it. It is not {@code init()}ed — that would
+     * start the real services — and every other application getter the dialog reaches while it is
+     * built is null-guarded, so the remaining tabs render exactly as without an application.
+     */
+    private static KorTTYApplication applicationWithThemes(Path configDir) throws Exception {
+        Files.createDirectories(configDir);
+        ThemeManager themeManager = new ThemeManager(configDir);
+        themeManager.load();
+        KorTTYApplication app = new KorTTYApplication();
+        Field field = KorTTYApplication.class.getDeclaredField("themeManager");
+        field.setAccessible(true);
+        field.set(app, themeManager);
+        return app;
     }
 
     private static void selectTab(SettingsDialog dialog, String title) throws Exception {
