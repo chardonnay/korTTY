@@ -96,6 +96,8 @@ Jede wiederhergestellte Datei ersetzt die lokale atomar, sodass ein unterbrochen
 !!! important "Ein Backup mit einem anderen Master-Passwort"
     Wenn ein Überschreibungsimport das `master.key` eines anderen Master-Passworts bringt, gehört alles, was korTTY geladen hat, immer noch zum alten. korTTY fordert Sie auf, neu zu starten und beendet sich ohne die aktuellen Daten zu speichern, sodass die wiederhergestellten Dateien unverändert bleiben. Starten Sie korTTY erneut und entsperren es mit dem Master-Passwort des Backups.
 
+    Ein zusammenführender Import (**Abbrechen** bei der Frage nach dem Überschreiben) behält Ihren eigenen `master.key`. Wurde das Backup mit einem anderen Master-Passwort erstellt und bringt es Dateien mit Geheimnissen mit — `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `global-settings.xml`, `job-scheduler.xml` oder `rag/stores.json` —, fragt korTTY einmal nach dem Master-Passwort des Backups (maskiert, nie protokolliert) und prüft es gegen den `master.key` des Backups. Anschließend entschlüsselt es die Passwörter, Passphrasen, Schlüssel und Tokens dieser Dateien mit dem Master-Passwort des Backups und verschlüsselt sie mit Ihrem aktuellen neu, bevor etwas kopiert wird; die Erfolgsmeldung nennt die Anzahl der neu verschlüsselten Geheimnisse. Ein Geheimnis, das sich auch mit dem Master-Passwort des Backups nicht entschlüsseln lässt, bleibt leer, statt unlesbar importiert zu werden. Wenn Sie die Abfrage abbrechen, dreimal ein falsches Passwort eingeben oder der Tresor gesperrt ist, werden die Dateien mit Geheimnissen gar nicht importiert und die Meldung listet sie auf; die übrigen Dateien werden trotzdem importiert, und Sie können das Backup erneut importieren, um das Passwort einzugeben. korTTY schreibt nie ein Geheimnis, das mit einem Master-Passwort verschlüsselt ist, das es nicht kennt.
+
 ## Inhalt der Sicherungsdatei
 
 Sowohl `.zip`- als auch `.zip.gpg`-Backups enthalten dieselben Dateien:
@@ -124,7 +126,7 @@ Sowohl `.zip`- als auch `.zip.gpg`-Backups enthalten dieselben Dateien:
 Die Sitzungs-Snapshots in `~/.kortty/session/`, die *Datei → Vorherige Sitzung wiederherstellen* öffnet, sind nicht enthalten: Sie beschreiben die Fenster und Tabs dieses Computers, und die Liste „Zuletzt geschlossen“, die sie enthalten, bleibt mit ihnen auf diesem Computer. Nach dem Wiederherstellen eines Backups öffnet *Vorherige Sitzung wiederherstellen* weiterhin die Sitzung dieses Computers, und ihre Tabs öffnen sich mit den wiederhergestellten Verbindungen. Siehe [Vorherige Sitzung](projects.md#vorherige-sitzung).
 
 !!! note
-    Alle Passwörter und Anmeldeinformationen im Backup bleiben mit Ihrem Master-Passwort verschlüsselt. Wenn Sie ein Backup importieren, müssen Sie das Hauptkennwort für KorTTY entsperren, um die Anmeldeinformationen zu entschlüsseln.
+    Alle Passwörter und Anmeldeinformationen im Backup bleiben mit Ihrem Master-Passwort verschlüsselt. Wenn Sie ein Backup importieren, müssen Sie korTTY mit dem Master-Passwort entsperren, damit die Anmeldeinformationen entschlüsselt werden können. Ein zusammenführender Import eines Backups, das mit einem anderen Master-Passwort erstellt wurde, verschlüsselt sie mit Ihrem aktuellen neu (siehe [Ein Backup mit einem anderen Master-Passwort](#ein-backup-wird-importiert)).
 
 !!! important "Erstellen Sie lokale KI-Assets nach einer Wiederherstellung neu"
     Die Sicherung schließt `llm/models/`-, `llm/runtime/`-, `llm/catalog/`-, `llm/run/`- und lokale `index.hnsw`-Snapshots aus. Stellen Sie nach dem Wechsel auf einen anderen Computer die GGUF-Dateien und eine kompatible Laufzeit wieder her oder laden Sie sie herunter, verbinden Sie alle externen Modell-/Quellpfade erneut und führen Sie dann **Jetzt aktualisieren** in jedem Wissensspeicher aus, um seinen Index neu zu generieren. Der signierte Katalogcache wird automatisch aktualisiert oder greift auf den Bootstrap zurück. Originalquelldokumente und externe Qdrant-Daten sind nicht Teil einer korTTY-Konfigurationssicherung.
@@ -172,7 +174,7 @@ Alle gesicherten Verbindungen, Einstellungen, Snippets, gespeicherten Chats, int
 **"GPG-Verschlüsselung fehlgeschlagen"**
 `gpg` konnte die neue Sicherung nicht verschlüsseln: es ist nicht installiert, oder der öffentliche Schlüssel des ausgewählten Schlüssels befindet sich weder in Ihrem GPG-Schlüsselbund noch als Schlüsseldatei, die mit dem Schlüssel in **GPG-Schlüssel verwalten...** gespeichert ist. Die vorherige Sicherung im Zielverzeichnis bleibt unverändert.
 
-**"GPG decryption failed"**
+**"GPG-Entschlüsselung fehlgeschlagen"**
 : `gpg` konnte die Sicherung nicht entschlüsseln: der private Schlüssel, der zum GPG-Schlüssel der Sicherung passt, befindet sich nicht in Ihrem Schlüsselbund, `gpg` ist nicht installiert oder Sie haben die Passphrase-Eingabe abgebrochen. Importieren Sie den privaten Schlüssel in Ihren GPG-Schlüsselbund (zum Beispiel mit `gpg --import`) und versuchen Sie es erneut.
 
 **„GPG-Schlüssel nicht gefunden“**
