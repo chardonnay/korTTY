@@ -40,6 +40,9 @@ import java.util.function.Supplier;
 public final class DialogFirstOpenFitSmoke {
 
     private static final List<String> FAILURES = new ArrayList<>();
+    private static final double LAPTOP_WIDTH = 1512;
+    private static final double LAPTOP_HEIGHT = 945;
+    private static final String LAPTOP_KEY = "smoke.laptopScreen";
     private static final List<Runnable> QUEUE = new ArrayList<>();
 
     private DialogFirstOpenFitSmoke() {
@@ -81,6 +84,9 @@ public final class DialogFirstOpenFitSmoke {
         app.init();
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
         settings.setLanguage(language);
+        // Every dialog must be a true first open: one closed earlier in this run would otherwise
+        // store its geometry, and the next dialog of the same class would restore it.
+        settings.setRememberWindowGeometry(false);
         String fontScale = System.getProperty("kortty.fit.fontScale");
         if (fontScale != null && !fontScale.isBlank()) {
             settings.setUiFontScalePercent(Integer.parseInt(fontScale.trim()));
@@ -113,6 +119,15 @@ public final class DialogFirstOpenFitSmoke {
         factories.put("connectionManager", () -> new ConnectionManagerDialog(stage, app));
         factories.put("connectionEdit", () -> new ConnectionEditDialog(stage, connection,
             app.getCredentialManager(), app.getSSHKeyManager(), app.getMasterPasswordManager().getMasterPassword()));
+        // The same dialog fitted to a 1512x945 laptop screen (this one may be much larger): it must
+        // be held to that height and still show every label, its tabs scrolling instead.
+        factories.put("connectionEditLaptop", () -> {
+            ConnectionEditDialog dialog = new ConnectionEditDialog(stage, connection, app.getCredentialManager(),
+                app.getSSHKeyManager(), app.getMasterPasswordManager().getMasterPassword());
+            DialogContentFit.fit(dialog.getDialogPane(), LAPTOP_WIDTH * 0.92, LAPTOP_HEIGHT * 0.92);
+            dialog.getDialogPane().getProperties().put(LAPTOP_KEY, Boolean.TRUE);
+            return dialog;
+        });
         factories.put("aiManager", () -> owned(new AiManagerDialog(window), stage));
         factories.put("jobScheduler", () -> new JobSchedulerDialog(app, stage));
         factories.put("snippetWorkspace", () -> owned(new SnippetWorkspaceDialog(app.getSnippetManager(), window), stage));
@@ -174,6 +189,13 @@ public final class DialogFirstOpenFitSmoke {
                 Stage window = (Stage) scene.getWindow();
                 System.out.printf(Locale.ROOT, "FIT %-18s window=%.0fx%.0f cut=%d%n",
                     name, window.getWidth(), window.getHeight(), cut.size());
+                javafx.geometry.Rectangle2D screen = dialog.getDialogPane().getProperties().containsKey(LAPTOP_KEY)
+                    ? new javafx.geometry.Rectangle2D(0, 0, LAPTOP_WIDTH, LAPTOP_HEIGHT)
+                    : javafx.stage.Screen.getPrimary().getVisualBounds();
+                if (window.getHeight() > screen.getHeight() || window.getWidth() > screen.getWidth()) {
+                    FAILURES.add(String.format(Locale.ROOT, "%s: window %.0fx%.0f exceeds the screen %.0fx%.0f",
+                        name, window.getWidth(), window.getHeight(), screen.getWidth(), screen.getHeight()));
+                }
                 for (DialogContentFit.Shortfall shortfall : cut) {
                     String line = String.format(Locale.ROOT, "%s: \"%s\" cut by %.0fx%.0f px%s",
                         name, shortfall.text(), shortfall.width(), shortfall.height(),

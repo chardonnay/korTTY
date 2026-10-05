@@ -129,4 +129,24 @@ class DialogGeometrySupportTest {
         assertThat(SnippetWorkspaceDialog.usableStoredGeometry(geometry(2954, 167, 1200, 900), List.of(LAPTOP)).getX())
             .isLessThan(LAPTOP.getMaxX());
     }
+
+    @Test
+    void shortensAStoredWindowTallerThanItsScreenAndKeepsItOnIt() {
+        // The connection editor once opened 1111px tall on a laptop and stored that height.
+        WindowGeometry fixed = DialogGeometrySupport.sanitize(geometry(140, 60, 1233, 1111), List.of(LAPTOP));
+
+        assertThat(fixed.getHeight()).isEqualTo(LAPTOP.getHeight());
+        assertThat(fixed.getY()).isEqualTo(LAPTOP.getMinY());
+        assertThat(fixed.getY() + fixed.getHeight()).isAtMost(LAPTOP.getMaxY());
+        assertThat(fixed.getX()).isEqualTo(140);
+        assertThat(fixed.getWidth()).isEqualTo(1233);
+    }
+
+    @Test
+    void movesAStoredWindowUpWhenItFitsTheScreenButHangsOffTheBottom() {
+        WindowGeometry fixed = DialogGeometrySupport.sanitize(geometry(200, 400, 900, 700), List.of(LAPTOP));
+
+        assertThat(fixed.getHeight()).isEqualTo(700);
+        assertThat(fixed.getY() + fixed.getHeight()).isAtMost(LAPTOP.getMaxY());
+    }
 }
