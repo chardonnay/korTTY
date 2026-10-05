@@ -7,6 +7,7 @@ import de.kortty.model.ServerConnection;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogEvent;
@@ -172,6 +173,107 @@ public final class DialogFirstOpenFitSmoke {
         settle.play();
     }
 
+    /**
+     * Clicks through every tab the way a user would and measures each one while it is showing
+     * (lazily attached tab content only appears on selection), then restores the selection.
+     * Only labels not already reported for the first picture are returned.
+     */
+    private static List<DialogContentFit.Shortfall> selectEveryTab(javafx.scene.control.DialogPane pane, Path snapshotPrefix) {
+        List<DialogContentFit.Shortfall> found = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        DialogContentFit.shortfalls(pane).forEach(shortfall -> seen.add(shortfall.text()));
+        int index = 0;
+        for (Node node : pane.lookupAll(".tab-pane")) {
+            if (!(node instanceof javafx.scene.control.TabPane tabPane) || !node.isVisible()) {
+                continue;
+            }
+            javafx.scene.control.Tab original = tabPane.getSelectionModel().getSelectedItem();
+            for (javafx.scene.control.Tab tab : tabPane.getTabs()) {
+                if (tab.isDisable()) {
+                    continue;
+                }
+                tabPane.getSelectionModel().select(tab);
+                pane.applyCss();
+                pane.layout();
+                pane.layout();
+                try {
+                    ImageIO.write(SwingFXUtils.fromFXImage(pane.getScene().snapshot(null), null), "png",
+                        Path.of(snapshotPrefix + "-tab" + (index++) + ".png").toFile());
+                } catch (Exception ex) {
+                    System.err.println("tab snapshot failed: " + ex);
+                }
+                for (DialogContentFit.Shortfall shortfall : DialogContentFit.shortfalls(pane)) {
+                    if (seen.add(shortfall.text())) {
+                        found.add(new DialogContentFit.Shortfall("[" + tab.getText() + "] " + shortfall.text(),
+                            shortfall.width(), shortfall.height(), shortfall.growable()));
+                    }
+                }
+            }
+            tabPane.getSelectionModel().select(original);
+        }
+        return found;
+    }
+
+    /** A dialog with tab arrows: they step through the tabs, stop at the ends, and nothing covers them. */
+    private static void checkTabArrows(String name, javafx.scene.control.DialogPane pane) {
+        Node arrows = pane.lookup("." + TabPaneArrowNavigation.ARROWS_STYLE_CLASS);
+        if (arrows == null) {
+            return;
+        }
+        javafx.scene.control.TabPane tabPane = (javafx.scene.control.TabPane) pane.lookup(".tab-pane");
+        List<javafx.scene.control.Button> buttons = ((javafx.scene.Parent) arrows).getChildrenUnmodifiable().stream()
+            .filter(javafx.scene.control.Button.class::isInstance).map(javafx.scene.control.Button.class::cast).toList();
+        javafx.scene.control.Button previous = buttons.get(0);
+        javafx.scene.control.Button next = buttons.get(1);
+        javafx.scene.control.Tab original = tabPane.getSelectionModel().getSelectedItem();
+        tabPane.getSelectionModel().selectFirst();
+        if (!previous.isDisabled() || next.isDisabled()) {
+            FAILURES.add(name + ": on the first tab the back arrow must be disabled and the forward arrow enabled");
+        }
+        next.fire();
+        if (tabPane.getSelectionModel().getSelectedIndex() != 1) {
+            FAILURES.add(name + ": the forward arrow did not select the second tab");
+        }
+        previous.fire();
+        if (tabPane.getSelectionModel().getSelectedIndex() != 0) {
+            FAILURES.add(name + ": the back arrow did not return to the first tab");
+        }
+        // The documented keyboard path: Ctrl+Tab from a field inside the tab moves to the next tab.
+        Node field = tabPane.getSelectionModel().getSelectedItem().getContent().lookup(".text-field");
+        Node target = field != null ? field : tabPane;
+        javafx.event.Event.fireEvent(target, new javafx.scene.input.KeyEvent(javafx.scene.input.KeyEvent.KEY_PRESSED,
+            "", "", javafx.scene.input.KeyCode.TAB, false, true, false, false));
+        if (tabPane.getSelectionModel().getSelectedIndex() != 1) {
+            FAILURES.add(name + ": Ctrl+Tab did not move to the next tab");
+        }
+        javafx.event.Event.fireEvent(target, new javafx.scene.input.KeyEvent(javafx.scene.input.KeyEvent.KEY_PRESSED,
+            "", "", javafx.scene.input.KeyCode.TAB, true, true, false, false));
+        if (tabPane.getSelectionModel().getSelectedIndex() != 0) {
+            FAILURES.add(name + ": Ctrl+Shift+Tab did not move back to the first tab");
+        }
+        tabPane.getSelectionModel().selectLast();
+        if (previous.isDisabled() || !next.isDisabled()) {
+            FAILURES.add(name + ": on the last tab the forward arrow must be disabled");
+        }
+        tabPane.getSelectionModel().select(original);
+        pane.applyCss();
+        pane.layout();
+        // The header's tabs and overflow menu must end before the arrows begin.
+        javafx.geometry.Bounds arrowBounds = arrows.localToScene(arrows.getLayoutBounds());
+        for (Node header : tabPane.lookupAll(".tab, .control-buttons-tab")) {
+            if (!header.isVisible()) {
+                continue;
+            }
+            javafx.geometry.Bounds bounds = header.localToScene(header.getLayoutBounds());
+            if (bounds.getMaxX() > arrowBounds.getMinX() + 0.5 && bounds.getMinX() < arrowBounds.getMaxX()
+                && bounds.getMinY() < arrowBounds.getMaxY() && bounds.getMaxY() > arrowBounds.getMinY()) {
+                FAILURES.add(name + ": a tab header overlaps the tab arrows");
+                break;
+            }
+        }
+        System.out.println("    " + name + ": tab arrows OK");
+    }
+
     private static Dialog<?> owned(Dialog<?> dialog, Stage owner) {
         dialog.initOwner(owner);
         return dialog;
@@ -200,7 +302,9 @@ public final class DialogFirstOpenFitSmoke {
                 Scene scene = dialog.getDialogPane().getScene();
                 scene.getRoot().applyCss();
                 scene.getRoot().layout();
-                List<DialogContentFit.Shortfall> cut = DialogContentFit.shortfalls(dialog.getDialogPane());
+                List<DialogContentFit.Shortfall> cut = new ArrayList<>(DialogContentFit.shortfalls(dialog.getDialogPane()));
+                cut.addAll(selectEveryTab(dialog.getDialogPane(), out.resolve(name)));
+                checkTabArrows(name, dialog.getDialogPane());
                 Stage window = (Stage) scene.getWindow();
                 System.out.printf(Locale.ROOT, "FIT %-18s window=%.0fx%.0f cut=%d%n",
                     name, window.getWidth(), window.getHeight(), cut.size());

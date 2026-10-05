@@ -30,6 +30,7 @@ import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -171,9 +172,11 @@ final class AiSkillsPane extends VBox {
             sortAiSkillByNameItem,
             sortAiSkillByStatusItem);
 
-        HBox aiSkillSortButtons = new HBox(8, sortAiSkillButton, showHiddenCheck);
+        // The list column is narrow: both rows wrap instead of cutting their labels.
+        FlowPane aiSkillSortButtons = new FlowPane(8, 8, sortAiSkillButton, showHiddenCheck);
         aiSkillSortButtons.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-        HBox aiSkillButtons = new HBox(8, addAiSkillButton, deleteAiSkillButton, importAiSkillButton, exportAiSkillButton);
+        FlowPane aiSkillButtons = new FlowPane(8, 8, addAiSkillButton, deleteAiSkillButton, importAiSkillButton,
+            exportAiSkillButton);
         VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, aiSkillSortButtons,
             aiSkillSearchField, aiSkillListView, aiSkillCountLabel, aiSkillButtons);
         updateAiSkillCounts();

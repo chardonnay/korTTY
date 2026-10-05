@@ -23,6 +23,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -646,7 +647,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
     
     private void showRestoreTeamworkDialog() {
         if (app.getTeamworkSyncService() == null) return;
-        RestoreTeamworkDialog dialog = new RestoreTeamworkDialog(owner, app);
+        RestoreTeamworkDialog dialog = new RestoreTeamworkDialog(childOwner(), app);
         dialog.showAndWait().ifPresent(restored -> {
             if (restored != null) {
                 app.getTeamworkSyncService().syncNow();
@@ -676,7 +677,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         
         final String finalTargetGroup = targetGroup;
         
-        ConnectionEditDialog dialog = new ConnectionEditDialog(owner, null, credentialManager, 
+        ConnectionEditDialog dialog = new ConnectionEditDialog(childOwner(), null, credentialManager, 
             app.getSSHKeyManager(), masterPassword);
         dialog.showAndWait().ifPresent(connection -> {
             if (finalTargetGroup != null && !finalTargetGroup.isEmpty()) {
@@ -696,7 +697,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         if (localEditIndex(connections, selected) < 0) {
             return;
         }
-        ConnectionEditDialog dialog = new ConnectionEditDialog(owner, selected, credentialManager, 
+        ConnectionEditDialog dialog = new ConnectionEditDialog(childOwner(), selected, credentialManager, 
             app.getSSHKeyManager(), masterPassword);
         dialog.showAndWait().ifPresent(editedConnection -> {
             int index = localEditIndex(connections, selected);
@@ -811,7 +812,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         dialog.setTitle(I18n.get("connManager.assignTag.title"));
         dialog.setHeaderText(I18n.get("connManager.assignTag.header", filtered.size()));
         dialog.setContentText(I18n.get("connManager.assignTag.prompt"));
-        dialog.initOwner(owner);
+        dialog.initOwner(childOwner());
         dialog.initModality(Modality.WINDOW_MODAL);
 
         dialog.showAndWait().ifPresent(tag -> {
@@ -886,7 +887,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         dialog.setHeaderText(I18n.get("connManager.newFolderHeader") + 
             (parentPath.isRoot() ? "" : " in \"" + parentPath.getName() + "\""));
         dialog.setContentText(I18n.get("connManager.folderName"));
-        dialog.initOwner(owner);
+        dialog.initOwner(childOwner());
         dialog.initModality(Modality.WINDOW_MODAL);
         
         dialog.showAndWait().ifPresent(name -> {
@@ -932,7 +933,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                     ButtonType.OK, ButtonType.CANCEL);
                 DialogThemeHelper.applyTheme(confirm);
                 confirm.setHeaderText(null);
-                confirm.initOwner(owner);
+                confirm.initOwner(childOwner());
                 if (confirm.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.OK) {
                     return; // leave it enabled; the CheckMenuItem re-renders correct state on next open
                 }
@@ -1008,7 +1009,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         }
         Map<String, String> colors = settings.getConnectionGroupColors();
         ConnectionGroupColorDialog dialog = new ConnectionGroupColorDialog(groupPath, colors);
-        dialog.initOwner(getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : owner);
+        dialog.initOwner(childOwner());
         dialog.showAndWait().ifPresent(choice -> {
             String key = ConnectionGroupColors.key(groupPath.getPath());
             if (key == null) {
@@ -1099,7 +1100,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         dialog.setTitle(I18n.get("connManager.renameFolder"));
         dialog.setHeaderText(I18n.get("connManager.renameFolderHeader", oldPath.getName()));
         dialog.setContentText(I18n.get("connManager.newName"));
-        dialog.initOwner(owner);
+        dialog.initOwner(childOwner());
         dialog.initModality(Modality.WINDOW_MODAL);
         
         dialog.showAndWait().ifPresent(newName -> {
@@ -1197,6 +1198,17 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         });
     }
     
+    /**
+     * The window this manager's own dialogs belong to: the manager itself, not the main window. A
+     * child dialog owned by the main window returns the focus there when it closes — to a window
+     * the manager still blocks as a modal, which macOS answers with its error beep on every Save
+     * or Cancel of the connection editor.
+     */
+    private Stage childOwner() {
+        Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
+        return window instanceof Stage stage && stage.isShowing() ? stage : owner;
+    }
+
     private void saveConnections() {
         try {
             // saveOrThrow, not save: a refused or failed write must reach the error alert below.
@@ -1236,7 +1248,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             return;
         }
         
-        ConnectionExportDialog dialog = new ConnectionExportDialog(owner, finalConnectionsToExport,
+        ConnectionExportDialog dialog = new ConnectionExportDialog(childOwner(), finalConnectionsToExport,
             isLocalTabActive() ? connections : teamworkConnections);
         dialog.showAndWait().ifPresent(result -> {
             try {
@@ -1304,7 +1316,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
     }
     
     private void importConnections() {
-        ConnectionImportDialog dialog = new ConnectionImportDialog(owner, credentialManager, 
+        ConnectionImportDialog dialog = new ConnectionImportDialog(childOwner(), credentialManager, 
             app.getSSHKeyManager(), configManager);
         dialog.showAndWait().ifPresent(result -> {
             try {
@@ -1403,7 +1415,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                     passwordDialog.setTitle(I18n.get("dialog.passwordRequired"));
                     passwordDialog.setHeaderText(I18n.get("connImport.zipPasswordProtected"));
                     passwordDialog.initModality(Modality.WINDOW_MODAL);
-                    passwordDialog.initOwner(owner);
+                    passwordDialog.initOwner(childOwner());
                     
                     javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
                     grid.setHgap(10);

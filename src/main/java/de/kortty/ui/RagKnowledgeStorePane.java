@@ -49,9 +49,11 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TitledPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -131,12 +133,14 @@ final class RagKnowledgeStorePane extends VBox implements AutoCloseable {
 
         Label intro = new Label(I18n.get("ai.rag.intro"));
         intro.setWrapText(true);
+        // Never squeezed to one cut line by the tables below: it keeps the lines it wraps to.
+        intro.setMinHeight(Region.USE_PREF_SIZE);
         configureStoreTable();
         configureSourceTable();
         storeTable.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, selected) -> refreshSources(selected));
 
-        HBox storeActions = storeActions();
-        HBox sourceActions = sourceActions();
+        FlowPane storeActions = storeActions();
+        FlowPane sourceActions = sourceActions();
         status.setWrapText(true);
         status.setStyle(MutedTextStyle.HINT);
         VBox storeBox = new VBox(6, sectionTitle(I18n.get("ai.rag.stores")), storeTable, storeActions);
@@ -214,7 +218,7 @@ final class RagKnowledgeStorePane extends VBox implements AutoCloseable {
         sourceTable.getColumns().addAll(List.of(path, type, mode, state, documents, problems, updated));
     }
 
-    private HBox storeActions() {
+    private FlowPane storeActions() {
         Button create = new Button(I18n.get("ai.rag.create"));
         create.setOnAction(event -> createStoreWizard());
         Button configure = new Button(I18n.get("ai.rag.configure"));
@@ -228,7 +232,7 @@ final class RagKnowledgeStorePane extends VBox implements AutoCloseable {
         return actionBox(create, configure, delete, test, refresh);
     }
 
-    private HBox sourceActions() {
+    private FlowPane sourceActions() {
         Button files = new Button(I18n.get("ai.rag.addFiles"));
         files.setOnAction(event -> addFiles());
         Button directory = new Button(I18n.get("ai.rag.addFolder"));
@@ -891,8 +895,9 @@ final class RagKnowledgeStorePane extends VBox implements AutoCloseable {
         return grid;
     }
 
-    private static HBox actionBox(javafx.scene.Node... nodes) {
-        HBox box = new HBox(8, nodes); box.setAlignment(Pos.CENTER_LEFT); return box;
+    /** A row of action buttons that wraps onto a second line in a narrow window instead of cutting labels. */
+    private static FlowPane actionBox(javafx.scene.Node... nodes) {
+        FlowPane box = new FlowPane(8, 8, nodes); box.setAlignment(Pos.CENTER_LEFT); return box;
     }
 
     private static Label sectionTitle(String text) {

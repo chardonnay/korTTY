@@ -12,6 +12,8 @@ import javafx.scene.control.DialogEvent;
 import javafx.scene.control.DialogPane;
 import javafx.scene.control.Labeled;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.control.TreeView;
@@ -289,6 +291,16 @@ final class DialogContentFit {
                 collect(child, result);
             }
         }
+        // The tabs behind the selected one are hidden, but the tab pane lays them out at the same
+        // size; measured too, so a label on a tab the user opens later is not cut either. (A tab
+        // whose content is attached only on first selection has none yet and is skipped.)
+        if (node instanceof TabPane tabPane) {
+            for (Tab tab : tabPane.getTabs()) {
+                if (tab != tabPane.getSelectionModel().getSelectedItem() && tab.getContent() != null) {
+                    collect(tab.getContent(), result);
+                }
+            }
+        }
     }
 
     /**
@@ -297,7 +309,7 @@ final class DialogContentFit {
      */
     static Shortfall shortfallOf(Labeled labeled) {
         String full = labeled.getText();
-        if (full == null || full.isBlank() || labeled.isWrapText()) {
+        if (full == null || full.isBlank()) {
             return null;
         }
         Text drawn = drawnText(labeled);
@@ -312,6 +324,13 @@ final class DialogContentFit {
         boolean cut = shown.isEmpty() || (ellipsis != null && !ellipsis.isEmpty() && shown.contains(ellipsis));
         if (!cut) {
             return null;
+        }
+        if (labeled.isWrapText()) {
+            // A wrapping label is cut when it gets fewer lines than it needs: it lacks height.
+            double missingHeight = Math.ceil(labeled.prefHeight(labeled.getWidth()) - labeled.getHeight());
+            return missingHeight > EPSILON
+                ? new Shortfall(full, 0, missingHeight, labeled.getPrefHeight() == Region.USE_COMPUTED_SIZE)
+                : null;
         }
         Text probe = new Text(labeled.isMnemonicParsing() ? withoutMnemonic(full) : full);
         probe.setFont(labeled.getFont());

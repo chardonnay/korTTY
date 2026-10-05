@@ -85,6 +85,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -200,6 +201,8 @@ final class LocalModelManagerPane extends VBox {
         setPadding(new Insets(8));
         Label intro = new Label(I18n.get("ai.local.models.intro"));
         intro.setWrapText(true);
+        // Never squeezed to one cut line by the tables below: it keeps the lines it wraps to.
+        intro.setMinHeight(Region.USE_PREF_SIZE);
         status.setWrapText(true);
         status.setStyle(MutedTextStyle.HINT);
 
@@ -781,7 +784,9 @@ final class LocalModelManagerPane extends VBox {
         Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
         refreshButton.setOnAction(event -> refresh());
         ButtonIcons.apply(refreshButton, ButtonIcons.REFRESH);
-        HBox buttons = new HBox(8, wizard, importModel, configure, makeDefault, start, stop, remove, refreshButton);
+        // Wraps onto a second row when the window is too narrow, instead of cutting the labels.
+        FlowPane buttons = new FlowPane(8, 8, wizard, importModel, configure, makeDefault, start, stop, remove,
+            refreshButton);
         buttons.setAlignment(Pos.CENTER_LEFT);
         VBox box = new VBox(7, title, installedTable, buttons);
         box.minHeightProperty().bind(Bindings.when(downloadStatusPanel.visibleProperty())
