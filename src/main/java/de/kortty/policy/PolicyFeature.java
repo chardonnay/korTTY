@@ -56,7 +56,13 @@ public enum PolicyFeature {
      * switches are forced off. It also needs {@link #CONTROL_API}; a plain control-API client is not
      * affected.
      */
-    MCP_SERVER("mcp-server");
+    MCP_SERVER("mcp-server"),
+    /**
+     * Incognito terminal sessions: nothing about them is written down (terminal log, session journal,
+     * recording, history, recently closed, session restore). Allowed unless denied; denied, the option is
+     * locked off and every session is a normal one. A log or journal the policy enforces is written either way.
+     */
+    INCOGNITO_SESSIONS("incognito-sessions");
 
     private final String tomlKey;
 

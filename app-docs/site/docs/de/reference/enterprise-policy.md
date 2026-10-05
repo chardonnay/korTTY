@@ -129,6 +129,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | `sftp-sudo-edit` | string | `allow`, `deny` | [Serverdateien als root bearbeiten](../features/sftp.md#als-root-bearbeiten) im SFTP-Manager. `deny` graut **Als root bearbeiten (sudo)...** im Rechtsklickmenü und im Remote-Menü **Bearbeiten** aus. Die Funktion ist außerdem ausgegraut, solange `file-transfer` verweigert wird oder `load-into-snippet-editor` auf `read-only` oder `deny` steht, weil eine Bearbeitung als root immer eine lokale Kopie braucht und immer zurückschreibt. Es gibt kein Steuerelement in den Einstellungen, daher ändert `allow` nichts |
 | `job-webhooks` | Zeichenfolge | `allow`, `deny` | [Webhook-Benachrichtigungen](../features/jobscheduler.md#lauf-benachrichtigungen) des JobSchedulers an Slack, Teams oder einen generischen JSON-Empfänger. `deny` stoppt jede Webhook-Zustellung eines Laufs und jede Testnachricht, bevor etwas entschlüsselt oder gesendet wird, und das Job-Journal vermerkt für jedes Ziel *notification blocked by policy*; Desktop-Benachrichtigungen sind nicht betroffen. Welche Hosts Webhooks erreichen dürfen, legt `webhook-host-allowlist` in [`[rule.job-scheduler]`](#rulejob-scheduler) fest. Es gibt kein Bedienelement in den Einstellungen, daher ändert `allow` nichts |
 | `mcp-server` | Zeichenfolge | `allow`, `deny` | korTTY als [MCP-Server](control-api.md#mcp-clients): Clients der Steuerungs-API, die sich als MCP-Clients ausweisen. `deny` weist jede solche Verbindung mit `blocked_by_policy` ab und schaltet sowohl den Schalter **MCP-Server** als auch **Schreib-Tools erlauben** zwangsweise aus; gewöhnliche Clients der Steuerungs-API und `kortty-cli` funktionieren weiter. Der Schlüssel setzt außerdem `control-api` voraus. `allow` überlässt beide Schalter dem Benutzer und schaltet sie nie ein |
+| `incognito-sessions` | string | `allow`, `deny` | [Inkognito-Sitzungen](../features/session-isolation.md#inkognito-sitzungen), bei denen korTTY Log, Journal, Aufzeichnung, den Eintrag unter „Zuletzt geschlossen“ und die Wiederherstellung auslässt. `deny` graut **Inkognito-Sitzung** im Verbindungseditor und **Datei → Neue Inkognito-Sitzung…** aus, und jede Sitzung, auch die einer als inkognito markierten Verbindung, ist eine normale. Ein Session-Journal, das die Richtlinie erzwingt, wird auch für Inkognito-Sitzungen geschrieben. Es gibt keine Einstellung dafür, daher ändert `allow` nichts |
 | `ai-agent-execution` | Zeichenfolge | `allow`, `confirm`, `read-only` | `confirm` erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und hebelt die Option zur automatischen Genehmigung aus; `read-only` lässt den Agenten planen und chatten, aber niemals Befehle ausführen, und graut **Ausführen** in den [Codeblöcken eines KI-Chats](../features/ai-assistant.md#codeblocke-im-terminal) aus (**Einfügen** bleibt, da es nichts ausführt). Geplante Jobs: Unter `confirm` blockiert ein [KI-Agent- oder KI-Swarm-Job](../features/jobscheduler.md#sicherheit-und-geheimnisse) jeden serverändernden Befehl, unabhängig von seiner Einstellung **Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern**, weil niemand da ist, der ihn genehmigen könnte; unter `read-only` enden beide KI-Jobtypen als blockiert, bevor sie sich verbinden. Ein Job wird auch dann vorab blockiert, wenn `ai` oder `ai-agent` verweigert wird, und ein Swarm-Job, wenn `ai-swarm` verweigert wird |
 
 !!! note "Eine genannte Funktion wird übernommen, egal wie entschieden"
@@ -257,6 +258,21 @@ groups = ["compliance"]
 Eine fehlerhafte Richtliniendatei fällt auf den Lockdown zurück, der `file-transfer` und `sftp-sudo-edit` wie jede andere Funktion verweigert.
 
 Archive, die der SFTP-Manager auf dem Server erstellt, haben nie ein Passwort, unabhängig von der Richtlinie: `zip` und `7z` nehmen ein Passwort nur auf ihrer Befehlszeile oder über ein Terminal entgegen, und auf der Befehlszeile kann jeder andere Benutzer des Servers es in der Prozessliste lesen. Passwortgeschützte Archive auf dem Server lehnt **Hier entpacken...** ebenfalls ab. Archive, die auf dem eigenen Computer des Benutzers erstellt werden, können weiterhin ein Passwort haben, daher ist kein Richtlinienschlüssel nötig, um Serverpasswörter aus Prozesslisten herauszuhalten.
+
+### `[rule.isolation]`
+
+| Schlüssel | Typ | Werte | Wirkung |
+| --- | --- | --- | --- |
+| `minimum` | string | `none`, `process`, `sandbox` | Die geringste [Sitzungs-Isolation](../features/session-isolation.md), die jede Terminal-Sitzung haben muss. Eine Untergrenze über *Einstellungen → Sicherheit → Sitzungs-Isolation*, den Ordnerstufen, der eigenen Stufe einer Verbindung und Teamwork-Verbindungen; eine höhere Stufe gilt weiter. Der gespeicherte Standard wird darauf angehoben, und die Stufen darunter sind in den Einstellungen, im Verbindungseditor und im Ordnermenü ausgegraut. Eine Sitzung, die das Minimum nicht bekommen kann – weil ihre Verbindungsart in dieser Version nicht so weit isoliert werden kann oder weil `sandbox` verlangt ist und der Computer keine funktionierende Sandbox hat –, wird nicht geöffnet, und der Benutzer sieht, warum. Mit `sandbox` wird eine fehlende Sandbox nie durch einen einfachen Prozess ersetzt. Setzen mehrere Regeln derselben Stufe den Wert, gewinnt der strengere (`sandbox` vor `process` vor `none`). Der Lockdown setzt ihn nicht |
+
+```toml
+[[rule]]
+  [rule.features]
+  incognito-sessions = "deny"
+
+  [rule.isolation]
+  minimum = "sandbox"
+```
 
 ### `[rule.job-scheduler]`
 

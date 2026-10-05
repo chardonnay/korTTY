@@ -192,6 +192,7 @@ public final class EffectivePolicy {
                     case SFTP_SUDO_EDIT -> ManagedSetting.SFTP_SUDO_EDIT;
                     case MCP_SERVER -> ManagedSetting.MCP_SERVER;
                     case JOB_WEBHOOKS -> ManagedSetting.JOB_WEBHOOKS;
+                    case INCOGNITO_SESSIONS -> ManagedSetting.INCOGNITO_SESSIONS;
                 });
             }
         }
@@ -274,8 +275,13 @@ public final class EffectivePolicy {
         // Off wins: two rules of the same tier that disagree keep terminal output off the disk.
         Boolean sessionRestoreOutput = resolver.resolveAllow(PolicyRule::sessionRestoreOutput);
         markManaged(managed, ManagedSetting.SESSION_RESTORE_OUTPUT, sessionRestoreOutput);
+        de.kortty.isolation.IsolationLevel isolationFloor = resolver.resolve(
+            PolicyRule::isolationFloor, de.kortty.isolation.IsolationLevel::mostRestrictive);
+        if (isolationFloor != null) {
+            managed.add(ManagedSetting.CONNECTION_ISOLATION);
+        }
         TerminalPolicy terminal = new TerminalPolicy(pasteWarningFloor,
-            orDefault(allowOsc52ClipboardWrite, true), sessionRestoreMode, sessionRestoreOutput);
+            orDefault(allowOsc52ClipboardWrite, true), sessionRestoreMode, sessionRestoreOutput, isolationFloor);
 
         List<ServerRestriction> serverRestrictions = resolver.resolveServerRestrictions();
         if (!serverRestrictions.isEmpty()) {
@@ -435,6 +441,23 @@ public final class EffectivePolicy {
      * facade on the control API. Only the policy leg: the user's own default-off switch has to be on as
      * well. Unlike {@code control-api}, {@code allow} never switches the user's setting on.
      */
+    /**
+     * Whether a terminal session may be incognito ({@link PolicyFeature#INCOGNITO_SESSIONS}): allowed unless
+     * the policy denies {@code incognito-sessions}. Denied, every session is a normal one.
+     */
+    public boolean incognitoSessionsAllowed() {
+        return decision(PolicyFeature.INCOGNITO_SESSIONS) != PolicyDecision.DENY;
+    }
+
+    /**
+     * The least isolation every terminal session must have ({@code [rule.isolation] minimum}), or null when
+     * the policy leaves it to the user. Applied with {@link de.kortty.isolation.IsolationLevel#mostRestrictive}
+     * on top of Settings, folders and connections; a session that cannot get it is not opened.
+     */
+    public de.kortty.isolation.IsolationLevel isolationFloor() {
+        return terminal.isolationFloor();
+    }
+
     public boolean mcpServerAllowed() {
         return decision(PolicyFeature.MCP_SERVER) != PolicyDecision.DENY && controlApiAllowed();
     }
@@ -741,21 +764,24 @@ public final class EffectivePolicy {
      * @param sessionRestoreMode         the forced startup session restore mode; null = left to the user
      * @param sessionRestoreOutput       the forced "restore the output of each pane" switch; null = left
      *                                   to the user
+     * @param isolationFloor             the least isolation a terminal session must have; null = left to
+     *                                   the user
      */
     public record TerminalPolicy(de.kortty.paste.PasteWarningMode pasteWarningFloor,
                                  boolean osc52ClipboardWriteAllowed,
                                  de.kortty.model.SessionRestoreMode sessionRestoreMode,
-                                 Boolean sessionRestoreOutput) {
+                                 Boolean sessionRestoreOutput,
+                                 de.kortty.isolation.IsolationLevel isolationFloor) {
 
         /** Nothing set: the user decides everything. */
-        static final TerminalPolicy NONE = new TerminalPolicy(null, true, null, null);
+        static final TerminalPolicy NONE = new TerminalPolicy(null, true, null, null, null);
 
         /**
          * The fail-safe: every paste with a line break asks, no OSC 52 writes, nothing reopens by itself
          * and no terminal output is written to disk.
          */
         static final TerminalPolicy LOCKDOWN = new TerminalPolicy(
-            de.kortty.paste.PasteWarningMode.ALWAYS, false, de.kortty.model.SessionRestoreMode.OFF, false);
+            de.kortty.paste.PasteWarningMode.ALWAYS, false, de.kortty.model.SessionRestoreMode.OFF, false, null);
     }
 
     /**

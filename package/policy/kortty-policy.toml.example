@@ -69,6 +69,7 @@
 #                                     # downloads, drops and drag-out, and JobScheduler SFTP
 #                                     # upload/download/sync and rsync. Browsing and remote-only operations
 #                                     # keep working; scp typed into a terminal cannot be blocked.
+#   incognito-sessions = "deny"       # incognito tabs (no log, journal, recording, restore)
 #   # Agent execution mode: "allow" (user settings govern), "confirm" (every mutating
 #   # command set needs interactive approval; auto-approve is defeated), "read-only"
 #   # (the agent may plan and chat but never executes commands).
@@ -126,6 +127,12 @@
 #   # What korTTY does at startup with the previous session's windows and tabs: "off",
 #   # "ask" or "auto". Set and locked; File > Restore Previous Session stays available.
 #   session-restore = "ask"
+#
+#   # Session isolation: the least every terminal session must have, "none",
+#   # "process" (its own process) or "sandbox" (its own process inside the OS
+#   # sandbox). A session that cannot get it is refused, never opened with less.
+#   [rule.isolation]
+#   minimum = "process"
 #
 #   # SFTP manager transfers.
 #   [rule.sftp]

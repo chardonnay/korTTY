@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * shared {@link ObservableTtyConnector} hooks so terminal recording and the AI-agent prompt
  * detection work for local shells just like they do for SSH.
  */
-public class LocalShellTtyConnector implements ObservableTtyConnector {
+public class LocalShellTtyConnector implements ObservableTtyConnector, de.kortty.isolation.IsolationAware {
 
     private static final Logger logger = LoggerFactory.getLogger(LocalShellTtyConnector.class);
 
@@ -91,6 +91,13 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
     private final AtomicReference<ShellIntegrationWrapperDirectory> shellIntegrationWrapper = new AtomicReference<>();
     /** Where wrapper folders are created; null for {@code ~/.kortty/shell-integration}. Tests set their own. */
     private volatile Path shellIntegrationRoot;
+
+    /** The isolation this shell is asked for; set before {@link #connect()}. */
+    private volatile de.kortty.isolation.IsolationRequest isolationRequest = de.kortty.isolation.IsolationRequest.NONE;
+    /** The isolation the running shell has. */
+    private volatile de.kortty.isolation.IsolationReport isolationReport = de.kortty.isolation.IsolationReport.NONE;
+    /** The sandboxed shell's own folder (history, temp files); deleted with the connector. */
+    private final AtomicReference<Path> sandboxSessionDirectory = new AtomicReference<>();
 
     public LocalShellTtyConnector(ServerConnection connection) {
         this.connection = connection;
@@ -143,6 +150,15 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
                 forwardedVariables = injection.forwardedVariables();
             }
             List<String> command = FlatpakSupport.hostCommand(launchCommand, workingDirectory, env, forwardedVariables);
+            Path wrapperPath = shellIntegrationWrapperPath();
+            de.kortty.isolation.sandbox.LocalProcessSandbox.Prepared isolated =
+                de.kortty.isolation.sandbox.LocalProcessSandbox.prepare(isolationRequest, command, env,
+                    workingDirectory != null ? Path.of(workingDirectory) : Path.of(System.getProperty("user.home")),
+                    wrapperPath != null ? List.of(wrapperPath) : List.of());
+            command = isolated.command();
+            env = isolated.environment();
+            isolationReport = isolated.report();
+            sandboxSessionDirectory.set(isolated.sessionDirectory());
 
             PtyProcessBuilder builder = new PtyProcessBuilder(command.toArray(new String[0]))
                 .setEnvironment(env)
@@ -177,6 +193,11 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             startMonitorThread();
             logger.info("Local shell started for {}", connection.getDisplayName());
             return true;
+        } catch (de.kortty.isolation.IsolationUnavailableException e) {
+            // No connection getter in the log line: see the CodeQL note in SshTtyConnector.connect.
+            logger.warn("Local shell not started: {}", e.getMessage());
+            close();
+            throw e;
         } catch (Exception e) {
             logger.error("Failed to start local shell for {}: {}",
                 connection.getDisplayName(), e.getMessage(), e);
@@ -301,6 +322,19 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
         if (directory != null && directory.delete()) {
             shellIntegrationWrapper.compareAndSet(directory, null);
         }
+    }
+
+    /**
+     * Asks for {@code request}'s isolation when the shell next starts: {@link de.kortty.isolation.IsolationLevel#SANDBOX}
+     * starts it in the operating-system sandbox. Call before {@link #connect()}.
+     */
+    public void setIsolationRequest(de.kortty.isolation.IsolationRequest request) {
+        this.isolationRequest = request != null ? request : de.kortty.isolation.IsolationRequest.NONE;
+    }
+
+    @Override
+    public de.kortty.isolation.IsolationReport isolationReport() {
+        return isolationReport;
     }
 
     /** Tests: create wrapper folders in {@code root} instead of {@code ~/.kortty/shell-integration}. */
@@ -1026,6 +1060,7 @@ public class LocalShellTtyConnector implements ObservableTtyConnector {
             localMonitor.interrupt();
         }
         deleteShellIntegrationWrapper();
+        de.kortty.isolation.sandbox.SandboxSupport.deleteSessionDirectory(sandboxSessionDirectory.getAndSet(null));
 
         InputStreamReader localReader = reader;
         InputStream localIn = inputStream;

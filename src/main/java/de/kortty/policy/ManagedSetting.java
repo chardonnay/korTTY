@@ -65,5 +65,7 @@ public enum ManagedSetting {
      * The two MCP server switches ({@link PolicyFeature#MCP_SERVER}): denied, both are forced off and
      * locked.
      */
-    MCP_SERVER
+    MCP_SERVER,
+    CONNECTION_ISOLATION,
+    INCOGNITO_SESSIONS
 }

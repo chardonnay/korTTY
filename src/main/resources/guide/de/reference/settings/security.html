@@ -561,6 +561,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../../features/session-isolation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sitzungs-Isolation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../../features/backup.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -839,11 +847,22 @@
 <td>Aus</td>
 <td><code>temporarySshKeyEnabled</code></td>
 </tr>
+<tr>
+<td>Standard-Isolation</td>
+<td>dropdown</td>
+<td>Keine, Eigener Prozess, Eigener Prozess + Sandbox</td>
+<td>Keine</td>
+<td><code>connectionIsolationDefault</code></td>
+</tr>
 </tbody>
 </table>
 <div class="admonition note">
 <p class="admonition-title">Temporäre SSH-Schlüssel und der Temp-Ordner</p>
 <p>Mit dieser Option aktiviert, bietet der Connection-Manager und die Schnellverbindung einen temporären SSH-Schlüssel: einen privaten Schlüssel, den Sie für die Sitzung einfügen statt einer Schlüsseldatei. Für Terminal-Tabs, Aufteilungen und SFTP liest korTTY einen temporären Schlüssel im Speicher und schreibt ihn niemals in eine Schlüsseldatei; eine gespeicherte Verbindung behält den Schlüssel nur verschlüsselt mit Ihrem Master-Passwort in <code>connections.xml</code>. Geplante Aufgaben authentifizieren sich ebenfalls im Speicher, mit einer Ausnahme: weil ein Rsync-Job den Schlüssel an das externe <code>ssh</code> übergibt, schreibt der JobScheduler den temporären Schlüssel eines Rsync-Jobs in eine nur für den Besitzer lesbare Datei im Systemtemp-Ordner und löscht ihn, wenn die Verbindung des Jobs geschlossen oder fehlschlägt. Schlüsseldateien, die frühere Versionen im Temp-Ordner zurückgelassen haben (<code>kortty_temp_key_*.key</code>, <code>kortty_scheduler_key_*.key</code>), werden beim nächsten Start gelöscht, sofern sie Ihnen gehören und älter als fünf Minuten sind.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Sitzungs-Isolation</p>
+<p><strong>Standard-Isolation:</strong> im Abschnitt <strong>Sitzungs-Isolation</strong> ist die Isolation jeder Verbindung, die selbst keine festlegt und deren Ordner keine festlegen; eine Verbindung und ein Ordner können im Connection-Manager eine eigene wählen, die Ordnerstufen werden als <code>connectionGroupIsolation</code> gespeichert. Der Abschnitt zeigt, ob dieser Computer eine funktionierende Sandbox hat oder warum nicht, und welche Verbindungsarten in dieser Version isoliert werden können. Mit einem Minimum der Organisation werden die Stufen darunter nicht angeboten, und der Abschnitt nennt das Minimum. Siehe <a href="../../features/session-isolation.html">Sitzungs-Isolation</a>.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Master-Passwort beim Start</p>

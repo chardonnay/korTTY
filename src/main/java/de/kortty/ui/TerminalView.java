@@ -365,6 +365,8 @@ public class TerminalView extends BorderPane {
     private PaneConnectionColors.Scheme paneColorScheme;
     // Told the tab tooltip's line about such panes (null for none) whenever it may have changed. FX thread.
     private Consumer<String> paneConnectionsListener;
+    /** Told what the tab's isolation shield and incognito spy show; FX thread. */
+    private Consumer<IsolationMarkers.Markers> isolationMarkersListener;
 
     /** Set once {@link #cleanup()} ran: the tab is closed, and a split layout restore stops. */
     private volatile boolean cleanedUp;
@@ -421,6 +423,8 @@ public class TerminalView extends BorderPane {
     private Runnable onConnectedCallback;
     private Runnable onMoshInterruptedCallback;
     private de.kortty.core.TerminalLogger terminalLogger;
+    /** Opened with File › New Incognito Session: incognito whatever the connection says. */
+    private volatile boolean incognitoRequested;
     private NewConnectionCallback newConnectionCallback;
     
     // Timestamp gutter support: maps each widget to its gutter
@@ -751,6 +755,7 @@ public class TerminalView extends BorderPane {
             inheritEffectOnSplit(widget, request);
             // Its origin is bound by now: a pane of another connection with another color gets its frame.
             refreshPaneConnectionColors(null);
+            refreshIsolationMarkers(null);
         });
         // The first pane is set up now (it was configured inside the constructor above): report the
         // rule set it starts with, if any.
@@ -1464,6 +1469,7 @@ public class TerminalView extends BorderPane {
         releasePaneState(widget);
         // The pane is still in the split pane while this runs: leave it out of the tab's tooltip.
         refreshPaneConnectionColors(widget);
+        refreshIsolationMarkers(widget);
         if (closingConnector != null && closingConnector == tunnelOwnerConnector) {
             // The pane is still part of the split pane while this hook runs; look for a new
             // owner once it is gone.
@@ -3200,6 +3206,11 @@ public class TerminalView extends BorderPane {
         attachBracketedPasteTracker(widget, baseConnector);
         PaneEffect effect = paneEffects.get(widget);
         TtyConnector decorated = baseConnector;
+        ServerConnection paneConnection = connectionOf(baseConnector);
+        if (strictTerminalModeFor(paneConnection != null ? paneConnection : connection, baseConnector)) {
+            // Innermost, so the shell integration, effects and emulator all see only the filtered stream.
+            decorated = new de.kortty.isolation.StrictEscapeFilterTtyConnector(baseConnector);
+        }
         if (effect != null && effect.session != null) {
             try {
                 decorated = effect.session.wrapConnector(widget, baseConnector);
@@ -3211,11 +3222,67 @@ public class TerminalView extends BorderPane {
         PaneOutputClock outputClock = widget != null
             ? paneOutputClocks.computeIfAbsent(widget, unused -> new PaneOutputClock())
             : new PaneOutputClock();
+        // After the widget took the decorated connector: the tab's shield then counts this pane's session.
+        Platform.runLater(() -> refreshIsolationMarkers(null));
         return withShellIntegration(widget, new TerminalColorFilteringTtyConnector(
             decorated,
             () -> settings == null || settings.isTerminalColorsEnabled(),
             this::reportTerminalActivity,
             outputClock::outputArrived));
+    }
+
+    /**
+     * Makes this tab incognito whatever its connection says (File › New Incognito Session). Call before
+     * it connects; the organization's policy can still forbid it.
+     */
+    public void setIncognitoRequested(boolean requested) {
+        this.incognitoRequested = requested;
+        refreshIsolationMarkers(null);
+    }
+
+    /**
+     * Whether this tab is incognito: opened as one, or its connection (one of your own, not a teamwork
+     * connection) is marked incognito, and the organization's policy allows incognito sessions. Nothing
+     * about an incognito tab is written down: no terminal log, no session journal unless the policy
+     * enforces one, no recording, no entry in Recently Closed and no place in the restored session.
+     */
+    public boolean isIncognito() {
+        return incognito(incognitoRequested, connection, incognitoPolicyAllows());
+    }
+
+    /** {@link #isIncognito()} from its parts; for tests. */
+    static boolean incognito(boolean requested, @Nullable ServerConnection target, boolean policyAllows) {
+        if (!policyAllows) {
+            return false;
+        }
+        return requested || (target != null && target.isIncognito() && !target.isTeamworkConnection());
+    }
+
+    private static boolean incognitoPolicyAllows() {
+        try {
+            return de.kortty.policy.PolicyManager.effective().incognitoSessionsAllowed();
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Whether the pane's session runs in the strict terminal mode: as the connection says, or, when it
+     * leaves it automatic, exactly when the session was asked to run in a sandbox. A teamwork connection
+     * can switch it on but never off.
+     */
+    static boolean strictTerminalModeFor(@Nullable ServerConnection target, @Nullable TtyConnector baseConnector) {
+        boolean automatic = false;
+        if (baseConnector instanceof de.kortty.isolation.IsolationAware aware) {
+            de.kortty.isolation.IsolationReport report = aware.isolationReport();
+            automatic = report.state() == de.kortty.isolation.IsolationState.SANDBOXED
+                || report.requested() == de.kortty.isolation.IsolationLevel.SANDBOX;
+        }
+        Boolean own = target != null ? target.getStrictTerminalMode() : null;
+        if (own == null || (target.isTeamworkConnection() && !own)) {
+            return automatic;
+        }
+        return own;
     }
 
     /**
@@ -3306,6 +3373,10 @@ public class TerminalView extends BorderPane {
                 continue;
             }
             if (current instanceof TerminalEffectConnectorWrapper wrapper) {
+                current = wrapper.delegate();
+                continue;
+            }
+            if (current instanceof de.kortty.isolation.StrictEscapeFilterTtyConnector wrapper) {
                 current = wrapper.delegate();
                 continue;
             }
@@ -3680,10 +3751,15 @@ public class TerminalView extends BorderPane {
                 );
             }
             nativeMosh.setAccessReasonMemory(accessReasonMemory);
+            nativeMosh.setIsolationRequest(isolationRequestFor(targetConnection));
             connector = nativeMosh;
         } else if (targetConnection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
-            connector = new LocalShellTtyConnector(targetConnection);
+            LocalShellTtyConnector localShell = new LocalShellTtyConnector(targetConnection);
+            localShell.setIsolationRequest(isolationRequestFor(targetConnection));
+            connector = localShell;
         } else {
+            // Not isolated yet: refuse here when the organization demands isolation for every session.
+            isolationRequestFor(targetConnection);
             de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
             SshTtyConnector sshConnector = sshConnectorWithVault(targetConnection, targetPassword,
                     app != null ? app.getSSHKeyManager() : null, masterPasswordOf(app));
@@ -3694,6 +3770,46 @@ public class TerminalView extends BorderPane {
             connector = sshConnector;
         }
         return connector;
+    }
+
+    /**
+     * The isolation a session of {@code target} asks for: its own level, its folder's or Settings', with the
+     * organization's minimum on top, limited to what this version can give a session of its protocol.
+     *
+     * @throws IllegalStateException when the organization demands more isolation than the protocol can get,
+     *     so the session is not opened at all
+     */
+    static de.kortty.isolation.IsolationRequest isolationRequestFor(ServerConnection target) {
+        de.kortty.isolation.IsolationLevel floor;
+        try {
+            floor = de.kortty.policy.PolicyManager.effective().isolationFloor();
+        } catch (RuntimeException e) {
+            floor = null;
+        }
+        return isolationRequestFor(readOrNull(TerminalView::readGlobalSettings), target, floor);
+    }
+
+    /** {@link #isolationRequestFor(ServerConnection)} from its parts; for tests. */
+    static de.kortty.isolation.IsolationRequest isolationRequestFor(@Nullable GlobalSettings global,
+            ServerConnection target, @Nullable de.kortty.isolation.IsolationLevel floor) {
+        if (target == null) {
+            return de.kortty.isolation.IsolationRequest.NONE;
+        }
+        de.kortty.isolation.IsolationSettings.Resolution resolution =
+            de.kortty.isolation.IsolationSettings.resolve(global, target, floor);
+        de.kortty.isolation.IsolationLevel supported = de.kortty.isolation.IsolationSettings.strongestSupported(
+            target.getProtocol(), false, false);
+        if (resolution.level().ordinal() <= supported.ordinal()) {
+            return de.kortty.isolation.IsolationRequest.of(resolution, floor);
+        }
+        if (floor != null && floor.ordinal() > supported.ordinal()) {
+            throw new IllegalStateException(I18n.get("isolation.error.protocolUnsupported",
+                I18n.get("isolation.level." + floor.id())));
+        }
+        // Host and port only, never the display name: see the CodeQL note in SshTtyConnector.connect.
+        logger.info("{}:{} asks for {} isolation, which its protocol {} cannot get yet; running with {}",
+            target.getHost(), target.getPort(), resolution.level().id(), target.getProtocol(), supported.id());
+        return new de.kortty.isolation.IsolationRequest(supported, floor);
     }
 
     /**
@@ -4599,6 +4715,55 @@ public class TerminalView extends BorderPane {
         refreshPaneConnectionColors(null);
     }
 
+    /** Tells {@code listener} what the tab's isolation shield and incognito spy show. FX thread. */
+    void setIsolationMarkersListener(@Nullable Consumer<IsolationMarkers.Markers> listener) {
+        this.isolationMarkersListener = listener;
+        refreshIsolationMarkers(null);
+    }
+
+    /**
+     * Reports the isolation of every pane's session and whether the tab is incognito to the tab's
+     * markers. Any thread.
+     *
+     * @param closing a pane that is closing but still in the split pane, left out; or {@code null}
+     */
+    void refreshIsolationMarkers(@Nullable SithTermFxWidget closing) {
+        if (!Platform.isFxApplicationThread()) {
+            Platform.runLater(() -> refreshIsolationMarkers(closing));
+            return;
+        }
+        Consumer<IsolationMarkers.Markers> listener = isolationMarkersListener;
+        if (listener == null) {
+            return;
+        }
+        try {
+            listener.accept(IsolationMarkers.of(paneIsolationReports(closing), isIncognito()));
+        } catch (RuntimeException e) {
+            logger.debug("Updating the isolation markers failed: {}", e.toString());
+        }
+    }
+
+    /** The isolation of every pane that has a session, leaving {@code closing} out. FX thread. */
+    List<de.kortty.isolation.IsolationReport> paneIsolationReports(@Nullable SithTermFxWidget closing) {
+        List<de.kortty.isolation.IsolationReport> reports = new ArrayList<>();
+        TerminalSplitPane split = splitPane;
+        List<TtyConnector> connectors = new ArrayList<>();
+        if (split != null) {
+            for (SithTermFxWidget pane : split.getAllWidgets()) {
+                if (pane != closing && pane.getTtyConnector() != null) {
+                    connectors.add(unwrapTerminalEffectConnector(pane.getTtyConnector()));
+                }
+            }
+        } else if (ttyConnector != null) {
+            connectors.add(ttyConnector);
+        }
+        for (TtyConnector connector : connectors) {
+            reports.add(connector instanceof de.kortty.isolation.IsolationAware aware
+                ? aware.isolationReport() : de.kortty.isolation.IsolationReport.NONE);
+        }
+        return reports;
+    }
+
     /** Tells {@code listener} the tab tooltip's line about panes of other colors, {@code null} for none. FX thread. */
     void setPaneConnectionsListener(@Nullable Consumer<String> listener) {
         this.paneConnectionsListener = listener;
@@ -4989,6 +5154,7 @@ public class TerminalView extends BorderPane {
                     + (target == null ? "unconnected" : String.valueOf(target.getProtocol())));
         }
         LocalShellTtyConnector connector = new LocalShellTtyConnector(target);
+        connector.setIsolationRequest(isolationRequestFor(target));
         boolean connected;
         try {
             connected = connector.connect();
@@ -8186,6 +8352,10 @@ public class TerminalView extends BorderPane {
         if (logConfig == null || !logConfig.isEnabled()) {
             return;
         }
+        if (isIncognito()) {
+            logger.info("Terminal log not started: incognito session");
+            return;
+        }
         
         try {
             terminalLogger = new de.kortty.core.TerminalLogger(
@@ -8324,6 +8494,10 @@ public class TerminalView extends BorderPane {
             if (!enabled && !policy.sessionJournalEnforced()) {
                 return;
             }
+            if (isIncognito() && !policy.sessionJournalEnforced()) {
+                // Incognito keeps no journal, unless the organization enforces one for every session.
+                return;
+            }
             createAndStartSessionJournal(false, java.util.List.of());
             runJournalAiPreflight();
         } catch (Exception e) {
@@ -8343,6 +8517,9 @@ public class TerminalView extends BorderPane {
             return true;
         }
         if (ttyConnector == null || !de.kortty.policy.PolicyManager.effective().sessionJournalAllowed()) {
+            return false;
+        }
+        if (isIncognito()) {
             return false;
         }
         try {
@@ -8741,6 +8918,7 @@ public class TerminalView extends BorderPane {
         // Closing the panes below must not recolor them one by one, nor update the closed tab's tooltip.
         paneColorScheme = null;
         paneConnectionsListener = null;
+        isolationMarkersListener = null;
         commandFinishedListener = null;
         remoteNotificationListener = null;
         clipboardWriteListener = null;

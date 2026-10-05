@@ -143,6 +143,19 @@ public class GlobalSettings {
     @XmlElement(name = "group")
     private java.util.List<ConnectionGroupColor> connectionGroupColors;
 
+    // Settings → Security → Session isolation: the isolation level of every connection that sets none of
+    // its own and whose folders set none, as an IsolationLevel id. None by default, so nothing changes
+    // until someone opts in; the organization's minimum is applied on top by PolicyClamp.
+    @XmlElement
+    private String connectionIsolationDefault = de.kortty.isolation.IsolationLevel.DEFAULT.id();
+
+    // Isolation levels of connection groups, set from a folder's context menu in the Connection Manager:
+    // a connection without a level of its own takes its folder's, or that of the nearest folder above
+    // (see ConnectionGroupIsolation). Null while no folder has one, so the file keeps its old form.
+    @XmlElementWrapper(name = "connectionGroupIsolation")
+    @XmlElement(name = "group")
+    private java.util.List<ConnectionGroupIsolationEntry> connectionGroupIsolation;
+
     // A terminal tab shows the title the program in its focused pane sets (OSC 0/2) in place of the
     // connection's name, unless the user renamed the tab. A settings file without it keeps it on.
     @XmlElement
@@ -1724,6 +1737,48 @@ public class GlobalSettings {
      * The tab color the group {@code groupPath} has of its own, as {@code #RRGGBB}, or {@code null};
      * a color the group takes from a group above it does not count here.
      */
+    /** The isolation level of Settings → Security → Session isolation; never null. */
+    public de.kortty.isolation.IsolationLevel getConnectionIsolationDefault() {
+        return de.kortty.isolation.IsolationLevel.fromId(connectionIsolationDefault);
+    }
+
+    /** @param level the level to store; null stores the default (none) */
+    public void setConnectionIsolationDefault(de.kortty.isolation.IsolationLevel level) {
+        this.connectionIsolationDefault = (level != null ? level : de.kortty.isolation.IsolationLevel.DEFAULT).id();
+    }
+
+    /** The isolation levels of folders by path, as a copy; folders without one are absent. */
+    public java.util.Map<String, de.kortty.isolation.IsolationLevel> getConnectionGroupIsolation() {
+        java.util.Map<String, de.kortty.isolation.IsolationLevel> levels = new java.util.LinkedHashMap<>();
+        if (connectionGroupIsolation != null) {
+            for (ConnectionGroupIsolationEntry entry : connectionGroupIsolation) {
+                if (entry != null) {
+                    levels.putIfAbsent(entry.getPath(), de.kortty.isolation.IsolationLevel.parseId(entry.getLevel()));
+                }
+            }
+        }
+        return de.kortty.isolation.ConnectionGroupIsolation.copyOf(levels);
+    }
+
+    /** Gives the folders the levels {@code levels} names and removes the levels of all other folders. */
+    public void setConnectionGroupIsolation(java.util.Map<String, de.kortty.isolation.IsolationLevel> levels) {
+        java.util.Map<String, de.kortty.isolation.IsolationLevel> valid =
+            de.kortty.isolation.ConnectionGroupIsolation.copyOf(levels);
+        if (valid.isEmpty()) {
+            connectionGroupIsolation = null;
+            return;
+        }
+        java.util.List<ConnectionGroupIsolationEntry> entries = new java.util.ArrayList<>();
+        valid.forEach((path, level) -> entries.add(new ConnectionGroupIsolationEntry(path, level.id())));
+        connectionGroupIsolation = entries;
+    }
+
+    /** The isolation level folder {@code groupPath} sets itself, or null; one taken from above does not count. */
+    public de.kortty.isolation.IsolationLevel getConnectionGroupIsolationLevel(String groupPath) {
+        String key = de.kortty.isolation.ConnectionGroupIsolation.key(groupPath);
+        return key != null ? getConnectionGroupIsolation().get(key) : null;
+    }
+
     public String getConnectionGroupColor(String groupPath) {
         String key = de.kortty.core.ConnectionGroupColors.key(groupPath);
         return key != null ? getConnectionGroupColors().get(key) : null;

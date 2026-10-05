@@ -7,6 +7,7 @@ Jedes Element in der Menüleiste von korTTY, mit seiner Tastenkombination (falls
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
 | Neuer Tab | ++ctrl+t++ | Öffnen Sie die Schnellverbindung in einem neuen Terminal-Tab |
+| Neue Inkognito-Sitzung… | | Öffnet die Schnellverbindung; der Tab, den sie öffnet, ist eine [Inkognito-Sitzung](../features/session-isolation.md#inkognito-sitzungen), egal was die Verbindung festlegt. Ausgegraut, wenn Ihre Organisation Inkognito-Sitzungen verbietet |
 | Tab umbenennen… | | Dem aktiven Terminal-Tab statt des Verbindungsnamens oder des [Titels, den seine Shell gesetzt hat](../features/terminal.md#titel-aus-der-shell), einen eigenen Namen geben; ein leerer Name zeigt diesen wieder an. Verfügbar, solange ein Terminal-Tab aktiv ist. Siehe [Arbeiten mit Tabs](../features/terminal.md#arbeiten-mit-tabs) |
 | Tab schließen | ++ctrl+w++ | Schließen Sie die aktive Terminal-Registerkarte |
 | Andere Tabs schließen | | Alle anderen Tabs des aktuellen Fensters schließen; der aktive Tab bleibt geöffnet. Fragt einmal nach, wenn einige der zu schließenden Terminals geteilte Bereiche oder einen laufenden Befehl haben. Derselbe Eintrag steht im Rechtsklickmenü eines Terminal-Tabs. Siehe [Arbeiten mit Tabs](../features/terminal.md#arbeiten-mit-tabs) |

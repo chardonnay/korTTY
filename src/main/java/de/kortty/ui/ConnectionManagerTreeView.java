@@ -54,6 +54,10 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private java.util.function.Predicate<GroupPath> groupHostKeyCheckDisabled;
     /** Opens the tab color of a group for editing; without it the group menu has no color entry. */
     private Consumer<GroupPath> onEditGroupColor;
+    /** Sets a group's isolation level, null to follow the folder above or Settings; without it no submenu. */
+    private java.util.function.BiConsumer<GroupPath, de.kortty.isolation.IsolationLevel> onSetGroupIsolation;
+    /** The isolation level a group sets itself, or null. */
+    private java.util.function.Function<GroupPath, de.kortty.isolation.IsolationLevel> groupIsolationProbe;
     /** The tab color a group has of its own ({@code #RRGGBB}), or null; shown as a dot after the folder's name. */
     private java.util.function.Function<GroupPath, String> groupColorProbe;
     /** Runs after a connection was dragged into another group or such a move was undone. */
@@ -627,6 +631,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             tabColorItem.setOnAction(e -> onEditGroupColor.accept(groupPath));
             settings.add(tabColorItem);
         }
+        if (changeable && onSetGroupIsolation != null) {
+            settings.add(groupIsolationMenu(groupPath));
+        }
         List<MenuItem> tags = new ArrayList<>();
         if (changeable && (onAssignTagToGroup != null || onRemoveTagFromGroup != null)) {
             tags.addAll(List.of(assignTagItem, removeTagItem));
@@ -650,6 +657,42 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             menu.getItems().addAll(section);
         }
         return menu.getItems().isEmpty() ? null : menu;
+    }
+
+    /**
+     * The folder's "Session Isolation" submenu: Use the Default, then None, Own Process and Sandbox; the
+     * levels below the organization's minimum are greyed out.
+     */
+    private Menu groupIsolationMenu(GroupPath groupPath) {
+        Menu menu = new Menu(I18n.get("connManager.group.isolation"));
+        de.kortty.isolation.IsolationLevel current =
+            groupIsolationProbe != null ? groupIsolationProbe.apply(groupPath) : null;
+        de.kortty.isolation.IsolationLevel floor = de.kortty.policy.PolicyManager.effective().isolationFloor();
+        ToggleGroup toggle = new ToggleGroup();
+        RadioMenuItem inherit = new RadioMenuItem(I18n.get("connManager.group.isolation.default"));
+        inherit.setToggleGroup(toggle);
+        inherit.setSelected(current == null);
+        inherit.setOnAction(e -> onSetGroupIsolation.accept(groupPath, null));
+        menu.getItems().addAll(inherit, new SeparatorMenuItem());
+        for (de.kortty.isolation.IsolationLevel level : de.kortty.isolation.IsolationLevel.values()) {
+            RadioMenuItem item = new RadioMenuItem(IsolationConnectionSupport.levelName(level));
+            item.setToggleGroup(toggle);
+            item.setSelected(level == current);
+            item.setDisable(!level.atLeast(floor));
+            item.setOnAction(e -> onSetGroupIsolation.accept(groupPath, level));
+            menu.getItems().add(item);
+        }
+        return menu;
+    }
+
+    /** Adds a "Session Isolation" submenu to every group's context menu that hands the choice to {@code handler}. */
+    public void setOnSetGroupIsolation(java.util.function.BiConsumer<GroupPath, de.kortty.isolation.IsolationLevel> handler) {
+        this.onSetGroupIsolation = handler;
+    }
+
+    /** Tells the submenu which level a group sets itself (null for none). */
+    public void setGroupIsolationProbe(java.util.function.Function<GroupPath, de.kortty.isolation.IsolationLevel> probe) {
+        this.groupIsolationProbe = probe;
     }
 
     public void setOnToggleGroupHostKeyCheck(java.util.function.BiConsumer<GroupPath, Boolean> handler) {

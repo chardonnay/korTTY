@@ -223,6 +223,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox skipMasterPasswordPromptCheck;
     private final CheckBox telemetryEnabledCheck;
     private final CheckBox temporarySshKeyEnabledCheck;
+    /** Security › Session isolation: the level of every connection that sets none itself. */
+    private ComboBox<de.kortty.isolation.IsolationLevel> isolationDefaultCombo;
     
     // SSH Keep-Alive settings
     private final CheckBox sshKeepAliveCheck;
@@ -2110,6 +2112,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         temporarySshKeyEnabledCheck.setSelected(globalSettings != null && globalSettings.isTemporarySshKeyEnabled());
         temporarySshKeyEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.security.temporarySshKeyEnabled.tooltip")));
         securityGrid.add(temporarySshKeyEnabledCheck, 0, securityRow++, 2, 1);
+
+        // Session isolation section
+        securityGrid.add(new Separator(), 0, securityRow++, 2, 1);
+        securityRow = addIsolationSection(securityGrid, securityRow);
         
         LazyTabContent.defer(securityTab, () -> securityGrid);
 
@@ -4027,6 +4033,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 applyAutoUnlockPreference(skipPrompt);
             }
             globalSettings.setTemporarySshKeyEnabled(temporarySshKeyEnabledCheck.isSelected());
+            if (isolationDefaultCombo != null && isolationDefaultCombo.getValue() != null) {
+                globalSettings.setConnectionIsolationDefault(isolationDefaultCombo.getValue());
+            }
 
             // JVM resource profile: persist in GlobalSettings and mirror to the tiny launch file
             // that JvmRelauncher reads at startup. Applied on the next launch (relaunch), not now.
@@ -5190,6 +5199,79 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     /**
      * Shows dialog to change master password and re-encrypts all stored passwords.
      */
+    /**
+     * Security › Session isolation: the level every connection gets that sets none itself and whose folders
+     * set none, limited by the organization's minimum, and whether this computer has a sandbox.
+     *
+     * @return the next free row
+     */
+    private int addIsolationSection(GridPane grid, int row) {
+        Label header = new Label(I18n.get("settings.security.isolation"));
+        header.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
+        grid.add(header, 0, row++, 2, 1);
+        Label info = new Label(I18n.get("settings.security.isolation.info"));
+        info.setWrapText(true);
+        info.setMaxWidth(640);
+        info.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        grid.add(info, 0, row++, 2, 1);
+
+        de.kortty.isolation.IsolationLevel floor = de.kortty.policy.PolicyManager.effective().isolationFloor();
+        isolationDefaultCombo = new ComboBox<>();
+        isolationDefaultCombo.getItems().setAll(de.kortty.isolation.IsolationLevel.atLeastLevels(floor));
+        isolationDefaultCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(de.kortty.isolation.IsolationLevel level) {
+                return level != null ? IsolationConnectionSupport.levelName(level) : "";
+            }
+
+            @Override
+            public de.kortty.isolation.IsolationLevel fromString(String text) {
+                return null;
+            }
+        });
+        de.kortty.isolation.IsolationLevel current = globalSettings != null
+            ? globalSettings.getConnectionIsolationDefault() : de.kortty.isolation.IsolationLevel.DEFAULT;
+        isolationDefaultCombo.setValue(de.kortty.isolation.IsolationLevel.mostRestrictive(current, floor));
+        isolationDefaultCombo.setTooltip(new Tooltip(I18n.get("settings.security.isolation.default.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIf(isolationDefaultCombo, isolationDefaultCombo.getItems().size() <= 1);
+        Label label = new Label(I18n.get("settings.security.isolation.default"));
+        label.setLabelFor(isolationDefaultCombo);
+        grid.add(label, 0, row);
+        grid.add(isolationDefaultCombo, 1, row++);
+        if (floor != null) {
+            Label managed = new Label(I18n.get("settings.security.isolation.minimum",
+                IsolationConnectionSupport.levelName(floor)));
+            managed.setWrapText(true);
+            managed.setMaxWidth(640);
+            managed.setStyle("-fx-font-size: 0.8462em;");
+            grid.add(managed, 0, row++, 2, 1);
+        }
+
+        Label status = new Label(I18n.get("settings.security.isolation.sandbox.checking"));
+        status.setWrapText(true);
+        status.setMaxWidth(640);
+        status.setStyle("-fx-font-size: 0.8462em;");
+        grid.add(status, 0, row++, 2, 1);
+        Thread probe = new Thread(() -> {
+            de.kortty.isolation.sandbox.SandboxSupport.Availability availability =
+                de.kortty.isolation.sandbox.SandboxSupport.availability();
+            String text = availability.available()
+                ? I18n.get("settings.security.isolation.sandbox.available", availability.backendId())
+                : I18n.get("settings.security.isolation.sandbox.unavailable",
+                    de.kortty.isolation.sandbox.LocalProcessSandbox.reason(availability));
+            Platform.runLater(() -> status.setText(text));
+        }, "Sandbox-SelfTest");
+        probe.setDaemon(true);
+        probe.start();
+
+        Label protocols = new Label(I18n.get("settings.security.isolation.protocols"));
+        protocols.setWrapText(true);
+        protocols.setMaxWidth(640);
+        protocols.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        grid.add(protocols, 0, row++, 2, 1);
+        return row;
+    }
+
     private void changeMasterPassword() {
         Dialog<char[]> passwordDialog = new Dialog<>();
         passwordDialog.setTitle(I18n.get("settings.masterPassword.changeTitle"));

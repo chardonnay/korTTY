@@ -129,6 +129,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `sftp-sudo-edit` | string | `allow`, `deny` | [Editing server files as root](../features/sftp.md#editing-as-root) from the SFTP manager. `deny` greys out **Edit as Root (sudo)...** in the right-click menu and the remote **Edit** menu. It is also greyed out while `file-transfer` is denied or `load-into-snippet-editor` is `read-only` or `deny`, because an edit as root always needs a local copy and always writes back. There is no Settings control, so `allow` changes nothing |
 | `job-webhooks` | string | `allow`, `deny` | JobScheduler [webhook notifications](../features/jobscheduler.md#run-notifications) to Slack, Teams or a generic JSON receiver. `deny` stops every webhook delivery of a run and every test message before anything is decrypted or sent, and the job journal records *notification blocked by policy* for each target; desktop notifications are not affected. Which hosts webhooks may reach is set by `webhook-host-allowlist` in [`[rule.job-scheduler]`](#rulejob-scheduler). There is no Settings control, so `allow` changes nothing |
 | `mcp-server` | string | `allow`, `deny` | korTTY as an [MCP server](control-api.md#mcp-clients): Control API clients that declare themselves MCP clients. `deny` refuses every such connection with `blocked_by_policy` and forces both the **MCP server** switch and **Allow write tools** off; plain Control API clients and `kortty-cli` keep working. It also needs `control-api`. `allow` leaves both switches with the user and never switches them on |
+| `incognito-sessions` | string | `allow`, `deny` | [Incognito sessions](../features/session-isolation.md#incognito-sessions), whose log, journal, recording, Recently Closed entry and restore korTTY leaves out. `deny` greys out **Incognito session** in the connection editor and **File → New Incognito Session…**, and every session, also of a connection marked incognito, is a normal one. A session journal the policy enforces is written for incognito sessions too. There is no Settings control, so `allow` changes nothing |
 | `ai-agent-execution` | string | `allow`, `confirm`, `read-only` | `confirm` forces interactive approval of every mutating command set and defeats the auto-approve option; `read-only` lets the agent plan and chat but never execute commands, and greys out **Run** on the [code blocks of an AI chat](../features/ai-assistant.md#code-blocks-in-the-terminal) (**Insert** stays, since it runs nothing). Scheduled jobs: under `confirm` an [AI Agent or AI Swarm job](../features/jobscheduler.md#security-and-secrets) blocks every server-changing command, whatever its **AI agent may change the server without runtime confirmation** says, because nobody is there to approve it; under `read-only` both AI job types end as blocked before they connect. A job is also blocked up front when `ai` or `ai-agent` is denied, and a swarm job when `ai-swarm` is denied |
 
 !!! note "Naming a feature takes it over, whichever way you decide it"
@@ -257,6 +258,21 @@ groups = ["compliance"]
 A malformed policy file falls back to lockdown, which denies `file-transfer` and `sftp-sudo-edit` like every other feature.
 
 Archives created on the server by the SFTP manager never carry a password, whatever the policy says: `zip` and `7z` take a password only on their command line or from a terminal, and on the command line every other user of the server can read it in the process list. Password-protected archives on the server are likewise refused by **Extract Here...**. Archives created on the user's own computer can still have a password, so no policy key is needed to keep server passwords out of process lists.
+
+### `[rule.isolation]`
+
+| Key | Type | Values | Effect |
+| --- | --- | --- | --- |
+| `minimum` | string | `none`, `process`, `sandbox` | The least [session isolation](../features/session-isolation.md) every terminal session must have. A floor on top of *Settings → Security → Session isolation*, folder levels, a connection's own level and teamwork connections; a level above it keeps applying. The stored default is raised to it, and the levels below it are greyed out in Settings, the connection editor and the folder menu. A session that cannot get the minimum — because its connection type cannot be isolated that far in this version, or because `sandbox` is demanded and the computer has no working sandbox — is not opened, and the user sees why. With `sandbox`, a sandbox that is missing is never replaced by a plain process. When several rules of the same tier set it, the stricter value wins (`sandbox` over `process` over `none`). Lockdown does not set it |
+
+```toml
+[[rule]]
+  [rule.features]
+  incognito-sessions = "deny"
+
+  [rule.isolation]
+  minimum = "sandbox"
+```
 
 ### `[rule.job-scheduler]`
 

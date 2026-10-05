@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  * then hands off to the native mosh-client binary running inside a pty4j PTY.
  * This provides full terminal emulation including resize support.
  */
-public class NativeMoshTtyConnector implements TtyConnector {
+public class NativeMoshTtyConnector implements TtyConnector, de.kortty.isolation.IsolationAware {
 
     private static final Logger logger = LoggerFactory.getLogger(NativeMoshTtyConnector.class);
     /**
@@ -55,6 +55,12 @@ public class NativeMoshTtyConnector implements TtyConnector {
     private volatile InputStreamReader reader;
     private volatile Thread monitorThread;
 
+    /** The isolation mosh-client is asked for; set before {@link #connect()}. */
+    private volatile de.kortty.isolation.IsolationRequest isolationRequest = de.kortty.isolation.IsolationRequest.NONE;
+    private volatile de.kortty.isolation.IsolationReport isolationReport = de.kortty.isolation.IsolationReport.NONE;
+    private final java.util.concurrent.atomic.AtomicReference<java.nio.file.Path> sandboxSessionDirectory =
+        new java.util.concurrent.atomic.AtomicReference<>();
+
     public NativeMoshTtyConnector(ServerConnection connection, String password) {
         this.connection = connection;
         this.password = password;
@@ -78,6 +84,20 @@ public class NativeMoshTtyConnector implements TtyConnector {
         this.disconnectListener = disconnectListener;
     }
 
+    /**
+     * Asks for {@code request}'s isolation: {@link de.kortty.isolation.IsolationLevel#SANDBOX} starts
+     * mosh-client in the operating-system sandbox. The SSH bootstrap that starts mosh-server is short and
+     * stays in korTTY. Call before {@link #connect()}.
+     */
+    public void setIsolationRequest(de.kortty.isolation.IsolationRequest request) {
+        this.isolationRequest = request != null ? request : de.kortty.isolation.IsolationRequest.NONE;
+    }
+
+    @Override
+    public de.kortty.isolation.IsolationReport isolationReport() {
+        return isolationReport;
+    }
+
     public static boolean isNativeMoshAvailable() {
         return commandExists("mosh-client");
     }
@@ -91,6 +111,11 @@ public class NativeMoshTtyConnector implements TtyConnector {
         // the bootstrap would succeed and the session then stall with no data.
         if (JumpHostSupport.isActive(connection)) {
             throw new IllegalStateException(i18n("mosh.error.jumpServerUnsupported"));
+        }
+        // A sandbox the policy demands but this computer cannot give: refuse before mosh-server is started.
+        String isolationRefusal = de.kortty.isolation.sandbox.LocalProcessSandbox.refusal(isolationRequest);
+        if (isolationRefusal != null) {
+            throw new IllegalStateException(isolationRefusal);
         }
         try {
             logger.info("Starting native MOSH for {}@{}:{}",
@@ -202,9 +227,15 @@ public class NativeMoshTtyConnector implements TtyConnector {
             env.put("LANG", "en_US.UTF-8");
         }
 
-        String[] command = {moshClientPath, host, String.valueOf(port)};
+        de.kortty.isolation.sandbox.LocalProcessSandbox.Prepared isolated =
+            de.kortty.isolation.sandbox.LocalProcessSandbox.prepare(isolationRequest,
+                java.util.List.of(moshClientPath, host, String.valueOf(port)), env, null, java.util.List.of());
+        env = new HashMap<>(isolated.environment());
+        isolationReport = isolated.report();
+        sandboxSessionDirectory.set(isolated.sessionDirectory());
+        String[] command = isolated.command().toArray(new String[0]);
 
-        logger.debug("Starting mosh-client via pty4j ({}x{}) cmd={}", cols, rows, String.join(" ", command));
+        logger.debug("Starting mosh-client via pty4j ({}x{}), {} command token(s)", cols, rows, command.length);
 
         ptyProcess = new PtyProcessBuilder(command)
                 .setEnvironment(env)
@@ -285,6 +316,7 @@ public class NativeMoshTtyConnector implements TtyConnector {
     @Override
     public void close() {
         connected.set(false);
+        de.kortty.isolation.sandbox.SandboxSupport.deleteSessionDirectory(sandboxSessionDirectory.getAndSet(null));
 
         InputStreamReader localReader = reader;
         InputStream localIn = inputStream;

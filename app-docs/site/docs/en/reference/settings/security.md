@@ -14,9 +14,13 @@ This tab manages password vault security and SSH key authentication options. Ope
 | Require master password on startup | toggle | — | On | `requireMasterPasswordOnStartup` |
 | Disable master password prompt on startup (auto-login) | toggle | — | Off | `skipMasterPasswordPrompt` |
 | Enable temporary SSH key option | toggle | — | Off | `temporarySshKeyEnabled` |
+| Default isolation | dropdown | None, Own process, Own process + sandbox | None | `connectionIsolationDefault` |
 
 !!! note "Temporary SSH keys and the temp folder"
     With this option on, the Connection Manager and Quick Connect offer a temporary SSH key: a private key you paste for the session instead of a key file. For terminal tabs, splits and SFTP, korTTY reads a temporary key in memory and never writes it to a key file; a saved connection keeps the key only encrypted with your master password in `connections.xml`. Scheduled jobs also authenticate in memory, with one exception: because an Rsync job hands the key to the external `ssh`, the JobScheduler writes the temporary key of an Rsync job to an owner-only file in the system temp folder and deletes it when the job's connection closes or fails. Key files that earlier versions left in the temp folder (`kortty_temp_key_*.key`, `kortty_scheduler_key_*.key`) are deleted at the next start, as long as they belong to you and are older than five minutes.
+
+!!! note "Session isolation"
+    **Default isolation:** in the **Session isolation** section is the isolation of every connection that sets none itself and whose folders set none; a connection and a folder can choose their own in the Connection Manager, and the folder levels are stored as `connectionGroupIsolation`. The section says whether this computer has a working sandbox, or why not, and which connection types can be isolated in this version. With an organization minimum the levels below it are not offered and the section names the minimum. See [Session isolation](../../features/session-isolation.md).
 
 !!! warning "Master password on startup"
     If "Require master password on startup" is disabled, korTTY starts with the vault locked: encrypted passwords and SSH keys cannot be decrypted until you unlock it with **Configuration → Security → Unlock Vault…** or the **Unlock Vault…** button of any "vault locked" message. This is a security risk and should only be disabled if you understand the consequences.

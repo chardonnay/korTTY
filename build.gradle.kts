@@ -3693,6 +3693,14 @@ tasks.register<JavaExec>("multiExecSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("sessionIsolationSmoke") {
+    group = "verification"
+    description = "Opens three local-shell tabs (sandbox + incognito, own process, none) and checks the filled shield and the spy, the outline shield and no marker, their screen-reader texts, and that the sandboxed shell cannot read korTTY's configuration folder while the unisolated one can; pass a PNG path via --args to save a snapshot (needs a display and a working sandbox, skips otherwise)."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SessionIsolationSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("aiManagerTabCssSmoke") {
     group = "verification"
     description = "Opens the AI Manager under every app design and fails on JavaFX CSS warnings for the selected tab."
