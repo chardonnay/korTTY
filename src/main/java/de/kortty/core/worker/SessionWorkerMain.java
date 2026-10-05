@@ -13,6 +13,8 @@ import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.SshConstants;
 import org.apache.sshd.common.config.keys.KeyUtils;
 import org.apache.sshd.common.config.keys.PublicKeyEntry;
+import org.apache.sshd.common.channel.RequestHandler;
+import org.apache.sshd.common.session.ConnectionService;
 import org.apache.sshd.common.session.Session;
 import org.apache.sshd.common.session.SessionHeartbeatController;
 import org.apache.sshd.common.session.SessionListener;
@@ -23,6 +25,8 @@ import org.apache.sshd.common.CommonModuleProperties;
 import org.apache.sshd.server.SshServer;
 import org.apache.sshd.server.channel.ChannelSessionFactory;
 import org.apache.sshd.server.forward.RejectAllForwardingFilter;
+import org.apache.sshd.server.global.CancelTcpipForwardHandler;
+import org.apache.sshd.server.global.TcpipForwardHandler;
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider;
 import org.apache.sshd.server.subsystem.SubsystemFactory;
 import org.slf4j.Logger;
@@ -37,6 +41,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -49,7 +54,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * authenticates to the server (through the jump server, if any) and then offers korTTY a loopback
  * SSH endpoint on {@code 127.0.0.1} that only accepts korTTY's token. Every channel korTTY opens
  * there — its shell, the AI agent's commands, SFTP, {@code -L}/{@code -D} tunnels — is relayed to a
- * channel of the same kind on the real server. Everything that needs a person or a secret is asked
+ * channel of the same kind on the real server, and korTTY's {@code -R} tunnels are requested from the
+ * real server, whose connections come back to korTTY ({@link RemoteForwards}). Everything that needs a person or a secret is asked
  * of korTTY over the control channel on stdin/stdout: whether to trust a host key, the answers to
  * keyboard-interactive prompts, and signatures for key authentication. The worker never sees the
  * vault, the master password or a private key, and it writes no file.
@@ -225,7 +231,16 @@ public final class SessionWorkerMain {
         server.setCommandFactory((channel, command) -> new RelayCommand(upstream.session, RelayCommand.Kind.EXEC, command));
         server.setSubsystemFactories(List.of(relaySubsystem(upstream, "sftp")));
         server.setChannelFactories(List.of(ChannelSessionFactory.INSTANCE,
-            DirectTcpipRelayChannel.factory(() -> upstream.session)));
+            TcpipRelayChannel.directFactory(() -> upstream.session)));
+        // korTTY's remote tunnels are passed on to the server instead of binding a port here.
+        List<RequestHandler<ConnectionService>> globalRequests = new ArrayList<>();
+        for (RequestHandler<ConnectionService> handler : server.getGlobalRequestHandlers()) {
+            if (!(handler instanceof TcpipForwardHandler) && !(handler instanceof CancelTcpipForwardHandler)) {
+                globalRequests.add(handler);
+            }
+        }
+        globalRequests.add(upstream.remoteForwards);
+        server.setGlobalRequestHandlers(globalRequests);
         server.start();
         return server;
     }
@@ -303,6 +318,8 @@ public final class SessionWorkerMain {
         private SshClient jumpClient;
         private ClientSession jumpSession;
         volatile ClientSession session;
+        /** korTTY's remote tunnels on this server connection. */
+        final RemoteForwards remoteForwards = new RemoteForwards(() -> session);
 
         Upstream(WorkerInit init, WorkerEndpoint endpoint, IsolatedNetwork network) {
             this.init = init;
@@ -327,6 +344,8 @@ public final class SessionWorkerMain {
                 }
                 client = newClient("target", init.host, init.port, "key".equals(init.auth), init.keyOnly);
                 client.setSessionFactory(SshLivenessProbe.inboundCountingSessionFactory(client, inboundBytes));
+                // Connections to korTTY's remote tunnels go on to korTTY, never to a socket of the worker.
+                client.setChannelFactories(List.of(TcpipRelayChannel.forwardedFactory(remoteForwards)));
                 client.start();
                 session = client.connect(init.username, connectHost, connectPort).verify(timeout).getSession();
                 session.setKeyIdentityProvider(null);
