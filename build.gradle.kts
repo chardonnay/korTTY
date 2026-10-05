@@ -4276,3 +4276,12 @@ tasks.register<JavaExec>("dialogFirstOpenFitSmoke") {
         providers.gradleProperty(key).orNull?.let { systemProperty(key, it) }
     }
 }
+
+tasks.register<JavaExec>("connectionEditorOwnerSmoke") {
+    group = "verification"
+    description = "Opens the connection editor from a live Connection Manager (new and existing, Cancel and " +
+        "Save) and fails unless the editor is owned by the manager — owned by the main window it beeped on close."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.ConnectionEditorOwnerSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
