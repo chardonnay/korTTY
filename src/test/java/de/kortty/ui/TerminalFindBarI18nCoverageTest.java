@@ -109,6 +109,18 @@ class TerminalFindBarI18nCoverageTest {
                 + "return TerminalFindBarText\\.INSTANCE;");
     }
 
+    @Test
+    void thePaneSettingsProviderReturnsTheTranslatedTexts() throws Exception {
+        Class<?> cls = Class.forName("de.kortty.ui.TerminalView$KorTTYSettingsProvider");
+        java.lang.reflect.Constructor<?> ctor = cls.getDeclaredConstructor(de.kortty.model.ConnectionSettings.class,
+            com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider.class, java.util.function.IntSupplier.class);
+        ctor.setAccessible(true);
+        com.sithtermfx.ui.settings.SystemSettingsProvider provider =
+            (com.sithtermfx.ui.settings.SystemSettingsProvider) ctor.newInstance(new de.kortty.model.ConnectionSettings(),
+                new com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider(14f), (java.util.function.IntSupplier) () -> 0);
+        assertThat(provider.getSearchBarText()).isSameInstanceAs(TerminalFindBarText.INSTANCE);
+    }
+
     /** Fills {0}, {1}… with String.replace, as LanguageManager.getString(key, args) does. */
     private static java.util.function.BiFunction<String, Object[], String> lookupFrom(Properties bundle) {
         return (key, args) -> {
