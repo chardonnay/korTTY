@@ -3806,8 +3806,9 @@ public class TerminalView extends BorderPane {
             throw new IllegalStateException(I18n.get("isolation.error.protocolUnsupported",
                 I18n.get("isolation.level." + floor.id())));
         }
-        logger.info("{} asks for {} isolation, which its protocol {} cannot get yet; running with {}",
-            target.getDisplayName(), resolution.level().id(), target.getProtocol(), supported.id());
+        // Host and port only, never the display name: see the CodeQL note in SshTtyConnector.connect.
+        logger.info("{}:{} asks for {} isolation, which its protocol {} cannot get yet; running with {}",
+            target.getHost(), target.getPort(), resolution.level().id(), target.getProtocol(), supported.id());
         return new de.kortty.isolation.IsolationRequest(supported, floor);
     }
 
