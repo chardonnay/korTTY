@@ -14,7 +14,7 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 | Zeilen: | Nummer | 10–200 | 24 | `terminalRows` |
 | Scrollback: | Nummer | 100–100.000 | 10.000 | `scrollbackLines` |
 | Kodierung: | Dropdown | UTF-8, ISO-8859-1, ISO-8859-15, Windows-1252 | UTF-8 | `encoding` |
-| Fett wie helle Farbe | umschalten | — | Ein | `boldAsBright` |
+| Fetter Text: | Dropdown | Fette Schrift, Helle Farben, Fette Schrift und helle Farben | Fette Schrift | `boldTextMode` |
 | Bildlaufleiste im Terminal anzeigen | umschalten | – | Ein | `showTerminalScrollbar` |
 | Befehlszeitstempel anzeigen | umschalten | – | Aus | `commandTimestampsEnabled` |
 | Drag-and-Drop ins Terminal erlauben (Dateien werden per SFTP kopiert, Text wird eingefügt) | umschalten | – | Ein | `terminalDragDropEnabled` |
@@ -60,8 +60,8 @@ Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einsch
 
     Frühere Versionen ignorierten diese Einstellung, sodass ein damals gewählter Wert nicht automatisch angewendet wird: SSH-Sitzungen bleiben UTF-8, und ein Hinweis unter dem Dropdown sagt dies, bis Sie die Einstellungen nach dem Öffnen der Terminal-Seite speichern. Wählen Sie **UTF-8** vor dem Speichern, wenn Sie den alten Wert nicht übernehmen möchten.
 
-!!! note "Fett als helle Farbe anzeigen"
-    Diese Einstellung gilt derzeit nur für Terminalaufnahmen: mit [Terminalfarben in Aufnahmen erfassen](video.md) aktiviert, wird fetter Text einer der 8 normalen ANSI-Farben in seiner hellen Variante gespeichert. Das Live-Terminal zeichnet fetten Text in jeder Hinsicht immer noch in seiner normalen Farbe aus.
+!!! note "Fetter Text"
+    Legt fest, wie Text dargestellt wird, den ein Programm fett ausgibt. **Fette Schrift** (der Standard) zeichnet ihn in einer fetten Schrift in seiner eigenen Farbe. **Helle Farben** zeichnet fetten Text in einer der 8 ANSI-Grundfarben stattdessen in der passenden hellen Farbe der Palette und in normaler Schriftstärke, so wie xterm: fettes Rot wird zu hellem Rot. **Fette Schrift und helle Farben** macht beides. Nur die 8 Grundfarben werden aufgehellt, einschließlich der Farben 0–7, die ein Programm aus der 256-Farben-Tabelle wählt; die Standard-Textfarbe, die hellen Farben, die übrigen der 256 Farben und True Colors bleiben unverändert. Die hellen Farben stammen aus der Palette auf dem Tab [Farben](colors.md), sodass eine angepasste Palette gilt. Invertierter fetter Text erhält einen hellen Hintergrund, während sich die Farben für Auswahl, Suchtreffer und Link-Hervorhebung nie ändern. Eine gespeicherte Änderung gilt sofort für jedes geöffnete Terminal, und Terminalaufzeichnungen mit [Terminalfarben in Aufnahmen erfassen](video.md) verwenden dieselben Farben wie der Bildschirm. Einstellungsdateien aus der Zeit vor dieser Option werden als **Fette Schrift** geladen; der frühere Schalter **Fett als helle Farbe** betraf nur Aufzeichnungen und wird nicht mehr verwendet.
 
 !!! note "Zurückscrollen"
     Steuert, wie viele Ausgabezeilen jeder Terminalbereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen, daher gilt eine Änderung für neu geöffnete Registerkarten und geteilte Bereiche – bereits geöffnete Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.
