@@ -53,6 +53,8 @@ public class SessionJournalSummarizer {
     private static final int EXCERPT_LINE_CHARS = 200;
     private static final int TITLE_MAX_CHARS = 80;
     private static final int SESSION_SUMMARY_MAX_ENTRIES = 100;
+    /** Per entry in the wrap-up prompt; a window summary is at most five sentences, well below. */
+    private static final int ENTRY_LINE_MAX_CHARS = 1500;
     private static final String HIDDEN_INPUT_MARKER = "(hidden input)";
     private static final String SCREENSHOT_MARKER = "[screenshot attached]";
 
@@ -76,6 +78,9 @@ public class SessionJournalSummarizer {
     /** The invoker of the pass running on this thread when it differs from the default one. */
     private final ThreadLocal<SessionJournalAiSupport.AiInvoker> invokerOverride = new ThreadLocal<>();
     private ScheduledExecutorService scheduler;
+    /** Command name → snippet name of a script the snippet manager knows; null when unknown. */
+    private volatile java.util.function.Function<String, String> snippetLookup =
+        SessionJournalSummarizer::applicationSnippetLookup;
 
     /** Per-session summarization progress; {@code lastSummarizedSeq < 0} means "load from doc". */
     private static final class SessionState {
@@ -89,7 +94,7 @@ public class SessionJournalSummarizer {
         final AtomicBoolean busy = new AtomicBoolean();
     }
 
-    private record Window(
+    record Window(
         long startSeq,
         long endSeq,
         OffsetDateTime fromTime,
@@ -98,7 +103,9 @@ public class SessionJournalSummarizer {
         List<String> outputLines,
         int omittedInputLines,
         int omittedOutputLines,
-        String firstCommand) {
+        String firstCommand,
+        /** The window's full, uncapped log text: what a summary's identifiers are checked against. */
+        String evidence) {
     }
 
     public SessionJournalSummarizer(SessionJournalService service) {
@@ -112,6 +119,19 @@ public class SessionJournalSummarizer {
         this.service = service;
         this.settingsSupplier = settingsSupplier;
         this.aiInvoker = aiInvoker;
+    }
+
+    /** Test seam for the snippet-manager lookup behind the command tooltips. */
+    void setSnippetLookup(java.util.function.Function<String, String> snippetLookup) {
+        this.snippetLookup = snippetLookup != null ? snippetLookup : command -> null;
+    }
+
+    private static String applicationSnippetLookup(String command) {
+        de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+        if (app == null || app.getSnippetManager() == null) {
+            return null;
+        }
+        return SessionJournalCommandInfos.findSnippetName(app.getSnippetManager().getAllSnippets(), command);
     }
 
     private static GlobalSettings applicationSettings() {
@@ -333,6 +353,15 @@ public class SessionJournalSummarizer {
         if (content.isEmpty()) {
             return;
         }
+        // Typos ("lnks: command not found") are no journal material; the range they occupied
+        // still counts as done, so the progress below always reaches the true end.
+        long contentEndSeq = content.get(content.size() - 1).seq();
+        content = SessionJournalTypoFilter.withoutNotFoundAttempts(content);
+        if (content.isEmpty()) {
+            state.lastSummarizedSeq = contentEndSeq;
+            service.updateLastSummarizedSeq(directory, contentEndSeq);
+            return;
+        }
         if (!finalPass && liveSessionOrNull != null
                 && content.size() < MIN_NEW_LINES
                 && System.currentTimeMillis() - liveSessionOrNull.getLastActivityMillis() < MIN_QUIET_MILLIS) {
@@ -347,33 +376,72 @@ public class SessionJournalSummarizer {
             && invoker().isAvailable();
         String languageCode = document.getMeta().getAppLanguageCode();
 
-        List<Window> windows = chunked
+        List<Window> windows = new ArrayList<>(chunked
             ? buildChunkedWindows(content, maxLines, tokenBudget)
-            : List.of(buildNewestWindow(content, maxLines, tokenBudget));
+            : List.of(buildNewestWindow(content, maxLines, tokenBudget)));
+        Window last = windows.get(windows.size() - 1);
+        if (last.endSeq() < contentEndSeq) {
+            windows.set(windows.size() - 1, new Window(last.startSeq(), contentEndSeq, last.fromTime(),
+                last.toTime(), last.inputLines(), last.outputLines(), last.omittedInputLines(),
+                last.omittedOutputLines(), last.firstCommand(), last.evidence()));
+        }
+        String loginUser = document.getMeta().getUsername();
         for (Window window : windows) {
+            if (isIdle(window)) {
+                // Nothing was typed and nothing but the prompt was printed: no entry, but the
+                // range counts as done so it never comes back as "no activity".
+                advanceProgress(directory, state, window);
+                continue;
+            }
             boolean ok = aiAvailable
                 ? summarizeWindowWithAi(directory, document, window, languageCode)
-                : writeRawEntry(directory, window);
+                : writeRawEntry(directory, window, loginUser);
             if (!ok && aiAvailable && finalPass && state.closingSession) {
                 // The closing pass is the last chance: a failed AI call must not leave the journal's
                 // timeline empty, so keep the window as a raw activity entry. Progress is NOT
                 // advanced, so "Catch up summaries" still finds the journal and summarizes it later.
                 logger.info("AI summary failed in the closing pass of {}; recording raw activity instead",
                     directory.getFileName());
-                writeRawEntry(directory, window);
+                writeRawEntry(directory, window, loginUser);
                 handleFailure(directory, state);
                 continue;
             }
             if (ok) {
-                state.lastSummarizedSeq = window.endSeq();
-                state.consecutiveFailures = 0;
-                state.failurePlaceholderWritten = false;
-                service.updateLastSummarizedSeq(directory, window.endSeq());
+                advanceProgress(directory, state, window);
             } else {
                 handleFailure(directory, state);
                 break;
             }
         }
+    }
+
+    private void advanceProgress(Path directory, SessionState state, Window window) throws Exception {
+        state.lastSummarizedSeq = window.endSeq();
+        state.consecutiveFailures = 0;
+        state.failurePlaceholderWritten = false;
+        service.updateLastSummarizedSeq(directory, window.endSeq());
+    }
+
+    /**
+     * True when the window holds no activity: no typed input (hidden input counts as typed), no
+     * screenshot, and no output beyond blank lines and bare shell prompts. Omitted lines count as
+     * activity — the window was too big to be idle.
+     */
+    static boolean isIdle(Window window) {
+        if (window.omittedInputLines() > 0 || window.omittedOutputLines() > 0) {
+            return false;
+        }
+        for (String line : window.inputLines()) {
+            if (line != null && !line.isBlank()) {
+                return false;
+            }
+        }
+        for (String line : window.outputLines()) {
+            if (SCREENSHOT_MARKER.equals(line) || !SessionJournalShellPrompts.isIdleLine(line)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** OUT/SEED/IN/SCREENSHOT entries that carry journal-relevant content; NOTEs are skipped. */
@@ -444,7 +512,8 @@ public class SessionJournalSummarizer {
             outputLines,
             totalInput - inputLines.size(),
             totalOutput - outputLines.size(),
-            firstCommandOf(inputLines, outputLines));
+            firstCommandOf(inputLines, outputLines),
+            evidenceOf(content));
     }
 
     /**
@@ -504,7 +573,8 @@ public class SessionJournalSummarizer {
             outputLines,
             0,
             0,
-            firstCommandOf(inputLines, outputLines));
+            firstCommandOf(inputLines, outputLines),
+            evidenceOf(entries));
     }
 
     /** Reserve a quarter of the budget for prompt scaffolding and the model's reply. */
@@ -533,10 +603,34 @@ public class SessionJournalSummarizer {
         return line.substring(0, half) + " ... " + line.substring(line.length() - half);
     }
 
+    /** Keeps whole sentences up to {@code maxChars}; a cut is marked so the model never completes it. */
+    static String capAtSentence(String text, int maxChars) {
+        if (text.length() <= maxChars) {
+            return text;
+        }
+        String head = text.substring(0, maxChars);
+        int end = Math.max(Math.max(head.lastIndexOf(". "), head.lastIndexOf("! ")), head.lastIndexOf("? "));
+        if (end > maxChars / 3) {
+            return head.substring(0, end + 1) + " [...]";
+        }
+        int space = head.lastIndexOf(' ');
+        return (space > 0 ? head.substring(0, space) : head) + " [...]";
+    }
+
     private static List<String> reversed(List<String> list) {
         List<String> result = new ArrayList<>(list);
         java.util.Collections.reverse(result);
         return result;
+    }
+
+    private static String evidenceOf(List<SessionJournalLogEntry> entries) {
+        StringBuilder evidence = new StringBuilder(4096);
+        for (SessionJournalLogEntry entry : entries) {
+            if (entry.text() != null && !entry.redacted()) {
+                evidence.append(entry.text()).append('\n');
+            }
+        }
+        return evidence.toString();
     }
 
     private static String firstCommandOf(List<String> inputLines, List<String> outputLines) {
@@ -569,13 +663,31 @@ public class SessionJournalSummarizer {
             if (parsed == null) {
                 return false;
             }
+            if (parsed.skip()) {
+                return true; // the model saw no activity: the range is done, without an entry
+            }
+            String loginUser = document.getMeta().getUsername();
+            SessionJournalFactCheck.Result checked =
+                SessionJournalFactCheck.dropUnverified(parsed.summary(), window.evidence());
+            if (checked.dropped() > 0) {
+                logger.info("Dropped {} AI statement(s) naming something the log of {} does not show",
+                    checked.dropped(), directory.getFileName());
+            }
+            if (checked.text().isBlank()) {
+                return writeRawEntry(directory, window, loginUser); // nothing verifiable was left
+            }
+            String title = SessionJournalFactCheck.verified(nullToEmpty(parsed.title()),
+                    window.evidence().toLowerCase(java.util.Locale.ROOT).replaceAll("\\s+", " "))
+                ? parsed.title() : null;
             SessionJournalEntry entry = baseEntry(window);
             entry.setKind(SessionJournalEntryKind.AI_SUMMARY);
             entry.setState(SessionJournalEntry.State.SUMMARIZED);
             entry.setTitle(SessionJournalAiSupport.normalizeTitle(
-                parsed.title(), fallbackTitle(window), TITLE_MAX_CHARS));
-            entry.setText(parsed.summary());
+                title, fallbackTitle(window), TITLE_MAX_CHARS));
+            entry.setText(checked.text());
             entry.setMarker(SessionJournalMarker.fromAiCategory(parsed.category()));
+            entry.setRunAsUser(runAsUser(window, loginUser, parsed.runAs()));
+            entry.setCommands(SessionJournalCommandInfos.from(parsed.commands(), snippetLookup));
             service.appendEntry(directory, entry);
             return true;
         } catch (Exception e) {
@@ -584,9 +696,30 @@ public class SessionJournalSummarizer {
         }
     }
 
-    private boolean writeRawEntry(Path directory, Window window) {
+    /**
+     * The user a window's commands ran as when it is not the login user. The prompts in the output
+     * decide first — they are evidence; the model's {@code runAs} only fills in when no prompt
+     * was recognised, and only when it names a plausible login name.
+     */
+    static String runAsUser(Window window, String loginUser, String aiRunAs) {
+        String fromPrompts = SessionJournalShellPrompts.switchedUser(window.outputLines(), loginUser);
+        if (fromPrompts != null) {
+            return fromPrompts;
+        }
+        if (aiRunAs == null) {
+            return null;
+        }
+        String candidate = aiRunAs.strip().toLowerCase(java.util.Locale.ROOT);
+        String login = loginUser != null ? loginUser.strip().toLowerCase(java.util.Locale.ROOT) : "";
+        return SessionJournalShellPrompts.isPlausibleUserName(candidate) && !candidate.equals(login)
+            ? candidate
+            : null;
+    }
+
+    private boolean writeRawEntry(Path directory, Window window, String loginUser) {
         try {
             SessionJournalEntry entry = baseEntry(window);
+            entry.setRunAsUser(runAsUser(window, loginUser, null));
             entry.setKind(SessionJournalEntryKind.AI_SUMMARY);
             entry.setState(SessionJournalEntry.State.RAW);
             entry.setTitle(SessionJournalAiSupport.normalizeTitle(
@@ -708,6 +841,20 @@ public class SessionJournalSummarizer {
     private List<String> collectEntryLines(SessionJournalDocument document) {
         List<String> lines = new ArrayList<>();
         for (SessionJournalEntry entry : document.getEntries()) {
+            if (entry.getKind() == SessionJournalEntryKind.SCREENSHOT) {
+                // what the screenshots show is evidence too, not only what the log says
+                if (entry.hasAiAnalysis()) {
+                    StringBuilder shot = new StringBuilder("[Screenshot] ");
+                    if (entry.getAiDescription() != null) {
+                        shot.append(capAtSentence(entry.getAiDescription().replace('\n', ' '), ENTRY_LINE_MAX_CHARS));
+                    }
+                    if (!entry.getAiTags().isEmpty()) {
+                        shot.append(" (").append(String.join(", ", entry.getAiTags())).append(')');
+                    }
+                    lines.add(shot.toString());
+                }
+                continue;
+            }
             if (entry.getKind() != SessionJournalEntryKind.AI_SUMMARY
                 && entry.getKind() != SessionJournalEntryKind.USER_NOTE) {
                 continue;
@@ -720,7 +867,9 @@ public class SessionJournalSummarizer {
                 sb.append(entry.getTitle()).append(": ");
             }
             if (entry.getText() != null) {
-                sb.append(capLine(entry.getText().replace('\n', ' '), 300));
+                // Never cut out of the middle: a model completes a gap with something plausible —
+                // "mit `l ... " became an invented checkip.dyndns.org instead of www.heise.de.
+                sb.append(capAtSentence(entry.getText().replace('\n', ' '), ENTRY_LINE_MAX_CHARS));
             }
             if (!sb.isEmpty()) {
                 lines.add(sb.toString());
@@ -749,12 +898,24 @@ public class SessionJournalSummarizer {
             if (parsed == null) {
                 return;
             }
+            String evidence = keywordCorpus(document) + "\n" + logEvidence(directory);
+            SessionJournalFactCheck.Result checked = SessionJournalFactCheck.dropUnverified(parsed.summary(), evidence);
+            if (checked.dropped() > 0) {
+                logger.info("Dropped {} wrap-up statement(s) naming something {} does not show",
+                    checked.dropped(), directory.getFileName());
+            }
+            if (checked.text().isBlank()) {
+                return; // nothing verifiable was left; better no wrap-up than an invented one
+            }
+            String normalizedEvidence = evidence.toLowerCase(java.util.Locale.ROOT).replaceAll("\\s+", " ");
             SessionJournalEntry entry = new SessionJournalEntry();
             entry.setKind(SessionJournalEntryKind.SESSION_SUMMARY);
             entry.setState(SessionJournalEntry.State.SUMMARIZED);
             entry.setTitle(SessionJournalAiSupport.normalizeTitle(
-                parsed.title(), i18n("journal.summary.final.title"), TITLE_MAX_CHARS));
-            entry.setText(parsed.summary());
+                SessionJournalFactCheck.verified(nullToEmpty(parsed.title()), normalizedEvidence) ? parsed.title() : null,
+                i18n("journal.summary.final.title"), TITLE_MAX_CHARS));
+            entry.setText(checked.text() + "\n\n" + closingLine(document));
+            entry.setCommands(sessionCommands(document));
             entry.setMarker(SessionJournalMarker.fromAiCategory(parsed.category()));
             service.appendEntry(directory, entry);
             if (!parsed.keywords().isEmpty()) {
@@ -763,7 +924,7 @@ public class SessionJournalSummarizer {
                 // The loaded document predates the entry appended above, so the fresh wrap-up
                 // text joins the corpus explicitly — it may be the only place naming a keyword.
                 List<String> keywords = SessionJournalAiSupport.reconcileKeywords(
-                    parsed.keywords(), keywordCorpus(document) + "\n" + parsed.summary());
+                    parsed.keywords(), keywordCorpus(document) + "\n" + checked.text());
                 if (!keywords.isEmpty()) {
                     service.updateAiKeywords(directory, keywords);
                 }
@@ -771,6 +932,75 @@ public class SessionJournalSummarizer {
         } catch (Exception e) {
             logger.warn("Session journal wrap-up failed for {}: {}", directory.getFileName(), e.getMessage());
         }
+    }
+
+    /**
+     * The wrap-up's last line — duration and the accounts the session ran under — written by
+     * korTTY rather than the model, which can neither measure the one nor see the other reliably.
+     */
+    static String closingLine(SessionJournalDocument document) {
+        var meta = document.getMeta();
+        java.util.LinkedHashSet<String> users = new java.util.LinkedHashSet<>();
+        if (meta.getUsername() != null && !meta.getUsername().isBlank()) {
+            users.add(meta.getUsername().strip());
+        }
+        for (SessionJournalEntry entry : document.getEntries()) {
+            if (entry.getRunAsUser() != null) {
+                users.add(entry.getRunAsUser());
+            }
+        }
+        String duration = durationText(meta.getDuration());
+        if (users.isEmpty()) {
+            return i18n("journal.summary.final.closing.noUser").replace("{0}", duration);
+        }
+        String key = users.size() == 1 ? "journal.summary.final.closing.one" : "journal.summary.final.closing.many";
+        return i18n(key).replace("{0}", duration).replace("{1}", String.join(", ", users));
+    }
+
+    /** The command explanations of all window entries, so the wrap-up's commands get tooltips too. */
+    private static List<de.kortty.model.SessionJournalCommandInfo> sessionCommands(SessionJournalDocument document) {
+        Map<String, de.kortty.model.SessionJournalCommandInfo> byName = new java.util.LinkedHashMap<>();
+        for (SessionJournalEntry entry : document.getEntries()) {
+            if (entry.getKind() != SessionJournalEntryKind.AI_SUMMARY) {
+                continue;
+            }
+            for (de.kortty.model.SessionJournalCommandInfo command : entry.getCommands()) {
+                if (command.getName() != null) {
+                    byName.putIfAbsent(command.getName().toLowerCase(java.util.Locale.ROOT),
+                        new de.kortty.model.SessionJournalCommandInfo(command));
+                }
+            }
+        }
+        return new ArrayList<>(byName.values());
+    }
+
+    private static String durationText(Duration duration) {
+        long minutes = duration != null ? duration.toMinutes() : 0;
+        if (minutes < 1) {
+            return i18n("journal.summary.final.duration.underMinute");
+        }
+        if (minutes < 60) {
+            return minutes == 1
+                ? i18n("journal.summary.final.duration.minute")
+                : i18n("journal.summary.final.duration.minutes").replace("{0}", Long.toString(minutes));
+        }
+        return i18n("journal.summary.final.duration.hours")
+            .replace("{0}", Long.toString(minutes / 60))
+            .replace("{1}", Long.toString(minutes % 60));
+    }
+
+    /** The whole capture log as text, for checking the wrap-up; empty when it cannot be read. */
+    private String logEvidence(Path directory) {
+        try {
+            return evidenceOf(service.readLogAfter(directory, 0));
+        } catch (Exception e) {
+            logger.debug("Could not read the log of {} for the fact check: {}", directory.getFileName(), e.getMessage());
+            return "";
+        }
+    }
+
+    private static String nullToEmpty(String value) {
+        return value != null ? value : "";
     }
 
     /** Everything the keyword extraction could legitimately quote from, as one text. */

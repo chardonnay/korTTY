@@ -23,15 +23,40 @@ public final class SessionJournalAiSupport {
      * Parsed summarizer reply; {@code category} maps to a journal marker. {@code keywords} are
      * only requested (and produced) by the closing session summary — empty everywhere else.
      */
-    public record SummaryResult(String title, String summary, String category, List<String> keywords) {
+    public record SummaryResult(
+            String title,
+            String summary,
+            String category,
+            List<String> keywords,
+            String runAs,
+            List<CommandMention> commands,
+            boolean skip) {
 
         public SummaryResult {
             keywords = keywords == null ? List.of() : List.copyOf(keywords);
+            commands = commands == null ? List.of() : List.copyOf(commands);
+            runAs = runAs != null && !runAs.isBlank() ? runAs.strip() : null;
+        }
+
+        public SummaryResult(String title, String summary, String category, List<String> keywords) {
+            this(title, summary, category, keywords, null, List.of(), false);
         }
 
         public SummaryResult(String title, String summary, String category) {
             this(title, summary, category, List.of());
         }
+
+        /** The model's verdict that the window holds no activity worth an entry. */
+        static SummaryResult skipped() {
+            return new SummaryResult(null, null, null, List.of(), null, List.of(), true);
+        }
+    }
+
+    /**
+     * A command the summary names in backticks. {@code known} is the model's judgement whether
+     * it is a regular tool of the distribution — false for custom scripts and unknown binaries.
+     */
+    public record CommandMention(String name, String description, boolean known) {
     }
 
     /** Parsed screenshot-analysis reply; both parts optional but never both empty. */
@@ -501,13 +526,19 @@ public final class SessionJournalAiSupport {
             JsonObject json = JsonParser.parseString(candidate).getAsJsonObject();
             String title = json.has("title") && !json.get("title").isJsonNull()
                 ? json.get("title").getAsString() : null;
-            String summary = json.has("summary") && !json.get("summary").isJsonNull()
-                ? json.get("summary").getAsString() : null;
+            String summary = summaryText(json);
             String category = json.has("category") && !json.get("category").isJsonNull()
                 ? json.get("category").getAsString() : null;
             if (summary != null && !summary.isBlank()) {
                 return new SummaryResult(title, summary, category,
-                    stringList(json, "keywords", MAX_KEYWORDS, MAX_KEYWORD_LENGTH));
+                    stringList(json, "keywords", MAX_KEYWORDS, MAX_KEYWORD_LENGTH),
+                    optionalString(json, "runAs"),
+                    commandMentions(json),
+                    false);
+            }
+            if (json.has("skip") && json.get("skip").isJsonPrimitive() && json.get("skip").getAsBoolean()) {
+                // Only honoured without a summary: a model that wrote one still saw something.
+                return SummaryResult.skipped();
             }
         } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
             // fall through to the plain-text fallback below
@@ -587,6 +618,78 @@ public final class SessionJournalAiSupport {
         } catch (JsonSyntaxException | IllegalStateException | UnsupportedOperationException e) {
             // Prose fallback: the whole reply is the description, there are no tags.
             return new ScreenshotAnalysis(sanitized.strip(), List.of());
+        }
+    }
+
+    /** At most this many tags survive {@link #filterScreenshotTags}: the app and what it shows. */
+    static final int MAX_FILTERED_SCREENSHOT_TAGS = 4;
+
+    /**
+     * Words that are true of nearly every journal screenshot and so find nothing: the medium, the
+     * platform, colours and interface languages (English and German, the languages korTTY's
+     * prompts are most often answered in).
+     */
+    private static final java.util.Set<String> SCREENSHOT_TAG_NOISE = java.util.Set.of(
+        "terminal", "ssh", "shell", "bash", "zsh", "console", "konsole", "screenshot", "bildschirmfoto",
+        "cli", "tty", "prompt", "kommandozeile", "command line", "befehlszeile",
+        "linux", "unix", "fedora", "ubuntu", "debian", "centos", "rhel", "red hat", "redhat",
+        "rocky", "almalinux", "suse", "opensuse", "macos", "windows",
+        "deutsch", "german", "englisch", "english", "französisch", "french", "spanisch", "spanish",
+        "user", "benutzer", "host");
+    private static final java.util.Set<String> COLOR_WORDS = java.util.Set.of(
+        "blue", "blau", "blauer", "blaues", "blaue", "red", "rot", "roter", "rote", "green", "grün",
+        "gruen", "yellow", "gelb", "black", "schwarz", "white", "weiß", "weiss", "grey", "gray", "grau",
+        "orange", "cyan", "türkis", "magenta", "purple", "lila", "violett", "pink", "rosa", "brown",
+        "braun", "dark", "dunkel", "light", "hell", "color", "colour", "farbe", "farben", "colors",
+        "colours", "farbschema", "colorscheme", "colourscheme");
+
+    /**
+     * Drops screenshot tags that find nothing: the session's user and host, generic medium and
+     * platform words, colours and interface languages; keeps the first
+     * {@value #MAX_FILTERED_SCREENSHOT_TAGS} of the rest, in the model's order (app name first).
+     */
+    public static List<String> filterScreenshotTags(List<String> tags, String username, String host) {
+        if (tags == null || tags.isEmpty()) {
+            return List.of();
+        }
+        java.util.Set<String> personal = new java.util.HashSet<>();
+        addIdentity(personal, username);
+        addIdentity(personal, host);
+        List<String> result = new java.util.ArrayList<>();
+        for (String tag : tags) {
+            if (result.size() >= MAX_FILTERED_SCREENSHOT_TAGS) {
+                break;
+            }
+            if (tag == null || tag.isBlank()) {
+                continue;
+            }
+            String lower = tag.strip().toLowerCase(Locale.ROOT);
+            if (SCREENSHOT_TAG_NOISE.contains(lower) || personal.contains(lower)) {
+                continue;
+            }
+            boolean colored = false;
+            for (String word : lower.split("[\\s_-]+")) {
+                if (COLOR_WORDS.contains(word)) {
+                    colored = true;
+                    break;
+                }
+            }
+            if (!colored && !result.contains(lower)) {
+                result.add(lower);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private static void addIdentity(java.util.Set<String> into, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        String lower = value.strip().toLowerCase(Locale.ROOT);
+        into.add(lower);
+        int dot = lower.indexOf('.');
+        if (dot > 0) {
+            into.add(lower.substring(0, dot)); // the short host name of an FQDN
         }
     }
 
@@ -847,6 +950,84 @@ public final class SessionJournalAiSupport {
     }
 
     /** Deduplicated, trimmed, capped strings from a JSON string array; empty when absent. */
+    /** The summary string, or a model's array of points joined into the "- " bullet lines. */
+    private static String summaryText(JsonObject json) {
+        if (!json.has("summary") || json.get("summary").isJsonNull()) {
+            return null;
+        }
+        com.google.gson.JsonElement element = json.get("summary");
+        if (!element.isJsonArray()) {
+            return element.getAsString();
+        }
+        StringBuilder bullets = new StringBuilder();
+        for (com.google.gson.JsonElement point : element.getAsJsonArray()) {
+            try {
+                String text = point.getAsString().strip().replaceFirst("^[-*•]\\s+", "");
+                if (!text.isEmpty()) {
+                    bullets.append(bullets.isEmpty() ? "" : "\n").append("- ").append(text);
+                }
+            } catch (RuntimeException ignored) {
+                // a non-string point is a model slip, not a reason to discard the answer
+            }
+        }
+        return bullets.toString();
+    }
+
+    private static final int MAX_COMMANDS = 8;
+    private static final int MAX_COMMAND_NAME_LENGTH = 60;
+    private static final int MAX_COMMAND_DESCRIPTION_LENGTH = 160;
+
+    private static String optionalString(JsonObject json, String field) {
+        try {
+            if (json.has(field) && json.get(field).isJsonPrimitive()) {
+                String value = json.get(field).getAsString().strip();
+                return value.isEmpty() ? null : value;
+            }
+        } catch (RuntimeException ignored) {
+            // a model slip in an optional field never discards the summary
+        }
+        return null;
+    }
+
+    private static List<CommandMention> commandMentions(JsonObject json) {
+        if (!json.has("commands") || !json.get("commands").isJsonArray()) {
+            return List.of();
+        }
+        List<CommandMention> result = new java.util.ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (com.google.gson.JsonElement element : json.getAsJsonArray("commands")) {
+            if (result.size() >= MAX_COMMANDS) {
+                break;
+            }
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            JsonObject object = element.getAsJsonObject();
+            String name = optionalString(object, "name");
+            if (name == null) {
+                continue;
+            }
+            name = name.replace("`", "").strip();
+            if (name.isEmpty() || name.length() > MAX_COMMAND_NAME_LENGTH || !seen.add(name)) {
+                continue;
+            }
+            String description = optionalString(object, "description");
+            if (description != null && description.length() > MAX_COMMAND_DESCRIPTION_LENGTH) {
+                description = description.substring(0, MAX_COMMAND_DESCRIPTION_LENGTH).stripTrailing() + "…";
+            }
+            boolean known = true;
+            try {
+                if (object.has("known") && object.get("known").isJsonPrimitive()) {
+                    known = object.get("known").getAsBoolean();
+                }
+            } catch (RuntimeException ignored) {
+                // keep the default
+            }
+            result.add(new CommandMention(name, description, known));
+        }
+        return List.copyOf(result);
+    }
+
     private static List<String> stringList(JsonObject json, String field, int maxItems, int maxLength) {
         if (!json.has(field) || !json.get(field).isJsonArray()) {
             return List.of();

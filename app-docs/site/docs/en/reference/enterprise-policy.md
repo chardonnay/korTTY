@@ -320,6 +320,7 @@ Mandates for the [session journal](../features/session-journal.md). Forced value
 | `ai-title` | boolean | `true` | The closing AI title is generated regardless of the user setting |
 | `ai-screenshot-analysis` | boolean | `true` / `false` | `true` forces the AI screenshot analysis on, `false` forbids it — including the manual per-screenshot run; the journal option is locked either way |
 | `ai-ask` | boolean | `false` | Forbids on-demand AI over journal content: the viewer's Q&A panel and the manager's cross-journal AI search disappear; AI summaries are unaffected |
+| `clickable-links` | boolean | `false` | Web addresses on journal pages stay plain text — in notes and in AI summaries — and the journal viewer opens no link; the user setting **Make web addresses in journals clickable** is locked off |
 | `max-log-parts` | integer | ≥ 1 | Caps the number of rotated capture-log parts per journal; the effective limit is the minimum of this cap and the per-connection setting, and the connection editor's spinner is clamped to it |
 | `automation-allowed` | boolean | `false` | Forbids the [session journals of JobScheduler and AI Swarm runs](../features/session-journal.md#journals-of-automation-runs); the "session journal per run" controls are disabled. Interactive journals are unaffected |
 | `automation-max-retention-days` | integer | ≥ 1 | Automation journals are deleted at most this many days after their run, whatever the user chose ("never" is not available); enforced even when `allow-delete = false` |
