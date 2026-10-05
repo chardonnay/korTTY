@@ -139,7 +139,7 @@ Patterns match the host string exactly as configured in the connection — korTT
 | Key | Type | Values | Effect |
 | --- | --- | --- | --- |
 | `require-master-password` | boolean | `true` | Forces the master-password gate at startup; the setting is locked |
-| `enforce-host-key-check` | boolean | `true` | SSH host key verification cannot be disabled anywhere — globally, per group or per connection — and trusted host keys cannot be removed or replaced in korTTY |
+| `enforce-host-key-check` | boolean | `true` | SSH host key verification cannot be disabled anywhere — globally, per group or per connection — and trusted host keys cannot be removed or replaced in korTTY; importing an OpenSSH `known_hosts` file stays available because it only adds keys for hosts korTTY does not trust yet |
 | `allow-telemetry` | boolean | `false` | Forbids anonymous usage statistics |
 | `allow-terminal-recording` | boolean | `false` | Forbids terminal session recording, including the session-level toggle |
 | `allow-port-forwarding` | boolean | `false` | Never opens the [SSH tunnels](../features/tunnels.md) configured on connections (local, remote and dynamic port forwarding); the tab's status bar says they are disabled by your organization. A jump server hop is not affected |

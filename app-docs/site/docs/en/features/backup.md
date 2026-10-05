@@ -96,6 +96,8 @@ Each restored file replaces the local one atomically, so an interrupted import n
 !!! important "A backup with another master password"
     If an overwriting import brings the `master.key` of another master password, everything korTTY has loaded still belongs to the old one. korTTY tells you to restart and quits without saving its current data, so the restored files stay as they are. Start korTTY again and unlock it with the master password of the backup.
 
+    A merging import (**Cancel** at the overwrite question) keeps your own `master.key`. If the backup was made with another master password and brings files that hold secrets — `connections.xml`, `credentials.xml`, `ssh-keys.xml`, `global-settings.xml`, `job-scheduler.xml` or `rag/stores.json` — korTTY asks once for the master password of the backup (masked, never logged) and checks it against the backup's `master.key`. It then decrypts the passwords, passphrases, keys and tokens of those files with the backup's master password and encrypts them again with your current one before anything is copied, and the success message says how many secrets were re-encrypted. A secret the backup's master password cannot decrypt either is left empty rather than imported unreadable. If you cancel the prompt, enter a wrong password three times or the vault is locked, the files with secrets are not imported at all and the message lists them; the other files are still imported, and you can import the backup again to enter the password. korTTY never writes a secret encrypted with a master password it does not have.
+
 ## Backup file contents
 
 Both `.zip` and `.zip.gpg` backups contain the same files:
@@ -124,7 +126,7 @@ Both `.zip` and `.zip.gpg` backups contain the same files:
 The session snapshots in `~/.kortty/session/`, which *File → Restore Previous Session* opens, are not included: they describe the windows and tabs of this computer, and the Recently Closed list they keep stays on this computer with them. After a restore, *Restore Previous Session* still opens the session of this computer, and its tabs open with the restored connections. See [Previous session](projects.md#previous-session).
 
 !!! note
-    All passwords and credentials inside the backup remain encrypted with your master password. When you import a backup, you must unlock the master password for KorTTY to decrypt the credentials.
+    All passwords and credentials inside the backup remain encrypted with your master password. When you import a backup, you must unlock the master password for KorTTY to decrypt the credentials. A merging import of a backup made with another master password re-encrypts them with your current one (see [A backup with another master password](#importing-a-backup)).
 
 !!! important "Rebuild local AI assets after a restore"
     The backup excludes `llm/models/`, `llm/runtime/`, `llm/catalog/`, `llm/run/`, and local `index.hnsw` snapshots. After moving to another computer, restore or download the GGUF files and a compatible runtime, reconnect any external model/source paths, then run **Update now** in each knowledge store to regenerate its index. The signed catalog cache refreshes automatically or falls back to the bootstrap. Original source documents and external Qdrant data are not part of a korTTY configuration backup.

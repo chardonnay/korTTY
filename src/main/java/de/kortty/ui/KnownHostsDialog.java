@@ -1,11 +1,15 @@
 package de.kortty.ui;
 
+import de.kortty.core.OpenSshKnownHostsParser;
 import de.kortty.core.SshHostKeyTrustManager;
+import de.kortty.core.SshHostKeyTrustManager.KnownHostsConflict;
+import de.kortty.core.SshHostKeyTrustManager.KnownHostsImportResult;
 import de.kortty.core.SshHostKeyTrustManager.TrustedHostKey;
 import de.kortty.policy.PolicyRestrictionException;
 import de.kortty.policy.PolicyUiSupport;
 import de.kortty.telemetry.Telemetry;
 import de.kortty.telemetry.TelemetryEvents;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -16,16 +20,22 @@ import javafx.scene.control.Label;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -45,6 +55,10 @@ import java.util.function.Function;
  * in the confirmation, so a key changed meanwhile in another window is never removed by accident.
  * While the enterprise policy enforces host-key checking, removal is disabled. A store that cannot
  * be read shows the error and offers no edit actions, so it is never mistaken for an empty one.</p>
+ *
+ * <p>"Import from known_hosts…" reads an OpenSSH {@code known_hosts} file off the FX thread, shows
+ * what an import would add (a dry run) and asks before trusting any new key; afterwards it shows a
+ * summary of added keys, keys already trusted, conflicts (never overwritten) and skipped lines.</p>
  */
 public class KnownHostsDialog extends ThemeAwareDialog<Void> {
 
@@ -54,9 +68,11 @@ public class KnownHostsDialog extends ThemeAwareDialog<Void> {
     private final TextField searchField = new TextField();
     private final TableView<TrustedHostKey> table = new TableView<>();
     private final Button removeButton = new Button();
+    private final Button importButton = new Button();
     private final Label policyLabel = new Label();
     private List<TrustedHostKey> loadedKeys = List.of();
     private boolean loadFailed;
+    private boolean importRunning;
 
     public KnownHostsDialog() {
         this(SshHostKeyTrustManager.shared());
@@ -88,11 +104,15 @@ public class KnownHostsDialog extends ThemeAwareDialog<Void> {
 
         removeButton.setText(I18n.get("ssh.knownHosts.remove"));
         removeButton.setOnAction(event -> removeSelected());
+        // "known_hosts" is a file name: without this the underscore would become a mnemonic marker.
+        importButton.setMnemonicParsing(false);
+        importButton.setText(I18n.get("ssh.knownHosts.import"));
+        importButton.setOnAction(event -> chooseAndImport());
 
         policyLabel.setWrapText(true);
         policyLabel.setStyle("-fx-font-size: 0.8462em;");
 
-        HBox actions = new HBox(10, removeButton);
+        HBox actions = new HBox(10, removeButton, importButton);
         actions.setAlignment(Pos.CENTER_LEFT);
 
         VBox layout = new VBox(10, searchField, table, actions, policyLabel);
@@ -203,6 +223,7 @@ public class KnownHostsDialog extends ThemeAwareDialog<Void> {
         boolean noSelection = table.getSelectionModel().getSelectedItem() == null;
         removeButton.setDisable(loadFailed || locked || noSelection);
         removeButton.setTooltip(locked ? new Tooltip(PolicyUiSupport.managedByOrganizationText()) : null);
+        importButton.setDisable(loadFailed || importRunning);
         boolean showPolicy = locked && !loadFailed;
         policyLabel.setText(showPolicy
             ? I18n.get("ssh.knownHosts.policyLocked") + " " + PolicyUiSupport.managedByOrganizationText()
@@ -245,6 +266,195 @@ public class KnownHostsDialog extends ThemeAwareDialog<Void> {
             showMessage(Alert.AlertType.ERROR, I18n.get("ssh.knownHosts.remove.failed", safeMessage(e)));
         }
         reload();
+    }
+
+    private void chooseAndImport() {
+        if (loadFailed || importRunning) {
+            return;
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(I18n.get("ssh.knownHosts.import.chooserTitle"));
+        Path defaultFile = OpenSshKnownHostsParser.defaultKnownHostsFile();
+        Path defaultDirectory = defaultFile.getParent();
+        if (defaultDirectory != null && Files.isDirectory(defaultDirectory)) {
+            chooser.setInitialDirectory(defaultDirectory.toFile());
+        }
+        chooser.setInitialFileName(defaultFile.getFileName().toString());
+        File chosen = chooser.showOpenDialog(ownerWindow());
+        if (chosen == null) {
+            return;
+        }
+        Path file = chosen.toPath();
+        runImportStep(() -> trustManager.importKnownHosts(OpenSshKnownHostsParser.read(file), true),
+            preview -> confirmImport(file, preview));
+    }
+
+    /** Asks before trusting new keys; with nothing new to add it only shows the summary. */
+    private void confirmImport(Path file, KnownHostsImportResult preview) {
+        String fileName = String.valueOf(file.getFileName());
+        if (preview.added().isEmpty()) {
+            showImportSummary(Alert.AlertType.INFORMATION,
+                I18n.get("ssh.knownHosts.import.nothing.header", fileName), preview);
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        initOwner(confirm);
+        confirm.setTitle(I18n.get("ssh.knownHosts.title"));
+        confirm.setHeaderText(I18n.get("ssh.knownHosts.import.confirm.header", preview.added().size(), fileName));
+        confirm.setContentText(I18n.get("ssh.knownHosts.import.confirm.message") + "\n\n"
+            + summaryText(preview, trustManager.isPinManagementLocked()));
+        setDetails(confirm, detailsText(preview));
+        ButtonType importType = new ButtonType(
+            I18n.get("ssh.knownHosts.import.confirm.button"), ButtonBar.ButtonData.OK_DONE);
+        confirm.getButtonTypes().setAll(importType, ButtonType.CANCEL);
+        ((Button) confirm.getDialogPane().lookupButton(importType)).setDefaultButton(false);
+        ((Button) confirm.getDialogPane().lookupButton(ButtonType.CANCEL)).setDefaultButton(true);
+        Optional<ButtonType> answer = confirm.showAndWait();
+        if (answer.isEmpty() || answer.get() != importType) {
+            return;
+        }
+        // Import exactly the file content the confirmation showed: re-reading the file here would
+        // trust keys added to it after the user confirmed.
+        OpenSshKnownHostsParser.KnownHostsFile confirmed = preview.source();
+        runImportStep(() -> trustManager.importKnownHosts(confirmed, false), result -> {
+            if (!result.added().isEmpty()) {
+                Telemetry.track(TelemetryEvents.SECURITY_ENTRY_CHANGED,
+                    Map.of("manager", "known_hosts", "op", "import", "via", "known_hosts_file"));
+            }
+            reload();
+            boolean warn = !result.conflicts().isEmpty() || !result.trustedButRevoked().isEmpty()
+                || !result.source().malformedLines().isEmpty();
+            showImportSummary(warn ? Alert.AlertType.WARNING : Alert.AlertType.INFORMATION,
+                I18n.get("ssh.knownHosts.import.done.header", result.added().size(), fileName), result);
+        });
+    }
+
+    /** Reads, parses and imports off the FX thread, then hands the result back on it. */
+    private void runImportStep(ImportStep step, java.util.function.Consumer<KnownHostsImportResult> onSuccess) {
+        importRunning = true;
+        updateActions();
+        Thread worker = new Thread(() -> {
+            try {
+                KnownHostsImportResult result = step.run();
+                Platform.runLater(() -> {
+                    importRunning = false;
+                    updateActions();
+                    onSuccess.accept(result);
+                });
+            } catch (Exception e) {
+                logger.warn("Could not import the known_hosts file", e);
+                Platform.runLater(() -> {
+                    importRunning = false;
+                    updateActions();
+                    showMessage(Alert.AlertType.ERROR, I18n.get("ssh.knownHosts.import.failed", safeMessage(e)));
+                });
+            }
+        }, "kortty-known-hosts-import");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    @FunctionalInterface
+    private interface ImportStep {
+        KnownHostsImportResult run() throws Exception;
+    }
+
+    private void showImportSummary(Alert.AlertType type, String header, KnownHostsImportResult result) {
+        Alert alert = new Alert(type);
+        initOwner(alert);
+        alert.setTitle(I18n.get("ssh.knownHosts.title"));
+        alert.setHeaderText(header);
+        alert.setContentText(summaryText(result, trustManager.isPinManagementLocked()));
+        setDetails(alert, detailsText(result));
+        alert.showAndWait();
+    }
+
+    private static void setDetails(Alert alert, String details) {
+        if (details.isBlank()) {
+            return;
+        }
+        TextArea area = new TextArea(details);
+        area.setEditable(false);
+        area.setWrapText(false);
+        area.setStyle("-fx-font-family: monospace;");
+        area.setPrefRowCount(10);
+        alert.getDialogPane().setExpandableContent(area);
+        alert.getDialogPane().setPrefWidth(760);
+    }
+
+    /**
+     * The counts of an import (or its dry run), one per line: added, already trusted and conflicts
+     * always, every skipped kind only when it occurred.
+     */
+    static String summaryText(KnownHostsImportResult result, boolean pinChangesLocked) {
+        OpenSshKnownHostsParser.KnownHostsFile file = result.source();
+        List<String> lines = new ArrayList<>();
+        lines.add(I18n.get("ssh.knownHosts.import.summary.added", result.added().size()));
+        lines.add(I18n.get("ssh.knownHosts.import.summary.alreadyTrusted", result.alreadyTrusted()));
+        lines.add(I18n.get("ssh.knownHosts.import.summary.conflicts", result.conflicts().size()));
+        addIfPositive(lines, "ssh.knownHosts.import.summary.additionalKeys", result.additionalKeys());
+        addIfPositive(lines, "ssh.knownHosts.import.summary.hashed", file.hashed());
+        addIfPositive(lines, "ssh.knownHosts.import.summary.revoked", file.revoked());
+        addIfPositive(lines, "ssh.knownHosts.import.summary.revokedEntries", result.revokedSkipped());
+        addIfPositive(lines, "ssh.knownHosts.import.summary.certAuthority", file.certAuthority());
+        addIfPositive(lines, "ssh.knownHosts.import.summary.patterns", file.patterns());
+        addIfPositive(lines, "ssh.knownHosts.import.summary.unsupported", file.unsupportedKeyType());
+        if (!file.malformedLines().isEmpty()) {
+            lines.add(I18n.get("ssh.knownHosts.import.summary.malformed",
+                file.malformedLines().size(), lineNumbers(file.malformedLines())));
+        }
+        StringBuilder text = new StringBuilder(String.join("\n", lines));
+        if (!result.trustedButRevoked().isEmpty()) {
+            text.append("\n\n").append(I18n.get("ssh.knownHosts.import.summary.trustedRevoked",
+                result.trustedButRevoked().size()));
+        }
+        if (!result.conflicts().isEmpty()) {
+            text.append("\n\n").append(I18n.get(pinChangesLocked
+                ? "ssh.knownHosts.import.summary.conflictHintLocked"
+                : "ssh.knownHosts.import.summary.conflictHint"));
+        }
+        return text.toString();
+    }
+
+    /** One line per conflict and per trusted key the file revokes, for the expandable details. */
+    static String detailsText(KnownHostsImportResult result) {
+        List<String> lines = new ArrayList<>();
+        for (KnownHostsConflict conflict : result.conflicts()) {
+            lines.add(I18n.get("ssh.knownHosts.import.detail.conflict",
+                conflict.host(), conflict.port(), conflict.trustedAlgorithm(), conflict.trustedFingerprintSha256(),
+                conflict.fileAlgorithm(), conflict.fileFingerprintSha256(), conflict.lineNumber()));
+        }
+        for (TrustedHostKey revoked : result.trustedButRevoked()) {
+            lines.add(I18n.get("ssh.knownHosts.import.detail.trustedRevoked",
+                revoked.host(), revoked.port(), revoked.algorithm(), revoked.fingerprintSha256()));
+        }
+        return String.join("\n", lines);
+    }
+
+    private static void addIfPositive(List<String> lines, String key, int count) {
+        if (count > 0) {
+            lines.add(I18n.get(key, count));
+        }
+    }
+
+    /** The first line numbers, comma-separated, with an ellipsis when there are more. */
+    static String lineNumbers(List<Integer> numbers) {
+        int shown = Math.min(numbers.size(), 20);
+        StringBuilder text = new StringBuilder();
+        for (int i = 0; i < shown; i++) {
+            if (i > 0) {
+                text.append(", ");
+            }
+            text.append(numbers.get(i));
+        }
+        if (numbers.size() > shown) {
+            text.append(", …");
+        }
+        return text.toString();
+    }
+
+    private Window ownerWindow() {
+        return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
     }
 
     private void showMessage(Alert.AlertType type, String message) {
