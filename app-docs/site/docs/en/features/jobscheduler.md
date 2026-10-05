@@ -95,7 +95,7 @@ Use the **Action** tab to choose what the job does. The tab shows only the field
 |--------|---------|
 | **COMMAND** | Run a non-interactive remote command. |
 | **SNIPPET_SCRIPT** | Run a SnippetManager script on the selected target. The **Snippet search** field filters the script dropdown by snippet name, category, language, or ID; **Snippet parameters** passes additional arguments as one argv value per line. |
-| **AI_AGENT** | Run the headless scheduler AI agent. Unattended command execution requires **Auto-approve AI commands** on the job. |
+| **AI_AGENT** | Run the headless scheduler AI agent. Unattended command execution requires **AI agent may change the server without runtime confirmation** on the job. |
 | **AI_SWARM** | Run the [AI Swarm](ai-swarm.md) headlessly on every selected target in parallel and combine the answers into one comparison table. |
 | **SFTP_UPLOAD** | Upload a local path to a remote path. |
 | **SFTP_DOWNLOAD** | Download a remote path to a local path. |
@@ -134,7 +134,7 @@ Snippet script jobs use the selected SnippetManager entry without requiring an o
 
 #### AI Swarm Jobs
 
-AI Swarm jobs run one AI-agent prompt on **all selected targets in parallel** over background SSH sessions — no terminal tabs are opened. Beyond the shared **AI profile**, **AI prompt**, and **Auto-approve AI commands** fields, two swarm-specific fields apply:
+AI Swarm jobs run one AI-agent prompt on **all selected targets in parallel** over background SSH sessions — no terminal tabs are opened. Beyond the shared **AI profile**, **AI prompt**, and **AI agent may change the server without runtime confirmation** fields, two swarm-specific fields apply:
 
 | Field | Description |
 |-------|-------------|
@@ -146,7 +146,7 @@ Results are stored twice: the **journal** records the run outcome, and the full 
 The fastest way to create an AI Swarm job is the **Schedule…** button in the [AI Swarm tab](ai-swarm.md#scheduling-swarm-runs-jobscheduler): it prefills a new job with the tab's current targets, prompt, AI profile, and read-only setting. See that page for recommended swarm/scheduler usage scenarios.
 
 !!! warning
-    A scheduled swarm with **Swarm read-only** off and **Auto-approve AI commands** on changes systems unattended. Test the prompt interactively in the AI Swarm tab before enabling such a job.
+    A scheduled swarm with **Swarm read-only** off and **AI agent may change the server without runtime confirmation** on changes systems unattended. Test the prompt interactively in the AI Swarm tab before enabling such a job.
 
 #### SFTP Archive Jobs
 
@@ -249,7 +249,7 @@ If KorTTY is about to exit while JobScheduler jobs are running, it shows a warni
 - What AI jobs send to a cloud AI profile is masked: the AI Swarm agents and the request that combines their answers (see [Masking what the agent sends](ai-tools.md#masking-what-the-agent-sends)), and the request of an AI Agent job, where the server's stored password and the job's sudo password become `***`. The AI Agent job's request holds only the server name, the working directory and the job prompt, so the masking there only catches a secret typed into the prompt. Integrated models and a trusted local endpoint get the original text.
 - If the master password is locked when a job needs SSH, sudo, API, or archive secrets, the job is blocked.
 - Webhook URLs are stored encrypted with the master password and are never written to the journal or the log; only their host is.
-- AI Agent and AI Swarm jobs follow your organization's [enterprise policy](../reference/enterprise-policy.md#rulefeatures). When the policy denies AI, the AI agent or (for swarm jobs) the AI Swarm, or sets `ai-agent-execution` to `read-only`, the job ends as **BLOCKED** before it connects to any server, and the journal names the reason. Under `ai-agent-execution = "confirm"` a person must approve every server-changing command, which an unattended job cannot ask for: an AI Agent job blocks at the first planned server-changing command and runs nothing of it, and an AI Swarm agent that plans one is stopped and counted as blocked, even when **Auto-approve AI commands** is on. Read-only commands still run.
+- AI Agent and AI Swarm jobs follow your organization's [enterprise policy](../reference/enterprise-policy.md#rulefeatures). When the policy denies AI, the AI agent or (for swarm jobs) the AI Swarm, or sets `ai-agent-execution` to `read-only`, the job ends as **BLOCKED** before it connects to any server, and the journal names the reason. Under `ai-agent-execution = "confirm"` a person must approve every server-changing command, which an unattended job cannot ask for: an AI Agent job blocks at the first planned server-changing command and runs nothing of it, and an AI Swarm agent that plans one is stopped and counted as blocked, even when **AI agent may change the server without runtime confirmation** is on. Read-only commands still run.
 
 ## Troubleshooting
 

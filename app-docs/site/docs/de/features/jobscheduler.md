@@ -95,7 +95,7 @@ Verwenden Sie die Registerkarte **Aktion**, um auszuwählen, was der Job tun sol
 |--------|---------|
 | **BEFEHL** | Führen Sie einen nicht interaktiven Remote-Befehl aus. |
 | **SNIPPET_SCRIPT** | Führen Sie ein SnippetManager-Skript auf dem ausgewählten Ziel aus. Das Feld **Snippet-Suche** filtert das Skript-Dropdown nach Snippet-Name, Kategorie, Sprache oder ID; **Snippet-Parameter** übergibt zusätzliche Argumente als einen argv-Wert pro Zeile. |
-| **AI_AGENT** | Führen Sie den Headless-Scheduler-KI-Agenten aus. Die unbeaufsichtigte Befehlsausführung erfordert die **automatische Genehmigung von KI-Befehlen** während des Auftrags. |
+| **AI_AGENT** | Führen Sie den Headless-Scheduler-KI-Agenten aus. Die unbeaufsichtigte Befehlsausführung erfordert die Option **Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern** am Job. |
 | **AI_SWARM** | Führen Sie das aus [KI-Schwarm](ai-swarm.md) kopflos auf jedes ausgewählte Ziel parallel und fassen die Antworten in einer Vergleichstabelle zusammen. |
 | **SFTP_UPLOAD** | Laden Sie einen lokalen Pfad auf einen Remote-Pfad hoch. |
 | **SFTP_DOWNLOAD** | Laden Sie einen Remote-Pfad auf einen lokalen Pfad herunter. |
@@ -134,7 +134,7 @@ Snippet-Skript-Jobs verwenden den ausgewählten Snippet-Manager-Eintrag, ohne ei
 
 #### AI Schwarmjobs
 
-AI Swarm-Jobs führen über Hintergrund-SSH-Sitzungen eine KI-Agent-Eingabeaufforderung auf **allen ausgewählten Zielen parallel** aus – es werden keine Terminal-Registerkarten geöffnet. Über die gemeinsamen Felder **KI-Profil**, **KI-Eingabeaufforderung** und **Automatisch genehmigende KI-Befehle** hinaus gelten zwei schwarmspezifische Felder:
+AI Swarm-Jobs führen über Hintergrund-SSH-Sitzungen eine KI-Agent-Eingabeaufforderung auf **allen ausgewählten Zielen parallel** aus – es werden keine Terminal-Registerkarten geöffnet. Über die gemeinsamen Felder **KI-Profil**, **KI-Eingabeaufforderung** und **Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern** hinaus gelten zwei schwarmspezifische Felder:
 
 | Feld | Beschreibung |
 |-------|-------------|
@@ -146,7 +146,7 @@ Die Ergebnisse werden zweimal gespeichert: Das **Journal** zeichnet das Lauferge
 Der schnellste Weg, einen KI-Swarm-Job zu erstellen, ist der **Schedule…** Button im [KI-Swarm Tab](ai-swarm.md#schwarmlaufe-planen-jobscheduler): Er füllt einen neuen Job mit den aktuellen Zielen, Prompt, KI-Profil und der schreibgeschützten Einstellung des Tabs vor. Sehen Sie sich diese Seite für empfohlene Swarm/Scheduler-Verwendungsszenarien an.
 
 !!! warning
-    Ein geplanter Schwarm, bei dem **Schwarm schreibgeschützt** deaktiviert und **Automatisch genehmigende KI-Befehle** aktiviert ist, verändert Systeme unbeaufsichtigt. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
+    Ein geplanter Schwarm, bei dem **Schwarm schreibgeschützt** deaktiviert und **Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern** aktiviert ist, verändert Systeme unbeaufsichtigt. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.
 
 #### SFTP-Archivierungsjobs
 
@@ -249,7 +249,7 @@ Wenn KorTTY kurz vor dem Beenden steht, während JobScheduler-Jobs ausgeführt w
 - Was KI-Jobs an ein Cloud-KI-Profil senden, wird maskiert: die KI-Swarm-Agenten und die Anfrage, die ihre Antworten zusammenführt (siehe [Maskieren dessen, was der Agent sendet](ai-tools.md#maskieren-dessen-was-der-agent-sendet)), sowie die Anfrage eines KI-Agent-Jobs, bei der das gespeicherte Passwort des Servers und das sudo-Passwort des Jobs zu `***` werden. Die Anfrage eines KI-Agent-Jobs enthält nur den Servernamen, das Arbeitsverzeichnis und den Job-Prompt, daher erfasst die Maskierung dort nur ein Geheimnis, das in den Prompt eingegeben wurde. Integrierte Modelle und ein vertrauenswürdiger lokaler Endpunkt erhalten den Originaltext.
 - Wenn das Hauptkennwort gesperrt ist, wenn ein Job SSH-, Sudo-, API- oder Archivgeheimnisse benötigt, wird der Job blockiert.
 - Webhook-URLs werden mit dem Master-Passwort verschlüsselt gespeichert und nie in das Journal oder das Log geschrieben; dort steht nur ihr Host.
-- KI-Agent- und KI-Swarm-Jobs folgen der [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulefeatures) Ihrer Organisation. Wenn die Richtlinie KI, den KI-Agenten oder (bei Swarm-Jobs) den KI-Swarm verweigert oder `ai-agent-execution` auf `read-only` setzt, endet der Job als **BLOCKED**, bevor er sich mit einem Server verbindet, und das Journal nennt den Grund. Unter `ai-agent-execution = "confirm"` muss eine Person jeden serverändernden Befehl genehmigen, was ein unbeaufsichtigter Job nicht anfordern kann: Ein KI-Agent-Job blockiert beim ersten geplanten serverändernden Befehl und führt nichts davon aus, und ein KI-Swarm-Agent, der einen solchen Befehl plant, wird gestoppt und als blockiert gezählt, selbst wenn **Automatisch genehmigende KI-Befehle** aktiviert ist. Schreibgeschützte Befehle laufen weiterhin.
+- KI-Agent- und KI-Swarm-Jobs folgen der [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulefeatures) Ihrer Organisation. Wenn die Richtlinie KI, den KI-Agenten oder (bei Swarm-Jobs) den KI-Swarm verweigert oder `ai-agent-execution` auf `read-only` setzt, endet der Job als **BLOCKED**, bevor er sich mit einem Server verbindet, und das Journal nennt den Grund. Unter `ai-agent-execution = "confirm"` muss eine Person jeden serverändernden Befehl genehmigen, was ein unbeaufsichtigter Job nicht anfordern kann: Ein KI-Agent-Job blockiert beim ersten geplanten serverändernden Befehl und führt nichts davon aus, und ein KI-Swarm-Agent, der einen solchen Befehl plant, wird gestoppt und als blockiert gezählt, selbst wenn **Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern** aktiviert ist. Schreibgeschützte Befehle laufen weiterhin.
 
 ## Fehlerbehebung
 

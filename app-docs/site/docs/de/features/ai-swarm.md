@@ -136,7 +136,7 @@ Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – e
 | --- | --- |
 | **KI-Profil** | Das KI-Profil, das für alle Agenten im Lauf verwendet wird |
 | **KI-Eingabeaufforderung** | Die Aufgabe wird an jeden Zielserver gesendet |
-| **Automatisch genehmigen** | Genehmigen Sie systemverändernde Befehle ohne Dialog (bei unbeaufsichtigten Ausführungen muss niemand gefragt werden) |
+| **Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern** | Genehmigen Sie systemverändernde Befehle ohne Dialog (bei unbeaufsichtigten Ausführungen muss niemand gefragt werden) |
 | **Schwarmparallelität** | Wie viele Server gleichzeitig laufen (1–16, Standard 4) |
 | **Schwarm schreibgeschützt** | Alle Agenten auf nicht mutierende Befehle beschränken (Standard: Ein) |
 
@@ -152,6 +152,6 @@ Typische Kombinationen von Schwarm + Scheduler:
 - **Bestandsaufnahme auf Patch-Ebene** – Sammeln Sie Kernel- und Paketversionen in der gesamten Flotte in einem wöchentlichen Zeitplan und exportieren Sie die resultierende Tabelle.
 
 !!! warning "Unbeaufsichtigte Änderungen"
-    Ein geplanter Schwarm mit **Schreibgeschützt aus** und **Auto-Genehmigung ein** ändert Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die Eingabeaufforderung ist absichtlich darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.
+    Ein geplanter Schwarm mit **Schreibgeschützt aus** und **Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern** ein ändert Systeme, ohne dass jemand zuschaut. Halten Sie geplante Schwärme schreibgeschützt, es sei denn, die Eingabeaufforderung ist absichtlich darauf ausgelegt (und interaktiv getestet), Änderungen vorzunehmen.
 
 Die [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulefeatures) einer Organisation gilt auch für geplante Swarms: Ist der KI-Swarm oder der KI-Agent verweigert oder `ai-agent-execution` auf `read-only` gesetzt, endet der Job als blockiert, bevor er sich verbindet; bei `ai-agent-execution = "confirm"` wird jeder Agent, der einen serverändernden Befehl plant, gestoppt und als blockiert gezählt, selbst wenn die automatische Genehmigung aktiviert ist.
