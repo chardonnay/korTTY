@@ -194,7 +194,8 @@ public class LocalShellTtyConnector implements ObservableTtyConnector, de.kortty
             logger.info("Local shell started for {}", connection.getDisplayName());
             return true;
         } catch (de.kortty.isolation.IsolationUnavailableException e) {
-            logger.warn("Local shell for {} not started: {}", connection.getDisplayName(), e.getMessage());
+            // No connection getter in the log line: see the CodeQL note in SshTtyConnector.connect.
+            logger.warn("Local shell not started: {}", e.getMessage());
             close();
             throw e;
         } catch (Exception e) {

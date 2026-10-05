@@ -3728,8 +3728,8 @@ public class TerminalView extends BorderPane {
                     && NativeMoshTtyConnector.isNativeMoshAvailable()) {
                 // The built-in client runs inside korTTY and cannot be isolated yet; the native
                 // mosh-client can, so it stands in for this session.
-                logger.info("{} asks for {} isolation: running it with the native mosh-client",
-                    targetConnection.getDisplayName(), moshIsolation.level().id());
+                logger.info("{}:{} asks for {} isolation: running it with the native mosh-client",
+                    targetConnection.getHost(), targetConnection.getPort(), moshIsolation.level().id());
                 NativeMoshTtyConnector standIn = new NativeMoshTtyConnector(targetConnection, targetPassword);
                 de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
                 if (app != null && app.getSSHKeyManager() != null) {
@@ -3828,8 +3828,9 @@ public class TerminalView extends BorderPane {
             throw new IllegalStateException(I18n.get("isolation.error.protocolUnsupported",
                 I18n.get("isolation.level." + floor.id())));
         }
-        logger.info("{} asks for {} isolation, which its protocol {} cannot get yet; running with {}",
-            target.getDisplayName(), resolution.level().id(), target.getProtocol(), supported.id());
+        // Host and port only, never the display name: see the CodeQL note in SshTtyConnector.connect.
+        logger.info("{}:{} asks for {} isolation, which its protocol {} cannot get yet; running with {}",
+            target.getHost(), target.getPort(), resolution.level().id(), target.getProtocol(), supported.id());
         return new de.kortty.isolation.IsolationRequest(supported, floor);
     }
 

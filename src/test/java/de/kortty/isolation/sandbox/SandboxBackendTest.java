@@ -42,8 +42,16 @@ class SandboxBackendTest {
         return tempDir;
     }
 
+    /** The macOS profile names POSIX paths; on Windows they would turn into drive paths. */
+    private static void requirePosixPaths() {
+        if (System.getProperty("os.name", "").toLowerCase().contains("win")) {
+            throw new SkipException("the sandbox profiles name POSIX paths; Windows has no sandbox backend");
+        }
+    }
+
     @Test
     void theMacProfileHidesThenGivesBackInOrder() {
+        requirePosixPaths();
         SandboxSpec spec = new SandboxSpec(List.of(Path.of("/Users/u/.kortty")),
             List.of(Path.of("/Users/u/.kortty/shell-integration/tab-1")), true, List.of(Path.of("/work")));
         String profile = MacSandboxBackend.profile(spec);
@@ -79,6 +87,7 @@ class SandboxBackendTest {
 
     @Test
     void anUnrestrictedProfileDoesNotTakeAwayWriting() {
+        requirePosixPaths();
         String profile = MacSandboxBackend.profile(new SandboxSpec(List.of(Path.of("/secret")), List.of(), false,
             List.of()));
         assertThat(profile).doesNotContain("(deny file-write*)");
