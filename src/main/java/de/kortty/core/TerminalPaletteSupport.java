@@ -6,6 +6,7 @@ import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.emulator.ColorPalette;
 import com.sithtermfx.core.emulator.ColorPaletteImpl;
 import com.sithtermfx.core.util.Platform;
+import com.sithtermfx.ui.settings.BoldTextMode;
 import de.kortty.model.ConnectionSettings;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,6 +26,39 @@ public final class TerminalPaletteSupport {
     private static final int PALETTE_SIZE = 2 * ConnectionSettings.ANSI_COLOR_COUNT;
 
     private TerminalPaletteSupport() {
+    }
+
+    /**
+     * The bold text mode stored in {@code settings}: its {@link BoldTextMode} name, ignoring case and
+     * surrounding blanks. Missing settings, an empty value and anything that is not a mode name give
+     * {@link BoldTextMode#BOLD_FONT}, the way the terminal always drew bold text.
+     */
+    public static @NotNull BoldTextMode boldTextMode(@Nullable ConnectionSettings settings) {
+        String stored = settings != null ? settings.getBoldTextMode() : null;
+        if (stored == null || stored.isBlank()) {
+            return BoldTextMode.BOLD_FONT;
+        }
+        try {
+            return BoldTextMode.valueOf(stored.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            return BoldTextMode.BOLD_FONT;
+        }
+    }
+
+    /**
+     * The colours terminal recordings resolve ANSI colours with: the palette the terminal draws and
+     * its {@linkplain #boldTextMode bold text mode}, so a recording looks like the screen. Missing
+     * settings give {@link TerminalScreenRenderer.Palette#DEFAULT}.
+     */
+    public static @NotNull TerminalScreenRenderer.Palette recordingPalette(@Nullable ConnectionSettings settings) {
+        if (settings == null) {
+            return TerminalScreenRenderer.Palette.DEFAULT;
+        }
+        BoldTextMode mode = boldTextMode(settings);
+        return new TerminalScreenRenderer.Palette(
+                (index, bright) -> effectiveHex(settings, index, bright),
+                mode.usesBrightColor(),
+                mode.usesBoldFont());
     }
 
     /** The palette SithTermFX draws when korTTY does not provide one. */

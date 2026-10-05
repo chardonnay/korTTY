@@ -19,7 +19,7 @@ class ConnectionSettingsAnsiPaletteTest {
             "ansiBlack", "ansiRed", "ansiGreen", "ansiYellow", "ansiBlue", "ansiMagenta", "ansiCyan", "ansiWhite",
             "ansiBrightBlack", "ansiBrightRed", "ansiBrightGreen", "ansiBrightYellow", "ansiBrightBlue",
             "ansiBrightMagenta", "ansiBrightCyan", "ansiBrightWhite",
-            "ansiPaletteCustomized", "selectionColor", "boldAsBright");
+            "ansiPaletteCustomized", "selectionColor", "boldTextMode");
 
     private static String colour(int index, boolean bright) {
         return String.format(Locale.ROOT, "#%02X%02X%02X", index * 16, bright ? 0xAA : 0x55, 0x0F);

@@ -14,7 +14,7 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Rows: | number | 10–200 | 24 | `terminalRows` |
 | Scrollback: | number | 100–100,000 | 10,000 | `scrollbackLines` |
 | Encoding: | dropdown | UTF-8, ISO-8859-1, ISO-8859-15, Windows-1252 | UTF-8 | `encoding` |
-| Bold as bright color | toggle | — | On | `boldAsBright` |
+| Bold text: | dropdown | Bold font, Bright colors, Bold font and bright colors | Bold font | `boldTextMode` |
 | Show scrollbar in terminal | toggle | — | On | `showTerminalScrollbar` |
 | Show command timestamps | toggle | — | Off | `commandTimestampsEnabled` |
 | Allow drag and drop into the terminal (files copy over SFTP, text is pasted) | toggle | — | On | `terminalDragDropEnabled` |
@@ -60,8 +60,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 
     Earlier versions ignored this setting, so a value chosen back then is not applied on its own: SSH sessions stay UTF-8, and a note under the dropdown says so, until you save the settings after opening the Terminal page. Choose **UTF-8** before saving if you do not want the old value.
 
-!!! note "Bold as bright color"
-    This setting currently applies to terminal recordings only: with [Capture terminal colors in recordings](video.md) on, bold text in one of the 8 normal ANSI colors is stored in its bright variant. The live terminal draws bold text in its normal color either way.
+!!! note "Bold text"
+    Sets how text that a program prints in bold is drawn. **Bold font** (the default) draws it in a bold font in its own color. **Bright colors** draws bold text in one of the 8 basic ANSI colors in the matching bright color of the palette instead, in the normal font weight, the way xterm does: bold red becomes bright red. **Bold font and bright colors** does both. Only the 8 basic colors are brightened, including colors 0–7 that a program selects from the 256-color table; the default text color, the bright colors, the other 256 colors and true colors stay as they are. The bright colors come from the palette on the [Colors](colors.md) tab, so a customized palette applies. Inverse bold text gets a bright background, while the selection, search-match and link highlight colors never change. A saved change applies to every open terminal at once, and terminal recordings with [Capture terminal colors in recordings](video.md) use the same colors as the screen. Settings files from before this option load as **Bold font**; the earlier **Bold as bright color** switch affected recordings only and is no longer used.
 
 !!! note "Scrollback"
     Controls how many lines of output each terminal pane keeps in its scrollback buffer. The value is read when a terminal is created, so a change applies to newly opened tabs and split panes — already-open terminals keep their current buffer size. Larger values use more memory per pane.

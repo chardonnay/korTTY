@@ -16,6 +16,9 @@ public class ConnectionSettings {
     /** ANSI colours per variant: black, red, green, yellow, blue, magenta, cyan, white. */
     public static final int ANSI_COLOR_COUNT = 8;
 
+    /** The bold text mode a fresh settings object carries: a bold font in the text's own colour. */
+    public static final String DEFAULT_BOLD_TEXT_MODE = "BOLD_FONT";
+
     @XmlElement
     private boolean useGlobalSettings = true;
     
@@ -52,8 +55,15 @@ public class ConnectionSettings {
     @XmlElement
     private int scrollbackLines = 10000;
     
+    /**
+     * How the terminal draws bold text: the name of a {@code com.sithtermfx.ui.settings.BoldTextMode}
+     * ({@code BOLD_FONT}, {@code BRIGHT_COLOR} or {@code BOLD_FONT_AND_BRIGHT_COLOR}). Files from
+     * before this setting, and any value that is not a mode name, load as {@code BOLD_FONT}, which
+     * is how the terminal always drew bold text. It replaces the old {@code boldAsBright} flag, which
+     * only ever affected recordings and is ignored when an old file is read.
+     */
     @XmlElement
-    private boolean boldAsBright = true;
+    private String boldTextMode = DEFAULT_BOLD_TEXT_MODE;
 
     @XmlElement
     private boolean terminalColorsEnabled = true;
@@ -137,7 +147,7 @@ public class ConnectionSettings {
         this.terminalColumns = other.terminalColumns;
         this.terminalRows = other.terminalRows;
         this.scrollbackLines = other.scrollbackLines;
-        this.boldAsBright = other.boldAsBright;
+        this.boldTextMode = other.boldTextMode;
         this.terminalColorsEnabled = other.terminalColorsEnabled;
         this.encoding = other.encoding;
         this.closeWithoutConfirmation = other.closeWithoutConfirmation;
@@ -169,7 +179,7 @@ public class ConnectionSettings {
 
     /**
      * Takes over what the terminal needs to draw colours like {@code other}: the 16 ANSI colours,
-     * {@link #isAnsiPaletteCustomized()}, the selection colour and bold-as-bright. Everything else
+     * {@link #isAnsiPaletteCustomized()}, the selection colour and the bold text mode. Everything else
      * (font, size, foreground, background, ...) stays as it is.
      */
     public void copyTerminalPaletteFrom(ConnectionSettings other) {
@@ -178,7 +188,7 @@ public class ConnectionSettings {
         }
         copyAnsiColors(other);
         this.selectionColor = other.selectionColor;
-        this.boldAsBright = other.boldAsBright;
+        this.boldTextMode = other.boldTextMode;
     }
 
     // Getters and Setters
@@ -279,12 +289,13 @@ public class ConnectionSettings {
         this.scrollbackLines = scrollbackLines;
     }
     
-    public boolean isBoldAsBright() {
-        return boldAsBright;
+    /** The stored bold text mode name as it is; see {@code TerminalPaletteSupport.boldTextMode} for the parsed mode. */
+    public String getBoldTextMode() {
+        return boldTextMode;
     }
-    
-    public void setBoldAsBright(boolean boldAsBright) {
-        this.boldAsBright = boldAsBright;
+
+    public void setBoldTextMode(String boldTextMode) {
+        this.boldTextMode = boldTextMode;
     }
 
     public boolean isTerminalColorsEnabled() {

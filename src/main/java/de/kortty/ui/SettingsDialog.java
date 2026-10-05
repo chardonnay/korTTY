@@ -168,7 +168,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final Spinner<Integer> scrollbackSpinner;
     
     // Other settings
-    private final CheckBox boldAsBrightCheck;
+    private final ComboBox<com.sithtermfx.ui.settings.BoldTextMode> boldTextModeCombo;
     private final ComboBox<String> encodingCombo;
     /** The Terminal page; built on first selection, so a still-pending build means it was not shown. */
     private final Tab terminalTab;
@@ -801,8 +801,21 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         scrollbackSpinner.setEditable(true);
         scrollbackSpinner.setPrefWidth(100);
         
-        boldAsBrightCheck = new CheckBox(I18n.get("settings.terminal.boldAsBright"));
-        boldAsBrightCheck.setSelected(settings.isBoldAsBright());
+        boldTextModeCombo = new ComboBox<>();
+        boldTextModeCombo.getItems().setAll(com.sithtermfx.ui.settings.BoldTextMode.values());
+        boldTextModeCombo.setValue(TerminalPaletteSupport.boldTextMode(settings));
+        boldTextModeCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(com.sithtermfx.ui.settings.BoldTextMode mode) {
+                return mode != null ? I18n.get(boldTextModeKey(mode)) : "";
+            }
+
+            @Override
+            public com.sithtermfx.ui.settings.BoldTextMode fromString(String text) {
+                return null;
+            }
+        });
+        boldTextModeCombo.setTooltip(new Tooltip(I18n.get("settings.terminal.boldText.tooltip")));
         
         encodingCombo = new ComboBox<>();
         encodingCombo.getItems().addAll(TerminalEncodingSupport.offeredEncodings(settings.getEncoding()));
@@ -1115,7 +1128,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         GridPane.setValignment(encodingBox, VPos.BASELINE);
         terminalGrid.add(encodingLabel, 0, terminalRow);
         terminalGrid.add(encodingBox, 1, terminalRow++);
-        terminalGrid.add(boldAsBrightCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(new Label(I18n.get("settings.terminal.boldText")), 0, terminalRow);
+        terminalGrid.add(boldTextModeCombo, 1, terminalRow++);
         terminalGrid.add(showTerminalScrollbarCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(commandTimestampsCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalDragDropCheck, 0, terminalRow++, 2, 1);
@@ -3925,7 +3939,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         settings.setTerminalColumns(columnsSpinner.getValue());
         settings.setTerminalRows(rowsSpinner.getValue());
         settings.setScrollbackLines(scrollbackSpinner.getValue());
-        settings.setBoldAsBright(boldAsBrightCheck.isSelected());
+        com.sithtermfx.ui.settings.BoldTextMode boldTextMode = boldTextModeCombo.getValue();
+        settings.setBoldTextMode((boldTextMode != null ? boldTextMode
+                : com.sithtermfx.ui.settings.BoldTextMode.BOLD_FONT).name());
         settings.setTerminalColorsEnabled(terminalColorsEnabledCheck.isSelected());
         settings.setEncoding(encodingCombo.getValue());
         settings.setCommandTimestampsEnabled(commandTimestampsCheck.isSelected());
@@ -4237,7 +4253,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         tracked.add(new TrackedSetting("colors", "background", settings::getBackgroundColor, false));
         tracked.add(new TrackedSetting("colors", "cursor", settings::getCursorColor, false));
         tracked.add(new TrackedSetting("colors", "selection", settings::getSelectionColor, false));
-        tracked.add(new TrackedSetting("colors", "bold_as_bright", settings::isBoldAsBright, true));
+        // The mode's enum name only (BOLD_FONT, BRIGHT_COLOR, BOLD_FONT_AND_BRIGHT_COLOR).
+        tracked.add(new TrackedSetting("terminal", "bold_text_mode",
+            () -> TerminalPaletteSupport.boldTextMode(settings).name(), true));
         tracked.add(new TrackedSetting("colors", "terminal_colors_enabled", settings::isTerminalColorsEnabled, true));
         tracked.add(new TrackedSetting("terminal", "columns", settings::getTerminalColumns, true));
         tracked.add(new TrackedSetting("terminal", "rows", settings::getTerminalRows, true));
@@ -5086,6 +5104,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             case OFF -> "settings.terminal.paste.mode.off";
             case UNLESS_BRACKETED -> "settings.terminal.paste.mode.unlessBracketed";
             case ALWAYS -> "settings.terminal.paste.mode.always";
+        };
+    }
+
+    /** The label key of a choice in the Bold text dropdown. */
+    static String boldTextModeKey(com.sithtermfx.ui.settings.BoldTextMode mode) {
+        return switch (mode) {
+            case BOLD_FONT -> "settings.terminal.boldText.boldFont";
+            case BRIGHT_COLOR -> "settings.terminal.boldText.brightColor";
+            case BOLD_FONT_AND_BRIGHT_COLOR -> "settings.terminal.boldText.boldFontAndBrightColor";
         };
     }
 
