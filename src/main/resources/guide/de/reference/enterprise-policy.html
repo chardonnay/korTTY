@@ -1143,7 +1143,7 @@
 <td><code>enforce-host-key-check</code></td>
 <td>boolean</td>
 <td><code>true</code></td>
-<td>SSH-Host-Key-Prüfung kann nirgendwo deaktiviert werden — global, pro Gruppe oder pro Verbindung — und vertrauenswürdige Host-Keys können in korTTY nicht entfernt oder ersetzt werden.</td>
+<td>Die SSH-Host-Key-Prüfung kann nirgendwo deaktiviert werden — global, pro Gruppe oder pro Verbindung — und vertrauenswürdige Host-Keys können in korTTY nicht entfernt oder ersetzt werden; der Import einer OpenSSH-<code>known_hosts</code>-Datei bleibt verfügbar, weil er nur Schlüssel für Hosts hinzufügt, denen korTTY noch nicht vertraut</td>
 </tr>
 <tr>
 <td><code>allow-telemetry</code></td>

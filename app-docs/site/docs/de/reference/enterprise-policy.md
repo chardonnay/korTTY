@@ -139,7 +139,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
 | Schlüssel | Typ | Werte | Wirkung |
 | --- | --- | --- | --- |
 | `require-master-password` | boolean | `true` | Erzwingt das Master-Passwort-Gate beim Start; Die Einstellung ist gesperrt |
-| `enforce-host-key-check` | boolean | `true` | SSH-Host-Key-Prüfung kann nirgendwo deaktiviert werden — global, pro Gruppe oder pro Verbindung — und vertrauenswürdige Host-Keys können in korTTY nicht entfernt oder ersetzt werden. |
+| `enforce-host-key-check` | boolean | `true` | Die SSH-Host-Key-Prüfung kann nirgendwo deaktiviert werden — global, pro Gruppe oder pro Verbindung — und vertrauenswürdige Host-Keys können in korTTY nicht entfernt oder ersetzt werden; der Import einer OpenSSH-`known_hosts`-Datei bleibt verfügbar, weil er nur Schlüssel für Hosts hinzufügt, denen korTTY noch nicht vertraut |
 | `allow-telemetry` | boolean | `false` | Verbietet anonyme Nutzungsstatistiken |
 | `allow-terminal-recording` | boolean | `false` | Verbietet die Aufzeichnung von Terminalsitzungen, einschließlich der Umschaltung auf Sitzungsebene |
 | `allow-port-forwarding` | boolean | `false` | Öffnet niemals die [SSH-Tunnel](../features/tunnels.md), die auf Verbindungen (lokales, entferntes und dynamisches Port-Forwarding) konfiguriert sind; die Statusleiste des Tabs sagt, sie seien von Ihrer Organisation deaktiviert. Ein Jump-Server-Hop ist nicht betroffen |

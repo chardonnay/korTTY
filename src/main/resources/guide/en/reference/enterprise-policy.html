@@ -1143,7 +1143,7 @@
 <td><code>enforce-host-key-check</code></td>
 <td>boolean</td>
 <td><code>true</code></td>
-<td>SSH host key verification cannot be disabled anywhere — globally, per group or per connection — and trusted host keys cannot be removed or replaced in korTTY</td>
+<td>SSH host key verification cannot be disabled anywhere — globally, per group or per connection — and trusted host keys cannot be removed or replaced in korTTY; importing an OpenSSH <code>known_hosts</code> file stays available because it only adds keys for hosts korTTY does not trust yet</td>
 </tr>
 <tr>
 <td><code>allow-telemetry</code></td>
