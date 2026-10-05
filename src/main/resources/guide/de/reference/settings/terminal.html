@@ -840,11 +840,11 @@
 <td><code>encoding</code></td>
 </tr>
 <tr>
-<td>Fett wie helle Farbe</td>
-<td>umschalten</td>
-<td>—</td>
-<td>Ein</td>
-<td><code>boldAsBright</code></td>
+<td>Fetter Text:</td>
+<td>Dropdown</td>
+<td>Fette Schrift, Helle Farben, Fette Schrift und helle Farben</td>
+<td>Fette Schrift</td>
+<td><code>boldTextMode</code></td>
 </tr>
 <tr>
 <td>Bildlaufleiste im Terminal anzeigen</td>
@@ -1114,8 +1114,8 @@
 <p>Frühere Versionen ignorierten diese Einstellung, sodass ein damals gewählter Wert nicht automatisch angewendet wird: SSH-Sitzungen bleiben UTF-8, und ein Hinweis unter dem Dropdown sagt dies, bis Sie die Einstellungen nach dem Öffnen der Terminal-Seite speichern. Wählen Sie <strong>UTF-8</strong> vor dem Speichern, wenn Sie den alten Wert nicht übernehmen möchten.</p>
 </div>
 <div class="admonition note">
-<p class="admonition-title">Fett als helle Farbe anzeigen</p>
-<p>Diese Einstellung gilt derzeit nur für Terminalaufnahmen: mit <a href="video.html">Terminalfarben in Aufnahmen erfassen</a> aktiviert, wird fetter Text einer der 8 normalen ANSI-Farben in seiner hellen Variante gespeichert. Das Live-Terminal zeichnet fetten Text in jeder Hinsicht immer noch in seiner normalen Farbe aus.</p>
+<p class="admonition-title">Fetter Text</p>
+<p>Legt fest, wie Text dargestellt wird, den ein Programm fett ausgibt. <strong>Fette Schrift</strong> (der Standard) zeichnet ihn in einer fetten Schrift in seiner eigenen Farbe. <strong>Helle Farben</strong> zeichnet fetten Text in einer der 8 ANSI-Grundfarben stattdessen in der passenden hellen Farbe der Palette und in normaler Schriftstärke, so wie xterm: fettes Rot wird zu hellem Rot. <strong>Fette Schrift und helle Farben</strong> macht beides. Nur die 8 Grundfarben werden aufgehellt, einschließlich der Farben 0–7, die ein Programm aus der 256-Farben-Tabelle wählt; die Standard-Textfarbe, die hellen Farben, die übrigen der 256 Farben und True Colors bleiben unverändert. Die hellen Farben stammen aus der Palette auf dem Tab <a href="colors.html">Farben</a>, sodass eine angepasste Palette gilt. Invertierter fetter Text erhält einen hellen Hintergrund, während sich die Farben für Auswahl, Suchtreffer und Link-Hervorhebung nie ändern. Eine gespeicherte Änderung gilt sofort für jedes geöffnete Terminal, und Terminalaufzeichnungen mit <a href="video.html">Terminalfarben in Aufnahmen erfassen</a> verwenden dieselben Farben wie der Bildschirm. Einstellungsdateien aus der Zeit vor dieser Option werden als <strong>Fette Schrift</strong> geladen; der frühere Schalter <strong>Fett als helle Farbe</strong> betraf nur Aufzeichnungen und wird nicht mehr verwendet.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Zurückscrollen</p>
