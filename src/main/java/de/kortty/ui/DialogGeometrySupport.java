@@ -457,7 +457,7 @@ public final class DialogGeometrySupport {
             boolean verticallyReachable = geometry.getY() + MIN_VISIBLE < screen.getMaxY()
                 && geometry.getY() >= screen.getMinY() - 1;
             if (horizontallyReachable && verticallyReachable) {
-                return geometry;
+                return fitHeight(geometry, screen);
             }
         }
         // The screen it was stored on is gone: keep the size, centre it on the primary screen.
@@ -468,6 +468,21 @@ public final class DialogGeometrySupport {
             primary.getMinX() + (primary.getWidth() - clampedWidth) / 2,
             primary.getMinY() + (primary.getHeight() - clampedHeight) / 2,
             clampedWidth, clampedHeight);
+    }
+
+    /**
+     * A geometry no taller than its screen: a window stored taller than the screen (a dialog that
+     * once opened at a designed height beyond a laptop screen) would come back with its buttons
+     * below the edge. Moved up as far as needed, then shortened. Returns the same instance when it
+     * already fits.
+     */
+    static WindowGeometry fitHeight(WindowGeometry geometry, Rectangle2D screen) {
+        if (geometry.getY() + geometry.getHeight() <= screen.getMaxY() + 1) {
+            return geometry;
+        }
+        double height = Math.min(geometry.getHeight(), screen.getHeight());
+        double y = Math.max(screen.getMinY(), Math.min(geometry.getY(), screen.getMaxY() - height));
+        return new WindowGeometry(geometry.getX(), y, geometry.getWidth(), height);
     }
 
     /** The usable area of every attached screen, primary first; empty when there is no toolkit. */

@@ -584,6 +584,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         tabPane.getTabs().addAll(connectionTab, settingsTab, tunnelsTab, jumpServerTab, loggingTab, journalTab,
             geometryTab, aiTab);
+        // The tallest tab sets the dialog's height, which used to exceed a laptop screen: every tab
+        // scrolls instead, so the dialog can be held to the screen height (DialogContentFit).
+        for (Tab tab : tabPane.getTabs()) {
+            tab.setContent(scrollable(tab.getContent()));
+        }
         getDialogPane().setContent(tabPane);
         
         // Buttons
@@ -2339,6 +2344,16 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         } catch (RuntimeException e) {
             return true;
         }
+    }
+
+    /** Wraps a tab's content so it scrolls when the dialog is shorter than the content. */
+    private static ScrollPane scrollable(javafx.scene.Node content) {
+        ScrollPane scroll = new ScrollPane(content);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.getStyleClass().add("edge-to-edge");
+        return scroll;
     }
 
     private Tab createGeometryTab() {

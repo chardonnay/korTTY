@@ -33,7 +33,8 @@ import java.util.List;
  * for labels, buttons and check boxes whose text the skin had to cut short, and widens (or
  * heightens) the pane by what is missing, a few rounds until nothing is cut or the screen is full.
  * Everything happens before the window is mapped, so the dialog simply appears at the right size —
- * no visible jump. A remembered geometry is the user's choice and is never second-guessed.</p>
+ * no visible jump. A dialog whose designed size exceeds the screen is held to it instead, so its
+ * buttons stay reachable. A remembered geometry is the user's choice and is never second-guessed.</p>
  */
 final class DialogContentFit {
 
@@ -118,6 +119,14 @@ final class DialogContentFit {
         }
         if (height > startHeight + EPSILON) {
             pane.setPrefHeight(Math.ceil(height));
+        }
+        // A dialog taller or wider than the screen hides its buttons below the edge: hold it to the
+        // screen and let its scroll panes take the rest.
+        if (width > maxWidth + EPSILON) {
+            pane.setPrefWidth(Math.floor(maxWidth));
+        }
+        if (height > maxHeight + EPSILON) {
+            pane.setPrefHeight(Math.floor(maxHeight));
         }
     }
 
