@@ -750,6 +750,10 @@ public class TerminalView extends BorderPane {
             applyCursorShape(widget);
             setupTimestampGutter(widget);
             applyTerminalScrollbarVisibility(widget);
+            // Colours and scroll bar at the pane's alpha: a split or restored pane is never reached by
+            // the theme pass that styles the first one, and its unstyled scroll bar showed as a fully
+            // clear strip in a see-through window.
+            applyStyleStateColors(widget);
         }, widget -> gutterMap.get(widget), this::createTerminalAgentActivityPanel, this::decorateTerminalConnector); // Left panel factory: returns the gutter created in setupTimestampGutter
         splitPane.setOnWidgetClosed(this::onPaneClosed); // Stop the pane's effect + release its provider/agent runs when its split closes
         splitPane.setOnWidgetSplitCreated((widget, request) -> { // New split panes inherit the source pane's highlight choice and effect
