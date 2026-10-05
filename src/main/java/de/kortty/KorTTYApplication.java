@@ -319,6 +319,10 @@ public class KorTTYApplication extends Application {
         });
         sessionJournalHtmlRenderer.setSchemeResolver(
             schemeId -> de.kortty.ui.SessionJournalPageSchemes.resolve(schemeId, this));
+        sessionJournalHtmlRenderer.setLinksEnabledSupplier(() ->
+            de.kortty.policy.PolicyManager.effective().sessionJournalClickableLinksAllowed()
+                && (globalSettingsManager == null || globalSettingsManager.getSettings() == null
+                    || globalSettingsManager.getSettings().isSessionJournalClickableLinks()));
         sessionJournalHtmlRenderer.setBrandingSupplier(() -> de.kortty.core.ExportBranding.fromSettings(
             globalSettingsManager != null ? globalSettingsManager.getSettings() : null));
         telemetryService = new TelemetryService(globalSettingsManager, configDir);

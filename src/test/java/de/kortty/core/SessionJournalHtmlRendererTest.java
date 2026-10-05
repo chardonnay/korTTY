@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import de.kortty.model.SessionJournalCommandInfo;
 import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
 import de.kortty.model.SessionJournalEntryKind;
@@ -53,14 +54,15 @@ class SessionJournalHtmlRendererTest {
     }
 
     @Test
-    void linksUrlsInAUserNoteButNotInAnAiSummary() {
+    void linksUrlsInAUserNoteAndInAnAiSummary() {
         SessionJournalEntry note = new SessionJournalEntry();
         note.setKind(SessionJournalEntryKind.USER_NOTE);
         note.setText("ticket https://tracker.test/42");
         note.setCreatedAt(OffsetDateTime.of(2026, 8, 3, 14, 35, 0, 0, ZoneOffset.ofHours(2)));
         SessionJournalEntry summary = summaryEntry();
-        // The AI quotes terminal output; a link there would be noise at best and a lure at worst.
-        summary.setText("Fetched https://malicious.test/payload from the log.");
+        // The summarizer's fact check has dropped every statement whose host the log does not
+        // show, so an address left in an AI summary is one the session really visited.
+        summary.setText("Fetched https://visited.test/page from the log; script.pl ran.");
         summary.setUserNote("follow-up: https://tracker.test/43");
         document.getEntries().addAll(List.of(note, summary));
 
@@ -68,7 +70,9 @@ class SessionJournalHtmlRendererTest {
 
         assertThat(html).contains("href=\"https://tracker.test/42\"");
         assertThat(html).contains("href=\"https://tracker.test/43\"");
-        assertThat(html).doesNotContain("href=\"https://malicious.test/payload\"");
+        assertThat(html).contains("href=\"https://visited.test/page\"");
+        // a file name is never a link
+        assertThat(html).doesNotContain("href=\"https://script.pl");
         assertThat(html).contains("a.ext{");
     }
 
@@ -505,5 +509,93 @@ class SessionJournalHtmlRendererTest {
         // Regression guard: without this rule the hidden lightbox overlay covers the whole
         // page (display:flex beats the UA [hidden] rule) and blocks every click.
         assertThat(html).contains(".lightbox[hidden]{display:none}");
+    }
+
+    @Test
+    void boldsBacktickedCommandsWithTheirTooltipAndShowsARootTag() {
+        SessionJournalEntry summary = summaryEntry();
+        summary.setText("Zunächst wurde die Man-Page für `links` geöffnet, dann `deploy.sh` und `frob <x>` gestartet.");
+        summary.setRunAsUser("root");
+        summary.setCommands(List.of(
+            new SessionJournalCommandInfo("links", "Open-Source-Textbrowser für HTML",
+                SessionJournalCommandInfo.Origin.DISTRIBUTION, null),
+            new SessionJournalCommandInfo("deploy.sh", "Deploy-Skript",
+                SessionJournalCommandInfo.Origin.SNIPPET, "Deploy web01"),
+            new SessionJournalCommandInfo("frob", null, SessionJournalCommandInfo.Origin.UNKNOWN, null)));
+        document.getEntries().add(summary);
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("<strong class=\"cmd\" tabindex=\"0\" data-tip=\"Open-Source-Textbrowser für HTML\">links</strong>");
+        assertThat(html).contains("data-tip=\"Deploy-Skript — ");
+        assertThat(html).contains("Deploy web01\">deploy.sh</strong>");
+        // the first word matches the list entry; the markup inside the backticks stays escaped
+        assertThat(html).contains(">frob &lt;x&gt;</strong>");
+        assertThat(html).doesNotContain("`links`");
+        assertThat(html).contains("<span class=\"root-tag\"");
+    }
+
+    @Test
+    void anEntryOfTheLoginUserHasNoRootTag() {
+        SessionJournalEntry summary = summaryEntry();
+        summary.setText("Plain `ls`.");
+        document.getEntries().add(summary);
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).doesNotContain("<span class=\"root-tag\"");
+        assertThat(html).contains("<strong class=\"cmd\">ls</strong>");
+    }
+
+    @Test
+    void aBulletedSessionSummaryRendersAsAListFollowedByItsClosingLine() {
+        SessionJournalEntry wrapUp = summaryEntry();
+        wrapUp.setKind(SessionJournalEntryKind.SESSION_SUMMARY);
+        wrapUp.setText("- `links` aus RPM Fusion installiert.\n- Skript `server_auslastung.pl` gestartet.\n\n"
+            + "Die Sitzung dauerte insgesamt 11 Minuten und lief unter dem Benutzer daniel.");
+        wrapUp.setCommands(List.of(new SessionJournalCommandInfo("links", "Textbrowser",
+            SessionJournalCommandInfo.Origin.DISTRIBUTION, null)));
+        document.getEntries().add(wrapUp);
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("<div class=\"summary bullets\"><ul><li><strong class=\"cmd\" tabindex=\"0\" "
+            + "data-tip=\"Textbrowser\">links</strong> aus RPM Fusion installiert.</li><li>Skript "
+            + "<strong class=\"cmd\">server_auslastung.pl</strong> gestartet.</li></ul>"
+            + "<p>Die Sitzung dauerte insgesamt 11 Minuten und lief unter dem Benutzer daniel.</p></div>");
+    }
+
+    @Test
+    void aCommandWithAWebAddressShowsTheCommandBoldAndTheAddressAsALink() {
+        SessionJournalEntry summary = summaryEntry();
+        summary.setText("Aufruf von `links www.heise.de` und danach www.kortty.test/docs.");
+        summary.setCommands(List.of(new SessionJournalCommandInfo("links", "Textbrowser",
+            SessionJournalCommandInfo.Origin.DISTRIBUTION, null)));
+        document.getEntries().add(summary);
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).contains("<strong class=\"cmd\" tabindex=\"0\" data-tip=\"Textbrowser\">links</strong> "
+            + "<a class=\"ext\" href=\"https://www.heise.de\" rel=\"noopener noreferrer\" target=\"_blank\">www.heise.de</a>");
+        assertThat(html).contains("href=\"https://www.kortty.test/docs\"");
+        assertThat(html).contains(">www.kortty.test/docs</a>.");
+    }
+
+    @Test
+    void switchedOffLinksStayPlainTextInNotesAndSummaries() {
+        renderer.setLinksEnabledSupplier(() -> false);
+        SessionJournalEntry note = new SessionJournalEntry();
+        note.setKind(SessionJournalEntryKind.USER_NOTE);
+        note.setText("ticket https://tracker.test/42");
+        SessionJournalEntry summary = summaryEntry();
+        summary.setText("Aufruf von `links www.heise.de`.");
+        document.getEntries().addAll(List.of(note, summary));
+
+        String html = renderer.render(document, sampleLog());
+
+        assertThat(html).doesNotContain("href=\"https://tracker.test/42\"");
+        assertThat(html).doesNotContain("href=\"https://www.heise.de\"");
+        assertThat(html).contains("ticket https://tracker.test/42");
+        assertThat(html).contains("<strong class=\"cmd\">links</strong> www.heise.de");
     }
 }

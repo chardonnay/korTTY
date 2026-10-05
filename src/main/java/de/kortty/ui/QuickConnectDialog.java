@@ -1,6 +1,7 @@
 package de.kortty.ui;
 
 import com.sithtermfx.core.emulator.EmulationType;
+import de.kortty.core.ConnectionSettingsSupport;
 import de.kortty.core.RecentConnections;
 import de.kortty.core.TerminalEmulationSupport;
 import de.kortty.model.ServerConnection;
@@ -105,6 +106,11 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     
     // Terminal appearance
     private ComboBox<Theme> themeCombo;
+    /**
+     * The terminal appearance the dialog last showed (global defaults, or the picked saved
+     * connection's effective values). Only a change from it gives the connection own settings.
+     */
+    private ConnectionSettingsSupport.TerminalAppearance shownAppearance;
     private ComboBox<String> fontFamilyCombo;
     private Spinner<Integer> fontSizeSpinner;
     private ColorPicker foregroundColorPicker;
@@ -814,6 +820,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         appearanceGrid.add(new Label(I18n.get("quickConnect.background")), 0, arow);
         appearanceGrid.add(backgroundColorPicker, 1, arow++);
         appearanceGrid.add(terminalColorsEnabledCheck, 0, arow++, 2, 1);
+        // Show what a new connection gets: the global terminal settings.
+        loadTerminalSettingsIntoControls(globalTerminalDefaults());
+        shownAppearance = currentAppearance();
         collapsibleSections.getChildren().add(
             collapsibleSection("terminalAppearance", I18n.get("quickConnect.section.terminalAppearance"), appearanceGrid));
 
@@ -1423,7 +1432,10 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 ? conn.getTerminalEffectAnimationSpeed()
                 : TerminalEffectAnimationSpeed.DEFAULT);
         updateTerminalEffectSpeedState();
-        loadTerminalSettingsIntoControls(conn.getSettings());
+        // The effective values: the connection's own settings, or the global ones it follows.
+        loadTerminalSettingsIntoControls(
+            ConnectionSettingsSupport.editorSeed(conn.getSettings(), globalTerminalDefaults()));
+        shownAppearance = currentAppearance();
         
         // Set authentication method
         if (temporaryKeyAuthRadio != null && temporaryKeyArea != null && conn.getTemporaryKeyContent() != null && !conn.getTemporaryKeyContent().trim().isEmpty()) {
@@ -2111,24 +2123,63 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         return settings != null ? new ConnectionSettings(settings) : new ConnectionSettings();
     }
 
+    /**
+     * Applies the terminal appearance section to the connection about to be used. A connection that
+     * follows the global settings keeps following them unless the user changed the appearance; a
+     * change (or a connection with own settings) stores the values with useGlobalSettings=false so
+     * the terminal actually draws with them.
+     */
     private void applyTerminalSettings(ServerConnection connection) {
-        if (connection.getSettings() == null) {
+        ConnectionSettingsSupport.TerminalAppearance picked = currentAppearance();
+        if (picked != null && ConnectionSettingsSupport.quickConnectUsesOwnSettings(connection.getSettings(), shownAppearance, picked)) {
+            connection.setSettings(ConnectionSettingsSupport.settingsToSave(
+                true, connection.getSettings(), globalTerminalDefaults(), this::writeTerminalAppearance));
+        } else if (connection.getSettings() == null) {
             connection.setSettings(new de.kortty.model.ConnectionSettings());
         }
-        
-        connection.getSettings().setFontFamily(fontFamilyCombo.getValue());
-        connection.getSettings().setFontSize(fontSizeSpinner.getValue());
-        connection.getSettings().setForegroundColor(toHex(foregroundColorPicker.getValue()));
-        connection.getSettings().setBackgroundColor(toHex(backgroundColorPicker.getValue()));
-        connection.getSettings().setTerminalColorsEnabled(terminalColorsEnabledCheck.isSelected());
+        applyTerminalLogSettings(connection);
+    }
+
+    private void writeTerminalAppearance(ConnectionSettings target) {
+        target.setFontFamily(fontFamilyCombo.getValue());
+        target.setFontSize(fontSizeSpinner.getValue());
+        target.setForegroundColor(toHex(foregroundColorPicker.getValue()));
+        target.setBackgroundColor(toHex(backgroundColorPicker.getValue()));
+        target.setTerminalColorsEnabled(terminalColorsEnabledCheck.isSelected());
         Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
         if (selTheme != null) {
-            selTheme.applyTo(connection.getSettings(), isThemeFontApplyEnabled());
-            connection.getSettings().setThemeId(selTheme.getId());
+            selTheme.applyTo(target, isThemeFontApplyEnabled());
+            target.setThemeId(selTheme.getId());
         } else {
-            connection.getSettings().setThemeId(null);
+            target.setThemeId(null);
         }
-        applyTerminalLogSettings(connection);
+    }
+
+    /** What the appearance section shows right now. */
+    private ConnectionSettingsSupport.TerminalAppearance currentAppearance() {
+        if (fontFamilyCombo == null || fontSizeSpinner == null
+                || foregroundColorPicker == null || backgroundColorPicker == null || terminalColorsEnabledCheck == null) {
+            return null;
+        }
+        Theme selTheme = themeCombo != null ? themeCombo.getValue() : null;
+        return new ConnectionSettingsSupport.TerminalAppearance(
+            selTheme != null ? selTheme.getId() : null,
+            fontFamilyCombo.getValue(),
+            fontSizeSpinner.getValue(),
+            toHex(foregroundColorPicker.getValue()),
+            toHex(backgroundColorPicker.getValue()),
+            terminalColorsEnabledCheck.isSelected());
+    }
+
+    /** The global default terminal settings, or null when they cannot be read. */
+    private static ConnectionSettings globalTerminalDefaults() {
+        try {
+            var gsm = de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+            return settings != null ? settings.getDefaultTerminalSettings() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**

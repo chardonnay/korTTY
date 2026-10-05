@@ -6,12 +6,14 @@ import de.kortty.model.SSHTunnel;
 import de.kortty.model.JumpServer;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.TunnelType;
+import de.kortty.persistence.ConnectionSchemaMigration;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
 import jakarta.xml.bind.annotation.XmlRootElement;
@@ -69,6 +71,10 @@ public class TeamworkCacheRepository {
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(propOrder = { "cachedSources" })
     public static class CacheWrapper {
+        /** Schema version, see {@link ConnectionSchemaMigration}; absent in older caches. */
+        @XmlAttribute(name = "schemaVersion")
+        private Integer schemaVersion;
+
         @XmlElementWrapper(name = "sources")
         @XmlElement(name = "source")
         private List<CachedTeamworkSource> cachedSources = new ArrayList<>();
@@ -79,6 +85,14 @@ public class TeamworkCacheRepository {
 
         public void setCachedSources(List<CachedTeamworkSource> cachedSources) {
             this.cachedSources = cachedSources;
+        }
+
+        public Integer getSchemaVersion() {
+            return schemaVersion;
+        }
+
+        public void setSchemaVersion(Integer schemaVersion) {
+            this.schemaVersion = schemaVersion;
         }
     }
 
@@ -92,7 +106,16 @@ public class TeamworkCacheRepository {
             try (InputStream in = Files.newInputStream(file)) {
                 CacheWrapper wrapper = (CacheWrapper) unmarshaller.unmarshal(in);
                 List<CachedTeamworkSource> list = wrapper.getCachedSources();
-                return list != null ? list : new ArrayList<>();
+                if (list == null) {
+                    return new ArrayList<>();
+                }
+                // An older cache keeps its connections on the global terminal settings.
+                for (CachedTeamworkSource source : list) {
+                    if (source != null) {
+                        ConnectionSchemaMigration.migrate(wrapper.getSchemaVersion(), source.getConnections());
+                    }
+                }
+                return list;
             }
         } catch (Exception e) {
             logger.warn("Failed to load teamwork cache, using empty", e);
@@ -106,6 +129,7 @@ public class TeamworkCacheRepository {
             Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
             CacheWrapper wrapper = new CacheWrapper();
+            wrapper.setSchemaVersion(ConnectionSchemaMigration.CURRENT_VERSION);
             wrapper.setCachedSources(cached != null ? cached : new ArrayList<>());
             try (OutputStream out = Files.newOutputStream(file)) {
                 marshaller.marshal(wrapper, out);

@@ -1114,7 +1114,7 @@
 <td><code>ai-agent-execution</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>
-<td><code>confirm</code> erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und hebelt die Option zur automatischen Genehmigung aus; <code>read-only</code> lässt den Agenten planen und chatten, aber niemals Befehle ausführen, und graut <strong>Ausführen</strong> in den <a href="../features/ai-assistant.html#codeblocke-im-terminal">Codeblöcken eines KI-Chats</a> aus (<strong>Einfügen</strong> bleibt, da es nichts ausführt). Geplante Jobs: Unter <code>confirm</code> blockiert ein <a href="../features/jobscheduler.html#sicherheit-und-geheimnisse">KI-Agent- oder KI-Swarm-Job</a> jeden serverändernden Befehl, unabhängig von seiner Einstellung <strong>Automatisch genehmigende KI-Befehle</strong>, weil niemand da ist, der ihn genehmigen könnte; unter <code>read-only</code> enden beide KI-Jobtypen als blockiert, bevor sie sich verbinden. Ein Job wird auch dann vorab blockiert, wenn <code>ai</code> oder <code>ai-agent</code> verweigert wird, und ein Swarm-Job, wenn <code>ai-swarm</code> verweigert wird</td>
+<td><code>confirm</code> erzwingt die interaktive Genehmigung jedes mutierenden Befehlssatzes und hebelt die Option zur automatischen Genehmigung aus; <code>read-only</code> lässt den Agenten planen und chatten, aber niemals Befehle ausführen, und graut <strong>Ausführen</strong> in den <a href="../features/ai-assistant.html#codeblocke-im-terminal">Codeblöcken eines KI-Chats</a> aus (<strong>Einfügen</strong> bleibt, da es nichts ausführt). Geplante Jobs: Unter <code>confirm</code> blockiert ein <a href="../features/jobscheduler.html#sicherheit-und-geheimnisse">KI-Agent- oder KI-Swarm-Job</a> jeden serverändernden Befehl, unabhängig von seiner Einstellung <strong>Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern</strong>, weil niemand da ist, der ihn genehmigen könnte; unter <code>read-only</code> enden beide KI-Jobtypen als blockiert, bevor sie sich verbinden. Ein Job wird auch dann vorab blockiert, wenn <code>ai</code> oder <code>ai-agent</code> verweigert wird, und ein Swarm-Job, wenn <code>ai-swarm</code> verweigert wird</td>
 </tr>
 </tbody>
 </table>
@@ -1143,7 +1143,7 @@
 <td><code>enforce-host-key-check</code></td>
 <td>boolean</td>
 <td><code>true</code></td>
-<td>SSH-Host-Key-Prüfung kann nirgendwo deaktiviert werden — global, pro Gruppe oder pro Verbindung — und vertrauenswürdige Host-Keys können in korTTY nicht entfernt oder ersetzt werden.</td>
+<td>Die SSH-Host-Key-Prüfung kann nirgendwo deaktiviert werden — global, pro Gruppe oder pro Verbindung — und vertrauenswürdige Host-Keys können in korTTY nicht entfernt oder ersetzt werden; der Import einer OpenSSH-<code>known_hosts</code>-Datei bleibt verfügbar, weil er nur Schlüssel für Hosts hinzufügt, denen korTTY noch nicht vertraut</td>
 </tr>
 <tr>
 <td><code>allow-telemetry</code></td>
@@ -1568,6 +1568,12 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 <td>boolean</td>
 <td><code>false</code></td>
 <td>Verbietet On-Demand-KI für Journalinhalte: Das Frage-und-Antwort-Panel des Viewers und die tagebuchübergreifende KI-Suche des Managers werden ausgeblendet. KI-Zusammenfassungen sind nicht betroffen</td>
+</tr>
+<tr>
+<td><code>clickable-links</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Webadressen auf Journalseiten bleiben reiner Text – in Notizen und in KI-Zusammenfassungen – und der Journal-Viewer öffnet keinen Link; die Benutzereinstellung <strong>Webadressen in Journalen anklickbar machen</strong> ist gesperrt und ausgeschaltet</td>
 </tr>
 <tr>
 <td><code>max-log-parts</code></td>

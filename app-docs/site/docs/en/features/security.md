@@ -24,6 +24,8 @@ On first launch, you are prompted to create a master password (minimum 6 charact
 
 The master password itself is hashed with PBKDF2 (310,000 iterations) and never stored in plain text. The salt and hash are stored in `~/.kortty/master.key`.
 
+Every secret is encrypted with the master password it was saved under. Importing a backup made with another master password without overwriting your files therefore asks for the backup's master password once and re-encrypts the backup's secrets with your current one before they are copied; without it, the files that hold secrets are not imported, so no secret encrypted with a foreign master password ever reaches your profile. See [A backup with another master password](backup.md#importing-a-backup).
+
 On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off **Require master password on startup** in **Settings > Security** hides this prompt and starts with the vault locked: stored passwords and keys stay unavailable until you unlock it (see [Unlocking the vault later](#unlocking-the-vault-later)).
 
 !!! danger "Optional auto-login weakens at-rest protection"
@@ -165,6 +167,12 @@ A changed key can be replaced only by an explicit decision, and only in a connec
 **Configuration → Security → Known Hosts…** lists, searches and removes trusted keys. Removal works the same way: it deletes a key only while it still has the fingerprint shown in the confirmation, and the next connection asks again as on first use. With the enterprise policy key `enforce-host-key-check`, both replacing and removing are disabled, so only an administrator can change a trusted key.
 
 Interactive pins are written atomically to `~/.kortty/ssh-host-keys.properties`; a companion lock coordinates simultaneous korTTY processes. This store is distinct from the JobScheduler's connection-ID-based host-key pins in `job-scheduler.xml`, which protect unattended SSH, SFTP, and Rsync execution.
+
+### Importing OpenSSH known_hosts
+
+**Import from known_hosts...** in the Known Hosts dialog takes over the servers you already trust in OpenSSH, so the first connection from korTTY does not ask again. The file chooser opens on `~/.ssh/known_hosts`; you can pick any other `known_hosts` file. korTTY reads plain host names and addresses, `[host]:port` entries for other ports and comma-separated host lists, with `ssh-ed25519`, `ecdsa-sha2-nistp256/384/521` and `ssh-rsa` keys. The file is read in the background, and before anything is stored a confirmation shows how many new keys would be trusted, with **Cancel** as the default button. Only import a file you trust: an imported key is accepted without the first-use prompt.
+
+The import only ever adds keys. A host that korTTY already trusts with one of the file's keys counts as *already trusted*. A host that korTTY trusts with a different key is reported as a *conflict* and keeps its trusted key; its next connection shows the changed-key alert, where **Review and Replace…** works as described above. korTTY trusts one key per host and port, so when the file lists several keys for a new host, it stores the one its SSH client negotiates first (ECDSA before Ed25519 before RSA) and counts the others. A summary lists the keys added, already trusted and in conflict, and every line it skipped: hashed host names (`|1|...`, which cannot be turned back into a name, so korTTY asks for those hosts on first use), `@revoked` and `@cert-authority` lines, wildcard and negated host patterns, other key types, and malformed lines with their line numbers. A key the file marks as `@revoked` is never imported, and if korTTY already trusts such a key the summary warns you so you can remove it. As the import neither removes nor replaces a key, it stays available while the organization enforces `enforce-host-key-check`; conflicts then remain for the administrator to resolve.
 
 ### Relaxing host-key verification
 

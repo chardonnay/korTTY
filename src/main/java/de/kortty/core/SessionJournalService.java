@@ -86,7 +86,8 @@ public class SessionJournalService {
                 SessionJournalMeta.class,
                 SessionJournalEntry.class,
                 de.kortty.model.SessionJournalMarkerDefinition.class,
-                de.kortty.model.SessionJournalAnnotation.class);
+                de.kortty.model.SessionJournalAnnotation.class,
+                de.kortty.model.SessionJournalCommandInfo.class);
         } catch (JAXBException e) {
             throw new IllegalStateException("Failed to create JAXB context for session journals", e);
         }
@@ -730,6 +731,9 @@ public class SessionJournalService {
             removed = before - document.getEntries().size();
             document.getMeta().setLastSummarizedSeq(0);
             document.getMeta().setAiKeywords(null);
+            // A re-evaluation answers in the language korTTY runs in now, not the one the
+            // journal happened to be recorded under.
+            document.getMeta().setAppLanguageCode(resolveLanguageCode());
             saveDocumentInternal(journalDir, document);
         }
         notifyChanged(journalDir);

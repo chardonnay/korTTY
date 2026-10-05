@@ -497,6 +497,14 @@ public final class EffectivePolicy {
         return sessionJournalAiSummariesAllowed() && !Boolean.FALSE.equals(sessionJournal.aiAsk());
     }
 
+    /**
+     * False when the admin keeps web addresses on journal pages plain text
+     * ({@code clickable-links = false}); otherwise the user's setting decides.
+     */
+    public boolean sessionJournalClickableLinksAllowed() {
+        return !Boolean.FALSE.equals(sessionJournal.clickableLinks());
+    }
+
     /** True when the admin mandates a journal for every connection (users cannot stop it). */
     public boolean sessionJournalEnforced() {
         return sessionJournalAllowed() && Boolean.TRUE.equals(sessionJournal.enforced());
@@ -871,11 +879,15 @@ public final class EffectivePolicy {
         Integer automationMaxJournals = resolver.resolve(
             rule -> rule.sessionJournal() != null ? rule.sessionJournal().automationMaxJournals() : null,
             Math::min);
+        // A link is a way out of the journal page, so a same-tier conflict resolves to off.
+        Boolean clickableLinks = resolver.resolve(
+            rule -> rule.sessionJournal() != null ? rule.sessionJournal().clickableLinks() : null,
+            (a, b) -> a && b);
         return new PolicyRule.SessionJournalRule(
             enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
             aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts,
             resolveSessionJournalReplacements(resolver), automationAllowed, automationMaxRetentionDays,
-            automationMaxStorageMb, automationMaxJournals);
+            automationMaxStorageMb, automationMaxJournals, clickableLinks);
     }
 
     /**

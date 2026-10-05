@@ -95,7 +95,7 @@ public class XMLConnectionRepository {
      */
     public void saveConnections(List<ServerConnection> connections, SecretKey key,
                                 Map<String, StoredTemporaryKey> preserved) throws Exception {
-        ConnectionsWrapper wrapper = new ConnectionsWrapper();
+        ConnectionsWrapper wrapper = ConnectionsWrapper.current();
         wrapper.setConnections(prepareForPersistence(connections, key,
             preserved != null ? preserved : Map.of()));
         
@@ -142,7 +142,7 @@ public class XMLConnectionRepository {
             return new ArrayList<>();
         }
         
-        List<ServerConnection> connections = restoreAfterLoad(readWrapper(file).getConnections(), key, lockedKeyIds);
+        List<ServerConnection> connections = restoreAfterLoad(readWrapper(file), key, lockedKeyIds);
         logger.info("Loaded {} connections from {}", connections.size(), file);
         
         return connections != null ? connections : new ArrayList<>();
@@ -215,7 +215,7 @@ public class XMLConnectionRepository {
      * Exports connections to a specified file using the provided key for at-rest encryption.
      */
     public void exportConnections(List<ServerConnection> connections, Path targetFile, SecretKey key) throws Exception {
-        ConnectionsWrapper wrapper = new ConnectionsWrapper();
+        ConnectionsWrapper wrapper = ConnectionsWrapper.current();
         wrapper.setConnections(prepareForPersistence(connections, key, Map.of()));
         
         Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
@@ -246,14 +246,14 @@ public class XMLConnectionRepository {
             wrapper = (ConnectionsWrapper) unmarshaller.unmarshal(in);
         }
         
-        List<ServerConnection> connections = restoreAfterLoad(wrapper.getConnections(), key, null);
+        List<ServerConnection> connections = restoreAfterLoad(wrapper, key, null);
         logger.info("Imported {} connections from {}", connections.size(), sourceFile);
         
         return connections != null ? connections : new ArrayList<>();
     }
 
     public static void writeConnections(List<ServerConnection> connections, OutputStream out, SecretKey key) throws Exception {
-        ConnectionsWrapper wrapper = new ConnectionsWrapper();
+        ConnectionsWrapper wrapper = ConnectionsWrapper.current();
         wrapper.setConnections(prepareForPersistence(connections, key, Map.of()));
 
         Marshaller marshaller = JAXB_CONTEXT.createMarshaller();
@@ -280,7 +280,7 @@ public class XMLConnectionRepository {
                                                          Collection<String> lockedKeyIds) throws Exception {
         Unmarshaller unmarshaller = JAXB_CONTEXT.createUnmarshaller();
         ConnectionsWrapper wrapper = (ConnectionsWrapper) unmarshaller.unmarshal(in);
-        return restoreAfterLoad(wrapper.getConnections(), key, lockedKeyIds);
+        return restoreAfterLoad(wrapper, key, lockedKeyIds);
     }
 
     public static List<ServerConnection> readConnections(Path file, SecretKey key) throws Exception {
@@ -330,6 +330,17 @@ public class XMLConnectionRepository {
         }
 
         return copy;
+    }
+
+    /**
+     * Restores what {@link #prepareForPersistence} changed and brings connections of an older file
+     * to the current schema (see {@link ConnectionSchemaMigration}).
+     */
+    private static List<ServerConnection> restoreAfterLoad(ConnectionsWrapper wrapper, SecretKey key,
+                                                           Collection<String> lockedKeyIds) throws Exception {
+        List<ServerConnection> connections = wrapper != null ? wrapper.getConnections() : null;
+        ConnectionSchemaMigration.migrate(wrapper != null ? wrapper.getSchemaVersion() : null, connections);
+        return restoreAfterLoad(connections, key, lockedKeyIds);
     }
 
     private static List<ServerConnection> restoreAfterLoad(List<ServerConnection> connections, SecretKey key,
@@ -416,9 +427,31 @@ public class XMLConnectionRepository {
     @XmlRootElement(name = "connections")
     @XmlAccessorType(XmlAccessType.FIELD)
     public static class ConnectionsWrapper {
+
+        /**
+         * The file's schema version ({@link ConnectionSchemaMigration}); absent in files written
+         * before own terminal settings took effect.
+         */
+        @XmlAttribute(name = "schemaVersion")
+        private Integer schemaVersion;
         
         @XmlElement(name = "connection")
         private List<ServerConnection> connections = new ArrayList<>();
+
+        /** An empty wrapper stamped with the current schema version, for writing. */
+        public static ConnectionsWrapper current() {
+            ConnectionsWrapper wrapper = new ConnectionsWrapper();
+            wrapper.setSchemaVersion(ConnectionSchemaMigration.CURRENT_VERSION);
+            return wrapper;
+        }
+
+        public Integer getSchemaVersion() {
+            return schemaVersion;
+        }
+
+        public void setSchemaVersion(Integer schemaVersion) {
+            this.schemaVersion = schemaVersion;
+        }
         
         public List<ServerConnection> getConnections() {
             return connections;

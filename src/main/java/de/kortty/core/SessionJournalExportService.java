@@ -691,6 +691,9 @@ public final class SessionJournalExportService {
             title = i18n("journal.pdf.sessionSummary", "Session summary")
                 + (title != null && !title.isBlank() ? ": " + title : "");
         }
+        if (entry.isRunAsRoot() && title != null && !title.isBlank()) {
+            title = title + " · " + i18n("journal.html.root", "ROOT");
+        }
         if (title != null && !title.isBlank()) {
             drawText(cursor.stream(), fonts.sansBold(), 11.5f, new Color(0x1f, 0x29, 0x37), bodyX + badgeOffset,
                 cursor.y() - 12f, fit(title, fonts.sansBold(), 11.5f, bodyWidth - badgeOffset));
@@ -698,8 +701,12 @@ public final class SessionJournalExportService {
         cursor = cursor.withY(cursor.y() - 18f);
 
         if (entry.getText() != null && !entry.getText().isBlank()) {
+            // The backticks marking commands are page markup; the PDF has no tooltip to offer.
+            String text = entry.getKind() == SessionJournalEntryKind.USER_NOTE
+                ? entry.getText()
+                : entry.getText().replaceAll("`([^`\\n]{1,80})`", "$1").replaceAll("(?m)^[-*] ", "• ");
             cursor = drawParagraph(pdf, cursor, fonts.sans(), 10.2f, new Color(0x37, 0x41, 0x51),
-                entry.getText(), 3f, bodyX, bodyWidth);
+                text, 3f, bodyX, bodyWidth);
         }
         if (!entry.getInputExcerpt().isEmpty()) {
             cursor = drawExcerptPanel(pdf, cursor, fonts,

@@ -26,7 +26,9 @@ Backends: --backend google (default, deep_translator), lmstudio (a local OpenAI-
 server; --model, --base-url, --concurrency, --batch-lines) or libretranslate. The LLM prompt
 carries the formal register, the placeholder rules and the German UI labels / glossary terms
 of the lines in each request. A line that cannot be translated keeps its English text, is
-reported as FAILED and its page is NOT marked done, so a plain re-run retries it.
+reported as FAILED and its page is NOT marked done, so a plain re-run retries it. A meta reply
+("Bitte geben Sie die zu übersetzende Zeile an.", "Sure, please provide the line") counts as
+such a failure, never as the German line (is_meta_reply).
 scripts/translate_benchmark.py compares backends and models on a fixed sample.
 
 Changed-lines mode (default with --changed-since, --no-only-changed-lines to disable): the
@@ -207,8 +209,9 @@ def translate_preserving_token_order(masked: str, translator, errors: list | Non
     Translate only the prose fragments between tokens and then reassemble the
     original token order. The grammar can be slightly less fluid than a full-line
     translation, but the generated Markdown stays valid and no content vanishes.
-    A fragment whose translation raised keeps its English text; when `errors` is
-    given, the fragment is appended to it so the caller can report the line.
+    A fragment whose translation raised, or came back as a meta reply (is_meta_reply),
+    keeps its English text; when `errors` is given, the fragment is appended to it so the
+    caller can report the line.
     """
     translated_parts: list[str] = []
     for part in TOKEN_RE.split(masked):
@@ -224,6 +227,12 @@ def translate_preserving_token_order(masked: str, translator, errors: list | Non
         try:
             translated = translator.translate(core) or core
         except Exception:  # noqa: BLE001
+            translated = core
+            if errors is not None:
+                errors.append(core)
+        if is_meta_reply(core, translated):
+            # "Bitte geben Sie die zu übersetzende Zeile an." for a short fragment: never
+            # splice the model's chatter into the line — keep the English and fail the line.
             translated = core
             if errors is not None:
                 errors.append(core)
@@ -409,6 +418,84 @@ def looks_untranslated(masked: str, out: str) -> bool:
     return len(re.findall(r"[A-Za-z]{2,}", TOKEN_RE.sub(" ", masked))) >= 3
 
 
+# A chat model sometimes answers ABOUT the request instead of translating it — "Bitte geben
+# Sie die zu übersetzende Zeile an.", "Sure, please provide the line you want translated." —
+# most often for a short fragment of the fragment-wise fallback. Such a reply has intact
+# placeholders when the source had none, is no echo and has no English left, so every other
+# check let it ship as the German line. Each pattern must name the translation request itself
+# (a line/text to translate, an apology, an offer), so ordinary guide prose cannot match; the
+# phrase check is skipped when ANY pattern matches the source ("Please enter the text" may
+# legitimately become "Bitte geben Sie den Text ein").
+_META_REPLY_PATTERNS = [re.compile(p, re.IGNORECASE) for p in (
+    # Requests for the input, en/de.
+    r"\b(?:please|kindly|could you|can you)\b.{0,40}\b(?:provide|send|share|paste|give|enter|specify|supply)\b"
+    r".{0,40}\b(?:line|text|sentence|content|input|string)s?\b",
+    r"\b(?:bitte|können sie|könnten sie)\b.{0,40}\b(?:geben|senden|teilen|nennen|schicken|einfügen|fügen|"
+    r"liefern|mitteilen|angeben)\b.{0,40}\b(?:zeile|text|satz|inhalt|eingabe)\w*\b",
+    r"\bzu übersetzende[nmrs]?\b",
+    r"\b(?:the )?(?:line|text|sentence) (?:you(?:'d| would)? (?:like|want)|to (?:be )?translat)",
+    r"\b(?:no|missing|empty) (?:line|text|input)\b.{0,30}\btranslat",
+    r"\bnothing to translate\b|\bnichts zu übersetzen\b",
+    r"\b(?:keine[nr]?|fehlende[nr]?|leere[nr]?) (?:zeile|text|eingabe)\b.{0,40}\bübersetz",
+    # Preambles and refusals.
+    r"^\s*(?:sure|of course|certainly|absolutely|gerne|gern|natürlich|selbstverständlich|klar)\s*[,!:.]",
+    r"\b(?:here is|here's) (?:the|your|my) (?:german )?translation\b",
+    r"\bhier (?:ist|sind) (?:die|ihre|meine) (?:deutsche )?übersetzung",
+    r"\b(?:i'm sorry|i am sorry|i apologi[sz]e|es tut mir leid|entschuldigung|leider kann ich)\b",
+    r"\b(?:as an ai|as a language model|als (?:ki|sprachmodell|ki-sprachmodell))\b",
+    r"\b(?:which|what) (?:line|text|sentence)\b",
+    r"\bwelche[nrs]? (?:zeile|text|satz)\b",
+)]
+
+# What a translation carries over unchanged: mask tokens, numbers, and identifiers with an
+# inner capital or an inner dot/underscore (korTTY, JavaFX, settings.json, ssh_config). Not
+# slashes: "foreground/background" is prose and becomes "Vordergrund-/Hintergrund".
+_CARRY_OVER_RE = re.compile(
+    r"KTPH\d{3}|\d+|\b[A-Za-z0-9]*[a-z][A-Z][A-Za-z0-9]*\b|\b\w+(?:[._]\w+)+\b")
+
+
+def carry_over_tokens(text: str) -> set[str]:
+    """Tokens a correct translation keeps verbatim (see _CARRY_OVER_RE). Abbreviations made
+    of single letters ("e.g", "i.e") are dropped — they become "z. B." / "d. h."."""
+    return {t for t in _CARRY_OVER_RE.findall(text or "") if not re.fullmatch(r"\w(?:[._]\w)+", t)}
+
+
+def _keeps_any(anchors: set[str], out: str) -> bool:
+    """Case-insensitive substring match: "KorTTY" -> "korTTYs" still carries it over."""
+    folded = out.casefold()
+    return any(a.casefold() in folded for a in anchors)
+
+
+# A question that addresses the reader ("Welche Zeile möchten Sie übersetzen?", "Which line do
+# you mean?") — a heading like "## What is encrypted" may become "## Was ist verschlüsselt?".
+# "Sie" stays case-sensitive: lowercase "sie" is "they".
+_ADDRESSES_READER_RE = re.compile(r"\b(?:Sie|Ihnen|Ihre?[mnrs]?)\b|\b[Yy]ou\b")
+
+
+def meta_reply_reason(source: str, out: str | None) -> str | None:
+    """Why `out` is a meta reply ("phrase", "question", "no-carry-over"), or None."""
+    if not out or not out.strip():
+        return None
+    if not any(p.search(source) for p in _META_REPLY_PATTERNS) \
+            and any(p.search(out) for p in _META_REPLY_PATTERNS):
+        return "phrase"
+    if out.rstrip().endswith("?") and "?" not in source and _ADDRESSES_READER_RE.search(out):
+        return "question"
+    anchors = carry_over_tokens(source)
+    if anchors and not _keeps_any(anchors, out):
+        return "no-carry-over"
+    return None
+
+
+def is_meta_reply(source: str, out: str | None) -> bool:
+    """True when `out` is a reply about the request instead of a translation of `source`:
+    a known meta phrase (en/de) that the source does not contain, a question where the source
+    asked none (a request for input), or a reply that keeps none of the source's
+    placeholders, numbers and identifiers while the source has some. The caller treats the
+    line as FAILED — it keeps its English text, is reported, and a re-run retries it."""
+    return meta_reply_reason(source, out) is not None
+
+
 # English function words that never occur in German prose (German homographs such as
 # "an", "in", "so", "will", "was", "die" are deliberately absent).
 _ENGLISH_ONLY_WORDS = frozenset(
@@ -500,10 +587,12 @@ def repair_spans(masked: str, out: str, translator) -> str:
 
 
 def acceptable(out: str | None, store: list[str], masked: str) -> bool:
-    """A translated line may ship: tokens intact, not an echo of the source, no run of
-    English left in it (a table row whose last cells an LLM did not translate) and no bold
-    or link text kept in English."""
+    """A translated line may ship: tokens intact, not an echo of the source, not a meta reply
+    about the request, no run of English left in it (a table row whose last cells an LLM did
+    not translate) and no bold or link text kept in English."""
     if not out or not placeholders_intact(out, store, masked) or looks_untranslated(masked, out):
+        return False
+    if is_meta_reply(masked, out):
         return False
     if english_leftovers(out) >= 3 and english_leftovers(masked) >= 3:
         return False
@@ -522,11 +611,21 @@ def translate_masked(translator, items: list[tuple[str, list[str]]]) -> tuple[li
     fragment fallbacks and failures (the benchmark reports these)."""
     texts = [masked for masked, _store in items]
     stats = {"lines": len(items), "first_pass_ok": 0, "retried": 0, "retry_ok": 0,
-             "fragment_fallback": 0, "failed": 0}
+             "fragment_fallback": 0, "failed": 0, "meta_replies": 0}
+
+    def note_meta(masked: str, out: str | None) -> None:
+        reason = meta_reply_reason(masked, out)
+        if reason == "no-carry-over" and TOKEN_RE.search(masked) and not TOKEN_RE.search(out):
+            return  # lost placeholders: reported as such, not as chatter
+        if reason:
+            stats["meta_replies"] += 1
+            print(f"  ! meta reply instead of a translation: {out.strip()[:100]!r}", file=sys.stderr)
+
     first = translate_texts(translator, texts)
     results: list[str | None] = [None] * len(items)
     retry: list[int] = []
     for i, ((masked, store), out) in enumerate(zip(items, first)):
+        note_meta(masked, out)
         if acceptable(out, store, masked):
             results[i] = out
             stats["first_pass_ok"] += 1
@@ -537,11 +636,13 @@ def translate_masked(translator, items: list[tuple[str, list[str]]]) -> tuple[li
         second = translate_texts(translator, [texts[i] for i in retry])
         for i, out in zip(retry, second):
             masked, store = items[i]
+            note_meta(masked, out)
             if acceptable(out, store, masked):
                 results[i] = out
                 stats["retry_ok"] += 1
                 continue
             if out and placeholders_intact(out, store, masked) and not looks_untranslated(masked, out) \
+                    and not is_meta_reply(masked, out) \
                     and (english_leftovers(out) < 3 or english_leftovers(masked) < 3):
                 # Tokens fine, some English left: repair bold/link text that stayed English by
                 # translating just those spans, and keep the rest — better than a fragment-wise
@@ -1614,7 +1715,8 @@ class OpenAICompatBackend(_ConcurrentBackend):
                            max_tokens=4096, lines=1)
         if reply.startswith("\x00REASONING\x00"):
             return None
-        return clean_single_reply(reply, text)
+        out = clean_single_reply(reply, text)
+        return None if is_meta_reply(text, out) else out
 
     def _translate_batch(self, batch: list[str]) -> list[str | None]:
         if len(batch) == 1:
@@ -1639,7 +1741,7 @@ class OpenAICompatBackend(_ConcurrentBackend):
         out: list[str | None] = []
         for source, target in zip(batch, mapped):
             if _token_multiset(source) != _token_multiset(target) or not target.strip() \
-                    or looks_untranslated(source, target) \
+                    or looks_untranslated(source, target) or is_meta_reply(source, target) \
                     or (english_leftovers(target) >= 3 and english_leftovers(source) >= 3) \
                     or untranslated_spans(source, target):
                 out.append(self._single_or_none(source))

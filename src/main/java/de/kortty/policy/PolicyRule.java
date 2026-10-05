@@ -161,6 +161,8 @@ public record PolicyRule(
      *                      panel and the manager's cross-journal AI search); null allows it
      * @param replacements  {@code [[rule.session-journal.replace]]} search-and-replace rules applied
      *                      to every captured line and every journal entry; never null, empty = none
+     * @param clickableLinks false keeps web addresses on journal pages plain text (no links in notes
+     *                      or AI summaries); null leaves it to the user's setting
      */
     public record SessionJournalRule(
         Boolean enforced,
@@ -178,10 +180,34 @@ public record PolicyRule(
         Boolean automationAllowed,
         Integer automationMaxRetentionDays,
         Integer automationMaxStorageMb,
-        Integer automationMaxJournals) {
+        Integer automationMaxJournals,
+        Boolean clickableLinks) {
 
         public SessionJournalRule {
             replacements = replacements == null ? List.of() : List.copyOf(replacements);
+        }
+
+        /** A rule without the link mandate. */
+        public SessionJournalRule(
+            Boolean enforced,
+            String logFormat,
+            Integer aiMaxLines,
+            String storagePath,
+            Boolean allowRename,
+            Boolean allowDelete,
+            String nameTemplate,
+            Boolean aiTitle,
+            Boolean aiScreenshotAnalysis,
+            Boolean aiAsk,
+            Integer maxLogParts,
+            List<de.kortty.model.SessionJournalReplacement> replacements,
+            Boolean automationAllowed,
+            Integer automationMaxRetentionDays,
+            Integer automationMaxStorageMb,
+            Integer automationMaxJournals) {
+            this(enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
+                aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts, replacements, automationAllowed,
+                automationMaxRetentionDays, automationMaxStorageMb, automationMaxJournals, null);
         }
 
         /** A rule without automation-journal mandates. */
@@ -199,7 +225,7 @@ public record PolicyRule(
             Integer maxLogParts,
             List<de.kortty.model.SessionJournalReplacement> replacements) {
             this(enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
-                aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts, replacements, null, null, null, null);
+                aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts, replacements, null, null, null, null, null);
         }
 
         public boolean isEmpty() {
@@ -207,7 +233,7 @@ public record PolicyRule(
                 && allowRename == null && allowDelete == null && nameTemplate == null && aiTitle == null
                 && aiScreenshotAnalysis == null && aiAsk == null && maxLogParts == null
                 && replacements.isEmpty() && automationAllowed == null && automationMaxRetentionDays == null
-                && automationMaxStorageMb == null && automationMaxJournals == null;
+                && automationMaxStorageMb == null && automationMaxJournals == null && clickableLinks == null;
         }
     }
 

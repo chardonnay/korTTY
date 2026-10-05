@@ -940,6 +940,7 @@
 <div class="admonition important">
 <p class="admonition-title">A backup with another master password</p>
 <p>If an overwriting import brings the <code>master.key</code> of another master password, everything korTTY has loaded still belongs to the old one. korTTY tells you to restart and quits without saving its current data, so the restored files stay as they are. Start korTTY again and unlock it with the master password of the backup.</p>
+<p>A merging import (<strong>Cancel</strong> at the overwrite question) keeps your own <code>master.key</code>. If the backup was made with another master password and brings files that hold secrets — <code>connections.xml</code>, <code>credentials.xml</code>, <code>ssh-keys.xml</code>, <code>global-settings.xml</code>, <code>job-scheduler.xml</code> or <code>rag/stores.json</code> — korTTY asks once for the master password of the backup (masked, never logged) and checks it against the backup's <code>master.key</code>. It then decrypts the passwords, passphrases, keys and tokens of those files with the backup's master password and encrypts them again with your current one before anything is copied, and the success message says how many secrets were re-encrypted. A secret the backup's master password cannot decrypt either is left empty rather than imported unreadable. If you cancel the prompt, enter a wrong password three times or the vault is locked, the files with secrets are not imported at all and the message lists them; the other files are still imported, and you can import the backup again to enter the password. korTTY never writes a secret encrypted with a master password it does not have.</p>
 </div>
 <h2 id="backup-file-contents">Backup file contents<a class="headerlink" href="#backup-file-contents" title="Permanent link">&para;</a></h2>
 <p>Both <code>.zip</code> and <code>.zip.gpg</code> backups contain the same files:</p>
@@ -968,7 +969,7 @@
 <p>The session snapshots in <code>~/.kortty/session/</code>, which <em>File → Restore Previous Session</em> opens, are not included: they describe the windows and tabs of this computer, and the Recently Closed list they keep stays on this computer with them. After a restore, <em>Restore Previous Session</em> still opens the session of this computer, and its tabs open with the restored connections. See <a href="projects.html#previous-session">Previous session</a>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>All passwords and credentials inside the backup remain encrypted with your master password. When you import a backup, you must unlock the master password for KorTTY to decrypt the credentials.</p>
+<p>All passwords and credentials inside the backup remain encrypted with your master password. When you import a backup, you must unlock the master password for KorTTY to decrypt the credentials. A merging import of a backup made with another master password re-encrypts them with your current one (see <a href="#importing-a-backup">A backup with another master password</a>).</p>
 </div>
 <div class="admonition important">
 <p class="admonition-title">Rebuild local AI assets after a restore</p>
