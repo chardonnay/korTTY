@@ -35,7 +35,7 @@ public final class PolicyLoader {
     private static final Set<String> META_KEYS = Set.of("schema-version", "organization");
     private static final Set<String> RULE_KEYS = Set.of("name", "users", "groups", "servers",
         "features", "security", "teamwork", "snippets", "ai-profiles", "ai-runtime", "updates",
-        "terminal", "logging", "session-journal", "sftp", "job-scheduler");
+        "terminal", "logging", "session-journal", "sftp", "job-scheduler", "isolation");
     private static final Set<String> SERVERS_KEYS = Set.of("mode", "hosts");
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
         "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "allow-port-forwarding",
@@ -51,6 +51,7 @@ public final class PolicyLoader {
     private static final Set<String> TERMINAL_KEYS = Set.of("load-into-snippet-editor", "paste-warning",
         "session-restore", "session-restore-output");
     private static final Set<String> JOB_SCHEDULER_KEYS = Set.of("webhook-host-allowlist");
+    private static final Set<String> ISOLATION_KEYS = Set.of("minimum");
     private static final Set<String> SFTP_KEYS = Set.of("max-parallel-transfers", "conflict-default");
     private static final Set<String> LOGGING_KEYS = Set.of("directory", "retention-days",
         "compress", "format", "rotation-max-files", "rotation-total-size-mb");
@@ -182,6 +183,7 @@ public final class PolicyLoader {
             parseRuleLogging(table, context, builder);
             parseRuleSessionJournal(table, context, builder);
             parseRuleSftp(table, context, builder);
+            parseRuleIsolation(table, context, builder);
             parseRuleJobScheduler(table, context, builder);
             rules.add(builder.build());
         }
@@ -421,6 +423,25 @@ public final class PolicyLoader {
             directory, retentionDays, compress, format, rotationMaxFiles, rotationTotalSizeMb);
         if (!logging.isEmpty()) {
             builder.logging(logging);
+        }
+    }
+
+    /** The {@code [rule.isolation]} table: the least isolation every terminal session must have. */
+    private void parseRuleIsolation(TomlTable rule, String context, PolicyRule.Builder builder) {
+        TomlTable table = getTable(rule, "isolation", context);
+        if (table == null) {
+            return;
+        }
+        String tableContext = context + " [rule.isolation]";
+        warnUnknownKeys(table, ISOLATION_KEYS, tableContext);
+        String minimum = getString(table, "minimum", tableContext);
+        if (minimum != null) {
+            de.kortty.isolation.IsolationLevel floor = de.kortty.isolation.IsolationLevel.parseId(minimum);
+            if (floor == null) {
+                errors.add(tableContext + ": minimum must be \"none\", \"process\" or \"sandbox\"");
+            } else {
+                builder.isolationFloor(floor);
+            }
         }
     }
 

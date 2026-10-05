@@ -56,6 +56,7 @@ public class GlobalSettingsManager {
                 de.kortty.model.WindowGeometry.class,
                 de.kortty.model.NamedWindowGeometry.class,
                 de.kortty.model.ConnectionGroupColor.class,
+                de.kortty.model.ConnectionGroupIsolationEntry.class,
                 de.kortty.model.TeamworkSourceConfig.class,
                 de.kortty.model.TeamworkSourceType.class,
                 de.kortty.model.SessionJournalMarkerDefinition.class,

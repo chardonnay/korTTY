@@ -175,6 +175,7 @@ nav:
       - features/ai-tools.md
       - features/ai-swarm.md
       - features/security.md
+      - features/session-isolation.md
       - features/backup.md
       - features/recording.md
       - features/session-journal.md

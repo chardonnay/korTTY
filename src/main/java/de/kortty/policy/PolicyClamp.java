@@ -118,6 +118,11 @@ public final class PolicyClamp {
             settings.setPasteWarningMode(de.kortty.paste.PasteWarningMode.mostRestrictive(
                 settings.getPasteWarningMode(), policy.pasteWarningFloor()));
         }
+        if (policy.isolationFloor() != null) {
+            // A floor, like the paste warning: a user who isolates more than the policy demands keeps it.
+            settings.setConnectionIsolationDefault(de.kortty.isolation.IsolationLevel.mostRestrictive(
+                settings.getConnectionIsolationDefault(), policy.isolationFloor()));
+        }
         if (!policy.osc52ClipboardWriteAllowed()) {
             settings.setOsc52ClipboardWriteEnabled(false);
         }

@@ -89,7 +89,8 @@ public record PolicyRule(
     de.kortty.model.SessionRestoreMode sessionRestoreMode,
     Boolean sessionRestoreOutput,
     SftpRule sftp,
-    List<String> webhookHostAllowlist) {
+    List<String> webhookHostAllowlist,
+    de.kortty.isolation.IsolationLevel isolationFloor) {
 
     public PolicyRule {
         webhookHostAllowlist = webhookHostAllowlist == null ? null : List.copyOf(webhookHostAllowlist);
@@ -275,6 +276,7 @@ public record PolicyRule(
         private Boolean sessionRestoreOutput;
         private SftpRule sftp;
         private List<String> webhookHostAllowlist;
+        private de.kortty.isolation.IsolationLevel isolationFloor;
 
         public Builder name(String value) { this.name = value; return this; }
         public Builder users(Set<String> value) { this.users = value; return this; }
@@ -317,6 +319,7 @@ public record PolicyRule(
         public Builder sessionRestoreOutput(Boolean value) { this.sessionRestoreOutput = value; return this; }
         public Builder sftp(SftpRule value) { this.sftp = value; return this; }
         public Builder webhookHostAllowlist(List<String> value) { this.webhookHostAllowlist = value; return this; }
+        public Builder isolationFloor(de.kortty.isolation.IsolationLevel value) { this.isolationFloor = value; return this; }
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
@@ -325,7 +328,7 @@ public record PolicyRule(
                 aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal,
                 snippetAnalysisMaxStoredContentBytes, pasteWarningFloor, allowOsc52ClipboardWrite,
-                sessionRestoreMode, sessionRestoreOutput, sftp, webhookHostAllowlist);
+                sessionRestoreMode, sessionRestoreOutput, sftp, webhookHostAllowlist, isolationFloor);
         }
     }
 }

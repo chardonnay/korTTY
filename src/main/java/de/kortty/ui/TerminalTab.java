@@ -169,6 +169,12 @@ public class TerminalTab extends Tab {
     private Node mirrorMarker;
     /** The text the mirror marker shows as its tooltip, or null without a marker; FX thread only. */
     private String mirrorMarkerText;
+    /** The isolation shield in {@link #tabDecorations}, or null without isolation; FX thread only. */
+    private javafx.scene.shape.SVGPath isolationMarker;
+    /** The spy of an incognito tab in {@link #tabDecorations}, or null; FX thread only. */
+    private javafx.scene.shape.SVGPath incognitoMarker;
+    /** What the isolation markers show now; FX thread only. */
+    private IsolationMarkers.Markers isolationMarkers = IsolationMarkers.Markers.NONE;
     /**
      * The tab's content: the terminal view with its split panes, and the status bars below it. Its
      * border is the frame in the connection's tab color and nothing else (see {@link #showConnectionColor}).
@@ -196,6 +202,7 @@ public class TerminalTab extends Tab {
         this.terminalView.setShellTitleListener(this::onShellTitleChanged);
         // Split panes of another connection with another tab color are listed in the tab's tooltip.
         this.terminalView.setPaneConnectionsListener(this::setPaneConnectionsLine);
+        this.terminalView.setIsolationMarkersListener(this::setIsolationMarkers);
         // A bell in a pane the user is not looking at marks the tab and may notify (Settings → Terminal).
         this.terminalView.setBellListener(widget -> TerminalAttentionNotifier.shared().onBell(this, widget));
         // So does a long command the shell marked (shell integration) finishing there.
@@ -611,6 +618,10 @@ public class TerminalTab extends Tab {
         if (!isTerminalRecordingEnabled()) {
             showRecordingError(I18n.get("terminal.recording.error.disabled"));
             refreshRecordingControlsVisibility();
+            return;
+        }
+        if (terminalView.isIncognito()) {
+            showRecordingError(I18n.get("terminal.recording.error.incognito"));
             return;
         }
         if (!terminalView.isConnected()) {
@@ -2008,6 +2019,94 @@ public class TerminalTab extends Tab {
         setGraphic(tabDecorations.getChildren().isEmpty() ? null : tabDecorations);
     }
 
+    /**
+     * Shows how isolated the tab's sessions are: a shield (outline for a process of its own, filled for a
+     * sandbox, with a warning sign when a sandbox was asked for but is not active) and, for an incognito
+     * tab, a spy next to it. Their tooltips, which screen readers read too, say what each means; the tab's
+     * own tooltip gets the same line. FX thread.
+     */
+    void setIsolationMarkers(IsolationMarkers.Markers markers) {
+        IsolationMarkers.Markers next = markers != null ? markers : IsolationMarkers.Markers.NONE;
+        if (next.equals(isolationMarkers)) {
+            return;
+        }
+        isolationMarkers = next;
+        if (isolationMarker != null) {
+            tabDecorations.getChildren().remove(isolationMarker);
+            isolationMarker = null;
+        }
+        if (incognitoMarker != null) {
+            tabDecorations.getChildren().remove(incognitoMarker);
+            incognitoMarker = null;
+        }
+        if (next.shield() != de.kortty.isolation.IsolationState.NONE && next.shieldText() != null) {
+            isolationMarker = markerIcon(shieldPath(next.shield()), next.shieldText(),
+                ISOLATION_MARKER_STYLE_CLASS, isolationStateStyleClass(next.shield()));
+            tabDecorations.getChildren().add(isolationMarker);
+        }
+        if (next.incognitoText() != null) {
+            incognitoMarker = markerIcon(INCOGNITO_ICON_PATH, next.incognitoText(), INCOGNITO_MARKER_STYLE_CLASS, null);
+            tabDecorations.getChildren().add(incognitoMarker);
+        }
+        refreshTooltip();
+        setGraphic(tabDecorations.getChildren().isEmpty() ? null : tabDecorations);
+    }
+
+    /** What the isolation markers show now. */
+    IsolationMarkers.Markers getIsolationMarkers() {
+        return isolationMarkers;
+    }
+
+    private static javafx.scene.shape.SVGPath markerIcon(String path, String text, String styleClass,
+                                                          String stateStyleClass) {
+        javafx.scene.shape.SVGPath icon = new javafx.scene.shape.SVGPath();
+        icon.setContent(path);
+        icon.setFillRule(javafx.scene.shape.FillRule.EVEN_ODD);
+        icon.getStyleClass().add(styleClass);
+        if (stateStyleClass != null) {
+            icon.getStyleClass().add(stateStyleClass);
+        }
+        icon.setAccessibleRole(javafx.scene.AccessibleRole.IMAGE_VIEW);
+        icon.setAccessibleText(text);
+        Tooltip.install(icon, new Tooltip(text));
+        return icon;
+    }
+
+    /** The shield's outline for a process of its own, filled for a sandbox, with a warning sign when degraded. */
+    static String shieldPath(de.kortty.isolation.IsolationState state) {
+        return switch (state) {
+            case SANDBOXED -> SHIELD_FILLED_PATH;
+            case DEGRADED -> SHIELD_FILLED_PATH + " " + SHIELD_WARNING_CUTOUT;
+            default -> SHIELD_FILLED_PATH + " " + SHIELD_INNER_CUTOUT;
+        };
+    }
+
+    /** The style class that colors the shield for {@code state}. */
+    static String isolationStateStyleClass(de.kortty.isolation.IsolationState state) {
+        return switch (state) {
+            case SANDBOXED -> "tab-isolation-sandboxed";
+            case DEGRADED -> "tab-isolation-degraded";
+            default -> "tab-isolation-process";
+        };
+    }
+
+    /** Style class of the isolation shield on a tab. */
+    static final String ISOLATION_MARKER_STYLE_CLASS = "tab-isolation-marker";
+    /** Style class of the incognito spy on a tab. */
+    static final String INCOGNITO_MARKER_STYLE_CLASS = "tab-incognito-marker";
+    /** A shield, about 10 x 11.6, the size of the mirror marker. */
+    static final String SHIELD_FILLED_PATH = "M5 0L0 2V5.2C0 8.2 2.1 10.9 5 11.6C7.9 10.9 10 8.2 10 5.2V2Z";
+    /** Cut out of the filled shield, so it shows as an outline. */
+    static final String SHIELD_INNER_CUTOUT =
+        "M5 1.3L1.2 2.85V5.2C1.2 7.6 2.8 9.8 5 10.4C7.2 9.8 8.8 7.6 8.8 5.2V2.85Z";
+    /** Cut out of the filled shield: an exclamation mark. */
+    static final String SHIELD_WARNING_CUTOUT = "M4.4 2.6H5.6V7.2H4.4Z M4.4 8.1H5.6V9.3H4.4Z";
+    /** A spy: a hat over a pair of glasses, about 10 x 9.6. */
+    static final String INCOGNITO_ICON_PATH = "M2.6 0.6H7.4L8.4 4H1.6Z M0 4.4H10V5.4H0Z"
+        + " M0.6 7.6A2 2 0 1 0 4.6 7.6A2 2 0 1 0 0.6 7.6Z M1.5 7.6A1.1 1.1 0 1 0 3.7 7.6A1.1 1.1 0 1 0 1.5 7.6Z"
+        + " M5.4 7.6A2 2 0 1 0 9.4 7.6A2 2 0 1 0 5.4 7.6Z M6.3 7.6A1.1 1.1 0 1 0 8.5 7.6A1.1 1.1 0 1 0 6.3 7.6Z"
+        + " M4.6 7.2H5.4V7.9H4.6Z";
+
     /** The mirror marker's text, or {@code null} while the tab shows none. */
     String getMirrorMarkerText() {
         return mirrorMarkerText;
@@ -2028,6 +2127,8 @@ public class TerminalTab extends Tab {
         String shellLine = customTitle == null && shellTitle != null
             ? I18n.get("tab.tooltip.shellTitle", getConnectionTitle())
             : null;
+        // The isolation and incognito lines go with the pane lines, so the attention reason stays last.
+        String paneConnectionsLine = joinLines(this.paneConnectionsLine, isolationTooltipLine(isolationMarkers));
         String text = tooltipText(I18n.get("tab.tooltip.connection", connectionEndpoint()), shellLine,
             connectionColorLine, paneConnectionsLine, attentionLine);
         if (text == null) {
@@ -2075,6 +2176,18 @@ public class TerminalTab extends Tab {
             }
         }
         return text.toString();
+    }
+
+    /** The isolation and incognito lines of the tab's tooltip, or null when it has neither. */
+    static String isolationTooltipLine(IsolationMarkers.Markers markers) {
+        return markers == null ? null : joinLines(markers.tooltipLine(), markers.incognitoText());
+    }
+
+    private static String joinLines(String first, String second) {
+        if (first == null || first.isBlank()) {
+            return second != null && !second.isBlank() ? second : null;
+        }
+        return second == null || second.isBlank() ? first : first + "\n" + second;
     }
 
     /** {@code user@host} of the tab's connection; the connection's name for a local shell or without either. */

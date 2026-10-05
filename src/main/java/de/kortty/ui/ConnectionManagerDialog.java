@@ -238,6 +238,11 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         treeView.setOnToggleGroupHostKeyCheck(this::toggleGroupHostKeyCheck);
         // Folder tab colors: only the local tree, as they never apply to teamwork connections.
         treeView.setOnEditGroupColor(this::editGroupColor);
+        treeView.setOnSetGroupIsolation(this::setGroupIsolation);
+        treeView.setGroupIsolationProbe(group -> {
+            GlobalSettings settings = globalSettings();
+            return settings != null ? settings.getConnectionGroupIsolationLevel(group.getPath()) : null;
+        });
         treeView.setGroupColorProbe(this::groupColorOf);
         // A connection dragged into another folder takes that folder's color in its open tabs.
         treeView.setOnConnectionsMoved(MainWindow::refreshConnectionColorsInAllWindows);
@@ -942,6 +947,48 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         }
     }
 
+    /**
+     * Gives the folder {@code groupPath} the isolation {@code level}, or removes its own level for null, and
+     * saves the global settings; a failed save puts the previous levels back. Sessions that are open keep
+     * the isolation they started with; the next one a connection in the folder opens gets the new level.
+     */
+    private void setGroupIsolation(GroupPath groupPath, de.kortty.isolation.IsolationLevel level) {
+        String key = de.kortty.isolation.ConnectionGroupIsolation.key(groupPath.getPath());
+        GlobalSettings settings = globalSettings();
+        if (key == null || settings == null) {
+            return;
+        }
+        Map<String, de.kortty.isolation.IsolationLevel> levels = settings.getConnectionGroupIsolation();
+        if (level != null) {
+            levels.put(key, level);
+        } else {
+            levels.remove(key);
+        }
+        storeGroupIsolation(levels);
+    }
+
+    /** Makes {@code levels} the folders' isolation levels and saves; a failed save restores the old ones. */
+    private boolean storeGroupIsolation(Map<String, de.kortty.isolation.IsolationLevel> levels) {
+        var gsm = app.getGlobalSettingsManager();
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        if (settings == null) {
+            return false;
+        }
+        Map<String, de.kortty.isolation.IsolationLevel> previous = settings.getConnectionGroupIsolation();
+        if (previous.equals(de.kortty.isolation.ConnectionGroupIsolation.copyOf(levels))) {
+            return true;
+        }
+        settings.setConnectionGroupIsolation(levels);
+        try {
+            gsm.save();
+            return true;
+        } catch (Exception e) {
+            settings.setConnectionGroupIsolation(previous);
+            logger.error("Could not save the folder isolation levels", e);
+            return false;
+        }
+    }
+
     /** The tab color the folder {@code groupPath} has of its own, or null. */
     private String groupColorOf(GroupPath groupPath) {
         GlobalSettings settings = globalSettings();
@@ -1092,6 +1139,9 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 if (settings != null) {
                     storeGroupColors(ConnectionGroupColors.renamed(
                         settings.getConnectionGroupColors(), oldPath.getPath(), newPath.getPath()));
+                    // The isolation follows the folder, never its old name.
+                    storeGroupIsolation(de.kortty.isolation.ConnectionGroupIsolation.renamed(
+                        settings.getConnectionGroupIsolation(), oldPath.getPath(), newPath.getPath()));
                 }
                 
                 treeView.refreshTree();
@@ -1136,6 +1186,9 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 if (settings != null) {
                     storeGroupColors(ConnectionGroupColors.deleted(
                         settings.getConnectionGroupColors(), groupPath.getPath()));
+                    // A new folder of the same name starts without the deleted one's isolation.
+                    storeGroupIsolation(de.kortty.isolation.ConnectionGroupIsolation.deleted(
+                        settings.getConnectionGroupIsolation(), groupPath.getPath()));
                 }
                 
                 treeView.refreshTree();

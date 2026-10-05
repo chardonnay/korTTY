@@ -135,6 +135,12 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     /** "Terminal behavior" section: whether this connection has its own pause after each pasted line, and which. */
     private CheckBox pasteLineDelayCheck;
     private Spinner<Integer> pasteLineDelaySpinner;
+    /** "Session isolation" rows: how far this connection's sessions are isolated, strict mode, incognito. */
+    private ComboBox<IsolationConnectionSupport.LevelChoice> isolationLevelCombo;
+    private ComboBox<IsolationConnectionSupport.StrictChoice> strictModeCombo;
+    private CheckBox incognitoCheck;
+    private Label isolationHint;
+    private de.kortty.isolation.IsolationLevel isolationDefaultLevel = de.kortty.isolation.IsolationLevel.DEFAULT;
     
     // Terminal Logging
     private CheckBox enableLoggingCheck;
@@ -732,6 +738,15 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 if (pasteLineDelayCheck != null && pasteLineDelaySpinner != null) {
                     connection.setPasteLineDelayMs(PasteConnectionSupport.storedLineDelay(
                         pasteLineDelayCheck.isSelected(), pasteLineDelaySpinner.getValue()));
+                }
+                if (isolationLevelCombo != null) {
+                    connection.setIsolationLevel(IsolationConnectionSupport.storedLevel(isolationLevelCombo.getValue()));
+                }
+                if (strictModeCombo != null && strictModeCombo.getValue() != null) {
+                    connection.setStrictTerminalMode(strictModeCombo.getValue().storedValue());
+                }
+                if (incognitoCheck != null && !incognitoCheck.isDisabled()) {
+                    connection.setIncognito(incognitoCheck.isSelected());
                 }
                 
                 // Store the edited tunnels; an open tab of this connection applies them when the
@@ -1546,9 +1561,117 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             Label teamworkHint = new Label(I18n.get(PasteConnectionSupport.TEAMWORK_KEY));
             teamworkHint.setWrapText(true);
             teamworkHint.setMaxWidth(520);
-            grid.add(teamworkHint, 0, row, 2, 1);
+            grid.add(teamworkHint, 0, row++, 2, 1);
         }
+        row = addIsolationRows(grid, row, globalSettings);
         return grid;
+    }
+
+    /**
+     * The "Session isolation" rows below the paste protection: the isolation level, the strict terminal
+     * mode and the incognito switch, with a hint when the chosen level cannot be had here.
+     *
+     * @return the next free row
+     */
+    private int addIsolationRows(GridPane grid, int row, GlobalSettings globalSettings) {
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+        de.kortty.isolation.IsolationLevel floor = policy.isolationFloor();
+        isolationDefaultLevel = de.kortty.isolation.IsolationSettings.resolve(
+            globalSettings, isolationDefaultsProbe(), floor).level();
+
+        Label section = new Label(I18n.get(IsolationConnectionSupport.SECTION_KEY));
+        section.setStyle("-fx-font-weight: bold;");
+        grid.add(section, 0, row++, 2, 1);
+
+        java.util.List<IsolationConnectionSupport.LevelChoice> levelChoices = IsolationConnectionSupport.levelChoices(
+            globalSettings != null ? globalSettings.getConnectionIsolationDefault() : null,
+            connection.getGroup(),
+            globalSettings != null ? globalSettings::getConnectionGroupIsolationLevel : null,
+            floor);
+        isolationLevelCombo = new ComboBox<>();
+        isolationLevelCombo.getItems().setAll(levelChoices);
+        isolationLevelCombo.setValue(IsolationConnectionSupport.selectedLevel(levelChoices, connection.getIsolationLevel()));
+        isolationLevelCombo.setPrefWidth(280);
+        isolationLevelCombo.setTooltip(new Tooltip(I18n.get(IsolationConnectionSupport.LEVEL_TOOLTIP_KEY)));
+        de.kortty.policy.PolicyUiSupport.lockIf(isolationLevelCombo, levelChoices.size() <= 1);
+        Label levelLabel = new Label(I18n.get(IsolationConnectionSupport.LEVEL_LABEL_KEY));
+        levelLabel.setTooltip(new Tooltip(I18n.get(IsolationConnectionSupport.LEVEL_TOOLTIP_KEY)));
+        levelLabel.setLabelFor(isolationLevelCombo);
+        grid.add(levelLabel, 0, row);
+        grid.add(isolationLevelCombo, 1, row++);
+
+        isolationHint = new Label();
+        isolationHint.setWrapText(true);
+        isolationHint.setMaxWidth(520);
+        isolationHint.setStyle("-fx-text-fill: #d97706;");
+        isolationHint.managedProperty().bind(isolationHint.visibleProperty());
+        grid.add(isolationHint, 1, row++);
+        isolationLevelCombo.valueProperty().addListener((obs, old, value) -> updateIsolationHint());
+        protocolCombo.valueProperty().addListener((obs, old, value) -> updateIsolationHint());
+        updateIsolationHint();
+
+        java.util.List<IsolationConnectionSupport.StrictChoice> strictChoices = IsolationConnectionSupport.strictChoices();
+        strictModeCombo = new ComboBox<>();
+        strictModeCombo.getItems().setAll(strictChoices);
+        strictModeCombo.setValue(IsolationConnectionSupport.selectedStrict(strictChoices, connection.getStrictTerminalMode()));
+        strictModeCombo.setPrefWidth(280);
+        strictModeCombo.setTooltip(new Tooltip(I18n.get(IsolationConnectionSupport.STRICT_TOOLTIP_KEY)));
+        Label strictLabel = new Label(I18n.get(IsolationConnectionSupport.STRICT_LABEL_KEY));
+        strictLabel.setTooltip(new Tooltip(I18n.get(IsolationConnectionSupport.STRICT_TOOLTIP_KEY)));
+        strictLabel.setLabelFor(strictModeCombo);
+        grid.add(strictLabel, 0, row);
+        grid.add(strictModeCombo, 1, row++);
+
+        incognitoCheck = new CheckBox(I18n.get(IsolationConnectionSupport.INCOGNITO_KEY));
+        incognitoCheck.setTooltip(new Tooltip(I18n.get(policy.incognitoSessionsAllowed()
+            ? IsolationConnectionSupport.INCOGNITO_TOOLTIP_KEY : IsolationConnectionSupport.INCOGNITO_DENIED_KEY)));
+        incognitoCheck.setSelected(connection.isIncognito() && policy.incognitoSessionsAllowed());
+        if (!de.kortty.policy.PolicyUiSupport.lockIf(incognitoCheck, !policy.incognitoSessionsAllowed())
+                && connection.isTeamworkConnection()) {
+            // A shared file cannot make your sessions incognito; the note below says so.
+            incognitoCheck.setDisable(true);
+        }
+        grid.add(incognitoCheck, 1, row++);
+
+        if (connection.isTeamworkConnection()) {
+            Label teamworkHint = new Label(I18n.get(IsolationConnectionSupport.TEAMWORK_KEY));
+            teamworkHint.setWrapText(true);
+            teamworkHint.setMaxWidth(520);
+            grid.add(teamworkHint, 0, row++, 2, 1);
+        }
+        return row;
+    }
+
+    /** A stand-in for the edited connection without a level of its own, to name what the default gives. */
+    private ServerConnection isolationDefaultsProbe() {
+        ServerConnection probe = ServerConnection.copyForAuth(connection);
+        probe.setIsolationLevel(null);
+        return probe;
+    }
+
+    /** Says under the isolation dropdown when the chosen level cannot be had for the chosen protocol or here. */
+    private void updateIsolationHint() {
+        if (isolationHint == null || isolationLevelCombo == null) {
+            return;
+        }
+        de.kortty.isolation.IsolationLevel chosen = IsolationConnectionSupport.storedLevel(isolationLevelCombo.getValue());
+        de.kortty.isolation.IsolationLevel effective = chosen != null ? chosen : isolationDefaultLevel;
+        de.kortty.isolation.sandbox.SandboxSupport.Availability availability =
+            de.kortty.isolation.sandbox.SandboxSupport.cachedAvailability();
+        String reason = availability != null && !availability.available()
+            ? de.kortty.isolation.sandbox.LocalProcessSandbox.reason(availability) : null;
+        String text = IsolationConnectionSupport.hint(protocolCombo.getValue(), effective, reason);
+        isolationHint.setText(text != null ? text : "");
+        isolationHint.setVisible(text != null);
+        if (availability == null && effective == de.kortty.isolation.IsolationLevel.SANDBOX) {
+            // The sandbox self-test has not run in this session yet: run it off the FX thread, then say.
+            Thread probe = new Thread(() -> {
+                de.kortty.isolation.sandbox.SandboxSupport.availability();
+                javafx.application.Platform.runLater(this::updateIsolationHint);
+            }, "Sandbox-SelfTest");
+            probe.setDaemon(true);
+            probe.start();
+        }
     }
 
     private static de.kortty.core.highlight.TerminalHighlightService terminalHighlightService() {

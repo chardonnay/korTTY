@@ -105,6 +105,33 @@ public class ServerConnection {
     @XmlElement
     private Integer pasteLineDelayMs;
 
+    /**
+     * How far this connection's terminal sessions are kept apart from korTTY and from other sessions: the
+     * {@link de.kortty.isolation.IsolationLevel#id()} {@code none}, {@code process} or {@code sandbox}, or
+     * {@code null} to follow its folder or Settings → Security → Session isolation. Resolved by
+     * {@link de.kortty.isolation.IsolationSettings#resolve}, which lets a teamwork connection only make it
+     * stricter and applies the organization's minimum on top.
+     */
+    @XmlElement
+    private String isolationMode;
+
+    /**
+     * Whether this connection's sessions are incognito: nothing about them is written down (terminal log,
+     * session journal, recording, history, recently closed, session restore). {@code null} or false is a
+     * normal session. Ignored for a teamwork connection and when the organization's policy forbids
+     * incognito sessions; a log or journal the policy enforces is written regardless.
+     */
+    @XmlElement
+    private Boolean incognito;
+
+    /**
+     * Whether risky escape sequences (clipboard writes, non-web links, oversized titles, device control
+     * strings) are dropped before the terminal sees them: {@code true} or {@code false}, or {@code null}
+     * for automatic, which means on exactly when the session runs in a sandbox.
+     */
+    @XmlElement
+    private Boolean strictTerminalMode;
+
     /** SithTermFX terminal emulation type stored as enum name. */
     @XmlElement
     private String terminalEmulationType = "XTERM";
@@ -246,6 +273,9 @@ public class ServerConnection {
         c.highlightRuleSetId = source.highlightRuleSetId;
         c.pasteWarningMode = source.pasteWarningMode;
         c.pasteLineDelayMs = source.pasteLineDelayMs;
+        c.isolationMode = source.isolationMode;
+        c.incognito = source.incognito;
+        c.strictTerminalMode = source.strictTerminalMode;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.group = source.group;
@@ -298,6 +328,9 @@ public class ServerConnection {
         c.highlightRuleSetId = source.highlightRuleSetId;
         c.pasteWarningMode = source.pasteWarningMode;
         c.pasteLineDelayMs = source.pasteLineDelayMs;
+        c.isolationMode = source.isolationMode;
+        c.incognito = source.incognito;
+        c.strictTerminalMode = source.strictTerminalMode;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.group = source.group;
@@ -341,6 +374,9 @@ public class ServerConnection {
         c.highlightRuleSetId = source.highlightRuleSetId;
         c.pasteWarningMode = source.pasteWarningMode;
         c.pasteLineDelayMs = source.pasteLineDelayMs;
+        c.isolationMode = source.isolationMode;
+        c.incognito = source.incognito;
+        c.strictTerminalMode = source.strictTerminalMode;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.username = includeUsername ? source.username : "";
@@ -388,6 +424,9 @@ public class ServerConnection {
         c.highlightRuleSetId = source.highlightRuleSetId;
         c.pasteWarningMode = source.pasteWarningMode;
         c.pasteLineDelayMs = source.pasteLineDelayMs;
+        c.isolationMode = source.isolationMode;
+        c.incognito = source.incognito;
+        c.strictTerminalMode = source.strictTerminalMode;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
         c.username = includeUsername ? source.username : "";
@@ -614,6 +653,39 @@ public class ServerConnection {
     public void setPasteLineDelayMs(Integer pasteLineDelayMs) {
         this.pasteLineDelayMs = pasteLineDelayMs != null
                 ? de.kortty.paste.PastePacer.clampLineDelayMs(pasteLineDelayMs) : null;
+    }
+
+    /**
+     * The isolation level this connection sets for itself, or {@code null} to follow its folder or the
+     * global setting; a stored value this version does not know counts as {@code null}.
+     */
+    public de.kortty.isolation.IsolationLevel getIsolationLevel() {
+        return de.kortty.isolation.IsolationLevel.parseId(isolationMode);
+    }
+
+    /** Sets this connection's own isolation level; {@code null} follows its folder or the global setting. */
+    public void setIsolationLevel(de.kortty.isolation.IsolationLevel level) {
+        this.isolationMode = level != null ? level.id() : null;
+    }
+
+    /** Whether this connection is marked incognito; see {@link #incognito}. */
+    public boolean isIncognito() {
+        return Boolean.TRUE.equals(incognito);
+    }
+
+    /** Marks this connection incognito; false stores nothing, so the file keeps its old form. */
+    public void setIncognito(boolean incognito) {
+        this.incognito = incognito ? Boolean.TRUE : null;
+    }
+
+    /** This connection's strict terminal mode: true, false, or {@code null} for automatic (on in a sandbox). */
+    public Boolean getStrictTerminalMode() {
+        return strictTerminalMode;
+    }
+
+    /** Sets the strict terminal mode; {@code null} is automatic. */
+    public void setStrictTerminalMode(Boolean strictTerminalMode) {
+        this.strictTerminalMode = strictTerminalMode;
     }
 
     public String getTerminalEmulationType() {

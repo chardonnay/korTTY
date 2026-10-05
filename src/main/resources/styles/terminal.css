@@ -1153,6 +1153,27 @@
     -fx-fill: #f59e0b;
 }
 
+/*
+ * The isolation shield and the incognito spy on a terminal tab (TerminalTab.setIsolationMarkers):
+ * sky for a process of its own, emerald for a sandbox, amber when a sandbox was asked for but is not
+ * active, violet for incognito. Fixed colours that stay legible on the light and the dark designs.
+ */
+.tab-isolation-marker.tab-isolation-process {
+    -fx-fill: #0ea5e9;
+}
+
+.tab-isolation-marker.tab-isolation-sandboxed {
+    -fx-fill: #10b981;
+}
+
+.tab-isolation-marker.tab-isolation-degraded {
+    -fx-fill: #f59e0b;
+}
+
+.tab-incognito-marker {
+    -fx-fill: #8b5cf6;
+}
+
 .status-bar .kortty-multi-exec-status {
     -fx-background-color: #f59e0b;
     -fx-background-radius: 4;

@@ -1709,6 +1709,13 @@ public class MainWindow {
         newTab.setOnAction(e -> showQuickConnect());
 
         // No shortcut: F2 and the other free keys belong to the program in the terminal.
+        MenuItem newIncognito = menuItem("menu.file.newIncognitoSession");
+        // No shortcut: Shift+Cmd/Ctrl+N, the browsers' one, is New Window here.
+        newIncognito.setOnAction(e -> showIncognitoQuickConnect());
+        if (!de.kortty.policy.PolicyManager.effective().incognitoSessionsAllowed()) {
+            lockByPolicy(newIncognito);
+        }
+
         MenuItem renameTab = menuItem("menu.file.renameTab");
         renameTab.setOnAction(e -> {
             if (tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab) {
@@ -1800,7 +1807,7 @@ public class MainWindow {
         });
 
         fileMenu.getItems().addAll(
-            newTab, renameTab, closeTab, closeOthers, closeToRight, closeAllTabs,
+            newTab, newIncognito, renameTab, closeTab, closeOthers, closeToRight, closeAllTabs,
             reopenClosedTab, recentlyClosed, new SeparatorMenuItem(),
             newWindow, closeWindow, new SeparatorMenuItem(),
             openProject, openRecent, saveProject, restorePreviousSession, new SeparatorMenuItem(),
@@ -3806,6 +3813,21 @@ public class MainWindow {
     }
     
     private void showQuickConnect() {
+        showQuickConnect(false);
+    }
+
+    /**
+     * File › New Incognito Session: Quick Connect, and the tab it opens is incognito whatever its
+     * connection says. Locked while the organization's policy forbids incognito sessions.
+     */
+    private void showIncognitoQuickConnect() {
+        if (!de.kortty.policy.PolicyManager.effective().incognitoSessionsAllowed()) {
+            return;
+        }
+        showQuickConnect(true);
+    }
+
+    private void showQuickConnect(boolean incognito) {
         // Prevent double-opening
         if (quickConnectDialogOpen) {
             return;
@@ -3889,7 +3911,14 @@ public class MainWindow {
                 }
             }
             // Pass temporary SSH key if available
-            openConnection(result.connection(), finalPassword, null, result.temporarySSHKey());
+            if (incognito) {
+                openConnectionAndReturnTab(result.connection(), finalPassword, null, null, result.temporarySSHKey(),
+                    result.connection().getTerminalEffectPluginId(),
+                    result.connection().getTerminalEffectAnimationSpeed(), null,
+                    view -> view.setIncognitoRequested(true));
+            } else {
+                openConnection(result.connection(), finalPassword, null, result.temporarySSHKey());
+            }
             });
         } finally {
             quickConnectDialogOpen = false;
@@ -4983,6 +5012,10 @@ public class MainWindow {
                 continue;
             }
             TerminalView view = terminalTab.getTerminalView();
+            if (view != null && view.isIncognito()) {
+                // An incognito tab leaves no trace, not even in Recently Closed.
+                continue;
+            }
             String effectId = view != null ? view.getTerminalEffectPluginId() : null;
             closed.add(ClosedTabHistory.ClosedTab.capture(
                 terminalTab.getConnection(),
@@ -7590,7 +7623,8 @@ public class MainWindow {
                                 ? application.getMasterPasswordManager().getDerivedKey() : null,
                         // Only the korTTY that writes the session snapshot writes or deletes its output files.
                         () -> writesAllowed.getAsBoolean() && store.canWrite(),
-                        MainWindow::openTerminalViews,
+                        // An incognito tab's output is never written down, not even encrypted.
+                        () -> openTerminalViews().stream().filter(view -> !view.isIncognito()).toList(),
                         () -> {
                             SessionSnapshot saved = sessionAutosave != null ? sessionAutosave.savedSnapshot() : null;
                             return saved != null
@@ -8034,6 +8068,13 @@ public class MainWindow {
     private SessionState captureTabState(Tab tab, CaptureOptions options) {
         SessionState sessionState = null;
         if (tab instanceof TerminalTab terminalTab) {
+            if (terminalTab.getTerminalView().isIncognito() && options.includeWorkingDirectories()) {
+                // The session snapshot: an incognito tab does not come back after a restart.
+                return null;
+            }
+            // Saving a project keeps an incognito tab's place, never what was on its screen.
+            options = terminalTab.getTerminalView().isIncognito()
+                ? new CaptureOptions(false, options.includeWaitingTabs(), false) : options;
             ServerConnection connection = terminalTab.getConnection();
             sessionState = new SessionState(
                     java.util.UUID.randomUUID().toString(),
