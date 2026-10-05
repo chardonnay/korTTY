@@ -986,7 +986,7 @@
 <td>The task broadcast to every target server</td>
 </tr>
 <tr>
-<td><strong>Auto-approve</strong></td>
+<td><strong>AI agent may change the server without runtime confirmation</strong></td>
 <td>Approve system-changing commands without a dialog (unattended runs have nobody to ask)</td>
 </tr>
 <tr>
@@ -1012,7 +1012,7 @@
 </ul>
 <div class="admonition warning">
 <p class="admonition-title">Unattended changes</p>
-<p>A scheduled swarm with <strong>read-only off</strong> and <strong>auto-approve on</strong> changes systems without anyone watching. Keep scheduled swarms read-only unless the prompt is deliberately designed (and tested interactively) to make changes.</p>
+<p>A scheduled swarm with <strong>read-only off</strong> and <strong>AI agent may change the server without runtime confirmation</strong> on changes systems without anyone watching. Keep scheduled swarms read-only unless the prompt is deliberately designed (and tested interactively) to make changes.</p>
 </div>
 <p>An organization's <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a> also applies to scheduled swarms: with the AI Swarm or the AI agent denied, or <code>ai-agent-execution</code> set to <code>read-only</code>, the job ends as blocked before it connects; with <code>ai-agent-execution = "confirm"</code>, every agent that plans a server-changing command is stopped and counted as blocked, even when auto-approve is on.</p></p>
     </article>

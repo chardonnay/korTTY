@@ -952,7 +952,7 @@
 </tr>
 <tr>
 <td><strong>AI_AGENT</strong></td>
-<td>Run the headless scheduler AI agent. Unattended command execution requires <strong>Auto-approve AI commands</strong> on the job.</td>
+<td>Run the headless scheduler AI agent. Unattended command execution requires <strong>AI agent may change the server without runtime confirmation</strong> on the job.</td>
 </tr>
 <tr>
 <td><strong>AI_SWARM</strong></td>
@@ -1045,7 +1045,7 @@
 <h4 id="snippet-script-jobs">Snippet Script Jobs<a class="headerlink" href="#snippet-script-jobs" title="Permanent link">&para;</a></h4>
 <p>Snippet script jobs use the selected SnippetManager entry without requiring an open terminal tab. KorTTY resolves the snippet's placeholders before execution with the same rules as the Snippet Manager: built-in variables and declared variables with a stored value are replaced, and shell forms such as <code>${1:-default}</code> or <code>${HOME}</code> are handed to the shell as written. Missing snippets, a declared variable without a stored value, an undeclared simple name such as <code>${target}</code> (write <code>$${target}</code> to pass it to the shell), and unsupported snippet languages block the job and write the reason to the journal; see <a href="snippets.html#scheduled-and-swarm-runs">Scheduled and swarm runs</a>. Additional snippet parameters are entered one per line so values with spaces are passed as single script arguments.</p>
 <h4 id="ai-swarm-jobs">AI Swarm Jobs<a class="headerlink" href="#ai-swarm-jobs" title="Permanent link">&para;</a></h4>
-<p>AI Swarm jobs run one AI-agent prompt on <strong>all selected targets in parallel</strong> over background SSH sessions — no terminal tabs are opened. Beyond the shared <strong>AI profile</strong>, <strong>AI prompt</strong>, and <strong>Auto-approve AI commands</strong> fields, two swarm-specific fields apply:</p>
+<p>AI Swarm jobs run one AI-agent prompt on <strong>all selected targets in parallel</strong> over background SSH sessions — no terminal tabs are opened. Beyond the shared <strong>AI profile</strong>, <strong>AI prompt</strong>, and <strong>AI agent may change the server without runtime confirmation</strong> fields, two swarm-specific fields apply:</p>
 <table>
 <thead>
 <tr>
@@ -1068,7 +1068,7 @@
 <p>The fastest way to create an AI Swarm job is the <strong>Schedule…</strong> button in the <a href="ai-swarm.html#scheduling-swarm-runs-jobscheduler">AI Swarm tab</a>: it prefills a new job with the tab's current targets, prompt, AI profile, and read-only setting. See that page for recommended swarm/scheduler usage scenarios.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>A scheduled swarm with <strong>Swarm read-only</strong> off and <strong>Auto-approve AI commands</strong> on changes systems unattended. Test the prompt interactively in the AI Swarm tab before enabling such a job.</p>
+<p>A scheduled swarm with <strong>Swarm read-only</strong> off and <strong>AI agent may change the server without runtime confirmation</strong> on changes systems unattended. Test the prompt interactively in the AI Swarm tab before enabling such a job.</p>
 </div>
 <h4 id="sftp-archive-jobs">SFTP Archive Jobs<a class="headerlink" href="#sftp-archive-jobs" title="Permanent link">&para;</a></h4>
 <p>SFTP archive jobs support ZIP, password-protected ZIP, TAR, and TAR.BZ2. Archive sources and exclude patterns accept one path or pattern per line. The archive can optionally be downloaded after creation.</p>
@@ -1163,7 +1163,7 @@
 <li>What AI jobs send to a cloud AI profile is masked: the AI Swarm agents and the request that combines their answers (see <a href="ai-tools.html#masking-what-the-agent-sends">Masking what the agent sends</a>), and the request of an AI Agent job, where the server's stored password and the job's sudo password become <code>***</code>. The AI Agent job's request holds only the server name, the working directory and the job prompt, so the masking there only catches a secret typed into the prompt. Integrated models and a trusted local endpoint get the original text.</li>
 <li>If the master password is locked when a job needs SSH, sudo, API, or archive secrets, the job is blocked.</li>
 <li>Webhook URLs are stored encrypted with the master password and are never written to the journal or the log; only their host is.</li>
-<li>AI Agent and AI Swarm jobs follow your organization's <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a>. When the policy denies AI, the AI agent or (for swarm jobs) the AI Swarm, or sets <code>ai-agent-execution</code> to <code>read-only</code>, the job ends as <strong>BLOCKED</strong> before it connects to any server, and the journal names the reason. Under <code>ai-agent-execution = "confirm"</code> a person must approve every server-changing command, which an unattended job cannot ask for: an AI Agent job blocks at the first planned server-changing command and runs nothing of it, and an AI Swarm agent that plans one is stopped and counted as blocked, even when <strong>Auto-approve AI commands</strong> is on. Read-only commands still run.</li>
+<li>AI Agent and AI Swarm jobs follow your organization's <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a>. When the policy denies AI, the AI agent or (for swarm jobs) the AI Swarm, or sets <code>ai-agent-execution</code> to <code>read-only</code>, the job ends as <strong>BLOCKED</strong> before it connects to any server, and the journal names the reason. Under <code>ai-agent-execution = "confirm"</code> a person must approve every server-changing command, which an unattended job cannot ask for: an AI Agent job blocks at the first planned server-changing command and runs nothing of it, and an AI Swarm agent that plans one is stopped and counted as blocked, even when <strong>AI agent may change the server without runtime confirmation</strong> is on. Read-only commands still run.</li>
 </ul>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
