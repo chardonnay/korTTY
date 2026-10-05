@@ -238,6 +238,15 @@ public class PerPaneSettingsProviderTest {
     }
 
     @Test
+    void terminalScrollBarIsAlwaysFullyOpaque() {
+        // The AtlantaFX designs dim .scroll-bar to 0.5 until hover; the inline style overrides it.
+        assertThat(TerminalView.terminalScrollBarStyle(10, 20, 30, 255))
+                .isEqualTo("-fx-background-color: rgba(10,20,30,1.000); -fx-opacity: 1;");
+        assertThat(TerminalView.terminalScrollBarStyle(10, 20, 30, 128)).contains("rgba(10,20,30,0.502)");
+        assertThat(TerminalView.terminalScrollBarStyle(10, 20, 30, 0)).endsWith("-fx-opacity: 1;");
+    }
+
+    @Test
     void defaultBackgroundIsOpaqueWhenTransparencyIsZero() throws Exception {
         DynamicFontSizeSettingsProvider shared = new DynamicFontSizeSettingsProvider(14f);
         Object pane = newProvider(baselineSettings(), shared, () -> 0);
