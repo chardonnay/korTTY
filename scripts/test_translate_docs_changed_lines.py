@@ -63,14 +63,20 @@ def _german(text: str) -> str:
         for part in td.TOKEN_RE.split(text))
 
 
+META_REPLY = "Bitte geben Sie die zu übersetzende Zeile an."
+
+
 class FakeBackend:
-    def __init__(self, fail_on: str | None = None):
+    def __init__(self, fail_on: str | None = None, meta_on: str | None = None):
         self.sent: list[str] = []
         self.fail_on = fail_on
+        self.meta_on = meta_on  # answers this line (and its fragments) with a meta reply
 
     def _one(self, text: str) -> str | None:
         if self.fail_on and self.fail_on in td.TOKEN_RE.sub("", text):
             return None
+        if self.meta_on and (self.meta_on in td.TOKEN_RE.sub("", text) or text in self.meta_on):
+            return META_REPLY
         return _german(text)
 
     def translate_lines(self, texts):
@@ -298,6 +304,21 @@ class ChangedLinesModeTest(unittest.TestCase):
         self.assertEqual(["A brand new paragraph for the feature."], retry.sent)
         self.assertEqual("A dnarb wen hpargarap rof eht erutaef.", self.de_lines("a.md")[8])
         self.assertEqual("txeT eno saw degnahc no eht hcnarb.", self.de_lines("a.md")[6])
+
+
+    def test_meta_reply_is_failed_not_written_and_a_rerun_retries_it(self):
+        backend = FakeBackend(meta_on="A brand new paragraph for the feature.")
+        code, log = self.run_main(backend)
+        self.assertEqual(1, code, log)
+        self.assertIn("FAILED", log)
+        de = (self.de / "a.md").read_text(encoding="utf-8")
+        self.assertNotIn(META_REPLY, de)
+        self.assertEqual("A brand new paragraph for the feature.", self.de_lines("a.md")[8])
+        retry = FakeBackend()
+        code, log = self.run_main(retry)
+        self.assertEqual(0, code, log)
+        self.assertEqual(["A brand new paragraph for the feature."], retry.sent)
+        self.assertEqual("A dnarb wen hpargarap rof eht erutaef.", self.de_lines("a.md")[8])
 
 
 class HeadingAliasTest(unittest.TestCase):
