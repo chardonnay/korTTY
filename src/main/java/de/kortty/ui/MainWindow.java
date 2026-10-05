@@ -4139,9 +4139,15 @@ public class MainWindow {
                 if (conn != null && conn.getId() != null) {
                     ServerConnection stored = app.getConfigManager().getConnectionById(conn.getId());
                     if (stored != null) {
-                        if (stored.getSettings() != null) {
-                            terminalTab.applyConnectionSettings(stored.getSettings());
+                        // The tab's connection may be a copy holding the settings object it was
+                        // opened with; give it the saved one, so the live global refresh and the
+                        // next reconnect see whether the connection now uses its own settings.
+                        if (conn != stored && stored.getSettings() != null) {
+                            conn.setSettings(stored.getSettings());
                         }
+                        // Own settings apply as saved; a connection switched back to the global
+                        // settings (or without settings) gets the global defaults again.
+                        terminalTab.applyConnectionSettings(stored.getSettings());
                         // Propagate the connection's group to the open tab only when it
                         // actually changed since the tab last saw it (baseline snapshot) —
                         // a manually assigned tab group must survive unrelated saves.

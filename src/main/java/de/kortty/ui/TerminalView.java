@@ -632,8 +632,12 @@ public class TerminalView extends BorderPane {
         this.connection = connection;
         this.password = password;
         this.temporarySSHKey = temporarySSHKey;
-        // Capture connection's font size and family at open (before theme/default resolution) for zoom reset.
-        ConnectionSettings connSettingsForReset = connection.getSettings();
+        // Capture the connection's own font size and family at open (before theme resolution) for
+        // zoom reset. A connection that follows the global settings has none of its own: its stored
+        // values are not what the tab shows, so the reset falls back to the global defaults.
+        ConnectionSettings connSettingsForReset =
+                ConnectionSettingsSupport.usesOwnTerminalSettings(connection.getSettings())
+                        ? connection.getSettings() : null;
         int savedSize = 0;
         String savedFamily = null;
         if (connSettingsForReset != null) {
