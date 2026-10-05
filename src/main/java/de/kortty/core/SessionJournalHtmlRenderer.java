@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import de.kortty.model.SessionJournalCommandInfo;
 import de.kortty.model.SessionJournalDocument;
 import de.kortty.model.SessionJournalEntry;
 import de.kortty.model.SessionJournalEntryKind;
@@ -81,6 +82,12 @@ public final class SessionJournalHtmlRenderer {
     /** Footer text/visibility, shared with the PDF and Markdown exports. */
     private volatile java.util.function.Supplier<ExportBranding> brandingSupplier = ExportBranding::defaults;
 
+    /**
+     * Whether web addresses become clickable links: the user's setting, unless the organisation's
+     * policy forbids them ({@code clickable-links = false}). The app wires this; default on.
+     */
+    private volatile java.util.function.BooleanSupplier linksEnabled = () -> true;
+
     public SessionJournalHtmlRenderer(SessionJournalService service) {
         this.service = service;
     }
@@ -94,6 +101,19 @@ public final class SessionJournalHtmlRenderer {
     public void setSchemeResolver(
             java.util.function.Function<String, de.kortty.model.SessionJournalPageScheme> resolver) {
         this.schemeResolver = resolver != null ? resolver : id -> null;
+    }
+
+    /** Supplies whether journal pages make web addresses clickable (settings + policy). */
+    public void setLinksEnabledSupplier(java.util.function.BooleanSupplier supplier) {
+        this.linksEnabled = supplier != null ? supplier : () -> true;
+    }
+
+    private boolean linksEnabled() {
+        try {
+            return linksEnabled.getAsBoolean();
+        } catch (RuntimeException e) {
+            return false; // unknown means the safer choice: plain text
+        }
     }
 
     /** Supplies the user's footer choice (the app wires this to GlobalSettings). */
@@ -643,6 +663,13 @@ public final class SessionJournalHtmlRenderer {
         if (entry.getTitle() != null && !entry.getTitle().isBlank()) {
             html.append("<h3>").append(escapeHtml(entry.getTitle())).append("</h3>");
         }
+        if (entry.isRunAsRoot()) {
+            // Right-aligned in the head, just left of the copy buttons: a root shell is the one
+            // thing a reader skimming the timeline must never miss.
+            html.append("<span class=\"root-tag\" title=\"")
+                .append(escapeAttr(i18n("journal.html.root.tooltip", "These commands ran as root")))
+                .append("\">").append(escapeHtml(i18n("journal.html.root", "ROOT"))).append("</span>");
+        }
         html.append("</div>\n");
         appendAgentMeta(html, entry);
 
@@ -685,13 +712,20 @@ public final class SessionJournalHtmlRenderer {
                 html.append("</div>\n</div>\n");
             }
         }
-        if (entry.getText() != null && !entry.getText().isBlank()) {
+        if (entry.getKind() == SessionJournalEntryKind.SESSION_SUMMARY && hasBullets(entry.getText())) {
+            html.append("<div class=\"summary bullets\">")
+                .append(renderBullets(entry.getText(), entry.getCommands(), linksEnabled()))
+                .append("</div>\n");
+        } else if (entry.getText() != null && !entry.getText().isBlank()) {
             // A user note carries the only entry text the user wrote themselves, so it is the only
             // one whose bare URLs become links.
             html.append("<p class=\"summary\">")
                 .append(entry.getKind() == SessionJournalEntryKind.USER_NOTE
-                    ? escapeHtmlWithLinks(entry.getText())
-                    : escapeHtml(entry.getText()))
+                    ? (linksEnabled() ? escapeHtmlWithLinks(entry.getText()) : escapeHtml(entry.getText()))
+                    : entry.getKind() == SessionJournalEntryKind.AI_SUMMARY
+                        || entry.getKind() == SessionJournalEntryKind.SESSION_SUMMARY
+                        ? escapeHtmlWithCommands(entry.getText(), entry.getCommands(), linksEnabled())
+                        : escapeHtml(entry.getText()))
                 .append("</p>\n");
         }
         if (!entry.getInputExcerpt().isEmpty() || !entry.getOutputExcerpt().isEmpty()) {
@@ -714,7 +748,8 @@ public final class SessionJournalHtmlRenderer {
         }
         if (entry.getUserNote() != null && !entry.getUserNote().isBlank()) {
             html.append("<p class=\"note\">")
-                .append(escapeHtmlWithLinks(entry.getUserNote())).append("</p>\n");
+                .append(linksEnabled() ? escapeHtmlWithLinks(entry.getUserNote()) : escapeHtml(entry.getUserNote()))
+                .append("</p>\n");
         }
         html.append("</div>\n</article>\n");
     }
@@ -1081,6 +1116,21 @@ public final class SessionJournalHtmlRenderer {
             /* Leaves room for the always-visible copy buttons in the card's top-right corner. */
             .card-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:72px}
             .card-head h3{margin:0;font-size:1em}
+            .root-tag{margin-left:auto;color:var(--err);font-weight:700;font-size:.8em;
+              letter-spacing:.06em}
+            .summary.bullets{white-space:normal}
+            .summary.bullets ul{margin:0;padding-left:1.3em}
+            .summary.bullets li{margin:2px 0}
+            .summary.bullets p{margin:8px 0 0}
+            .summary .cmd{font-weight:700;color:var(--text)}
+            .summary .cmd[data-tip]{position:relative;cursor:help;
+              border-bottom:1px dotted var(--muted)}
+            .summary .cmd[data-tip]:hover::after,.summary .cmd[data-tip]:focus::after{
+              content:attr(data-tip);position:absolute;left:0;top:calc(100% + 6px);z-index:20;
+              width:max-content;max-width:340px;white-space:normal;font-weight:400;
+              background:var(--surface2);color:var(--text);border:1px solid var(--accent);
+              border-radius:6px;padding:6px 9px;font-size:.85em;line-height:1.35;
+              box-shadow:0 4px 14px rgba(0,0,0,.3);pointer-events:none}
             .badge{border-radius:999px;padding:1px 9px;font-size:.73em;font-weight:600;
               background:var(--mk,var(--none));color:var(--mk-fg,#fff)}
             /* Filtered exports must announce themselves; printed too, unlike the page chrome. */
@@ -1723,6 +1773,14 @@ public final class SessionJournalHtmlRenderer {
                 });
               }catch(err){copyText(rel);}
             }
+            /* A bulleted wrap-up copies as "- " lines, not as one run-together paragraph. */
+            function summaryText(el){
+              if(!el.classList.contains("bullets")){return el.textContent;}
+              var out=[];
+              el.querySelectorAll("li,p").forEach(function(n){
+                out.push(n.tagName==="LI"?"- "+n.textContent:n.textContent);});
+              return out.join("\\n");
+            }
             function entryText(card,full){
               var parts=[];
               var article=card.closest(".entry");
@@ -1731,7 +1789,7 @@ public final class SessionJournalHtmlRenderer {
               var head=((time?time.textContent+" ":"")+(heading?heading.textContent:"")).trim();
               if(head){parts.push(head);}
               var summary=card.querySelector(".summary");
-              if(summary){parts.push(summary.textContent);}
+              if(summary){parts.push(summaryText(summary));}
               if(full){
                 card.querySelectorAll(".excerpt").forEach(function(pre){
                   parts.push(pre.textContent.replace(/\\s+$/,""));});
@@ -2280,6 +2338,202 @@ public final class SessionJournalHtmlRenderer {
             .replace("<", "&lt;")
             .replace(">", "&gt;")
             .replace("\"", "&quot;");
+    }
+
+    private static final java.util.regex.Pattern BULLET = java.util.regex.Pattern.compile("^\\s*[-*•]\\s+(.*)$");
+
+    private static boolean hasBullets(String text) {
+        if (text == null) {
+            return false;
+        }
+        for (String line : text.split("\\R")) {
+            if (BULLET.matcher(line).matches()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** "- " lines become a list, every other non-blank line its own paragraph — in order. */
+    static String renderBullets(String text, List<SessionJournalCommandInfo> commands) {
+        return renderBullets(text, commands, true);
+    }
+
+    static String renderBullets(String text, List<SessionJournalCommandInfo> commands, boolean links) {
+        StringBuilder out = new StringBuilder(text.length() + 64);
+        boolean inList = false;
+        for (String line : text.split("\\R")) {
+            java.util.regex.Matcher bullet = BULLET.matcher(line);
+            if (bullet.matches()) {
+                if (!inList) {
+                    out.append("<ul>");
+                    inList = true;
+                }
+                out.append("<li>").append(escapeHtmlWithCommands(bullet.group(1).strip(), commands, links))
+                    .append("</li>");
+                continue;
+            }
+            if (inList) {
+                out.append("</ul>");
+                inList = false;
+            }
+            if (!line.isBlank()) {
+                out.append("<p>").append(escapeHtmlWithCommands(line.strip(), commands, links)).append("</p>");
+            }
+        }
+        if (inList) {
+            out.append("</ul>");
+        }
+        return out.toString();
+    }
+
+    /** A command the AI summary wrapped in backticks. */
+    private static final java.util.regex.Pattern COMMAND_PATTERN = java.util.regex.Pattern.compile(
+        "`([^`\\n]{1,80})`");
+
+    /**
+     * Escapes an AI summary and turns its backticked command names bold. A command the summary's
+     * command list explains gets a hover tooltip: what the program is, and where it comes from
+     * when that is worth saying — not part of the distribution, or a script from the snippet
+     * manager.
+     */
+    static String escapeHtmlWithCommands(String value, List<SessionJournalCommandInfo> commands) {
+        return escapeHtmlWithCommands(value, commands, true);
+    }
+
+    /** {@code links = false} keeps web addresses as plain text (setting or policy). */
+    static String escapeHtmlWithCommands(String value, List<SessionJournalCommandInfo> commands, boolean links) {
+        if (value == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder(value.length() + 64);
+        java.util.regex.Matcher matcher = COMMAND_PATTERN.matcher(value);
+        int index = 0;
+        while (matcher.find()) {
+            String content = matcher.group(1).strip();
+            if (content.isEmpty()) {
+                continue;
+            }
+            out.append(links ? escapeHtmlWithWebLinks(value.substring(index, matcher.start()))
+                : escapeHtml(value.substring(index, matcher.start())));
+            appendCommandSpan(out, content, commands, links);
+            index = matcher.end();
+        }
+        out.append(links ? escapeHtmlWithWebLinks(value.substring(index)) : escapeHtml(value.substring(index)));
+        return out.toString();
+    }
+
+    /**
+     * One backticked span: the command is bold, a web address in it is its own link, not part of
+     * the command — "`links www.heise.de`" shows **links** and a clickable www.heise.de.
+     */
+    private static void appendCommandSpan(
+            StringBuilder out, String content, List<SessionJournalCommandInfo> commands, boolean links) {
+        String[] tokens = content.split("\\s+");
+        List<String> group = new ArrayList<>();
+        boolean first = true;
+        for (int i = 0; i <= tokens.length; i++) {
+            boolean web = i < tokens.length && WEB_ADDRESS.matcher(tokens[i]).matches();
+            if (i == tokens.length || web) {
+                if (!group.isEmpty()) {
+                    if (!first) {
+                        out.append(' ');
+                    }
+                    String text = String.join(" ", group);
+                    String tip = first ? commandTooltip(findCommand(commands, text)) : null;
+                    out.append("<strong class=\"cmd\"");
+                    if (tip != null) {
+                        out.append(" tabindex=\"0\" data-tip=\"").append(escapeAttr(tip)).append('"');
+                    }
+                    out.append('>').append(escapeHtml(text)).append("</strong>");
+                    first = false;
+                    group.clear();
+                }
+                if (web) {
+                    if (!first) {
+                        out.append(' ');
+                    }
+                    out.append(links ? escapeHtmlWithWebLinks(tokens[i]) : escapeHtml(tokens[i]));
+                    first = false;
+                }
+                continue;
+            }
+            group.add(tokens[i]);
+        }
+    }
+
+    /** A web address: an http(s) URL, or a bare host that starts with "www.". */
+    private static final java.util.regex.Pattern WEB_ADDRESS = java.util.regex.Pattern.compile(
+        "(?i)(?:https?://[^\\s<>\"'`]+|www\\.[a-z0-9-]+(?:\\.[a-z0-9-]+)+(?:/[^\\s<>\"'`]*)?)");
+    private static final java.util.regex.Pattern WEB_ADDRESS_IN_TEXT = java.util.regex.Pattern.compile(
+        "(?i)(?<![\\w@./-])(?:https?://[^\\s<>\"'`]+|www\\.[a-z0-9-]+(?:\\.[a-z0-9-]+)+(?:/[^\\s<>\"'`]*)?)");
+
+    /**
+     * Escapes AI text and makes its web addresses clickable — http(s) URLs and bare
+     * {@code www.} hosts, which get {@code https://}. File names like {@code script.pl} never
+     * become links. The fact check has already dropped every statement whose host the session
+     * does not show, so a link here always points where the session went.
+     */
+    static String escapeHtmlWithWebLinks(String value) {
+        StringBuilder out = new StringBuilder(value.length() + 32);
+        java.util.regex.Matcher matcher = WEB_ADDRESS_IN_TEXT.matcher(value);
+        int index = 0;
+        while (matcher.find()) {
+            String address = trimUrlPunctuation(matcher.group());
+            String href = address.regionMatches(true, 0, "http", 0, 4) ? address : "https://" + address;
+            if (href.indexOf("://") + 3 >= href.length()) {
+                continue;
+            }
+            out.append(escapeHtml(value.substring(index, matcher.start())));
+            out.append("<a class=\"ext\" href=\"").append(escapeAttr(href))
+                .append("\" rel=\"noopener noreferrer\" target=\"_blank\">")
+                .append(escapeHtml(address)).append("</a>");
+            index = matcher.start() + address.length();
+        }
+        out.append(escapeHtml(value.substring(index)));
+        return out.toString();
+    }
+
+    private static SessionJournalCommandInfo findCommand(List<SessionJournalCommandInfo> commands, String name) {
+        if (commands == null) {
+            return null;
+        }
+        for (SessionJournalCommandInfo command : commands) {
+            if (command.getName() != null && command.getName().strip().equalsIgnoreCase(name)) {
+                return command;
+            }
+        }
+        // "`links`" in the text and "links https://…" in the list, or the reverse
+        String first = name.split("\\s+")[0];
+        for (SessionJournalCommandInfo command : commands) {
+            if (command.getName() != null && command.getName().strip().split("\\s+")[0].equalsIgnoreCase(first)) {
+                return command;
+            }
+        }
+        return null;
+    }
+
+    private static String commandTooltip(SessionJournalCommandInfo command) {
+        if (command == null) {
+            return null;
+        }
+        StringBuilder tip = new StringBuilder();
+        if (command.getDescription() != null && !command.getDescription().isBlank()) {
+            tip.append(command.getDescription().strip());
+        }
+        String origin = switch (command.getOrigin()) {
+            case SNIPPET -> i18n("journal.html.command.snippet", "Script from the snippet manager: {0}")
+                .replace("{0}", command.getSnippetName() != null ? command.getSnippetName() : command.getName());
+            case UNKNOWN -> i18n("journal.html.command.unknown", "Not part of the distribution");
+            case DISTRIBUTION -> null;
+        };
+        if (origin != null) {
+            if (!tip.isEmpty()) {
+                tip.append(" — ");
+            }
+            tip.append(origin);
+        }
+        return tip.isEmpty() ? null : tip.toString();
     }
 
     /** A bare URL; the trailing-punctuation trim below repairs the over-greedy end. */

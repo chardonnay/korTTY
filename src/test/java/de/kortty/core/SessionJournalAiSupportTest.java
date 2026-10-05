@@ -249,4 +249,46 @@ class SessionJournalAiSupportTest {
         assertThat(SessionJournalAiSupport.parseSearchTerms("{\"other\":1}")).isNull();
         assertThat(SessionJournalAiSupport.parseSearchTerms(null)).isNull();
     }
+
+    @Test
+    void parsesRunAsAndTheCommandList() {
+        SessionJournalAiSupport.SummaryResult result = SessionJournalAiSupport.parseSummaryResult("""
+            {"title":"T","summary":"`links` lief.","category":"none","runAs":"postgres",
+             "commands":[{"name":"`links`","description":"Textbrowser","known":true},
+                         {"name":"links","description":"duplicate","known":true},
+                         {"name":"./x.sh","known":"false"},
+                         "not an object", {"description":"no name"}]}
+            """);
+        assertThat(result.skip()).isFalse();
+        assertThat(result.runAs()).isEqualTo("postgres");
+        assertThat(result.commands()).containsExactly(
+            new SessionJournalAiSupport.CommandMention("links", "Textbrowser", true),
+            new SessionJournalAiSupport.CommandMention("./x.sh", null, false)).inOrder();
+    }
+
+    @Test
+    void aSkipVerdictWithoutSummaryIsASkip() {
+        assertThat(SessionJournalAiSupport.parseSummaryResult("{\"skip\": true}").skip()).isTrue();
+        // a model that still wrote a summary saw something: the summary wins
+        SessionJournalAiSupport.SummaryResult both = SessionJournalAiSupport.parseSummaryResult(
+            "{\"skip\": true, \"summary\": \"Ran ls.\"}");
+        assertThat(both.skip()).isFalse();
+        assertThat(both.summary()).isEqualTo("Ran ls.");
+    }
+
+    @Test
+    void screenshotTagsKeepTheAppAndDropNoise() {
+        assertThat(SessionJournalAiSupport.filterScreenshotTags(
+            java.util.List.of("midnight-commander", "terminal", "fedora", "daniel", "verzeichnisliste",
+                "ssh", "blau", "deutsch", "blauer hintergrund", "web01", "dateimanager", "home", "extra"),
+            "daniel", "web01.example.com"))
+            .containsExactly("midnight-commander", "verzeichnisliste", "dateimanager", "home").inOrder();
+    }
+
+    @Test
+    void aSummaryGivenAsAnArrayBecomesBulletLines() {
+        SessionJournalAiSupport.SummaryResult result = SessionJournalAiSupport.parseSummaryResult(
+            "{\"title\":\"T\",\"summary\":[\"- `links` installiert\", \"Skript gestartet\", 3]}");
+        assertThat(result.summary()).isEqualTo("- `links` installiert\n- Skript gestartet\n- 3");
+    }
 }

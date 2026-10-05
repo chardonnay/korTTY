@@ -57,7 +57,8 @@ public final class PolicyLoader {
     private static final Set<String> SESSION_JOURNAL_KEYS = Set.of("enforced", "log-format",
         "ai-max-lines", "storage-path", "allow-rename", "allow-delete", "name-template", "ai-title",
         "ai-screenshot-analysis", "ai-ask", "max-log-parts", "replace", "automation-allowed",
-        "automation-max-retention-days", "automation-max-storage-mb", "automation-max-journals");
+        "automation-max-retention-days", "automation-max-storage-mb", "automation-max-journals",
+        "clickable-links");
     private static final Set<String> SESSION_JOURNAL_REPLACE_KEYS = Set.of("pattern", "replacement",
         "regex", "ignore-case", "label");
     private static final Set<String> SESSION_JOURNAL_LOG_FORMATS = Set.of("xml", "json", "yaml");
@@ -555,10 +556,11 @@ public final class PolicyLoader {
         Integer automationMaxJournals = positiveOrNull(
             getNonNegativeInt(table, "automation-max-journals", tableContext),
             "automation-max-journals", tableContext);
+        Boolean clickableLinks = getBoolean(table, "clickable-links", tableContext);
         PolicyRule.SessionJournalRule sessionJournal = new PolicyRule.SessionJournalRule(
             enforced, logFormat, aiMaxLines, storagePath, allowRename, allowDelete, nameTemplate,
             aiTitle, aiScreenshotAnalysis, aiAsk, maxLogParts, replacements, automationAllowed,
-            automationMaxRetentionDays, automationMaxStorageMb, automationMaxJournals);
+            automationMaxRetentionDays, automationMaxStorageMb, automationMaxJournals, clickableLinks);
         if (!sessionJournal.isEmpty()) {
             builder.sessionJournal(sessionJournal);
         }

@@ -305,7 +305,10 @@ public class SessionJournalScreenshotAnalyzer {
         }
         SessionJournalEntry updated = new SessionJournalEntry(current);
         updated.setAiDescription(analysis.description());
-        updated.setAiTags(analysis.tags());
+        updated.setAiTags(SessionJournalAiSupport.filterScreenshotTags(
+            analysis.tags(),
+            document.getMeta() != null ? document.getMeta().getUsername() : null,
+            document.getMeta() != null ? document.getMeta().getHost() : null));
         updated.setAiAnalysisModel(aiInvoker.visionModelLabel());
         service.updateEntry(journalDir, updated);
     }

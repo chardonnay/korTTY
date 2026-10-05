@@ -271,6 +271,10 @@ public class GlobalSettings {
     @XmlElement
     private boolean sessionJournalAiSummariesEnabled = true;
 
+    /** Web addresses in journal notes and AI summaries are clickable links (policy may forbid). */
+    @XmlElement
+    private boolean sessionJournalClickableLinks = true;
+
     @XmlElement
     private Integer sessionJournalSummarizeIntervalMinutes = 5;
 
@@ -2080,6 +2084,14 @@ public class GlobalSettings {
 
     public void setSwarmSessionJournal(AutomationJournalConfig swarmSessionJournal) {
         this.swarmSessionJournal = swarmSessionJournal;
+    }
+
+    public boolean isSessionJournalClickableLinks() {
+        return sessionJournalClickableLinks;
+    }
+
+    public void setSessionJournalClickableLinks(boolean sessionJournalClickableLinks) {
+        this.sessionJournalClickableLinks = sessionJournalClickableLinks;
     }
 
     public boolean isSessionJournalAiSummariesEnabled() {

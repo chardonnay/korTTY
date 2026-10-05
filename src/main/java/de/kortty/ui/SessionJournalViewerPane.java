@@ -1056,6 +1056,12 @@ public class SessionJournalViewerPane extends BorderPane {
             logger.warn("Refusing to open a journal link that is not http(s)");
             return;
         }
+        if (!de.kortty.policy.PolicyManager.effective().sessionJournalClickableLinksAllowed()
+                || (app.getGlobalSettingsManager() != null && app.getGlobalSettingsManager().getSettings() != null
+                    && !app.getGlobalSettingsManager().getSettings().isSessionJournalClickableLinks())) {
+            logger.info("Not opening a journal link: clickable links are switched off");
+            return; // a page rendered before the switch may still carry the link
+        }
         try {
             app.getHostServices().showDocument(trimmed);
         } catch (Exception e) {
