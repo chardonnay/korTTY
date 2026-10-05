@@ -16,7 +16,7 @@ import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
-EXPECTED_MLX_LM_VERSION = "0.31.3"
+EXPECTED_MLX_LM_VERSION = "0.32.0"
 VERSION_DRIFT_ENV = "KORTTY_MLX_ALLOW_VERSION_DRIFT"
 READY_MARKER = "KORTTY-MLX-READY"
 MIN_API_KEY_LENGTH = 16
