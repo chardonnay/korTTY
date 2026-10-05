@@ -6,11 +6,13 @@ import de.kortty.model.SSHTunnel;
 import de.kortty.model.JumpServer;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.TunnelType;
+import de.kortty.persistence.ConnectionSchemaMigration;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
 import jakarta.xml.bind.annotation.XmlRootElement;
@@ -80,6 +82,8 @@ public class TeamworkRecycleBinService {
                 try (InputStream in = Files.newInputStream(file)) {
                     RecycleWrapper w = (RecycleWrapper) unmarshaller.unmarshal(in);
                     List<ServerConnection> loaded = w.getConnections() != null ? w.getConnections() : new ArrayList<>();
+                    // An older recycle bin keeps its connections on the global terminal settings.
+                    ConnectionSchemaMigration.migrate(w.getSchemaVersion(), loaded);
                     deleted.clear();
                     deleted.addAll(loaded);
                 }
@@ -108,6 +112,7 @@ public class TeamworkRecycleBinService {
             Marshaller marshaller = JAXB_CTX.createMarshaller();
             marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
             RecycleWrapper w = new RecycleWrapper();
+            w.setSchemaVersion(ConnectionSchemaMigration.CURRENT_VERSION);
             w.setConnections(snapshot);
             try (OutputStream out = Files.newOutputStream(tempFile)) {
                 marshaller.marshal(w, out);
@@ -164,6 +169,10 @@ public class TeamworkRecycleBinService {
     @XmlAccessorType(XmlAccessType.FIELD)
     @XmlType(propOrder = { "connections" })
     public static class RecycleWrapper {
+        /** Schema version, see {@link ConnectionSchemaMigration}; absent in older files. */
+        @XmlAttribute(name = "schemaVersion")
+        private Integer schemaVersion;
+
         @XmlElementWrapper(name = "connections")
         @XmlElement(name = "connection")
         private List<ServerConnection> connections = new ArrayList<>();
@@ -174,6 +183,14 @@ public class TeamworkRecycleBinService {
 
         public void setConnections(List<ServerConnection> connections) {
             this.connections = connections != null ? connections : new ArrayList<>();
+        }
+
+        public Integer getSchemaVersion() {
+            return schemaVersion;
+        }
+
+        public void setSchemaVersion(Integer schemaVersion) {
+            this.schemaVersion = schemaVersion;
         }
     }
 }
