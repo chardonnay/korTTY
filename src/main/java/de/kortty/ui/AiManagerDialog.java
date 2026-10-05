@@ -57,9 +57,11 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -513,6 +515,13 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         GridPane editorGrid = new GridPane();
         editorGrid.setHgap(10);
         editorGrid.setVgap(10);
+        // The field labels keep their full width; when the window is narrow the field column gives
+        // way instead (the editor scrolls sideways at its minimum), so no label is ever cut short.
+        ColumnConstraints labelColumn = new ColumnConstraints();
+        labelColumn.setMinWidth(Region.USE_PREF_SIZE);
+        ColumnConstraints fieldColumn = new ColumnConstraints();
+        fieldColumn.setHgrow(Priority.ALWAYS);
+        editorGrid.getColumnConstraints().addAll(labelColumn, fieldColumn);
 
         int row = 0;
         editorGrid.add(new Label(I18n.get("settings.ai.profile.name")), 0, row);

@@ -4256,3 +4256,15 @@ if (isMac) {
         commandLine("open", appBundle.absolutePath)
     }
 }
+
+tasks.register<JavaExec>("dialogFirstOpenFitSmoke") {
+    group = "verification"
+    description = "Opens the Connection Manager, AI Manager and Tools windows with no remembered geometry " +
+        "(a fresh install) and fails on any label drawn cut short; writes build/smoke/first-open/*.png."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.DialogFirstOpenFitSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    listOf("kortty.fit.language", "kortty.fit.dialogs", "kortty.fit.fontScale").forEach { key ->
+        providers.gradleProperty(key).orNull?.let { systemProperty(key, it) }
+    }
+}

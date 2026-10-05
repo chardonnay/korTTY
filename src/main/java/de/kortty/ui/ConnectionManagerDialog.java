@@ -273,19 +273,16 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         refreshTeamworkButton = new Button(I18n.get("connectionManager.teamwork.refresh"));
         restoreTeamworkButton = new Button(I18n.get("connectionManager.teamwork.restore"));
         
-        // Set uniform width for all buttons
+        // Uniform width for all buttons: at least 140px, otherwise as wide as the widest label needs.
+        // The button column (a VBox) fills every button to its own width, which is the widest
+        // button's preferred width — a fixed 140px cut the longer German labels short.
         double buttonWidth = 140;
-        addButton.setPrefWidth(buttonWidth);
-        editButton.setPrefWidth(buttonWidth);
-        deleteButton.setPrefWidth(buttonWidth);
-        duplicateButton.setPrefWidth(buttonWidth);
-        exportButton.setPrefWidth(buttonWidth);
-        importButton.setPrefWidth(buttonWidth);
-        undoButton.setPrefWidth(buttonWidth);
-        createFolderButton.setPrefWidth(buttonWidth);
-        renameGroupButton.setPrefWidth(buttonWidth);
-        refreshTeamworkButton.setPrefWidth(buttonWidth);
-        restoreTeamworkButton.setPrefWidth(buttonWidth);
+        for (Button button : List.of(addButton, editButton, deleteButton, duplicateButton, exportButton,
+                importButton, undoButton, createFolderButton, renameGroupButton, refreshTeamworkButton,
+                restoreTeamworkButton)) {
+            button.setMinWidth(buttonWidth);
+            button.setMaxWidth(Double.MAX_VALUE);
+        }
         
         // Set icons for buttons (Folder and Refresh are fine at 14px; others use 18px)
         addButton.setGraphic(iconLabel("\u2795", 18));

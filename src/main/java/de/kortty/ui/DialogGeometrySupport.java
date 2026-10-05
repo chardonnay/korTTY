@@ -88,6 +88,7 @@ public final class DialogGeometrySupport {
         if (usable != null && sizeStillValid) {
             dialog.getDialogPane().setPrefWidth(usable.getWidth());
             dialog.getDialogPane().setPrefHeight(usable.getHeight());
+            dialog.getDialogPane().getProperties().put(DialogContentFit.SIZE_RESTORED_KEY, Boolean.TRUE);
         }
         dialog.addEventHandler(DialogEvent.DIALOG_SHOWN, event -> {
             Window window = dialog.getDialogPane().getScene() != null
