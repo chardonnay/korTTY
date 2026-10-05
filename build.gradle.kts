@@ -362,9 +362,9 @@ dependencies {
     }
 
     // SSH
-    implementation("org.apache.sshd:sshd-core:2.19.0")
-    implementation("org.apache.sshd:sshd-common:2.19.0")
-    implementation("org.apache.sshd:sshd-sftp:2.19.0")
+    implementation("org.apache.sshd:sshd-core:2.20.0")
+    implementation("org.apache.sshd:sshd-common:2.20.0")
+    implementation("org.apache.sshd:sshd-sftp:2.20.0")
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // 1.86 is the first release since 1.85 that ships both artifacts, so the version skew the
     // 1.85.2 bcprov-only patch forced is gone; keep them on the same version from here.
