@@ -61,6 +61,18 @@ public class NativeMoshTtyConnector implements TtyConnector, de.kortty.isolation
     private final java.util.concurrent.atomic.AtomicReference<java.nio.file.Path> sandboxSessionDirectory =
         new java.util.concurrent.atomic.AtomicReference<>();
 
+    /**
+     * Whether this connector runs a built-in Mosh connection ({@link ConnectionProtocol#MOSH}) with the
+     * native {@code mosh-client}, because the session asked for isolation, which the built-in client,
+     * running inside korTTY, cannot get yet.
+     */
+    private volatile boolean standInForBuiltInMosh;
+
+    /** Lets this connector run a built-in Mosh connection as a stand-in; see {@link #standInForBuiltInMosh}. */
+    public void runAsIsolatedStandInForBuiltInMosh() {
+        this.standInForBuiltInMosh = true;
+    }
+
     public NativeMoshTtyConnector(ServerConnection connection, String password) {
         this.connection = connection;
         this.password = password;
@@ -103,7 +115,9 @@ public class NativeMoshTtyConnector implements TtyConnector, de.kortty.isolation
     }
 
     public boolean connect() throws SshTtyConnector.AuthenticationException {
-        if (connection.getProtocol() != ConnectionProtocol.MOSH_CLIENT) {
+        // A built-in Mosh connection that asks for isolation runs here too (see stand-in below).
+        if (connection.getProtocol() != ConnectionProtocol.MOSH_CLIENT
+                && !(connection.getProtocol() == ConnectionProtocol.MOSH && standInForBuiltInMosh)) {
             throw new IllegalStateException(i18n("mosh.native.protocolMismatch", i18n("protocol.moshClient")));
         }
         // Refuse up front: the SSH bootstrap could hop through the bastion, but mosh-client
@@ -148,6 +162,9 @@ public class NativeMoshTtyConnector implements TtyConnector, de.kortty.isolation
     private String sshBootstrapMoshServer() throws Exception {
         ServerConnection bootstrapConnection = resolveBootstrapConnection();
         SshTtyConnector bootstrap = new SshTtyConnector(bootstrapConnection, password);
+        // The SSH login that starts mosh-server runs isolated as well: in a session worker, with the
+        // private key staying in korTTY.
+        bootstrap.setIsolationRequest(isolationRequest);
         if (bootstrapConnection.getAuthMethod() == AuthMethod.PUBLIC_KEY && sshKeyManager != null) {
             bootstrap.setSSHKeyManager(sshKeyManager, masterPassword);
         }

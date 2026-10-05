@@ -126,10 +126,30 @@ class IsolationMarkersTest {
     }
 
     @Test
+    void anIsolatedBuiltInMoshRunsWithTheNativeClientWhenItIsInstalled() {
+        ServerConnection mosh = new ServerConnection();
+        mosh.setProtocol(ConnectionProtocol.MOSH);
+        mosh.setIsolationLevel(IsolationLevel.SANDBOX);
+        boolean nativeMosh = de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable();
+        assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), mosh, null).level())
+            .isEqualTo(nativeMosh ? IsolationLevel.SANDBOX : IsolationLevel.NONE);
+        assertThat(de.kortty.isolation.IsolationSettings.strongestSupported(ConnectionProtocol.MOSH, false, false, true))
+            .isEqualTo(IsolationLevel.SANDBOX);
+        assertThat(de.kortty.isolation.IsolationSettings.strongestSupported(ConnectionProtocol.MOSH, true, true, false))
+            .isEqualTo(IsolationLevel.NONE);
+        if (nativeMosh) {
+            assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.MOSH, IsolationLevel.SANDBOX, null))
+                .isEqualTo(I18n.get(IsolationConnectionSupport.NATIVE_MOSH_KEY));
+        }
+    }
+
+    @Test
     void theHintNamesWhatTheProtocolCannotGet() {
-        assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.MOSH, IsolationLevel.SANDBOX, null))
-            .isEqualTo(I18n.get(IsolationConnectionSupport.UNSUPPORTED_KEY,
-                IsolationConnectionSupport.levelName(IsolationLevel.NONE)));
+        if (!de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable()) {
+            assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.MOSH, IsolationLevel.SANDBOX, null))
+                .isEqualTo(I18n.get(IsolationConnectionSupport.UNSUPPORTED_KEY,
+                    IsolationConnectionSupport.levelName(IsolationLevel.NONE)));
+        }
         assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.LOCAL_SHELL, IsolationLevel.SANDBOX, null)).isNull();
         assertThat(IsolationConnectionSupport.hint(ConnectionProtocol.LOCAL_SHELL, IsolationLevel.SANDBOX, "why"))
             .isEqualTo(I18n.get(IsolationConnectionSupport.SANDBOX_UNAVAILABLE_KEY, "why"));
@@ -166,6 +186,9 @@ class IsolationMarkersTest {
 
     @Test
     void theBuiltInMoshFallsBackUnlessThePolicyDemandsIsolation() {
+        if (de.kortty.core.NativeMoshTtyConnector.isNativeMoshAvailable()) {
+            throw new org.testng.SkipException("mosh-client is installed: it stands in for the built-in client");
+        }
         ServerConnection mosh = new ServerConnection();
         mosh.setProtocol(ConnectionProtocol.MOSH);
         mosh.setIsolationLevel(IsolationLevel.SANDBOX);

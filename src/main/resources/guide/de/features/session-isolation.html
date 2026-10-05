@@ -862,12 +862,12 @@
 <tr>
 <td>Mosh (eingebauter Client)</td>
 <td>ja</td>
-<td>noch nicht</td>
-<td>noch nicht</td>
+<td>mit dem nativen <code>mosh-client</code>, wenn er installiert ist</td>
+<td>mit dem nativen <code>mosh-client</code>, wenn er installiert ist</td>
 </tr>
 </tbody>
 </table>
-<p>Eine Verbindung, die mehr verlangt, als ihre Verbindungsart bekommen kann, läuft mit der stärksten Stufe, die möglich ist, und der Verbindungseditor sagt das unter <strong>Isolation:</strong>. Verlangt Ihre Organisation eine Stufe, die die Verbindungsart nicht bekommen kann, wird die Sitzung gar nicht erst geöffnet.</p>
+<p>Der eingebaute Mosh-Client läuft innerhalb von korTTY und kann noch nicht isoliert werden. Eine Verbindung mit dem eingebauten Mosh-Client, die Isolation verlangt, läuft deshalb stattdessen mit dem nativen <code>mosh-client</code>, wenn er installiert ist: <code>mosh-client</code> läuft dann im eigenen Prozess oder in der Sandbox, und der SSH-Login, der <code>mosh-server</code> startet, läuft in einem Session-Worker. Ohne <code>mosh-client</code> läuft sie wie bisher. Eine Verbindung, die mehr verlangt, als ihre Verbindungsart bekommen kann, läuft mit der stärksten Stufe, die möglich ist, und der Verbindungseditor sagt das unter <strong>Isolation:</strong>. Verlangt Ihre Organisation eine Stufe, die die Verbindungsart nicht bekommen kann, wird die Sitzung gar nicht erst geöffnet.</p>
 <h2 id="ssh-sitzungen-in-einem-session-worker">SSH-Sitzungen in einem Session-Worker<a class="headerlink" href="#ssh-sitzungen-in-einem-session-worker" title="Permanent link">&para;</a></h2>
 <p>Eine isolierte SSH-Sitzung läuft in einem <strong>Session-Worker</strong>, einem kleinen eigenen Prozess, den korTTY für genau diese Verbindung startet. Der Worker verbindet sich mit dem Server (über den Jump-Server, falls es einen gibt), authentifiziert sich und hält die verschlüsselte Verbindung; korTTY spricht mit ihm über eine Verbindung auf diesem Computer (<code>127.0.0.1</code>), die nur ein einmaliges Token annimmt, das korTTY dafür erzeugt hat, und deren Schlüssel korTTY festhält. Der Worker reicht jeden Kanal, den korTTY öffnet, an den Server weiter, sodass das Terminal, SFTP auf der Sitzung des Terminals, abgelegte Dateien, die Befehle des KI-Agenten sowie <code>-L</code>- und <code>-D</code>-Tunnel wie bei einer direkten Sitzung funktionieren.</p>
 <ul>

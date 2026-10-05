@@ -21,9 +21,9 @@ Was jede Verbindungsart in dieser Version bekommen kann:
 | Lokale Shell | ja | ja (eine lokale Shell ist immer ein eigener Prozess) | ja |
 | Mosh (nativer `mosh-client`) | ja | ja | ja: `mosh-client` läuft in der Sandbox; der kurze SSH-Start von `mosh-server` bleibt in korTTY |
 | SSH | ja | ja, in einem Session-Worker (siehe unten) | ja |
-| Mosh (eingebauter Client) | ja | noch nicht | noch nicht |
+| Mosh (eingebauter Client) | ja | mit dem nativen `mosh-client`, wenn er installiert ist | mit dem nativen `mosh-client`, wenn er installiert ist |
 
-Eine Verbindung, die mehr verlangt, als ihre Verbindungsart bekommen kann, läuft mit der stärksten Stufe, die möglich ist, und der Verbindungseditor sagt das unter **Isolation:**. Verlangt Ihre Organisation eine Stufe, die die Verbindungsart nicht bekommen kann, wird die Sitzung gar nicht erst geöffnet.
+Der eingebaute Mosh-Client läuft innerhalb von korTTY und kann noch nicht isoliert werden. Eine Verbindung mit dem eingebauten Mosh-Client, die Isolation verlangt, läuft deshalb stattdessen mit dem nativen `mosh-client`, wenn er installiert ist: `mosh-client` läuft dann im eigenen Prozess oder in der Sandbox, und der SSH-Login, der `mosh-server` startet, läuft in einem Session-Worker. Ohne `mosh-client` läuft sie wie bisher. Eine Verbindung, die mehr verlangt, als ihre Verbindungsart bekommen kann, läuft mit der stärksten Stufe, die möglich ist, und der Verbindungseditor sagt das unter **Isolation:**. Verlangt Ihre Organisation eine Stufe, die die Verbindungsart nicht bekommen kann, wird die Sitzung gar nicht erst geöffnet.
 
 ## SSH-Sitzungen in einem Session-Worker
 
