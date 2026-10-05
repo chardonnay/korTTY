@@ -14,6 +14,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
@@ -42,6 +43,8 @@ final class AiLocalPreferencesPane extends VBox {
 
         Label intro = new Label(I18n.get("ai.local.preferences.intro"));
         intro.setWrapText(true);
+        // Wrapping text keeps all its lines; it is never squeezed into one cut line.
+        intro.setMinHeight(Region.USE_PREF_SIZE);
 
         configureProfileCombo(textProfile);
         configureProfileCombo(codingProfile);
@@ -88,6 +91,7 @@ final class AiLocalPreferencesPane extends VBox {
         grid.add(journalProfile, 1, row++);
         Label journalHint = new Label(I18n.get("ai.local.preferences.journalProfile.hint"));
         journalHint.setWrapText(true);
+        journalHint.setMinHeight(Region.USE_PREF_SIZE);
         journalHint.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         journalHint.setMaxWidth(320);
         grid.add(journalHint, 1, row++);

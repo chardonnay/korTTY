@@ -7,6 +7,7 @@ import de.kortty.model.ServerConnection;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogEvent;
@@ -172,6 +173,47 @@ public final class DialogFirstOpenFitSmoke {
         settle.play();
     }
 
+    /**
+     * Clicks through every tab the way a user would and measures each one while it is showing
+     * (lazily attached tab content only appears on selection), then restores the selection.
+     * Only labels not already reported for the first picture are returned.
+     */
+    private static List<DialogContentFit.Shortfall> selectEveryTab(javafx.scene.control.DialogPane pane, Path snapshotPrefix) {
+        List<DialogContentFit.Shortfall> found = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        DialogContentFit.shortfalls(pane).forEach(shortfall -> seen.add(shortfall.text()));
+        int index = 0;
+        for (Node node : pane.lookupAll(".tab-pane")) {
+            if (!(node instanceof javafx.scene.control.TabPane tabPane) || !node.isVisible()) {
+                continue;
+            }
+            javafx.scene.control.Tab original = tabPane.getSelectionModel().getSelectedItem();
+            for (javafx.scene.control.Tab tab : tabPane.getTabs()) {
+                if (tab.isDisable()) {
+                    continue;
+                }
+                tabPane.getSelectionModel().select(tab);
+                pane.applyCss();
+                pane.layout();
+                pane.layout();
+                try {
+                    ImageIO.write(SwingFXUtils.fromFXImage(pane.getScene().snapshot(null), null), "png",
+                        Path.of(snapshotPrefix + "-tab" + (index++) + ".png").toFile());
+                } catch (Exception ex) {
+                    System.err.println("tab snapshot failed: " + ex);
+                }
+                for (DialogContentFit.Shortfall shortfall : DialogContentFit.shortfalls(pane)) {
+                    if (seen.add(shortfall.text())) {
+                        found.add(new DialogContentFit.Shortfall("[" + tab.getText() + "] " + shortfall.text(),
+                            shortfall.width(), shortfall.height(), shortfall.growable()));
+                    }
+                }
+            }
+            tabPane.getSelectionModel().select(original);
+        }
+        return found;
+    }
+
     private static Dialog<?> owned(Dialog<?> dialog, Stage owner) {
         dialog.initOwner(owner);
         return dialog;
@@ -200,7 +242,8 @@ public final class DialogFirstOpenFitSmoke {
                 Scene scene = dialog.getDialogPane().getScene();
                 scene.getRoot().applyCss();
                 scene.getRoot().layout();
-                List<DialogContentFit.Shortfall> cut = DialogContentFit.shortfalls(dialog.getDialogPane());
+                List<DialogContentFit.Shortfall> cut = new ArrayList<>(DialogContentFit.shortfalls(dialog.getDialogPane()));
+                cut.addAll(selectEveryTab(dialog.getDialogPane(), out.resolve(name)));
                 Stage window = (Stage) scene.getWindow();
                 System.out.printf(Locale.ROOT, "FIT %-18s window=%.0fx%.0f cut=%d%n",
                     name, window.getWidth(), window.getHeight(), cut.size());
