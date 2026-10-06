@@ -15,7 +15,7 @@
         <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
         <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
         <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
-        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+        <link rel="icon" type="image/x-icon" href="../../en/assets/images/favicon.png">
 
 
 </head>
@@ -35,7 +35,7 @@
 
     <div class="p-4">
         
-            <img class="logo" src="../assets/images/favicon.png" height="150px">
+            <img class="logo" src="../../en/assets/images/favicon.png" height="150px">
         
 
         <div class="drac-text-center">
@@ -972,7 +972,7 @@
 </div>
 <h2 id="die-ki-nach-einem-journal-fragen">Die KI nach einem Journal fragen<a class="headerlink" href="#die-ki-nach-einem-journal-fragen" title="Permanent link">&para;</a></h2>
 <p><strong>AI Q&amp;A</strong> in der Symbolleiste des Viewers öffnet ein Chat-Panel neben der Journalseite. Fragen Sie etwas zu dieser Sitzung – <em>„Wurden Screenshots gemacht, die Fehler von result_complex.pl zeigen?“</em> – und die KI antwortet aus dem, was das Journal bereits während der Sitzung gesammelt hat: die KI-Zusammenfassungen, Screenshot-Beschreibungen und Tags sowie Ihre Notizen. Das Roherfassungsprotokoll wird niemals an das Modell gesendet.</p>
-<p><img alt="Asking the AI about a journal" src="../assets/screenshots/journal/journal-ask-panel.png" /></p>
+<p><img alt="Asking the AI about a journal" src="../../en/assets/screenshots/journal/journal-ask-panel.png" /></p>
 <p>Wenn für eine Frage konkrete Beweise aus dem Protokoll benötigt werden – genaue Fehlerzeilen, ob ein Skript wirklich fehlgeschlagen ist, wie oft etwas passiert ist – benennt das Modell ein paar wörtliche Suchzeichenfolgen, korTTYs eigene Streaming-Suche durchsucht das Capture-Log nach ihnen, und nur die Übereinstimmungszahlen sowie eine Handvoll Beispielzeilen werden für die endgültige Antwort an das Modell zurückgesendet. Das Panel zeigt beides neben der Antwort:</p>
 <ul>
 <li><strong>Quellen</strong> – die in der Antwort zitierten Journal-Einträge; Wenn Sie auf eines klicken, scrollt die Zeitleiste zu diesem Eintrag.</li>
@@ -1150,7 +1150,7 @@
 </tbody>
 </table>
 <p>Rechtsklick auf eine Automatisierungszeile für <strong>Behalten (Pin)</strong> / <strong>Pin lösen</strong> — bei einem Lauf oder einer Gruppe, <strong>Alle behalten (Pin)</strong> / <strong>Alle Pins lösen</strong> — und für Jobjournale, <strong>Job im JobScheduler öffnen</strong>. Die Journalseite eines Automatisierungsjournals zeigt außerdem seinen Ursprung, das Lauf-Ergebnis und das Löschdatum im Header an.</p>
-<p><img alt="Session journal manager" src="../assets/screenshots/journal/journal-manager.png" /></p>
+<p><img alt="Session journal manager" src="../../en/assets/screenshots/journal/journal-manager.png" /></p>
 <ul>
 <li>Das Filterfeld entspricht Titel, Verbindung, Host, Benutzer, Beschreibung und den KI-Schlüsselwörtern. Wenn Sie <strong>Inhalte durchsuchen</strong> aktivieren, werden zusätzlich die Journaleinträge gescannt – einschließlich KI-Screenshot-Beschreibungen und Tags – und Protokolle jedes Journals werden im Hintergrund erfasst (die Protokolle werden Teil für Teil per Streaming gelesen, sodass selbst große Journale nicht in den Speicher geladen werden).</li>
 <li>Unterhalb des Filterfelds zeigen anklickbare <strong>Keyword-Chips</strong> die häufigsten KI-Keywords in den aufgelisteten Journale an – wobei genau eine Journal ausgewählt ist, also die eigenen Keywords dieser Journal. Durch Klicken auf einen Chip wird nach ihm gefiltert. Die Schlüsselwörter stammen aus der Zusammenfassung der Abschlusssitzung, die bis zu zwölf wörtliche Suchbegriffe (Hostnamen, Skript- und Dateinamen, Fehlerklassen) in die Metadaten des Journals extrahiert.</li>
@@ -1165,7 +1165,7 @@
 <p>Das ausgewählte Profil wird zuerst getestet; antwortet es nicht, wird nichts verändert. Andernfalls werden die vorherigen KI-Zusammenfassungen und die abschließende Sitzungszusammenfassung <strong>ersetzt</strong>: Das gesamte Aufzeichnungsprotokoll wird neu zusammengefasst, einschließlich neuer Schlüsselwörter. Notizen, Screenshots, Agenten- und Systemeinträge bleiben unverändert. Sollte die KI mittendrin scheitern, werden die betroffenen Fenster als rohe Aktivitätseinträge beibehalten, sodass die Zeitleiste niemals leer wird. Ein Fortschrittsdialog zeigt das Journal während der Auswertung; am Ende meldet er, wie viele Journale neu bewertet wurden und wie viele Tokens verbraucht wurden; sie zählen wie jeder andere Journal-KI-Aufruf zum Kontingent des Profils. Laufende Journale können nicht neu bewertet werden.</p>
 <h3 id="ki-suche-in-allen-journale">KI-Suche in allen Journale<a class="headerlink" href="#ki-suche-in-allen-journale" title="Permanent link">&para;</a></h3>
 <p><strong>KI-Suche</strong> neben dem Filterfeld öffnet ein Suchfenster unter der Tabelle. Stellen Sie eine Frage zu allen gespeicherten Journalen — <em>„In welchen Journalen hat result_complex.pl mit einem Fehler beendet?“</em> — und korTTY antwortet in zwei Schritten: eine schnelle lokale Rangfolge wählt die relevantesten Journale aus deren Metadaten und gesammelten Einträgen, dann schreibt eine einzelne KI-Anfrage über diese Kandidaten die Zusammenfassung und wählt die Journale aus, die tatsächlich die Frage beantworten. Wie bei der <a href="#die-ki-nach-einem-journal-fragen">per-Journal Q&amp;A</a> sieht das Modell nur die gesammelten Einträge, niemals die Capture-Loge; exakte Logpositionen stammen aus der internen Streaming-Suche.</p>
-<p><img alt="AI search across all journals" src="../assets/screenshots/journal/journal-search-panel.png" /></p>
+<p><img alt="AI search across all journals" src="../../en/assets/screenshots/journal/journal-search-panel.png" /></p>
 <p>Das Ergebnis erscheint auf beiden Seiten des Panels:</p>
 <ul>
 <li>Der <strong>Antwort-Chat</strong> auf der linken Seite unterstützt Folgefragen zu denselben Ergebnissen.</li>
@@ -1178,7 +1178,7 @@
 <p>Ohne ein erreichbares KI-Profil funktioniert die Suche weiterhin: Die Identifikatoren der Frage werden direkt mit den Journalen und Protokollen abgeglichen, nur die KI-Zusammenfassung und die Journalauswahl werden übersprungen (so steht es in einem Hinweis). Optional fügt die <strong>Semantische Journalsuche</strong> im Dialogfeld „Optionen“ ein einbettungsbasiertes Ranking zusätzlich zum lexikalischen hinzu – es erfordert ein lokales Einbettungsmodell, das in den Wissensspeichern konfiguriert ist, und greift stillschweigend auf das lexikalische Ranking zurück, wenn keine Einbettungen verfügbar sind.</p>
 </div>
 <h3 id="der-viewer-und-die-bearbeitung">Der Viewer und die Bearbeitung<a class="headerlink" href="#der-viewer-und-die-bearbeitung" title="Permanent link">&para;</a></h3>
-<p><img alt="Session journal viewer" src="../assets/screenshots/journal/journal-viewer.png" /></p>
+<p><img alt="Session journal viewer" src="../../en/assets/screenshots/journal/journal-viewer.png" /></p>
 <p>Der Viewer zeigt die Journalseite in einem eingebetteten Browser an und aktualisiert sich automatisch, während das Journal noch geschrieben wird. <strong>Im Browser öffnen</strong> übergibt die Seite an Ihren Systembrowser. <strong>Bearbeiten</strong> teilt die Ansicht: eine Eintragstabelle neben einem Formular mit dem <strong>Titel</strong>, der <strong>Zusammenfassung</strong> des Eintrags, einer Markierungsauswahl und einem Notizenfeld. Durch die Bearbeitung können Sie Einträge korrigieren oder kategorisieren – Fehler kennzeichnen, wichtige Ergebnisse hervorheben oder eine Zusammenfassung neu schreiben. Beim Speichern wird die Seite an der Position des bearbeiteten Eintrags neu generiert; Eine von Ihnen manuell gesetzte Markierung wird niemals von der KI oder einer Regel überschrieben.</p>
 <p>Der schnellste Weg, einen einzelnen Eintrag zu markieren, ist die Zeitleiste selbst: Klicken Sie mit der rechten Maustaste darauf und wählen Sie <strong>Marker setzen…</strong>.</p>
 <h3 id="screenshot-notizen-und-anmerkungen">Screenshot-Notizen und Anmerkungen<a class="headerlink" href="#screenshot-notizen-und-anmerkungen" title="Permanent link">&para;</a></h3>
@@ -1241,7 +1241,7 @@
 <p>Die Annotation wird <strong>auf das Bild</strong> gelegt – auch <strong>Unlesbar</strong> eingeschlossen. Es handelt sich nicht um eine Schwärzung. Der ungezeichnete Abschnitt bleibt auf dieser Maschine im Journal-Ordner als <code>shot-000004.orig.png</code> erhalten. Er wird niemals in eine Exportversion kopiert, sodass ein von Ihnen gezeichneter Bereich über etwas Sensibles hinaus in der exportierten Dokumentation erhalten bleibt. Jedoch kann jeder, der den Journal-Ordner selbst zugreifen kann, den ursprünglichen Inhalt weiterhin öffnen. Um etwas aus dem Journal endgültig zu entfernen, verwenden Sie <strong>Suche und Ersatz</strong> oder die Schwärzungsregeln – und löschen Sie den <code>.orig.png</code> manuell, falls das Problem ein Screenshot ist.</p>
 </div>
 <h3 id="markers">Markers<a class="headerlink" href="#markers" title="Permanent link">&para;</a></h3>
-<p><img alt="Managing journal markers" src="../assets/screenshots/journal/journal-markers.png" /></p>
+<p><img alt="Managing journal markers" src="../../en/assets/screenshots/journal/journal-markers.png" /></p>
 <p>Über die vier integrierten Markierungen hinaus (<strong>Keine</strong>, <strong>Info</strong>, <strong>Wichtig</strong>, <strong>Fehler</strong>) können Sie Ihre eigenen Markierungen definieren – einen Namen wie <em>Softwareinstallation</em> und eine Farbe Ihrer Wahl. <strong>Markierungen verwalten…</strong> neben der Markierungsauswahl öffnet den Editor:</p>
 <ul>
 <li><strong>Farbe</strong>, <strong>Name</strong> und <strong>Zählt als</strong>. Der letzte entscheidet, auf welchen integrierten Wert der Marker herabgestuft wird, was dafür sorgt, dass ein Journal in einem älteren korTTY lesbar bleibt und was dafür sorgt, dass ein <em>Outage</em>-Marker zur Fehlersumme zählt.</li>
@@ -1349,7 +1349,7 @@
 </table>
 <p>PDF und Markdown fragen, ob Screenshots enthalten sein sollen.</p>
 <h3 id="es-wird-nur-ein-teil-eines-journals-exportiert">Es wird nur ein Teil eines Journals exportiert<a class="headerlink" href="#es-wird-nur-ein-teil-eines-journals-exportiert" title="Permanent link">&para;</a></h3>
-<p><img alt="Journal export options" src="../assets/screenshots/journal/journal-export-options.png" /></p>
+<p><img alt="Journal export options" src="../../en/assets/screenshots/journal/journal-export-options.png" /></p>
 <p>Der Exportdialog kann eingrenzen, was tatsächlich in das Dokument gelangt. Jeder Filter ist optional und in der Fußzeile wird live gezählt, wie viele Einträge exportiert werden.</p>
 <p><strong>Zeitfenster.</strong> Fügen Sie so viele hinzu, wie Sie möchten; Ein Eintrag muss nur in <em>einen</em> davon fallen, daher exportiert <code>08:00–12:00</code> plus <code>14:00–16:00</code> beide Blöcke eines Tages. Wenn Sie die Datumsangaben leer lassen, wird das Fenster auf jeden Tag angewendet, den das Journal umfasst, und ein Fenster, dessen Beginn nach seinem Ende liegt, läuft über Mitternacht.</p>
 <p>Die Zeiten können ungefähre Angaben sein – das ist der Punkt:</p>

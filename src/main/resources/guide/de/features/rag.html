@@ -15,7 +15,7 @@
         <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
         <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
         <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
-        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+        <link rel="icon" type="image/x-icon" href="../../en/assets/images/favicon.png">
 
 
 </head>
@@ -35,7 +35,7 @@
 
     <div class="p-4">
         
-            <img class="logo" src="../assets/images/favicon.png" height="150px">
+            <img class="logo" src="../../en/assets/images/favicon.png" height="150px">
         
 
         <div class="drac-text-center">
@@ -810,7 +810,7 @@
 <p><img alt="Knowledge-store indexing and retrieval pipeline" src="../assets/diagrams/rag-knowledge-pipeline.svg" /></p>
 <h2 id="erstellen-sie-einen-lokalen-wissensspeicher">Erstellen Sie einen lokalen Wissensspeicher<a class="headerlink" href="#erstellen-sie-einen-lokalen-wissensspeicher" title="Permanent link">&para;</a></h2>
 <p>Öffnen Sie <strong>KI &gt; KI-Manager &gt; Wissensspeicher</strong> und wählen Sie <strong>Erstellen</strong>. Der Anfänger-Flow benötigt einen Namen, ein installiertes Einbettungsmodell, Rollenzuweisungen und mindestens eine überprüfte Quelle. Speichertyp, Vektordimensionen und optionale Qdrant-Verbindungsfelder bleiben unter <strong>Erweitert</strong> ausgeblendet; korTTY verwaltet die lokalen HNSW-Graphparameter intern, sodass bei normaler Verwendung keine Vektorindexoptimierung erforderlich ist.</p>
-<p><img alt="Wissensspeicher with a local HNSW demo store and one manual folder source" src="../assets/screenshots/ai/knowledge-stores.png" /></p>
+<p><img alt="Wissensspeicher with a local HNSW demo store and one manual folder source" src="../../en/assets/screenshots/ai/knowledge-stores.png" /></p>
 <p>Wenn kein Einbettungsmodell installiert ist, öffnet derselbe Ablauf den Einrichtungsassistenten <a href="local-models.html">local-model </a> mit vorab ausgewählter Einbettungsrolle. Installieren Sie das vorausgewählte Modell Qwen3-Embedding 0.6B <code>Q8_0</code> oder wählen Sie eine der Katalogalternativen aus, die der Assistent für den Speicher dieses Computers anbietet – Qwen3-Embedding 4B oder 8B <code>Q4_K_M</code> auf Computern mit mindestens 16 oder 24 GiB, das mehrsprachige BGE-M3 <code>Q8_0</code> oder das sehr kleine und schnelle Nomic Embed Text v1.5 <code>Q8_0</code> – Kehren Sie dann zu <strong>Erstellen</strong> zurück. Ein Index ist an genau dieses Einbettungsmodell und die Dimensionsanzahl gebunden. Um eines davon zu ändern, muss es neu erstellt werden.</p>
 <p>So fügen Sie Inhalte hinzu:</p>
 <ol>
@@ -820,7 +820,7 @@
 <li>Bestätigen Sie erst, nachdem die Vorschau mit dem übereinstimmt, was Sie indizieren wollten.</li>
 <li>Warten Sie, bis die Textextraktion, das Chunking, die Einbettungen und die Snapshot-Aktivierung abgeschlossen sind. Sie können den Vorgang vor der Aktivierung abbrechen, ohne den vorherigen Snapshot zu beschädigen.</li>
 </ol>
-<p><img alt="Real review preview with unchanged, changed, and skipped demo files" src="../assets/screenshots/ai/rag-preview.png" /></p>
+<p><img alt="Real review preview with unchanged, changed, and skipped demo files" src="../../en/assets/screenshots/ai/rag-preview.png" /></p>
 <p>Die Quelltabelle zeigt den Pfad, den Quelltyp, den Synchronisierungsmodus, den Status, die Anzahl der Dateien/Chunks, die Anzahl der Probleme und den letzten erfolgreichen Index. Diese Werte bleiben über Neustarts hinweg bestehen. Zu den verfügbaren Aktionen gehören <strong>Dateien hinzufügen</strong>, <strong>Ordner hinzufügen</strong>, <strong>Jetzt aktualisieren</strong>, <strong>Deaktivieren/Aktivieren</strong>, <strong>Entfernen</strong> und <strong>Suche testen</strong>.</p>
 <div class="admonition important">
 <p class="admonition-title">Ein Ordner wird immer zuerst überprüft</p>

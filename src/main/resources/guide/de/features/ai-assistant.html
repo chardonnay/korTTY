@@ -15,7 +15,7 @@
         <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
         <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
         <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
-        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+        <link rel="icon" type="image/x-icon" href="../../en/assets/images/favicon.png">
 
 
 </head>
@@ -35,7 +35,7 @@
 
     <div class="p-4">
         
-            <img class="logo" src="../assets/images/favicon.png" height="150px">
+            <img class="logo" src="../../en/assets/images/favicon.png" height="150px">
         
 
         <div class="drac-text-center">
@@ -1014,7 +1014,7 @@
 </ul>
 <h3 id="codeblocke-im-terminal">Codeblöcke im Terminal<a class="headerlink" href="#codeblocke-im-terminal" title="Permanent link">&para;</a></h3>
 <p>Codeblöcke in einer Chat-Antwort haben neben der Kopier-Schaltfläche zwei weitere Schaltflächen. <strong>Einfügen</strong> gibt den Block an der Eingabeaufforderung eines Terminalbereichs ein, ohne <span class="keys"><kbd class="key-enter">Enter</kbd></span> zu drücken, sodass Sie ihn lesen und ändern können, bevor Sie ihn ausführen. <strong>Ausführen</strong> erscheint nur bei Blöcken in einer Shell-Sprache (<code>```bash</code>, <code>```sh</code>, <code>```zsh</code>, <code>```shell</code>, PowerShell oder ein unbeschrifteter Block, der mit einem solchen Shebang beginnt) und führt eine Befehlszeile aus: Es fragt immer zuerst nach, in einer Bestätigung, die den Bereich nennt und die genaue Zeile zeigt, und <strong>Abbrechen</strong> ist die Standardschaltfläche, sodass ein gewohnheitsmäßiges Drücken von <span class="keys"><kbd class="key-enter">Enter</kbd></span> nichts ausführt.</p>
-<p><img alt="Eine KI-Chat-Antwort mit einem bash-Codeblock, dessen Kopfzeile Einfügen, Ausführen, Als Snippet speichern und Kopieren anbietet" src="../assets/screenshots/ai/chat-code-block-actions.png" /></p>
+<p><img alt="Eine KI-Chat-Antwort mit einem bash-Codeblock, dessen Kopfzeile Einfügen, Ausführen, Als Snippet speichern und Kopieren anbietet" src="../../en/assets/screenshots/ai/chat-code-block-actions.png" /></p>
 <ul>
 <li><strong>Welcher Bereich.</strong> Ein aus einem Terminal geöffneter Chat (die Auswahlaktionen und <em>Agent fragen…</em>) sendet an den Bereich, aus dem er stammt, solange dieser Bereich offen ist. Andernfalls, und bei einem wieder geöffneten gespeicherten Chat, sendet er an den fokussierten Bereich des Terminal-Tabs, an den auch ein Snippet gehen würde. Der Tooltip jeder Schaltfläche und die Ausführen-Bestätigung nennen immer den Bereich, als Tab-Titel plus die Nummer des Bereichs in einem geteilten Tab.</li>
 <li><strong>Einfügen</strong> durchläuft den <a href="terminal.html#einfugeschutz">Einfügeschutz</a> mit strengeren Regeln als ein Einfügen aus der Zwischenablage: Ein Block mit einem Zeilenumbruch oder mit Steuerzeichen fragt immer nach, egal was die Einfügeeinstellungen des Bereichs sagen, und Steuerzeichen sowie unsichtbare richtungsändernde Zeichen werden entfernt, bevor der Text eingegeben wird. Zeilenumbrüche am Ende eines Blocks werden verworfen, sodass eine einzelne Zeile nie abgeschickt wird. Innerhalb eines mehrzeiligen Blocks wirkt jeder Zeilenumbruch weiterhin wie <span class="keys"><kbd class="key-enter">Enter</kbd></span>, es sei denn, das Programm im Bereich verwendet Bracketed Paste; die Einfügebestätigung sagt, was zutrifft. Wenn Sie diese Bestätigung ablehnen oder der Bereich den Text nicht annehmen kann, meldet die Statusleiste, dass nichts eingefügt wurde.</li>
@@ -1081,7 +1081,7 @@
 </div>
 <h2 id="ki-manager">KI-Manager<a class="headerlink" href="#ki-manager" title="Permanent link">&para;</a></h2>
 <p>Öffnen Sie <strong>KI &gt; KI-Manager</strong> oder drücken Sie ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).</p>
-<p><img alt="KI-Manager with Local Models selected and persistently underlined" src="../assets/screenshots/ai/ai-manager.png" /></p>
+<p><img alt="KI-Manager with Local Models selected and persistently underlined" src="../../en/assets/screenshots/ai/ai-manager.png" /></p>
 <p>Der KI-Manager ist ein modales Fenster: Sie können es geöffnet lassen, während Sie im Hauptfenster weiterarbeiten. Durch erneutes Aufrufen von <strong>KI-Manager</strong> wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu öffnen. Der aktive primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem der Fokus auf die Steuerelemente des Abschnitts verschoben wurde.</p>
 <p>Der Manager kombiniert Profil-, lokale Inferenz-, Abruf- und gespeicherte Chat-Verwaltung:</p>
 <ul>
