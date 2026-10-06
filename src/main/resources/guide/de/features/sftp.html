@@ -15,7 +15,7 @@
         <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
         <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
         <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
-        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+        <link rel="icon" type="image/x-icon" href="../../en/assets/images/favicon.png">
 
 
 </head>
@@ -35,7 +35,7 @@
 
     <div class="p-4">
         
-            <img class="logo" src="../assets/images/favicon.png" height="150px">
+            <img class="logo" src="../../en/assets/images/favicon.png" height="150px">
         
 
         <div class="drac-text-center">
@@ -1037,7 +1037,7 @@
 </ul>
 <h3 id="ubertragungsliste">Übertragungsliste<a class="headerlink" href="#ubertragungsliste" title="Permanent link">&para;</a></h3>
 <p>Uploads und Downloads laufen im Hintergrund, bis zu drei Dateien gleichzeitig (<em>Einstellungen → SFTP-Manager → <a href="../reference/settings/sftp.html#ubertragungen">Parallele Übertragungen</a></em>, 1 bis 8), jede über einen eigenen SFTP-Kanal. Die erste Übertragung öffnet die Liste <strong>Übertragungen</strong> am unteren Rand des Tabs; der Pfeil links davon klappt sie auf ihre Kopfzeile zusammen. Jede Zeile ist eine Datei oder ein Ordner, den Sie übertragen haben, mit Richtung, Fortschrittsbalken, bisher übertragenen Bytes, Geschwindigkeit und Restzeit; eine Ordnerzeile fasst die darin enthaltenen Dateien zusammen. Die Statusleiste zeigt, wie viele Dateien aller laufenden Übertragungen fertig sind, und die Gesamtgeschwindigkeit an und meldet <strong>Hochgeladen</strong> oder <strong>Heruntergeladen</strong>, wenn ein Stapel abgeschlossen ist.</p>
-<p><img alt="Übertragungsliste mit einem Ordner-Upload, einer fehlgeschlagenen Datei darin, einem laufenden Download und fertigen Zeilen" src="../assets/screenshots/sftp/sftp-transfer-list.png" /></p>
+<p><img alt="Übertragungsliste mit einem Ordner-Upload, einer fehlgeschlagenen Datei darin, einem laufenden Download und fertigen Zeilen" src="../../en/assets/screenshots/sftp/sftp-transfer-list.png" /></p>
 <table>
 <thead>
 <tr>
@@ -1109,7 +1109,7 @@
 </tr>
 </tbody>
 </table>
-<p><img alt="Dialog Datei existiert bereits bei einem Upload auf eine ältere Datei" src="../assets/screenshots/sftp/sftp-conflict-dialog.png" /></p>
+<p><img alt="Dialog Datei existiert bereits bei einem Upload auf eine ältere Datei" src="../../en/assets/screenshots/sftp/sftp-conflict-dialog.png" /></p>
 <ul>
 <li><strong>Für alle weiteren Konflikte dieser Art übernehmen</strong> beantwortet jeden späteren Konflikt derselben Art in diesem Stapel, ohne erneut zu fragen. Die Arten werden auseinandergehalten: Das Ersetzen aller Dateien ersetzt nie einen symbolischen Link oder einen Ordner.</li>
 <li><strong>Ein Ordner wird mit einem gleichnamigen Ordner zusammengeführt</strong>, ohne nachzufragen; nur die darin enthaltenen Dateien können in Konflikt geraten.</li>
@@ -1146,7 +1146,7 @@
 <li><strong>Als Snippet speichern</strong> – speichert den aktuellen Inhalt als neues Snippet-Manager-Snippet, ohne die Quelldatei als gespeichert zu markieren</li>
 </ul>
 <p>Eine Organisation kann das Bearbeiten von Serverdateien mit dem Schlüssel <code>load-into-snippet-editor</code> ihrer <a href="../reference/enterprise-policy.html">Unternehmensrichtlinie</a> einschränken. Mit <code>read-only</code> öffnen sich Remote-Dateien weiterhin im Snippet-Editor und können als Snippet gespeichert werden, aber <strong>Datei überschreiben</strong> und <strong>Speichern unter...</strong> sind gesperrt, und ihr Tooltip nennt die Richtlinie. Mit <code>deny</code> sind <strong>Im Snippet-Editor bearbeiten</strong> und <strong>Bild öffnen</strong> für Remote-Dateien deaktiviert. Lokale Dateien im linken Panel liegen auf Ihrem eigenen Computer und bleiben in jedem Fall bearbeitbar.</p>
-<p><img alt="SFTP dual-panel file manager" src="../assets/screenshots/sftp/sftp-manager.png" /></p>
+<p><img alt="SFTP dual-panel file manager" src="../../en/assets/screenshots/sftp/sftp-manager.png" /></p>
 <h3 id="im-eigenen-editor-bearbeiten">Im eigenen Editor bearbeiten<a class="headerlink" href="#im-eigenen-editor-bearbeiten" title="Permanent link">&para;</a></h3>
 <p><strong>In externem Editor bearbeiten</strong> (im Rechtsklickmenü einer Serverdatei und im Remote-Menü <strong>Bearbeiten</strong>) öffnet die ausgewählte Serverdatei in Ihrem eigenen Texteditor und kopiert jedes Speichern zurück auf den Server. Den Editor wählen Sie unter <a href="../reference/settings/sftp.html#externer-editor"><em>Einstellungen → SFTP-Manager → Externer Editor</em></a>; ist keiner festgelegt, öffnet sich die Datei als Text im Editor des Systems.</p>
 <ul>

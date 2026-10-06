@@ -110,6 +110,7 @@ def build_lang(lang: str, strict: bool, version: str) -> Path:
         raise subprocess.CalledProcessError(proc.returncode, cmd)
     out = BUILD_OUT / lang
     set_html_lang(out, lang)
+    share_assets_with_source(out, lang)
     stage_lunr_language_packs(out)
     write_offline_search_index(out)
     normalize_text_line_endings(out)
@@ -199,6 +200,41 @@ def set_html_lang(out: Path, lang: str) -> None:
     if stragglers:
         sys.exit(f"FATAL: {len(stragglers)} page(s) still declare lang=\"{SOURCE_LANG}\": {stragglers[:5]}")
     print(f"  declared lang=\"{lang}\" on {len(rewritten)} page(s)")
+
+
+def share_assets_with_source(out: Path, lang: str) -> None:
+    """Point a translated tree at the English copy of every byte-identical asset.
+
+    The screenshots and the logo video are the same files in every language, but each tree
+    is built from its own docs directory, so the bundled guide shipped them twice. PNGs and
+    MP4s do not deflate, so the second copy cost the jar (and every installer) about 3.5 MiB.
+    The duplicates are deleted and the pages reference the sibling English tree instead
+    (`../assets/x.png` becomes `../../en/assets/x.png`), which resolves the same way inside
+    the jar, from the extracted Pages site and from a plain file tree. The English tree stays
+    self-contained: GuideTranslationGenerator clones it for runtime translations.
+    """
+    if lang == SOURCE_LANG:
+        return
+    source = BUILD_OUT / SOURCE_LANG
+    if not (source / "assets").is_dir():
+        return  # a single-language build: nothing to share with
+    shared: list[str] = []
+    for asset in sorted((out / "assets").rglob("*")):
+        if asset.suffix.lower() not in (".png", ".mp4"):
+            continue
+        rel = asset.relative_to(out).as_posix()
+        twin = source / rel
+        if twin.is_file() and twin.read_bytes() == asset.read_bytes():
+            shared.append(rel)
+    if not shared:
+        return
+    pattern = re.compile(r"((?:\.\./)*)(" + "|".join(re.escape(r) for r in shared) + r")")
+    for page in out.rglob("*.html"):
+        text = page.read_text(encoding="utf-8")
+        page.write_text(pattern.sub(rf"\1../{SOURCE_LANG}/\2", text), encoding="utf-8")
+    for rel in shared:
+        (out / rel).unlink()
+    print(f"  shared {len(shared)} identical asset(s) with the {SOURCE_LANG} tree")
 
 
 def stage_lunr_language_packs(out: Path) -> None:

@@ -15,7 +15,7 @@
         <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
         <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
         <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
-        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+        <link rel="icon" type="image/x-icon" href="../../en/assets/images/favicon.png">
 
 
 </head>
@@ -35,7 +35,7 @@
 
     <div class="p-4">
         
-            <img class="logo" src="../assets/images/favicon.png" height="150px">
+            <img class="logo" src="../../en/assets/images/favicon.png" height="150px">
         
 
         <div class="drac-text-center">
@@ -807,7 +807,7 @@
     <article>
         <p><h1 id="snippet-manager">Snippet-Manager<a class="headerlink" href="#snippet-manager" title="Permanent link">&para;</a></h1>
 <p>Der Snippet-Manager ermöglicht es Ihnen, wiederverwendbare Code-Snippets, Skripte und Konfigurationsvorlagen zu speichern, zu organisieren und schnell einzufügen. Es ist ein Arbeitsbereich: die Snippet-Bibliothek links, die von Ihnen bearbeiteten Snippets als Editor-Tabs rechts und – innerhalb jedes Editors – ein KI-Analyse-Panel, dessen Ergebnisse zusammen mit dem Snippet gespeichert werden. Verwalten Sie Snippets in mehreren Sprachen mit Syntax-Hervorhebung, erweiterter Suche, KI-unterstütztem Bearbeiten, Platzhaltervariablen und flexiblen Exportoptionen.</p>
-<p><img alt="Snippet-Manager workspace with the library, an editor tab and its analysis panel" src="../assets/screenshots/tools/snippet-manager.png" /></p>
+<p><img alt="Snippet-Manager workspace with the library, an editor tab and its analysis panel" src="../../en/assets/screenshots/tools/snippet-manager.png" /></p>
 <h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Bibliothek</strong> — Suchfunktion, Kategorisierung und Filter sowie eine sortierbare Tabelle mit Snippets, die die Aktionen zum Einfügen, Senden, Importieren und Exportieren enthält. Siehe <a href="#die-bibliothek">Die Bibliothek</a>.</li>
@@ -1053,7 +1053,7 @@
 </ul>
 <p>Der Dialog blockiert den Editor nicht; das erneute Öffnen von <strong>Alternative Lösung</strong> bringt den offenen Dialog nach vorne. <strong>Übernehmen</strong> ersetzt die ursprüngliche Auswahl nur, solange das Snippet unverändert bleibt – andernfalls wird die gewählte Lösung stattdessen in die Zwischenablage kopiert.</p>
 <h2 id="vollstandige-code-analyse">Vollständige Code-Analyse<a class="headerlink" href="#vollstandige-code-analyse" title="Permanent link">&para;</a></h2>
-<p><img alt="Full code analysis" src="../assets/screenshots/tools/full-code-analysis.png" /></p>
+<p><img alt="Full code analysis" src="../../en/assets/screenshots/tools/full-code-analysis.png" /></p>
 <p><strong>Vollständige Code-Analyse</strong> untersucht das gesamte Snippet auf einmal und bietet konkrete Verbesserungen, die Sie anwenden können. Das Ergebnis erscheint im <strong>Analyse-Panel</strong>, einem Seitenpanel innerhalb des Snippet-Editors selbst – kein separates Fenster öffnet sich, weder im Editor-Tab des Snippet-Arbeitsbereichs noch in jedem eigenständigen Editor. Zeigen oder verbergen Sie es mit der <strong>Analyse</strong>-Schaltfläche in der Inhaltstoolbar des Editors oder <strong>KI-Code → Analyse-Panel ein-/ausblenden</strong>; die Schaltfläche trägt ein Badge: <strong>●</strong>, wenn eine gespeicherte Analyse existiert, <strong>⚠</strong>, wenn das Snippet seit dieser Analyse geändert wurde, und <strong>⏳</strong> während eine Analyse oder ein Anwenden läuft (auch wenn das Panel verborgen ist). Ziehen Sie den Trenner, um die Größe des Panels anzupassen; korTTY merkt sich dessen Breite und ob Sie es offen gelassen haben, und ein eigenständiges Editor-Fenster vergrößert sich einmal um die Breite des Panels, wenn der Bildschirm Platz bietet. Das Verbergen des Panels annulliert nichts: ein laufendes Anwenden geht weiter und dessen Fortschritt wird in der Hinweisleiste des Editors sowie im Badge angezeigt.</p>
 <h3 id="das-ki-profil-vor-der-analyse-auswahlen">Das KI-Profil vor der Analyse auswählen<a class="headerlink" href="#das-ki-profil-vor-der-analyse-auswahlen" title="Permanent link">&para;</a></h3>
 <p>Wenn mehr als ein KI-Profil konfiguriert ist, führt <strong>KI-Code → Vollständige Code-Analyse</strong> (und die gleiche Einträge im Kontextmenü) noch nichts aus: Es öffnet den Analysebereich in einem <strong>Neuen Analyse</strong>-Bereich, sodass Sie zunächst das Profil ansehen und auswählen können. Hier wird ein Picker für das <strong>KI-Profil</strong> angeboten, der alle konfigurierten Profile enthält (das Standardprofil ist mit <em>(Standard)</em> markiert, und die Tooltip-Informationen zeigen den Verbindungstyp und das Modell des jeweiligen Profils), die KI-Skills, die in der Analyse enthalten sind (die gleichen Chips und Picker wie im Ergebnis), eine Hinweise, wenn der Editor die <em>Zusätzlichen Anweisungen</em> aktiviert hat, und eine <strong>Analyse starten</strong>-Schaltfläche. <span class="keys"><kbd class="key-enter">Enter</kbd></span> startet die Analyse wie die Schaltfläche. Wenn bereits eine Analyse existiert, erscheint der gleiche Bereich direkt über dem gespeicherten Ergebnis mit <strong>Zurück zum Ergebnis</strong>, um ohne Startung zu verlassen.</p>
@@ -1153,7 +1153,7 @@
 <p>Jedes Snippet trägt seine aktuelle Analyse bei: der Bericht nach seinem neuesten akzeptierten Apply-Lauf, wenn einer vorhanden ist (eine Verifikation erfolgt danach), andernfalls der Bericht vor dem Anwenden. <strong>Komplettes Skript an den Bericht anhängen</strong> funktioniert wie beim Einzel-Export. Der Export läuft im Hintergrund mit einer Fortschrittsanzeige und <strong>Abbrechen</strong> (ein abgebrochener Export schreibt nichts); wenn er fertig ist, zeigt das Dialogfeld an, wie viele Berichte geschrieben wurden, mit <strong>Öffnen</strong> und <strong>Im Ordner zeigen</strong>.</p>
 <p>Jedes Element trägt außerdem den Bibliotheksordner des Snippets: im ZIP-Archiv liegt jeder Bericht in dem Verzeichnis seines Ordners (zum Beispiel <code>ops/deploy/01-deploy.sh-analysis-….md</code>), und die kombinierten Dateien benennen den Ordner vor dem Snippet im Inhaltsverzeichnis.</p>
 <h3 id="ordner-als-ein-projekt-analysieren">Ordner als ein Projekt analysieren<a class="headerlink" href="#ordner-als-ein-projekt-analysieren" title="Permanent link">&para;</a></h3>
-<p><img alt="Project analysis of a folder" src="../assets/screenshots/tools/project-analysis.png" /></p>
+<p><img alt="Project analysis of a folder" src="../../en/assets/screenshots/tools/project-analysis.png" /></p>
 <p>Rechtsklick auf einen Ordner im Bibliotheksbaum — den Hauptordner einer Skript-Sammlung oder jeden Unterordner — und wählen Sie <strong>Vollständige Code-Analyse (Ordner als Projekt)</strong>. Ein Tab, benannt nach dem Ordner, öffnet sich neben den Editor-Tabs. Jedes Skript dieses Ordners und seiner Unterordner wird zusammen an die KI übergeben, sodass die Analyse Probleme zwischen Dateien erkennen kann: duplizierter Code, fehlerhafte <code>source</code> oder <code>import</code> Pfade, inkonsistente Schnittstellen sowie ausführbare Flags oder Shebang-Zeilen, die nicht mit der Verwendung einer Datei übereinstimmen. Ein Rechtsklick auf ein einzelnes Skript analysiert nur dieses Skript, wie zuvor.</p>
 <ul>
 <li><strong>Bevor Sie starten</strong> — Der Tab zeigt den Ordner, die Anzahl der Dateien und eine Schätzung der Tokens, die sie benötigen. Wählen Sie das <strong>KI-Profil</strong>, aktivieren Sie bei Bedarf <strong>Modularisierung vorschlagen</strong> und klicken Sie auf <strong>Analyse starten</strong>; <strong>Stopp</strong> bricht ab. <strong>Dateien…</strong> ermöglicht es Ihnen, Dateien auszuschließen. Ein Ordner mit mehr als etwa 48 000 Tokens — mehr, als viele Modelle auf einmal lesen können — öffnet zunächst die Dateiauswahl.</li>
@@ -1172,7 +1172,7 @@
 </ul>
 <h3 id="anderungen-mehrerer-dateien-prufen">Änderungen mehrerer Dateien prüfen<a class="headerlink" href="#anderungen-mehrerer-dateien-prufen" title="Permanent link">&para;</a></h3>
 <p>Ergebnisse, die mehrere Dateien ändern – angewandte Projektfindings und Modularisierungen – öffnen sich in einem Review-Fenster statt im Editor:</p>
-<p><img alt="Reviewing a modularization: one tab per file and the directory tree" src="../assets/screenshots/tools/multi-file-preview.png" /></p>
+<p><img alt="Reviewing a modularization: one tab per file and the directory tree" src="../../en/assets/screenshots/tools/multi-file-preview.png" /></p>
 <ul>
 <li><strong>Tabs</strong> — Ein Tab pro Datei mit dem üblichen Seitenvergleich; eine neue Datei wird gegen eine leere verglichen. Der Tab zeigt den Status der Datei an: <strong>+</strong> neu, <strong>✎</strong> geändert, <strong>=</strong> unverändert.</li>
 <li><strong>Verzeichnisbaum</strong> – Auf der linken Seite die Ordnerstruktur des Ergebnisses mit denselben Markierungen und ⚙ für ausführbare Dateien. <strong>Verzeichnisbaum</strong> in der Symbolleiste zeigt oder versteckt ihn; korTTY behält diese Wahl während des Betriebs bei. Das Auswählen einer Datei im Baum wählt ihren Tab aus, und der Baum folgt dem ausgewählten Tab.</li>

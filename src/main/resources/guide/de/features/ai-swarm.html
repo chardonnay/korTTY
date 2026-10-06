@@ -15,7 +15,7 @@
         <link rel="stylesheet" href="../assets/css/dracula-ui.min.css">
         <link rel="stylesheet" href="../assets/css/mkdocs.min.css">
         <link href="../assets/stylesheets/kortty.css" rel="stylesheet">
-        <link rel="icon" type="image/x-icon" href="../assets/images/favicon.png">
+        <link rel="icon" type="image/x-icon" href="../../en/assets/images/favicon.png">
 
 
 </head>
@@ -35,7 +35,7 @@
 
     <div class="p-4">
         
-            <img class="logo" src="../assets/images/favicon.png" height="150px">
+            <img class="logo" src="../../en/assets/images/favicon.png" height="150px">
         
 
         <div class="drac-text-center">
@@ -893,8 +893,8 @@
 <p><strong>Adaptive langsame Erkennung</strong> – ein Agent wird als <em>ungewöhnlich lange</em> gekennzeichnet, wenn seine verstrichene Zeit <code>max(60 s, 2 × median of the finished agents)</code> überschreitet; Bis mindestens zwei Agenten fertig sind, gilt ein fester Schwellenwert von 180 Sekunden. Angehaltene und wartende Agenten werden nie gekennzeichnet und die angehaltene Zeit wird von der verstrichenen Zeit abgezogen, damit der Vergleich fair bleibt.</p>
 <p>Während ein Lauf aktiv ist, wird durch <strong>Klicken auf eine Kugel</strong> zur Zeile dieses Agenten in der Agentenliste gescrollt und diese hervorgehoben. Beim Schweben werden der Servername und die verstrichene Zeit angezeigt. Legendenchips unter den Kugeln fassen die Zählungen zusammen (läuft, wartet, pausiert, erledigt, fehlgeschlagen). Nach dem Lauf friert der Streifen im Endzustand ein.</p>
 <p>Der Streifen lässt sich von einem einzelnen Server bis hin zu großen Flotten skalieren – die Kugeln schrumpfen und packen sich in Reihen, wenn die Anzahl der Agenten wächst:</p>
-<p><img alt="Status strip with all states" src="../assets/screenshots/ai/swarm-status-strip-states.png" /></p>
-<p><img alt="Status strip with 50 agents" src="../assets/screenshots/ai/swarm-status-strip-many.png" /></p>
+<p><img alt="Status strip with all states" src="../../en/assets/screenshots/ai/swarm-status-strip-states.png" /></p>
+<p><img alt="Status strip with 50 agents" src="../../en/assets/screenshots/ai/swarm-status-strip-many.png" /></p>
 <h2 id="agentenzeilen-und-live-transkripte">Agentenzeilen und Live-Transkripte<a class="headerlink" href="#agentenzeilen-und-live-transkripte" title="Permanent link">&para;</a></h2>
 <p>Jeder Server verfügt über eine Zeile in der <strong>Agents</strong>-Liste, in der sein Status-Badge, die verstrichene Zeit und die Token-Anzahl angezeigt werden. <strong>Klicken Sie mit der linken Maustaste auf eine Zeile</strong>, um sie inline zu erweitern und das Live-Transkript des Agenten (Befehle, Ausgabe und Fortschritt) während der Ausführung anzusehen – kein zusätzliches Fenster erforderlich. Sehr lange Transkripte werden von vorne beschnitten, sodass immer die neueste Ausgabe sichtbar ist.</p>
 <p>Die Überschrift über den Zeilen summiert die gesamte Laufzeit: <strong>Σ Tokens</strong> aller Agenten plus der endgültigen kombinierten Antwort, gefolgt von den Kosten in Geld, wenn das KI-Profil ein <a href="../reference/settings/ai.html#token-quoten-verwaltung">Preis pro 1 M Tokens</a> (oder <code>local · no token costs</code> für ein lokales Profil) hat. Jeder Agentenaufruf und die kombinierte Antwort zählen ebenfalls zum Token-Kontingent des Profils — für interaktive Läufe und für <a href="#schwarmlaufe-planen-jobscheduler">geplante Schwarmläufe</a> gleichermaßen.</p>
