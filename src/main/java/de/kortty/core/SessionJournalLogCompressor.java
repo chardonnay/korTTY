@@ -67,7 +67,7 @@ public final class SessionJournalLogCompressor {
             Files.delete(file);
             return target;
         } catch (IOException e) {
-            logger.warn("Could not compress session journal log part {}: {}", file.getFileName(), e.getMessage());
+            logger.warn("Could not compress session journal log part {}: {}", file.getFileName(), e.getMessage(), e);
             try {
                 Files.deleteIfExists(target);
             } catch (IOException ignored) {

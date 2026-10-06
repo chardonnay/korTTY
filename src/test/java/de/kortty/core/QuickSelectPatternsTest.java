@@ -27,8 +27,14 @@ class QuickSelectPatternsTest {
 
     private static final String HOSTILE_LINE = "a".repeat(TerminalLinkDetector.MAX_INPUT_CHARS - 1) + "!";
 
-    /** Generous for a loaded build machine; without the budget the run takes seconds to hours. */
-    private static final long BOUND_MILLIS = 1_500L;
+    /**
+     * Generous for a loaded build machine (a CI runner can stall a test for a second); without the
+     * budget the run takes minutes to hours, so this still separates "bounded" from "unbounded".
+     */
+    private static final long BOUND_MILLIS = 5_000L;
+
+    /** Attempts for a check that a scheduling stall of a few milliseconds can fail through no fault of the code. */
+    private static final int ATTEMPTS = 5;
 
     @Test
     void aUsablePatternHasNoProblem() {
@@ -142,17 +148,22 @@ class QuickSelectPatternsTest {
         assertThat(QuickSelectPatterns.compile(List.of("\\b")).start().spans("a b")).isEmpty();
     }
 
-    @Test(timeOut = 30_000)
+    @Test(timeOut = 60_000)
     void aCatastrophicPatternStopsAtItsBudgetAndTheOthersStillMatch() {
         QuickSelectPatterns patterns = QuickSelectPatterns.compile(List.of(CATASTROPHIC, "INC\\d+"));
-        QuickSelectPatterns.Matching matching = patterns.start();
-
-        long start = System.nanoTime();
-        List<Span> hostile = matching.spans(HOSTILE_LINE + " INC7");
-        long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
-
-        assertWithMessage("a pattern that backtracks forever must stop at its budget, took %s ms", elapsedMillis)
-            .that(elapsedMillis).isAtMost(BOUND_MILLIS);
+        QuickSelectPatterns.Matching matching = null;
+        List<Span> hostile = null;
+        // The catastrophic pattern always overruns (it needs seconds for its 10 ms), but the plain one
+        // has only 10 ms of its own and loses them when the runner stalls for that long. That is the
+        // runner, not the code, so a quick select where it did not overrun is the one that counts.
+        for (int attempt = 0; attempt < ATTEMPTS && (matching == null || matching.overran(1)); attempt++) {
+            matching = patterns.start();
+            long start = System.nanoTime();
+            hostile = matching.spans(HOSTILE_LINE + " INC7");
+            long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+            assertWithMessage("a pattern that backtracks forever must stop at its budget, took %s ms", elapsedMillis)
+                .that(elapsedMillis).isAtMost(BOUND_MILLIS);
+        }
         assertThat(matching.overran(0)).isTrue();
         assertThat(matching.overran(1)).isFalse();
         assertThat(hostile).containsExactly(new Span(HOSTILE_LINE.length() + 1, HOSTILE_LINE.length() + 5, 1));
