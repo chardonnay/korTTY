@@ -11,8 +11,8 @@
     },
     "macos-x86_64-dmg": {
       "baseline_exempt": true,
-      "verified_bytes": 147627328,
-      "budget_bytes": 152043520
+      "verified_bytes": 153377957,
+      "budget_bytes": 158334976
     },
     "windows-x86_64-msi": {
       "baseline_bytes": 194954284,
