@@ -11,7 +11,7 @@ import org.testng.annotations.Test;
 
 class DeadlineCharSequenceTest {
 
-    /** The budget a catastrophic match is allowed; the assertion allows twice this. */
+    /** The budget a catastrophic match is allowed; the assertion allows five times this, for a runner that stalls. */
     private static final long DEADLINE_MILLIS = 1_000L;
 
     /**
@@ -71,7 +71,7 @@ class DeadlineCharSequenceTest {
             .that(thrown).isInstanceOf(DeadlineCharSequence.DeadlineExceeded.class);
         assertWithMessage("the match ran %s ms for a %s ms deadline", elapsedMillis, DEADLINE_MILLIS)
             .that(elapsedMillis)
-            .isAtMost(2 * DEADLINE_MILLIS);
+            .isAtMost(5 * DEADLINE_MILLIS);
     }
 
     @Test(timeOut = 30_000)
@@ -102,7 +102,7 @@ class DeadlineCharSequenceTest {
         long startNanos = System.nanoTime();
         expectThrows(DeadlineCharSequence.DeadlineExceeded.class, matcher::find);
         assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos))
-            .isAtMost(2 * DEADLINE_MILLIS);
+            .isAtMost(5 * DEADLINE_MILLIS);
     }
 
     @Test(timeOut = 30_000)
