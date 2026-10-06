@@ -11,6 +11,31 @@ This file is not part of the documentation site — it is neither published nor 
 Releases older than the ones below are recorded in `RELEASE_NOTES.adoc` next to this file, and
 every version is also listed on the [GitHub releases page](https://github.com/chardonnay/korTTY/releases).
 
+## v2.18.0
+
+### Terminal
+
+- **Coding agents** — korTTY recognises Claude Code, Codex and Gemini CLI in local shell tabs and classifies each pane as working, blocked on a question, done or idle, and now shows it everywhere: a glyph in the tab title, chips, accent bars, rollups and pane rows in the dashboard (which expands to a waiting agent and offers Send Enter / Esc / Interrupt in the context menu), a dockable **Coding Agents** panel (*View → Coding Agents*, ++ctrl+alt+g++) listing every agent of every window with one-click answers (y, n, Enter, Esc, ↑, ↓, Ctrl+C), Explain, Rename and a prompt box, a status-bar strip, ++ctrl+alt+n++ to jump to the next waiting agent, a badge with the number of waiting agents on the app icon (Dock, Windows taskbar, KDE/Ubuntu launcher; window title elsewhere) and a desktop notification when an agent needs a decision or finishes while you are not looking at its pane. Detection reads the terminal screen locally and can be switched off in *Settings → Terminal → Coding agents*, where the badge and the notifications have their own toggles; the rules are JSON files you can override under `~/.kortty/coding-agents/`. See [Coding agents](../features/coding-agents.md).
+- **Control API and `kortty-cli`** — korTTY can now open a local socket so a script or a coding agent on the same computer can list your windows, read any pane, type into it, wait for output, split a local shell, and drive a detected coding agent. It is **off by default** and is switched on under *Settings → Terminal → Control API*, where a status line reports what the listener is actually doing. Nothing is reachable over the network and no other user of the computer can connect: the endpoint lives in an owner-only `~/.kortty/control/` directory and needs a token that is regenerated on every start. Every action is logged with byte counts only, never terminal text, and the first time a program types into a pane you get one desktop notification, so a takeover is never silent. An administrator can deny the feature outright with the `control-api` policy key. The `kortty-cli` client ships beside the application in every native package and handles discovery, authentication and exit codes for you. See [Control API](../reference/control-api.md) and [Control CLI](../reference/cli.md).
+- **Anonymous usage statistics now cover coding agents and the Control API** — if you allowed anonymous statistics, korTTY also reports which agent kinds are detected, how often agent notifications fire, which Control API methods are used and whether the coding-agent and Control API settings are on. Only kinds, states, method names and counts are sent — never terminal text, prompts or pane names. See [Anonymous data](anonymous-data.md).
+
+### Local AI
+
+- **Go back to an older llama.cpp or MLX runtime** — when a new runtime release causes problems, **Other version…** in the Runtimes table of *AI → AI Manager → Local Models* lists every version the signed stable channel still offers for this computer and installs the one you choose through the same verification as an update. A version other than the newest stays **pinned**, so update checks keep it until you pick the newest version again or choose **Unpin**; a pinned version the channel later withdraws is dropped automatically. See [Runtimes](../features/local-models.md#runtimes).
+- **Both runtimes stay visible in the Runtimes table** — the table had a fixed height that fit two rows only at the default font, so with a larger UI font scale or an AtlantaFX design only llama.cpp was visible and MLX needed scrolling. The table now sizes itself to its rows and follows font-scale and design changes while the AI Manager is open.
+- **Being offline is no longer reported as a failed runtime update** — the startup check for the llama.cpp and MLX runtimes ran into an error with a stack trace whenever the computer had no network yet. An unreachable channel now ends in an **Offline** status and a single log line, installed runtimes stay usable, and an installation you start yourself still says why it did not happen.
+- **MLX runtime updates are published like llama.cpp ones** — the MLX index is now read from the same immutable, versioned releases as the llama.cpp index instead of a release whose files were replaced on every update; builds fall back to the previous location until the first combined release exists.
+
+### Performance
+
+- **Dialogs open noticeably faster** — the WebKit engine is loaded in the background after start instead of on the first dialog that needs it, the AI Manager and the settings dialog build their tabs on first visit, a stored connection's secrets are no longer re-derived on every open, and the snippet editor keeps a ready editor in reserve. Measured on a development build, the first AI Manager open dropped from about 1.4 s to under 0.1 s and the settings dialog from about 350 ms to 45 ms. The spare editor can be switched off with **Keep a pre-warmed editor ready**. See [Snippet Editor settings](../reference/settings/snippet-editor/index.md).
+
+### Guide and snippets
+
+- **The built-in guide has a new look and a working offline search** — the guide now uses the Dracula theme, because the previous theme reaches end of life in November 2026. Search works without a network connection and suggests results as you type, and German pages now declare German as their language, so screen readers and hyphenation use the right one.
+- **Clearer coding-agents diagram and a wider guide search field** — the diagram on the coding-agents page shows one short note per box and no longer routes a line through other boxes, and the search field in the guide header is wide enough for its German placeholder.
+- **Flow diagrams keep loops a model drew in the wrong shape** — when a model drew a loop's condition as a plain action with two exits, the repair cut the exit after the loop and the whole diagram was replaced by the local fallback. Such a loop head is now turned into the loop decision.
+
 ## v2.17.0
 
 ### Terminal
