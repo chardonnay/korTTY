@@ -52,7 +52,7 @@ public final class LocalProcessInspector {
     private static final String NODE_MODULES_SEGMENT = "node_modules";
 
     /** npm scope directories under which the agents' packages are installed ({@code @scope/<kind-id>}). */
-    private static final Set<String> AGENT_PACKAGE_SCOPES = Set.of("@anthropic-ai", "@openai", "@google");
+    private static final Set<String> AGENT_PACKAGE_SCOPES = Set.of("@anthropic-ai", "@openai", "@google", "@qwen-code");
 
     /** Scoped npm packages whose package name is not the kind id ({@code @scope/name}, lower case). */
     private static final Map<String, CodingAgentKind> AGENT_PACKAGES =
@@ -138,7 +138,8 @@ public final class LocalProcessInspector {
      * taken from {@code arguments}, or from the quote-aware tokens of {@code commandLine} when the
      * platform does not report arguments — names an agent: its base name (extension stripped) is a
      * known executable name or kind id, or the path contains the agent's npm package directory
-     * ({@code @anthropic-ai/claude-code}, {@code @openai/codex}, {@code @google/gemini-cli}, or
+     * ({@code @anthropic-ai/claude-code}, {@code @openai/codex}, {@code @google/gemini-cli},
+     * {@code @qwen-code/qwen-code}, or
      * {@code node_modules/<kind-id>}). Arguments are tried in order so interpreter sub-commands
      * ({@code deno run}) and value-taking flags ({@code -r dotenv/config}) are skipped naturally; a
      * plain directory that merely shares an agent's name ({@code ~/projects/gemini/server.js}) does

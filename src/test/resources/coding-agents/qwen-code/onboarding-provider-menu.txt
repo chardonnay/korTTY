@@ -1,0 +1,26 @@
+#! expect state=IDLE rule=none
+#! alt=true
+  ██║▄▄ ██║██║███╗██║██╔══╝  ██║╚██╗██║  │ Unknown | coder-model (/model to change)                 │
+  ╚██████╔╝╚███╔███╔╝███████╗██║ ╚████║  │ ~/projects/demo-app                               │
+   ╚══▀▀═╝  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═══╝  └──────────────────────────────────────────────────────────┘
+
+  Tips: Type / to open the command popup; Tab autocompletes slash commands and saved prompts.
+  ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+  │                                                                                                  │
+  │ Connect a Provider                                                                               │
+  │                                                                                                  │
+  │ › Alibaba ModelStudio                                                                            │
+  │   Official recommended setup: Coding Plan, Token Plan, or Standard API Key                       │
+  │                                                                                                  │
+  │   Third-party Providers                                                                          │
+  │   Choose a built-in provider and connect with an API key                                         │
+  │                                                                                                  │
+  │   Custom Provider                                                                                │
+  │   Manually connect a local server, proxy, or unsupported provider                                │
+  │                                                                                                  │
+  │ ────────────────────────────────────────────────────────────────────────────────                 │
+  │                                                                                                  │
+  │ Terms of Services and Privacy Notice:                                                            │
+  │ https://qwenlm.github.io/qwen-code-docs/en/users/support/tos-privacy/                            │
+  │                                                                                                  │
+  └──────────────────────────────────────────────────────────────────────────────────────────────────┘

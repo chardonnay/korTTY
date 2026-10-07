@@ -1,0 +1,23 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+
+   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌──────────────────────────────────────────────────────────┐
+  ██╔═══██╗██║    ██║██╔════╝████╗  ██║  │ >_ Qwen Code (v0.25.0)                                   │
+  ██║   ██║██║ █╗ ██║█████╗  ██╔██╗ ██║  │                                                          │
+  ██║▄▄ ██║██║███╗██║██╔══╝  ██║╚██╗██║  │ API Key | openai/gpt-oss-20b (/model to change)          │
+  ╚██████╔╝╚███╔███╔╝███████╗██║ ╚████║  │ ~/projects/demo-app                               │
+   ╚══▀▀═╝  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═══╝  └──────────────────────────────────────────────────────────┘
+
+  Tips: You can run any shell commands from Qwen Code using ! (e.g. !ls).
+  ●
+
+  > Run this shell command now with your shell tool, do not ask me first: curl -sI https://example.com
+
+  ∴
+  - Shell curl -sI https://example.com (Fetching HTTP headers from example.com)
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+>   Type your message or @path/to/file
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ➜ demo-app · openai/gpt-oss-20b · 131.1k Context 12.8% used
+  ⏸ Ask permissions (shift + tab to cycle)

@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=true
+   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌──────────────────────────────────────────────────────────┐                  │
+  ██╔═══██╗██║    ██║██╔════╝████╗  ██║  │ >_ Qwen Code (v0.25.0)                                   │                  █
+  ██║   ██║██║ █╗ ██║█████╗  ██╔██╗ ██║  │                                                          │                  █
+  ██║▄▄ ██║██║███╗██║██╔══╝  ██║╚██╗██║  │ API Key | openai/gpt-oss-20b (/model to change)          │                  █
+  ╚██████╔╝╚███╔███╔╝███████╗██║ ╚████║  │ ~/projects/demo-app                               │                  █
+   ╚══▀▀═╝  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═══╝  └──────────────────────────────────────────────────────────┘                  █
+                                                                                                                       █
+  Tips: Type / to open the command popup; Tab autocompletes slash commands and saved prompts.                          █
+  ●
+                                                                                                                       █
+  > Use your shell tool to run exactly: ls -la                                                                         █
+                                                                                                                       █
+  ∴                                                                        █
+  ✓ Shell ls -la [timeout: 120000ms] (List current directory contents)                                                 █
+    total 0                                                                                                            █
+    drwxr-xr-x@  2 demo    staff   64 Oct  7 23:55 .                                                                   █
+    drwx------@ 11 demo    staff  352 Oct  7 23:57 ..                                                                  █
+                                                                                                                       █
+  ∴                                                                        █
+                                                                                                                       █
+  ◆ I’m looking at the current directory – it’s empty.                                                                 █
+    What would you like to create or work on next?                                                                     █
+                                                                                                                       █
+  > create a README.mdUse your shell tool to run exactly: curl -sI https://example.com                                 █
+                                                                                                                       █
+  ∴                                                                         █
+  ? WriteFile Writing to README.md ←                                                                                   █
+                                                                                                                       █
+   1 # Project README                                                                                                  █
+   2                                                                                                                   █
+   3 This is a placeholder README for the project.                                                                     █
+                                                                                                                       █
+   Apply this change?                                                                                                  █
+                                                                                                                       █
+   › 1. Yes, allow once                                                                                                █
+     2. Yes, allow always                                                                                              █
+     3. No, suggest changes (esc)                                                                                      █
+                                                                                                                       █
+
+  ⠏ Waiting for user confirmation...

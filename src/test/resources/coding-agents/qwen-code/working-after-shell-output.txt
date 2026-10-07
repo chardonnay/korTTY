@@ -1,0 +1,27 @@
+#! expect state=WORKING rule=working
+#! alt=true
+
+   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌──────────────────────────────────────────────────────────┐
+  ██╔═══██╗██║    ██║██╔════╝████╗  ██║  │ >_ Qwen Code (v0.25.0)                                   │
+  ██║   ██║██║ █╗ ██║█████╗  ██╔██╗ ██║  │                                                          │
+  ██║▄▄ ██║██║███╗██║██╔══╝  ██║╚██╗██║  │ API Key | openai/gpt-oss-20b (/model to change)          │
+  ╚██████╔╝╚███╔███╔╝███████╗██║ ╚████║  │ ~/projects/demo-app                               │
+   ╚══▀▀═╝  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═══╝  └──────────────────────────────────────────────────────────┘
+
+  Tips: You can run any shell commands from Qwen Code using ! (e.g. !ls).
+  ●
+
+  > Use your shell tool to run exactly: ls -la
+
+  ∴
+  ✓ Shell ls -la [timeout: 120000ms] (List current directory contents)
+    total 0
+    drwxr-xr-x@  2 demo    staff   64 Oct  7 23:55 .
+    drwx------@ 11 demo    staff  352 Oct  7 23:57 ..
+
+  ⠙ Waiting for the respawn... (11s · ↑ 28 tokens · esc to cancel)
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+>   Type your message or @path/to/file
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ➜ demo-app · openai/gpt-oss-20b · 131.1k Context 12.8% used
+  Enter to steer · Ctrl+Q to queue · ⏸ Ask permissions (shift + tab to cycle)
