@@ -1,0 +1,43 @@
+{
+  "kind": "QWEN_CODE",
+  "version": 1,
+  "comment": "Written against Qwen Code 0.25.0 (Ink TUI, a Gemini CLI fork, alternate screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio endpoint; must be re-verified when Qwen Code changes its TUI. The tool confirmation dialog ('Allow execution of: 'curl'?', 'Apply this change?', '› 1. Yes, allow once') with its 'Waiting for user confirmation...' spinner line is BLOCKED; the Braille spinner line ending in '(<n>s · … · esc to cancel)' and the 'Enter to steer · Ctrl+Q to queue' footer shown while a turn runs are WORKING; the '>   Type your message or @path/to/file' input box is IDLE. The input box stays visible while Qwen works, so the idle rule vetoes on 'esc to cancel' and 'Enter to steer' and has the lowest priority; the approval rule anchors its patterns to the start of a line, because a transcript that quotes the dialog text must not read as a pending confirmation. The 'Connect a Provider' onboarding menu intentionally matches no rule. No rule depends on the alternate-screen flag.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": { "bottomNonEmptyLines": 20 },
+      "anyLineRegex": [
+        "^\\s*[│┃]?\\s*Allow execution of:",
+        "^\\s*[│┃]?\\s*Apply this change\\?",
+        "^\\s*[│┃]?\\s*Do you want to proceed\\?",
+        "^\\s*[│┃]?\\s*[›●○]?\\s*1\\.\\s*Yes, allow (once|always)",
+        "^\\s*[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\\s+Waiting for user confirmation\\.\\.\\."
+      ],
+      "notContains": ["esc to cancel)"]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": { "bottomNonEmptyLines": 8 },
+      "anyLineRegex": [
+        "^\\s*[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\\s+\\S.*\\(\\d+s\\b[^)]*esc to cancel\\)",
+        "^\\s*Enter to steer · Ctrl\\+Q to queue\\b"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": { "bottomNonEmptyLines": 6 },
+      "anyLineRegex": [
+        "^\\s*>\\s+Type your message or @path/to/file",
+        "^\\s*>\\s+\\S"
+      ],
+      "notContains": ["esc to cancel)", "Enter to steer"]
+    }
+  ]
+}

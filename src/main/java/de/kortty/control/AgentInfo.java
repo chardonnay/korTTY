@@ -19,7 +19,7 @@ import java.util.Objects;
  * @param windowId the window holding that tab
  * @param detected whether the registry holds an agent for the pane
  * @param kind the agent kind id ({@code claude-code}, {@code codex}, {@code gemini-cli},
- *     {@code minimax-code}), or null
+ *     {@code minimax-code}, {@code qwen-code}), or null
  * @param state the wire state ({@code blocked}, {@code working}, {@code done}, {@code idle},
  *     {@code unknown})
  * @param displayName the alias when set, otherwise the kind's display name

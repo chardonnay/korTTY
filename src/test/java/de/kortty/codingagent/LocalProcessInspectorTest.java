@@ -169,6 +169,20 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesQwenCodeByBinNameAndScopedPackage() {
+        // Homebrew's launcher as invoked through its shebang: node /opt/homebrew/bin/qwen
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/opt/node/bin/node",
+            List.of("/opt/homebrew/bin/qwen"), null)).hasValue(CodingAgentKind.QWEN_CODE);
+        // npm's global install, and the --expose-gc child the entry spawns on Windows and under Bun.
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/usr/lib/node_modules/@qwen-code/qwen-code/cli-entry.js"), null))
+            .hasValue(CodingAgentKind.QWEN_CODE);
+        assertThat(LocalProcessInspector.classify("C:\\Program Files\\nodejs\\node.exe",
+            List.of("--expose-gc", "C:\\Users\\jd\\AppData\\Roaming\\npm\\node_modules\\@qwen-code\\qwen-code\\cli.js"), null))
+            .hasValue(CodingAgentKind.QWEN_CODE);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

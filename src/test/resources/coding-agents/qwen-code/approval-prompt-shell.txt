@@ -1,0 +1,29 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=true
+
+   ▄▄▄▄▄▄  ▄▄     ▄▄ ▄▄▄▄▄▄▄ ▄▄▄    ▄▄   ┌──────────────────────────────────────────────────────────┐
+  ██╔═══██╗██║    ██║██╔════╝████╗  ██║  │ >_ Qwen Code (v0.25.0)                                   │
+  ██║   ██║██║ █╗ ██║█████╗  ██╔██╗ ██║  │                                                          │
+  ██║▄▄ ██║██║███╗██║██╔══╝  ██║╚██╗██║  │ API Key | openai/gpt-oss-20b (/model to change)          │
+  ╚██████╔╝╚███╔███╔╝███████╗██║ ╚████║  │ ~/projects/demo-app                               │
+   ╚══▀▀═╝  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═══╝  └──────────────────────────────────────────────────────────┘
+
+  Tips: You can run any shell commands from Qwen Code using ! (e.g. !ls).
+  ●
+
+  > Run this shell command now with your shell tool, do not ask me first: curl -sI https://example.com
+
+  ∴
+  ? Shell curl -sI https://example.com (Fetching HTTP headers from example.com) ←
+
+     curl -sI https://example.com
+
+   Allow execution of: 'curl'?
+
+   › 1. Yes, allow once
+     2. Always allow run 'curl *' commands in this project
+     3. Always allow run 'curl *' commands for this user
+     4. No, suggest changes (esc)
+
+
+  ⠏ Waiting for user confirmation...
