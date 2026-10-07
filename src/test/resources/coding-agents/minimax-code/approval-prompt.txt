@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+  │ Tips for getting started                                                                                         │
+  │ › Run /init to teach MCode this repo.                                                                            │
+  │ › Use /sessions to resume earlier work.                                                                          │
+  │ › Use @ for files; Ctrl+V for images.                                                                            │
+  ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ What's new · /changelog for history                                                                              │
+  │ › BYOK requests now apply byte limits to large media and accumulated history context, reducing failures caused … │
+  │ › Long conversations load their file list and history navigation with less data, making browsing them faster.    │
+  │ › Terminal errors from a failed run are cleared when the next run starts, so a successful retry no longer shows… │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+   › Use your shell tool to run exactly: curl -sI https://example.com and then also run: echo probe >
+     /Users/demo/.kortty-mcode-probe.txt
+
+
+  └ • Thought for 9.4s
+
+  ● I'll run both commands in a single shell call.
+
+  └ • Running  Run curl probe and write probe file
+
+
+  ╭─ ◆ Approval required ───────────────────────────────────────────────────────────────────────────────────── Bash ─╮
+  │ Run this command?                                                                                                │
+  │                                                                                                                  │
+  │   $ curl -sI https://example.com; echo "---"; echo probe > /Users/demo/.kortty-mcode-probe.txt && echo "probe  │
+  │     file written: $(ls -l /Users/demo/.kortty-mcode-probe.txt)"                                                │
+  │   Run curl probe and write probe file                                                                            │
+  │   Why · Needs confirmation: filesystem path is outside the workspace or configured allow paths. Path:            │
+  │   /Users/demo/.kortty-mcode-probe.txt                                                                          │
+  │                                                                                                                  │
+  │ › › 1 Allow for this conversation                                                                                │
+  │     MCode asks again in a new conversation                                                                       │
+  │   2 Always allow matching actions                                                                                │
+  │   3 Deny and guide MCode                                                                                         │
+  ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ↑/↓ choose · Enter confirm · Esc deny · Ctrl+C stop                                                              │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+  ~/projects/demo-app │ Ask │ ✦ M3 · Thinking On │ Context 1M

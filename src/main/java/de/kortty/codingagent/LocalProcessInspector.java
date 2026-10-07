@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -52,6 +53,10 @@ public final class LocalProcessInspector {
 
     /** npm scope directories under which the agents' packages are installed ({@code @scope/<kind-id>}). */
     private static final Set<String> AGENT_PACKAGE_SCOPES = Set.of("@anthropic-ai", "@openai", "@google");
+
+    /** Scoped npm packages whose package name is not the kind id ({@code @scope/name}, lower case). */
+    private static final Map<String, CodingAgentKind> AGENT_PACKAGES =
+        Map.of("@minimax-ai/code", CodingAgentKind.MINIMAX_CODE);
 
     public LocalProcessInspector() {
     }
@@ -137,7 +142,9 @@ public final class LocalProcessInspector {
      * {@code node_modules/<kind-id>}). Arguments are tried in order so interpreter sub-commands
      * ({@code deno run}) and value-taking flags ({@code -r dotenv/config}) are skipped naturally; a
      * plain directory that merely shares an agent's name ({@code ~/projects/gemini/server.js}) does
-     * not classify.
+     * not classify. (3) A script host that reports no script at all — a Node.js CLI that renamed itself
+     * via {@code process.title} wipes its arguments, as MiniMax Code does — is classified by its
+     * process title from {@code processTitle}, matched like a script path.
      *
      * @param command executable path as reported by {@link ProcessHandle.Info#command()}; when
      *     null the first token of {@code commandLine} is used
@@ -146,6 +153,17 @@ public final class LocalProcessInspector {
      * @return the kind, or empty for shells, unrelated scripts and null input; never throws
      */
     static Optional<CodingAgentKind> classify(String command, List<String> arguments, String commandLine) {
+        return classify(command, arguments, commandLine, Optional::empty);
+    }
+
+    /**
+     * {@link #classify(String, List, String)} with the process title as a last resort for a script host
+     * that reports no script argument.
+     *
+     * @param processTitle supplies the OS-reported process title; asked only in that case
+     */
+    static Optional<CodingAgentKind> classify(String command, List<String> arguments, String commandLine,
+                                              Supplier<Optional<String>> processTitle) {
         List<String> commandLineTokens = tokens(commandLine);
         String executable = command;
         if ((executable == null || executable.isBlank()) && !commandLineTokens.isEmpty()) {
@@ -173,6 +191,10 @@ public final class LocalProcessInspector {
             if (kind.isPresent()) {
                 return kind;
             }
+        }
+        if (candidates.stream().allMatch(argument -> argument == null || argument.isBlank())) {
+            // Linux pads a renamed process's argument area with NULs, which may surface as blank arguments.
+            return processTitle.get().flatMap(LocalProcessInspector::classifyScriptPath);
         }
         return Optional.empty();
     }
@@ -213,7 +235,7 @@ public final class LocalProcessInspector {
         }
         try {
             ProcessHandle.Info info = handle.info();
-            return classifyInfo(info).map(kind -> new AgentProcess(handle.pid(), kind,
+            return classifyInfo(handle, info).map(kind -> new AgentProcess(handle.pid(), kind,
                 info.command().orElse(UNKNOWN_COMMAND), info.startInstant().orElse(null)));
         } catch (RuntimeException e) {
             logger.debug("Cannot read process info: {}", e.toString());
@@ -225,16 +247,17 @@ public final class LocalProcessInspector {
 
     private static Optional<CodingAgentKind> classifyHandle(ProcessHandle handle) {
         try {
-            return classifyInfo(handle.info());
+            return classifyInfo(handle, handle.info());
         } catch (RuntimeException e) {
             logger.debug("Cannot classify process: {}", e.toString());
             return Optional.empty();
         }
     }
 
-    private static Optional<CodingAgentKind> classifyInfo(ProcessHandle.Info info) {
+    private static Optional<CodingAgentKind> classifyInfo(ProcessHandle handle, ProcessHandle.Info info) {
         List<String> arguments = info.arguments().map(List::of).orElse(List.of());
-        return classify(info.command().orElse(null), arguments, info.commandLine().orElse(null));
+        return classify(info.command().orElse(null), arguments, info.commandLine().orElse(null),
+            () -> ProcessTitles.titleOf(handle));
     }
 
     private static boolean isLiveAndAccepted(ProcessHandle handle, Predicate<ProcessHandle> accept) {
@@ -274,7 +297,8 @@ public final class LocalProcessInspector {
      * Classifies a script path: by its base name (executable name or kind id, so {@code .../bin/codex}
      * and {@code npm:@openai/codex} both work), otherwise by an agent package directory segment
      * ({@code <kind-id>} directly below an npm scope of {@link #AGENT_PACKAGE_SCOPES} or below
-     * {@code node_modules}). Any other directory named like an agent does not count.
+     * {@code node_modules}, or a scoped package of {@link #AGENT_PACKAGES}). Any other directory named
+     * like an agent does not count.
      */
     static Optional<CodingAgentKind> classifyScriptPath(String script) {
         if (script == null || script.isBlank()) {
@@ -289,6 +313,10 @@ public final class LocalProcessInspector {
         String[] segments = script.split("[/\\\\]+");
         for (int i = 1; i < segments.length; i++) {
             String parent = segments[i - 1].toLowerCase(Locale.ROOT);
+            CodingAgentKind scoped = AGENT_PACKAGES.get(parent + "/" + segments[i].toLowerCase(Locale.ROOT));
+            if (scoped != null) {
+                return Optional.of(scoped);
+            }
             if (!NODE_MODULES_SEGMENT.equals(parent) && !AGENT_PACKAGE_SCOPES.contains(parent)) {
                 continue;
             }

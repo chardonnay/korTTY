@@ -291,13 +291,14 @@ public final class McpToolCatalog {
             schema(props("window", string("Only the tabs of this window id.")), List.of()),
             false));
         tools.add(new McpTool("agent_list", "List coding agents", "agent.list",
-            "Lists the coding agents korTTY detected in its panes (Claude Code, Codex, Gemini CLI),"
+            "Lists the coding agents korTTY detected in its panes (Claude Code, Codex, Gemini CLI,"
+                + " MiniMax Code),"
                 + " most urgent first, with their state." + UNTRUSTED,
             schema(props(
                 "state", choice("Only agents in this state.", "blocked", "working", "done", "idle",
                     "unknown"),
-                "kind", string("Only agents of this kind, for example claude-code, codex or"
-                    + " gemini-cli."),
+                "kind", string("Only agents of this kind, for example claude-code, codex,"
+                    + " gemini-cli or minimax-code."),
                 "tab", string("Only the agents of this tab id."),
                 "window", string("Only the agents of this window id.")),
                 List.of()),

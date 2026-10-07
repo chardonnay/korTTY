@@ -1,0 +1,40 @@
+#! expect state=WORKING rule=working
+#! alt=false
+
+              ███╗   ███╗██╗███╗   ██╗██╗███╗   ███╗ █████╗ ██╗  ██╗     ██████╗ ██████╗ ██████╗ ███████╗
+              ████╗ ████║██║████╗  ██║██║████╗ ████║██╔══██╗╚██╗██╔╝    ██╔════╝██╔═══██╗██╔══██╗██╔════╝
+              ██╔████╔██║██║██╔██╗ ██║██║██╔████╔██║███████║ ╚███╔╝     ██║     ██║   ██║██║  ██║█████╗
+              ██║╚██╔╝██║██║██║╚██╗██║██║██║╚██╔╝██║██╔══██║ ██╔██╗     ██║     ██║   ██║██║  ██║██╔══╝
+              ██║ ╚═╝ ██║██║██║ ╚████║██║██║ ╚═╝ ██║██║  ██║██╔╝ ██╗    ╚██████╗╚██████╔╝██████╔╝███████╗
+              ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝     ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+
+  ╭─ v0.5.9 ─────────────────────────────────────────────────────────────────────────────────────────────── ● Ready ─╮
+  │ Tips for getting started                                                                                         │
+  │ › Run /init to teach MCode this repo.                                                                            │
+  │ › Use /sessions to resume earlier work.                                                                          │
+  │ › Use @ for files; Ctrl+V for images.                                                                            │
+  ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ What's new · /changelog for history                                                                              │
+  │ › BYOK requests now apply byte limits to large media and accumulated history context, reducing failures caused … │
+  │ › Long conversations load their file list and history navigation with less data, making browsing them faster.    │
+  │ › Terminal errors from a failed run are cleared when the next run starts, so a successful retry no longer shows… │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+   › Use your shell tool to run exactly: curl -sI https://example.com and then also run: echo probe >
+     /Users/demo/.kortty-mcode-probe.txt
+
+
+  └ • Thought for 9.4s
+
+  ● I'll run both commands in a single shell call.
+
+  └ × Command failed  Run curl probe and write probe file · 1 output line
+
+  × Denied · bash
+
+    ⠧ Loading 47s · ⚡ 33708 tok/s · Option+Enter queue · Enter steer · Ctrl+O details · Esc stop
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ›  Ask Mcode to do anything
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ~/projects/demo-app │ Ask │ ✦ M3 · Thinking On │ Context 1M

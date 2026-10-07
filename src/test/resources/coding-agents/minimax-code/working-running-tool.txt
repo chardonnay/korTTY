@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=working
+#! alt=false
+              ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝     ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+
+  ╭─ v0.5.9 ─────────────────────────────────────────────────────────────────────────────────────────────── ● Ready ─╮
+  │ Tips for getting started                                                                                         │
+  │ › Use /history to review and branch from earlier prompts.                                                        │
+  │ › Use @ for files; Ctrl+V for images.                                                                            │
+  │ › Use /sessions to resume earlier work.                                                                          │
+  ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ What's new · /changelog for history                                                                              │
+  │ › Long conversations load their file list and history navigation with less data, making browsing them faster.    │
+  │ › BYOK requests now apply byte limits to large media and accumulated history context, reducing failures caused … │
+  │ › Editing and rewinding a message now works after an interrupt that left only a background reminder behind.      │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+   › Create a file named hello4.txt containing the word hi using your shell tool (echo hi > hello4.txt).
+
+
+  └ • Thought for 2.3s
+
+  ● I'll create the file as requested.
+
+  ├ • Ran  Create hello4.txt with content "hi" · 1 output line
+  ├ • Thought for 0.0s
+  ├ • Ran  Verify hello4.txt contents · 1 output line
+  └ • Thought for 0.0s
+
+  ● Done. Created hello4.txt in the working directory with the content hi.
+
+    Created  hello4.txt ↗  ·  hello4.txt containing 'hi'
+
+
+   › Create a file named hello4.txt containing the word hi using your shell tool (echo hi > hello4.txt).
+
+
+    ⠦ Loading · Option+Enter queue · Enter steer · Ctrl+O details · Esc stop
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ›  Ask Mcode to do anything
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  …/demo-app │ ◇ Create hello4.txt with hi │ Ask │ ✦ M3 · Thinking On │ Context 98% left

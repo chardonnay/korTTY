@@ -4,19 +4,20 @@ title: Coding-Agents
 
 # Coding-Agents
 
-korTTY erkennt, wenn ein terminalbasierter Coding-Agent – **Claude Code**, **Codex** oder **Gemini CLI** – innerhalb eines Ihrer [lokalen Shell-Tabs](terminal.md#lokale-shell-registerkarten) läuft und verfolgt, was er derzeit tut: Arbeitet, wartet auf Ihre Antwort, ist abgeschlossen oder sitzt untätig an seinem Prompt. Die Analyse erfolgt vollständig innerhalb von korTTY auf Ihrem eigenen Gerät. Was gefunden wird, wird überall angezeigt: als Symbol im Tab-Titel, als Chips und Akzente im Dashboard, in einem anziehbaren **Coding-Agents**-Panel mit schnellen Antworten und einem Prompt-Feld, als Balken in der Statusleiste, als Zähler auf der App-Icon und, wenn Sie den Pane nicht betrachten, als Desktop-Benachrichtigung. Diese Seite erklärt, was erkannt wird, wie jede dieser Oberflächen funktioniert, wie die Funktionen deaktiviert werden können und wie die Bildschirmregeln angepasst oder erweitert werden können, wenn ein Agent seine Benutzeroberfläche ändert.
+korTTY erkennt, wenn ein terminalbasierter Coding-Agent – **Claude Code**, **Codex**, **Gemini CLI** oder **MiniMax Code** – innerhalb eines Ihrer [lokalen Shell-Tabs](terminal.md#lokale-shell-registerkarten) läuft und verfolgt, was er derzeit tut: Arbeitet, wartet auf Ihre Antwort, ist abgeschlossen oder sitzt untätig an seinem Prompt. Die Analyse erfolgt vollständig innerhalb von korTTY auf Ihrem eigenen Gerät. Was gefunden wird, wird überall angezeigt: als Symbol im Tab-Titel, als Chips und Akzente im Dashboard, in einem anziehbaren **Coding-Agents**-Panel mit schnellen Antworten und einem Prompt-Feld, als Balken in der Statusleiste, als Zähler auf der App-Icon und, wenn Sie den Pane nicht betrachten, als Desktop-Benachrichtigung. Diese Seite erklärt, was erkannt wird, wie jede dieser Oberflächen funktioniert, wie die Funktionen deaktiviert werden können und wie die Bildschirmregeln angepasst oder erweitert werden können, wenn ein Agent seine Benutzeroberfläche ändert.
 
 ![Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier](../assets/diagrams/coding-agents.svg)
 
 ## Was erkannt wird
 
-Die Erkennung umfasst die drei unten aufgeführten Agents, gestartet aus einer **Lokale Shell**-Registerkarte – direkt, über einen Paketmanager-Wrapper wie `npx` oder als `node`-, `bun`- oder `deno`-Skript. SSH- und Mosh-Registerkarten werden nicht analysiert, weil der Agent dort auf dem entfernten Rechner läuft und korTTY seinen Prozess nicht sehen kann; ein Agent auf einem Server kann Ihnen trotzdem mit einer Terminal-Benachrichtigung mitteilen, dass er auf Sie wartet, siehe [Benachrichtigungen von Programmen](terminal-notifications.md#benachrichtigungen-von-programmen).
+Die Erkennung umfasst die vier unten aufgeführten Agents, gestartet aus einer **Lokale Shell**-Registerkarte – direkt, über einen Paketmanager-Wrapper wie `npx` oder als `node`-, `bun`- oder `deno`-Skript. SSH- und Mosh-Registerkarten werden nicht analysiert, weil der Agent dort auf dem entfernten Rechner läuft und korTTY seinen Prozess nicht sehen kann; ein Agent auf einem Server kann Ihnen trotzdem mit einer Terminal-Benachrichtigung mitteilen, dass er auf Sie wartet, siehe [Benachrichtigungen von Programmen](terminal-notifications.md#benachrichtigungen-von-programmen).
 
 | Agent | Erkannte ausführbare Dateien |
 |-------|------------------------|
 | Claude Code | `claude`, `claude-code` |
 | Codex | `codex` |
 | Gemini CLI | `gemini` |
+| MiniMax Code | `mcode` (der laufende Agent benennt seinen Prozess in `minimax-code` um; korTTY liest diesen Prozessnamen, wenn `node` kein Skript meldet) |
 
 Jeder geteilte Bereich wird einzeln verfolgt, sodass eine Registerkarte mit zwei Bereichen einen arbeitenden Agent zeigen kann, während der andere auf eine Berechtigungsentscheidung wartet. Ein Bereich, in dem kein Agent läuft oder dessen Agent beendet wurde, hat einfach kein Erkennungsergebnis.
 
@@ -50,7 +51,7 @@ Das Panel listet jeden erkannten Agent aller korTTY-Fenster an einer Stelle. Öf
 
 Jede Zeile zeigt den Zustandspunkt und den Namen, einen Zustandschip wie `✋ Waiting for you · 2:14`, die Positionslinie (`Window 2 › api › Pane 2 · ~/proj/api`) und die letzte Bildschirmzeile, die einer Regel entspricht – das Beweismaterial. Unten befinden sich die **Schnelltasten**: **Fokussieren** bringt das Fenster an die Vorderseite, **y**, **n**, **Enter** und **Esc** beantworten ein Dialogfeld (sie werden hervorgehoben, während der Agent auf Ihre Eingabe wartet), **↑** und **↓** navigieren durch eine Frage-Auswahl, **Ctrl+C** unterbricht die Aktion, **Erklären** öffnet ein Fenster mit der vollständigen Erkennungserklärung (Agent, Zustand, passende Regel, Beweismaterial, Prozess und Zeit im Zustand), und **Umbenennen…** gibt dem Agenten einen Alias, der seinen Namen in allen Chips, Zeilen und Benachrichtigungen ersetzt – ein leerer Alias restauriert den ursprünglichen Agentennamen, und der Alias bleibt bei Wiederherstellung der Verbindung, wird aber beim Schließen des Fensters gelöscht. Jede Taste wird an die Terminalverbindung des Fensters weitergeleitet, genau wie, als hätten Sie sie dort eingegeben; die Schaltflächen sind deaktiviert, solange das Fenster nicht verbunden ist.
 
-Das **Prompt-Feld** unten sendet längeren Text an den in der Zielliste ausgewählten Agent: ++enter++ sendet, ++shift+enter++ fügt einen Zeilenumbruch ein. Eine einzelne Zeile wird gefolgt von Enter gesendet. Ein mehrzeiliger Prompt wird in Bracketed Paste eingebettet – der Agent erhält ihn so als einen eingefügten Block statt als mehrere abgeschickte Zeilen –, aber nur, wenn dieser Agent Bracketed Paste eingeschaltet hat, was Claude Code, Codex und Gemini CLI an ihrer Eingabeaufforderung alle tun; andernfalls werden die Zeilen wie getippt gesendet. Bracketed-Paste-Marker im Prompt-Text selbst (`ESC[200~`, `ESC[201~` und ihre 8-Bit-Formen) werden vor dem Senden entfernt, sodass ein Prompt den Paste nie vorzeitig beenden und seine restlichen Zeilen einzeln abschicken kann. Zwei Prompts werden mit einer Meldung in der Statuszeile des Panels abgelehnt, statt gesendet zu werden: Solange der Agent **auf eine Entscheidung wartet**, bleibt die Schaltfläche *Senden* deaktiviert, weil der Text im Berechtigungsdialog landen würde – beantworten Sie ihn zuerst mit y, n, Enter oder Esc; und ein Prompt, dessen erste Zeile mit **korTTYs eigenem KI-Kürzel** beginnt (dem unter Einstellungen → KI konfigurierten Befehlsnamen, standardmäßig `agent`), wird zurückgewiesen, weil korTTYs Kürzelfilter diese Zeile an seinen eigenen KI-Agent statt an den Coding-Agent umleiten würde – formulieren Sie die Zeile um. Fehler einer Schnelltaste oder eines Prompts (Bereich geschlossen, nicht verbunden, Schreiben fehlgeschlagen) erscheinen für einige Sekunden in derselben Statuszeile, nie als Dialog, und ein erfolgreicher Versand bestätigt mit *An Claude Code gesendet*.
+Das **Prompt-Feld** unten sendet längeren Text an den in der Zielliste ausgewählten Agent: ++enter++ sendet, ++shift+enter++ fügt einen Zeilenumbruch ein. Eine einzelne Zeile wird gefolgt von Enter gesendet. Ein mehrzeiliger Prompt wird in Bracketed Paste eingebettet – der Agent erhält ihn so als einen eingefügten Block statt als mehrere abgeschickte Zeilen –, aber nur, wenn dieser Agent Bracketed Paste eingeschaltet hat, was Claude Code, Codex, Gemini CLI und MiniMax Code an ihrer Eingabeaufforderung alle tun; andernfalls werden die Zeilen wie getippt gesendet. Bracketed-Paste-Marker im Prompt-Text selbst (`ESC[200~`, `ESC[201~` und ihre 8-Bit-Formen) werden vor dem Senden entfernt, sodass ein Prompt den Paste nie vorzeitig beenden und seine restlichen Zeilen einzeln abschicken kann. Zwei Prompts werden mit einer Meldung in der Statuszeile des Panels abgelehnt, statt gesendet zu werden: Solange der Agent **auf eine Entscheidung wartet**, bleibt die Schaltfläche *Senden* deaktiviert, weil der Text im Berechtigungsdialog landen würde – beantworten Sie ihn zuerst mit y, n, Enter oder Esc; und ein Prompt, dessen erste Zeile mit **korTTYs eigenem KI-Kürzel** beginnt (dem unter Einstellungen → KI konfigurierten Befehlsnamen, standardmäßig `agent`), wird zurückgewiesen, weil korTTYs Kürzelfilter diese Zeile an seinen eigenen KI-Agent statt an den Coding-Agent umleiten würde – formulieren Sie die Zeile um. Fehler einer Schnelltaste oder eines Prompts (Bereich geschlossen, nicht verbunden, Schreiben fehlgeschlagen) erscheinen für einige Sekunden in derselben Statuszeile, nie als Dialog, und ein erfolgreicher Versand bestätigt mit *An Claude Code gesendet*.
 
 Die Schaltfläche **Nächster wartender** in der Kopfzeile des Panels springt zum nächsten Agent, der auf Sie wartet, über alle Fenster hinweg und mit Umlauf; es ist dieselbe Aktion wie ++ctrl+alt+n++ und ein Klick auf den Statusstreifen.
 
@@ -96,7 +97,7 @@ Die Erkennung ist standardmäßig eingeschaltet und wird über drei Schalter unt
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Coding-Agents (Claude Code, Codex, Gemini CLI) in lokalen Shell-Tabs erkennen | Schalter | — | Ein | `codingAgentDetectionEnabled` |
+| Coding-Agents (Claude Code, Codex, Gemini CLI, MiniMax Code) in lokalen Shell-Tabs erkennen | Schalter | — | Ein | `codingAgentDetectionEnabled` |
 | Desktop-Benachrichtigung, wenn ein Coding-Agent eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen | Schalter | — | Ein | `codingAgentNotificationsEnabled` |
 | Anzahl der auf eine Entscheidung wartenden Agents am App-Symbol anzeigen | Schalter | — | Ein | `codingAgentAppBadgeEnabled` |
 
@@ -110,6 +111,7 @@ Die Bildschirmregeln jedes Agents liegen in einer kleinen JSON-Datei. KorTTY lie
 ~/.kortty/coding-agents/claude-code.json
 ~/.kortty/coding-agents/codex.json
 ~/.kortty/coding-agents/gemini-cli.json
+~/.kortty/coding-agents/minimax-code.json
 ```
 
 Eine Überschreibung ersetzt die mitgelieferte Datei für diesen Agent **als Ganzes** – es gibt kein Zusammenführen, beginnen Sie also mit der mitgelieferten Datei und bearbeiten Sie sie. Die Datei muss eine reguläre Datei sein (symbolischen Links wird nicht gefolgt), und ihr `kind` muss zum Dateinamen passen. Eine ungültige Datei – fehlerhaftes JSON, ein unbekannter Schlüssel, ein fehlerhafter regulärer Ausdruck, eine doppelte Regel-ID oder eine Regel ohne jede Bedingung – wird mit einer Warnung im Protokoll ignoriert, und die mitgelieferten Regeln bleiben in Kraft, sodass ein Tippfehler die Erkennung nie stillschweigend abschalten kann. Regeldateien werden beim Start gelesen; starten Sie korTTY nach dem Bearbeiten einer Datei neu.
@@ -120,7 +122,7 @@ Das Schema ist strikt: Jeder hier nicht aufgeführte Schlüssel ist ein Fehler, 
 
 ```json
 {
-  "kind": "CLAUDE_CODE | CODEX | GEMINI_CLI",
+  "kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE",
   "version": 1,
   "comment": "optional free text, e.g. the agent version the rules were written against",
   "fallbackState": "IDLE | WORKING | BLOCKED | DONE | UNKNOWN (optional, default IDLE)",
@@ -143,7 +145,7 @@ Das Schema ist strikt: Jeder hier nicht aufgeführte Schlüssel ist ein Fehler, 
 
 | Feld | Erforderlich | Bedeutung |
 |-------|----------|---------|
-| `kind` | ja | Der Agent, den diese Datei beschreibt; muss zum Dateinamen passen (`claude-code`, `codex`, `gemini-cli`). |
+| `kind` | ja | Der Agent, den diese Datei beschreibt; muss zum Dateinamen passen (`claude-code`, `codex`, `gemini-cli`, `minimax-code`). |
 | `version` | ja | Schemaversion; derzeit immer `1`. |
 | `comment` | nein | Freitext für eigene Notizen, zum Beispiel gegen welche Agent-Version die Regeln geprüft wurden. |
 | `fallbackState` | nein | Zustand, der gemeldet wird, solange der Agent-Prozess vorhanden ist, aber keine Regel passt. Standard ist `IDLE`; `UNKNOWN` macht die Erkennung strenger. |
@@ -229,7 +231,7 @@ Die beiden BLOCKED-Regeln kombinieren ein zeilenweises Muster mit einem `regex` 
 
 Agents ändern ihre Oberflächen häufig, und eine Regel, die letzten Monat gepasst hat, kann nach einem Update stillschweigend nicht mehr passen. Die mitgelieferten Regeln von KorTTY sind deshalb durch **Bildschirm-Fixtures** abgesichert: Für jeden Agent bewahrt das Repository aufgezeichnete Terminalbildschirme mit dem Zustand und der Regel auf, die sie liefern müssen, und die Testsuite schlägt fehl, sobald eine mitgelieferte Regel nicht mehr zu ihrem Fixture passt oder eine Regel gar kein Fixture hat. Wenn Ihnen ein falscher oder fehlender Zustand auffällt, ist der nützlichste Bericht der sichtbare Bildschirmtext des Bereichs in diesem Moment, der Agent samt Version und der von Ihnen erwartete Zustand – daraus werden im nächsten Release ein neues Fixture und eine Regelkorrektur. Bis dahin können Sie die Regel mit einer lokalen Überschreibungsdatei sofort für sich selbst korrigieren.
 
-Das Repository liefert genau dafür einen Recorder mit: `scripts/capture-coding-agent-fixtures.py` führt einen Agent in einem Pseudo-Terminal aus und reicht Ihre Tastatur durch, sodass sich die Sitzung wie ein normales Terminal verhält. Drücken Sie ++f12++ in jedem interessanten Moment – beim Berechtigungsdialog, beim Spinner, bei der leeren Eingabeaufforderung –, und der sichtbare Bildschirm wird in eine Fixture-Datei geschrieben; ++ctrl+bracket-right++ beendet die Aufzeichnung. Jede Datei beginnt mit einer Zeile `#! expect state=REVIEW rule=REVIEW`: Tragen Sie dort den erwarteten Zustand und die Regel-ID ein und legen Sie die Datei unter `src/test/resources/coding-agents/<kind>/` ab (`claude-code`, `codex` oder `gemini-cli`). Von da an sichert die Testsuite die Regel gegen diesen Bildschirm, und eine Regeländerung, die ihn brechen würde, fällt vor dem Release auf.
+Das Repository liefert genau dafür einen Recorder mit: `scripts/capture-coding-agent-fixtures.py` führt einen Agent in einem Pseudo-Terminal aus und reicht Ihre Tastatur durch, sodass sich die Sitzung wie ein normales Terminal verhält. Drücken Sie ++f12++ in jedem interessanten Moment – beim Berechtigungsdialog, beim Spinner, bei der leeren Eingabeaufforderung –, und der sichtbare Bildschirm wird in eine Fixture-Datei geschrieben; ++ctrl+bracket-right++ beendet die Aufzeichnung. Jede Datei beginnt mit einer Zeile `#! expect state=REVIEW rule=REVIEW`: Tragen Sie dort den erwarteten Zustand und die Regel-ID ein und legen Sie die Datei unter `src/test/resources/coding-agents/<kind>/` ab (`claude-code`, `codex`, `gemini-cli` oder `minimax-code`). Von da an sichert die Testsuite die Regel gegen diesen Bildschirm, und eine Regeländerung, die ihn brechen würde, fällt vor dem Release auf.
 
 ## Agents per Skript steuern
 

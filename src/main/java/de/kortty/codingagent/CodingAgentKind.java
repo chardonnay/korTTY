@@ -12,6 +12,8 @@ public enum CodingAgentKind {
     CLAUDE_CODE("Claude Code", "claude-code", Set.of("claude", "claude-code")),
     CODEX("Codex", "codex", Set.of("codex")),
     GEMINI_CLI("Gemini CLI", "gemini-cli", Set.of("gemini")),
+    /** {@code mcode}; the running agent renames its process to {@code minimax-code} (its process title). */
+    MINIMAX_CODE("MiniMax Code", "minimax-code", Set.of("mcode", "minimax-code")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;
