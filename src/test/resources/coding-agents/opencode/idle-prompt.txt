@@ -1,0 +1,41 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+   Listing directory contents wi + New session
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                          ▄
+                                         █▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+                                         █  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
+                                         ▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+
+
+                       ┃
+                       ┃  Ask anything… "Fix a TODO in the codebase"
+                       ┃
+                       ┃  Build · gpt-oss-20b LM Studio (LAN)
+                       ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                       ~/projects/demo-app  shift+tab agents  ctrl+p commands
+
+
+
+
+
+
+
+
+
+
+
+                                                                                                                2.0.20

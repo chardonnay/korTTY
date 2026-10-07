@@ -15,6 +15,8 @@ public enum CodingAgentKind {
     /** {@code mcode}; the running agent renames its process to {@code minimax-code} (its process title). */
     MINIMAX_CODE("MiniMax Code", "minimax-code", Set.of("mcode", "minimax-code")),
     QWEN_CODE("Qwen Code", "qwen-code", Set.of("qwen", "qwen-code")),
+    /** A native (Bun-compiled) binary; npm's {@code opencode-ai} wrapper and its platform package name it the same. */
+    OPENCODE("OpenCode", "opencode", Set.of("opencode")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

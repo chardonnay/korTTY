@@ -1,0 +1,41 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=true
+   Listing directory contents wi ! Listing directory contents wi +
+
+  ┃
+  ┃  Use your bash tool to run exactly: ls -la
+  ┃
+
+     + Thought · 821ms
+
+  ┃
+  ┃  ⠏ ls -la
+  ┃
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ┃
+  ┃  △ Permission required
+  ┃
+  ┃  $ ls -la
+  ┃
+  ┃
+  ┃   Allow once   Always allow   Reject                                 ctrl+f fullscreen  ⇆ select  enter confirm
+  ┃

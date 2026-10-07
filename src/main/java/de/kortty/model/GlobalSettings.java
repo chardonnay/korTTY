@@ -227,7 +227,7 @@ public class GlobalSettings {
     private boolean terminalRecordingCaptureColorsEnabled = false;
 
     @XmlElement
-    private boolean codingAgentDetectionEnabled = true; // Detect Claude Code / Codex / Gemini CLI / MiniMax Code / Qwen Code in local shell panes
+    private boolean codingAgentDetectionEnabled = true; // Detect Claude Code / Codex / Gemini CLI / MiniMax Code / Qwen Code / OpenCode in local shell panes
 
     /** Desktop notification when a coding agent becomes BLOCKED or finishes in a pane the user is not looking at. */
     @XmlElement

@@ -1,0 +1,41 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=true
+   Listing directory contents wi ! Listing directory contents wi +
+
+  ┃
+  ┃  Use your bash tool to run exactly: ls -la
+  ┃
+
+     + Thought · 821ms
+
+  ┃
+  ┃  $ ls -la
+  ┃
+  ┃  total 0
+  ┃  drwxr-xr-x@  2 demo    staff   64 Oct  8 00:28 .
+  ┃  drwxr-xr-x@ 16 demo    staff  512 Oct  8 00:33 ..
+  ┃
+
+     The current directory is empty (only . and ..). No files are present.
+
+     Build · gpt-oss-20b · 34.2s · 14.0 tok/s
+
+  ┃
+  ┃  Use your bash tool to run exactly: curl -sI https://example.com
+  ┃
+
+     + Thought · 784ms
+
+  ┃
+  ┃  ⠙ curl -sI https://example.com
+  ┃
+
+
+  ┃
+  ┃  △ Permission required
+  ┃
+  ┃  $ curl -sI https://example.com
+  ┃
+  ┃
+  ┃   Allow once   Always allow   Reject                                 ctrl+f fullscreen  ⇆ select  enter confirm
+  ┃

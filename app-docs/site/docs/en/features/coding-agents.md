@@ -4,13 +4,13 @@ title: Coding agents
 
 # Coding agents
 
-KorTTY recognises when a terminal-based coding agent — **Claude Code**, **Codex**, **Gemini CLI**, **MiniMax Code** or **Qwen Code** — is running inside one of your [local shell tabs](terminal.md#local-shell-tabs) and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable **Coding Agents** panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.
+KorTTY recognises when a terminal-based coding agent — **Claude Code**, **Codex**, **Gemini CLI**, **MiniMax Code**, **Qwen Code** or **OpenCode** — is running inside one of your [local shell tabs](terminal.md#local-shell-tabs) and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable **Coding Agents** panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.
 
 ![Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier](../assets/diagrams/coding-agents.svg)
 
 ## What it detects
 
-Detection covers the five agents below, started from a **Local Shell** tab — directly, through a package-manager wrapper such as `npx`, or as a `node`, `bun` or `deno` script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process; an agent on a server can still tell you that it waits for you with a terminal notification, see [Notifications from programs](terminal-notifications.md#notifications-from-programs).
+Detection covers the six agents below, started from a **Local Shell** tab — directly, through a package-manager wrapper such as `npx`, or as a `node`, `bun` or `deno` script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process; an agent on a server can still tell you that it waits for you with a terminal notification, see [Notifications from programs](terminal-notifications.md#notifications-from-programs).
 
 | Agent | Recognised executables |
 |-------|------------------------|
@@ -19,6 +19,7 @@ Detection covers the five agents below, started from a **Local Shell** tab — d
 | Gemini CLI | `gemini` |
 | MiniMax Code | `mcode` (the running agent renames its process to `minimax-code`; korTTY reads that process title when `node` reports no script) |
 | Qwen Code | `qwen` |
+| OpenCode | `opencode` |
 
 Every split pane is tracked on its own, so a tab with two panes can show one agent working while the other waits for a permission decision. A pane that runs no agent, or whose agent has exited, simply has no detection result.
 
@@ -52,7 +53,7 @@ The panel lists every detected agent of every korTTY window in one place. Open i
 
 Every row shows the state dot and name, a state chip such as `✋ Waiting for you · 2:14`, the location line (`Window 2 › api › Pane 2 · ~/proj/api`) and the last screen line that matched a rule — the evidence. Below them sit the **quick keys**: **Focus** brings the pane to the front, **y**, **n**, **Enter** and **Esc** answer a dialog (they are highlighted while the agent waits for you), **↑** and **↓** move through a question picker, **Ctrl+C** interrupts, **Explain** opens a drawer with the full detection explanation (agent, state, matching rule, evidence, process and time in state), and **Rename…** gives the agent an alias that replaces its name in every chip, row and notification — an empty alias restores the agent name, and the alias survives a reconnect but is dropped when the pane closes. Every key goes to the pane's own terminal connection, exactly as if you had typed it there; the buttons are disabled while the pane is not connected.
 
-The **prompt box** at the bottom sends longer text to the agent selected in the target list: ++enter++ sends, ++shift+enter++ inserts a line break. A single line is sent followed by Enter. A multi-line prompt is wrapped in bracketed paste — so the agent receives it as one pasted block instead of several submitted lines — but only when that agent has switched bracketed paste on, which Claude Code, Codex, Gemini CLI, MiniMax Code and Qwen Code all do at their prompt; otherwise the lines are sent as typed. Bracketed-paste markers inside the prompt text itself (`ESC[200~`, `ESC[201~` and their 8-bit forms) are removed before sending, so a prompt can never end the paste early and have its remaining lines submitted one by one. Two prompts are refused with a message in the panel's status line instead of being sent: while the agent is **waiting for a decision** the *Send* button stays disabled, because the text would land inside the permission dialog — answer it with y, n, Enter or Esc first; and a prompt whose first line starts with **korTTY's own AI shortcut** (the command name configured under Settings → AI, `agent` by default) is rejected, because korTTY's shortcut filter would divert that line to its own AI agent instead of the coding agent — rephrase the line. Errors of a quick key or prompt (pane closed, not connected, write failed) appear in the same status line for a few seconds, never as a dialog, and a successful send confirms with *Sent to Claude Code*.
+The **prompt box** at the bottom sends longer text to the agent selected in the target list: ++enter++ sends, ++shift+enter++ inserts a line break. A single line is sent followed by Enter. A multi-line prompt is wrapped in bracketed paste — so the agent receives it as one pasted block instead of several submitted lines — but only when that agent has switched bracketed paste on, which Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code and OpenCode all do at their prompt; otherwise the lines are sent as typed. Bracketed-paste markers inside the prompt text itself (`ESC[200~`, `ESC[201~` and their 8-bit forms) are removed before sending, so a prompt can never end the paste early and have its remaining lines submitted one by one. Two prompts are refused with a message in the panel's status line instead of being sent: while the agent is **waiting for a decision** the *Send* button stays disabled, because the text would land inside the permission dialog — answer it with y, n, Enter or Esc first; and a prompt whose first line starts with **korTTY's own AI shortcut** (the command name configured under Settings → AI, `agent` by default) is rejected, because korTTY's shortcut filter would divert that line to its own AI agent instead of the coding agent — rephrase the line. Errors of a quick key or prompt (pane closed, not connected, write failed) appear in the same status line for a few seconds, never as a dialog, and a successful send confirms with *Sent to Claude Code*.
 
 The **Next blocked** button in the panel header jumps to the next agent that waits for you, across all windows and wrapping around; it is the same action as ++ctrl+alt+n++ and a click on the status strip.
 
@@ -98,7 +99,7 @@ Detection is on by default and is controlled by three toggles in **Settings → 
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
-| Detect coding agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code) in local shell tabs | toggle | — | On | `codingAgentDetectionEnabled` |
+| Detect coding agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode) in local shell tabs | toggle | — | On | `codingAgentDetectionEnabled` |
 | Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane | toggle | — | On | `codingAgentNotificationsEnabled` |
 | Show the number of agents waiting for a decision on the app icon | toggle | — | On | `codingAgentAppBadgeEnabled` |
 
@@ -114,6 +115,7 @@ Each agent's screen rules live in a small JSON file. KorTTY ships one bundled fi
 ~/.kortty/coding-agents/gemini-cli.json
 ~/.kortty/coding-agents/minimax-code.json
 ~/.kortty/coding-agents/qwen-code.json
+~/.kortty/coding-agents/opencode.json
 ```
 
 An override replaces the bundled file for that agent **as a whole** — there is no merging, so start from the bundled file and edit it. The file must be a regular file (symbolic links are not followed), and its `kind` must match the file name. An invalid file — malformed JSON, an unknown key, a bad regular expression, a duplicate rule id, or a rule without any condition — is ignored with a warning in the log and the bundled rules stay in effect, so a typo can never silently disable detection. Rule files are read at startup; restart korTTY after editing one.
@@ -124,7 +126,7 @@ The schema is strict: every key not listed here is an error, so misspelt keys ar
 
 ```json
 {
-  "kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE",
+  "kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE",
   "version": 1,
   "comment": "optional free text, e.g. the agent version the rules were written against",
   "fallbackState": "IDLE | WORKING | BLOCKED | DONE | UNKNOWN (optional, default IDLE)",
@@ -147,7 +149,7 @@ The schema is strict: every key not listed here is an error, so misspelt keys ar
 
 | Field | Required | Meaning |
 |-------|----------|---------|
-| `kind` | yes | The agent this file describes; must match the file name (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`). |
+| `kind` | yes | The agent this file describes; must match the file name (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`). |
 | `version` | yes | Schema version; currently always `1`. |
 | `comment` | no | Free text for your own notes, for example which agent version the rules were verified against. |
 | `fallbackState` | no | State reported while the agent process is present but no rule matches. Defaults to `IDLE`; `UNKNOWN` makes detection stricter. |
@@ -233,7 +235,7 @@ The two BLOCKED rules combine a per-line pattern with a whole-region `regex`, so
 
 Agents change their interfaces often, and a rule that matched last month may silently stop matching after an update. KorTTY's bundled rules are therefore pinned by **screen fixtures**: for every agent, the repository keeps captured terminal screens with the state and rule they must produce, and the test suite fails as soon as a bundled rule no longer matches its fixture or a rule has no fixture at all. When you notice a wrong or missing state, the most useful report is the visible screen text of the pane at that moment, the agent and its version, and the state you expected — it becomes a new fixture and a rule fix in the next release. Until then, a local override file lets you correct the rule for yourself immediately.
 
-The repository ships a recorder for exactly this purpose: `scripts/capture-coding-agent-fixtures.py` runs an agent inside a pseudo-terminal and passes your keyboard through, so the session behaves like a normal terminal. Press ++f12++ at every interesting moment — the permission dialog, the spinner, the empty prompt — and the visible screen is written to a fixture file; ++ctrl+bracket-right++ stops the recording. Each file starts with a `#! expect state=REVIEW rule=REVIEW` line: set the state and rule id you expect there, and drop the file into `src/test/resources/coding-agents/<kind>/` (`claude-code`, `codex`, `gemini-cli`, `minimax-code` or `qwen-code`). From then on the test suite guards the rule against that screen, and a rule change that would break it is caught before release.
+The repository ships a recorder for exactly this purpose: `scripts/capture-coding-agent-fixtures.py` runs an agent inside a pseudo-terminal and passes your keyboard through, so the session behaves like a normal terminal. Press ++f12++ at every interesting moment — the permission dialog, the spinner, the empty prompt — and the visible screen is written to a fixture file; ++ctrl+bracket-right++ stops the recording. Each file starts with a `#! expect state=REVIEW rule=REVIEW` line: set the state and rule id you expect there, and drop the file into `src/test/resources/coding-agents/<kind>/` (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code` or `opencode`). From then on the test suite guards the rule against that screen, and a rule change that would break it is caught before release.
 
 ## Driving agents from a script
 

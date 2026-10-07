@@ -16,6 +16,7 @@ class CodingAgentKindTest {
         assertThat(CodingAgentKind.forExecutable("mcode")).hasValue(CodingAgentKind.MINIMAX_CODE);
         assertThat(CodingAgentKind.forExecutable("minimax-code")).hasValue(CodingAgentKind.MINIMAX_CODE);
         assertThat(CodingAgentKind.forExecutable("qwen")).hasValue(CodingAgentKind.QWEN_CODE);
+        assertThat(CodingAgentKind.forExecutable("opencode")).hasValue(CodingAgentKind.OPENCODE);
     }
 
     @Test
@@ -41,6 +42,7 @@ class CodingAgentKindTest {
         assertThat(CodingAgentKind.forId("gemini-cli")).hasValue(CodingAgentKind.GEMINI_CLI);
         assertThat(CodingAgentKind.forId("minimax-code")).hasValue(CodingAgentKind.MINIMAX_CODE);
         assertThat(CodingAgentKind.forId("qwen-code")).hasValue(CodingAgentKind.QWEN_CODE);
+        assertThat(CodingAgentKind.forId("opencode")).hasValue(CodingAgentKind.OPENCODE);
         assertThat(CodingAgentKind.forId("unknown")).isEmpty();
         assertThat(CodingAgentKind.forId(null)).isEmpty();
     }
