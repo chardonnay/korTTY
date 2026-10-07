@@ -1,0 +1,31 @@
+#! expect state=WORKING rule=working
+#! alt=false
+
+              ███╗   ███╗██╗███╗   ██╗██╗███╗   ███╗ █████╗ ██╗  ██╗     ██████╗ ██████╗ ██████╗ ███████╗
+              ████╗ ████║██║████╗  ██║██║████╗ ████║██╔══██╗╚██╗██╔╝    ██╔════╝██╔═══██╗██╔══██╗██╔════╝
+              ██╔████╔██║██║██╔██╗ ██║██║██╔████╔██║███████║ ╚███╔╝     ██║     ██║   ██║██║  ██║█████╗
+              ██║╚██╔╝██║██║██║╚██╗██║██║██║╚██╔╝██║██╔══██║ ██╔██╗     ██║     ██║   ██║██║  ██║██╔══╝
+              ██║ ╚═╝ ██║██║██║ ╚████║██║██║ ╚═╝ ██║██║  ██║██╔╝ ██╗    ╚██████╗╚██████╔╝██████╔╝███████╗
+              ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝     ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+
+  ╭─ v0.5.9 ─────────────────────────────────────────────────────────────────────────────────────────────── ● Ready ─╮
+  │ Tips for getting started                                                                                         │
+  │ › Use /plan before a change that needs design or investigation.                                                  │
+  │ › /checkin claims the daily reward.                                                                              │
+  │ › Run /init to teach MCode this repo.                                                                            │
+  ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ What's new · /changelog for history                                                                              │
+  │ › Terminal errors from a failed run are cleared when the next run starts, so a successful retry no longer shows… │
+  │ › Editing and rewinding a message now works after an interrupt that left only a background reminder behind.      │
+  │ › The build-mode status line now reports background=N, the number of active background tasks in the current roo… │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+   › Run the shell command 'ls -la /tmp' with your shell tool and summarize the output in one sentence.
+
+
+    ⠋ Loading 2s · Option+Enter queue · Enter steer · Ctrl+O details · Esc stop
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ›  Ask Mcode to do anything
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ~/projects/demo-app │ Auto │ ✦ M3 · Thinking On

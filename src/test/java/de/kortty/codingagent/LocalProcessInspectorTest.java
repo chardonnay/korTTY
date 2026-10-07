@@ -152,6 +152,75 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesMiniMaxCodeByBinNameAndScopedPackage() {
+        // npm's bin link as invoked through the shebang: node /opt/homebrew/bin/mcode
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node",
+            List.of("/opt/homebrew/bin/mcode"), null)).hasValue(CodingAgentKind.MINIMAX_CODE);
+        // The package entry point itself is called cli.js; its scoped package directory identifies it.
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/usr/lib/node_modules/@minimax-ai/code/cli.js"), null)).hasValue(CodingAgentKind.MINIMAX_CODE);
+        assertThat(LocalProcessInspector.classify("C:\\Program Files\\nodejs\\node.exe", List.of(),
+            "\"C:\\Program Files\\nodejs\\node.exe\" "
+                + "\"C:\\Users\\jd\\AppData\\Roaming\\npm\\node_modules\\@minimax-ai\\code\\cli.js\""))
+            .hasValue(CodingAgentKind.MINIMAX_CODE);
+        // Another package that happens to be called "code" is not MiniMax Code.
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/usr/lib/node_modules/@someone/code/cli.js"), null)).isEmpty();
+    }
+
+    @Test
+    void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
+        // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,
+            () -> Optional.of("minimax-code"))).hasValue(CodingAgentKind.MINIMAX_CODE);
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", null, "/opt/homebrew/bin/node",
+            () -> Optional.of("minimax-code"))).hasValue(CodingAgentKind.MINIMAX_CODE);
+        // An untitled node, or a title that is no agent, stays unclassified.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,
+            () -> Optional.of("/opt/homebrew/bin/node"))).isEmpty();
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,
+            Optional::empty)).isEmpty();
+    }
+
+    @Test
+    void classifyAsksForTheProcessTitleOnlyForAScriptHostWithoutArguments() {
+        AtomicInteger asked = new AtomicInteger();
+        Supplier<Optional<String>> title = () -> {
+            asked.incrementAndGet();
+            return Optional.of("minimax-code");
+        };
+        assertThat(LocalProcessInspector.classify("/bin/zsh", List.of(), null, title)).isEmpty();
+        assertThat(LocalProcessInspector.classify("/usr/bin/node", List.of("server.js"), null, title)).isEmpty();
+        assertThat(LocalProcessInspector.classify("/usr/local/bin/claude", List.of(), null, title))
+            .hasValue(CodingAgentKind.CLAUDE_CODE);
+        assertThat(asked.get()).isEqualTo(0);
+    }
+
+    @Test(timeOut = 30_000)
+    void findAgentProcessRecognisesANodeProcessByItsTitle() throws Exception {
+        skipOnWindows();
+        Path node = absoluteBinary("node", "/opt/homebrew/bin/node", "/usr/local/bin/node", "/usr/bin/node");
+        Process agent = new ProcessBuilder(node.toString(), "-e",
+            "process.title = 'minimax-code'; setTimeout(() => {}, 30000)").start();
+        try {
+            Optional<AgentProcess> found = Optional.empty();
+            long jvmPid = ProcessHandle.current().pid();
+            for (int i = 0; i < 50 && found.isEmpty(); i++) {
+                found = new LocalProcessInspector().findAgentProcess(jvmPid);
+                if (found.isEmpty()) {
+                    Thread.sleep(100);
+                }
+            }
+            assertThat(found).isPresent();
+            assertThat(found.get().pid()).isEqualTo(agent.pid());
+            assertThat(found.get().kind()).isEqualTo(CodingAgentKind.MINIMAX_CODE);
+        } finally {
+            agent.destroyForcibly();
+            agent.waitFor();
+        }
+    }
+
+    @Test
     void classifyIsEmptyForShellsUnrelatedScriptsAndNull() {
         assertThat(LocalProcessInspector.classify("/bin/zsh", List.of("-l"), null)).isEmpty();
         assertThat(LocalProcessInspector.classify("node", List.of("server.js"), null)).isEmpty();

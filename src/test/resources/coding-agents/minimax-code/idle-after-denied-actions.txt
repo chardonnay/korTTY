@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+     /Users/demo/.kortty-mcode-probe.txt
+
+
+  └ • Thought for 9.4s
+
+  ● I'll run both commands in a single shell call.
+
+  └ × Command failed  Run curl probe and write probe file · 1 output line
+
+  × Denied · bash
+
+  └ • Thought for 0.0s
+
+  ● The write to /Users/demo/.kortty-mcode-probe.txt was denied because it falls outside the workspace. Let me run
+    the curl portion separately, which doesn't touch the filesystem.
+
+  └ × Command failed  HEAD request to example.com · 1 output line
+
+  × Denied · bash
+
+  └ • Thought for 0.0s
+
+  ● Both commands were denied by you:
+
+    - curl -sI https://example.com — denied (no permission rule for curl with that argument pattern).
+    - echo probe > /Users/demo/.kortty-mcode-probe.txt — denied (target path is outside the workspace, which also
+      blocked the batched run).
+
+    No commands executed, no files were written, and no network request was sent. Let me know if you'd like to retry
+    either one with adjusted scope, or describe what you're actually trying to verify and I can suggest a
+    workspace-local alternative.
+
+    └ Completed in 53s · ⚡ 34154 tok/s
+
+    Message · Enter send · Ctrl+J newline                                          Tip: /skills lists available Skills
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ›  Ask Mcode to do anything
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ~/projects/demo-app │ Ask │ ✦ M3 · Thinking On │ Context 98% left
