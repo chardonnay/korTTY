@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+              ██║╚██╔╝██║██║██║╚██╗██║██║██║╚██╔╝██║██╔══██║ ██╔██╗     ██║     ██║   ██║██║  ██║██╔══╝
+              ██║ ╚═╝ ██║██║██║ ╚████║██║██║ ╚═╝ ██║██║  ██║██╔╝ ██╗    ╚██████╗╚██████╔╝██████╔╝███████╗
+              ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝     ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+
+  ╭─ v0.6.3 ─────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ Tips for getting started                                                                                         │
+  │ › Use /history to review and branch from earlier prompts.                                                        │
+  │ › Use /context to check the current Session context budget.                                                      │
+  │ › Use @ for files; Ctrl+V for images.                                                                            │
+  ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ What's new · /changelog for history                                                                              │
+  │ › Replacement and appended prompts can be combined. They apply only to the current process, preserve runtime ru… │
+  │ › Customize the main Agent's system prompt at startup with --system-prompt or --system-prompt-file, or extend i… │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+   › Use your shell tool to run exactly: curl -sI https://example.com
+
+
+  └ • Thought for 2.6s
+
+  ● Running the HEAD request against example.com.
+
+  └ × Command failed  Fetch HTTP headers from example.com · 1 output line
+
+  × Denied · bash
+
+  └ • Thought for 0.0s
+
+  ● The shell refused to run the command — permission was denied by the user/permission gate because there is no
+    matching rule for curl -sI https://example.com. I will not retry or attempt a workaround; if you'd like me to run
+    it, please approve the command (or grant a permission rule for curl) and I'll re-run it.
+
+    └ Completed in 43s · ⚡ 14684 tok/s
+
+    Message · Enter send · Ctrl+J newline                                 Tip: /sessions resumes earlier conversations
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ›  Ask Mcode to do anything
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ~/projects/demo-app │ Ask │ ✦ M3 · Thinking On │ Context 98% left

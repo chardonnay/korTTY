@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+              ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝     ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+
+  ╭─ v0.6.3 ─────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ Tips for getting started                                                                                         │
+  │ › Use /history to review and branch from earlier prompts.                                                        │
+  │ › Use /context to check the current Session context budget.                                                      │
+  │ › Use @ for files; Ctrl+V for images.                                                                            │
+  ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ What's new · /changelog for history                                                                              │
+  │ › Replacement and appended prompts can be combined. They apply only to the current process, preserve runtime ru… │
+  │ › Customize the main Agent's system prompt at startup with --system-prompt or --system-prompt-file, or extend i… │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+   › Use your shell tool to run exactly: curl -sI https://example.com
+
+
+  └ • Thought for 2.6s
+
+  ● Running the HEAD request against example.com.
+
+  └ • Running  Fetch HTTP headers from example.com
+
+
+  ╭─ ◆ Approval required ───────────────────────────────────────────────────────────────────────────────────── Bash ─╮
+  │ Run this command?                                                                                                │
+  │                                                                                                                  │
+  │   $ curl -sI https://example.com                                                                                 │
+  │   Fetch HTTP headers from example.com                                                                            │
+  │   Why · Needs confirmation: bash subcommand decision for "curl -sI https://example.com". Needs confirmation: No  │
+  │   matching permission rule for command: curl -sI https://example.com                                             │
+  │                                                                                                                  │
+  │   1 Allow for this conversation                                                                                  │
+  │ › › 2 Always allow matching actions                                                                              │
+  │     Review the exact saved scope next                                                                            │
+  │   3 Deny and guide MCode                                                                                         │
+  ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ ↑/↓ choose · Enter confirm · Esc deny · Ctrl+C stop                                                              │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+  ~/projects/demo-app │ Ask │ ✦ M3 · Thinking On │ Context 1M

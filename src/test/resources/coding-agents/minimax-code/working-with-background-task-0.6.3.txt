@@ -1,0 +1,37 @@
+#! expect state=WORKING rule=working
+#! alt=false
+
+              ███╗   ███╗██╗███╗   ██╗██╗███╗   ███╗ █████╗ ██╗  ██╗     ██████╗ ██████╗ ██████╗ ███████╗
+              ████╗ ████║██║████╗  ██║██║████╗ ████║██╔══██╗╚██╗██╔╝    ██╔════╝██╔═══██╗██╔══██╗██╔════╝
+              ██╔████╔██║██║██╔██╗ ██║██║██╔████╔██║███████║ ╚███╔╝     ██║     ██║   ██║██║  ██║█████╗
+              ██║╚██╔╝██║██║██║╚██╗██║██║██║╚██╔╝██║██╔══██║ ██╔██╗     ██║     ██║   ██║██║  ██║██╔══╝
+              ██║ ╚═╝ ██║██║██║ ╚████║██║██║ ╚═╝ ██║██║  ██║██╔╝ ██╗    ╚██████╗╚██████╔╝██████╔╝███████╗
+              ╚═╝     ╚═╝╚═╝╚═╝  ╚═══╝╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝     ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝
+
+  ╭─ v0.6.3 ─────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ Tips for getting started                                                                                         │
+  │ › Run /init to teach MCode this repo.                                                                            │
+  │ › Use /history to review and branch from earlier prompts.                                                        │
+  │ › Say what you want and how to verify it.                                                                        │
+  ├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+  │ What's new · /changelog for history                                                                              │
+  │ › Customize the main Agent's system prompt at startup with --system-prompt or --system-prompt-file, or extend i… │
+  │ › Replacement and appended prompts can be combined. They apply only to the current process, preserve runtime ru… │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+   › Run the shell command 'ls -la /tmp' with your shell tool and summarize the output in one sentence.
+
+
+  └ • Thought for 3.2s
+
+  ● I'll run the command and give you a quick summary.
+
+  └ • Ran  List /tmp directory contents with details · 1 output line
+
+  ◐ Tasks · 1 background active · /tasks details
+    ⠹ Loading 3s · ⚡ 6133 tok/s · Option+Enter queue · Enter steer · Ctrl+O details · Esc stop
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ›  Ask Mcode to do anything
+    ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  ~/projects/demo-app │ Auto │ ✦ M3 · Thinking On │ Context 1M
