@@ -22,8 +22,6 @@ python3 -m http.server 8000   # then open http://localhost:8000
 | `i18n/i18n.js` | Language detection, manual switching, translation application. |
 | `i18n/<lang>.json` | One file per language: `{ "key": "translated HTML" }`. |
 | `assets/` | Logo and icon. |
-| `screenshots/` | Copies of the app screenshots the page frames. |
-| `sync-screenshots.sh` | Re-copies those screenshots from `../app-docs/screenshots`. |
 
 ## Editing copy
 

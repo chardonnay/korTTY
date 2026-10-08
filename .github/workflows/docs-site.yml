@@ -68,7 +68,7 @@ jobs:
         run: |
           mkdir -p build/site
           cp -R web/. build/site/
-          rm -f build/site/sync-screenshots.sh build/site/README.md
+          rm -f build/site/README.md
           mkdir -p build/site/guide
           cp -R build/guide/. build/site/guide/
           touch build/site/.nojekyll
