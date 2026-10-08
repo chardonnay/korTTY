@@ -4,13 +4,13 @@ title: Coding-Agents
 
 # Coding-Agents
 
-korTTY erkennt, wenn ein terminalbasierter Coding-Agent – **Claude Code**, **Codex**, **Gemini CLI**, **MiniMax Code**, **Qwen Code**, **OpenCode**, **Cursor Agent** oder **Aider** – innerhalb eines Ihrer [lokalen Shell-Tabs](terminal.md#lokale-shell-registerkarten) läuft und verfolgt, was er derzeit tut: Arbeitet, wartet auf Ihre Antwort, ist abgeschlossen oder sitzt untätig an seinem Prompt. Die Analyse erfolgt vollständig innerhalb von korTTY auf Ihrem eigenen Gerät. Was gefunden wird, wird überall angezeigt: als Symbol im Tab-Titel, als Chips und Akzente im Dashboard, in einem anziehbaren **Coding-Agents**-Panel mit schnellen Antworten und einem Prompt-Feld, als Balken in der Statusleiste, als Zähler auf der App-Icon und, wenn Sie den Pane nicht betrachten, als Desktop-Benachrichtigung. Diese Seite erklärt, was erkannt wird, wie jede dieser Oberflächen funktioniert, wie die Funktionen deaktiviert werden können und wie die Bildschirmregeln angepasst oder erweitert werden können, wenn ein Agent seine Benutzeroberfläche ändert.
+korTTY erkennt, wenn ein terminalbasierter Coding-Agent – **Claude Code**, **Codex**, **Gemini CLI**, **MiniMax Code**, **Qwen Code**, **OpenCode**, **Cursor Agent**, **Aider** oder **Amp** – innerhalb eines Ihrer [lokalen Shell-Tabs](terminal.md#lokale-shell-registerkarten) läuft und verfolgt, was er derzeit tut: Arbeitet, wartet auf Ihre Antwort, ist abgeschlossen oder sitzt untätig an seinem Prompt. Die Analyse erfolgt vollständig innerhalb von korTTY auf Ihrem eigenen Gerät. Was gefunden wird, wird überall angezeigt: als Symbol im Tab-Titel, als Chips und Akzente im Dashboard, in einem anziehbaren **Coding-Agents**-Panel mit schnellen Antworten und einem Prompt-Feld, als Balken in der Statusleiste, als Zähler auf der App-Icon und, wenn Sie den Pane nicht betrachten, als Desktop-Benachrichtigung. Diese Seite erklärt, was erkannt wird, wie jede dieser Oberflächen funktioniert, wie die Funktionen deaktiviert werden können und wie die Bildschirmregeln angepasst oder erweitert werden können, wenn ein Agent seine Benutzeroberfläche ändert.
 
 ![Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier](../assets/diagrams/coding-agents.svg)
 
 ## Was erkannt wird
 
-Die Erkennung umfasst die acht unten aufgeführten Agents, gestartet aus einer **Lokale Shell**-Registerkarte – direkt, über einen Paketmanager-Wrapper wie `npx` oder als `node`-, `bun`-, `deno`- oder `python`-Skript. SSH- und Mosh-Registerkarten werden nicht analysiert, weil der Agent dort auf dem entfernten Rechner läuft und korTTY seinen Prozess nicht sehen kann; ein Agent auf einem Server kann Ihnen trotzdem mit einer Terminal-Benachrichtigung mitteilen, dass er auf Sie wartet, siehe [Benachrichtigungen von Programmen](terminal-notifications.md#benachrichtigungen-von-programmen).
+Die Erkennung umfasst die neun unten aufgeführten Agents, gestartet aus einer **Lokale Shell**-Registerkarte – direkt, über einen Paketmanager-Wrapper wie `npx` oder als `node`-, `bun`-, `deno`- oder `python`-Skript. SSH- und Mosh-Registerkarten werden nicht analysiert, weil der Agent dort auf dem entfernten Rechner läuft und korTTY seinen Prozess nicht sehen kann; ein Agent auf einem Server kann Ihnen trotzdem mit einer Terminal-Benachrichtigung mitteilen, dass er auf Sie wartet, siehe [Benachrichtigungen von Programmen](terminal-notifications.md#benachrichtigungen-von-programmen).
 
 | Agent | Erkannte ausführbare Dateien |
 |-------|------------------------|
@@ -22,6 +22,7 @@ Die Erkennung umfasst die acht unten aufgeführten Agents, gestartet aus einer *
 | OpenCode | `opencode` |
 | Cursor Agent | `cursor-agent`, `agent` (der Launcher startet ein gebündeltes `node` auf `…/cursor-agent/versions/<version>/index.js`; korTTY erkennt diesen Installationspfad) |
 | Aider | `aider` (ein Python-Konsolenskript, auch `python -m aider`) |
+| Amp | `amp` (seine Bildschirmregeln wurden noch nicht gegen Live-Sitzungen verifiziert; Amp erscheint ab seinem ersten Arbeits- oder Genehmigungsbildschirm) |
 
 Jeder geteilte Bereich wird einzeln verfolgt, sodass eine Registerkarte mit zwei Bereichen einen arbeitenden Agent zeigen kann, während der andere auf eine Berechtigungsentscheidung wartet. Ein Bereich, in dem kein Agent läuft oder dessen Agent beendet wurde, hat einfach kein Erkennungsergebnis.
 
@@ -101,7 +102,7 @@ Die Erkennung ist standardmäßig eingeschaltet und wird über drei Schalter unt
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Coding-Agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider) in lokalen Shell-Tabs erkennen | Schalter | — | Ein | `codingAgentDetectionEnabled` |
+| Coding-Agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp) in lokalen Shell-Tabs erkennen | Schalter | — | Ein | `codingAgentDetectionEnabled` |
 | Desktop-Benachrichtigung, wenn ein Coding-Agent eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen | Schalter | — | Ein | `codingAgentNotificationsEnabled` |
 | Anzahl der auf eine Entscheidung wartenden Agents am App-Symbol anzeigen | Schalter | — | Ein | `codingAgentAppBadgeEnabled` |
 
@@ -120,6 +121,7 @@ Die Bildschirmregeln jedes Agents liegen in einer kleinen JSON-Datei. KorTTY lie
 ~/.kortty/coding-agents/opencode.json
 ~/.kortty/coding-agents/cursor-agent.json
 ~/.kortty/coding-agents/aider.json
+~/.kortty/coding-agents/amp.json
 ```
 
 Eine Überschreibung ersetzt die mitgelieferte Datei für diesen Agent **als Ganzes** – es gibt kein Zusammenführen, beginnen Sie also mit der mitgelieferten Datei und bearbeiten Sie sie. Die Datei muss eine reguläre Datei sein (symbolischen Links wird nicht gefolgt), und ihr `kind` muss zum Dateinamen passen. Eine ungültige Datei – fehlerhaftes JSON, ein unbekannter Schlüssel, ein fehlerhafter regulärer Ausdruck, eine doppelte Regel-ID oder eine Regel ohne jede Bedingung – wird mit einer Warnung im Protokoll ignoriert, und die mitgelieferten Regeln bleiben in Kraft, sodass ein Tippfehler die Erkennung nie stillschweigend abschalten kann. Regeldateien werden beim Start gelesen; starten Sie korTTY nach dem Bearbeiten einer Datei neu.
@@ -130,7 +132,7 @@ Das Schema ist strikt: Jeder hier nicht aufgeführte Schlüssel ist ein Fehler, 
 
 ```json
 {
-  "kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE | CURSOR_AGENT | AIDER",
+  "kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE | CURSOR_AGENT | AIDER | AMP",
   "version": 1,
   "comment": "optional free text, e.g. the agent version the rules were written against",
   "fallbackState": "IDLE | WORKING | BLOCKED | DONE | UNKNOWN (optional, default IDLE)",
@@ -153,7 +155,7 @@ Das Schema ist strikt: Jeder hier nicht aufgeführte Schlüssel ist ein Fehler, 
 
 | Feld | Erforderlich | Bedeutung |
 |-------|----------|---------|
-| `kind` | ja | Der Agent, den diese Datei beschreibt; muss zum Dateinamen passen (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`).
+| `kind` | ja | Der Agent, den diese Datei beschreibt; muss zum Dateinamen passen (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`). |
 | `version` | ja | Schemaversion; derzeit immer `1`. |
 | `comment` | nein | Freitext für eigene Notizen, zum Beispiel gegen welche Agent-Version die Regeln geprüft wurden. |
 | `fallbackState` | nein | Zustand, der gemeldet wird, solange der Agent-Prozess vorhanden ist, aber keine Regel passt. Standard ist `IDLE`; `UNKNOWN` macht die Erkennung strenger. |
@@ -239,7 +241,7 @@ Die beiden BLOCKED-Regeln kombinieren ein zeilenweises Muster mit einem `regex` 
 
 Agents ändern ihre Oberflächen häufig, und eine Regel, die letzten Monat gepasst hat, kann nach einem Update stillschweigend nicht mehr passen. Die mitgelieferten Regeln von KorTTY sind deshalb durch **Bildschirm-Fixtures** abgesichert: Für jeden Agent bewahrt das Repository aufgezeichnete Terminalbildschirme mit dem Zustand und der Regel auf, die sie liefern müssen, und die Testsuite schlägt fehl, sobald eine mitgelieferte Regel nicht mehr zu ihrem Fixture passt oder eine Regel gar kein Fixture hat. Wenn Ihnen ein falscher oder fehlender Zustand auffällt, ist der nützlichste Bericht der sichtbare Bildschirmtext des Bereichs in diesem Moment, der Agent samt Version und der von Ihnen erwartete Zustand – daraus werden im nächsten Release ein neues Fixture und eine Regelkorrektur. Bis dahin können Sie die Regel mit einer lokalen Überschreibungsdatei sofort für sich selbst korrigieren.
 
-Das Repository liefert genau dafür einen Recorder mit: `scripts/capture-coding-agent-fixtures.py` führt einen Agent in einem Pseudo-Terminal aus und reicht Ihre Tastatur durch, sodass sich die Sitzung wie ein normales Terminal verhält. Drücken Sie ++f12++ in jedem interessanten Moment – beim Berechtigungsdialog, beim Spinner, bei der leeren Eingabeaufforderung –, und der sichtbare Bildschirm wird in eine Fixture-Datei geschrieben; ++ctrl+bracket-right++ beendet die Aufzeichnung. Jede Datei beginnt mit einer Zeile `#! expect state=REVIEW rule=REVIEW`: Tragen Sie dort den erwarteten Zustand und die Regel-ID ein und legen Sie die Datei unter `src/test/resources/coding-agents/<kind>/` ab (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent` oder `aider`). Von da an sichert die Testsuite die Regel gegen diesen Bildschirm, und eine Regeländerung, die ihn brechen würde, fällt vor dem Release auf.
+Das Repository liefert genau dafür einen Recorder mit: `scripts/capture-coding-agent-fixtures.py` führt einen Agent in einem Pseudo-Terminal aus und reicht Ihre Tastatur durch, sodass sich die Sitzung wie ein normales Terminal verhält. Drücken Sie ++f12++ in jedem interessanten Moment – beim Berechtigungsdialog, beim Spinner, bei der leeren Eingabeaufforderung –, und der sichtbare Bildschirm wird in eine Fixture-Datei geschrieben; ++ctrl+bracket-right++ beendet die Aufzeichnung. Jede Datei beginnt mit einer Zeile `#! expect state=REVIEW rule=REVIEW`: Tragen Sie dort den erwarteten Zustand und die Regel-ID ein und legen Sie die Datei unter `src/test/resources/coding-agents/<kind>/` ab (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider` oder `amp`). Von da an sichert die Testsuite die Regel gegen diesen Bildschirm, und eine Regeländerung, die ihn brechen würde, fällt vor dem Release auf.
 
 ## Agents per Skript steuern
 

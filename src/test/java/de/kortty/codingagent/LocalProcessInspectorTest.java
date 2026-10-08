@@ -231,6 +231,19 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesAmpAsNativeBinary() {
+        // npm's @sourcegraph/amp links bin/amp.exe -> bin/amp on every platform; the OS reports the target.
+        assertThat(LocalProcessInspector.classify(
+            "/opt/homebrew/lib/node_modules/@sourcegraph/amp/node_modules/@ampcode/cli/bin/amp", List.of(), null))
+            .hasValue(CodingAgentKind.AMP);
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/amp", List.of(), "/opt/homebrew/bin/amp "))
+            .hasValue(CodingAgentKind.AMP);
+        assertThat(LocalProcessInspector.classify(
+            "C:\\Users\\jd\\AppData\\Roaming\\npm\\node_modules\\@sourcegraph\\amp\\node_modules\\@ampcode\\cli\\bin\\amp.exe",
+            null, null)).hasValue(CodingAgentKind.AMP);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

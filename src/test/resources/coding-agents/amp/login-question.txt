@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=login-prompt
+#! alt=false
+No API key found. Starting login flow...
+Would you like to log in to Amp? [(y)es, (n)o]:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
