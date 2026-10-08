@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=none
+#! alt=false
+Analytics have been permanently disabled.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Aider v0.86.2
+Model: openai/openai/gpt-oss-20b with whole edit format
+Git repo: none
+Repo-map: disabled
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+> n
+
+Understood. I will follow the specified file listing format for any future code changes you request.
+
+
+Tokens: 580 sent, 19 received.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+> List the files in this directory. Reply only with a shell command block containing: ls -la
+
+
+ls -la
+
+
+
+Tokens: 626 sent, 9 received.
+The LLM did not conform to the edit format.
+https://aider.chat/docs/troubleshooting/edit-errors.html
+
+No filename provided before ``` in file listing
+
+ls -la
+
+
+
+Tokens: 650 sent, 9 received.
+The LLM did not conform to the edit format.
+https://aider.chat/docs/troubleshooting/edit-errors.html
+
+No filename provided before ``` in file listing
+
+
+
+

@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=confirm-prompt
+#! alt=false
+Analytics have been permanently disabled.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+Aider v0.86.2
+Model: openai/openai/gpt-oss-20b with whole edit format
+Git repo: none
+Repo-map: disabled
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+> Create a new file hello.txt containing the single word hi.
+
+hello.txt
+
+
+hi
+
+
+
+Tokens: 590 sent, 8 received.
+
+hello.txt
+Create new file? (Y)es/(N)o [Yes]:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

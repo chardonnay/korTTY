@@ -212,6 +212,25 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesAiderRunByAPythonInterpreter() {
+        // Homebrew: the console script's shebang Python re-execs through the framework's Python.app.
+        assertThat(LocalProcessInspector.classify(
+            "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python",
+            List.of("/opt/homebrew/bin/aider", "--model", "sonnet"), null)).hasValue(CodingAgentKind.AIDER);
+        // uv/pipx venvs, python -m aider, and pip's aider.exe launcher on Windows.
+        assertThat(LocalProcessInspector.classify("/home/u/.local/share/uv/tools/aider-chat/bin/python3.12",
+            List.of("/home/u/.local/bin/aider"), null)).hasValue(CodingAgentKind.AIDER);
+        assertThat(LocalProcessInspector.classify("/usr/bin/python3", List.of("-m", "aider"), null))
+            .hasValue(CodingAgentKind.AIDER);
+        assertThat(LocalProcessInspector.classify("C:\\Users\\jd\\AppData\\Roaming\\Python\\Scripts\\aider.exe",
+            null, null)).hasValue(CodingAgentKind.AIDER);
+        // Other Python programs are not agents.
+        assertThat(LocalProcessInspector.classify("/usr/bin/python3", List.of("-m", "http.server"), null)).isEmpty();
+        assertThat(LocalProcessInspector.classify("/usr/bin/python3", List.of("/home/u/aider/notes.py"), null)).isEmpty();
+        assertThat(LocalProcessInspector.classify("/usr/bin/pythonista", List.of("aider"), null)).isEmpty();
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

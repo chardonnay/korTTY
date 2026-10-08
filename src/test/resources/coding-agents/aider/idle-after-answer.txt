@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+
+
+ls -la
+
+
+
+Tokens: 626 sent, 9 received.
+The LLM did not conform to the edit format.
+https://aider.chat/docs/troubleshooting/edit-errors.html
+
+No filename provided before ``` in file listing
+
+ls -la
+
+
+
+Tokens: 650 sent, 9 received.
+The LLM did not conform to the edit format.
+https://aider.chat/docs/troubleshooting/edit-errors.html
+
+No filename provided before ``` in file listing
+I’m ready to provide the file listings you need, but I’ll need the exact filenames (or paths) of the files you’d like me
+to edit or view. Please let me know which files you want to see or modify, and I’ll return them in the required format.
+
+
+Tokens: 674 sent, 57 received.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+> n
+
+I’m ready to follow those instructions whenever you provide a file name or describe the change you’d like. Just let me
+know which file(s) to edit and what modifications are needed, and I’ll return the updated content in the exact format
+you specified.
+
+
+Tokens: 740 sent, 51 received.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+
+
+
