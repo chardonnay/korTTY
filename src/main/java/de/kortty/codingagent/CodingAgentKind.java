@@ -39,6 +39,8 @@ public enum CodingAgentKind {
      * ({@code kiro-cli-term}, {@code zsh (kiro-cli-term)}) are deliberately not listed: they wrap ordinary shells.
      */
     KIRO("Kiro CLI", "kiro", Set.of("kiro-cli", "kiro-cli-chat")),
+    /** Continue's CLI {@code cn}, a node script of {@code @continuedev/cli} (also found by that package path). */
+    CONTINUE("Continue", "continue", Set.of("cn")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

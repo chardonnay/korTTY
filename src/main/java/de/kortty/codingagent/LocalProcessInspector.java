@@ -69,7 +69,8 @@ public final class LocalProcessInspector {
      */
     private static final Map<String, CodingAgentKind> AGENT_PACKAGES = Map.of(
         "@minimax-ai/code", CodingAgentKind.MINIMAX_CODE,
-        "cursor-agent/versions", CodingAgentKind.CURSOR_AGENT);
+        "cursor-agent/versions", CodingAgentKind.CURSOR_AGENT,
+        "@continuedev/cli", CodingAgentKind.CONTINUE);
 
     public LocalProcessInspector() {
     }

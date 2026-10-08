@@ -1,0 +1,48 @@
+{
+  "kind": "CONTINUE",
+  "version": 1,
+  "comment": "Written against Continue CLI (cn) 1.5.47 (npm @continuedev/cli; Ink UI on the normal screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio endpoint via a local --config file; must be re-verified when Continue changes its UI. The tool permission box ('Would you like to continue?' with '> Continue (tab)', 'Continue + don't ask again (shift+tab)', 'No, and tell Continue what to do differently (esc)') is BLOCKED. Continue keeps its spinner line ('⣻⣽⣧  ( 40s • esc to interrupt )') running above the open permission box and redraws everything below it on every spinner tick, so a screen read mid-redraw may show only the top of the box; the approval rule therefore also accepts the box's tool header ('│  Bash(curl …)', a capitalised tool name right after the box border, unlike the input box's '│ ● …') and has the highest priority. The spinner line is WORKING; the input box ('│ ● ▋Ask anything, @ for context, …') without a spinner is IDLE.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": {
+        "bottomNonEmptyLines": 20
+      },
+      "anyLineRegex": [
+        "^│\\s+Would you like to continue\\?",
+        "^│\\s+>?\\s*Continue \\(tab\\)",
+        "^│\\s+No, and tell Continue what to do differently \\(esc\\)",
+        "^│\\s{2}⎿ Will run:",
+        "^│\\s{2}[A-Z][A-Za-z]*\\("
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": {
+        "bottomNonEmptyLines": 8
+      },
+      "anyLineRegex": [
+        "\\(\\s*\\d+s • esc to interrupt\\s*\\)"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": {
+        "bottomNonEmptyLines": 6
+      },
+      "anyLineRegex": [
+        "^│ ●"
+      ],
+      "notContains": [
+        "esc to interrupt"
+      ]
+    }
+  ]
+}
