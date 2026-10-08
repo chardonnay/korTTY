@@ -1,0 +1,41 @@
+{
+  "kind": "AIDER",
+  "version": 1,
+  "comment": "Written against Aider 0.86.2 (Homebrew; prompt_toolkit line UI on the normal screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio endpoint; must be re-verified when Aider changes its UI. Aider writes everything into the scrollback, so every rule looks only at the last non-empty line or two: an answered question ('Create new file? (Y)es/(N)o [Yes]: n') stays visible above the next prompt. A '(Y)es/(N)o … [Yes]:' question as the last line (file creation, shell commands, URLs, the first-run 'what's new' offer) is BLOCKED; the knight-rider spinner ('░█      Waiting for <model>') is WORKING; the '>' input prompt (or a mode prompt such as 'architect>') as the last line is IDLE. Between the spinner and the next prompt Aider streams its answer and status lines, so the fallback is WORKING, not IDLE. No rule depends on the alternate-screen flag.",
+  "fallbackState": "WORKING",
+  "rules": [
+    {
+      "id": "confirm-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": {
+        "bottomNonEmptyLines": 1
+      },
+      "anyLineRegex": [
+        "\\(Y\\)es/\\(N\\)o\\b.*\\[[^\\]]+\\]:\\s*\\S{0,3}\\s*$"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": {
+        "bottomNonEmptyLines": 2
+      },
+      "anyLineRegex": [
+        "^\\s*[░█]{2,}\\s+\\S"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": {
+        "bottomNonEmptyLines": 1
+      },
+      "anyLineRegex": [
+        "^(?:[a-z-]+)?>(?:\\s|$)"
+      ]
+    }
+  ]
+}

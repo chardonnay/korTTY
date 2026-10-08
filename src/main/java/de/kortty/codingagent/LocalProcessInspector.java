@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
@@ -41,6 +42,13 @@ public final class LocalProcessInspector {
 
     /** Distro-packaged alias of node (Debian/Ubuntu ship {@code nodejs}); treated like a script host. */
     private static final Set<String> SCRIPT_HOST_ALIASES = Set.of("nodejs");
+
+    /**
+     * Python interpreters ({@code python}, {@code python3}, {@code python3.12}, {@code pypy3}, …), script
+     * hosts for Python agents such as Aider: a console script runs as {@code python <prefix>/bin/aider},
+     * and {@code python -m aider} names the module the same way.
+     */
+    private static final Pattern PYTHON_HOST = Pattern.compile("(?:python|pypy)\\d*(?:\\.\\d+)*");
 
     /** Suffixes dropped from an executable or script base name before matching, longest first. */
     private static final List<String> STRIPPED_SUFFIXES = List.of(".exe", ".cmd", ".bat", ".com", ".mjs", ".cjs", ".js");
@@ -139,7 +147,8 @@ public final class LocalProcessInspector {
      * Classifies a process by its executable and, for script hosts, by the script it runs.
      *
      * <p>Rules, in order: (1) the executable's base name is a known agent name; (2) the executable is
-     * a script host ({@link #SCRIPT_HOSTS} or {@code nodejs}) and one of its non-flag arguments —
+     * a script host ({@link #SCRIPT_HOSTS}, {@code nodejs} or a Python interpreter) and one of its
+     * non-flag arguments —
      * taken from {@code arguments}, or from the quote-aware tokens of {@code commandLine} when the
      * platform does not report arguments — names an agent: its base name (extension stripped) is a
      * known executable name or kind id, or the path contains the agent's npm package directory
@@ -183,7 +192,8 @@ public final class LocalProcessInspector {
         if (direct.isPresent()) {
             return direct;
         }
-        if (!SCRIPT_HOSTS.contains(basename) && !SCRIPT_HOST_ALIASES.contains(basename)) {
+        if (!SCRIPT_HOSTS.contains(basename) && !SCRIPT_HOST_ALIASES.contains(basename)
+                && !PYTHON_HOST.matcher(basename).matches()) {
             return Optional.empty();
         }
         List<String> candidates = arguments == null || arguments.isEmpty()

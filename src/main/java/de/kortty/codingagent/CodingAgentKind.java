@@ -23,6 +23,8 @@ public enum CodingAgentKind {
      * launcher's own name is listed for a native build.
      */
     CURSOR_AGENT("Cursor Agent", "cursor-agent", Set.of("cursor-agent")),
+    /** A Python console script ({@code python <prefix>/bin/aider}) or pip's {@code aider.exe} launcher on Windows. */
+    AIDER("Aider", "aider", Set.of("aider")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;
