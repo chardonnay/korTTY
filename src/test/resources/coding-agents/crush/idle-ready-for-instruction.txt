@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+
+  ╱╱╱╱╱╱  Charm™                      v0.97.1 ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+  ╱╱╱╱╱╱ ▄▀▀▀▀ █▀▀▀▄ █   █ ▄▀▀▀▀ █          █ ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+  ╱╱╱╱╱╱ █     █▀▀▀▄ █   █ ▀▀▀▀█ █▀▀▀▀▀▀▀▀▀▀█ ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+  ╱╱╱╱╱╱  ▀▀▀▀ ▀   ▀  ▀▀▀  ▀▀▀▀  ▀          ▀ ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+
+                                                                                            
+                                
+
+  ◇ gpt-oss-20b via LM Studio (LAN)
+
+  LSPs                           MCPs                           Skills
+
+  None                           None                           ● crush-config
+                                                                ● crush-hooks
+                                                                ● jq
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   > Ready for instructions
+ :::
+ :::
+
+ tab change focus • / or ctrl+p commands • shift+tab mode • ctrl+l models • ctrl+j newline • ctrl+c quit • ctrl+g more
+

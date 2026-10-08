@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=true
+
+ │ Use your bash tool to run exactly: curl -sI https://example.com                      ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+                                                                                        ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+   We need to use bash tool with curl. It's allowed. Provide command.                    Charm™               v0.97.1
+                                                                                        ▄▀▀▀▀ █▀▀▀▄ █   █ ▄▀▀▀▀ █   █
+   Thought for 1s                                                                       █     █▀▀▀▄ █   █ ▀▀▀▀█ █▀▀▀█
+                                                                                         ▀▀▀▀ ▀   ▀  ▀▀▀  ▀▀▀▀  ▀   ▀
+   ● Bash curl -sI https://example.com                                                  ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+
+   Requesting permission...                                                             Untitled Session
+
+                                                                                                                 
+                        ╭──────────────────────────────────────────────────────────────────────╮              
+                        │  Permission Required ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱  │                    
+                        │                                                                      │       
+                        │ Tool bash                                                            │                     
+                        │ Path                                                                 │
+                        │                                                                      │
+                        │ Desc fetch headers                                                   │s-20b
+                        │                                                                      │ Studio (LAN)
+                        │                                                                      │ $0.00
+                        │   curl -sI https://example.com                                       │
+                        │                                                                      │ Files ──────────────
+                        │                                                                      │
+                        │                             Allow      Allow for Session      Deny   │
+                        │                                                                      │
+                        │ ←/→ choose • enter confirm • esc exit                                │ ───────────────────────
+─                       ╰──────────────────────────────────────────────────────────────────────╯
+                                                                                        None
+
+                                                                                            MCPs ───────────────────────
+─
+                                                                                        None
+
+   > Processing...                                                                      Skills ──────────────────────
+ :::
+ :::                                                                                    ● crush-config
+                                                                                        ● crush-hooks
+ esc cancel • tab focus chat • shift+tab mode • / or ctrl+p commands • ctrl+l models • ctrl+b toggle sidebar …
+

@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+
+ │ Use your bash tool to run exactly: ls -la                                            ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+                                                                                        ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+   We need to list files. Use bash tool.                                                 Charm™               v0.97.1
+                                                                                        ▄▀▀▀▀ █▀▀▀▄ █   █ ▄▀▀▀▀ █   █
+   ✓ Bash ls -la                                                                        █     █▀▀▀▄ █   █ ▀▀▀▀█ █▀▀▀█
+                                                                                         ▀▀▀▀ ▀   ▀  ▀▀▀  ▀▀▀▀  ▀   ▀
+      total 0                                                                           ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+      drwxr-xr-x@  3         wheel    96 Oct  8 13:09 .
+      drwx------@ 38         wheel  1216 Oct  8 13:13 ..                                Untitled Session
+      drwx------@  7         wheel   224 Oct  8 13:09 .crush
+                                                                                                                 
+   We need to run tests? Probably nothing. The task was just list files. Done.                                
+                                                                                                                    
+   Done                                                                                                
+                                                                                                                     
+   ◇ gpt-oss-20b via LM Studio (LAN) in 14s ──────────────────────────────────────────  k
+
+ │ Use your bash tool to run exactly: curl -sI https://example.com                      ◇ gpt-oss-20b
+                                                                                          via LM Studio (LAN)
+   User wants curl. But forbidden: banned commands include curl. Must refuse.             8% (11.4K) $0.00
+
+   I’m sorry, but I can’t run that command.                                             Modified Files ──────────────
+
+   ◇ gpt-oss-20b via LM Studio (LAN) in 7s ───────────────────────────────────────────  None
+
+                                                                                            LSPs ───────────────────────
+─
+                                                                                        None
+
+                                                                                            MCPs ───────────────────────
+─
+                                                                                        None
+
+   > Ready?                                                                             Skills ──────────────────────
+ :::
+ :::                                                                                    ● crush-config
+                                                                                        ● crush-hooks
+ tab focus chat • shift+tab mode • / or ctrl+p commands • ctrl+l models • ctrl+b toggle sidebar • ctrl+j newline …
+

@@ -254,6 +254,18 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesCrushAsNativeBinary() {
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/crush", List.of(), null))
+            .hasValue(CodingAgentKind.CRUSH);
+        // npm's @charmland/crush: run-crush.js downloads the release binary to <pkg>/bin/crush and
+        // spawnSync()s it; the wrapper itself is not the agent, the child process is.
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/usr/lib/node_modules/@charmland/crush/run-crush.js"), null)).isEmpty();
+        assertThat(LocalProcessInspector.classify("/usr/lib/node_modules/@charmland/crush/bin/crush", List.of(), null))
+            .hasValue(CodingAgentKind.CRUSH);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

@@ -1,0 +1,46 @@
+{
+  "kind": "CRUSH",
+  "version": 1,
+  "comment": "Written against Crush 0.97.1 (Charm's Homebrew tap; Bubble Tea full-screen TUI on the alternate screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio endpoint; must be re-verified when Crush changes its TUI. The permission dialog ('Permission Required' with 'Allow   Allow for Session   Deny' and '←/→ choose • enter confirm • esc exit') is BLOCKED; because Crush redraws the whole alternate screen, an answered dialog does not linger, so this rule looks at the whole screen. The input placeholder changes at random ('Ready!', 'Ready?', 'Brrrrr...', 'Thinking...'), so the state is read from the help footer instead: 'esc cancel • …' while a turn runs is WORKING, 'tab change focus • …' / 'tab focus chat • …' without 'esc cancel' is IDLE.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": {
+        "bottomNonEmptyLines": 0
+      },
+      "anyLineRegex": [
+        "│\\s*Permission Required\\b",
+        "\\bAllow\\s+Allow for Session\\s+Deny\\b",
+        "←/→ choose • enter confirm • esc exit"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": {
+        "bottomNonEmptyLines": 3
+      },
+      "anyLineRegex": [
+        "^\\s*esc cancel •"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": {
+        "bottomNonEmptyLines": 3
+      },
+      "anyLineRegex": [
+        "^\\s*tab (?:change focus|focus chat) •"
+      ],
+      "notContains": [
+        "esc cancel"
+      ]
+    }
+  ]
+}
