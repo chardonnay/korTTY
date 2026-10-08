@@ -34,6 +34,11 @@ public enum CodingAgentKind {
     GOOSE("Goose", "goose", Set.of("goose")),
     /** Charm's crush, a native binary; npm's {@code @charmland/crush} wrapper spawns it as {@code <pkg>/bin/crush}. */
     CRUSH("Crush", "crush", Set.of("crush")),
+    /**
+     * Kiro CLI ({@code kiro-cli chat}, which may hand over to {@code kiro-cli-chat}). Its shell wrappers
+     * ({@code kiro-cli-term}, {@code zsh (kiro-cli-term)}) are deliberately not listed: they wrap ordinary shells.
+     */
+    KIRO("Kiro CLI", "kiro", Set.of("kiro-cli", "kiro-cli-chat")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

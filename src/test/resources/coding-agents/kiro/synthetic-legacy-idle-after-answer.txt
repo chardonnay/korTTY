@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+> Run the test suite
+
+I'll run the tests.
+
+All 412 tests passed.
+
+> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

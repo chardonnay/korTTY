@@ -266,6 +266,18 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesKiroCliButNotItsShellWrapper() {
+        assertThat(LocalProcessInspector.classify("/Users/jd/.local/bin/kiro-cli", List.of("chat"), null))
+            .hasValue(CodingAgentKind.KIRO);
+        assertThat(LocalProcessInspector.classify("/Applications/Kiro CLI.app/Contents/MacOS/kiro-cli-chat",
+            List.of("chat"), null)).hasValue(CodingAgentKind.KIRO);
+        assertThat(LocalProcessInspector.classify("/Applications/Kiro CLI.app/Contents/MacOS/kiro-cli-term",
+            List.of(), null)).isEmpty();
+        assertThat(LocalProcessInspector.classify("/Users/jd/.local/bin/zsh (kiro-cli-term)", List.of("-l"), null))
+            .isEmpty();
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

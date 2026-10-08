@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+> Run the test suite
+
+I'll run the tests.
+
+🛠️  Using tool: execute_bash
+ ⋮ 
+ ● I will run the following shell command: ./gradlew test
+
+Allow this action? Use 't' to trust (always allow) the 'execute_bash' tool for the session. [y/n/t]:
+
+> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

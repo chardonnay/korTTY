@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+Allow this action? Use 't' to trust (always allow) the 'execute_bash' tool for the session. [y/n/t]:
+
+> y
+
+All 412 tests passed.
+
+!> 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

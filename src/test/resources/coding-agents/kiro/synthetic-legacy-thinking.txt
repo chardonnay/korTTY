@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=working
+#! alt=false
+> Run the test suite
+
+⠋ Thinking...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

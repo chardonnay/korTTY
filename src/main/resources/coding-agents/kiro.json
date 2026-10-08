@@ -1,0 +1,56 @@
+{
+  "kind": "KIRO",
+  "version": 1,
+  "comment": "UNVERIFIED except for the sign-in prompt: written against Kiro CLI 2.28.0 without a Kiro account, so no live chat session could be recorded. Only 'Press enter to continue to the browser or esc to cancel' (the sign-in prompt of an unauthenticated 'kiro-cli chat') was seen on screen (BLOCKED). Kiro 2.x has two UIs, the legacy line UI (--legacy-ui, the former Amazon Q Developer CLI) and a new terminal UI (--tui); which one starts by default could not be checked. The legacy patterns come from the string table of kiro-cli-chat: the tool question 'Allow this action? Use 't' to trust (always allow) the '<tool>' tool for the session. [y/n/t]:' (BLOCKED, last lines only because the legacy UI writes into the scrollback), the 'Thinking...' spinner (WORKING) and the '>' / '!>' (trust-all) prompt (IDLE). The new TUI is described only in Kiro's documentation: a '⏸' status icon on a tool that awaits approval and a notification bar with Yes, Trust and No (BLOCKED). The fallback is IDLE, so an unrecognised TUI screen does not read as working forever. The fixtures other than the sign-in prompt are synthesized and named synthetic-*. Must be re-verified against live authenticated sessions in both UIs.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "sign-in-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": {
+        "bottomNonEmptyLines": 2
+      },
+      "anyLineRegex": [
+        "^\\s*Press enter to continue to the browser or esc to cancel\\s*$"
+      ]
+    },
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 990,
+      "region": {
+        "bottomNonEmptyLines": 3
+      },
+      "anyLineRegex": [
+        "Allow this action\\?",
+        "\\[y/n/t\\]:\\s*\\S?\\s*$",
+        "requires approval, press 'y' to approve and 'n' to deny",
+        "^\\s*⏸\\s+\\S",
+        "^\\s*[│┃]?\\s*(?:[›>▸●○]\\s*)?Yes\\s{2,}(?:[›>▸●○]\\s*)?Trust\\s{2,}(?:[›>▸●○]\\s*)?No\\b"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": {
+        "bottomNonEmptyLines": 2
+      },
+      "anyLineRegex": [
+        "^\\s*[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]\\s+Thinking\\.\\.\\."
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": {
+        "bottomNonEmptyLines": 1
+      },
+      "anyLineRegex": [
+        "^(?:\\[[^\\]]+\\]\\s*)?!?>(?:\\s|$)"
+      ]
+    }
+  ]
+}
