@@ -1,0 +1,42 @@
+{
+  "kind": "GOOSE",
+  "version": 1,
+  "comment": "Written against goose CLI 1.53.0 (Homebrew block-goose-cli; line UI on the normal screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio endpoint with GOOSE_MODE=approve; must be re-verified when goose changes its UI. goose writes into the scrollback, and an answered tool question stays visible with a hollow '◇' marker and the chosen option, so every rule looks only at the last lines. The open tool question ('◆  Goose would like to call the above tool, do you allow?' with '│  ● Allow' / '│  ○ Deny' options, filled '◆') is BLOCKED; the spinner line ending in '(Ctrl+C to interrupt)' is WORKING; the '>' input line as the last line ('> Enter to send · Ctrl+J newline' when empty) is IDLE. Between the spinner and the next prompt goose prints tool output and streams its answer, so the fallback is WORKING. pressly's database-migration tool is also named goose; it never shows these screens, so it is never reported. No rule depends on the alternate-screen flag.",
+  "fallbackState": "WORKING",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": {
+        "bottomNonEmptyLines": 8
+      },
+      "anyLineRegex": [
+        "^◆\\s+Goose would like to call the above tool",
+        "^│\\s+[●○]\\s+(?:Allow|Always Allow|Deny|Cancel)\\b"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": {
+        "bottomNonEmptyLines": 2
+      },
+      "anyLineRegex": [
+        "^\\s*[◐◓◑◒]\\s+\\S.*\\(Ctrl\\+C to interrupt\\)\\s*$"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": {
+        "bottomNonEmptyLines": 1
+      },
+      "anyLineRegex": [
+        "^>\\s"
+      ]
+    }
+  ]
+}

@@ -244,6 +244,16 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesGooseAsNativeBinary() {
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/goose", List.of("session"), null))
+            .hasValue(CodingAgentKind.GOOSE);
+        assertThat(LocalProcessInspector.classify("/home/u/.local/bin/goose", List.of(), null))
+            .hasValue(CodingAgentKind.GOOSE);
+        assertThat(LocalProcessInspector.classify("C:\\Users\\jd\\.local\\bin\\goose.exe", null, null))
+            .hasValue(CodingAgentKind.GOOSE);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

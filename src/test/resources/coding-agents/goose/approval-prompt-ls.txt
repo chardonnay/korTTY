@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+
+    __( O)>  ● new session · openai openai/gpt-oss-20b
+   \____)    20261008_3 · ~/projects/demo-app
+     L L     goose is ready
+  ⏳ loading extensions in background...
+  ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ 0% 0/128k
+> Use your shell tool to run exactly: ls -la
+  ✓ extensions ready
+
+
+  ────────────────────────────────────────
+  ▸ shell
+    command: ls -la
+    timeout_secs: null
+
+
+  Tool approval request
+    {
+      "tool_name": "shell",
+      "arguments": {
+        "command": "ls -la",
+        "timeout_secs": null
+      }
+    }
+
+◆  Goose would like to call the above tool, do you allow?
+│  ● Allow (Allow the tool call once)
+│  ○ Always Allow
+│  ○ Deny
+│  ○ Cancel
+└
+
+
+
+
+
+
+
+
+

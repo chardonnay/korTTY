@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=none
+#! alt=false
+
+    __( O)>  ● new session · openai openai/gpt-oss-20b
+   \____)    20261008_3 · ~/projects/demo-app
+     L L     goose is ready
+  ⏳ loading extensions in background...
+  ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ 0% 0/128k
+> Use your shell tool to run exactly: ls -la
+  ✓ extensions ready
+
+
+  ────────────────────────────────────────
+  ▸ shell
+    command: ls -la
+    timeout_secs: null
+
+
+  Tool approval request
+    {
+      "tool_name": "shell",
+      "arguments": {
+        "command": "ls -la",
+        "timeout_secs": null
+      }
+    }
+
+◇  Goose would like to call the above tool, do you allow?
+│  Allow
+│
+    total 0
+    drwxr-xr-x@  2 demo    staff   64 Oct  8 12:47 .
+    drwx------@ 30 demo    staff  960 Oct  8 12:49 ..
+
+
+
+
+
+
+
+
+

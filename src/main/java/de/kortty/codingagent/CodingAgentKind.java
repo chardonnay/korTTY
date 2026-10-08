@@ -27,6 +27,11 @@ public enum CodingAgentKind {
     AIDER("Aider", "aider", Set.of("aider")),
     /** A native binary; npm's {@code @sourcegraph/amp} links it as {@code amp} ({@code bin/amp.exe} → {@code bin/amp}). */
     AMP("Amp", "amp", Set.of("amp")),
+    /**
+     * Block's goose CLI, a native binary. pressly's database-migration tool is also called {@code goose};
+     * it never matches a goose screen rule, so it is never reported.
+     */
+    GOOSE("Goose", "goose", Set.of("goose")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

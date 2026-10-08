@@ -20,6 +20,7 @@ class CodingAgentKindTest {
         assertThat(CodingAgentKind.forExecutable("cursor-agent")).hasValue(CodingAgentKind.CURSOR_AGENT);
         assertThat(CodingAgentKind.forExecutable("aider")).hasValue(CodingAgentKind.AIDER);
         assertThat(CodingAgentKind.forExecutable("amp")).hasValue(CodingAgentKind.AMP);
+        assertThat(CodingAgentKind.forExecutable("goose")).hasValue(CodingAgentKind.GOOSE);
     }
 
     @Test
@@ -49,6 +50,7 @@ class CodingAgentKindTest {
         assertThat(CodingAgentKind.forId("cursor-agent")).hasValue(CodingAgentKind.CURSOR_AGENT);
         assertThat(CodingAgentKind.forId("aider")).hasValue(CodingAgentKind.AIDER);
         assertThat(CodingAgentKind.forId("amp")).hasValue(CodingAgentKind.AMP);
+        assertThat(CodingAgentKind.forId("goose")).hasValue(CodingAgentKind.GOOSE);
         assertThat(CodingAgentKind.forId("unknown")).isEmpty();
         assertThat(CodingAgentKind.forId(null)).isEmpty();
     }
