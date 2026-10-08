@@ -41,6 +41,11 @@ public enum CodingAgentKind {
     KIRO("Kiro CLI", "kiro", Set.of("kiro-cli", "kiro-cli-chat")),
     /** Continue's CLI {@code cn}, a node script of {@code @continuedev/cli} (also found by that package path). */
     CONTINUE("Continue", "continue", Set.of("cn")),
+    /**
+     * Superagent's open-source grok-cli ({@code @vibe-kit/grok-cli}, a node script). Homebrew's regex tool
+     * is also called {@code grok}; it never matches a Grok CLI screen rule, so it is never reported.
+     */
+    GROK("Grok CLI", "grok", Set.of("grok")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;
