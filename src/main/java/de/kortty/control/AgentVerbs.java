@@ -54,8 +54,8 @@ final class AgentVerbs {
                 List.of(new ParamSpec("state", "string", false, null,
                         "blocked, working, done, idle or unknown."),
                     new ParamSpec("kind", "string", false, null,
-                        "claude-code, codex, gemini-cli, minimax-code or"
-                            + " qwen-code."),
+                        "claude-code, codex, gemini-cli, minimax-code, qwen-code"
+                            + " or opencode."),
                     new ParamSpec(BaseVerbs.PARAM_TAB, "tab_ref", false, null, "A tab selector."),
                     new ParamSpec(BaseVerbs.PARAM_WINDOW, "string", false, null, "A window id.")),
                 "{agents:[AgentInfo], totals:AgentTotals}",
@@ -261,8 +261,8 @@ final class AgentVerbs {
                     new ParamSpec("orientation", "string", false, "horizontal",
                         "horizontal or vertical, for the split form."),
                     new ParamSpec("kind", "string", true, null,
-                        "claude-code, codex, gemini-cli, minimax-code or"
-                            + " qwen-code."),
+                        "claude-code, codex, gemini-cli, minimax-code, qwen-code"
+                            + " or opencode."),
                     new ParamSpec("command", "string[]", false, null,
                         "The launch command; defaults to the kind's own executable."),
                     new ParamSpec("prompt", "string", false, null,

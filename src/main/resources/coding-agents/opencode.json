@@ -1,0 +1,39 @@
+{
+  "kind": "OPENCODE",
+  "version": 1,
+  "comment": "Written against OpenCode 2.0.20 (native TUI on the alternate screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio endpoint, with edit and shell permissions set to ask; must be re-verified when OpenCode changes its TUI. The permission box ('△ Permission required' with the 'Allow once   Always allow   Reject' choices and the '⇆ select  enter confirm' hint) is BLOCKED; the progress-bar footer ('■■⬝⬝⬝⬝⬝⬝ esc interrupt') shown while a turn runs is WORKING; the prompt box closed by its '╹▀▀▀' border with the 'ctrl+p commands' footer is IDLE. The prompt box stays visible while OpenCode works, so the idle rule vetoes on 'esc interrupt' and 'Permission required' and has the lowest priority; the approval rule anchors its patterns to the start of a line (after the box border), because a transcript that quotes the dialog text must not read as a pending permission. No rule depends on the alternate-screen flag.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": { "bottomNonEmptyLines": 20 },
+      "anyLineRegex": [
+        "^\\s*[┃│]?\\s*△\\s*Permission required\\b",
+        "^\\s*[┃│]?\\s*Allow once\\s+Always allow\\s+Reject\\b",
+        "⇆ select\\s+enter confirm\\s*$"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": { "bottomNonEmptyLines": 4 },
+      "anyLineRegex": [
+        "^\\s*[■⬝]{4,}\\s+esc interrupt\\b"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": { "bottomNonEmptyLines": 6 },
+      "anyLineRegex": [
+        "^\\s*╹▀{10,}",
+        "\\bctrl\\+p commands?\\s*$"
+      ],
+      "notContains": ["esc interrupt", "Permission required"]
+    }
+  ]
+}

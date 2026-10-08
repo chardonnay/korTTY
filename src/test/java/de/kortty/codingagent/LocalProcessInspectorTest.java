@@ -183,6 +183,19 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesOpenCodeAsNativeBinaryAndThroughNpmWrapper() {
+        // Homebrew ships a native (Bun-compiled) binary.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/Cellar/opencode/2.0.20/bin/opencode", List.of(), null))
+            .hasValue(CodingAgentKind.OPENCODE);
+        // npm's opencode-ai wrapper script, and the platform package's binary it starts.
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/usr/lib/node_modules/opencode-ai/bin/opencode"), null)).hasValue(CodingAgentKind.OPENCODE);
+        assertThat(LocalProcessInspector.classify(
+            "C:\\Users\\jd\\AppData\\Roaming\\npm\\node_modules\\opencode-ai\\node_modules\\opencode-windows-x64\\bin\\opencode.exe",
+            null, null)).hasValue(CodingAgentKind.OPENCODE);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,
