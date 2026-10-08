@@ -180,10 +180,6 @@ body {
      title and first copy line share one baseline across the row */
   padding: calc(1.5 * var(--leading)) 0; }
 .feature + .feature { border: 0; position: relative; }
-/* release cards of versions that are not the newest published release are hidden; the first visible
-   card after hidden ones is the top row and takes no separator */
-.feature[hidden] { display: none; }
-.feature[hidden] + .feature:not([hidden])::before { content: none; }
 .feature + .feature::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: linear-gradient(to right, transparent, var(--color-neutral-700) 48px calc(100% - 48px), transparent); }
   /* in-content structural rules take neutral-700, the ink the deck's quadrant
@@ -641,6 +637,77 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 .ca-sep { color: #4d5462; }
 @media (max-width: 560px) { .ca-bar { flex-wrap: wrap; } .ca-strip { margin-left: 0; } }
 @media (prefers-reduced-motion: reduce) { .ca-row.blocked .ca-dot, .ca-sd { animation: none; } }
+/* — session isolation diagram — */
+.iso { background: #0d1117; border: 1px solid #262c38; border-radius: var(--radius-md); box-shadow: var(--win-shadow);
+  overflow: hidden; color: #d6dae2; }
+.iso-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 14px; background: #1a1e27;
+  border-bottom: 1px solid #262c38; font-size: 12.5px; color: #8b93a3; }
+.iso-legend { margin-left: auto; display: flex; gap: 14px; flex-wrap: wrap; }
+.iso-lg { display: inline-flex; align-items: center; gap: 6px; }
+.iso-ic { width: 15px; height: 15px; flex: none; display: block; }
+.own { color: #58a6ff; } .sbx { color: #3fb950; } .inc { color: var(--color-accent-300); }
+.iso-lg.own, .iso-lg.sbx, .iso-lg.inc { color: #a7b0c0; }
+.iso-lg.own .iso-ic { color: #58a6ff; } .iso-lg.sbx .iso-ic { color: #3fb950; } .iso-lg.inc .iso-ic { color: var(--color-accent-300); }
+.iso-scroll { overflow-x: auto; }
+.iso-grid { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 0 18px; padding: 18px; min-width: 780px; }
+.iso-hd { height: 30px; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #8b93a3; }
+.iso-hd b { color: #e6edf3; font-weight: 500; font-size: 13px; }
+.iso-core { background: #12161f; border: 1px solid #262c38; border-radius: var(--radius-md); padding: 8px 10px 10px;
+  display: flex; flex-direction: column; gap: 12px; }
+.iso-tab { height: 66px; box-sizing: border-box; border: 1px solid #2c323e; border-radius: 6px; padding: 9px 10px; background: #0d1117;
+  display: flex; flex-direction: column; justify-content: center; gap: 4px; transition: border-color .4s, background .4s; }
+.iso-tabn { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #e6edf3; }
+.iso-tab small { font-size: 11px; color: #8b93a3; }
+.iso-re { display: none; color: #ffa198 !important; }
+.iso-keys { margin-top: 4px; border-top: 1px solid #262c38; padding-top: 10px; display: flex; flex-direction: column; gap: 3px;
+  font-size: 11.5px; color: #a7b0c0; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; transition: color .4s; }
+.iso-signs { color: #6f7787; transition: color .4s; }
+.iso-right { display: flex; flex-direction: column; gap: 12px; padding-top: 8px; }
+.iso-cols, .iso-row { display: grid; grid-template-columns: minmax(40px, 1fr) 200px minmax(30px, .7fr) 160px; align-items: center; gap: 0 10px; }
+.iso-row { height: 66px; }
+.iso-link { position: relative; height: 2px; background: linear-gradient(90deg, transparent, #3a4150 18%, #3a4150 82%, transparent); transition: opacity .4s; }
+.iso-link.dash { background: repeating-linear-gradient(90deg, #3a4150 0 5px, transparent 5px 10px); }
+.iso-pk { position: absolute; top: -2px; left: 0; width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent-300);
+  animation: isoflow 2.4s linear infinite; }
+.iso-pk.d2 { animation-delay: -1.2s; }
+.iso-pk.rev { background: #9cc2f2; animation-direction: reverse; animation-delay: -.6s; }
+@keyframes isoflow { from { left: 0; opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } to { left: calc(100% - 6px); opacity: 0; } }
+.iso-sig { position: absolute; top: -26px; left: 100%; transform: translateX(-100%); opacity: 0; white-space: nowrap;
+  font-size: 11px; padding: 2px 8px; border-radius: 5px; border: 1px solid rgba(210,153,34,.55); background: rgba(210,153,34,.14); color: #f0d9a4;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; transition: left 1.5s ease-in-out, transform 1.5s ease-in-out, opacity .3s; }
+.iso-sig.out { left: 0; transform: none; opacity: 1; }
+.iso-sig.back { left: 100%; transform: translateX(-100%); opacity: 1; border-color: rgba(63,185,80,.5); background: rgba(63,185,80,.12); color: #8ddb9f; }
+.iso-wk { border: 1px solid #2c323e; border-radius: 6px; padding: 7px 10px; background: #12161f; display: flex; flex-direction: column; gap: 2px;
+  transition: border-color .4s, background .4s; min-width: 0; }
+.iso-wk b { font-size: 12.5px; font-weight: 500; color: #e6edf3; }
+.iso-wk small, .iso-msg { font-size: 10.5px; color: #8b93a3; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iso-msg { color: #a7b0c0; transition: color .3s; }
+.iso-box { position: relative; border: 1px dashed rgba(63,185,80,.55); border-radius: 8px; padding: 12px 5px 5px; margin-top: -8px; transition: border-color .3s, box-shadow .3s; }
+.iso-box-l { position: absolute; top: -8px; left: 8px; padding: 0 5px; background: #0d1117; font-size: 10px; color: #8ddb9f; white-space: nowrap; }
+.iso-srv { border: 1px solid #2c323e; border-radius: 6px; padding: 7px 10px; font-size: 11.5px; color: #c4cad6;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; display: flex; flex-direction: column; gap: 2px; transition: opacity .4s; }
+.iso-srv small { font-size: 10.5px; color: #8b93a3; }
+.iso-caps { display: grid; border-top: 1px solid #262c38; background: #12161f; }
+.iso-cap { grid-area: 1 / 1; margin: 0; padding: 11px 14px; font-size: 13px; line-height: 1.5; color: #c4cad6;
+  opacity: 0; transition: opacity .5s; }
+.iso-cap.on { opacity: 1; }
+/* scene 1 — signing round-trip */
+.iso[data-scene="1"] .iso-signs { color: #f0d9a4; }
+.iso[data-scene="1"] .iso-tab.r0 { border-color: rgba(210,153,34,.45); }
+/* scene 2 — sandbox denies a read */
+.iso[data-scene="2"] .r2 .iso-box { border-color: #d29922; box-shadow: 0 0 0 3px rgba(210,153,34,.12); }
+.iso[data-scene="2"] .r2 .iso-msg { color: #f0d9a4; }
+/* scene 3 — a worker crashes */
+.iso[data-scene="3"] .r1 .iso-wk { border-color: rgba(248,81,73,.7); background: rgba(248,81,73,.1); }
+.iso[data-scene="3"] .r1 .iso-msg { color: #ffa198; }
+.iso[data-scene="3"] .r1 .iso-link { opacity: .25; }
+.iso[data-scene="3"] .r1 .iso-pk { display: none; }
+.iso[data-scene="3"] .r1 .iso-srv { opacity: .45; }
+.iso[data-scene="3"] .iso-tab.r1 { border-color: rgba(248,81,73,.55); }
+.iso[data-scene="3"] .iso-tab.r1 .iso-ok { display: none; }
+.iso[data-scene="3"] .iso-tab.r1 .iso-re { display: block; }
+.iso[data-scene="4"] .r1 .iso-wk { border-color: rgba(63,185,80,.6); }
 </style>
 </head>
 <body>
@@ -657,7 +724,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <a href="#download" data-i18n="nav.download">Download</a>
   <a data-guide href="guide/index.html" target="_blank" rel="noopener" data-i18n="nav.guide">Guide</a>
   <select id="lang-sel" aria-label="Language"><option value="en">English</option><option value="de">Deutsch</option><option value="es">Español</option><option value="fr">Français</option><option value="hr">Hrvatski</option><option value="it">Italiano</option><option value="nl">Nederlands</option><option value="pt">Português</option><option value="ru">Русский</option><option value="zh">中文</option><option value="ja">日本語</option><option value="ko">한국어</option><option value="th">ไทย</option><option value="af">Afrikaans</option><option value="fil">Filipino</option></select>
-  <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.17.0</span></a>
+  <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
 </nav>
 <div class="wrap">
 
@@ -667,7 +734,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
         <h1 class="display" data-i18n="hero.h1"><span class="line">SSH connect.</span> <span class="line">Prompt.</span> <span class="line dim">Chill.</span></h1>
         <p class="sub" data-i18n="hero.sub">korTTY puts AI agents inside your SSH session — they inspect the box, plan safe commands, ask before anything scary, and fix it. LLMs run in-process; nothing extra gets installed on your machine or your servers.</p>
         <div class="row">
-          <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.17.0</span></a>
+          <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
           <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" data-i18n="w.viewgh">View on GitHub</a>
           <span class="meta" data-i18n="hero.meta">macOS · Windows · Linux — open source, MIT</span>
         </div>
@@ -692,7 +759,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="stats" aria-label="korTTY, by the numbers" data-screen-label="Stat band">
     <div class="wrap">
       <div class="grid">
-        <div><p class="stat-num" data-ver>v2.17.0</p><p class="stat-label" data-i18n="st.rel">Current release</p></div>
+        <div><p class="stat-num" data-ver>v2.7.0</p><p class="stat-label" data-i18n="st.rel">Current release</p></div>
         <div><p class="stat-num">3</p><p class="stat-label" data-i18n="st.plat">Platforms — macOS · Win · Linux</p></div>
         <div><p class="stat-num">0 €</p><p class="stat-label" data-i18n="st.mit">Open source, MIT</p></div>
         <div><p class="stat-num">8</p><p class="stat-label" data-i18n="st.lang">Built-in languages</p></div>
@@ -1199,10 +1266,94 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
   </section>
 
+  <section class="sec" id="isolation" data-screen-label="Session isolation">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="si.k">14 — Security: session isolation</span>
+      <h2 class="sec-title" data-i18n="si.t">One tab crashes. The other nine don't notice.</h2>
+      <p class="lead" data-i18n="si.l">Since v2.19.0 korTTY can keep a terminal session apart from itself and from every other tab — per connection, per folder or as the default: None, Own process, or Own process + sandbox. Each tab wears a shield that says what the session actually got, and an incognito session leaves no trace in korTTY at all.</p>
+    </div>
+    <figure class="iso reveal" id="iso" data-scene="0" aria-label="Animated diagram of session workers and the sandbox" style="margin: calc(1.5 * var(--leading)) 0 0">
+      <div class="iso-top">
+        <span>Session isolation</span>
+        <span class="iso-legend"><span class="iso-lg own"><svg class="iso-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.1-7 10-4-1.9-7-5.4-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg>Own process</span><span class="iso-lg sbx"><svg class="iso-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.1-7 10-4-1.9-7-5.4-7-10V6z" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg>Sandbox</span><span class="iso-lg inc"><svg class="iso-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="15" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"></circle><circle cx="17" cy="15" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"></circle><path d="M10.2 15h3.6M3 10h18M6 10l2-5h8l2 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg>Incognito</span></span>
+      </div>
+      <div class="iso-scroll">
+        <div class="iso-grid">
+          <div class="iso-core">
+            <div class="iso-hd"><b>korTTY</b><span>main process</span></div>
+            <div class="iso-tab r0"><span class="iso-tabn"><span class="own"><svg class="iso-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.1-7 10-4-1.9-7-5.4-7-10V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg></span>web-01</span><small>Own process</small></div>
+            <div class="iso-tab r1"><span class="iso-tabn"><span class="sbx"><svg class="iso-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.1-7 10-4-1.9-7-5.4-7-10V6z" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg></span>db-eu-2</span><small class="iso-ok">Own process + sandbox</small><small class="iso-re">Reconnect</small></div>
+            <div class="iso-tab r2"><span class="iso-tabn"><span class="sbx"><svg class="iso-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 8.1-7 10-4-1.9-7-5.4-7-10V6z" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg></span><span class="inc"><svg class="iso-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="15" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"></circle><circle cx="17" cy="15" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"></circle><path d="M10.2 15h3.6M3 10h18M6 10l2-5h8l2 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path></svg></span>local · zsh</span><small>no log · no journal · no recording</small></div>
+            <div class="iso-keys"><span>vault · master.key</span><span>SSH keys · known_hosts</span><span class="iso-signs">signs on request</span></div>
+          </div>
+          <div class="iso-right">
+            <div class="iso-hd iso-cols"><span>127.0.0.1 · one-time token</span><span>worker</span><span></span><span>reaches</span></div>
+            <div class="iso-row r0">
+              <div class="iso-link"><span class="iso-pk"></span><span class="iso-pk d2"></span><span class="iso-pk rev"></span><span class="iso-sig"></span></div>
+              <div class="iso-wk"><b>session worker</b><small id="iso-pid0">pid 48211 · ssh</small><span class="iso-msg"></span></div>
+              <div class="iso-link"><span class="iso-pk"></span><span class="iso-pk rev"></span></div>
+              <div class="iso-srv">web-01.acme.com:22</div>
+            </div>
+            <div class="iso-row r1">
+              <div class="iso-link"><span class="iso-pk"></span><span class="iso-pk d2"></span><span class="iso-pk rev"></span></div>
+              <div class="iso-box"><span class="iso-box-l">sandbox · self-test ✓</span><div class="iso-wk"><b>session worker</b><small id="iso-pid1">pid 51877 · ssh</small><span class="iso-msg"></span></div></div>
+              <div class="iso-link"><span class="iso-pk"></span><span class="iso-pk rev"></span></div>
+              <div class="iso-srv">db-eu-2.acme.com:22<small>only this port</small></div>
+            </div>
+            <div class="iso-row r2">
+              <div class="iso-link"><span class="iso-pk"></span><span class="iso-pk rev"></span></div>
+              <div class="iso-box"><span class="iso-box-l">sandbox · self-test ✓</span><div class="iso-wk"><b>zsh</b><small>KORTTY_SANDBOX=1</small><span class="iso-msg"></span></div></div>
+              <div class="iso-link dash"></div>
+              <div class="iso-srv">~/proj · $TMPDIR<small>writes only here</small></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="iso-caps">
+        <p class="iso-cap on" data-i18n="si.c0">Each isolated session gets a worker of its own, connected to korTTY over 127.0.0.1 with a one-time token and a pinned key.</p>
+        <p class="iso-cap" data-i18n="si.c1">The server wants a signature. The worker asks korTTY, korTTY signs — the private key never leaves home.</p>
+        <p class="iso-cap" data-i18n="si.c2">Inside the sandbox, ~/.ssh, ~/.kortty, ~/.gnupg and the keychains are simply not there.</p>
+        <p class="iso-cap" data-i18n="si.c3">A worker crashes. Its tab offers to reconnect; every other tab keeps running.</p>
+        <p class="iso-cap" data-i18n="si.c4">Reconnected: a fresh worker, a fresh token, nothing else disturbed.</p>
+      </div>
+    </figure>
+    <p class="figcap" data-i18n="si.cap">Animated diagram: korTTY keeps the keys and the vault; every isolated session runs in a worker of its own, the sandboxed ones behind the operating system's walls.</p>
+    <div class="feature">
+      <p class="f-num">01</p>
+      <h3 class="f-title" data-i18n="si.1t">One worker per session</h3>
+      <p class="f-copy" data-i18n="si.1c">An isolated SSH or built-in Mosh session runs in a session worker, a small process korTTY starts for this one connection. It connects, authenticates, holds the encrypted link and passes every channel through, so the terminal, SFTP, file drops, agent commands and <span class="kbd">-L</span>/<span class="kbd">-D</span>/<span class="kbd">-R</span> tunnels work as before. If it crashes, the tab says <em>Session process crashed</em> with its last message and offers to reconnect. <span class="kbd">Tools → Session Processes…</span> lists every worker with memory, CPU and uptime and ends one on request; workers run at lower priority, so a busy one never slows the window.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="si.2t">A sandbox that has to prove itself</h3>
+      <p class="f-copy" data-i18n="si.2c">With <em>Own process + sandbox</em> the session runs inside the operating system's sandbox — <span class="kbd">sandbox-exec</span> on macOS, bubblewrap on Linux. It can't read or write <span class="kbd">~/.kortty</span> (connections, credentials, master.key, logs, journals), <span class="kbd">~/.ssh</span>, <span class="kbd">~/.gnupg</span> or the keychains, and writes only to its working folder, the temp folder and a folder of its own that disappears with the session. Before the first sandboxed session korTTY checks that a secret file really is unreadable from inside. Only a sandbox that passes counts.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">03</p>
+      <h3 class="f-title" data-i18n="si.3t">Keys stay home, the network stays narrow</h3>
+      <p class="f-copy" data-i18n="si.3c">A worker never receives a private key: when the server asks for a signature, korTTY signs. It never sees the vault or the master password either. In the sandbox a macOS worker may only reach the ports of the server and the jump server; on Linux it has no network of its own at all, and korTTY opens exactly those connections for it. Remote tunnels come back through korTTY, which connects the local target itself.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">04</p>
+      <h3 class="f-title" data-i18n="si.4t">Strict terminal mode</h3>
+      <p class="f-copy" data-i18n="si.4c">Escape sequences a hostile server could misuse are dropped before the terminal sees them: clipboard writes (OSC 52), links that aren't http or https (OSC 8), oversized or control-laden window titles, OSC sequences over 4 KiB, and DCS, APC, PM and SOS strings. Colours, shell-integration marks and the working directory pass unchanged. On automatically inside a sandbox.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">05</p>
+      <h3 class="f-title" data-i18n="si.5t">Incognito sessions</h3>
+      <p class="f-copy" data-i18n="si.5c"><span class="kbd">File → New Incognito Session…</span> opens a tab korTTY forgets: no terminal log, no journal, no recording, no Recently Closed entry, nothing in a saved project, no restore after a restart. The tab shows a spy, and incognito combines with every isolation level. It covers what korTTY writes down — the server and the remote shell's own history are another matter.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">06</p>
+      <h3 class="f-title" data-i18n="si.6t">And for the admins</h3>
+      <p class="f-copy" data-i18n="si.6c">An <a href="#security">enterprise policy</a> can demand a minimum with <span class="kbd">[rule.isolation] minimum</span> and forbid incognito with <span class="kbd">incognito-sessions = "deny"</span>. Lower levels grey out everywhere, and a session that can't get the minimum is refused instead of quietly opened with less. Windows and the Flatpak package have no sandbox yet; the tab shows an amber shield rather than pretending.</p>
+    </div>
+  </section>
+
   <section class="sec" id="automation" data-screen-label="JobScheduler">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k11">14 — JobScheduler</span>
+        <span class="kicker" data-i18n="k11">15 — JobScheduler</span>
         <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t11">Automation that survives closed tabs</h2>
         <p class="note" data-i18n="n11a">Schedule background jobs against saved connections and groups — weekdays, fixed times, date ranges, intervals — no terminal tab required. Actions: remote commands, Snippet scripts with argv, SFTP transfers, rsync syncs, headless AI agents, and whole AI swarms with per-job parallelism.</p>
         <p class="note" data-i18n="n11b">A journal records every run — redacted or full, searchable with wildcards, auto-pruned after 14 days — and korTTY warns before quitting while jobs run, then drains cleanly. Host keys must be pinned before anything runs unattended.</p>
@@ -1225,7 +1376,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="security" data-screen-label="Security">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k12">15 — Security</span>
+      <span class="kicker" data-i18n="k12">16 — Security</span>
       <h2 class="sec-title" data-i18n="t12">Paranoid by default. We checked.</h2>
       <p class="lead" data-i18n="l12">Built for people whose servers matter — and audited along the way by pipelines with trust issues.</p>
     </div>
@@ -1311,7 +1462,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="languages" data-screen-label="Languages">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k13">16 — Languages</span>
+        <span class="kicker" data-i18n="k13">17 — Languages</span>
         <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t13">Eight languages built in. The rest, generated.</h2>
         <p class="note" data-i18n="n13">English, German, Italian, Spanish, Portuguese, French, Croatian and Dutch ship in the box. Need Klingon adjacent? Settings → Translation generates full language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft or Yandex.</p>
       </div>
@@ -1334,7 +1485,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="compare" data-screen-label="Comparison">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k14">17 — The obligatory table</span>
+      <span class="kicker" data-i18n="k14">18 — The obligatory table</span>
       <h2 class="sec-title" data-i18n="t14">Against the usual suspects</h2>
       <p class="lead" data-i18n="l14">All fine tools. None of them puts an agent on your servers.</p>
     </div>
@@ -1364,87 +1515,74 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="download" data-screen-label="Download">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k15">18 — Download</span>
+      <span class="kicker" data-i18n="k15">19 — Download</span>
       <h2 class="sec-title" data-i18n="t15">Pick your build. We signed them all.</h2>
       <p class="lead" data-i18n="l15">Direct downloads per platform and CPU — self-contained, trimmed runtime included, no Java installation needed. All assets also on <a href="https://github.com/chardonnay/korTTY/releases" target="_blank" rel="noopener">GitHub Releases</a> with Ed25519 signatures.</p>
     </div>
     <div class="plats">
       <div class="card"><p class="card-kicker">macOS</p><h3 class="card-title">DMG / ZIP</h3><p class="card-body" data-i18n="dl.mac">Apple Silicon (aarch64) and Intel (x86_64) as separate builds. Metal-accelerated local models.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">Apple Silicon</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-aarch64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-aarch64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-aarch64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-aarch64.zip">ZIP</a></span></div>
-          <div class="dl-row"><span class="dl-arch">Intel</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-x86_64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-x86_64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-macOS-2.17.0-x86_64.zip">ZIP</a></span></div>
+          <div class="dl-row"><span class="dl-arch">Apple Silicon</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-aarch64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-aarch64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-aarch64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-aarch64.zip">ZIP</a></span></div>
+          <div class="dl-row"><span class="dl-arch">Intel</span><span class="dl-links"><a data-asset="korTTY-macOS-{v}-x86_64.dmg" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-x86_64.dmg">DMG</a><a data-asset="korTTY-macOS-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-macOS-2.7.0-x86_64.zip">ZIP</a></span></div>
         </div></div>
       <div class="card"><p class="card-kicker">Windows</p><h3 class="card-title">MSI / ZIP</h3><p class="card-body" data-i18n="dl.win">x86_64 — runs on Windows-on-ARM via x64 emulation. PowerShell, cmd, WSL and Git Bash as local shells.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="korTTY-Windows-{v}-x86_64.msi" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-Windows-2.17.0-x86_64.msi">MSI</a><a data-asset="korTTY-Windows-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/korTTY-Windows-2.17.0-x86_64.zip">ZIP</a></span></div>
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="korTTY-Windows-{v}-x86_64.msi" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-Windows-2.7.0-x86_64.msi">MSI</a><a data-asset="korTTY-Windows-{v}-x86_64.zip" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/korTTY-Windows-2.7.0-x86_64.zip">ZIP</a></span></div>
         </div></div>
       <div class="card"><p class="card-kicker">Linux</p><h3 class="card-title">DEB / RPM / Flatpak / tar.gz</h3><p class="card-body" data-i18n="dl.lin">x86_64 and aarch64, the Flatpak bundle included. Vulkan fallback for local models where the GPU cooperates.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-x86_64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.deb">DEB</a><a data-asset="kortty-Linux-{v}-x86_64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-x86_64.flatpak" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.flatpak">Flatpak</a><a data-asset="kortty-Linux-{v}-x86_64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-x86_64.tar.gz">tar.gz</a></span></div>
-          <div class="dl-row"><span class="dl-arch">aarch64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-aarch64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.deb">DEB</a><a data-asset="kortty-Linux-{v}-aarch64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-aarch64.flatpak" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.flatpak">Flatpak</a><a data-asset="kortty-Linux-{v}-aarch64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-Linux-2.17.0-aarch64.tar.gz">tar.gz</a></span></div>
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-x86_64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.deb">DEB</a><a data-asset="kortty-Linux-{v}-x86_64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-x86_64.flatpak" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.flatpak">Flatpak</a><a data-asset="kortty-Linux-{v}-x86_64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-x86_64.tar.gz">tar.gz</a></span></div>
+          <div class="dl-row"><span class="dl-arch">aarch64</span><span class="dl-links"><a data-asset="kortty-Linux-{v}-aarch64.deb" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.deb">DEB</a><a data-asset="kortty-Linux-{v}-aarch64.rpm" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.rpm">RPM</a><a data-asset="kortty-Linux-{v}-aarch64.flatpak" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.flatpak">Flatpak</a><a data-asset="kortty-Linux-{v}-aarch64.tar.gz" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-Linux-2.7.0-aarch64.tar.gz">tar.gz</a></span></div>
         </div></div>
       <div class="card"><p class="card-kicker">Arch Linux</p><h3 class="card-title">pacman pkg</h3><p class="card-body" data-i18n="dl.aur">.pkg.tar.zst for x86_64 — because you were going to mention it anyway. btw.</p>
         <div class="dl-rows">
-          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-{v}-1-x86_64.pkg.tar.zst" href="https://github.com/chardonnay/korTTY/releases/download/v2.17.0/kortty-2.17.0-1-x86_64.pkg.tar.zst">pkg.tar.zst</a></span></div>
+          <div class="dl-row"><span class="dl-arch">x86_64</span><span class="dl-links"><a data-asset="kortty-{v}-1-x86_64.pkg.tar.zst" href="https://github.com/chardonnay/korTTY/releases/download/v2.7.0/kortty-2.7.0-1-x86_64.pkg.tar.zst">pkg.tar.zst</a></span></div>
         </div></div>
     </div>
     <p class="figcap" style="margin-top: var(--leading)" data-i18n="fc.mig">Migrating? korTTY imports connections from MTPuTTY, MobaXterm and PuTTY Connection Manager — then encrypts them properly.</p>
   </section>
 
-  <section class="sec" id="release" data-screen-label="Release">
+  <section class="sec" id="release" data-screen-label="Release 2.17">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k16">19 — What's new in <span data-ver>v2.17.0</span></span>
+      <span class="kicker" data-i18n="k16">20 — What's new in v2.17.0</span>
       <h2 class="sec-title" data-i18n="t16">Fresh off the pipeline</h2>
     </div>
-    <!-- One group of cards per release (data-release). page-behavior.js shows only the group of the newest
-         release that is actually published on GitHub, so cards for an upcoming version stay hidden until
-         its release exists. Without JavaScript the currently published release's cards are shown. -->
-    <div class="feature" data-release="2.18.0" hidden>
-      <p class="f-num">2.18</p>
+    <div class="feature">
+      <p class="f-num">2.17</p>
       <h3 class="f-title" data-i18n="ca.rl1t">Coding agents, detected</h3>
       <p class="f-copy" data-i18n="ca.rl1c">Claude Code, Codex and Gemini CLI are recognised in local shell tabs, with a dockable <a href="#agents">Coding Agents panel</a>, dashboard chips, a status strip, an app-icon badge and desktop notifications.</p>
     </div>
-    <div class="feature" data-release="2.18.0" hidden>
-      <p class="f-num">2.18</p>
+    <div class="feature">
+      <p class="f-num">2.17</p>
       <h3 class="f-title" data-i18n="ca.rl2t">Control API and kortty-cli</h3>
       <p class="f-copy" data-i18n="ca.rl2c">A local socket lets a script — or another coding agent — list your windows, read any pane, type into it and drive a detected agent. Off by default.</p>
     </div>
-    <div class="feature" data-release="2.18.0" hidden>
-      <p class="f-num">2.18</p>
-      <h3 class="f-title" data-i18n="rl18at">Roll back a runtime</h3>
-      <p class="f-copy" data-i18n="rl18ac">If a new llama.cpp or MLX runtime misbehaves, pick an older signed version in Local Models. It stays pinned until you choose the newest one again.</p>
+    <div class="feature">
+      <p class="f-num">2.7</p>
+      <h3 class="f-title" data-i18n="rl1t">Full code analysis</h3>
+      <p class="f-copy" data-i18n="rl1c">The Snippet Editor's AI opens a non-modal analysis window: plain-language summary, dependency review, tickable Security/Optimization/Design improvements, and an auto-generated flow diagram that highlights source lines on hover.</p>
     </div>
-    <div class="feature" data-release="2.18.0" hidden>
-      <p class="f-num">2.18</p>
-      <h3 class="f-title" data-i18n="rl18bt">Dialogs open faster</h3>
-      <p class="f-copy" data-i18n="rl18bc">WebKit loads in the background and heavy tabs are built on first visit: the first AI Manager open dropped from about 1.4 s to under 0.1 s.</p>
+    <div class="feature">
+      <p class="f-num">2.7</p>
+      <h3 class="f-title" data-i18n="rl2t">One local Mermaid renderer</h3>
+      <p class="f-copy" data-i18n="rl2c">Snippet diagrams, code analysis, workflow generation and AI-chat Mermaid blocks share one SHA-256-pinned Mermaid 11.16 renderer — no Graphviz subprocess, no first-use download.</p>
     </div>
-    <div class="feature" data-release="2.17.0">
-      <p class="f-num">2.17</p>
-      <h3 class="f-title" data-i18n="rl1t">AI pictures in seconds</h3>
-      <p class="f-copy" data-i18n="rl1c">The ASCII Art tool now asks the model for a small vector drawing and converts it itself, so AI pictures match their subject and arrive in seconds instead of minutes.</p>
+    <div class="feature">
+      <p class="f-num">2.7</p>
+      <h3 class="f-title" data-i18n="rl3t">Explained security fixes</h3>
+      <p class="f-copy" data-i18n="rl3c">Security checks now show a side-by-side diff; hovering a changed block names the findings it addresses, with every rationale listed as a card below.</p>
     </div>
-    <div class="feature" data-release="2.17.0">
-      <p class="f-num">2.17</p>
-      <h3 class="f-title" data-i18n="rl2t">ASCII art from any image</h3>
-      <p class="f-copy" data-i18n="rl2c">The new Image File tab turns a PNG, JPEG, GIF or BMP into characters, with size, brightness, contrast and invert controls.</p>
+    <div class="feature">
+      <p class="f-num">2.7</p>
+      <h3 class="f-title" data-i18n="rl4t">Transparent terminals, quieter tabs</h3>
+      <p class="f-copy" data-i18n="rl4c">A 0–100 % background-transparency slider keeps text sharp while the terminal sees through to the desktop — and closing an idle tab finally stops asking if you're sure.</p>
     </div>
-    <div class="feature" data-release="2.17.0">
-      <p class="f-num">2.17</p>
-      <h3 class="f-title" data-i18n="rl3t">Copy ASCII art as code</h3>
-      <p class="f-copy" data-i18n="rl3c">Copy as prefixes every line with your language's comment marker, or wraps the picture in ready print statements for 16 languages, from Bash to Rust.</p>
-    </div>
-    <div class="feature" data-release="2.17.0">
-      <p class="f-num">2.17</p>
-      <h3 class="f-title" data-i18n="rl4t">The tmux cursor stays put</h3>
-      <p class="f-copy" data-i18n="rl4c">A narrowed scrolling region no longer drags the cursor or scrolls text away, so tmux panes show the cursor on the prompt line again.</p>
-    </div>
-    <p class="figcap" data-i18n="fc.rel"><a href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener">Full release notes on GitHub</a></p>
+    <p class="figcap" data-i18n="fc.rel"><a href="https://github.com/chardonnay/korTTY/blob/main/app-docs/RELEASE_NOTES.adoc" target="_blank" rel="noopener">Full release notes on GitHub</a></p>
   </section>
 
   <section class="sec" id="faq" data-screen-label="FAQ">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k17">20 — FAQ</span>
+      <span class="kicker" data-i18n="k17">21 — FAQ</span>
       <h2 class="sec-title" data-i18n="t17">Questions people actually ask</h2>
     </div>
     <div class="faq" style="margin-top: calc(1.5 * var(--leading))">
@@ -1479,11 +1617,11 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
 
   <section class="close" id="opensource" data-screen-label="Open source close">
-    <span class="kicker" data-i18n="k18">21 — Open source</span>
+    <span class="kicker" data-i18n="k18">22 — Open source</span>
     <h3 data-i18n="t18">Point an agent at it.</h3>
     <p class="sub" data-i18n="cl.sub">korTTY is built in the open — MIT-licensed, signed releases, public docs, and release notes that read like release notes. If it saves your on-call night, a star is the accepted currency.</p>
     <div class="signup" style="max-width: none">
-      <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.17.0</span></a>
+      <a class="btn btn-primary" href="https://github.com/chardonnay/korTTY/releases/latest" target="_blank" rel="noopener"><span data-i18n="w.download">Download</span> <span data-ver>v2.7.0</span></a>
       <a class="btn btn-ghost" href="https://github.com/chardonnay/korTTY" target="_blank" rel="noopener" data-i18n="cl.star">Star on GitHub</a>
       <a class="btn btn-ghost" data-guide href="guide/index.html" target="_blank" rel="noopener" data-i18n="cl.guide">Read the user guide</a>
     </div>
