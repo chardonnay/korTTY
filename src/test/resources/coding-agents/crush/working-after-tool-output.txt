@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=working
+#! alt=true
+
+ │ Use your bash tool to run exactly: ls -la                                            ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+                                                                                        ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+   We need to list files. Use bash tool.                                                 Charm™               v0.97.1
+                                                                                        ▄▀▀▀▀ █▀▀▀▄ █   █ ▄▀▀▀▀ █   █
+   ✓ Bash ls -la                                                                        █     █▀▀▀▄ █   █ ▀▀▀▀█ █▀▀▀█
+                                                                                         ▀▀▀▀ ▀   ▀  ▀▀▀  ▀▀▀▀  ▀   ▀
+      total 0                                                                           ╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱╱
+      drwxr-xr-x@  3         wheel    96 Oct  8 13:09 .
+      drwx------@ 38         wheel  1216 Oct  8 13:13 ..                                New Session
+      drwx------@  7         wheel   224 Oct  8 13:09 .crush
+                                                                                                                 
+   c#dd@*8=EF=b£€) 13s                                                                                        
+                                                                                                                    
+                                                                                                       
+                                                                                                                     
+                                                                                        k
+
+                                                                                        ◇ gpt-oss-20b
+                                                                                          via LM Studio (LAN)
+                                                                                          8% (11.2K) $0.00
+
+                                                                                        Modified Files ──────────────
+
+                                                                                        None
+
+                                                                                            LSPs ───────────────────────
+─
+                                                                                        None
+
+                                                                                            MCPs ───────────────────────
+─
+                                                                                        None
+
+   > Brrrrr...                                                                          Skills ──────────────────────
+ :::
+ :::                                                                                    ● crush-config
+                                                                                        ● crush-hooks
+ esc cancel • tab focus chat • shift+tab mode • / or ctrl+p commands • ctrl+l models • ctrl+b toggle sidebar …
+

@@ -32,6 +32,8 @@ public enum CodingAgentKind {
      * it never matches a goose screen rule, so it is never reported.
      */
     GOOSE("Goose", "goose", Set.of("goose")),
+    /** Charm's crush, a native binary; npm's {@code @charmland/crush} wrapper spawns it as {@code <pkg>/bin/crush}. */
+    CRUSH("Crush", "crush", Set.of("crush")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;
