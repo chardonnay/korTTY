@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+
+
+
+ _____/\\\\\\\\\\\\____/\\\\\\\\\___________/\\\\\_______/\\\________/\\\
+  ___/\\\//////////___/\\\///////\\\_______/\\\///\\\____\/\\\_____/\\\//_
+   __/\\\_____________\/\\\_____\/\\\_____/\\\/__\///\\\__\/\\\__/\\\//____
+    _\/\\\____/\\\\\\\_\/\\\\\\\\\\\/_____/\\\______\//\\\_\/\\\\\\//\\\____
+     _\/\\\___\/////\\\_\/\\\//////\\\____\/\\\_______\/\\\_\/\\\//_\//\\\___
+      _\/\\\_______\/\\\_\/\\\____\//\\\___\//\\\______/\\\__\/\\\____\//\\\__
+       _\/\\\_______\/\\\_\/\\\_____\//\\\___\///\\\__/\\\____\/\\\_____\//\\\_
+        _\//\\\\\\\\\\\\/__\/\\\______\//\\\____\///\\\\\/_____\/\\\______\//\\\
+         __\////////////____\///________\///_______\/////_______\///________\///_
+
+
+
+  Type your request in natural language. Ctrl+C to clear, 'exit' to quit.
+
+
+  > Use your bash tool to run exactly: curl -sI https://example.com
+
+  ⏺ Run bash command(curl -sI https://example.com)
+    ⎿ Requesting user confirmation
+    ⎿ Command: curl -sI https://example.com
+        No changes detected.
+
+  Do you want to proceed with this operation?
+
+   1. Yes
+   2. Yes, and don't ask again this session
+   3. No
+   4. No, with feedback
+
+  ↑↓ navigate • Enter select • Esc cancel
+
+
+
+
+
+
+

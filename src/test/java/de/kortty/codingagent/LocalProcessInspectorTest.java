@@ -292,6 +292,14 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesGrokCliByBinNameAndScopedPackage() {
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of("/opt/homebrew/bin/grok"), null))
+            .hasValue(CodingAgentKind.GROK);
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/usr/lib/node_modules/@vibe-kit/grok-cli/dist/index.js"), null)).hasValue(CodingAgentKind.GROK);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,
