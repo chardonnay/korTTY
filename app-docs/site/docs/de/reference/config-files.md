@@ -336,7 +336,7 @@ Textdatei mit den IDs der deaktivierten Terminaleffekt-Plugins (eine pro Zeile).
 **Zweck:** Wenn Sie ein Terminaleffekt-Plugin über *Plugins > Terminaleffekte* deaktivieren, wird seine ID in diese Datei geschrieben, sodass es nach dem Neustart deaktiviert bleibt.
 
 ### coding-agents/
-Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (`claude-code.json`, `codex.json`, `gemini-cli.json`, `minimax-code.json`, `qwen-code.json`, `opencode.json`, `cursor-agent.json`, `aider.json`, `amp.json`, `goose.json`, `crush.json`).
+Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (`claude-code.json`, `codex.json`, `gemini-cli.json`, `minimax-code.json`, `qwen-code.json`, `opencode.json`, `cursor-agent.json`, `aider.json`, `amp.json`, `goose.json`, `crush.json`, `kiro.json`).
 
 **Zweck:** Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des entsprechenden Agents vollständig. Eine ungültige Datei wird im Log als *Coding-Agents*-Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst dann, wenn es erstellt wird. Siehe [Coding-Agents → Benutzerdefinierte Regeln](../features/coding-agents.md#eigene-regeln).
 

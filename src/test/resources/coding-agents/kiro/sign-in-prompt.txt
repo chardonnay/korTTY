@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=sign-in-prompt
+#! alt=false
+
+Welcome to Kiro CLI, let's get you signed in!
+
+Press enter to continue to the browser or esc to cancel
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
