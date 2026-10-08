@@ -17,6 +17,12 @@ public enum CodingAgentKind {
     QWEN_CODE("Qwen Code", "qwen-code", Set.of("qwen", "qwen-code")),
     /** A native (Bun-compiled) binary; npm's {@code opencode-ai} wrapper and its platform package name it the same. */
     OPENCODE("OpenCode", "opencode", Set.of("opencode")),
+    /**
+     * Cursor's terminal agent. Its launcher execs a bundled {@code node} on
+     * {@code <…>/cursor-agent/versions/<version>/index.js}, so it is found by that install path; the
+     * launcher's own name is listed for a native build.
+     */
+    CURSOR_AGENT("Cursor Agent", "cursor-agent", Set.of("cursor-agent")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

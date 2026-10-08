@@ -1,0 +1,30 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+
+
+  Cursor Agent
+  v2026.10.01-e373342
+  Tip: Hit shift+tab to enable Plan Mode for large or complex changes.
+
+
+  Use your shell tool to run exactly: curl -sI https://example.com
+
+
+  Ich führe den Befehl jetzt aus.
+
+  $ curl -sI https://example.com 34s
+    … 10 output lines hidden · ctrl+o to expand
+    alt-svc: h3=":443"; ma=86400
+
+
+  Befehl erfolgreich ausgeführt (Exit-Code 0). Antwort: HTTP/2 200, Server Cloudflare, Content-Type text/html;
+  charset=utf-8.
+
+
+
+
+  → Add a follow-up
+
+
+  Auto · 3.8%
+  ~/projects/demo-app

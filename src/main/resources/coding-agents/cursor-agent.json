@@ -1,0 +1,52 @@
+{
+  "kind": "CURSOR_AGENT",
+  "version": 1,
+  "comment": "Written against Cursor Agent (cursor-agent) 2026.10.01-e373342 from live, authenticated sessions recorded in a pty; must be re-verified when Cursor changes its TUI. The command approval ('Run this command?' with '→ Run (once) (y)' … 'Skip & tell the agent what to do instead (esc or n)'), its follow-up input ('→ Tell the agent what to do instead (Enter to send, …)') are BLOCKED, and so is the workspace-trust prompt ('⚠ Workspace Trust Required', '[q] Quit', 'Use arrow keys to navigate, …') — its own rule looks only at the last lines, because Cursor does not use the alternate screen and the answered trust box stays in the scrollback above a working session; the Braille spinner line ('⠘⠣ Working') with the 'ctrl+c to stop' hint is WORKING; the '→ Add a follow-up' / '→ Plan, search, build anything' input line is IDLE. The input line stays visible while the agent works, so the idle rule vetoes on 'ctrl+c to stop' and 'Waiting for approval' and has the lowest priority; the approval rule anchors its patterns to the start of a line, because an answer that quotes the dialog text must not read as a pending approval. Cursor Agent does not use the alternate screen, so no rule depends on that flag.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": { "bottomNonEmptyLines": 20 },
+      "anyLineRegex": [
+        "^\\s*Run this command\\?\\s*$",
+        "^\\s*→?\\s*Run \\(once\\) \\(y\\)",
+        "^\\s*Skip & tell the agent what to do instead \\(esc or n\\)",
+        "^\\s*→\\s*Tell the agent what to do instead \\(Enter to send"
+      ]
+    },
+    {
+      "id": "workspace-trust",
+      "state": "BLOCKED",
+      "priority": 950,
+      "region": { "bottomNonEmptyLines": 6 },
+      "anyLineRegex": [
+        "^\\s*│\\s*Use arrow keys to navigate, Enter to select, or press the key shown",
+        "^\\s*│\\s*\\[q\\] Quit\\b"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": { "bottomNonEmptyLines": 8 },
+      "anyLineRegex": [
+        "^\\s*[⠀-⣿]{1,3}\\s+\\S",
+        "\\bctrl\\+c to stop\\s*$"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": { "bottomNonEmptyLines": 6 },
+      "anyLineRegex": [
+        "^\\s*→\\s+Add a follow-up\\s*$",
+        "^\\s*→\\s+Plan, search, build anything\\s*$",
+        "^\\s*→\\s+\\S"
+      ],
+      "notContains": ["ctrl+c to stop", "Waiting for approval"]
+    }
+  ]
+}

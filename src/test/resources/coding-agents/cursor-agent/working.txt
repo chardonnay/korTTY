@@ -1,0 +1,20 @@
+#! expect state=WORKING rule=working
+#! alt=false
+
+
+  Cursor Agent
+  v2026.10.01-e373342
+  Tip: Try Cursor Grok 4.6 via /model, frontier intelligence at a fraction of the cost.
+
+
+  Use your shell tool to run exactly: curl -sI https://example.com
+
+
+ ⠘⠣ Working
+
+
+  → Add a follow-up                                                                                     ctrl+c to stop
+
+
+  Auto
+  ~/projects/demo-app
