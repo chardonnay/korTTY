@@ -278,6 +278,20 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesContinueByBinNameAndScopedPackage() {
+        // npm's bin link as invoked through the shebang: node /opt/homebrew/bin/cn --config …
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node",
+            List.of("/opt/homebrew/bin/cn", "--config", "/home/u/.continue/config.yaml"), null))
+            .hasValue(CodingAgentKind.CONTINUE);
+        // The entry point itself is dist/cn.js; its scoped package directory identifies it too.
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/usr/lib/node_modules/@continuedev/cli/dist/index.js"), null))
+            .hasValue(CodingAgentKind.CONTINUE);
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/usr/lib/node_modules/@someone/cli/dist/index.js"), null)).isEmpty();
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

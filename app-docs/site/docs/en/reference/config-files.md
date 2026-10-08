@@ -336,7 +336,7 @@ Text file listing disabled terminal-effect plugin IDs (one per line).
 **Purpose:** When you disable a terminal-effect plugin via *Plugins > Terminal Effects*, its ID is written to this file so it remains disabled after restart.
 
 ### coding-agents/
-Optional user overrides for the coding-agent detection rules, one JSON file per agent (`claude-code.json`, `codex.json`, `gemini-cli.json`, `minimax-code.json`, `qwen-code.json`, `opencode.json`, `cursor-agent.json`, `aider.json`, `amp.json`, `goose.json`, `crush.json`, `kiro.json`).
+Optional user overrides for the coding-agent detection rules, one JSON file per agent (`claude-code.json`, `codex.json`, `gemini-cli.json`, `minimax-code.json`, `qwen-code.json`, `opencode.json`, `cursor-agent.json`, `aider.json`, `amp.json`, `goose.json`, `crush.json`, `kiro.json`, `continue.json`).
 
 **Purpose:** A file here replaces the bundled rule file of the same agent entirely. An invalid file is reported in the log as a *coding-agents* warning and the bundled rules stay in effect. The directory does not exist until you create it. See [Coding agents → Custom rules](../features/coding-agents.md#custom-rules).
 

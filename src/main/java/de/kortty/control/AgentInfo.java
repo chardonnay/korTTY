@@ -20,7 +20,8 @@ import java.util.Objects;
  * @param detected whether the registry holds an agent for the pane
  * @param kind the agent kind id ({@code claude-code}, {@code codex}, {@code gemini-cli},
  *     {@code minimax-code}, {@code qwen-code}, {@code opencode},
- *     {@code cursor-agent}, {@code aider}, {@code amp}, {@code goose}, {@code crush}, {@code kiro}), or null
+ *     {@code cursor-agent}, {@code aider}, {@code amp}, {@code goose}, {@code crush}, {@code kiro},
+ *     {@code continue}), or null
  * @param state the wire state ({@code blocked}, {@code working}, {@code done}, {@code idle},
  *     {@code unknown})
  * @param displayName the alias when set, otherwise the kind's display name

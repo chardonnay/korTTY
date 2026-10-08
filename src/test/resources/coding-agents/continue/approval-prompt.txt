@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+
+
+   ██████╗ ██████╗ ███╗   ██╗████████╗██╗███╗   ██╗██╗   ██╗███████╗
+  ██╔════╝██╔═══██╗████╗  ██║╚══██╔══╝██║████╗  ██║██║   ██║██╔════╝
+  ██║     ██║   ██║██╔██╗ ██║   ██║   ██║██╔██╗ ██║██║   ██║█████╗
+  ██║     ██║   ██║██║╚██╗██║   ██║   ██║██║╚██╗██║██║   ██║██╔══╝
+  ╚██████╗╚██████╔╝██║ ╚████║   ██║   ██║██║ ╚████║╚██████╔╝███████╗
+   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚══════╝
+                                                     v1.5.47
+
+ Config: LM Studio (LAN)
+ Model: gpt-oss-20b
+
+
+● Use your terminal tool to run exactly: curl -sI https://example.com
+
+○ Bash(curl -sI https://example.com)
+
+ ⠀⠀⠀  ( 2s • esc to interrupt )
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                                                                                                      │
+│  Bash(curl -sI https://example.com)                                                                                  │
+│                                                                                                                      │
+│  ⎿ Will run: curl -sI https://example.com                                                                            │
+│                                                                                                                      │
+│  Would you like to continue?                                                                                         │
+│                                                                                                                      │
+│  Note: Dangerous commands will be blocked regardless of your preference.                                             │
+│                                                                                                                      │
+│  > Continue (tab)                                                                                                    │
+│    Continue + don't ask again (shift+tab)                                                                            │
+│    No, and tell Continue what to do differently (esc)                                                                │
+│                                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                                                                        ◉ Continue CLI
+
+
+
+
+
