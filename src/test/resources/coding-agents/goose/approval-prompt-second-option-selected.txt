@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+        "command": "ls -la",
+        "timeout_secs": null
+      }
+    }
+
+◇  Goose would like to call the above tool, do you allow?
+│  Allow
+│
+    total 0
+    drwxr-xr-x@  2 demo    staff   64 Oct  8 12:47 .
+    drwx------@ 30 demo    staff  960 Oct  8 12:49 ..
+The current working directory `~/projects/demo-app` is empty (no files, only the directory itself).
+  ⏱ 43.77s
+  ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ 2% 3k/128k
+> Use your shell tool to run exactly: curl -sI https://example.com
+
+
+  ────────────────────────────────────────
+  ▸ shell
+    command: curl -sI https://example.com
+    timeout_secs: null
+
+
+  Tool approval request
+    {
+      "tool_name": "shell",
+      "arguments": {
+        "command": "curl -sI https://example.com",
+        "timeout_secs": null
+      }
+    }
+
+◆  Goose would like to call the above tool, do you allow?
+│  ○ Allow
+│  ● Always Allow (Always allow the tool call)
+│  ○ Deny
+│  ○ Cancel
+└
+
+
