@@ -1,29 +1,14 @@
-// — latest-release sync: version labels, direct-download links and the "What's new" cards follow the
-//   newest *published* GitHub release, so a version only appears once its release exists —
+// — latest-release sync: version labels + direct-download links follow the newest GitHub release —
 (() => {
-  let latest = null;
-  const cmp = (a, b) => {
-    const x = a.split('.').map(Number), y = b.split('.').map(Number);
-    for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); }
-    return 0;
-  };
   const apply = (tag) => {
     if (!/^v?\d+\.\d+/.test(tag)) return;
-    latest = tag;
     const ver = tag.replace(/^v/, '');
     document.querySelectorAll('[data-ver]').forEach(el => { el.textContent = 'v' + ver; });
     document.querySelectorAll('a[data-asset]').forEach(a => {
       a.href = 'https://github.com/chardonnay/korTTY/releases/download/' + tag + '/' +
         a.dataset.asset.split('{v}').join(ver);
     });
-    // Show the card group of the newest release that is not newer than the published one: cards
-    // prepared for an upcoming version stay hidden until GitHub has that release.
-    const cards = [...document.querySelectorAll('#release [data-release]')];
-    const shown = cards.map(c => c.dataset.release).filter(r => cmp(r, ver) <= 0).sort(cmp).pop();
-    if (shown) cards.forEach(c => { c.hidden = c.dataset.release !== shown; });
   };
-  // A language switch rewrites translated labels, including the version inside the "What's new" kicker.
-  document.addEventListener('kortty:lang', () => { if (latest) apply(latest); });
   const KEY = 'kortty-latest-tag';
   try { const c = JSON.parse(localStorage.getItem(KEY) || 'null'); if (c && c.tag) apply(c.tag); } catch (_) {}
   fetch('https://api.github.com/repos/chardonnay/korTTY/releases/latest')
@@ -126,6 +111,7 @@
       if (e.isIntersecting && !on) { on = true; start(); }
       else if (!e.isIntersecting && on) { on = false; stop(); }
     }), { threshold: 0.05 }).observe(el); };
+  window.__kgate = gate; window.__ktimers = timers;
 
   // — screenshot Ken-Burns/cursor: run only while in viewport (GPU relief) —
   if ('IntersectionObserver' in window) {
@@ -437,10 +423,39 @@
 
 // — emulation picker: swap the explanation below the dropdown —
 (() => {
+  const gate = window.__kgate, timers = window.__ktimers;
   const sel = document.getElementById('emu-sel');
   if (!sel) return;
   const bodies = document.querySelectorAll('.emu-body');
   sel.addEventListener('change', () => {
     bodies.forEach(b => b.classList.toggle('on', b.dataset.emu === sel.value));
   });
+  // — session isolation diagram: five scenes (flow, signing, sandbox deny, crash, reconnect) —
+  const iso = document.getElementById('iso');
+  if (iso) {
+    const caps = [...iso.querySelectorAll('.iso-cap')];
+    const rows = [...iso.querySelectorAll('.iso-row')];
+    const msg = rows.map(r => r.querySelector('.iso-msg'));
+    const sig = iso.querySelector('.iso-sig');
+    const pid1 = document.getElementById('iso-pid1');
+    const HOLD = [4500, 5200, 5000, 5500, 4200];
+    let s = 0, pid = 51877, tids = [];
+    const later = (fn, ms) => tids.push(setTimeout(fn, ms));
+    const paint = () => {
+      iso.dataset.scene = s;
+      caps.forEach((c, i) => c.classList.toggle('on', i === s));
+      msg[0].textContent = s === 1 ? 'auth: publickey → sign request' : 'channels: shell, sftp';
+      msg[1].textContent = s === 3 ? 'Session process crashed (exit 137)' : s === 4 ? 'reconnected · new token' : 'channels: shell, -L 5432';
+      msg[2].textContent = s === 2 ? 'cat ~/.ssh/id_ed25519: Operation not permitted' : 'HISTFILE, TMPDIR → own folder';
+      if (s === 4) { pid += 9; pid1.textContent = 'pid ' + pid + ' · ssh'; }
+      sig.className = 'iso-sig';
+      if (s === 1) {
+        later(() => { sig.textContent = 'sign challenge?'; sig.className = 'iso-sig out'; }, 500);
+        later(() => { sig.textContent = '✓ signature'; sig.className = 'iso-sig back'; }, 2500);
+        later(() => { sig.className = 'iso-sig'; }, 4600);
+      }
+    };
+    const step = () => { paint(); later(() => { s = (s + 1) % HOLD.length; step(); }, HOLD[s]); };
+    gate(iso, () => { s = 0; step(); }, () => { tids.forEach(clearTimeout); tids = []; });
+  }
 })();
