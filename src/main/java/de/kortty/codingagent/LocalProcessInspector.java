@@ -54,9 +54,14 @@ public final class LocalProcessInspector {
     /** npm scope directories under which the agents' packages are installed ({@code @scope/<kind-id>}). */
     private static final Set<String> AGENT_PACKAGE_SCOPES = Set.of("@anthropic-ai", "@openai", "@google", "@qwen-code");
 
-    /** Scoped npm packages whose package name is not the kind id ({@code @scope/name}, lower case). */
-    private static final Map<String, CodingAgentKind> AGENT_PACKAGES =
-        Map.of("@minimax-ai/code", CodingAgentKind.MINIMAX_CODE);
+    /**
+     * Directory pairs ({@code parent/child}, lower case) that identify an agent's script when its file
+     * and package names do not: a scoped npm package whose name is not the kind id, or an agent's own
+     * install tree (Cursor runs {@code <…>/cursor-agent/versions/<version>/index.js} with a bundled node).
+     */
+    private static final Map<String, CodingAgentKind> AGENT_PACKAGES = Map.of(
+        "@minimax-ai/code", CodingAgentKind.MINIMAX_CODE,
+        "cursor-agent/versions", CodingAgentKind.CURSOR_AGENT);
 
     public LocalProcessInspector() {
     }
@@ -298,7 +303,7 @@ public final class LocalProcessInspector {
      * Classifies a script path: by its base name (executable name or kind id, so {@code .../bin/codex}
      * and {@code npm:@openai/codex} both work), otherwise by an agent package directory segment
      * ({@code <kind-id>} directly below an npm scope of {@link #AGENT_PACKAGE_SCOPES} or below
-     * {@code node_modules}, or a scoped package of {@link #AGENT_PACKAGES}). Any other directory named
+     * {@code node_modules}, or a directory pair of {@link #AGENT_PACKAGES}). Any other directory named
      * like an agent does not count.
      */
     static Optional<CodingAgentKind> classifyScriptPath(String script) {

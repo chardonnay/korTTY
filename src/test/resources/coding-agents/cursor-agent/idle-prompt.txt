@@ -1,0 +1,16 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+
+
+  Cursor Agent
+  v2026.10.01-e373342
+  Tip: Try Cursor Grok 4.6 via /model, frontier intelligence at a fraction of the cost.
+
+
+
+
+  → Plan, search, build anything
+
+
+  Auto
+  ~/projects/demo-app

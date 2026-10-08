@@ -1,0 +1,38 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+  │    ~/projects/demo-app  │
+  │                                                                                                                  │
+  │                                                                                                                  │
+  │    [a] Trust this workspace                                                                                      │
+  │    [q] Quit                                                                                                      │
+  │                                                                                                                  │
+  │  ⏳ Trusting workspace...                                                                                        │
+  │                                                                                                                  │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+
+  Cursor Agent
+  v2026.10.01-e373342
+  Tip: Use /plan to plan execution and reach the right outcome faster.
+
+
+  Use your shell tool to run exactly: ls -la
+
+
+  Ich führe genau ls -la aus.
+
+  $ ls -la 1.4s
+    … 1 output lines hidden · ctrl+o to expand
+    drwxr-xr-x@  2 demo    staff   64 Oct  8 11:12 .
+    drwxr-xr-x@ 23 demo    staff  736 Oct  8 11:13 ..
+
+  Das Verzeichnis ist leer — nur . und .. (Stand 8. Okt., 11:12).
+
+
+
+
+  → Add a follow-up
+
+
+  Auto · 3.8%
+  ~/projects/demo-app

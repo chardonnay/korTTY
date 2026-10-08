@@ -1,0 +1,23 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+
+
+  Cursor Agent
+  v2026.10.01-e373342
+  Tip: Try Cursor Grok 4.6 via /model, frontier intelligence at a fraction of the cost.
+
+
+  Use your shell tool to run exactly: curl -sI https://example.com
+
+
+  Ich führe den Befehl jetzt aus.
+
+  $ curl -sI https://example.com Waiting for approval...
+
+
+ ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+ │ $  curl -sI https://example.com in .                                                                               │
+ └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+  → Tell the agent what to do instead (Enter to send, empty to skip, Esc to cancel)                     ctrl+c to stop

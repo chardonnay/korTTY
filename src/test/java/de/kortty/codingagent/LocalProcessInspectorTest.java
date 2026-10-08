@@ -196,6 +196,22 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesCursorAgentByItsInstallTree() {
+        // The launcher execs its bundled node on index.js inside the versioned install directory.
+        assertThat(LocalProcessInspector.classify(
+            "/Users/jd/.local/share/cursor-agent/versions/2026.10.01-e373342/node",
+            List.of("--use-system-ca", "/Users/jd/.local/share/cursor-agent/versions/2026.10.01-e373342/index.js"),
+            null)).hasValue(CodingAgentKind.CURSOR_AGENT);
+        assertThat(LocalProcessInspector.classify(
+            "C:\\Users\\jd\\AppData\\Local\\cursor-agent\\versions\\2026.10.01-e373342\\node.exe",
+            List.of("C:\\Users\\jd\\AppData\\Local\\cursor-agent\\versions\\2026.10.01-e373342\\index.js"),
+            null)).hasValue(CodingAgentKind.CURSOR_AGENT);
+        // Any other index.js is not Cursor, nor is a bare versions directory of something else.
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/home/u/app/versions/1.0/index.js"), null)).isEmpty();
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

@@ -1,0 +1,28 @@
+#! expect state=WORKING rule=working
+#! alt=false
+
+
+  Cursor Agent
+  v2026.10.01-e373342
+  Tip: Hit shift+tab to enable Plan Mode for large or complex changes.
+
+
+  Use your shell tool to run exactly: curl -sI https://example.com
+
+
+  Ich führe den Befehl jetzt aus.
+
+  $ curl -sI https://example.com 34s
+    … 10 output lines hidden · ctrl+o to expand
+    alt-svc: h3=":443"; ma=86400
+
+
+ ⠘⠆ Running  147 tokens
+    Tip: Try Cursor Grok 4.6 via /model, frontier intelligence at a fraction of the cost.
+
+
+  → Add a follow-up                                                                                     ctrl+c to stop
+
+
+  Auto · 3.7%
+  ~/projects/demo-app
