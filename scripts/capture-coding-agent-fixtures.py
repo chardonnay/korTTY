@@ -52,10 +52,25 @@ SNAPSHOT_KEY = b"\x1b[24~"  # F12
 STOP_KEY = b"\x1d"  # Ctrl-]
 
 
+class TolerantScreen(pyte.Screen):
+    """A pyte screen that ignores private-marker SGR sequences.
+
+    Agents built on modern TUI toolkits (Crush, for one) send ``CSI > 4 ; 2 m`` (xterm
+    modifyOtherKeys) on start. pyte dispatches it to ``select_graphic_rendition`` with
+    ``private=True``, which that method does not accept, and the recorder crashes. A terminal
+    that does not support the sequence ignores it, and so does this screen.
+    """
+
+    def select_graphic_rendition(self, *attrs, private=False, **kwargs):
+        if private:
+            return
+        super().select_graphic_rendition(*attrs)
+
+
 class Recorder:
     def __init__(self, out_dir: str, cols: int, rows: int) -> None:
         self.out_dir = out_dir
-        self.screen = pyte.Screen(cols, rows)
+        self.screen = TolerantScreen(cols, rows)
         self.stream = pyte.ByteStream(self.screen)
         self.title: str | None = None
         self.alternate = False
