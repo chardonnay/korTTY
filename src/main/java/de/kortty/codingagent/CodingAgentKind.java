@@ -25,6 +25,8 @@ public enum CodingAgentKind {
     CURSOR_AGENT("Cursor Agent", "cursor-agent", Set.of("cursor-agent")),
     /** A Python console script ({@code python <prefix>/bin/aider}) or pip's {@code aider.exe} launcher on Windows. */
     AIDER("Aider", "aider", Set.of("aider")),
+    /** A native binary; npm's {@code @sourcegraph/amp} links it as {@code amp} ({@code bin/amp.exe} → {@code bin/amp}). */
+    AMP("Amp", "amp", Set.of("amp")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

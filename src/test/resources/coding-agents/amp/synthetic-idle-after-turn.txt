@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=none
+#! alt=false
+  Please run the test suite.
+
+  I'll run the tests now.
+
+  ✓ Bash ./gradlew test
+
+  All 412 tests passed.
+
+  ╭──────────────────────────────────────────────────────────────╮
+  │                                                              │
+  ╰──────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

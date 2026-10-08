@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+  Please run the test suite.
+
+  I'll run the tests now.
+
+  ╭─ Approval Required ──────────────────────────────────────────╮
+  │ Bash: ./gradlew test                                         │
+  │                                                              │
+  │ › Allow Once                                                 │
+  │   Allow All for This Session                                 │
+  │   Allow All for Every Session                                │
+  │   Reject                                                     │
+  │                                                    Esc cancel │
+  ╰──────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

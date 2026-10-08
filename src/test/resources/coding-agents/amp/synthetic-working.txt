@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=working
+#! alt=false
+  Please run the test suite.
+
+  I'll run the tests now.
+
+  ✓ Bash ./gradlew test
+
+  Running Tools
+
+  ╭──────────────────────────────────────────────────────────────╮
+  │ Type a prompt to queue it                                    │
+  ╰──────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

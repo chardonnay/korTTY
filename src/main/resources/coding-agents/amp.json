@@ -1,0 +1,44 @@
+{
+  "kind": "AMP",
+  "version": 1,
+  "comment": "UNVERIFIED except for the login question: written against Amp CLI 0.0.1791446565-g95411c without an Amp account, so no live agent session could be recorded. Only 'Would you like to log in to Amp? [(y)es, (n)o]:' was seen on screen (BLOCKED). The other patterns are UI strings taken from the string table of the installed binary, whose on-screen layout is unknown: the tool approval dialog ('Approval Required', 'Allow Once', 'Allow All for This Session', 'Allow All for Every Session', 'Always Allow This Path') is BLOCKED; 'Running Tools' and the input placeholder 'Type a prompt to queue it', which Amp shows only while a turn runs, are WORKING. No idle text could be identified, so idle is the fallback; because an agent is reported only after a first rule match, Amp appears from its first working or approval screen on. The fixtures for the approval and working rules are synthesized from those strings, not recorded. Must be re-verified against live authenticated sessions.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "login-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": {
+        "bottomNonEmptyLines": 2
+      },
+      "anyLineRegex": [
+        "^\\s*Would you like to log in to Amp\\? \\[\\(y\\)es, \\(n\\)o\\]:\\s*\\S?\\s*$"
+      ]
+    },
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 990,
+      "region": {
+        "bottomNonEmptyLines": 20
+      },
+      "anyLineRegex": [
+        "(?:^|[\\s│┃|])Approval Required\\b",
+        "\\bAllow All for (?:This|Every) Session\\b",
+        "\\bAlways Allow This Path\\b"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": {
+        "bottomNonEmptyLines": 8
+      },
+      "anyLineRegex": [
+        "\\bType a prompt to queue it\\b",
+        "\\bRunning Tools\\b"
+      ]
+    }
+  ]
+}
