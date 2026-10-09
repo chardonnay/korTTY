@@ -88,20 +88,31 @@ public final class AiSkillMarkdownCodec {
         if (file == null) {
             throw new IOException("No AI skill Markdown file selected.");
         }
-        String text = Files.readString(file, StandardCharsets.UTF_8);
-        ParsedMarkdown parsed = parse(text);
+        return importFromMarkdownText(Files.readString(file, StandardCharsets.UTF_8), nameFromFile(file));
+    }
+
+    /**
+     * {@link #importFromMarkdown(Path)} for text that did not come from a file, such as a SKILL.md
+     * downloaded from an external provider.
+     *
+     * @param fallbackName the skill name when the front matter has none
+     */
+    public static AiSkill importFromMarkdownText(String text, String fallbackName) throws IOException {
+        String markdown = text != null ? text : "";
+        String defaultName = nonBlank(fallbackName, "AI Skill");
+        ParsedMarkdown parsed = parse(markdown);
         AiSkill skill = new AiSkill();
         if (parsed.frontMatter().isEmpty()) {
-            skill.setName(nameFromFile(file));
+            skill.setName(defaultName);
             skill.setEnabled(false);
             skill.setTarget(AiSkillTarget.BOTH);
-            skill.setContent(text);
+            skill.setContent(markdown);
             return storable(skill);
         }
 
         Map<String, String> frontMatter = parsed.frontMatter();
         if (!FORMAT_VERSION.equals(frontMatter.get(MARKER_KEY))) {
-            skill.setName(nonBlank(frontMatter.get("name"), nameFromFile(file)));
+            skill.setName(nonBlank(frontMatter.get("name"), defaultName));
             skill.setDescription(frontMatter.get("description"));
             skill.setTags(parseTags(frontMatter.get("tags")));
             skill.setEnabled(false);
@@ -109,7 +120,7 @@ public final class AiSkillMarkdownCodec {
             skill.setContent(parsed.body());
             return storable(skill);
         }
-        skill.setName(nonBlank(frontMatter.get("name"), nameFromFile(file)));
+        skill.setName(nonBlank(frontMatter.get("name"), defaultName));
         skill.setDescription(frontMatter.get("description"));
         skill.setTags(parseTags(frontMatter.get("tags")));
         skill.setEnabled(parseEnabled(frontMatter.get("enabled")));

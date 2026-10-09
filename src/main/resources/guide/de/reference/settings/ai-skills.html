@@ -806,7 +806,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="ki-skills">KI-Skills<a class="headerlink" href="#ki-skills" title="Permanent link">&para;</a></h1>
-<p>Configure custom AI skills that enhance AI interactions. This tab lets you manage a library of markdown-based skills that are automatically or manually included in AI requests. Open via <strong>KI → KI-Manager → AI Skills</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Konfigurieren Sie benutzerdefinierte KI-Skills, die KI-Interaktionen verbessern. Dieser Tab ermöglicht es Ihnen, eine Bibliothek von markdown-basierten Skills zu verwalten, die automatisch oder manuell in KI-Anfragen einbezogen werden. Öffnen Sie über <strong>KI → KI-Manager → KI-Skills</strong>; gespeichert in <code>~/.kortty/global-settings.xml</code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Aus den globalen Einstellungen entfernt</p>
 <p>Die Skill-Bibliothek war früher eine Registerkarte unter <strong>Konfiguration → Globale Einstellungen</strong>. Es befindet sich jetzt im <strong>KI-Manager</strong>, neben Profilen, lokalen Modellen und Wissensspeichern. Die gespeicherten Daten und die Einstellungsdatei bleiben unverändert.</p>
@@ -837,6 +837,13 @@
 <td>–</td>
 <td>Ein</td>
 <td><code>aiSkillAutoDetectionEnabled</code></td>
+</tr>
+<tr>
+<td>Lokal / Extern</td>
+<td>Umschalter</td>
+<td>Lokal: eigene und integrierte Skills; Extern: vom Internet importierte Skills</td>
+<td>Lokal</td>
+<td>— (Ansichtsfilter)</td>
 </tr>
 <tr>
 <td>Versteckte integrierte Fähigkeiten anzeigen</td>
@@ -926,6 +933,7 @@
 </tr>
 </tbody>
 </table>
+<p>Die Skill-Bibliothek wird in <code>global-settings.xml</code> gespeichert, die bestimmte unsichtbare Zeichen nicht aufnehmen kann: Steuerzeichen außer Tab, Zeilenvorschub und Wagenrücklauf, U+FFFE, U+FFFF und die Hälfte eines Surrogatpaares. Solch ein Zeichen kann auftreten, wenn Sie in den <strong>Skill-Markdown</strong>-Editor einfügen. Ein Feld, das eines enthält, zeigt darunter eine Meldung an, die das Zeichen benennt, zum Beispiel <code>U+0007</code>, und <strong>Speichern</strong> verweigert die Speicherung der Bibliothek und wählt das Skill aus, bis Sie das Zeichen entfernen. Wenn Sie den KI-Manager mit einem solchen Skill schließen, speichert korTTY Ihre anderen Änderungen und behält die zuletzt gespeicherte Version dieses Skills bei oder lässt einen Skill weg, der nie gespeichert wurde. <strong>Importieren</strong> entfernt solche Zeichen aus dem Namen, der Beschreibung, den Tags und dem Markdown der importierten Datei.</p>
 <h2 id="eingebaute-fahigkeiten">Eingebaute Fähigkeiten<a class="headerlink" href="#eingebaute-fahigkeiten" title="Permanent link">&para;</a></h2>
 <p>korTTY bietet 39 integrierte Best-Practice-Kenntnisse für Shells (Bash, KornShell, Zsh, Csh, POSIX sh, PowerShell), Programmiersprachen (Python, C, C++, Java, C#, JavaScript, Visual Basic, SQL, R, Rust, Go, PHP, Swift, Assembly, Macro Assembler, Ruby, Perl, Lua, Groovy, TypeScript, Kotlin, Dart), Markup und Datenformate (HTML, XML, YAML, JSON) und Automatisierungs-/Beobachtbarkeitstools (Puppet, Ansible, Azure DevOps Pipelines, Jenkins Declarative and Scripted Pipelines, Filebeat, Logstash). Jeder Skill bietet professionelle Anleitungen zu Codekommentaren, Robustheit, häufig zu vermeidenden Fallstricken und sprachspezifischen Sicherheitspraktiken. Sie werden beim ersten Start zur Bibliothek hinzugefügt und erscheinen mit einem <strong>integrierten</strong> Abzeichen.</p>
 <p>Integrierte Fertigkeiten verhalten sich wie Ihre eigenen Fertigkeiten – sie können bearbeitet, deaktiviert und Verbindungen zugewiesen werden – mit folgenden Unterschieden:</p>
@@ -939,6 +947,125 @@
 <div class="admonition note">
 <p class="admonition-title">Durch das Ausschalten der automatischen Erkennung werden integrierte Funktionen deaktiviert</p>
 <p>Ohne automatische Erkennung wird jeder aktivierte Skill mit jeder KI-Anfrage gesendet, was bei 35 integrierten Skills die Eingabeaufforderungen massiv übersteigen würde. Wenn Sie <strong>Automatisch nur passende Fertigkeiten senden</strong> ausschalten, werden Sie daher nach einer Bestätigung gefragt und anschließend alle integrierten Fertigkeiten deaktiviert. Aktivieren Sie diejenigen, die Sie benötigen, einzeln wieder. In späteren Versionen bereitgestellte integrierte Funktionen sind ebenfalls deaktiviert, wenn die automatische Erkennung deaktiviert ist.</p>
+</div>
+<h2 id="externe-skills">Externe Skills<a class="headerlink" href="#externe-skills" title="Permanent link">&para;</a></h2>
+<p>Die <strong>Externe</strong>-Ansicht listet Skills auf, die aus Internet-Skill-Verzeichnissen importiert wurden. Externe Skills befinden sich in derselben Bibliothek wie Ihre eigenen Skills: Sobald Sie einen aktivieren, wird er ausgewählt und genau wie ein lokaler Skill gesendet. Die Anzahl auf jedem Umschaltknopf zeigt, wie viele Skills jede Ansicht enthält.</p>
+<p><img alt="AI Skills, External view" src="../../../en/assets/screenshots/ai/ai-skills-external.png" /></p>
+<table>
+<thead>
+<tr>
+<th>Schaltfläche</th>
+<th>Was es tut</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Aus dem Internet importieren…</td>
+<td>Öffnet den Importdialog: wählen Sie einen Anbieter, suchen, zeigen Sie eine SKILL.md-Vorschau an und importieren die ausgewählten Skills</td>
+</tr>
+<tr>
+<td>Auf Updates prüfen</td>
+<td>Fragt jeden externen Skill-Anbieter nach seiner aktuellen Version; Skills mit einer neueren Version zeigen 🔄 <strong>Update verfügbar</strong></td>
+</tr>
+<tr>
+<td>Anbieter…</td>
+<td>Öffnet die Anbietertabelle mit Anmeldedaten (siehe unten)</td>
+</tr>
+<tr>
+<td>Löschen / Exportieren</td>
+<td>Gleich wie bei lokalen KI-Skills</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Importierte Skills starten deaktiviert</p>
+<p>korTTY übermittelt den Text einer Skill wortwörtlich an das KI-Modell, sodass ein aus dem Internet importierter Skill Anweisungen enthalten kann, die Sie nicht wünschen. Jeder importierte Skill kommt daher <strong>deaktiviert</strong>, unabhängig davon, was in seiner Front-Matter steht. Öffnen Sie ihn im Editor, aktivieren Sie dann <strong>Aktiv</strong> und klicken Sie auf <strong>Speichern</strong>. Nur die Datei <code>SKILL.md</code> wird importiert; Skripte, Referenzdateien und andere Dateien, die zu einem Skill gehören, werden nie heruntergeladen oder ausgeführt.</p>
+</div>
+<p>Wenn ein externes KI-Skill ausgewählt wird, zeigt das Banner über dem Editor den Anbieter, die Quelle und die importierte Revision an. <strong>Quelle öffnen</strong> öffnet die Seite des KI-Skills im Browser. Wenn Sie den Text bearbeiten, markieren das Banner und die Liste das KI-Skill als <strong>Lokal geändert</strong>. Nachdem <strong>Auf Updates prüfen</strong> eine neuere Version gefunden hat, öffnet <strong>Update anzeigen…</strong> einen nebeneinander gestellten Vergleich zwischen Ihrer Version und der des Anbieters. <strong>Update übernehmen</strong> ersetzt den Text und die Beschreibung und behält Ihren Namen, Ihre Tags, Ihr Ziel und Ihren aktiven Status bei; lokale Änderungen am Text werden ersetzt, was der Dialog hervorhebt. Ohne diese Bestätigung wird nichts aktualisiert.</p>
+<h3 id="ki-skills-importieren">KI-Skills importieren<a class="headerlink" href="#ki-skills-importieren" title="Permanent link">&para;</a></h3>
+<p><img alt="Import AI skills from the internet" src="../../../en/assets/screenshots/ai/ai-skills-import.png" /></p>
+<p>Anbieter wählen, geben Sie eine Suche ein und klicken <strong>Suchen</strong>. Das Auswählen eines Ergebnisses lädt dessen <code>SKILL.md</code> in die Vorschau. Wählen Sie ein oder mehrere Ergebnisse aus und klicken <strong>Auswahl importieren</strong>; Ergebnisse mit ✓ sind bereits in der Bibliothek und werden übersprungen. Was Sie eingeben, hängt vom Typ des Anbieters ab:</p>
+<table>
+<thead>
+<tr>
+<th>Anbietertyp</th>
+<th>Eingabe</th>
+<th>Beispiel</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GitHub-Repository</td>
+<td>Suchbegriffe zum Durchsuchen <code>SKILL.md</code> Dateien auf GitHub (benötigt ein Token), <code>owner/repo</code> für jedes Skill eines Repositories, <code>owner/repo@skill</code> oder ein GitHub-Link für ein einzelnes Skill; aus agenticskills.io oder skills.sh kopierte Befehle funktionieren ebenfalls</td>
+<td><code>python testing</code>, <code>anthropics/skills</code>, <code>npx skills add anthropics/skills@pdf</code></td>
+</tr>
+<tr>
+<td>SkillsMP-Suche</td>
+<td>Keywords</td>
+<td><code>kubernetes</code></td>
+</tr>
+<tr>
+<td>HTTP(S)-Server</td>
+<td>Die URL einer <code>SKILL.md</code>-Datei oder ein Pfad relativ zum Basis-URL des Anbieters</td>
+<td><code>incident/SKILL.md</code></td>
+</tr>
+</tbody>
+</table>
+<p>Kataloge wie agenticskills.io und skills.sh veröffentlichen ihre Skills als GitHub-Repositories, daher importiert der <strong>GitHub</strong>-Provider von allen davon. korTTY liest Repositories über die GitHub REST API unter <code>https://api.github.com</code> (API-Version 2022-11-28) und merkt sich die Git-Revision jedes importierten <code>SKILL.md</code>, sodass ein Commit, der andere Dateien des Repositories ändert, nicht als Update gemeldet wird. Ohne Token erlaubt GitHub 60 Anfragen pro Stunde; ein Import benötigt ein oder zwei. GitHub beantwortet eine Suchbegriffssuche nur mit Token: ohne Token erklärt der Dialog dies und bietet <strong>Stattdessen auf SkillsMP suchen</strong> an, der dieselben GitHub-Skills ohne Anmeldung durchsucht. Suchbegriffe müssen nicht exakt übereinstimmen; jedes Wort muss irgendwo im <code>SKILL.md</code> vorkommen.</p>
+<p>Der <strong>SkillsMP</strong>-Provider durchsucht den SkillsMP-Index über <code>https://skillsmp.com/api/v1/skills/search</code>. Ohne einen API-Schlüssel erlaubt SkillsMP 50 Suchen pro Tag, mit einem Schlüssel 500. Die gefundenen Skills werden von GitHub über den aktiven GitHub-Provider für github.com heruntergeladen, unter Verwendung des Tokens dieses Providers.</p>
+<h3 id="anbieter">Anbieter<a class="headerlink" href="#anbieter" title="Permanent link">&para;</a></h3>
+<p><img alt="AI skill providers" src="../../../en/assets/screenshots/ai/ai-skill-providers.png" /></p>
+<p><strong>Anbieter…</strong> öffnet eine Tabelle mit Skill-Anbietern, die Sie nach Belieben erweitern können. korTTY startet mit einem <strong>GitHub</strong>- und einem <strong>SkillsMP</strong>-Anbieter; fügen Sie weitere mit <strong>+ Hinzufügen</strong> hinzu, z. B. einen GitHub-Enterprise-Server oder den eigenen Server eines Teams. Das Löschen eines Anbieters behält die daraus importierten Skills bei, diese können jedoch nicht mehr auf Updates geprüft werden.</p>
+<table>
+<thead>
+<tr>
+<th>Feld</th>
+<th>Werte</th>
+<th>Gespeichert als</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>Jeder Name</td>
+<td><code>aiSkillProviders/provider/name</code></td>
+</tr>
+<tr>
+<td>Typ</td>
+<td>GitHub-Repository, SkillsMP-Suche, HTTP(S)-Server</td>
+<td><code>type</code></td>
+</tr>
+<tr>
+<td>Aktiv</td>
+<td>Nur aktive Anbieter erscheinen im Importdialog</td>
+<td><code>enabled</code></td>
+</tr>
+<tr>
+<td>Basis-URL</td>
+<td>Leer verwendet den Standard des Typs (<code>https://api.github.com</code>, <code>https://skillsmp.com</code>); für GitHub Enterprise verwenden Sie <code>https://&lt;host&gt;/api/v3</code></td>
+<td><code>baseUrl</code></td>
+</tr>
+<tr>
+<td>Anmeldung</td>
+<td>Keine, Token (Bearer), Benutzername und Passwort (HTTP Basic)</td>
+<td><code>auth</code></td>
+</tr>
+<tr>
+<td>Benutzername</td>
+<td>Nur für Benutzername und Passwort</td>
+<td><code>username</code></td>
+</tr>
+<tr>
+<td>Token / Passwort</td>
+<td>ein GitHub-Personal-Access-Token, ein SkillsMP-API-Schlüssel oder das Serverpasswort</td>
+<td><code>encryptedSecret</code>, verschlüsselt mit dem Master-Passwort</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verbindung testen</strong> prüft, ob der Anbieter antwortet und die Anmeldedaten akzeptiert, und zeigt das verbleibende Anfragekontingent an, sofern der Anbieter eines meldet. Ein Token oder Passwort wird mit dem Master-Passwort verschlüsselt, wenn Sie auf <strong>Speichern</strong> klicken; falls der Tresor gesperrt ist, bietet korTTY an, ihn zu entsperren. Lassen Sie das Feld leer, um einen gespeicherten Token beizubehalten, oder aktivieren Sie <strong>Gespeicherten Token bzw. Passwort entfernen</strong>, um ihn zu löschen.</p>
+<div class="admonition note">
+<p class="admonition-title">Netzwerksicherheit</p>
+<p>korTTY kommuniziert ausschließlich über HTTPS mit Anbietern; reines HTTP wird nur für diesen Computer akzeptiert (<code>localhost</code>). Weiterleitungen werden nicht verfolgt, sodass ein Token oder Passwort niemals an einen anderen Host weitergeleitet wird, und ein <code>SKILL.md</code> größer als 256 KiB wird abgelehnt.</p>
 </div>
 <h2 id="notizen">Notizen<a class="headerlink" href="#notizen" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
@@ -956,7 +1083,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Skill-Lebenszyklus</p>
-<p>Fertigkeiten werden als XML-Elemente in der globalen Einstellungsdatei gespeichert. Verwenden Sie <strong>Importieren</strong>, um Fertigkeiten aus Markdown-Dateien zu laden, und <strong>Exportieren</strong>, um ausgewählte Fertigkeiten als Markdown-Dateien zu speichern. <strong>Löschen</strong> gilt nur für Ihre eigenen Fähigkeiten; Stattdessen werden integrierte Fähigkeiten ausgeblendet (siehe oben). Zurücksetzen, Aktualisieren, Ausblenden und Einblenden sind über das Kontextmenü der Liste und über das Banner über dem Editor verfügbar, wenn eine integrierte Fertigkeit ausgewählt wird. Die Fertigkeitsliste kann alphabetisch nach Name oder Status (zuerst aktiviert) sortiert werden. <strong>Speichern</strong> speichert die Bibliothek sofort und bestätigt neben der Schaltfläche; Ausstehende Änderungen werden auch geschrieben, wenn das KI-Manager-Fenster geschlossen wird. Durch das Importieren einer Markdown-Datei wird immer ein unabhängiger Benutzer-Skill erstellt – sogar eine Datei, die aus einem integrierten Skill exportiert wurde.</p>
+<p>Skills werden als XML-Elemente innerhalb der globalen Einstellungen gespeichert. Verwenden Sie <strong>Importieren</strong>, um Skills aus Markdown-Dateien zu laden, und <strong>Exportieren</strong>, um ausgewählte Skills als Markdown-Dateien zu speichern; um Skills aus Internetverzeichnissen zu importieren, nutzen Sie die <strong>Externe Ansicht</strong> (siehe oben). <strong>Löschen</strong> gilt nur für Ihre eigenen Skills; eingebaute Skills werden stattdessen ausgeblendet (siehe oben). Zurücksetzen, Aktualisieren, Ausblenden und Einblenden sind im Kontextmenü der Liste sowie im Banner über dem Editor verfügbar, wenn ein eingebauter Skill ausgewählt ist. Die Skill-Liste kann alphabetisch nach Namen oder Status (erst aktiviert) sortiert werden. <strong>Speichern</strong> speichert die Bibliothek sofort und bestätigt neben dem Button; ausstehende Änderungen werden ebenfalls geschrieben, wenn das KI-Manager-Fenster geschlossen wird. Das Importieren einer Markdown-Datei erzeugt immer einen unabhängigen Benutzerskill – auch wenn die Datei aus einem eingebauten Skill exportiert wurde.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Auswahl der Fähigkeiten pro Anfrage</p>

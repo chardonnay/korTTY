@@ -62,6 +62,10 @@ public class AiSkill {
     @XmlElement(name = "builtinBaseline")
     private AiSkillBuiltinBaseline builtinBaseline;
 
+    /** Set for skills imported from an external provider; null for local and built-in skills. */
+    @XmlElement(name = "externalSource")
+    private AiSkillExternalSource externalSource;
+
     public AiSkill() {
         this.id = UUID.randomUUID().toString();
     }
@@ -83,6 +87,9 @@ public class AiSkill {
         setBuiltinTopics(source.getBuiltinTopics());
         this.builtinBaseline = source.getBuiltinBaseline() != null
             ? new AiSkillBuiltinBaseline(source.getBuiltinBaseline())
+            : null;
+        this.externalSource = source.getExternalSource() != null
+            ? new AiSkillExternalSource(source.getExternalSource())
             : null;
     }
 
@@ -217,6 +224,19 @@ public class AiSkill {
         this.builtinBaseline = builtinBaseline;
     }
 
+    public AiSkillExternalSource getExternalSource() {
+        return externalSource;
+    }
+
+    public void setExternalSource(AiSkillExternalSource externalSource) {
+        this.externalSource = externalSource;
+    }
+
+    /** Whether the skill was imported from an external provider (AI Skills → External). */
+    public boolean isExternal() {
+        return externalSource != null;
+    }
+
     /** A text field of a skill the user edits, as {@link #firstUnstorableText()} names it. */
     public enum TextField {
         NAME, DESCRIPTION, TAGS, CONTENT
@@ -295,6 +315,9 @@ public class AiSkill {
         }
         if (builtinBaseline != null) {
             changed |= builtinBaseline.stripUnstorableText();
+        }
+        if (externalSource != null) {
+            changed |= externalSource.stripUnstorableText();
         }
         return changed;
     }

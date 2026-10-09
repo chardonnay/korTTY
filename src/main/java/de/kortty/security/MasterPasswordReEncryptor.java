@@ -6,6 +6,7 @@ import de.kortty.jobscheduler.ScheduledJob;
 import de.kortty.jobscheduler.SudoCredential;
 import de.kortty.jobscheduler.WebhookTarget;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiSkillProvider;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.JumpServer;
 import de.kortty.model.SSHKey;
@@ -182,7 +183,7 @@ public final class MasterPasswordReEncryptor {
         }
     }
 
-    /** AI-profile API keys and the global AI / translation / Hugging Face secrets (in global-settings.xml). */
+    /** AI-profile API keys, AI-skill provider credentials and the global AI / translation / Hugging Face secrets (in global-settings.xml). */
     public void reEncryptGlobalSettings(GlobalSettings gs) {
         if (gs == null) {
             return;
@@ -193,6 +194,9 @@ public final class MasterPasswordReEncryptor {
                 // master-password-encrypted encryptedApiKey is what we migrate here.
                 field("aiProfile.apiKey", p::getEncryptedApiKey, p::setEncryptedApiKey);
             }
+        }
+        for (AiSkillProvider provider : gs.getAiSkillProviders()) {
+            field("aiSkillProvider.secret", provider::getEncryptedSecret, provider::setEncryptedSecret);
         }
         field("gs.aiApiKey", gs::getEncryptedAiApiKey, gs::setEncryptedAiApiKey);
         field("gs.translationApiKey", gs::getEncryptedTranslationApiKey, gs::setEncryptedTranslationApiKey);

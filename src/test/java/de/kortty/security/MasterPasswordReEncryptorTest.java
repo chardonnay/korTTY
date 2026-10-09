@@ -6,6 +6,8 @@ import de.kortty.jobscheduler.JobSchedulerRepository;
 import de.kortty.jobscheduler.ScheduledJob;
 import de.kortty.jobscheduler.SudoCredential;
 import de.kortty.model.AiProfile;
+import de.kortty.model.AiSkillProvider;
+import de.kortty.model.AiSkillProviderAuth;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.JumpServer;
 import de.kortty.model.SSHKey;
@@ -95,6 +97,22 @@ class MasterPasswordReEncryptorTest {
         assertThat(decNew(gs.getEncryptedAiBraveSearchApiKey())).isEqualTo("brave");
         assertThat(r.reEncryptedCount()).isEqualTo(7);
         assertThat(r.failureCount()).isEqualTo(0);
+    }
+
+    @Test
+    void reEncryptsAiSkillProviderCredentials() throws Exception {
+        GlobalSettings gs = new GlobalSettings();
+        List<AiSkillProvider> providers = new ArrayList<>(AiSkillProvider.defaults());
+        providers.get(0).setAuth(AiSkillProviderAuth.TOKEN);
+        providers.get(0).setEncryptedSecret(encOld("ghp_token"));
+        gs.setAiSkillProviders(providers);
+
+        MasterPasswordReEncryptor r = rex();
+        r.reEncryptGlobalSettings(gs);
+
+        assertThat(decNew(gs.getAiSkillProviders().get(0).getEncryptedSecret())).isEqualTo("ghp_token");
+        assertThat(gs.getAiSkillProviders().get(1).getEncryptedSecret()).isNull();
+        assertThat(r.reEncryptedCount()).isEqualTo(1);
     }
 
     @Test

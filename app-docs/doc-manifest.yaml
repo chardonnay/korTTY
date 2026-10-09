@@ -204,10 +204,13 @@ pages:
     last_synced_ref: "ac9c5894c"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
     owns_i18n: [settings.aiSkills.]
-    owns_code: [src/main/java/de/kortty/model/AiSkill.java, src/main/java/de/kortty/model/AiSkillTarget.java, src/main/java/de/kortty/model/AiSkillBuiltinBaseline.java, src/main/java/de/kortty/core/AiSkillRelevanceSelector.java, src/main/java/de/kortty/core/AiSkillRelevanceClassifier.java, src/main/java/de/kortty/core/AiSkillPromptSupport.java, src/main/java/de/kortty/core/AiSkillMarkdownCodec.java, src/main/java/de/kortty/core/BuiltinAiSkillSupport.java, src/main/java/de/kortty/core/BuiltinAiSkillCatalog.java, src/main/java/de/kortty/core/BuiltinAiSkillProvisioner.java, src/main/java/de/kortty/ui/AiSkillPickerControl.java, src/main/java/de/kortty/ui/AiSkillsPane.java, src/main/java/de/kortty/ui/AiSkillListFormat.java, src/main/java/de/kortty/ui/AiSkillStorageGuard.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    owns_code: [src/main/java/de/kortty/model/AiSkill.java, src/main/java/de/kortty/model/AiSkillTarget.java, src/main/java/de/kortty/model/AiSkillBuiltinBaseline.java, src/main/java/de/kortty/core/AiSkillRelevanceSelector.java, src/main/java/de/kortty/core/AiSkillRelevanceClassifier.java, src/main/java/de/kortty/core/AiSkillPromptSupport.java, src/main/java/de/kortty/core/AiSkillMarkdownCodec.java, src/main/java/de/kortty/core/BuiltinAiSkillSupport.java, src/main/java/de/kortty/core/BuiltinAiSkillCatalog.java, src/main/java/de/kortty/core/BuiltinAiSkillProvisioner.java, src/main/java/de/kortty/ui/AiSkillPickerControl.java, src/main/java/de/kortty/ui/AiSkillsPane.java, src/main/java/de/kortty/ui/AiSkillListFormat.java, src/main/java/de/kortty/ui/AiSkillStorageGuard.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/AiSkillProvider.java, src/main/java/de/kortty/model/AiSkillProviderType.java, src/main/java/de/kortty/model/AiSkillProviderAuth.java, src/main/java/de/kortty/model/AiSkillExternalSource.java, src/main/java/de/kortty/core/ExternalAiSkillSupport.java, src/main/java/de/kortty/core/GitHubAiSkillClient.java, src/main/java/de/kortty/core/GitHubSkillReference.java, src/main/java/de/kortty/core/SkillsMpAiSkillClient.java, src/main/java/de/kortty/core/HttpAiSkillClient.java, src/main/java/de/kortty/core/ExternalAiSkillHttp.java, src/main/java/de/kortty/ui/ExternalAiSkillImportDialog.java, src/main/java/de/kortty/ui/ExternalAiSkillUpdateDialog.java, src/main/java/de/kortty/ui/AiSkillProvidersDialog.java]
 
     screenshots:
       - settings/ai-skills.png
+      - ai/ai-skills-external.png
+      - ai/ai-skills-import.png
+      - ai/ai-skill-providers.png
     last_synced_ref: "659b3bd9"
   - path: app-docs/site/docs/en/reference/settings/sftp.md
     owns_i18n: [settings.sftp.]
