@@ -89,6 +89,11 @@ final class ExternalAiSkillHttp {
             .build();
     }
 
+    /** Whether requests carry an {@code Authorization} header. */
+    boolean hasCredentials() {
+        return credentials.authorizationHeader() != null;
+    }
+
     Response get(URI uri, Map<String, String> headers) throws ExternalAiSkillException {
         requireSecure(uri, credentials.authorizationHeader() != null);
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)

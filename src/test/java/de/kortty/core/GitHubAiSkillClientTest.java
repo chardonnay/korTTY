@@ -155,4 +155,41 @@ class GitHubAiSkillClientTest {
         assertThat(GitHubAiSkillClient.webBaseUrlFor("https://api.github.com")).isEqualTo("https://github.com");
         assertThat(GitHubAiSkillClient.webBaseUrlFor("https://git.example.com/api/v3")).isEqualTo("https://git.example.com");
     }
+
+    @Test
+    void keywordsWithoutATokenAskForOneInsteadOfCallingGitHub() throws Exception {
+        try (StubSkillServer stub = new StubSkillServer()) {
+            GitHubAiSkillClient client = new GitHubAiSkillClient(stub.baseUrl(), ExternalAiSkillHttp.Credentials.NONE);
+
+            ExternalAiSkillException e = expectThrows(ExternalAiSkillException.class, () -> client.search("python"));
+
+            assertThat(e.reason()).isEqualTo(ExternalAiSkillException.Reason.TOKEN_REQUIRED);
+            assertThat(stub.requests).isEmpty();
+        }
+    }
+
+    @Test
+    void keywordsWithATokenSearchSkillFilesAndKeepOneHitPerSkill() throws Exception {
+        String hits = "{\"total_count\":3,\"items\":["
+            + "{\"name\":\"SKILL.md\",\"path\":\"skills/python-testing/SKILL.md\",\"html_url\":\"https://github.com/o/r/blob/abc/skills/python-testing/SKILL.md\","
+            + "\"repository\":{\"full_name\":\"o/r\"}},"
+            + "{\"name\":\"SKILL.md\",\"path\":\"skills/python-testing/SKILL.md\",\"repository\":{\"full_name\":\"o/r\"}},"
+            + "{\"name\":\"README.md\",\"path\":\"README.md\",\"repository\":{\"full_name\":\"o/r\"}},"
+            + "{\"name\":\"SKILL.md\",\"path\":\"SKILL.md\",\"repository\":{\"full_name\":\"me/py-style\"}}]}";
+        try (StubSkillServer stub = new StubSkillServer()
+                .reply("/search/code?q=python%20tests%20filename%3ASKILL.md&per_page=50", StubSkillServer.Reply.json(hits))) {
+            GitHubAiSkillClient client = new GitHubAiSkillClient(stub.baseUrl(),
+                new ExternalAiSkillHttp.Credentials(AiSkillProviderAuth.TOKEN, null, "ghp_test"));
+
+            List<ExternalAiSkillCandidate> candidates = client.search("  python tests ");
+
+            assertThat(candidates.stream().map(ExternalAiSkillCandidate::name).toList())
+                .containsExactly("python-testing", "py-style").inOrder();
+            assertThat(candidates.get(0).reference()).isEqualTo("o/r/skills/python-testing/SKILL.md");
+            assertThat(candidates.get(0).sourceUrl()).isEqualTo("https://github.com/o/r/blob/abc/skills/python-testing/SKILL.md");
+            assertThat(GitHubSkillReference.parse(candidates.get(1).reference()))
+                .isEqualTo(new GitHubSkillReference("me", "py-style", null, "", null));
+        }
+    }
 }
+

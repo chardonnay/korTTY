@@ -22,6 +22,8 @@ public class ExternalAiSkillException extends IOException {
         TOO_LARGE,
         /** Plain HTTP to a host other than this machine, or credentials over plain HTTP. */
         INSECURE_URL,
+        /** The provider only allows this kind of search with credentials (GitHub keyword search). */
+        TOKEN_REQUIRED,
         /** Any other non-2xx response. */
         HTTP_ERROR,
         /** Connection refused, DNS failure, timeout, malformed response. */

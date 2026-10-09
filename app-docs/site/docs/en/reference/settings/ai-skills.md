@@ -81,11 +81,11 @@ Choose a provider, enter a search and click **Search**. Selecting a result loads
 
 | Provider type | Enter | Example |
 | --- | --- | --- |
-| GitHub repository | `owner/repo` for every skill of a repository, `owner/repo@skill` or a GitHub link for one skill; commands copied from agenticskills.io or skills.sh work too | `anthropics/skills`, `npx skills add anthropics/skills@pdf` |
+| GitHub repository | Keywords to search `SKILL.md` files on GitHub (needs a token), `owner/repo` for every skill of a repository, `owner/repo@skill` or a GitHub link for one skill; commands copied from agenticskills.io or skills.sh work too | `python testing`, `anthropics/skills`, `npx skills add anthropics/skills@pdf` |
 | SkillsMP search | Keywords | `kubernetes` |
 | HTTP(S) server | The URL of a `SKILL.md` file, or a path relative to the provider's base URL | `incident/SKILL.md` |
 
-Directories such as agenticskills.io and skills.sh publish their skills as GitHub repositories, so the **GitHub** provider imports from all of them. korTTY reads repositories through the GitHub REST API at `https://api.github.com` (API version 2022-11-28) and remembers the Git revision of each imported `SKILL.md`, so a commit that changes other files of the repository is not reported as an update. Without a token GitHub allows 60 requests an hour; an import takes one or two.
+Directories such as agenticskills.io and skills.sh publish their skills as GitHub repositories, so the **GitHub** provider imports from all of them. korTTY reads repositories through the GitHub REST API at `https://api.github.com` (API version 2022-11-28) and remembers the Git revision of each imported `SKILL.md`, so a commit that changes other files of the repository is not reported as an update. Without a token GitHub allows 60 requests an hour; an import takes one or two. GitHub only answers a keyword search with a token: without one, the dialog explains this and offers **Search SkillsMP instead**, which searches the same GitHub skills without signing in. Keywords do not have to match exactly; every word has to appear somewhere in the `SKILL.md`.
 
 The **SkillsMP** provider searches the SkillsMP index through `https://skillsmp.com/api/v1/skills/search`. Without an API key SkillsMP allows 50 searches a day, with a key 500. The skills it finds are downloaded from GitHub through the active GitHub provider for github.com, with that provider's token.
 

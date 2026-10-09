@@ -65,4 +65,15 @@ class GitHubSkillReferenceTest {
         assertThat(GitHubSkillReference.parse("o/r@docx").displayName()).isEqualTo("docx");
         assertThat(GitHubSkillReference.parse("o/r").displayName()).isEqualTo("r");
     }
+
+    @Test
+    void keywordsAreToldApartFromReferences() {
+        assertThat(GitHubSkillReference.looksLikeReference("python")).isFalse();
+        assertThat(GitHubSkillReference.looksLikeReference("python testing")).isFalse();
+        assertThat(GitHubSkillReference.looksLikeReference("anthropics/skills")).isTrue();
+        assertThat(GitHubSkillReference.looksLikeReference("repo@skill")).isTrue();
+        assertThat(GitHubSkillReference.looksLikeReference("https://github.com/o/r")).isTrue();
+        assertThat(GitHubSkillReference.looksLikeReference("npx skills add o/r@pdf")).isTrue();
+    }
 }
+

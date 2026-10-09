@@ -19,7 +19,8 @@ import java.util.Map;
  * Reads SKILL.md files from GitHub repositories through the GitHub REST API (version
  * {@value #API_VERSION}): {@code GET /repos/{owner}/{repo}} for the default branch,
  * {@code GET /repos/{owner}/{repo}/git/trees/{ref}?recursive=1} to list a repository's skills and
- * {@code GET /repos/{owner}/{repo}/contents/{path}/SKILL.md?ref={ref}} to download one.
+ * {@code GET /repos/{owner}/{repo}/contents/{path}/SKILL.md?ref={ref}} to download one, and — with a
+ * token only, as GitHub requires — {@code GET /search/code} for a keyword search over SKILL.md files.
  *
  * <p>This is the backend for every skill directory that publishes skills as {@code owner/repo@skill}
  * (agenticskills.io, skills.sh, the Anthropic skills repository) and for SkillsMP search results.
@@ -34,6 +35,8 @@ public final class GitHubAiSkillClient implements ExternalAiSkillClient {
     static final String API_VERSION = "2022-11-28";
     /** Upper bound for one repository listing; large monorepos list their first skills only. */
     static final int MAX_LISTED_SKILLS = 300;
+    /** Hits of one keyword search ({@code per_page}). */
+    static final int KEYWORD_RESULTS = 50;
 
     private final String apiBaseUrl;
     private final String webBaseUrl;
@@ -65,8 +68,15 @@ public final class GitHubAiSkillClient implements ExternalAiSkillClient {
         return apiBaseUrl;
     }
 
+    /**
+     * A reference lists that repository's skills; anything else is a keyword search for SKILL.md files
+     * through {@code GET /search/code}, which GitHub only answers with a token.
+     */
     @Override
     public List<ExternalAiSkillCandidate> search(String query) throws ExternalAiSkillException {
+        if (!GitHubSkillReference.looksLikeReference(query)) {
+            return keywordSearch(query != null ? query.trim() : "");
+        }
         GitHubSkillReference reference = GitHubSkillReference.parse(query);
         String ref = reference.ref() != null ? reference.ref() : defaultBranch(reference);
         if (reference.path() != null) {
@@ -83,6 +93,46 @@ public final class GitHubAiSkillClient implements ExternalAiSkillClient {
             throw new ExternalAiSkillException(ExternalAiSkillException.Reason.NOT_FOUND,
                 reference.owner() + "/" + reference.repo()
                     + (reference.skillName() != null ? "@" + reference.skillName() : ""));
+        }
+        return candidates;
+    }
+
+    /** SKILL.md files whose text matches every keyword, one candidate per skill directory. */
+    private List<ExternalAiSkillCandidate> keywordSearch(String keywords) throws ExternalAiSkillException {
+        if (keywords.isEmpty() || keywords.length() > 200) {
+            throw new ExternalAiSkillException(ExternalAiSkillException.Reason.INVALID_REFERENCE, keywords);
+        }
+        if (!http.hasCredentials()) {
+            throw new ExternalAiSkillException(ExternalAiSkillException.Reason.TOKEN_REQUIRED, keywords);
+        }
+        JsonElement result = getJson(apiBaseUrl + "/search/code?q="
+            + ExternalAiSkillHttp.encode(keywords + " filename:" + GitHubSkillReference.SKILL_FILE)
+            + "&per_page=" + KEYWORD_RESULTS, "search " + keywords);
+        JsonArray items = result.isJsonObject() && result.getAsJsonObject().get("items") instanceof JsonArray array
+            ? array : new JsonArray();
+        List<ExternalAiSkillCandidate> candidates = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (JsonElement element : items) {
+            if (!element.isJsonObject() || !(element.getAsJsonObject().get("repository") instanceof JsonObject repository)) {
+                continue;
+            }
+            JsonObject item = element.getAsJsonObject();
+            String path = string(item, "path");
+            String fullName = string(repository, "full_name");
+            if (!GitHubSkillReference.SKILL_FILE.equals(string(item, "name")) || fullName.isEmpty()) {
+                continue;
+            }
+            // owner/repo/<dir>/SKILL.md parses back to that directory on the default branch.
+            String reference = fullName + "/" + path;
+            if (!seen.add(reference.toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            String directory = GitHubSkillReference.stripSkillFile(path);
+            String name = directory.isEmpty() ? fullName.substring(fullName.indexOf('/') + 1)
+                : directory.substring(directory.lastIndexOf('/') + 1);
+            String htmlUrl = string(item, "html_url");
+            candidates.add(new ExternalAiSkillCandidate(reference, name, "", fullName,
+                htmlUrl.isEmpty() ? reference : htmlUrl, null));
         }
         return candidates;
     }

@@ -74,6 +74,16 @@ final class ExternalAiSkillUiSupport {
         return provider -> secrets.get(provider.getId());
     }
 
+    /** The reason of the {@link ExternalAiSkillException} behind {@code failure}, or {@code null}. */
+    static ExternalAiSkillException.Reason reasonOf(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause() != cause ? cause.getCause() : null) {
+            if (cause instanceof ExternalAiSkillException external) {
+                return external.reason();
+            }
+        }
+        return null;
+    }
+
     /** A translated sentence for a failed provider call. */
     static String describe(Throwable failure) {
         Throwable cause = failure;

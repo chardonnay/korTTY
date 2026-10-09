@@ -32,6 +32,16 @@ public record GitHubSkillReference(String owner, String repo, String ref, String
     private static final Pattern NPX_PREFIX =
         Pattern.compile("^(?:npx|bunx|pnpm dlx)\\s+(?:-y\\s+)?skills(?:@\\S+)?\\s+add\\s+", Pattern.CASE_INSENSITIVE);
 
+    /**
+     * Whether {@code text} names a repository or skill (one of the forms above) rather than search
+     * keywords: it is a URL, a copied {@code npx skills add} command, or contains {@code /} or {@code @}.
+     */
+    public static boolean looksLikeReference(String text) {
+        String trimmed = text != null ? text.trim() : "";
+        return trimmed.matches("(?i)^https?://.*") || NPX_PREFIX.matcher(trimmed).find()
+            || trimmed.contains("/") || trimmed.contains("@");
+    }
+
     /** Parses one of the forms above; throws {@link ExternalAiSkillException.Reason#INVALID_REFERENCE} otherwise. */
     public static GitHubSkillReference parse(String raw) throws ExternalAiSkillException {
         String text = raw != null ? raw.trim() : "";

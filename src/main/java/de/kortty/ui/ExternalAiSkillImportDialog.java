@@ -4,6 +4,7 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.ExternalAiSkillCandidate;
 import de.kortty.core.ExternalAiSkillClient;
 import de.kortty.core.ExternalAiSkillDocument;
+import de.kortty.core.ExternalAiSkillException;
 import de.kortty.core.ExternalAiSkillSupport;
 import de.kortty.model.AiSkill;
 import de.kortty.model.AiSkillProvider;
@@ -58,6 +59,8 @@ final class ExternalAiSkillImportDialog extends ThemeAwareDialog<List<AiSkill>> 
     private final TextArea previewArea = new TextArea();
     private final Label statusLabel = new Label();
     private final Button importButton = new Button(I18n.get("settings.aiSkills.external.dialog.importSelected"));
+    /** Shown when GitHub refuses a keyword search without a token: repeats the search on SkillsMP. */
+    private final Button searchSkillsMpButton = new Button(I18n.get("settings.aiSkills.external.dialog.searchSkillsMp"));
 
     /** Downloaded SKILL.md files by candidate reference, so a previewed skill is not fetched twice. */
     private final Map<String, ExternalAiSkillDocument> documents = new HashMap<>();
@@ -122,7 +125,10 @@ final class ExternalAiSkillImportDialog extends ThemeAwareDialog<List<AiSkill>> 
         importButton.setOnAction(event -> importSelected());
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.SOMETIMES);
-        HBox actionRow = new HBox(8, statusLabel, spacer, importButton);
+        searchSkillsMpButton.setVisible(false);
+        searchSkillsMpButton.managedProperty().bind(searchSkillsMpButton.visibleProperty());
+        searchSkillsMpButton.setOnAction(event -> searchOnSkillsMp());
+        HBox actionRow = new HBox(8, statusLabel, searchSkillsMpButton, spacer, importButton);
         actionRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox root = new VBox(10, searchRow, hintLabel, split, warningLabel, actionRow);
@@ -200,7 +206,23 @@ final class ExternalAiSkillImportDialog extends ThemeAwareDialog<List<AiSkill>> 
         return ExternalAiSkillSupport.findImported(existingSkills, candidate.reference()) != null;
     }
 
+    /** The first enabled SkillsMP profile, or {@code null}. */
+    private AiSkillProvider skillsMpProvider() {
+        return providerCombo.getItems().stream()
+            .filter(provider -> provider.getType() == de.kortty.model.AiSkillProviderType.SKILLSMP)
+            .findFirst().orElse(null);
+    }
+
+    private void searchOnSkillsMp() {
+        AiSkillProvider skillsMp = skillsMpProvider();
+        if (skillsMp != null) {
+            providerCombo.getSelectionModel().select(skillsMp);
+            search();
+        }
+    }
+
     private void search() {
+        searchSkillsMpButton.setVisible(false);
         AiSkillProvider provider = providerCombo.getValue();
         String query = queryField.getText() != null ? queryField.getText().trim() : "";
         if (provider == null || query.isEmpty()) {
@@ -233,6 +255,8 @@ final class ExternalAiSkillImportDialog extends ThemeAwareDialog<List<AiSkill>> 
                 }
                 if (failure != null) {
                     statusLabel.setText(ExternalAiSkillUiSupport.describe(failure));
+                    searchSkillsMpButton.setVisible(ExternalAiSkillUiSupport.reasonOf(failure)
+                        == ExternalAiSkillException.Reason.TOKEN_REQUIRED && skillsMpProvider() != null);
                     return;
                 }
                 searchedProvider = provider;
