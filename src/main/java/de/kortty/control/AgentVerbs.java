@@ -56,7 +56,7 @@ final class AgentVerbs {
                     new ParamSpec("kind", "string", false, null,
                         "claude-code, codex, gemini-cli, minimax-code, qwen-code"
                             + ", opencode, cursor-agent, aider, amp, goose, crush, kiro, continue"
-                            + ", grok or jules."),
+                            + ", grok, jules or copilot."),
                     new ParamSpec(BaseVerbs.PARAM_TAB, "tab_ref", false, null, "A tab selector."),
                     new ParamSpec(BaseVerbs.PARAM_WINDOW, "string", false, null, "A window id.")),
                 "{agents:[AgentInfo], totals:AgentTotals}",
@@ -264,7 +264,7 @@ final class AgentVerbs {
                     new ParamSpec("kind", "string", true, null,
                         "claude-code, codex, gemini-cli, minimax-code, qwen-code"
                             + ", opencode, cursor-agent, aider, amp, goose, crush, kiro, continue"
-                            + ", grok or jules."),
+                            + ", grok, jules or copilot."),
                     new ParamSpec("command", "string[]", false, null,
                         "The launch command; defaults to the kind's own executable."),
                     new ParamSpec("prompt", "string", false, null,

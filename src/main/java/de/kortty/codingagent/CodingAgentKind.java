@@ -51,6 +51,11 @@ public enum CodingAgentKind {
      * Jules runs its sessions in the cloud; the local process is the dashboard that lists them.
      */
     JULES("Jules", "jules", Set.of("jules")),
+    /**
+     * GitHub Copilot CLI, a native binary (Homebrew cask copilot-cli); npm's {@code @github/copilot}
+     * loader spawns the same binary from its platform package and is also found by its package path.
+     */
+    COPILOT("GitHub Copilot CLI", "copilot", Set.of("copilot")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;
