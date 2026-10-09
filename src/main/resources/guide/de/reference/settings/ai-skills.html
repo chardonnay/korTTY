@@ -996,8 +996,8 @@
 <tbody>
 <tr>
 <td>GitHub-Repository</td>
-<td><code>owner/repo</code> für jede Fähigkeit eines Repositorys, <code>owner/repo@skill</code> oder einen GitHub-Link für eine Fähigkeit; Befehle aus agenticskills.io oder skills.sh funktionieren ebenfalls</td>
-<td><code>anthropics/skills</code>, <code>npx skills add anthropics/skills@pdf</code></td>
+<td>Suchbegriffe zum Durchsuchen <code>SKILL.md</code> Dateien auf GitHub (benötigt ein Token), <code>owner/repo</code> für jedes Skill eines Repositories, <code>owner/repo@skill</code> oder ein GitHub-Link für ein einzelnes Skill; aus agenticskills.io oder skills.sh kopierte Befehle funktionieren ebenfalls</td>
+<td><code>python testing</code>, <code>anthropics/skills</code>, <code>npx skills add anthropics/skills@pdf</code></td>
 </tr>
 <tr>
 <td>SkillsMP-Suche</td>
@@ -1011,7 +1011,7 @@
 </tr>
 </tbody>
 </table>
-<p>Verzeichnisse wie agenticskills.io und skills.sh veröffentlichen ihre Skills als GitHub-Repositorys, sodass der <strong>GitHub</strong>-Provider aus allen importiert. korTTY liest Repositorys über die GitHub REST API bei <code>https://api.github.com</code> (API-Version 2022-11-28) und merkt sich die Git-Revision jedes importierten <code>SKILL.md</code>, sodass ein Commit, der andere Dateien des Repositorys ändert, nicht als Update gemeldet wird. Ohne Token erlaubt GitHub 60 Anfragen pro Stunde; ein Import benötigt eine oder zwei.</p>
+<p>Kataloge wie agenticskills.io und skills.sh veröffentlichen ihre Skills als GitHub-Repositories, daher importiert der <strong>GitHub</strong>-Provider von allen davon. korTTY liest Repositories über die GitHub REST API unter <code>https://api.github.com</code> (API-Version 2022-11-28) und merkt sich die Git-Revision jedes importierten <code>SKILL.md</code>, sodass ein Commit, der andere Dateien des Repositories ändert, nicht als Update gemeldet wird. Ohne Token erlaubt GitHub 60 Anfragen pro Stunde; ein Import benötigt ein oder zwei. GitHub beantwortet eine Suchbegriffssuche nur mit Token: ohne Token erklärt der Dialog dies und bietet <strong>Stattdessen auf SkillsMP suchen</strong> an, der dieselben GitHub-Skills ohne Anmeldung durchsucht. Suchbegriffe müssen nicht exakt übereinstimmen; jedes Wort muss irgendwo im <code>SKILL.md</code> vorkommen.</p>
 <p>Der <strong>SkillsMP</strong>-Provider durchsucht den SkillsMP-Index über <code>https://skillsmp.com/api/v1/skills/search</code>. Ohne einen API-Schlüssel erlaubt SkillsMP 50 Suchen pro Tag, mit einem Schlüssel 500. Die gefundenen Skills werden von GitHub über den aktiven GitHub-Provider für github.com heruntergeladen, unter Verwendung des Tokens dieses Providers.</p>
 <h3 id="anbieter">Anbieter<a class="headerlink" href="#anbieter" title="Permanent link">&para;</a></h3>
 <p><img alt="AI skill providers" src="../../../en/assets/screenshots/ai/ai-skill-providers.png" /></p>

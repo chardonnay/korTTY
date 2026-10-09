@@ -996,8 +996,8 @@
 <tbody>
 <tr>
 <td>GitHub repository</td>
-<td><code>owner/repo</code> for every skill of a repository, <code>owner/repo@skill</code> or a GitHub link for one skill; commands copied from agenticskills.io or skills.sh work too</td>
-<td><code>anthropics/skills</code>, <code>npx skills add anthropics/skills@pdf</code></td>
+<td>Keywords to search <code>SKILL.md</code> files on GitHub (needs a token), <code>owner/repo</code> for every skill of a repository, <code>owner/repo@skill</code> or a GitHub link for one skill; commands copied from agenticskills.io or skills.sh work too</td>
+<td><code>python testing</code>, <code>anthropics/skills</code>, <code>npx skills add anthropics/skills@pdf</code></td>
 </tr>
 <tr>
 <td>SkillsMP search</td>
@@ -1011,7 +1011,7 @@
 </tr>
 </tbody>
 </table>
-<p>Directories such as agenticskills.io and skills.sh publish their skills as GitHub repositories, so the <strong>GitHub</strong> provider imports from all of them. korTTY reads repositories through the GitHub REST API at <code>https://api.github.com</code> (API version 2022-11-28) and remembers the Git revision of each imported <code>SKILL.md</code>, so a commit that changes other files of the repository is not reported as an update. Without a token GitHub allows 60 requests an hour; an import takes one or two.</p>
+<p>Directories such as agenticskills.io and skills.sh publish their skills as GitHub repositories, so the <strong>GitHub</strong> provider imports from all of them. korTTY reads repositories through the GitHub REST API at <code>https://api.github.com</code> (API version 2022-11-28) and remembers the Git revision of each imported <code>SKILL.md</code>, so a commit that changes other files of the repository is not reported as an update. Without a token GitHub allows 60 requests an hour; an import takes one or two. GitHub only answers a keyword search with a token: without one, the dialog explains this and offers <strong>Search SkillsMP instead</strong>, which searches the same GitHub skills without signing in. Keywords do not have to match exactly; every word has to appear somewhere in the <code>SKILL.md</code>.</p>
 <p>The <strong>SkillsMP</strong> provider searches the SkillsMP index through <code>https://skillsmp.com/api/v1/skills/search</code>. Without an API key SkillsMP allows 50 searches a day, with a key 500. The skills it finds are downloaded from GitHub through the active GitHub provider for github.com, with that provider's token.</p>
 <h3 id="providers">Providers<a class="headerlink" href="#providers" title="Permanent link">&para;</a></h3>
 <p><img alt="AI skill providers" src="../../assets/screenshots/ai/ai-skill-providers.png" /></p>
