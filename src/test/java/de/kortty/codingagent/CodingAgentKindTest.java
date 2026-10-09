@@ -26,6 +26,7 @@ class CodingAgentKindTest {
         assertThat(CodingAgentKind.forExecutable("kiro-cli-chat")).hasValue(CodingAgentKind.KIRO);
         assertThat(CodingAgentKind.forExecutable("cn")).hasValue(CodingAgentKind.CONTINUE);
         assertThat(CodingAgentKind.forExecutable("grok")).hasValue(CodingAgentKind.GROK);
+        assertThat(CodingAgentKind.forExecutable("jules")).hasValue(CodingAgentKind.JULES);
         // Kiro's shell wrapper runs ordinary shells and must never count as the agent.
         assertThat(CodingAgentKind.forExecutable("kiro-cli-term")).isEmpty();
     }
@@ -62,6 +63,7 @@ class CodingAgentKindTest {
         assertThat(CodingAgentKind.forId("kiro")).hasValue(CodingAgentKind.KIRO);
         assertThat(CodingAgentKind.forId("continue")).hasValue(CodingAgentKind.CONTINUE);
         assertThat(CodingAgentKind.forId("grok")).hasValue(CodingAgentKind.GROK);
+        assertThat(CodingAgentKind.forId("jules")).hasValue(CodingAgentKind.JULES);
         assertThat(CodingAgentKind.forId("unknown")).isEmpty();
         assertThat(CodingAgentKind.forId(null)).isEmpty();
     }

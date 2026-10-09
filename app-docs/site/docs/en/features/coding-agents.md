@@ -4,13 +4,13 @@ title: Coding agents
 
 # Coding agents
 
-KorTTY recognises when a terminal-based coding agent — **Claude Code**, **Codex**, **Gemini CLI**, **MiniMax Code**, **Qwen Code**, **OpenCode**, **Cursor Agent**, **Aider**, **Amp**, **Goose**, **Crush**, **Kiro CLI**, **Continue** or **Grok CLI** — is running inside one of your [local shell tabs](terminal.md#local-shell-tabs) and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable **Coding Agents** panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.
+KorTTY recognises when a terminal-based coding agent — **Claude Code**, **Codex**, **Gemini CLI**, **MiniMax Code**, **Qwen Code**, **OpenCode**, **Cursor Agent**, **Aider**, **Amp**, **Goose**, **Crush**, **Kiro CLI**, **Continue**, **Grok CLI** or **Jules** — is running inside one of your [local shell tabs](terminal.md#local-shell-tabs) and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable **Coding Agents** panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.
 
 ![Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier](../assets/diagrams/coding-agents.svg)
 
 ## What it detects
 
-Detection covers the fourteen agents below, started from a **Local Shell** tab — directly, through a package-manager wrapper such as `npx`, or as a `node`, `bun`, `deno` or `python` script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process; an agent on a server can still tell you that it waits for you with a terminal notification, see [Notifications from programs](terminal-notifications.md#notifications-from-programs).
+Detection covers the fifteen agents below, started from a **Local Shell** tab — directly, through a package-manager wrapper such as `npx`, or as a `node`, `bun`, `deno` or `python` script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process; an agent on a server can still tell you that it waits for you with a terminal notification, see [Notifications from programs](terminal-notifications.md#notifications-from-programs).
 
 | Agent | Recognised executables |
 |-------|------------------------|
@@ -28,6 +28,7 @@ Detection covers the fourteen agents below, started from a **Local Shell** tab �
 | Kiro CLI | `kiro-cli`, `kiro-cli-chat` (its screen rules are not yet verified against live sessions; Kiro's shell wrapper `kiro-cli-term` is never counted as an agent) |
 | Continue | `cn` (a `node` script of the npm package `@continuedev/cli`) |
 | Grok CLI | `grok` (Superagent's open-source grok-cli, npm package `@vibe-kit/grok-cli`; not xAI's Grok Build) |
+| Jules | `jules` (Google's asynchronous agent: its sessions run in the cloud, so korTTY watches the local `jules` dashboard that lists them; the screen rules are not yet verified against live sessions) |
 
 Every split pane is tracked on its own, so a tab with two panes can show one agent working while the other waits for a permission decision. A pane that runs no agent, or whose agent has exited, simply has no detection result.
 
@@ -107,7 +108,7 @@ Detection is on by default and is controlled by three toggles in **Settings → 
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
-| Detect coding agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI) in local shell tabs | toggle | — | On | `codingAgentDetectionEnabled` |
+| Detect coding agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules) in local shell tabs | toggle | — | On | `codingAgentDetectionEnabled` |
 | Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane | toggle | — | On | `codingAgentNotificationsEnabled` |
 | Show the number of agents waiting for a decision on the app icon | toggle | — | On | `codingAgentAppBadgeEnabled` |
 
@@ -132,6 +133,7 @@ Each agent's screen rules live in a small JSON file. KorTTY ships one bundled fi
 ~/.kortty/coding-agents/kiro.json
 ~/.kortty/coding-agents/continue.json
 ~/.kortty/coding-agents/grok.json
+~/.kortty/coding-agents/jules.json
 ```
 
 An override replaces the bundled file for that agent **as a whole** — there is no merging, so start from the bundled file and edit it. The file must be a regular file (symbolic links are not followed), and its `kind` must match the file name. An invalid file — malformed JSON, an unknown key, a bad regular expression, a duplicate rule id, or a rule without any condition — is ignored with a warning in the log and the bundled rules stay in effect, so a typo can never silently disable detection. Rule files are read at startup; restart korTTY after editing one.
@@ -142,7 +144,7 @@ The schema is strict: every key not listed here is an error, so misspelt keys ar
 
 ```json
 {
-  "kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE | CURSOR_AGENT | AIDER | AMP | GOOSE | CRUSH | KIRO | CONTINUE | GROK",
+  "kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE | CURSOR_AGENT | AIDER | AMP | GOOSE | CRUSH | KIRO | CONTINUE | GROK | JULES",
   "version": 1,
   "comment": "optional free text, e.g. the agent version the rules were written against",
   "fallbackState": "IDLE | WORKING | BLOCKED | DONE | UNKNOWN (optional, default IDLE)",
@@ -165,7 +167,7 @@ The schema is strict: every key not listed here is an error, so misspelt keys ar
 
 | Field | Required | Meaning |
 |-------|----------|---------|
-| `kind` | yes | The agent this file describes; must match the file name (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`). |
+| `kind` | yes | The agent this file describes; must match the file name (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`, `jules`). |
 | `version` | yes | Schema version; currently always `1`. |
 | `comment` | no | Free text for your own notes, for example which agent version the rules were verified against. |
 | `fallbackState` | no | State reported while the agent process is present but no rule matches. Defaults to `IDLE`; `UNKNOWN` makes detection stricter. |
@@ -251,7 +253,7 @@ The two BLOCKED rules combine a per-line pattern with a whole-region `regex`, so
 
 Agents change their interfaces often, and a rule that matched last month may silently stop matching after an update. KorTTY's bundled rules are therefore pinned by **screen fixtures**: for every agent, the repository keeps captured terminal screens with the state and rule they must produce, and the test suite fails as soon as a bundled rule no longer matches its fixture or a rule has no fixture at all. When you notice a wrong or missing state, the most useful report is the visible screen text of the pane at that moment, the agent and its version, and the state you expected — it becomes a new fixture and a rule fix in the next release. Until then, a local override file lets you correct the rule for yourself immediately.
 
-The repository ships a recorder for exactly this purpose: `scripts/capture-coding-agent-fixtures.py` runs an agent inside a pseudo-terminal and passes your keyboard through, so the session behaves like a normal terminal. Press ++f12++ at every interesting moment — the permission dialog, the spinner, the empty prompt — and the visible screen is written to a fixture file; ++ctrl+bracket-right++ stops the recording. Each file starts with a `#! expect state=REVIEW rule=REVIEW` line: set the state and rule id you expect there, and drop the file into `src/test/resources/coding-agents/<kind>/` (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue` or `grok`). From then on the test suite guards the rule against that screen, and a rule change that would break it is caught before release.
+The repository ships a recorder for exactly this purpose: `scripts/capture-coding-agent-fixtures.py` runs an agent inside a pseudo-terminal and passes your keyboard through, so the session behaves like a normal terminal. Press ++f12++ at every interesting moment — the permission dialog, the spinner, the empty prompt — and the visible screen is written to a fixture file; ++ctrl+bracket-right++ stops the recording. Each file starts with a `#! expect state=REVIEW rule=REVIEW` line: set the state and rule id you expect there, and drop the file into `src/test/resources/coding-agents/<kind>/` (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok` or `jules`). From then on the test suite guards the rule against that screen, and a rule change that would break it is caught before release.
 
 ## Driving agents from a script
 

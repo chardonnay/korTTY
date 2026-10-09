@@ -46,6 +46,11 @@ public enum CodingAgentKind {
      * is also called {@code grok}; it never matches a Grok CLI screen rule, so it is never reported.
      */
     GROK("Grok CLI", "grok", Set.of("grok")),
+    /**
+     * Google's Jules CLI, a native binary (npm's {@code @google/jules} installs it as {@code <prefix>/bin/jules}).
+     * Jules runs its sessions in the cloud; the local process is the dashboard that lists them.
+     */
+    JULES("Jules", "jules", Set.of("jules")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

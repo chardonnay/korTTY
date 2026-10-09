@@ -1,0 +1,52 @@
+{
+  "kind": "JULES",
+  "version": 1,
+  "comment": "PARTLY UNVERIFIED: written against Jules CLI 0.1.42 without a Jules account. Jules runs its sessions in Google's cloud; the local 'jules' process is a dashboard (TUI) that lists those sessions, so the states describe the sessions it shows. Verified on screen: the unauthenticated dashboard with 'Jules authentication is required. Please use the /login command to authenticate.' (BLOCKED, the user has to log in) and the input line '> Search sessions or type / to use command'. The session states come from the Jules API reference (SessionState: AWAITING_PLAN_APPROVAL, AWAITING_USER_FEEDBACK, PLANNING, IN_PROGRESS, QUEUED, …); how the dashboard spells them could not be checked, so the patterns accept both the enum form and the spaced form, case-insensitively. A listed session awaiting plan approval or user feedback is BLOCKED; a queued, planning or in-progress session is WORKING; otherwise the dashboard input line is IDLE (also the fallback). A session title that happens to contain these words could mislead the working rule. The fixtures other than the unauthenticated dashboard are synthesized and named synthetic-*. Must be re-verified against live authenticated sessions.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "login-required",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": {
+        "bottomNonEmptyLines": 6
+      },
+      "anyLineRegex": [
+        "Jules authentication is required\\. Please use the /login command to authenticate\\."
+      ]
+    },
+    {
+      "id": "awaiting-user",
+      "state": "BLOCKED",
+      "priority": 990,
+      "region": {
+        "bottomNonEmptyLines": 0
+      },
+      "anyLineRegex": [
+        "(?i)\\bawaiting[ _](?:plan[ _]approval|user[ _]feedback)\\b"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": {
+        "bottomNonEmptyLines": 0
+      },
+      "anyLineRegex": [
+        "(?i)\\b(?:in[ _]progress|planning|queued)\\b"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": {
+        "bottomNonEmptyLines": 4
+      },
+      "anyLineRegex": [
+        "^\\s*>\\s"
+      ]
+    }
+  ]
+}
