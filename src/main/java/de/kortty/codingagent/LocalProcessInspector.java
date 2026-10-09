@@ -71,7 +71,8 @@ public final class LocalProcessInspector {
         "@minimax-ai/code", CodingAgentKind.MINIMAX_CODE,
         "cursor-agent/versions", CodingAgentKind.CURSOR_AGENT,
         "@continuedev/cli", CodingAgentKind.CONTINUE,
-        "@vibe-kit/grok-cli", CodingAgentKind.GROK);
+        "@vibe-kit/grok-cli", CodingAgentKind.GROK,
+        "@github/copilot", CodingAgentKind.COPILOT);
 
     public LocalProcessInspector() {
     }

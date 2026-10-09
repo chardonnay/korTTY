@@ -53,7 +53,7 @@ STOP_KEY = b"\x1d"  # Ctrl-]
 
 
 class TolerantScreen(pyte.Screen):
-    """A pyte screen that ignores private-marker SGR sequences.
+    """A pyte screen that ignores private-marker SGR and device status sequences.
 
     Agents built on modern TUI toolkits (Crush, for one) send ``CSI > 4 ; 2 m`` (xterm
     modifyOtherKeys) on start. pyte dispatches it to ``select_graphic_rendition`` with
@@ -65,6 +65,13 @@ class TolerantScreen(pyte.Screen):
         if private:
             return
         super().select_graphic_rendition(*attrs)
+
+    def report_device_status(self, mode=0, private=False, **kwargs):
+        # GitHub Copilot CLI sends private-marker device status requests (CSI ? 6 n, DECXCPR),
+        # which pyte dispatches with private=True as well.
+        if private:
+            return
+        super().report_device_status(mode)
 
 
 class Recorder:
