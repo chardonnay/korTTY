@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+   Running ls -la in Bash        +
+
+     + Thought · 794ms
+
+  ┃
+  ┃  $ ls -la
+  ┃
+  ┃  total 0
+  ┃  drwxr-xr-x@  2         wheel    64 Oct  8 11:43 .
+  ┃  drwx------@ 66         wheel  2112 Oct  9 09:22 ..
+  ┃
+
+     + Thought · 572ms
+
+     It looks like the current directory is empty (apart from . and ..).
+     If you’d like to create a file, list a different directory, or perform another action, just let me know!
+
+     Build · gpt-oss-20b · 33.8s · 17.6 tok/s
+
+  ┃
+  ┃  Use your bash tool to run exactly: curl -sI https://example.com
+  ┃
+
+     + Thought · 731ms
+
+  ┃
+  ┃  $ curl -sI https://example.com
+  ┃
+  ┃  The user declined this tool call
+  ┃
+
+     Build · gpt-oss-20b · 39.6s · 25.0 tok/s · interrupted
+
+  ┃
+  ┃
+  ┃
+  ┃  Build · gpt-oss-20b LM Studio (LAN)
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+  /                                                                                         4.7K (4%)  ctrl+p commands
+
