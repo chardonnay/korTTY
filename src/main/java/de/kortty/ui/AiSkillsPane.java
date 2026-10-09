@@ -4,7 +4,12 @@ import de.kortty.KorTTYApplication;
 import de.kortty.core.AiSkillMarkdownCodec;
 import de.kortty.core.BuiltinAiSkillCatalog;
 import de.kortty.core.BuiltinAiSkillSupport;
+import de.kortty.core.ExternalAiSkillClient;
+import de.kortty.core.ExternalAiSkillDocument;
+import de.kortty.core.ExternalAiSkillSupport;
 import de.kortty.model.AiSkill;
+import de.kortty.model.AiSkillExternalSource;
+import de.kortty.model.AiSkillProvider;
 import de.kortty.model.AiSkillTarget;
 import de.kortty.model.GlobalSettings;
 import javafx.animation.PauseTransition;
@@ -24,6 +29,8 @@ import javafx.scene.control.MenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
@@ -44,13 +51,22 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * AI-skill library editor: list, markdown editor, import/export and the two global toggles.
  * Lives in the AI Manager (it used to be a tab in the global settings dialog) so everything
  * that shapes AI behaviour is managed in one place.
+ *
+ * <p>The list switches between <em>Local</em> skills (own and built-in) and <em>External</em> skills
+ * imported from an internet provider ({@link ExternalAiSkillImportDialog}); both live in the same
+ * library and reach AI prompts the same way once enabled.
  */
 final class AiSkillsPane extends VBox {
 
@@ -85,6 +101,20 @@ final class AiSkillsPane extends VBox {
     private final Button builtinUpdateButton;
     private final Button builtinHideToggleButton;
     private final PauseTransition builtinIndicatorRefresh = new PauseTransition(Duration.millis(300));
+    private final ToggleButton localViewButton = new ToggleButton();
+    private final ToggleButton externalViewButton = new ToggleButton();
+    private final FlowPane aiSkillButtons = new FlowPane(8, 8);
+    private final List<javafx.scene.Node> localButtons;
+    private final List<javafx.scene.Node> externalButtons;
+    private final Button checkUpdatesButton = new Button(I18n.get("settings.aiSkills.external.checkUpdates"));
+    private final Label externalEmptyPlaceholder = new Label(I18n.get("settings.aiSkills.external.empty"));
+    private final HBox externalBanner;
+    private final Label externalStateLabel = new Label();
+    private final Button externalOpenButton = new Button(I18n.get("settings.aiSkills.external.openSource"));
+    private final Button externalUpdateButton = new Button(I18n.get("settings.aiSkills.external.showUpdate"));
+    /** Newer provider versions found by the last update check, by skill id. */
+    private final Map<String, ExternalAiSkillDocument> pendingUpdates = new HashMap<>();
+    private boolean externalView;
 
     private final BuiltinAiSkillCatalog builtinCatalog = BuiltinAiSkillCatalog.load();
     private final List<AiSkill> aiSkills = new ArrayList<>();
@@ -139,7 +169,10 @@ final class AiSkillsPane extends VBox {
                     return;
                 }
                 BuiltinAiSkillSupport.AiSkillStatus status = statusOf(item);
-                setText(AiSkillListFormat.listText(item, status));
+                setText(item.isExternal()
+                    ? AiSkillListFormat.externalListText(item, providerName(item),
+                        pendingUpdates.containsKey(item.getId()), ExternalAiSkillSupport.isLocallyModified(item))
+                    : AiSkillListFormat.listText(item, status));
                 if (AiSkillListFormat.muted(item, status)) {
                     getStyleClass().add(MUTED_STYLE_CLASS);
                 }
@@ -172,12 +205,40 @@ final class AiSkillsPane extends VBox {
             sortAiSkillByNameItem,
             sortAiSkillByStatusItem);
 
+        Button importExternalButton = new Button(I18n.get("settings.aiSkills.external.import"));
+        importExternalButton.setOnAction(event -> importExternalAiSkills());
+        checkUpdatesButton.setOnAction(event -> checkExternalUpdates());
+        Button providersButton = new Button(I18n.get("settings.aiSkills.external.providers"));
+        providersButton.setOnAction(event -> openProviders());
+        localButtons = List.of(addAiSkillButton, deleteAiSkillButton, importAiSkillButton, exportAiSkillButton);
+        externalButtons = List.of(importExternalButton, deleteAiSkillButton, checkUpdatesButton, providersButton,
+            exportAiSkillButton);
+        externalEmptyPlaceholder.setWrapText(true);
+        externalEmptyPlaceholder.setPadding(new Insets(12));
+
+        ToggleGroup viewGroup = new ToggleGroup();
+        localViewButton.setToggleGroup(viewGroup);
+        externalViewButton.setToggleGroup(viewGroup);
+        localViewButton.setSelected(true);
+        localViewButton.setMaxWidth(Double.MAX_VALUE);
+        externalViewButton.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(localViewButton, Priority.ALWAYS);
+        HBox.setHgrow(externalViewButton, Priority.ALWAYS);
+        viewGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
+            if (newToggle == null) {
+                // A toggle group lets the selected button be clicked off; one view is always shown.
+                viewGroup.selectToggle(oldToggle);
+                return;
+            }
+            setExternalView(newToggle == externalViewButton);
+        });
+        HBox viewSwitch = new HBox(0, localViewButton, externalViewButton);
+
         // The list column is narrow: both rows wrap instead of cutting their labels.
         FlowPane aiSkillSortButtons = new FlowPane(8, 8, sortAiSkillButton, showHiddenCheck);
         aiSkillSortButtons.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-        FlowPane aiSkillButtons = new FlowPane(8, 8, addAiSkillButton, deleteAiSkillButton, importAiSkillButton,
-            exportAiSkillButton);
-        VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, aiSkillSortButtons,
+        aiSkillButtons.getChildren().setAll(localButtons);
+        VBox aiSkillListBox = new VBox(8, aiSkillsEnabledCheck, aiSkillAutoDetectionCheck, viewSwitch, aiSkillSortButtons,
             aiSkillSearchField, aiSkillListView, aiSkillCountLabel, aiSkillButtons);
         updateAiSkillCounts();
 
@@ -306,8 +367,20 @@ final class AiSkillsPane extends VBox {
         builtinBanner.setVisible(false);
         builtinBanner.setManaged(false);
 
+        externalStateLabel.setWrapText(true);
+        externalStateLabel.setStyle("-fx-font-size: 0.8462em;");
+        externalStateLabel.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(externalStateLabel, Priority.ALWAYS);
+        externalOpenButton.setOnAction(event -> openExternalSource());
+        externalUpdateButton.setOnAction(event -> showExternalUpdate());
+        externalBanner = new HBox(8, externalStateLabel, externalUpdateButton, externalOpenButton);
+        externalBanner.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        externalBanner.setVisible(false);
+        externalBanner.setManaged(false);
+
         VBox aiSkillEditorBox = new VBox(8,
             builtinBanner,
+            externalBanner,
             aiSkillEditorGrid,
             new Label(I18n.get("settings.aiSkills.content")),
             aiSkillContentScrollPane,
@@ -534,7 +607,8 @@ final class AiSkillsPane extends VBox {
         String query = aiSkillSearchField != null ? aiSkillSearchField.getText() : null;
         query = query != null ? query.trim().toLowerCase(Locale.ROOT) : "";
         for (AiSkill skill : aiSkills) {
-            if (skill != null && (includeHidden || !skill.isHidden()) && matchesSearch(skill, query)) {
+            if (skill != null && skill.isExternal() == externalView
+                && (includeHidden || !skill.isHidden()) && matchesSearch(skill, query)) {
                 visible.add(skill);
             }
         }
@@ -574,6 +648,9 @@ final class AiSkillsPane extends VBox {
             }
         }
         aiSkillCountLabel.setText(I18n.get("settings.aiSkills.count", total, active, total - active));
+        long external = aiSkills.stream().filter(skill -> skill != null && skill.isExternal()).count();
+        localViewButton.setText(I18n.get("settings.aiSkills.view.local", total - external));
+        externalViewButton.setText(I18n.get("settings.aiSkills.view.external", external));
     }
 
     private BuiltinAiSkillSupport.AiSkillStatus statusOf(AiSkill skill) {
@@ -752,6 +829,7 @@ final class AiSkillsPane extends VBox {
     }
 
     private void updateBuiltinBanner(AiSkill skill) {
+        updateExternalBanner(skill);
         boolean builtin = skill != null && skill.isBuiltin();
         builtinBanner.setVisible(builtin);
         builtinBanner.setManaged(builtin);
@@ -830,6 +908,185 @@ final class AiSkillsPane extends VBox {
         aiSkillListView.refresh();
     }
 
+    private void setExternalView(boolean external) {
+        if (externalView == external) {
+            return;
+        }
+        snapshotSelectedAiSkillEditorState();
+        externalView = external;
+        aiSkillButtons.getChildren().setAll(external ? externalButtons : localButtons);
+        aiSkillListView.setPlaceholder(external ? externalEmptyPlaceholder : null);
+        rebuildAiSkillListItems();
+    }
+
+    private List<AiSkillProvider> providers() {
+        GlobalSettings settings = currentSettings();
+        return settings != null ? settings.getAiSkillProviders() : List.of();
+    }
+
+    private AiSkillProvider providerOf(AiSkill skill) {
+        GlobalSettings settings = currentSettings();
+        return settings != null && skill.isExternal()
+            ? settings.findAiSkillProvider(skill.getExternalSource().getProviderId())
+            : null;
+    }
+
+    private String providerName(AiSkill skill) {
+        AiSkillProvider provider = providerOf(skill);
+        return provider != null ? provider.displayName() : I18n.get("settings.aiSkills.external.providerMissing");
+    }
+
+    private void updateExternalBanner(AiSkill skill) {
+        boolean external = skill != null && skill.isExternal();
+        externalBanner.setVisible(external);
+        externalBanner.setManaged(external);
+        if (!external) {
+            return;
+        }
+        AiSkillExternalSource source = skill.getExternalSource();
+        StringBuilder text = new StringBuilder(I18n.get("settings.aiSkills.external.banner",
+            providerName(skill), source.getReference() != null ? source.getReference() : "",
+            ExternalAiSkillSupport.shortRevision(source.getRevision())));
+        if (ExternalAiSkillSupport.isLocallyModified(skill)) {
+            text.append('\n').append(I18n.get("settings.aiSkills.external.banner.modified"));
+        }
+        boolean updateAvailable = pendingUpdates.containsKey(skill.getId());
+        if (updateAvailable) {
+            text.append('\n').append(I18n.get("settings.aiSkills.external.banner.updateAvailable"));
+        }
+        externalStateLabel.setText(text.toString());
+        externalUpdateButton.setVisible(updateAvailable);
+        externalUpdateButton.setManaged(updateAvailable);
+        String url = source.getSourceUrl();
+        externalOpenButton.setDisable(url == null || !url.matches("(?i)^https?://.+"));
+    }
+
+    private void importExternalAiSkills() {
+        snapshotSelectedAiSkillEditorState();
+        ExternalAiSkillImportDialog dialog =
+            new ExternalAiSkillImportDialog(dialogWindow(), app, providers(), List.copyOf(aiSkills));
+        List<AiSkill> imported = dialog.showAndWait().orElse(List.of());
+        if (imported == null || imported.isEmpty()) {
+            return;
+        }
+        aiSkills.addAll(imported);
+        externalViewButton.setSelected(true);
+        aiSkillSearchField.clear();
+        aiSkillListView.getItems().setAll(visibleAiSkills());
+        aiSkillListView.getSelectionModel().clearSelection();
+        aiSkillListView.getSelectionModel().select(imported.get(imported.size() - 1));
+        updateAiSkillCounts();
+        showAiSkillInfo(I18n.get("settings.aiSkills.external.imported", imported.size()));
+    }
+
+    private void openProviders() {
+        new AiSkillProvidersDialog(dialogWindow(), app).showAndWait();
+        aiSkillListView.refresh();
+        updateExternalBanner(selectedAiSkill);
+    }
+
+    private void openExternalSource() {
+        AiSkill skill = selectedAiSkill;
+        String url = skill != null && skill.isExternal() ? skill.getExternalSource().getSourceUrl() : null;
+        if (url != null && url.matches("(?i)^https?://.+") && app != null) {
+            app.getHostServices().showDocument(url);
+        }
+    }
+
+    /**
+     * Asks each external skill's provider for its current version, off the JavaFX thread. Nothing is
+     * replaced: skills with a newer version get an update badge and a "Show update…" diff.
+     */
+    private void checkExternalUpdates() {
+        snapshotSelectedAiSkillEditorState();
+        List<AiSkill> externalSkills = aiSkills.stream().filter(skill -> skill != null && skill.isExternal()).toList();
+        if (externalSkills.isEmpty()) {
+            statusLabel.setText(I18n.get("settings.aiSkills.external.noneToCheck"));
+            return;
+        }
+        List<AiSkillProvider> providers = providers();
+        Set<AiSkillProvider> involved = new LinkedHashSet<>();
+        for (AiSkill skill : externalSkills) {
+            AiSkillProvider provider = providerOf(skill);
+            if (provider != null && provider.isEnabled()) {
+                involved.addAll(ExternalAiSkillUiSupport.involvedProviders(provider, providers));
+            }
+        }
+        Map<String, String> secrets = ExternalAiSkillUiSupport.unlockSecrets(dialogWindow(), app, involved);
+        if (secrets == null) {
+            return;
+        }
+        Map<String, ExternalAiSkillClient> clients = new HashMap<>();
+        Map<AiSkill, ExternalAiSkillClient> work = new java.util.LinkedHashMap<>();
+        List<String> problems = new ArrayList<>();
+        for (AiSkill skill : externalSkills) {
+            AiSkillProvider provider = providerOf(skill);
+            if (provider == null || !provider.isEnabled()) {
+                problems.add(skill.getName() + ": " + providerName(skill));
+                continue;
+            }
+            work.put(skill, clients.computeIfAbsent(provider.getId(), id ->
+                ExternalAiSkillSupport.clientFor(provider, ExternalAiSkillUiSupport.secretLookup(secrets), providers)));
+        }
+        checkUpdatesButton.setDisable(true);
+        statusLabel.setText(I18n.get("settings.aiSkills.external.checking", externalSkills.size()));
+        CompletableFuture
+            .supplyAsync(() -> {
+                Map<String, ExternalAiSkillDocument> found = new HashMap<>();
+                work.forEach((skill, client) -> {
+                    try {
+                        ExternalAiSkillDocument latest = client.fetch(skill.getExternalSource().getReference());
+                        if (ExternalAiSkillSupport.hasUpdate(skill, latest)) {
+                            found.put(skill.getId(), latest);
+                        }
+                    } catch (Exception e) {
+                        synchronized (problems) {
+                            problems.add(skill.getName() + ": " + ExternalAiSkillUiSupport.describe(e));
+                        }
+                    }
+                });
+                return found;
+            })
+            .whenComplete((found, failure) -> Platform.runLater(() -> {
+                checkUpdatesButton.setDisable(false);
+                if (failure != null) {
+                    statusLabel.setText(ExternalAiSkillUiSupport.describe(failure));
+                    return;
+                }
+                pendingUpdates.clear();
+                pendingUpdates.putAll(found);
+                aiSkillListView.refresh();
+                updateExternalBanner(selectedAiSkill);
+                statusLabel.setText(problems.isEmpty()
+                    ? I18n.get("settings.aiSkills.external.checkDone", found.size())
+                    : I18n.get("settings.aiSkills.external.checkPartial", found.size(), problems.size(), problems.get(0)));
+            }));
+    }
+
+    private void showExternalUpdate() {
+        snapshotSelectedAiSkillEditorState();
+        AiSkill skill = selectedAiSkill;
+        ExternalAiSkillDocument latest = skill != null ? pendingUpdates.get(skill.getId()) : null;
+        if (latest == null) {
+            return;
+        }
+        try {
+            String newContent = ExternalAiSkillSupport.updatedContent(latest);
+            boolean apply = new ExternalAiSkillUpdateDialog(dialogWindow(), skill, latest.revision(), newContent)
+                .showAndWait().orElse(false);
+            if (!apply) {
+                return;
+            }
+            ExternalAiSkillSupport.applyUpdate(skill, latest, System.currentTimeMillis());
+            pendingUpdates.remove(skill.getId());
+            loadAiSkillIntoEditor(skill);
+            aiSkillListView.refresh();
+            statusLabel.setText(I18n.get("settings.aiSkills.external.update.done"));
+        } catch (Exception e) {
+            showAiSkillError(ExternalAiSkillUiSupport.describe(e));
+        }
+    }
+
     private void importAiSkills() {
         FileChooser chooser = new FileChooser();
         chooser.setTitle(I18n.get("settings.aiSkills.import"));
@@ -849,7 +1106,8 @@ final class AiSkillsPane extends VBox {
                 importedSkills.add(imported);
             }
             aiSkills.addAll(importedSkills);
-            // Clear the search so freshly imported skills are visible and selectable.
+            // File imports are local skills; clear the search so they are visible and selectable.
+            localViewButton.setSelected(true);
             aiSkillSearchField.clear();
             aiSkillListView.getItems().setAll(visibleAiSkills());
             if (!importedSkills.isEmpty()) {

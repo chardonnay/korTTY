@@ -634,6 +634,14 @@ public class GlobalSettings {
     @XmlElement(name = "skill")
     private java.util.List<AiSkill> aiSkills = new java.util.ArrayList<>();
 
+    /**
+     * Profiles of the external AI-skill providers (AI Skills → External → Providers…). Null until first
+     * read, which seeds {@link AiSkillProvider#defaults()}; a list the user emptied stays empty.
+     */
+    @XmlElementWrapper(name = "aiSkillProviders")
+    @XmlElement(name = "provider")
+    private java.util.List<AiSkillProvider> aiSkillProviders;
+
     /** AI skill ids pre-selected for every new Quick-Connect connection. The "Save" button in the
      *  connection-skills picker persists the current selection here. */
     @XmlElementWrapper(name = "defaultConnectionAiSkillIds")
@@ -2893,6 +2901,35 @@ public class GlobalSettings {
     }
 
     /** AI skill ids pre-selected for every new Quick-Connect connection (never null). */
+    /** The external AI-skill provider profiles; the GitHub and SkillsMP defaults on first use. */
+    public java.util.List<AiSkillProvider> getAiSkillProviders() {
+        if (aiSkillProviders == null) {
+            aiSkillProviders = new java.util.ArrayList<>(AiSkillProvider.defaults());
+        }
+        normalizeAiSkillProviders();
+        return aiSkillProviders;
+    }
+
+    public void setAiSkillProviders(java.util.List<AiSkillProvider> aiSkillProviders) {
+        this.aiSkillProviders = aiSkillProviders != null
+            ? new java.util.ArrayList<>(aiSkillProviders)
+            : new java.util.ArrayList<>();
+        normalizeAiSkillProviders();
+    }
+
+    /** The provider profile with {@code id}, or {@code null}. */
+    public AiSkillProvider findAiSkillProvider(String id) {
+        if (id == null) {
+            return null;
+        }
+        for (AiSkillProvider provider : getAiSkillProviders()) {
+            if (id.equals(provider.getId())) {
+                return provider;
+            }
+        }
+        return null;
+    }
+
     public java.util.List<String> getDefaultConnectionAiSkillIds() {
         if (defaultConnectionAiSkillIds == null) {
             defaultConnectionAiSkillIds = new java.util.ArrayList<>();
@@ -3683,9 +3720,33 @@ public class GlobalSettings {
                 baseline.setTarget(baseline.getTarget());
                 baseline.setVersion(baseline.getVersion());
             }
+            if (skill.isBuiltin()) {
+                // A built-in is delivered by korTTY, never imported; repairs hand-edited XML.
+                skill.setExternalSource(null);
+            }
             normalized.add(skill);
         }
         aiSkills = normalized;
+    }
+
+    private void normalizeAiSkillProviders() {
+        java.util.List<AiSkillProvider> normalized = new java.util.ArrayList<>();
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (AiSkillProvider provider : aiSkillProviders) {
+            if (provider == null) {
+                continue;
+            }
+            provider.stripUnstorableText();
+            provider.setId(provider.getId());
+            if (!ids.add(provider.getId())) {
+                provider.setId(null);
+                ids.add(provider.getId());
+            }
+            provider.setType(provider.getType());
+            provider.setAuth(provider.getAuth());
+            normalized.add(provider);
+        }
+        aiSkillProviders = normalized;
     }
 
     private void normalizeAiInternetConfiguration() {

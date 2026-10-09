@@ -32,6 +32,27 @@ final class AiSkillListFormat {
             + (badge.isEmpty() ? "" : " - " + badge);
     }
 
+    /**
+     * Two-line list text of an imported external skill:
+     * {@code [🔄 ]Name\n<target> - <Enabled/Disabled> - <provider>[ - Update available][ - Edited locally]}.
+     */
+    static String externalListText(AiSkill skill, String providerName, boolean updateAvailable, boolean editedLocally) {
+        String name = trimToNull(skill.getName());
+        String enabledStatus = skill.isEnabled()
+            ? I18n.get("settings.aiSkills.status.enabled")
+            : I18n.get("settings.aiSkills.status.disabled");
+        return (updateAvailable ? "🔄 " : "")
+            + (name != null ? name : I18n.get("settings.aiSkills.defaultName"))
+            + "\n"
+            + targetLabel(skill.getTarget())
+            + " - "
+            + enabledStatus
+            + " - "
+            + providerName
+            + (updateAvailable ? " - " + I18n.get("settings.aiSkills.badge.updateAvailable") : "")
+            + (editedLocally ? " - " + I18n.get("settings.aiSkills.badge.edited") : "");
+    }
+
     /** Badge priority: hidden > overridden > update available > modified > built-in > none. */
     static String badge(BuiltinAiSkillSupport.AiSkillStatus status) {
         if (status == null) {

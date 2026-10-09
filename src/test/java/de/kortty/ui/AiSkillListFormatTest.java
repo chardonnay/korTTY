@@ -106,4 +106,17 @@ class AiSkillListFormatTest {
         assertThat(userText).startsWith("Mine\n");
         assertThat(userText).endsWith(I18n.get("settings.aiSkills.status.disabled"));
     }
+
+    @Test
+    void externalListTextNamesTheProviderAndItsState() {
+        AiSkill skill = userSkill(false);
+
+        String text = AiSkillListFormat.externalListText(skill, "SkillsMP", true, true);
+
+        assertThat(text).startsWith("🔄 Mine\n");
+        assertThat(text).contains(I18n.get("settings.aiSkills.status.disabled") + " - SkillsMP");
+        assertThat(text).contains(" - " + I18n.get("settings.aiSkills.badge.updateAvailable"));
+        assertThat(text).endsWith(" - " + I18n.get("settings.aiSkills.badge.edited"));
+        assertThat(AiSkillListFormat.externalListText(skill, "GitHub", false, false)).endsWith(" - GitHub");
+    }
 }

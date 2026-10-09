@@ -134,3 +134,33 @@ apis:
     # only speaks the Workflows "post a card when a webhook request is received" trigger,
     # which takes {type: message, attachments: [application/vnd.microsoft.card.adaptive]}.
     notes: Workflows only — the retired O365 connector MessageCard format is deliberately not supported.
+
+  - id: ai-skills-github
+    name: GitHub REST API (AI skill import)
+    version: "2022-11-28"
+    endpoint: https://api.github.com
+    auth: optional personal access token as Bearer header (stored encrypted with the master password)
+    source: src/main/java/de/kortty/core/GitHubAiSkillClient.java
+    docs_url: https://docs.github.com/en/rest/repos/contents
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/ai-skills.md
+      - app-docs/site/docs/de/reference/settings/ai-skills.md
+    review_after: "2027-04-01"
+    # Uses GET /repos/{o}/{r}, /git/trees/{ref}?recursive=1 and /contents/{path}?ref= with
+    # X-GitHub-Api-Version 2022-11-28. The base URL is user-configurable (GitHub Enterprise).
+    notes: Backend for agenticskills.io, skills.sh, the Anthropic skills repo and SkillsMP downloads.
+
+  - id: ai-skills-skillsmp
+    name: SkillsMP skill search
+    version: v1
+    endpoint: https://skillsmp.com/api/v1/skills/search
+    auth: optional API key as Bearer header (stored encrypted with the master password)
+    source: src/main/java/de/kortty/core/SkillsMpAiSkillClient.java
+    docs_url: https://skillsmp.com/developers
+    documented_in:
+      - app-docs/site/docs/en/reference/settings/ai-skills.md
+      - app-docs/site/docs/de/reference/settings/ai-skills.md
+    review_after: "2027-01-15"
+    # Keyword mode only (q, limit); the hybrid mode needs an account key and a searchId. Anonymous
+    # 50/day, keyed 500/day. Results carry githubUrl, downloaded through ai-skills-github.
+    notes: OpenAPI at https://skillsmp.com/openapi.json; response skills live under data.skills.
