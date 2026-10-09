@@ -1,0 +1,47 @@
+{
+  "kind": "COPILOT",
+  "version": 1,
+  "comment": "Written against GitHub Copilot CLI 1.0.94 (Homebrew cask copilot-cli; full-screen TUI on the alternate screen) from live sessions recorded in a pty in BYOK offline mode (COPILOT_PROVIDER_BASE_URL on an OpenAI-compatible LM Studio endpoint, no GitHub login); must be re-verified when Copilot CLI changes its TUI. Copilot redraws the whole screen, so an answered dialog does not linger and the approval rule may look at the whole screen. A permission or trust dialog ('Do you want to allow this access?', 'Do you trust the files in this folder?', options like '❯ 1. Yes' … 'No, and tell Copilot what to do differently (Esc to stop)', footer '↑/↓ to navigate · enter to select · esc to cancel') is BLOCKED; the status footer '◎ Working · … esc interrupt' (right after a prompt is sent: '○ Working esc edit prompt') is WORKING; the status footer 'Interactive · Manual Approval · …' without 'Working' is IDLE.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": {
+        "bottomNonEmptyLines": 0
+      },
+      "anyLineRegex": [
+        "^│\\s*Do you (?:want to|trust)\\b.*\\?\\s*│?\\s*$",
+        "↑/↓ to navigate · enter to select · esc to cancel",
+        "No, and tell Copilot what to do differently"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": {
+        "bottomNonEmptyLines": 2
+      },
+      "anyLineRegex": [
+        "\\bWorking\\b.*\\besc (?:interrupt|edit prompt)\\b"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": {
+        "bottomNonEmptyLines": 2
+      },
+      "anyLineRegex": [
+        "\\bInteractive · "
+      ],
+      "notContains": [
+        "esc interrupt",
+        "esc edit prompt"
+      ]
+    }
+  ]
+}

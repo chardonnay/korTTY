@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=working
+#! alt=true
+ [Current]  Sessions   Issues   Pull requests   Gists
+
+  ╭─╮╭─╮
+  ╰─╯╰─╯  Copilot v1.0.94 uses AI.
+  █ ▘▝ █  Check for mistakes.
+   ▔▔▔▔
+
+ ! Model "openai/gpt-oss-20b" is not in the built-in catalog. Using defaults for: prompt tokens
+   (COPILOT_PROVIDER_MAX_PROMPT_TOKENS), output tokens (COPILOT_PROVIDER_MAX_OUTPUT_TOKENS). Run  copilot help
+   providers  for configuration details.
+
+ ● Tip: /allow-all
+   └ Enable all permissions (tools, paths, and URLs)
+
+ ● MCP Servers reloaded: 0 servers connected
+
+ ❯ Use your shell tool to run exactly: curl -sI https://example.com                                              10:02
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                                                        ...       
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ ○ Working esc edit prompt                                                                           openai/gpt-oss-20b

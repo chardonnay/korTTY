@@ -300,6 +300,28 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesJulesAsNativeBinary() {
+        // npm's @google/jules installs the native binary as <prefix>/bin/jules, replacing its run.cjs link.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/jules", List.of(), null))
+            .hasValue(CodingAgentKind.JULES);
+        assertThat(LocalProcessInspector.classify("C:\\Users\\jd\\AppData\\Roaming\\npm\\jules.exe", null, null))
+            .hasValue(CodingAgentKind.JULES);
+    }
+
+    @Test
+    void classifyRecognisesCopilotAsNativeBinaryAndThroughNpmLoader() {
+        // Homebrew cask copilot-cli.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/copilot", List.of(), null))
+            .hasValue(CodingAgentKind.COPILOT);
+        // npm's @github/copilot: npm-loader.js spawnSync()s the binary of @github/copilot-<platform>-<arch>.
+        assertThat(LocalProcessInspector.classify("/usr/bin/node",
+            List.of("/usr/lib/node_modules/@github/copilot/npm-loader.js"), null)).hasValue(CodingAgentKind.COPILOT);
+        assertThat(LocalProcessInspector.classify(
+            "/usr/lib/node_modules/@github/copilot/node_modules/@github/copilot-linux-x64/copilot", List.of(), null))
+            .hasValue(CodingAgentKind.COPILOT);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,
