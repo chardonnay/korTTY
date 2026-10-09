@@ -300,6 +300,15 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesJulesAsNativeBinary() {
+        // npm's @google/jules installs the native binary as <prefix>/bin/jules, replacing its run.cjs link.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/jules", List.of(), null))
+            .hasValue(CodingAgentKind.JULES);
+        assertThat(LocalProcessInspector.classify("C:\\Users\\jd\\AppData\\Roaming\\npm\\jules.exe", null, null))
+            .hasValue(CodingAgentKind.JULES);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=awaiting-user
+#! alt=false
+  Welcome to Jules CLI!
+v0.1.42
+  What would you like to build today?
+
+  Sessions
+
+  write unit tests for the parser      Awaiting Plan Approval    2m ago
+  bump dependencies                    Completed                 1h ago
+
+ > Search sessions or type / to use command
+ Working in: ~/projects/demo-app    demo/demo-app (main)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

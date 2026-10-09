@@ -67,7 +67,7 @@ class AgentRuleRepositoryTest {
             CodingAgentKind.GEMINI_CLI, CodingAgentKind.MINIMAX_CODE, CodingAgentKind.QWEN_CODE, CodingAgentKind.OPENCODE,
             CodingAgentKind.CURSOR_AGENT, CodingAgentKind.AIDER, CodingAgentKind.AMP,
             CodingAgentKind.GOOSE, CodingAgentKind.CRUSH, CodingAgentKind.KIRO,
-            CodingAgentKind.CONTINUE, CodingAgentKind.GROK)) {
+            CodingAgentKind.CONTINUE, CodingAgentKind.GROK, CodingAgentKind.JULES)) {
             AgentRuleSet set = repository.ruleSetFor(kind).orElseThrow();
             assertThat(set.kind()).isEqualTo(kind);
             assertThat(set.source()).isEqualTo(AgentRuleSet.Source.BUNDLED);
@@ -82,7 +82,7 @@ class AgentRuleRepositoryTest {
                 CodingAgentKind.MINIMAX_CODE, CodingAgentKind.QWEN_CODE, CodingAgentKind.OPENCODE,
                 CodingAgentKind.CURSOR_AGENT, CodingAgentKind.AIDER, CodingAgentKind.AMP,
                 CodingAgentKind.GOOSE, CodingAgentKind.CRUSH, CodingAgentKind.KIRO,
-                CodingAgentKind.CONTINUE, CodingAgentKind.GROK)
+                CodingAgentKind.CONTINUE, CodingAgentKind.GROK, CodingAgentKind.JULES)
             .inOrder();
         assertThat(repository.userOverrideDirectory())
             .isEqualTo(configDir.toAbsolutePath().normalize().resolve(AgentRuleRepository.USER_DIR_NAME));
@@ -93,7 +93,7 @@ class AgentRuleRepositoryTest {
         assertThat(Files.exists(configDir.resolve(AgentRuleRepository.USER_DIR_NAME))).isFalse();
         AgentRuleRepository repository = new AgentRuleRepository(configDir);
         assertThat(repository.problems()).isEmpty();
-        assertThat(repository.ruleSets()).hasSize(14);
+        assertThat(repository.ruleSets()).hasSize(15);
     }
 
     @Test
@@ -209,7 +209,7 @@ class AgentRuleRepositoryTest {
         // A directory named *.json passes the name filter but is not a regular file.
         assertThat(repository.problems()).hasSize(1);
         assertThat(repository.problems().get(0).location()).endsWith("nested.json");
-        assertThat(repository.ruleSets()).hasSize(14);
+        assertThat(repository.ruleSets()).hasSize(15);
         for (AgentRuleSet set : repository.ruleSets()) {
             assertThat(set.source()).isEqualTo(AgentRuleSet.Source.BUNDLED);
         }
@@ -293,7 +293,7 @@ class AgentRuleRepositoryTest {
             assertThat(set.comment()).contains("re-verified");
             parsed++;
         }
-        assertThat(parsed).isEqualTo(14);
+        assertThat(parsed).isEqualTo(15);
 
         // The repository must load exactly these files without a single problem.
         AgentRuleRepository repository = new AgentRuleRepository(configDir);

@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=login-required
+#! alt=false
+
+     ██╗██╗   ██╗██╗     ███████╗███████╗
+     ██║██║   ██║██║     ██╔════╝██╔════╝
+     ██║██║   ██║██║     █████╗  ███████╗
+██   ██║██║   ██║██║     ██╔══╝  ╚════██║
+╚█████╔╝╚██████╔╝███████╗███████╗███████║
+ ╚════╝  ╚═════╝ ╚══════╝╚══════╝╚══════╝
+
+  Welcome to Jules CLI!
+v0.1.42
+  What would you like to build today?
+
+Failed to list tasks: Trying to make a GET request without a valid client (did you forget to login?)
+Tip: you can use "/login" in the TUI or "jules login" in the command line to login
+
+ > Search sessions or type / to use commands
+
+ Jules authentication is required. Please use the /login command to authenticate.
+
+ Working in:                                                                                           
+                                 unknown/unknown (unknown)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
