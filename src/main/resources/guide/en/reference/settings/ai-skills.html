@@ -839,6 +839,13 @@
 <td><code>aiSkillAutoDetectionEnabled</code></td>
 </tr>
 <tr>
+<td>Local / External</td>
+<td>switch</td>
+<td>Local: your own and built-in skills; External: skills imported from the internet</td>
+<td>Local</td>
+<td>— (view filter)</td>
+</tr>
+<tr>
 <td>Show hidden built-in skills</td>
 <td>toggle</td>
 <td>—</td>
@@ -941,6 +948,125 @@
 <p class="admonition-title">Switching off auto-detection deactivates built-ins</p>
 <p>Without auto-detection every enabled skill is sent with every AI request, which would inflate prompts massively with 39 built-in skills. Turning <strong>Automatically send only matching skills</strong> off therefore asks for confirmation and then deactivates all built-in skills; re-enable the ones you need individually. Built-ins delivered by later releases also arrive deactivated while auto-detection is off.</p>
 </div>
+<h2 id="external-skills">External skills<a class="headerlink" href="#external-skills" title="Permanent link">&para;</a></h2>
+<p>The <strong>External</strong> view lists skills imported from internet skill directories. External skills live in the same library as your own skills: once you enable one, it is selected and sent exactly like a local skill. The count on each switch button shows how many skills each view holds.</p>
+<p><img alt="AI Skills, External view" src="../../assets/screenshots/ai/ai-skills-external.png" /></p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Import from the internet…</td>
+<td>Opens the import dialog: pick a provider, search, preview a SKILL.md and import the selected skills</td>
+</tr>
+<tr>
+<td>Check for updates</td>
+<td>Asks each external skill's provider for its current version; skills with a newer version show 🔄 <strong>Update available</strong></td>
+</tr>
+<tr>
+<td>Providers…</td>
+<td>Opens the provider table with sign-in details (see below)</td>
+</tr>
+<tr>
+<td>Delete / Export</td>
+<td>Same as for local skills</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Imported skills start deactivated</p>
+<p>korTTY sends a skill's text to the AI model word for word, so a skill from the internet can contain instructions you do not want. Every imported skill therefore arrives <strong>deactivated</strong>, whatever its front matter says. Read it in the editor, then tick <strong>Active</strong> and click <strong>Save</strong>. Only the <code>SKILL.md</code> file is imported; scripts, reference files and other files that belong to a skill are never downloaded or run.</p>
+</div>
+<p>When an external skill is selected, the banner above the editor shows its provider, its source and the imported revision. <strong>Open source</strong> opens the skill's page in the browser. If you edit the text, the banner and the list mark the skill as <strong>Edited locally</strong>. After <strong>Check for updates</strong> has found a newer version, <strong>Show update…</strong> opens a side-by-side comparison of your version and the provider's version. <strong>Apply update</strong> replaces the text and description and keeps your name, tags, target and active state; local edits of the text are replaced, which the dialog points out. Nothing is updated without this confirmation.</p>
+<h3 id="importing-skills">Importing skills<a class="headerlink" href="#importing-skills" title="Permanent link">&para;</a></h3>
+<p><img alt="Import AI skills from the internet" src="../../assets/screenshots/ai/ai-skills-import.png" /></p>
+<p>Choose a provider, enter a search and click <strong>Search</strong>. Selecting a result loads its <code>SKILL.md</code> into the preview. Select one or more results and click <strong>Import selected</strong>; results marked ✓ are already in the library and are skipped. What you enter depends on the provider type:</p>
+<table>
+<thead>
+<tr>
+<th>Provider type</th>
+<th>Enter</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GitHub repository</td>
+<td><code>owner/repo</code> for every skill of a repository, <code>owner/repo@skill</code> or a GitHub link for one skill; commands copied from agenticskills.io or skills.sh work too</td>
+<td><code>anthropics/skills</code>, <code>npx skills add anthropics/skills@pdf</code></td>
+</tr>
+<tr>
+<td>SkillsMP search</td>
+<td>Keywords</td>
+<td><code>kubernetes</code></td>
+</tr>
+<tr>
+<td>HTTP(S) server</td>
+<td>The URL of a <code>SKILL.md</code> file, or a path relative to the provider's base URL</td>
+<td><code>incident/SKILL.md</code></td>
+</tr>
+</tbody>
+</table>
+<p>Directories such as agenticskills.io and skills.sh publish their skills as GitHub repositories, so the <strong>GitHub</strong> provider imports from all of them. korTTY reads repositories through the GitHub REST API at <code>https://api.github.com</code> (API version 2022-11-28) and remembers the Git revision of each imported <code>SKILL.md</code>, so a commit that changes other files of the repository is not reported as an update. Without a token GitHub allows 60 requests an hour; an import takes one or two.</p>
+<p>The <strong>SkillsMP</strong> provider searches the SkillsMP index through <code>https://skillsmp.com/api/v1/skills/search</code>. Without an API key SkillsMP allows 50 searches a day, with a key 500. The skills it finds are downloaded from GitHub through the active GitHub provider for github.com, with that provider's token.</p>
+<h3 id="providers">Providers<a class="headerlink" href="#providers" title="Permanent link">&para;</a></h3>
+<p><img alt="AI skill providers" src="../../assets/screenshots/ai/ai-skill-providers.png" /></p>
+<p><strong>Providers…</strong> opens a table of skill providers that you can extend as you like. korTTY starts with a <strong>GitHub</strong> and a <strong>SkillsMP</strong> provider; add more with <strong>+ Add</strong>, for example a GitHub Enterprise server or a team's own server. Deleting a provider keeps the skills imported from it, but they can no longer be checked for updates.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Values</th>
+<th>Stored as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>Any name</td>
+<td><code>aiSkillProviders/provider/name</code></td>
+</tr>
+<tr>
+<td>Type</td>
+<td>GitHub repository, SkillsMP search, HTTP(S) server</td>
+<td><code>type</code></td>
+</tr>
+<tr>
+<td>Active</td>
+<td>Only active providers appear in the import dialog</td>
+<td><code>enabled</code></td>
+</tr>
+<tr>
+<td>Base URL</td>
+<td>Empty uses the type's default (<code>https://api.github.com</code>, <code>https://skillsmp.com</code>); for GitHub Enterprise use <code>https://&lt;host&gt;/api/v3</code></td>
+<td><code>baseUrl</code></td>
+</tr>
+<tr>
+<td>Sign-in</td>
+<td>None, Token (Bearer), User name and password (HTTP Basic)</td>
+<td><code>auth</code></td>
+</tr>
+<tr>
+<td>User name</td>
+<td>Only for User name and password</td>
+<td><code>username</code></td>
+</tr>
+<tr>
+<td>Token / password</td>
+<td>A GitHub personal access token, a SkillsMP API key or the server password</td>
+<td><code>encryptedSecret</code>, encrypted with the master password</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Test connection</strong> checks that the provider answers and accepts the credentials, and shows the remaining request quota where the provider reports one. A token or password is encrypted with the master password when you click <strong>Save</strong>; if the vault is locked, korTTY offers to unlock it. Leave the field empty to keep a stored token, or tick <strong>Remove stored token/password</strong> to delete it.</p>
+<div class="admonition note">
+<p class="admonition-title">Network safety</p>
+<p>korTTY talks to providers over HTTPS only; plain HTTP is accepted for this computer alone (<code>localhost</code>). Redirects are not followed, so a token or password is never sent on to another host, and a <code>SKILL.md</code> larger than 256 KiB is refused.</p>
+</div>
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
 <div class="admonition note">
 <p class="admonition-title">Auto-detection behavior</p>
@@ -957,7 +1083,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Skill lifecycle</p>
-<p>Skills are stored as XML elements within the global settings file. Use <strong>Import</strong> to load skills from markdown files and <strong>Export</strong> to save selected skills as markdown files. <strong>Delete</strong> applies to your own skills only; built-in skills are hidden instead (see above). Reset, update, hide and unhide are available from the list's context menu and from the banner above the editor when a built-in skill is selected. The skill list can be sorted alphabetically by name or by status (enabled first). <strong>Save</strong> persists the library immediately and confirms next to the button; pending edits are also written when the AI Manager window is closed. Importing a markdown file always creates an independent user skill — even a file exported from a built-in skill.</p>
+<p>Skills are stored as XML elements within the global settings file. Use <strong>Import</strong> to load skills from markdown files and <strong>Export</strong> to save selected skills as markdown files; to import skills from internet directories use the <strong>External</strong> view (see above). <strong>Delete</strong> applies to your own skills only; built-in skills are hidden instead (see above). Reset, update, hide and unhide are available from the list's context menu and from the banner above the editor when a built-in skill is selected. The skill list can be sorted alphabetically by name or by status (enabled first). <strong>Save</strong> persists the library immediately and confirms next to the button; pending edits are also written when the AI Manager window is closed. Importing a markdown file always creates an independent user skill — even a file exported from a built-in skill.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Choosing skills per request</p>
