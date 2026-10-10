@@ -181,9 +181,9 @@ public final class ExternalCommandRunner implements AutoCloseable {
 
     /**
      * Prefixes {@code argv} with {@code flatpak-spawn --host --watch-bus} when {@code env} carries a
-     * {@code FLATPAK_ID}; returns an unmodifiable copy of {@code argv} otherwise. The Flatpak sandbox
-     * has neither a session-bus socket nor the notification talk-name, so the commands run on the
-     * host through the already granted {@code org.freedesktop.Flatpak} portal.
+     * {@code FLATPAK_ID}; returns an unmodifiable copy of {@code argv} otherwise. Host tools such as
+     * {@code notify-send} are not part of the Flatpak runtime, so the commands run on the host
+     * through the already granted {@code org.freedesktop.Flatpak} portal.
      */
     public static List<String> hostAware(List<String> argv, Map<String, String> env) {
         return FlatpakSupport.hostCommand(Objects.requireNonNull(argv, "argv"), null, env);

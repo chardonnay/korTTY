@@ -17,9 +17,11 @@ import java.util.function.Function;
 import java.util.function.IntConsumer;
 
 /**
- * Linux notifications through {@code notify-send}. Inside Flatpak the command is spawned on the
- * host (the sandbox lacks the {@code org.freedesktop.Notifications} talk-name) and the first
- * non-zero exit marks the backend unsupported for the session. Runs on the notifier executor.
+ * Linux notifications through {@code notify-send}, the fallback behind {@link LinuxDBusNotifierBackend}
+ * and the backend of a session without a {@code unix:path} bus. Inside Flatpak the command is spawned
+ * on the host (for an installation whose {@code org.freedesktop.Notifications} permission was revoked
+ * with {@code flatpak override}) and the first non-zero exit marks the backend unsupported for the
+ * session. Runs on the notifier executor.
  *
  * <p>A notification with a click action is sent with {@code --action=default=…} when the installed
  * {@code notify-send} knows that option (libnotify 0.7.10 and later; asked once through
