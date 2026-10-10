@@ -484,6 +484,31 @@ class GlossaryIdentifiers(unittest.TestCase):
             td._GLOSSARY = None
 
 
+class GlossaryPanelGender(unittest.TestCase):
+    """The real German glossary: "den Panel" and "der Panel" become "das Panel" only as the article
+    of a lone singular, never inside "beiden"/"jeden"/"oder" or in front of the plural "Panels"."""
+
+    def setUp(self):
+        td._GLOSSARY = None
+
+    def tearDown(self):
+        td._GLOSSARY = None
+
+    def test_the_wrong_article_is_corrected(self):
+        self.assertEqual(td.apply_glossary("Klicken Sie auf den Panel oben."), "Klicken Sie auf das Panel oben.")
+        self.assertEqual(td.apply_glossary("Schließen Sie den Panel."), "Schließen Sie das Panel.")
+        self.assertEqual(td.apply_glossary("Öffnen Sie den Panel, dann"), "Öffnen Sie das Panel, dann")
+        self.assertEqual(td.apply_glossary("Dort ist der Panel offen."), "Dort ist das Panel offen.")
+
+    def test_words_ending_in_den_and_the_plural_stay_untouched(self):
+        for text in ("weist Ziehvorgänge auf eines der beiden Panels zurück",
+                     "zwischen den beiden Panels",
+                     "in jeden Panel-Kopf",
+                     "in den Panels links und rechts",
+                     "wenn Sie in einem anderen Fenster oder Panel arbeiten"):
+            self.assertEqual(td.apply_glossary(text), text)
+
+
 class QuickAndTimeBoxedBenchmark(unittest.TestCase):
     FIXTURE = json.loads(tb.FIXTURE.read_text(encoding="utf-8"))["samples"]
 
