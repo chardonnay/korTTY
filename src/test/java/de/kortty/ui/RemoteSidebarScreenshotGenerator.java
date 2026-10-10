@@ -7,6 +7,7 @@ import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
 import com.sithtermfx.ui.settings.SettingsProvider;
 import de.kortty.core.LanguageManager;
 import de.kortty.core.SFTPSession;
+import de.kortty.model.AppDesign;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
@@ -65,6 +66,10 @@ import java.util.function.IntSupplier;
 public final class RemoteSidebarScreenshotGenerator {
 
     private static final String OUTPUT_FILE = "app-docs/screenshots/terminal/remote-sidebar.png";
+    /** Renders under another app design (an {@link AppDesign} id) to check the look; the manual uses Normal. */
+    private static final String DESIGN_PROPERTY = "kortty.screenshot.design";
+    /** Writes somewhere else than the manual's picture, e.g. for a design comparison. */
+    private static final String OUTPUT_PROPERTY = "kortty.screenshot.output";
     private static final double TERMINAL_WIDTH = 600;
     private static final double SIDEBAR_WIDTH = 400;
     private static final double HEIGHT = 440;
@@ -91,6 +96,8 @@ public final class RemoteSidebarScreenshotGenerator {
             try {
                 GlobalSettings settings = new GlobalSettings();
                 settings.setLanguage("en");
+                AppDesign design = AppDesign.fromId(System.getProperty(DESIGN_PROPERTY, AppDesign.NORMAL.getId()));
+                AppDesignStyleSupport.applyUserAgentStylesheet(design);
                 LanguageManager.getInstance().initialize(settings);
                 ConnectionSettings terminal = settings.getDefaultTerminalSettings();
 
@@ -119,7 +126,7 @@ public final class RemoteSidebarScreenshotGenerator {
                 if (dynamicCss != null) {
                     root.getStylesheets().add(dynamicCss);
                 }
-                AppDesignStyleSupport.applyToParent(root);
+                AppDesignStyleSupport.applyToParent(root, design);
 
                 Stage stage = new Stage(StageStyle.UNDECORATED);
                 stage.setScene(new Scene(root));
@@ -266,7 +273,7 @@ public final class RemoteSidebarScreenshotGenerator {
         WritableImage image = root.snapshot(params, null);
 
         BufferedImage buffered = SwingFXUtils.fromFXImage(image, null);
-        File outFile = new File(OUTPUT_FILE);
+        File outFile = new File(System.getProperty(OUTPUT_PROPERTY, OUTPUT_FILE));
         File parent = outFile.getParentFile();
         if (parent != null && !parent.isDirectory() && !parent.mkdirs()) {
             throw new IllegalStateException("Cannot create output dir: " + parent.getAbsolutePath());

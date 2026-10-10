@@ -6125,9 +6125,9 @@ public class MainWindow {
         }
     }
     
-    private static final int FILE_BROWSER_DEFAULT_WIDTH = 220;
-    private static final int FILE_BROWSER_MIN_WIDTH = 160;
-    private static final int FILE_BROWSER_MAX_WIDTH = 420;
+    private static final double FILE_BROWSER_DEFAULT_WIDTH = GlobalSettings.FILE_BROWSER_DEFAULT_WIDTH;
+    private static final double FILE_BROWSER_MIN_WIDTH = GlobalSettings.FILE_BROWSER_MIN_WIDTH;
+    private static final double FILE_BROWSER_MAX_WIDTH = GlobalSettings.FILE_BROWSER_MAX_WIDTH;
 
     private void syncDashboardMenuItems(boolean visible) {
         if (showDashboardMenuItem != null && showDashboardMenuItem.isSelected() != visible) {
@@ -6153,9 +6153,12 @@ public class MainWindow {
         // Lazy-create the file browser and divider when first shown
         if (position != LocalFileBrowserManager.Position.HIDDEN && localFileBrowser == null) {
             localFileBrowser = new LocalFileBrowser(this);
-            localFileBrowser.setMinWidth(FILE_BROWSER_MIN_WIDTH);
             localFileBrowser.setPrefWidth(FILE_BROWSER_DEFAULT_WIDTH);
+            // Keeps the width set below (dragged or restored) beside a wide terminal and gives way
+            // only when the window is too narrow, like the other docked panels.
+            dockedPanelWidths.register(localFileBrowser, FILE_BROWSER_MIN_WIDTH);
             localFileBrowser.setMaxWidth(FILE_BROWSER_MAX_WIDTH);
+            localFileBrowser.setOnHideRequested(() -> toggleFileBrowser(fileBrowserManager.getPosition()));
 
             fileBrowserDivider = new ResizableDivider(Orientation.VERTICAL);
             fileBrowserDivider.setResizeListener(delta -> {

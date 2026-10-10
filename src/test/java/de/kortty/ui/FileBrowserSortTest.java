@@ -66,6 +66,20 @@ class FileBrowserSortTest {
     }
 
     @Test
+    void hiddenEntriesStayOnTopInEitherDirection() {
+        List<Item> items = List.of(file("zeta.txt", 5, 5), file(".zshrc", 900, 900), dir("Apps"),
+            dir(".config"), file("alpha.txt", 1, 1), file(".bashrc", 10, 10));
+        assertThat(names(items, FileBrowserSort.Key.NAME, true))
+            .containsExactly(".config", ".bashrc", ".zshrc", "Apps", "alpha.txt", "zeta.txt").inOrder();
+        assertThat(names(items, FileBrowserSort.Key.NAME, false))
+            .containsExactly(".config", ".zshrc", ".bashrc", "Apps", "zeta.txt", "alpha.txt").inOrder();
+        assertThat(names(items, FileBrowserSort.Key.SIZE, false))
+            .containsExactly(".config", ".zshrc", ".bashrc", "Apps", "zeta.txt", "alpha.txt").inOrder();
+        assertThat(names(items, FileBrowserSort.Key.DATE, true))
+            .containsExactly(".config", ".bashrc", ".zshrc", "Apps", "alpha.txt", "zeta.txt").inOrder();
+    }
+
+    @Test
     void equalKeysFallBackToNameTiebreak() {
         List<Item> items = List.of(file("b", 50, 1), file("a", 50, 1), file("c", 50, 1));
         assertThat(names(items, FileBrowserSort.Key.SIZE, true))

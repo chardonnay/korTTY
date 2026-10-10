@@ -155,7 +155,7 @@ class TerminalRemoteSidebarFixtureTest {
         String sidebar = source("src/main/java/de/kortty/ui/TerminalRemoteSidebar.java");
         // Modena's light -fx-background under the Normal design hid the app's light label text.
         assertThat(sidebar).doesNotContain("-fx-background-color: -fx-background;");
-        assertThat(sidebar).contains("getStyleClass().add(\"file-browser-panel\");");
+        assertThat(sidebar).contains("getStyleClass().addAll(\"file-browser-panel\", \"file-browser-sidebar\");");
         assertThat(sidebar).contains("/styles/filebrowser.css");
         assertThat(sidebar).contains("table.getStyleClass().add(\"file-browser-table\");");
         // The emoji type glyphs have no glyph in the table's monospace font: the manager's icons instead.

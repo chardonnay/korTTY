@@ -806,7 +806,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="dateibrowser">Dateibrowser<a class="headerlink" href="#dateibrowser" title="Permanent link">&para;</a></h1>
-<p>Der Dateibrowser ist eine andockbare Seitenleiste, die neben dem Terminal das <strong>lokale</strong> Dateisystem durchsucht. Sie zeigt einen Verzeichnisbaum mit Navigationsleiste, Pfadleiste, Filter, typabhängigen Symbolen und einer Statuszeile. (Zum Durchsuchen eines <strong>entfernten</strong> Servers über SFTP verwenden Sie den <a href="sftp.html">SFTP-Dateimanager</a>.)</p>
+<p>Der Dateibrowser ist eine andockbare Seitenleiste, die Ihr <strong>lokales</strong> Dateisystem neben dem Terminal durchsucht. Er ist wie die Seitenleiste für Remote-Dateien des Terminals aufgebaut: eine <strong>Lokale Dateien</strong>-Titelleiste mit den Aktionen, der aktuelle Ordner als klickbare Pfadsegmente, ein Filter und eine Auflistung eines Ordners mit den Spalten <strong>Name</strong>, <strong>Größe</strong> und <strong>Geändert</strong>, typabhängige Symbole und eine Statusleiste. (Zum Durchsuchen eines <strong>Remote</strong>-Servers über SFTP verwenden Sie stattdessen den <a href="sftp.html">SFTP-Dateimanager</a>.)</p>
 <h2 id="offnen-und-andocken">Öffnen und Andocken<a class="headerlink" href="#offnen-und-andocken" title="Permanent link">&para;</a></h2>
 <p>Blenden Sie die Leiste über die Menüleiste ein:</p>
 <table>
@@ -827,9 +827,9 @@
 </tr>
 </tbody>
 </table>
-<p>Das Wiederauswählen des Elements verdeckt das Panel. Ein verschiebbarer Trennstrich passt seine Größe (160–420 px) an. Die Position, die Breite, der „versteckte“ Status sowie der letzte Verzeichnispfad des Panels werden bei Neustarts gespeichert.</p>
+<p>Wird der Eintrag erneut ausgewählt oder der <strong>✕</strong>-Button in der Titelleiste des Panels gedrückt, wird das Panel ausgeblendet. Ein verschiebbarer Trenner passt die Größe an (280–900 px, standardmäßig 380 px); das Fenster behält diese Breite bei, anstatt das Panel zusammenzudrücken, wenn das Terminal Platz braucht. <strong>Position, Breite, Einstellung „Versteckte Dateien anzeigen" und letztes Verzeichnis des Panels bleiben auch nach Neustarts erhalten.</strong></p>
 <h2 id="navigation">Navigation<a class="headerlink" href="#navigation" title="Permanent link">&para;</a></h2>
-<p>Werkzeugleiste und Pfadleiste bestimmen, wo der Baum verwurzelt ist:</p>
+<p>Die Liste zeigt jeweils nur einen Ordner an. <strong>Doppelklicken</strong> Sie auf einen Ordner (oder wählen Sie ihn aus und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>), um in ihn zu wechseln; die <strong>..</strong>-Zeile oben führt in den übergeordneten Ordner. Die Schaltflächen in der Titelleiste:</p>
 <table>
 <thead>
 <tr>
@@ -844,34 +844,38 @@
 </tr>
 <tr>
 <td>Hoch</td>
-<td>Den Baum im übergeordneten Verzeichnis verwurzeln (auch oberhalb Ihres Home-Verzeichnisses)</td>
+<td>Übergeordneten Ordner anzeigen (kann über das Home-Verzeichnis hinaufgehen)</td>
 </tr>
 <tr>
 <td>Home</td>
-<td>Den Baum im Home-Verzeichnis verwurzeln</td>
+<td>Zeigt Ihr Home-Verzeichnis</td>
 </tr>
 <tr>
 <td>Aktualisieren</td>
-<td>Das aktuelle Verzeichnis neu laden; aufgeklappte Ordner bleiben offen</td>
+<td>Lädt den angezeigten Ordner neu und behält die Auswahl bei</td>
 </tr>
 <tr>
 <td>Neuer Ordner / Neue Datei</td>
-<td>Ein Objekt im ausgewählten (oder aktuellen) Verzeichnis anlegen</td>
+<td>Erstellen Sie ein Element im angezeigten Ordner</td>
 </tr>
 <tr>
 <td>Sortieren</td>
-<td>Sortierschlüssel (Name, Größe, Änderungsdatum) und Richtung (aufsteigend / absteigend) wählen</td>
+<td>Wählen Sie den Sortierschlüssel (Name, Größe, Änderungsdatum) und die Richtung (Aufsteigend / Absteigend); ein Klick auf die Spaltenüberschrift <strong>Name</strong>, <strong>Größe</strong> oder <strong>Geändert</strong> bewirkt dasselbe, und ein zweiter Klick kehrt die Richtung um. Versteckte Einträge (Namen, die mit einem Punkt beginnen) bleiben immer oben, danach Ordner vor Dateien</td>
 </tr>
 <tr>
 <td>Versteckte Dateien</td>
 <td>Punktdateien ein- oder ausblenden</td>
 </tr>
+<tr>
+<td>✕</td>
+<td>Panel ausblenden</td>
+</tr>
 </tbody>
 </table>
-<p>Die <strong>Pfadleiste</strong> nimmt einen eingegebenen Pfad an und verwurzelt den Baum dort. Ein führendes <code>~</code> wird zum Home-Verzeichnis erweitert; absolute Pfade außerhalb von Home sind erlaubt. Das <strong>Filterfeld</strong> darunter beschränkt die Anzeige auf Einträge, deren Name den eingegebenen Text enthält (ohne Beachtung der Groß-/Kleinschreibung).</p>
+<p>Unter der Titelleiste zeigt der <strong>Pfad</strong> den Ordner als Segmente, beginnend bei <code>~</code> innerhalb Ihres Home-Verzeichnisses oder bei der Dateisystemwurzel außerhalb davon; klicken Sie auf ein Segment, um in diesen Ordner zu wechseln. Klicken Sie neben die Segmente oder drücken Sie <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-l">L</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span>, um stattdessen einen Pfad einzugeben: <span class="keys"><kbd class="key-enter">Enter</kbd></span> wechselt dorthin, <span class="keys"><kbd class="key-escape">Esc</kbd></span> kehrt zu den Segmenten zurück. Ein führendes <code>~</code> wird zu Ihrem Home-Verzeichnis expandiert; absolute Pfade außerhalb des Home-Verzeichnisses sind zulässig. Das <strong>Filter</strong>-Feld darunter schränkt die Liste auf Einträge ein, deren Name den eingegebenen Text enthält (Groß-/Kleinschreibung wird nicht unterschieden).</p>
 <p>Verzeichnisse werden im Hintergrund geladen, sodass ein großes oder über das Netzwerk eingebundenes Verzeichnis das Fenster nicht mehr einfriert; während des Ladens erscheint kurz eine Ladeanzeige.</p>
 <h2 id="tastenkurzel">Tastenkürzel<a class="headerlink" href="#tastenkurzel" title="Permanent link">&para;</a></h2>
-<p>Wenn der Baum den Fokus hat:</p>
+<p>Wenn die Liste den Fokus hat:</p>
 <table>
 <thead>
 <tr>
@@ -882,7 +886,7 @@
 <tbody>
 <tr>
 <td><span class="keys"><kbd class="key-enter">Enter</kbd></span></td>
-<td>Öffnen Sie eine Datei oder erweitern/reduzieren Sie einen Ordner</td>
+<td>Eine Datei öffnen oder in einen Ordner wechseln</td>
 </tr>
 <tr>
 <td><span class="keys"><kbd class="key-f2">F2</kbd></span></td>
@@ -908,12 +912,16 @@
 <td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-f">F</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span></td>
 <td>Springen Sie zum Filterfeld</td>
 </tr>
+<tr>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-l">L</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span></td>
+<td>Geben Sie einen Pfad ein, um dorthin zu navigieren</td>
+</tr>
 </tbody>
 </table>
 <h2 id="dateioperationen">Dateioperationen<a class="headerlink" href="#dateioperationen" title="Permanent link">&para;</a></h2>
 <p>Rechtsklick auf einen Eintrag öffnet das vollständige Menü:</p>
 <ul>
-<li><strong>Öffnen</strong> – Öffnen Sie die Datei mit der Standardanwendung des Betriebssystems.</li>
+<li><strong>Öffnen</strong> — die Datei mit der Standardanwendung des Betriebssystems öffnen oder in den gewählten Ordner wechseln.</li>
 <li><strong>Im Snippet-Editor öffnen</strong> – Laden Sie eine Textdatei (bis zu 10 MB) in den <a href="snippets.html">Snippet-Editor</a>.</li>
 <li><strong>Umbenennen</strong> – Inline umbenennen; Ein Namenskonflikt wird durch Anhängen von <code>(2)</code>, <code>(3)</code>, … gelöst.</li>
 <li><strong>Kopieren</strong> / <strong>Ausschneiden</strong> / <strong>Einfügen</strong> – Verschieben oder Kopieren im Browser.</li>
@@ -924,9 +932,9 @@
 <li><strong>Archiv</strong> – Packen Sie die Auswahl in ein <code>ZIP</code>-, <code>TAR</code>- oder <code>TAR.GZ</code>-Archiv.</li>
 <li><strong>Details</strong> – Typ, Größe, Pfad, Änderungszeit und Berechtigungen anzeigen.</li>
 </ul>
-<p>Jede Zeile zeigt ein <strong>typabhängiges Symbol</strong> (Ordner, Code, Bild, Archiv, Dokument oder ausführbare Datei) mit einer Markierung für symbolische Verknüpfungen. Die Fußzeile nennt die Anzahl der Ordner und Dateien im aktuellen Verzeichnis sowie die Anzahl der ausgewählten Einträge.</p>
+<p>Jede Zeile zeigt ein <strong>typabhängiges Symbol</strong> (Ordner, Code, Bild, Archiv, Dokument oder ausführbare Datei), ein Abzeichen für symbolische Links, die Größe (<code>&lt;DIR&gt;</code> für Ordner) und den Zeitpunkt der letzten Änderung. Ein Name, der für die Spalte zu lang ist, endet in <code>...</code>; bewegen Sie den Zeiger darauf, um den vollständigen Namen in einem Tooltip anzuzeigen, oder wählen Sie den Eintrag aus (mit einem Klick oder den Pfeiltasten), um ihn direkt unter der Zeile zu sehen. Die Fußzeile meldet, wie viele Ordner und Dateien der angezeigte Ordner enthält und wie viele Einträge ausgewählt sind.</p>
 <h2 id="ziehen-und-ablegen">Ziehen und Ablegen<a class="headerlink" href="#ziehen-und-ablegen" title="Permanent link">&para;</a></h2>
-<p>Ziehen Sie Dateien aus dem Browser <strong>hinaus</strong> auf eine andere Anwendung, um sie zu kopieren, und Dateien in den Browser <strong>hinein</strong>, um sie in einen Ordner zu kopieren oder zu verschieben. Ablegen auf einem Ordner zielt auf diesen Ordner; Ablegen an anderer Stelle zielt auf das aktuelle Verzeichnis. Namenskonflikte werden mit einem <code>(2)</code>-Suffix aufgelöst, statt zu überschreiben.</p></p>
+<p>Ziehen Sie Dateien <strong>aus</strong> dem Browser in eine andere Anwendung, um sie zu kopieren, und ziehen Sie Dateien <strong>in</strong> den Browser, um sie in einen Ordner zu kopieren oder zu verschieben. Ein Ablegen auf eine Ordnerzeile macht diesen Ordner zum Ziel; ein Ablegen an anderer Stelle macht den angezeigten Ordner zum Ziel. Namenskonflikte werden mit einem <code>(2)</code>-Zusatz aufgelöst, statt die Datei zu überschreiben.</p></p>
     </article>
 </section>
             <!-- endblock -->

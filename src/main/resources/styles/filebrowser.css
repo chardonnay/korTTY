@@ -82,79 +82,16 @@
     -fx-border-color: -kortty-fb-accent;
 }
 
-/* ---------- Tree ---------- */
+/* ---------- Inline rename editor ---------- */
 
-.file-browser-tree {
-    -fx-background-color: -kortty-fb-bg;
-    -fx-control-inner-background: -kortty-fb-bg;
-    -fx-background-insets: 0;
-    -fx-padding: 4 0 0 0;
-    -fx-focus-color: transparent;
-    -fx-faint-focus-color: transparent;
-}
-
-.file-browser-tree .tree-cell {
-    -fx-background-color: -kortty-fb-bg;
-    -fx-text-fill: -kortty-fb-fg;
-    -fx-font-family: "Menlo", "Monaco", "Consolas", "monospace";
-    -fx-font-size: 0.9231em;
-    -fx-cell-size: 22px;
-    -fx-padding: 0 4 0 2;
-}
-
-.file-browser-tree .tree-cell:hover {
-    -fx-background-color: -kortty-fb-hover;
-}
-
-.file-browser-tree .tree-cell:selected,
-.file-browser-tree .tree-cell:focused:selected {
-    -fx-background-color: -kortty-fb-selected;
-    -fx-text-fill: -kortty-fb-selected-fg;
-}
-
-/* Inline rename editor inside a cell */
-.file-browser-tree .tree-cell .text-field {
+.file-browser-rename {
     -fx-background-color: -kortty-fb-status-bg;
     -fx-text-fill: -kortty-fb-fg;
     -fx-border-color: -kortty-fb-accent;
-    /* 1em, not the 0.9231em the cell size converts to: this sits INSIDE .tree-cell, which already
-       declares 0.9231em, so a second relative value would compound down to ~11.1px. */
+    /* 1em, not 0.9231em: the editor sits inside a table cell that already declares 0.9231em, so a
+       second relative value would compound down to ~11.1px. */
     -fx-font-size: 1em;
     -fx-padding: 0 2 0 2;
-}
-
-.file-browser-tree .tree-disclosure-node {
-    -fx-padding: 0 4 0 3;
-}
-
-.file-browser-tree .tree-disclosure-node .arrow {
-    -fx-background-color: #7f8794;
-}
-
-.file-browser-tree .scroll-bar {
-    -fx-background-color: -kortty-fb-bg;
-}
-
-.file-browser-tree .scroll-bar .thumb {
-    -fx-background-color: -kortty-fb-border;
-    -fx-background-radius: 0;
-}
-
-.file-browser-tree .scroll-bar .track {
-    -fx-background-color: -kortty-fb-bg;
-}
-
-.file-browser-tree .scroll-bar .increment-button,
-.file-browser-tree .scroll-bar .decrement-button {
-    -fx-background-color: -kortty-fb-bg;
-    -fx-padding: 0;
-}
-
-/* Highlight the tree while a drag hovers over it */
-.file-browser-tree.drop-target {
-    -fx-border-color: -kortty-fb-accent;
-    -fx-border-width: 1;
-    -fx-border-insets: 0;
 }
 
 /* ---------- Footer / transient status ---------- */
@@ -255,4 +192,157 @@
 .sftp-transfer-queue .sftp-transfer-title {
     -fx-text-fill: -kortty-fb-fg;
     -fx-font-weight: bold;
+}
+
+/* ---------- Docked sidebars: local file browser + terminal remote files sidebar ----------
+ * The same compact look under every app design: an AtlantaFX theme sets a 3em row height,
+ * framed left-aligned column headers, a table border and underlined links on its own, and
+ * none of the rules above override those properties. */
+
+.file-browser-sidebar .file-browser-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: -kortty-fb-fg;
+    -fx-padding: 0 6 0 2;
+}
+
+/* Right-aligned: with room to spare the spacer keeps the title on the left; dragged too narrow,
+   the bar loses its left end (title, Back) instead of its close button. */
+.local-file-browser .file-browser-toolbar {
+    -fx-alignment: center-right;
+}
+
+/* Local browser: equal square icon buttons. The glyphs are scaled down, but a button sizes itself
+   to the unscaled path, which spread them unevenly, and an empty text must not add a gap. */
+.local-file-browser .file-browser-toolbar-button {
+    -fx-content-display: graphic-only;
+    -fx-alignment: center;
+    -fx-padding: 0;
+    -fx-min-width: 1.6em;
+    -fx-pref-width: 1.6em;
+    -fx-max-width: 1.6em;
+    -fx-min-height: 1.6em;
+    -fx-pref-height: 1.6em;
+    -fx-max-height: 1.6em;
+}
+
+.local-file-browser .file-browser-toolbar-button.menu-button > .label {
+    -fx-padding: 0;
+    -fx-alignment: center;
+}
+
+/* The sort menu's own glyph says what it is; its drop-down arrow only costs toolbar room. */
+.local-file-browser .file-browser-toolbar-button.menu-button > .arrow-button {
+    -fx-padding: 0;
+    -fx-min-width: 0;
+    -fx-pref-width: 0;
+    -fx-max-width: 0;
+    visibility: hidden;
+}
+
+.file-browser-sidebar .file-browser-breadcrumb {
+    -fx-min-height: 1.6em;
+    -fx-alignment: center-left;
+}
+
+.file-browser-sidebar .hyperlink,
+.file-browser-sidebar .hyperlink:visited {
+    -fx-text-fill: -kortty-fb-accent;
+    -fx-underline: false;
+    -fx-border-color: transparent;
+}
+
+.file-browser-sidebar .hyperlink:hover {
+    -fx-underline: true;
+}
+
+.file-browser-sidebar .file-browser-table {
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+}
+
+.file-browser-sidebar .file-browser-table > .column-header-background {
+    -fx-background-color: -kortty-fb-status-bg;
+    -fx-background-insets: 0;
+    -fx-border-width: 0;
+}
+
+.file-browser-sidebar .file-browser-table > .column-header-background .column-header,
+.file-browser-sidebar .file-browser-table > .column-header-background > .filler {
+    -fx-background-color: -kortty-fb-status-bg;
+    -fx-background-insets: 0;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-size: 2.2em;
+    -fx-padding: 0;
+}
+
+.file-browser-sidebar .file-browser-table > .column-header-background .column-header .label {
+    -fx-text-fill: -kortty-fb-fg;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+    -fx-padding: 0 6 0 6;
+}
+
+.file-browser-sidebar .file-browser-table .table-row-cell {
+    -fx-background-color: -kortty-fb-bg;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+    -fx-cell-size: 1.75em;
+}
+
+.file-browser-sidebar .file-browser-table .table-row-cell:empty {
+    -fx-background-color: transparent;
+}
+
+.file-browser-sidebar .file-browser-table .table-row-cell:filled:hover {
+    -fx-background-color: -kortty-fb-hover;
+}
+
+.file-browser-sidebar .file-browser-table .table-row-cell:filled:selected {
+    -fx-background-color: -kortty-fb-selected;
+}
+
+.file-browser-sidebar .file-browser-table .table-row-cell > .table-cell {
+    /* Transparent: a design stylesheet that paints every .table-cell (Gruvbox, Nord, ...) would
+       otherwise cover the row's hover and selection colors. */
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 0 6 0 6;
+    -fx-alignment: center-left;
+}
+
+.file-browser-sidebar .file-browser-table > .virtual-flow > .corner {
+    -fx-background-color: -kortty-fb-bg;
+}
+
+.file-browser-sidebar .file-browser-table .scroll-bar {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 1;
+}
+
+.file-browser-sidebar .file-browser-table .scroll-bar .thumb {
+    -fx-background-color: -kortty-fb-border;
+    -fx-background-insets: 0;
+    -fx-background-radius: 4;
+}
+
+.file-browser-sidebar .file-browser-table .scroll-bar .track,
+.file-browser-sidebar .file-browser-table .scroll-bar .track-background {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.file-browser-sidebar .file-browser-table .scroll-bar .increment-button,
+.file-browser-sidebar .file-browser-table .scroll-bar .decrement-button {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.file-browser-sidebar .file-browser-table .scroll-bar .increment-arrow,
+.file-browser-sidebar .file-browser-table .scroll-bar .decrement-arrow {
+    -fx-shape: " ";
+    -fx-padding: 0;
 }

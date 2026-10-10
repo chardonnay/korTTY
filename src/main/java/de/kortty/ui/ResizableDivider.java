@@ -11,17 +11,30 @@ import javafx.scene.layout.Region;
  */
 public class ResizableDivider extends Region {
 
+    /**
+     * How thick the divider is, and so how wide a target it is for the mouse. It was 3 px, which
+     * was hard to hit; the visible line in its middle stays thin.
+     */
+    static final double THICKNESS = 8;
+    private static final String BAR = "#181a1f";
+    private static final String GRIP = "#3c4450";
+    private static final String BAR_HOVER = "#2c313a";
+    private static final String GRIP_HOVER = "#61afef";
+
     private final Orientation orientation;
     private double lastPosition = -1;
     private ResizeListener listener;
 
     public ResizableDivider(Orientation orientation) {
         this.orientation = orientation;
-        setMinWidth(orientation == Orientation.VERTICAL ? 3 : 0);
-        setMaxWidth(orientation == Orientation.VERTICAL ? 3 : Double.MAX_VALUE);
-        setMinHeight(orientation == Orientation.HORIZONTAL ? 3 : 0);
-        setMaxHeight(orientation == Orientation.HORIZONTAL ? 3 : Double.MAX_VALUE);
-        setStyle("-fx-background-color: #181a1f; -fx-cursor: " + getCursorStyle() + ";");
+        boolean vertical = orientation == Orientation.VERTICAL;
+        setMinWidth(vertical ? THICKNESS : 0);
+        setPrefWidth(vertical ? THICKNESS : USE_COMPUTED_SIZE);
+        setMaxWidth(vertical ? THICKNESS : Double.MAX_VALUE);
+        setMinHeight(vertical ? 0 : THICKNESS);
+        setPrefHeight(vertical ? USE_COMPUTED_SIZE : THICKNESS);
+        setMaxHeight(vertical ? Double.MAX_VALUE : THICKNESS);
+        applyStyle(false);
 
         setupDragHandling();
     }
@@ -52,13 +65,23 @@ public class ResizableDivider extends Region {
             e.consume();
         });
 
-        setOnMouseEntered(e -> {
-            setStyle("-fx-background-color: #3c4450; -fx-cursor: " + getCursorStyle() + ";");
-        });
-
+        setOnMouseEntered(e -> applyStyle(true));
         setOnMouseExited(e -> {
-            setStyle("-fx-background-color: #181a1f; -fx-cursor: " + getCursorStyle() + ";");
+            // A drag that leaves the bar keeps it lit until the button is released.
+            if (!isPressed()) {
+                applyStyle(false);
+            }
         });
+        addEventHandler(MouseEvent.MOUSE_RELEASED, e -> applyStyle(isHover()));
+    }
+
+    /** A dark bar the full thickness with a 2 px grip line along its middle, highlighted on hover. */
+    private void applyStyle(boolean hover) {
+        double side = (THICKNESS - 2) / 2;
+        String insets = orientation == Orientation.VERTICAL ? "0 " + side + " 0 " + side : side + " 0 " + side + " 0";
+        setStyle("-fx-background-color: " + (hover ? BAR_HOVER : BAR) + ", " + (hover ? GRIP_HOVER : GRIP) + ";"
+            + " -fx-background-insets: 0, " + insets + ";"
+            + " -fx-cursor: " + getCursorStyle() + ";");
     }
 
     public void setResizeListener(ResizeListener listener) {

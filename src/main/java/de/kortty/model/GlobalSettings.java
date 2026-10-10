@@ -3527,9 +3527,9 @@ public class GlobalSettings {
      * {@code LocalFileBrowserManager}'s clamp and {@code MainWindow}'s FILE_BROWSER_* constants
      * so the persisted value never diverges from what the UI enforces.
      */
-    public static final double FILE_BROWSER_MIN_WIDTH = 160.0;
-    public static final double FILE_BROWSER_MAX_WIDTH = 420.0;
-    public static final double FILE_BROWSER_DEFAULT_WIDTH = 220.0;
+    public static final double FILE_BROWSER_MIN_WIDTH = 280.0;
+    public static final double FILE_BROWSER_MAX_WIDTH = 900.0;
+    public static final double FILE_BROWSER_DEFAULT_WIDTH = 380.0;
 
     /** File-browser sidebar placement: "HIDDEN" (default), "LEFT" or "RIGHT". */
     public String getFileBrowserPosition() {
@@ -3540,7 +3540,7 @@ public class GlobalSettings {
         this.fileBrowserPosition = fileBrowserPosition;
     }
 
-    /** Docked file-browser sidebar width, clamped to the allowed range (default 220). */
+    /** Docked file-browser sidebar width, clamped to the allowed range (default 380). */
     public double getFileBrowserWidth() {
         double value = fileBrowserWidth != null ? fileBrowserWidth : FILE_BROWSER_DEFAULT_WIDTH;
         return Math.max(FILE_BROWSER_MIN_WIDTH, Math.min(value, FILE_BROWSER_MAX_WIDTH));
