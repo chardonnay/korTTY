@@ -40,9 +40,9 @@ public final class DesktopNotifierBackends {
         boolean osascriptPresent = probe.isMac() && Files.isExecutable(OSASCRIPT);
         boolean notifySendPresent = probe.isLinux() && !probe.flatpak()
             && isOnPath(NOTIFY_SEND, System.getenv(), Files::isExecutable);
-        Optional<String> sessionBus = probe.isLinux() && !probe.flatpak()
+        Optional<String> sessionBus = probe.isLinux()
             ? DBusSessionSocket.sessionBusSocketPath(System.getenv()) : Optional.empty();
-        Optional<String> desktopId = probe.isLinux() && !probe.flatpak()
+        Optional<String> desktopId = probe.isLinux()
             ? LinuxDesktopId.resolve(probe, System.getenv(), Files::isRegularFile) : Optional.empty();
         return select(probe, osascriptPresent, notifySendPresent, sessionBus, desktopId);
     }
@@ -60,10 +60,13 @@ public final class DesktopNotifierBackends {
      *       {@code osascript} as its fallback; macOS outside a bundle ({@code ./gradlew run}) with
      *       {@code osascript} → Notification Center through Script Editor, not clickable;</li>
      *   <li>Windows unless headless → tray balloon, whose click reaches korTTY;</li>
-     *   <li>Linux outside Flatpak with a {@code unix:path} session bus → the notification server's
-     *       D-Bus interface (clickable), with {@code notify-send} as its fallback when it is on the
-     *       PATH; Linux inside Flatpak, or without that bus but with {@code notify-send} →
-     *       {@code notify-send} (clickable from libnotify 0.7.10 on);</li>
+     *   <li>Linux with a {@code unix:path} session bus → the notification server's D-Bus interface
+     *       (clickable), with {@code notify-send} as its fallback when it is on the PATH — inside
+     *       Flatpak through the sandbox's bus proxy, which the manifest's
+     *       {@code --talk-name=org.freedesktop.Notifications} lets through, with {@code notify-send}
+     *       on the host as the fallback for an installation whose permission was revoked; Linux
+     *       without that bus but with {@code notify-send} (or inside Flatpak) → {@code notify-send}
+     *       (clickable from libnotify 0.7.10 on);</li>
      *   <li>everything else → unsupported.</li>
      * </ul>
      *
@@ -99,7 +102,7 @@ public final class DesktopNotifierBackends {
                 LinuxNotifySendNotifierBackend.processWatcher())
             : null;
         Optional<String> socket = sessionBusSocket == null ? Optional.empty() : sessionBusSocket;
-        if (!probe.flatpak() && socket.isPresent()) {
+        if (socket.isPresent()) {
             String path = socket.get();
             return new LinuxDBusNotifierBackend(icon, desktopEntry(linuxDesktopId),
                 () -> NotificationsDBusConnection.open(path, COMMAND_TIMEOUT_MILLIS),

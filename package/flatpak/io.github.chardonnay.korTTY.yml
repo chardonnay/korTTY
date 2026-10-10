@@ -12,6 +12,9 @@ finish-args:
   - --device=dri
   - --filesystem=host
   - --talk-name=org.freedesktop.Flatpak
+  # Desktop notifications straight to the notification server, so a click on one reaches korTTY
+  # (ActionInvoked) and jumps to its pane; without it korTTY falls back to notify-send on the host.
+  - --talk-name=org.freedesktop.Notifications
 
 modules:
   - name: kortty

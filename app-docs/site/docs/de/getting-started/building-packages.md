@@ -139,7 +139,7 @@ flatpak-builder --user --force-clean --disable-rofiles-fuse --repo=build/flatpak
 flatpak build-bundle --arch="$(flatpak --default-arch)" build/flatpak-repo "build/jpackage/kortty-Linux-<version>-$(flatpak --default-arch).flatpak" io.github.chardonnay.korTTY stable
 ```
 
-Das Paket gewährt Netzwerk-, X11-, Audio-, GPU- und Host-Dateisystemzugriff, da ein SSH-Terminal-Client Remote-Hosts erreichen, JavaFX/WebView rendern, Terminalmedien verwenden und explizit ausgewählte Hostdateien bearbeiten muss. Es gewährt auch Zugriff auf `org.freedesktop.Flatpak`; Lokale Shells und ihre KI-Agent-Befehle werden über `flatpak-spawn --host` auf dem Host gestartet. Validieren Sie ein lokales Bundle, indem Sie es installieren, seine Architektur überprüfen und den gepackten WebView Smoke ausführen:
+Das Paket gewährt Netzwerk-, X11-, Audio-, GPU- und Host-Dateisystemzugriff, da ein SSH-Terminalclient auf Remote-Hosts zugreifen, JavaFX/WebView rendern, Terminalmedien verwenden und auf explizit ausgewählte Host-Dateien zugreifen muss. Es gewährt außerdem Zugriff auf `org.freedesktop.Flatpak`; lokale Shells und deren KI-Agentenbefehle werden auf dem Host über `flatpak-spawn --host` gestartet. Der Zugriff auf `org.freedesktop.Notifications` ermöglicht es korTTY, seine Desktop-Benachrichtigungen direkt an den Benachrichtigungsserver des Desktops zu senden und zu erkennen, welche angeklickt wurde, sodass ein Klick in das Pane springt, aus dem sie stammt; ohne diesen Zugriff fällt korTTY auf `notify-send` auf dem Host zurück. Validieren Sie ein lokales Bundle, indem Sie es installieren, seine Architektur prüfen und den paketierten WebView-Smoke-Test ausführen:
 
 ```bash
 flatpak install --user ./build/jpackage/kortty-Linux-<version>-<architecture>.flatpak

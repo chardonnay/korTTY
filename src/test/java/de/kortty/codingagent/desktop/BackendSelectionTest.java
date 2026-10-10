@@ -144,9 +144,28 @@ class BackendSelectionTest {
         assertThat(busOnly).isInstanceOf(LinuxDBusNotifierBackend.class);
         assertThat(((LinuxDBusNotifierBackend) busOnly).fallback()).isInstanceOf(UnsupportedNotifierBackend.class);
 
-        // Inside Flatpak the sandbox has no notification talk-name: notify-send on the host it stays.
-        assertThat(DesktopNotifierBackends.select(probe("Linux", null, true, false), false, false,
-            Optional.of("/run/user/1000/bus"), Optional.empty())).isInstanceOf(LinuxNotifySendNotifierBackend.class);
+        // Inside Flatpak the manifest grants org.freedesktop.Notifications: the bus proxy first, notify-send on
+        // the host behind it for an installation whose permission was revoked.
+        DesktopNotifierBackend flatpak = DesktopNotifierBackends.select(probe("Linux", null, true, false), false, false,
+            Optional.of("/run/flatpak/bus"), Optional.of(LinuxDesktopId.FLATPAK_DESKTOP_ID));
+        assertThat(flatpak).isInstanceOf(LinuxDBusNotifierBackend.class);
+        assertThat(((LinuxDBusNotifierBackend) flatpak).fallback()).isInstanceOf(LinuxNotifySendNotifierBackend.class);
+    }
+
+    @Test
+    void theFlatpakManifestLetsTheNotificationServerThrough() throws IOException {
+        java.nio.file.Path root = java.nio.file.Path.of("").toAbsolutePath();
+        while (root != null && !java.nio.file.Files.isRegularFile(root.resolve("build.gradle.kts"))) {
+            root = root.getParent();
+        }
+        assertThat(root).isNotNull();
+        String manifest = java.nio.file.Files.readString(
+            root.resolve("package/flatpak/io.github.chardonnay.korTTY.yml"), StandardCharsets.UTF_8);
+
+        // Without it the sandbox's bus proxy drops Notify and ActionInvoked, and no click reaches korTTY.
+        // Compared line by line: a Windows checkout ends the lines with CRLF.
+        assertThat(manifest.lines().map(String::strip).toList())
+            .contains("- --talk-name=org.freedesktop.Notifications");
     }
 
     @Test

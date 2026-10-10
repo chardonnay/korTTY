@@ -139,7 +139,7 @@ flatpak-builder --user --force-clean --disable-rofiles-fuse --repo=build/flatpak
 flatpak build-bundle --arch="$(flatpak --default-arch)" build/flatpak-repo "build/jpackage/kortty-Linux-<version>-$(flatpak --default-arch).flatpak" io.github.chardonnay.korTTY stable
 ```
 
-The package grants network, X11, audio, GPU and host-filesystem access because an SSH terminal client must reach remote hosts, render JavaFX/WebView, use terminal media and operate on explicitly selected host files. It also grants access to `org.freedesktop.Flatpak`; local shells and their AI-agent commands are launched on the host through `flatpak-spawn --host`. Validate a local bundle by installing it, checking its architecture and running the packaged WebView smoke:
+The package grants network, X11, audio, GPU and host-filesystem access because an SSH terminal client must reach remote hosts, render JavaFX/WebView, use terminal media and operate on explicitly selected host files. It also grants access to `org.freedesktop.Flatpak`; local shells and their AI-agent commands are launched on the host through `flatpak-spawn --host`. Access to `org.freedesktop.Notifications` lets korTTY send its desktop notifications to the desktop's notification server itself and hear which one was clicked, so a click jumps to the pane it came from; without it, korTTY falls back to `notify-send` on the host. Validate a local bundle by installing it, checking its architecture and running the packaged WebView smoke:
 
 ```bash
 flatpak install --user ./build/jpackage/kortty-Linux-<version>-<architecture>.flatpak

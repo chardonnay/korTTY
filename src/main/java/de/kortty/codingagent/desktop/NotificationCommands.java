@@ -66,7 +66,8 @@ public final class NotificationCommands {
 
     /**
      * The {@code notify-send} argv, wrapped with {@code flatpak-spawn --host} when {@code env}
-     * carries {@code FLATPAK_ID} (the sandbox lacks the notification talk-name).
+     * carries {@code FLATPAK_ID}: inside Flatpak, {@code notify-send} is only the fallback for a
+     * sandbox whose notification permission was revoked, and it is not part of the runtime anyway.
      *
      * <p>Summary and body are separated from the options by {@code --}: they carry user-chosen names
      * (the agent alias, the connection name), and GOption would otherwise read a leading {@code -} as
