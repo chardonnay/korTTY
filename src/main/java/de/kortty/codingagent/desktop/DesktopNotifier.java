@@ -174,13 +174,13 @@ public final class DesktopNotifier implements AutoCloseable {
         String safeBody = NotificationCommands.truncate(body, MAX_BODY_CHARS);
         if (!isAllowedByPolicy()) {
             if (policyLogged.compareAndSet(false, true)) {
-                logger.debug("desktop notification suppressed (denied by the enterprise policy): {}", safeTitle);
+                logger.debug("desktop notifications suppressed: denied by the enterprise policy");
             }
             return;
         }
         if (!isSupported()) {
             if (unsupportedLogged.compareAndSet(false, true)) {
-                logger.debug("desktop notification suppressed (unsupported platform): {}", safeTitle);
+                logger.debug("desktop notifications suppressed: unsupported platform");
             }
             return;
         }
