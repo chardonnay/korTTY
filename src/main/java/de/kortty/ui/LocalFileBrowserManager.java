@@ -1,5 +1,7 @@
 package de.kortty.ui;
 
+import de.kortty.model.GlobalSettings;
+
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -19,7 +21,7 @@ public class LocalFileBrowserManager {
     private static LocalFileBrowserManager instance;
 
     private Position currentPosition = Position.HIDDEN;
-    private double preferredWidth = 300.0;
+    private double preferredWidth = GlobalSettings.FILE_BROWSER_DEFAULT_WIDTH;
 
     private final List<Consumer<Position>> positionListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<Boolean>> visibilityListeners = new CopyOnWriteArrayList<>();
@@ -87,7 +89,8 @@ public class LocalFileBrowserManager {
     }
 
     public void setPreferredWidth(double width) {
-        this.preferredWidth = Math.max(160.0, Math.min(width, 420.0));
+        this.preferredWidth = Math.max(GlobalSettings.FILE_BROWSER_MIN_WIDTH,
+            Math.min(width, GlobalSettings.FILE_BROWSER_MAX_WIDTH));
     }
 
     public void addPositionListener(Consumer<Position> listener) {

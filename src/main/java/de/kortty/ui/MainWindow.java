@@ -6122,9 +6122,9 @@ public class MainWindow {
         }
     }
     
-    private static final int FILE_BROWSER_DEFAULT_WIDTH = 220;
-    private static final int FILE_BROWSER_MIN_WIDTH = 160;
-    private static final int FILE_BROWSER_MAX_WIDTH = 420;
+    private static final double FILE_BROWSER_DEFAULT_WIDTH = GlobalSettings.FILE_BROWSER_DEFAULT_WIDTH;
+    private static final double FILE_BROWSER_MIN_WIDTH = GlobalSettings.FILE_BROWSER_MIN_WIDTH;
+    private static final double FILE_BROWSER_MAX_WIDTH = GlobalSettings.FILE_BROWSER_MAX_WIDTH;
 
     private void syncDashboardMenuItems(boolean visible) {
         if (showDashboardMenuItem != null && showDashboardMenuItem.isSelected() != visible) {
@@ -6150,9 +6150,13 @@ public class MainWindow {
         // Lazy-create the file browser and divider when first shown
         if (position != LocalFileBrowserManager.Position.HIDDEN && localFileBrowser == null) {
             localFileBrowser = new LocalFileBrowser(this);
-            localFileBrowser.setMinWidth(FILE_BROWSER_MIN_WIDTH);
+            // Its width is the one set below (dragged or restored), never less: the tab pane next
+            // to it prefers the width of its terminal, and an HBox short of room shrinks every
+            // child towards its minimum, which squeezed the browser to its smallest width.
+            localFileBrowser.setMinWidth(Region.USE_PREF_SIZE);
             localFileBrowser.setPrefWidth(FILE_BROWSER_DEFAULT_WIDTH);
             localFileBrowser.setMaxWidth(FILE_BROWSER_MAX_WIDTH);
+            localFileBrowser.setOnHideRequested(() -> toggleFileBrowser(fileBrowserManager.getPosition()));
 
             fileBrowserDivider = new ResizableDivider(Orientation.VERTICAL);
             fileBrowserDivider.setResizeListener(delta -> {

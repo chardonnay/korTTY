@@ -446,6 +446,11 @@ public final class AppDesignStyleSupport {
         return resolveActiveDesign() != AppDesign.NORMAL;
     }
 
+    static String activeAccentColor() {
+        DesignSpec spec = SPECS.get(resolveActiveDesign());
+        return spec != null ? spec.accent() : MATRIX_TEXT;
+    }
+
     static String activeBackgroundColor() {
         DesignSpec spec = SPECS.get(resolveActiveDesign());
         return spec != null ? spec.background() : MATRIX_BACKGROUND;

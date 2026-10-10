@@ -179,7 +179,7 @@ final class TerminalRemoteSidebar extends VBox {
         setPadding(new Insets(4));
         // The local file browser's look (filebrowser.css tokens): -fx-background is Modena's light
         // grey under the Normal design, which left the app's light label text unreadable.
-        getStyleClass().add("file-browser-panel");
+        getStyleClass().addAll("file-browser-panel", "file-browser-sidebar");
         URL stylesheet = TerminalRemoteSidebar.class.getResource("/styles/filebrowser.css");
         if (stylesheet != null) {
             getStylesheets().add(stylesheet.toExternalForm());

@@ -313,26 +313,10 @@
 }
 
 .file-browser-panel,
-.file-browser-tree,
-.file-browser-tree .tree-cell,
-.file-browser-tree .scroll-bar,
-.file-browser-tree .scroll-bar .track,
-.file-browser-tree .scroll-bar .increment-button,
-.file-browser-tree .scroll-bar .decrement-button,
 .file-browser-status {
     -fx-background-color: #1a0f02;
     -fx-control-inner-background: #1a0f02;
     -fx-text-fill: #ffb000;
-}
-
-.file-browser-tree .tree-cell:hover,
-.file-browser-tree .tree-cell:selected {
-    -fx-background-color: rgba(255,176,0,0.10);
-    -fx-text-fill: #ffcc44;
-}
-
-.file-browser-tree .scroll-bar .thumb {
-    -fx-background-color: #7a4d0c;
 }
 
 .logo-panel,

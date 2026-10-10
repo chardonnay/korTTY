@@ -110,10 +110,6 @@
     -kortty-fb-status-bg: -color-bg-inset;
 }
 
-.file-browser-tree .tree-disclosure-node .arrow {
-    -fx-background-color: -color-fg-muted;
-}
-
 .file-browser-loading {
     -fx-background-color: -color-bg-overlay;
 }

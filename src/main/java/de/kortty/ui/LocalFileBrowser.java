@@ -9,10 +9,12 @@ import de.kortty.model.SnippetDiagram;
 import de.kortty.telemetry.Telemetry;
 import de.kortty.telemetry.TelemetryEvents;
 import javafx.application.Platform;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -21,29 +23,32 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckMenuItem;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
-import javafx.scene.control.MultipleSelectionModel;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.SeparatorMenuItem;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextInputDialog;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
-import javafx.scene.control.TreeCell;
-import javafx.scene.control.TreeItem;
-import javafx.scene.control.TreeView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.TransferMode;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -73,9 +78,11 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -88,8 +95,10 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
- * Compact local file browser panel that can be docked to the left or right side
- * of the main window.
+ * Local file browser panel that can be docked to the left or right side of the main window.
+ * Laid out like the terminal's remote files sidebar: a title bar with the actions, a clickable
+ * path, a name filter and a flat listing of one folder (Name, Size, Modified) with a ".." row;
+ * opening a folder changes into it.
  */
 public class LocalFileBrowser extends VBox {
 
@@ -102,9 +111,16 @@ public class LocalFileBrowser extends VBox {
 
     /** Maximum size for files opened as text in the snippet editor. */
     private static final long MAX_TEXT_FILE_SIZE_BYTES = 10L * 1024 * 1024;
+    private static final DateTimeFormatter MODIFIED_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final String DIRECTORY_SIZE_LABEL = "<DIR>";
 
     private final Path homePath;
-    private final TreeView<FileNode> treeView;
+    private final TableView<FileNode> table;
+    private final ObservableList<FileNode> rows = FXCollections.observableArrayList();
+    private TableColumn<FileNode, FileNode> nameColumn;
+    /** The name cells alive in the table (weakly held: a refresh may replace them). */
+    private final Set<NameCell> nameCells = java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+    private Tooltip shownNameTip;
     private final FileBrowserHistory history = new FileBrowserHistory();
     private final Label statusLabel;
     private final Label footerLabel;
@@ -113,6 +129,7 @@ public class LocalFileBrowser extends VBox {
     private final MainWindow ownerWindow;
 
     private HBox toolbar;
+    private FlowPane breadcrumb;
     private TextField pathBar;
     private TextField filterField;
     private StackPane contentStack;
@@ -121,18 +138,24 @@ public class LocalFileBrowser extends VBox {
     private Button forwardButton;
     private Button upButton;
     private ToggleButton showHiddenButton;
-    private TreeItem<FileNode> rootItem;
+    private Button hideButton;
+    private Runnable onHideRequested;
     private Path currentRoot;
-    private Path currentDirectory;
     private boolean showHiddenFiles = false;
     private boolean clipboardCut = false;
     private boolean renameRequested = false;
     private CheckMenuItem showHiddenMenuItem;
     private FileBrowserSort.Key sortKey = FileBrowserSort.Key.NAME;
+    private final java.util.Map<FileBrowserSort.Key, TableColumn<FileNode, FileNode>> sortColumns =
+        new java.util.EnumMap<>(FileBrowserSort.Key.class);
+    private final java.util.Map<FileBrowserSort.Key, RadioMenuItem> sortKeyItems =
+        new java.util.EnumMap<>(FileBrowserSort.Key.class);
+    private RadioMenuItem sortAscendingItem;
+    private RadioMenuItem sortDescendingItem;
+    private boolean sortingRows;
     private boolean sortAscending = true;
     private String currentFilter = "";
-    private volatile long rootLoadGeneration;
-    private final Set<Path> pendingExpansion = new HashSet<>();
+    private long listingGeneration;
 
     public LocalFileBrowser() {
         this(null);
@@ -143,12 +166,11 @@ public class LocalFileBrowser extends VBox {
         homePath = Paths.get(System.getProperty("user.home")).toAbsolutePath().normalize();
         showHiddenFiles = loadShowHiddenSetting();
         currentRoot = loadInitialRoot();
-        currentDirectory = currentRoot;
 
-        setPadding(Insets.EMPTY);
-        setSpacing(0);
+        setPadding(new Insets(4));
+        setSpacing(4);
         setStyle("-fx-background-color: " + PANEL_BACKGROUND + ";");
-        getStyleClass().add("file-browser-panel");
+        getStyleClass().addAll("file-browser-panel", "file-browser-sidebar", "local-file-browser");
         addStylesheet();
 
         statusLabel = new Label("");
@@ -160,27 +182,28 @@ public class LocalFileBrowser extends VBox {
         footerLabel.getStyleClass().add("file-browser-footer");
         footerLabel.setMaxWidth(Double.MAX_VALUE);
 
-        treeView = new TreeView<>();
-        treeView.setShowRoot(true);
-        treeView.setFixedCellSize(22);
-        treeView.setEditable(true);
-        treeView.getStyleClass().add("file-browser-tree");
-        treeView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        treeView.setCellFactory(view -> createTreeCell());
-        treeView.setContextMenu(createContextMenu());
-        treeView.getSelectionModel().getSelectedItems().addListener(
-            (ListChangeListener<? super TreeItem<FileNode>>) change -> updateSelectedItems());
-        treeView.setOnKeyPressed(this::handleTreeKey);
-        installTreeDropHandlers();
+        table = buildTable();
+        table.setContextMenu(createContextMenu());
+        table.getSelectionModel().getSelectedItems().addListener(
+            (ListChangeListener<? super FileNode>) change -> updateSelectedItems());
+        installSelectedNameTip();
+        table.setOnKeyPressed(this::handleTableKey);
+        installTableDropHandlers();
 
         toolbar = buildToolbar();
-        pathBar = buildPathBar();
+        Node pathRow = buildPathRow();
         filterField = buildFilterField();
         loadingOverlay = buildLoadingOverlay();
-        contentStack = new StackPane(treeView, loadingOverlay);
+        contentStack = new StackPane(table, loadingOverlay);
         VBox.setVgrow(contentStack, Priority.ALWAYS);
 
-        getChildren().addAll(toolbar, pathBar, filterField, contentStack, statusLabel, footerLabel);
+        getChildren().addAll(toolbar, pathRow, filterField, contentStack, statusLabel, footerLabel);
+        applyDesignTokens();
+        // Dragged narrower than the title bar's buttons, the bar must not paint over the terminal.
+        javafx.scene.shape.Rectangle clip = new javafx.scene.shape.Rectangle();
+        clip.widthProperty().bind(widthProperty());
+        clip.heightProperty().bind(heightProperty());
+        setClip(clip);
 
         history.navigate(currentRoot);
         setRoot(currentRoot);
@@ -256,15 +279,17 @@ public class LocalFileBrowser extends VBox {
     // ---- Navigation ----
 
     private void setRoot(Path root) {
+        boolean sameFolder = root.equals(currentRoot);
         currentRoot = root;
-        currentDirectory = root;
-        rootItem = toTreeItem(rootNode(root));
-        treeView.setRoot(rootItem);
-        rootItem.setExpanded(true);
         if (pathBar != null) {
             pathBar.setText(FileBrowserPaths.abbreviateHome(root, homePath));
         }
+        rebuildBreadcrumb(root);
         updateNavButtons();
+        if (!sameFolder) {
+            rows.clear();
+        }
+        loadListing();
     }
 
     private void navigateTo(Path target) {
@@ -345,13 +370,32 @@ public class LocalFileBrowser extends VBox {
         updateHiddenIcon();
         showHiddenButton.setOnAction(e -> toggleShowHidden(showHiddenButton.isSelected()));
 
+        hideButton = toolbarButton(FileBrowserIcons.CLOSE, "filebrowser.tooltip.hide", () -> {
+            Runnable hide = onHideRequested;
+            if (hide != null) {
+                hide.run();
+            }
+        });
+        hideButton.setVisible(false);
+        hideButton.setManaged(false);
+
+        Label title = new Label(I18n.get("filebrowser.header"));
+        title.getStyleClass().add("file-browser-title");
+        title.setMinWidth(0);
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        HBox bar = new HBox(backButton, forwardButton, upButton, homeButton, refreshButton,
-            spacer, newFolderButton, newFileButton, buildSortMenuButton(), showHiddenButton);
+        HBox bar = new HBox(title, spacer, backButton, forwardButton, upButton, homeButton, refreshButton,
+            newFolderButton, newFileButton, buildSortMenuButton(), showHiddenButton, hideButton);
         bar.getStyleClass().add("file-browser-toolbar");
         return bar;
+    }
+
+    /** The panel's own close button; without one (e.g. not docked by a window) it stays hidden. */
+    public void setOnHideRequested(Runnable onHideRequested) {
+        this.onHideRequested = onHideRequested;
+        hideButton.setVisible(onHideRequested != null);
+        hideButton.setManaged(onHideRequested != null);
     }
 
     private Button toolbarButton(String glyph, String tooltipKey, Runnable action) {
@@ -404,6 +448,11 @@ public class LocalFileBrowser extends VBox {
         ToggleGroup dirGroup = new ToggleGroup();
         RadioMenuItem asc = sortDirItem("filebrowser.sort.ascending", true, dirGroup);
         RadioMenuItem desc = sortDirItem("filebrowser.sort.descending", false, dirGroup);
+        sortKeyItems.put(FileBrowserSort.Key.NAME, byName);
+        sortKeyItems.put(FileBrowserSort.Key.SIZE, bySize);
+        sortKeyItems.put(FileBrowserSort.Key.DATE, byDate);
+        sortAscendingItem = asc;
+        sortDescendingItem = desc;
 
         button.getItems().addAll(byName, bySize, byDate, new SeparatorMenuItem(), asc, desc);
         return button;
@@ -413,10 +462,7 @@ public class LocalFileBrowser extends VBox {
         RadioMenuItem item = new RadioMenuItem(I18n.get(labelKey));
         item.setToggleGroup(group);
         item.setSelected(sortKey == key);
-        item.setOnAction(e -> {
-            sortKey = key;
-            refresh();
-        });
+        item.setOnAction(e -> setSort(key, sortAscending));
         return item;
     }
 
@@ -424,19 +470,92 @@ public class LocalFileBrowser extends VBox {
         RadioMenuItem item = new RadioMenuItem(I18n.get(labelKey));
         item.setToggleGroup(group);
         item.setSelected(sortAscending == ascending);
-        item.setOnAction(e -> {
-            sortAscending = ascending;
-            refresh();
-        });
+        item.setOnAction(e -> setSort(sortKey, ascending));
         return item;
     }
 
-    private TextField buildPathBar() {
-        TextField field = new TextField();
-        field.getStyleClass().add("file-browser-path");
-        field.setPromptText(I18n.get("filebrowser.path.placeholder"));
-        field.setOnAction(e -> navigateTo(FileBrowserPaths.expandHome(field.getText(), homePath)));
-        return field;
+    /**
+     * The folder shown as clickable crumbs; a click beside them (or {@code Ctrl/Cmd+L}) swaps in a
+     * text field to type a path, Enter goes there, Escape or leaving the field returns to the crumbs.
+     */
+    private Node buildPathRow() {
+        breadcrumb = new FlowPane(2, 2);
+        breadcrumb.getStyleClass().add("file-browser-breadcrumb");
+        breadcrumb.setCursor(javafx.scene.Cursor.TEXT);
+        Tooltip.install(breadcrumb, new Tooltip(I18n.get("filebrowser.path.placeholder")));
+        breadcrumb.setOnMouseClicked(event -> {
+            if (event.getTarget() == breadcrumb) {
+                showPathEditor(true);
+                event.consume();
+            }
+        });
+
+        pathBar = new TextField();
+        pathBar.getStyleClass().add("file-browser-path");
+        pathBar.setPromptText(I18n.get("filebrowser.path.placeholder"));
+        pathBar.setOnAction(e -> {
+            showPathEditor(false);
+            navigateTo(FileBrowserPaths.expandHome(pathBar.getText(), homePath));
+        });
+        pathBar.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                showPathEditor(false);
+                table.requestFocus();
+                event.consume();
+            }
+        });
+        pathBar.focusedProperty().addListener((obs, was, focused) -> {
+            if (!focused) {
+                showPathEditor(false);
+            }
+        });
+        showPathEditor(false);
+        return new StackPane(breadcrumb, pathBar);
+    }
+
+    private void showPathEditor(boolean editing) {
+        if (editing && currentRoot != null) {
+            pathBar.setText(FileBrowserPaths.abbreviateHome(currentRoot, homePath));
+        }
+        pathBar.setVisible(editing);
+        pathBar.setManaged(editing);
+        breadcrumb.setVisible(!editing);
+        breadcrumb.setManaged(!editing);
+        if (editing) {
+            pathBar.requestFocus();
+            pathBar.selectAll();
+        }
+    }
+
+    /** {@code ~} (or the file-system root) followed by one link per folder down to {@code root}. */
+    private void rebuildBreadcrumb(Path root) {
+        if (breadcrumb == null) {
+            return;
+        }
+        breadcrumb.getChildren().clear();
+        boolean underHome = root.startsWith(homePath);
+        Path base = underHome ? homePath : root.getRoot();
+        if (base == null) {
+            base = root;
+        }
+        breadcrumb.getChildren().add(crumb(underHome ? "~" : base.toString(), base));
+        Path sofar = base;
+        for (Path part : base.relativize(root)) {
+            String name = part.toString();
+            if (name.isEmpty()) {
+                continue;
+            }
+            sofar = sofar.resolve(name);
+            breadcrumb.getChildren().add(crumb(name, sofar));
+        }
+    }
+
+    private Hyperlink crumb(String label, Path target) {
+        Hyperlink link = new Hyperlink(label);
+        link.setPadding(new Insets(0, 2, 0, 2));
+        link.setFocusTraversable(false);
+        link.setOnAction(e -> navigateTo(target));
+        return link;
     }
 
     private TextField buildFilterField() {
@@ -460,10 +579,10 @@ public class LocalFileBrowser extends VBox {
 
     // ---- Keyboard / drop / rename / copy-path ----
 
-    private void handleTreeKey(javafx.scene.input.KeyEvent event) {
+    private void handleTableKey(javafx.scene.input.KeyEvent event) {
         KeyCode code = event.getCode();
         if (code == KeyCode.ENTER) {
-            openOrToggleSelected();
+            activate(table.getSelectionModel().getSelectedItem());
             event.consume();
         } else if (code == KeyCode.F2) {
             renameSelected();
@@ -491,49 +610,64 @@ public class LocalFileBrowser extends VBox {
                 filterField.requestFocus();
             }
             event.consume();
+        } else if (code == KeyCode.L && event.isShortcutDown()) {
+            showPathEditor(true);
+            event.consume();
         }
     }
 
-    private void openOrToggleSelected() {
-        TreeItem<FileNode> item = treeView.getSelectionModel().getSelectedItem();
-        if (item == null || item.getValue() == null || item.getValue().placeholder()) {
+    /** Double-click / Enter: ".." and folders change into the folder, files open. */
+    private void activate(FileNode node) {
+        if (node == null) {
             return;
         }
-        FileNode node = item.getValue();
         if (node.directory()) {
-            ensureLoaded(item);
-            item.setExpanded(!item.isExpanded());
+            navigateTo(node.file().toPath());
         } else {
             trackFileBrowserAction("open");
             openFile(node.file());
         }
     }
 
-    private void installTreeDropHandlers() {
-        treeView.setOnDragOver(event -> {
-            if (event.getGestureSource() != treeView && event.getDragboard().hasFiles()) {
+    private void installTableDropHandlers() {
+        table.setOnDragOver(event -> {
+            if (!isOwnDrag(event) && event.getDragboard().hasFiles()) {
                 event.acceptTransferModes(TransferMode.COPY_OR_MOVE);
-                if (!treeView.getStyleClass().contains("drop-target")) {
-                    treeView.getStyleClass().add("drop-target");
+                if (!table.getStyleClass().contains("drop-target")) {
+                    table.getStyleClass().add("drop-target");
                 }
             }
             event.consume();
         });
-        treeView.setOnDragExited(event -> {
-            treeView.getStyleClass().remove("drop-target");
+        table.setOnDragExited(event -> {
+            table.getStyleClass().remove("drop-target");
             event.consume();
         });
-        treeView.setOnDragDropped(event -> {
+        table.setOnDragDropped(event -> {
             Dragboard dragboard = event.getDragboard();
             boolean completed = false;
             if (dragboard.hasFiles()) {
                 boolean move = event.getTransferMode() == TransferMode.MOVE;
                 completed = handleDrop(dragboard.getFiles(), currentRoot, move);
             }
-            treeView.getStyleClass().remove("drop-target");
+            table.getStyleClass().remove("drop-target");
             event.setDropCompleted(completed);
             event.consume();
         });
+    }
+
+    /** A drag started in this listing: dropping it on the folder shown would copy files onto themselves. */
+    private boolean isOwnDrag(javafx.scene.input.DragEvent event) {
+        return event.getGestureSource() instanceof Node source && isInsideTable(source);
+    }
+
+    private boolean isInsideTable(Node node) {
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current == table) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean handleDrop(List<File> files, Path targetDir, boolean move) {
@@ -577,18 +711,20 @@ public class LocalFileBrowser extends VBox {
     }
 
     private void renameSelected() {
-        TreeItem<FileNode> item = treeView.getSelectionModel().getSelectedItem();
-        if (item == null || item.getValue() == null || item.getValue().placeholder() || item.getValue().loading()) {
+        FileNode node = table.getSelectionModel().getSelectedItem();
+        int index = table.getSelectionModel().getSelectedIndex();
+        if (node == null || node.parentEntry() || index < 0) {
             return;
         }
         renameRequested = true;
-        treeView.edit(item);
+        // The editor lives in the row's cell: off screen there is none to start.
+        table.scrollTo(index);
+        table.layout();
+        table.edit(index, nameColumn);
     }
 
-    private void performRename(TreeCell<FileNode> cell, String newName) {
-        FileNode node = cell.getItem();
-        cell.cancelEdit();
-        if (node == null || node.placeholder() || newName == null) {
+    private void performRename(FileNode node, String newName) {
+        if (node == null || node.parentEntry() || newName == null) {
             return;
         }
         String trimmed = newName.trim();
@@ -624,42 +760,214 @@ public class LocalFileBrowser extends VBox {
 
     private FileNode getFirstSelectedNode() {
         for (FileNode node : selectedItems) {
-            if (node != null && !node.placeholder()) {
+            if (node != null && !node.parentEntry()) {
                 return node;
             }
         }
         return null;
     }
 
-    private TreeCell<FileNode> createTreeCell() {
-        return new FileBrowserTreeCell();
+    // ---- Listing table ----
+
+    private TableView<FileNode> buildTable() {
+        TableView<FileNode> view = new TableView<>(rows);
+        view.getStyleClass().add("file-browser-table");
+        view.setEditable(true);
+        view.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        view.setPlaceholder(new Label(""));
+
+        TableColumn<FileNode, FileNode> iconColumn = column("", 28);
+        iconColumn.setMinWidth(28);
+        iconColumn.setMaxWidth(28);
+        iconColumn.setResizable(false);
+        iconColumn.setCellFactory(col -> new IconCell());
+        nameColumn = column(I18n.get("filebrowser.column.name"), 150);
+        nameColumn.setMinWidth(80);
+        nameColumn.setEditable(true);
+        nameColumn.setCellFactory(col -> new NameCell());
+        TableColumn<FileNode, FileNode> sizeColumn = column(I18n.get("filebrowser.column.size"), 72);
+        sizeColumn.setCellFactory(col -> textCell(LocalFileBrowser::sizeText, col, "888.8 MB"));
+        TableColumn<FileNode, FileNode> modifiedColumn = column(I18n.get("filebrowser.column.modified"), 128);
+        modifiedColumn.setCellFactory(col -> textCell(LocalFileBrowser::modifiedText, col, "2026-12-31 23:59"));
+        view.getColumns().addAll(List.of(iconColumn, nameColumn, sizeColumn, modifiedColumn));
+        sortColumns.put(FileBrowserSort.Key.NAME, nameColumn);
+        sortColumns.put(FileBrowserSort.Key.SIZE, sizeColumn);
+        sortColumns.put(FileBrowserSort.Key.DATE, modifiedColumn);
+        for (TableColumn<FileNode, FileNode> sortable : sortColumns.values()) {
+            sortable.setSortable(true);
+        }
+        // A click on Name, Size or Modified sorts by it (again: the other way round); the rows are
+        // ordered by FileBrowserSort, which keeps hidden entries and folders first, ".." on top.
+        view.setSortPolicy(tableView -> {
+            applyColumnSort();
+            return true;
+        });
+        // The name takes whatever the panel's width leaves; size and date keep their widths.
+        nameColumn.prefWidthProperty().bind(view.widthProperty()
+            .subtract(iconColumn.widthProperty())
+            .subtract(sizeColumn.widthProperty())
+            .subtract(modifiedColumn.widthProperty())
+            .subtract(18));
+        view.setRowFactory(tableView -> new FileRow());
+        nameColumn.setSortType(TableColumn.SortType.ASCENDING);
+        view.getSortOrder().add(nameColumn);
+        return view;
     }
 
-    private final class FileBrowserTreeCell extends TreeCell<FileNode> {
-        private TextField editor;
+    /** Sorts by {@code key} in that direction, as a header click would; the header shows the arrow. */
+    private void setSort(FileBrowserSort.Key key, boolean ascending) {
+        TableColumn<FileNode, FileNode> column = sortColumns.get(key);
+        column.setSortType(ascending ? TableColumn.SortType.ASCENDING : TableColumn.SortType.DESCENDING);
+        if (table.getSortOrder().size() != 1 || table.getSortOrder().get(0) != column) {
+            table.getSortOrder().setAll(List.of(column));
+        }
+        table.sort();
+    }
 
-        FileBrowserTreeCell() {
-            setOnMouseClicked(this::onMouseClicked);
-            setOnContextMenuRequested(this::onContextMenuRequested);
-            setOnDragDetected(this::onDragDetected);
-            setOnDragOver(this::onDragOver);
-            setOnDragExited(event -> {
-                getStyleClass().remove("drop-target");
-                event.consume();
-            });
-            setOnDragDropped(this::onDragDropped);
+    /** Takes the sort from the header (the table's sort policy) and reorders the rows shown. */
+    private void applyColumnSort() {
+        if (table == null || sortingRows) {
+            return;
+        }
+        if (table.getSortOrder().isEmpty()) {
+            // A third click on a header clears its sort: fall back to Name, ascending, with its arrow.
+            Platform.runLater(() -> setSort(FileBrowserSort.Key.NAME, true));
+            return;
+        }
+        TableColumn<FileNode, ?> column = table.getSortOrder().get(0);
+        sortKey = sortColumns.entrySet().stream()
+            .filter(entry -> entry.getValue() == column)
+            .map(java.util.Map.Entry::getKey)
+            .findFirst()
+            .orElse(FileBrowserSort.Key.NAME);
+        sortAscending = column.getSortType() == TableColumn.SortType.ASCENDING;
+        syncSortMenu();
+        sortRows();
+    }
+
+    private void syncSortMenu() {
+        RadioMenuItem keyItem = sortKeyItems.get(sortKey);
+        if (keyItem != null) {
+            keyItem.setSelected(true);
+        }
+        RadioMenuItem directionItem = sortAscending ? sortAscendingItem : sortDescendingItem;
+        if (directionItem != null) {
+            directionItem.setSelected(true);
+        }
+    }
+
+    /** Reorders the listing in place (the selection follows its rows); ".." stays the first row. */
+    private void sortRows() {
+        java.util.Comparator<FileBrowserSort.Entry> order = FileBrowserSort.comparator(sortKey, sortAscending);
+        sortingRows = true;
+        try {
+            FXCollections.sort(rows, (a, b) -> a.parentEntry() != b.parentEntry()
+                ? (a.parentEntry() ? -1 : 1)
+                : order.compare(a, b));
+        } finally {
+            sortingRows = false;
+        }
+    }
+
+    private static TableColumn<FileNode, FileNode> column(String title, double width) {
+        TableColumn<FileNode, FileNode> column = new TableColumn<>(title);
+        column.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue()));
+        column.setPrefWidth(width);
+        column.setEditable(false);
+        // Only Name, Size and Modified are sort controls (see buildTable).
+        column.setSortable(false);
+        column.setReorderable(false);
+        return column;
+    }
+
+    /**
+     * A plain text cell whose column is as wide as {@code widest} in the cell's font: the font
+     * follows the app's UI scale, so a fixed pixel width would cut sizes and dates off at 125 %.
+     */
+    private static TableCell<FileNode, FileNode> textCell(java.util.function.Function<FileNode, String> text,
+                                                          TableColumn<FileNode, FileNode> column, String widest) {
+        TableCell<FileNode, FileNode> cell = new TableCell<>() {
+            @Override
+            protected void updateItem(FileNode item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : text.apply(item));
+                setGraphic(null);
+            }
+        };
+        cell.fontProperty().addListener((obs, was, font) -> fitColumn(column, cell, widest));
+        return cell;
+    }
+
+    private static void fitColumn(TableColumn<FileNode, FileNode> column, TableCell<FileNode, FileNode> cell,
+                                  String widest) {
+        javafx.scene.text.Text probe = new javafx.scene.text.Text(widest);
+        probe.setFont(cell.getFont());
+        double width = Math.ceil(probe.getLayoutBounds().getWidth()
+            + cell.snappedLeftInset() + cell.snappedRightInset() + 4);
+        if (Math.abs(column.getPrefWidth() - width) > 0.5) {
+            column.setPrefWidth(width);
+        }
+    }
+
+    private static String sizeText(FileNode node) {
+        if (node.parentEntry()) {
+            return "";
+        }
+        return node.directory() ? DIRECTORY_SIZE_LABEL : formatSize(node.size());
+    }
+
+    private static String modifiedText(FileNode node) {
+        if (node.parentEntry() || node.lastModified() <= 0) {
+            return "";
+        }
+        return MODIFIED_FORMAT.format(Instant.ofEpochMilli(node.lastModified()).atZone(ZoneId.systemDefault()));
+    }
+
+    private final class IconCell extends TableCell<FileNode, FileNode> {
+        @Override
+        protected void updateItem(FileNode item, boolean empty) {
+            super.updateItem(item, empty);
+            setText(null);
+            setGraphic(empty || item == null ? null : createIcon(item));
+            setAlignment(Pos.CENTER);
+        }
+    }
+
+    /** The name, renamed in place only on an explicit request (context menu / F2). */
+    private final class NameCell extends TableCell<FileNode, FileNode> {
+        private TextField editor;
+        private final Tooltip fullName = new Tooltip();
+        private boolean truncated;
+
+        NameCell() {
+            nameCells.add(this);
+            fullName.setShowDelay(Duration.millis(400));
+        }
+
+        /** Shows the whole name as a tooltip only while the column is too narrow for it. */
+        @Override
+        protected void layoutChildren() {
+            super.layoutChildren();
+            FileNode node = getItem();
+            boolean cut = !isEmpty() && node != null && !node.parentEntry() && !isEditing()
+                && textWidth(node.name(), getFont()) > getWidth() - snappedLeftInset() - snappedRightInset();
+            if (cut != truncated || cut && !node.name().equals(fullName.getText())) {
+                truncated = cut;
+                if (cut) {
+                    fullName.setText(node.name());
+                }
+                setTooltip(cut ? fullName : null);
+                if (!cut && fullName.isShowing()) {
+                    fullName.hide();
+                }
+            }
         }
 
         @Override
         protected void updateItem(FileNode item, boolean empty) {
             super.updateItem(item, empty);
-            if (empty || item == null || item.placeholder()) {
+            if (empty || item == null) {
                 setText(null);
-                setGraphic(null);
-                return;
-            }
-            if (item.loading()) {
-                setText(I18n.get("filebrowser.loading"));
                 setGraphic(null);
                 return;
             }
@@ -669,23 +977,18 @@ public class LocalFileBrowser extends VBox {
                 setGraphic(editor);
                 return;
             }
-            setText(item.name());
-            setGraphic(createIcon(item, getTreeItem()));
+            setText(item.parentEntry() ? ".." : item.name());
+            setGraphic(null);
         }
 
         @Override
         public void startEdit() {
             FileNode node = getItem();
-            if (node == null || node.placeholder() || node.loading()) {
-                return;
-            }
-            if (!renameRequested) {
-                // Only enter rename on an explicit request (context menu / F2), never from a
-                // single- or double-click. The default cell behavior may already have set the
-                // TreeView's editingItem before calling this; clear it so the refused edit does
-                // not linger and block a later explicit rename of the same item.
-                if (getTreeView() != null) {
-                    Platform.runLater(() -> getTreeView().edit(null));
+            if (node == null || node.parentEntry() || !renameRequested) {
+                // The default cell behavior may already have set the table's editing cell before
+                // calling this; clear it so the refused edit does not block a later rename.
+                if (getTableView() != null) {
+                    Platform.runLater(() -> getTableView().edit(-1, null));
                 }
                 return;
             }
@@ -708,54 +1011,45 @@ public class LocalFileBrowser extends VBox {
         public void cancelEdit() {
             super.cancelEdit();
             FileNode node = getItem();
-            setText(node == null ? null : node.name());
-            setGraphic(node == null ? null : createIcon(node, getTreeItem()));
+            setText(node == null ? null : node.parentEntry() ? ".." : node.name());
+            setGraphic(null);
+        }
+    }
+
+    private final class FileRow extends TableRow<FileNode> {
+        FileRow() {
+            setOnMouseClicked(this::onMouseClicked);
+            setOnContextMenuRequested(this::onContextMenuRequested);
+            setOnDragDetected(this::onDragDetected);
+            setOnDragOver(this::onDragOver);
+            setOnDragExited(event -> getStyleClass().remove("drop-target"));
+            setOnDragDropped(this::onDragDropped);
         }
 
         private void onMouseClicked(javafx.scene.input.MouseEvent event) {
             FileNode node = getItem();
-            if (node == null || node.placeholder() || node.loading()) {
-                return;
-            }
-            updateCurrentDirectory(node);
-            if (event.getClickCount() == 2) {
-                if (node.directory()) {
-                    TreeItem<FileNode> item = getTreeItem();
-                    if (item != null) {
-                        ensureLoaded(item);
-                        item.setExpanded(!item.isExpanded());
-                    }
-                } else {
-                    trackFileBrowserAction("open");
-                    openFile(node.file());
-                }
+            if (node != null && event.getButton() == javafx.scene.input.MouseButton.PRIMARY
+                    && event.getClickCount() == 2) {
+                activate(node);
                 // Suppress the editable-cell default (which would start a rename on double-click).
                 event.consume();
             }
         }
 
         private void onContextMenuRequested(javafx.scene.input.ContextMenuEvent event) {
-            if (!isEmpty() && getTreeItem() != null) {
-                MultipleSelectionModel<TreeItem<FileNode>> selectionModel = treeView.getSelectionModel();
-                if (!selectionModel.isSelected(getIndex())) {
-                    selectionModel.clearSelection();
-                    selectionModel.select(getIndex());
-                }
-                updateCurrentDirectory(getItem());
+            if (!isEmpty() && !table.getSelectionModel().isSelected(getIndex())) {
+                table.getSelectionModel().clearAndSelect(getIndex());
             }
         }
 
         private void onDragDetected(javafx.scene.input.MouseEvent event) {
             FileNode node = getItem();
-            if (node == null || node.placeholder() || node.loading()) {
+            if (node == null || node.parentEntry()) {
                 return;
             }
             List<File> files = selectedItems.isEmpty()
                 ? List.of(node.file())
                 : selectedItems.stream().map(FileNode::file).collect(Collectors.toList());
-            if (files.isEmpty()) {
-                return;
-            }
             Dragboard dragboard = startDragAndDrop(TransferMode.COPY);
             ClipboardContent content = new ClipboardContent();
             content.putFiles(files);
@@ -763,10 +1057,11 @@ public class LocalFileBrowser extends VBox {
             event.consume();
         }
 
+        /** A folder row takes a drop into that folder; other rows leave it to the table (the folder shown). */
         private void onDragOver(javafx.scene.input.DragEvent event) {
             FileNode node = getItem();
-            if (event.getGestureSource() != this && event.getDragboard().hasFiles()
-                && node != null && !node.placeholder() && !node.loading()) {
+            if (node != null && node.directory() && event.getDragboard().hasFiles()
+                    && !draggedOntoItself(event, node)) {
                 event.acceptTransferModes(TransferMode.COPY_OR_MOVE);
                 if (!getStyleClass().contains("drop-target")) {
                     getStyleClass().add("drop-target");
@@ -777,24 +1072,87 @@ public class LocalFileBrowser extends VBox {
 
         private void onDragDropped(javafx.scene.input.DragEvent event) {
             FileNode node = getItem();
+            if (node == null || !node.directory()) {
+                return;
+            }
             Dragboard dragboard = event.getDragboard();
             boolean completed = false;
-            if (node != null && dragboard.hasFiles()) {
-                Path target = node.directory() ? node.file().toPath() : node.file().toPath().getParent();
+            if (dragboard.hasFiles()) {
                 boolean move = event.getTransferMode() == TransferMode.MOVE;
-                completed = handleDrop(dragboard.getFiles(), target, move);
+                completed = handleDrop(dragboard.getFiles(), node.file().toPath(), move);
             }
             getStyleClass().remove("drop-target");
             event.setDropCompleted(completed);
             event.consume();
         }
+
+        private static boolean draggedOntoItself(javafx.scene.input.DragEvent event, FileNode node) {
+            return event.getDragboard().getFiles().stream().anyMatch(file -> file.equals(node.file()));
+        }
     }
 
-    private TextField createRenameEditor(TreeCell<FileNode> cell) {
+    private static double textWidth(String text, javafx.scene.text.Font font) {
+        javafx.scene.text.Text probe = new javafx.scene.text.Text(text);
+        probe.setFont(font);
+        return probe.getLayoutBounds().getWidth();
+    }
+
+    /**
+     * Marking one entry whose name the column cuts off (with the arrow keys or a click) shows
+     * its whole name right below the row, as hovering does; the next selection, scrolling,
+     * a new listing or leaving the table hides it again.
+     */
+    private void installSelectedNameTip() {
+        table.getSelectionModel().selectedIndexProperty().addListener((obs, was, now) -> {
+            hideSelectedNameTip();
+            // After the table scrolled the newly selected row into view and laid it out.
+            Platform.runLater(this::showSelectedNameTip);
+        });
+        table.focusedProperty().addListener((obs, was, focused) -> {
+            if (!focused) {
+                hideSelectedNameTip();
+            }
+        });
+        table.addEventFilter(javafx.scene.input.ScrollEvent.ANY, event -> hideSelectedNameTip());
+        rows.addListener((ListChangeListener<FileNode>) change -> hideSelectedNameTip());
+    }
+
+    private void showSelectedNameTip() {
+        hideSelectedNameTip();
+        if (!table.isFocused() || table.getSelectionModel().getSelectedIndices().size() != 1) {
+            return;
+        }
+        int index = table.getSelectionModel().getSelectedIndex();
+        for (NameCell cell : nameCells) {
+            if (cell.getIndex() != index || cell.getTableView() != table || cell.getScene() == null
+                    || !cell.isVisible() || !cell.truncated) {
+                continue;
+            }
+            javafx.geometry.Bounds bounds = cell.localToScreen(cell.getBoundsInLocal());
+            if (bounds != null) {
+                shownNameTip = cell.fullName;
+                cell.fullName.show(cell, bounds.getMinX(), bounds.getMaxY() + 2);
+            }
+            return;
+        }
+    }
+
+    private void hideSelectedNameTip() {
+        Tooltip tip = shownNameTip;
+        shownNameTip = null;
+        if (tip != null && tip.isShowing()) {
+            tip.hide();
+        }
+    }
+
+    private TextField createRenameEditor(NameCell cell) {
         TextField field = new TextField();
         field.getStyleClass().add("file-browser-rename");
         field.setOnAction(event -> {
-            performRename(cell, field.getText());
+            FileNode node = cell.getItem();
+            String name = field.getText();
+            cell.cancelEdit();
+            performRename(node, name);
             event.consume();
         });
         field.setOnKeyPressed(event -> {
@@ -806,10 +1164,9 @@ public class LocalFileBrowser extends VBox {
         return field;
     }
 
-    private Node createIcon(FileNode node, TreeItem<FileNode> item) {
-        boolean expanded = item != null && item.isExpanded();
+    private Node createIcon(FileNode node) {
         FileBrowserIcons.IconKind kind =
-            FileBrowserIcons.kindFor(node.name(), node.directory(), expanded, node.executable());
+            FileBrowserIcons.kindFor(node.name(), node.directory(), false, node.executable());
         return FileBrowserIcons.treeIcon(kind, resolveIconColor(node), node.hidden(), node.symlink(), PANEL_BACKGROUND);
     }
 
@@ -903,31 +1260,21 @@ public class LocalFileBrowser extends VBox {
     }
 
     private void updateSelectedItems() {
-        selectedItems.setAll(treeView.getSelectionModel().getSelectedItems().stream()
-            .map(TreeItem::getValue)
-            .filter(node -> node != null && !node.placeholder() && !node.loading())
+        selectedItems.setAll(table.getSelectionModel().getSelectedItems().stream()
+            .filter(node -> node != null && !node.parentEntry())
             .toList());
-        if (!selectedItems.isEmpty()) {
-            updateCurrentDirectory(selectedItems.get(0));
-        }
         updateCounts();
     }
 
-    private void updateCurrentDirectory(FileNode node) {
-        if (node == null || node.placeholder() || node.loading()) {
+    /** Context menu "Open": a single folder (or "..") is changed into, files are opened. */
+    private void openSelected() {
+        List<FileNode> chosen = List.copyOf(table.getSelectionModel().getSelectedItems());
+        if (chosen.size() == 1 && chosen.get(0).directory()) {
+            activate(chosen.get(0));
             return;
         }
-        currentDirectory = node.directory() ? node.file().toPath() : node.file().toPath().getParent();
-        if (currentDirectory == null) {
-            currentDirectory = currentRoot;
-        }
-    }
-
-    private void openSelected() {
-        for (FileNode node : selectedItems) {
-            if (node.directory()) {
-                currentDirectory = node.file().toPath();
-            } else {
+        for (FileNode node : chosen) {
+            if (node != null && !node.directory()) {
                 openFile(node.file());
             }
         }
@@ -938,7 +1285,7 @@ public class LocalFileBrowser extends VBox {
             return null;
         }
         FileNode node = selectedItems.get(0);
-        return node != null && !node.placeholder() && !node.directory() ? node : null;
+        return node != null && !node.directory() ? node : null;
     }
 
     private void loadSelectedFileAsTextFile() {
@@ -1140,42 +1487,17 @@ public class LocalFileBrowser extends VBox {
         }
     }
 
-    private TreeItem<FileNode> toTreeItem(FileNode node) {
-        TreeItem<FileNode> item = new TreeItem<>(node);
-        if (node.directory() && !node.placeholder() && !node.loading()) {
-            item.getChildren().add(new TreeItem<>(FileNode.placeholderNode()));
-            item.expandedProperty().addListener((observable, wasExpanded, expanded) -> {
-                if (expanded) {
-                    ensureLoaded(item);
-                    treeView.refresh();
-                }
-            });
-        }
-        return item;
-    }
-
-    private void ensureLoaded(TreeItem<FileNode> item) {
-        if (item == null || item.getValue() == null || !item.getValue().directory()) {
+    /**
+     * Lists the folder shown off the FX thread with the loading overlay up; a listing that
+     * arrives after the user moved on is dropped. The selection survives a refresh by path.
+     */
+    private void loadListing() {
+        Path directory = currentRoot;
+        if (directory == null) {
             return;
         }
-        if (item.getChildren().size() == 1 && item.getChildren().get(0).getValue().placeholder()) {
-            loadTreeChildren(item);
-        }
-    }
-
-    private void loadTreeChildren(TreeItem<FileNode> parent) {
-        FileNode parentNode = parent.getValue();
-        if (parentNode == null || !parentNode.directory()) {
-            return;
-        }
-        // Swap the placeholder for a loading sentinel so a re-expansion mid-load cannot start a second load.
-        parent.getChildren().setAll(new TreeItem<>(FileNode.loadingNode()));
-        boolean rootLevel = parent == rootItem;
-        long generation = rootLevel ? ++rootLoadGeneration : 0;
-        if (rootLevel) {
-            showLoading(true);
-        }
-        Path directory = parentNode.file().toPath();
+        long generation = ++listingGeneration;
+        showLoading(true);
         boolean showHidden = showHiddenFiles;
         String filter = currentFilter;
         FileBrowserSort.Key key = sortKey;
@@ -1183,29 +1505,35 @@ public class LocalFileBrowser extends VBox {
         CompletableFuture
             .supplyAsync(() -> listChildren(directory, showHidden, filter, key, ascending))
             .whenComplete((children, error) -> Platform.runLater(
-                () -> applyLoadedChildren(parent, rootLevel, generation, children, error)));
+                () -> applyListing(directory, generation, children, error)));
     }
 
-    private void applyLoadedChildren(TreeItem<FileNode> parent, boolean rootLevel, long generation,
-                                     List<FileNode> children, Throwable error) {
-        if (rootLevel && generation == rootLoadGeneration) {
-            showLoading(false);
-        }
-        if (!hasSingleLoadingChild(parent)) {
+    private void applyListing(Path directory, long generation, List<FileNode> children, Throwable error) {
+        if (generation != listingGeneration || !directory.equals(currentRoot)) {
             return;
+        }
+        showLoading(false);
+        Set<File> selected = selectedItems.stream().map(FileNode::file).collect(Collectors.toSet());
+        List<FileNode> listing = new ArrayList<>();
+        Path parent = directory.getParent();
+        if (parent != null) {
+            listing.add(FileNode.parentNode(parent));
         }
         if (error != null) {
-            parent.getChildren().clear();
             setStatus(I18n.get("filebrowser.error.accessDenied"));
-            return;
+        } else {
+            listing.addAll(children);
+            clearAccessError();
         }
-        List<TreeItem<FileNode>> items = children.stream().map(this::toTreeItem).collect(Collectors.toList());
-        parent.getChildren().setAll(items);
-        clearAccessError();
-        restorePendingExpansion(items);
-        if (rootLevel) {
-            updateCounts();
+        rows.setAll(listing);
+        table.getSelectionModel().clearSelection();
+        for (int index = 0; index < rows.size(); index++) {
+            FileNode node = rows.get(index);
+            if (!node.parentEntry() && selected.contains(node.file())) {
+                table.getSelectionModel().select(index);
+            }
         }
+        updateSelectedItems();
     }
 
     /**
@@ -1239,47 +1567,6 @@ public class LocalFileBrowser extends VBox {
             }));
     }
 
-    private Set<Path> captureExpandedPaths() {
-        Set<Path> expanded = new HashSet<>();
-        if (rootItem != null) {
-            for (TreeItem<FileNode> child : rootItem.getChildren()) {
-                collectExpanded(child, expanded);
-            }
-        }
-        return expanded;
-    }
-
-    private void collectExpanded(TreeItem<FileNode> item, Set<Path> out) {
-        FileNode node = item.getValue();
-        if (node == null || node.placeholder() || node.loading() || !node.directory()) {
-            return;
-        }
-        if (item.isExpanded()) {
-            out.add(node.file().toPath());
-            for (TreeItem<FileNode> child : item.getChildren()) {
-                collectExpanded(child, out);
-            }
-        }
-    }
-
-    private void restorePendingExpansion(List<TreeItem<FileNode>> items) {
-        if (pendingExpansion.isEmpty()) {
-            return;
-        }
-        for (TreeItem<FileNode> child : items) {
-            FileNode node = child.getValue();
-            if (node != null && node.directory() && pendingExpansion.remove(node.file().toPath())) {
-                child.setExpanded(true);
-            }
-        }
-    }
-
-    private static boolean hasSingleLoadingChild(TreeItem<FileNode> parent) {
-        return parent.getChildren().size() == 1
-            && parent.getChildren().get(0).getValue() != null
-            && parent.getChildren().get(0).getValue().loading();
-    }
-
     private static List<FileNode> listChildren(Path directory, boolean showHidden, String filter,
                                                FileBrowserSort.Key key, boolean ascending) {
         try (var stream = Files.list(directory)) {
@@ -1292,16 +1579,6 @@ public class LocalFileBrowser extends VBox {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    /**
-     * Cheap node for the navigable tree root: it is known to be a directory, so this skips the
-     * size/date/symlink stat calls {@link #nodeFor(Path)} makes — those would run on the FX thread
-     * in {@link #setRoot(Path)} and could stall on a slow or network-mounted root. The children are
-     * still stat-ed off-thread by {@link #listChildren}.
-     */
-    private static FileNode rootNode(Path path) {
-        return new FileNode(path.toFile(), true, false, false, false, false, false, 0, 0);
     }
 
     private static FileNode nodeFor(Path path) {
@@ -1319,7 +1596,7 @@ public class LocalFileBrowser extends VBox {
         } catch (IOException | SecurityException ignored) {
             // leave size/lastModified at defaults
         }
-        return new FileNode(path.toFile(), directory, hidden, false, false, symlink, executable, size, lastModified);
+        return new FileNode(path.toFile(), directory, hidden, false, symlink, executable, size, lastModified);
     }
 
     private static boolean isHidden(Path path) {
@@ -1332,14 +1609,13 @@ public class LocalFileBrowser extends VBox {
     }
 
     private void updateCounts() {
-        if (rootItem == null || footerLabel == null) {
+        if (footerLabel == null) {
             return;
         }
         long folders = 0;
         long files = 0;
-        for (TreeItem<FileNode> child : rootItem.getChildren()) {
-            FileNode node = child.getValue();
-            if (node == null || node.placeholder() || node.loading()) {
+        for (FileNode node : rows) {
+            if (node.parentEntry()) {
                 continue;
             }
             if (node.directory()) {
@@ -1400,7 +1676,7 @@ public class LocalFileBrowser extends VBox {
         if (selectedItems.size() == 1 && selectedItems.get(0).directory()) {
             return selectedItems.get(0).file().toPath();
         }
-        return currentDirectory != null ? currentDirectory : currentRoot;
+        return currentRoot;
     }
 
     static void moveDirectory(Path source, Path destination) throws IOException {
@@ -1886,10 +2162,11 @@ public class LocalFileBrowser extends VBox {
     }
 
     private void selectAllFiles() {
-        MultipleSelectionModel<TreeItem<FileNode>> selectionModel = treeView.getSelectionModel();
-        selectionModel.clearSelection();
-        for (int index = 0; index < treeView.getExpandedItemCount(); index++) {
-            selectionModel.select(index);
+        table.getSelectionModel().clearSelection();
+        for (int index = 0; index < rows.size(); index++) {
+            if (!rows.get(index).parentEntry()) {
+                table.getSelectionModel().select(index);
+            }
         }
         updateSelectedItems();
     }
@@ -2078,7 +2355,7 @@ public class LocalFileBrowser extends VBox {
             .filter(name -> !name.isEmpty())
             .ifPresent(name -> {
                 try {
-                    Files.createDirectory(selectedTargetDirectory().resolve(name));
+                    Files.createDirectory(currentRoot.resolve(name));
                     refresh();
                     setStatus(I18n.get("filebrowser.folder.created") + ": " + name);
                 } catch (IOException | SecurityException e) {
@@ -2097,7 +2374,7 @@ public class LocalFileBrowser extends VBox {
             .filter(name -> !name.isEmpty())
             .ifPresent(name -> {
                 try {
-                    Files.createFile(selectedTargetDirectory().resolve(name));
+                    Files.createFile(currentRoot.resolve(name));
                     refresh();
                     setStatus(I18n.get("filebrowser.file.created") + ": " + name);
                 } catch (IOException | SecurityException e) {
@@ -2124,7 +2401,7 @@ public class LocalFileBrowser extends VBox {
         }
     }
 
-    private String formatSize(long size) {
+    private static String formatSize(long size) {
         if (size < 0) {
             return "0 B";
         }
@@ -2152,60 +2429,64 @@ public class LocalFileBrowser extends VBox {
      * terminal theme while still refreshing cells after theme changes.
      */
     public void applyTheme(String bgColor, String fgColor) {
-        if (AppDesignStyleSupport.isCustomAppDesignActive()) {
-            setStyle(null);
-        } else {
-            setStyle("-fx-background-color: " + PANEL_BACKGROUND + ";");
-        }
         AppDesignStyleSupport.applyToParent(this);
+        applyDesignTokens();
         if (toolbar != null) {
             FileBrowserIcons.retintGlyphs(toolbar, iconTint());
         }
-        treeView.refresh();
+        table.refresh();
+    }
+
+    /**
+     * A korTTY design of its own (Gruvbox, Nord, ...) sets the panel's colors through
+     * filebrowser.css's -kortty-fb-* tokens, derived from the design's palette, so the listing
+     * matches the rest of the window; AtlantaFX designs bring their own tokens and the Normal
+     * design keeps the stylesheet's defaults.
+     */
+    private void applyDesignTokens() {
+        de.kortty.model.AppDesign design = AppDesignStyleSupport.activeDesign();
+        if (design == de.kortty.model.AppDesign.NORMAL) {
+            setStyle("-fx-background-color: " + PANEL_BACKGROUND + ";");
+            return;
+        }
+        if (design.isAtlantaFx()) {
+            setStyle(null);
+            return;
+        }
+        setStyle(FileBrowserPalette.tokenStyle(AppDesignStyleSupport.activeBackgroundColor(),
+            AppDesignStyleSupport.activeTextColor(), AppDesignStyleSupport.activeDimColor(),
+            AppDesignStyleSupport.activeAccentColor()));
     }
 
     public void refresh() {
-        if (rootItem == null) {
-            return;
-        }
-        pendingExpansion.clear();
-        pendingExpansion.addAll(captureExpandedPaths());
-        rootItem.getChildren().setAll(new TreeItem<>(FileNode.placeholderNode()));
-        rootItem.setExpanded(true);
-        ensureLoaded(rootItem);
-        treeView.refresh();
+        loadListing();
     }
 
     private static final class FileNode implements FileBrowserSort.Entry {
         private final File file;
         private final boolean directory;
         private final boolean hidden;
-        private final boolean placeholder;
-        private final boolean loading;
+        private final boolean parentEntry;
         private final boolean symlink;
         private final boolean executable;
         private final long size;
         private final long lastModified;
 
-        private FileNode(File file, boolean directory, boolean hidden, boolean placeholder, boolean loading,
+        private FileNode(File file, boolean directory, boolean hidden, boolean parentEntry,
                          boolean symlink, boolean executable, long size, long lastModified) {
             this.file = file;
             this.directory = directory;
             this.hidden = hidden;
-            this.placeholder = placeholder;
-            this.loading = loading;
+            this.parentEntry = parentEntry;
             this.symlink = symlink;
             this.executable = executable;
             this.size = size;
             this.lastModified = lastModified;
         }
 
-        private static FileNode placeholderNode() {
-            return new FileNode(new File(""), true, false, true, false, false, false, 0, 0);
-        }
-
-        private static FileNode loadingNode() {
-            return new FileNode(new File(""), false, false, false, true, false, false, 0, 0);
+        /** The ".." row: the parent of the folder shown. */
+        private static FileNode parentNode(Path parent) {
+            return new FileNode(parent.toFile(), true, false, true, false, false, 0, 0);
         }
 
         private File file() {
@@ -2227,12 +2508,8 @@ public class LocalFileBrowser extends VBox {
             return hidden;
         }
 
-        private boolean placeholder() {
-            return placeholder;
-        }
-
-        private boolean loading() {
-            return loading;
+        private boolean parentEntry() {
+            return parentEntry;
         }
 
         private boolean symlink() {

@@ -79,6 +79,9 @@ final class FileBrowserIcons {
     static final String DOWNLOAD =
         "M11 3 H13 V12.17 L16.59 8.59 L18 10 L12 16 L6 10 L7.41 8.59 L11 12.17 Z M5 18 H19 V20 H5 Z";
     static final String SORT = "M3 5 H21 V7 H3 Z M3 11 H15 V13 H3 Z M3 17 H9 V19 H3 Z";
+    static final String CLOSE =
+        "M19 6.41 L17.59 5 L12 10.59 L6.41 5 L5 6.41 L10.59 12 L5 17.59 L6.41 19 L12 13.41 "
+        + "L17.59 19 L19 17.59 L13.41 12 Z";
 
     private static final Set<String> CODE_EXTENSIONS = Set.of(
         "java", "kt", "kts", "py", "js", "ts", "jsx", "tsx", "mjs", "sh", "bash", "zsh",

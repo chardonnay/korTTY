@@ -355,21 +355,9 @@
 }
 
 .file-browser-panel,
-.file-browser-tree,
-.file-browser-tree .tree-cell,
-.file-browser-tree .scroll-bar,
-.file-browser-tree .scroll-bar .track,
-.file-browser-tree .scroll-bar .increment-button,
-.file-browser-tree .scroll-bar .decrement-button,
 .file-browser-status {
     -fx-background-color: #1a1c20;
     -fx-control-inner-background: #1a1c20;
-    -fx-text-fill: #e2e4e8;
-}
-
-.file-browser-tree .tree-cell:hover,
-.file-browser-tree .tree-cell:selected {
-    -fx-background-color: rgba(255,255,255,0.05);
     -fx-text-fill: #e2e4e8;
 }
 
