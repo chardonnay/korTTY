@@ -74,6 +74,13 @@ public final class LocalProcessInspector {
         "@vibe-kit/grok-cli", CodingAgentKind.GROK,
         "@github/copilot", CodingAgentKind.COPILOT);
 
+    /**
+     * Native executables whose base name another kind's script shares, checked before
+     * {@link CodingAgentKind#forExecutable}: xAI's Grok Build binary is called {@code grok}, and so is the node
+     * script of Superagent's grok-cli ({@code node <prefix>/bin/grok}), which stays {@link CodingAgentKind#GROK}.
+     */
+    private static final Map<String, CodingAgentKind> NATIVE_EXECUTABLES = Map.of("grok", CodingAgentKind.GROK_BUILD);
+
     public LocalProcessInspector() {
     }
 
@@ -149,7 +156,8 @@ public final class LocalProcessInspector {
     /**
      * Classifies a process by its executable and, for script hosts, by the script it runs.
      *
-     * <p>Rules, in order: (1) the executable's base name is a known agent name; (2) the executable is
+     * <p>Rules, in order: (1) the executable's base name is a known agent name (a native {@code grok} is Grok
+     * Build, see {@link #NATIVE_EXECUTABLES}); (2) the executable is
      * a script host ({@link #SCRIPT_HOSTS}, {@code nodejs} or a Python interpreter) and one of its
      * non-flag arguments —
      * taken from {@code arguments}, or from the quote-aware tokens of {@code commandLine} when the
@@ -191,7 +199,8 @@ public final class LocalProcessInspector {
         if (basename.isEmpty()) {
             return Optional.empty();
         }
-        Optional<CodingAgentKind> direct = CodingAgentKind.forExecutable(basename);
+        Optional<CodingAgentKind> direct = Optional.ofNullable(NATIVE_EXECUTABLES.get(basename))
+            .or(() -> CodingAgentKind.forExecutable(basename));
         if (direct.isPresent()) {
             return direct;
         }

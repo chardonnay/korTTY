@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=true
+
+                                                                                             9.3K / 200K │ [Dashboard]
+ ┌                                                                                                                    ┐
+ │                                                                                                                    │
+ │   ❯ Use your bash tool to run exactly: curl -sI https://example.com                                       2:27 PM  │
+ │                                                                                                                    │
+ └                                                                                                                    ┘
+     ◆ Run fetch headers
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ◆ fetch headers… 32s                                                                          40s ⇣9.33k [↓][stop]
+
+  ┃
+  ┃  fetch headers
+  ┃  curl -sI https://example.com
+  ┃  ← → narrow scope  ·  e edit pattern
+  ┃
+  ┃  1 (●) Yes, and don't ask again for anything (always-approve mode)
+  ┃  2 (○) Always allow: curl -sI
+  ┃  3 (○) Yes, proceed
+  ┃  4 (○) No, reject (type to add feedback)
+  ┃  5 (○) Never allow: curl -sI
+  ┃
+
+  Tab/Space:permission  │  Ctrl+e:collapse thinking  │  Ctrl+c:cancel  │  Ctrl+b:send to bg  │  Ctrl+x:shortcuts
+

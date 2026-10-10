@@ -292,13 +292,13 @@ public final class McpToolCatalog {
             false));
         tools.add(new McpTool("agent_list", "List coding agents", "agent.list",
             "Lists the coding agents korTTY detected in its panes (Claude Code, Codex, Gemini CLI,"
-                + " MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI),"
+                + " MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI, Grok Build),"
                 + " most urgent first, with their state." + UNTRUSTED,
             schema(props(
                 "state", choice("Only agents in this state.", "blocked", "working", "done", "idle",
                     "unknown"),
                 "kind", string("Only agents of this kind, for example claude-code, codex,"
-                    + " gemini-cli, minimax-code, qwen-code, opencode, cursor-agent, aider, amp, goose, crush, kiro, continue, grok, jules or copilot."),
+                    + " gemini-cli, minimax-code, qwen-code, opencode, cursor-agent, aider, amp, goose, crush, kiro, continue, grok, jules, copilot or grok-build."),
                 "tab", string("Only the agents of this tab id."),
                 "window", string("Only the agents of this window id.")),
                 List.of()),

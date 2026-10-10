@@ -21,7 +21,7 @@ import java.util.Objects;
  * @param kind the agent kind id ({@code claude-code}, {@code codex}, {@code gemini-cli},
  *     {@code minimax-code}, {@code qwen-code}, {@code opencode},
  *     {@code cursor-agent}, {@code aider}, {@code amp}, {@code goose}, {@code crush}, {@code kiro},
- *     {@code continue}, {@code grok}, {@code jules}, {@code copilot}), or null
+ *     {@code continue}, {@code grok}, {@code jules}, {@code copilot}, {@code grok-build}), or null
  * @param state the wire state ({@code blocked}, {@code working}, {@code done}, {@code idle},
  *     {@code unknown})
  * @param displayName the alias when set, otherwise the kind's display name

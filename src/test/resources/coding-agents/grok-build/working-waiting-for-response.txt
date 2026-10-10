@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=working
+#! alt=true
+
+                                                                                             1.4K / 200K │ [Dashboard]
+
+
+     ❯ Write a short poem of four lines about the sea.                                                       2:31 PM
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ⠙ Waiting for response… 0.1s                                                                    0.1s ⇣1.36k [stop]
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ ❯                                                                                                                │
+  ╰───────────────────────────────────────────────────────────────────────────────────────────── openai/gpt-oss-20b ─╯
+
+  Shift+Tab:mode  │  Ctrl+c:cancel  │  Ctrl+x:shortcuts
+
