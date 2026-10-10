@@ -1756,16 +1756,28 @@
       "note": "config-files labels every entry **Zweck:** (Purpose)."
     },
     {
-      "from": "den Panel",
-      "to": "das Panel",
+      "from": " den Panel ",
+      "to": " das Panel ",
       "scope": "markdown",
-      "note": "Panel is neuter in the guide (das Panel); the small model writes den/der Panel."
+      "note": "Panel is neuter in the guide (das Panel); the small model writes den Panel. Delimited by a space before and a space or punctuation after, so beiden/jeden Panels and the correct plural den Panels stay untouched."
     },
     {
-      "from": "der Panel ",
-      "to": "das Panel ",
+      "from": " den Panel.",
+      "to": " das Panel.",
       "scope": "markdown",
-      "note": "Panel is neuter (das Panel)."
+      "note": "See ' den Panel '."
+    },
+    {
+      "from": " den Panel,",
+      "to": " das Panel,",
+      "scope": "markdown",
+      "note": "See ' den Panel '."
+    },
+    {
+      "from": " der Panel ",
+      "to": " das Panel ",
+      "scope": "markdown",
+      "note": "Panel is neuter (das Panel). The space before keeps 'oder Panel' from becoming 'odas Panel'."
     },
     {
       "from": "Der Panel ",
