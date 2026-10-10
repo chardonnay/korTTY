@@ -1125,6 +1125,12 @@
 <td><a href="../features/session-isolation.html#inkognito-sitzungen">Inkognito-Sitzungen</a>, bei denen korTTY Log, Journal, Aufzeichnung, den Eintrag unter „Zuletzt geschlossen“ und die Wiederherstellung auslässt. <code>deny</code> graut <strong>Inkognito-Sitzung</strong> im Verbindungseditor und <strong>Datei → Neue Inkognito-Sitzung…</strong> aus, und jede Sitzung, auch die einer als inkognito markierten Verbindung, ist eine normale. Ein Session-Journal, das die Richtlinie erzwingt, wird auch für Inkognito-Sitzungen geschrieben. Es gibt keine Einstellung dafür, daher ändert <code>allow</code> nichts</td>
 </tr>
 <tr>
+<td><code>desktop-notifications</code></td>
+<td>string</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td>Jede Desktop-Benachrichtigung, die korTTY anzeigt: <a href="../features/coding-agents.html#app-symbol-badge-und-benachrichtigungen">Coding-Agents</a>, die <a href="../features/terminal-notifications.html">Terminal-Glocke, beendete Befehle, OSC 9 / OSC 777-Anforderungen, KI-Ausführungen, Aktivität und Stille</a>, Hervorhebungsregel-Benachrichtigungen, JobScheduler-Jobs und der <code>notify</code> Aufruf der Steuerungs-API. <code>deny</code> zeigt keine davon an und schaltet die fünf Benachrichtigungsschalter in <em>Einstellungen → Terminal</em> aus und sperrt sie; die Markierungen auf Tabs und das App-Icon-Badge bleiben erhalten, und Webhooks bleiben unter <code>job-webhooks</code>. <code>allow</code> lässt jeden Schalter beim Benutzer und schaltet niemals einen ein</td>
+</tr>
+<tr>
 <td><code>ai-agent-execution</code></td>
 <td>Zeichenfolge</td>
 <td><code>allow</code>, <code>confirm</code>, <code>read-only</code></td>

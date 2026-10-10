@@ -939,7 +939,44 @@ The right end of the status bar shows a compact strip while at least one coding 
 <h2 id="app-icon-badge-and-notifications">App icon badge and notifications<a class="headerlink" href="#app-icon-badge-and-notifications" title="Permanent link">&para;</a></h2>
 <p><img alt="The app icon with the badge for three waiting agents" src="../assets/screenshots/coding-agents/badge-icon.png" />
 The number of agents waiting for a decision — across all windows — is shown as a <strong>badge on the app icon</strong> so you notice it while working in another application. How the badge is drawn depends on the platform: on <strong>macOS</strong> the packaged app sets the Dock badge; on <strong>Windows</strong> korTTY draws the count into its own taskbar and title-bar icon; on <strong>Linux</strong> it emits the launcher-entry signal that KDE Plasma, Ubuntu Dock and Dash to Dock render on the launcher icon — this needs an installed desktop file (the deb, rpm or pacman package) and a reachable session bus, which korTTY talks to directly. Stock GNOME Shell without a dock extension shows no launcher counters at all. Wherever no icon badge is available — an unpacked archive, <code>./gradlew run</code>, an unsupported desktop — korTTY falls back to the <strong>window title</strong>, which becomes <code>(2) KorTTY</code> while two agents wait and returns to <code>KorTTY</code> at zero. When an agent becomes blocked while no korTTY window is focused, the app additionally asks for attention once (the Dock icon bounces, the launcher entry is marked urgent).</p>
-<p>A <strong>desktop notification</strong> is shown when an agent needs a decision or finishes while you are not looking at its pane — that is, while its tab is not the selected tab of the front window, or its pane is not the focused one. The title names the agent (<em>Claude Code needs a decision</em>, <em>Claude Code finished</em>), the body shows the location and working directory followed by the matching screen line. A blocked state has to persist for a moment before it is reported, an agent is reported at most once every ten seconds, the same transition is never reported twice, and nothing is shown for the pane you are looking at. Notifications use the operating system's own service: the Notification Center on <strong>macOS</strong>, the tray balloon on <strong>Windows</strong>, and <code>notify-send</code> on <strong>Linux</strong> (through the host in the Flatpak package). Nothing leaves this computer — the text is the screen line korTTY already read.</p>
+<p>A <strong>desktop notification</strong> is shown when an agent needs a decision or finishes while you are not looking at its pane — that is, while its tab is not the selected tab of the front window, or its pane is not the focused one. The title names the agent (<em>Claude Code needs a decision</em>, <em>Claude Code finished</em>), the body shows the location and working directory followed by the matching screen line. A blocked state has to persist for a moment before it is reported, an agent is reported at most once every ten seconds, the same transition is never reported twice, and nothing is shown for the pane you are looking at. Notifications use the operating system's own service: the Notification Center on <strong>macOS</strong>, the tray balloon on <strong>Windows</strong>, and the desktop's notification server on <strong>Linux</strong> (through <code>notify-send</code> on the host in the Flatpak package). Nothing leaves this computer — the text is the screen line korTTY already read.</p>
+<p><strong>Clicking a notification takes you to the agent:</strong> korTTY brings the window to the front, selects the tab and focuses the agent's pane, as the panel's <strong>Focus</strong> button does. If the pane has closed in the meantime, the click does nothing. Where the click works:</p>
+<table>
+<thead>
+<tr>
+<th>Operating system</th>
+<th>Notification</th>
+<th>Click</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS, installed <code>korTTY.app</code></td>
+<td>Shown as korTTY, with its name and icon in Notification Center</td>
+<td>Jumps to the pane. The first notification asks once for permission; if you choose <strong>Don't Allow</strong>, korTTY shows none until you allow them in <em>System Settings → Notifications → korTTY</em></td>
+</tr>
+<tr>
+<td>macOS, started with <code>./gradlew run</code></td>
+<td>Shown through Script Editor</td>
+<td>Opens Script Editor, not korTTY</td>
+</tr>
+<tr>
+<td>Windows 10 and 11</td>
+<td>Tray balloon, shown as a toast in the notification centre</td>
+<td>Jumps to the pane of the latest notification; double-clicking korTTY's tray icon does the same</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td>Through the notification server of the desktop (GNOME, KDE Plasma and others), grouped under korTTY</td>
+<td>Jumps to the pane when the server supports actions; without a session bus, through <code>notify-send</code> from libnotify 0.7.10 or later</td>
+</tr>
+<tr>
+<td>Linux, Flatpak</td>
+<td>Through <code>notify-send</code> on the host</td>
+<td>Jumps to the pane with libnotify 0.7.10 or later on the host</td>
+</tr>
+</tbody>
+</table>
 <p>Both surfaces are on by default and have their own toggles under <strong>Settings → Terminal → Coding agents</strong> (see <a href="#enabling-detection">Enabling detection</a>). Switching the badge off clears it immediately; switching notifications off stops new ones without touching the badge.</p>
 <h2 id="keyboard-shortcuts">Keyboard shortcuts<a class="headerlink" href="#keyboard-shortcuts" title="Permanent link">&para;</a></h2>
 <table>
@@ -1216,7 +1253,8 @@ The number of agents waiting for a decision — across all windows — is shown 
 <li><strong>Wrong or flickering state.</strong> The agent's screen has changed, or a dialog is rendered in a way the bundled rules do not cover. Copy the bundled rule file to <code>~/.kortty/coding-agents/&lt;agent&gt;.json</code>, adjust the pattern, restart korTTY, and report the screen text so the bundled rules can be fixed.</li>
 <li><strong>No state at all although the agent is running.</strong> Check that the toggle in <strong>Settings → Terminal → Coding agents</strong> is on, that the tab is a Local Shell tab, and look for a <em>coding-agents</em> warning in the log — an invalid override file falls back to the bundled rules, but a bundled rule file that never matches your agent version leaves the agent unconfirmed.</li>
 <li><strong>No badge on GNOME.</strong> Stock GNOME Shell renders no launcher counters, and korTTY cannot detect whether a dock extension that would is installed, so the count is emitted but may stay invisible; the window-title fallback is used only where korTTY knows for certain that no icon badge exists (no installed desktop file, no reachable session bus, <code>./gradlew run</code>).</li>
-<li><strong>No notification although the agent waited.</strong> Notifications are suppressed for the pane you are looking at, for a blocked state that lasted less than a moment, for a second report of the same transition, and within ten seconds of the previous one for that pane; on Linux <code>notify-send</code> must be on the PATH, and the setting under <strong>Settings → Terminal → Coding agents</strong> must be on.</li>
+<li><strong>No notification although the agent waited.</strong> Notifications are suppressed for the pane you are looking at, for a blocked state that lasted less than a moment, for a second report of the same transition, and within ten seconds of the previous one for that pane; on Linux a notification server must be running on the session bus, or <code>notify-send</code> must be on the PATH; on macOS notifications for korTTY must be allowed in <em>System Settings → Notifications</em>; an <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a> can turn desktop notifications off; and the setting under <strong>Settings → Terminal → Coding agents</strong> must be on.</li>
+<li><strong>Clicking a notification does nothing.</strong> The terminal pane of the agent has been closed since the notification was shown, korTTY runs from <code>./gradlew run</code> on macOS (the notification then belongs to Script Editor), or the Linux notification server does not support actions and there is no <code>notify-send</code> from libnotify 0.7.10 or later.</li>
 <li><strong>The prompt was refused.</strong> A waiting agent must be answered first (y, n, Enter or Esc), and a first line that begins with korTTY's own AI shortcut command must be rephrased — see <a href="#the-coding-agents-panel">The Coding Agents panel</a>.</li>
 </ul></p>
     </article>

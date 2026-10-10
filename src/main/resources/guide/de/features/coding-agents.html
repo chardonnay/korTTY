@@ -939,7 +939,44 @@ Das rechte Ende der Statusleiste zeigt einen kompakten Streifen, solange mindest
 <h2 id="app-symbol-badge-und-benachrichtigungen">App-Symbol-Badge und Benachrichtigungen<a class="headerlink" href="#app-symbol-badge-und-benachrichtigungen" title="Permanent link">&para;</a></h2>
 <p><img alt="The app icon with the badge for three waiting agents" src="../../en/assets/screenshots/coding-agents/badge-icon.png" />
 Die Zahl der Agents, die auf eine Entscheidung warten – über alle Fenster hinweg –, wird als <strong>Badge am App-Symbol</strong> angezeigt, damit Sie sie bemerken, während Sie in einer anderen Anwendung arbeiten. Wie das Badge gezeichnet wird, hängt von der Plattform ab: Unter <strong>macOS</strong> setzt die paketierte App das Dock-Badge; unter <strong>Windows</strong> zeichnet korTTY die Zahl in sein eigenes Taskleisten- und Titelleistensymbol; unter <strong>Linux</strong> sendet es das Launcher-Entry-Signal, das KDE Plasma, Ubuntu Dock und Dash to Dock am Launcher-Symbol darstellen – das braucht eine installierte Desktop-Datei (das deb-, rpm- oder pacman-Paket) und einen erreichbaren Sitzungsbus, mit dem korTTY direkt spricht. Eine unveränderte GNOME Shell ohne Dock-Erweiterung zeigt überhaupt keine Launcher-Zähler. Wo kein Symbol-Badge verfügbar ist – ein entpacktes Archiv, <code>./gradlew run</code>, ein nicht unterstützter Desktop –, weicht korTTY auf den <strong>Fenstertitel</strong> aus, der zu <code>(2) KorTTY</code> wird, solange zwei Agents warten, und bei null wieder zu <code>KorTTY</code>. Wird ein Agent blockiert, während kein korTTY-Fenster fokussiert ist, fordert die App zusätzlich einmal Aufmerksamkeit an (das Dock-Symbol hüpft, der Launcher-Eintrag wird als dringend markiert).</p>
-<p>Eine <strong>Desktop-Benachrichtigung</strong> erscheint, wenn ein Agent eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen – also solange seine Registerkarte nicht die ausgewählte Registerkarte des vordersten Fensters ist oder sein Bereich nicht der fokussierte ist. Der Titel nennt den Agent (<em>Claude Code braucht eine Entscheidung</em>, <em>Claude Code ist fertig</em>), der Text zeigt Ort und Arbeitsverzeichnis, gefolgt von der passenden Bildschirmzeile. Ein blockierter Zustand muss einen Moment bestehen bleiben, bevor er gemeldet wird, ein Agent wird höchstens alle zehn Sekunden gemeldet, derselbe Übergang wird nie zweimal gemeldet, und für den Bereich, den Sie gerade ansehen, wird nichts angezeigt. Benachrichtigungen verwenden den eigenen Dienst des Betriebssystems: die Mitteilungszentrale unter <strong>macOS</strong>, die Infobereich-Sprechblase unter <strong>Windows</strong> und <code>notify-send</code> unter <strong>Linux</strong> (im Flatpak-Paket über den Host). Nichts verlässt diesen Rechner – der Text ist die Bildschirmzeile, die korTTY ohnehin gelesen hat.</p>
+<p>Eine <strong>Desktop-Benachrichtigung</strong> wird angezeigt, wenn ein Agent eine Entscheidung benötigt oder abgeschlossen hat, während Sie nicht auf seine Pane schauen – das heißt, während sein Tab nicht der ausgewählte Tab des vorderen Fensters ist oder seine Pane nicht die fokussierte ist. Der Titel benennt den Agenten (<em>Claude Code benötigt eine Entscheidung</em>, <em>Claude Code abgeschlossen</em>), der Text zeigt den Standort und das Arbeitsverzeichnis gefolgt von der passenden Bildschirmzeile. Ein blockierter Zustand muss einen Moment lang bestehen bleiben, bevor er gemeldet wird, ein Agent wird höchstens einmal alle zehn Sekunden gemeldet, derselbe Übergang wird nie zweimal gemeldet, und für die Pane, auf die Sie schauen, wird nichts angezeigt. Benachrichtigungen verwenden den eigenen Dienst des Betriebssystems: das Benachrichtigungszentrum auf <strong>macOS</strong>, den Tray-Ballon auf <strong>Windows</strong> und den Benachrichtigungsserver des Desktops auf <strong>Linux</strong> (über <code>notify-send</code> auf dem Host im Flatpak-Paket). Nichts verlässt diesen Computer – der Text ist die Bildschirmzeile, die korTTY bereits gelesen hat.</p>
+<p><strong>Ein Klick auf eine Benachrichtigung führt Sie zum Agenten:</strong> korTTY bringt das Fenster nach vorn, wählt den Tab aus und fokussiert das Pane des Agenten, wie die <strong>Fokussieren</strong>-Schaltfläche des Panels. Falls das Pane in der Zwischenzeit geschlossen wurde, hat der Klick keine Wirkung. Wo der Klick funktioniert:</p>
+<table>
+<thead>
+<tr>
+<th>Betriebssystem</th>
+<th>Benachrichtigung</th>
+<th>Klick</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>macOS, installiert <code>korTTY.app</code></td>
+<td>Wird als korTTY angezeigt, mit seinem Namen und Icon im Benachrichtigungszentrum</td>
+<td>Springt zum Pane. Die erste Benachrichtigung fragt einmalig nach Erlaubnis; wenn Sie <strong>Nicht zulassen</strong> wählen, zeigt korTTY keine mehr, bis Sie sie in <em>Systemeinstellungen → Benachrichtigungen → korTTY</em> erlauben</td>
+</tr>
+<tr>
+<td>macOS, gestartet mit <code>./gradlew run</code></td>
+<td>Wird über Script Editor angezeigt</td>
+<td>Öffnet Script Editor, nicht korTTY</td>
+</tr>
+<tr>
+<td>Windows 10 und 11</td>
+<td>Tray-Ballon, angezeigt als Toast in der Benachrichtigungszentrale</td>
+<td>Springt zum Pane der neuesten Benachrichtigung; ein Doppelklick auf das Tray-Symbol von korTTY bewirkt dasselbe</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td>Über den Benachrichtigungsserver des Desktops (GNOME, KDE Plasma und andere), gruppiert unter korTTY</td>
+<td>Springt zum Pane, wenn der Server Aktionen unterstützt; ohne Sitzungsbus über <code>notify-send</code> aus libnotify 0.7.10 oder neuer</td>
+</tr>
+<tr>
+<td>Linux, Flatpak</td>
+<td>Über <code>notify-send</code> auf dem Host</td>
+<td>Springt zum Pane mit libnotify 0.7.10 oder neuer auf dem Host</td>
+</tr>
+</tbody>
+</table>
 <p>Beide Oberflächen sind standardmäßig aktiv und verfügen über eigene Schalter unter <strong>Einstellungen → Terminal → Coding-Agents</strong> (siehe <a href="#erkennung-aktivieren">Aktivierung der Erkennung</a>). Die Deaktivierung des Badges erfolgt sofort; die Deaktivierung der Benachrichtigungen beendet neue Benachrichtigungen, ohne das Badge zu berühren.</p>
 <h2 id="tastenkurzel">Tastenkürzel<a class="headerlink" href="#tastenkurzel" title="Permanent link">&para;</a></h2>
 <table>
@@ -1216,7 +1253,8 @@ Die Zahl der Agents, die auf eine Entscheidung warten – über alle Fenster hin
 <li><strong>Falscher oder flackernder Zustand.</strong> Der Bildschirm des Agents hat sich geändert, oder ein Dialog wird auf eine Weise dargestellt, die die mitgelieferten Regeln nicht abdecken. Kopieren Sie die mitgelieferte Regeldatei nach <code>~/.kortty/coding-agents/&lt;agent&gt;.json</code>, passen Sie das Muster an, starten Sie korTTY neu und melden Sie den Bildschirmtext, damit die mitgelieferten Regeln korrigiert werden können.</li>
 <li><strong>Gar kein Zustand, obwohl der Agent läuft.</strong> Prüfen Sie, dass der Schalter unter <strong>Einstellungen → Terminal → Coding-Agents</strong> eingeschaltet ist, dass die Registerkarte eine Lokale-Shell-Registerkarte ist, und suchen Sie im Protokoll nach einer <em>coding-agents</em>-Warnung – eine ungültige Überschreibungsdatei fällt auf die mitgelieferten Regeln zurück, aber eine mitgelieferte Regeldatei, die nie zu Ihrer Agent-Version passt, lässt den Agent unbestätigt.</li>
 <li><strong>Kein Badge unter GNOME.</strong> Eine unveränderte GNOME Shell stellt keine Launcher-Zähler dar, und korTTY kann nicht erkennen, ob eine Dock-Erweiterung installiert ist, die es täte; die Zahl wird also gesendet, kann aber unsichtbar bleiben. Auf den Fenstertitel wird nur dort ausgewichen, wo korTTY sicher weiß, dass kein Symbol-Badge existiert (keine installierte Desktop-Datei, kein erreichbarer Sitzungsbus, <code>./gradlew run</code>).</li>
-<li><strong>Keine Benachrichtigung, obwohl der Agent gewartet hat.</strong> Benachrichtigungen werden unterdrückt für den Bereich, den Sie gerade ansehen, für einen blockierten Zustand, der kürzer als einen Moment bestand, für eine zweite Meldung desselben Übergangs und innerhalb von zehn Sekunden nach der vorherigen für diesen Bereich; unter Linux muss <code>notify-send</code> im PATH liegen, und der Schalter unter <strong>Einstellungen → Terminal → Coding-Agents</strong> muss eingeschaltet sein.</li>
+<li><strong>Keine Benachrichtigung, obwohl der Agent gewartet hat.</strong> Benachrichtigungen werden für das Pane unterdrückt, das Sie gerade ansehen, für einen blockierten Zustand, der weniger als einen Moment gedauert hat, für einen zweiten Bericht desselben Übergangs und innerhalb von zehn Sekunden nach der vorherigen für dieses Pane; auf Linux muss ein Benachrichtigungsserver auf dem Sitzungsbus laufen, oder <code>notify-send</code> muss im PATH sein; auf macOS müssen Benachrichtigungen für korTTY in <em>Systemeinstellungen → Benachrichtigungen</em> erlaubt sein; eine <a href="../reference/enterprise-policy.html#rulefeatures">Unternehmensrichtlinie</a> kann Desktop-Benachrichtigungen deaktivieren; und die Einstellung unter <strong>Einstellungen → Terminal → Coding-Agents</strong> muss aktiviert sein.</li>
+<li><strong>Ein Klick auf eine Benachrichtigung hat keine Wirkung.</strong> Der Terminalbereich des Agents wurde seit dem Anzeigen der Benachrichtigung geschlossen, korTTY wird auf macOS von <code>./gradlew run</code> aus ausgeführt (die Benachrichtigung gehört dann zu Script Editor) oder der Linux-Benachrichtigungsserver unterstützt keine Aktionen und es gibt kein <code>notify-send</code> aus libnotify 0.7.10 oder neuer.</li>
 <li><strong>Der Prompt wurde abgelehnt.</strong> Ein wartender Agent muss zuerst beantwortet werden (y, n, Enter oder Esc), und die erste Zeile, die mit dem KI-Schnellbefehl von korTTY beginnt, muss neu formuliert werden — siehe <a href="#das-coding-agents-panel">Das Panel mit Coding-Agents</a>.</li>
 </ul></p>
     </article>
