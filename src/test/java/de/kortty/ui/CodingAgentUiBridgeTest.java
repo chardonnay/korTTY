@@ -117,6 +117,48 @@ public class CodingAgentUiBridgeTest {
     }
 
     @Test
+    public void aCodingAgentNotificationCarriesAClickActionThatFocusesItsPane() throws Exception {
+        CountDownLatch delivered = new CountDownLatch(1);
+        AtomicReference<Runnable> click = new AtomicReference<>();
+        DesktopNotifierBackend backend = new DesktopNotifierBackend() {
+            @Override
+            public boolean isSupported() {
+                return true;
+            }
+
+            @Override
+            public boolean supportsActivation() {
+                return true;
+            }
+
+            @Override
+            public void notify(String notificationTitle, String notificationBody) {
+                delivered.countDown();
+            }
+
+            @Override
+            public void notify(String notificationTitle, String notificationBody, Runnable onActivate) {
+                click.set(onActivate);
+                delivered.countDown();
+            }
+        };
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        DesktopNotifier notifier = new DesktopNotifier(backend, executor);
+        CodingAgentRegistry registry = CodingAgentRegistry.forTests(FocusOracle.NEVER, () -> 5_000L);
+        CodingAgentUiBridge bridge = new CodingAgentUiBridge(registry, null, null, notifier, List::of,
+            GlobalSettings::new, ENGLISH);
+        try {
+            bridge.notificationSink().notify(entry(CodingAgentState.DONE, null, "done"), CodingAgentState.DONE, false);
+            assertThat(delivered.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(click.get()).isNotNull();
+            // The pane's window is gone by the time of the click: nothing happens, nothing throws.
+            click.get().run();
+        } finally {
+            notifier.close();
+        }
+    }
+
+    @Test
     public void titleBadgeShowsTheCountAndRestoresThePlainNameAtZero() {
         assertThat(CodingAgentUiBridge.titleFor(2, "KorTTY", ENGLISH)).isEqualTo("(2) KorTTY");
         assertThat(CodingAgentUiBridge.titleFor(0, "KorTTY", ENGLISH)).isEqualTo("KorTTY");

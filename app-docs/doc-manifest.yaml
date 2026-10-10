@@ -249,8 +249,8 @@ pages:
     last_synced_ref: "f5cf36c3"
   - path: app-docs/site/docs/en/features/terminal-notifications.md
     owns_i18n: [terminal.notify., terminal.osc52., tab.contextMenu.monitor]
-    owns_code: [src/main/java/de/kortty/shellintegration/TerminalNotificationPolicy.java, src/main/java/de/kortty/shellintegration/PaneActivityMonitor.java, src/main/java/de/kortty/shellintegration/PaneOutputClock.java, src/main/java/de/kortty/ui/TerminalActivityWatcher.java, src/main/java/de/kortty/shellintegration/BellCoalescer.java, src/main/java/de/kortty/shellintegration/RemoteNotificationText.java, src/main/java/de/kortty/shellintegration/RemoteNotificationSlot.java, src/main/java/de/kortty/shellintegration/Osc52Support.java, src/main/java/de/kortty/shellintegration/ClipboardWriteSlot.java, src/main/java/de/kortty/ui/TerminalClipboardWriter.java, src/main/java/de/kortty/ui/TerminalAttentionNotifier.java, src/main/java/de/kortty/ui/PaneSeenOracle.java, src/main/java/de/kortty/ui/KorttyTermWidget.java, src/main/java/de/kortty/ui/TerminalTab.java]
-    last_synced_ref: "f5cf36c3"
+    owns_code: [src/main/java/de/kortty/shellintegration/TerminalNotificationPolicy.java, src/main/java/de/kortty/shellintegration/PaneActivityMonitor.java, src/main/java/de/kortty/shellintegration/PaneOutputClock.java, src/main/java/de/kortty/ui/TerminalActivityWatcher.java, src/main/java/de/kortty/shellintegration/BellCoalescer.java, src/main/java/de/kortty/shellintegration/RemoteNotificationText.java, src/main/java/de/kortty/shellintegration/RemoteNotificationSlot.java, src/main/java/de/kortty/shellintegration/Osc52Support.java, src/main/java/de/kortty/shellintegration/ClipboardWriteSlot.java, src/main/java/de/kortty/ui/TerminalClipboardWriter.java, src/main/java/de/kortty/ui/TerminalAttentionNotifier.java, src/main/java/de/kortty/ui/NotificationActivation.java, src/main/java/de/kortty/ui/PaneSeenOracle.java, src/main/java/de/kortty/ui/KorttyTermWidget.java, src/main/java/de/kortty/ui/TerminalTab.java]
+    last_synced_ref: "3c399762"
   - path: app-docs/site/docs/en/features/highlighting.md
     owns_i18n: [highlight., menu.view.highlighting, connEdit.highlighting]
     owns_code: [src/main/java/de/kortty/core/highlight, src/main/java/de/kortty/model/HighlightRule.java, src/main/java/de/kortty/model/HighlightRuleSet.java, src/main/java/de/kortty/ui/HighlightMenuSupport.java, src/main/java/de/kortty/ui/HighlightSettingsSupport.java, src/main/java/de/kortty/ui/HighlightRulesDialog.java, src/main/java/de/kortty/ui/HighlightRulesEditorModel.java, src/main/java/de/kortty/ui/HighlightColorChoices.java, src/main/java/de/kortty/ui/HighlightConnectionSupport.java, src/main/java/de/kortty/ui/HighlightTriggerDispatcher.java, src/main/java/de/kortty/ui/HighlightSnippetTrigger.java, src/main/java/de/kortty/ui/HighlightSnippetTriggerGuard.java]
@@ -467,7 +467,7 @@ pages:
       - src/main/java/de/kortty/paste/PasteSanitizer.java
     diagrams: [coding-agents.svg]
     screenshots: [coding-agents/dashboard.png, coding-agents/panel.png, coding-agents/status-strip.png, coding-agents/badge-icon.png]
-    last_synced_ref: "0dad374"
+    last_synced_ref: "3c399762"
   - path: app-docs/site/docs/en/features/i18n.md
     owns_i18n: []
     # TranslationService is owned here as well: the provider table on this page states which API
@@ -517,7 +517,7 @@ pages:
     owns_code: [src/main/java/de/kortty/policy, package/policy, src/main/java/de/kortty/ui/SplitConnectionPolicy.java, src/main/java/de/kortty/ui/ConnectionAuthResolver.java, src/main/java/de/kortty/jobscheduler/JobSchedulerJobRunner.java]
     diagrams: []
     screenshots: []
-    last_synced_ref: "248508e58"
+    last_synced_ref: "3c399762"
   - path: app-docs/site/docs/en/reference/hardening-options.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java, src/main/java/de/kortty/ui/HardeningOptionsSelector.java, src/main/java/de/kortty/ui/WorkflowScriptDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetAnalysisPanel.java]

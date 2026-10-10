@@ -113,6 +113,15 @@ public final class PolicyClamp {
             // switched it off before.
             settings.setTerminalTriggersEnabled(true);
         }
+        if (!policy.desktopNotificationsAllowed()) {
+            // Denied: every notification switch is forced off, so Settings shows what korTTY does. An
+            // allow changes nothing here — it leaves each switch with the user.
+            settings.setCodingAgentNotificationsEnabled(false);
+            settings.setTerminalBellNotificationsEnabled(false);
+            settings.setCommandFinishedNotificationsEnabled(false);
+            settings.setRemoteTerminalNotificationsEnabled(false);
+            settings.setAiRunToastsEnabled(false);
+        }
         if (policy.pasteWarningFloor() != null) {
             // A floor, not a fixed value: a user who asks more often than the policy demands keeps it.
             settings.setPasteWarningMode(de.kortty.paste.PasteWarningMode.mostRestrictive(

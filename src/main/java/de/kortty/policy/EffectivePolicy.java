@@ -193,6 +193,7 @@ public final class EffectivePolicy {
                     case MCP_SERVER -> ManagedSetting.MCP_SERVER;
                     case JOB_WEBHOOKS -> ManagedSetting.JOB_WEBHOOKS;
                     case INCOGNITO_SESSIONS -> ManagedSetting.INCOGNITO_SESSIONS;
+                    case DESKTOP_NOTIFICATIONS -> ManagedSetting.DESKTOP_NOTIFICATIONS;
                 });
             }
         }
@@ -447,6 +448,16 @@ public final class EffectivePolicy {
      */
     public boolean incognitoSessionsAllowed() {
         return decision(PolicyFeature.INCOGNITO_SESSIONS) != PolicyDecision.DENY;
+    }
+
+    /**
+     * Whether korTTY may show desktop notifications at all ({@link PolicyFeature#DESKTOP_NOTIFICATIONS}):
+     * allowed unless the policy denies {@code desktop-notifications}. Checked by the desktop notifier on
+     * every notification, whoever asks for it. Only the policy leg: each kind's own switch in Settings
+     * has to be on as well, and {@code allow} never switches one on.
+     */
+    public boolean desktopNotificationsAllowed() {
+        return decision(PolicyFeature.DESKTOP_NOTIFICATIONS) != PolicyDecision.DENY;
     }
 
     /**

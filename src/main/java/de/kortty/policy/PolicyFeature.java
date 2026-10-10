@@ -62,7 +62,15 @@ public enum PolicyFeature {
      * recording, history, recently closed, session restore). Allowed unless denied; denied, the option is
      * locked off and every session is a normal one. A log or journal the policy enforces is written either way.
      */
-    INCOGNITO_SESSIONS("incognito-sessions");
+    INCOGNITO_SESSIONS("incognito-sessions"),
+    /**
+     * Desktop notifications of every kind: coding agents, the terminal bell, finished commands,
+     * OSC 9 / OSC 777 requests, activity and silence, highlight triggers, AI runs, JobScheduler jobs and
+     * the control API's {@code notify}. Allowed unless denied; denied, korTTY shows none of them and
+     * the notification switches in Settings are forced off and locked. {@code allow} leaves every
+     * switch with the user. The tab's attention mark is not a desktop notification and stays.
+     */
+    DESKTOP_NOTIFICATIONS("desktop-notifications");
 
     private final String tomlKey;
 

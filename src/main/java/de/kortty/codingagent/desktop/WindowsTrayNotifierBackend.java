@@ -17,6 +17,19 @@ import javax.imageio.ImageIO;
  * lazily on the AWT event-dispatch thread inside {@link EventQueue#invokeLater} with headless and
  * {@link SystemTray#isSupported()} guards; the JavaFX thread never touches AWT. Removal on
  * {@link #close()} is fire-and-forget (the {@code MacMenuBarIcon.removeAsync} idiom).
+ *
+ * <p>A click on the balloon (on Windows 10 and 11 shown as a toast and kept in the notification
+ * centre) reaches the tray icon's {@link java.awt.event.ActionListener}. Windows does not say which
+ * balloon was clicked, and only the latest one can still be clicked through the icon, so the
+ * backend keeps the click action of the latest notification only and runs it once. A double-click on
+ * the tray icon fires the same event and therefore jumps to that notification too, which is the
+ * pane the user was told about last.
+ *
+ * <p>Real WinRT toasts ({@code ToastNotificationManager}) were weighed and left out: they need an
+ * AppUserModelID registered on a Start-menu shortcut by every installer (MSI; the portable zip has
+ * none), a COM activator for clicks on toasts that outlive the process, and WinRT interop through
+ * JNA, while the balloon already appears as a toast with korTTY's executable name and icon and its
+ * click now reaches the pane.
  */
 final class WindowsTrayNotifierBackend implements DesktopNotifierBackend {
 
@@ -27,6 +40,7 @@ final class WindowsTrayNotifierBackend implements DesktopNotifierBackend {
     // Accessed on the AWT event-dispatch thread only.
     private TrayIcon trayIcon;
     private boolean trayUnavailable;
+    private Runnable latestActivation;
     private volatile boolean supported = true;
 
     WindowsTrayNotifierBackend() {
@@ -39,11 +53,22 @@ final class WindowsTrayNotifierBackend implements DesktopNotifierBackend {
     }
 
     @Override
+    public boolean supportsActivation() {
+        return supported;
+    }
+
+    @Override
     public void notify(String title, String body) {
+        notify(title, body, null);
+    }
+
+    @Override
+    public void notify(String title, String body, Runnable onActivate) {
         EventQueue.invokeLater(() -> {
             try {
                 TrayIcon icon = ensureTrayIcon();
                 if (icon != null) {
+                    latestActivation = onActivate;
                     icon.displayMessage(title, body, TrayIcon.MessageType.INFO);
                 }
             } catch (Throwable t) {
@@ -59,6 +84,7 @@ final class WindowsTrayNotifierBackend implements DesktopNotifierBackend {
                 try {
                     TrayIcon icon = trayIcon;
                     trayIcon = null;
+                    latestActivation = null;
                     if (icon != null) {
                         SystemTray.getSystemTray().remove(icon);
                     }
@@ -90,9 +116,23 @@ final class WindowsTrayNotifierBackend implements DesktopNotifierBackend {
         }
         TrayIcon icon = new TrayIcon(image, NotificationCommands.APP_NAME);
         icon.setImageAutoSize(true);
+        icon.addActionListener(event -> activateLatest());
         SystemTray.getSystemTray().add(icon);
         trayIcon = icon;
         return icon;
+    }
+
+    /** Runs the click action of the latest balloon once; AWT event-dispatch thread. */
+    private void activateLatest() {
+        Runnable activation = latestActivation;
+        latestActivation = null;
+        if (activation != null) {
+            try {
+                activation.run();
+            } catch (Throwable t) {
+                logger.debug("Tray notification click action failed", t);
+            }
+        }
     }
 
     private static Image loadIcon() throws Exception {

@@ -55,8 +55,10 @@ import java.util.function.Supplier;
  * <p>The notification is titled {@code korTTY · <tab>}, as the Control API's notifications are, so
  * a program in a terminal can never make it look like a message from another application. It never
  * carries terminal output, and the one for a finished command never names the command; the text a
- * program asks for is shown below that title, cleaned ({@link RemoteNotificationText}). Everything
- * here runs on the JavaFX thread; the notifier delivers in the background.
+ * program asks for is shown below that title, cleaned ({@link RemoteNotificationText}). A click on
+ * the notification, where the platform reports it, brings the window, the tab and the pane that
+ * asked to the front ({@link NotificationActivation}). Everything here runs on the JavaFX thread; the
+ * notifier delivers in the background.
  *
  * <p>Multi-exec mirrors what is typed in one pane into panes of other tabs and windows, so one
  * command line, or one failed Tab completion, makes every member ask at once. A member's bell and
@@ -168,7 +170,7 @@ public final class TerminalAttentionNotifier {
             tab.markAttention(I18n.get("terminal.notify.bell.tooltip"));
         }
         if (decision.toast()) {
-            show(toastTitle(tab.getEffectiveTitle()), I18n.get("terminal.notify.bell.body"));
+            show(toastTitle(tab.getEffectiveTitle()), I18n.get("terminal.notify.bell.body"), tab, widget);
         }
     }
 
@@ -202,7 +204,7 @@ public final class TerminalAttentionNotifier {
             tab.markAttention(text);
         }
         if (decision.toast()) {
-            show(toastTitle(tab.getEffectiveTitle()), text);
+            show(toastTitle(tab.getEffectiveTitle()), text, tab, widget);
         }
     }
 
@@ -224,7 +226,7 @@ public final class TerminalAttentionNotifier {
             tab.markAttention(remoteTooltip(notification, I18n::get));
         }
         if (decision.toast()) {
-            show(toastTitle(tab.getEffectiveTitle()), notification.text());
+            show(toastTitle(tab.getEffectiveTitle()), notification.text(), tab, widget);
         }
     }
 
@@ -248,7 +250,7 @@ public final class TerminalAttentionNotifier {
             tab.markAttention(I18n.get("terminal.notify.activity.tooltip"));
         }
         if (decision.toast()) {
-            show(toastTitle(tab.getEffectiveTitle()), I18n.get("terminal.notify.activity.body"));
+            show(toastTitle(tab.getEffectiveTitle()), I18n.get("terminal.notify.activity.body"), tab, widget);
         }
     }
 
@@ -275,7 +277,7 @@ public final class TerminalAttentionNotifier {
             tab.markAttention(text);
         }
         if (decision.toast()) {
-            show(toastTitle(tab.getEffectiveTitle()), text);
+            show(toastTitle(tab.getEffectiveTitle()), text, tab, widget);
         }
     }
 
@@ -299,7 +301,7 @@ public final class TerminalAttentionNotifier {
                 tab.markAttention(notice.tooltip());
             }
             if (notice.toast()) {
-                show(notice.title(), notice.body());
+                show(notice.title(), notice.body(), tab, widget);
             }
         }
     }
@@ -357,7 +359,8 @@ public final class TerminalAttentionNotifier {
             markAttention.accept(text);
         }
         if (decision.toast()) {
-            show(toastTitle(tabName), text);
+            Runnable onActivate = slot instanceof Tab clicked ? NotificationActivation.focusTab(clicked) : null;
+            show(toastTitle(tabName), text, onActivate);
         }
         return decision;
     }
@@ -479,10 +482,15 @@ public final class TerminalAttentionNotifier {
         return name.isEmpty() ? APP_NAME : TITLE_PREFIX + name;
     }
 
-    private void show(String title, String body) {
+    /** Shows a notification whose click brings {@code widget}, a pane of {@code tab}, to the front. */
+    private void show(String title, String body, Tab tab, SithTermFxWidget widget) {
+        show(title, body, NotificationActivation.focusPane(tab, widget));
+    }
+
+    private void show(String title, String body, @Nullable Runnable onActivate) {
         DesktopNotifier desktop = notifier.get();
         if (desktop != null) {
-            desktop.notify(title, body);
+            desktop.notify(title, body, onActivate);
         }
     }
 

@@ -960,7 +960,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             ? globalSettings.getTerminalRemoteSidebarPosition() : de.kortty.model.TerminalRemoteSidebarPosition.HIDDEN);
         remoteSidebarPositionCombo.setTooltip(new Tooltip(I18n.get("settings.terminal.remoteSidebar.tooltip")));
 
-        // Notifications: a bell in a tab the user is not looking at.
+        // Notifications: a bell in a tab the user is not looking at. An enterprise policy that denies
+        // desktop notifications locks every notification switch off; an allow leaves them with the user.
+        boolean desktopNotificationsDenied =
+            !de.kortty.policy.PolicyManager.effective().desktopNotificationsAllowed();
         terminalBellNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.bell"));
         terminalBellNotificationsCheck.setSelected(globalSettings != null
             && globalSettings.isTerminalBellNotificationsEnabled());
@@ -982,8 +985,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Without shell integration no command is ever marked finished: show that the two do nothing.
         Runnable syncCommandFinishedControls = () -> {
             boolean marksRead = shellIntegrationCheck.isSelected();
-            commandFinishedNotificationsCheck.setDisable(!marksRead);
-            commandFinishedSecondsSpinner.setDisable(!marksRead);
+            commandFinishedNotificationsCheck.setDisable(!marksRead || desktopNotificationsDenied);
+            commandFinishedSecondsSpinner.setDisable(!marksRead || desktopNotificationsDenied);
         };
         shellIntegrationCheck.selectedProperty().addListener((obs, was, now) -> syncCommandFinishedControls.run());
         syncCommandFinishedControls.run();
@@ -996,6 +999,10 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         aiRunToastsCheck = new CheckBox(I18n.get("settings.terminal.notify.aiRun"));
         aiRunToastsCheck.setSelected(globalSettings == null || globalSettings.isAiRunToastsEnabled());
         aiRunToastsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.aiRun.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIf(terminalBellNotificationsCheck, desktopNotificationsDenied);
+        de.kortty.policy.PolicyUiSupport.lockIf(commandFinishedNotificationsCheck, desktopNotificationsDenied);
+        de.kortty.policy.PolicyUiSupport.lockIf(remoteTerminalNotificationsCheck, desktopNotificationsDenied);
+        de.kortty.policy.PolicyUiSupport.lockIf(aiRunToastsCheck, desktopNotificationsDenied);
         // ... and how long a tab watched for silence (its right-click menu) has to stay silent.
         terminalSilenceSecondsSpinner = new Spinner<>(PaneActivityMonitor.MIN_SILENCE_SECONDS,
             PaneActivityMonitor.MAX_SILENCE_SECONDS,
@@ -1044,6 +1051,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings == null || globalSettings.isCodingAgentNotificationsEnabled());
         codingAgentNotificationsCheck.setTooltip(
             new Tooltip(I18n.get("settings.codingAgent.notificationsEnabled.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIf(codingAgentNotificationsCheck,
+            !de.kortty.policy.PolicyManager.effective().desktopNotificationsAllowed());
         codingAgentAppBadgeCheck = new CheckBox(I18n.get("settings.codingAgent.appBadgeEnabled"));
         codingAgentAppBadgeCheck.setSelected(globalSettings == null || globalSettings.isCodingAgentAppBadgeEnabled());
         codingAgentAppBadgeCheck.setTooltip(new Tooltip(I18n.get("settings.codingAgent.appBadgeEnabled.tooltip")));

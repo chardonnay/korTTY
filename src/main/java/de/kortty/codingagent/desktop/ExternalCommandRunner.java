@@ -4,6 +4,8 @@ import de.kortty.platform.FlatpakSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +15,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /**
  * Runs short-lived external commands ({@code gdbus}, {@code osascript}, {@code notify-send}) with a
@@ -117,6 +121,62 @@ public final class ExternalCommandRunner implements AutoCloseable {
             logger.debug("External command '{}' failed: {}", first(command), e.toString());
             return new Result(-1, String.valueOf(e.getMessage()), false);
         }
+    }
+
+    /**
+     * Starts {@code argv} without waiting for it, for a command that lives as long as something on
+     * screen does ({@code notify-send --action} waits for the click). A daemon thread named
+     * {@code threadName} hands every line of its standard output to {@code onLine} as it arrives and
+     * its exit code to {@code onExit} (or {@code -1} when it could not be read); the process is
+     * destroyed after {@code maxMillis} at the latest. Never throws: a command that cannot be started
+     * reports {@code -1} to {@code onExit} on the calling thread and returns {@code null}.
+     *
+     * @return the started process, so the caller can bound how many run at once, or {@code null}
+     */
+    public static Process watch(List<String> argv, long maxMillis, String threadName, Consumer<String> onLine,
+                                IntConsumer onExit) {
+        List<String> command = List.copyOf(Objects.requireNonNull(argv, "argv"));
+        Objects.requireNonNull(onLine, "onLine");
+        Objects.requireNonNull(onExit, "onExit");
+        Process process;
+        try {
+            process = new ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+            process.getOutputStream().close();
+        } catch (Exception e) {
+            logger.debug("External command '{}' failed to start: {}", first(command), e.toString());
+            onExit.accept(-1);
+            return null;
+        }
+        Process started = process;
+        Thread reader = new Thread(() -> {
+            int exitCode = -1;
+            try (BufferedReader lines = new BufferedReader(
+                    new InputStreamReader(started.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = lines.readLine()) != null) {
+                    onLine.accept(line);
+                }
+                if (started.waitFor(REAP_MILLIS, TimeUnit.MILLISECONDS)) {
+                    exitCode = started.exitValue();
+                }
+            } catch (Exception e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                logger.debug("External command '{}' output could not be read: {}", first(command), e.toString());
+            } finally {
+                started.destroy();
+                onExit.accept(exitCode);
+            }
+        }, threadName);
+        reader.setDaemon(true);
+        reader.start();
+        CompletableFuture.delayedExecutor(maxMillis, TimeUnit.MILLISECONDS).execute(() -> {
+            if (started.isAlive()) {
+                started.destroyForcibly();
+            }
+        });
+        return started;
     }
 
     /**

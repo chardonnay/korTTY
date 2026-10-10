@@ -1531,7 +1531,8 @@ public class KorTTYApplication extends Application {
             java.util.concurrent.atomic.AtomicReference<CodingAgentUiBridge> bridgeRef =
                 new java.util.concurrent.atomic.AtomicReference<>();
             PlatformProbe probe = PlatformProbe.fromSystem();
-            desktopNotifier = DesktopNotifier.createDefault(probe);
+            desktopNotifier = DesktopNotifier.createDefault(probe, Platform::runLater,
+                () -> de.kortty.policy.PolicyManager.effective().desktopNotificationsAllowed());
             appBadgeExecutor = java.util.concurrent.Executors.newSingleThreadExecutor(runnable -> {
                 Thread thread = new Thread(runnable, "kortty-app-badge");
                 thread.setDaemon(true);

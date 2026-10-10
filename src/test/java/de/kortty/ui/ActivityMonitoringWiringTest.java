@@ -134,14 +134,14 @@ class ActivityMonitoringWiringTest {
             .that(onActivity).contains("policy.decide(Kind.ACTIVITY, session != null ? session : widget, state,");
         assertThat(onActivity).contains("tab.markAttention(I18n.get(\"terminal.notify.activity.tooltip\"));");
         assertWithMessage("never the output itself")
-            .that(onActivity).contains("show(toastTitle(tab.getEffectiveTitle()), I18n.get(\"terminal.notify.activity.body\"));");
+            .that(onActivity).contains("show(toastTitle(tab.getEffectiveTitle()), I18n.get(\"terminal.notify.activity.body\"), tab, widget);");
         String onSilence = EmulationGateTest.methodBody(notifier,
             "public void onSilence(TerminalTab tab, SithTermFxWidget widget, Duration silence) {");
         assertThat(onSilence).contains("policy.decide(Kind.SILENCE, session != null ? session : widget, state,");
         assertThat(onSilence).contains(
             "String text = silenceText(TimestampGutter.currentFormats().verboseRuntime(silence), I18n::get);");
         assertThat(onSilence).contains("tab.markAttention(text);");
-        assertThat(onSilence).contains("show(toastTitle(tab.getEffectiveTitle()), text);");
+        assertThat(onSilence).contains("show(toastTitle(tab.getEffectiveTitle()), text, tab, widget);");
     }
 
     @Test
