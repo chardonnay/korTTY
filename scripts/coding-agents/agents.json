@@ -347,6 +347,35 @@
    "env": {
     "HOME": "{home}"
    }
+  },
+  {
+   "kind": "GROK_BUILD",
+   "id": "grok-build",
+   "bin": "~/.grok/bin/grok",
+   "version_cmd": [
+    "~/.grok/bin/grok",
+    "--version"
+   ],
+   "verified_version": "grok 1.0.46 (2765805b9442) [stable]",
+   "mode": "live",
+   "files": {
+    ".grok/config.toml": "[endpoints]\nmodels_base_url = \"{base_url}\"\n\n[model.lan-lmstudio]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\napi_key = \"lm-studio\"\n"
+   },
+   "env": {
+    "HOME": "{home}",
+    "XAI_API_KEY": "lm-studio"
+   },
+   "args": [
+    "-m",
+    "{model}"
+   ],
+   "prompt": "Use your bash tool to run exactly: curl -sI https://example.com",
+   "deny_keys": [
+    "\\x1b[B",
+    "\\x1b[B",
+    "\\x1b[B",
+    "\\r"
+   ]
   }
  ]
 }

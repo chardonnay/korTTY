@@ -1,0 +1,49 @@
+{
+  "kind": "GROK_BUILD",
+  "version": 1,
+  "comment": "Written against xAI's Grok Build 1.0.46 (native binary from x.ai/cli/install.sh; full-screen TUI on the alternate screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio endpoint (GROK_MODELS_BASE_URL, XAI_API_KEY and a [model.*] base_url in a throwaway ~/.grok/config.toml, no xAI login); must be re-verified when Grok Build changes its TUI. Grok redraws the whole screen and removes an answered dialog, so the approval rule may look at the whole screen. A tool permission dialog (options like '1 (●) Yes, and don't ask again for anything (always-approve mode)' … '3 (○) Yes, proceed', '4 (○) No, reject (type to add feedback)', footer '1/5:select  │  Tab:next option  │ …'; with the focus moved off it by Esc the footer reads 'Tab/Space:permission  │ …') is BLOCKED. The spinner line ending in '[stop]' ('⠙ Waiting for response… 0.1s … [stop]', 'Writing command…') and the footer 'Shift+Tab:mode  │  Ctrl+c:cancel' are WORKING; the input box ('│ ❯ ' above '─ <model> ─╯') without them is IDLE. The default option of the dialog is always-approve, so Enter alone approves everything: reject with ↓ ↓ ↓ Enter (option 4). Superagent's grok-cli is a different program with its own rule file (grok.json).",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": {
+        "bottomNonEmptyLines": 0
+      },
+      "anyLineRegex": [
+        "^\\s*┃\\s+\\d+ \\([●○]\\) No, reject\\b",
+        "^\\s*┃\\s+\\d+ \\([●○]\\) Yes, proceed\\b",
+        "^\\s*\\d+/\\d+:select\\s+│\\s+Tab:next option\\b",
+        "^\\s*Tab/Space:permission\\s+│"
+      ]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": {
+        "bottomNonEmptyLines": 8
+      },
+      "anyLineRegex": [
+        "…\\s.*\\[stop\\]\\s*$",
+        "^\\s*Shift\\+Tab:mode\\s+│\\s+Ctrl\\+c:cancel\\b"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": {
+        "bottomNonEmptyLines": 6
+      },
+      "anyLineRegex": [
+        "^\\s*│ ❯ "
+      ],
+      "notContains": [
+        "[stop]",
+        "Ctrl+c:cancel"
+      ]
+    }
+  ]
+}

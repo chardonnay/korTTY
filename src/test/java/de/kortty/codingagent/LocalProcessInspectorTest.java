@@ -322,6 +322,24 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyTellsGrokBuildFromSuperagentsGrokCli() {
+        // xAI's installer links ~/.grok/bin/grok to the downloaded grok-<os>-<arch> binary; macOS reports the link.
+        assertThat(LocalProcessInspector.classify("/Users/dev/.grok/bin/grok", List.of(), null))
+            .hasValue(CodingAgentKind.GROK_BUILD);
+        // Linux reports the resolved binary.
+        assertThat(LocalProcessInspector.classify("/home/dev/.grok/downloads/grok-linux-x86_64", List.of(), null))
+            .hasValue(CodingAgentKind.GROK_BUILD);
+        // Windows: the installer copies the binary to grok.exe.
+        assertThat(LocalProcessInspector.classify("C:\\Users\\dev\\.grok\\bin\\grok.exe", List.of(), null))
+            .hasValue(CodingAgentKind.GROK_BUILD);
+        // Superagent's grok-cli runs as node <prefix>/bin/grok and stays Grok CLI.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of("/opt/homebrew/bin/grok"), null))
+            .hasValue(CodingAgentKind.GROK);
+        // The installer's "agent" alias is not recognised.
+        assertThat(LocalProcessInspector.classify("/Users/dev/.grok/bin/agent", List.of(), null)).isEmpty();
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

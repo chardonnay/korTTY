@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=working
+#! alt=true
+
+                                                                                             1.4K / 200K │ [Dashboard]
+
+
+     ❯ Use your bash tool to run exactly: curl -sI https://example.com                                       2:30 PM
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ⠹ Writing command… 0.1s                                                                         5.9s ⇣1.36k [stop]
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ ❯                                                                                                                │
+  ╰───────────────────────────────────────────────────────────────────────────────────────────── openai/gpt-oss-20b ─╯
+
+  Shift+Tab:mode  │  Ctrl+c:cancel  │  Ctrl+x:shortcuts
+

@@ -28,6 +28,9 @@ class CodingAgentKindTest {
         assertThat(CodingAgentKind.forExecutable("grok")).hasValue(CodingAgentKind.GROK);
         assertThat(CodingAgentKind.forExecutable("jules")).hasValue(CodingAgentKind.JULES);
         assertThat(CodingAgentKind.forExecutable("copilot")).hasValue(CodingAgentKind.COPILOT);
+        // "grok" stays Superagent's grok-cli (a node script); the inspector maps a native grok to Grok Build.
+        assertThat(CodingAgentKind.forExecutable("grok-macos-aarch64")).hasValue(CodingAgentKind.GROK_BUILD);
+        assertThat(CodingAgentKind.forExecutable("grok-linux-x86_64")).hasValue(CodingAgentKind.GROK_BUILD);
         // Kiro's shell wrapper runs ordinary shells and must never count as the agent.
         assertThat(CodingAgentKind.forExecutable("kiro-cli-term")).isEmpty();
     }
@@ -66,6 +69,7 @@ class CodingAgentKindTest {
         assertThat(CodingAgentKind.forId("grok")).hasValue(CodingAgentKind.GROK);
         assertThat(CodingAgentKind.forId("jules")).hasValue(CodingAgentKind.JULES);
         assertThat(CodingAgentKind.forId("copilot")).hasValue(CodingAgentKind.COPILOT);
+        assertThat(CodingAgentKind.forId("grok-build")).hasValue(CodingAgentKind.GROK_BUILD);
         assertThat(CodingAgentKind.forId("unknown")).isEmpty();
         assertThat(CodingAgentKind.forId(null)).isEmpty();
     }

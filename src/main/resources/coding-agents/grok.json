@@ -1,7 +1,7 @@
 {
   "kind": "GROK",
   "version": 1,
-  "comment": "Written against Superagent's grok-cli 1.0.1 (npm @vibe-kit/grok-cli; Ink UI on the normal screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio endpoint (GROK_BASE_URL); must be re-verified when grok-cli changes its UI. The confirmation dialog ('Do you want to proceed with this operation?' with '1. Yes' … '4. No, with feedback' and '↑↓ navigate • Enter select • Esc cancel') is BLOCKED; the spinner line ending in '(<n>s · ↑ <n> tokens · esc to interrupt)' is WORKING; the input box ('│ ❯ Ask me anything...') without a spinner is IDLE. xAI's official Grok Build CLI is a different program and is not covered by these rules; Homebrew's regex tool 'grok' never shows these screens, so it is never reported.",
+  "comment": "Written against Superagent's grok-cli 1.0.1 (npm @vibe-kit/grok-cli; Ink UI on the normal screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio endpoint (GROK_BASE_URL); must be re-verified when grok-cli changes its UI. The confirmation dialog ('Do you want to proceed with this operation?' with '1. Yes' … '4. No, with feedback' and '↑↓ navigate • Enter select • Esc cancel') is BLOCKED; the spinner line ending in '(<n>s · ↑ <n> tokens · esc to interrupt)' is WORKING; the input box ('│ ❯ Ask me anything...') without a spinner is IDLE. xAI's official Grok Build is a different program with its own rule file (grok-build.json; its native 'grok' binary is detected as Grok Build); Homebrew's regex tool 'grok' never shows these screens, so it is never reported.",
   "fallbackState": "IDLE",
   "rules": [
     {

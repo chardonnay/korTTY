@@ -43,7 +43,9 @@ public enum CodingAgentKind {
     CONTINUE("Continue", "continue", Set.of("cn")),
     /**
      * Superagent's open-source grok-cli ({@code @vibe-kit/grok-cli}, a node script). Homebrew's regex tool
-     * is also called {@code grok}; it never matches a Grok CLI screen rule, so it is never reported.
+     * is also called {@code grok}; it never matches a Grok CLI screen rule, so it is never reported. Only its
+     * script path is matched by the name {@code grok}: a native executable of that name is {@link #GROK_BUILD}
+     * (see {@link LocalProcessInspector}).
      */
     GROK("Grok CLI", "grok", Set.of("grok")),
     /**
@@ -56,6 +58,14 @@ public enum CodingAgentKind {
      * loader spawns the same binary from its platform package and is also found by its package path.
      */
     COPILOT("GitHub Copilot CLI", "copilot", Set.of("copilot")),
+    /**
+     * xAI's Grok Build, a native binary. Its installer downloads {@code grok-<os>-<arch>} and links it as
+     * {@code grok} (Windows: copies it to {@code grok.exe}). {@link #forExecutable} resolves the shared name
+     * {@code grok} to {@link #GROK}, whose node script is called that; {@link LocalProcessInspector} maps a native
+     * executable named {@code grok} to this kind. The installer's {@code agent} alias is too generic to list.
+     */
+    GROK_BUILD("Grok Build", "grok-build", Set.of("grok", "grok-macos-aarch64", "grok-macos-x86_64",
+        "grok-linux-aarch64", "grok-linux-x86_64", "grok-windows-aarch64", "grok-windows-x86_64")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

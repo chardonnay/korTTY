@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+
+                                                                                             9.3K / 200K │ [Dashboard]
+
+
+     ❯ Use your bash tool to run exactly: curl -sI https://example.com                                       2:30 PM
+
+
+     ◆ Run Fetching headers from example.com
+
+     Turn cancelled because a permission was denied in 39s.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ ❯                                                                                                                │
+  ╰───────────────────────────────────────────────────────────────────────────────────────────── openai/gpt-oss-20b ─╯
+
+  Shift+Tab:mode  │  Ctrl+x:shortcuts
+

@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+
+                                                                                             9.3K / 200K │ [Dashboard]
+
+
+     ❯ Write a short poem of four lines about the sea.                                                       2:31 PM
+
+
+     The sea sighs in endless blue,                                                                          2:32 PM
+     Its waves a drum of restless song,
+     A silver thread that breaks the view,
+     Where sky and water both belong.
+
+     Worked for 6.9s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ ❯ next question                                                                                                  │
+  ╰───────────────────────────────────────────────────────────────────────────────────────────── openai/gpt-oss-20b ─╯
+
+  Enter:send  │  Opt+Enter:newline  │  Shift+Tab:mode  │  Ctrl+x:shortcuts
+
