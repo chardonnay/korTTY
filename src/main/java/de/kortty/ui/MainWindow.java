@@ -334,6 +334,8 @@ public class MainWindow {
     private final Label statusLabel;
     private VBox statusBar;
     private final HBox mainContentBox;
+    /** Keeps the side panels docked into {@link #mainContentBox} at their set width. */
+    private final DockedPanelWidths dockedPanelWidths;
     private final boolean unifiedTitleBarEnabled;
     // True when the window runs borderless (StageStyle.TRANSPARENT) so the terminal background can be
     // see-through. Decided once at startup from the persisted transparency setting; toggling needs a
@@ -584,6 +586,7 @@ public class MainWindow {
         this.tabPane = new TabPane();
         this.statusLabel = new Label(I18n.get("app.ready"));
         this.mainContentBox = new HBox();
+        this.dockedPanelWidths = new DockedPanelWidths(mainContentBox, tabPane);
         
         setupUI();
         setupMenuBar();
@@ -6150,11 +6153,10 @@ public class MainWindow {
         // Lazy-create the file browser and divider when first shown
         if (position != LocalFileBrowserManager.Position.HIDDEN && localFileBrowser == null) {
             localFileBrowser = new LocalFileBrowser(this);
-            // Its width is the one set below (dragged or restored), never less: the tab pane next
-            // to it prefers the width of its terminal, and an HBox short of room shrinks every
-            // child towards its minimum, which squeezed the browser to its smallest width.
-            localFileBrowser.setMinWidth(Region.USE_PREF_SIZE);
             localFileBrowser.setPrefWidth(FILE_BROWSER_DEFAULT_WIDTH);
+            // Keeps the width set below (dragged or restored) beside a wide terminal and gives way
+            // only when the window is too narrow, like the other docked panels.
+            dockedPanelWidths.register(localFileBrowser, FILE_BROWSER_MIN_WIDTH);
             localFileBrowser.setMaxWidth(FILE_BROWSER_MAX_WIDTH);
             localFileBrowser.setOnHideRequested(() -> toggleFileBrowser(fileBrowserManager.getPosition()));
 
@@ -6311,8 +6313,8 @@ public class MainWindow {
         // Lazily create the side panel + resizable divider on first dock.
         if (placement != AiAgentPanelDockManager.Placement.BOTTOM && aiAgentSidePanel == null) {
             aiAgentSidePanel = new AiAgentSidePanel();
-            aiAgentSidePanel.setMinWidth(AiAgentPanelDockManager.MIN_WIDTH);
             aiAgentSidePanel.setPrefWidth(aiAgentDockManager.getPreferredWidth());
+            dockedPanelWidths.register(aiAgentSidePanel, AiAgentPanelDockManager.MIN_WIDTH);
             aiAgentSidePanel.setMaxWidth(AiAgentPanelDockManager.MAX_WIDTH);
             aiAgentSideDivider = new ResizableDivider(Orientation.VERTICAL);
             aiAgentSideDivider.setResizeListener(delta -> {
@@ -6579,8 +6581,8 @@ public class MainWindow {
         // Lazily create the panel + resizable divider on first dock.
         if (placement != SessionJournalLivePanelDockManager.Placement.HIDDEN && journalLivePanel == null) {
             journalLivePanel = new SessionJournalLivePanel(this, this::openSessionJournalForSession);
-            journalLivePanel.setMinWidth(SessionJournalLivePanelDockManager.MIN_WIDTH);
             journalLivePanel.setPrefWidth(journalLiveDockManager.getPreferredWidth());
+            dockedPanelWidths.register(journalLivePanel, SessionJournalLivePanelDockManager.MIN_WIDTH);
             journalLivePanel.setMaxWidth(SessionJournalLivePanelDockManager.MAX_WIDTH);
             journalLiveDivider = new ResizableDivider(Orientation.VERTICAL);
             journalLiveDivider.setResizeListener(delta -> {
@@ -7049,8 +7051,8 @@ public class MainWindow {
             codingAgentPanel.setOnDockRequest(requested -> codingAgentDockManager.setPlacement(requested));
             codingAgentPanel.setOnNextBlocked(this::focusNextBlockedCodingAgent);
             codingAgentPanel.setWindowActive(isForegroundWindow());
-            codingAgentPanel.setMinWidth(CodingAgentPanelDockManager.MIN_WIDTH);
             codingAgentPanel.setPrefWidth(codingAgentDockManager.getPreferredWidth());
+            dockedPanelWidths.register(codingAgentPanel, CodingAgentPanelDockManager.MIN_WIDTH);
             codingAgentPanel.setMaxWidth(CodingAgentPanelDockManager.MAX_WIDTH);
             codingAgentDivider = new ResizableDivider(Orientation.VERTICAL);
             codingAgentDivider.setResizeListener(delta -> {
