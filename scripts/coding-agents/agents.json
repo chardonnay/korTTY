@@ -1,0 +1,352 @@
+{
+ "comment": "Coding agents checked by scripts/coding-agents/check.py. mode 'live' drives a real session against an OpenAI-compatible endpoint ({base_url}, no vendor account); mode 'smoke' only starts the agent (account-bound agents, or agents without an account here) and records its first screens without sending a prompt. verified_version is the version the bundled rules (src/main/resources/coding-agents/<kind>.json) were last checked against; the routine updates it after a successful re-check. Placeholders: {home} throwaway home dir, {work} empty working dir, {base_url} e.g. http://host:1234/v1, {base_host} the same without /v1, {model} the model id. Keys are Python string escapes.",
+ "agents": [
+  {
+   "kind": "CODEX",
+   "id": "codex",
+   "bin": "codex",
+   "version_cmd": [
+    "codex",
+    "--version"
+   ],
+   "verified_version": "codex-cli 0.162.0",
+   "mode": "live",
+   "files": {
+    "config.toml": "model = \"{model}\"\nmodel_provider = \"lan-lmstudio\"\napproval_policy = \"on-request\"\nsandbox_mode = \"read-only\"\n\n[model_providers.lan-lmstudio]\nname = \"LM Studio (LAN)\"\nbase_url = \"{base_url}\"\nwire_api = \"responses\"\nrequires_openai_auth = false\n\n[analytics]\nenabled = false\n"
+   },
+   "env": {
+    "CODEX_HOME": "{home}"
+   },
+   "args": [],
+   "prompt": "Create a file hello.txt containing hi using a shell command (echo hi > hello.txt).",
+   "deny_keys": [
+    "\\x1b"
+   ],
+   "cleanup_pkill": "codex app-server"
+  },
+  {
+   "kind": "QWEN_CODE",
+   "id": "qwen-code",
+   "bin": "qwen",
+   "version_cmd": [
+    "qwen",
+    "--version"
+   ],
+   "verified_version": "0.25.0",
+   "mode": "live",
+   "files": {
+    ".qwen/settings.json": "{\"ui\":{\"autoModeAcknowledged\":true},\"security\":{\"auth\":{\"selectedType\":\"openai\"}},\"$version\":4}\n"
+   },
+   "env": {
+    "HOME": "{home}"
+   },
+   "args": [
+    "--openai-base-url",
+    "{base_url}",
+    "--openai-api-key",
+    "lm-studio",
+    "-m",
+    "{model}",
+    "--approval-mode",
+    "default"
+   ],
+   "prompt": "Run this shell command now with your shell tool, do not ask me first: curl -sI https://example.com",
+   "deny_keys": [
+    "\\x1b"
+   ]
+  },
+  {
+   "kind": "OPENCODE",
+   "id": "opencode",
+   "bin": "opencode",
+   "version_cmd": [
+    "opencode",
+    "--version"
+   ],
+   "verified_version": "opencode v2.0.25",
+   "mode": "live",
+   "files": {
+    ".config/opencode/opencode.json": "{\"$schema\":\"https://opencode.ai/config.json\",\"autoupdate\":false,\"share\":\"disabled\",\"provider\":{\"lmstudio\":{\"npm\":\"@ai-sdk/openai-compatible\",\"name\":\"LM Studio (LAN)\",\"options\":{\"baseURL\":\"{base_url}\"},\"models\":{\"{model}\":{\"name\":\"{model}\"}}}},\"model\":\"lmstudio/{model}\",\"permission\":{\"edit\":\"ask\",\"bash\":\"ask\",\"webfetch\":\"ask\"}}\n"
+   },
+   "env": {
+    "HOME": "{home}",
+    "XDG_CONFIG_HOME": "{home}/.config",
+    "XDG_DATA_HOME": "{home}/.local/share",
+    "XDG_STATE_HOME": "{home}/.local/state",
+    "XDG_CACHE_HOME": "{home}/.cache"
+   },
+   "args": [
+    "--standalone"
+   ],
+   "cleanup_pkill": "opencode serve",
+   "prompt": "Use your bash tool to run exactly: curl -sI https://example.com",
+   "deny_keys": [
+    "\\x1b[C",
+    "\\x1b[C",
+    "\\r"
+   ]
+  },
+  {
+   "kind": "AIDER",
+   "id": "aider",
+   "bin": "aider",
+   "version_cmd": [
+    "aider",
+    "--version"
+   ],
+   "verified_version": "aider 0.86.2",
+   "mode": "live",
+   "env": {
+    "HOME": "{home}"
+   },
+   "args": [
+    "--openai-api-base",
+    "{base_url}",
+    "--openai-api-key",
+    "lm-studio",
+    "--model",
+    "openai/{model}",
+    "--no-git",
+    "--no-check-update",
+    "--analytics-disable",
+    "--no-show-model-warnings",
+    "--no-auto-commits",
+    "--no-show-release-notes"
+   ],
+   "prompt": "Create a new file hello.txt containing the single word hi.",
+   "deny_keys": [
+    "n",
+    "\\r"
+   ]
+  },
+  {
+   "kind": "GOOSE",
+   "id": "goose",
+   "bin": "goose",
+   "version_cmd": [
+    "goose",
+    "--version"
+   ],
+   "verified_version": "1.53.0",
+   "mode": "live",
+   "env": {
+    "HOME": "{home}",
+    "GOOSE_DISABLE_KEYRING": "1",
+    "GOOSE_PROVIDER": "openai",
+    "OPENAI_HOST": "{base_host}",
+    "OPENAI_BASE_PATH": "v1/chat/completions",
+    "OPENAI_API_KEY": "lm-studio",
+    "GOOSE_MODEL": "{model}",
+    "GOOSE_MODE": "approve",
+    "GOOSE_TELEMETRY_ENABLED": "false"
+   },
+   "args": [
+    "session"
+   ],
+   "prompt": "Use your shell tool to run exactly: curl -sI https://example.com",
+   "deny_keys": [
+    "\\x1b[B",
+    "\\x1b[B",
+    "\\r"
+   ]
+  },
+  {
+   "kind": "CRUSH",
+   "id": "crush",
+   "bin": "crush",
+   "version_cmd": [
+    "crush",
+    "--version"
+   ],
+   "verified_version": "crush version v0.97.1",
+   "mode": "live",
+   "files": {
+    ".config/crush/crush.json": "{\"$schema\":\"https://charm.land/crush.json\",\"providers\":{\"lmstudio\":{\"name\":\"LM Studio (LAN)\",\"type\":\"openai-compat\",\"base_url\":\"{base_url}/\",\"api_key\":\"lm-studio\",\"models\":[{\"id\":\"{model}\",\"name\":\"{model}\",\"context_window\":131072,\"default_max_tokens\":8192}]}},\"models\":{\"large\":{\"model\":\"{model}\",\"provider\":\"lmstudio\"},\"small\":{\"model\":\"{model}\",\"provider\":\"lmstudio\"}},\"options\":{\"disable_metrics\":true,\"disable_provider_auto_update\":true}}\n"
+   },
+   "env": {
+    "HOME": "{home}",
+    "XDG_CONFIG_HOME": "{home}/.config",
+    "XDG_DATA_HOME": "{home}/.local/share",
+    "XDG_STATE_HOME": "{home}/.local/state",
+    "XDG_CACHE_HOME": "{home}/.cache",
+    "CRUSH_DISABLE_METRICS": "1"
+   },
+   "args": [],
+   "prompt": "Use your bash tool to run exactly: curl -sI https://example.com",
+   "deny_keys": [
+    "\\x1b[C",
+    "\\x1b[C",
+    "\\r"
+   ]
+  },
+  {
+   "kind": "CONTINUE",
+   "id": "continue",
+   "bin": "cn",
+   "version_cmd": [
+    "cn",
+    "--version"
+   ],
+   "verified_version": "1.5.47",
+   "mode": "live",
+   "files": {
+    "lmstudio.yaml": "name: LM Studio (LAN)\nversion: 1.0.0\nschema: v1\nmodels:\n  - name: lmstudio\n    provider: openai\n    model: {model}\n    apiBase: {base_url}/\n    apiKey: lm-studio\n    roles:\n      - chat\n      - edit\n      - apply\n"
+   },
+   "env": {
+    "HOME": "{home}",
+    "CONTINUE_GLOBAL_DIR": "{home}/.continue"
+   },
+   "args": [
+    "--config",
+    "{home}/lmstudio.yaml"
+   ],
+   "prompt": "Use your terminal tool to run exactly: curl -sI https://example.com",
+   "deny_keys": [
+    "\\x1b"
+   ]
+  },
+  {
+   "kind": "GROK",
+   "id": "grok",
+   "bin": "/opt/homebrew/bin/grok",
+   "version_cmd": [
+    "/opt/homebrew/bin/grok",
+    "--version"
+   ],
+   "verified_version": "1.0.1",
+   "mode": "live",
+   "env": {
+    "HOME": "{home}",
+    "GROK_BASE_URL": "{base_url}",
+    "GROK_API_KEY": "lm-studio",
+    "GROK_MODEL": "{model}"
+   },
+   "args": [],
+   "prompt": "Use your bash tool to run exactly: curl -sI https://example.com",
+   "deny_keys": [
+    "\\x1b"
+   ]
+  },
+  {
+   "kind": "COPILOT",
+   "id": "copilot",
+   "bin": "copilot",
+   "version_cmd": [
+    "copilot",
+    "--version"
+   ],
+   "verified_version": "GitHub Copilot CLI 1.0.94.",
+   "mode": "live",
+   "env": {
+    "COPILOT_HOME": "{home}",
+    "COPILOT_OFFLINE": "true",
+    "COPILOT_AUTO_UPDATE": "false",
+    "COPILOT_PROVIDER_BASE_URL": "{base_url}",
+    "COPILOT_PROVIDER_TYPE": "openai",
+    "COPILOT_PROVIDER_API_KEY": "lm-studio",
+    "COPILOT_MODEL": "{model}"
+   },
+   "args": [],
+   "startup_blocked_keys": [
+    "\\r"
+   ],
+   "prompt": "Use your shell tool to run exactly: curl -sI https://example.com",
+   "deny_keys": [
+    "\\x1b"
+   ]
+  },
+  {
+   "kind": "CLAUDE_CODE",
+   "id": "claude-code",
+   "bin": "claude",
+   "version_cmd": [
+    "claude",
+    "--version"
+   ],
+   "verified_version": null,
+   "mode": "smoke",
+   "account": true
+  },
+  {
+   "kind": "GEMINI_CLI",
+   "id": "gemini-cli",
+   "bin": "gemini",
+   "version_cmd": [
+    "gemini",
+    "--version"
+   ],
+   "verified_version": null,
+   "mode": "smoke",
+   "account": true
+  },
+  {
+   "kind": "MINIMAX_CODE",
+   "id": "minimax-code",
+   "bin": "mcode",
+   "version_cmd": [
+    "mcode",
+    "--version"
+   ],
+   "verified_version": "0.6.3",
+   "mode": "smoke",
+   "account": true
+  },
+  {
+   "kind": "CURSOR_AGENT",
+   "id": "cursor-agent",
+   "bin": "~/.local/bin/cursor-agent",
+   "version_cmd": [
+    "~/.local/bin/cursor-agent",
+    "--version"
+   ],
+   "verified_version": "2026.10.01-e373342",
+   "mode": "smoke",
+   "account": true
+  },
+  {
+   "kind": "AMP",
+   "id": "amp",
+   "bin": "amp",
+   "version_cmd": [
+    "amp",
+    "--version"
+   ],
+   "verified_version": null,
+   "mode": "smoke",
+   "account": true,
+   "env": {
+    "HOME": "{home}"
+   }
+  },
+  {
+   "kind": "KIRO",
+   "id": "kiro",
+   "bin": "~/.local/bin/kiro-cli",
+   "version_cmd": [
+    "~/.local/bin/kiro-cli",
+    "--version"
+   ],
+   "verified_version": null,
+   "mode": "smoke",
+   "account": true,
+   "args": [
+    "chat"
+   ]
+  },
+  {
+   "kind": "JULES",
+   "id": "jules",
+   "bin": "jules",
+   "version_cmd": [
+    "jules",
+    "version"
+   ],
+   "verified_version": null,
+   "mode": "smoke",
+   "account": true,
+   "env": {
+    "HOME": "{home}"
+   }
+  }
+ ]
+}
