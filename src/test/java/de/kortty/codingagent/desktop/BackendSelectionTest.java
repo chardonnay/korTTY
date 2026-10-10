@@ -163,7 +163,9 @@ class BackendSelectionTest {
             root.resolve("package/flatpak/io.github.chardonnay.korTTY.yml"), StandardCharsets.UTF_8);
 
         // Without it the sandbox's bus proxy drops Notify and ActionInvoked, and no click reaches korTTY.
-        assertThat(manifest).contains("  - --talk-name=org.freedesktop.Notifications\n");
+        // Compared line by line: a Windows checkout ends the lines with CRLF.
+        assertThat(manifest.lines().map(String::strip).toList())
+            .contains("- --talk-name=org.freedesktop.Notifications");
     }
 
     @Test
