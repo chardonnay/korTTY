@@ -6153,11 +6153,10 @@ public class MainWindow {
         // Lazy-create the file browser and divider when first shown
         if (position != LocalFileBrowserManager.Position.HIDDEN && localFileBrowser == null) {
             localFileBrowser = new LocalFileBrowser(this);
-            // Its width is the one set below (dragged or restored), never less: the tab pane next
-            // to it prefers the width of its terminal, and an HBox short of room shrinks every
-            // child towards its minimum, which squeezed the browser to its smallest width.
-            localFileBrowser.setMinWidth(Region.USE_PREF_SIZE);
             localFileBrowser.setPrefWidth(FILE_BROWSER_DEFAULT_WIDTH);
+            // Keeps the width set below (dragged or restored) beside a wide terminal and gives way
+            // only when the window is too narrow, like the other docked panels.
+            dockedPanelWidths.register(localFileBrowser, FILE_BROWSER_MIN_WIDTH);
             localFileBrowser.setMaxWidth(FILE_BROWSER_MAX_WIDTH);
             localFileBrowser.setOnHideRequested(() -> toggleFileBrowser(fileBrowserManager.getPosition()));
 
