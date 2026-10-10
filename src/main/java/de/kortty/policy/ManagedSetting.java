@@ -67,5 +67,10 @@ public enum ManagedSetting {
      */
     MCP_SERVER,
     CONNECTION_ISOLATION,
-    INCOGNITO_SESSIONS
+    INCOGNITO_SESSIONS,
+    /**
+     * Desktop notifications ({@link PolicyFeature#DESKTOP_NOTIFICATIONS}): the notification switches in
+     * Settings are locked off only while the policy denies them; an {@code allow} leaves them with the user.
+     */
+    DESKTOP_NOTIFICATIONS
 }

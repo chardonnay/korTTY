@@ -2054,6 +2054,18 @@
       "to": "Connection-Manager",
       "scope": "markdown",
       "note": "The dialog is called Connection-Manager in German (connectionManager.title), like Snippet-Manager; also covers the genitive Verbindungsmanagers."
+    },
+    {
+      "from": "auf **Fenster**",
+      "to": "auf **Windows**",
+      "scope": "markdown",
+      "note": "LLM translates the bold operating-system name Windows as the noun Fenster in lists of platforms."
+    },
+    {
+      "from": "[KI-Agenten](../features/coding-agents.md",
+      "to": "[Coding-Agents](../features/coding-agents.md",
+      "scope": "markdown",
+      "note": "A link to the coding-agents page names Coding-Agents, as the guide does; KI-Agent is korTTY's own AI Agent."
     }
   ]
 }

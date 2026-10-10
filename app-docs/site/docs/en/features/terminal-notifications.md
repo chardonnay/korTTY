@@ -28,7 +28,7 @@ The mark goes away as soon as you look at the tab: select it, or bring its windo
 
 ### Desktop notification for the bell
 
-With **Desktop notification when the bell rings in a tab you are not looking at** switched on in *Settings → Terminal → Notifications* (see [Terminal settings](../reference/settings/terminal.md#notes)), a bell in a tab you are not looking at also shows a desktop notification through the operating system's notification service: Notification Center on macOS, a tray balloon on Windows and `notify-send` on Linux.
+With **Desktop notification when the bell rings in a tab you are not looking at** switched on in *Settings → Terminal → Notifications* (see [Terminal settings](../reference/settings/terminal.md#notes)), a bell in a tab you are not looking at also shows a desktop notification through the operating system's notification service: Notification Center on macOS, a tray balloon on Windows and the desktop's notification server on Linux. Clicking it brings you to the pane, see [Clicking a notification](#clicking-a-notification).
 
 - The notification's title is `korTTY · ` and the name of the tab, its text says that a program rang the bell. It never contains terminal output. A name the shell set for the tab is cleaned of control and bidi characters first.
 - A pane shows at most one bell notification every 10 seconds; further bells in that time only keep the mark on the tab. Each pane of a split tab counts on its own, but the panes that take part in [multi-exec](terminal.md#multi-exec) count as one, whichever tabs they are in. A bell that rings in a pane within 2 seconds of keys you typed in another pane reaching it through [broadcast mode](terminal.md#broadcast-mode) or multi-exec, such as a failed ++tab++ completion on every server at once, answers those keys: it neither marks the tab nor notifies.
@@ -97,6 +97,13 @@ Both switches belong to the tab and are off until you switch them on. A tab keep
 The same rules as for the bell apply. Nothing happens in the tab you are looking at, and the mark goes away when you look at the tab. A pane shows at most one notification of each kind every 10 seconds, and the panes that take part in [multi-exec](terminal.md#multi-exec) count as one, whichever tabs they are in. The notification never contains terminal output. Activity and silence have no notification setting of their own: switching the watch on is the request for the notification, so switch it off, or turn off korTTY's notifications in the operating system, to stop them.
 
 What counts as output is everything the pane receives from its session: the echo of what you type there, a prompt the shell redraws, and while korTTY's [AI Agent](ai-assistant.md#ai-agent-and-ai-planning) runs in an SSH pane, the prompt the shell prints for the blank line the agent sends now and then to keep the connection alive. Output that arrives within about 3 seconds of keys you typed in another pane reaching the pane through [broadcast mode](terminal.md#broadcast-mode) or multi-exec is the shell's answer to those keys, typically their echo: it is no activity and starts no silence count, so typing into a dozen watched panes at once makes none of them notify. Output after a new quiet spell counts again.
+
+## Clicking a notification
+
+Clicking any of the desktop notifications on this page — the bell, a finished command, a program's request, an AI run, activity or silence — brings the window that holds the tab to the front, selects the tab and focuses the pane the notification came from; an AI Swarm notification selects the swarm's tab. The tab is looked up when you click, so a tab you have moved to another window in the meantime is still found, and a tab that has been closed makes the click do nothing. On macOS this works in the installed `korTTY.app`, whose notifications are korTTY's own; on Windows it works for the latest notification; on Linux it works when the desktop's notification server supports actions, as GNOME and KDE Plasma do. The details per platform are in the table under [Coding agents](coding-agents.md#app-icon-badge-and-notifications).
+
+!!! note "Turned off by your organization"
+    Your organization can switch off every desktop notification of korTTY with `desktop-notifications = "deny"` in the [enterprise policy](../reference/enterprise-policy.md#rulefeatures). The notification switches in *Settings → Terminal* are then locked in the off position. The marks on the tabs stay.
 
 ## Programs copying to the clipboard (OSC 52)
 

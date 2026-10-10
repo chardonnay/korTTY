@@ -152,7 +152,7 @@ class HighlightTriggerWiringTest {
         assertThat(onTrigger).contains("new PaneState(seen.test(tab), false, false, mirroredInputIn(widget));");
         assertThat(onTrigger).contains("triggers.dispatch(session != null ? session : widget, state,");
         assertThat(onTrigger).contains("tab.markAttention(notice.tooltip());");
-        assertThat(onTrigger).contains("show(notice.title(), notice.body());");
+        assertThat(onTrigger).contains("show(notice.title(), notice.body(), tab, widget);");
     }
 
     @Test

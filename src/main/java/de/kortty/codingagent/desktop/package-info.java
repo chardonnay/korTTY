@@ -21,5 +21,14 @@
  * ({@code Taskbar}, {@code SystemTray}) is always posted with {@code EventQueue.invokeLater} — the
  * JavaFX thread never waits for either. Failures degrade to the {@code Unsupported} backend or the
  * window-title fallback and are logged once per session.
+ *
+ * <p>Clicks: a notification can carry a click action ({@link
+ * de.kortty.codingagent.desktop.DesktopNotifier#notify(String, String, Runnable)}), which the
+ * notifier runs once on the JavaFX thread where the backend reports the click — the User
+ * Notifications framework in the macOS app bundle, the tray icon's action event on Windows, the
+ * {@code ActionInvoked} signal of the notification server on Linux (over the listening session-bus
+ * connection of {@link de.kortty.codingagent.desktop.NotificationsDBusConnection} on the
+ * {@code kortty-notification-bus} thread) or a waiting {@code notify-send --action}. The enterprise
+ * policy's {@code desktop-notifications} gate is checked by the notifier on every notification.
  */
 package de.kortty.codingagent.desktop;

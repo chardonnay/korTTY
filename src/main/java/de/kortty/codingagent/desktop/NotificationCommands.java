@@ -3,6 +3,7 @@ package de.kortty.codingagent.desktop;
 import de.kortty.platform.FlatpakSupport;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,6 +21,8 @@ public final class NotificationCommands {
     static final String FALLBACK_LINUX_ICON = "utilities-terminal";
     /** Notification lifetime handed to {@code notify-send}. */
     static final int NOTIFY_SEND_EXPIRE_MILLIS = 8_000;
+    /** The action key {@code notify-send} prints when the notification itself was clicked. */
+    static final String NOTIFY_SEND_DEFAULT_ACTION = "default";
 
     private static final String OSASCRIPT = "/usr/bin/osascript";
     private static final String NOTIFY_SEND = "notify-send";
@@ -85,16 +88,45 @@ public final class NotificationCommands {
      */
     public static List<String> notifySend(String executable, String appName, String icon, String title,
                                           String body, Map<String, String> env) {
-        List<String> argv = List.of(
-            executable == null || executable.isBlank() ? NOTIFY_SEND : executable,
-            "--app-name=" + appName,
-            "--icon=" + icon,
-            "--urgency=normal",
-            "--expire-time=" + NOTIFY_SEND_EXPIRE_MILLIS,
-            "--",
-            title == null ? "" : title,
-            escapeMarkup(body));
+        return notifySend(executable, appName, icon, title, body, env, false);
+    }
+
+    /**
+     * The same argv, with {@code --action=default=Open} when {@code defaultAction}: the action a
+     * notification server runs when the notification itself is clicked. {@code notify-send} then
+     * stays running until the notification is clicked or closed and prints the name of the invoked
+     * action ({@link #NOTIFY_SEND_DEFAULT_ACTION}) on its standard output.
+     */
+    public static List<String> notifySend(String executable, String appName, String icon, String title,
+                                          String body, Map<String, String> env, boolean defaultAction) {
+        List<String> argv = new ArrayList<>(9);
+        argv.add(executable == null || executable.isBlank() ? NOTIFY_SEND : executable);
+        argv.add("--app-name=" + appName);
+        argv.add("--icon=" + icon);
+        argv.add("--urgency=normal");
+        argv.add("--expire-time=" + NOTIFY_SEND_EXPIRE_MILLIS);
+        if (defaultAction) {
+            argv.add("--action=" + NOTIFY_SEND_DEFAULT_ACTION + "=" + NotificationsDBusConnection.DEFAULT_ACTION_LABEL);
+        }
+        argv.add("--");
+        argv.add(title == null ? "" : title);
+        argv.add(escapeMarkup(body));
         return ExternalCommandRunner.hostAware(argv, env);
+    }
+
+    /**
+     * {@code notify-send --help}, host-aware like the notification itself: its output names
+     * {@code --action} only from libnotify 0.7.10 on, which is how korTTY learns whether a click on a
+     * {@code notify-send} notification can reach it.
+     */
+    public static List<String> notifySendHelp(String executable, Map<String, String> env) {
+        return ExternalCommandRunner.hostAware(
+            List.of(executable == null || executable.isBlank() ? NOTIFY_SEND : executable, "--help"), env);
+    }
+
+    /** Whether {@code notify-send --help} output lists the {@code --action} option. */
+    public static boolean notifySendSupportsActions(String helpOutput) {
+        return helpOutput != null && helpOutput.contains("--action");
     }
 
     /**

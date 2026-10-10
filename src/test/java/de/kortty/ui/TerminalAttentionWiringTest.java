@@ -75,7 +75,7 @@ class TerminalAttentionWiringTest {
         assertWithMessage("a bell right after mirrored keys answers them")
             .that(onBell).contains("new PaneState(seen.test(tab), hasCodingAgent(tab, widget), false, mirroredInputIn(widget));");
         assertThat(onBell).contains("tab.markAttention(I18n.get(\"terminal.notify.bell.tooltip\"));");
-        assertThat(onBell).contains("show(toastTitle(tab.getEffectiveTitle()), I18n.get(\"terminal.notify.bell.body\"));");
+        assertThat(onBell).contains("show(toastTitle(tab.getEffectiveTitle()), I18n.get(\"terminal.notify.bell.body\"), tab, widget);");
     }
 
     @Test
@@ -169,7 +169,7 @@ class TerminalAttentionWiringTest {
             .that(onFinished).contains("String text = commandFinishedText(status.exitStatus(),\n"
                 + "            TimestampGutter.currentFormats().verboseRuntime(runtime), I18n::get);");
         assertThat(onFinished).contains("tab.markAttention(text);");
-        assertThat(onFinished).contains("show(toastTitle(tab.getEffectiveTitle()), text);");
+        assertThat(onFinished).contains("show(toastTitle(tab.getEffectiveTitle()), text, tab, widget);");
         assertThat(body(notifier, "private boolean agentRunIn(TerminalTab tab, SithTermFxWidget widget) {"))
             .contains("return view != null && view.terminalAgentRunCount(widget) > 0;");
     }
@@ -234,7 +234,7 @@ class TerminalAttentionWiringTest {
             .that(onRemote).contains("policy.decide(Kind.REMOTE, widget, state, toggles(settings.get()));");
         assertThat(onRemote).contains("tab.markAttention(remoteTooltip(notification, I18n::get));");
         assertWithMessage("korTTY's own title with the tab's name, the program's text below it")
-            .that(onRemote).contains("show(toastTitle(tab.getEffectiveTitle()), notification.text());");
+            .that(onRemote).contains("show(toastTitle(tab.getEffectiveTitle()), notification.text(), tab, widget);");
     }
 
     @Test

@@ -140,7 +140,11 @@ public final class CodingAgentUiBridge implements FocusOracle, PaneLocator, Pane
         }
     }
 
-    /** The sink that turns a coordinator decision into a desktop notification. */
+    /**
+     * The sink that turns a coordinator decision into a desktop notification; a click on it brings
+     * the agent's window, tab and pane to the front ({@link #focus(PaneRef)}, as "next blocked agent"
+     * does), on the JavaFX thread through the notifier's activation dispatcher.
+     */
     public CodingAgentNotificationCoordinator.Sink notificationSink() {
         return (entry, state, anyWindowFocused) -> {
             if (entry == null) {
@@ -148,7 +152,8 @@ public final class CodingAgentUiBridge implements FocusOracle, PaneLocator, Pane
             }
             Notification notification = buildNotification(entry, state, locate(entry.pane()).orElse(null), messages);
             if (notifier != null) {
-                notifier.notify(notification.title(), notification.body());
+                PaneRef pane = entry.pane();
+                notifier.notify(notification.title(), notification.body(), () -> focus(pane));
                 de.kortty.telemetry.CodingAgentUsage.get().notificationShown(entry, state);
             }
         };
@@ -361,14 +366,7 @@ public final class CodingAgentUiBridge implements FocusOracle, PaneLocator, Pane
             }
             Stage stage = window.getStage();
             if (stage != null) {
-                if (!stage.isShowing()) {
-                    stage.show();
-                }
-                if (stage.isIconified()) {
-                    stage.setIconified(false);
-                }
-                stage.toFront();
-                stage.requestFocus();
+                NotificationActivation.raise(stage);
             }
             if (tab.getTabPane() != null) {
                 tab.getTabPane().getSelectionModel().select(tab);

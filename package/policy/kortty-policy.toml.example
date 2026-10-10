@@ -70,6 +70,8 @@
 #                                     # upload/download/sync and rsync. Browsing and remote-only operations
 #                                     # keep working; scp typed into a terminal cannot be blocked.
 #   incognito-sessions = "deny"       # incognito tabs (no log, journal, recording, restore)
+#   desktop-notifications = "deny"    # every desktop notification (agents, bell, commands, jobs);
+#                                     # "allow" leaves the notification switches with the user
 #   # Agent execution mode: "allow" (user settings govern), "confirm" (every mutating
 #   # command set needs interactive approval; auto-approve is defeated), "read-only"
 #   # (the agent may plan and chat but never executes commands).

@@ -100,14 +100,27 @@ class BackendSelectionTest {
     }
 
     @Test
-    void macNotifierNeedsOsascriptButNotAPackagedApp() {
+    void macOutsideTheAppBundleUsesOsascript() {
         assertThat(DesktopNotifierBackends.select(probe("Mac OS X", null, false, false), true, false))
-            .isInstanceOf(MacOsascriptNotifierBackend.class);
-        assertThat(DesktopNotifierBackends.select(
-            probe("Mac OS X", "/Applications/korTTY.app/Contents/MacOS/korTTY", false, true), true, false))
             .isInstanceOf(MacOsascriptNotifierBackend.class);
         assertThat(DesktopNotifierBackends.select(probe("Mac OS X", null, false, false), false, false))
             .isInstanceOf(UnsupportedNotifierBackend.class);
+        // A jpackage launcher that is not inside an .app bundle has no bundle identifier.
+        assertThat(DesktopNotifierBackends.select(probe("Mac OS X", "/opt/kortty/bin/korTTY", false, false), true,
+            false)).isInstanceOf(MacOsascriptNotifierBackend.class);
+    }
+
+    @Test
+    void macInsideTheAppBundleUsesTheUserNotificationsFrameworkWithOsascriptBehindIt() {
+        DesktopNotifierBackend backend = DesktopNotifierBackends.select(
+            probe("Mac OS X", "/Applications/korTTY.app/Contents/MacOS/korTTY", false, true), true, false);
+
+        assertThat(backend).isInstanceOf(MacUserNotificationsBackend.class);
+        assertThat(((MacUserNotificationsBackend) backend).fallback()).isInstanceOf(MacOsascriptNotifierBackend.class);
+        assertThat(DesktopNotifierBackends.isMacAppBundle(
+            probe("Mac OS X", "/Applications/korTTY.app/Contents/MacOS/korTTY", false, false))).isTrue();
+        assertThat(DesktopNotifierBackends.isMacAppBundle(
+            probe("Linux", "/x/korTTY.app/Contents/MacOS/korTTY", false, false))).isFalse();
     }
 
     @Test
@@ -116,6 +129,32 @@ class BackendSelectionTest {
             .isInstanceOf(WindowsTrayNotifierBackend.class);
         assertThat(DesktopNotifierBackends.select(probe("Windows 11", null, false, true), false, false))
             .isInstanceOf(UnsupportedNotifierBackend.class);
+    }
+
+    @Test
+    void linuxWithASessionBusTalksToTheNotificationServerWithNotifySendBehindIt() {
+        DesktopNotifierBackend withNotifySend = DesktopNotifierBackends.select(probe("Linux", null, false, false),
+            false, true, Optional.of("/run/user/1000/bus"), Optional.of("kortty-korTTY.desktop"));
+        assertThat(withNotifySend).isInstanceOf(LinuxDBusNotifierBackend.class);
+        assertThat(((LinuxDBusNotifierBackend) withNotifySend).fallback())
+            .isInstanceOf(LinuxNotifySendNotifierBackend.class);
+
+        DesktopNotifierBackend busOnly = DesktopNotifierBackends.select(probe("Linux", null, false, false),
+            false, false, Optional.of("/run/user/1000/bus"), Optional.empty());
+        assertThat(busOnly).isInstanceOf(LinuxDBusNotifierBackend.class);
+        assertThat(((LinuxDBusNotifierBackend) busOnly).fallback()).isInstanceOf(UnsupportedNotifierBackend.class);
+
+        // Inside Flatpak the sandbox has no notification talk-name: notify-send on the host it stays.
+        assertThat(DesktopNotifierBackends.select(probe("Linux", null, true, false), false, false,
+            Optional.of("/run/user/1000/bus"), Optional.empty())).isInstanceOf(LinuxNotifySendNotifierBackend.class);
+    }
+
+    @Test
+    void theDesktopEntryHintIsTheDesktopIdWithoutItsSuffix() {
+        assertThat(DesktopNotifierBackends.desktopEntry(Optional.of("kortty-korTTY.desktop"))).isEqualTo("kortty-korTTY");
+        assertThat(DesktopNotifierBackends.desktopEntry(Optional.of("kortty"))).isEqualTo("kortty");
+        assertThat(DesktopNotifierBackends.desktopEntry(Optional.empty())).isNull();
+        assertThat(DesktopNotifierBackends.desktopEntry(null)).isNull();
     }
 
     @Test
@@ -136,7 +175,9 @@ class BackendSelectionTest {
                 DesktopNotifierBackends.class, DesktopNotifier.class, UnsupportedNotifierBackend.class,
                 LinuxLauncherEntryBadgeBackend.class, LinuxNotifySendNotifierBackend.class,
                 MacOsascriptNotifierBackend.class, NotificationCommands.class, ExternalCommandRunner.class,
-                LinuxDesktopId.class, LauncherEntryDBusConnection.class, PlatformProbe.class)) {
+                LinuxDesktopId.class, LauncherEntryDBusConnection.class, PlatformProbe.class, DBusWire.class,
+                DBusSessionSocket.class, NotificationsDBusConnection.class, LinuxDBusNotifierBackend.class,
+                MacUserNotificationsBackend.class)) {
             assertThat(constantPool(type)).doesNotContain("java/awt");
         }
         assertThat(constantPool(MacDockBadgeBackend.class)).contains("java/awt/Taskbar");
