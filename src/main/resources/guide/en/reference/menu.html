@@ -806,7 +806,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="menu-reference">Menu reference<a class="headerlink" href="#menu-reference" title="Permanent link">&para;</a></h1>
-<p>Every item in korTTY's menu bar, with its shortcut (where defined) and what it does. The menu bar can be hidden with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-l">L</kbd></span> and shown again by right-clicking the terminal or status bar.</p>
+<p>Every item in korTTY's menu bar, with its shortcut (where defined) and what it does. The in-window menu bar starts hidden in each new window. Right-click either icon-toolbar row and choose <strong>Show/hide menu bar</strong> to toggle it, or press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-l">L</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-l">L</kbd></span> on macOS). You can also restore it by right-clicking the terminal or status bar. Visibility applies to the current window for this session; the macOS system menu bar remains available.</p>
 <h2 id="file">File<a class="headerlink" href="#file" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1190,7 +1190,17 @@
 <tr>
 <td>Show Menu Bar</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-l">L</kbd></span></td>
-<td>Toggle the menu bar</td>
+<td>Toggle the in-window menu bar for this session; hidden by default, also available from either icon-toolbar row’s context menu</td>
+</tr>
+<tr>
+<td>Action toolbar</td>
+<td>—</td>
+<td>Show or hide the action row above the menu bar independently of the connection row; saved across windows and restarts</td>
+</tr>
+<tr>
+<td>Connection toolbar</td>
+<td>—</td>
+<td>Show or hide the saved-server and group row independently of the action row; an empty connection row stays hidden outside customization</td>
 </tr>
 <tr>
 <td>File Browser ▸ Show on Left</td>
