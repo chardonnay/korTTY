@@ -264,6 +264,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     
     // Window settings
     private final CheckBox rememberWindowGeometryCheck;
+    private final Slider toolbarIconSizeSlider;
     private final CheckBox rememberDashboardStateCheck;
     private final CheckBox openToolWindowsAsTabsCheck;
     private final CheckBox connectionColorBorderCheck;
@@ -460,7 +461,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         this.mainTabPane = tabPane;
 
         // Appearance tab
-        Tab appearanceTab = new Tab(I18n.get("settings.tab.appearance"));
+        Tab appearanceTab = sectionTab(SettingsSection.APPEARANCE);
         appDesignCombo = new ComboBox<>();
         appDesignCombo.getItems().setAll(AppDesign.values());
         appDesignCombo.setValue(globalSettings != null ? globalSettings.getAppDesign() : AppDesign.NORMAL);
@@ -644,7 +645,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(appearanceTab, () -> appearanceScroll);
         
         // Font tab
-        Tab fontTab = new Tab(I18n.get("settings.tab.font"));
+        Tab fontTab = sectionTab(SettingsSection.FONT);
         GridPane fontGrid = new GridPane();
         fontGrid.setHgap(10);
         fontGrid.setVgap(10);
@@ -679,7 +680,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(fontTab, () -> fontGrid);
         
         // Colors tab
-        Tab colorsTab = new Tab(I18n.get("settings.tab.colors"));
+        Tab colorsTab = sectionTab(SettingsSection.COLORS);
         GridPane colorsGrid = new GridPane();
         colorsGrid.setHgap(10);
         colorsGrid.setVgap(10);
@@ -785,7 +786,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(colorsTab, () -> colorsGrid);
         
         // Terminal tab
-        terminalTab = new Tab(I18n.get("settings.tab.terminal"));
+        terminalTab = sectionTab(SettingsSection.TERMINAL);
         GridPane terminalGrid = new GridPane();
         terminalGrid.setHgap(10);
         terminalGrid.setVgap(10);
@@ -1324,7 +1325,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(terminalTab, () -> terminalGrid);
 
         // Video tab
-        Tab videoTab = new Tab(I18n.get("settings.tab.video"));
+        Tab videoTab = sectionTab(SettingsSection.VIDEO);
         GridPane videoGrid = new GridPane();
         videoGrid.setHgap(10);
         videoGrid.setVgap(10);
@@ -1347,7 +1348,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(videoTab, () -> videoGrid);
         
         // Backup tab
-        Tab backupTab = new Tab(I18n.get("settings.tab.backup"));
+        Tab backupTab = sectionTab(SettingsSection.BACKUP);
         GridPane backupGrid = new GridPane();
         backupGrid.setHgap(10);
         backupGrid.setVgap(10);
@@ -1495,7 +1496,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(backupTab, () -> backupGrid);
 
         // Logging tab
-        Tab loggingTab = new Tab(I18n.get("settings.tab.logging"));
+        Tab loggingTab = sectionTab(SettingsSection.LOGGING);
         GridPane loggingGrid = new GridPane();
         loggingGrid.setHgap(10);
         loggingGrid.setVgap(10);
@@ -1696,7 +1697,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(loggingTab, () -> loggingGrid);
 
         // Export tab: watermark and footer for exported documents (journals and AI chats)
-        Tab exportTab = new Tab(I18n.get("settings.tab.export"));
+        Tab exportTab = sectionTab(SettingsSection.EXPORT);
         GridPane exportGrid = new GridPane();
         exportGrid.setHgap(10);
         exportGrid.setVgap(10);
@@ -1763,7 +1764,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(exportTab, () -> exportGrid);
 
         // Updates tab
-        Tab updatesTab = new Tab(I18n.get("settings.tab.updates"));
+        Tab updatesTab = sectionTab(SettingsSection.UPDATES);
         GridPane updatesGrid = new GridPane();
         updatesGrid.setHgap(10);
         updatesGrid.setVgap(10);
@@ -1816,7 +1817,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(updatesTab, () -> updatesGrid);
         
         // Window tab
-        Tab windowTab = new Tab(I18n.get("settings.tab.window"));
+        Tab windowTab = sectionTab(SettingsSection.WINDOW);
         GridPane windowGrid = new GridPane();
         windowGrid.setHgap(10);
         windowGrid.setVgap(10);
@@ -1827,6 +1828,33 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label windowHeader = new Label(I18n.get("settings.window.header"));
         windowHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
         windowGrid.add(windowHeader, 0, windowRow++, 2, 1);
+
+        toolbarIconSizeSlider = new Slider(GlobalSettings.MIN_TOOLBAR_ICON_SIZE,
+            GlobalSettings.MAX_TOOLBAR_ICON_SIZE,
+            globalSettings != null ? globalSettings.getToolbarIconSize() : GlobalSettings.DEFAULT_TOOLBAR_ICON_SIZE);
+        toolbarIconSizeSlider.setMajorTickUnit(8);
+        toolbarIconSizeSlider.setMinorTickCount(7);
+        toolbarIconSizeSlider.setSnapToTicks(true);
+        toolbarIconSizeSlider.setShowTickLabels(true);
+        toolbarIconSizeSlider.setShowTickMarks(true);
+        toolbarIconSizeSlider.setBlockIncrement(1);
+        toolbarIconSizeSlider.setPrefWidth(260);
+        toolbarIconSizeSlider.setTooltip(new Tooltip(I18n.get("settings.window.toolbarIconSize.tooltip")));
+        Label iconSizeLabel = new Label(I18n.get("settings.window.toolbarIconSize"));
+        iconSizeLabel.setLabelFor(toolbarIconSizeSlider);
+        Label iconSizeValue = new Label();
+        iconSizeValue.textProperty().bind(javafx.beans.binding.Bindings.format("%.0f px", toolbarIconSizeSlider.valueProperty()));
+        iconSizeValue.setMinWidth(48);
+        var iconPreview = ToolbarIcons.create("gear", iconSizeLabel.textFillProperty(), toolbarIconSizeSlider.valueProperty());
+        iconPreview.getStyleClass().add("toolbar-icon-size-preview");
+        StackPane previewFrame = new StackPane(iconPreview);
+        previewFrame.setMinSize(80, 80);
+        previewFrame.setPrefSize(80, 80);
+        previewFrame.setMaxSize(80, 80);
+        HBox iconSizeControls = new HBox(16, toolbarIconSizeSlider, iconSizeValue, previewFrame);
+        iconSizeControls.setAlignment(Pos.CENTER_LEFT);
+        windowGrid.add(iconSizeLabel, 0, windowRow);
+        windowGrid.add(iconSizeControls, 1, windowRow++);
         
         rememberWindowGeometryCheck = new CheckBox(I18n.get("settings.window.rememberGeometry"));
         rememberWindowGeometryCheck.setSelected(globalSettings != null ? globalSettings.isRememberWindowGeometry() : true);
@@ -2023,7 +2051,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(windowTab, () -> windowGrid);
         
         // Security tab
-        Tab securityTab = new Tab(I18n.get("settings.tab.security"));
+        Tab securityTab = sectionTab(SettingsSection.SECURITY);
         GridPane securityGrid = new GridPane();
         securityGrid.setHgap(10);
         securityGrid.setVgap(10);
@@ -2129,7 +2157,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(securityTab, () -> securityGrid);
 
         // Privacy tab (anonymous usage statistics: opt-in, EU servers, GDPR)
-        Tab privacyTab = new Tab(I18n.get("settings.tab.privacy"));
+        Tab privacyTab = sectionTab(SettingsSection.PRIVACY);
         GridPane privacyGrid = new GridPane();
         privacyGrid.setHgap(10);
         privacyGrid.setVgap(10);
@@ -2193,7 +2221,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(privacyTab, () -> privacyGrid);
 
         // Language tab
-        Tab languageTab = new Tab(I18n.get("settings.tab.language"));
+        Tab languageTab = sectionTab(SettingsSection.LANGUAGE);
         GridPane languageGrid = new GridPane();
         languageGrid.setHgap(10);
         languageGrid.setVgap(10);
@@ -2258,7 +2286,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(languageTab, () -> languageGrid);
         
         // Translation tab (dynamic i18n)
-        Tab translationTab = new Tab(I18n.get("settings.tab.translation"));
+        Tab translationTab = sectionTab(SettingsSection.TRANSLATION);
         GridPane translationGrid = new GridPane();
         translationGrid.setHgap(10);
         translationGrid.setVgap(10);
@@ -2469,7 +2497,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(translationTab, () -> translationGrid);
 
         // AI tab
-        Tab aiTab = new Tab(I18n.get("settings.tab.ai"));
+        Tab aiTab = sectionTab(SettingsSection.AI);
         VBox aiRoot = new VBox(12);
         aiRoot.setPadding(new Insets(20));
         if (de.kortty.policy.PolicyUiSupport.anyManaged(
@@ -3272,7 +3300,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
         
         // SFTP tab
-        Tab sftpTab = new Tab(I18n.get("settings.tab.sftp"));
+        Tab sftpTab = sectionTab(SettingsSection.SFTP);
         GridPane sftpGrid = new GridPane();
         sftpGrid.setHgap(10);
         sftpGrid.setVgap(10);
@@ -3477,7 +3505,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(sftpTab, () -> sftpGrid);
         
         // Editor tab
-        Tab editorTab = new Tab(I18n.get("settings.tab.editor"));
+        Tab editorTab = sectionTab(SettingsSection.EDITOR);
         GridPane editorGrid = new GridPane();
         editorGrid.setHgap(10);
         editorGrid.setVgap(10);
@@ -3527,7 +3555,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         LazyTabContent.defer(editorTab, () -> editorGrid);
         
         // Snippet Editor tab
-        Tab snippetEditorTab = new Tab(I18n.get("settings.tab.snippetEditor"));
+        Tab snippetEditorTab = sectionTab(SettingsSection.SNIPPET_EDITOR);
         GridPane snippetEditorGrid = new GridPane();
         snippetEditorGrid.setHgap(10);
         snippetEditorGrid.setVgap(10);
@@ -3907,6 +3935,19 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         field.setStyle(problem ? base + " -fx-border-color: #e74c3c; -fx-border-width: 2px; -fx-border-radius: 3px;" : base);
     }
 
+    private static Tab sectionTab(SettingsSection section) {
+        Tab tab = new Tab(I18n.get(section.labelKey()));
+        tab.setUserData(section);
+        return tab;
+    }
+
+    /** Selects by stable identity, independent of translation and tab ordering. */
+    public void selectSection(SettingsSection section) {
+        if (section == null) return;
+        mainTabPane.getTabs().stream().filter(tab -> tab.getUserData() == section).findFirst()
+            .ifPresent(tab -> mainTabPane.getSelectionModel().select(tab));
+    }
+
     /** Shows the Terminal page with the first quick-select field that cannot be saved focused. */
     private void revealQuickSelectProblems() {
         validateQuickSelectFields();
@@ -4160,6 +4201,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
             
             // Save window settings
+            globalSettings.setToolbarIconSize((int) Math.round(toolbarIconSizeSlider.getValue()));
             globalSettings.setRememberWindowGeometry(rememberWindowGeometryCheck.isSelected());
             globalSettings.setRememberDashboardState(rememberDashboardStateCheck.isSelected());
             globalSettings.setOpenToolWindowsAsTabs(openToolWindowsAsTabsCheck.isSelected());
@@ -4661,7 +4703,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     private Tab createThemesTab(Stage owner) {
-        Tab tab = new Tab(I18n.get("settings.tab.themes"));
+        Tab tab = sectionTab(SettingsSection.THEMES);
         tab.setClosable(false);
         
         ThemeManager themeManager = app != null ? app.getThemeManager() : null;
@@ -4827,7 +4869,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
      * applied to every open window at once (MainWindow.refreshKeymapInAllWindows).
      */
     private Tab createKeyboardTab() {
-        Tab tab = new Tab(I18n.get("settings.tab.keyboard"));
+        Tab tab = sectionTab(SettingsSection.KEYBOARD);
         tab.setClosable(false);
         LazyTabContent.defer(tab, () -> {
             KeyboardSettingsModel.Catalog catalog = keymapCatalogSource.get();
@@ -4849,7 +4891,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
      * default (Balanced) keeps the shipped 2 GB cap and never relaunches.
      */
     private Tab createResourcesTab() {
-        Tab tab = new Tab(I18n.get("settings.tab.resources"));
+        Tab tab = sectionTab(SettingsSection.RESOURCES);
         tab.setClosable(false);
 
         VBox vbox = new VBox(12);

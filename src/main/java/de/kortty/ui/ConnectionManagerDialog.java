@@ -1137,6 +1137,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 if (settings != null) {
                     storeGroupColors(ConnectionGroupColors.renamed(
                         settings.getConnectionGroupColors(), oldPath.getPath(), newPath.getPath()));
+                    MainWindow.renameIconToolbarGroup(oldPath.getPath(), newPath.getPath(), GroupPath.SEPARATOR);
                     // The isolation follows the folder, never its old name.
                     storeGroupIsolation(de.kortty.isolation.ConnectionGroupIsolation.renamed(
                         settings.getConnectionGroupIsolation(), oldPath.getPath(), newPath.getPath()));
@@ -1214,6 +1215,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             // saveOrThrow, not save: a refused or failed write must reach the error alert below.
             configManager.saveOrThrow(app.getMasterPasswordManager().getDerivedKey());
             logger.info("Connections saved successfully");
+            MainWindow.refreshIconToolbars();
             if (onConnectionsSavedCallback != null) {
                 javafx.application.Platform.runLater(onConnectionsSavedCallback);
             }

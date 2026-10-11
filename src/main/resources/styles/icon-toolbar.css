@@ -1,0 +1,41 @@
+.icon-toolbar {
+    -toolbar-background: #20272e;
+    -toolbar-foreground: #e4e8ed;
+    -toolbar-hover: #303b45;
+    -fx-background-color: -toolbar-background;
+    -fx-padding: 6 10 5 10;
+    -fx-spacing: 5;
+    -fx-border-color: transparent transparent -toolbar-hover transparent;
+}
+.icon-toolbar .toolbar-heading { -fx-text-fill: -toolbar-foreground; -fx-opacity: 0.8; -fx-font-size: 0.85em; }
+.icon-toolbar .toolbar-task-group { -fx-padding: 0 8 0 0; -fx-border-color: transparent -toolbar-hover transparent transparent; }
+.icon-toolbar .toolbar-task-group > .toolbar-heading { -fx-padding: 0 0 0 8; }
+.icon-toolbar .tool-bar { -fx-background-color: transparent; -fx-padding: 0; -fx-spacing: 6; }
+.icon-toolbar .toolbar-action {
+    -fx-background-color: transparent;
+    -fx-text-fill: -toolbar-foreground;
+    -fx-background-radius: 5;
+    /* Keep focus geometry stable: resizing makes ToolBarSkin detach a pressed button. */
+    -fx-border-color: transparent;
+    -fx-border-width: 1;
+    -fx-border-radius: 5;
+    -fx-padding: 5 8;
+    -fx-cursor: hand;
+}
+.icon-toolbar .toolbar-action:hover, .icon-toolbar .toolbar-action:checked {
+    -fx-background-color: -toolbar-hover;
+}
+.icon-toolbar .toolbar-action:focused {
+    -fx-border-color: #368af5;
+}
+.icon-toolbar .toolbar-action:disabled { -fx-opacity: 0.4; }
+.icon-toolbar:editing .tool-bar { -fx-border-color: -toolbar-hover; -fx-border-style: segments(3, 3); -fx-padding: 3; }
+.icon-toolbar:editing .toolbar-action { -fx-cursor: move; }
+.icon-toolbar .toolbar-action:drop-target, .icon-toolbar .tool-bar:drop-target {
+    -fx-border-color: #368af5; -fx-border-width: 0 0 0 3;
+}
+.icon-toolbar .toolbar-connections { -fx-padding: 4 0 0 0; -fx-border-color: -toolbar-hover transparent transparent transparent; }
+.icon-toolbar .toolbar-editor { -fx-padding: 10 0 2 0; }
+.icon-toolbar .toolbar-drop-hint { -fx-text-fill: -toolbar-foreground; -fx-opacity: 0.65; -fx-padding: 6; }
+.icon-toolbar .toolbar-catalog-action { -fx-padding: 8; }
+.icon-toolbar .toolbar-finish { -fx-background-color: #1769d2; -fx-text-fill: white; }

@@ -345,6 +345,11 @@ public class MainWindow {
     private MenuBar systemMenuBar;
     // Created on first use: the window's actions for the command palette, and the palette itself.
     private ActionRegistry actionRegistry;
+    private IconToolbar iconToolbar;
+    private final List<CheckMenuItem> iconToolbarMenuItems = new ArrayList<>();
+    private final List<CheckMenuItem> connectionToolbarMenuItems = new ArrayList<>();
+    private static boolean iconToolbarSavePending;
+    private static final java.util.ArrayDeque<Runnable> iconToolbarSaveQueue = new java.util.ArrayDeque<>();
     private CommandPalettePopup commandPalette;
     // The order this window's tabs were last selected in, the most recent first; the command
     // palette lists the tabs in it, and so does Ctrl+Tab when the Window setting asks for it.
@@ -590,6 +595,7 @@ public class MainWindow {
         
         setupUI();
         setupMenuBar();
+        setupIconToolbar();
         installTransparentWindowChrome();
         installForegroundActivityLifecycle();
         WindowCloseShortcutSupport.installForMainWindow(stage, openWindows.isEmpty(), this::fireCloseRequest);
@@ -930,6 +936,16 @@ public class MainWindow {
         MenuItem statusBarShowMenuBarItem = new MenuItem(I18n.get("menu.view.menuBar"));
         statusBarShowMenuBarItem.setOnAction(e -> toggleMenuBarVisibility(true));
         statusBarContextMenu.getItems().add(statusBarShowMenuBarItem);
+        MenuItem statusBarShowToolbarItem = new MenuItem(I18n.get("menu.view.iconToolbar"));
+        statusBarShowToolbarItem.setOnAction(e -> {
+            if (iconToolbar != null) iconToolbar.setToolbarVisible(true);
+        });
+        statusBarContextMenu.getItems().add(statusBarShowToolbarItem);
+        MenuItem statusBarShowConnectionsItem = new MenuItem(I18n.get("menu.view.connectionToolbar"));
+        statusBarShowConnectionsItem.setOnAction(e -> {
+            if (iconToolbar != null) iconToolbar.setConnectionsVisible(true);
+        });
+        statusBarContextMenu.getItems().add(statusBarShowConnectionsItem);
         statusBar.setOnContextMenuRequested(e -> {
             if (menuBar != null && !menuBar.isVisible()) {
                 statusBarContextMenu.show(statusBar, e.getScreenX(), e.getScreenY());
@@ -1201,8 +1217,8 @@ public class MainWindow {
         }
         // The user's shortcut overrides: on the in-window menu bar and the scene shortcut router.
         applyKeymap();
-        // The menu bar always starts visible; hiding it is session-only and never persisted.
-        applyMenuBarVisibility(true);
+        // Start with the icon toolbar; menu-bar visibility remains a per-window session choice.
+        applyMenuBarVisibility(false);
         syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
         syncTimestampMenuItems(false);
         syncPaneMenuItems();
@@ -1214,6 +1230,102 @@ public class MainWindow {
         applyMainWindowThemeFromGlobalSettings();
         syncAiFeaturesMenuItemsEnabled();
         startJobSchedulerStatusUpdates();
+    }
+
+    private void setupIconToolbar() {
+        ToolbarCatalog catalog = new ToolbarCatalog(actionRegistry(), () -> app.getConfigManager().getConnections(),
+            id -> {
+                ServerConnection connection = app.getConfigManager().getConnectionById(id);
+                if (connection != null && !connection.isPlaceholder()) {
+                    connectSavedConnection(connection, true, tab -> { });
+                }
+            }, this::openGroupConnections, this::refreshActionStates);
+        iconToolbar = new IconToolbar(app.getGlobalSettingsManager().getSettings().getIconToolbar(), catalog,
+            MainWindow::saveIconToolbarSettings);
+        iconToolbar.setIconSize(app.getGlobalSettingsManager().getSettings().getToolbarIconSize());
+        Node existingTop = root.getTop();
+        root.setTop(new VBox(iconToolbar, existingTop));
+        tabPane.getSelectionModel().selectedItemProperty().addListener((observable, oldTab, newTab) ->
+            iconToolbar.refreshStates());
+        stage.focusedProperty().addListener((observable, wasFocused, focused) -> {
+            if (focused) {
+                // Keep the pressed button alive when a click activates this window. Layout changes
+                // are already propagated by refreshIconToolbars when the configuration changes.
+                iconToolbar.refreshStates();
+            }
+        });
+        applyMainWindowThemeFromGlobalSettings();
+    }
+
+    private void openLocalShellFromToolbar() {
+        ServerConnection connection = new ServerConnection();
+        connection.setProtocol(ConnectionProtocol.LOCAL_SHELL);
+        connection.setLocalShellCommand(LocalShellPresetSupport.presetsForCurrentOs(null, null, null).getFirst());
+        connection.setName(I18n.get("protocol.localShell"));
+        openConnectionAndReturnTab(connection, null, null, null);
+    }
+
+    /** Called by all toolbar editors and the Connection Manager after a group rename. */
+    static void saveIconToolbarSettings(de.kortty.model.IconToolbarSettings value, Consumer<Boolean> completion) {
+        if (iconToolbarSavePending) {
+            var queued = new de.kortty.model.IconToolbarSettings(value);
+            iconToolbarSaveQueue.add(() -> saveIconToolbarSettings(queued, completion));
+            return;
+        }
+        var manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+        var previous = manager.getSettings().getIconToolbar();
+        manager.getSettings().setIconToolbar(value);
+        iconToolbarSavePending = true;
+        setIconToolbarSaving(true);
+        manager.saveAsync().whenComplete((ignored, error) -> Platform.runLater(() -> {
+            iconToolbarSavePending = false;
+            setIconToolbarSaving(false);
+            if (error != null) {
+                manager.getSettings().setIconToolbar(previous);
+                logger.error("Could not save icon toolbar settings", error);
+            }
+            refreshIconToolbars();
+            completion.accept(error == null);
+            if (error != null) {
+                Alert alert = new Alert(Alert.AlertType.ERROR, I18n.get("toolbar.saveFailed"), ButtonType.OK);
+                DialogThemeHelper.applyTheme(alert);
+                alert.show();
+            }
+            Runnable next = iconToolbarSaveQueue.poll();
+            if (next != null) next.run();
+        }));
+    }
+
+    static void renameIconToolbarGroup(String oldPath, String newPath, String separator) {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            if (window.iconToolbar != null) window.iconToolbar.renameGroup(oldPath, newPath, separator);
+        }
+        var settings = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings();
+        saveIconToolbarSettings(settings.getIconToolbar().renameGroup(oldPath, newPath, separator), saved -> { });
+    }
+
+    private static void setIconToolbarSaving(boolean saving) {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            if (window.iconToolbar != null) window.iconToolbar.setDisable(saving);
+            window.iconToolbarMenuItems.forEach(item -> item.setDisable(saving));
+            window.connectionToolbarMenuItems.forEach(item -> item.setDisable(saving));
+        }
+    }
+
+    static void refreshIconToolbars() {
+        var value = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings().getIconToolbar();
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            if (window.iconToolbar != null) window.iconToolbar.reload(value);
+            window.iconToolbarMenuItems.forEach(item -> item.setSelected(value.isVisible()));
+            window.connectionToolbarMenuItems.forEach(item -> item.setSelected(value.isConnectionsVisible()));
+        }
+    }
+
+    static void refreshIconToolbarSizes() {
+        int size = KorTTYApplication.getInstance().getGlobalSettingsManager().getSettings().getToolbarIconSize();
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            if (window.iconToolbar != null) window.iconToolbar.setIconSize(size);
+        }
     }
 
     /** Removes all keyboard accelerators from a menu bar (used for the macOS companion system bar). */
@@ -2270,6 +2382,19 @@ public class MainWindow {
             systemShowMenuBarMenuItem = menuBarItem;
         }
 
+        CheckMenuItem toolbarItem = checkMenuItem("menu.view.iconToolbar");
+        toolbarItem.setSelected(app.getGlobalSettingsManager().getSettings().getIconToolbar().isVisible());
+        toolbarItem.setOnAction(e -> {
+            if (iconToolbar != null) iconToolbar.setToolbarVisible(toolbarItem.isSelected());
+        });
+        iconToolbarMenuItems.add(toolbarItem);
+        CheckMenuItem connectionToolbarItem = checkMenuItem("menu.view.connectionToolbar");
+        connectionToolbarItem.setSelected(app.getGlobalSettingsManager().getSettings().getIconToolbar().isConnectionsVisible());
+        connectionToolbarItem.setOnAction(e -> {
+            if (iconToolbar != null) iconToolbar.setConnectionsVisible(connectionToolbarItem.isSelected());
+        });
+        connectionToolbarMenuItems.add(connectionToolbarItem);
+
         // File Browser submenu
         Menu fileBrowserMenu = new Menu(I18n.get("menu.view.fileBrowser"));
         CheckMenuItem fileBrowserLeftItem = checkMenuItem("menu.view.fileBrowser.left");
@@ -2461,7 +2586,7 @@ public class MainWindow {
         }
 
         viewMenu.getItems().addAll(commandPalette, snippetPalette, new SeparatorMenuItem(),
-            dashboardItem, timestampsItem, menuBarItem, fileBrowserMenu, aiAgentPanelMenu,
+            dashboardItem, timestampsItem, menuBarItem, toolbarItem, connectionToolbarItem, fileBrowserMenu, aiAgentPanelMenu,
             journalLivePanelMenu, codingAgentPanelMenu, remoteSidebarMenu,
             new SeparatorMenuItem(),
             zoomIn, zoomOut, resetZoom);
@@ -3376,6 +3501,14 @@ public class MainWindow {
                     ? new TerminalPaletteTarget(terminalTab, this::duplicateTab) : null,
                 I18n::get, clearBufferChords.isEmpty() ? null : clearBufferChords.get(0));
             registry.addContributor(() -> terminalActions);
+            registry.register(new AppAction("toolbar.localShell", I18n.get("toolbar.localShell"),
+                I18n.get("toolbar.section.terminal"), null, List.of(), () -> true, null,
+                this::openLocalShellFromToolbar, true, false));
+            for (SettingsSection section : SettingsSection.values()) {
+                registry.register(new AppAction(section.actionId(), I18n.get(section.labelKey()),
+                    I18n.get("toolbar.settings"), null, List.of(), () -> true, null,
+                    () -> showSettings(section), true, false));
+            }
             actionRegistry = registry;
         }
         return actionRegistry;
@@ -4395,11 +4528,16 @@ public class MainWindow {
     }
 
     private void showSettings() {
+        showSettings(null);
+    }
+
+    private void showSettings(SettingsSection section) {
         SettingsDialog dialog = new SettingsDialog(stage, app, app.getConfigManager(),
                 app.getGlobalSettingsManager().getSettings(),
                 app.getCredentialManager(), app.getGpgKeyManager());
         // The Keyboard page lists the actions of this window's menu bar.
         dialog.setKeymapCatalogSource(this::keymapCatalog);
+        dialog.selectSection(section);
 
         // Add listener to apply settings changes immediately to all open terminals
         dialog.addChangeListener(() -> {
@@ -4409,6 +4547,7 @@ public class MainWindow {
                 // effect in the same pass that re-applies the stylesheets.
                 UiFontScaleSupport.invalidateAutoCache();
                 refreshAppDesignForOpenWindows();
+                refreshIconToolbarSizes();
                 syncHideFullscreenScrollbarsMenuItems();
                 // The master switch or the default set may have changed what the focused pane shows.
                 syncHighlightingToggleItems();
@@ -4518,6 +4657,11 @@ public class MainWindow {
             }
             if (!customAppDesign && fg != null && !fg.isEmpty()) {
                 statusLabel.setStyle("-fx-text-fill: " + fg + ";");
+            }
+            if (iconToolbar != null) {
+                iconToolbar.applyTheme(
+                    customAppDesign ? AppDesignStyleSupport.activeBackgroundColor() : bg != null ? bg : "#20272e",
+                    customAppDesign ? AppDesignStyleSupport.activeTextColor() : fg != null ? fg : "#e4e8ed");
             }
             if (dashboardView != null) {
                 dashboardView.applyTheme(bg, fg);
@@ -13112,7 +13256,7 @@ public class MainWindow {
      */
     private void openGroupConnections(String groupName) {
         List<ServerConnection> groupConnections = app.getConfigManager().getConnections().stream()
-                .filter(c -> groupName.equals(c.getGroup()))
+                .filter(c -> !c.isPlaceholder() && groupName.equals(c.getGroup()))
                 .collect(java.util.stream.Collectors.toList());
         
         if (groupConnections.isEmpty()) {

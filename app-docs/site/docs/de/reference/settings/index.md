@@ -12,6 +12,8 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 | Standardwert | Standardwert |
 | Gespeichert als | Das Feld in `global-settings.xml` |
 
+Das [Symbolleiste](../../getting-started/main-window.md#anpassung-der-symbolleiste) Bietet einen direkten Button für jeden Haupt-Einstellungs-Tab. Klicken Sie mit der rechten Maustaste auf die Symbolleiste, wählen Sie **Icon-Leiste anpassen…**, wählen Sie **Einstellungen** und fügen Sie die gewünschte Tastenkombination hinzu. Es öffnet den vorhandenen Einstellungsdialog auf diesem Tab.
+
 ## Einstellungsregisterkarten
 
 | Registerkarte | Was es steuert |

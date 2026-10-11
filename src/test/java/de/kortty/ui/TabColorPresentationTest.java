@@ -250,7 +250,7 @@ class TabColorPresentationTest {
         String window = source("MainWindow.java");
 
         assertWithMessage("switching the frame in the Window settings must reach the open tabs at once")
-                .that(methodBody(window, "private void showSettings() {"))
+                .that(methodBody(window, "private void showSettings(SettingsSection section) {"))
                 .contains("refreshConnectionColorsInAllWindows();");
     }
 

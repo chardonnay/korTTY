@@ -1,6 +1,6 @@
 # Menüreferenz
 
-Jedes Element in der Menüleiste von korTTY, mit seiner Tastenkombination (falls definiert) und ihrer Funktion. Die Menüleiste kann mit ++ctrl+shift+l++ ausgeblendet und wieder angezeigt werden, indem Sie mit der rechten Maustaste auf das Terminal oder die Statusleiste klicken.
+Jedes Element in der Menüleiste von korTTY, mit seiner Tastenkombination (falls definiert) und seiner Funktion. Die Menüleiste im Fenster ist bei jedem neuen Fenster standardmäßig ausgeblendet. Klicken Sie mit der rechten Maustaste auf eine beliebige Symbolleistenzeile und wählen Sie **Menüleiste ein/ausblenden**, um sie umzuschalten, oder drücken Sie ++ctrl+shift+l++ (++cmd+shift+l++ auf macOS). Sie können sie auch wiederherstellen, indem Sie mit der rechten Maustaste auf das Terminal oder die Statusleiste klicken. Die Sichtbarkeit gilt nur für das aktuelle Fenster in dieser Sitzung; die macOS-Systemmenüleiste bleibt verfügbar.
 
 ## Datei
 
@@ -119,7 +119,9 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 | Snippet-Palette… | keines (weisen Sie unter [Einstellungen → Tastatur](settings/keyboard.md) eines zu) | Öffnen Sie die Befehlspalette mit bereits eingegebenem `$`, sodass sie nur die [Snippets](../features/command-palette.md#snippet-palette) auflistet und das gewählte im fokussierten Bereich des Terminals ausführt; ein zugewiesenes Tastenkürzel funktioniert auch, während ein Terminal den Fokus hat, und schließt die Palette wieder |
 | Dashboard anzeigen | ++ctrl+shift+d++ | Schalten Sie das Verbindungs-Dashboard um |
 | Show Command Timestamps | ++ctrl+shift+t++ | Schalten Sie die Inline-Befehlszeitstempel um |
-| Menüleiste anzeigen | ++ctrl+shift+l++ | Schalten Sie die Menüleiste um |
+| Menüleiste anzeigen | ++ctrl+shift+l++ | Schaltet die Menüleiste im Fenster für diese Sitzung um; standardmäßig ausgeblendet, auch über das Kontextmenü jeder Symbolleistenzeile verfügbar |
+| Icon-Aktionsleiste | — | Zeigen oder verbergen Sie die Aktionszeile über der Menüleiste unabhängig von der Verbindungszeile; gespeichert über Fenster und Neustarts |
+| Verbindungsleiste | — | Zeigen oder verbergen Sie die gespeicherte-Server- und Gruppenzeile unabhängig von der Aktionszeile; eine leere Verbindungszeile bleibt außerhalb der Anpassung verborgen |
 | File Browser ▸ Show on Left | ++ctrl+shift+k++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) links vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
 | Dateibrowser ▸ Rechts anzeigen | ++ctrl+shift+r++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) rechts vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
 | Vergrößern | ++alt+plus++ | Erhöhen Sie die Schriftgröße des Terminals |

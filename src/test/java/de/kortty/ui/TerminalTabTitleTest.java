@@ -280,7 +280,7 @@ class TerminalTabTitleTest {
         assertThat(check).isLessThan(fixedGeometry);
 
         String window = source("MainWindow.java");
-        assertThat(methodBody(window, "private void showSettings() {")).contains("refreshShellTitlesInAllWindows();");
+        assertThat(methodBody(window, "private void showSettings(SettingsSection section) {")).contains("refreshShellTitlesInAllWindows();");
         assertThat(methodBody(window, "private static void refreshShellTitlesInAllWindows() {"))
             .contains("terminalTab.refreshShellTitle();");
     }

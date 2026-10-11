@@ -4,12 +4,13 @@ title: Window
 
 # Window
 
-This tab configures window geometry behavior, dashboard state retention, menu bar visibility, the frame around the terminal of a colored connection, whether terminal tabs take the title the shell sets, the order in which ++ctrl+tab++ switches tabs, and what korTTY does at startup with the windows and tabs that were open before. Open via **Configuration → Global Settings → Window**; stored in `~/.kortty/global-settings.xml`.
+This tab configures toolbar icon size, window geometry behavior, dashboard state retention, the frame around the terminal of a colored connection, whether terminal tabs take the title the shell sets, the order in which ++ctrl+tab++ switches tabs, and what korTTY does at startup with the windows and tabs that were open before. Open via **Configuration → Global Settings → Window**; stored in `~/.kortty/global-settings.xml`.
 
 ![Window settings tab](../../assets/screenshots/settings/window.png)
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
+| Toolbar icon size (px): | slider with live icon preview | 16–64 px | 24 px | `toolbarIconSize` |
 | Remember window geometry | toggle | — | On | `rememberWindowGeometry` |
 | Remember dashboard state | toggle | — | On | `rememberDashboardState` |
 | Open tool windows as tabs | toggle | — | Off | `openToolWindowsAsTabs` |
@@ -37,6 +38,8 @@ With **Remember window geometry** enabled, KorTTY stores the position and size o
     With **Open tool windows as tabs** enabled, management tools (Snippets, JobScheduler, AI Manager, Saved Chats, Session Journals, Credential/GPG/SSH key management, Video Manager, Teamwork settings, Terminal Effects) open as tabs in the main window instead of separate windows. The tab opens in the window whose menu you used, so with several main windows open each window collects its own tool tabs. Reopening a tool focuses its existing tab. The Snippet Manager is one tab per main window and opens the snippets you edit as tabs inside itself; a snippet editor opened from elsewhere (for example the SFTP Manager, the file browser or the terminal) and the session journal viewer open a new main-window tab each time, but a snippet that is already open in an editor is brought to the front instead of opening twice. The Full code analysis is a side panel inside the snippet editor, not a tab of its own. The setting takes effect the next time a tool is opened.
 
     A tool hosted as a tab has no separate window geometry. Its available size follows the main window and its saved main-window geometry.
+
+**Toolbar icon size (px)** changes the vector icons in the action toolbar, connection toolbar and customization catalog. Move the slider to see the example icon and pixel value update immediately; this preview does not change the saved value. Save to apply it immediately to every open window; it also survives restarts. Existing configurations keep the 24 px default. The toolbar and catalog adapt their button sizes and keep at least two complete catalog rows visible.
 
 ## Tabs
 
