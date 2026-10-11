@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -697,7 +705,7 @@
                     </a>
                 </div>
                 <div class="col">
-                    <a href="window.html"
+                    <a href="messaging.html"
                         class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
                         Next <i class="fa fa-arrow-right"></i>
                     </a>
@@ -806,7 +814,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h1>
-<p>Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, shell integration, notifications, and SSH connection management. Open via <strong>Configuration → Global Settings → Terminal</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Configure terminal display and behavior settings, including dimensions, scrollback, character encoding, keyword highlighting, links, paste protection, shell integration, and SSH connection management. Open via <strong>Configuration → Global Settings → Terminal</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Terminal settings tab" src="../../assets/screenshots/settings/terminal.png" /></p>
 <table>
 <thead>
@@ -995,48 +1003,6 @@
 <td><code>terminalRemoteSidebarPosition</code> (width: <code>terminalRemoteSidebarWidth</code>, 200–1,200, default 300) — see <a href="../../features/terminal.html#remote-files-sidebar">Remote files sidebar</a></td>
 </tr>
 <tr>
-<td>Desktop notification when the bell rings in a tab you are not looking at</td>
-<td>toggle</td>
-<td>—</td>
-<td>Off</td>
-<td><code>terminalBellNotificationsEnabled</code></td>
-</tr>
-<tr>
-<td>Desktop notification when a long-running command finishes in a tab you are not looking at</td>
-<td>toggle</td>
-<td>—</td>
-<td>On</td>
-<td><code>commandFinishedNotificationsEnabled</code></td>
-</tr>
-<tr>
-<td>Minimum command runtime:</td>
-<td>number</td>
-<td>1–3,600 seconds</td>
-<td>30</td>
-<td><code>commandFinishedNotificationSeconds</code></td>
-</tr>
-<tr>
-<td>Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777)</td>
-<td>toggle</td>
-<td>—</td>
-<td>On</td>
-<td><code>remoteTerminalNotificationsEnabled</code></td>
-</tr>
-<tr>
-<td>Desktop notification when an AI agent or AI swarm run in a tab you are not looking at finishes or waits for you</td>
-<td>toggle</td>
-<td>—</td>
-<td>On</td>
-<td><code>aiRunToastsEnabled</code></td>
-</tr>
-<tr>
-<td>Monitor for Silence reports after:</td>
-<td>number</td>
-<td>5–3,600 seconds</td>
-<td>30</td>
-<td><code>terminalSilenceSeconds</code></td>
-</tr>
-<tr>
 <td>Enable SSH Keep-Alive</td>
 <td>toggle</td>
 <td>—</td>
@@ -1079,11 +1045,11 @@
 <td><code>codingAgentDetectionEnabled</code></td>
 </tr>
 <tr>
-<td>Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane</td>
+<td>Automatically show and hide the coding-agent sidebar</td>
 <td>toggle</td>
 <td>—</td>
 <td>On</td>
-<td><code>codingAgentNotificationsEnabled</code></td>
+<td><code>codingAgentPanelAutoVisibility</code></td>
 </tr>
 <tr>
 <td>Show the number of agents waiting for a decision on the app icon</td>
@@ -1116,6 +1082,7 @@
 </tbody>
 </table>
 <h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
+<p>Desktop notification preferences, including coding-agent messages, are on the separate <a href="messaging.html">Messaging</a> page.</p>
 <div class="admonition note">
 <p class="admonition-title">Encoding</p>
 <p>The character encoding korTTY decodes the output of an SSH session with and encodes what you type and paste in. It applies to every SSH connection that does not choose its own <strong>Character encoding</strong> on the <em>Connection</em> tab of the connection editor (see <a href="../../features/connections.html#character-encoding">Character encoding</a>). Local shells use UTF-8 unless their connection sets an encoding, and Mosh always uses UTF-8 because mosh-server and mosh-client require it. Pick the encoding the programs on the server actually write, usually what <code>locale</code> reports there. A change applies the next time a tab connects or reconnects; open tabs keep their encoding. Characters the chosen encoding cannot represent are sent as <code>?</code>.</p>
@@ -1163,14 +1130,6 @@
 <p>For local shell tabs, a connection can also add the snippet by itself: <strong>Add shell integration automatically</strong> in the connection editor starts bash, zsh or fish with korTTY's shell integration and leaves your startup files unchanged. It needs this setting on; see <a href="../../features/shell-integration.html#local-shells">Adding it to local shells automatically</a>.</p>
 </div>
 <div class="admonition note">
-<p class="admonition-title">Notifications</p>
-<p>A program that rings the terminal bell in a tab you are not looking at always marks that tab with 🔔 until you look at it; this needs no setting. <strong>Desktop notification when the bell rings in a tab you are not looking at</strong> adds a desktop notification titled <code>korTTY ·</code> and the tab's name, at most one per pane every 10 seconds. It is off by default because shells ring the bell on every failed Tab completion, and a pane with a detected coding agent gets none while the coding-agent notifications are on. The setting is read on every bell, so a change applies to open tabs as soon as you save.</p>
-<p>In a shell set up for shell integration, a command that ran at least <strong>Minimum command runtime:</strong> (30 seconds by default) and finishes in a tab you are not looking at marks that tab with 🔔 too, and <strong>Desktop notification when a long-running command finishes in a tab you are not looking at</strong>, on by default, adds a desktop notification saying how the command ended and how long it ran, never the command itself, at most one per tab every 10 seconds. Commands of korTTY's AI Agent never notify. Both are greyed out while <strong>Use the command marks of shells set up for shell integration (OSC 133)</strong> is off, and both are read on every finished command. See <a href="../../features/terminal-notifications.html#long-running-commands">Terminal notifications</a>.</p>
-<p>A program that asks for a desktop notification with OSC 9 or OSC 777, such as a coding agent on a server waiting for your answer, marks its tab with 🔔 too when you are not looking at it, and <strong>Desktop notification when a program in a tab you are not looking at asks for one (OSC 9, OSC 777)</strong>, on by default, shows the program's text below a title with the tab's name, cleaned of control and bidi characters and cut to 80 characters for the title and 200 for the text, at most one per pane every 5 seconds; what comes in between is dropped. A pane with a detected coding agent gets none while the coding-agent notifications are on. It needs no shell integration and is read on every request. See <a href="../../features/terminal-notifications.html#notifications-from-programs">Notifications from programs</a>.</p>
-<p><strong>Desktop notification when an AI agent or AI swarm run in a tab you are not looking at finishes or waits for you</strong>, on by default, covers korTTY's own AI Agent and AI Swarm: when a run in a tab you are not looking at waits for your approval or a password, finishes or stops without finishing, a desktop notification titled with the tab's name says so in one fixed sentence, never with the prompt, a command or output, at most one per tab and kind every 10 seconds. A terminal tab is marked with 🔔 either way. It is read on every event. See <a href="../../features/terminal-notifications.html#ai-agent-and-ai-swarm-runs">AI agent and AI Swarm runs</a>.</p>
-<p><strong>Monitor for Silence reports after:</strong> is how long a pane has to stay without output, after printing something, before a tab you watch with <strong>Monitor for Silence</strong> in its right-click menu is marked with 🔔 and shows a desktop notification, 30 seconds by default. The watch itself, like <strong>Monitor for Activity</strong>, which reports new output after 10 seconds of quiet, is switched per tab, off until you switch it on, and never saved. The threshold is read every second, so a change applies to the watched tabs as soon as you save. See <a href="../../features/terminal-notifications.html#watching-a-tab-for-activity-or-silence">Watching a tab for activity or silence</a>.</p>
-</div>
-<div class="admonition note">
 <p class="admonition-title">SSH Keep-Alive</p>
 <p>When enabled, korTTY sends periodic keep-alive packets to prevent SSH sessions from timing out during idle periods. The interval setting controls how often (in seconds) these packets are sent. The spinner range is 5–600 seconds; the interval is disabled if SSH Keep-Alive is toggled off.</p>
 </div>
@@ -1205,7 +1164,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Detect coding agents</p>
-<p>When enabled, korTTY watches every local shell pane for a running Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI or Grok Build and tracks whether it is working, blocked on a question, done or idle. The screen is analysed locally and nothing leaves the computer; the change applies immediately to open tabs. The two toggles below it control the desktop notification for an agent that needs a decision or finishes while you are not looking at its pane, and the count of waiting agents on the app icon (or in the window title where no icon badge exists); both read the setting live, so a change applies at once. See <a href="../../features/coding-agents.html#app-icon-badge-and-notifications">Coding agents</a>.</p>
+<p>When enabled, korTTY watches every local shell pane for a running Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI or Grok Build and tracks whether it is working, blocked on a question, done or idle. The screen is analysed locally and nothing leaves the computer; the change applies immediately to open tabs. The other two toggles in this section control automatic sidebar visibility and the count of waiting agents on the app icon (or in the window title where no icon badge exists). Coding-agent desktop notifications are controlled separately under <a href="messaging.html">Messaging</a>; all changes apply to open sessions when you save. See <a href="../../features/coding-agents.html#app-icon-badge-and-notifications">Coding agents</a>.</p>
 </div></p>
     </article>
 </section>

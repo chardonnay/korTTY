@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -902,7 +910,7 @@
 </ul>
 <p>Die Seitenleiste hat eine feste Breite: Bei einer sehr großen Terminalschrift können eine lange Laufzeit oder das Zeichen an ihrem rechten Rand abgeschnitten werden.</p>
 <h2 id="benachrichtigung-wenn-ein-langer-befehl-endet">Benachrichtigung, wenn ein langer Befehl endet<a class="headerlink" href="#benachrichtigung-wenn-ein-langer-befehl-endet" title="Permanent link">&para;</a></h2>
-<p>Wenn ein Befehl, der mindestens 30 Sekunden lief, in einem Tab endet, den Sie gerade nicht ansehen, markiert korTTY den Tab mit 🔔 und zeigt eine Desktop-Benachrichtigung mit dem Namen des Tabs, dem Exit-Status und der Laufzeit, zum Beispiel <em>Befehl fehlgeschlagen (Exit-Status 1) nach 2 Min. 14 Sek.</em> Den Befehl selbst zeigt sie nie. <em>Einstellungen → Terminal → Benachrichtigungen</em> schaltet die Benachrichtigung aus oder ändert die 30 Sekunden; Einzelheiten unter <a href="terminal-notifications.html#lange-laufende-befehle">Lange laufende Befehle</a>.</p>
+<p>Wenn ein Befehl, der mindestens 30 Sekunden ausgeführt wurde, in einem Tab endet, den Sie nicht betrachten, markiert korTTY den Tab mit 🔔 und zeigt eine Desktop-Benachrichtigung mit dem Tab-Namen, dem Exit-Status und der Laufzeit an, z. B. <em>Befehl fehlgeschlagen (Exit 1) nach 2 min 14 sec.</em> Der Befehl selbst wird nie angezeigt. <em>Einstellungen → Messaging</em> schaltet die Benachrichtigung aus oder ändert die 30 Sekunden; siehe <a href="terminal-notifications.html#lange-laufende-befehle">Langlaufende Befehle</a> für die Details.</p>
 <h2 id="setting-it-up">Einrichten<a class="headerlink" href="#setting-it-up" title="Permanent link">&para;</a></h2>
 <p>Fügen Sie das Snippet für Ihre Shell auf jedem Computer, dessen Shell markiert werden soll, in ihre Startdatei ein: auf jedem Server, mit dem Sie sich per SSH verbinden, und auf Ihrem eigenen Computer für lokale Shell-Tabs. korTTY ändert nie Dateien auf einem Server und tippt nie etwas in eine SSH-Sitzung, um das einzurichten. Öffnen Sie nach dem Hinzufügen des Snippets eine neue Shell oder verbinden Sie den Tab neu.</p>
 <p>Für einen lokalen Shell-Tab mit bash, zsh oder fish kann korTTY das auch für Sie erledigen, ohne ein Snippet in Ihren Startdateien: siehe <a href="#local-shells">Automatisch zu lokalen Shells hinzufügen</a>.</p>
