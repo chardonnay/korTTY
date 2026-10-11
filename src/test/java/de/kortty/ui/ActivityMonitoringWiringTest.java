@@ -156,7 +156,7 @@ class ActivityMonitoringWiringTest {
         String dialog = source("SettingsDialog.java");
         assertThat(dialog).contains("terminalSilenceSecondsSpinner = new Spinner<>(PaneActivityMonitor.MIN_SILENCE_SECONDS,\n"
             + "            PaneActivityMonitor.MAX_SILENCE_SECONDS,");
-        assertThat(dialog).contains("terminalGrid.add(terminalSilenceSecondsBox, 1, terminalRow++);");
+        assertThat(dialog).contains("grid.add(terminalSilenceSecondsBox, 1, row++);");
         assertThat(dialog).contains("globalSettings.setTerminalSilenceSeconds(terminalSilenceSecondsSpinner.getValue() != null");
         assertThat(dialog).contains(
             "tracked.add(new TrackedSetting(\"terminal\", \"silence_seconds\", gs::getTerminalSilenceSeconds, true));");

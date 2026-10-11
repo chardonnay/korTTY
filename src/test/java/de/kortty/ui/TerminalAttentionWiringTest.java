@@ -119,7 +119,7 @@ class TerminalAttentionWiringTest {
             "globalSettings.setTerminalBellNotificationsEnabled(terminalBellNotificationsCheck.isSelected());");
         assertThat(dialog).contains(
             "tracked.add(new TrackedSetting(\"terminal\", \"bell_notifications\", gs::isTerminalBellNotificationsEnabled, true));");
-        assertThat(dialog).contains("terminalGrid.add(terminalBellNotificationsCheck, 0, terminalRow++, 2, 1);");
+        assertThat(dialog).contains("grid.add(terminalBellNotificationsCheck, 0, row++, 2, 1);");
     }
 
     @Test
@@ -182,8 +182,8 @@ class TerminalAttentionWiringTest {
         assertThat(dialog).contains("globalSettings.setCommandFinishedNotificationSeconds(commandFinishedSecondsSpinner.getValue() != null");
         assertThat(dialog).contains("tracked.add(new TrackedSetting(\"terminal\", \"command_finished_notifications\",");
         assertThat(dialog).contains("tracked.add(new TrackedSetting(\"terminal\", \"command_finished_notification_seconds\",");
-        assertThat(dialog).contains("terminalGrid.add(commandFinishedNotificationsCheck, 0, terminalRow++, 2, 1);");
-        assertThat(dialog).contains("terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);");
+        assertThat(dialog).contains("grid.add(commandFinishedNotificationsCheck, 0, row++, 2, 1);");
+        assertThat(dialog).contains("grid.add(commandFinishedSecondsBox, 1, row++);");
         assertThat(dialog).contains("commandFinishedSecondsSpinner = new Spinner<>(TerminalNotificationPolicy.MIN_COMMAND_FINISHED_SECONDS,\n"
             + "            TerminalNotificationPolicy.MAX_COMMAND_FINISHED_SECONDS,");
         assertWithMessage("without shell integration no command ends, so its controls are greyed out")
@@ -243,7 +243,7 @@ class TerminalAttentionWiringTest {
         assertThat(dialog).contains(
             "globalSettings.setRemoteTerminalNotificationsEnabled(remoteTerminalNotificationsCheck.isSelected());");
         assertThat(dialog).contains("tracked.add(new TrackedSetting(\"terminal\", \"remote_notifications\",");
-        assertThat(dialog).contains("terminalGrid.add(remoteTerminalNotificationsCheck, 0, terminalRow++, 2, 1);");
+        assertThat(dialog).contains("grid.add(remoteTerminalNotificationsCheck, 0, row++, 2, 1);");
         assertWithMessage("on unless the settings say otherwise")
             .that(dialog).contains("remoteTerminalNotificationsCheck.setSelected(globalSettings == null\n"
                 + "            || globalSettings.isRemoteTerminalNotificationsEnabled());");

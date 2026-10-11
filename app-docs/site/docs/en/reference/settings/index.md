@@ -20,6 +20,7 @@ The [icon toolbar](../../getting-started/main-window.md#customizing-the-icon-too
 | --- | --- |
 | [Appearance, themes & font](appearance.md) | App design (Default, Matrix, Holographic, Klingon, Elegant Dark), terminal themes, font family & size, UI font size |
 | [Colors](colors.md) | Color profile, text/background/cursor/selection colors, cursor blink, the 16-color ANSI palette |
+| [Messaging](messaging.md) | Desktop notifications for coding agents, terminal events and korTTY AI runs; notification timing |
 | [Terminal](terminal.md) | Columns/rows, scrollback, encoding, SSH keep-alive, SSH host key verification, connection retries, drag-drop, timestamps |
 | [Window](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |
 | [Keyboard](keyboard.md) | Your own shortcuts for korTTY's commands: change, remove or reset them, with a check for keys the shell needs and for conflicts |

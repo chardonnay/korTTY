@@ -141,7 +141,7 @@ public final class CodingAgentUiSmoke {
         CodingAgentSmokeFixture.PaneIds ids = fixture.ids();
         CodingAgentPanel panel = new CodingAgentPanel(fixture.registry(), fixture.actions(), fixture.navigator(),
             fixture, fixture.harness()::nowMillis);
-        Scene scene = new Scene(panel, 420, 520);
+        Scene scene = new Scene(panel, CodingAgentPanelDockManager.DEFAULT_WIDTH, 520);
         AppDesignStyleSupport.registerApplicationBaseStyles(scene);
         CodingAgentSmokeFixture.stageFor(scene);
         panel.bind();
@@ -166,19 +166,26 @@ public final class CodingAgentUiSmoke {
         require(send != null, "the Send button was not found");
         require(send.isDisabled(), "Send must be disabled for a BLOCKED target");
 
-        // Quick key 'y' in the BLOCKED row writes exactly "y" to that pane's connector.
+        // Answers write whole words to the BLOCKED pane, without changing physical key chords.
         ListCell<?> claudeCell = cellFor(list, ids.claude());
         require(claudeCell != null, "no visible cell for the Claude row");
-        Button yButton = buttonWithText(claudeCell, "y");
-        require(yButton != null && !yButton.isDisabled(), "the y button must exist and be enabled (pane connected)");
+        Button yButton = buttonWithText(claudeCell, "YES");
+        require(yButton != null && !yButton.isDisabled(), "the YES button must exist and be enabled (pane connected)");
         require(yButton.getStyle() != null && yButton.getStyle().contains("-fx-background-color: #f59e0b"),
             "answer buttons of a BLOCKED row carry the explicit blocked accent, style was " + yButton.getStyle());
         yButton.fire();
-        require("y".equals(fixture.connector(ids.claude()).writtenText()),
-            "clicking y must write 'y', wrote " + fixture.connector(ids.claude()).writtenText());
-        require(fixture.connector(ids.codex()).written().length == 0, "y must not reach another pane");
+        require("YES".equals(fixture.connector(ids.claude()).writtenText()),
+            "clicking YES must write 'YES', wrote " + fixture.connector(ids.claude()).writtenText());
+        require(fixture.connector(ids.codex()).written().length == 0, "YES must not reach another pane");
         require(labelWithText(panel, I18n.get("codingAgent.panel.sent", "Claude Code")) != null,
             "the status line must confirm 'Sent to Claude Code'");
+
+        Button noButton = buttonWithText(claudeCell, "NO");
+        require(noButton != null && !noButton.isDisabled(), "NO must be available on the connected pane");
+        fixture.connector(ids.claude()).clear();
+        noButton.fire();
+        require("NO".equals(fixture.connector(ids.claude()).writtenText()),
+            "clicking NO must write the complete word without an implicit Enter");
 
         // Explain opens the drawer with the detection explanation of that row.
         Button explain = buttonWithText(claudeCell, I18n.get("codingAgent.panel.explain"));
@@ -259,7 +266,7 @@ public final class CodingAgentUiSmoke {
         scene.snapshot(null);
         ListCell<?> geminiCell = cellFor(list, ids.gemini());
         require(geminiCell != null, "no visible cell for the Gemini row");
-        require(buttonWithText(geminiCell, "y").isDisabled(), "the quick keys of a disconnected pane are disabled");
+        require(buttonWithText(geminiCell, "YES").isDisabled(), "the quick keys of a disconnected pane are disabled");
         require(labelContaining(geminiCell, notConnected) != null,
             "a disconnected pane must state the reason on its row");
         fixture.connector(ids.gemini()).setConnected(true);
@@ -270,6 +277,33 @@ public final class CodingAgentUiSmoke {
             "the not-connected hint must disappear once the pane is connected again");
 
         checkEvidenceOnlyChangeIsInPlace(fixture, panel, list, scene);
+
+        // Re-open Explain to give it a fresh deadline, then check the exact boundary without a real wait.
+        claudeCell = cellFor(list, ids.claude());
+        explain = buttonWithText(claudeCell, I18n.get("codingAgent.panel.explain"));
+        if (visibleTextArea(claudeCell) != null) {
+            explain.fire();
+        }
+        explain.fire();
+        fixture.harness().advance(59_999);
+        panel.tick();
+        scene.snapshot(null);
+        require(visibleTextArea(cellFor(list, ids.claude())) != null,
+            "Explain must remain visible before the 60-second deadline");
+        fixture.harness().advance(1);
+        panel.tick();
+        scene.snapshot(null);
+        require(visibleTextArea(cellFor(list, ids.claude())) == null,
+            "Explain must collapse at the 60-second deadline");
+        buttonWithText(cellFor(list, ids.claude()), I18n.get("codingAgent.panel.explain")).fire();
+        scene.snapshot(null);
+        require(visibleTextArea(cellFor(list, ids.claude())) != null,
+            "Explain must be available again after expiry");
+        panel.unbind();
+        panel.bind();
+        scene.snapshot(null);
+        require(visibleTextArea(cellFor(list, ids.claude())) == null,
+            "hiding and re-opening the panel must release the temporary explanation");
 
         panel.dispose();
         require(!panel.isBound(), "dispose must unbind the panel");

@@ -31,8 +31,10 @@ class CodingAgentI18nCoverageTest {
         "settings.codingAgent.detectionEnabled.tooltip",
         "settings.codingAgent.detectionEnabled.info",
         // Stage 2: settings rows
-        "settings.codingAgent.notificationsEnabled",
-        "settings.codingAgent.notificationsEnabled.tooltip",
+        "settings.messaging.codingAgent",
+        "settings.messaging.codingAgent.tooltip",
+        "settings.codingAgent.panelAutoVisibility",
+        "settings.codingAgent.panelAutoVisibility.tooltip",
         "settings.codingAgent.appBadgeEnabled",
         "settings.codingAgent.appBadgeEnabled.tooltip",
         // Stage 2: View menu

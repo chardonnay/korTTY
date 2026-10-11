@@ -40,6 +40,7 @@ nav:
           - reference/settings/appearance.md
           - reference/settings/colors.md
           - reference/settings/terminal.md
+          - reference/settings/messaging.md
           - reference/settings/window.md
           - reference/settings/keyboard.md
           - reference/settings/resources.md

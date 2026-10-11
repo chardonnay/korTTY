@@ -37,6 +37,9 @@ public class CodingAgentPanelDockManager {
     private double preferredWidth = DEFAULT_WIDTH;
     /** Last side the panel was docked to; the toggle shortcut re-opens on this side. */
     private Placement lastDockedSide = Placement.RIGHT;
+    private boolean agentsPresent;
+    private boolean anyAgentsPresent;
+    private boolean automaticVisibilityEnabled;
     private final List<Consumer<Placement>> placementListeners = new CopyOnWriteArrayList<>();
 
     public CodingAgentPanelDockManager() {
@@ -77,6 +80,38 @@ public class CodingAgentPanelDockManager {
     /** The side the panel was docked to most recently (RIGHT until it was ever docked). */
     public Placement getLastDockedSide() {
         return lastDockedSide;
+    }
+
+    /** Restores the side independently of visibility, including after an automatic hide. */
+    public void setLastDockedSide(Placement side) {
+        if (side == Placement.LEFT || side == Placement.RIGHT) {
+            lastDockedSide = side;
+        }
+    }
+
+    /**
+     * Follows detection transitions without undoing a manual hide on each state/evidence update.
+     * Enabling the setting immediately reconciles visibility with the current detection result.
+     */
+    public void updateDetectedAgents(boolean present, boolean automatic) {
+        updateDetectedAgents(present, present, automatic);
+    }
+
+    /** Opens in the owning window; keeps the shared list visible until no window has agents. */
+    public void updateDetectedAgents(boolean present, boolean anyPresent, boolean automatic) {
+        boolean reconcile = automatic && (!automaticVisibilityEnabled || present != agentsPresent
+            || anyPresent != anyAgentsPresent);
+        // Update before notifying listeners: docking can itself cause a registry refresh.
+        agentsPresent = present;
+        anyAgentsPresent = anyPresent;
+        automaticVisibilityEnabled = automatic;
+        if (reconcile) {
+            if (!anyPresent) {
+                setPlacement(Placement.HIDDEN);
+            } else if (present && !isDocked()) {
+                setPlacement(lastDockedSide);
+            }
+        }
     }
 
     public double getPreferredWidth() {

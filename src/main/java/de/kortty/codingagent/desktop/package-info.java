@@ -25,7 +25,8 @@
  * <p>Clicks: a notification can carry a click action ({@link
  * de.kortty.codingagent.desktop.DesktopNotifier#notify(String, String, Runnable)}), which the
  * notifier runs once on the JavaFX thread where the backend reports the click — the User
- * Notifications framework in the macOS app bundle, the tray icon's action event on Windows, the
+ * Notifications framework in the macOS app bundle (or the development helper's private pipes),
+ * the tray icon's action event on Windows, the
  * {@code ActionInvoked} signal of the notification server on Linux (over the listening session-bus
  * connection of {@link de.kortty.codingagent.desktop.NotificationsDBusConnection} on the
  * {@code kortty-notification-bus} thread) or a waiting {@code notify-send --action}. The enterprise

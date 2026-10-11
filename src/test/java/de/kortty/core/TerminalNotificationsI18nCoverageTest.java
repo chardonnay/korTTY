@@ -32,26 +32,30 @@ class TerminalNotificationsI18nCoverageTest {
         "messages_hr.properties",
         "messages_nl.properties");
 
-    private static final List<String> PREFIXES = List.of("settings.terminal.notify.", "terminal.notify.",
+    private static final List<String> PREFIXES = List.of("settings.tab.messaging", "settings.messaging.", "terminal.notify.",
         "settings.terminal.osc52.", "terminal.osc52.", "tab.contextMenu.monitor");
 
     private static final List<String> REQUIRED_KEYS = List.of(
-        "settings.terminal.notify.header",
-        "settings.terminal.notify.bell",
-        "settings.terminal.notify.bell.tooltip",
-        "settings.terminal.notify.commandFinished",
-        "settings.terminal.notify.commandFinished.tooltip",
-        "settings.terminal.notify.commandFinishedSeconds",
-        "settings.terminal.notify.commandFinishedSeconds.unit",
-        "settings.terminal.notify.commandFinishedSeconds.tooltip",
-        "settings.terminal.notify.remote",
-        "settings.terminal.notify.remote.tooltip",
-        "settings.terminal.notify.aiRun",
-        "settings.terminal.notify.aiRun.tooltip",
-        "settings.terminal.notify.silenceSeconds",
-        "settings.terminal.notify.silenceSeconds.unit",
-        "settings.terminal.notify.silenceSeconds.tooltip",
-        "settings.terminal.notify.info",
+        "settings.tab.messaging",
+        "settings.messaging.description",
+        "settings.messaging.codingAgent",
+        "settings.messaging.codingAgent.tooltip",
+        "settings.messaging.header",
+        "settings.messaging.bell",
+        "settings.messaging.bell.tooltip",
+        "settings.messaging.commandFinished",
+        "settings.messaging.commandFinished.tooltip",
+        "settings.messaging.commandFinishedSeconds",
+        "settings.messaging.commandFinishedSeconds.unit",
+        "settings.messaging.commandFinishedSeconds.tooltip",
+        "settings.messaging.remote",
+        "settings.messaging.remote.tooltip",
+        "settings.messaging.aiRun",
+        "settings.messaging.aiRun.tooltip",
+        "settings.messaging.silenceSeconds",
+        "settings.messaging.silenceSeconds.unit",
+        "settings.messaging.silenceSeconds.tooltip",
+        "settings.messaging.info",
         "terminal.notify.bell.body",
         "terminal.notify.bell.tooltip",
         "terminal.notify.commandFinished.succeeded",
@@ -120,7 +124,7 @@ class TerminalNotificationsI18nCoverageTest {
     @Test
     void theSettingsNoteShowsTheMarkTheTabGets() throws Exception {
         for (String bundle : BUNDLES) {
-            assertWithMessage(bundle).that(load(bundle).getProperty("settings.terminal.notify.info")).contains("🔔");
+            assertWithMessage(bundle).that(load(bundle).getProperty("settings.messaging.info")).contains("🔔");
         }
     }
 
@@ -153,7 +157,7 @@ class TerminalNotificationsI18nCoverageTest {
             .containsExactly("{0}");
         for (String bundle : BUNDLES) {
             assertWithMessage(bundle + " names the sequences in the setting")
-                .that(load(bundle).getProperty("settings.terminal.notify.remote")).contains("OSC 9");
+                .that(load(bundle).getProperty("settings.messaging.remote")).contains("OSC 9");
         }
     }
 

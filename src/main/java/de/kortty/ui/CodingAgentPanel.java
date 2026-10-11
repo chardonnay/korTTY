@@ -90,6 +90,7 @@ public class CodingAgentPanel extends BorderPane {
     private static final long FRAME_INTERVAL_NANOS = 33_000_000L;
     private static final int EVIDENCE_MAX_CHARS = 80;
     private static final int EXPLAIN_ROWS = 6;
+    private static final long EXPLAIN_TIMEOUT_MILLIS = 60_000;
     private static final int PROMPT_ROWS = 2;
     private static final int PROMPT_COLUMNS = 16;
     private static final double STATE_DOT_RADIUS = 5;
@@ -130,7 +131,8 @@ public class CodingAgentPanel extends BorderPane {
     private final Tooltip sendBlockedTooltip = new Tooltip(I18n.get("codingAgent.panel.prompt.blocked"));
 
     private final Set<AgentCell> cells = new HashSet<>();
-    private final Set<PaneRef> expandedExplain = new HashSet<>();
+    private final Map<PaneRef, Long> explainDeadlines = new HashMap<>();
+    private final PauseTransition explainExpiry = new PauseTransition();
     private final Map<PaneRef, String> explainTexts = new HashMap<>();
 
     private Consumer<CodingAgentPanelDockManager.Placement> onDockRequest;
@@ -199,11 +201,14 @@ public class CodingAgentPanel extends BorderPane {
         this.navigator = Objects.requireNonNull(navigator, "navigator");
         this.locator = Objects.requireNonNull(locator, "locator");
         this.clockMillis = clockMillis != null ? clockMillis : System::currentTimeMillis;
+        setMinWidth(CodingAgentPanelDockManager.MIN_WIDTH);
+        setPrefWidth(CodingAgentPanelDockManager.DEFAULT_WIDTH);
         getStyleClass().add("coding-agent-panel");
         setTop(buildHeader());
         setCenter(buildList());
         setBottom(buildPromptBox());
         statusClear.setOnFinished(event -> clearStatus());
+        explainExpiry.setOnFinished(event -> expireExplanations());
         applyTheme(null, null);
     }
 
@@ -358,6 +363,9 @@ public class CodingAgentPanel extends BorderPane {
             return;
         }
         bound = false;
+        explainExpiry.stop();
+        explainDeadlines.clear();
+        explainTexts.clear();
         closeRegistryHandle();
         if (durationTimer != null) {
             durationTimer.stop();
@@ -434,7 +442,8 @@ public class CodingAgentPanel extends BorderPane {
         for (CodingAgentEntry entry : entries) {
             present.add(entry.pane());
         }
-        expandedExplain.retainAll(present);
+        explainDeadlines.keySet().retainAll(present);
+        expireExplanations();
         explainTexts.keySet().retainAll(present);
 
         syncingSelection = true;
@@ -467,6 +476,7 @@ public class CodingAgentPanel extends BorderPane {
         if (disposed) {
             return;
         }
+        expireExplanations();
         long now = clockMillis.getAsLong();
         for (AgentCell cell : cells) {
             cell.tick(now);
@@ -546,6 +556,7 @@ public class CodingAgentPanel extends BorderPane {
         }
         unbind();
         disposed = true;
+        explainExpiry.stop();
         statusClear.stop();
     }
 
@@ -613,20 +624,46 @@ public class CodingAgentPanel extends BorderPane {
         }
     }
 
+    private void sendAnswer(CodingAgentEntry entry, String answer) {
+        if (runAction(entry, () -> actions.sendText(entry.pane(), answer), null, true)) {
+            Telemetry.track(TelemetryEvents.CODING_AGENT_ACTION, Map.of("action", "panel_send_key"));
+        }
+    }
+
     private void toggleExplain(CodingAgentEntry entry) {
         PaneRef pane = entry.pane();
-        if (expandedExplain.remove(pane)) {
+        if (explainDeadlines.remove(pane) != null) {
             explainTexts.remove(pane);
         } else {
             try {
                 explainTexts.put(pane, actions.explain(pane));
-                expandedExplain.add(pane);
+                explainDeadlines.put(pane, clockMillis.getAsLong() + EXPLAIN_TIMEOUT_MILLIS);
             } catch (CodingAgentActionException e) {
                 showError(e, null);
                 return;
             }
         }
+        scheduleExplainExpiry();
         list.refresh();
+    }
+
+    private void expireExplanations() {
+        long now = clockMillis.getAsLong();
+        boolean changed = explainDeadlines.entrySet().removeIf(entry -> entry.getValue() <= now);
+        explainTexts.keySet().retainAll(explainDeadlines.keySet());
+        if (changed) {
+            list.refresh();
+        }
+        scheduleExplainExpiry();
+    }
+
+    private void scheduleExplainExpiry() {
+        explainExpiry.stop();
+        if (!explainDeadlines.isEmpty()) {
+            long next = explainDeadlines.values().stream().mapToLong(Long::longValue).min().orElseThrow();
+            explainExpiry.setDuration(Duration.millis(Math.max(1, next - clockMillis.getAsLong())));
+            explainExpiry.playFromStart();
+        }
     }
 
     private void rename(CodingAgentEntry entry) {
@@ -874,8 +911,8 @@ public class CodingAgentPanel extends BorderPane {
             evidenceLabel.setMaxWidth(Double.MAX_VALUE);
 
             focusButton.setOnAction(event -> withEntry(CodingAgentPanel.this::focusPane));
-            Button yButton = keyButton("y", KeyChord.Y, true);
-            Button nButton = keyButton("n", KeyChord.N, true);
+            Button yesButton = answerButton("YES");
+            Button noButton = answerButton("NO");
             Button enterButton = keyButton("Enter", KeyChord.ENTER, true);
             Button escButton = keyButton("Esc", KeyChord.ESC, true);
             Button upButton = keyButton("↑", KeyChord.UP, false);
@@ -883,9 +920,8 @@ public class CodingAgentPanel extends BorderPane {
             Button ctrlCButton = keyButton("Ctrl+C", KeyChord.CTRL_C, false);
             explainButton.setOnAction(event -> withEntry(CodingAgentPanel.this::toggleExplain));
             renameButton.setOnAction(event -> withEntry(CodingAgentPanel.this::rename));
-            // A FlowPane, not an HBox: ten buttons are wider than the panel at its default width
-            // (380 px), and a row that wraps beats one whose last buttons are clipped away.
-            FlowPane line4 = new FlowPane(4, 4, focusButton, yButton, nButton, enterButton, escButton, upButton,
+            // Wrap quick actions when a translation or a larger font needs more than one line.
+            FlowPane line4 = new FlowPane(4, 4, focusButton, yesButton, noButton, enterButton, escButton, upButton,
                 downButton, ctrlCButton, explainButton, renameButton);
             line4.setAlignment(Pos.CENTER_LEFT);
 
@@ -910,6 +946,17 @@ public class CodingAgentPanel extends BorderPane {
             if (answer) {
                 answerButtons.add(button);
             }
+            return button;
+        }
+
+        private Button answerButton(String answer) {
+            Button button = new Button(answer);
+            Tooltip tooltip = new Tooltip(I18n.get("codingAgent.panel.key.tooltip", answer));
+            button.setTooltip(tooltip);
+            button.setOnAction(event -> withEntry(current -> sendAnswer(current, answer)));
+            keyButtons.add(button);
+            keyTooltips.put(button, tooltip);
+            answerButtons.add(button);
             return button;
         }
 
@@ -971,7 +1018,7 @@ public class CodingAgentPanel extends BorderPane {
                         + CodingAgentStripSupport.chipTextHex(lightBackground) + ";"
                     : null);
             }
-            boolean expanded = expandedExplain.contains(item.pane());
+            boolean expanded = explainDeadlines.containsKey(item.pane());
             String explainText = expanded ? explainTexts.getOrDefault(item.pane(), "") : "";
             // setText always deletes and re-inserts the content, which snaps the drawer back to the
             // top; the row re-renders whenever the detection evidence moves, so only set on change.

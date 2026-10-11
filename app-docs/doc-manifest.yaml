@@ -104,7 +104,7 @@ pages:
       - settings/terminal.png
       - settings/backup.png
       - settings/ai.png
-    last_synced_ref: "60e9a696"
+    last_synced_ref: "023fb444"
   - path: app-docs/site/docs/en/reference/settings/appearance.md
     owns_i18n: [settings.appearance., settings.font., theme.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/ThemeManager.java, src/main/java/de/kortty/model/AppDesign.java, src/main/java/de/kortty/ui/AppDesignStyleSupport.java, src/main/java/de/kortty/ui/AppDesignNavigation.java, src/main/java/de/kortty/ui/ChatColorProfileSupport.java, src/main/java/de/kortty/ui/UiFontScaleSupport.java, src/main/java/de/kortty/ui/GuideViewer.java, src/main/java/de/kortty/model/ConnectionSettings.java, src/main/java/de/kortty/model/GlobalSettings.java]
@@ -124,7 +124,12 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/core/TerminalEncodingSupport.java, src/main/java/de/kortty/ui/HighlightSettingsSupport.java, src/main/java/de/kortty/ui/QuickSelectSettingsSupport.java]
     screenshots:
       - settings/terminal.png
-    last_synced_ref: "659b3bd9"
+    last_synced_ref: "023fb444"
+  - path: app-docs/site/docs/en/reference/settings/messaging.md
+    owns_i18n: [settings.messaging.]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/ui/SettingsSection.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    screenshots: [settings/messaging.png]
+    last_synced_ref: "023fb444"
   - path: app-docs/site/docs/en/reference/settings/window.md
     owns_i18n: [settings.window.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/ui/DialogGeometrySupport.java, src/main/java/de/kortty/ui/MainWindowGeometrySupport.java, src/main/java/de/kortty/ui/DialogThemeHelper.java, src/main/java/de/kortty/model/NamedWindowGeometry.java, src/main/java/de/kortty/model/SessionRestoreMode.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/ToolbarIcons.java]
@@ -246,11 +251,11 @@ pages:
     owns_i18n: [terminal.contextMenu.shellIntegration., terminal.shellIntegration., terminal.timestamps.exitStatus, terminal.timestamps.runtime, terminal.timestamps.runningFor, terminal.timestamps.duration.milliseconds, connEdit.shellIntegration]
     owns_code: [src/main/java/de/kortty/shellintegration, src/main/java/de/kortty/ui/LocalShellIntegrationOption.java, src/main/java/de/kortty/ui/ShellIntegrationTtyConnector.java, src/main/java/de/kortty/ui/ShellIntegrationController.java, src/main/java/de/kortty/ui/PaneCommandMarks.java, src/main/java/de/kortty/ui/TerminalScrollSupport.java, src/main/java/de/kortty/ui/KorttyTermWidget.java, src/main/resources/shell-integration, src/main/java/de/kortty/ui/TimestampGutter.java, src/main/java/de/kortty/ui/TimestampGutterFormats.java, src/main/java/de/kortty/ui/ShellIntegrationSetupDialog.java, src/main/java/de/kortty/core/SshTtyConnector.java]
     screenshots: [main/shell-integration-setup.png]
-    last_synced_ref: "f5cf36c3"
+    last_synced_ref: "023fb444"
   - path: app-docs/site/docs/en/features/terminal-notifications.md
     owns_i18n: [terminal.notify., terminal.osc52., tab.contextMenu.monitor]
     owns_code: [src/main/java/de/kortty/shellintegration/TerminalNotificationPolicy.java, src/main/java/de/kortty/shellintegration/PaneActivityMonitor.java, src/main/java/de/kortty/shellintegration/PaneOutputClock.java, src/main/java/de/kortty/ui/TerminalActivityWatcher.java, src/main/java/de/kortty/shellintegration/BellCoalescer.java, src/main/java/de/kortty/shellintegration/RemoteNotificationText.java, src/main/java/de/kortty/shellintegration/RemoteNotificationSlot.java, src/main/java/de/kortty/shellintegration/Osc52Support.java, src/main/java/de/kortty/shellintegration/ClipboardWriteSlot.java, src/main/java/de/kortty/ui/TerminalClipboardWriter.java, src/main/java/de/kortty/ui/TerminalAttentionNotifier.java, src/main/java/de/kortty/ui/NotificationActivation.java, src/main/java/de/kortty/ui/PaneSeenOracle.java, src/main/java/de/kortty/ui/KorttyTermWidget.java, src/main/java/de/kortty/ui/TerminalTab.java]
-    last_synced_ref: "3c399762"
+    last_synced_ref: "023fb444"
   - path: app-docs/site/docs/en/features/highlighting.md
     owns_i18n: [highlight., menu.view.highlighting, connEdit.highlighting]
     owns_code: [src/main/java/de/kortty/core/highlight, src/main/java/de/kortty/model/HighlightRule.java, src/main/java/de/kortty/model/HighlightRuleSet.java, src/main/java/de/kortty/ui/HighlightMenuSupport.java, src/main/java/de/kortty/ui/HighlightSettingsSupport.java, src/main/java/de/kortty/ui/HighlightRulesDialog.java, src/main/java/de/kortty/ui/HighlightRulesEditorModel.java, src/main/java/de/kortty/ui/HighlightColorChoices.java, src/main/java/de/kortty/ui/HighlightConnectionSupport.java, src/main/java/de/kortty/ui/HighlightTriggerDispatcher.java, src/main/java/de/kortty/ui/HighlightSnippetTrigger.java, src/main/java/de/kortty/ui/HighlightSnippetTriggerGuard.java]
@@ -458,6 +463,7 @@ pages:
       - src/main/java/de/kortty/codingagent
       - src/main/java/de/kortty/codingagent/desktop
       - src/main/resources/coding-agents
+      - package/macos/notifications
       - src/main/java/de/kortty/ui/CodingAgentPanel.java
       - src/main/java/de/kortty/ui/CodingAgentStatusStrip.java
       - src/main/java/de/kortty/ui/CodingAgentPanelDockManager.java
@@ -467,7 +473,7 @@ pages:
       - src/main/java/de/kortty/paste/PasteSanitizer.java
     diagrams: [coding-agents.svg]
     screenshots: [coding-agents/dashboard.png, coding-agents/panel.png, coding-agents/status-strip.png, coding-agents/badge-icon.png]
-    last_synced_ref: "3c399762"
+    last_synced_ref: "023fb444"
   - path: app-docs/site/docs/en/features/i18n.md
     owns_i18n: []
     # TranslationService is owned here as well: the provider table on this page states which API
@@ -517,7 +523,7 @@ pages:
     owns_code: [src/main/java/de/kortty/policy, package/policy, src/main/java/de/kortty/ui/SplitConnectionPolicy.java, src/main/java/de/kortty/ui/ConnectionAuthResolver.java, src/main/java/de/kortty/jobscheduler/JobSchedulerJobRunner.java]
     diagrams: []
     screenshots: []
-    last_synced_ref: "3c399762"
+    last_synced_ref: "023fb444"
   - path: app-docs/site/docs/en/reference/hardening-options.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/core/WorkflowScriptSupport.java, src/main/java/de/kortty/ui/HardeningOptionsSelector.java, src/main/java/de/kortty/ui/WorkflowScriptDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java, src/main/java/de/kortty/ui/SnippetEditDialog.java, src/main/java/de/kortty/ui/SnippetAnalysisPanel.java]

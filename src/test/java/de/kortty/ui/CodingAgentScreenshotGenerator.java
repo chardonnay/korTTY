@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public final class CodingAgentScreenshotGenerator {
 
     private static final double SCALE = 2;
-    private static final double PANEL_WIDTH = 440;
+    private static final double PANEL_WIDTH = CodingAgentPanelDockManager.DEFAULT_WIDTH;
     private static final double PANEL_HEIGHT = 520;
     private static final double STRIP_WIDTH = 600;
     private static final double STRIP_HEIGHT = 36;

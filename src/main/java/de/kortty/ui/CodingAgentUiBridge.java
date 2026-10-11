@@ -193,6 +193,8 @@ public final class CodingAgentUiBridge implements FocusOracle, PaneLocator, Pane
             coordinator.tick();
         }
         for (MainWindow window : snapshotWindows()) {
+            // A tab can move to another window without changing the registry entry.
+            window.reconcileCodingAgentPanelVisibility();
             CodingAgentPanel panel = window.getCodingAgentPanel();
             if (panel != null) {
                 panel.tick();

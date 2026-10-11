@@ -44,7 +44,8 @@ public final class DesktopNotifierBackends {
             ? DBusSessionSocket.sessionBusSocketPath(System.getenv()) : Optional.empty();
         Optional<String> desktopId = probe.isLinux()
             ? LinuxDesktopId.resolve(probe, System.getenv(), Files::isRegularFile) : Optional.empty();
-        return select(probe, osascriptPresent, notifySendPresent, sessionBus, desktopId);
+        DesktopNotifierBackend macHelper = probe.isMac() ? MacNotificationHelperBackend.configuredHelper() : null;
+        return select(probe, osascriptPresent, notifySendPresent, sessionBus, desktopId, macHelper);
     }
 
     /** {@link #select(PlatformProbe, boolean, boolean, Optional, Optional)} without a session bus. */
@@ -57,8 +58,9 @@ public final class DesktopNotifierBackends {
      * <ul>
      *   <li>macOS inside korTTY's {@code .app} bundle → the User Notifications framework
      *       ({@link MacUserNotificationsBackend}: attributed to korTTY, clickable), with
-     *       {@code osascript} as its fallback; macOS outside a bundle ({@code ./gradlew run}) with
-     *       {@code osascript} → Notification Center through Script Editor, not clickable;</li>
+     *       the configured development helper or {@code osascript} as its fallback; macOS outside
+     *       a bundle with the development helper ({@code ./gradlew run}) → clickable notifications
+     *       from the helper's own bundle; otherwise {@code osascript} → Script Editor;</li>
      *   <li>Windows unless headless → tray balloon, whose click reaches korTTY;</li>
      *   <li>Linux with a {@code unix:path} session bus → the notification server's D-Bus interface
      *       (clickable), with {@code notify-send} as its fallback when it is on the PATH — inside
@@ -76,15 +78,21 @@ public final class DesktopNotifierBackends {
      */
     static DesktopNotifierBackend select(PlatformProbe probe, boolean osascriptPresent, boolean notifySendPresent,
                                          Optional<String> sessionBusSocket, Optional<String> linuxDesktopId) {
+        return select(probe, osascriptPresent, notifySendPresent, sessionBusSocket, linuxDesktopId, null);
+    }
+
+    static DesktopNotifierBackend select(PlatformProbe probe, boolean osascriptPresent, boolean notifySendPresent,
+                                         Optional<String> sessionBusSocket, Optional<String> linuxDesktopId,
+                                         DesktopNotifierBackend macHelper) {
         Objects.requireNonNull(probe, "probe");
         if (probe.isMac()) {
-            DesktopNotifierBackend osascript = osascriptPresent
+            DesktopNotifierBackend fallback = macHelper != null ? macHelper : osascriptPresent
                 ? new MacOsascriptNotifierBackend(argv -> ExternalCommandRunner.runBlocking(argv, COMMAND_TIMEOUT_MILLIS))
                 : new UnsupportedNotifierBackend();
             if (isMacAppBundle(probe)) {
-                return new MacUserNotificationsBackend(osascript);
+                return new MacUserNotificationsBackend(fallback);
             }
-            return osascript;
+            return fallback;
         }
         if (probe.isWindows()) {
             if (!probe.awtHeadless()) {

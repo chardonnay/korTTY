@@ -200,6 +200,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox codingAgentDetectionCheck;
     private final CheckBox codingAgentNotificationsCheck;
     private final CheckBox codingAgentAppBadgeCheck;
+    private final CheckBox codingAgentPanelAutoVisibilityCheck;
     private final CheckBox controlApiEnabledCheck;
     private final Label controlApiStatusLabel;
     private final CheckBox mcpServerEnabledCheck;
@@ -965,16 +966,16 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // desktop notifications locks every notification switch off; an allow leaves them with the user.
         boolean desktopNotificationsDenied =
             !de.kortty.policy.PolicyManager.effective().desktopNotificationsAllowed();
-        terminalBellNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.bell"));
+        terminalBellNotificationsCheck = new CheckBox(I18n.get("settings.messaging.bell"));
         terminalBellNotificationsCheck.setSelected(globalSettings != null
             && globalSettings.isTerminalBellNotificationsEnabled());
-        terminalBellNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.bell.tooltip")));
+        terminalBellNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.messaging.bell.tooltip")));
         // ... and a long command the shell marked finishing there; needs shell integration.
-        commandFinishedNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.commandFinished"));
+        commandFinishedNotificationsCheck = new CheckBox(I18n.get("settings.messaging.commandFinished"));
         commandFinishedNotificationsCheck.setSelected(globalSettings == null
             || globalSettings.isCommandFinishedNotificationsEnabled());
         commandFinishedNotificationsCheck.setTooltip(
-            new Tooltip(I18n.get("settings.terminal.notify.commandFinished.tooltip")));
+            new Tooltip(I18n.get("settings.messaging.commandFinished.tooltip")));
         commandFinishedSecondsSpinner = new Spinner<>(TerminalNotificationPolicy.MIN_COMMAND_FINISHED_SECONDS,
             TerminalNotificationPolicy.MAX_COMMAND_FINISHED_SECONDS,
             globalSettings != null ? globalSettings.getCommandFinishedNotificationSeconds()
@@ -982,7 +983,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         commandFinishedSecondsSpinner.setEditable(true);
         commandFinishedSecondsSpinner.setPrefWidth(100);
         commandFinishedSecondsSpinner.setTooltip(
-            new Tooltip(I18n.get("settings.terminal.notify.commandFinishedSeconds.tooltip")));
+            new Tooltip(I18n.get("settings.messaging.commandFinishedSeconds.tooltip")));
         // Without shell integration no command is ever marked finished: show that the two do nothing.
         Runnable syncCommandFinishedControls = () -> {
             boolean marksRead = shellIntegrationCheck.isSelected();
@@ -992,14 +993,14 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         shellIntegrationCheck.selectedProperty().addListener((obs, was, now) -> syncCommandFinishedControls.run());
         syncCommandFinishedControls.run();
         // ... and a program there asking for a notification (OSC 9, OSC 777); needs no shell integration.
-        remoteTerminalNotificationsCheck = new CheckBox(I18n.get("settings.terminal.notify.remote"));
+        remoteTerminalNotificationsCheck = new CheckBox(I18n.get("settings.messaging.remote"));
         remoteTerminalNotificationsCheck.setSelected(globalSettings == null
             || globalSettings.isRemoteTerminalNotificationsEnabled());
-        remoteTerminalNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.remote.tooltip")));
+        remoteTerminalNotificationsCheck.setTooltip(new Tooltip(I18n.get("settings.messaging.remote.tooltip")));
         // ... and korTTY's own AI runs (terminal agent, swarm) finishing or waiting for an approval.
-        aiRunToastsCheck = new CheckBox(I18n.get("settings.terminal.notify.aiRun"));
+        aiRunToastsCheck = new CheckBox(I18n.get("settings.messaging.aiRun"));
         aiRunToastsCheck.setSelected(globalSettings == null || globalSettings.isAiRunToastsEnabled());
-        aiRunToastsCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.notify.aiRun.tooltip")));
+        aiRunToastsCheck.setTooltip(new Tooltip(I18n.get("settings.messaging.aiRun.tooltip")));
         de.kortty.policy.PolicyUiSupport.lockIf(terminalBellNotificationsCheck, desktopNotificationsDenied);
         de.kortty.policy.PolicyUiSupport.lockIf(commandFinishedNotificationsCheck, desktopNotificationsDenied);
         de.kortty.policy.PolicyUiSupport.lockIf(remoteTerminalNotificationsCheck, desktopNotificationsDenied);
@@ -1012,7 +1013,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalSilenceSecondsSpinner.setEditable(true);
         terminalSilenceSecondsSpinner.setPrefWidth(100);
         terminalSilenceSecondsSpinner.setTooltip(
-            new Tooltip(I18n.get("settings.terminal.notify.silenceSeconds.tooltip")));
+            new Tooltip(I18n.get("settings.messaging.silenceSeconds.tooltip")));
         
         // SSH Keep-Alive settings
         sshKeepAliveCheck = new CheckBox(I18n.get("settings.terminal.sshKeepAlive"));
@@ -1047,11 +1048,16 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         codingAgentDetectionCheck = new CheckBox(I18n.get("settings.codingAgent.detectionEnabled"));
         codingAgentDetectionCheck.setSelected(globalSettings == null || globalSettings.isCodingAgentDetectionEnabled());
         codingAgentDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.codingAgent.detectionEnabled.tooltip")));
-        codingAgentNotificationsCheck = new CheckBox(I18n.get("settings.codingAgent.notificationsEnabled"));
+        codingAgentPanelAutoVisibilityCheck = new CheckBox(I18n.get("settings.codingAgent.panelAutoVisibility"));
+        codingAgentPanelAutoVisibilityCheck.setSelected(
+            globalSettings == null || globalSettings.isCodingAgentPanelAutoVisibility());
+        codingAgentPanelAutoVisibilityCheck.setTooltip(
+            new Tooltip(I18n.get("settings.codingAgent.panelAutoVisibility.tooltip")));
+        codingAgentNotificationsCheck = new CheckBox(I18n.get("settings.messaging.codingAgent"));
         codingAgentNotificationsCheck.setSelected(
             globalSettings == null || globalSettings.isCodingAgentNotificationsEnabled());
         codingAgentNotificationsCheck.setTooltip(
-            new Tooltip(I18n.get("settings.codingAgent.notificationsEnabled.tooltip")));
+            new Tooltip(I18n.get("settings.messaging.codingAgent.tooltip")));
         de.kortty.policy.PolicyUiSupport.lockIf(codingAgentNotificationsCheck,
             !de.kortty.policy.PolicyManager.effective().desktopNotificationsAllowed());
         codingAgentAppBadgeCheck = new CheckBox(I18n.get("settings.codingAgent.appBadgeEnabled"));
@@ -1234,30 +1240,6 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(remoteSidebarLabel, 0, terminalRow);
         terminalGrid.add(remoteSidebarPositionCombo, 1, terminalRow++);
 
-        // Notifications section
-        terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
-        Label notificationsHeader = new Label(I18n.get("settings.terminal.notify.header"));
-        notificationsHeader.setStyle("-fx-font-weight: bold;");
-        terminalGrid.add(notificationsHeader, 0, terminalRow++, 2, 1);
-        terminalGrid.add(terminalBellNotificationsCheck, 0, terminalRow++, 2, 1);
-        terminalGrid.add(commandFinishedNotificationsCheck, 0, terminalRow++, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.notify.commandFinishedSeconds")), 0, terminalRow);
-        HBox commandFinishedSecondsBox = new HBox(10, commandFinishedSecondsSpinner,
-            new Label(I18n.get("settings.terminal.notify.commandFinishedSeconds.unit")));
-        commandFinishedSecondsBox.setAlignment(Pos.CENTER_LEFT);
-        terminalGrid.add(commandFinishedSecondsBox, 1, terminalRow++);
-        terminalGrid.add(remoteTerminalNotificationsCheck, 0, terminalRow++, 2, 1);
-        terminalGrid.add(aiRunToastsCheck, 0, terminalRow++, 2, 1);
-        terminalGrid.add(new Label(I18n.get("settings.terminal.notify.silenceSeconds")), 0, terminalRow);
-        HBox terminalSilenceSecondsBox = new HBox(10, terminalSilenceSecondsSpinner,
-            new Label(I18n.get("settings.terminal.notify.silenceSeconds.unit")));
-        terminalSilenceSecondsBox.setAlignment(Pos.CENTER_LEFT);
-        terminalGrid.add(terminalSilenceSecondsBox, 1, terminalRow++);
-        Label notificationsInfo = new Label(I18n.get("settings.terminal.notify.info"));
-        notificationsInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
-        notificationsInfo.setWrapText(true);
-        terminalGrid.add(notificationsInfo, 0, terminalRow++, 2, 1);
-
         // SSH Keep-Alive section
         terminalGrid.add(new Separator(), 0, terminalRow++, 2, 1);
         terminalGrid.add(new Label(I18n.get("settings.terminal.sshKeepAlive")), 0, terminalRow++, 2, 1);
@@ -1296,7 +1278,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         codingAgentInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         codingAgentInfo.setWrapText(true);
         terminalGrid.add(codingAgentInfo, 0, terminalRow++, 2, 1);
-        terminalGrid.add(codingAgentNotificationsCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(codingAgentPanelAutoVisibilityCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(codingAgentAppBadgeCheck, 0, terminalRow++, 2, 1);
 
         // Control API section
@@ -1323,6 +1305,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(mcpHintLabel, 0, terminalRow++, 2, 1);
 
         LazyTabContent.defer(terminalTab, () -> terminalGrid);
+        Tab messagingTab = createMessagingTab();
 
         // Video tab
         Tab videoTab = sectionTab(SettingsSection.VIDEO);
@@ -3723,7 +3706,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         // Keyboard tab (rebind korTTY's shortcuts)
         keyboardTab = createKeyboardTab();
 
-        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, videoTab, backupTab, loggingTab, exportTab, updatesTab, windowTab, keyboardTab, resourcesTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
+        tabPane.getTabs().addAll(fontTab, colorsTab, themesTab, appearanceTab, terminalTab, messagingTab, videoTab, backupTab, loggingTab, exportTab, updatesTab, windowTab, keyboardTab, resourcesTab, securityTab, privacyTab, sftpTab, editorTab, snippetEditorTab, languageTab, translationTab, aiTab);
         
         // These are fixed pixel sizes rather than content-derived ones, so they have to grow with
         // the UI font scale or the tabs would crowd inside an unchanged frame. scaleDimension caps
@@ -3788,6 +3771,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     if (app.getCodingAgentService() != null) {
                         // Re-read the toggle for every open local shell pane right away.
                         app.getCodingAgentService().evaluateAll();
+                    }
+                    for (MainWindow window : MainWindow.getOpenWindows()) {
+                        window.onCodingAgentsChanged();
                     }
                     reloadTerminalHighlighting();
                     if (app.getAppBadgeService() != null) {
@@ -4058,6 +4044,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalRecordingEnabled(terminalRecordingAlwaysEnabledCheck.isSelected());
             globalSettings.setTerminalRecordingCaptureColorsEnabled(terminalRecordingCaptureColorsCheck.isSelected());
             globalSettings.setCodingAgentDetectionEnabled(codingAgentDetectionCheck.isSelected());
+            globalSettings.setCodingAgentPanelAutoVisibility(codingAgentPanelAutoVisibilityCheck.isSelected());
             globalSettings.setCodingAgentNotificationsEnabled(codingAgentNotificationsCheck.isSelected());
             globalSettings.setCodingAgentAppBadgeEnabled(codingAgentAppBadgeCheck.isSelected());
             globalSettings.setControlApiEnabled(controlApiEnabledCheck.isSelected());
@@ -4861,6 +4848,54 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
      */
     void setKeymapCatalogSource(Supplier<KeyboardSettingsModel.Catalog> source) {
         this.keymapCatalogSource = source != null ? source : () -> null;
+    }
+
+    /** Shares the existing notification controls and their persisted switches on a dedicated page. */
+    private Tab createMessagingTab() {
+        Tab tab = sectionTab(SettingsSection.MESSAGING);
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+        int row = 0;
+
+        Label description = new Label(I18n.get("settings.messaging.description"));
+        description.setWrapText(true);
+        grid.add(description, 0, row++, 2, 1);
+        Label codingAgentHeader = new Label(I18n.get("settings.codingAgent.header"));
+        codingAgentHeader.setStyle("-fx-font-weight: bold;");
+        grid.add(codingAgentHeader, 0, row++, 2, 1);
+        grid.add(codingAgentNotificationsCheck, 0, row++, 2, 1);
+        grid.add(new Separator(), 0, row++, 2, 1);
+        Label notificationsHeader = new Label(I18n.get("settings.messaging.header"));
+        notificationsHeader.setStyle("-fx-font-weight: bold;");
+        grid.add(notificationsHeader, 0, row++, 2, 1);
+        grid.add(terminalBellNotificationsCheck, 0, row++, 2, 1);
+        grid.add(commandFinishedNotificationsCheck, 0, row++, 2, 1);
+        grid.add(new Label(I18n.get("settings.messaging.commandFinishedSeconds")), 0, row);
+        HBox commandFinishedSecondsBox = new HBox(10, commandFinishedSecondsSpinner,
+            new Label(I18n.get("settings.messaging.commandFinishedSeconds.unit")));
+        commandFinishedSecondsBox.setAlignment(Pos.CENTER_LEFT);
+        grid.add(commandFinishedSecondsBox, 1, row++);
+        grid.add(remoteTerminalNotificationsCheck, 0, row++, 2, 1);
+        grid.add(aiRunToastsCheck, 0, row++, 2, 1);
+        grid.add(new Label(I18n.get("settings.messaging.silenceSeconds")), 0, row);
+        HBox terminalSilenceSecondsBox = new HBox(10, terminalSilenceSecondsSpinner,
+            new Label(I18n.get("settings.messaging.silenceSeconds.unit")));
+        terminalSilenceSecondsBox.setAlignment(Pos.CENTER_LEFT);
+        grid.add(terminalSilenceSecondsBox, 1, row++);
+        Label info = new Label(I18n.get("settings.messaging.info"));
+        info.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
+        info.setWrapText(true);
+        grid.add(info, 0, row, 2, 1);
+        for (CheckBox notification : List.of(codingAgentNotificationsCheck, terminalBellNotificationsCheck,
+                commandFinishedNotificationsCheck, remoteTerminalNotificationsCheck, aiRunToastsCheck)) {
+            notification.setWrapText(true);
+            notification.setMaxWidth(Double.MAX_VALUE);
+            GridPane.setHgrow(notification, Priority.ALWAYS);
+        }
+        LazyTabContent.defer(tab, () -> grid);
+        return tab;
     }
 
     /**

@@ -258,6 +258,14 @@ public class GlobalSettings {
     @XmlElement
     private String codingAgentPanelPlacement = "HIDDEN";
 
+    /** Automatically show the panel on detection and hide it after the last agent exits. */
+    @XmlElement
+    private boolean codingAgentPanelAutoVisibility = true;
+
+    /** Last chosen dock side, retained while the panel is hidden; null migrates from placement. */
+    @XmlElement
+    private String codingAgentPanelSide;
+
     /** Persisted width of the docked Coding Agents panel (null = default). */
     @XmlElement
     private Double codingAgentPanelWidth;
@@ -2122,7 +2130,24 @@ public class GlobalSettings {
         this.codingAgentPanelPlacement = placement;
     }
 
-    /** Docked Coding Agents panel width, clamped to the allowed range (default 380). */
+    public boolean isCodingAgentPanelAutoVisibility() {
+        return codingAgentPanelAutoVisibility;
+    }
+
+    public void setCodingAgentPanelAutoVisibility(boolean enabled) {
+        codingAgentPanelAutoVisibility = enabled;
+    }
+
+    public String getCodingAgentPanelSide() {
+        String side = codingAgentPanelSide != null ? codingAgentPanelSide : getCodingAgentPanelPlacement();
+        return "LEFT".equalsIgnoreCase(side.trim()) ? "LEFT" : "RIGHT";
+    }
+
+    public void setCodingAgentPanelSide(String side) {
+        codingAgentPanelSide = side;
+    }
+
+    /** Docked Coding Agents panel width, clamped to the allowed range. */
     public double getCodingAgentPanelWidth() {
         double value = codingAgentPanelWidth != null ? codingAgentPanelWidth : CODING_AGENT_PANEL_DEFAULT_WIDTH;
         if (Double.isNaN(value)) {

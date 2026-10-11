@@ -111,6 +111,20 @@ class BackendSelectionTest {
     }
 
     @Test
+    void macDevelopmentHelperMakesNotificationsClickableOutsideTheAppBundle() {
+        DesktopNotifierBackend helper = new MacNotificationHelperBackend(java.nio.file.Path.of("test-helper"));
+        DesktopNotifierBackend backend = DesktopNotifierBackends.select(
+            probe("Mac OS X", null, false, false), true, false, Optional.empty(), Optional.empty(), helper);
+        assertThat(backend).isSameInstanceAs(helper);
+        assertThat(backend.supportsActivation()).isTrue();
+        DesktopNotifierBackend packaged = DesktopNotifierBackends.select(
+            probe("Mac OS X", "/Applications/korTTY.app/Contents/MacOS/korTTY", false, false), true, false,
+            Optional.empty(), Optional.empty(), helper);
+        assertThat(packaged).isInstanceOf(MacUserNotificationsBackend.class);
+        assertThat(((MacUserNotificationsBackend) packaged).fallback()).isSameInstanceAs(helper);
+    }
+
+    @Test
     void macInsideTheAppBundleUsesTheUserNotificationsFrameworkWithOsascriptBehindIt() {
         DesktopNotifierBackend backend = DesktopNotifierBackends.select(
             probe("Mac OS X", "/Applications/korTTY.app/Contents/MacOS/korTTY", false, true), true, false);

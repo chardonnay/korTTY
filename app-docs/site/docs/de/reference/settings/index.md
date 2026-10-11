@@ -20,6 +20,7 @@ Das [Symbolleiste](../../getting-started/main-window.md#anpassung-der-symbolleis
 | --- | --- |
 | [Aussehen, Themen & Schriftart](appearance.md) | App-Design (Standard, Matrix, Holographisch, Klingon, Elegantes Dunkel), Terminal-Themen, Schriftfamilie & Größe, UI-Schriftgröße|
 | [Farben](colors.md) | Farbprofil, Text/Hintergrund/Cursor/Selection-Farben, Cursor-Blinken, die 16-Farben ANSI-Palette|
+| [Messaging](messaging.md) | Desktop-Benachrichtigungen für Coding-Agenten, Terminalereignisse und korTTY KI-Läufe; Benachrichtigungstiming |
 | [Terminal](terminal.md) | Spalten/Zeilen, Scrollback, Kodierung, SSH Keep-Alive, SSH-Host-Key-Prüfung, Verbindungsversuche, Drag-&-Drop, Zeitstempel|
 | [Fenster](window.md) | Window geometry restore, fixed geometry, dashboard state, menu bar |
 | [Tastatur](keyboard.md) | Eigene Tastaturkürzel für die Befehle von korTTY: ändern, entfernen oder zurücksetzen, mit einer Prüfung auf Tasten, die die Shell braucht, und auf Konflikte |
