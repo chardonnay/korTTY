@@ -15,6 +15,17 @@ import jakarta.xml.bind.annotation.*;
 @XmlAccessorType(XmlAccessType.FIELD)
 public class GlobalSettings {
 
+    @XmlElement
+    private IconToolbarSettings iconToolbar;
+
+    public IconToolbarSettings getIconToolbar() {
+        return iconToolbar == null ? IconToolbarSettings.defaults() : new IconToolbarSettings(iconToolbar);
+    }
+
+    public void setIconToolbar(IconToolbarSettings value) {
+        iconToolbar = value == null ? null : new IconToolbarSettings(value);
+    }
+
     private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
     public static final int DEFAULT_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS = 14;
     public static final int MAX_JOB_SCHEDULER_JOURNAL_RETENTION_DAYS = 3650;
@@ -97,6 +108,12 @@ public class GlobalSettings {
     
     @XmlElement
     private boolean rememberWindowGeometry = true; // Remember last window geometry
+
+    public static final int MIN_TOOLBAR_ICON_SIZE = 16;
+    public static final int MAX_TOOLBAR_ICON_SIZE = 64;
+    public static final int DEFAULT_TOOLBAR_ICON_SIZE = 24;
+    @XmlElement
+    private int toolbarIconSize = DEFAULT_TOOLBAR_ICON_SIZE;
 
     // Terminal window background transparency in percent: 0 = fully opaque (default), 100 = fully
     // transparent (desktop shows through). > 0 makes the window borderless (StageStyle.TRANSPARENT)
@@ -1596,6 +1613,15 @@ public class GlobalSettings {
     
     public boolean isRememberWindowGeometry() {
         return rememberWindowGeometry;
+    }
+
+    public int getToolbarIconSize() {
+        return toolbarIconSize >= MIN_TOOLBAR_ICON_SIZE && toolbarIconSize <= MAX_TOOLBAR_ICON_SIZE
+            ? toolbarIconSize : DEFAULT_TOOLBAR_ICON_SIZE;
+    }
+
+    public void setToolbarIconSize(int size) {
+        toolbarIconSize = Math.max(MIN_TOOLBAR_ICON_SIZE, Math.min(MAX_TOOLBAR_ICON_SIZE, size));
     }
 
     public void setRememberWindowGeometry(boolean rememberWindowGeometry) {

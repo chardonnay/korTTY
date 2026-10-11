@@ -81,6 +81,7 @@ public class GlobalSettingsManager {
     private long loadedSettingsLastModifiedMillis;
     private de.kortty.policy.PolicyClamp policyClamp;
     private ScheduledFuture<?> pendingSave;
+    private int asynchronousSaves;
     private int writeCount;
     private LoadRecovery loadRecovery;
     /** Set when the defaults replaced an unreadable file that could not be copied aside. */
@@ -219,11 +220,34 @@ public class GlobalSettingsManager {
         pendingSave = WRITER.schedule(this::runScheduledSave, SAVE_COALESCE_MILLIS, TimeUnit.MILLISECONDS);
     }
 
+    /** Durable asynchronous save: snapshot on the settings owner thread, file I/O on the writer. */
+    public java.util.concurrent.CompletableFuture<Void> saveAsync() {
+        synchronized (this) {
+            cancelPendingSave();
+            asynchronousSaves++;
+        }
+        var completion = new java.util.concurrent.CompletableFuture<Void>();
+        WRITER.execute(() -> {
+            try {
+                byte[] bytes = marshalOnOwnerThread();
+                writeBytes(bytes);
+                completion.complete(null);
+            } catch (Exception failure) {
+                completion.completeExceptionally(failure);
+            } finally {
+                synchronized (this) {
+                    asynchronousSaves--;
+                }
+            }
+        });
+        return completion;
+    }
+
     /** Writes a scheduled save now, on the calling thread; a no-op when nothing is pending. */
     public void flushPendingSave() {
         boolean pending;
         synchronized (this) {
-            pending = pendingSave != null && !pendingSave.isDone();
+            pending = (pendingSave != null && !pendingSave.isDone()) || asynchronousSaves > 0;
             cancelPendingSave();
         }
         if (pending) {

@@ -12,6 +12,8 @@ Each per-tab page lists settings as a table:
 | Default | Out-of-the-box value |
 | Stored as | The field in `global-settings.xml` |
 
+The [icon toolbar](../../getting-started/main-window.md#customizing-the-icon-toolbar) offers a direct button for each main settings tab. Right-click the toolbar, choose **Customize toolbar…**, select **Settings**, and add the desired shortcut. It opens the existing settings dialog on that tab.
+
 ## Settings tabs
 
 | Tab | What it controls |

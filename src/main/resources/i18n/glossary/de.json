@@ -4,6 +4,30 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "**Ansehen → Icon-Aktionsleiste**",
+      "to": "**Ansicht → Icon-Aktionsleiste**",
+      "scope": "markdown",
+      "note": "Uses the menu.view and menu.view.iconToolbar UI labels."
+    },
+    {
+      "from": "**Ansehen → Verbindungsleiste**",
+      "to": "**Ansicht → Verbindungsleiste**",
+      "scope": "markdown",
+      "note": "Uses the menu.view and menu.view.connectionToolbar UI labels."
+    },
+    {
+      "from": "**Ansehen → Icon-Leiste**",
+      "to": "**Ansicht → Icon-Leiste**",
+      "scope": "markdown",
+      "note": "Toolbar visibility uses the menu.view / menu.view.iconToolbar UI labels."
+    },
+    {
+      "from": "**Fertigstellen** speichert",
+      "to": "**Fertig** speichert",
+      "scope": "markdown",
+      "note": "The toolbar editor saves with toolbar.finish (Fertig), not Fertigstellen."
+    },
+    {
       "from": "​",
       "to": "",
       "note": "U+200B zero-width space. Google MT drops (usually doubled) zero-width spaces into German prose; strip them first so a hidden character can never sit inside a later row's match."

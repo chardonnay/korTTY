@@ -4,12 +4,13 @@ title: Fenster
 
 # Fenster
 
-Auf dieser Registerkarte werden das Verhalten der Fenstergeometrie, die Beibehaltung des Dashboard-Status, die Sichtbarkeit der Menüleiste, der Rahmen um das Terminal einer farbigen Verbindung, die Übernahme des von der Shell gesetzten Titels in Terminal-Tabs, die Reihenfolge, in der ++ctrl+tab++ die Tabs wechselt, und der Umgang von korTTY mit den zuvor geöffneten Fenstern und Tabs beim Start konfiguriert. Öffnen über **Konfiguration → Globale Einstellungen → Fenster**; in `~/.kortty/global-settings.xml` gespeichert.
+Dieser Tab konfiguriert die Größe der Toolbar-Icons (px), das Verhalten der Fenstergeometrie, die Beibehaltung des Dashboard-Zustands, den Rahmen um das Terminal einer farbigen Verbindung, ob Terminal-Tabblätter den vom Shell gesetzten Titel übernehmen, die Reihenfolge, in der ++ctrl+tab++ Tabs wechselt, und was korTTY beim Start mit den Fenstern und Tabs tut, die zuvor geöffnet waren. Öffnen Sie über **Konfiguration → Globale Einstellungen → Fenster**; gespeichert in `~/.kortty/global-settings.xml`.
 
 ![Window settings tab](../../assets/screenshots/settings/window.png)
 
 | Einstellung | Geben Sie | ein Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
+| Größe der Toolbar-Icons (px): | Schieberegler mit Live-Icon-Vorschau | 16–64 px | 24 px | `toolbarIconSize` |
 | Fenstergeometrie merken | umschalten | — | Ein | `rememberWindowGeometry` |
 | Dashboard-Status merken | umschalten | – | Ein | `rememberDashboardState` |
 | Toolfenster als Registerkarten öffnen | umschalten | – | Aus | `openToolWindowsAsTabs` |
@@ -37,6 +38,8 @@ Wenn **Fenstergeometrie merken** aktiviert ist, speichert korTTY die Position un
     Mit **Tool-Fenster als Tabs öffnen** aktiviert, öffnen sich Verwaltungstools (Snippet-Manager, JobScheduler, KI-Manager, Gespeicherte Chats, Sitzungsjournale, Credential/GPG/SSH-Schlüsselverwaltung, Videoverwaltung, Teamwork-Einstellungen, Terminal-Effekte) als Tabs im Hauptfenster anstelle separater Fenster. Der Tab öffnet sich in dem Fenster, dessen Menü Sie benutzt haben; bei mehreren offenen Hauptfenstern sammelt jedes Fenster seine eigenen Tool-Tabs. Das erneute Öffnen eines Tools fokussiert den bereits vorhandenen Tab. Der Snippet-Manager hat einen Tab pro Hauptfenster und öffnet die von Ihnen bearbeiteten Snippets als Tabs innerhalb des Managers; ein aus einem anderen Ort geöffneter Snippet-Editor (z. B. der SFTP-Manager, der Dateibrowser oder das Terminal) sowie der Sitzungsjournal-Viewer öffnen jedes Mal einen neuen Hauptfenster-Tab, aber ein bereits geöffneter Snippet-Editor wird in den Vordergrund gebracht statt zweimal zu öffnen. Die Vollständige Code-Analyse ist ein Seitenpanel im Snippet-Editor, kein eigener Tab. Die Einstellung tritt beim nächsten Öffnen eines Tools in Kraft.
 
     Ein als Registerkarte gehostetes Werkzeug verfügt über keine separate Fenstergeometrie. Seine verfügbare Größe richtet sich nach dem Hauptfenster und seiner gespeicherten Hauptfenstergeometrie.
+
+**Größe der Toolbar-Icons (px)** ändert die Vektor-Icons in der Aktions-Toolbar, der Verbindungs-Toolbar und dem Anpassungskatalog. Bewegen Sie den Schieberegler, um das Beispiel-Icon und den Pixelwert sofort zu sehen; diese Vorschau ändert nicht den gespeicherten Wert. Speichern, um es sofort auf jedes geöffnete Fenster anzuwenden; es bleibt auch nach Neustarts erhalten. Bestehende Konfigurationen behalten die 24-px-Standardgröße bei. Die Toolbar und der Katalog passen ihre Schaltflächengrößen an und zeigen mindestens zwei vollständige Katalogzeilen sichtbar.
 
 ## Tabs
 

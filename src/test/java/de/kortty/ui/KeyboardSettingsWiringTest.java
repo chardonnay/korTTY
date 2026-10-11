@@ -27,7 +27,7 @@ class KeyboardSettingsWiringTest {
         assertThat(dialog).contains("keyboardTab = createKeyboardTab();");
         assertThat(dialog).contains("updatesTab, windowTab, keyboardTab, resourcesTab,");
         String create = region(dialog, "private Tab createKeyboardTab() {", "\n    }\n");
-        assertThat(create).contains("Tab tab = new Tab(I18n.get(\"settings.tab.keyboard\"));");
+        assertThat(create).contains("Tab tab = sectionTab(SettingsSection.KEYBOARD);");
         assertWithMessage("built on first selection, from the window's menu bar")
             .that(create).contains("LazyTabContent.defer(tab, () -> {\n"
                 + "            KeyboardSettingsModel.Catalog catalog = keymapCatalogSource.get();");
@@ -62,7 +62,7 @@ class KeyboardSettingsWiringTest {
     @Test
     void theMainWindowHandsItsMenuBarToThePageAndReappliesTheKeymapAfterSaving() throws IOException {
         String mainWindow = source("MainWindow.java");
-        String showSettings = region(mainWindow, "private void showSettings() {", "\n    }\n");
+        String showSettings = region(mainWindow, "private void showSettings(SettingsSection section) {", "\n    }\n");
 
         assertThat(showSettings).contains("dialog.setKeymapCatalogSource(this::keymapCatalog);");
         assertWithMessage("every open window, without a restart")

@@ -4174,6 +4174,14 @@ tasks.register<JavaExec>("generateTerminalTabScreenshot") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("iconToolbarSmoke") {
+    group = "verification"
+    description = "Exercises the real icon toolbar with isolated demo settings and renders light/dark/customization screenshots."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.IconToolbarSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateWindowTabScreenshot") {
     group = "build"
     description = "Renders the Settings > Window tab screenshot for the manual via Scene.snapshot."
