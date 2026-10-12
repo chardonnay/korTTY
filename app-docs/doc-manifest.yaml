@@ -86,7 +86,6 @@ pages:
     screenshots:
       - main/menu-tools.png
       - main/menu-ai.png
-      - ai/ai-manager.png
     last_synced_ref: "f8e06604"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
@@ -310,7 +309,7 @@ pages:
     owns_i18n: [ai.result.terminal., ai.result.streaming, ai.recentOutput., terminal.contextMenu.ai.summarizeRecent]
     owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/AiCodeBlockTerminalAction.java, src/main/java/de/kortty/ui/AiCodeBlockTerminalButtons.java, src/main/java/de/kortty/ui/TerminalPaneRef.java, src/main/java/de/kortty/ui/TerminalRecentOutputSource.java, src/main/java/de/kortty/ui/AiTextActionInput.java, src/main/java/de/kortty/ui/AiStreamCoalescer.java, src/main/java/de/kortty/ui/AiChatStreamingView.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java, src/main/java/de/kortty/ui/ChatMarkdownView.java, src/main/java/de/kortty/ui/ChatAutoScrollSupport.java, src/main/java/de/kortty/ui/AiChatRenderSupport.java, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-mermaid.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-sequence.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-state.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-class.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-er.md]
     diagrams: [ai-api-integration.svg]
-    screenshots: [ai/ai-manager.png, ai/chat-code-block-actions.png]
+    screenshots: [ai/chat-code-block-actions.png]
     last_synced_ref: "f8e06604"
   - path: app-docs/site/docs/en/features/local-models.md
     owns_i18n: []

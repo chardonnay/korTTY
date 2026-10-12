@@ -280,7 +280,7 @@ $$a^2 + b^2 = c^2$$
 
 Öffnen Sie **KI > KI-Manager** oder drücken Sie ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ unter macOS).
 
-![KI-Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
+![KI-Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/local-models.png)
 
 Der KI-Manager ist ein modales Fenster: Sie können es geöffnet lassen, während Sie im Hauptfenster weiterarbeiten. Durch erneutes Aufrufen von **KI-Manager** wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu öffnen. Der aktive primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem der Fokus auf die Steuerelemente des Abschnitts verschoben wurde.
 

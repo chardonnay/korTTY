@@ -4180,6 +4180,30 @@ tasks.register<JavaExec>("generateSessionJournalScreenshots") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateSessionJournalManagerScreenshot") {
+    group = "build"
+    description = "Renders the Session Journals manager screenshot for the manual via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SessionJournalManagerScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateLocalModelsTabScreenshot") {
+    group = "build"
+    description = "Renders the AI Manager > Local Models screenshot (local-models.png) for the manual via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.LocalModelsTabScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateTerminalEffectsScreenshot") {
+    group = "build"
+    description = "Renders the Terminal Effects manager screenshot for the manual via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TerminalEffectsScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateHighlightRulesScreenshot") {
     group = "build"
     description = "Renders the highlight rule-set editor screenshot for the manual " +

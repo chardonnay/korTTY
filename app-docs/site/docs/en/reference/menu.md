@@ -104,7 +104,7 @@ The three session-journal items stay visible but are disabled when an [enterpris
 
 **AI Manager** opens as a modeless window, so it can remain visible while you use the main window. Invoking it again restores and focuses the same manager for that main window instead of creating a duplicate. Its five sections are **Profiles** (connection mode, model, prompt preset, reasoning, internet access and token budget), **Local Models** (search/download/import GGUF models), **Knowledge Stores** (RAG sources), **AI Skills** (the skill library, moved here from the global settings dialog) and **Local AI** (Text/Coding/embedding roles and the local runtime). The open primary section remains marked by a bold accent underline after you move focus into its tables, fields, or buttons:
 
-![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
+![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/local-models.png)
 
 ## Plugins
 
