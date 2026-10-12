@@ -280,7 +280,7 @@ $$a^2 + b^2 = c^2$$
 
 Open **AI > AI Manager** or press ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).
 
-![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
+![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/local-models.png)
 
 The AI Manager is a modeless window: you can keep it open while you continue working in the main window. Invoking **AI Manager** again restores and focuses the same manager for that main window instead of opening a duplicate. Its active primary section remains marked by a bold accent underline after focus moves into the section's controls.
 

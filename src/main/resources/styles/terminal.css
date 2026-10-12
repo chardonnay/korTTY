@@ -905,30 +905,37 @@
 }
 
 /* Table View */
+.tree-table-view,
 .table-view {
     -fx-background-color: #2d2d2d;
 }
 
+.tree-table-view .column-header,
 .table-view .column-header {
     -fx-background-color: #3d3d3d;
 }
 
+.tree-table-view .column-header .label,
 .table-view .column-header .label {
     -fx-text-fill: #cccccc;
 }
 
+.tree-table-row-cell,
 .table-row-cell {
     -fx-background-color: #2d2d2d;
 }
 
+.tree-table-row-cell:selected,
 .table-row-cell:selected {
     -fx-background-color: #3d3d3d;
 }
 
+.tree-table-row-cell:hover,
 .table-row-cell:hover {
     -fx-background-color: #353535;
 }
 
+.tree-table-cell,
 .table-cell {
     -fx-text-fill: #cccccc;
 }

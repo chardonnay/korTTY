@@ -4190,7 +4190,7 @@ tasks.register<JavaExec>("generateSessionJournalManagerScreenshot") {
 
 tasks.register<JavaExec>("generateLocalModelsTabScreenshot") {
     group = "build"
-    description = "Renders the AI Manager > Local Models screenshots (local-models.png, ai-manager.png) for the manual via Node.snapshot."
+    description = "Renders the AI Manager > Local Models screenshot (local-models.png) for the manual via Node.snapshot."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.LocalModelsTabScreenshotGenerator")
     classpath = sourceSets.test.get().runtimeClasspath

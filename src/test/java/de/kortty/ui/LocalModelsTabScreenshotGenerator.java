@@ -41,9 +41,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Offline generator for the manual's AI Manager &rarr; Local Models screenshots
- * ({@code app-docs/screenshots/ai/local-models.png} and, as the AI Manager's representative
- * picture, {@code app-docs/screenshots/ai/ai-manager.png}).
+ * Offline generator for the manual's AI Manager &rarr; Local Models screenshot
+ * ({@code app-docs/screenshots/ai/local-models.png}, which the guide also uses as the AI
+ * Manager's representative picture).
  *
  * <p>Builds the REAL {@link AiManagerDialog} against an isolated {@code user.home}, selects the
  * Local Models tab and fills its Hugging Face browser with three demo repositories the way a
@@ -58,8 +58,7 @@ public final class LocalModelsTabScreenshotGenerator {
     private static final double WIDTH = 1180;
     private static final double HEIGHT = 950;
     private static final List<String> OUTPUT_FILES = List.of(
-        "app-docs/screenshots/ai/local-models.png",
-        "app-docs/screenshots/ai/ai-manager.png");
+        "app-docs/screenshots/ai/local-models.png");
 
     private static final long GIB = 1L << 30;
     private static final long MIB = 1L << 20;
