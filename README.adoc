@@ -162,6 +162,8 @@ On first run, Gradle will clone link:https://github.com/chardonnay/SithTermFX[Si
 ./gradlew run
 ----
 
+On macOS, this also builds the native *korTTY Notifications* helper and requires Xcode Command Line Tools. Allow its notifications when macOS first asks; clicking a notification then returns to the running korTTY window and terminal pane.
+
 [NOTE]
 ====
 *macOS 15+/26 (Local Network Privacy):* When launched via the Gradle *daemon*, korTTY is a child of that long-lived background process, which has no "Local Network" permission. macOS then blocks connections to LAN/private addresses (e.g. a local VM such as `10.211.55.5`) and SSH fails with `java.net.NoRouteToHostException: No route to host` — even though `ping`/`ssh` from Terminal work. During development, start korTTY as a child of Terminal (which is granted) instead:

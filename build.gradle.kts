@@ -480,6 +480,49 @@ distributions {
     }
 }
 
+// A plain Java launcher has no macOS bundle identity. Give development notifications their own
+// app bundle so clicks can return to this JVM rather than opening Script Editor.
+if (isMac) {
+    val notificationApp = layout.buildDirectory.dir("dev-notifier/korTTY Notifications.app")
+    val helperExecutable = notificationApp.map { it.file("Contents/MacOS/kortty-notifications") }
+    val buildDevNotificationHelper = tasks.register<Exec>("buildDevNotificationHelper") {
+        group = "application"
+        description = "Builds the native macOS notification helper for gradlew run (requires Xcode Command Line Tools)."
+        inputs.files("package/macos/notifications/main.swift", "package/macos/notifications/Info.plist",
+            "src/main/resources/icon/kortty_icon.icns")
+        outputs.dir(notificationApp)
+        doFirst {
+            val contents = notificationApp.get().dir("Contents").asFile
+            File(contents, "MacOS").mkdirs()
+            file("package/macos/notifications/Info.plist").copyTo(File(contents, "Info.plist"), overwrite = true)
+            File(contents, "Resources").mkdirs()
+            file("src/main/resources/icon/kortty_icon.icns")
+                .copyTo(File(contents, "Resources/kortty_icon.icns"), overwrite = true)
+        }
+        commandLine("/usr/bin/xcrun", "swiftc", "-swift-version", "6", "-O",
+            "package/macos/notifications/main.swift", "-o", helperExecutable.get().asFile.absolutePath)
+        doLast {
+            providers.exec {
+                commandLine("/usr/bin/codesign", "--force", "--sign", "-",
+                    "--identifier", "de.kortty.dev.notifications", notificationApp.get().asFile.absolutePath)
+            }.result.get().assertNormalExitValue()
+        }
+    }
+    tasks.named<JavaExec>("run") {
+        dependsOn(buildDevNotificationHelper)
+        systemProperty("kortty.devNotificationHelper", helperExecutable.get().asFile.absolutePath)
+    }
+    tasks.register<JavaExec>("macNotificationClickSmoke") {
+        group = "verification"
+        description = "Manual macOS test: click the notification to restore and focus its window and tab."
+        dependsOn(tasks.testClasses, buildDevNotificationHelper)
+        classpath = sourceSets["test"].runtimeClasspath
+        mainClass.set("de.kortty.ui.MacNotificationClickSmoke")
+        jvmArgs("--enable-native-access=ALL-UNNAMED")
+        systemProperty("kortty.devNotificationHelper", helperExecutable.get().asFile.absolutePath)
+    }
+}
+
 tasks.named<JavaExec>("run") {
     dependsOn("copyBundledFormatters")
     systemProperty("kortty.formatters.dir", layout.buildDirectory.dir("bundled-formatters").get().asFile.absolutePath)
@@ -3489,6 +3532,16 @@ tasks.register<JavaExec>("atlantaFxDesignSmoke") {
     jvmArgs("-Dprism.order=sw")
 }
 
+tasks.register<JavaExec>("messagingSettingsSmoke") {
+    group = "verification"
+    description = "Checks the Messaging settings page, persistence and live coding-agent notification toggle."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.MessagingSettingsSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    args = listOf(layout.buildDirectory.dir("smoke").get().asFile.absolutePath)
+    jvmArgs("-Dprism.order=sw")
+}
+
 tasks.register<JavaExec>("settingsTabScreenshotStage") {
     group = "documentation"
     description = "Shows a chosen Settings tab on screen for the docs screenshot capture " +
@@ -4134,6 +4187,30 @@ tasks.register<JavaExec>("generateSessionJournalScreenshots") {
     description = "Renders the journal export-options and marker screenshots for the manual."
     dependsOn("testClasses", "processResources")
     mainClass.set("de.kortty.ui.SessionJournalScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateSessionJournalManagerScreenshot") {
+    group = "build"
+    description = "Renders the Session Journals manager screenshot for the manual via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SessionJournalManagerScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateLocalModelsTabScreenshot") {
+    group = "build"
+    description = "Renders the AI Manager > Local Models screenshot (local-models.png) for the manual via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.LocalModelsTabScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("generateTerminalEffectsScreenshot") {
+    group = "build"
+    description = "Renders the Terminal Effects manager screenshot for the manual via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.TerminalEffectsScreenshotGenerator")
     classpath = sourceSets.test.get().runtimeClasspath
 }
 

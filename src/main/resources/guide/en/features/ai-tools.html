@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -835,7 +843,7 @@
 <h3 id="command-purposes">Command purposes<a class="headerlink" href="#command-purposes" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong><code>agent &lt;goal&gt;</code></strong> — Execute safe terminal commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and (by default) writes the final answer back to the terminal. The run dialog offers a <strong>Show final answer in the terminal too</strong> option: leave it on to mirror the answer into the terminal, or turn it off so the answer stays only in the AI agent activity panel. Either way the commands still run and their output and any files they create remain on the server; only the display of the final answer text changes. The last choice is remembered as the default.</li>
-<li><strong><code>agent-ask &lt;question&gt;</code></strong> — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (<strong>AI → Ask AI Agent</strong>) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.</li>
+<li><strong><code>agent-ask &lt;question&gt;</code></strong> — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (<strong>AI → Ask Agent...</strong>) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.</li>
 <li><strong><code>agent-plan &lt;task&gt;</code> / <code>agent -plan &lt;task&gt;</code></strong> — Enter planning mode first. The agent asks clarifying questions, proposes approaches, generates a final plan, and runs implementation only after you click <strong>Implement</strong>.</li>
 </ul>
 <h3 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h3>
@@ -866,6 +874,14 @@
 <li><strong>Execute approved commands</strong> — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory captured for this run. A <code>cd</code> inside a one-shot command does not persist to the next command, while an interactive <code>cd</code> completed before the run is included in the captured directory.</li>
 <li><strong>Iterate or conclude</strong> — Command output is added to the activity panel and to the next model turn until the task completes, is blocked, cancelled, or the turn limit is reached (8 turns maximum).</li>
 </ol>
+<h3 id="what-the-agent-can-call">What the agent can call<a class="headerlink" href="#what-the-agent-can-call" title="Permanent link">&para;</a></h3>
+<p>The model answers each turn with one decision, and korTTY carries out only the decisions and tools listed here:</p>
+<ul>
+<li><strong><code>run_commands</code></strong> — Up to 3 non-interactive shell commands for the active backend. System-changing commands go through the approval gate described under <a href="#approval-gates">Approval gates</a>.</li>
+<li><strong><code>needs_confirmation</code></strong> — Asks you to confirm a command set before it runs.</li>
+<li><strong><code>done</code></strong> or <strong><code>blocked</code></strong> — Ends the run with the final answer, or with an explanation of why the task cannot continue.</li>
+<li><strong><code>web_search</code> and <code>web_extract</code></strong> — Only with the <strong>KorTTY Tavily Tool</strong> internet mode (see <a href="#internet-access">Internet access</a>). The search returns five short results; the page read returns the text of one web page, up to 12,000 characters.</li>
+</ul>
 <h3 id="suitable-tasks">Suitable tasks<a class="headerlink" href="#suitable-tasks" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Inspecting files, directories, package state, logs, service state, and system configuration</li>
@@ -928,7 +944,7 @@
 <tbody>
 <tr>
 <td>💾</td>
-<td>Request or input: write/create file</td>
+<td>Action: write or create a file</td>
 </tr>
 <tr>
 <td>📖</td>
@@ -987,7 +1003,7 @@
 <ul>
 <li><strong>Per-turn limit</strong> — A maximum of 3 commands per turn prevents runaway automation.</li>
 <li><strong>Non-interactive only</strong> — The agent rejects interactive commands (like <code>vim</code>, <code>less</code>, <code>su</code>) that would hang in a non-interactive command backend.</li>
-<li><strong>Mutating-command detection</strong> — Commands that change the system (<code>chmod</code>, <code>rm</code>, <code>mv</code>, <code>mkdir</code>, etc.) are flagged for confirmation unless the agent has auto-approval bypass.</li>
+<li><strong>Mutating-command detection</strong> — A command that starts with one of <code>chmod</code>, <code>chown</code>, <code>chgrp</code>, <code>rm</code>, <code>rmdir</code>, <code>mv</code>, <code>cp</code>, <code>mkdir</code>, <code>touch</code>, <code>ln</code>, <code>tee</code>, <code>dd</code>, <code>truncate</code> or <code>install</code> (after <code>;</code>, <code>&amp;</code>, <code>|</code> or <code>(</code> too) is treated as changing the system and flagged for confirmation unless the agent has auto-approval bypass.</li>
 </ul>
 <h3 id="privilege-handling">Privilege handling<a class="headerlink" href="#privilege-handling" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1001,7 +1017,7 @@
 <h3 id="approval-gates">Approval gates<a class="headerlink" href="#approval-gates" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Mutating commands</strong> — By default, the agent asks for approval before running commands that modify the system (unless auto-approval is enabled in settings).</li>
-<li><strong>Confirmation dialog</strong> — The approval dialog shows the planned commands and their purposes. You can approve once, approve all remaining commands in the run, or cancel.</li>
+<li><strong>Confirmation dialog</strong> — The approval dialog (<strong>AI Agent Approval</strong>) shows the planned commands and their purposes. You can choose <strong>Allow Once</strong>, <strong>Allow Always</strong> for the remaining commands in the run, or cancel.</li>
 <li><strong>Sudo preflight</strong> — After accepting a planning report, if the plan requires sudo and your SSH session requires a sudo password, KorTTY performs the preflight check immediately after acceptance so execution is not interrupted later.</li>
 </ul>
 <h3 id="directory-tracking">Directory tracking<a class="headerlink" href="#directory-tracking" title="Permanent link">&para;</a></h3>
@@ -1097,7 +1113,7 @@
 <p>Any approval or password requests</p>
 </li>
 <li>
-<p><strong>Approvals</strong> — When the agent needs approval to run system-changing commands, click <strong>Approve once</strong> (just this set) or <strong>Approve always</strong> (all remaining sets in the run), or click <strong>Cancel</strong>.</p>
+<p><strong>Approvals</strong> — When the agent needs approval to run system-changing commands, click <strong>Allow Once</strong> (just this set) or <strong>Allow Always</strong> (all remaining sets in the run), or click <strong>Cancel</strong>.</p>
 </li>
 <li>
 <p><strong>Sudo password</strong> — When prompted, enter your sudo password. It can optionally be cached for the session.</p>
@@ -1164,43 +1180,36 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>AI Agent enabled</strong></td>
-<td>Enable or disable the agent feature globally</td>
+<td><strong>Enable AI Agent execution</strong></td>
+<td>Enable or disable executable agent runs and plan implementation; AI Planning and Ask Agent stay available</td>
 </tr>
 <tr>
 <td><strong>Agent command name</strong></td>
 <td>The base command (default: <code>agent</code>); other variants are derived automatically</td>
 </tr>
 <tr>
-<td><strong>Case-insensitive</strong></td>
+<td><strong>Match agent command name case-insensitively</strong></td>
 <td>Make command matching case-insensitive</td>
 </tr>
 <tr>
-<td><strong>Execution target</strong></td>
-<td>Choose whether agent runs open in dedicated tabs or inline at the terminal split</td>
+<td><strong>AI agent task target</strong></td>
+<td><strong>Terminal window</strong> (the activity panel at the terminal split) or <strong>New chat window</strong></td>
 </tr>
 <tr>
-<td><strong>Per-run setup dialog</strong></td>
+<td><strong>Show terminal agent setup dialog before each run</strong></td>
 <td>Show a setup dialog before each run (disabled uses the default profile)</td>
 </tr>
 <tr>
-<td><strong>Input history size</strong></td>
+<td><strong>Terminal agent input history size</strong></td>
 <td>Number of recent prompts to remember (5–100, default 20)</td>
 </tr>
 <tr>
 <td><strong>Default profile</strong></td>
 <td>The AI profile used when the setup dialog is disabled</td>
 </tr>
-<tr>
-<td><strong>Activity panel placement</strong></td>
-<td>Choose <strong>At Bottom</strong> or <strong>Dock Left/Right</strong></td>
-</tr>
-<tr>
-<td><strong>Keep collapsed preference</strong></td>
-<td>Start the panel minimized and keep it collapsed during execution</td>
-</tr>
 </tbody>
 </table>
+<p>The panel placement is set under <strong>View → AI Agent Panel</strong>, and <strong>Keep collapsed</strong> is an option of the activity panel itself (see <a href="#panel-placement">Panel placement</a> and <a href="#panel-features">Panel features</a>).</p>
 <h2 id="ai-skills">AI Skills<a class="headerlink" href="#ai-skills" title="Permanent link">&para;</a></h2>
 <p>AI Skills are reusable local instruction blocks that the agent can use. For agent runs, enable or disable skills globally, or let KorTTY automatically match only relevant skills to the task. Skills can cover:</p>
 <ul>
@@ -1214,10 +1223,10 @@
 <p>The agent can optionally use web tools when the task clearly requires current or external information:</p>
 <ul>
 <li><strong>Disabled</strong> (default) — No web tools or MCP integrations are sent with agent requests.</li>
-<li><strong>KorTTY Tavily Tool</strong> — Direct web search via Tavily API.</li>
+<li><strong>KorTTY Tavily Tool</strong> — Direct web search and page reading through the Tavily API (<code>web_search</code> and <code>web_extract</code>, see <a href="#what-the-agent-can-call">What the agent can call</a>).</li>
 <li><strong>LM Studio MCP modes</strong> — Integrate Tavily, Bright Data, Brave Search, SearXNG, or LM Studio Toolpack through LM Studio's native MCP support.</li>
 </ul>
-<p>Configure internet access per AI profile in <strong>Settings &gt; AI &gt; Internet access</strong>.</p>
+<p>Configure internet access per AI profile with the <strong>Internet access</strong> field of the profile editor; the Tavily key and the other web-tool settings are entered under <strong>Settings &gt; AI &gt; Internet tool configuration</strong>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p><strong>Web tools are withheld from local file/script review tasks</strong> unless your prompt clearly asks for current or external information. Inspecting a local file should use shell commands like <code>sed</code>, <code>cat</code>, <code>find</code>, or language-specific tools, not web search.</p>

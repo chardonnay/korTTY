@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -867,7 +875,7 @@
 <p>App Design gilt nur für die Anwendungsfenster und Dialoge von korTTY. Terminalsitzungen, der Monaco-Dateieditor, Sitzungsjournalseiten und KI-Chatinhalte behalten ihre eigenen unabhängigen Farbeinstellungen (konfiguriert über die Registerkarten „Farben“ oder „Themen“ oder ihre eigenen Steuerelemente für das Erscheinungsbild).</p>
 </div>
 <h3 id="ui-schriftgroe">UI-Schriftgröße<a class="headerlink" href="#ui-schriftgroe" title="Permanent link">&para;</a></h3>
-<p><strong>UI-Schriftgröße</strong> skaliert die eigene Benutzeroberfläche von korTTY – die Menüleiste und ihre Dropdowns, Dialoge, Formularbeschriftungen, Schaltflächen, Registerkartentitel, das Dashboard, den Dateibrowser und die Statusleiste. Es wird in dem Moment wirksam, in dem Sie speichern. Es ist kein Neustart erforderlich und die Größe bereits geöffneter Fenster ändert sich damit. Die Größe des Hauptfensters beim ersten Start wächst mit, und Dialoge, die sich ihre Größe merken, werden nach einer Änderung neu gemessen, anstatt in einer Größe erneut geöffnet zu werden, die nicht mehr zu ihrem Text passt.</p>
+<p><strong>UI-Schriftgröße</strong> skaliert die eigene Benutzeroberfläche von korTTY – die Menüleiste und ihre Dropdowns, Dialoge, Formularbeschriftungen, Schaltflächen, Tab-Titel, das Dashboard, den Dateibrowser und die Statusleiste. Die Änderung tritt sofort nach dem Speichern in Kraft; ein Neustart ist nicht nötig, und bereits geöffnete Fenster passen sich automatisch an. Die Größe des Hauptfensters bei der ersten Öffnung wächst mit, und Dialoge sowie die Anleitung-Fenster, die ihre Größe merken, werden nach einer Änderung neu gemessen statt bei einer Größe zu öffnen, die ihren Text nicht mehr enthält.</p>
 <p>Es berührt bewusst <strong>keine</strong> Oberflächen, die bereits über eine eigene Größenkontrolle verfügen, sodass die beiden nie gegeneinander antreten:</p>
 <table>
 <thead>
@@ -992,7 +1000,7 @@
 </tr>
 <tr>
 <td><strong>Bearbeiten</strong></td>
-<td>Das ausgewählte Thema ändern. Die Schaltfläche bleibt für integrierte Designs aktiviert, führt aber beim Klicken nichts aus – duplizieren Sie zuerst das Design</td>
+<td>Öffnen Sie das ausgewählte Thema im Themeneditor, inklusive integrierter Themen. Die Änderung wird in <code>~/.kortty/themes.xml</code> gespeichert; ein bearbeitetes integriertes Thema behält seine <em>(integriert)</em>-Bezeichnung und kann immer noch nicht gelöscht werden. Duplizieren Sie es zuerst, wenn Sie das Original behalten möchten</td>
 </tr>
 <tr>
 <td><strong>Duplizieren</strong></td>
@@ -1031,7 +1039,7 @@
 <p>korTTY enthält eine Reihe integrierter Farbthemen (z. B. Standard, Dunkelmodus, Solarisiertes Licht). Integrierte und benutzerdefinierte Designs werden zusammen in einer einzigen Datei, <code>~/.kortty/themes.xml</code>, gespeichert. Alle Themen werden in der Farbprofilauswahl der Registerkarte „Farben“ und in verbindungsspezifischen Themen-Dropdown-Menüs angezeigt.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Integrierte Designs können nicht bearbeitet oder gelöscht werden. Um ein integriertes Design zu ändern, duplizieren Sie es zunächst und bearbeiten Sie dann die benutzerdefinierte Kopie.</p>
+<p>Integrierte Themen können bearbeitet, aber nicht gelöscht werden, und korTTY stellt ihre ursprünglichen Farben nicht automatisch wieder her. Um das Original zu behalten, duplizieren Sie zunächst das Thema und bearbeiten die benutzerdefinierte Kopie.</p>
 </div>
 <h3 id="theme-vorschau">Theme-Vorschau<a class="headerlink" href="#theme-vorschau" title="Permanent link">&para;</a></h3>
 <p>Eine Live-Theme-Vorschau zeigt die Farben des Themes an. Die Vorschau zeigt sechs Farbfelder – Vordergrund, Hintergrund und Cursor sowie die Hintergrund-, Ausführungs- und Fehlerfarben des KI-Agent-Panels – sodass Sie ein Design bewerten können, bevor Sie es anwenden.</p>

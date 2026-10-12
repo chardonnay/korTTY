@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -870,7 +878,7 @@
 </div>
 <div class="admonition danger">
 <p class="admonition-title">Auto-login stores your master password on disk</p>
-<p>Enabling "Disable master password prompt on startup" makes korTTY remember your master password — stored only obfuscated (not securely encrypted) in <code>~/.kortty/master.autounlock</code> with owner-only file permissions — and unlock the vault automatically on every start, with no dialog. Unlike disabling the option above, encrypted data (AI profiles, SSH passwords, credentials) stays usable, because the vault is actually unlocked. The trade-off: anyone who can read your <code>~/.kortty</code> folder or a backup can then decrypt <strong>all</strong> saved passwords, SSH keys and API keys — the file permissions are the only remaining protection. On a brand-new profile korTTY sets up a default password automatically, so the app can start with no input at all. korTTY asks you to confirm before enabling it, and it is intended only for throwaway/test environments such as a VM. While auto-login is enabled, <strong>Require master password on startup</strong> is switched off and greyed out — the two options are mutually exclusive. An enterprise policy that requires a master password overrides this option.</p>
+<p>Enabling "Disable master password prompt on startup" makes korTTY remember your master password — stored in <code>~/.kortty/master.autounlock</code>, encrypted with AES-256-GCM but with a key built into korTTY, so it is obfuscated rather than secret, with owner-only file permissions — and unlock the vault automatically on every start, with no dialog. Unlike disabling the option above, encrypted data (AI profiles, SSH passwords, credentials) stays usable, because the vault is actually unlocked. The trade-off: anyone who can read your <code>~/.kortty</code> folder or a backup can then decrypt <strong>all</strong> saved passwords, SSH keys and API keys — the file permissions are the only remaining protection. On a brand-new profile korTTY sets up a default password automatically, so the app can start with no input at all. korTTY asks you to confirm before enabling it, and it is intended only for throwaway/test environments such as a VM. While auto-login is enabled, <strong>Require master password on startup</strong> is switched off and greyed out — the two options are mutually exclusive. An enterprise policy that requires a master password overrides this option.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Unattended first launch (automation / test VMs)</p>
@@ -884,7 +892,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Change Master Password button</p>
-<p>Opens a dialog asking for the <strong>Current Password</strong>, the <strong>New Password (at least 6 characters)</strong> and a <strong>Confirm New Password</strong> repetition; <strong>Change</strong> applies it. korTTY rejects a wrong current password, a new password under six characters, and a mismatch between the two new entries, each with its own message. On success it reports how many secrets were re-encrypted: every master-password-protected secret is decrypted with the old password and re-encrypted with the new one — connection passwords and key passphrases, jump-server passwords, SSH-key passphrases, stored credentials, AI-profile API keys and the other AI/translation keys, and RAG and Job Scheduler secrets — so nothing becomes unreadable after the change.</p>
+<p>Opens a dialog asking for the <strong>Current Password</strong>, the <strong>New Password (at least 6 characters)</strong> and a <strong>Confirm New Password</strong> repetition; <strong>Change</strong> applies it. korTTY rejects a wrong current password, a new password under six characters, and a mismatch between the two new entries, each with its own message. On success it reports how many secrets were re-encrypted: every master-password-protected secret is decrypted with the old password and re-encrypted with the new one — connection passwords and key passphrases, jump-server passwords, SSH-key passphrases, stored credentials, AI-profile API keys, AI-skill provider secrets and the other AI/translation keys, and RAG and Job Scheduler secrets — so nothing becomes unreadable after the change.</p>
 <p>The new password only takes over once every store has been migrated, so an error part-way through leaves the old password in effect instead of locking you out of half your data. If an individual secret cannot be migrated (for example one that was encrypted with a different password), korTTY leaves that value untouched, reports how many items were affected, and notes them in the log — those secrets keep the old password and must be re-entered manually. With auto-login enabled, the remembered password in <code>~/.kortty/master.autounlock</code> is rewritten to the new master password, so automatic unlocking keeps working after the change.</p>
 </div></p>
     </article>

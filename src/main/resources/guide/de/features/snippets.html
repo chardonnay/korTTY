@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -830,6 +838,7 @@
 <ul>
 <li><strong>Systemspalte (Betriebssystem)</strong> – Eine sortierbare Betriebssystemspalte für jedes Snippet (Beliebig, Linux, macOS, Windows). Wird automatisch festgelegt, wenn ein Snippet über <em>Workflow-Skript generieren</em> erstellt wird.</li>
 <li><strong>Sortierbare Spalten</strong> — Alle Spalten (Name, Analyse, Sprache, Exec, Kategorie, System, Tags, Zeilen, Letzte Änderung, Benutzt) sind sortierbar.</li>
+<li><strong>Favoriten</strong> — <strong>★ Favorit umschalten</strong>, in der Schaltflächenreihe unterhalb der Tabelle und im Rechtsklickmenü, markiert die ausgewählten Snippets mit einem ★ in der ersten Spalte. Die Standardreihenfolge listet zuerst Favoriten, dann die am häufigsten verwendeten Snippets.</li>
 <li><strong>Ausführs-Spalte</strong> — Ob das Snippet als ausführbare Datei exportiert oder auf einen Server kopiert wird. Eine dunkle Kontrollkästchen ist der automatische Wert; ein Klick darauf setzt das Flag explizit, ein Klick darauf zurück auf den automatischen Wert führt zu <strong>Automatisch</strong>. Siehe <a href="#ausfuhrbar-flag">Ausführbar-Flag</a>.</li>
 <li><strong>Analyse-Spalte</strong> — Zeigt den Status jedes Snippets' gespeicherter <a href="#vollstandige-code-analyse">Vollständige Code-Analyse</a> auf einen Blick: <strong>⚠ 3</strong> — drei Ergebnisse der neuesten Analyse wurden noch nicht auf das gespeicherte Snippet übertragen; <strong>◷</strong> — ein Ergebnis wartet auf Ihre Prüfung ("Später prüfen"); <strong>✓</strong> — alle Ergebnisse wurden angewendet oder die Analyse fand nichts zu beheben; <strong>✎</strong> — ein KI-Ergebnis wurde im Editor angewendet, aber das Snippet wurde nie mit diesem gespeichert, korTTY erinnert sich an diesen Zustand (siehe <a href="#angewendet-aber-nicht-gespeichert">Angewendet, aber nicht gespeichert</a>); <strong>↻</strong> nach dem Symbol — das Snippet hat sich seit der Analyse geändert. Hover über eine Zelle für Details und den Datum der Analyse. Die Spalte wird im Hintergrund ausgefüllt, sobald der Snippet-Manager geöffnet wird und folgt jeder neuen Analyse, Anwendung, Ablehnung und Speicherung, sodass selbst eine Bibliothek mit hunderten Snippets sofort geöffnet werden kann, ohne zu warten. Die Sortierung nach dieser Spalte zeigt zuerst die offen zu prüfenden Ergebnisse, dann die Snippets mit einem erinnerten, nicht gespeicherten Ergebnis und schließlich die Snippets mit den meisten offenen Ergebnissen.</li>
 <li><strong>Analyse-Filter</strong> — Das Dropdown neben dem Kategorie-Filter reduziert die Liste auf die Snippets, die Aufmerksamkeit erfordern: <strong>Offene Findings</strong>, <strong>Veraltete Analyse</strong> oder <strong>Prüfung ausstehend</strong> — ein Postfach für Entscheidungen, die Sie noch offen haben: Ergebnisse, die Sie für später beibehalten haben, und Ergebnisse, die Sie noch nicht gespeichert haben. <strong>Alle Snippets</strong> zeigt alles erneut. Der Filter kombiniert sich mit der Suche und dem Kategorie-Filter.</li>
@@ -1290,8 +1299,8 @@
 <li><strong>Import...</strong> — Liest Variablen aus einer JSON, XML oder YAML-Datei (der gespeicherte <code>snippet-variables.xml</code> kann direkt importiert werden). Wenn bereits vorhandene Variablen importiert werden, wählen Sie, ob deren Werte überschrieben oder die bestehenden beibehalten werden sollen.</li>
 </ul>
 <h2 id="snippets-an-das-terminal-senden">Snippets an das Terminal senden<a class="headerlink" href="#snippets-an-das-terminal-senden" title="Permanent link">&para;</a></h2>
-<p>Der Snippet-Manager kann ein ausgewähltes Snippet direkt an ein Terminal seines Hauptfensters senden: den ausgewählten Terminal-Tab oder – wenn der Snippet-Manager selbst der ausgewählte Tab ist – den zuletzt verwendeten (oder einzigen) offenen Terminal-Tab. korTTY wechselt dann zu diesem Tab und zeigt <strong>An … gesendet</strong> in der Statusleiste. <strong>In Editor einfügen</strong> wählt den Dateieditor-Tab auf die gleiche Weise. Das Snippet wird in den ersten Bereich des Tabs geschrieben, also den, mit dem der Tab geöffnet wurde, auch wenn ein anderer Bereich eines geteilten Tabs den Fokus hat. Ein Snippet, das Sie aus der <a href="command-palette.html#snippets-ausfuhren">Befehlspalette</a> ausführen, geht dagegen in den fokussierten Bereich.</p>
-<p>Ohne den Snippet-Manager zu öffnen, führt die <a href="command-palette.html#snippets-ausfuhren">Befehlspalette</a> ein Snippet auf dieselbe Weise aus: Drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> unter macOS), geben Sie <code>$</code> und einen Teil des Snippet-Namens ein und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>; jede Zeile nennt das Terminal, in dem das Snippet läuft, und <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> (<span class="keys"><kbd class="key-option">Option</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> unter macOS) öffnet das Snippet stattdessen hier.</p>
+<p>Der Snippet-Manager kann ein ausgewähltes Snippet direkt an ein Terminal seines Hauptfensters senden: den ausgewählten Terminal-Tab, oder — wenn der Snippet-Manager selbst der ausgewählte Tab ist — den zuletzt verwendeten (oder einzigen offenen) Terminal-Tab. korTTY wechselt dann zu diesem Tab und zeigt <strong>Sent to …</strong> in der Statusleiste an. <strong>In Editor einfügen</strong> wählt den Dateieditor-Tab auf die gleiche Weise. Das Snippet wird in das erste Pane des Tabs geschrieben, also in das, mit dem der Tab geöffnet wurde, auch wenn ein anderes Pane eines geteilten Tabs den Fokus hat. Ein Snippet, das Sie aus der <a href="command-palette.html#snippets-ausfuhren">Befehls-Palette</a> starten, geht stattdessen in das fokussierte Pane.</p>
+<p>Ohne den Snippet-Manager zu öffnen, führt die <a href="command-palette.html#snippets-ausfuhren">Befehls-Palette</a> ein Snippet auf die gleiche Weise aus: drücken Sie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> auf macOS), geben Sie <code>$</code> und einen Teil des Snippet-Namens ein, und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>. <strong>Ansehen → Snippet-Palette…</strong> öffnet die Palette mit bereits eingegebenem <code>$</code>. Jede Zeile benennt das Terminal, in dem es ausgeführt wird, und <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> (<span class="keys"><kbd class="key-option">Option</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> auf macOS) öffnet stattdessen das Snippet hier.</p>
 <h3 id="an-terminal-senden">An Terminal senden<a class="headerlink" href="#an-terminal-senden" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Ersetzt die <a href="#platzhaltervariablen">Platzhalter</a> wie bei jeder anderen Verwendung; eine deklarierte Variable ohne gespeicherten Wert wird vor dem Senden abgefragt, und das Abbrechen des Dialogs sendet nichts</li>
@@ -1367,7 +1376,7 @@
 <h4 id="zip-skriptarchiv">ZIP-Skriptarchiv<a class="headerlink" href="#zip-skriptarchiv" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Schreibt eine ZIP-Datei mit einer Skriptdatei pro Snippet</li>
-<li>Behalten Sie den eigenen Namen jeder Datei bei oder erzwingen Sie eine einheitliche Erweiterung für alle Dateien</li>
+<li><strong>Endung aus der Name-Spalte verwenden</strong> behält den eigenen Namen jeder Datei bei oder wählt eine erzwungene Endung für alle Dateien</li>
 <li>Mit ihren eigenen Namen behalten die Dateien ihre Unterordner und ihr ausführbares Flag bei (<code>unzip</code> stellt den Modus wieder her); ein passwortgeschütztes Archiv trägt den Modus nur dort, wo das Dateisystem POSIX-Berechtigungen hat</li>
 <li>Unterstützte erzwungene Erweiterungen: <code>.sh</code>, <code>.py</code>, <code>.pl</code>, <code>.rb</code>, <code>.ps1</code>, <code>.sql</code>, <code>.txt</code> oder benutzerdefiniert</li>
 </ul>
@@ -1375,9 +1384,9 @@
 <p><strong>Ordner exportieren…</strong> im Rechtsklickmenü des Baums exportiert den Ordner mit allen Unterordnern. Wählen Sie <strong>ZIP-Skriptarchiv</strong> (mit den untenstehenden Verschlüsselungsoptionen), <strong>Skriptdateien als Plain Text</strong> in ein Verzeichnis, oder JSON, XML oder YAML. ZIP- und Verzeichnisausgaben behalten die Ordnerstruktur bei, einschließlich leerer Ordner, sowie die ausführbaren Flags.</p>
 <h4 id="zip-verschlusselungsoptionen">ZIP-Verschlüsselungsoptionen<a class="headerlink" href="#zip-verschlusselungsoptionen" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>Unverschlüsselt</strong> – Standard-ZIP-Archiv</li>
-<li><strong>AES passwortgeschützt</strong> – Passwortverschlüsselt mit AES-256</li>
-<li><strong>GPG-verschlüsselt</strong> – Erstellt eine <code>.zip.gpg</code>-Datei; erfordert den lokalen Befehl <code>gpg</code> und einen verwendbaren öffentlichen Schlüssel</li>
+<li><strong>Keine Verschlüsselung</strong> — Standard-ZIP-Archiv</li>
+<li><strong>Passwort-Verschlüsselung (ZIP)</strong> — Passwortverschlüsselt mit AES-256</li>
+<li><strong>GPG-Verschlüsselung</strong> — Erstellt eine <code>.zip.gpg</code>-Datei; erfordert den lokalen Befehl <code>gpg</code> und einen nutzbaren öffentlichen Schlüssel</li>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>

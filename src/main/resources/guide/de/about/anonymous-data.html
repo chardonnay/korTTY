@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -810,7 +818,7 @@
 <p><img alt="Anonymous telemetry consent and data flow" src="../assets/diagrams/telemetry-consent-flow.svg" /></p>
 <h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Ihre Entscheidung, einmalig.</strong> Vor Ihrer Bestätigung wird nichts erfasst. Gefragt werden Sie einmal, zusammen mit der Einrichtung des Master-Passworts beim ersten Start – dort ist das Kontrollkästchen vorausgewählt. Vorhandene Installationen werden nach der Freischaltung einmalig abgefragt; dort gilt jedes Wegklicken als „Nein“.</li>
+<li><strong>Ihre Entscheidung, einmalig.</strong> Es wird nichts gesammelt, bevor Sie bestätigen. Sie werden ein einziges Mal gefragt, zusammen mit der Master-Passwort-Einrichtung beim ersten Start, wo das Kontrollkästchen vorausgewählt ist; bei bestehenden Installationen wird ein Dialog nach dem Öffnen des Hauptfensters angezeigt, wobei jede Ablehnung als "nein" gezählt wird.</li>
 <li><strong>Anonym.</strong> Es wird kein Konto, kein Login und keine dauerhafte Gerätekennung übertragen.</li>
 <li><strong>Widerruflich.</strong> Sie können Ihre Entscheidung jederzeit unter <strong>Einstellungen → Datenschutz</strong> ändern. Wenn Sie die Funktion deaktivieren, wird die Erfassung sofort gestoppt und alle noch nicht gesendeten Daten werden verworfen.</li>
 </ul>
@@ -833,7 +841,7 @@
 </tr>
 <tr>
 <td>App-Version</td>
-<td>2.5.1</td>
+<td>die korTTY-Version, die unter <strong>Hilfe → Über</strong> angezeigt wird</td>
 </tr>
 <tr>
 <td>Betriebssystem und Version</td>
@@ -844,14 +852,19 @@
 <td>de, en</td>
 </tr>
 <tr>
+<td>Ob korTTY aus einem installierten Paket oder einer Entwicklungsbuild läuft</td>
+<td><code>isDebug</code></td>
+</tr>
+<tr>
 <td>Eine anonyme Sitzungs-ID</td>
-<td>eine Zufallszahl, die bei jedem Start und nach einer Stunde Inaktivität neu generiert wird</td>
+<td>eine zufällige Zahl, die bei jedem Start und nach einer Stunde ohne Ereignisse neu generiert wird</td>
 </tr>
 </tbody>
 </table>
-<p>Die Sitzungs-ID ist <strong>keine</strong> dauerhafte Kennung: Sie wird jedes Mal neu generiert und kann bei jedem Start nicht auf Sie zurückgeführt werden.</p>
-<h3 id="terminalfunktionen">Terminalfunktionen<a class="headerlink" href="#terminalfunktionen" title="Permanent link">&para;</a></h3>
-<p>Einige Terminalfunktionen melden, wie sie verwendet werden, und zwar nur mit Schaltern, groben Anzahlen und festen Namen. Anzahlen werden auf 0, 1, 2, 3, 5, 10 oder 20 abgerundet, sodass sieben Bereiche als 5 gemeldet werden.</p>
+<p>Die Sitzungs-ID ist <strong>keine</strong> dauerhafte Kennung: sie wird jedes Mal neu generiert und kann nicht auf Sie zurückverfolgt werden. Jeder Ereignis trägt nur diese gemeinsamen Felder, den Ereignisnamen, die Erstellungszeit und die unten aufgeführten Werte. Es gibt keine Installations-ID, keinen Hostnamen und keinen Benutzernamen in den Daten.</p>
+<h3 id="jedes-ereignis-das-kortty-senden-kann">Jedes Ereignis, das korTTY senden kann<a class="headerlink" href="#jedes-ereignis-das-kortty-senden-kann" title="Permanent link">&para;</a></h3>
+<p>Die Tabellen unten listen jedes Ereignis auf, wann es gesendet wird und welche Werte dazu gehören. Die Werte sind feste Namen aus einer kurzen Liste, true/false-Flags oder Zählungen. Einige Zählungen werden auf einen Schritt abgerundet (die Tabellen geben an, welcher: 0, 1, 2, 3, 5, 10 oder 20 für Panes, Tabs und Fenster, so dass sieben Pane als 5 gemeldet werden; 0, 1, 2, 5, 10, 50, 100 oder 1000 für übertragenen Dateien; 0, 1, 2, 5, 10 oder 50 für Uploads einer bearbeiteten Datei); die anderen Zählungen sind genaue Zahlen.</p>
+<h4 id="anwendung-fehler-und-einstellungen">Anwendung, Fehler und Einstellungen<a class="headerlink" href="#anwendung-fehler-und-einstellungen" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
@@ -862,14 +875,76 @@
 </thead>
 <tbody>
 <tr>
-<td><code>command_palette_used</code></td>
-<td>eine Zeile der Befehlspalette ausgeführt wird</td>
-<td>die Art der Zeile (<code>action</code>, <code>tab</code>, <code>connection</code> oder <code>snippet</code>) und ob die Suche mit einem Bereichspräfix wie <code>&gt;</code> oder <code>@</code> begonnen hat</td>
+<td><code>app_started</code></td>
+<td>Sammlung wird aktiv: beim Start mit Ihrer erfassten Zustimmung, oder im Moment, wenn Sie im Setup-Dialog zustimmen, die einmalige Aufforderung oder Einstellungen</td>
+<td>nichts außer den gemeinsamen Feldern</td>
 </tr>
 <tr>
-<td><code>terminal_highlight_applied</code></td>
-<td>ein Bereich einen anderen Regelsatz für die Hervorhebung anzeigt</td>
-<td>die ID eines eingebauten Regelsatzes oder <code>custom</code> bzw. <code>none</code> und woher die Auswahl kam (Menü, Tastenkürzel, Verbindung oder Standard)</td>
+<td><code>app_crash_detected</code></td>
+<td>korTTY startet und stellt fest, dass der vorherige Lauf mit aktiver Sammlung nicht sauber beendet wurde</td>
+<td>die Version, die abgestürzt ist</td>
+</tr>
+<tr>
+<td><code>app_error</code></td>
+<td>korTTY protokolliert einen Fehler außerhalb seines eigenen Telemetriecodes; jeder eindeutige Fehler wird pro Lauf einmal gemeldet, höchstens 20 pro Lauf</td>
+<td>der Name der Ausnahmeklasse, die korTTY-Klasse und Methode, aus der er stammt (oder <code>external</code>) sowie der Logger-Name; niemals der Nachrichtentext</td>
+</tr>
+<tr>
+<td><code>usage_snapshot</code></td>
+<td>einmal beim Start und einmal beim Herunterfahren</td>
+<td>genaue Zählungen und Flags: Fenster, Terminal-Tab, Schlüssel, Anmeldeinformationen und Snippets, ob KI aktiviert ist und wie viele Profile existieren, Teamwork-Quellen, sichtbare Coding-Agenten, Steuerungs-API und MCP-Aufrufe in diesem Lauf</td>
+</tr>
+<tr>
+<td><code>ai_profile_snapshot</code></td>
+<td>einmal pro konfiguriertem KI-Profil beim Start</td>
+<td>Der Verbindungsmodus des Profils (<code>http_api</code>, <code>local_cli</code>, <code>embedded_llama_cpp</code>, <code>embedded_mlx</code>), die CLI-Anbieter-ID oder <code>none</code>, die Modellfamilie (<code>openai</code>, <code>anthropic</code>, <code>google</code>, <code>minimax</code>, <code>meta</code>, <code>mistral</code>, <code>deepseek</code>, <code>qwen</code>, <code>phi</code>, <code>cohere</code>, <code>xai</code>, <code>auto</code> oder <code>other</code>) und seine Position in der Liste</td>
+</tr>
+<tr>
+<td><code>window_opened</code></td>
+<td>ein Hauptfenster wird erstellt</td>
+<td>die Anzahl geöffneter Fenster</td>
+</tr>
+<tr>
+<td><code>setting_changed</code></td>
+<td>Sie speichern Globale Einstellungen und eine Einstellung hat einen neuen Wert; höchstens 25 pro Speichern der Einstellungsname und Tab sowie, für Schalter, Zahlen und Auswahlmöglichkeiten, der neue Wert; für die Schriftfamilie und die Terminalfarben kein Wert; für Schnellwahlbuchstaben und Muster, umgebundene Tastenkürzel, das Startverzeichnis, die API-URL und Region sowie den externen Editorbefehl nur, ob einer gesetzt ist</td>
+<td>die Einstellungsname und Tab sowie, für Schalter, Zahlen und Auswahlmöglichkeiten, der neue Wert; für die Schriftfamilie und die Terminalfarben kein Wert; für Schnellwahlbuchstaben und Muster, umgebundene Tastenkürzel, das Startverzeichnis, die API-URL und Region sowie den externen Editorbefehl nur, ob einer gesetzt ist</td>
+</tr>
+<tr>
+<td><code>master_password_changed</code></td>
+<td>Eine Änderung des Master-Passworts hat jeden Speicher neu verschlüsselt, nichts abgesehen von den gemeinsamen Feldern</td>
+<td></td>
+</tr>
+<tr>
+<td><code>update_check_clicked</code></td>
+<td>Sie klicken die manuelle Updateprüfung.</td>
+<td>nichts außer den üblichen Feldern</td>
+</tr>
+</tbody>
+</table>
+<h4 id="terminal-und-tabs">Terminal und Tabs<a class="headerlink" href="#terminal-und-tabs" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>terminal_tab_opened</code></td>
+<td>Ein neuer Terminal-Tab beginnt zu verbinden</td>
+<td>das Protokoll (<code>ssh_tcp</code>, <code>mosh</code>, <code>mosh_client</code>, <code>local_shell</code>) und die Anzahl der Tabs im Fenster</td>
+</tr>
+<tr>
+<td><code>terminal_split_created</code></td>
+<td>Ein Bereich wird geteilt</td>
+<td><code>same_server_new_shell</code> oder <code>new_connection</code>, und die Anzahl der Bereiche im Tab</td>
+</tr>
+<tr>
+<td><code>broadcast_toggled</code></td>
+<td>Broadcast-Modus eines geteilten Tabs wird</td>
+<td>ein- oder ausgeschaltet, und die Anzahl der Paneele</td>
 </tr>
 <tr>
 <td><code>multi_exec_changed</code></td>
@@ -877,19 +952,48 @@
 <td>ob Multi-Exec noch aktiv ist, und die gerundete Anzahl der beteiligten Bereiche, Tabs und Fenster</td>
 </tr>
 <tr>
-<td><code>session_restored</code></td>
-<td>die vorherige Sitzung wieder geöffnet wird</td>
-<td>die Einstellung Sitzungswiederherstellung (<code>ask</code>, <code>auto</code> oder <code>off</code>), ob das Menü, die Leiste beim Start oder die automatische Wiederherstellung sie geöffnet hat, und die gerundete Anzahl der Fenster und Tabs</td>
+<td><code>terminal_highlight_applied</code></td>
+<td>Ein Paneel beginnt, ein anderes Highlighting-Regelsatz anzuzeigen</td>
+<td>die ID eines integrierten Satzes (<code>builtin.errors</code>, <code>builtin.network</code>, <code>builtin.network-devices</code>), oder <code>custom</code> oder <code>none</code>, und wo die Wahl herkam (<code>menu</code>, <code>shortcut</code>, <code>connection</code> oder <code>default</code>)</td>
+</tr>
+<tr>
+<td><code>terminal_effect_applied</code></td>
+<td>Ein Terminaleffekt beginnt in einem Paneel</td>
+<td>die ID des Effekt-Plugins</td>
+</tr>
+<tr>
+<td><code>terminal_log_started</code></td>
+<td>Terminal-Logging beginnt in einem Paneel</td>
+<td>das Log-Format (<code>plain_text</code>, <code>xml</code>, <code>json</code>)</td>
 </tr>
 <tr>
 <td><code>session_isolation</code></td>
 <td>eine isolierte oder Inkognito-Terminal-Sitzung verbindet sich</td>
 <td>die angeforderte Isolationsstufe (<code>none</code>, <code>process</code>, <code>sandbox</code>), der erreichte Zustand (<code>none</code>, <code>process</code>, <code>sandboxed</code>, <code>degraded</code>), die Betriebssystemfamilie und ob der Tab inkognito ist</td>
 </tr>
+<tr>
+<td><code>session_restored</code></td>
+<td>die vorherige Sitzung wieder geöffnet wird</td>
+<td>die Einstellung Sitzungswiederherstellung (<code>ask</code>, <code>auto</code> oder <code>off</code>), ob das Menü, die Leiste beim Start oder die automatische Wiederherstellung sie geöffnet hat, und die gerundete Anzahl der Fenster und Tabs</td>
+</tr>
+<tr>
+<td><code>fullscreen_entered</code></td>
+<td>das Fenster wird im Vollbildmodus angezeigt</td>
+<td><code>os</code> für den Vollbildmodus des Betriebssystems, <code>terminal_only</code> für den terminal-nur Modus von korTTY</td>
+</tr>
+<tr>
+<td><code>command_palette_used</code></td>
+<td>eine Zeile der Befehlspalette ausgeführt wird</td>
+<td>die Art der Zeile (<code>action</code>, <code>tab</code>, <code>connection</code> oder <code>snippet</code>) und ob die Suche mit einem Bereichspräfix wie <code>&gt;</code> oder <code>@</code> begonnen hat</td>
+</tr>
+<tr>
+<td><code>file_loaded_as_text</code></td>
+<td>eine Datei wird als Text aus einer Terminalauswahl oder dem Dateibrowser geöffnet</td>
+<td><code>terminal_selection</code> oder <code>file_browser</code></td>
+</tr>
 </tbody>
 </table>
-<p>Der Suchtext, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsätzen, die Muster und alles, was in die Bereiche eingegeben wird, werden nie gesendet. Änderungen auf den Einstellungsseiten werden als Name der Einstellung gemeldet, bei Schaltern und Auswahlfeldern mit dem neuen Wert; bei den Buchstaben und Mustern der Schnellauswahl und bei neu belegten Tastenkürzeln nur, ob Sie sie geändert haben.</p>
-<h3 id="ki-chat-codeblocke">KI-Chat-Codeblöcke<a class="headerlink" href="#ki-chat-codeblocke" title="Permanent link">&para;</a></h3>
+<h4 id="fenster-panels-und-werkzeuge">Fenster, Panels und Werkzeuge<a class="headerlink" href="#fenster-panels-und-werkzeuge" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
@@ -899,6 +1003,125 @@
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>dashboard_toggled</code></td>
+<td>das Dashboard wird angezeigt oder ausgeblendet</td>
+<td>angezeigt oder ausgeblendet</td>
+</tr>
+<tr>
+<td><code>dashboard_action</code></td>
+<td>eine Zeilenaktion des Dashboards führt aus</td>
+<td><code>reconnect</code>, <code>close</code>, <code>focus</code>, <code>sftp_manager</code> oder <code>duplicate</code></td>
+</tr>
+<tr>
+<td><code>file_browser_toggled</code></td>
+<td>der Dateibrowser wird angezeigt</td>
+<td><code>left</code> oder <code>right</code></td>
+</tr>
+<tr>
+<td><code>file_browser_action</code></td>
+<td>ein Menü- oder Kontextmenü-Aktion des Dateibrowsers führt die Aktion aus:</td>
+<td>die Aktion: <code>open</code>, <code>load_as_text</code>, <code>copy</code>, <code>cut</code>, <code>paste</code>, <code>delete</code>, <code>copy_path</code>, <code>details</code>, <code>archive</code>, <code>new_folder</code>, <code>new_file</code>, <code>rename</code> oder <code>owner_permissions</code></td>
+</tr>
+<tr>
+<td><code>coding_agent_panel_toggled</code></td>
+<td>das Coding-Agents-Panel wird angezeigt, ausgeblendet oder verschoben</td>
+<td><code>HIDDEN</code>, <code>LEFT</code> oder <code>RIGHT</code></td>
+</tr>
+<tr>
+<td><code>journal_live_panel_toggled</code></td>
+<td>das Live-Journal-Panel wird angezeigt, ausgeblendet oder verschoben</td>
+<td><code>HIDDEN</code>, <code>LEFT</code> oder <code>RIGHT</code></td>
+</tr>
+<tr>
+<td><code>tool_opened</code></td>
+<td>Ein Tool-Fenster öffnet sich</td>
+<td>Welcher von beiden: <code>ai_swarm</code>, <code>teamwork_settings</code>, <code>terminal_effect_manager</code>, <code>ascii_art</code>, <code>session_processes</code>, <code>video_manager</code>, <code>snippet_manager</code> ( mit <code>tab</code> oder <code>window</code>), <code>job_scheduler</code>, <code>ai_manager</code>, <code>saved_chats</code>, <code>session_journals</code> oder <code>manual</code></td>
+</tr>
+<tr>
+<td><code>connect_ui_opened</code></td>
+<td>Schnellverbindung oder der Connection-Manager öffnet</td>
+<td><code>quick_connect</code> oder <code>connection_manager</code></td>
+</tr>
+<tr>
+<td><code>connection_transfer</code></td>
+<td>Verbindungen werden importiert oder exportiert</td>
+<td><code>import</code> oder <code>export</code>, der verwendete Importer oder Exporter (korTTY, PuTTY Connection Manager, MTPuTTY, MobaXterm) und die Anzahl der Verbindungen</td>
+</tr>
+<tr>
+<td><code>project_action</code></td>
+<td>ein Projekt wird geöffnet oder gespeichert</td>
+<td><code>open</code> oder <code>save</code></td>
+</tr>
+<tr>
+<td><code>backup_action</code></td>
+<td>ein Backup wird erstellt oder importiert</td>
+<td><code>create</code> oder <code>import</code></td>
+</tr>
+<tr>
+<td><code>teamwork_configured</code></td>
+<td>Teamwork-Einstellungen werden gespeichert: die Anzahl der Quellen, Git-Quellen und gemeinsam genutzten Dateien sowie das Prüfintervall in Minuten</td>
+<td>die Anzahl der Quellen, Git-Quellen und gemeinsam genutzten Dateien sowie das Prüfintervall in Minuten</td>
+</tr>
+</tbody>
+</table>
+<h4 id="sicherheit">Sicherheit<a class="headerlink" href="#sicherheit" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>security_manager_opened</code></td>
+<td>ein Sicherheitsmanager-Dialog öffnet sich</td>
+<td><code>credentials</code>, <code>gpg_keys</code>, <code>ssh_keys</code> oder <code>known_hosts</code></td>
+</tr>
+<tr>
+<td><code>security_entry_changed</code></td>
+<td>Sie fügen manuell einen Eintrag hinzu, bearbeiten oder entfernen in einem davon, oder importieren Sie eine <code>known_hosts</code>-Datei</td>
+<td>im Manager, die Operation (<code>add</code>, <code>edit</code>, <code>remove</code>, <code>import</code>) und die Art (<code>manual</code>, <code>known_hosts_file</code>, <code>gpg_import</code>); niemals der Eintrag selbst</td>
+</tr>
+</tbody>
+</table>
+<h4 id="ai">AI<a class="headerlink" href="#ai" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ai_chat_message</code></td>
+<td>eine KI-Anfrage aus einer Terminalauswahl öffnet einen Chat, oder ein Follow-Up oder Schwarm-Broadcast wird gesendet</td>
+<td>der Verbindungsmodus des Profils, CLI-Anbieter-ID und Modellfamilie (wie bei <code>ai_profile_snapshot</code>), ob es die erste Nachricht ist, ob es ein Broadcast ist, der Aktionsname und ob eine Datei angehängt wurde</td>
+</tr>
+<tr>
+<td><code>ai_agent_run_started</code></td>
+<td>ein Terminal KI-Agent läuft startet</td>
+<td>die Profilwerte oben und <code>ask</code> oder <code>execute</code></td>
+</tr>
+<tr>
+<td><code>ai_plan_run_started</code></td>
+<td>ein KI-Planungslauf startet</td>
+<td>die Profilwerte oben</td>
+</tr>
+<tr>
+<td><code>ai_chat_saved</code></td>
+<td>ein KI-Chat oder Schwarmchat wird gespeichert, auch durch einen geplanten Schwarmjob</td>
+<td><code>chat</code> oder <code>swarm</code>, und ob es neu ist oder ein Update</td>
+</tr>
+<tr>
+<td><code>ai_saved_chat_opened</code></td>
+<td>ein gespeicherter Chat wird geöffnet</td>
+<td><code>chat</code> oder <code>swarm</code></td>
+</tr>
 <tr>
 <td><code>ai_code_block_action</code></td>
 <td><strong>Einfügen</strong> oder <strong>Ausführen</strong> wird auf einem Codeblock eines KI-Chats verwendet</td>
@@ -906,9 +1129,8 @@
 </tr>
 </tbody>
 </table>
-<p>Der Block, seine Sprache, der Befehl, der Bereich, der Tab, der Host und der Grund einer Ablehnung werden nie gesendet.</p>
-<h3 id="steuerungs-api-und-mcp-clients">Steuerungs-API und MCP-Clients<a class="headerlink" href="#steuerungs-api-und-mcp-clients" title="Permanent link">&para;</a></h3>
-<p>Wenn ein Programm die <a href="../reference/control-api.html">Steuerungs-API</a> verwendet, meldet korTTY, welche Methoden verwendet werden und welche Art von Client sie verwendet hat. Ein KI-Assistent, der über <code>kortty-cli mcp</code> verbunden ist, wird zusätzlich nach Tool und nach dem Ausgang des Aufrufs gemeldet. Jedes Ereignis wird höchstens einmal pro Methode bzw. pro Tool und Ausgang gesendet, solange korTTY läuft; die Anzahl der Aufrufe fließt in die regelmäßige Nutzungszusammenfassung ein.</p>
+<p>Der Block, seine Sprache, der Befehl, das Fenster, der Tab, der Host, der Grund für eine Ablehnung und jeglicher Prompt- oder Antworttext werden niemals gesendet.</p>
+<h4 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
@@ -919,20 +1141,66 @@
 </thead>
 <tbody>
 <tr>
-<td><code>control_api_used</code></td>
-<td>eine Methode der Steuerungs-API wird in diesem Lauf zum ersten Mal verwendet</td>
-<td>der Methodenname, z. B. <code>pane.read</code>, und die Art des Clients: <code>cli</code> für <code>kortty-cli</code>, <code>mcp</code> für einen MCP-Client, <code>other</code> für jedes andere Programm</td>
+<td><code>snippet_saved</code></td>
+<td>Ein Snippet wird aus dem Editor gespeichert, seine Sprache aus einer festen Liste (oder <code>other</code>), ob es eine Kategorie hat und die Anzahl seiner Zeilen</td>
+<td></td>
 </tr>
 <tr>
-<td><code>mcp_tool_called</code></td>
-<td>ein Aufruf eines MCP-Clients endet auf eine Weise, die in diesem Lauf noch nicht gemeldet wurde</td>
-<td>das Tool (<code>pane_list</code>, <code>pane_read</code>, <code>pane_wait_output</code>, <code>tab_list</code>, <code>agent_list</code>, <code>pane_send_text</code>, <code>pane_run</code>, <code>pane_send_keys</code> oder <code>other</code>) und der Ausgang: <code>ok</code>, <code>refused</code> (ausgeschaltet, nicht erlaubt oder in diesem Bereich nicht möglich), <code>denied</code> (Sie haben abgelehnt, oder korTTY konnte nicht fragen), <code>timeout</code> (niemand hat rechtzeitig geantwortet, oder eine Wartezeit ist abgelaufen) oder <code>failed</code> (jeder andere Fehler)</td>
+<td><code>snippet_ai_action</code></td>
+<td>wird eine KI-Steuerung des Snippet-Editors verwendet, eine Code-Review-Aktion ausgeführt oder Analysen exportiert</td>
+<td>die ID der Aktion (z. B. <code>code_review</code>, <code>code_complete_accepted</code>, <code>code_review_export</code>), und bei Exporten das Format, die Verpackung (<code>combined</code> oder <code>zip</code>) und die Anzahl</td>
+</tr>
+<tr>
+<td><code>snippet_history_used</code></td>
+<td>die erste Rückgängig-Aktion oder die erste Verwendung des Verlaufsschiebers in einem Editor</td>
+<td><code>undo</code> oder <code>history_slider</code></td>
+</tr>
+<tr>
+<td><code>snippet_oneliner_used</code></td>
+<td>ein One-liner wird erzeugt</td>
+<td><code>compact</code> oder <code>base64</code></td>
 </tr>
 </tbody>
 </table>
-<p>Der Name des Clients, Bereichs-IDs, Tool-Argumente, der gelesene oder eingegebene Text und Ihre Antworten werden niemals gesendet.</p>
-<h3 id="sftp-ubertragungen">SFTP-Übertragungen<a class="headerlink" href="#sftp-ubertragungen" title="Permanent link">&para;</a></h3>
-<p>Wenn ein SFTP-Manager-Tab geöffnet wird, gibt ein Ereignis an, ob er die Sitzung eines Terminals teilt. Wenn ein Upload oder Download im SFTP-Manager abgeschlossen ist, gibt ein Ereignis an, wie er verlaufen ist. Dateizahlen werden auf 0, 1, 2, 5, 10, 50, 100 oder 1000 abgerundet. Wenn korTTY aufhört, eine Datei zu beobachten, die Sie in einem externen Editor (auch als root) bearbeitet haben, gibt ein Ereignis an, wie die Bearbeitung endete; die Zahl der Uploads wird auf 0, 1, 2, 5, 10 oder 50 abgerundet.</p>
+<h4 id="session-journale-und-die-anleitung">Session-Journale und die Anleitung<a class="headerlink" href="#session-journale-und-die-anleitung" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>journal_ai_ask</code></td>
+<td>Eine Frage wird im Ask-Panel eines Journals gestellt</td>
+<td>nichts außer den üblichen Feldern; die Frage wird nie gesendet</td>
+</tr>
+<tr>
+<td><code>journal_ai_cross_search</code></td>
+<td>eine KI-Suche über mehrere Journale wird gestartet</td>
+<td>die Anzahl der Journale im Umfang, wie <code>1-10</code>, <code>11-50</code>, <code>51-200</code> oder <code>200+</code></td>
+</tr>
+<tr>
+<td><code>guide_page_viewed</code></td>
+<td>die Anleitungfenster zeigt eine Seite</td>
+<td>der Dateiname der Seite</td>
+</tr>
+<tr>
+<td><code>guide_ai_search</code></td>
+<td>eine Frage wird im Ask-Panel der Anleitungs gestellt</td>
+<td>die Anleitungssprache; die Frage wird nie gesendet</td>
+</tr>
+<tr>
+<td><code>guide_citation_clicked</code></td>
+<td>eine Quellenangabe in einer Ask-Antwort wird angeklickt</td>
+<td>der Dateiname der zitierten Seite</td>
+</tr>
+</tbody>
+</table>
+<h4 id="sftp-ubertragungen">SFTP-Übertragungen<a class="headerlink" href="#sftp-ubertragungen" title="Permanent link">&para;</a></h4>
+<p>Wenn ein SFTP-Manager-Tab geöffnet wird, gibt ein Ereignis an, ob es die Sitzung eines Terminals teilt. Wenn ein Upload oder Download im SFTP-Manager abgeschlossen ist, gibt ein Ereignis an, wie es verlaufen ist. Wenn korTTY das Beobachten einer von Ihnen in einem externen Editor (auch als Root) bearbeiteten Datei beendet, gibt ein Ereignis an, warum.</p>
 <table>
 <thead>
 <tr>
@@ -960,7 +1228,46 @@
 </tbody>
 </table>
 <p>Datei- und Ordnernamen, Pfade, Servernamen, Editorbefehle, sudo-Passwörter und Dateigrößen werden niemals gesendet.</p>
-<h3 id="jobscheduler-benachrichtigungen">JobScheduler-Benachrichtigungen<a class="headerlink" href="#jobscheduler-benachrichtigungen" title="Permanent link">&para;</a></h3>
+<h4 id="coding-agents-steuerungs-api-und-mcp-clients">Coding-Agents, Steuerungs-API und MCP-Clients<a class="headerlink" href="#coding-agents-steuerungs-api-und-mcp-clients" title="Permanent link">&para;</a></h4>
+<p>Wenn ein Programm die <a href="../reference/control-api.html">Steuerungs-API</a> verwendet, meldet korTTY welche Methoden benutzt wurden und welcher Client sie genutzt hat. Eine KI-Assistenz, die über <code>kortty-cli mcp</code> verbunden ist, wird ebenfalls vom Tool und nach dem Ergebnis der Aufrufmeldung berichtet. Jede Veranstaltung wird höchstens einmal pro Methode, oder pro Tool und Ergebnis, während korTTY läuft gesendet.</p>
+<table>
+<thead>
+<tr>
+<th>Ereignis</th>
+<th>Gesendet, wenn</th>
+<th>Daten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>coding_agent_detected</code></td>
+<td>ein Coding-Agents eines Typs wird zum ersten Mal in diesem Lauf erkannt</td>
+<td>der Agententyp (zum Beispiel <code>claude-code</code>, <code>codex</code>, <code>aider</code>) oder <code>unknown</code></td>
+</tr>
+<tr>
+<td><code>coding_agent_notification</code></td>
+<td>eine Desktop-Benachrichtigung für einen Coding-Agents wird angezeigt</td>
+<td><code>blocked</code> oder <code>done</code>, und der Agenttyp</td>
+</tr>
+<tr>
+<td><code>coding_agent_action</code></td>
+<td>Sie handeln mit einem Agenten aus dem Coding-Agents-Panel oder dem Dashboard</td>
+<td>die Aktion: <code>panel_prompt</code>, <code>panel_send_key</code>, <code>next_blocked</code>, <code>focus_first</code>, <code>dashboard_focus</code>, <code>dashboard_open_panel</code>, <code>dashboard_send_enter</code>, <code>dashboard_send_esc</code> oder <code>dashboard_interrupt</code>; niemals der Prompt-Text</td>
+</tr>
+<tr>
+<td><code>control_api_used</code></td>
+<td>eine Methode der Steuerungs-API wird in diesem Lauf zum ersten Mal verwendet</td>
+<td>der Methodenname, z. B. <code>pane.read</code>, und die Art des Clients: <code>cli</code> für <code>kortty-cli</code>, <code>mcp</code> für einen MCP-Client, <code>other</code> für jedes andere Programm</td>
+</tr>
+<tr>
+<td><code>mcp_tool_called</code></td>
+<td>ein Aufruf eines MCP-Clients endet auf eine Weise, die in diesem Lauf noch nicht gemeldet wurde</td>
+<td>das Tool (<code>pane_list</code>, <code>pane_read</code>, <code>pane_wait_output</code>, <code>tab_list</code>, <code>agent_list</code>, <code>pane_send_text</code>, <code>pane_run</code>, <code>pane_send_keys</code> oder <code>other</code>) und der Ausgang: <code>ok</code>, <code>refused</code> (ausgeschaltet, nicht erlaubt oder in diesem Bereich nicht möglich), <code>denied</code> (Sie haben abgelehnt, oder korTTY konnte nicht fragen), <code>timeout</code> (niemand hat rechtzeitig geantwortet, oder eine Wartezeit ist abgelaufen) oder <code>failed</code> (jeder andere Fehler)</td>
+</tr>
+</tbody>
+</table>
+<p>Der Name des Clients, Bereichs-IDs, Tool-Argumente, der gelesene oder eingegebene Text und Ihre Antworten werden niemals gesendet.</p>
+<h4 id="jobscheduler-benachrichtigungen">JobScheduler-Benachrichtigungen<a class="headerlink" href="#jobscheduler-benachrichtigungen" title="Permanent link">&para;</a></h4>
 <p>Wenn der JobScheduler eine Desktop-Benachrichtigung für einen Joblauf anzeigt oder eine an ein Webhook-Ziel sendet, gibt ein Ereignis an, wie es ausgegangen ist.</p>
 <table>
 <thead>
@@ -979,6 +1286,7 @@
 </tbody>
 </table>
 <p>Job- und Zielnamen, Webhook-URLs und Hosts, Laufstatus-Texte sowie alles aus der Ausgabe des Laufs werden niemals gesendet. Ein mit <strong>Test senden</strong> verschickter Test wird nicht gezählt.</p>
+<p>Der Suchbegriff, die Namen von Befehlen, Tabs, Verbindungen, Snippets und Regelsets, die Muster sowie alles, was in die Paneele eingegeben wird, werden niemals gesendet.</p>
 <h2 id="was-niemals-gesammelt-wird">Was niemals gesammelt wird<a class="headerlink" href="#was-niemals-gesammelt-wird" title="Permanent link">&para;</a></h2>
 <p>korTTY übermittelt niemals Folgendes:</p>
 <ul>
@@ -990,7 +1298,7 @@
 </ul>
 <h2 id="wohin-die-daten-gehen">Wohin die Daten gehen<a class="headerlink" href="#wohin-die-daten-gehen" title="Permanent link">&para;</a></h2>
 <p>Nutzungsstatistiken werden verarbeitet von <strong><a href="https://aptabase.com">Aptabase</a></strong>, ein Open-Source-Analysedienst, bei dem der Datenschutz an erster Stelle steht. korTTY verwendet die <strong>EU-Region</strong> von Aptabase (<code>eu.aptabase.com</code>), sodass die Daten unter Einhaltung der <strong>DSGVO</strong> auf Servern in der Europäischen Union verarbeitet werden. Siehe die <a href="https://aptabase.com/legal/privacy">Aptabase-Datenschutzrichtlinie</a> für Einzelheiten.</p>
-<p>Wenn keine Verbindung verfügbar ist, werden Ereignisse lokal in <code>~/.kortty</code> zwischengespeichert und später – auch nach einem Neustart – gesendet, sodass bei einem vorübergehenden Verbindungsausfall nichts verloren geht oder blockiert wird. Dieser Offline-Cache enthält nur dieselben anonymen Ereignisse. Es wird verworfen, wenn Sie sich abmelden, und Ereignisse, die älter als drei Tage sind, werden gelöscht.</p>
+<p>Falls keine Verbindung verfügbar ist, werden Ereignisse lokal in <code>~/.kortty/telemetry-spool.json</code> (maximal 200) zwischengespeichert und später gesendet – auch nach einem Neustart – sodass ein vorübergehender Verbindungsverlust nichts verliert oder blockiert. Dieser Offline-Cache enthält nur die gleichen anonymen Ereignisse; er wird verworfen, wenn Sie sich abmelden, und Ereignisse älter als drei Tage werden gelöscht.</p>
 <h2 id="warum-kortty-es-sammelt">Warum korTTY es sammelt<a class="headerlink" href="#warum-kortty-es-sammelt" title="Permanent link">&para;</a></h2>
 <p>Das Ziel besteht darin, korTTY mit echten, anonymen Beweisen statt mit Vermutungen zu verbessern:</p>
 <ul>

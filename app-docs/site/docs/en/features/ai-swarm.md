@@ -6,7 +6,7 @@ title: AI Swarm
 
 The AI Swarm broadcasts one AI-agent task to many servers at once. Each selected server gets its own independent agent run over its SSH session, and the per-server answers are combined into a single comparison table — one row per server — in a shared conversation.
 
-Open it with **Tools > AI Swarm...** or ++ctrl+alt+s++ (Cmd on macOS). The swarm opens as a regular tab, so terminals stay usable while a swarm runs.
+Open it with **AI > AI Swarm...** or ++ctrl+alt+s++ (Cmd on macOS). The swarm opens as a regular tab, so terminals stay usable while a swarm runs.
 
 ## The swarm tab
 
@@ -36,12 +36,14 @@ One orb per agent, colored and animated by state:
 | --- | --- | --- |
 | **Queued** | gray | Waiting for a free slot |
 | **Running** | blue, pulsing with an orbiting dot | Agent is working; elapsed time ticks |
-| **Awaiting input** | amber, blinking ring | An approval dialog is waiting for you |
+| **Awaiting approval** | amber, blinking ring | An approval dialog is waiting for you |
 | **Paused** | violet with pause bars | Paused via the run controls; the timer stops |
 | **Unusually long** | blue with an amber ping ring | Running far longer than its peers (see below) |
 | **Done** | green | Answer collected |
 | **Failed** | red | The run errored; details are in the agent row |
 | **Cancelled / Skipped** | dark gray | Stopped, or skipped (e.g. unsupported shell) |
+
+The two start-up phases, **Connecting** (opening the SSH session) and **Inspecting** (the environment probe), show the same blue orb as **Running**.
 
 **Adaptive slow detection** — an agent is flagged *unusually long* when its elapsed time exceeds `max(60 s, 2 × median of the finished agents)`; until at least two agents have finished, a fixed 180 s threshold applies. Paused and waiting agents are never flagged, and paused time is subtracted from the elapsed time, so the comparison stays fair.
 
@@ -60,6 +62,8 @@ Each server has a row in the **Agents** list showing its status badge, elapsed t
 The header above the rows adds up the whole run: **Σ tokens** of all agents plus the final combined answer, followed by the cost in money when the AI profile has a [price per 1M tokens](../reference/settings/ai.md#token-quota-management) (or `local · no token costs` for a local profile). Every agent call and the combined answer also count towards the profile's token quota — for interactive runs and for [scheduled swarm runs](#scheduling-swarm-runs-jobscheduler) alike.
 
 **Right-click a row** for per-agent control: **Pause**, **Resume**, **Restart**, and **Stop** apply to that agent only. Restarting one agent does not disturb the others; its answer is replaced in the combined result.
+
+Each server's agent masks what it sends to the model in the same way as a terminal agent run, with the server's own password; the transcript and the session journal keep the original text (see [Masking what the agent sends](ai-tools.md#masking-what-the-agent-sends)).
 
 ## Session journal per run
 
@@ -94,7 +98,7 @@ Table cells are often too small for full command output — **click any table ro
 
 ## Conversation copy, export, and saving
 
-The conversation header has a **Copy** button (whole conversation to the clipboard) and an **Export** menu with **Plain text**, **Markdown**, and **PDF**. **Save** stores the conversation as a named swarm chat; saved swarm chats appear in a dedicated **Swarm Chats** section of the [AI Manager](ai-assistant.md#ai-manager) and can be reopened later.
+The conversation header has a **Copy** button (whole conversation to the clipboard) and an **Export** menu with **Plain text**, **Markdown**, and **PDF**. **Save** stores the conversation as a named swarm chat; saved swarm chats appear in the **Swarm Chats** tab of **AI > Saved Chats...** (see [AI Manager](ai-assistant.md#ai-manager)) and can be reopened later.
 
 ## Run scripts without AI
 
@@ -126,6 +130,8 @@ The AI Swarm tab itself shows a colored status dot, so you can watch progress fr
 | Violet, steady | Swarm is paused |
 | Green, steady | Run finished — stays until the next run starts |
 
+When the swarm tab is not the one you are looking at, a desktop notification can also report that the run finished, stopped without finishing, or waits for your approval or a password; see [AI agent and AI Swarm runs](terminal-notifications.md#ai-agent-and-ai-swarm-runs).
+
 ## Scheduling swarm runs (JobScheduler)
 
 Swarm runs can execute unattended as [JobScheduler](jobscheduler.md) jobs using the **AI Swarm** action type. The **Schedule…** button in the swarm toolbar is the fastest path: it opens the JobScheduler with a new job pre-filled from the current tab — the selected servers, the current prompt, the AI profile, and the read-only setting. The job is created disabled so you can review the schedule before enabling it.
@@ -140,14 +146,14 @@ Scheduled swarm jobs run completely headless over background SSH sessions — no
 | **Swarm parallelism** | How many servers run concurrently (1–16, default 4) |
 | **Swarm read-only** | Restrict all agents to non-mutating commands (default: on) |
 
-Results land in **two places**: the job **journal** records the outcome per run (with the job's [session journal per run](jobscheduler.md#session-journal-per-run) on, also one full journal per server), and the full conversation — including the combined comparison table — is stored as a **saved swarm chat**, so you can open it later from the AI Manager's *Swarm Chats* section and click through the result table like an interactive run. The scheduler's master-password and host-key gates apply as for other job types.
+Results land in **two places**: the job **journal** records the outcome per run (with the job's [session journal per run](jobscheduler.md#session-journal-per-run) on, also one full journal per server), and the full conversation — including the combined comparison table — is stored as a **saved swarm chat**, so you can open it later from **AI > Saved Chats...**, in its **Swarm Chats** tab, and click through the result table like an interactive run. The scheduler's master-password and host-key gates apply as for other job types.
 
 !!! tip "Recommended workflow: tune interactively, then schedule"
     Prompt quality decides result quality. Run the swarm interactively first, refine the prompt until the comparison table looks right, then click **Schedule…** — the tuned prompt and target list carry over into the job.
 
 Typical combinations of swarm + scheduler:
 
-- **Nightly fleet health report** — a read-only prompt like *"Report disk usage, failed systemd units, and pending security updates"* across all production servers every night; review the combined table each morning from the AI Manager.
+- **Nightly fleet health report** — a read-only prompt like *"Report disk usage, failed systemd units, and pending security updates"* across all production servers every night; review the combined table each morning from **AI > Saved Chats...**.
 - **Configuration drift detection** — ask for the effective settings of a service on every host; deviations stand out in the per-server rows and the *Fehler* column.
 - **Patch-level inventory** — collect kernel and package versions across the fleet on a weekly schedule and export the resulting table.
 

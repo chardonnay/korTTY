@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -902,7 +910,7 @@
 </ul>
 <p>The sidebar has a fixed width: with a very large terminal font, a long runtime or the mark can be cut off at its right edge.</p>
 <h2 id="notification-when-a-long-command-finishes">Notification when a long command finishes<a class="headerlink" href="#notification-when-a-long-command-finishes" title="Permanent link">&para;</a></h2>
-<p>When a command that ran at least 30 seconds finishes in a tab you are not looking at, korTTY marks the tab with 🔔 and shows a desktop notification with the tab's name, the exit status and the runtime, for example <em>Command failed (exit 1) after 2 min 14 sec.</em> It never shows the command itself. <em>Settings → Terminal → Notifications</em> switches the notification off or changes the 30 seconds; see <a href="terminal-notifications.html#long-running-commands">Long-running commands</a> for the details.</p>
+<p>When a command that ran at least 30 seconds finishes in a tab you are not looking at, korTTY marks the tab with 🔔 and shows a desktop notification with the tab's name, the exit status and the runtime, for example <em>Command failed (exit 1) after 2 min 14 sec.</em> It never shows the command itself. <em>Settings → Messaging</em> switches the notification off or changes the 30 seconds; see <a href="terminal-notifications.html#long-running-commands">Long-running commands</a> for the details.</p>
 <h2 id="setting-it-up">Setting it up<a class="headerlink" href="#setting-it-up" title="Permanent link">&para;</a></h2>
 <p>Add the snippet for your shell to its startup file on every computer whose shell you want marked: on each server you connect to with SSH, and on your own computer for local shell tabs. korTTY never changes files on a server and never types anything into an SSH session to set this up. Open a new shell, or reconnect the tab, after adding the snippet.</p>
 <p>For a local shell tab that runs bash, zsh or fish, korTTY can also do it for you without a snippet in your startup files: see <a href="#local-shells">Adding it to local shells automatically</a>.</p>

@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -811,13 +819,13 @@
 <ol>
 <li>Open <em>File &gt; Save Project</em> or press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-s">S</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-s">S</kbd></span> on macOS).</li>
 <li>Enter a <strong>name</strong> and optional <strong>description</strong> for the project.</li>
-<li>Configure <strong>Auto-Reconnect</strong>:</li>
+<li>Configure <strong>Auto-Reconnect</strong> (the check box <em>Automatically restore SSH connections</em> in the save dialog):</li>
 <li>When enabled, opening the project automatically reconnects every saved terminal and SFTP tab; a tab that needs a password, a new temporary SSH key or the locked vault waits in the <a href="#tabs-that-wait-for-you">restore bar</a> instead.</li>
 <li>When disabled, opening the project restores the windows with their position and size and the local file editor and image viewer tabs only; terminal, SFTP and remote file tabs are skipped.</li>
 <li>Click <em>Save</em>.</li>
 </ol>
 <p>Projects are <code>.kortty</code> files saved wherever you choose in the save dialog, for example in <code>~/.kortty/projects/</code>.</p>
-<p>A project keeps every korTTY window that is open, not only the one you choose <em>Save Project</em> in; that window is saved first. A window that holds nothing but AI result and tool tabs, which projects do not keep, is left out, so it does not come back empty; the window you save from is always kept, for its position and size.</p>
+<p>An <a href="session-isolation.html#incognito-sessions">incognito</a> tab keeps its place in a project, but nothing of its screen. A project keeps every korTTY window that is open, not only the one you choose <em>Save Project</em> in; that window is saved first. A window that holds nothing but AI result and tool tabs, which projects do not keep, is left out, so it does not come back empty; the window you save from is always kept, for its position and size.</p>
 <h2 id="opening-a-project">Opening a Project<a class="headerlink" href="#opening-a-project" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Open <em>File &gt; Open Project</em> or press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-o">O</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-o">O</kbd></span> on macOS).</li>

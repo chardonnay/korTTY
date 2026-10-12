@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -835,16 +843,16 @@
 <td><code>mcode</code> (der laufende Agent benennt seinen Prozess in <code>minimax-code</code> um; korTTY liest diesen Prozessnamen, wenn <code>node</code> kein Skript meldet)</td>
 </tr>
 <tr>
-<td>Qwen Code</td>
-<td><code>qwen</code></td>
+<td>Qwen-Code</td>
+<td><code>qwen</code>, <code>qwen-code</code></td>
 </tr>
 <tr>
 <td>OpenCode</td>
 <td><code>opencode</code></td>
 </tr>
 <tr>
-<td>Cursor Agent</td>
-<td><code>cursor-agent</code>, <code>agent</code> (der Launcher startet ein gebündeltes <code>node</code> auf <code>…/cursor-agent/versions/&lt;version&gt;/index.js</code>; korTTY erkennt diesen Installationspfad)</td>
+<td>Cursor-Agent</td>
+<td><code>cursor-agent</code>, und das gebundene <code>node</code>-Skript unter <code>…/cursor-agent/versions/&lt;version&gt;/index.js</code> (der Launcher führt es aus; korTTY erkennt diesen Installationspfad)</td>
 </tr>
 <tr>
 <td>Aider</td>
@@ -879,7 +887,7 @@
 <td><code>jules</code> (asynchroner Agent von Google: seine Sitzungen laufen in der Cloud, sodass korTTY das lokale <code>jules</code>-Dashboard überwacht, das sie auflistet; die Bildschirmregeln wurden noch nicht gegen Live-Sitzungen verifiziert)</td>
 </tr>
 <tr>
-<td>GitHub Copilot CLI</td>
+<td>GitHub-Copilot-CLI</td>
 <td><code>copilot</code></td>
 </tr>
 <tr>
@@ -929,9 +937,10 @@
 <p>Das Kontextmenü einer markierten Zeile ergänzt <strong>Bereich fokussieren</strong>, das die Registerkarte auswählt und genau diesen Bereich fokussiert, <strong>Im Coding-Agents-Panel anzeigen</strong>, das das Panel andockt und den Agent auswählt, und – solange der Agent auf Sie wartet – <strong>Enter senden</strong>, <strong>Esc senden</strong> und <strong>Unterbrechen (Strg+C)</strong>, um den Dialog zu beantworten, ohne das Dashboard zu verlassen. Der Registerkartentitel zeigt dasselbe Symbol wie der Chip – ✋ wartend, ⚡ arbeitend, ✓ fertig, zusammengeführt mit dem Symbol von korTTYs eigenem KI-Agent, wo beides zutrifft.</p>
 <h2 id="das-coding-agents-panel">Das Coding-Agents-Panel<a class="headerlink" href="#das-coding-agents-panel" title="Permanent link">&para;</a></h2>
 <p><img alt="The Coding Agents panel docked beside the terminal" src="../../en/assets/screenshots/coding-agents/panel.png" />
-Das Panel listet jeden erkannten Agent aller korTTY-Fenster an einer Stelle. Öffnen Sie es über <strong>Ansicht → Coding-Agents → Links andocken / Rechts andocken</strong>, schalten Sie es mit <strong>Ein-/Ausblenden</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span>) auf seiner zuletzt verwendeten Seite um, über das ⋯-Menü im Panel, über das Kontextmenü des Statusstreifens oder mit <em>Im Coding-Agents-Panel anzeigen</em> im Dashboard. Position und Breite bleiben über Neustarts hinweg erhalten. Agents, die auf Sie warten, stehen zuerst (der am längsten wartende oben), danach die arbeitenden, fertigen und untätigen in Fenster-, Registerkarten- und Bereichsreihenfolge; die Zeile des Bereichs, in dem Sie sich gerade befinden, trägt einen linken Akzent.</p>
-<p>Jede Zeile zeigt den Zustandspunkt und den Namen, einen Zustandschip wie <code>✋ Waiting for you · 2:14</code>, die Positionslinie (<code>Window 2 › api › Pane 2 · ~/proj/api</code>) und die letzte Bildschirmzeile, die einer Regel entspricht – das Beweismaterial. Unten befinden sich die <strong>Schnelltasten</strong>: <strong>Fokussieren</strong> bringt das Fenster an die Vorderseite, <strong>y</strong>, <strong>n</strong>, <strong>Enter</strong> und <strong>Esc</strong> beantworten ein Dialogfeld (sie werden hervorgehoben, während der Agent auf Ihre Eingabe wartet), <strong>↑</strong> und <strong>↓</strong> navigieren durch eine Frage-Auswahl, <strong>Ctrl+C</strong> unterbricht die Aktion, <strong>Erklären</strong> öffnet ein Fenster mit der vollständigen Erkennungserklärung (Agent, Zustand, passende Regel, Beweismaterial, Prozess und Zeit im Zustand), und <strong>Umbenennen…</strong> gibt dem Agenten einen Alias, der seinen Namen in allen Chips, Zeilen und Benachrichtigungen ersetzt – ein leerer Alias restauriert den ursprünglichen Agentennamen, und der Alias bleibt bei Wiederherstellung der Verbindung, wird aber beim Schließen des Fensters gelöscht. Jede Taste wird an die Terminalverbindung des Fensters weitergeleitet, genau wie, als hätten Sie sie dort eingegeben; die Schaltflächen sind deaktiviert, solange das Fenster nicht verbunden ist.</p>
-<p>Das <strong>Prompt-Feld</strong> unten sendet längeren Text an den in der Zielliste ausgewählten Agent: <span class="keys"><kbd class="key-enter">Enter</kbd></span> sendet, <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> fügt einen Zeilenumbruch ein. Eine einzelne Zeile wird gefolgt von Enter gesendet. Ein mehrzeiliger Prompt wird in Bracketed Paste eingebettet – der Agent erhält ihn so als einen eingefügten Block statt als mehrere abgeschickte Zeilen –, aber nur, wenn dieser Agent Bracketed Paste eingeschaltet hat, was Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Goose, Crush, GitHub Copilot CLI und Grok Build an ihrer Eingabeaufforderung alle tun; andernfalls werden die Zeilen wie getippt gesendet. Bracketed-Paste-Marker im Prompt-Text selbst (<code>ESC[200~</code>, <code>ESC[201~</code> und ihre 8-Bit-Formen) werden vor dem Senden entfernt, sodass ein Prompt den Paste nie vorzeitig beenden und seine restlichen Zeilen einzeln abschicken kann. Zwei Prompts werden mit einer Meldung in der Statuszeile des Panels abgelehnt, statt gesendet zu werden: Solange der Agent <strong>auf eine Entscheidung wartet</strong>, bleibt die Schaltfläche <em>Senden</em> deaktiviert, weil der Text im Berechtigungsdialog landen würde – beantworten Sie ihn zuerst mit y, n, Enter oder Esc; und ein Prompt, dessen erste Zeile mit <strong>korTTYs eigenem KI-Kürzel</strong> beginnt (dem unter Einstellungen → KI konfigurierten Befehlsnamen, standardmäßig <code>agent</code>), wird zurückgewiesen, weil korTTYs Kürzelfilter diese Zeile an seinen eigenen KI-Agent statt an den Coding-Agent umleiten würde – formulieren Sie die Zeile um. Fehler einer Schnelltaste oder eines Prompts (Bereich geschlossen, nicht verbunden, Schreiben fehlgeschlagen) erscheinen für einige Sekunden in derselben Statuszeile, nie als Dialog, und ein erfolgreicher Versand bestätigt mit <em>An Claude Code gesendet</em>.</p>
+Das Panel listet jeden erkannten Agenten aller korTTY-Fenster an einem Ort auf. Öffnen Sie es mit <strong>Ansehen → Coding-Agents → Links andocken / Rechts andocken</strong>, schalten Sie es auf der zuletzt verwendeten Seite mit <strong>Ein-/Ausblenden</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span>), über das ⋯-Menü im Panel, über das Kontextmenü der Statusleiste oder mit <em>Im Coding-Agents-Panel anzeigen</em> im Dashboard. Standardmäßig öffnet sich die Seitenleiste rechts, wenn der erste Agent in diesem Fenster erkannt wird und verschwindet, wenn keine Agenten in irgendeinem korTTY-Fenster erkannt werden. Ein inaktiver Agent wird weiterhin erkannt, sodass das Abschließen einer Aufgabe allein die Seitenleiste nicht versteckt. Die Auswahl der linken Seite behält diese Wahl für nachfolgende automatische Öffnungen bei, auch nach einem Neustart. Eine bereits geöffnete Seitenleiste bleibt sichtbar, solange ein anderes Fenster noch Agenten hat. Ein manuelles Verstecken dauert bis zur nächsten Erkennungssitzung im eigenen Fenster an. Deaktivieren Sie <strong>Automatisch die Coding-Agents-Seitenleiste ein- und ausblenden</strong> unter <strong>Einstellungen → Terminal → Coding-Agents</strong>, um die Sichtbarkeit vollständig selbst zu steuern. Die minimale und anfängliche Breite beträgt 750 Pixel; eine größere Größe wird über Neustarts hinweg gespeichert. Agenten, die auf Sie warten, werden zuerst aufgeführt (längste Wartezeit oben), gefolgt von den arbeitenden, erledigten und inaktiven Agenten in Fenster-, Tab- und Pane-Reihenfolge; die Zeile des aktuell aktiven Panes trägt einen linken Akzent.</p>
+<p>Jede Zeile zeigt den Statuspunkt und Namen, ein Statuschip wie <code>✋ Waiting for you · 2:14</code>, die Standortzeile (<code>Window 2 › api › Pane 2 · ~/proj/api</code>) und die letzte Bildschirmausgabe, die eine Regel übereinstimmte – das Beweisstück. Darunter befinden sich die <strong>Schnelltasten</strong>: <strong>Fokussieren</strong> bringt das Fenster nach vorn, <strong><code>YES</code></strong>, <strong><code>NO</code></strong>, <strong>Enter</strong> und <strong>Esc</strong> beantworten einen Dialog (sie sind hervorgehoben, während der Agent auf Sie wartet), <strong>↑</strong> und <strong>↓</strong> bewegen sich durch einen Fragenpicker, <strong>Ctrl+C</strong> unterbricht, <strong>Erklären</strong> öffnet ein Drawer mit der vollständigen Erklärungsdarstellung (Agent, Zustand, passende Regel, Beweis, Prozess und Zeit im Zustand), und <strong>Umbenennen…</strong> gibt dem Agenten einen Alias, der seinen Namen in jedem Chip, jeder Zeile und Benachrichtigung ersetzt – ein leerer Alias stellt den Agentennamen wieder her, und der Alias bleibt bei einer erneuten Verbindung erhalten, wird aber beim Schließen des Fensters verworfen. Jede Taste geht zur eigenen Terminalverbindung des Fensters, genau so, als hätten Sie sie dort getippt; die Schaltflächen sind deaktiviert, solange das Fenster nicht verbunden ist.</p>
+<p><strong><code>YES</code></strong> und <strong><code>NO</code></strong> senden die vollständigen Großbuchstabenwörter ohne implizites Enter; klicken Sie <strong>Enter</strong> separat, wenn der Agent eine übermittelte Zeile erwartet. Für ein Menü wie das Genehmigungsdialog von MiniMax Code folgen Sie dem vom Agenten gezeigten Fußbereich: <strong>↑</strong> / <strong>↓</strong> wählen eine Option, <strong>Enter</strong> bestätigt sie und <strong>Esc</strong> verweigert sie. <strong>Fokussieren</strong> ist die Navigation innerhalb von korTTY, daher kann es unverändert bleiben, wenn dieses Fenster bereits ausgewählt ist. <strong>Erklären</strong> öffnet oder schließt die Erkennungsdetails der Zeile (übereinstimmende Regel, Bildnachweis, Prozess und Zeit im Zustand); es fordert den Codierungsagenten nicht auf, seine Arbeit zu erklären. Die Erklärung wird automatisch nach 60 Sekunden zusammengeklappt oder früher, wenn Sie erneut <strong>Erklären</strong> klicken oder die Seitenleiste ausblenden. Beide Aktionen funktionieren unabhängig vom Agentenanbieter.</p>
+<p>Der <strong>Prompt-Box</strong> am unteren Rand sendet längere Texte an den in der Zielliste ausgewählten Agenten: <span class="keys"><kbd class="key-enter">Enter</kbd></span> sends, <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> inserts a line break. Eine einzelne Zeile wird gesendet, gefolgt von Enter. Ein mehrzeiliger Prompt ist in einen bracketed paste-Block eingeschlossen – so erhält der Agent ihn als einen zusammengefügten Block statt mehrere eingereichte Zeilen – aber nur, wenn dieser Agent bracketed paste aktiviert hat, was Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Goose, Crush, GitHub Copilot CLI und Grok Build bei ihrem Prompt tun; andernfalls werden die Zeilen wie getippt gesendet. Bracketed-paste-Marker im Prompt-Text selbst (<code>ESC[200~</code>, <code>ESC[201~</code> und ihre 8-Bit-Versionen) werden vor dem Senden entfernt, sodass ein Prompt niemals den Paste frühzeitig beendet und die verbleibenden Zeilen einzeln übermittelt. Zwei Prompts werden mit einer Meldung in der Statuszeile des Panels abgelehnt, anstatt gesendet zu werden: während der Agent <strong>Warten auf Entscheidung</strong> ist, bleibt die Schaltfläche <em>Senden</em> deaktiviert, weil der Text in das Berechtigungsdialogfeld gelangen würde – beantworten Sie ihn zuerst mit <code>YES</code>, <code>NO</code>, Enter oder Esc; und ein Prompt, dessen erste Zeile mit dem <strong>korTTY-eigentlichen KI-Shortcut</strong> (der unter Einstellungen → AI konfigurierte Befehlname, <code>agent</code> standardmäßig) beginnt, wird abgelehnt, weil der Shortcut-Filter von korTTY diese Zeile an seinen eigenen KI-Agenten weiterleiten würde statt an den Coding-Agenten – formulieren Sie die Zeile um. Fehler eines Quick-Keys oder Prompts (Fenster geschlossen, nicht verbunden, Schreiben fehlgeschlagen) erscheinen für ein paar Sekunden in derselben Statuszeile, niemals als Dialog, und eine erfolgreiche Sendung bestätigt mit <em>Gesendet an Claude Code</em>.</p>
 <p>Die Schaltfläche <strong>Nächster wartender</strong> in der Kopfzeile des Panels springt zum nächsten Agent, der auf Sie wartet, über alle Fenster hinweg und mit Umlauf; es ist dieselbe Aktion wie <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-n">N</kbd></span> und ein Klick auf den Statusstreifen.</p>
 <h2 id="statusstreifen">Statusstreifen<a class="headerlink" href="#statusstreifen" title="Permanent link">&para;</a></h2>
 <p><img alt="The coding-agent status strip at the right end of the status bar" src="../../en/assets/screenshots/coding-agents/status-strip.png" />
@@ -957,8 +966,8 @@ Die Zahl der Agents, die auf eine Entscheidung warten – über alle Fenster hin
 </tr>
 <tr>
 <td>macOS, gestartet mit <code>./gradlew run</code></td>
-<td>Wird über Script Editor angezeigt</td>
-<td>Öffnet Script Editor, nicht korTTY</td>
+<td>angezeigt als <strong><code>korTTY Notifications</code></strong>, ein nativer Helfer, der von Gradle unter Verwendung der Xcode Command Line Tools erstellt wurde</td>
+<td>springt zum Bereich der laufenden korTTY-Instanz. Erlauben Sie <strong><code>korTTY Notifications</code></strong>, wenn macOS zunächst fragt; seine Berechtigung ist getrennt von der des installierten Programms</td>
 </tr>
 <tr>
 <td>Windows 10 und 11</td>
@@ -977,7 +986,7 @@ Die Zahl der Agents, die auf eine Entscheidung warten – über alle Fenster hin
 </tr>
 </tbody>
 </table>
-<p>Beide Oberflächen sind standardmäßig aktiv und verfügen über eigene Schalter unter <strong>Einstellungen → Terminal → Coding-Agents</strong> (siehe <a href="#erkennung-aktivieren">Aktivierung der Erkennung</a>). Die Deaktivierung des Badges erfolgt sofort; die Deaktivierung der Benachrichtigungen beendet neue Benachrichtigungen, ohne das Badge zu berühren.</p>
+<p>Beide Oberflächen sind standardmäßig aktiviert. Der Badge-Schalter befindet sich unter <strong>Einstellungen → Terminal → Coding-Agents</strong> und der Benachrichtigungs-Schalter unter <strong>Einstellungen → Messaging → Coding-Agents</strong> (siehe <a href="#erkennung-aktivieren">Erkennung aktivieren</a>). Das Ausschalten des Badges löscht ihn sofort; das Abschalten der Benachrichtigungen stoppt neue, ohne den Badge zu berühren.</p>
 <h2 id="tastenkurzel">Tastenkürzel<a class="headerlink" href="#tastenkurzel" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1014,7 +1023,7 @@ Die Zahl der Agents, die auf eine Entscheidung warten – über alle Fenster hin
 <p>Bildschirmtext wird ausschließlich innerhalb von korTTY, im Arbeitsspeicher, auf diesem Rechner analysiert. Nichts wird an einen Dienst gesendet, auf die Festplatte geschrieben oder an den KI-Assistenten weitergereicht – die Erkennung ist reine Mustererkennung gegen lokale Regeldateien. Wenn Sie lokale Shell-Bildschirme gar nicht untersuchen lassen möchten, schalten Sie die Funktion unter <strong>Einstellungen → Terminal → Coding-Agents</strong> ab.</p>
 </div>
 <h2 id="erkennung-aktivieren">Erkennung aktivieren<a class="headerlink" href="#erkennung-aktivieren" title="Permanent link">&para;</a></h2>
-<p>Die Erkennung ist standardmäßig eingeschaltet und wird über drei Schalter unter <strong>Einstellungen → Terminal</strong>, Abschnitt <strong>Coding-Agents</strong>, gesteuert. Eine Änderung wirkt sofort auf alle offenen Registerkarten – kein Neustart und kein erneutes Verbinden nötig.</p>
+<p>Detection ist standardmäßig aktiviert. Die Erkennung, die automatische Sichtbarkeit der Seitenleiste und das App-Badge werden in <strong>Einstellungen → Terminal</strong> konfiguriert, Abschnitt <strong>Coding-Agents</strong>. Desktop-Benachrichtigungen für erkannte Agents werden separat unter <strong>Einstellungen → Messaging → Coding-Agents</strong> gesteuert. Änderungen wirken sich auf alle offenen Tabs aus, sobald Sie speichern – ein Neustart oder erneutes Verbinden ist nicht erforderlich.</p>
 <table>
 <thead>
 <tr>
@@ -1034,11 +1043,11 @@ Die Zahl der Agents, die auf eine Entscheidung warten – über alle Fenster hin
 <td><code>codingAgentDetectionEnabled</code></td>
 </tr>
 <tr>
-<td>Desktop-Benachrichtigung, wenn ein Coding-Agent eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen</td>
-<td>Schalter</td>
+<td>Automatisch anzeigen und verbergen der Coding-Agent-Seitenleiste</td>
+<td>toggle</td>
 <td>—</td>
-<td>Ein</td>
-<td><code>codingAgentNotificationsEnabled</code></td>
+<td>On</td>
+<td><code>codingAgentPanelAutoVisibility</code></td>
 </tr>
 <tr>
 <td>Anzahl der auf eine Entscheidung wartenden Agents am App-Symbol anzeigen</td>
@@ -1049,7 +1058,8 @@ Die Zahl der Agents, die auf eine Entscheidung warten – über alle Fenster hin
 </tr>
 </tbody>
 </table>
-<p>Ist der Erkennungsschalter aus, durchläuft korTTY weder den Prozessbaum noch liest es den Bildschirm irgendeines Bereichs, und Dashboard-Markierungen, Panel, Streifen, Badge und Benachrichtigungen verstummen alle. Position und Breite des Panels sind keine Optionen des Einstellungsdialogs: Sie folgen dem Menü <strong>Ansicht → Coding-Agents</strong> und werden als <code>codingAgentPanelPlacement</code> (<code>HIDDEN</code>, <code>LEFT</code> oder <code>RIGHT</code>) und <code>codingAgentPanelWidth</code> gespeichert.</p>
+<p>Um Meldungen über wartende oder fertiggestellte Agenten zu deaktivieren, schalten Sie <strong>Desktop-Benachrichtigung, wenn ein Coding-Agent eine Entscheidung benötigt oder fertig ist, während Sie nicht auf sein Fenster schauen</strong> unter <a href="../reference/settings/messaging.html">Messaging-Einstellungen</a> aus. Der separate Benachrichtigungsschalter deaktiviert nicht die Erkennung, die Seitenleistensteuerung oder das App-Badge.</p>
+<p>Wenn der Erkennungsschalter deaktiviert ist, durchläuft korTTY weder den Prozessbaum noch liest es den Bildschirm eines beliebigen Bereichs und das Dashboard, die Leiste, der Streifen, das Badge und die Benachrichtigungen fallen alle still. Die Platzierung und Breite der Leiste sind keine Optionen des Einstellungsdialogs: sie folgen dem <strong>Ansehen → Coding-Agents</strong> Menü und werden als <code>codingAgentPanelPlacement</code> (<code>HIDDEN</code>, <code>LEFT</code> oder <code>RIGHT</code>) und <code>codingAgentPanelWidth</code> (750–1 200 Pixel, Standard 750) gespeichert. Die gewählte Seite bleibt als <code>codingAgentPanelSide</code> (<code>LEFT</code> oder <code>RIGHT</code>, zunächst <code>RIGHT</code>) erhalten, auch wenn die Leiste ausgeblendet ist.</p>
 <h2 id="eigene-regeln">Eigene Regeln<a class="headerlink" href="#eigene-regeln" title="Permanent link">&para;</a></h2>
 <p>Die Bildschirmregeln jedes Agents liegen in einer kleinen JSON-Datei. KorTTY liefert pro Agent eine mitgelieferte Datei und lässt Sie diese durch Ihre eigene Kopie in Ihrem Konfigurationsverzeichnis ersetzen:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/coding-agents/claude-code.json
@@ -1253,9 +1263,9 @@ Die Zahl der Agents, die auf eine Entscheidung warten – über alle Fenster hin
 <li><strong>Falscher oder flackernder Zustand.</strong> Der Bildschirm des Agents hat sich geändert, oder ein Dialog wird auf eine Weise dargestellt, die die mitgelieferten Regeln nicht abdecken. Kopieren Sie die mitgelieferte Regeldatei nach <code>~/.kortty/coding-agents/&lt;agent&gt;.json</code>, passen Sie das Muster an, starten Sie korTTY neu und melden Sie den Bildschirmtext, damit die mitgelieferten Regeln korrigiert werden können.</li>
 <li><strong>Gar kein Zustand, obwohl der Agent läuft.</strong> Prüfen Sie, dass der Schalter unter <strong>Einstellungen → Terminal → Coding-Agents</strong> eingeschaltet ist, dass die Registerkarte eine Lokale-Shell-Registerkarte ist, und suchen Sie im Protokoll nach einer <em>coding-agents</em>-Warnung – eine ungültige Überschreibungsdatei fällt auf die mitgelieferten Regeln zurück, aber eine mitgelieferte Regeldatei, die nie zu Ihrer Agent-Version passt, lässt den Agent unbestätigt.</li>
 <li><strong>Kein Badge unter GNOME.</strong> Eine unveränderte GNOME Shell stellt keine Launcher-Zähler dar, und korTTY kann nicht erkennen, ob eine Dock-Erweiterung installiert ist, die es täte; die Zahl wird also gesendet, kann aber unsichtbar bleiben. Auf den Fenstertitel wird nur dort ausgewichen, wo korTTY sicher weiß, dass kein Symbol-Badge existiert (keine installierte Desktop-Datei, kein erreichbarer Sitzungsbus, <code>./gradlew run</code>).</li>
-<li><strong>Keine Benachrichtigung, obwohl der Agent gewartet hat.</strong> Benachrichtigungen werden für das Pane unterdrückt, das Sie gerade ansehen, für einen blockierten Zustand, der weniger als einen Moment gedauert hat, für einen zweiten Bericht desselben Übergangs und innerhalb von zehn Sekunden nach der vorherigen für dieses Pane; auf Linux muss ein Benachrichtigungsserver auf dem Sitzungsbus laufen, oder <code>notify-send</code> muss im PATH sein; auf macOS müssen Benachrichtigungen für korTTY in <em>Systemeinstellungen → Benachrichtigungen</em> erlaubt sein; eine <a href="../reference/enterprise-policy.html#rulefeatures">Unternehmensrichtlinie</a> kann Desktop-Benachrichtigungen deaktivieren; und die Einstellung unter <strong>Einstellungen → Terminal → Coding-Agents</strong> muss aktiviert sein.</li>
-<li><strong>Ein Klick auf eine Benachrichtigung hat keine Wirkung.</strong> Der Terminalbereich des Agents wurde seit dem Anzeigen der Benachrichtigung geschlossen, korTTY wird auf macOS von <code>./gradlew run</code> aus ausgeführt (die Benachrichtigung gehört dann zu Script Editor) oder der Linux-Benachrichtigungsserver unterstützt keine Aktionen und es gibt kein <code>notify-send</code> aus libnotify 0.7.10 oder neuer.</li>
-<li><strong>Der Prompt wurde abgelehnt.</strong> Ein wartender Agent muss zuerst beantwortet werden (y, n, Enter oder Esc), und die erste Zeile, die mit dem KI-Schnellbefehl von korTTY beginnt, muss neu formuliert werden — siehe <a href="#das-coding-agents-panel">Das Panel mit Coding-Agents</a>.</li>
+<li><strong>Keine Benachrichtigung obwohl der Agent gewartet hat.</strong> Benachrichtigungen werden für das aktuell betrachtete Paneel unterdrückt, für einen blockierten Zustand, der weniger als einen Moment andauerte, für einen zweiten Bericht derselben Transition und innerhalb von zehn Sekunden nach dem vorherigen für dieses Paneel; unter Linux muss ein Benachrichtigungsserver auf dem Sitzungsbus laufen, oder <code>notify-send</code> muss im PATH sein; unter macOS müssen Benachrichtigungen für korTTY in <em>System Einstellungen → Benachrichtigungen</em> erlaubt sein; eine <a href="../reference/enterprise-policy.html#rulefeatures">Unternehmensrichtlinie</a> kann Desktop-Benachrichtigungen ausschalten; und die Benachrichtigungseinstellung unter <strong>Einstellungen → Messaging → Coding-Agents</strong> muss aktiviert sein.</li>
+<li><strong>Klicken einer Benachrichtigung bewirkt nichts.</strong> Das Terminalfenster des Agenten wurde geschlossen, seit die Benachrichtigung angezeigt wurde, korTTY wurde außerhalb seines App-Bundles ohne den Entwicklungsbenachrichtigungs-Helper gestartet (der Legacy-Fallback gehört zum Script Editor), oder der Linux-Benachrichtigungsserver unterstützt keine Aktionen und es gibt kein <code>notify-send</code> von libnotify 0.7.10 oder neuer.</li>
+<li><strong>Der Prompt wurde abgelehnt.</strong> Ein wartender Agent muss zuerst beantwortet werden (<code>YES</code>, <code>NO</code>, Enter oder Esc), und eine erste Zeile, die mit korTTYs eigenem KI-Shortcut-Befehl beginnt, muss umformuliert werden — siehe <a href="#das-coding-agents-panel">Das Coding-Agents-Panel</a>.</li>
 </ul></p>
     </article>
 </section>

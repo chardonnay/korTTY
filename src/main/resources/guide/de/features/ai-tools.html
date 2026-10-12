@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -835,7 +843,7 @@
 <h3 id="befehlszwecke">Befehlszwecke<a class="headerlink" href="#befehlszwecke" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong><code>agent &lt;goal&gt;</code></strong> – Führen Sie sichere Terminalbefehle aus, um ein Ziel zu erreichen. Der Agent prüft die Sitzung, plant nicht interaktive Befehle, fordert bei Bedarf eine Genehmigung an und schreibt (standardmäßig) die endgültige Antwort zurück an das Terminal. Das Ausführungsdialogfeld bietet die Option <strong>Endgültige Antwort auch im Terminal anzeigen</strong>: Lassen Sie diese Option aktiviert, um die Antwort im Terminal zu spiegeln, oder schalten Sie sie aus, damit die Antwort nur im Aktivitätsfenster des KI-Agenten verbleibt. In beiden Fällen werden die Befehle weiterhin ausgeführt und ihre Ausgabe sowie alle von ihnen erstellten Dateien verbleiben auf dem Server. Lediglich die Anzeige des endgültigen Antworttextes ändert sich. Die letzte Auswahl wird als Standard gespeichert.</li>
-<li><strong><code>agent-ask &lt;question&gt;</code></strong> – Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungskontext, ohne irgendwelche Befehle auszuführen. Wenn Sie über das Kontextmenü des Terminals (<strong>KI → Ask AI Agent</strong>) mit ausgewähltem Text starten, wird die Auswahl als Kontext gesendet, sodass die Frage zur ausgewählten Ausgabe oder zum ausgewählten Skript beantwortet wird.</li>
+<li><strong><code>agent-ask &lt;question&gt;</code></strong> — Erhalten Sie eine nicht ausführende Antwort zum aktuellen Sitzungsinhalt, ohne Befehle auszuführen. Wird das Menü im Terminal per Rechtsklick gestartet (<strong>KI → Fragen Agent...</strong>) und Text ausgewählt, wird die Auswahl als Kontext mitgesendet, sodass die Frage zum ausgewählten Output oder Skript beantwortet wird.</li>
 <li><strong><code>agent-plan &lt;task&gt;</code> / <code>agent -plan &lt;task&gt;</code></strong> – Wechseln Sie zuerst in den Planungsmodus. Der Agent stellt klärende Fragen, schlägt Vorgehensweisen vor, erstellt einen endgültigen Plan und führt die Implementierung erst durch, nachdem Sie auf <strong>Umsetzen</strong> geklickt haben.</li>
 </ul>
 <h3 id="beispiele">Beispiele<a class="headerlink" href="#beispiele" title="Permanent link">&para;</a></h3>
@@ -866,6 +874,14 @@
 <li><strong>Genehmigte Befehle ausführen</strong> – KorTTY führt genehmigte Befehle über das aktive Backend aus: SSH-Ausführungskanäle für SSH-Sitzungen oder einen neuen lokalen Prozess für lokale Shells. Jeder Befehl startet im verfolgten aktiven Terminalverzeichnis, das für diese Ausführung erfasst wurde. Ein <code>cd</code> innerhalb eines einmaligen Befehls bleibt nicht bis zum nächsten Befehl bestehen, während ein interaktiver <code>cd</code>, der vor der Ausführung abgeschlossen wurde, im erfassten Verzeichnis enthalten ist.</li>
 <li><strong>Iterieren oder abschließen</strong> – Die Befehlsausgabe wird dem Aktivitätsbereich und der nächsten Modellrunde hinzugefügt, bis die Aufgabe abgeschlossen, blockiert, abgebrochen oder das Rundenlimit erreicht ist (maximal 8 Runden).</li>
 </ol>
+<h3 id="was-der-agent-aufrufen-kann">Was der Agent aufrufen kann<a class="headerlink" href="#was-der-agent-aufrufen-kann" title="Permanent link">&para;</a></h3>
+<p>Das Modell beantwortet jede Runde mit einer Entscheidung, und korTTY führt ausschließlich die hier aufgeführten Entscheidungen und Werkzeuge aus:</p>
+<ul>
+<li><strong><code>run_commands</code></strong> — Bis zu 3 nicht-interaktive Shell-Befehle für das aktive Backend. Systemverändernde Befehle gehen durch die Genehmigungsstelle, wie unter <a href="#genehmigungstore">Genehmigungsschalter</a> beschrieben.</li>
+<li><strong><code>needs_confirmation</code></strong> — Sie werden aufgefordert, ein Befehlsset vor dem Ausführen zu bestätigen.</li>
+<li><strong><code>done</code></strong> oder <strong><code>blocked</code></strong> — Beendet die Ausführung mit der endgültigen Antwort, oder mit einer Erklärung, warum die Aufgabe nicht fortgesetzt werden kann.</li>
+<li><strong><code>web_search</code> and <code>web_extract</code></strong> — Nur mit dem <strong>KorTTY Tavily Tool</strong> Internetmodus (siehe <a href="#internetzugang">Internetzugriff</a>). Die Suche liefert fünf kurze Ergebnisse; das Seitenlesen gibt den Text einer Webseite zurück, bis zu 12.000 Zeichen.</li>
+</ul>
 <h3 id="passende-aufgaben">Passende Aufgaben<a class="headerlink" href="#passende-aufgaben" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Untersuchung von Dateien, Verzeichnissen, Paketstatus, Protokollen, Dienststatus und Systemkonfiguration</li>
@@ -928,7 +944,7 @@
 <tbody>
 <tr>
 <td>💾</td>
-<td>Anfrage oder Eingabe: Datei schreiben/erstellen</td>
+<td>Aktion: eine Datei schreiben oder erstellen</td>
 </tr>
 <tr>
 <td>📖</td>
@@ -987,7 +1003,7 @@
 <ul>
 <li><strong>Limit pro Runde</strong> – Maximal 3 Befehle pro Runde verhindern eine außer Kontrolle geratene Automatisierung.</li>
 <li><strong>Nur nicht interaktiv</strong> – Der Agent lehnt interaktive Befehle (wie <code>vim</code>, <code>less</code>, <code>su</code>) ab, die in einem nicht interaktiven Befehls-Backend hängen bleiben würden.</li>
-<li><strong>Erkennung mutierender Befehle</strong> – Befehle, die das System ändern (<code>chmod</code>, <code>rm</code>, <code>mv</code>, <code>mkdir</code> usw.), werden zur Bestätigung markiert, es sei denn, der Agent verfügt über eine Umgehung der automatischen Genehmigung.</li>
+<li><strong>Mutierende-Befehls-Erkennung</strong> — Ein Befehl, der mit einem von <code>chmod</code>, <code>chown</code>, <code>chgrp</code>, <code>rm</code>, <code>rmdir</code>, <code>mv</code>, <code>cp</code>, <code>mkdir</code>, <code>touch</code>, <code>ln</code>, <code>tee</code>, <code>dd</code>, <code>truncate</code> oder <code>install</code> (nach <code>;</code>, <code>&amp;</code>, <code>|</code> oder <code>(</code> auch) beginnt, wird als systemverändernd behandelt und zur Bestätigung markiert, es sei denn, der Agent hat eine automatische Genehmigungsumgehung.</li>
 </ul>
 <h3 id="privilegienbehandlung">Privilegienbehandlung<a class="headerlink" href="#privilegienbehandlung" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1001,7 +1017,7 @@
 <h3 id="genehmigungstore">Genehmigungstore<a class="headerlink" href="#genehmigungstore" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Mutierende Befehle</strong> – Standardmäßig bittet der Agent um Genehmigung, bevor er Befehle ausführt, die das System ändern (es sei denn, die automatische Genehmigung ist in den Einstellungen aktiviert).</li>
-<li><strong>Bestätigungsdialog</strong> – Der Genehmigungsdialog zeigt die geplanten Befehle und ihre Zwecke. Sie können einmal genehmigen, alle verbleibenden Befehle in der Ausführung genehmigen oder abbrechen.</li>
+<li><strong>Bestätigungsdialog</strong> — Der Genehmigungsdialog (<strong>KI-Agent-Bestätigung</strong>) zeigt die geplanten Befehle und deren Zwecke. Sie können <strong>Einmal erlauben</strong>, <strong>Immer erlauben</strong> für die verbleibenden Befehle im Lauf wählen oder abbrechen.</li>
 <li><strong>Sudo-Preflight</strong> – Nach der Annahme eines Planungsberichts führt KorTTY die Preflight-Prüfung unmittelbar nach der Annahme durch, wenn der Plan Sudo erfordert und Ihre SSH-Sitzung ein Sudo-Passwort erfordert, damit die Ausführung später nicht unterbrochen wird.</li>
 </ul>
 <h3 id="verzeichnisverfolgung">Verzeichnisverfolgung<a class="headerlink" href="#verzeichnisverfolgung" title="Permanent link">&para;</a></h3>
@@ -1097,7 +1113,7 @@
 <p>Alle Genehmigungs- oder Passwortanfragen</p>
 </li>
 <li>
-<p><strong>Genehmigungen</strong> – Wenn der Agent eine Genehmigung benötigt, um systemverändernde Befehle auszuführen, klicken Sie auf <strong>Einmal genehmigen</strong> (nur dieser Satz) oder <strong>Immer genehmigen</strong> (alle verbleibenden Sätze in der Ausführung) oder klicken Sie auf <strong>Abbrechen</strong>.</p>
+<p><strong>Genehmigungen</strong> — Wenn der Agent Genehmigung benötigt, um systemverändernde Befehle auszuführen, klicken Sie auf <strong>Einmal erlauben</strong> (nur dieses Set) oder <strong>Immer erlauben</strong> (alle verbleibenden Sets im Lauf), oder klicken Sie auf <strong>Abbrechen</strong>.</p>
 </li>
 <li>
 <p><strong>Sudo-Passwort</strong> – Geben Sie Ihr Sudo-Passwort ein, wenn Sie dazu aufgefordert werden. Es kann optional für die Sitzung zwischengespeichert werden.</p>
@@ -1164,43 +1180,36 @@
 </thead>
 <tbody>
 <tr>
-<td><strong>AI Agent aktiviert</strong></td>
-<td>Aktivieren oder deaktivieren Sie die Agentenfunktion global</td>
+<td><strong>KI-Agent-Ausführung aktivieren</strong></td>
+<td>Aktivieren oder deaktivieren Sie ausführbare Agentenläufe und die Umsetzung von Plänen; KI-Planung und Agent fragen bleiben verfügbar</td>
 </tr>
 <tr>
 <td><strong>Agent-Befehlsname</strong></td>
 <td>Der Basisbefehl (Standard: <code>agent</code>); andere Varianten werden automatisch abgeleitet</td>
 </tr>
 <tr>
-<td><strong>Groß-/Kleinschreibung wird nicht berücksichtigt</strong></td>
-<td>Befehlsabgleich ohne Berücksichtigung der Groß-/Kleinschreibung festlegen</td>
+<td><strong>Agent-Befehlsnamen ohne Groß-/Kleinschreibung vergleichen</strong></td>
+<td>Befehlsabgleich ohne Berücksichtigung der Groß-/Kleinschreibung</td>
 </tr>
 <tr>
-<td><strong>Ausführungsziel</strong></td>
-<td>Wählen Sie, ob der Agent offen in speziellen Registerkarten oder inline am Terminal-Split ausgeführt wird</td>
+<td><strong>Ziel für KI-Agent-Aufgaben</strong></td>
+<td><strong>Terminalfenster</strong> (das Aktivitätspanel im Terminalsplit) oder <strong>Neues Chatfenster</strong></td>
 </tr>
 <tr>
-<td><strong>Setup-Dialog pro Lauf</strong></td>
-<td>Zeigt vor jedem Lauf einen Setup-Dialog an (deaktiviert verwendet das Standardprofil)</td>
+<td><strong>Terminal-Agent-Abfrage vor jedem Start anzeigen</strong></td>
+<td>Zeigen Sie vor jedem Start einen Setup-Dialog an (bei deaktiviert wird das Standardprofil verwendet)</td>
 </tr>
 <tr>
-<td><strong>Größe des Eingabeverlaufs</strong></td>
-<td>Anzahl der zuletzt zu merkenden Eingabeaufforderungen (5–100, Standard 20)</td>
+<td><strong>Größe der Terminal-Agent-Eingabehistorie</strong></td>
+<td>Anzahl der zuletzt gespeicherten Prompts zu merken (5–100, Standard 20)</td>
 </tr>
 <tr>
 <td><strong>Standardprofil</strong></td>
 <td>Das KI-Profil, das verwendet wird, wenn der Setup-Dialog deaktiviert ist</td>
 </tr>
-<tr>
-<td><strong>Platzierung des Aktivitätsbereichs</strong></td>
-<td>Wählen Sie <strong>Unten</strong> oder <strong>Links/Rechts andocken</strong></td>
-</tr>
-<tr>
-<td><strong>Präferenz reduziert beibehalten</strong></td>
-<td>Starten Sie das Panel minimiert und lassen Sie es während der Ausführung minimiert.</td>
-</tr>
 </tbody>
 </table>
+<p>Die Platzierung des Panels wird unter <strong>Ansicht → KI-Agent-Panel</strong> festgelegt, und <strong>Eingeklappt lassen</strong> ist eine Option des Aktivitätspanels selbst (Siehe <a href="#panel-platzierung">Panelplatzierung</a> und <a href="#panel-funktionen">Panel-Funktionen</a>).</p>
 <h2 id="ki-skills">KI-Skills<a class="headerlink" href="#ki-skills" title="Permanent link">&para;</a></h2>
 <p>AI Skills sind wiederverwendbare lokale Anweisungsblöcke, die der Agent verwenden kann. Für Agentenausführungen können Sie Fertigkeiten global aktivieren oder deaktivieren oder KorTTY automatisch nur relevante Fertigkeiten der Aufgabe zuordnen lassen. Die Fähigkeiten können Folgendes umfassen:</p>
 <ul>
@@ -1214,10 +1223,10 @@
 <p>Der Agent kann optional Web-Tools verwenden, wenn für die Aufgabe eindeutig aktuelle oder externe Informationen erforderlich sind:</p>
 <ul>
 <li><strong>Deaktiviert</strong> (Standard) – Es werden keine Web-Tools oder MCP-Integrationen mit Agentenanfragen gesendet.</li>
-<li><strong>KorTTY Tavily Tool</strong> – Direkte Websuche über Tavily API.</li>
+<li><strong>KorTTY Tavily Tool</strong> — Direkte Websuche und Seitenlesung über die Tavily-API (<code>web_search</code> und <code>web_extract</code>, Siehe <a href="#was-der-agent-aufrufen-kann">Was der Agent aufrufen kann</a>).</li>
 <li><strong>LM Studio MCP-Modi</strong> – Integrieren Sie Tavily, Bright Data, Brave Search, SearXNG oder LM Studio Toolpack über die native MCP-Unterstützung von LM Studio.</li>
 </ul>
-<p>Konfigurieren Sie den Internetzugang pro KI-Profil unter <strong>Einstellungen &gt; AI &gt; Internetzugang</strong>.</p>
+<p>Internetzugriff pro KI-Profil konfigurieren mit dem Feld <strong>Internetzugriff</strong> im Profil-Editor; der Tavily-Schlüssel und die anderen Web-Tool-Einstellungen werden unter <strong>Einstellungen &gt; KI &gt; Internet-Tool-Konfiguration</strong> eingegeben.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p><strong>Web-Tools werden von lokalen Datei-/Skriptüberprüfungsaufgaben ausgeschlossen</strong>, es sei denn, in Ihrer Eingabeaufforderung werden eindeutig aktuelle oder externe Informationen abgefragt. Für die Untersuchung einer lokalen Datei sollten Shell-Befehle wie <code>sed</code>, <code>cat</code>, <code>find</code> oder sprachspezifische Tools und keine Websuche verwendet werden.</p>

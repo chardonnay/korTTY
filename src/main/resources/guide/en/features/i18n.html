@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -876,6 +884,12 @@
 <td>Yandex Cloud Translate v2</td>
 <td>Needs a <strong>service account API key</strong> from Yandex Cloud, not the retired v1.5 key</td>
 </tr>
+<tr>
+<td>Local AI text profile</td>
+<td>No, the profile brings its own endpoint and credentials</td>
+<td>The <strong>AI profile</strong> selected next to it</td>
+<td>Translates through an AI profile, for example a local model, instead of a translation API. See <a href="../reference/settings/translation.html#local-translation">Local translation</a>.</td>
+</tr>
 </tbody>
 </table>
 <div class="admonition warning">
@@ -901,6 +915,7 @@ warning until you do.</p>
 <li>Click <strong>Generate Language File</strong></li>
 </ol>
 <p>The generated language file is saved to <code>~/.kortty/i18n/messages_XX.properties</code>, where <code>XX</code> is the two-letter language code. After generation, restart the application to make the new language available in <strong>Settings → Language</strong>.</p>
+<p>The same page also translates the built-in guide into the selected language, in the <strong>Guide translation</strong> section, so that <strong>Help → Guide</strong> and its search can be read in that language. That job runs in the background and can be cancelled; see <a href="../reference/settings/translation.html#guide-translation">Guide translation</a>.</p>
 <h3 id="after-app-upgrades">After App Upgrades<a class="headerlink" href="#after-app-upgrades" title="Permanent link">&para;</a></h3>
 <p>When KorTTY is upgraded to a new version, previously generated language files are automatically detected as outdated if they were created with an older app version. In <strong>Settings → Translation</strong>, a notice appears indicating which languages need updating.</p>
 <p>To refresh all outdated language files after an upgrade:</p>
@@ -915,7 +930,7 @@ warning until you do.</p>
 <li>Generated language files are stored in <code>~/.kortty/i18n/</code></li>
 <li>Each file is a standard Java properties file (messages_XX.properties)</li>
 <li>Files persist across application restarts and updates</li>
-<li>Language files are included in encrypted backups created via <strong>Edit → Create Backup</strong></li>
+<li>Generated language files are not part of encrypted backups (see <a href="backup.html#backup-file-contents">Backup file contents</a>); on another computer, copy <code>~/.kortty/i18n/</code> or generate the files again</li>
 </ul>
 <h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
 <p>KorTTY's internationalization system is built around a resource bundle architecture:</p>
@@ -939,7 +954,7 @@ warning until you do.</p>
 <div class="admonition tip">
 <p class="admonition-title">Optimizing Translation Results</p>
 <ul>
-<li><strong>Shorter chunks</strong>: Translation APIs work best with moderately sized strings; KorTTY batches translations in groups of 25 strings</li>
+<li><strong>Shorter chunks</strong>: Translation APIs work best with moderately sized strings; KorTTY sends the strings in batches whose size depends on the provider, for example 30 strings for Google Translate and 25 for LibreTranslate</li>
 <li><strong>Placeholder safety</strong>: Placeholders (<code>{0}</code>, <code>${var}</code>) are automatically protected during translation and never altered</li>
 <li><strong>Test after generation</strong>: After generating a new language, review the interface for any awkward phrasing and consider adjusting API providers if quality is insufficient</li>
 </ul>

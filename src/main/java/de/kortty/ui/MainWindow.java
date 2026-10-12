@@ -1062,6 +1062,7 @@ public class MainWindow {
             // Save Coding Agents panel placement + width on close
             if (codingAgentDockManager != null) {
                 globalSettings.setCodingAgentPanelPlacement(codingAgentDockManager.getPlacement().name());
+                globalSettings.setCodingAgentPanelSide(codingAgentDockManager.getLastDockedSide().name());
                 globalSettings.setCodingAgentPanelWidth(codingAgentDockManager.getPreferredWidth());
             }
 
@@ -3636,6 +3637,7 @@ public class MainWindow {
         applyPersistedJournalLivePanel();
         // Restore the persisted Coding Agents panel placement (hidden/left/right) and width.
         applyPersistedCodingAgentPanel();
+        reconcileCodingAgentPanelVisibility();
         updateForegroundActivity();
         // The first WebView of the session (AI Manager, snippet editor, guide, reports) would
         // otherwise freeze the FX thread for ~1 s while libjfxwebkit is extracted and loaded.
@@ -6600,12 +6602,27 @@ public class MainWindow {
      * foreground-gated title timer is off): refreshes the tab glyphs and the status strip.
      */
     public void onCodingAgentsChanged() {
+        reconcileCodingAgentPanelVisibility();
         refreshAgentStatusIndicators();
         if (codingAgentStatusStrip != null) {
             codingAgentStatusStrip.refresh();
         }
         // A coding agent that waits for a decision gets no mirrored keys: the chip counts it.
         refreshMultiExecStatus();
+    }
+
+    void reconcileCodingAgentPanelVisibility() {
+        CodingAgentRegistry registry = app.getCodingAgentRegistry();
+        GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+        if (registry == null || settings == null) {
+            return;
+        }
+        List<CodingAgentEntry> entries = registry.entries();
+        boolean present = entries.stream()
+            .anyMatch(entry -> findTerminalTabByViewId(entry.pane().tabId()).isPresent());
+        ensureCodingAgentDockManager();
+        codingAgentDockManager.updateDetectedAgents(present, !entries.isEmpty(),
+            settings.isCodingAgentPanelAutoVisibility());
     }
 
     private void startAgentStatusIndicatorTimer() {
@@ -7139,6 +7156,12 @@ public class MainWindow {
         if (codingAgentDockManager == null) {
             // Per-window (not a singleton): each window docks independently and is GC'd with its manager.
             codingAgentDockManager = new CodingAgentPanelDockManager();
+            GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
+            if (settings != null) {
+                codingAgentDockManager.setLastDockedSide(
+                    CodingAgentPanelDockManager.parsePlacement(settings.getCodingAgentPanelSide()));
+                codingAgentDockManager.setPreferredWidth(settings.getCodingAgentPanelWidth());
+            }
             codingAgentPlacementListener = placement -> onCodingAgentPanelPlacementChanged(placement);
             codingAgentDockManager.addPlacementListener(codingAgentPlacementListener);
         }
@@ -7310,6 +7333,7 @@ public class MainWindow {
                 return;
             }
             settings.setCodingAgentPanelPlacement(codingAgentDockManager.getPlacement().name());
+            settings.setCodingAgentPanelSide(codingAgentDockManager.getLastDockedSide().name());
             settings.setCodingAgentPanelWidth(codingAgentDockManager.getPreferredWidth());
             gsm.save();
         } catch (Exception e) {

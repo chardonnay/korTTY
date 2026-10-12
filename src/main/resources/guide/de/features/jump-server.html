@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -820,9 +828,9 @@
 <ol>
 <li>Öffnen Sie den <em>Connection-Manager</em> und bearbeiten (oder erstellen) Sie eine Verbindung.</li>
 <li>Gehen Sie zur Registerkarte <strong>Jump-Server</strong>.</li>
-<li><strong>Jump-Server</strong> aktivieren.</li>
+<li>Tick <strong>Jump Server / Auto-Hop aktivieren</strong>.</li>
 <li>Geben Sie die Details des Jump-Servers ein:<ul>
-<li><strong>Host</strong> – Hostname oder IP-Adresse des Jump-Servers</li>
+<li><strong>Jump-Server Host</strong> — hostname or IP address of the jump server</li>
 <li><strong>Port</strong> – SSH-Port (Standard: 22)</li>
 <li><strong>Benutzername</strong> – Anmeldebenutzername für den Jump-Server</li>
 </ul>
@@ -838,7 +846,7 @@
 <p>korTTY entschlüsselt ein gespeichertes Jump-Server-Passwort, bevor es den Jump-Server kontaktiert. Falls das gespeicherte Jump-Passwort nicht verwendet werden kann – keines ist gespeichert, der Master-Passwort-Tresor ist gesperrt oder der gespeicherte Wert lässt sich nicht entschlüsseln – stoppt die Verbindung sofort mit einer Meldung, ohne den Jump-Server zu kontaktieren, ohne nach dessen Host-Key zu fragen und ohne die Wiederholungsanzahl durchzugehen. Entsperren Sie den Tresor mit <strong>Konfiguration &gt; Sicherheit &gt; Tresor entsperren…</strong> (siehe <a href="security.html#spater-den-tresor-entsperren">Später den Tresor entsperren</a>) oder speichern Sie das Passwort im <strong>Jump-Server</strong>-Tab der Verbindung, dann verbinden Sie sich erneut.</p>
 <p>Ein unvollständiges Jump-Setup (kein Benutzername, oder Schlüssel-Authentifizierung ohne nutzbaren Schlüsseldatei) und ein von Ihnen abgelehnter Jump-Server-Host-Key werden ebenfalls nur einmal gemeldet, anstatt erneut versucht zu werden, weil ein weiterer Versuch identisch scheitern würde. Ein Jump-Server, der nicht erreichbar ist, oder ein Netzwerkfehler auf dem Weg, wird wie jede andere Verbindungsfehlermeldung erneut versucht.</p>
 <h2 id="host-schlusseluberprufung">Host-Schlüsselüberprüfung<a class="headerlink" href="#host-schlusseluberprufung" title="Permanent link">&para;</a></h2>
-<p>Das Host-Key des Jump-Servers wird beim ersten Einsatz genau wie jedes andere Host-System überprüft: korTTY zeigt den SHA-256-Fingerprint des Schlüssels und bittet Sie, ihn zu bestätigen, danach wird er gespeichert. Bei späteren Verbindungen wird ein geändertes Host-Key des Jump-Servers abgelehnt, genauso wie die gleiche 'Trust-on-First-Use'-Sicherheit dem Ziel-Host gewährt wird. Der Bastion wird stets streng überprüft: <a href="security.html#lockere-uberprufung-des-hostschlussels">Die Entspannung der Host-Key-Überprüfung</a> gilt ausschließlich für Ziel-Hosts und wird nie für den Jump-Hop angewendet.</p>
+<p>Der Hostschlüssel des Jump-Servers wird beim ersten Einsatz genau wie bei jedem anderen Host überprüft: korTTY zeigt den SHA-256-Fingerabdruck des Schlüssels an und bittet Sie, ihn zu bestätigen, danach wird er festgeheftet. Bei späteren Verbindungen wird ein geänderter Jump-Server-Schlüssel abgelehnt, die gleiche Trust-on-First-Use-Schutzmaßnahme wie beim Zielhost. Wenn die Verbindung von einem Terminal-Tab oder dem SFTP-Manager aus geöffnet wurde, bietet der geänderte-Schlüssel-Alarm auch <strong>Prüfen und ersetzen…</strong> für den Jump-Server an, unter denselben Regeln wie für das Ziel (siehe <a href="connections.html#ssh-hostschlusseluberprufung">SSH-Hostschlüssel-Verifizierung</a>). Der Bastion wird immer strikt geprüft: <a href="security.html#lockere-uberprufung-des-hostschlussels">Lockern der Hostschlüsselüberprüfung</a> gilt nur für Zielhosts, niemals für den Jump-Hop.</p>
 <p>Dies gilt auch dann, wenn die Host-Key-Überprüfung für das Ziel gelockt wurde: Die pro-Verbindung, pro-Gruppe und globale Ausnahmen betreffen den Bastion nie, sodass dessen Schlüssel stets streng überprüft wird. Siehe <a href="security.html#lockere-uberprufung-des-hostschlussels">Entspannung der Host-Key-Überprüfung</a>.</p>
 <p>Der Zielhost wird unter seinem eigenen Namen verifiziert, auch wenn der Transport durch den Tunnel erfolgt, sodass eine kompromittierte Bastion nicht unbemerkt einen anderen Zielhostschlüssel ersetzen kann.</p>
 <h2 id="wann-es-verwendet-werden-soll">Wann es verwendet werden soll<a class="headerlink" href="#wann-es-verwendet-werden-soll" title="Permanent link">&para;</a></h2>
@@ -849,7 +857,7 @@
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Jump-Server-Passwörter werden zusammen mit den Anmeldeinformationen der Verbindung verschlüsselt mit Ihrem Master-Passwort gespeichert. Da das gespeicherte Passwort nie wieder angezeigt wird, bleibt das gespeicherte Passwort erhalten, wenn Sie die Verbindung mit einem leeren Jump-Server-Passwortfeld bearbeiten. Geben Sie einen neuen Wert ein, nur um ihn zu ändern. Wenn der Master-Passwort-Tresor beim Speichern eines neuen Jump-Passworts gesperrt ist, meldet korTTY, dass das Jump-Passwort nicht gespeichert werden konnte und lässt die anderen Einstellungen unberührt.</p>
+<p>Jump-Server-Passwörter werden verschlüsselt mit Ihrem Master-Passwort gespeichert, zusammen mit den eigenen Anmeldeinformationen der Verbindung. Da das gespeicherte Passwort nie wieder angezeigt wird, behält die Bearbeitung einer Verbindung mit einem leeren Jump-Server-Passwortfeld das gespeicherte Passwort bei; geben Sie einen neuen Wert ein, um es zu ändern. Wenn der Master-Passwort-Tresor gesperrt ist, wenn Sie ein neues Jump-Password speichern, bietet korTTY <strong>Tresor entsperren…</strong> an; bleibt der Tresor gesperrt, sagt korTTY, dass das Jump-Server-Passwort nicht gespeichert werden kann, behält das gespeicherte Passwort wie es war und speichert dennoch die anderen Einstellungen der Verbindung.</p>
 </div></p>
     </article>
 </section>

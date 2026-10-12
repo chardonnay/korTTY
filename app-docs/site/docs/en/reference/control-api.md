@@ -22,7 +22,7 @@ It is **off by default** and has to be switched on per installation under **Sett
 | Status: off | The checkbox is unticked, or korTTY has shut the listener down. |
 | Status: blocked by your organization | Enterprise policy denies the `control-api` feature; the checkbox is locked. |
 | Status: listening on … | A listener is up and `endpoint.json` has been written. The text names the socket or the loopback port. |
-| Status: could not start — … | The listener refused to start. The most common reason is that another korTTY already owns the socket; the text says which. |
+| Status: could not start - … | The listener refused to start. The most common reason is that another korTTY already owns the socket; the text says which. |
 
 Unticking the box stops the listener and deletes the socket immediately.
 
@@ -33,7 +33,7 @@ Two more switches under the status line belong to [MCP clients](#mcp-clients), s
 | **MCP server** | Serves clients that declare themselves MCP clients, with the read-only method list, masked output and capped reads described below. |
 | **Allow write tools** | Also offers such clients `pane.send_text`, `pane.run` and `pane.send_keys`. korTTY still asks you before every write. It can only be changed while **MCP server** is ticked. |
 
-Both switches are greyed out while the Control API checkbox is unticked, with a hint that says so; they keep their values and take effect again when you tick the Control API. When the enterprise policy denies `mcp-server` or `control-api`, both are unticked and locked with the "Managed by your organization" hint. Saving with either switch off also drops every "allow for this pane in this session" answer, so switching the write tools on again later asks afresh.
+Both switches are greyed out while the Control API checkbox is unticked, with the hint *Tick the Control API above to use the MCP server.*; they keep their values and take effect again when you tick the Control API. When the enterprise policy denies `mcp-server` or `control-api`, both are unticked and locked, with the hint *Your organization does not allow the MCP server.* Saving with either switch off also drops every "allow for this pane in this session" answer, so switching the write tools on again later asks afresh.
 
 ## Where the endpoint lives
 
@@ -62,7 +62,7 @@ The protocol is newline-delimited JSON-RPC 2.0 — exactly one JSON object per l
 
 ```
 → {"jsonrpc":"2.0","id":1,"method":"auth","params":{"token":"kQ7f…","client":"my-script"}}
-← {"jsonrpc":"2.0","id":1,"result":{"api":"kortty-control","protocol_version":1,"transport":"unix","ids_survive_restart":false,"capabilities":["events","split","agent_start","pane_resolve"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"api":"kortty-control","protocol_version":1,"transport":"unix","ids_survive_restart":false,"capabilities":["events","split","agent_start","pane_resolve","notifications"]}}
 ```
 
 Requests on one connection are executed **one at a time**: the next line is read only after the previous answer has been queued. A client that needs a long wait and concurrent calls opens a second connection — up to eight at once.
@@ -76,11 +76,13 @@ Rather than duplicating the method list here, ask korTTY: `api.schema` returns t
 | `api` | `ping`, `auth`, `api.schema` | Handshake and discovery. |
 | `events` | `events.subscribe`, `events.unsubscribe` | Push notifications when a coding agent changes state. |
 | `window` / `tab` | `window.list`, `tab.list`, `tab.focus`, `tab.create` | Enumerate the windows and tabs, bring one to the front, and open a saved connection in a new tab. |
-| `pane` | `pane.list`, `pane.current`, `pane.get`, `pane.resolve`, `pane.focus`, `pane.read`, `pane.send_text`, `pane.run`, `pane.send_keys`, `pane.wait_output`, `pane.split`, `pane.close` | Read a pane, type into it, wait for output, split a local shell or close a split. |
+| `pane` | `pane.list`, `pane.current`, `pane.get`, `pane.resolve`, `pane.focus`, `pane.read`, `pane.send_text`, `pane.run`, `pane.send_keys`, `pane.wait_output`, `pane.split`, `pane.close` | Read a pane, type into it, wait for output, split a local shell, close a split, or find the pane a script runs in from its process ids (`pane.resolve`). |
 | `agent` | `agent.list`, `agent.get`, `agent.explain`, `agent.prompt`, `agent.send_keys`, `agent.wait`, `agent.rename`, `agent.start` | Work with the coding agents korTTY has detected — see [Coding agents](../features/coding-agents.md). |
 | `notification` | `notification.show` | Raise one desktop notification. |
 
 The title `tab.list` reports for a terminal tab is its name without the coding-agent glyph, the group prefix or the `(DISCONNECT)` suffix: the name you gave it with [Rename Tab](../features/terminal.md#working-with-tabs), otherwise the [title its shell set](../features/terminal.md#title-from-the-shell), otherwise the connection's name. The shell's title is chosen by the server, so a client that needs to know which host a tab is connected to should not rely on the title alone. Renaming stays with you in the user interface.
+
+`pane.list` and `pane.get` report each pane's `isolation`, which is `none`, `process`, `sandboxed` or `degraded` (a sandbox was asked for but is not active), and whether its tab is `incognito`; see [Session isolation](../features/session-isolation.md).
 
 `tab.create` opens a saved or teamwork connection — by its id, or by its name as the Connection Manager shows it — in a new tab of the focused window (or of `window`), with `isolation` (`none`, `process` or `sandbox`) in place of the connection's own [session isolation](../features/session-isolation.md) and `incognito` for an [incognito session](../features/session-isolation.md#incognito-sessions). A name two connections share is refused with `ambiguous_connection` and their ids, an unknown one with `connection_not_found`. The organization's policy still applies: a blocked server, an isolation below `[rule.isolation] minimum` or an incognito session the policy forbids is refused with `blocked_by_policy`, and a teamwork connection can only be made stricter. korTTY never waits for a question while the call is open: when signing in needs a password, a temporary key or the vault unlocked, the answer is `pending: true` without a tab, and korTTY asks you and opens the tab afterwards. MCP clients cannot call it.
 
@@ -102,7 +104,7 @@ Every parameter called `pane` also accepts a bare tab id, meaning that tab's foc
 
 ### Reading a pane
 
-`pane.read` has three modes. `visible` returns the live screen, including the alternate buffer, right-trimmed. `recent` returns the scrollback plus the screen, read under a single buffer lock, newest `lines` rows. `detection` returns what korTTY's coding-agent detector last published for the pane — the detector is never re-run for a request.
+`pane.read` has three modes, and `visible` is the default. `visible` returns the live screen, including the alternate buffer, right-trimmed. `recent` returns the scrollback plus the screen, read under a single buffer lock, newest `lines` rows (200 by default). `detection` returns what korTTY's coding-agent detector last published for the pane — the detector is never re-run for a request.
 
 `pane.wait_output` blocks until a regular expression or a literal string appears, polling the pane. Output that appears and scrolls away inside a single poll window can be missed in `visible` mode; the default `recent` mode also searches the scrollback and does not have that gap.
 
@@ -120,13 +122,13 @@ When `pane.send_text` wraps its text in bracketed paste — `bracketed` is `alwa
 
 ## What it cannot do
 
-The threat model is a local process running as you, while the API is on. Such a process **can** enumerate your windows, read any pane, type into any pane including submitting commands, split a local shell, close a split pane, drive a detected coding agent, and raise a notification.
+The threat model is a local process running as you, while the API is on. Such a process **can** enumerate your windows, read any pane, type into any pane including submitting commands, open a tab for a saved connection, split a local shell, close a split pane, drive a detected coding agent, and raise a notification.
 
 It **cannot**:
 
 * reach anything before you tick the box, or at all when enterprise policy denies the feature;
-* open a new tab, a new window or a connection of any kind — there is no way to reach a server that is not already open;
-* split anything other than a same-server local shell;
+* open a new window, or a tab for anything but a saved or teamwork connection: `tab.create` takes only the id or the name of one, and the policy still applies to it;
+* split anything other than a local shell, or split into a new connection;
 * close a tab, close korTTY's last pane, or rename a tab;
 * read or write your settings, your credentials, the vault, your SSH keys or the master password;
 * reach anything over the network — the listener is a unix socket or loopback, never anything else, and there is no setting that can widen it;
@@ -157,7 +159,7 @@ Everything an `mcp` client reads is masked, always, because its model usually ru
 
 ### Writes by an MCP client
 
-When **Allow write tools** is on, korTTY still asks you before every write an `mcp` client wants to make. `pane.send_text`, `pane.run` and `pane.send_keys` open a prompt in korTTY that shows the client's name, marked as reported by the client because nothing proves it, the target pane with its tab title and host, whether the write submits a line, and the exact text or key names. Control characters and invisible characters are shown as symbols, such as `␊` for a line break, `␛` for Escape and `<U+202E>` for a direction override, so nothing reaches the pane that you could not see.
+When **Allow write tools** is on, korTTY still asks you before every write an `mcp` client wants to make. `pane.send_text`, `pane.run` and `pane.send_keys` open a prompt in korTTY titled *MCP write request*, under the header *An AI assistant wants to type into a terminal*. It shows the client's name, marked *Client (reported by the client)* because nothing proves it; the action, *Type text*, *Run a command* or *Press keys*; the target pane with its tab title and host, under *Pane:*; whether the write submits a line, answered *Yes, it runs as soon as it arrives* or *No*; and the exact text or key names. The prompt also warns that an AI assistant may be repeating text it read in a terminal or on a web page, and asks you to allow the write only if you would type it yourself. Control characters and invisible characters are shown as symbols, such as `␊` for a line break, `␛` for Escape and `<U+202E>` for a direction override, so nothing reaches the pane that you could not see.
 
 | Answer | What it allows |
 | --- | --- |
@@ -173,6 +175,7 @@ korTTY refuses some writes without asking, with `mcp_write_refused` and a `data.
 
 | `data.reason` | The pane |
 | --- | --- |
+| `pane_state_unknown` | korTTY cannot tell what the pane is doing |
 | `paste_pacing` | is still sending a paste line by line |
 | `alternate_screen` | shows a full-screen program such as `vim` or `less` |
 | `foreign_session` | is suspected to run as another user or host, after `su` or a nested `ssh` |
@@ -189,7 +192,7 @@ These checks run again right before the text is typed, so a pane that opens `vim
 
 Every action the API takes writes exactly one line to korTTY's log, carrying **byte counts and shapes only** — `bytes=28 bracketed=false submitted=true`, `keys=2`, `orientation=vertical` — never terminal text. The line goes to korTTY's log and only there — the API writes nothing into a tab's session journal.
 
-The first time a program types into a pane during a korTTY run you get one desktop notification. One, not one per keystroke: the point is that a takeover is never silent, not that it becomes noise you learn to dismiss. korTTY also logs a warning naming the endpoint whenever the listener starts.
+The first time a program types into a pane, splits or closes a pane, or sends a prompt or keys to a coding agent during a korTTY run, you get one desktop notification titled *A local program is controlling this window*. One, not one per keystroke: the point is that a takeover is never silent, not that it becomes noise you learn to dismiss. korTTY also logs a warning naming the endpoint whenever the listener starts.
 
 Actions a coding agent performs through the API are logged distinguishably from the ones you trigger in the Coding Agents panel, so reading the log tells you which was which.
 

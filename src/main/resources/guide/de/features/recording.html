@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -850,19 +858,19 @@
 </tr>
 <tr>
 <td><strong>Standardbereich</strong></td>
-<td>Aufnahme des aktiven Teils nur oder des gesamten Tabs</td>
+<td>Aufzeichnung des aktiven Splits nur oder des gesamten Tabs</td>
 </tr>
 <tr>
-<td><strong>Automatische Pause im Leerlauf</strong></td>
-<td>Aufzeichnung pausieren, wenn Terminal inaktiv ist</td>
+<td><strong>Bei inaktivem Terminal automatisch pausieren</strong></td>
+<td>Aufzeichnung anhalten, wenn das Terminal inaktiv ist</td>
 </tr>
 <tr>
-<td><strong>Leerlaufschwelle</strong></td>
-<td>Sekunden Inaktivität vor der Pause (Standard: 20)</td>
+<td><strong>Inaktivitätsschwelle (Sekunden)</strong></td>
+<td>Sekunden Inaktivität vor Pausieren (Standard: 20)</td>
 </tr>
 <tr>
-<td><strong>Farben erfassen</strong></td>
-<td>Terminal-Läufe pro Zelle in neue Aufzeichnungen einbeziehen</td>
+<td><strong>Terminalfarben in neuen Aufnahmen erfassen</strong></td>
+<td>Terminalstil pro Zelle in neue Aufnahmen einbeziehen</td>
 </tr>
 <tr>
 <td><strong>ffmpeg-Pfad</strong></td>
@@ -891,9 +899,10 @@
 <li>Press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-e">E</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-e">E</kbd></span> auf macOS)</li>
 <li>Wenn die Registerkarte geteilte Anschlüsse enthält, wählen Sie:</li>
 <li><strong>Aktive Teilung</strong> – Nur den fokussierten Terminalbereich aufzeichnen</li>
-<li><strong>Gesamte Registerkarte</strong> – alle sichtbaren Teilungen aufzeichnen</li>
+<li><strong>Whole tab</strong> — alle sichtbaren Aufteilungen aufzeichnen</li>
 </ol>
 <p>Das Steuerelement in der Terminalleiste ist ausgeblendet, bis die Aufzeichnung aktiviert oder der Menüpunkt/die Verknüpfung verwendet wird.</p>
+<p>Eine <a href="session-isolation.html#inkognito-sitzungen">Inkognito-Sitzung</a> wird nie aufgezeichnet: Wenn man in einer startet, erscheint die Meldung <em>Incognito-Sitzungen werden nicht aufgezeichnet.</em> stattdessen.</p>
 <h3 id="stoppen-sie-die-aufnahme">Stoppen Sie die Aufnahme<a class="headerlink" href="#stoppen-sie-die-aufnahme" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Klicken Sie in der Terminalleiste auf <strong>Aufnahme beenden</strong>, oder</li>
@@ -991,7 +1000,7 @@
 <li><strong>Große Terminalfenster</strong>: Die Terminalgeometrie wird aufgezeichnet, sodass Breitbildschirme ohne Beschneiden korrekt exportiert werden</li>
 <li><strong>Farbgenauigkeit</strong>: Aktivieren Sie die Farberfassung vor der Aufnahme, wenn Sie Videos mit Terminalfarben exportieren möchten</li>
 <li><strong>Leerlaufpause</strong>: Die automatische Pause hilft, die Dateigröße bei langen Leerlaufzeiten zu reduzieren; Aktivieren Sie es, es sei denn, Sie müssen das genaue Timing beibehalten</li>
-<li><strong>Split-Scope-Auswahl</strong>: Wählen Sie Ihren Aufzeichnungsbereich (aktive Aufteilung vs. gesamte Registerkarte) jedes Mal, wenn Sie mit der Aufzeichnung beginnen, passend zu Ihrem Arbeitsablauf</li>
+<li><strong>Split-Scope-Auswahl</strong>: Wählen Sie bei jedem Aufzeichnungstart Ihren Aufnahmebereich (aktiver Split vs. ganzer Tab), um Ihrem Arbeitsablauf zu entsprechen.</li>
 <li><strong>Legacy-Dateien</strong>: Alte <code>.korttyrec.jsonl</code>-Wiedergabedateien (unkomprimiert) sind im Video-Manager weiterhin lesbar</li>
 </ul></p>
     </article>

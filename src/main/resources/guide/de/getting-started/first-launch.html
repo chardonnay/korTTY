@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -816,7 +824,7 @@
 <p>Bei nachfolgenden Starts werden Sie aufgefordert, das Master-Passwort einzugeben, um Ihre verschlüsselten Daten zu entsperren.</p>
 <div class="admonition warning">
 <p class="admonition-title">Deaktivieren der Eingabeaufforderung</p>
-<p><strong>Einstellungen → Sicherheit</strong> bietet zwei Möglichkeiten, die Abfrage zu überspringen. Das Abschalten von <strong>Master-Passwort beim Programmstart anfordern</strong> versteckt die Abfrage und startet korTTY mit dem Tresor gesperrt: gespeicherte Passwörter und Schlüssel bleiben unzugänglich, bis Sie <strong>Konfiguration → Sicherheit → Tresor entsperren…</strong> wählen oder in jeder Meldung „Tresor gesperrt“ auf <strong>Tresor entsperren…</strong> klicken. <strong>Master-Passwort-Anfrage beim Programmstart deaktivieren (Auto-Login)</strong> entsperrt den Tresor stattdessen automatisch aus einer Kopie Ihres Master-Passworts, die auf der Festplatte gespeichert ist – nur obfuskiert, nicht verschlüsselt, daher für Einmal- oder Testumgebungen reservieren. Siehe die <a href="../reference/settings/security.html">Sicherheitseinstellungen</a> für Details, einschließlich unbemannter Erststarts, die den Setup-Dialog vollständig überspringen.</p>
+<p><strong>Einstellungen → Sicherheit</strong> bietet zwei Möglichkeiten, den Prompt zu überspringen. Das Ausschalten von <strong>Master-Passwort beim Programmstart anfordern</strong> versteckt den Prompt und startet korTTY mit dem Tresor gesperrt: gespeicherte Passwörter und Schlüssel bleiben unzugänglich, bis Sie <strong>Konfiguration → Sicherheit → Tresor entsperren…</strong> wählen oder auf <strong>Tresor entsperren…</strong> in jeder "tresor gesperrt"-Nachricht klicken. <strong>Master-Passwort-Prompt beim Programmstart deaktivieren (Auto-Login)</strong> entsperrt den Tresor stattdessen automatisch aus einer Kopie Ihres Master-Passworts, die auf der Festplatte gespeichert ist. Diese Kopie wird nur mit einem Schlüssel verschlüsselt, der in korTTY eingebaut ist, nicht mit Ihrem Master-Passwort; sie schützt nur vor beiläufiger Offenlegung. Verwenden Sie diese Option ausschließlich für Ein-mal-Verwendung oder Testumgebungen. Siehe die <a href="../reference/settings/security.html">Sicherheitseinstellungen</a> für Details, einschließlich unbemannter Erststarts, die den Setup-Dialog vollständig überspringen.</p>
 </div>
 <h2 id="was-ist-verschlusselt">Was ist verschlüsselt?<a class="headerlink" href="#was-ist-verschlusselt" title="Permanent link">&para;</a></h2>
 <table>
@@ -849,9 +857,14 @@
 <td>Salted Hash (nur Verifizierung)</td>
 </tr>
 <tr>
-<td>Master-Passwort gespeichert (nur automatische Anmeldung)</td>
+<td>Gespeichertes Master-Passwort (nur Auto-Login)</td>
 <td><code>~/.kortty/master.autounlock</code></td>
-<td>nur verschleiert – nicht verschlüsselt; Nur-Eigentümer-Dateiberechtigungen</td>
+<td>AES-256-GCM mit einem Schlüssel, der in korTTY eingebaut ist, nicht Ihr Master-Passwort; Besitzer-nur Dateiberechtigungen</td>
+</tr>
+<tr>
+<td>Wiederhergestelltes Terminalausgabe (optional)</td>
+<td><code>~/.kortty/session/scrollback/&lt;ref&gt;.enc</code></td>
+<td>AES-256-GCM (master-password-abgeleiteter Schlüssel); nur geschrieben, wenn <strong>Auch die Ausgabe jedes Terminalfensters (verschlüsselt) wiederherstellen</strong> unter <strong>Einstellungen → Fenster → Sitzungswiederherstellung</strong> aktiviert ist, und nichts wird geschrieben, während der Tresor gesperrt ist</td>
 </tr>
 </tbody>
 </table>

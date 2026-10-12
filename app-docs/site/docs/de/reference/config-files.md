@@ -21,6 +21,9 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 │   ├── models/                        # Managed GGUF weights
 │   ├── runtime/                       # Versioned llama.cpp packages, activation and revocation state
 │   ├── catalog/                       # Verified model/prompt catalog cache
+│   ├── mlx/                           # MLX runtime, models and temporary run state
+│   ├── mlx-models.json                # MLX model registrations
+│   ├── huggingface-token.enc          # Optional Hugging Face token, encrypted with the master password
 │   └── run/                           # Temporary sidecar state
 ├── rag/
 │   ├── stores.json                    # Knowledge stores and source configuration
@@ -35,16 +38,30 @@ KorTTY speichert alle Anwendungsdaten und Konfigurationen im Verzeichnis `~/.kor
 ├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
 ├── ssh-tunnel-approvals.properties    # SSH tunnel sets you allowed to open, per connection (not backed up)
 ├── master.key                         # Hashed master password (PBKDF2)
-├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
+├── master.autounlock                  # Optional auto-login password (owner-only; not encrypted with the master password)
+├── themes.xml                         # Your terminal themes (color profiles)
+├── swarm-chats.xml                    # Saved AI Swarm conversations
+├── journal-search-visited.xml         # Journal search hits you have already opened
+├── sftp-resume-index.json             # Unfinished SFTP transfers that a retry can continue (not backed up)
+├── jvm-launch.properties              # JVM resource profile (Settings → Resources)
+├── teamwork-cache.xml                 # Cached connections of teamwork sources
+├── teamwork-recycle-bin.xml           # Teamwork connections you deleted locally
+├── teamwork-repos/                    # Local clones of Git-based teamwork sources
+├── telemetry-spool.json               # Anonymous usage events waiting to be sent (see Anonymous data)
+├── telemetry-run.marker               # Present while korTTY runs; a leftover marker marks an unclean exit
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
 ├── coding-agents/                     # User overrides for coding-agent detection rules
 ├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
 │   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
 │   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
-├── kortty.log                         # Application log file
+├── logs/                              # Application log (kortty.log) and its archives; ai-answers/ keeps unusable AI answers
 ├── history/                           # Terminal session history (compressed)
 ├── journals/                          # Session journals (one directory per journal)
 ├── terminal-logs/                     # Default folder for per-connection terminal logs
+├── recordings/                        # Default folder for terminal recordings (Video Manager)
+├── mosh4j/                            # Downloaded mosh4j release and its dependency JARs for built-in Mosh
+├── guide/                             # Generated translations of the manual and their translation memory
+├── shell-integration/                 # Wrapper folders of local shells (left-behind folders are removed after a day)
 ├── plugins/                           # Imported terminal-effect plugin JARs
 ├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
 ├── projects/                          # Project files (.kortty)
@@ -160,6 +177,9 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - `sessionRestoreScrollback`: ob eine wiederhergestellte Sitzung auch die [gespeicherte Ausgabe jedes Terminalbereichs](../features/projects.md#die-ausgabe-wiederherstellen) anzeigt (standardmäßig aus); `sessionRestoreScrollbackLines`: wie viele Ausgabezeilen pro Bereich behalten werden, 100 bis 5000 (1000, wenn der Wert fehlt)
 - `keyBindingOverrides`: Ihre eigenen [Tastaturkürzel](settings/keyboard.md), ein `binding`-Eintrag pro geändertem Befehl, z. B. `menu.view.commandPalette=Shortcut+Alt+P` oder `menu.view.dashboard=none`; ohne diesen Eintrag behält jeder Befehl sein Standardkürzel
 - Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite
+- Coding-Agents-Panel: `codingAgentPanelPlacement` (versteckt, links oder rechts), `codingAgentPanelSide` (Die Seite, auf der es zuletzt angedockt war, wird beibehalten, solange es verborgen ist) `codingAgentPanelWidth`, und `codingAgentPanelAutoVisibility` (anzeigen und verbergen mit Agentenerkennung, standardmäßig eingeschaltet)
+- Symbolleiste: die `iconToolbar` Element mit Sichtbarkeit der Aktionszeile (`visible` Attribut) und der Verbindungszeile (`connectionsVisible`), und einer `entry` pro Schaltfläche mit `id`, `kind` (`ACTION`, `CONNECTION`, `GROUP` oder `SEPARATOR`), `section` (`TERMINAL`, `TOOLS`, `SETTINGS` oder `CONNECTIONS`) und `target` (eine Action-ID, eine Verbindungs-ID oder ein Gruppenpfad). Einträge enthalten nur Referenzen, niemals Passwörter oder Schlüssel; ohne das Element gilt das Standardlayout.
+- `toolbarIconSize`: die Symbolgröße sowohl der beiden Toolbar-Reihen als auch des Anpassungskatalogs, 16 bis 64 Pixel (24 bei fehlenden Symbolen)
 - JobScheduler-Statusanzeigeeinstellung
 - Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds
 - Letzte ASCII-Art-Bildgröße (Klein bis Extragroß) für die Registerkarte „KI-Bild“ und separat für die Registerkarte „Bilddatei“.
@@ -183,7 +203,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 
 - KI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen
 - RAG-Einbettungsmodell-ID und llama.cpp bevorzugte Laufzeit-Backend-/Update-Richtlinie
-- Optional verschlüsseltes Hugging Face-Token
+- Der Hugging Face token wird nicht in dieser Datei gespeichert; er bleibt verschlüsselt in `llm/huggingface-token.enc`
 - Zeitlimit für KI-Anfragen in Minuten (0 = keine Begrenzung)
 
 #### Sitzungsjournal
@@ -328,7 +348,7 @@ Binärdatei, die das gehashte Master-Passwort enthält.
     Wenn Sie Ihr Master-Passwort vergessen, löschen Sie `master.key` und `credentials.xml`, starten Sie KorTTY neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein. Es gibt keinen Wiederherstellungsmechanismus für das verlorene Passwort.
 
 ### master.autounlock
-Wird nur geschrieben, während [auto-login](settings/security.md) aktiviert ist: eine Kopie des Master-Passworts, **nur verschleiert – nicht verschlüsselt**, mit Dateiberechtigungen nur für Besitzer. Wenn Sie es löschen (oder die Option deaktivieren), wird die normale Startaufforderung wiederhergestellt.
+Wird nur geschrieben, wenn [Automatisches Anmelden](settings/security.md) aktiviert ist: eine Kopie des Master-Passworts, verschlüsselt nur mit einem in korTTY eingebauten Schlüssel (AES-256-GCM), nicht mit dem Master-Passwort selbst, mit Dateiberechtigungen nur für den Eigentümer. Das Löschen (oder Deaktivieren der Option) stellt die normale Startaufforderung wieder her.
 
 ### terminal-effect-plugins.disabled
 Textdatei mit den IDs der deaktivierten Terminaleffekt-Plugins (eine pro Zeile).
@@ -341,7 +361,7 @@ Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, 
 **Zweck:** Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des entsprechenden Agents vollständig. Eine ungültige Datei wird im Log als *Coding-Agents*-Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst dann, wenn es erstellt wird. Siehe [Coding-Agents → Benutzerdefinierte Regeln](../features/coding-agents.md#eigene-regeln).
 
 ### kortty.log
-Anwendungsprotokolldatei.
+Anwendungsprotokolldatei, im `logs/`-Ordner: standardmäßig `~/.kortty/logs/kortty.log`, oder der Ordner, der unter **Einstellungen → Logs → Log-Verzeichnis** festgelegt ist.
 
 **Enthält:**
 - Startmeldungen
@@ -351,7 +371,9 @@ Anwendungsprotokolldatei.
 - Fehler und Warnungen
 - Leistungsmetriken (auf Anfrage über JMX)
 
-**Rotation:** Die Protokolldatei wächst während der Anwendungssitzung. Alte Protokolle werden nicht automatisch rotiert (die Protokolldatei bleibt bestehen, bis KorTTY beendet wird oder Sie sie manuell löschen).
+**Rotation:** Jeden Tag wird die aktuelle Datei geschlossen und das Log in `kortty.YYYY-MM-DD.log` fortgesetzt. Archive älter als 24 Stunden werden automatisch komprimiert, und **Einstellungen → Logs → Logs aufbewahren** löscht Archive älter als die von Ihnen gewählte Anzahl Tage (0 behält alle). Eine Unternehmensrichtlinie kann die Anzahl der Archive und deren Gesamtspeicher begrenzen.
+
+**ai-answers/:** Der `logs/ai-answers/`-Ordner speichert die letzten wenigen KI-Antworten, die korTTY nicht verwenden konnte, vollständig neben dem Log, sodass ein fehlgeschlagener Schritt später untersucht werden kann. Der Ordner ist auf eine Handvoll Antworten begrenzt.
 
 !!! tip
     Überprüfen Sie diese Datei, wenn Sie Verbindungsprobleme, Probleme beim Laden von Plugins oder unerwartetes Verhalten beheben. Zu den hier protokollierten häufigen Problemen gehören SSH-Fehler, Verschlüsselungsfehler und Import-/Exportprobleme.
@@ -374,6 +396,8 @@ Bildschirm-Snapshots werden mit [Projekten](../features/projects.md) gespeichert
 
 ### journals/
 Sitzungsjournale – ein eigenständiges Verzeichnis pro Journal (Speicherort konfigurierbar unter **Einstellungen > Protokollierung > Sitzungsjournal**). Jedes Journalverzeichnis enthält `journal.xml` (das kuratierte Dokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen), das Nur-Anhängen-Capture-Log `session-log.json` / `.xml` / `.yaml` (standardmäßig JSON Lines) mit zstd-komprimierten gedrehten Teilen (Teilgröße und Teileanzahl sind pro Verbindung auf der Registerkarte „Journal“ konfigurierbar, standardmäßig 25 MB und 20 Teile; Journale aus älteren Versionen behalten ihre gzip-komprimierte `.gz`-Teile), die generierte `journal.html`-Timeline-Seite und `screenshots/*.png`. Siehe [Sitzungsjournal](../features/session-journal.md).
+
+Der Ordner "journals" kann ebenfalls einen `.semantic-index/`-Ordner für semantische Journaleinsuche enthalten, und jeder Journalordner einen abgeleiteten `search-card.json`-Cache. korTTY baut entweder eines neu, wenn es fehlt, und das Löschen eines Journals entfernt dessen Cache ebenfalls.
 
 ### terminal-logs/
 Standardmäßige Zielordner für den [per-Verbindung-Terminal-Log](../features/terminal.md#terminalprotokollierung), wenn das Feld für den Log-Ordner einer Verbindung leer bleibt. Die Dateinamenerstellung, tägige Rotation, Kompression und Aufbewahrung folgen der Logging-Konfiguration der Verbindung.
@@ -543,7 +567,7 @@ Sie können die KorTTY-Konfiguration direkt bearbeiten, indem Sie:
 - Verwenden Sie *Plugins > Terminaleffekte > Neu laden*, um die Plugin-Liste zu aktualisieren.
 
 **Größe der Protokolldatei:**
-- `kortty.log` wächst während der Anwendungssitzung. Es wird nicht automatisch gedreht. Sie können es sicher löschen, während KorTTY geschlossen ist.
+- `kortty.log` wächst im Laufe des Tages und wird um Mitternacht rotiert, und Archive werden gemäß **Logs aufbewahren** gelöscht. Sie können die Logdateien sicher löschen, während korTTY geschlossen ist.
 
 **Wiederherstellung des Master-Passworts:**
 - Es gibt keine Wiederherstellung für ein vergessenes Master-Passwort. Wenn Sie es verlieren, löschen Sie `master.key` und `credentials.xml`, starten Sie KorTTY neu und legen Sie ein neues Passwort fest.

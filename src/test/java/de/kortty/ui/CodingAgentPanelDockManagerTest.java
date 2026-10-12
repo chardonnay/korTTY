@@ -18,9 +18,9 @@ class CodingAgentPanelDockManagerTest {
         assertThat(CodingAgentPanelDockManager.MIN_WIDTH).isEqualTo(CodingAgentPanelDefaults.MIN_WIDTH);
         assertThat(CodingAgentPanelDockManager.MAX_WIDTH).isEqualTo(CodingAgentPanelDefaults.MAX_WIDTH);
         assertThat(CodingAgentPanelDockManager.DEFAULT_WIDTH).isEqualTo(CodingAgentPanelDefaults.DEFAULT_WIDTH);
-        assertThat(CodingAgentPanelDockManager.MIN_WIDTH).isEqualTo(280.0);
+        assertThat(CodingAgentPanelDockManager.MIN_WIDTH).isEqualTo(750.0);
         assertThat(CodingAgentPanelDockManager.MAX_WIDTH).isEqualTo(1200.0);
-        assertThat(CodingAgentPanelDockManager.DEFAULT_WIDTH).isEqualTo(380.0);
+        assertThat(CodingAgentPanelDockManager.DEFAULT_WIDTH).isEqualTo(750.0);
     }
 
     @Test
@@ -37,14 +37,14 @@ class CodingAgentPanelDockManagerTest {
 
     @Test
     void clampWidthBoundsAndDefaults() {
-        assertThat(CodingAgentPanelDockManager.clampWidth(50)).isEqualTo(280.0);
+        assertThat(CodingAgentPanelDockManager.clampWidth(50)).isEqualTo(750.0);
         assertThat(CodingAgentPanelDockManager.clampWidth(5000)).isEqualTo(1200.0);
-        assertThat(CodingAgentPanelDockManager.clampWidth(400)).isEqualTo(400.0);
-        assertThat(CodingAgentPanelDockManager.clampWidth(280)).isEqualTo(280.0);
+        assertThat(CodingAgentPanelDockManager.clampWidth(800)).isEqualTo(800.0);
+        assertThat(CodingAgentPanelDockManager.clampWidth(750)).isEqualTo(750.0);
         assertThat(CodingAgentPanelDockManager.clampWidth(1200)).isEqualTo(1200.0);
-        assertThat(CodingAgentPanelDockManager.clampWidth(0)).isEqualTo(380.0);
-        assertThat(CodingAgentPanelDockManager.clampWidth(-1)).isEqualTo(380.0);
-        assertThat(CodingAgentPanelDockManager.clampWidth(Double.NaN)).isEqualTo(380.0);
+        assertThat(CodingAgentPanelDockManager.clampWidth(0)).isEqualTo(750.0);
+        assertThat(CodingAgentPanelDockManager.clampWidth(-1)).isEqualTo(750.0);
+        assertThat(CodingAgentPanelDockManager.clampWidth(Double.NaN)).isEqualTo(750.0);
     }
 
     @Test
@@ -52,7 +52,7 @@ class CodingAgentPanelDockManagerTest {
         CodingAgentPanelDockManager manager = new CodingAgentPanelDockManager();
         assertThat(manager.getPlacement()).isEqualTo(Placement.HIDDEN);
         assertThat(manager.isDocked()).isFalse();
-        assertThat(manager.getPreferredWidth()).isEqualTo(380.0);
+        assertThat(manager.getPreferredWidth()).isEqualTo(750.0);
         assertThat(manager.getLastDockedSide()).isEqualTo(Placement.RIGHT);
     }
 
@@ -60,13 +60,13 @@ class CodingAgentPanelDockManagerTest {
     void preferredWidthIsClamped() {
         CodingAgentPanelDockManager manager = new CodingAgentPanelDockManager();
         manager.setPreferredWidth(10);
-        assertThat(manager.getPreferredWidth()).isEqualTo(280.0);
+        assertThat(manager.getPreferredWidth()).isEqualTo(750.0);
         manager.setPreferredWidth(9999);
         assertThat(manager.getPreferredWidth()).isEqualTo(1200.0);
         manager.setPreferredWidth(Double.NaN);
-        assertThat(manager.getPreferredWidth()).isEqualTo(380.0);
-        manager.setPreferredWidth(500);
-        assertThat(manager.getPreferredWidth()).isEqualTo(500.0);
+        assertThat(manager.getPreferredWidth()).isEqualTo(750.0);
+        manager.setPreferredWidth(900);
+        assertThat(manager.getPreferredWidth()).isEqualTo(900.0);
     }
 
     @Test
@@ -95,6 +95,61 @@ class CodingAgentPanelDockManagerTest {
         assertThat(manager.getLastDockedSide()).isEqualTo(Placement.LEFT);
         manager.toggleVisible();
         assertThat(manager.getPlacement()).isEqualTo(Placement.LEFT);
+    }
+
+    @Test
+    void automaticVisibilityFollowsDetectionAndRemembersTheChosenSide() {
+        CodingAgentPanelDockManager manager = new CodingAgentPanelDockManager();
+        manager.updateDetectedAgents(true, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.RIGHT);
+        manager.setPlacement(Placement.LEFT);
+        manager.updateDetectedAgents(false, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.HIDDEN);
+        assertThat(manager.getLastDockedSide()).isEqualTo(Placement.LEFT);
+        manager.updateDetectedAgents(true, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.LEFT);
+    }
+
+    @Test
+    void sharedListStaysVisibleUntilTheLastAgentInAllWindowsDisappears() {
+        CodingAgentPanelDockManager manager = new CodingAgentPanelDockManager();
+        manager.updateDetectedAgents(false, true, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.HIDDEN);
+        manager.updateDetectedAgents(true, true, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.RIGHT);
+        manager.updateDetectedAgents(false, true, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.RIGHT);
+        manager.updateDetectedAgents(false, false, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.HIDDEN);
+    }
+
+    @Test
+    void manualHideSurvivesRepeatedDetectionUntilTheNextAgentSession() {
+        CodingAgentPanelDockManager manager = new CodingAgentPanelDockManager();
+        manager.updateDetectedAgents(true, true);
+        manager.toggleVisible();
+        manager.updateDetectedAgents(true, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.HIDDEN);
+        manager.updateDetectedAgents(false, true);
+        manager.updateDetectedAgents(true, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.RIGHT);
+    }
+
+    @Test
+    void disabledAutomationKeepsManualVisibilityAndEnablingReconcilesImmediately() {
+        CodingAgentPanelDockManager manager = new CodingAgentPanelDockManager();
+        manager.setLastDockedSide(Placement.LEFT);
+        manager.updateDetectedAgents(true, false);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.HIDDEN);
+        manager.updateDetectedAgents(true, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.LEFT);
+        manager.updateDetectedAgents(true, false);
+        manager.updateDetectedAgents(false, false);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.LEFT);
+        manager.updateDetectedAgents(false, true);
+        assertThat(manager.getPlacement()).isEqualTo(Placement.HIDDEN);
+        manager.setLastDockedSide(Placement.HIDDEN);
+        assertThat(manager.getLastDockedSide()).isEqualTo(Placement.LEFT);
     }
 
     @Test

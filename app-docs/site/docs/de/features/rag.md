@@ -10,7 +10,7 @@ Ein **Wissensspeicher** ermöglicht es einem KI-Profil, mit relevanten Auszügen
 
 ## Erstellen Sie einen lokalen Wissensspeicher
 
-Öffnen Sie **KI > KI-Manager > Wissensspeicher** und wählen Sie **Erstellen**. Der Anfänger-Flow benötigt einen Namen, ein installiertes Einbettungsmodell, Rollenzuweisungen und mindestens eine überprüfte Quelle. Speichertyp, Vektordimensionen und optionale Qdrant-Verbindungsfelder bleiben unter **Erweitert** ausgeblendet; korTTY verwaltet die lokalen HNSW-Graphparameter intern, sodass bei normaler Verwendung keine Vektorindexoptimierung erforderlich ist.
+Öffnen Sie **KI > KI-Manager > Wissensspeicher** und wählen Sie **Wissensspeicher erstellen**. Der Anfängerfluss benötigt einen Namen, ein installiertes Einbettungsmodell, Rollenverteilungen und mindestens eine überprüfte Quelle. Der Speichertyp, **Embedding-Dimensionen** und die optionalen Qdrant-Felder (**Qdrant-Endpunkt**, **Sammlung**, **API-Key**) bleiben unter **Erweitert** zusammengeklappt; korTTY verwaltet die lokalen HNSW-Graphparameter intern, sodass der normale Gebrauch keine Vektorindex-Tuning erfordert.
 
 ![Wissensspeicher with a local HNSW demo store and one manual folder source](../assets/screenshots/ai/knowledge-stores.png)
 
@@ -26,7 +26,7 @@ So fügen Sie Inhalte hinzu:
 
 ![Real review preview with unchanged, changed, and skipped demo files](../assets/screenshots/ai/rag-preview.png)
 
-Die Quelltabelle zeigt den Pfad, den Quelltyp, den Synchronisierungsmodus, den Status, die Anzahl der Dateien/Chunks, die Anzahl der Probleme und den letzten erfolgreichen Index. Diese Werte bleiben über Neustarts hinweg bestehen. Zu den verfügbaren Aktionen gehören **Dateien hinzufügen**, **Ordner hinzufügen**, **Jetzt aktualisieren**, **Deaktivieren/Aktivieren**, **Entfernen** und **Suche testen**.
+Die Quelltabelle zeigt den Pfad, den Quellentyp, den Synchronisationsmodus, Status, Datei/Chunk-Anzahl, Problemanzahl und die letzte erfolgreiche Indizierung. Diese Werte bleiben auch nach Neustarts erhalten. Verfügbare Quellaktionen umfassen **Dateien hinzufügen**, **Ordner hinzufügen**, **Jetzt aktualisieren**, **Sync-Modus**, **Erweitert**, **Aktivieren / deaktivieren** und **Entfernen**; **Abbrechen** stoppt einen laufenden Scan- oder Indexierungsjob. Die Speichertabelle enthält **Wissensspeicher erstellen**, **Konfigurieren**, **Speicher löschen**, **Testsuche** und **Aktualisieren**.
 
 !!! important "Ein Ordner wird immer zuerst überprüft"
     Das Hinzufügen eines Verzeichnisses bedeutet niemals „jede Datei senden“. korTTY scannt, ohne symbolischen Links zu folgen, wendet die zentrale Format-Zulassungsliste und Ausschlüsse sicherer Verzeichnisse an, validiert den Dateiinhalt auf einem Hintergrund-Worker und präsentiert den akzeptierten und übersprungenen Satz, bevor die Indizierung beginnt. Die Quelle wird nicht gespeichert und die Indizierung beginnt erst, wenn Sie diese Vorschau bestätigen.
@@ -51,7 +51,7 @@ Das Standardlimit beträgt 50 MiB pro Datei. Eine Quelle kann es unter **Erweite
 
 ## Sicheres Scannen von Ordnern
 
-Ordnerquellen sind standardmäßig rekursiv. korTTY folgt keinen symbolischen Links und schließt versteckte Pfade sowie allgemeine Metadaten-, Abhängigkeits-, Build-, Cache- und IDE-Verzeichnisse aus:
+Ordnerquellen sind standardmäßig rekursiv; die Option **Ordner rekursiv durchsuchen** unter **Erweitert** schaltet dies aus. korTTY folgt keinen symbolischen Links und schließt versteckte Pfade sowie übliche Metadaten-, Abhängigkeits-, Build-, Cache- und IDE-Verzeichnisse aus:
 
 ```text
 .git  .hg  .svn  .gradle  .idea  .vscode  .venv  venv
@@ -89,7 +89,7 @@ Der optionale Qdrant-Adapter erstellt oder validiert eine Cosinus-Sammlung, spei
 
 ## Verwenden Sie einen Wissensspeicher mit einem KI-Profil
 
-Wählen Sie beim Erstellen oder Konfigurieren eines Wissensspeichers **Text**, **Coding** oder beide Rollen aus. korTTY verknüpft den Wissensspeicher mit den Profilen, die diesen Rollen derzeit zugewiesen sind. Aktivieren Sie **Autonome Workflows** nur dann separat, wenn Hintergrundaufforderungen im Agentenstil aus diesem Wissensspeicher abgerufen werden können.
+Beim Erstellen oder Konfigurieren eines Wissensspeichers wählen Sie **Text / Übersetzung**, **Codierung** oder beide Rollen. korTTY verknüpft den Wissensspeicher mit den aktuell zu diesen Rollen zugewiesenen Profilen. Das dritte Kontrollkästchen, **Agent, Planung, Schwarm und Jobs (explizite Opt-In)**, ist separat: aktivieren Sie es nur, wenn agentenbasierte oder geplante Prompts aus diesem Wissensspeicher abrufen können.
 
 !!! warning "Cloud-Profile erhalten abgerufene Auszüge"
     korTTY sendet niemals die vollständige Quellsammlung, das HNSW-Graph oder die Qdrant-Sammlung an ein Chat-Modell. Es werden nur die begrenzten Auszüge gesendet, die für die aktuelle Anfrage abgerufen wurden. Diese Auszüge verbleiben auf diesem Computer mit einem integrierten llama.cpp- oder nachweislich Loopback-HTTP-Profil, verlassen jedoch den Computer, wenn das ausgewählte Text-/Codierungsprofil einen Cloud-Endpunkt verwendet. Die Auswahl einer Wissensspeicherrolle zeichnet diesen Wissensspeicher in dem Profil auf, das der Rolle aktuell zugewiesen ist, und stellt daher eine ausdrückliche Berechtigung dar, passende Auszüge zu diesem Profil offenzulegen. Die Service Factory kann andere berechtigte Wissensspeicher mit Rollenzuweisung automatisch nur zu integrierten Profilen oder Loopback-Profilen hinzufügen; Cloud-, LAN-, Hostname-Lookalike- und CLI-Profile verwenden nur ihre persistenten expliziten Wissensspeicherzuweisungen.

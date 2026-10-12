@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -811,7 +819,7 @@
 <h2 id="schnellverbindung">Schnellverbindung<a class="headerlink" href="#schnellverbindung" title="Permanent link">&para;</a></h2>
 <p>Öffnen mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> (oder <strong>Verbindungen → Schnellverbindung…</strong>). Geben Sie Host, Port, Benutzernamen und Authentifizierung ein und stellen Sie eine Verbindung her, ohne zu speichern. Häufig verwendete Verbindungen werden als Schnellschaltflächen angezeigt. Eine Live-Suche filtert sie. Gespeicherte Verbindungen können aus einem Dropdown-Menü mit einem eigenen Suchfeld ausgewählt werden, das nach Name, Host oder <a href="#tags">Tag</a> filtert (<code>*</code> funktioniert als Platzhalter); Das Tag einer gespeicherten Verbindung wird neben ihrem Namen (🏷) im Dropdown-Menü und in den QuickInfos der Schnellschaltflächen angezeigt.</p>
 <h2 id="connection-manager">Connection-Manager<a class="headerlink" href="#connection-manager" title="Permanent link">&para;</a></h2>
-<p><strong>Verbindungen → Verbindungen verwalten…</strong> öffnet einen durchsuchbaren Baum gespeicherter Verbindungen (optional gruppiert); Das Suchfeld durchsucht Name, Host, IP-Adresse oder <a href="#tags">Tag</a>, mit <code>*</code> als Platzhalter. Von hier aus können Sie Verbindungen erstellen, bearbeiten, duplizieren, löschen, markieren, importieren und exportieren.</p>
+<p><strong>Verbindungen → Verbindungen verwalten…</strong> öffnet einen durchsuchbaren Baum gespeicherter Verbindungen (optional gruppiert); das Suchfeld entspricht Namen, Host, IP-Adresse oder <a href="#tags">Tag</a>, wobei <code>*</code> als Platzhalter dient. Von hier aus erstellen, bearbeiten, duplizieren, löschen, taggen, importieren und exportieren Sie Verbindungen. Das Kontextmenü eines Ordners legt zudem dessen <strong>Sitzungs-Isolation</strong>-Level für jede Verbindung darin fest, die selbst keine Isolationsebene definiert (siehe <a href="session-isolation.html#eine-stufe-wahlen">Level auswählen</a>).</p>
 <h3 id="anmelden">Anmelden<a class="headerlink" href="#anmelden" title="Permanent link">&para;</a></h3>
 <p><strong>Verbinden</strong> im Connection-Manager meldet sich bei der ausgewählten Verbindung in dieser Reihenfolge an:</p>
 <ol>
@@ -834,11 +842,11 @@
 <tbody>
 <tr>
 <td>Verbindung</td>
-<td>Host, Port, Benutzername, Protokoll (SSH / Mosh / Lokale Shell), Terminalemulation, <strong>Zeichenkodierung</strong> (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), <strong>Host-Key-Prüfung</strong> (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuweisung und ein optionaler Freitext <a href="#tags">Tag</a>. Für <strong>Lokale Shell</strong> Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe <a href="#zeichenkodierung">Zeichenkodierung</a>.</td>
+<td>Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ) oder Lokale Shell), Terminalemulation, <strong>Zeichenkodierung</strong> (Standard / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), <strong>Host-Key-Prüfung</strong> (Standard / prüfen / nicht prüfen), Gruppen-/Ordnerzuweisung und ein optionaler Freitext <a href="#tags">Tag</a>, <strong>Verbindungstimeout</strong> (1–300 Sekunden) und <strong>Wiederholungsversuche</strong> (1–20 Versuche, verwendet während <strong>Verbindungswiederholungen aktivieren</strong> in <em>Einstellungen → Terminal</em> eingeschaltet ist). Für <strong>Lokale Shell</strong> Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe <a href="#zeichenkodierung">Zeichenkodierung</a>.</td>
 </tr>
 <tr>
 <td>Terminal-Einstellungen</td>
-<td><strong>Globale Terminal-Einstellungen verwenden</strong> oder <strong>Eigene Einstellungen für diese Verbindung</strong> mit Farben, Schriftart und ANSI/TrueColor-Behandlung pro Verbindung (siehe <a href="#eigene-terminaleinstellungen">Eigene Terminaleinstellungen</a>), der Abschnitt <strong>Terminal-Verhalten</strong> mit der <a href="#tab-farbe">Tab-Farbe</a>, dem Regelsatz für die <a href="#hervorhebung-von-schlusselwortern">Hervorhebung von Schlüsselwörtern</a> und dem <a href="#einfugeschutz">Einfügeschutz</a>, der Abschnitt <strong>Sitzungs-Isolation</strong> mit <a href="session-isolation.html">Isolationsstufe, strengem Terminal-Modus und Inkognito-Schalter</a>, Terminal-Effekt</td>
+<td><strong>Globale Terminal-Einstellungen verwenden</strong> oder <strong>Eigene Einstellungen für diese Verbindung</strong> mit verbindungsabhängigen Farben, Schriftart und ANSI/TrueColor-Handhabung (siehe <a href="#eigene-terminaleinstellungen">Eigene Terminaleinstellungen</a>), dem <strong>Terminal-Verhalten</strong> Abschnitt mit dem <a href="#tab-farbe">Tab-Farbe</a>, der <a href="#hervorhebung-von-schlusselwortern">Schlüsselworthervorhebung</a> Regelset und das <a href="#einfugeschutz">Einfüge-Schutz</a>, und darunter die Zeilen zur Sitzungs-Isolation mit dem <a href="session-isolation.html">Isolationsebene, strikter Terminalmodus und Incognito-Schalter</a>, Terminal-Effekt</td>
 </tr>
 <tr>
 <td>SSH-Tunnel</td>
@@ -913,13 +921,16 @@
 <p>Eine <a href="teamwork.html">Teamarbeit</a>-Verbindung zeigt die Farbe, die in der gemeinsamen Datei steht, sodass derjenige, der diese Datei pflegt, entscheidet, wie ihre Tabs markiert werden. Diese Farbe hat auch Vorrang vor der Farbe Ihrer eigenen Zugangsdaten-Umgebung. Ihre Ordnerfarben gelten nie für Teamwork-Verbindungen, weil die gemeinsame Datei bestimmt, in welchem Ordner sie liegen. Betrachten Sie die Farbe als Hinweis, nicht als Beweis dafür, auf welchem Server Sie sich befinden: Der Tooltip nennt weiterhin die Verbindung, ebenso der Tab-Titel, es sei denn, Sie haben den Tab umbenannt oder seine <a href="terminal.html#titel-aus-der-shell">Shell hat einen Titel gesetzt</a>.</p>
 </div>
 <h2 id="protokolle">Protokolle<a class="headerlink" href="#protokolle" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">SSH</label><label for="__tabbed_1_2">Mosh</label><label for="__tabbed_1_3">Lokale Shell</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">SSH</label><label for="__tabbed_1_2">Mosh</label><label for="__tabbed_1_3">Mosh-Client (nativ)</label><label for="__tabbed_1_4">Lokale Shell</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>Standard-SSH über Apache MINA SSHD. Unterstützt Passwort-, Public-Key- und keyboard-interactive-Authentifizierung, Keep-Alive und OSC-8-Hyperlinks für Web- und Mailadressen, die sich mit <span class="keys"><kbd class="key-command">Cmd</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Klick öffnen (siehe <a href="terminal.html#links-in-der-terminalausgabe">Links in der Terminalausgabe</a>).</p>
 </div>
 <div class="tabbed-block">
 <p>Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist in nativen Builds gebündelt; Bestehende Verbindungen benötigen keine Migration.</p>
+</div>
+<div class="tabbed-block">
+<p>Roaming Mosh-Sitzung mit dem <code>mosh-client</code> Programm, das auf diesem Computer installiert ist, angezeigt in einem Terminal-Tab. korTTY startet die Sitzung über SSH selbst und übergibt dann den Bildschirm an <code>mosh-client</code>, das auf dem <code>PATH</code> sein muss (installieren Sie es mit Ihrem Systempaketmanager, z. B. Homebrew, apt oder dnf). Eine Verbindung zu einem Server hinter einem <a href="jump-server.html"> Sprungserver</a> wird verweigert, weil die Mosh-Sitzung über UDP läuft, das der Tunnel des Sprungservers nicht transportieren kann. Mit <a href="session-isolation.html"> Sitzungs-Isolation</a> kann dieses Protokoll ebenfalls in einer Betriebssystem-Sandbox ausgeführt werden.</p>
 </div>
 <div class="tabbed-block">
 <p>Öffnet die <strong>lokale Maschine</strong>-Shell in einem Terminal-Tab (ohne Netzwerk) über einen pty4j-gebackenen Pseudoterminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe unten <a href="#lokale-shell">Lokale Shell</a>.</p>
@@ -952,12 +963,12 @@
 </tr>
 <tr>
 <td>macOS / Linux</td>
-<td>Standardmäßig Ihr <code>$SHELL</code> (Rückfall auf <code>/bin/zsh</code> oder <code>/bin/bash</code>).</td>
+<td><strong>Zsh</strong> und <strong>Bash</strong> werden auf macOS angeboten und <strong>Bash</strong> auf Linux (<strong>ksh</strong> auf Solaris), wobei der erste für eine neue Verbindung ausgewählt wird. Ein <strong>Eigener Befehl</strong> leer gelassen startet Ihr <code>$SHELL</code>, wobei auf <code>/bin/zsh</code> oder <code>/bin/bash</code> zurückgegriffen wird.</td>
 </tr>
 </tbody>
 </table>
 <p>Ein Freiformfeld <strong>Benutzerdefinierter Befehl</strong> akzeptiert jede ausführbare Datei mit Argumenten (z. B. <code>pwsh.exe</code>, <code>wsl.exe -d Ubuntu</code>, ein Git-Bash-Pfad) und ein optionales <strong>Startverzeichnis</strong> kann festgelegt werden. Der Befehlsparser erkennt Anführungszeichen, sodass Shell-Pfade, die Leerzeichen enthalten – wie <code>"C:\Program Files\Git\bin\bash.exe"</code> – korrekt gestartet werden.</p>
-<p><strong>Shell-Integration automatisch hinzufügen</strong> unterhalb des Startverzeichnisses startet bash, zsh oder fish mit der <a href="shell-integration.html#local-shells">Shell-Integration</a> von korTTY, ohne ein Snippet in Ihren Startdateien, die korTTY nie ändert: Die Shell führt zuerst Ihre eigenen Startdateien und dann das Snippet von korTTY aus, sodass Sie zwischen Prompts springen und sehen können, wie jeder Befehl geendet hat. Die Option ist ausgeschaltet, bis Sie sie ankreuzen, die Zeile darunter sagt, wann die gewählte Shell sie nicht erhalten kann, und sie gilt nie für SSH- oder Mosh-Verbindungen oder für über Teamwork geteilte Verbindungen; ein Export lässt sie weg.</p>
+<p><strong>Shell-Integration automatisch hinzufügen</strong>, unterhalb des Startverzeichnisses startet bash, zsh oder fish mit korTTY's <a href="shell-integration.html#local-shells">Shell-Integration</a> ohne ein Snippet in Ihren Startdateien, die korTTY nie ändert: die Shell führt zuerst Ihre eigenen Startdateien aus und dann den Snippet von korTTY, sodass Sie zwischen Prompten wechseln und sehen können, wie jeder Befehl beendet wurde. Es ist deaktiviert, bis Sie es aktivieren; die Zeile darunter sagt, wann die ausgewählte Shell es nicht erhalten kann, und es gilt nie für SSH- oder Mosh-Verbindungen oder für über Teamwork geteilte Verbindungen; ein Export lässt es zurück. Während <strong>Verwenden Sie die Befehlsmarkierungen von Shells, die für die Shell-Integration eingerichtet sind (OSC 133).</strong> in <em>Einstellungen → Terminal</em> ausgeschaltet ist, bleibt das Kästchen anklickbar, aber die Zeile darunter sagt, dass korTTY nichts hinzufügt, bis die Einstellung wieder aktiviert ist.</p>
 <p>Wenn korTTY über sein Flatpak-Paket ausgeführt wird, wird die lokale Shell auf dem Host über <code>flatpak-spawn --host</code> gestartet, einschließlich des ausgewählten Startverzeichnisses und des Terminalgebietsschemas. Das Paket verfügt über Host-Dateisystemzugriff, sodass Terminaldateiaktionen Hostpfade verwenden können. Da die Sandbox-seitige Prozess-ID zu <code>flatpak-spawn</code> und nicht zur Host-Shell gehört, verwendet die Verfolgung des aktuellen Verzeichnisses vertrauenswürdige absolute Eingabeaufforderungspfade, anstatt <code>/proc/&lt;pid&gt;/cwd</code> zu lesen. Wenn kein sicherer Hostpfad eingerichtet werden kann, werden pfadabhängige Aktionen mit einem expliziten Fehler beendet.</p>
 <h3 id="terminalfunktionen-in-lokalen-shells">Terminalfunktionen in lokalen Shells<a class="headerlink" href="#terminalfunktionen-in-lokalen-shells" title="Permanent link">&para;</a></h3>
 <p>Die Terminalprotokollierung und -aufzeichnung sowie die KI-Eingabe-/Daten-Hooks funktionieren für lokale Shells über eine gemeinsam genutzte <code>ObservableTtyConnector</code>-Schnittstelle. Eingegebene und eingefügte Agentenanforderungen verwenden denselben Eingabepfad auf Byteebene, und Terminaldateiaktionen sowie lokale Agentenausführungen folgen dem aktuellen Verzeichnis der interaktiven Shell. macOS/Linux verwenden das lokale Prozessverzeichnis; Native PowerShell und cmd verwenden absolute Eingabeaufforderungspfade. WSL, Git Bash, Cygwin und benutzerdefinierte Befehle eignen sich am besten, wenn sich ihr Shell-Pfad-Namespace vom Host-Dateisystem unterscheidet und ein nicht zuordenbares Verzeichnis einen expliziten Fehler anstelle eines Fallbacks auf eine falsche Datei erzeugt. Funktionen, die von einem SSH-Kanal abhängen, bleiben nur SSH.</p>
@@ -965,6 +976,7 @@
 <p class="admonition-title">AI Agent in lokalen Shells</p>
 <p>Der <strong>KI-Agent</strong> und die <strong>KI-Planung</strong> laufen ebenfalls in lokalen Shells unter Windows, macOS und Linux – siehe <a href="ai-assistant.html#ai-agent-und-ki-planung">KI-Assistenz</a>.</p>
 </div>
+<p>Eine lokale Shell kann ebenfalls von korTTY und den anderen Tabs isoliert werden, in ihrem eigenen Prozess oder in einer Betriebssystem-Sandbox, mit der <strong>Isolation</strong> Einstellung ihrer Verbindung oder ihres Ordners; siehe <a href="session-isolation.html">Sitzungs-Isolierung</a>. Eine sandboxed lokale Shell speichert ihre Historie und temporären Dateien in einem eigenen Ordner, der beim Ende der Sitzung entfernt wird.</p>
 <h2 id="tunnels-und-sprungserver">Tunnels und Sprungserver<a class="headerlink" href="#tunnels-und-sprungserver" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>SSH-Tunnel</strong> – Ports über die Verbindung weiterleiten: <strong>lokal</strong> (<code>-L</code>), <strong>remote</strong> (<code>-R</code>) oder <strong>dynamisch / SOCKS</strong> (<code>-D</code>).</li>

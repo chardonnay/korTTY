@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -697,7 +705,7 @@
                     </a>
                 </div>
                 <div class="col">
-                    <a href="window.html"
+                    <a href="messaging.html"
                         class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
                         Next <i class="fa fa-arrow-right"></i>
                     </a>
@@ -806,7 +814,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie die Anzeige- und Verhaltenseinstellungen des Terminals, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Hervorhebung von Schlüsselwörtern, Links, Einfügeschutz, Shell-Integration, Benachrichtigungen und SSH-Verbindungsverwaltung. Öffnen über <strong>Konfiguration → Globale Einstellungen → Terminal</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>Konfigurieren Sie die Terminalanzeige- und Verhaltens-Einstellungen, einschließlich Abmessungen, Scrollback, Zeichenkodierung, Schlüsselwort-Hervorhebung, Links, Einfüge-Schutz, Shell-Integration und SSH-Verbindungsverwaltung. Öffnen Sie über <strong>Konfiguration → Globale Einstellungen → Terminal</strong>; gespeichert in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Terminal settings tab" src="../../../en/assets/screenshots/settings/terminal.png" /></p>
 <table>
 <thead>
@@ -995,48 +1003,6 @@
 <td><code>terminalRemoteSidebarPosition</code> (Breite: <code>terminalRemoteSidebarWidth</code>, 200–1.200, Standard 300) — siehe <a href="../../features/terminal.html#seitenleiste-remote-dateien">Seitenleiste Remote-Dateien</a></td>
 </tr>
 <tr>
-<td>Desktop-Benachrichtigung, wenn die Glocke in einem Tab läutet, den Sie gerade nicht ansehen</td>
-<td>umschalten</td>
-<td>–</td>
-<td>Aus</td>
-<td><code>terminalBellNotificationsEnabled</code></td>
-</tr>
-<tr>
-<td>Desktop-Benachrichtigung, wenn ein lang laufender Befehl in einem Tab endet, den Sie gerade nicht ansehen</td>
-<td>umschalten</td>
-<td>–</td>
-<td>Ein</td>
-<td><code>commandFinishedNotificationsEnabled</code></td>
-</tr>
-<tr>
-<td>Mindestlaufzeit eines Befehls:</td>
-<td>Nummer</td>
-<td>1–3.600 Sekunden</td>
-<td>30</td>
-<td><code>commandFinishedNotificationSeconds</code></td>
-</tr>
-<tr>
-<td>Desktop-Benachrichtigung, wenn ein Programm in einem Tab, den Sie gerade nicht ansehen, eine anfordert (OSC 9, OSC 777)</td>
-<td>umschalten</td>
-<td>–</td>
-<td>Ein</td>
-<td><code>remoteTerminalNotificationsEnabled</code></td>
-</tr>
-<tr>
-<td>Desktop-Benachrichtigung, wenn ein Lauf des KI-Agents oder KI-Schwarms in einem Tab, den Sie nicht ansehen, endet oder auf Sie wartet</td>
-<td>umschalten</td>
-<td>–</td>
-<td>Ein</td>
-<td><code>aiRunToastsEnabled</code></td>
-</tr>
-<tr>
-<td>Auf Stille überwachen meldet nach:</td>
-<td>Nummer</td>
-<td>5–3.600 Sekunden</td>
-<td>30</td>
-<td><code>terminalSilenceSeconds</code></td>
-</tr>
-<tr>
 <td>SSH Keep-Alive aktivieren</td>
 <td>umschalten</td>
 <td>–</td>
@@ -1079,11 +1045,11 @@
 <td><code>codingAgentDetectionEnabled</code></td>
 </tr>
 <tr>
-<td>Desktop-Benachrichtigung, wenn ein Coding-Agent eine Entscheidung braucht oder fertig wird, während Sie seinen Bereich nicht ansehen</td>
-<td>umschalten</td>
-<td>–</td>
-<td>Ein</td>
-<td><code>codingAgentNotificationsEnabled</code></td>
+<td>Automatisch anzeigen und verbergen der Coding-Agent-Seitenleiste</td>
+<td>Umschalten</td>
+<td>—</td>
+<td>An</td>
+<td><code>codingAgentPanelAutoVisibility</code></td>
 </tr>
 <tr>
 <td>Anzahl der auf eine Entscheidung wartenden Agents am App-Symbol anzeigen</td>
@@ -1116,6 +1082,7 @@
 </tbody>
 </table>
 <h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
+<p>Einstellungen für Desktop-Benachrichtigungen, einschließlich Nachrichten von Coding-Agenten, befinden sich auf der separaten <a href="messaging.html">Messaging</a>-Seite.</p>
 <div class="admonition note">
 <p class="admonition-title">Kodierung</p>
 <p>Die Zeichenkodierung, mit der korTTY die Ausgabe einer SSH-Sitzung dekodiert und das kodiert, was Sie eingeben oder einfügen. Sie gilt für jede SSH-Verbindung, die auf dem Tab <em>Verbindung</em> des Verbindungseditors keine eigene <strong>Zeichenkodierung</strong> auswählt (siehe <a href="../../features/connections.html#zeichenkodierung">Zeichenkodierung</a>). Lokale Shells verwenden UTF-8, sofern ihre Verbindung keine Kodierung festlegt, und Mosh nutzt stets UTF-8, weil mosh-server und mosh-client dies erfordern. Wählen Sie die Kodierung aus, die die Programme auf dem Server tatsächlich schreiben, in der Regel das, was <code>locale</code> dort meldet. Eine Änderung tritt beim nächsten Verbindungsaufbau oder bei einer erneuten Verbindung eines Tabs in Kraft; offene Tabs behalten ihre Kodierung. Zeichen, die die gewählte Kodierung nicht darstellen kann, werden als <code>?</code> übermittelt.</p>
@@ -1163,14 +1130,6 @@
 <p>Für lokale Shell-Tabs kann eine Verbindung das Snippet auch selbst hinzufügen: <strong>Shell-Integration automatisch hinzufügen</strong> im Verbindungseditor startet bash, zsh oder fish mit der Shell-Integration von korTTY und lässt Ihre Startdateien unverändert. Dafür muss diese Einstellung eingeschaltet sein; siehe <a href="../../features/shell-integration.html#local-shells">Automatisch zu lokalen Shells hinzufügen</a>.</p>
 </div>
 <div class="admonition note">
-<p class="admonition-title">Benachrichtigungen</p>
-<p>Ein Programm, das in einem Tab, den Sie gerade nicht ansehen, die Terminalglocke läutet, markiert diesen Tab immer mit 🔔, bis Sie ihn ansehen; dafür ist keine Einstellung nötig. <strong>Desktop-Benachrichtigung, wenn die Glocke in einem Tab läutet, den Sie gerade nicht ansehen</strong> fügt eine Desktop-Benachrichtigung mit dem Titel <code>korTTY ·</code> und dem Namen des Tabs hinzu, höchstens eine pro Bereich alle 10 Sekunden. Sie ist standardmäßig ausgeschaltet, weil Shells bei jeder erfolglosen Tab-Vervollständigung die Glocke läuten, und ein Bereich mit einem erkannten Coding-Agent erhält keine, solange die Coding-Agent-Benachrichtigungen eingeschaltet sind. Die Einstellung wird bei jedem Glockensignal gelesen, sodass eine Änderung für offene Tabs gilt, sobald Sie speichern.</p>
-<p>In einer für die Shell-Integration eingerichteten Shell markiert ein Befehl, der mindestens <strong>Mindestlaufzeit eines Befehls:</strong> lief (standardmäßig 30 Sekunden) und in einem Tab endet, den Sie gerade nicht ansehen, diesen Tab ebenfalls mit 🔔, und <strong>Desktop-Benachrichtigung, wenn ein lang laufender Befehl in einem Tab endet, den Sie gerade nicht ansehen</strong>, standardmäßig eingeschaltet, fügt eine Desktop-Benachrichtigung hinzu, die sagt, wie der Befehl endete und wie lange er lief, nie den Befehl selbst, höchstens eine pro Tab alle 10 Sekunden. Befehle des KI-Agenten von korTTY lösen nie eine Benachrichtigung aus. Beide sind ausgegraut, solange <strong>Befehlsmarkierungen von Shells mit eingerichteter Shell-Integration nutzen (OSC 133)</strong> ausgeschaltet ist, und beide werden bei jedem beendeten Befehl gelesen. Siehe <a href="../../features/terminal-notifications.html#lange-laufende-befehle">Terminal-Benachrichtigungen</a>.</p>
-<p>Ein Programm, das mit OSC 9 oder OSC 777 eine Desktop-Benachrichtigung anfordert, etwa ein Coding-Agent auf einem Server, der auf Ihre Antwort wartet, markiert seinen Tab ebenfalls mit 🔔, wenn Sie ihn gerade nicht ansehen, und <strong>Desktop-Benachrichtigung, wenn ein Programm in einem Tab, den Sie gerade nicht ansehen, eine anfordert (OSC 9, OSC 777)</strong>, standardmäßig eingeschaltet, zeigt den Text des Programms unter einem Titel mit dem Namen des Tabs, bereinigt von Steuer- und Bidi-Zeichen und gekürzt auf 80 Zeichen für den Titel und 200 für den Text, höchstens eine pro Bereich alle 5 Sekunden; was dazwischen eintrifft, wird verworfen. Ein Bereich mit einem erkannten Coding-Agent erhält keine, solange die Coding-Agent-Benachrichtigungen eingeschaltet sind. Die Funktion braucht keine Shell-Integration, und die Einstellung wird bei jeder Anfrage gelesen. Siehe <a href="../../features/terminal-notifications.html#benachrichtigungen-von-programmen">Benachrichtigungen von Programmen</a>.</p>
-<p><strong>Desktop-Benachrichtigung, wenn ein Lauf des KI-Agents oder KI-Schwarms in einem Tab, den Sie nicht ansehen, endet oder auf Sie wartet</strong>, standardmäßig eingeschaltet, gilt für korTTYs eigenen KI-Agenten und KI-Swarm: Wenn ein Lauf in einem Tab, den Sie gerade nicht ansehen, auf Ihre Freigabe oder ein Passwort wartet, fertig wird oder ohne Abschluss stoppt, meldet das eine Desktop-Benachrichtigung mit dem Namen des Tabs im Titel in einem festen Satz, nie mit dem Prompt, einem Befehl oder einer Ausgabe, höchstens eine pro Tab und Art alle 10 Sekunden. Ein Terminal-Tab wird in jedem Fall mit 🔔 markiert. Die Einstellung wird bei jedem Ereignis gelesen. Siehe <a href="../../features/terminal-notifications.html#laufe-von-ki-agent-und-ki-swarm">Läufe von KI-Agent und KI-Swarm</a>.</p>
-<p><strong>Auf Stille überwachen meldet nach:</strong> gibt an, wie lange ein Bereich, nachdem er etwas ausgegeben hat, ohne Ausgabe bleiben muss, bevor ein Tab, den Sie mit <strong>Auf Stille überwachen</strong> in seinem Rechtsklickmenü überwachen, mit 🔔 markiert wird und eine Desktop-Benachrichtigung zeigt, standardmäßig 30 Sekunden. Die Überwachung selbst wird, wie <strong>Auf Aktivität überwachen</strong>, das neue Ausgabe nach 10 Sekunden Ruhe meldet, pro Tab eingeschaltet, ist ausgeschaltet, bis Sie sie einschalten, und wird nie gespeichert. Der Schwellenwert wird jede Sekunde gelesen, sodass eine Änderung für die überwachten Tabs gilt, sobald Sie speichern. Siehe <a href="../../features/terminal-notifications.html#einen-tab-auf-aktivitat-oder-stille-uberwachen">Einen Tab auf Aktivität oder Stille überwachen</a>.</p>
-</div>
-<div class="admonition note">
 <p class="admonition-title">SSH-Keep-Alive</p>
 <p>Wenn korTTY aktiviert ist, sendet es regelmäßig Keep-Alive-Pakete, um zu verhindern, dass SSH-Sitzungen während Leerlaufzeiten ablaufen. Die Intervalleinstellung steuert, wie oft (in Sekunden) diese Pakete gesendet werden. Der Spinnerbereich beträgt 5–600 Sekunden; Das Intervall ist deaktiviert, wenn SSH Keep-Alive ausgeschaltet ist.</p>
 </div>
@@ -1205,8 +1164,8 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Coding-Agents erkennen</p>
-</div>
-<p>Wenn aktiviert, beobachtet korTTY jede lokale Shell-Abteilung auf laufende Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI oder Grok Build-Instanzen und überwacht, ob sie arbeitet, auf eine Frage blockiert ist, abgeschlossen oder inaktiv ist. Die Anzeige wird lokal analysiert und nichts verlässt den Computer; die Änderung wird sofort auf offene Tabs übertragen. Die beiden Schalter unten steuern die Desktop-Benachrichtigung für einen Agenten, der eine Entscheidung benötigt oder abgeschlossen wird, während Sie nicht auf dessen Abteilung sehen, sowie die Anzahl der wartenden Agenten auf der App-Icon (oder im Fenstertitel, wenn kein Icon-Abzeichen existiert); beide lesen den Einstellung live, sodass eine Änderung sofort wirkt. Siehe <a href="../../features/coding-agents.html#app-symbol-badge-und-benachrichtigungen">Coding-Agents</a>.</p></p>
+<p>Wenn aktiviert, überwacht korTTY jedes lokale Shell-Fenster auf einen laufenden Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI oder Grok Build und verfolgt, ob es arbeitet, auf eine Frage blockiert ist, fertig ist oder inaktiv. Der Bildschirm wird lokal analysiert und nichts verlässt den Computer; die Änderung gilt sofort für offene Tabs. Die beiden anderen Schalter in diesem Abschnitt steuern die automatische Sichtbarkeit der Seitenleiste und die Anzahl wartender Agenten im App-Symbol (oder im Fenstertitel, wenn kein Symbol-Badge vorhanden ist). Desktop-Benachrichtigungen für Coding-Agents werden separat unter <a href="messaging.html">Messaging</a> gesteuert; alle Änderungen gelten für offene Sitzungen, wenn Sie speichern. Siehe <a href="../../features/coding-agents.html#app-symbol-badge-und-benachrichtigungen">Coding-Agents</a>.</p>
+</div></p>
     </article>
 </section>
             <!-- endblock -->

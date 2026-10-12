@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -905,7 +913,7 @@
 <h2 id="wenn-tunnel-geoffnet-sind">Wenn Tunnel geöffnet sind<a class="headerlink" href="#wenn-tunnel-geoffnet-sind" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Einmal pro Terminal-Tab:</strong> die Tunnel öffnen sich unmittelbar nach dem Login in der ersten SSH-Sitzung des Tabs und bleiben offen, solange der Tab verbunden ist. Aufgeteilte Panes öffnen sie nicht erneut und stehen auch nicht im Konflikt mit ihnen.</li>
-<li><strong>Einmal gefragt:</strong> Beim ersten Öffnen der Tunnel einer Verbindung listet korTTY sie auf und fragt <strong>Tunnel öffnen</strong> oder <strong>Nicht jetzt</strong>. <strong>Nicht jetzt</strong> ist die Standardschaltfläche, sodass ein Tastendruck, den Sie noch in das Terminal eingeben, wenn die Frage erscheint, sie nicht öffnet. Die Antwort wird für diese Verbindung gespeichert; korTTY fragt erneut, wenn sich die Tunnel oder der Server ändern. <strong>Nicht jetzt</strong> gilt für den Tab, einschließlich seiner Neuverbindungen – öffnen Sie die Verbindung in einem neuen Tab, um erneut gefragt zu werden.</li>
+<li><strong>Einmal gefragt:</strong> Beim ersten Öffnen der Tunnel einer Verbindung listet korTTY sie auf und fragt <strong>Tunnel öffnen</strong> oder <strong>Nicht jetzt</strong>. <strong>Nicht jetzt</strong> ist die Standardtaste, sodass ein Tastendruck, den Sie noch in das Terminal eingeben, wenn die Frage erscheint, sie nicht öffnet. Die Frage trägt den Titel <strong>SSH-Tunnel</strong> und listet jeden Tunnel so auf, wie er in der Tunnelliste erscheint, wobei markiert wird, welche anderen Computer ihn erreichen können. Die Antwort wird für diese Verbindung gespeichert; korTTY fragt erneut, wenn sich seine Tunnel oder sein Server ändern – das ist der Fall, wenn ein Tunnel hinzugefügt, entfernt, aktiviert oder deaktiviert wird, eine andere Adresse, Port oder Art erhält oder wenn die Verbindung zu einem anderen Server zeigt. Eine geänderte Beschreibung zählt nicht, und Tunnel, die ohnehin nicht öffnen konnten, werden nicht aufgeführt: stattdessen meldet die Statusleiste sie, und wenn keiner der Tunnel öffnen konnte, fragt korTTY überhaupt nicht. <strong>Nicht jetzt</strong> gilt für den Tab, einschließlich seiner Wiederverbindungen – öffnen Sie die Verbindung in einem neuen Tab, um erneut gefragt zu werden.</li>
 <li><strong>Neu verbinden:</strong> Eine manuelle oder automatische Neuverbindung schließt zunächst die Tunnel und öffnet sie anschließend in der neuen Sitzung.</li>
 <li><strong>Bereiche schließen:</strong> Wenn Sie den Bereich schließen, in dem die Tunnel laufen (oder dort <code>exit</code> eingeben), während ein Bereich offen bleibt, der mit <strong>Rechts teilen (gleicher Server)</strong> oder <strong>Unten teilen (gleicher Server)</strong> aus einem Bereich auf dem Server des Tabs geöffnet wurde, wechseln die Tunnel in diesen Bereich. Bereiche, die mit <strong>Rechts teilen (neue Verbindung)</strong> oder <strong>Unten teilen (neue Verbindung)</strong> geöffnet wurden, und die daraus erstellten Teilungen zum gleichen Server übernehmen sie nie, auch wenn sie sich mit demselben Server verbinden.</li>
 <li><strong>Tab schließen</strong> schließt seine Tunnel.</li>
@@ -914,7 +922,81 @@
 <li><strong>Serverseitig:</strong> Der SSH-Server muss Weiterleitung zulassen (<code>AllowTcpForwarding</code> in OpenSSH). Ein Remote-Tunnel, den der Server ablehnt (Weiterleitung deaktiviert oder sein Port bereits auf dem Server in Benutzung), wird in der Statusleiste angezeigt; die anderen Tunnel bleiben offen.</li>
 </ul>
 <h3 id="statusleiste">Statusleiste<a class="headerlink" href="#statusleiste" title="Permanent link">&para;</a></h3>
-<p>Während ein Tab Tunnel hat, zeigt die Statusleiste <code>Tunnel: 2/3 aktiv</code>, gefolgt vom ersten Tunnel, der fehlgeschlagen ist und warum (zum Beispiel <code>Address already in use</code>) sowie dem ersten Tunnel, den andere Computer erreichen können. Bewegen Sie die Maus über die Statusleiste, um jeden Tunnel mit seinem Zustand anzuzeigen.</p>
+<p>Während ein Tab Tunnel hat, zeigt seine Statusleiste <code>Tunnels: 2/3 active</code>, gefolgt vom ersten fehlgeschlagenen Tunnel und dem Grund (zum Beispiel <code>Address already in use</code>) sowie dem ersten Tunnel, den andere Computer erreichen können. Wenn keiner der Tunnel des Tabs starten konnte, sagt die Statusleiste stattdessen in einem Satz: dass die Tunnel von Ihrer Organisation deaktiviert sind, dass sie für diesen Tab nicht erlaubt sind oder dass sie das SSH-Protokoll benötigen.</p>
+<p>Bewegen Sie die Maus über die Statusleiste, um jeden Tunnel in einer eigenen Zeile mit seinem Status anzuzeigen:</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>wird gestartet</td>
+<td>die Weiterleitung wird angefordert</td>
+</tr>
+<tr>
+<td>aktiv auf <em>Adresse</em></td>
+<td>die Weiterleitung lauscht an dieser Adresse; ein aktiver Tunnel, von dem andere Computer ebenfalls erreicht werden können, sagt <em>möglicherweise von anderen Computern erreichbar</em></td>
+</tr>
+<tr>
+<td>fehlgeschlagen: <em>Grund</em></td>
+<td>die Weiterleitung konnte nicht geöffnet werden oder der Server hat sie abgelehnt</td>
+</tr>
+<tr>
+<td>gestoppt</td>
+<td>die Weiterleitung war offen und ist geschlossen (Neuverbindung, Sitzung beendet oder Tab geschlossen)</td>
+</tr>
+<tr>
+<td>nicht gestartet: <em>Grund</em></td>
+<td>der Tunnel wurde abgelehnt, bevor etwas geöffnet wurde, siehe die Gründe unten</td>
+</tr>
+</tbody>
+</table>
+<p>Ein fehlgeschlagener oder abgelehnter Tunnel zeigt einen dieser Gründe an:</p>
+<table>
+<thead>
+<tr>
+<th>Grund</th>
+<th>Wenn es erscheint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ungültiger Port</td>
+<td>der Port liegt nicht zwischen 1 und 65535</td>
+</tr>
+<tr>
+<td>der Port konnte nicht geöffnet werden</td>
+<td>der lokale Listener konnte nicht erstellt werden; die eigene Meldung des Betriebssystems, wie <code>Address already in use</code>, wird angezeigt, wenn sie eine hat</td>
+</tr>
+<tr>
+<td>der SSH-Server verweigerte ihn</td>
+<td>ein Remote-Tunnel, den der Server nicht akzeptierte, zum Beispiel weil der Port dort in Benutzung ist oder <code>AllowTcpForwarding</code> deaktiviert ist</td>
+</tr>
+<tr>
+<td>von Ihrer Organisation deaktiviert</td>
+<td>die Unternehmensrichtlinie verbietet Portweiterleitung</td>
+</tr>
+<tr>
+<td>für diesen Tab nicht erlaubt</td>
+<td>Sie haben die Frage für diesen Tab abgelehnt; siehe <a href="#wenn-tunnel-geoffnet-sind">Wenn Tunnel geöffnet werden</a></td>
+</tr>
+<tr>
+<td>benötigt das SSH-Protokoll</td>
+<td>die Verbindung ist Mosh, welche keine Tunnel transportieren kann</td>
+</tr>
+<tr>
+<td>geteilte (Teamwork) Verbindungen können sich nur an localhost binden</td>
+<td>ein lokaler oder dynamischer Tunnel einer geteilten Verbindung benennt eine andere Adresse</td>
+</tr>
+<tr>
+<td>geteilte (Teamwork) Verbindungen öffnen niemals entfernte Tunnel</td>
+<td>ein entfernter Tunnel einer geteilten Verbindung, der nie geöffnet wird</td>
+</tr>
+</tbody>
+</table>
 <h3 id="geteilte-verbindungen-teamarbeit">Geteilte Verbindungen (Teamarbeit)<a class="headerlink" href="#geteilte-verbindungen-teamarbeit" title="Permanent link">&para;</a></h3>
 <p>Tunnel einer Verbindung, die von einer <a href="teamwork.html">Teamarbeit</a>-Quelle stammt, wurden von der Person geschrieben, die die gemeinsame Datei bearbeitet; daher beschränkt korTTY sie:</p>
 <ul>

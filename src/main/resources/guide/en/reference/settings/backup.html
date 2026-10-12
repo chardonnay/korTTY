@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -828,10 +836,10 @@
 </tr>
 <tr>
 <td>ZIP with Password</td>
-<td>toggle</td>
+<td>radio (one of two)</td>
 <td>—</td>
 <td>On</td>
-<td><code>backupEncryptionType</code></td>
+<td><code>backupEncryptionType</code> (<code>PASSWORD</code>)</td>
 </tr>
 <tr>
 <td>Credential</td>
@@ -842,10 +850,10 @@
 </tr>
 <tr>
 <td>GPG Encryption</td>
-<td>toggle</td>
+<td>radio (one of two)</td>
 <td>—</td>
 <td>Off</td>
-<td><code>backupEncryptionType</code></td>
+<td><code>backupEncryptionType</code> (<code>GPG</code>)</td>
 </tr>
 <tr>
 <td>GPG Key</td>
@@ -858,13 +866,15 @@
 </table>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Backups are ALWAYS encrypted. Both encryption modes (ZIP with password and GPG) are mandatory — at least one must be configured before backups can be performed.</p>
+<p>Backups are ALWAYS encrypted. Choose one mode, ZIP with password or GPG. The chosen mode needs its credential or its GPG key; without one, the backup stops with an error before anything is written.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p><strong>Maximum Backups:</strong> Set to <code>0</code> to keep backups indefinitely; any other value (1–100) will automatically delete the oldest backups in <code>old-backups/</code> once the limit is reached, counting password ZIP and GPG backups together. When using password-based encryption, select a credential from the management system. When using GPG encryption, select an available GPG key. The encryption type is stored in the global settings and determines which credential or key ID is used for future backups.</p>
 </div>
+<p>Once a backup has been made, the tab shows <strong>Last Backup:</strong> with its date, time and the path it was written to.</p>
 <p>Backups include <code>ssh-host-keys.properties</code>, so normalized host:port trust decisions shared by interactive Terminal, SFTP, and Mosh bootstrap connections survive restore; the transient cross-process <code>.lock</code> file is not included. JobScheduler host-key pins remain separately stored in <code>job-scheduler.xml</code>.</p>
+<p>Besides these, a backup carries the connections, credentials, GPG and SSH key entries with the copied SSH key files, global settings, JobScheduler jobs, snippets and snippet analyses, AI and swarm chats, themes, environments, project workspaces and the master-password check file <code>master.key</code>, but not the auto-unlock copy of the master password. The complete list of what a backup contains and leaves out is on <a href="../../features/backup.html">Backup &amp; restore</a>.</p>
 <p>Local-AI backups include <code>llm/models.xml</code>, <code>llm/mlx-models.json</code> and <code>rag/stores.json</code> so GGUF and MLX model registrations, role assignments, and knowledge-source definitions can be restored. They exclude GGUF weights, llama.cpp runtime packages, temporary sidecar data, source documents, and regenerable HNSW snapshots; see <a href="../../features/backup.html">Backup &amp; restore</a>.</p></p>
     </article>
 </section>

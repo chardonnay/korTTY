@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -807,7 +815,7 @@
     <article>
         <p><h1 id="ai-swarm">AI Swarm<a class="headerlink" href="#ai-swarm" title="Permanent link">&para;</a></h1>
 <p>The AI Swarm broadcasts one AI-agent task to many servers at once. Each selected server gets its own independent agent run over its SSH session, and the per-server answers are combined into a single comparison table — one row per server — in a shared conversation.</p>
-<p>Open it with <strong>Tools &gt; AI Swarm...</strong> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-s">S</kbd></span> (Cmd on macOS). The swarm opens as a regular tab, so terminals stay usable while a swarm runs.</p>
+<p>Open it with <strong>AI &gt; AI Swarm...</strong> or <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-s">S</kbd></span> (Cmd on macOS). The swarm opens as a regular tab, so terminals stay usable while a swarm runs.</p>
 <h2 id="the-swarm-tab">The swarm tab<a class="headerlink" href="#the-swarm-tab" title="Permanent link">&para;</a></h2>
 <p>The tab is split into three areas:</p>
 <table>
@@ -859,7 +867,7 @@
 <td>Agent is working; elapsed time ticks</td>
 </tr>
 <tr>
-<td><strong>Awaiting input</strong></td>
+<td><strong>Awaiting approval</strong></td>
 <td>amber, blinking ring</td>
 <td>An approval dialog is waiting for you</td>
 </tr>
@@ -890,6 +898,7 @@
 </tr>
 </tbody>
 </table>
+<p>The two start-up phases, <strong>Connecting</strong> (opening the SSH session) and <strong>Inspecting</strong> (the environment probe), show the same blue orb as <strong>Running</strong>.</p>
 <p><strong>Adaptive slow detection</strong> — an agent is flagged <em>unusually long</em> when its elapsed time exceeds <code>max(60 s, 2 × median of the finished agents)</code>; until at least two agents have finished, a fixed 180 s threshold applies. Paused and waiting agents are never flagged, and paused time is subtracted from the elapsed time, so the comparison stays fair.</p>
 <p>While a run is active, <strong>clicking an orb</strong> scrolls to and highlights that agent's row in the Agents list; hovering shows the server name and elapsed time. Legend chips below the orbs summarize the counts (running, waiting, paused, done, failed). After the run, the strip freezes at the final state.</p>
 <p>The strip scales from a single server to large fleets — orbs shrink and pack into rows as the agent count grows:</p>
@@ -899,6 +908,7 @@
 <p>Each server has a row in the <strong>Agents</strong> list showing its status badge, elapsed time, and token count. <strong>Left-click a row</strong> to expand it inline and watch the agent's live transcript (commands, output, and progress) while it runs — no extra window needed. Very long transcripts are trimmed from the front so the latest output is always visible.</p>
 <p>The header above the rows adds up the whole run: <strong>Σ tokens</strong> of all agents plus the final combined answer, followed by the cost in money when the AI profile has a <a href="../reference/settings/ai.html#token-quota-management">price per 1M tokens</a> (or <code>local · no token costs</code> for a local profile). Every agent call and the combined answer also count towards the profile's token quota — for interactive runs and for <a href="#scheduling-swarm-runs-jobscheduler">scheduled swarm runs</a> alike.</p>
 <p><strong>Right-click a row</strong> for per-agent control: <strong>Pause</strong>, <strong>Resume</strong>, <strong>Restart</strong>, and <strong>Stop</strong> apply to that agent only. Restarting one agent does not disturb the others; its answer is replaced in the combined result.</p>
+<p>Each server's agent masks what it sends to the model in the same way as a terminal agent run, with the server's own password; the transcript and the session journal keep the original text (see <a href="ai-tools.html#masking-what-the-agent-sends">Masking what the agent sends</a>).</p>
 <h2 id="session-journal-per-run">Session journal per run<a class="headerlink" href="#session-journal-per-run" title="Permanent link">&para;</a></h2>
 <p>The <strong>Session journal</strong> checkbox in the toolbar records a <a href="session-journal.html">session journal</a> for every server on every run of the swarm: each agent's commands and their output, the agent's answer, the outcome on that server and the combined report. The agents run their commands over their own exec channels, which never reach the terminal tabs, so these journals are the only full record of what the swarm did. The <strong>⚙</strong> button next to it opens the same settings as a job's <a href="jobscheduler.html#session-journal-per-run">session journal per run</a> — AI summaries (every kept run, only failed runs, off), AI profile, keep always or only failed runs, automatic deletion, maximum runs and disk space, discarding a run identical to the previous one. The settings apply to every swarm tab; the checkbox and ⚙ are disabled while a run is active.</p>
 <p>Switching the checkbox on first shows the cost warning with an estimate of the tokens and cost per run. While the swarm runs, the dashboard shows <em>Session journal: recording…</em>; afterwards it reports how many journals were kept, discarded or identical to an earlier run, their journal AI tokens and cost once the summaries are written, and <strong>Open</strong> opens them in the journal viewer. <strong>Schedule…</strong> carries the journal settings into the new job.</p>
@@ -931,7 +941,7 @@
 <p>The request that combines the answers carries every server's answer and output excerpt, so it is masked like the agents' own prompts before it goes to a profile other than an integrated model or a trusted local endpoint: the connection passwords of all servers, your organization's replacement rules and well-known token formats become <code>***</code> (see <a href="ai-assistant.html#masking-secrets-before-sending">Masking secrets before sending</a>). The rows and the table shown when the AI cannot be reached keep the original text, because they never leave your computer.</p>
 <p>Table cells are often too small for full command output — <strong>click any table row</strong> to open it in a separate <em>Row details</em> window with a readable layout, <strong>A− / A+</strong> font-size buttons, and a copy-to-clipboard button.</p>
 <h2 id="conversation-copy-export-and-saving">Conversation copy, export, and saving<a class="headerlink" href="#conversation-copy-export-and-saving" title="Permanent link">&para;</a></h2>
-<p>The conversation header has a <strong>Copy</strong> button (whole conversation to the clipboard) and an <strong>Export</strong> menu with <strong>Plain text</strong>, <strong>Markdown</strong>, and <strong>PDF</strong>. <strong>Save</strong> stores the conversation as a named swarm chat; saved swarm chats appear in a dedicated <strong>Swarm Chats</strong> section of the <a href="ai-assistant.html#ai-manager">AI Manager</a> and can be reopened later.</p>
+<p>The conversation header has a <strong>Copy</strong> button (whole conversation to the clipboard) and an <strong>Export</strong> menu with <strong>Plain text</strong>, <strong>Markdown</strong>, and <strong>PDF</strong>. <strong>Save</strong> stores the conversation as a named swarm chat; saved swarm chats appear in the <strong>Swarm Chats</strong> tab of <strong>AI &gt; Saved Chats...</strong> (see <a href="ai-assistant.html#ai-manager">AI Manager</a>) and can be reopened later.</p>
 <h2 id="run-scripts-without-ai">Run scripts without AI<a class="headerlink" href="#run-scripts-without-ai" title="Permanent link">&para;</a></h2>
 <p><strong>Run script…</strong> executes a Snippet Manager script on <strong>all swarm targets in parallel — without any AI involvement</strong>. The dialog offers a searchable script picker (by name, category, language, or ID), a parameter field (one parameter per line), and a live summary; the <strong>Run</strong> button is the single confirmation.</p>
 <p>The script's placeholders are resolved like in the Snippet Manager; a declared variable without a stored value or an undeclared simple name such as <code>${target}</code> stops the run before it starts, while shell forms such as <code>${1:-default}</code> pass through (see <a href="snippets.html#scheduled-and-swarm-runs">Scheduled and swarm runs</a>). The script is transferred Base64-encoded (no quoting or special-character issues) and decoded on the server, with parameters passed as <code>$1</code>, <code>$2</code>, …. Progress appears in the same agent rows — expand a row to watch the live output — and the result is a per-server table with exit code and output. Non-POSIX shells (e.g. Windows targets) are skipped with a <em>Skipped: shell is not POSIX</em> note while the rest of the swarm proceeds; unreachable servers are reported as <em>Not connected</em>. <strong>Stop</strong> cancels a running script run.</p>
@@ -974,6 +984,7 @@
 </tr>
 </tbody>
 </table>
+<p>When the swarm tab is not the one you are looking at, a desktop notification can also report that the run finished, stopped without finishing, or waits for your approval or a password; see <a href="terminal-notifications.html#ai-agent-and-ai-swarm-runs">AI agent and AI Swarm runs</a>.</p>
 <h2 id="scheduling-swarm-runs-jobscheduler">Scheduling swarm runs (JobScheduler)<a class="headerlink" href="#scheduling-swarm-runs-jobscheduler" title="Permanent link">&para;</a></h2>
 <p>Swarm runs can execute unattended as <a href="jobscheduler.html">JobScheduler</a> jobs using the <strong>AI Swarm</strong> action type. The <strong>Schedule…</strong> button in the swarm toolbar is the fastest path: it opens the JobScheduler with a new job pre-filled from the current tab — the selected servers, the current prompt, the AI profile, and the read-only setting. The job is created disabled so you can review the schedule before enabling it.</p>
 <p>Scheduled swarm jobs run completely headless over background SSH sessions — no terminal tabs are opened. Swarm-specific job fields:</p>
@@ -1007,14 +1018,14 @@
 </tr>
 </tbody>
 </table>
-<p>Results land in <strong>two places</strong>: the job <strong>journal</strong> records the outcome per run (with the job's <a href="jobscheduler.html#session-journal-per-run">session journal per run</a> on, also one full journal per server), and the full conversation — including the combined comparison table — is stored as a <strong>saved swarm chat</strong>, so you can open it later from the AI Manager's <em>Swarm Chats</em> section and click through the result table like an interactive run. The scheduler's master-password and host-key gates apply as for other job types.</p>
+<p>Results land in <strong>two places</strong>: the job <strong>journal</strong> records the outcome per run (with the job's <a href="jobscheduler.html#session-journal-per-run">session journal per run</a> on, also one full journal per server), and the full conversation — including the combined comparison table — is stored as a <strong>saved swarm chat</strong>, so you can open it later from <strong>AI &gt; Saved Chats...</strong>, in its <strong>Swarm Chats</strong> tab, and click through the result table like an interactive run. The scheduler's master-password and host-key gates apply as for other job types.</p>
 <div class="admonition tip">
 <p class="admonition-title">Recommended workflow: tune interactively, then schedule</p>
 <p>Prompt quality decides result quality. Run the swarm interactively first, refine the prompt until the comparison table looks right, then click <strong>Schedule…</strong> — the tuned prompt and target list carry over into the job.</p>
 </div>
 <p>Typical combinations of swarm + scheduler:</p>
 <ul>
-<li><strong>Nightly fleet health report</strong> — a read-only prompt like <em>"Report disk usage, failed systemd units, and pending security updates"</em> across all production servers every night; review the combined table each morning from the AI Manager.</li>
+<li><strong>Nightly fleet health report</strong> — a read-only prompt like <em>"Report disk usage, failed systemd units, and pending security updates"</em> across all production servers every night; review the combined table each morning from <strong>AI &gt; Saved Chats...</strong>.</li>
 <li><strong>Configuration drift detection</strong> — ask for the effective settings of a service on every host; deviations stand out in the per-server rows and the <em>Fehler</em> column.</li>
 <li><strong>Patch-level inventory</strong> — collect kernel and package versions across the fleet on a weekly schedule and export the resulting table.</li>
 </ul>

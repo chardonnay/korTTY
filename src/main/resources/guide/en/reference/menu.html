@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -978,11 +986,11 @@
 <tbody>
 <tr>
 <td>Quick Connect…</td>
-<td>Connect to a host without saving</td>
+<td>Connect to a host without saving (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span>)</td>
 </tr>
 <tr>
 <td>Manage Connections…</td>
-<td>Open the Connection Manager (tree, search, edit)</td>
+<td>Open the Connection Manager (tree, search, edit) (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-m">M</kbd></span>)</td>
 </tr>
 <tr>
 <td>Import…</td>
@@ -994,7 +1002,7 @@
 </tr>
 <tr>
 <td>SFTP-Client…</td>
-<td>Open the dual-panel SFTP file manager</td>
+<td>Open the dual-panel SFTP file manager (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-u">U</kbd></span>)</td>
 </tr>
 <tr>
 <td>Open SFTP Here</td>
@@ -1002,7 +1010,31 @@
 </tr>
 </tbody>
 </table>
-<h2 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h2>
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Security ▸</td>
+<td>The vault, the credential, GPG-key and SSH-key managers and the known-hosts list; see <a href="#security">Security</a> below</td>
+</tr>
+<tr>
+<td>Global Settings…</td>
+<td>Open the global Settings dialog (all tabs), <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-comma">,</kbd></span></td>
+</tr>
+<tr>
+<td>Prevent System Sleep</td>
+<td>On macOS and Windows, enable activity-based system-sleep prevention. The computer is kept awake only while a terminal is connected, an enabled Scheduler job has a future run or is running, or an AI request is in progress. With none of these activities, system sleep remains available even while the item is checked. Display sleep is unaffected. On Linux the item is visible but disabled.</td>
+</tr>
+</tbody>
+</table>
+<p>See the <a href="settings/index.html">Settings reference</a> for every individual setting.</p>
+<h3 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
@@ -1039,26 +1071,6 @@
 </tr>
 </tbody>
 </table>
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Item</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Global Settings…</td>
-<td>Open the global Settings dialog (all tabs)</td>
-</tr>
-<tr>
-<td>Prevent System Sleep</td>
-<td>On macOS and Windows, enable activity-based system-sleep prevention. The computer is kept awake only while a terminal is connected, an enabled Scheduler job has a future run or is running, or an AI request is in progress. With none of these activities, system sleep remains available even while the item is checked. Display sleep is unaffected. On Linux the item is visible but disabled.</td>
-</tr>
-</tbody>
-</table>
-<p>See the <a href="settings/index.html">Settings reference</a> for every individual setting.</p>
 <h2 id="tools">Tools<a class="headerlink" href="#tools" title="Permanent link">&para;</a></h2>
 <p><img alt="Tools menu" src="../assets/screenshots/main/menu-tools.png" /></p>
 <table>
@@ -1071,15 +1083,15 @@
 <tbody>
 <tr>
 <td>Snippet Manager…</td>
-<td>Create, edit, organize, send and export command snippets in one workspace: the library and the snippets you edit as tabs, each with its stored Full code analysis</td>
+<td>Create, edit, organize, send and export command snippets in one workspace: the library and the snippets you edit as tabs, each with its stored Full code analysis (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-s">S</kbd></span>)</td>
 </tr>
 <tr>
 <td>JobScheduler…</td>
-<td>Schedule background command / snippet / AI-agent / AI-swarm / SFTP / Rsync jobs</td>
+<td>Schedule background command / snippet / AI-agent / AI-swarm / SFTP / Rsync jobs (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-j">J</kbd></span>)</td>
 </tr>
 <tr>
 <td>Video Manager…</td>
-<td>Manage terminal recordings and export to WebM/MKV via <code>ffmpeg</code></td>
+<td>Manage terminal recordings and export to WebM/MKV via <code>ffmpeg</code> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-v">V</kbd></span>)</td>
 </tr>
 <tr>
 <td>Start/Stop Terminal Recording</td>
@@ -1103,7 +1115,7 @@
 </tr>
 <tr>
 <td>ASCII Art…</td>
-<td>Two tabs in one dialog: <strong>Text Banner</strong> renders text as a FIGlet banner in multiple font styles, <strong>AI Picture</strong> lets an AI profile draw a subject as ASCII art</td>
+<td>Two tabs in one dialog: <strong>Text Banner</strong> renders text as a FIGlet banner in multiple font styles, <strong>AI Picture</strong> lets an AI profile draw a subject as ASCII art (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-a">A</kbd></span>)</td>
 </tr>
 </tbody>
 </table>
@@ -1120,7 +1132,7 @@
 <tbody>
 <tr>
 <td>AI Manager…</td>
-<td>Manage AI profiles, integrated GGUF models, RAG knowledge stores, the AI Skills library, and Text/Coding roles</td>
+<td>Manage AI profiles, integrated GGUF models, RAG knowledge stores, the AI Skills library, and Text/Coding roles (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-y">Y</kbd></span>)</td>
 </tr>
 <tr>
 <td>Saved Chats…</td>
@@ -1128,11 +1140,11 @@
 </tr>
 <tr>
 <td>AI Agent…</td>
-<td>Open the terminal AI agent</td>
+<td>Open the terminal AI agent Open the terminal AI agent (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-a">A</kbd></span>)</td>
 </tr>
 <tr>
 <td>AI Planning…</td>
-<td>Open the AI planning workflow</td>
+<td>Open the AI planning workflow Open the AI planning workflow (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-p">P</kbd></span>)</td>
 </tr>
 <tr>
 <td>AI Swarm…</td>
@@ -1141,7 +1153,7 @@
 </tbody>
 </table>
 <p><strong>AI Manager</strong> opens as a modeless window, so it can remain visible while you use the main window. Invoking it again restores and focuses the same manager for that main window instead of creating a duplicate. Its five sections are <strong>Profiles</strong> (connection mode, model, prompt preset, reasoning, internet access and token budget), <strong>Local Models</strong> (search/download/import GGUF models), <strong>Knowledge Stores</strong> (RAG sources), <strong>AI Skills</strong> (the skill library, moved here from the global settings dialog) and <strong>Local AI</strong> (Text/Coding/embedding roles and the local runtime). The open primary section remains marked by a bold accent underline after you move focus into its tables, fields, or buttons:</p>
-<p><img alt="AI Manager with Local Models selected and persistently underlined" src="../assets/screenshots/ai/ai-manager.png" /></p>
+<p><img alt="AI Manager with Local Models selected and persistently underlined" src="../assets/screenshots/ai/local-models.png" /></p>
 <h2 id="plugins">Plugins<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1211,6 +1223,46 @@
 <td>File Browser ▸ Show on Right</td>
 <td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-r">R</kbd></span></td>
 <td>Dock the local <a href="../features/file-browser.html">file browser</a> to the right of the terminal; unchecking the active side hides it</td>
+</tr>
+<tr>
+<td>AI Agent Panel ▸ At Bottom / Dock Left / Dock Right</td>
+<td></td>
+<td>Choose where the AI agent activity panel lives</td>
+</tr>
+<tr>
+<td>Live Journal ▸ Dock Left / Dock Right</td>
+<td></td>
+<td>Dock the <a href="../features/session-journal.html#the-live-journal-panel">live journal panel</a> beside the terminal; selecting the active side hides it</td>
+</tr>
+<tr>
+<td>Live Journal ▸ Show/Hide</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span></td>
+<td>Toggle the live journal panel on its last-used side (right by default)</td>
+</tr>
+<tr>
+<td>Coding Agents ▸ Dock Left / Dock Right</td>
+<td></td>
+<td>Dock the <a href="../features/coding-agents.html#the-coding-agents-panel">Coding Agents panel</a> beside the terminal; selecting the active side hides it</td>
+</tr>
+<tr>
+<td>Coding Agents ▸ Show/Hide</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span></td>
+<td>Toggle the Coding Agents panel on its last-used side (right by default)</td>
+</tr>
+<tr>
+<td>Coding Agents ▸ Next Blocked Agent</td>
+<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
+<td>Bring the next coding agent that is waiting for a decision to the front, across windows</td>
+</tr>
+<tr>
+<td>Remote Files Sidebar ▸ Dock Left / Dock Right</td>
+<td></td>
+<td>Dock the <a href="../features/terminal.html#remote-files-sidebar">remote files sidebar</a> beside the panes of every terminal tab; unchecking the active side hides it. Offered while the active tab has an SSH pane or the sidebar is on</td>
+</tr>
+<tr>
+<td>Remote Files Sidebar ▸ Show/Hide Remote Files Sidebar</td>
+<td></td>
+<td>Show the remote files sidebar on the right, or hide it; hiding asks first while sidebar transfers are running</td>
 </tr>
 <tr>
 <td>Zoom In</td>
@@ -1303,6 +1355,11 @@
 <td>Open the <a href="../features/highlighting.html#your-own-rule-sets">rule-set editor</a> to create, change, duplicate or delete your own rule sets and look at the built-in ones; it opens on the set the focused pane shows</td>
 </tr>
 <tr>
+<td>Terminal Effect ▸</td>
+<td></td>
+<td>Choose the <a href="../features/terminal-effect-plugins.html">terminal effect</a> of the active terminal tab: <strong>None</strong> or one of the installed effect plugins. The submenu is greyed out while terminal effects are switched off; its animation-speed slider below the plugins is enabled only while a plugin is active</td>
+</tr>
+<tr>
 <td>Fullscreen</td>
 <td><span class="keys"><kbd class="key-f12">F12</kbd></span></td>
 <td>Toggle window fullscreen</td>
@@ -1316,46 +1373,6 @@
 <td>Hide terminal scrollbars in fullscreen</td>
 <td></td>
 <td>Also hide scrollbars while in fullscreen</td>
-</tr>
-<tr>
-<td>AI Agent Panel ▸ At Bottom / Dock Left / Dock Right</td>
-<td></td>
-<td>Choose where the AI agent activity panel lives</td>
-</tr>
-<tr>
-<td>Live Journal ▸ Dock Left / Dock Right</td>
-<td></td>
-<td>Dock the <a href="../features/session-journal.html#the-live-journal-panel">live journal panel</a> beside the terminal; selecting the active side hides it</td>
-</tr>
-<tr>
-<td>Live Journal ▸ Show/Hide</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span></td>
-<td>Toggle the live journal panel on its last-used side (right by default)</td>
-</tr>
-<tr>
-<td>Coding Agents ▸ Dock Left / Dock Right</td>
-<td></td>
-<td>Dock the <a href="../features/coding-agents.html#the-coding-agents-panel">Coding Agents panel</a> beside the terminal; selecting the active side hides it</td>
-</tr>
-<tr>
-<td>Coding Agents ▸ Show/Hide</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span></td>
-<td>Toggle the Coding Agents panel on its last-used side (right by default)</td>
-</tr>
-<tr>
-<td>Coding Agents ▸ Next Blocked Agent</td>
-<td><span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-n">N</kbd></span></td>
-<td>Bring the next coding agent that is waiting for a decision to the front, across windows</td>
-</tr>
-<tr>
-<td>Remote Files Sidebar ▸ Dock Left / Dock Right</td>
-<td></td>
-<td>Dock the <a href="../features/terminal.html#remote-files-sidebar">remote files sidebar</a> beside the panes of every terminal tab; unchecking the active side hides it. Offered while the active tab has an SSH pane or the sidebar is on</td>
-</tr>
-<tr>
-<td>Remote Files Sidebar ▸ Show/Hide Remote Files Sidebar</td>
-<td></td>
-<td>Show the remote files sidebar on the right, or hide it; hiding asks first while sidebar transfers are running</td>
 </tr>
 </tbody>
 </table>
@@ -1398,10 +1415,12 @@
 </table>
 <p>The manual has its own text-size buttons at the top left of its window: <code>A-</code>, the current percentage, and <code>A+</code>. Clicking the percentage resets it. The same three actions have keyboard shortcuts: <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-plus">+</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-minus">-</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-0">0</kbd></span>. korTTY remembers the size, and the size covers the whole window — the page and, when it is open, the AI search panel beside it. See <a href="settings/appearance.html#manual-text-size">Manual text size</a>.</p>
 <p>Screenshots and diagrams enlarge on click: the picture opens over the page at the largest size the window allows, with <strong>−</strong> / <strong>+</strong> buttons and a percentage that returns it to that fitted size. Zoom further to read a single setting row, drag the picture to pan, and close with the <strong>×</strong>, <span class="keys"><kbd class="key-escape">Esc</kbd></span> or a click next to the picture. <span class="keys"><kbd class="key-control">Ctrl</kbd></span> and the wheel zoom as well. The same works in the online guide.</p>
+<h2 id="jobscheduler-status">JobScheduler status<a class="headerlink" href="#jobscheduler-status" title="Permanent link">&para;</a></h2>
+<p>This menu sits after <strong>Help</strong> and appears only while the <strong>Show Jobs status in menu bar</strong> option of the <a href="../features/jobscheduler.html">JobScheduler</a> is on and a scheduled entry is active. It always starts with <strong>Open JobScheduler…</strong>. While jobs run it lists a <strong>Running jobs</strong> header, a status line per job and a <strong>Cancel</strong> item per job; the cancel items work without a window. Below them, <strong>Next jobs</strong> lists the queued scheduled jobs with their start times.</p>
 <h2 id="macos-dock-menu-bar">macOS Dock &amp; menu bar<a class="headerlink" href="#macos-dock-menu-bar" title="Permanent link">&para;</a></h2>
 <p>On macOS the packaged app keeps running in the background (so the JobScheduler can run scheduled jobs) even after the last window is closed. korTTY therefore adds two extra entry points so it stays reachable — and quittable — with no window open:</p>
 <ul>
-<li><strong>Dock icon menu</strong> — right-click korTTY's Dock icon for quick actions: <strong>New Window</strong>, <strong>New Tab</strong>, <strong>Manage Connections…</strong>, <strong>Open Project…</strong>, <strong>Manual</strong>, <strong>About korTTY</strong>, and <strong>Quit</strong>.</li>
+<li><strong>Dock icon menu</strong> — right-click korTTY's Dock icon for quick actions: <strong>New Window</strong>, <strong>New Tab in Current Window</strong>, <strong>Manage Connections…</strong>, <strong>Open Project…</strong>, <strong>Manual</strong>, <strong>About korTTY</strong>, and <strong>Quit</strong>.</li>
 <li><strong>Menu-bar (status) icon</strong> — a system-tray icon with <strong>New Window</strong> and <strong>Quit</strong>; clicking the icon opens a new window.</li>
 </ul>
 <p>Both provide a reliable <strong>Quit</strong> even when every window is closed.</p>

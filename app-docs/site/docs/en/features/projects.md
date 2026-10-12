@@ -10,14 +10,14 @@ Projects save and restore your complete workspace state—all open windows, tabs
 
 1. Open *File > Save Project* or press ++ctrl+s++ (++cmd+s++ on macOS).
 2. Enter a **name** and optional **description** for the project.
-3. Configure **Auto-Reconnect**:
+3. Configure **Auto-Reconnect** (the check box *Automatically restore SSH connections* in the save dialog):
    - When enabled, opening the project automatically reconnects every saved terminal and SFTP tab; a tab that needs a password, a new temporary SSH key or the locked vault waits in the [restore bar](#tabs-that-wait-for-you) instead.
    - When disabled, opening the project restores the windows with their position and size and the local file editor and image viewer tabs only; terminal, SFTP and remote file tabs are skipped.
 4. Click *Save*.
 
 Projects are `.kortty` files saved wherever you choose in the save dialog, for example in `~/.kortty/projects/`.
 
-A project keeps every korTTY window that is open, not only the one you choose *Save Project* in; that window is saved first. A window that holds nothing but AI result and tool tabs, which projects do not keep, is left out, so it does not come back empty; the window you save from is always kept, for its position and size.
+An [incognito](session-isolation.md#incognito-sessions) tab keeps its place in a project, but nothing of its screen. A project keeps every korTTY window that is open, not only the one you choose *Save Project* in; that window is saved first. A window that holds nothing but AI result and tool tabs, which projects do not keep, is left out, so it does not come back empty; the window you save from is always kept, for its position and size.
 
 ## Opening a Project
 

@@ -50,6 +50,7 @@
 .spinner,
 .list-view,
 .tree-view,
+.tree-table-view,
 .table-view,
 .tab-pane,
 .tab-pane .tab-header-area,
@@ -159,7 +160,9 @@
 
 .list-cell,
 .tree-cell,
+.tree-table-row-cell,
 .table-row-cell,
+.tree-table-cell,
 .table-cell {
     -fx-background-color: #080c09;
     -fx-text-fill: #00ff88;
@@ -167,23 +170,29 @@
 
 .list-cell:hover,
 .tree-cell:hover,
+.tree-table-row-cell:hover,
 .table-row-cell:hover {
     -fx-background-color: rgba(0,255,136,0.15);
 }
 
 .list-cell:selected,
 .tree-cell:selected,
+.tree-table-row-cell:selected,
 .table-row-cell:selected {
     -fx-background-color: rgba(0,255,136,0.15);
     -fx-text-fill: #00ff88;
 }
 
+.tree-table-view .column-header,
 .table-view .column-header,
+.tree-table-view .column-header-background,
 .table-view .column-header-background,
+.tree-table-view .filler,
 .table-view .filler {
     -fx-background-color: #0d1b0f;
 }
 
+.tree-table-view .column-header .label,
 .table-view .column-header .label {
     -fx-text-fill: #00ff88;
 }

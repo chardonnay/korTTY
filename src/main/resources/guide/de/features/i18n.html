@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -876,6 +884,12 @@
 <td>Yandex Cloud Translate v2</td>
 <td>Benötigt einen <strong>Dienstkonto-API-Schlüssel</strong> von Yandex Cloud, nicht den veralteten v1.5-Schlüssel</td>
 </tr>
+<tr>
+<td>Lokales KI-Textprofil</td>
+<td>Nein, das Profil bringt seinen eigenen Endpunkt und seine eigenen Anmeldeinformationen</td>
+<td>Das <strong>KI-Profil</strong> ausgewählt daneben</td>
+<td>Übersetzt über ein KI-Profil, zum Beispiel ein lokales Modell, statt einer Übersetzungs-API. Siehe <a href="../reference/settings/translation.html#lokale-ubersetzung">Lokale Übersetzung</a>.</td>
+</tr>
 </tbody>
 </table>
 <div class="admonition warning">
@@ -901,6 +915,7 @@ Warnung, bis Sie es tun.</p>
 <li>Klicken Sie auf <strong>Sprachdatei generieren</strong></li>
 </ol>
 <p>Die generierte Sprachdatei wird unter <code>~/.kortty/i18n/messages_XX.properties</code> gespeichert, wobei <code>XX</code> der aus zwei Buchstaben bestehende Sprachcode ist. Starten Sie die Anwendung nach der Generierung neu, um die neue Sprache unter <strong>Einstellungen → Sprache</strong> verfügbar zu machen.</p>
+<p>Die gleiche Seite übersetzt auch die integrierte Anleitung in die ausgewählte Sprache, im Abschnitt <strong>Anleitung übersetzen</strong>, sodass <strong>Hilfe → Anleitung</strong> und dessen Suche in dieser Sprache gelesen werden können. Dieser Vorgang läuft im Hintergrund und kann abgebrochen werden; siehe <a href="../reference/settings/translation.html#guide-ubersetzung">Anleitung übersetzen</a>.</p>
 <h3 id="nach-app-upgrades">Nach App-Upgrades<a class="headerlink" href="#nach-app-upgrades" title="Permanent link">&para;</a></h3>
 <p>Wenn KorTTY auf eine neue Version aktualisiert wird, werden zuvor generierte Sprachdateien automatisch als veraltet erkannt, wenn sie mit einer älteren App-Version erstellt wurden. Unter <strong>Einstellungen → Übersetzung</strong> wird ein Hinweis angezeigt, der angibt, welche Sprachen aktualisiert werden müssen.</p>
 <p>So aktualisieren Sie alle veralteten Sprachdateien nach einem Upgrade:</p>
@@ -915,7 +930,7 @@ Warnung, bis Sie es tun.</p>
 <li>Erzeugte Sprachdateien werden in gespeichert <code>~/.kortty/i18n/</code></li>
 <li>Jede Datei ist eine Standard-Java-Eigenschaftendatei (messages_XX.properties).</li>
 <li>Dateien bleiben bei Anwendungsneustarts und -aktualisierungen bestehen</li>
-<li>Sprachdateien sind in verschlüsselten Backups enthalten, die über <strong>Bearbeiten → Backup erstellen</strong> erstellt wurden.</li>
+<li>Generierte Sprachdateien sind nicht Teil verschlüsselter Backups (siehe <a href="backup.html#inhalt-der-sicherungsdatei">Backup-Datei-Inhalte</a>); auf einem anderen Computer, kopieren <code>~/.kortty/i18n/</code> oder generieren die Dateien erneut</li>
 </ul>
 <h2 id="wie-es-funktioniert">Wie es funktioniert<a class="headerlink" href="#wie-es-funktioniert" title="Permanent link">&para;</a></h2>
 <p>Das Internationalisierungssystem von KorTTY basiert auf einer Ressourcenbündelarchitektur:</p>
@@ -939,7 +954,7 @@ Warnung, bis Sie es tun.</p>
 <div class="admonition tip">
 <p class="admonition-title">Übersetzungsergebnisse optimieren</p>
 <ul>
-<li><strong>Kürzere Blöcke</strong>: Übersetzungs-APIs funktionieren am besten mit Zeichenfolgen mittlerer Größe. KorTTY stapelt Übersetzungen in Gruppen von 25 Zeichenfolgen</li>
+<li><strong>Kurzere Stücke</strong>: Übersetzungs-APIs funktionieren am besten mit moderat großen Zeichenketten; KorTTY sendet die Zeichenketten in Chargen, deren Größe vom Anbieter abhängt, zum Beispiel 30 Zeichenketten für Google Translate und 25 für LibreTranslate</li>
 <li><strong>Platzhaltersicherheit</strong>: Platzhalter (<code>{0}</code>, <code>${var}</code>) werden während der Übersetzung automatisch geschützt und nie geändert</li>
 <li><strong>Test nach der Generierung</strong>: Überprüfen Sie nach dem Generieren einer neuen Sprache die Schnittstelle auf umständliche Formulierungen und erwägen Sie eine Anpassung der API-Anbieter, wenn die Qualität nicht ausreicht</li>
 </ul>

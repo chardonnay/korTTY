@@ -19,7 +19,7 @@ import org.testng.annotations.Test;
 /**
  * Every terminal-notification string exists in all eight bundles: the notification and tab-tooltip texts
  * ({@code terminal.notify.*}, including the AI agent and AI Swarm run texts) and the settings on
- * Terminal → Notifications ({@code settings.terminal.notify.*}). A translation keeps exactly the
+ * Messaging ({@code settings.messaging.*}). A translation keeps exactly the
  * placeholders of the English text, and an apostrophe is written once, because LanguageManager fills
  * the placeholders with String.replace rather than MessageFormat.
  */
@@ -35,7 +35,7 @@ class TerminalNotificationsI18nCoverageTest {
         "messages_hr.properties",
         "messages_nl.properties");
 
-    private static final List<String> PREFIXES = List.of("terminal.notify.", "settings.terminal.notify.");
+    private static final List<String> PREFIXES = List.of("terminal.notify.", "settings.messaging.");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{\\d}");
 
@@ -54,7 +54,7 @@ class TerminalNotificationsI18nCoverageTest {
 
     @Test
     void theAiRunKeysArePartOfTheFamily() throws Exception {
-        assertThat(keys()).containsAtLeast("settings.terminal.notify.aiRun", "settings.terminal.notify.aiRun.tooltip",
+        assertThat(keys()).containsAtLeast("settings.messaging.aiRun", "settings.messaging.aiRun.tooltip",
             "terminal.notify.aiRun.finished", "terminal.notify.aiRun.failed", "terminal.notify.aiRun.needsApproval",
             "terminal.notify.aiRun.needsPassword");
     }

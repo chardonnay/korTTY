@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -830,6 +838,7 @@
 <ul>
 <li><strong>System (OS) column</strong> — A sortable operating-system column for each snippet (Any, Linux, macOS, Windows). Auto-set when a snippet is created via <em>Generate Workflow Script</em>.</li>
 <li><strong>Sortable columns</strong> — All columns (Name, Analysis, Language, Exec, Category, System, Tags, Lines, Last modified, Used) are sortable.</li>
+<li><strong>Favorites</strong> — <strong>★ Toggle Favorite</strong>, in the row of buttons below the table and in its right-click menu, marks the selected snippets with a ★ in the first column. The default order lists favorites first, then the snippets you use most.</li>
 <li><strong>Exec column</strong> — Whether the snippet is written as an executable file when it is exported or copied to a server. A dimmed checkbox is the automatic value; clicking it sets the flag explicitly, and clicking back to the automatic value returns to <strong>Automatic</strong>. See <a href="#executable-flag">Executable flag</a>.</li>
 <li><strong>Analysis column</strong> — Shows the state of each snippet's stored <a href="#full-code-analysis">Full code analysis</a> at a glance: <strong>⚠ 3</strong> — three findings of the newest analysis are not applied to the saved snippet yet; <strong>◷</strong> — a result waits for your review ("Review later"); <strong>✓</strong> — every finding was applied, or the analysis found nothing to fix; <strong>✎</strong> — an AI result was applied in the editor but the snippet was never saved with it, and korTTY remembers that state (see <a href="#applied-but-not-saved">Applied but not saved</a>); <strong>↻</strong> after the symbol — the snippet changed since that analysis. Hover a cell for the details and the date of the analysis. The column is filled in the background when the Snippet Manager opens and follows every new analysis, apply, discard and save, so even a library with hundreds of snippets opens without waiting. Sorting by it puts pending reviews first, then the snippets with a remembered unsaved result, then the snippets with the most open findings.</li>
 <li><strong>Analysis filter</strong> — The drop-down next to the category filter narrows the list to the snippets that need attention: <strong>Open findings</strong>, <strong>Stale analysis</strong> or <strong>Review pending</strong> — an inbox for the decisions you still owe: results you kept for later and applied results you have not saved. <strong>All snippets</strong> shows everything again. It combines with the search and the category filter.</li>
@@ -1290,8 +1299,8 @@
 <li><strong>Import...</strong> — Reads variables from a JSON, XML or YAML file (the stored <code>snippet-variables.xml</code> can be imported directly). When imported variables already exist, you choose whether to overwrite their values or keep the existing ones.</li>
 </ul>
 <h2 id="sending-snippets-to-the-terminal">Sending snippets to the terminal<a class="headerlink" href="#sending-snippets-to-the-terminal" title="Permanent link">&para;</a></h2>
-<p>The Snippet Manager can send a selected snippet directly to a terminal of its main window: the selected terminal tab, or — when the Snippet Manager is itself the selected tab — the terminal tab you used last (or the only one that is open). korTTY then switches to that tab and shows <strong>Sent to …</strong> in the status bar. <strong>Insert into editor</strong> picks the file editor tab the same way. The snippet is written to the tab's first pane, the one the tab opened with, also when another pane of a split tab has the focus. A snippet you run from the <a href="command-palette.html#running-snippets">command palette</a> goes to the focused pane instead.</p>
-<p>Without opening the Snippet Manager, the <a href="command-palette.html#running-snippets">command palette</a> runs a snippet the same way: press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> on macOS), type <code>$</code> and part of the snippet's name, and press <span class="keys"><kbd class="key-enter">Enter</kbd></span>; each row names the terminal it runs in, and <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> (<span class="keys"><kbd class="key-option">Option</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> on macOS) opens the snippet here instead.</p>
+<p>The Snippet Manager can send a selected snippet directly to a terminal of its main window: the selected terminal tab, or — when the Snippet Manager is itself the selected tab — the terminal tab you used last (or the only one that is open). korTTY then switches to that tab and shows <strong>Sent to …</strong> in the status bar. <strong>Insert into Editor</strong> picks the file editor tab the same way. The snippet is written to the tab's first pane, the one the tab opened with, also when another pane of a split tab has the focus. A snippet you run from the <a href="command-palette.html#running-snippets">command palette</a> goes to the focused pane instead.</p>
+<p>Without opening the Snippet Manager, the <a href="command-palette.html#running-snippets">command palette</a> runs a snippet the same way: press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> on macOS), type <code>$</code> and part of the snippet's name, and press <span class="keys"><kbd class="key-enter">Enter</kbd></span>. <strong>View → Snippet Palette…</strong> opens the palette with <code>$</code> already typed. Each row names the terminal it runs in, and <span class="keys"><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> (<span class="keys"><kbd class="key-option">Option</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> on macOS) opens the snippet here instead.</p>
 <h3 id="send-to-terminal">Send to Terminal<a class="headerlink" href="#send-to-terminal" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Replaces the <a href="#placeholder-variables">placeholders</a> like every other use; a declared variable without a stored value is asked for before anything is sent, and cancelling the dialog sends nothing</li>
@@ -1367,7 +1376,7 @@
 <h4 id="zip-script-archive">ZIP script archive<a class="headerlink" href="#zip-script-archive" title="Permanent link">&para;</a></h4>
 <ul>
 <li>Writes one ZIP containing one script file per snippet</li>
-<li>Keep each file's own name or force one extension for all files</li>
+<li><strong>Use extension from Name column</strong> keeps each file's own name, or choose one forced extension for all files</li>
 <li>With their own names, the files keep their sub-folders and their executable flag (<code>unzip</code> restores the mode); a password-protected archive carries the mode only where the file system has POSIX permissions</li>
 <li>Supported forced extensions: <code>.sh</code>, <code>.py</code>, <code>.pl</code>, <code>.rb</code>, <code>.ps1</code>, <code>.sql</code>, <code>.txt</code>, or custom</li>
 </ul>
@@ -1375,9 +1384,9 @@
 <p><strong>Export folder…</strong> in the tree's right-click menu exports the folder with every sub-folder. Choose <strong>ZIP script archive</strong> (with the encryption options below), <strong>Plain text script files</strong> into a directory, or JSON, XML or YAML. ZIP and directory exports keep the folder structure, including empty folders, and the executable flags.</p>
 <h4 id="zip-encryption-options">ZIP encryption options<a class="headerlink" href="#zip-encryption-options" title="Permanent link">&para;</a></h4>
 <ul>
-<li><strong>Unencrypted</strong> — Standard ZIP archive</li>
-<li><strong>AES password-protected</strong> — Password-encrypted with AES-256</li>
-<li><strong>GPG-encrypted</strong> — Creates a <code>.zip.gpg</code> file; requires local <code>gpg</code> command and a usable public key</li>
+<li><strong>No encryption</strong> — Standard ZIP archive</li>
+<li><strong>Password encryption (ZIP)</strong> — Password-encrypted with AES-256</li>
+<li><strong>GPG encryption</strong> — Creates a <code>.zip.gpg</code> file; requires local <code>gpg</code> command and a usable public key</li>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>

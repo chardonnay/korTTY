@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -877,7 +885,7 @@
 <li><strong>Remote-Tunnel (<code>-R</code>) kommen zu korTTY zurück.</strong> Der Worker fordert den weitergeleiteten Port beim Server an; verbindet sich etwas damit, kommt die Verbindung des Servers über den Worker zu korTTY zurück, das das lokale Ziel des Tunnels selbst verbindet, mit der gewohnten Bestätigung und Policy. Der Worker braucht dafür kein eigenes Netzwerk, sodass seine Sandbox so eng bleibt wie oben beschrieben.</li>
 <li><strong>Stürzt der Worker ab</strong>, meldet der Tab <em>Sitzungsprozess abgestürzt (Exit N)</em> mit der letzten Meldung des Workers und bietet an, neu zu verbinden; das Log von korTTY enthält seine letzte Ausgabe. Eine im Netzwerk verlorene Verbindung wird wie bei einer direkten Sitzung als <em>Connection lost</em> gemeldet.</li>
 </ul>
-<p><strong>Werkzeuge → Sitzungsprozesse...</strong> listet jede Sitzung, die in einem Worker läuft: Verbindung, Prozess-ID, Isolation, Speicher, CPU-Anteil und Laufzeit, alle zwei Sekunden aktualisiert. Eine Zeile wird markiert, solange ihr Worker einen CPU-Kern auslastet, und <strong>Prozess beenden</strong> beendet den ausgewählten Worker; sein Tab bietet dann an, neu zu verbinden. Worker laufen mit niedrigerer Priorität, sodass ein ausgelasteter Worker das Fenster von korTTY nicht bremst.</p>
+<p><strong>Werkzeuge → Session Processes...</strong> listet jeden Sitzungsarbeitsprozess auf, der jetzt läuft (siehe oben; lokale Shells und die native <code>mosh-client</code> werden nicht aufgeführt): seine Verbindung, Prozess-ID, Isolation (<strong>Eigener Prozess</strong>, <strong>Sandbox</strong>, oder <strong>Sandbox fehlt</strong> wenn der Sandbox nicht eingerichtet werden konnte), Speicher, CPU-Anteil und wie lange er läuft, aktualisiert alle zwei Sekunden. Eine Zeile wird markiert, solange ihr Arbeiter einen CPU-Kern beschäftigt ist, und <strong>Prozess beenden</strong> beendet den ausgewählten Arbeiter; dessen Tab bietet dann eine Neuverbindung an. Arbeiter laufen mit niedrigerer Priorität, sodass ein beschäftigter nicht das Fenster von korTTY verlangsamt.</p>
 <div class="admonition note">
 <p class="admonition-title">Die Sandbox auf jedem Betriebssystem</p>
 <p>Auf macOS verwendet korTTY <code>sandbox-exec</code> mit einem Profil, das es für jede Sitzung erzeugt. Auf Linux verwendet es bubblewrap (<code>bwrap</code>), das installiert sein muss; es braucht unprivilegierte User-Namespaces, die manche Container nicht erlauben. Auf Windows und wenn korTTY in Flatpak läuft (selbst eine Sandbox, die keine weitere darin erlaubt), gibt es noch keine Sandbox. Vor der ersten Sitzung in der Sandbox führt korTTY einen Selbsttest aus: Eine geheime Datei in seinem Konfigurationsordner muss aus der Sandbox heraus unlesbar sein, während ein harmloser Befehl weiterhin läuft. Nur eine Sandbox, die den Test besteht, gilt als verfügbar.</p>
@@ -885,7 +893,7 @@
 <p>In einer lokalen Shell in der Sandbox zeigen die History-Datei (<code>HISTFILE</code>) und <code>TMPDIR</code> auf den eigenen Ordner der Sitzung, sodass die History der Shell die Sitzung nicht überdauert, und die Variable <code>KORTTY_SANDBOX</code> nennt die verwendete Sandbox.</p>
 <h2 id="eine-stufe-wahlen">Eine Stufe wählen<a class="headerlink" href="#eine-stufe-wahlen" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Für eine Verbindung:</strong> Connection-Manager → Verbindung bearbeiten → Tab <strong>Terminal-Einstellungen</strong> → <strong>Sitzungs-Isolation</strong> (unter <strong>Terminal-Verhalten</strong>) → <strong>Isolation:</strong>. <strong>Standard verwenden</strong> folgt dem Ordner der Verbindung oder den Einstellungen und nennt, was davon gilt.</li>
+<li><strong>Für eine Verbindung:</strong> Connection Manager → Verbindung bearbeiten → <strong>Terminal-Einstellungen</strong> Tab → Abschnitt <strong>Terminal-Verhalten</strong> → Zeilen <strong>Sitzungs-Isolation</strong>, unterhalb des Einfüge-Schutzes → <strong>Isolation:</strong>. <strong>Use the default</strong> folgt dem Ordner der Verbindung oder den Einstellungen und benennt, welche Anwendung gilt.</li>
 <li><strong>Für einen Ordner:</strong> Rechtsklick auf den Ordner im Connection-Manager → <strong>Sitzungs-Isolation</strong> → <strong>Standard verwenden</strong>, <strong>Keine</strong>, <strong>Eigener Prozess</strong> oder <strong>Eigener Prozess + Sandbox</strong>. Ordner darunter erben die Stufe, ebenso die Verbindungen darin, die keine eigene festlegen. Die Stufe zieht mit, wenn der Ordner umbenannt wird, und wird entfernt, wenn der Ordner gelöscht wird.</li>
 <li><strong>Für einen Tab aus einem Skript:</strong> <code>kortty-cli tab create --connection &lt;Name&gt; --isolation sandbox</code> öffnet die Verbindung mit dieser Stufe statt ihrer eigenen, nur für diesen Tab (siehe <a href="../reference/cli.html#eine-verbindung-offnen">Steuerungs-CLI</a>).</li>
 <li><strong>Für alles andere:</strong> <strong>Konfiguration → Globale Einstellungen → Sicherheit</strong> → <strong>Sitzungs-Isolation</strong> → <strong>Standard-Isolation:</strong>. Der Abschnitt zeigt auch, ob dieser Computer eine funktionierende Sandbox hat.</li>

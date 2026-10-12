@@ -42,10 +42,10 @@ Legen Sie unter **Tools > Video Manager** die folgenden Optionen fest:
 | Option | Beschreibung |
 |--------|-------------|
 | **Speicherpfad** | Verzeichnis, in dem Wiedergabedateien gespeichert werden (Standard: `~/.kortty/recordings`) |
-| **Standardbereich** | Aufnahme des aktiven Teils nur oder des gesamten Tabs|
-| **Automatische Pause im Leerlauf** | Aufzeichnung pausieren, wenn Terminal inaktiv ist |
-| **Leerlaufschwelle** | Sekunden Inaktivität vor der Pause (Standard: 20) |
-| **Farben erfassen** | Terminal-Läufe pro Zelle in neue Aufzeichnungen einbeziehen |
+| **Standardbereich** | Aufzeichnung des aktiven Splits nur oder des gesamten Tabs |
+| **Bei inaktivem Terminal automatisch pausieren** | Aufzeichnung anhalten, wenn das Terminal inaktiv ist |
+| **Inaktivitätsschwelle (Sekunden)** | Sekunden Inaktivität vor Pausieren (Standard: 20) |
+| **Terminalfarben in neuen Aufnahmen erfassen** | Terminalstil pro Zelle in neue Aufnahmen einbeziehen |
 | **ffmpeg-Pfad** | Pfad zur lokalen `ffmpeg`-Binärdatei für den Videoexport |
 
 !!! tip
@@ -71,9 +71,11 @@ Wenn sich `ffmpeg` unter macOS und Linux in Ihrem PATH befindet, erkennt KorTTY 
    - Press ++ctrl+shift+e++ (++cmd+shift+e++ auf macOS)
 3. Wenn die Registerkarte geteilte Anschlüsse enthält, wählen Sie:
    - **Aktive Teilung** – Nur den fokussierten Terminalbereich aufzeichnen
-   - **Gesamte Registerkarte** – alle sichtbaren Teilungen aufzeichnen
+   - **Whole tab** — alle sichtbaren Aufteilungen aufzeichnen
 
 Das Steuerelement in der Terminalleiste ist ausgeblendet, bis die Aufzeichnung aktiviert oder der Menüpunkt/die Verknüpfung verwendet wird.
+
+Eine [Inkognito-Sitzung](session-isolation.md#inkognito-sitzungen) wird nie aufgezeichnet: Wenn man in einer startet, erscheint die Meldung *Incognito-Sitzungen werden nicht aufgezeichnet.* stattdessen.
 
 ### Stoppen Sie die Aufnahme
 
@@ -157,5 +159,5 @@ Jedes Bildschirmereignis umfasst Terminalinhalte, Abmessungen und optionale Farb
 - **Große Terminalfenster**: Die Terminalgeometrie wird aufgezeichnet, sodass Breitbildschirme ohne Beschneiden korrekt exportiert werden
 - **Farbgenauigkeit**: Aktivieren Sie die Farberfassung vor der Aufnahme, wenn Sie Videos mit Terminalfarben exportieren möchten
 - **Leerlaufpause**: Die automatische Pause hilft, die Dateigröße bei langen Leerlaufzeiten zu reduzieren; Aktivieren Sie es, es sei denn, Sie müssen das genaue Timing beibehalten
-- **Split-Scope-Auswahl**: Wählen Sie Ihren Aufzeichnungsbereich (aktive Aufteilung vs. gesamte Registerkarte) jedes Mal, wenn Sie mit der Aufzeichnung beginnen, passend zu Ihrem Arbeitsablauf
+- **Split-Scope-Auswahl**: Wählen Sie bei jedem Aufzeichnungstart Ihren Aufnahmebereich (aktiver Split vs. ganzer Tab), um Ihrem Arbeitsablauf zu entsprechen.
 - **Legacy-Dateien**: Alte `.korttyrec.jsonl`-Wiedergabedateien (unkomprimiert) sind im Video-Manager weiterhin lesbar

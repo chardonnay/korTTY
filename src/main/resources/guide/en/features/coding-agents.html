@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -836,7 +844,7 @@
 </tr>
 <tr>
 <td>Qwen Code</td>
-<td><code>qwen</code></td>
+<td><code>qwen</code>, <code>qwen-code</code></td>
 </tr>
 <tr>
 <td>OpenCode</td>
@@ -844,7 +852,7 @@
 </tr>
 <tr>
 <td>Cursor Agent</td>
-<td><code>cursor-agent</code>, <code>agent</code> (the launcher starts a bundled <code>node</code> on <code>…/cursor-agent/versions/&lt;version&gt;/index.js</code>; korTTY recognises that install path)</td>
+<td><code>cursor-agent</code>, and the bundled <code>node</code> script under <code>…/cursor-agent/versions/&lt;version&gt;/index.js</code> (the launcher runs it; korTTY recognises that install path)</td>
 </tr>
 <tr>
 <td>Aider</td>
@@ -929,9 +937,10 @@ Open the <a href="../getting-started/main-window.html">dashboard</a> with <stron
 <p>The context menu of a marked row adds <strong>Focus Pane</strong>, which selects the tab and focuses exactly that pane, <strong>Show in Coding Agents Panel</strong>, which docks the panel and selects the agent, and, while the agent waits for you, <strong>Send Enter</strong>, <strong>Send Esc</strong> and <strong>Interrupt (Ctrl+C)</strong> to answer the dialog without leaving the dashboard. The tab title shows the same glyph as the chip — ✋ waiting, ⚡ working, ✓ done, merged with korTTY's own AI-agent glyph where both apply.</p>
 <h2 id="the-coding-agents-panel">The Coding Agents panel<a class="headerlink" href="#the-coding-agents-panel" title="Permanent link">&para;</a></h2>
 <p><img alt="The Coding Agents panel docked beside the terminal" src="../assets/screenshots/coding-agents/panel.png" />
-The panel lists every detected agent of every korTTY window in one place. Open it with <strong>View → Coding Agents → Dock Left / Dock Right</strong>, toggle it on its last-used side with <strong>Show/Hide</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span>), from the ⋯ menu inside the panel, from the status strip's context menu, or with <em>Show in Coding Agents Panel</em> in the dashboard. Placement and width are remembered across restarts. Agents that wait for you are listed first (longest waiting on top), then the working, done and idle ones in window, tab and pane order; the row of the pane you are currently in carries a left accent.</p>
-<p>Every row shows the state dot and name, a state chip such as <code>✋ Waiting for you · 2:14</code>, the location line (<code>Window 2 › api › Pane 2 · ~/proj/api</code>) and the last screen line that matched a rule — the evidence. Below them sit the <strong>quick keys</strong>: <strong>Focus</strong> brings the pane to the front, <strong>y</strong>, <strong>n</strong>, <strong>Enter</strong> and <strong>Esc</strong> answer a dialog (they are highlighted while the agent waits for you), <strong>↑</strong> and <strong>↓</strong> move through a question picker, <strong>Ctrl+C</strong> interrupts, <strong>Explain</strong> opens a drawer with the full detection explanation (agent, state, matching rule, evidence, process and time in state), and <strong>Rename…</strong> gives the agent an alias that replaces its name in every chip, row and notification — an empty alias restores the agent name, and the alias survives a reconnect but is dropped when the pane closes. Every key goes to the pane's own terminal connection, exactly as if you had typed it there; the buttons are disabled while the pane is not connected.</p>
-<p>The <strong>prompt box</strong> at the bottom sends longer text to the agent selected in the target list: <span class="keys"><kbd class="key-enter">Enter</kbd></span> sends, <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> inserts a line break. A single line is sent followed by Enter. A multi-line prompt is wrapped in bracketed paste — so the agent receives it as one pasted block instead of several submitted lines — but only when that agent has switched bracketed paste on, which Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Goose, Crush, GitHub Copilot CLI and Grok Build all do at their prompt; otherwise the lines are sent as typed. Bracketed-paste markers inside the prompt text itself (<code>ESC[200~</code>, <code>ESC[201~</code> and their 8-bit forms) are removed before sending, so a prompt can never end the paste early and have its remaining lines submitted one by one. Two prompts are refused with a message in the panel's status line instead of being sent: while the agent is <strong>waiting for a decision</strong> the <em>Send</em> button stays disabled, because the text would land inside the permission dialog — answer it with y, n, Enter or Esc first; and a prompt whose first line starts with <strong>korTTY's own AI shortcut</strong> (the command name configured under Settings → AI, <code>agent</code> by default) is rejected, because korTTY's shortcut filter would divert that line to its own AI agent instead of the coding agent — rephrase the line. Errors of a quick key or prompt (pane closed, not connected, write failed) appear in the same status line for a few seconds, never as a dialog, and a successful send confirms with <em>Sent to Claude Code</em>.</p>
+The panel lists every detected agent of every korTTY window in one place. Open it with <strong>View → Coding Agents → Dock Left / Dock Right</strong>, toggle it on its last-used side with <strong>Show/Hide</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-g">G</kbd></span>), from the ⋯ menu inside the panel, from the status strip's context menu, or with <em>Show in Coding Agents Panel</em> in the dashboard. By default, the sidebar opens on the right when the first agent is detected in that window and hides when no agents are detected in any korTTY window. An idle agent is still detected, so finishing a task alone does not hide the sidebar. Choosing the left side keeps that choice for subsequent automatic openings, including after a restart. An already open sidebar stays visible while another window still has agents. A manual hide lasts until the next detection session in its own window. Disable <strong>Automatically show and hide the coding-agent sidebar</strong> under <strong>Settings → Terminal → Coding agents</strong> to control visibility entirely yourself. The minimum and initial width are 750 pixels; a wider size is remembered across restarts. Agents that wait for you are listed first (longest waiting on top), then the working, done and idle ones in window, tab and pane order; the row of the pane you are currently in carries a left accent.</p>
+<p>Every row shows the state dot and name, a state chip such as <code>✋ Waiting for you · 2:14</code>, the location line (<code>Window 2 › api › Pane 2 · ~/proj/api</code>) and the last screen line that matched a rule — the evidence. Below them sit the <strong>quick keys</strong>: <strong>Focus</strong> brings the pane to the front, <strong><code>YES</code></strong>, <strong><code>NO</code></strong>, <strong>Enter</strong> and <strong>Esc</strong> answer a dialog (they are highlighted while the agent waits for you), <strong>↑</strong> and <strong>↓</strong> move through a question picker, <strong>Ctrl+C</strong> interrupts, <strong>Explain</strong> opens a drawer with the full detection explanation (agent, state, matching rule, evidence, process and time in state), and <strong>Rename…</strong> gives the agent an alias that replaces its name in every chip, row and notification — an empty alias restores the agent name, and the alias survives a reconnect but is dropped when the pane closes. Every key goes to the pane's own terminal connection, exactly as if you had typed it there; the buttons are disabled while the pane is not connected.</p>
+<p><strong><code>YES</code></strong> and <strong><code>NO</code></strong> send the complete uppercase words, without an implicit Enter; click <strong>Enter</strong> separately when the agent expects a submitted line. For a menu such as MiniMax Code’s approval dialog, follow the footer shown by the agent: <strong>↑</strong> / <strong>↓</strong> choose an option, <strong>Enter</strong> confirms it and <strong>Esc</strong> denies it. <strong>Focus</strong> is navigation inside korTTY, so it may appear unchanged when that pane is already selected. <strong>Explain</strong> opens or closes the row’s detection details (matched rule, screen evidence, process and time in state); it does not ask the coding agent to explain its work. The explanation collapses automatically after 60 seconds, or earlier when you click <strong>Explain</strong> again or hide the sidebar. Both actions work independently of the agent provider.</p>
+<p>The <strong>prompt box</strong> at the bottom sends longer text to the agent selected in the target list: <span class="keys"><kbd class="key-enter">Enter</kbd></span> sends, <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-enter">Enter</kbd></span> inserts a line break. A single line is sent followed by Enter. A multi-line prompt is wrapped in bracketed paste — so the agent receives it as one pasted block instead of several submitted lines — but only when that agent has switched bracketed paste on, which Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Goose, Crush, GitHub Copilot CLI and Grok Build all do at their prompt; otherwise the lines are sent as typed. Bracketed-paste markers inside the prompt text itself (<code>ESC[200~</code>, <code>ESC[201~</code> and their 8-bit forms) are removed before sending, so a prompt can never end the paste early and have its remaining lines submitted one by one. Two prompts are refused with a message in the panel's status line instead of being sent: while the agent is <strong>waiting for a decision</strong> the <em>Send</em> button stays disabled, because the text would land inside the permission dialog — answer it with <code>YES</code>, <code>NO</code>, Enter or Esc first; and a prompt whose first line starts with <strong>korTTY's own AI shortcut</strong> (the command name configured under Settings → AI, <code>agent</code> by default) is rejected, because korTTY's shortcut filter would divert that line to its own AI agent instead of the coding agent — rephrase the line. Errors of a quick key or prompt (pane closed, not connected, write failed) appear in the same status line for a few seconds, never as a dialog, and a successful send confirms with <em>Sent to Claude Code</em>.</p>
 <p>The <strong>Next blocked</strong> button in the panel header jumps to the next agent that waits for you, across all windows and wrapping around; it is the same action as <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-n">N</kbd></span> and a click on the status strip.</p>
 <h2 id="status-strip">Status strip<a class="headerlink" href="#status-strip" title="Permanent link">&para;</a></h2>
 <p><img alt="The coding-agent status strip at the right end of the status bar" src="../assets/screenshots/coding-agents/status-strip.png" />
@@ -957,8 +966,8 @@ The number of agents waiting for a decision — across all windows — is shown 
 </tr>
 <tr>
 <td>macOS, started with <code>./gradlew run</code></td>
-<td>Shown through Script Editor</td>
-<td>Opens Script Editor, not korTTY</td>
+<td>Shown as <strong><code>korTTY Notifications</code></strong>, a native helper built by Gradle using Xcode Command Line Tools</td>
+<td>Jumps to the pane of the running korTTY instance. Allow <strong><code>korTTY Notifications</code></strong> when macOS first asks; its permission is separate from the installed app’s</td>
 </tr>
 <tr>
 <td>Windows 10 and 11</td>
@@ -977,7 +986,7 @@ The number of agents waiting for a decision — across all windows — is shown 
 </tr>
 </tbody>
 </table>
-<p>Both surfaces are on by default and have their own toggles under <strong>Settings → Terminal → Coding agents</strong> (see <a href="#enabling-detection">Enabling detection</a>). Switching the badge off clears it immediately; switching notifications off stops new ones without touching the badge.</p>
+<p>Both surfaces are on by default. The badge toggle is under <strong>Settings → Terminal → Coding agents</strong> and the notification toggle is under <strong>Settings → Messaging → Coding agents</strong> (see <a href="#enabling-detection">Enabling detection</a>). Switching the badge off clears it immediately; switching notifications off stops new ones without touching the badge.</p>
 <h2 id="keyboard-shortcuts">Keyboard shortcuts<a class="headerlink" href="#keyboard-shortcuts" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1014,7 +1023,7 @@ The number of agents waiting for a decision — across all windows — is shown 
 <p>Screen text is analysed only inside korTTY, in memory, on this computer. Nothing is sent to any service, written to disk, or handed to the AI assistant — detection is plain pattern matching against local rule files. If you prefer not to have local shell screens inspected at all, switch the feature off under <strong>Settings → Terminal → Coding agents</strong>.</p>
 </div>
 <h2 id="enabling-detection">Enabling detection<a class="headerlink" href="#enabling-detection" title="Permanent link">&para;</a></h2>
-<p>Detection is on by default and is controlled by three toggles in <strong>Settings → Terminal</strong>, section <strong>Coding agents</strong>. Changing them takes effect immediately for all open tabs — no restart or reconnect is needed.</p>
+<p>Detection is on by default. Detection, automatic sidebar visibility and the app badge are configured in <strong>Settings → Terminal</strong>, section <strong>Coding agents</strong>. Desktop notifications for detected agents are controlled separately under <strong>Settings → Messaging → Coding agents</strong>. Changes take effect for all open tabs when you save — no restart or reconnect is needed.</p>
 <table>
 <thead>
 <tr>
@@ -1034,11 +1043,11 @@ The number of agents waiting for a decision — across all windows — is shown 
 <td><code>codingAgentDetectionEnabled</code></td>
 </tr>
 <tr>
-<td>Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane</td>
+<td>Automatically show and hide the coding-agent sidebar</td>
 <td>toggle</td>
 <td>—</td>
 <td>On</td>
-<td><code>codingAgentNotificationsEnabled</code></td>
+<td><code>codingAgentPanelAutoVisibility</code></td>
 </tr>
 <tr>
 <td>Show the number of agents waiting for a decision on the app icon</td>
@@ -1049,7 +1058,8 @@ The number of agents waiting for a decision — across all windows — is shown 
 </tr>
 </tbody>
 </table>
-<p>When the detection toggle is off, korTTY neither walks the process tree nor reads the screen of any pane, and the dashboard marks, panel, strip, badge and notifications all fall silent. The panel's placement and width are not settings-dialog options: they follow the <strong>View → Coding Agents</strong> menu and are stored as <code>codingAgentPanelPlacement</code> (<code>HIDDEN</code>, <code>LEFT</code> or <code>RIGHT</code>) and <code>codingAgentPanelWidth</code>.</p>
+<p>To disable messages about waiting or finished agents, turn off <strong>Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane</strong> under <a href="../reference/settings/messaging.html">Messaging settings</a>. The separate notification switch does not turn off detection, sidebar controls or the app badge.</p>
+<p>When the detection toggle is off, korTTY neither walks the process tree nor reads the screen of any pane, and the dashboard marks, panel, strip, badge and notifications all fall silent. The panel's placement and width are not settings-dialog options: they follow the <strong>View → Coding Agents</strong> menu and are stored as <code>codingAgentPanelPlacement</code> (<code>HIDDEN</code>, <code>LEFT</code> or <code>RIGHT</code>) and <code>codingAgentPanelWidth</code> (750–1,200 pixels, default 750). The chosen side is retained as <code>codingAgentPanelSide</code> (<code>LEFT</code> or <code>RIGHT</code>, initially <code>RIGHT</code>) even while the panel is hidden.</p>
 <h2 id="custom-rules">Custom rules<a class="headerlink" href="#custom-rules" title="Permanent link">&para;</a></h2>
 <p>Each agent's screen rules live in a small JSON file. KorTTY ships one bundled file per agent and lets you replace it with your own copy under your configuration directory:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>~/.kortty/coding-agents/claude-code.json
@@ -1253,9 +1263,9 @@ The number of agents waiting for a decision — across all windows — is shown 
 <li><strong>Wrong or flickering state.</strong> The agent's screen has changed, or a dialog is rendered in a way the bundled rules do not cover. Copy the bundled rule file to <code>~/.kortty/coding-agents/&lt;agent&gt;.json</code>, adjust the pattern, restart korTTY, and report the screen text so the bundled rules can be fixed.</li>
 <li><strong>No state at all although the agent is running.</strong> Check that the toggle in <strong>Settings → Terminal → Coding agents</strong> is on, that the tab is a Local Shell tab, and look for a <em>coding-agents</em> warning in the log — an invalid override file falls back to the bundled rules, but a bundled rule file that never matches your agent version leaves the agent unconfirmed.</li>
 <li><strong>No badge on GNOME.</strong> Stock GNOME Shell renders no launcher counters, and korTTY cannot detect whether a dock extension that would is installed, so the count is emitted but may stay invisible; the window-title fallback is used only where korTTY knows for certain that no icon badge exists (no installed desktop file, no reachable session bus, <code>./gradlew run</code>).</li>
-<li><strong>No notification although the agent waited.</strong> Notifications are suppressed for the pane you are looking at, for a blocked state that lasted less than a moment, for a second report of the same transition, and within ten seconds of the previous one for that pane; on Linux a notification server must be running on the session bus, or <code>notify-send</code> must be on the PATH; on macOS notifications for korTTY must be allowed in <em>System Settings → Notifications</em>; an <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a> can turn desktop notifications off; and the setting under <strong>Settings → Terminal → Coding agents</strong> must be on.</li>
-<li><strong>Clicking a notification does nothing.</strong> The terminal pane of the agent has been closed since the notification was shown, korTTY runs from <code>./gradlew run</code> on macOS (the notification then belongs to Script Editor), or the Linux notification server does not support actions and there is no <code>notify-send</code> from libnotify 0.7.10 or later.</li>
-<li><strong>The prompt was refused.</strong> A waiting agent must be answered first (y, n, Enter or Esc), and a first line that begins with korTTY's own AI shortcut command must be rephrased — see <a href="#the-coding-agents-panel">The Coding Agents panel</a>.</li>
+<li><strong>No notification although the agent waited.</strong> Notifications are suppressed for the pane you are looking at, for a blocked state that lasted less than a moment, for a second report of the same transition, and within ten seconds of the previous one for that pane; on Linux a notification server must be running on the session bus, or <code>notify-send</code> must be on the PATH; on macOS notifications for korTTY must be allowed in <em>System Settings → Notifications</em>; an <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a> can turn desktop notifications off; and the notification setting under <strong>Settings → Messaging → Coding agents</strong> must be on.</li>
+<li><strong>Clicking a notification does nothing.</strong> The terminal pane of the agent has been closed since the notification was shown, korTTY was started outside its app bundle without the development notification helper (the legacy fallback belongs to Script Editor), or the Linux notification server does not support actions and there is no <code>notify-send</code> from libnotify 0.7.10 or later.</li>
+<li><strong>The prompt was refused.</strong> A waiting agent must be answered first (<code>YES</code>, <code>NO</code>, Enter or Esc), and a first line that begins with korTTY's own AI shortcut command must be rephrased — see <a href="#the-coding-agents-panel">The Coding Agents panel</a>.</li>
 </ul></p>
     </article>
 </section>

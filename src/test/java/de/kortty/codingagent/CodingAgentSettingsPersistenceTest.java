@@ -45,6 +45,8 @@ class CodingAgentSettingsPersistenceTest {
         GlobalSettings settings = new GlobalSettings();
         assertThat(settings.isCodingAgentNotificationsEnabled()).isTrue();
         assertThat(settings.isCodingAgentAppBadgeEnabled()).isTrue();
+        assertThat(settings.isCodingAgentPanelAutoVisibility()).isTrue();
+        assertThat(settings.getCodingAgentPanelSide()).isEqualTo("RIGHT");
         assertThat(settings.getCodingAgentPanelPlacement()).isEqualTo("HIDDEN");
         assertThat(settings.getCodingAgentPanelWidth()).isEqualTo(CodingAgentPanelDefaults.DEFAULT_WIDTH);
         assertThat(GlobalSettings.CODING_AGENT_PANEL_MIN_WIDTH).isEqualTo(CodingAgentPanelDefaults.MIN_WIDTH);
@@ -57,14 +59,18 @@ class CodingAgentSettingsPersistenceTest {
         GlobalSettings settings = new GlobalSettings();
         settings.setCodingAgentNotificationsEnabled(false);
         settings.setCodingAgentAppBadgeEnabled(false);
-        settings.setCodingAgentPanelPlacement("LEFT");
-        settings.setCodingAgentPanelWidth(512.0);
+        settings.setCodingAgentPanelPlacement("HIDDEN");
+        settings.setCodingAgentPanelSide("LEFT");
+        settings.setCodingAgentPanelAutoVisibility(false);
+        settings.setCodingAgentPanelWidth(900.0);
 
         GlobalSettings restored = roundTrip(settings);
         assertThat(restored.isCodingAgentNotificationsEnabled()).isFalse();
         assertThat(restored.isCodingAgentAppBadgeEnabled()).isFalse();
-        assertThat(restored.getCodingAgentPanelPlacement()).isEqualTo("LEFT");
-        assertThat(restored.getCodingAgentPanelWidth()).isEqualTo(512.0);
+        assertThat(restored.getCodingAgentPanelPlacement()).isEqualTo("HIDDEN");
+        assertThat(restored.getCodingAgentPanelSide()).isEqualTo("LEFT");
+        assertThat(restored.isCodingAgentPanelAutoVisibility()).isFalse();
+        assertThat(restored.getCodingAgentPanelWidth()).isEqualTo(900.0);
     }
 
     @Test
@@ -78,6 +84,17 @@ class CodingAgentSettingsPersistenceTest {
         assertThat(settings.getCodingAgentPanelWidth()).isEqualTo(CodingAgentPanelDefaults.DEFAULT_WIDTH);
         settings.setCodingAgentPanelPlacement(null);
         assertThat(settings.getCodingAgentPanelPlacement()).isEqualTo("HIDDEN");
+    }
+
+    @Test
+    void legacySettingsMigrateWidthAndSideWithoutOptingOutOfAutomaticVisibility() throws Exception {
+        JAXBContext context = JAXBContext.newInstance(GlobalSettings.class);
+        GlobalSettings settings = (GlobalSettings) context.createUnmarshaller().unmarshal(new StringReader(
+            "<globalSettings><codingAgentPanelPlacement>LEFT</codingAgentPanelPlacement>"
+                + "<codingAgentPanelWidth>380</codingAgentPanelWidth></globalSettings>"));
+        assertThat(settings.isCodingAgentPanelAutoVisibility()).isTrue();
+        assertThat(settings.getCodingAgentPanelSide()).isEqualTo("LEFT");
+        assertThat(settings.getCodingAgentPanelWidth()).isEqualTo(750.0);
     }
 
     private static GlobalSettings roundTrip(boolean enabled) throws Exception {

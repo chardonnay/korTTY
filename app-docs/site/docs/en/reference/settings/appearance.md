@@ -33,7 +33,7 @@ The seven AtlantaFX entries apply AtlantaFX 2.1.0's **Primer Dark**, **Primer Li
 
 ### UI font size
 
-**UI font size** scales korTTY's own interface — the menu bar and its dropdowns, dialogs, form labels, buttons, tab titles, the dashboard, the file browser and the status bar. It takes effect the moment you save; no restart is needed, and windows that are already open resize with it. The main window's first-launch size grows along with it, and dialogs that remember their size are re-measured after a change rather than reopening at a size that no longer fits their text.
+**UI font size** scales korTTY's own interface — the menu bar and its dropdowns, dialogs, form labels, buttons, tab titles, the dashboard, the file browser and the status bar. It takes effect the moment you save; no restart is needed, and windows that are already open resize with it. The main window's first-launch size grows along with it, and dialogs and the manual window that remember their size are re-measured after a change rather than reopening at a size that no longer fits their text.
 
 It deliberately does **not** touch surfaces that already have their own size control, so the two never fight each other:
 
@@ -97,7 +97,7 @@ Create, edit, and manage terminal color themes. Themes define the text, backgrou
 | Action | Description |
 | --- | --- |
 | **Add** | Create a new custom color theme |
-| **Edit** | Modify the selected theme. The button stays enabled for built-in themes but does nothing when clicked — duplicate the theme first |
+| **Edit** | Open the selected theme in the theme editor, built-in themes included. The change is saved to `~/.kortty/themes.xml`; an edited built-in theme keeps its *(built-in)* label and still cannot be deleted. Duplicate it first if you want to keep the original |
 | **Duplicate** | Copy the selected theme as a new custom theme |
 | **Delete** | Remove a custom theme (built-in themes cannot be deleted) |
 
@@ -115,7 +115,7 @@ Create, edit, and manage terminal color themes. Themes define the text, backgrou
 korTTY includes a set of built-in color themes (e.g., Default, Dark Mode, Solarized Light). Built-in and custom themes are stored together in a single file, `~/.kortty/themes.xml`. All themes appear in the Colors tab's color profile selector and in connection-specific theme dropdowns.
 
 !!! warning
-    Built-in themes cannot be edited or deleted. To modify a built-in theme, duplicate it first, then edit the custom copy.
+    Built-in themes can be edited but not deleted, and korTTY does not restore their original colors on its own. To keep the original, duplicate the theme first and edit the custom copy.
 
 ### Theme preview
 

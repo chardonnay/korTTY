@@ -66,7 +66,7 @@ Die Seitenleiste hat eine feste Breite: Bei einer sehr großen Terminalschrift k
 
 ## Benachrichtigung, wenn ein langer Befehl endet
 
-Wenn ein Befehl, der mindestens 30 Sekunden lief, in einem Tab endet, den Sie gerade nicht ansehen, markiert korTTY den Tab mit 🔔 und zeigt eine Desktop-Benachrichtigung mit dem Namen des Tabs, dem Exit-Status und der Laufzeit, zum Beispiel *Befehl fehlgeschlagen (Exit-Status 1) nach 2 Min. 14 Sek.* Den Befehl selbst zeigt sie nie. *Einstellungen → Terminal → Benachrichtigungen* schaltet die Benachrichtigung aus oder ändert die 30 Sekunden; Einzelheiten unter [Lange laufende Befehle](terminal-notifications.md#lange-laufende-befehle).
+Wenn ein Befehl, der mindestens 30 Sekunden ausgeführt wurde, in einem Tab endet, den Sie nicht betrachten, markiert korTTY den Tab mit 🔔 und zeigt eine Desktop-Benachrichtigung mit dem Tab-Namen, dem Exit-Status und der Laufzeit an, z. B. *Befehl fehlgeschlagen (Exit 1) nach 2 min 14 sec.* Der Befehl selbst wird nie angezeigt. *Einstellungen → Messaging* schaltet die Benachrichtigung aus oder ändert die 30 Sekunden; siehe [Langlaufende Befehle](terminal-notifications.md#lange-laufende-befehle) für die Details.
 
 ## Einrichten { #setting-it-up }
 

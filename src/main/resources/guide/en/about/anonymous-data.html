@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -810,7 +818,7 @@
 <p><img alt="Anonymous telemetry consent and data flow" src="../assets/diagrams/telemetry-consent-flow.svg" /></p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Your decision, once.</strong> Nothing is collected before you confirm. You are asked once, together with the master-password setup on first launch, where the checkbox is pre-selected; existing installations are asked once after unlocking, with a dialog that counts every dismissal as "no".</li>
+<li><strong>Your decision, once.</strong> Nothing is collected before you confirm. You are asked once, together with the master-password setup on first launch, where the checkbox is pre-selected; existing installations are asked once, in a dialog shown after the main window opens, which counts every dismissal as "no".</li>
 <li><strong>Anonymous.</strong> No account, no login, and no persistent device identifier is transmitted.</li>
 <li><strong>Revocable.</strong> You can change your decision at any time under <strong>Settings → Privacy</strong>. Turning it off stops collection immediately and discards any data that has not yet been sent.</li>
 </ul>
@@ -833,7 +841,7 @@
 </tr>
 <tr>
 <td>App version</td>
-<td>2.5.1</td>
+<td>the korTTY version shown under <strong>Help → About</strong></td>
 </tr>
 <tr>
 <td>Operating system and version</td>
@@ -844,14 +852,19 @@
 <td>de, en</td>
 </tr>
 <tr>
+<td>Whether korTTY runs from an installed package or a development build</td>
+<td><code>isDebug</code></td>
+</tr>
+<tr>
 <td>An anonymous session ID</td>
-<td>a random number regenerated on every launch and after one hour of inactivity</td>
+<td>a random number regenerated on every launch and after one hour without events</td>
 </tr>
 </tbody>
 </table>
-<p>The session ID is <strong>not</strong> a persistent identifier: it is newly generated each time and cannot be traced back to you across launches.</p>
-<h3 id="terminal-features">Terminal features<a class="headerlink" href="#terminal-features" title="Permanent link">&para;</a></h3>
-<p>A few terminal features report how they are used, with flags, coarse counts and fixed names only. Counts are rounded down to 0, 1, 2, 3, 5, 10 or 20, so seven panes are reported as 5.</p>
+<p>The session ID is <strong>not</strong> a persistent identifier: it is newly generated each time and cannot be traced back to you across launches. Every event carries only these common fields, the event name, the time it was created and the values listed for it below. There is no installation id, no hostname and no user name in the data.</p>
+<h3 id="every-event-kortty-can-send">Every event korTTY can send<a class="headerlink" href="#every-event-kortty-can-send" title="Permanent link">&para;</a></h3>
+<p>The tables below list every event, when it is sent and which values go with it. Values are fixed names from a short list, true/false flags or counts. Some counts are rounded down to a step (the tables say which: 0, 1, 2, 3, 5, 10 or 20 for panes, tabs and windows, so seven panes are reported as 5; 0, 1, 2, 5, 10, 50, 100 or 1000 for transferred files; 0, 1, 2, 5, 10 or 50 for uploads of an edited file); the other counts are exact numbers.</p>
+<h4 id="application-errors-and-settings">Application, errors and settings<a class="headerlink" href="#application-errors-and-settings" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
@@ -862,14 +875,76 @@
 </thead>
 <tbody>
 <tr>
-<td><code>command_palette_used</code></td>
-<td>a row of the command palette runs</td>
-<td>the kind of row (<code>action</code>, <code>tab</code>, <code>connection</code> or <code>snippet</code>) and whether the search started with a scope prefix such as <code>&gt;</code> or <code>@</code></td>
+<td><code>app_started</code></td>
+<td>collection becomes active: at startup with your consent recorded, or the moment you consent in the setup dialog, the one-time prompt or Settings</td>
+<td>nothing besides the common fields</td>
 </tr>
 <tr>
-<td><code>terminal_highlight_applied</code></td>
-<td>a pane starts showing another highlighting rule set</td>
-<td>a built-in set's id, or <code>custom</code> or <code>none</code>, and where the choice came from (menu, shortcut, connection or default)</td>
+<td><code>app_crash_detected</code></td>
+<td>korTTY starts and finds that the previous run with collection active did not end cleanly</td>
+<td>the version that crashed</td>
+</tr>
+<tr>
+<td><code>app_error</code></td>
+<td>korTTY logs an error outside its own telemetry code; each distinct error is reported once per run, at most 20 per run</td>
+<td>the exception class name, the korTTY class and method it came from (or <code>external</code>) and the logger name; never the message text</td>
+</tr>
+<tr>
+<td><code>usage_snapshot</code></td>
+<td>once at startup and once at shutdown</td>
+<td>exact counts and flags: windows, terminal tabs, keys, credentials and snippets, whether AI is enabled and how many profiles exist, Teamwork sources, coding agents seen, Control API and MCP calls in this run</td>
+</tr>
+<tr>
+<td><code>ai_profile_snapshot</code></td>
+<td>once per configured AI profile at startup</td>
+<td>the profile's connection mode (<code>http_api</code>, <code>local_cli</code>, <code>embedded_llama_cpp</code>, <code>embedded_mlx</code>), the CLI provider id or <code>none</code>, the model family (<code>openai</code>, <code>anthropic</code>, <code>google</code>, <code>minimax</code>, <code>meta</code>, <code>mistral</code>, <code>deepseek</code>, <code>qwen</code>, <code>phi</code>, <code>cohere</code>, <code>xai</code>, <code>auto</code> or <code>other</code>) and its position in the list</td>
+</tr>
+<tr>
+<td><code>window_opened</code></td>
+<td>a main window is created</td>
+<td>the number of open windows</td>
+</tr>
+<tr>
+<td><code>setting_changed</code></td>
+<td>you save Global Settings and a setting has a new value; at most 25 per save</td>
+<td>the setting's name and tab and, for switches, numbers and choices, the new value; for the font family and the terminal colours no value; for quick-select letters and patterns, rebound shortcuts, the start directory, the API URL and region and the external editor command only whether one is set</td>
+</tr>
+<tr>
+<td><code>master_password_changed</code></td>
+<td>a master-password change has re-encrypted every store</td>
+<td>nothing besides the common fields</td>
+</tr>
+<tr>
+<td><code>update_check_clicked</code></td>
+<td>you click the manual update check</td>
+<td>nothing besides the common fields</td>
+</tr>
+</tbody>
+</table>
+<h4 id="terminal-and-tabs">Terminal and tabs<a class="headerlink" href="#terminal-and-tabs" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Sent when</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>terminal_tab_opened</code></td>
+<td>a new terminal tab starts connecting</td>
+<td>the protocol (<code>ssh_tcp</code>, <code>mosh</code>, <code>mosh_client</code>, <code>local_shell</code>) and the number of tabs in the window</td>
+</tr>
+<tr>
+<td><code>terminal_split_created</code></td>
+<td>a pane is split</td>
+<td><code>same_server_new_shell</code> or <code>new_connection</code>, and the number of panes in the tab</td>
+</tr>
+<tr>
+<td><code>broadcast_toggled</code></td>
+<td>broadcast mode of a split tab is switched</td>
+<td>on or off, and the number of panes</td>
 </tr>
 <tr>
 <td><code>multi_exec_changed</code></td>
@@ -877,19 +952,48 @@
 <td>whether multi-exec is still on, and the rounded number of panes, tabs and windows taking part</td>
 </tr>
 <tr>
-<td><code>session_restored</code></td>
-<td>the previous session is opened again</td>
-<td>the Session Restore setting (<code>ask</code>, <code>auto</code> or <code>off</code>), whether the menu, the startup bar or the automatic restore opened it, and the rounded number of windows and tabs</td>
+<td><code>terminal_highlight_applied</code></td>
+<td>a pane starts showing another highlighting rule set</td>
+<td>a built-in set's id (<code>builtin.errors</code>, <code>builtin.network</code>, <code>builtin.network-devices</code>), or <code>custom</code> or <code>none</code>, and where the choice came from (<code>menu</code>, <code>shortcut</code>, <code>connection</code> or <code>default</code>)</td>
+</tr>
+<tr>
+<td><code>terminal_effect_applied</code></td>
+<td>a terminal effect starts on a pane</td>
+<td>the effect plugin's id</td>
+</tr>
+<tr>
+<td><code>terminal_log_started</code></td>
+<td>terminal logging starts in a pane</td>
+<td>the log format (<code>plain_text</code>, <code>xml</code>, <code>json</code>)</td>
 </tr>
 <tr>
 <td><code>session_isolation</code></td>
 <td>an isolated or incognito terminal session connects</td>
 <td>the isolation level asked for (<code>none</code>, <code>process</code>, <code>sandbox</code>), the state it got (<code>none</code>, <code>process</code>, <code>sandboxed</code>, <code>degraded</code>), the operating system family and whether the tab is incognito</td>
 </tr>
+<tr>
+<td><code>session_restored</code></td>
+<td>the previous session is opened again</td>
+<td>the Session Restore setting (<code>ask</code>, <code>auto</code> or <code>off</code>), whether the menu, the startup bar or the automatic restore opened it, and the rounded number of windows and tabs</td>
+</tr>
+<tr>
+<td><code>fullscreen_entered</code></td>
+<td>the window goes full screen</td>
+<td><code>os</code> for the operating system's full screen, <code>terminal_only</code> for korTTY's terminal-only mode</td>
+</tr>
+<tr>
+<td><code>command_palette_used</code></td>
+<td>a row of the command palette runs</td>
+<td>the kind of row (<code>action</code>, <code>tab</code>, <code>connection</code> or <code>snippet</code>) and whether the search started with a scope prefix such as <code>&gt;</code> or <code>@</code></td>
+</tr>
+<tr>
+<td><code>file_loaded_as_text</code></td>
+<td>a file is opened as text from a terminal selection or the file browser</td>
+<td><code>terminal_selection</code> or <code>file_browser</code></td>
+</tr>
 </tbody>
 </table>
-<p>The search text, the names of commands, tabs, connections, snippets and rule sets, the patterns, and anything typed into the panes are never sent. Changes on the settings pages are reported as the name of the setting and, for switches and choices, the new value; for the quick-select letters and patterns and for rebound shortcuts only whether you changed them.</p>
-<h3 id="ai-chat-code-blocks">AI chat code blocks<a class="headerlink" href="#ai-chat-code-blocks" title="Permanent link">&para;</a></h3>
+<h4 id="windows-panels-and-tools">Windows, panels and tools<a class="headerlink" href="#windows-panels-and-tools" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
@@ -899,6 +1003,125 @@
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>dashboard_toggled</code></td>
+<td>the dashboard is shown or hidden</td>
+<td>shown or hidden</td>
+</tr>
+<tr>
+<td><code>dashboard_action</code></td>
+<td>a row action of the dashboard runs</td>
+<td><code>reconnect</code>, <code>close</code>, <code>focus</code>, <code>sftp_manager</code> or <code>duplicate</code></td>
+</tr>
+<tr>
+<td><code>file_browser_toggled</code></td>
+<td>the file browser is shown</td>
+<td><code>left</code> or <code>right</code></td>
+</tr>
+<tr>
+<td><code>file_browser_action</code></td>
+<td>a menu or context-menu action of the file browser runs</td>
+<td>the action: <code>open</code>, <code>load_as_text</code>, <code>copy</code>, <code>cut</code>, <code>paste</code>, <code>delete</code>, <code>copy_path</code>, <code>details</code>, <code>archive</code>, <code>new_folder</code>, <code>new_file</code>, <code>rename</code> or <code>owner_permissions</code></td>
+</tr>
+<tr>
+<td><code>coding_agent_panel_toggled</code></td>
+<td>the Coding Agents panel is shown, hidden or moved</td>
+<td><code>HIDDEN</code>, <code>LEFT</code> or <code>RIGHT</code></td>
+</tr>
+<tr>
+<td><code>journal_live_panel_toggled</code></td>
+<td>the Live Journal panel is shown, hidden or moved</td>
+<td><code>HIDDEN</code>, <code>LEFT</code> or <code>RIGHT</code></td>
+</tr>
+<tr>
+<td><code>tool_opened</code></td>
+<td>a tool window opens</td>
+<td>which one: <code>ai_swarm</code>, <code>teamwork_settings</code>, <code>terminal_effect_manager</code>, <code>ascii_art</code>, <code>session_processes</code>, <code>video_manager</code>, <code>snippet_manager</code> (with <code>tab</code> or <code>window</code>), <code>job_scheduler</code>, <code>ai_manager</code>, <code>saved_chats</code>, <code>session_journals</code> or <code>manual</code></td>
+</tr>
+<tr>
+<td><code>connect_ui_opened</code></td>
+<td>Quick Connect or the Connection Manager opens</td>
+<td><code>quick_connect</code> or <code>connection_manager</code></td>
+</tr>
+<tr>
+<td><code>connection_transfer</code></td>
+<td>connections are imported or exported</td>
+<td><code>import</code> or <code>export</code>, the importer or exporter used (korTTY, PuTTY Connection Manager, MTPuTTY, MobaXterm) and the number of connections</td>
+</tr>
+<tr>
+<td><code>project_action</code></td>
+<td>a project is opened or saved</td>
+<td><code>open</code> or <code>save</code></td>
+</tr>
+<tr>
+<td><code>backup_action</code></td>
+<td>a backup is created or imported</td>
+<td><code>create</code> or <code>import</code></td>
+</tr>
+<tr>
+<td><code>teamwork_configured</code></td>
+<td>Teamwork settings are saved</td>
+<td>the number of sources, Git sources and shared files, and the check interval in minutes</td>
+</tr>
+</tbody>
+</table>
+<h4 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Sent when</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>security_manager_opened</code></td>
+<td>a security manager dialog opens</td>
+<td><code>credentials</code>, <code>gpg_keys</code>, <code>ssh_keys</code> or <code>known_hosts</code></td>
+</tr>
+<tr>
+<td><code>security_entry_changed</code></td>
+<td>you add, edit or remove an entry in one of them by hand, or import a <code>known_hosts</code> file</td>
+<td>the manager, the operation (<code>add</code>, <code>edit</code>, <code>remove</code>, <code>import</code>) and the way (<code>manual</code>, <code>known_hosts_file</code>, <code>gpg_import</code>); never the entry itself</td>
+</tr>
+</tbody>
+</table>
+<h4 id="ai">AI<a class="headerlink" href="#ai" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Sent when</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ai_chat_message</code></td>
+<td>an AI request from a terminal selection opens a chat, or a follow-up or swarm broadcast is sent</td>
+<td>the profile's connection mode, CLI provider id and model family (as for <code>ai_profile_snapshot</code>), whether it is the first message, whether it is a broadcast, the action name, and whether a file was attached</td>
+</tr>
+<tr>
+<td><code>ai_agent_run_started</code></td>
+<td>a terminal AI agent run starts</td>
+<td>the profile values above and <code>ask</code> or <code>execute</code></td>
+</tr>
+<tr>
+<td><code>ai_plan_run_started</code></td>
+<td>an AI planning run starts</td>
+<td>the profile values above</td>
+</tr>
+<tr>
+<td><code>ai_chat_saved</code></td>
+<td>an AI chat or swarm chat is saved, also by a scheduled swarm job</td>
+<td><code>chat</code> or <code>swarm</code>, and whether it is new or an update</td>
+</tr>
+<tr>
+<td><code>ai_saved_chat_opened</code></td>
+<td>a saved chat is opened</td>
+<td><code>chat</code> or <code>swarm</code></td>
+</tr>
 <tr>
 <td><code>ai_code_block_action</code></td>
 <td><strong>Insert</strong> or <strong>Run</strong> on a code block of an AI chat is used</td>
@@ -906,9 +1129,8 @@
 </tr>
 </tbody>
 </table>
-<p>The block, its language, the command, the pane, the tab, the host and the reason for a refusal are never sent.</p>
-<h3 id="control-api-and-mcp-clients">Control API and MCP clients<a class="headerlink" href="#control-api-and-mcp-clients" title="Permanent link">&para;</a></h3>
-<p>When a program uses the <a href="../reference/control-api.html">Control API</a>, korTTY reports which methods are used and what kind of client used them. An AI assistant connected through <code>kortty-cli mcp</code> is also reported by tool and by how the call ended. Each event is sent at most once per method, or per tool and outcome, while korTTY runs; the number of calls goes into the periodic usage summary.</p>
+<p>The block, its language, the command, the pane, the tab, the host, the reason for a refusal and any prompt or answer text are never sent.</p>
+<h4 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
 <tr>
@@ -919,20 +1141,66 @@
 </thead>
 <tbody>
 <tr>
-<td><code>control_api_used</code></td>
-<td>a Control API method is used for the first time in this run</td>
-<td>the method name, such as <code>pane.read</code>, and the kind of client: <code>cli</code> for <code>kortty-cli</code>, <code>mcp</code> for an MCP client, <code>other</code> for any other program</td>
+<td><code>snippet_saved</code></td>
+<td>a snippet is saved from the editor</td>
+<td>its language from a fixed list (or <code>other</code>), whether it has a category, and its number of lines</td>
 </tr>
 <tr>
-<td><code>mcp_tool_called</code></td>
-<td>an MCP client's call ends in a way not yet reported in this run</td>
-<td>the tool (<code>pane_list</code>, <code>pane_read</code>, <code>pane_wait_output</code>, <code>tab_list</code>, <code>agent_list</code>, <code>pane_send_text</code>, <code>pane_run</code>, <code>pane_send_keys</code>, or <code>other</code>) and the outcome: <code>ok</code>, <code>refused</code> (switched off, not allowed or not possible in this pane), <code>denied</code> (you said no, or korTTY could not ask), <code>timeout</code> (nobody answered in time, or a wait ran out) or <code>failed</code> (any other error)</td>
+<td><code>snippet_ai_action</code></td>
+<td>an AI control of the snippet editor is used, a code-review action runs, or analyses are exported</td>
+<td>the action's id (for example <code>code_review</code>, <code>code_complete_accepted</code>, <code>code_review_export</code>), and for exports the format, the packaging (<code>combined</code> or <code>zip</code>) and the count</td>
+</tr>
+<tr>
+<td><code>snippet_history_used</code></td>
+<td>the first undo or the first use of the history slider in an editor</td>
+<td><code>undo</code> or <code>history_slider</code></td>
+</tr>
+<tr>
+<td><code>snippet_oneliner_used</code></td>
+<td>a one-liner is produced</td>
+<td><code>compact</code> or <code>base64</code></td>
 </tr>
 </tbody>
 </table>
-<p>The client's name, pane ids, tool arguments, the text read or typed and the answers you gave are never sent.</p>
-<h3 id="sftp-transfers">SFTP transfers<a class="headerlink" href="#sftp-transfers" title="Permanent link">&para;</a></h3>
-<p>When an SFTP Manager tab opens, one event says whether it shares a terminal's session. When an upload or download in the SFTP Manager finishes, one event says how it went. File counts are rounded down to 0, 1, 2, 5, 10, 50, 100 or 1000. When korTTY stops watching a file you edited in an external editor (also as root), one event says how the edit ended; upload counts are rounded down to 0, 1, 2, 5, 10 or 50.</p>
+<h4 id="session-journals-and-the-guide">Session journals and the guide<a class="headerlink" href="#session-journals-and-the-guide" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Sent when</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>journal_ai_ask</code></td>
+<td>a question is asked in a journal's Ask panel</td>
+<td>nothing besides the common fields; the question is never sent</td>
+</tr>
+<tr>
+<td><code>journal_ai_cross_search</code></td>
+<td>an AI search over several journals is started</td>
+<td>the number of journals in scope, as <code>1-10</code>, <code>11-50</code>, <code>51-200</code> or <code>200+</code></td>
+</tr>
+<tr>
+<td><code>guide_page_viewed</code></td>
+<td>the manual window shows a page</td>
+<td>the page's file name</td>
+</tr>
+<tr>
+<td><code>guide_ai_search</code></td>
+<td>a question is asked in the manual's Ask panel</td>
+<td>the guide language; the question is never sent</td>
+</tr>
+<tr>
+<td><code>guide_citation_clicked</code></td>
+<td>a source citation in an Ask answer is clicked</td>
+<td>the cited page's file name</td>
+</tr>
+</tbody>
+</table>
+<h4 id="sftp-transfers">SFTP transfers<a class="headerlink" href="#sftp-transfers" title="Permanent link">&para;</a></h4>
+<p>When an SFTP Manager tab opens, one event says whether it shares a terminal's session. When an upload or download in the SFTP Manager finishes, one event says how it went. When korTTY stops watching a file you edited in an external editor (also as root), one event says why.</p>
 <table>
 <thead>
 <tr>
@@ -960,7 +1228,46 @@
 </tbody>
 </table>
 <p>File and folder names, paths, server names, editor commands, sudo passwords and file sizes are never sent.</p>
-<h3 id="jobscheduler-notifications">JobScheduler notifications<a class="headerlink" href="#jobscheduler-notifications" title="Permanent link">&para;</a></h3>
+<h4 id="coding-agents-control-api-and-mcp-clients">Coding agents, Control API and MCP clients<a class="headerlink" href="#coding-agents-control-api-and-mcp-clients" title="Permanent link">&para;</a></h4>
+<p>When a program uses the <a href="../reference/control-api.html">Control API</a>, korTTY reports which methods are used and what kind of client used them. An AI assistant connected through <code>kortty-cli mcp</code> is also reported by tool and by how the call ended. Each event is sent at most once per method, or per tool and outcome, while korTTY runs.</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Sent when</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>coding_agent_detected</code></td>
+<td>a coding agent of a kind is detected for the first time in this run</td>
+<td>the agent kind (for example <code>claude-code</code>, <code>codex</code>, <code>aider</code>) or <code>unknown</code></td>
+</tr>
+<tr>
+<td><code>coding_agent_notification</code></td>
+<td>a desktop notification for a coding agent is shown</td>
+<td><code>blocked</code> or <code>done</code>, and the agent kind</td>
+</tr>
+<tr>
+<td><code>coding_agent_action</code></td>
+<td>you act on an agent from the Coding Agents panel or the dashboard</td>
+<td>the action: <code>panel_prompt</code>, <code>panel_send_key</code>, <code>next_blocked</code>, <code>focus_first</code>, <code>dashboard_focus</code>, <code>dashboard_open_panel</code>, <code>dashboard_send_enter</code>, <code>dashboard_send_esc</code> or <code>dashboard_interrupt</code>; never the prompt text</td>
+</tr>
+<tr>
+<td><code>control_api_used</code></td>
+<td>a Control API method is used for the first time in this run</td>
+<td>the method name, such as <code>pane.read</code>, and the kind of client: <code>cli</code> for <code>kortty-cli</code>, <code>mcp</code> for an MCP client, <code>other</code> for any other program</td>
+</tr>
+<tr>
+<td><code>mcp_tool_called</code></td>
+<td>an MCP client's call ends in a way not yet reported in this run</td>
+<td>the tool (<code>pane_list</code>, <code>pane_read</code>, <code>pane_wait_output</code>, <code>tab_list</code>, <code>agent_list</code>, <code>pane_send_text</code>, <code>pane_run</code>, <code>pane_send_keys</code>, or <code>other</code>) and the outcome: <code>ok</code>, <code>refused</code> (switched off, not allowed or not possible in this pane), <code>denied</code> (you said no, or korTTY could not ask), <code>timeout</code> (nobody answered in time, or a wait ran out) or <code>failed</code> (any other error)</td>
+</tr>
+</tbody>
+</table>
+<p>The client's name, pane ids, tool arguments, the text read or typed and the answers you gave are never sent.</p>
+<h4 id="jobscheduler-notifications">JobScheduler notifications<a class="headerlink" href="#jobscheduler-notifications" title="Permanent link">&para;</a></h4>
 <p>When the JobScheduler shows a desktop notification for a job run or sends one to a webhook target, one event says how it went.</p>
 <table>
 <thead>
@@ -979,6 +1286,7 @@
 </tbody>
 </table>
 <p>Job and target names, webhook URLs and hosts, run status texts and anything of the run's output are never sent. A test sent with <strong>Send test</strong> is not counted.</p>
+<p>The search text, the names of commands, tabs, connections, snippets and rule sets, the patterns, and anything typed into the panes are never sent.</p>
 <h2 id="what-is-never-collected">What is never collected<a class="headerlink" href="#what-is-never-collected" title="Permanent link">&para;</a></h2>
 <p>korTTY never transmits any of the following:</p>
 <ul>
@@ -990,7 +1298,7 @@
 </ul>
 <h2 id="where-the-data-goes">Where the data goes<a class="headerlink" href="#where-the-data-goes" title="Permanent link">&para;</a></h2>
 <p>Usage statistics are processed by <strong><a href="https://aptabase.com">Aptabase</a></strong>, an open-source, privacy-first analytics service. korTTY uses Aptabase's <strong>EU region</strong> (<code>eu.aptabase.com</code>), so the data is processed on servers located in the European Union in compliance with the <strong>GDPR</strong>. See the <a href="https://aptabase.com/legal/privacy">Aptabase privacy policy</a> for details.</p>
-<p>If no connection is available, events are cached locally in <code>~/.kortty</code> and sent later — including after a restart — so a temporary lack of connectivity does not lose or block anything. This offline cache holds only the same anonymous events; it is discarded if you opt out, and events older than three days are dropped.</p>
+<p>If no connection is available, events are cached locally in <code>~/.kortty/telemetry-spool.json</code> (at most 200) and sent later — including after a restart — so a temporary lack of connectivity does not lose or block anything. This offline cache holds only the same anonymous events; it is discarded if you opt out, and events older than three days are dropped.</p>
 <h2 id="why-kortty-collects-it">Why korTTY collects it<a class="headerlink" href="#why-kortty-collects-it" title="Permanent link">&para;</a></h2>
 <p>The goal is to make korTTY better with real, anonymous evidence instead of guesswork:</p>
 <ul>

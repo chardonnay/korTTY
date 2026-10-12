@@ -21,6 +21,9 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 │   ├── models/                        # Managed GGUF weights
 │   ├── runtime/                       # Versioned llama.cpp packages, activation and revocation state
 │   ├── catalog/                       # Verified model/prompt catalog cache
+│   ├── mlx/                           # MLX runtime, models and temporary run state
+│   ├── mlx-models.json                # MLX model registrations
+│   ├── huggingface-token.enc          # Optional Hugging Face token, encrypted with the master password
 │   └── run/                           # Temporary sidecar state
 ├── rag/
 │   ├── stores.json                    # Knowledge stores and source configuration
@@ -35,16 +38,30 @@ KorTTY stores all application data and configuration under the `~/.kortty/` dire
 ├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
 ├── ssh-tunnel-approvals.properties    # SSH tunnel sets you allowed to open, per connection (not backed up)
 ├── master.key                         # Hashed master password (PBKDF2)
-├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
+├── master.autounlock                  # Optional auto-login password (owner-only; not encrypted with the master password)
+├── themes.xml                         # Your terminal themes (color profiles)
+├── swarm-chats.xml                    # Saved AI Swarm conversations
+├── journal-search-visited.xml         # Journal search hits you have already opened
+├── sftp-resume-index.json             # Unfinished SFTP transfers that a retry can continue (not backed up)
+├── jvm-launch.properties              # JVM resource profile (Settings → Resources)
+├── teamwork-cache.xml                 # Cached connections of teamwork sources
+├── teamwork-recycle-bin.xml           # Teamwork connections you deleted locally
+├── teamwork-repos/                    # Local clones of Git-based teamwork sources
+├── telemetry-spool.json               # Anonymous usage events waiting to be sent (see Anonymous data)
+├── telemetry-run.marker               # Present while korTTY runs; a leftover marker marks an unclean exit
 ├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
 ├── coding-agents/                     # User overrides for coding-agent detection rules
 ├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
 │   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
 │   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
-├── kortty.log                         # Application log file
+├── logs/                              # Application log (kortty.log) and its archives; ai-answers/ keeps unusable AI answers
 ├── history/                           # Terminal session history (compressed)
 ├── journals/                          # Session journals (one directory per journal)
 ├── terminal-logs/                     # Default folder for per-connection terminal logs
+├── recordings/                        # Default folder for terminal recordings (Video Manager)
+├── mosh4j/                            # Downloaded mosh4j release and its dependency JARs for built-in Mosh
+├── guide/                             # Generated translations of the manual and their translation memory
+├── shell-integration/                 # Wrapper folders of local shells (left-behind folders are removed after a day)
 ├── plugins/                           # Imported terminal-effect plugin JARs
 ├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
 ├── projects/                          # Project files (.kortty)
@@ -160,6 +177,9 @@ Global application preferences and defaults.
 - `sessionRestoreScrollback`: whether a restored session also shows the [saved output of each terminal pane](../features/projects.md#restoring-the-output) (off by default); `sessionRestoreScrollbackLines`: how many lines of output are kept per pane, 100 to 5000 (1000 when missing)
 - `keyBindingOverrides`: your own [keyboard shortcuts](settings/keyboard.md), one `binding` entry per changed command, such as `menu.view.commandPalette=Shortcut+Alt+P` or `menu.view.dashboard=none`; without it every command keeps its default shortcut
 - Docked live session-journal panel: placement (hidden/left/right) and width
+- Coding Agents panel: `codingAgentPanelPlacement` (hidden, left or right), `codingAgentPanelSide` (the side it was last docked on, kept while it is hidden), `codingAgentPanelWidth`, and `codingAgentPanelAutoVisibility` (show and hide it with agent detection, on by default)
+- Icon toolbar: the `iconToolbar` element with the visibility of the action row (`visible` attribute) and of the connection row (`connectionsVisible`), and one `entry` per button with `id`, `kind` (`ACTION`, `CONNECTION`, `GROUP` or `SEPARATOR`), `section` (`TERMINAL`, `TOOLS`, `SETTINGS` or `CONNECTIONS`) and `target` (an action id, a connection id or a group path). Entries hold references only, never passwords or keys; without the element the default layout applies
+- `toolbarIconSize`: the icon size of both toolbar rows and the customization catalog, 16 to 64 pixels (24 when missing)
 - JobScheduler status display preference
 - Last ASCII Art dialog preview zoom level
 - Last ASCII Art picture size (Small to Extra large) for the AI Picture tab, and separately for the Image File tab
@@ -183,7 +203,7 @@ Global application preferences and defaults.
 
 - AI profile defaults, Text/Coding role assignments, embedded GGUF references, prompt presets, and knowledge-store associations
 - RAG embedding model ID and llama.cpp preferred runtime backend/update policy
-- Optional encrypted Hugging Face token
+- The Hugging Face token is not stored in this file; it is kept encrypted in `llm/huggingface-token.enc`
 - AI request timeout in minutes (0 = no limit)
 
 #### Session journal
@@ -328,7 +348,7 @@ Binary file containing the hashed master password.
     If you forget your master password, delete `master.key` and `credentials.xml`, restart KorTTY, set a new master password, and re-enter your passwords. There is no recovery mechanism for the lost password.
 
 ### master.autounlock
-Written only while [auto-login](settings/security.md) is enabled: a copy of the master password, **obfuscated only — not encrypted**, with owner-only file permissions. Deleting it (or disabling the option) restores the normal startup prompt.
+Written only while [auto-login](settings/security.md) is enabled: a copy of the master password, encrypted only with a key built into korTTY (AES-256-GCM), not with the master password itself, with owner-only file permissions. Deleting it (or disabling the option) restores the normal startup prompt.
 
 ### terminal-effect-plugins.disabled
 Text file listing disabled terminal-effect plugin IDs (one per line).
@@ -341,7 +361,7 @@ Optional user overrides for the coding-agent detection rules, one JSON file per 
 **Purpose:** A file here replaces the bundled rule file of the same agent entirely. An invalid file is reported in the log as a *coding-agents* warning and the bundled rules stay in effect. The directory does not exist until you create it. See [Coding agents → Custom rules](../features/coding-agents.md#custom-rules).
 
 ### kortty.log
-Application log file.
+Application log file, in the `logs/` folder: `~/.kortty/logs/kortty.log` by default, or the folder set under **Settings → Logging → Log directory**.
 
 **Contains:**
 - Startup messages
@@ -351,7 +371,9 @@ Application log file.
 - Errors and warnings
 - Performance metrics (on request via JMX)
 
-**Rotation:** The log file grows throughout the application session. Old logs are not automatically rotated (the log file persists until KorTTY exits or you manually delete it).
+**Rotation:** Each day the current file is closed and the log continues in `kortty.YYYY-MM-DD.log`. Archives older than 24 hours are compressed automatically, and **Settings → Logging → Keep logs** deletes archives older than the number of days you choose (0 keeps them all). An enterprise policy can cap the number of archives and their total size.
+
+**ai-answers/:** The `logs/ai-answers/` folder keeps the last few AI answers that korTTY could not use, complete, next to the log, so a failed step can be looked into afterwards. The folder is bounded to a handful of answers.
 
 !!! tip
     Check this file when troubleshooting connection issues, plugin loading problems, or unexpected behavior. Common issues logged here include SSH errors, encryption failures, and import/export problems.
@@ -374,6 +396,8 @@ Screen snapshots saved with [projects](../features/projects.md).
 
 ### journals/
 Session journals — one self-contained directory per journal (location configurable in **Settings > Logging > Session Journal**). Each journal directory holds `journal.xml` (the curated document: metadata, AI summaries, markers, notes, screenshot references), the append-only capture log `session-log.json` / `.xml` / `.yaml` (JSON Lines by default) with zstd-compressed rotated parts (part size and part count are configurable per connection on the Journal tab, defaults 25 MB and 20 parts; journals from older versions keep their gzip-compressed `.gz` parts), the generated `journal.html` timeline page, and `screenshots/*.png`. See [Session journal](../features/session-journal.md).
+
+The journals folder may also hold a `.semantic-index/` folder for semantic journal search, and each journal directory a derived `search-card.json` cache. korTTY rebuilds either one when it is missing, and deleting a journal removes its cache with it.
 
 ### terminal-logs/
 Default target folder for [per-connection terminal logs](../features/terminal.md#terminal-logging) when a connection's log folder field is left empty. File naming, daily rotation, compression and retention follow the connection's logging configuration.
@@ -543,7 +567,7 @@ You can edit KorTTY configuration directly by:
 - Use *Plugins > Terminal Effects > Reload* to refresh the plugin list.
 
 **Log file size:**
-- `kortty.log` grows during the application session. It is not automatically rotated. You can safely delete it while KorTTY is closed.
+- `kortty.log` grows during the day and is rolled over at midnight, and archives are deleted according to **Keep logs**. You can safely delete the log files while KorTTY is closed.
 
 **Master password recovery:**
 - There is no recovery for a forgotten master password. If you lose it, delete `master.key` and `credentials.xml`, restart KorTTY, and set a new password.

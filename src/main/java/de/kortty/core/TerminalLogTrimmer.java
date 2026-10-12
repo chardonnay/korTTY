@@ -366,44 +366,12 @@ public final class TerminalLogTrimmer {
         return out.toString();
     }
 
-    /**
-     * Escapes XML text exactly as {@link TerminalLogger} does. That method's copy is private, so it is
-     * repeated here; the two must stay identical or a trimmed file would not match its source.
-     */
+    /** The logger's own escaping, so a regenerated header matches what the logger would have written. */
     private static String escapeXml(String text) {
-        if (text == null) {
-            return "";
-        }
-        return text.replace("&", "&amp;")
-                   .replace("<", "&lt;")
-                   .replace(">", "&gt;")
-                   .replace("\"", "&quot;")
-                   .replace("'", "&apos;");
+        return TerminalLogger.escapeXml(text);
     }
 
-    /** Escapes JSON text exactly as {@link TerminalLogger} does; see {@link #escapeXml}. */
     private static String escapeJson(String text) {
-        if (text == null) {
-            return "";
-        }
-        StringBuilder out = new StringBuilder(text.length() + 8);
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            switch (c) {
-                case '\\' -> out.append("\\\\");
-                case '"' -> out.append("\\\"");
-                case '\n' -> out.append("\\n");
-                case '\r' -> out.append("\\r");
-                case '\t' -> out.append("\\t");
-                default -> {
-                    if (c < 0x20) {
-                        out.append(String.format("\\u%04x", (int) c));
-                    } else {
-                        out.append(c);
-                    }
-                }
-            }
-        }
-        return out.toString();
+        return TerminalLogger.escapeJson(text);
     }
 }

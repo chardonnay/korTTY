@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -816,7 +824,7 @@
 <p>On subsequent launches you are prompted to enter the master password to unlock your encrypted data.</p>
 <div class="admonition warning">
 <p class="admonition-title">Disabling the prompt</p>
-<p><strong>Settings → Security</strong> offers two ways to skip the prompt. Turning off <strong>Require master password on startup</strong> hides the prompt and starts korTTY with the vault locked: stored passwords and keys stay unavailable until you choose <strong>Configuration → Security → Unlock Vault…</strong> or click <strong>Unlock Vault…</strong> in any "vault locked" message. <strong>Disable master password prompt on startup (auto-login)</strong> instead unlocks the vault automatically from a copy of your master password kept on disk — only obfuscated, not encrypted, so reserve it for throwaway or test environments. See the <a href="../reference/settings/security.html">Security settings</a> for details, including unattended first launches that skip the setup dialog entirely.</p>
+<p><strong>Settings → Security</strong> offers two ways to skip the prompt. Turning off <strong>Require master password on startup</strong> hides the prompt and starts korTTY with the vault locked: stored passwords and keys stay unavailable until you choose <strong>Configuration → Security → Unlock Vault…</strong> or click <strong>Unlock Vault…</strong> in any "vault locked" message. <strong>Disable master password prompt on startup (auto-login)</strong> instead unlocks the vault automatically from a copy of your master password kept on disk. That copy is encrypted only with a key built into korTTY, not with your master password, so it guards against casual disclosure only; reserve this option for throwaway or test environments. See the <a href="../reference/settings/security.html">Security settings</a> for details, including unattended first launches that skip the setup dialog entirely.</p>
 </div>
 <h2 id="what-is-encrypted">What is encrypted<a class="headerlink" href="#what-is-encrypted" title="Permanent link">&para;</a></h2>
 <table>
@@ -851,7 +859,12 @@
 <tr>
 <td>Remembered master password (auto-login only)</td>
 <td><code>~/.kortty/master.autounlock</code></td>
-<td>obfuscated only — not encrypted; owner-only file permissions</td>
+<td>AES-256-GCM with a key built into korTTY, not your master password; owner-only file permissions</td>
+</tr>
+<tr>
+<td>Restored terminal output (optional)</td>
+<td><code>~/.kortty/session/scrollback/&lt;ref&gt;.enc</code></td>
+<td>AES-256-GCM (master-password-derived key); written only while <strong>Also restore the output of each terminal pane (encrypted)</strong> is enabled under <strong>Settings → Window → Session Restore</strong>, and nothing is written while the vault is locked</td>
 </tr>
 </tbody>
 </table>

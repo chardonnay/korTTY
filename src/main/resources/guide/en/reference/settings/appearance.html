@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -867,7 +875,7 @@
 <p>App Design applies only to korTTY's application windows and dialogs. Terminal sessions, the Monaco file editor, session-journal pages, and AI chat content retain their own independent color settings (configured via the Colors or Themes tabs or their own appearance controls).</p>
 </div>
 <h3 id="ui-font-size">UI font size<a class="headerlink" href="#ui-font-size" title="Permanent link">&para;</a></h3>
-<p><strong>UI font size</strong> scales korTTY's own interface — the menu bar and its dropdowns, dialogs, form labels, buttons, tab titles, the dashboard, the file browser and the status bar. It takes effect the moment you save; no restart is needed, and windows that are already open resize with it. The main window's first-launch size grows along with it, and dialogs that remember their size are re-measured after a change rather than reopening at a size that no longer fits their text.</p>
+<p><strong>UI font size</strong> scales korTTY's own interface — the menu bar and its dropdowns, dialogs, form labels, buttons, tab titles, the dashboard, the file browser and the status bar. It takes effect the moment you save; no restart is needed, and windows that are already open resize with it. The main window's first-launch size grows along with it, and dialogs and the manual window that remember their size are re-measured after a change rather than reopening at a size that no longer fits their text.</p>
 <p>It deliberately does <strong>not</strong> touch surfaces that already have their own size control, so the two never fight each other:</p>
 <table>
 <thead>
@@ -992,7 +1000,7 @@
 </tr>
 <tr>
 <td><strong>Edit</strong></td>
-<td>Modify the selected theme. The button stays enabled for built-in themes but does nothing when clicked — duplicate the theme first</td>
+<td>Open the selected theme in the theme editor, built-in themes included. The change is saved to <code>~/.kortty/themes.xml</code>; an edited built-in theme keeps its <em>(built-in)</em> label and still cannot be deleted. Duplicate it first if you want to keep the original</td>
 </tr>
 <tr>
 <td><strong>Duplicate</strong></td>
@@ -1031,7 +1039,7 @@
 <p>korTTY includes a set of built-in color themes (e.g., Default, Dark Mode, Solarized Light). Built-in and custom themes are stored together in a single file, <code>~/.kortty/themes.xml</code>. All themes appear in the Colors tab's color profile selector and in connection-specific theme dropdowns.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Built-in themes cannot be edited or deleted. To modify a built-in theme, duplicate it first, then edit the custom copy.</p>
+<p>Built-in themes can be edited but not deleted, and korTTY does not restore their original colors on its own. To keep the original, duplicate the theme first and edit the custom copy.</p>
 </div>
 <h3 id="theme-preview">Theme preview<a class="headerlink" href="#theme-preview" title="Permanent link">&para;</a></h3>
 <p>A live theme preview displays the theme's colors. The preview shows six swatches — foreground, background and cursor, plus the AI agent panel's background, run and error colors — so you can evaluate a theme before applying it.</p>

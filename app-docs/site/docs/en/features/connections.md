@@ -10,7 +10,7 @@ Open with ++ctrl+k++ (or **Connections → Quick Connect…**). Enter host, port
 
 ## Connection Manager
 
-**Connections → Manage Connections…** opens a searchable tree of saved connections (optionally grouped); the search field matches name, host, IP address or [tag](#tags), with `*` as a wildcard. From here you create, edit, duplicate, delete, tag, import and export connections.
+**Connections → Manage Connections…** opens a searchable tree of saved connections (optionally grouped); the search field matches name, host, IP address or [tag](#tags), with `*` as a wildcard. From here you create, edit, duplicate, delete, tag, import and export connections. The context menu of a folder also sets its **Session Isolation** level for every connection in it that sets none of its own (see [Choosing a level](session-isolation.md#choosing-a-level)).
 
 ### Signing in
 
@@ -30,8 +30,8 @@ The connection editor has these tabs:
 
 | Tab | Contents |
 | --- | --- |
-| Connection | Host, port, username, protocol (SSH / Mosh / Local Shell), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment and an optional free-text [tag](#tags). For **Local Shell** connections host, port, username and authentication are not required and are disabled. See [Character encoding](#character-encoding). |
-| Terminal Settings | **Use the global terminal settings** or **Own settings for this connection** with per-connection colors, font and ANSI/TrueColor handling (see [Own terminal settings](#own-terminal-settings)), the **Terminal behavior** section with the [tab color](#tab-color), the [keyword highlighting](#keyword-highlighting) rule set and the [paste protection](#paste-protection), the **Session isolation** section with the [isolation level, strict terminal mode and incognito switch](session-isolation.md), terminal effect |
+| Connection | Host, port, username, protocol (SSH over TCP/IP, Mosh (mosh4j), Mosh Client (native) or Local Shell), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment and an optional free-text [tag](#tags), **Connection timeout** (1–300 seconds) and **Retries** (1–20 attempts, used while **Enable connection retries** is on in *Settings → Terminal*). For **Local Shell** connections host, port, username and authentication are not required and are disabled. See [Character encoding](#character-encoding). |
+| Terminal Settings | **Use the global terminal settings** or **Own settings for this connection** with per-connection colors, font and ANSI/TrueColor handling (see [Own terminal settings](#own-terminal-settings)), the **Terminal behavior** section with the [tab color](#tab-color), the [keyword highlighting](#keyword-highlighting) rule set and the [paste protection](#paste-protection), and below the paste protection the **Session isolation** rows with the [isolation level, strict terminal mode and incognito switch](session-isolation.md), terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
 | Terminal Logging | Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See [Terminal logging](terminal.md#terminal-logging). |
@@ -104,6 +104,9 @@ A **tab color** marks every terminal tab of a connection with a small colored do
 === "Mosh"
     Roaming, latency-friendly Mosh transport (mosh4j). The Mosh backend is bundled in native builds; existing connections need no migration.
 
+=== "Mosh Client (native)"
+    Roaming Mosh session with the `mosh-client` program installed on this computer, shown in a terminal tab. korTTY starts the session over SSH itself and then hands the screen to `mosh-client`, which needs to be on the `PATH` (install it with your system package manager, for example Homebrew, apt or dnf). A connection to a server behind a [jump server](jump-server.md) is refused, because the Mosh session runs over UDP, which the jump server's tunnel cannot carry. With [session isolation](session-isolation.md), this protocol can also run in an operating-system sandbox.
+
 === "Local Shell"
     Opens the **local machine's** shell in a terminal tab (no network) via a pty4j-backed pseudo-terminal. Host, port, username and authentication are not required. See [Local Shell](#local-shell) below.
 
@@ -134,11 +137,11 @@ A **Local Shell** connection spawns a local pseudo-terminal (PTY) on your own ma
 | Platform | Options |
 | --- | --- |
 | Windows | **PowerShell** (default) or **cmd.exe**. **Git Bash**, **Cygwin** and **WSL** are also offered as presets — but only when actually installed (Git Bash/Cygwin are detected via their usual install locations / `PATH`; WSL appears only when `wsl.exe` is present and at least one distribution is installed). |
-| macOS / Linux | Defaults to your `$SHELL` (falling back to `/bin/zsh` or `/bin/bash`). |
+| macOS / Linux | **Zsh** and **Bash** are offered on macOS and **Bash** on Linux (**ksh** on Solaris), and the first one is selected for a new connection. A **Custom command** left empty starts your `$SHELL`, falling back to `/bin/zsh` or `/bin/bash`. |
 
 A free-form **Custom command** field accepts any executable with arguments (e.g. `pwsh.exe`, `wsl.exe -d Ubuntu`, a Git Bash path), and an optional **start directory** can be set. The command parser is quote-aware, so shell paths containing spaces — like `"C:\Program Files\Git\bin\bash.exe"` — launch correctly.
 
-**Add shell integration automatically**, below the start directory, starts bash, zsh or fish with korTTY's [shell integration](shell-integration.md#local-shells) without a snippet in your startup files, which korTTY never changes: the shell first runs your own startup files and then korTTY's snippet, so you can jump between prompts and see how each command ended. It is off until you tick it, the line under it says when the selected shell cannot get it, and it never applies to SSH or Mosh connections or to connections shared through Teamwork; an export leaves it behind.
+**Add shell integration automatically**, below the start directory, starts bash, zsh or fish with korTTY's [shell integration](shell-integration.md#local-shells) without a snippet in your startup files, which korTTY never changes: the shell first runs your own startup files and then korTTY's snippet, so you can jump between prompts and see how each command ended. It is off until you tick it, the line under it says when the selected shell cannot get it, and it never applies to SSH or Mosh connections or to connections shared through Teamwork; an export leaves it behind. While **Use the command marks of shells set up for shell integration (OSC 133)** is switched off in *Settings → Terminal*, the box stays tickable, but the line under it says that korTTY adds nothing until the setting is on again.
 
 When korTTY runs from its Flatpak package, the local shell is started on the host through `flatpak-spawn --host`, including the selected start directory and terminal locale. The package has host-filesystem access so terminal file actions can use host paths. Because the sandbox-side process ID belongs to `flatpak-spawn` rather than the host shell, current-directory tracking uses trusted absolute prompt paths instead of reading `/proc/<pid>/cwd`; if no safe host path can be established, path-dependent actions stop with an explicit error.
 
@@ -148,6 +151,8 @@ Terminal logging and recording, plus the AI input/data hooks, work for local she
 
 !!! note "AI Agent in local shells"
     The **AI Agent** and **AI Planning** also run in local shells on Windows, macOS and Linux — see [AI assistant](ai-assistant.md#ai-agent-and-ai-planning).
+
+A local shell can also be isolated from korTTY and the other tabs, in its own process or in an operating-system sandbox, with the **Isolation** setting of its connection or folder; see [Session isolation](session-isolation.md). A sandboxed local shell keeps its history and temporary files in a folder of its own, which is removed when the session ends.
 
 ## Tunnels & jump servers
 

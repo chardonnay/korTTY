@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -863,7 +871,7 @@
 <h3 id="die-journalleiste">Die Journalleiste<a class="headerlink" href="#die-journalleiste" title="Permanent link">&para;</a></h3>
 <p>Während ein Journal verfügbar ist, zeigt eine Leiste unter dem Terminal seinen Status an (<strong>Journal aktiv seit HH:MM</strong>) und bietet <strong>Journal stoppen</strong>, <strong>Screenshot</strong> und <strong>Notiz</strong>:</p>
 <ul>
-<li><strong>Screenshot</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-c">C</kbd></span>, auch im Rechtsklick-Menü des Terminals) erstellt einen Schnappschuss des Terminals – in einem geteilten Layout erfasst das Rechtsklick-Menü genau den Bereich unter dem Cursor – und legt ihn in der Journal-Timeline ab.</li>
+<li><strong>Screenshot</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-c">C</kbd></span>, also <strong>Werkzeuge &gt; Journal-Screenshot hinzufügen</strong> und das Rechtsklickmenü des Terminals) nimmt ein Bild des Terminals auf — in einem geteilten Layout erfasst das Rechtsklickmenü genau die unter dem Cursor befindliche Pane — und speichert es in der Zeitleiste des Journals.</li>
 <li><strong>Notiz</strong> öffnet den <a href="#notizen-schreiben">Notiz-Editor</a> für einen freitextlichen Kommentar, der als eigener Zeitstrahl-Eintrag an der aktuellen Position erscheint.</li>
 </ul>
 <h3 id="notizen-schreiben">Notizen schreiben<a class="headerlink" href="#notizen-schreiben" title="Permanent link">&para;</a></h3>
@@ -883,6 +891,7 @@
 <h3 id="journale-der-automatisierungsdurchlaufe">Journale der Automatisierungsdurchläufe<a class="headerlink" href="#journale-der-automatisierungsdurchlaufe" title="Permanent link">&para;</a></h3>
 <p>JobScheduler-Jobs — einschließlich geplanter KI-Swarm-Jobs — und Ausführungen, die im <a href="ai-swarm.html#session-journal-pro-lauf">KI-Swarm</a> Tab kann für jeden Lauf eigenständig ein Sitzungsprotokoll aufzeichnen, ohne einen Terminal-Tab zu verwenden: ein Protokoll pro Zielserver, das die vom Automatisierung gesendeten Befehle, deren Ausgabe, ihre Zusammenfassung und das Ergebnis auf diesem Server enthält. Sie werden pro Aufgabe im JobScheduler eingerichtet — siehe <a href="jobscheduler.html#sitzungsjournal-pro-ausfuhrung">Session-Journal pro Lauf</a> für die Einstellungen (KI-Zusammenfassungen immer / nur bei fehlgeschlagenen Läufen / aus, behalten immer / nur fehlgeschlagene Läufe, automatische Löschung nach N Tagen oder an einem Datum, maximale Läufe und Speicherplatz, verwerfen von Läufen identisch zum vorherigen) und die Kostenwarnung, die angezeigt wird, wenn sie aktiviert werden.</p>
 <p>Jobs, deren Befehl im <a href="jobscheduler.html#virtuelles-terminal-und-screenshots">virtuellen Terminal</a> läuft, fügen außerdem Screenshots dieses unsichtbaren Bildschirms hinzu; die KI beschreibt sie im abschließenden Durchlauf, wenn der KI-Modus angewendet wird. Automations-Journale werden nach dem Job, dem Server und der Startzeit benannt, und ihre KI-Zusammenfassungen laufen einmal nach Abschluss des Laufs — auf ihrem eigenen Worker, sodass sie die Zusammenfassungen des Terminals, in dem Sie arbeiten, niemals verzögern. <strong>KI-Profil für Automations-Journale</strong> in <strong>Einstellungen &gt; Logs &gt; Sitzungsjournal</strong> wählt das Profil, das verwendet wird, wenn ein Job kein eigenes auswählt; <strong>Wie für Zusammenfassungen</strong> nutzt das Journal-Profil, das unter <a href="#ki-zusammenfassungen">KI-Zusammenfassungen</a> beschrieben ist. Ein günstiges oder lokales Modell hält unbeaufsichtigte Läufe erschwinglich.</p>
+<p>Administratoren können diese Journale verbieten oder sie mit den <code>automation-allowed</code>, <code>automation-max-retention-days</code>, <code>automation-max-storage-mb</code> und <code>automation-max-journals</code> Schlüsseln der <a href="../reference/enterprise-policy.html#rulesession-journal">Unternehmensrichtlinie</a> begrenzen; Der JobScheduler-Abschnitt sagt dann dies und seine Kontrollen sind eingeschränkt.</p>
 <p>Abgelaufene Automationsjournale werden automatisch gelöscht – eine Minute nach dem Start von korTTY und anschließend jede Stunde, ebenso wie die ältesten Ausführungen eines Jobs, die ihre maximale Anzahl an Durchläufen oder den verfügbaren Speicherplatz überschreiten. Laufende Journale, Journale deren Zusammenfassung noch geschrieben wird, angeheftete Journale und interaktive Journale werden niemals verändert. In the <a href="#journale-verwalten">Journal-Manager</a> the <strong>Löschung am</strong> column shows when a journal goes, and <strong>Behalten (Pin)</strong> in a journal's right-click menu exempts it from automatic deletion (<strong>Pin lösen</strong> undoes it).</p>
 <h2 id="das-live-journal-panel">Das Live-Journal-Panel<a class="headerlink" href="#das-live-journal-panel" title="Permanent link">&para;</a></h2>
 <p><strong>Ansehen &gt; Live-Journal</strong> (oder <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-alt">Alt</kbd><span>+</span><kbd class="key-l">L</kbd></span>) dockt die laufende Journal-Seite <strong>vollständige Journal-Seite</strong> — dieselbe Seite, die der <a href="#die-journalseite">viewer</a> anzeigt — links oder rechts vom Terminal an, bleibt in Echtzeit aktuell. Auswahl der markierten Seite im Menü versteckt das Panel erneut; die Trennlinie daneben passt die Breite an, und Seite sowie Breite werden über Neustarts hinweg gespeichert.</p>
@@ -1169,7 +1178,7 @@
 <p>Das Ergebnis erscheint auf beiden Seiten des Panels:</p>
 <ul>
 <li>Der <strong>Antwort-Chat</strong> auf der linken Seite unterstützt Folgefragen zu denselben Ergebnissen.</li>
-<li>Der <strong>Trefferbaum</strong> auf der rechten Seite listet jedes übereinstimmende Journal mit seiner Gesamttrefferzahl auf (bewegen Sie den Mauszeiger, um den Ein-Satz-Grund der KI anzuzeigen) und darunter die einzelnen Treffer – übereinstimmende Einträge und genaue Protokollzeilen mit Zeitstempel und Snippet. Ein Klick auf einen Treffer öffnet das Journal und springt direkt zu diesem Eintrag oder dieser Protokollzeile. Treffer, die Sie bereits geöffnet haben, werden mit einem Häkchen gedämpft, und diese Markierung übersteht neue Suchvorgänge und Neustarts – Orientierung für das Durcharbeiten einer langen Trefferliste.</li>
+<li>Der <strong>hit tree</strong> rechts listet jedes passende Journal mit seiner Gesamtanzahl an Treffern auf (Hovern zeigt den ein-Satz-Grund der KI), und darunter die einzelnen Treffer — passende Einträge und exakte Logzeilen mit Zeitstempel und Snippet. Durch Klicken eines Treffers öffnet sich das Journal und springt direkt zu diesem Eintrag oder Logzeile; ein Doppelklick auf die eigene Zeile eines Journals öffnet das gesamte Journal. Treffer, die Sie bereits geöffnet haben, werden mit einem Häkchen gedämpft, und diese Markierung bleibt bei neuen Suchen und Neustarts erhalten — Orientierung beim Durcharbeiten einer langen Trefferliste.</li>
 <li>In der Kopfzeile wird die Gesamtsumme angezeigt: <em>n Treffer in m Journale</em>. Wiederholte identische Ausgabezeilen werden zusammengeführt gespeichert und die Zählung umfasst ihre Wiederholungsfaktoren, sodass sie reale Vorkommnisse widerspiegelt.</li>
 </ul>
 <p>Die Tabelle selbst bleibt vollständig: Journale mit Treffern erhalten eine sortierte Spalte <strong>Treffer</strong> und eine Zeilenhervorhebung, anstatt alles andere wegzufiltern. <strong>Nur Auswahl</strong> beschränkt die Suche auf die in der Tabelle ausgewählten Journale.</p>
@@ -1392,7 +1401,7 @@
 </tr>
 <tr>
 <td><strong>Mit GPG verschlüsseln</strong></td>
-<td>Der Export — PDF, Markdown oder ZIP — wird zu einer <code>.gpg</code>-Datei für einen der Schlüssel unter <strong>Sicherheit &gt; GPG-Schlüssel...</strong>; nur der Besitzer des passenden privaten Schlüssels kann sie entschlüsseln (<code>gpg --decrypt</code>).</td>
+<td>Der Export — PDF, Markdown oder ZIP — wird zu einer <code>.gpg</code> Datei für den Schlüssel, den Sie in <strong>GPG-Schlüssel wählen</strong> auswählen, einer der Schlüssel unter <strong>Sicherheit &gt; GPG-Schlüssel...</strong>; nur der Besitzer des passenden privaten Schlüssels kann sie entschlüsseln (<code>gpg --decrypt</code>).</td>
 </tr>
 </tbody>
 </table>

@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -850,18 +858,18 @@
 </tr>
 <tr>
 <td><strong>Default scope</strong></td>
-<td>Record active split only or entire tab</td>
+<td>Record the active split only, or the whole tab</td>
 </tr>
 <tr>
-<td><strong>Auto-pause on idle</strong></td>
+<td><strong>Auto-pause when the terminal is idle</strong></td>
 <td>Pause recording when terminal is inactive</td>
 </tr>
 <tr>
-<td><strong>Idle threshold</strong></td>
+<td><strong>Idle threshold (seconds)</strong></td>
 <td>Seconds of inactivity before pause (default: 20)</td>
 </tr>
 <tr>
-<td><strong>Capture colors</strong></td>
+<td><strong>Capture terminal colors in new recordings</strong></td>
 <td>Include per-cell terminal style runs in new recordings</td>
 </tr>
 <tr>
@@ -891,9 +899,10 @@
 <li>Press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-e">E</kbd></span> (<span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-e">E</kbd></span> on macOS)</li>
 <li>If the tab contains split terminals, choose:</li>
 <li><strong>Active split</strong> — record only the focused terminal pane</li>
-<li><strong>Entire tab</strong> — record all visible splits</li>
+<li><strong>Whole tab</strong> — record all visible splits</li>
 </ol>
 <p>The terminal bar control is hidden until recording is enabled or the menu item/shortcut is used.</p>
+<p>An <a href="session-isolation.html#incognito-sessions">incognito session</a> is never recorded: starting a recording in one shows the message <em>Incognito sessions are not recorded.</em> instead.</p>
 <h3 id="stop-recording">Stop recording<a class="headerlink" href="#stop-recording" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Click <strong>Stop recording</strong> in the terminal bar, or</li>
@@ -991,7 +1000,7 @@
 <li><strong>Large terminal windows</strong>: Terminal geometry is recorded, so wide screens export correctly without cropping</li>
 <li><strong>Color accuracy</strong>: Enable color capture before recording if you plan to export video with terminal colors</li>
 <li><strong>Idle pause</strong>: Auto-pause helps reduce file size during long idle periods; enable it unless you need to preserve exact timing</li>
-<li><strong>Split-scope selection</strong>: Choose your recording scope (active split vs. entire tab) each time you start recording to match your workflow</li>
+<li><strong>Split-scope selection</strong>: Choose your recording scope (active split vs. whole tab) each time you start recording to match your workflow</li>
 <li><strong>Legacy files</strong>: Old <code>.korttyrec.jsonl</code> (uncompressed) replay files are still readable in the Video Manager</li>
 </ul></p>
     </article>

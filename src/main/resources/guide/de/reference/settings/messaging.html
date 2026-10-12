@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="de" data-bs-theme="dark">
+
+<head>
+        <title>Messaging - korTTY Anleitung</title>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        
+        <link rel="canonical" href="https://chardonnay.github.io/korTTY/guide/de/reference/settings/messaging.html">
+        <meta name="author" content="korTTY">
+        <link rel="stylesheet" href="../../assets/css/darcula-highlight.min.css">
+        <link rel="stylesheet" href="../../assets/css/bootstrap.min.css">
+        <link rel="stylesheet" href="../../assets/css/dracula-ui.min.css">
+        <link rel="stylesheet" href="../../assets/css/mkdocs.min.css">
+        <link href="../../assets/stylesheets/kortty.css" rel="stylesheet">
+        <link rel="icon" type="image/x-icon" href="../../../en/assets/images/favicon.png">
+
+
+</head>
+
+<body class="drac-bg-black-secondary drac-text-grey-ternary drac-text drac-scrollbar-purple">
+
+    <main class="d-flex">
+
+        <!-- block sidebar -->
+            <nav id="sidebar" class="sidebar drac-bg-black">
+    <div class="custom-menu">
+        <button type="button" id="sidebarCollapse" class="btn btn-primary">
+            <i class="fa fa-bars"></i>
+            <span class="sr-only">Menu</span>
+        </button>
+    </div>
+
+    <div class="p-4">
+        
+            <img class="logo" src="../../../en/assets/images/favicon.png" height="150px">
+        
+
+        <div class="drac-text-center">
+            
+                <span class="drac-text drac-line-height drac-text-white">korTTY Anleitung</span>
+            
+        </div>
+
+        <div class="drac-box flex-column">
+            <ul class="dot-ul">
+                <li><div class="dot-li drac-bg-cyan"></div></li>
+                <li><div class="dot-li drac-bg-green"></div></li>
+                <li><div class="dot-li drac-bg-orange"></div></li>
+                <li><div class="dot-li drac-bg-pink"></div></li>
+                <li><div class="dot-li drac-bg-purple"></div></li>
+                <li><div class="dot-li drac-bg-red"></div></li>
+                <li><div class="dot-li drac-bg-yellow"></div></li>
+            </ul>
+        </div>
+
+        <hr class="drac-divider" />
+
+        <!-- block menu -->
+        <ul class="mb-5 drac-list drac-list-none">
+            
+            <li class="drac-box">
+                <a href="../../index.html"
+                    class="
+                    drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+                    Startseite
+                </a>
+            </li>
+            <li class="drac-box">
+                <a href="../.."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#erste-schritte-collapse" aria-expanded="false">
+                    Erste Schritte
+                </a>
+                <div class="collapse" id="erste-schritte-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../../getting-started/installation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Installation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../getting-started/building-packages.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KorTTY-Pakete erstellen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../getting-started/first-launch.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Erster Start – Master-Passwort
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../getting-started/main-window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Übersicht des Hauptfensters
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href="../.."
+                    class=" active 
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover"
+                    data-bs-toggle="collapse" data-bs-target="#referenz-collapse" aria-expanded="true">
+                    Referenz
+                </a>
+                <div class="collapse show" id="referenz-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../menu.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Menüreferenz
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../keyboard-shortcuts.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Tastaturkürzel
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../architecture.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Architektur
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../config-files.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Konfigurationsdateien
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../enterprise-policy.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Richtlinienkonfiguration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../control-api.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-API
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../cli.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Steuerungs-CLI
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover"
+            data-bs-toggle="collapse" data-bs-target="#einstellungen-collapse" aria-expanded="true">
+            Einstellungen
+        </a>
+
+        <div class="collapse show" id="einstellungen-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Einstellungsreferenz
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="appearance.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Aussehen, Themen und Schriftart
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="colors.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Farben
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="messaging.html"
+            class=" active 
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="window.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Fenster
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="keyboard.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Tastatur
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="resources.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Ressourcen
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="logging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Protokollierung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="export.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Exportieren
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sicherung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="updates.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Aktualisierungen
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sicherheit
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="language.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sprache
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="translation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Übersetzung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="video.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Video
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="ai.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="ai-skills.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Skills
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP-Manager
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="editor.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="#" class="
+            drac-anchor-secondary btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+            data-bs-toggle="collapse" data-bs-target="#snippet-editor-collapse" aria-expanded="false">
+            Snippet-Editor
+        </a>
+
+        <div class="collapse" id="snippet-editor-collapse">
+            <ul class="mb-5 drac-list drac-list-none">
+                    
+    <li class="drac-box-ternary">
+        <a href="snippet-editor/index.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet-Editor
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../hardening-options.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Härtungsoptionen
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../input-hardening.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Eingabe-Härtung
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
+        <a href="../language-migration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sprachvereinigung
+        </a>
+    </li>
+            </ul>
+        </div>
+    </li>
+            </ul>
+        </div>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href="../.."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#funktionen-collapse" aria-expanded="false">
+                    Funktionen
+                </a>
+                <div class="collapse" id="funktionen-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/connections.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Verbindungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/terminal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminalsitzungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/shell-integration.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Shell-Integration
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/terminal-notifications.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal-Benachrichtigungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/highlighting.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Hervorhebung von Schlüsselwörtern
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/command-palette.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Befehlspalette
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/tunnels.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SSH-Tunnel (Portweiterleitung)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/jump-server.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Jump-Server (Bastion Host)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/sftp.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            SFTP-Dateimanager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/file-browser.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Dateibrowser
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/snippets.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Snippet-Manager
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/jobscheduler.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            JobScheduler
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/projects.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Projekte (Arbeitsbereiche)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/teamwork.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Teamarbeit (gemeinsame Verbindungen)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/ai-assistant.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Assistent
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/local-models.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Lokale Modelle (llama.cpp und MLX)
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/rag.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            RAG-Wissensspeicher
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/ai-tools.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminal-KI-Agent und -Tools
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/ai-swarm.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            KI-Schwarm
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/security.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sicherheit – Anmeldeinformationen, Schlüssel und Verschlüsselung
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/session-isolation.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sitzungs-Isolation
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/backup.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sichern und wiederherstellen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/recording.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminalaufzeichnung
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/session-journal.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sitzungsjournal
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/ascii-art.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            ASCII-Art
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/terminal-effect-plugins.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Terminaleffekt-Plugins
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/coding-agents.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Coding-Agents
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../features/i18n.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Sprachen und dynamische Übersetzung
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+            <li class="drac-box">
+                <a href="../.."
+                    class="
+                    drac-anchor btn-toggle d-inline-flex align-items-center border-0 drac-text-purple--hover collapsed"
+                    data-bs-toggle="collapse" data-bs-target="#über-kortty-collapse" aria-expanded="false">
+                    Über korTTY
+                </a>
+                <div class="collapse" id="über-kortty-collapse">
+                    <ul class="mb-5 drac-list drac-list-none">
+                            
+    <li class="drac-box-ternary">
+        <a href="../../about/release-notes.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Versionshinweise
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../about/feedback.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Feedback und Support
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
+        <a href="../../about/anonymous-data.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Anonyme Daten zur Applikationsoptimierung
+        </a>
+    </li>
+                    </ul>
+                </div>
+            </li>
+        </ul>
+        <!-- endblock -->
+    </div>
+</nav>
+        <!-- endblock -->
+
+        <nav class="divider drac-bg-purple-cyan"></nav>
+
+        <div class="content">
+            <!-- block header -->
+
+                <header>
+    <nav class="navbar navbar-expand-xl drac-bg-purple">
+        <div class="container-fluid">
+            
+            <button class="navbar-toggler w-100 text-center" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsMenu"
+                aria-controls="navbarsMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse flex-column ml-auto" id="navbarsMenu">
+                <ul class="navbar-nav text-md-center">
+
+                    <!-- block preview -->
+                    <li class="nav-item">
+                            
+        <div class="container">
+            <div class="row row-preview">
+                <div class="col">
+                    <a href="terminal.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover">
+                        <i class="fa fa-arrow-left"></i> Previous
+                    </a>
+                </div>
+                <div class="col">
+                    <a href="window.html"
+                        class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
+                        Next <i class="fa fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block search -->
+                    <li class="nav-item">
+
+
+
+
+
+<div role="search" class="search-box kt-search">
+	<form id="rtd-search-form" class="wy-form kt-search-form" action="../../search.html" method="get">
+		<input type="text" name="q" id="mkdocs-search-query"
+		class="kt-search-input drac-input drac-input-search drac-input-white drac-text-white drac-bg-black-secondary"
+		placeholder="Durchsuchen"
+		autocomplete="off" title="Type search term here" /><button type="button" class="kt-search-clear" hidden
+		        aria-label="Suche zurücksetzen" title="Suche zurücksetzen">&times;</button>
+	</form>
+	<div id="mkdocs-search-results" class="kt-search-suggest"
+	     data-no-results-text="Keine Treffer"
+	     data-preparing-text="Suche wird vorbereitet …"
+	     data-more-text="{n} weitere Treffer anzeigen"></div>
+	<script>
+	  (function () {
+	    var box = document.currentScript.parentNode;
+	    var panel = box.querySelector('.kt-search-suggest');
+	    var input = box.querySelector('#mkdocs-search-query');
+	    var clear = box.querySelector('.kt-search-clear');
+
+	    // Emptying the panel is what hides it (CSS :empty), so closing is just that.
+	    function close () { while (panel.firstChild) { panel.removeChild(panel.firstChild); } }
+	    // The button is only useful once there is something to clear.
+	    function sync () { clear.hidden = !input.value; }
+
+	    input.addEventListener('input', sync);
+	    clear.addEventListener('click', function () {
+	      input.value = '';
+	      sync();
+	      // search/main.js renders on keyup, which a programmatic clear never fires, so
+	      // the panel has to be emptied here or the old hits would outlive the query.
+	      close();
+	      input.focus();
+	    });
+
+	    document.addEventListener('click', function (e) { if (!box.contains(e.target)) { close(); } });
+
+	    // Escape has to be handled on keyUP, and on the document rather than the input.
+	    // search/main.js binds doSearch to the field's keyup, so anything that closed the
+	    // panel on keydown was undone microseconds later by that re-render — which is why
+	    // Escape appeared to do nothing at all. Listening on the document means this runs
+	    // after the field's own handler has already re-rendered, so closing sticks.
+	    // What the panel looked like BEFORE that re-render is the interesting state, so it
+	    // is captured on keydown: the usual two steps, Escape dismisses the suggestions,
+	    // Escape again empties the box.
+	    var panelWasOpen = false;
+	    document.addEventListener('keydown', function (e) {
+	      if (e.key === 'Escape') {
+	        panelWasOpen = !!panel.firstChild;
+	      }
+	    });
+	    document.addEventListener('keyup', function (e) {
+	      if (e.key !== 'Escape') {
+	        return;
+	      }
+	      // Only clear the field while it has focus — Escape elsewhere on the page is not ours.
+	      if (!panelWasOpen && document.activeElement === input && input.value) {
+	        input.value = '';
+	        sync();
+	      }
+	      close();
+	    });
+
+	    sync();  // a ?q= deep link arrives with the field already filled
+	  })();
+	</script>
+</div>
+                    </li>
+                    <!--  endblock -->
+
+                    <!-- block source -->
+                    <li class="nav-item">
+                        
+                    </li>
+                    <!--  endblock -->
+
+                </ul>
+            </div>
+
+        </div>
+    </nav>
+</header>
+<div class="kt-lang-bar">
+  <a class="kt-lang-switch" href="../../../en/reference/settings/messaging.html"
+     title="English" hreflang="en">EN</a>
+</div>
+
+            <!-- endblock -->
+
+            <!-- block content -->
+                <section class="p-md-5 section-content">
+    <article>
+        <p><h1 id="messaging">Messaging<a class="headerlink" href="#messaging" title="Permanent link">&para;</a></h1>
+<p>Öffnen Sie <strong>Konfiguration → Globale Einstellungen → Messaging</strong> um auszuwählen, welche Ereignisse Desktop-Benachrichtigungen senden. Änderungen gelten für offene Sitzungen, wenn Sie speichern. Die bestehenden Auswahlmöglichkeiten sind in <code>~/.kortty/global-settings.xml</code> gespeichert und bleiben bei einem Upgrade erhalten.</p>
+<p><img alt="Messaging settings with the separate coding-agent notification switch" src="../../../en/assets/screenshots/settings/messaging.png" /></p>
+<table>
+<thead>
+<tr>
+<th>Einstellung</th>
+<th>Typ</th>
+<th>Werte</th>
+<th>Standard</th>
+<th>Gespeichert als</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Desktop-Benachrichtigung wenn ein Coding-Agent eine Entscheidung benötigt oder fertig ist, während Sie nicht auf sein Fenster schauen</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>codingAgentNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Desktop-Benachrichtigung, wenn die Glocke in einem Tab klingelt, den Sie nicht ansehen</td>
+<td>toggle</td>
+<td>—</td>
+<td>Off</td>
+<td><code>terminalBellNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Desktop-Benachrichtigung, wenn ein langlaufender Befehl in einem Tab endet, den Sie nicht ansehen,</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>commandFinishedNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Mindestlaufzeit eines Befehls:</td>
+<td>Nummer</td>
+<td>1–3,600 seconds</td>
+<td>30</td>
+<td><code>commandFinishedNotificationSeconds</code></td>
+</tr>
+<tr>
+<td>Desktop-Benachrichtigung, wenn ein Programm in einem Tab, den Sie nicht ansehen, eine solche anfordert (OSC 9, OSC 777)</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>remoteTerminalNotificationsEnabled</code></td>
+</tr>
+<tr>
+<td>Desktop-Benachrichtigung wenn ein KI-Agent oder KI-Schwarm in einem Tab, den Sie nicht ansehen, beendet oder wartet für Sie</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>aiRunToastsEnabled</code></td>
+</tr>
+<tr>
+<td>Auf Stille überwachen meldet nach:</td>
+<td>Nummer</td>
+<td>5–3,600 seconds</td>
+<td>30</td>
+<td><code>terminalSilenceSeconds</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="coding-agent-nachrichten">Coding-Agent-Nachrichten<a class="headerlink" href="#coding-agent-nachrichten" title="Permanent link">&para;</a></h2>
+<p>Unter <strong>Coding-Agents</strong> schalten Sie die <strong>Desktop-Benachrichtigung, wenn ein Coding-Agent eine Entscheidung benötigt oder fertig ist, während Sie nicht auf dessen Fenster schauen</strong>, aus und speichern, um die von korTTY erkannten Agenten-Benachrichtigungen zu deaktivieren. Die Erkennung, die Seitenleiste und das App-Badge bleiben verfügbar; konfigurieren Sie diese unter <a href="terminal.html">Terminal</a> und siehe <a href="../../features/coding-agents.html">Coding-Agents</a>.</p>
+<p>Benachrichtigungen, die direkt von Terminalprogrammen (OSC 9 / OSC 777) und lang laufenden Befehlen angefordert werden, haben auf dieser Seite eigene Schalter. Ein Agent, der auf einem entfernten Server läuft, nutzt den Programmbenachrichtigungs-Kanal, weil korTTY nur Agenten in lokalen Shells erkennt. Schalten Sie auch den entsprechenden Schalter aus, wenn Sie diesen Kanal stummschalten möchten.</p>
+<h2 id="hinweise">Hinweise<a class="headerlink" href="#hinweise" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Benachrichtigungen zu lang laufenden Befehlen und ihr Minimum-Laufzeit-Feld sind nicht verfügbar, wenn die Shell-Integration unter <a href="terminal.html">Terminal</a> deaktiviert ist. Die erneute Aktivierung der Shell-Integration macht die Steuerelemente wieder verfügbar.</li>
+<li><strong>Auf Stille überwachen meldet nach:</strong> setzt die Verzögerung für Tabs, die über ihr Kontextmenü überwacht werden. Aktivitäts- und Stilleüberwachung sind pro Tab aktiviert, nicht über einen globalen Benachrichtigungsschalter.</li>
+<li>Eine <a href="../enterprise-policy.html#rulefeatures">Unternehmensrichtlinie</a> kann Desktop-Benachrichtigungen deaktivieren und die Benachrichtigungsschalter sperren. Tab-Aufmerksamkeitsmarkierungen bleiben innerhalb von korTTY sichtbar.</li>
+<li>Siehe <a href="../../features/terminal-notifications.html">Terminal-Benachrichtigungen</a> für Ereignisbehandlung und Benachrichtigungs-Klicks, und <a href="../../features/coding-agents.html#app-symbol-badge-und-benachrichtigungen">Coding-Agents</a> für das Verhalten der Benachrichtigung über erkannte Agenten.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Benachrichtigungen</p>
+<p>Ein Programm, das die Terminalglocke in einem Tab ertönen lässt, den Sie nicht ansehen, markiert diesen Tab immer mit 🔔, bis Sie ihn betrachten; dafür ist keine Einstellung nötig. <strong>Desktop-Benachrichtigung, wenn die Glocke in einem Tab ertönt, den Sie nicht ansehen</strong> fügt eine Desktop-Benachrichtigung mit dem Titel <code>korTTY ·</code> und dem Tab-Namen hinzu, höchstens eine pro Pane alle 10 Sekunden. Sie ist standardmäßig deaktiviert, weil Shells die Glocke bei jeder fehlgeschlagenen Tab-Vervollständigung ertönen lassen, und ein Pane mit einem erkannten Coding-Agent erhält keine Benachrichtigung, während die coding-agent-Benachrichtigungen aktiviert sind. Die Einstellung wird bei jeder Glocke gelesen, sodass eine Änderung sofort auf offene Tabs angewendet wird, sobald Sie speichern.</p>
+<p>In einer Shell, die für die Shell-Integration eingerichtet ist, markiert ein Befehl, der mindestens <strong>Mindestlaufzeit eines Befehls:</strong> (30 Sekunden standardmäßig) läuft und in einem Tab endet, den Sie nicht betrachten, auch diesen Tab mit 🔔. Und <strong>Desktop-Benachrichtigung wenn ein langlaufender Befehl in einem Tab endet, den Sie nicht betrachten</strong>, ist standardmäßig aktiviert und fügt eine Desktop-Benachrichtigung hinzu, die angibt, wie der Befehl beendet wurde und wie lange er lief – niemals den Befehl selbst, höchstens einmal pro Tab alle 10 Sekunden. Befehle des korTTY's KI-Agenten benachrichtigen nie. Beide sind ausgegraut, solange <strong>Verwenden Sie die Befehlsmarkierungen von Shells, die für die Shell-Integration eingerichtet sind (OSC 133).</strong> ausgeschaltet ist, und beide werden bei jedem abgeschlossenen Befehl gelesen. Siehe <a href="../../features/terminal-notifications.html#lange-laufende-befehle">Terminal-Benachrichtigungen</a>.</p>
+<p>Ein Programm, das eine Desktop-Benachrichtigung mit OSC 9 oder OSC 777 anfordert, wie ein Coding-Agent auf einem Server, der auf Ihre Antwort wartet, markiert seinen Tab ebenfalls mit 🔔, wenn Sie nicht darauf schauen, und <strong>Desktop-Benachrichtigung, wenn ein Programm in einem Tab, den Sie nicht ansehen, eine anfordert (OSC 9, OSC 777)</strong>, ist standardmäßig aktiviert. Es zeigt den Text des Programms unter einem Titel mit dem Tab-Namen an, bereinigt von Steuer- und bidi-Zeichen und auf 80 Zeichen für den Titel sowie 200 Zeichen für den Text gekürzt, höchstens ein Eintrag pro Pane alle 5 Sekunden; das Zwischenkommende wird verworfen. Ein Pane, in dem ein Coding-Agent erkannt wurde, erhält keine Benachrichtigung, während die Coding-Agent-Benachrichtigungen aktiv sind. Es erfordert keine Shell-Integration und wird bei jeder Anfrage gelesen. Siehe <a href="../../features/terminal-notifications.html#benachrichtigungen-von-programmen">Benachrichtigungen von Programmen</a>.</p>
+<p><strong>Desktop-Benachrichtigung, wenn ein KI-Agent oder ein KI-Schwarm in einem Tab läuft, den Sie nicht ansehen, beendet wird oder auf Ihre Rückmeldung wartet</strong>, ist standardmäßig aktiviert und gilt für korTTYs eigenen KI-Agenten und KI-Schwarm: wenn ein Lauf in einem Tab, den Sie nicht ansehen, auf Ihre Genehmigung oder ein Passwort wartet, beendet wird oder ohne Abschluss stoppt, zeigt eine Desktop-Benachrichtigung mit dem Tab-Namen in einem festen Satz an – niemals mit Prompt, Befehl oder Ausgabe, höchstens einmal pro Tab und Typ alle 10 Sekunden. Ein Terminal-Tab wird in jedem Fall mit 🔔 markiert. Es wird bei jedem Ereignis gelesen. Siehe <a href="../../features/terminal-notifications.html#laufe-von-ki-agent-und-ki-swarm">KI-Agent und KI-Schwarm laufen</a>.</p>
+<p><strong>Auf Stille überwachen meldet nach:</strong> ist die Zeit, die ein Paneel ohne Ausgabe bleiben muss, nachdem etwas gedruckt wurde, bevor ein Tab, den Sie mit <strong>Auf Stille überwachen</strong> im Rechtsklickmenü beobachten, mit 🔔 markiert wird und eine Desktop-Benachrichtigung anzeigt, standardmäßig 30 Sekunden. Die Beobachtung selbst, wie <strong>Auf Aktivität überwachen</strong>, die neue Ausgabe nach 10 Sekunden Stille meldet, wird pro Tab umgeschaltet, ist bis zum Einschalten deaktiviert und wird nie gespeichert. Die Schwelle wird jede Sekunde gelesen, sodass eine Änderung sofort auf die beobachteten Tabs wirkt, sobald Sie speichern. Siehe <a href="../../features/terminal-notifications.html#einen-tab-auf-aktivitat-oder-stille-uberwachen">Tab auf Aktivität oder Stille überwachen</a>.</p>
+</div></p>
+    </article>
+</section>
+            <!-- endblock -->
+
+            <!-- block footer -->
+<footer class="kt-footer">
+  <div class="kt-footer__line">MIT-lizenziert &middot; Entwickelt von Daniel Mengel</div>
+  <div class="kt-footer__line">korTTY <strong>v2.19.0</strong></div>
+</footer>
+
+            <!-- endblock -->
+        </div>
+
+    </main>
+
+        <script>var base_url = '../..';</script>
+        <script src="../../assets/js/jquery-3.3.1.slim.min.js"></script>
+        <script src="../../assets/js/bootstrap.bundle.min.js"></script>
+        <script src="../../assets/js/mkdocs.js"></script>
+			<script src="../../assets/javascripts/kt-zoom.js" defer></script>
+			<script src="../../search/main.js" defer></script>
+
+</body>
+
+</html>

@@ -2,12 +2,14 @@ package de.kortty.core;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import de.kortty.model.SessionJournalReplacement;
 import de.kortty.model.TerminalLogConfig;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -247,6 +249,75 @@ class TerminalLoggerTest {
             assertThat(entries.getLength()).isEqualTo(2);
             assertThat(entries.item(1).getTextContent()).contains("]]>");
         }
+    }
+
+    /** Logs one line past a policy rule that replaces {@code secret} with {@code replacement}. */
+    private String xmlLogWithPolicyReplacement(String replacement) throws Exception {
+        redactor.setReplacements(List.of(SessionJournalReplacement.literal("secret", replacement)));
+        TerminalLogger logger = logger(config(TerminalLogConfig.LogFormat.XML));
+        logger.start();
+        logger.log("token=secret;\n");
+        logger.awaitQuiet(2000);
+        logger.stop();
+        return readArchive(files().get(0));
+    }
+
+    private org.w3c.dom.NodeList parseEntries(String xml) throws Exception {
+        return DocumentBuilderFactory.newInstance().newDocumentBuilder()
+            .parse(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)))
+            .getElementsByTagName("entry");
+    }
+
+    @Test
+    void keepsTheXmlParseableWhenAPolicyReplacementContainsAControlCharacter() throws Exception {
+        // The ANSI processor drops control characters, but a policy replacement is taken as typed;
+        // U+0001 is illegal in XML 1.0 escaped or not, so the parser used to reject the file.
+        String xml = xmlLogWithPolicyReplacement("x\u0001y");
+        assertThat(xml).doesNotContain("\u0001");
+        var entries = parseEntries(xml);
+        assertThat(entries.getLength()).isEqualTo(1);
+        assertThat(entries.item(0).getTextContent()).isEqualTo("token=x\uFFFDy;");
+    }
+
+    @Test
+    void marksALoneSurrogateFromAPolicyReplacementInsteadOfCorruptingTheEntry() throws Exception {
+        String xml = xmlLogWithPolicyReplacement("x\uD800y");
+        var entries = parseEntries(xml);
+        assertThat(entries.getLength()).isEqualTo(1);
+        // The UTF-8 writer used to reject the surrogate mid-entry (MalformedInputException), so the
+        // file kept a truncated element and the line counted as a write failure.
+        assertThat(entries.item(0).getTextContent()).isEqualTo("token=x\uFFFDy;");
+    }
+
+    @Test
+    void keepsAnEntryOnOnePhysicalLineWhenAPolicyReplacementContainsLineBreaks() throws Exception {
+        String xml = xmlLogWithPolicyReplacement("one\r\ntwo");
+        // One entry per physical line is what the trimmer and anyone grepping the file rely on.
+        List<String> entryLines = xml.lines().filter(line -> line.startsWith("  <entry")).toList();
+        assertThat(entryLines).hasSize(1);
+        assertThat(entryLines.get(0)).endsWith("</entry>");
+        assertThat(entryLines.get(0)).contains("&#13;&#10;");
+        // Character references survive the parser's line-end normalisation; a raw CR LF would
+        // have come back as a single LF.
+        assertThat(parseEntries(xml).item(0).getTextContent()).isEqualTo("token=one\r\ntwo;");
+    }
+
+    @Test
+    void escapesLegalXmlTextExactlyAsTheFormerReplaceChainDid() {
+        // Archives written before this change and files the trimmer rewrites must keep matching:
+        // a tab, a valid surrogate pair and a C1 control are all legal XML 1.0 and pass through.
+        String legal = "a & b < c > \"d\" 'e'\tf \uD83D\uDE00 \u0085 ü ]]>";
+        String expected = legal.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            .replace("\"", "&quot;").replace("'", "&apos;");
+        assertThat(TerminalLogger.escapeXml(legal)).isEqualTo(expected);
+        assertThat(TerminalLogger.escapeXml("plain text")).isEqualTo("plain text");
+        assertThat(TerminalLogger.escapeXml(null)).isEmpty();
+    }
+
+    @Test
+    void replacesTheXmlNonCharactersAboveTheSurrogateRange() {
+        // U+FFFE and U+FFFF are the one illegal range XML 1.0 has besides controls and surrogates.
+        assertThat(TerminalLogger.escapeXml("a\uFFFEb\uFFFFc")).isEqualTo("a\uFFFDb\uFFFDc");
     }
 
     @Test

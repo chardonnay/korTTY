@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -820,9 +828,9 @@
 <ol>
 <li>Open the <em>Connection Manager</em> and edit (or create) a connection.</li>
 <li>Go to the <strong>Jump Server</strong> tab.</li>
-<li>Enable <strong>Jump Server</strong>.</li>
+<li>Tick <strong>Enable Jump Server / Auto-Hop</strong>.</li>
 <li>Enter the jump server's details:<ul>
-<li><strong>Host</strong> — hostname or IP address of the jump server</li>
+<li><strong>Jump server host</strong> — hostname or IP address of the jump server</li>
 <li><strong>Port</strong> — SSH port (default: 22)</li>
 <li><strong>Username</strong> — login username for the jump server</li>
 </ul>
@@ -838,7 +846,7 @@
 <p>korTTY decrypts a stored jump server password before it contacts the jump server. If the stored jump password cannot be used — none is stored, the master password vault is locked, or the stored value cannot be decrypted — connecting stops at once with a message that says so, without contacting the jump server, without asking about its host key and without working through the retry count. Unlock the vault with <strong>Configuration &gt; Security &gt; Unlock Vault…</strong> (see <a href="security.html#unlocking-the-vault-later">Unlocking the vault later</a>) or store the password in the connection's <strong>Jump Server</strong> tab, then reconnect.</p>
 <p>An incomplete jump setup (no username, or key authentication without a usable key file) and a jump-server host key you rejected are also reported once instead of being retried, because another attempt would fail identically. A jump server that cannot be reached, or a network error on the way, is still retried like any other connection failure.</p>
 <h2 id="host-key-verification">Host key verification<a class="headerlink" href="#host-key-verification" title="Permanent link">&para;</a></h2>
-<p>The jump server's host key is verified on first use exactly like any other host: korTTY shows the key's SHA-256 fingerprint and asks you to confirm it, then pins it. On later connections a changed jump-server key is refused, the same trust-on-first-use protection the target host gets. The bastion is always checked strictly: <a href="security.html#relaxing-host-key-verification">relaxing host-key verification</a> applies to target hosts only, never to the jump hop.</p>
+<p>The jump server's host key is verified on first use exactly like any other host: korTTY shows the key's SHA-256 fingerprint and asks you to confirm it, then pins it. On later connections a changed jump-server key is refused, the same trust-on-first-use protection the target host gets. When the connection was opened from a terminal tab or the SFTP manager, the changed-key alert offers <strong>Review and Replace…</strong> for the jump server as well, under the same rules as for the target (see <a href="connections.html#ssh-host-key-verification">SSH host-key verification</a>). The bastion is always checked strictly: <a href="security.html#relaxing-host-key-verification">relaxing host-key verification</a> applies to target hosts only, never to the jump hop.</p>
 <p>This holds even when host-key verification has been relaxed for the target: the per-connection, per-group and global opt-outs never cover the bastion, so its key is always verified strictly. See <a href="security.html#relaxing-host-key-verification">Relaxing host-key verification</a>.</p>
 <p>The target host is verified under its own name even though the transport goes through the tunnel, so a compromised bastion cannot substitute a different target host key unnoticed.</p>
 <h2 id="when-to-use-it">When to use it<a class="headerlink" href="#when-to-use-it" title="Permanent link">&para;</a></h2>
@@ -849,7 +857,7 @@
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Jump server passwords are stored encrypted with your master password, alongside the connection's own credentials. Because the stored password is never shown back, editing the connection with an empty jump-server password field keeps the stored one; type a new value only to change it. If the master password vault is locked when you save a new jump password, korTTY reports that the jump password could not be saved and leaves the other settings untouched.</p>
+<p>Jump server passwords are stored encrypted with your master password, alongside the connection's own credentials. Because the stored password is never shown back, editing the connection with an empty jump-server password field keeps the stored one; type a new value only to change it. If the master password vault is locked when you save a new jump password, korTTY offers <strong>Unlock Vault…</strong>; if the vault stays locked, korTTY says that the jump server password cannot be saved, keeps the stored password as it was, and still saves the other settings of the connection.</p>
 </div></p>
     </article>
 </section>

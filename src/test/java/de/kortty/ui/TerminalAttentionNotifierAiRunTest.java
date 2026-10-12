@@ -247,7 +247,7 @@ class TerminalAttentionNotifierAiRunTest {
         assertThat(dialog).contains(
             "aiRunToastsCheck.setSelected(globalSettings == null || globalSettings.isAiRunToastsEnabled());");
         assertThat(dialog).contains("globalSettings.setAiRunToastsEnabled(aiRunToastsCheck.isSelected());");
-        assertThat(dialog).contains("terminalGrid.add(aiRunToastsCheck, 0, terminalRow++, 2, 1);");
+        assertThat(dialog).contains("grid.add(aiRunToastsCheck, 0, row++, 2, 1);");
     }
 
     private static String source(String name) throws IOException {

@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -818,12 +826,22 @@
 <p>Verwenden Sie die <code>x86_64</code>-Assets auf Intel/AMD-PCs und unter Windows auf ARM, wo Windows sie durch x64-Emulation ausführt. korTTY erkennt diese emulierte Windows-ARM-Kombination beim Start und verwendet den Software-Renderer von JavaFX, da die emulierte Direct3D-Pipeline Fenster leer lassen kann; Native x64-Systeme behalten das Hardware-Rendering bei. korTTY veröffentlicht derzeit kein natives Windows-ARM-Paket, da die angeheftete OpenJFX-Zeile keine nativen Windows-ARM-Pakete enthält. Das MSI ist das Installationsprogramm; Die ZIP-Datei enthält das vollständige tragbare Anwendungsverzeichnis, einschließlich <code>korTTY.exe</code> und seiner Laufzeit. Die ausführbare Datei in diesem Verzeichnis ist keine eigenständige Einzeldateianwendung.</p>
 </div>
 <div class="tabbed-block">
-<p>Verwenden Sie das Paket für Ihre Architektur und Distribution: DEB für Debian/Ubuntu, RPM für RPM-basierte Distributionen, Pacman <code>x86_64</code> für Arch Linux, Pacman <code>aarch64</code> für Arch Linux ARM oder das ZIP/TAR-Archiv für eine tragbare Installation. Das Archiv enthält ein vollständiges <code>jpackage</code>-Anwendungsbildverzeichnis; Es handelt sich nicht um eine Linux-<code>.AppImage</code>-Datei.</p>
+<p>Verwenden Sie das Paket für Ihre Architektur und Distribution: DEB für Debian/Ubuntu, RPM für RPM-basierte Distributionen, Pacman <code>x86_64</code> für Arch Linux, Pacman <code>aarch64</code> für Arch Linux ARM, das Flatpak-Bundle für eine sandboxed Installation oder das ZIP/TAR-Archiv für eine portable Installation. Das Archiv enthält ein komplettes <code>jpackage</code> Anwendungs-Image-Verzeichnis; es ist keine Linux-<code>.AppImage</code> Datei.</p>
 </div>
 </div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Flatpak-Paket</p>
+<p>Das <code>.flatpak</code> Bundle führt korTTY in einer Flatpak-Sandbox auf dem Freedesktop 25.08 Runtime aus, die von Flathub stammt. Installieren Sie ein heruntergeladenes Bundle über ein Host-Terminal mit <code>flatpak install --user ./kortty-Linux-&lt;version&gt;-&lt;architecture&gt;.flatpak</code>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Java-Archive und Signaturen</p>
+<p>Die dünne <code>korTTY-Java-&lt;version&gt;.jar</code> ist keine eigenständige ausführbare Datei. Die <code>.zip</code> und <code>.tar</code> Distributionen enthalten die Abhängigkeiten und Startskripte, jedoch keinen Java Runtime, sodass das Ziel ein JDK 25 benötigt. Linux-Pakete, Flatpak-Bundles, Pacman-Pakete und die Java-Archive kommen jeweils mit einer abgetrennten GPG-Signatur (<code>.sig</code>); der Signaturschlüssel <code>kortty-linux-signing-public.asc</code> wird mit derselben Version veröffentlicht.</p>
 </div>
 <h2 id="das-kortty-cli-befehl">Das <code>kortty-cli</code> Befehl<a class="headerlink" href="#das-kortty-cli-befehl" title="Permanent link">&para;</a></h2>
-<p>Jedes native Paket installiert einen zweiten Starter, <code>kortty-cli</code>, neben der Anwendung: den Client für korTTYs standardmäßig ausgeschaltete <a href="../reference/control-api.html">Steuerungs-API</a>. Er liegt im selben Verzeichnis wie der grafische Starter – <code>korTTY.app/Contents/MacOS/kortty-cli</code> unter macOS, neben <code>korTTY.exe</code> unter Windows, <code>bin/kortty-cli</code> im Linux-Anwendungsverzeichnis – und nur das Arch-Paket legt ihn als <code>/usr/bin/kortty-cli</code> in Ihren <code>PATH</code>. <code>kortty-cli --version</code> ist der einzige Befehl, der ohne laufendes korTTY funktioniert, und damit der schnellste Weg, die Installation zu prüfen. Die plattformweise <code>PATH</code>-Einrichtung steht unter <a href="../reference/cli.html">Steuerungs-CLI</a>.</p>
+<p>Jedes native Paket installiert einen zweiten Launcher, <code>kortty-cli</code>, neben der Anwendung: den Client für korTTYs Standard-off <a href="../reference/control-api.html">control API</a>. Er befindet sich im selben Verzeichnis wie der grafische Launcher — <code>korTTY.app/Contents/MacOS/kortty-cli</code> auf macOS, neben <code>korTTY.exe</code> auf Windows, <code>bin/kortty-cli</code> im Linux-Anwendungsverzeichnis — und nur das Arch-Paket platziert ihn auf Ihrem <code>PATH</code>, als <code>/usr/bin/kortty-cli</code>. Im Flatpak führen Sie es als <code>flatpak run --command=kortty-cli io.github.chardonnay.korTTY</code> aus. <code>kortty-cli --version</code> ist der einzige Befehl, der ohne laufendes korTTY funktioniert, sodass es die schnellste Möglichkeit ist, die Installation zu bestätigen. Siehe <a href="../reference/cli.html">Control CLI</a> für das plattformspezifische <code>PATH</code> Setup.</p>
+<h2 id="befehlszeilenoptionen">Befehlszeilenoptionen<a class="headerlink" href="#befehlszeilenoptionen" title="Permanent link">&para;</a></h2>
+<p>Administratoren können einen Wert für eine <a href="../reference/enterprise-policy.html">unternehmensrichtlinie</a> Datei verschlüsseln, ohne die Oberfläche zu starten: <code>korTTY --encrypt-policy-value</code> gibt eine <code>kortty-enc:v1:</code> Umschlag für den Richtlinien-Schlüssel aus. Übergeben Sie den Klartext als Argument oder lassen Sie ihn weg, um den Wert am Prompt einzugeben.</p>
 <h2 id="optionale-systemtools">Optionale Systemtools<a class="headerlink" href="#optionale-systemtools" title="Permanent link">&para;</a></h2>
 <p>Einige Funktionen rufen externe Programme nur auf, wenn Sie sie verwenden:</p>
 <table>

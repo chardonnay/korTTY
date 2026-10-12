@@ -45,14 +45,24 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 
 | Item | Description |
 | --- | --- |
-| Quick Connect… | Connect to a host without saving |
-| Manage Connections… | Open the Connection Manager (tree, search, edit) |
+| Quick Connect… | Connect to a host without saving (++ctrl+k++) |
+| Manage Connections… | Open the Connection Manager (tree, search, edit) (++ctrl+m++) |
 | Import… | Import connections from other clients |
 | Export… | Export connections |
-| SFTP-Client… | Open the dual-panel SFTP file manager |
+| SFTP-Client… | Open the dual-panel SFTP file manager (++ctrl+shift+u++) |
 | Open SFTP Here | Open the SFTP file manager on the focused terminal pane's own SSH session, in the folder its shell is in |
 
-## Security
+## Configuration
+
+| Item | Description |
+| --- | --- |
+| Security ▸ | The vault, the credential, GPG-key and SSH-key managers and the known-hosts list; see [Security](#security) below |
+| Global Settings… | Open the global Settings dialog (all tabs), ++ctrl+comma++ |
+| Prevent System Sleep | On macOS and Windows, enable activity-based system-sleep prevention. The computer is kept awake only while a terminal is connected, an enabled Scheduler job has a future run or is running, or an AI request is in progress. With none of these activities, system sleep remains available even while the item is checked. Display sleep is unaffected. On Linux the item is visible but disabled. |
+
+See the [Settings reference](settings/index.md) for every individual setting.
+
+### Security
 
 | Item | Shortcut | Description |
 | --- | --- | --- |
@@ -62,31 +72,22 @@ Connection entries (Quick Connect, Manage/Import/Export Connections) live in the
 | SSH-Keys… | ++ctrl+shift+i++ | Manage SSH keys and passphrases |
 | Known Hosts… | | Review, search and remove trusted SSH host keys |
 
-## Configuration
-
-| Item | Description |
-| --- | --- |
-| Global Settings… | Open the global Settings dialog (all tabs) |
-| Prevent System Sleep | On macOS and Windows, enable activity-based system-sleep prevention. The computer is kept awake only while a terminal is connected, an enabled Scheduler job has a future run or is running, or an AI request is in progress. With none of these activities, system sleep remains available even while the item is checked. Display sleep is unaffected. On Linux the item is visible but disabled. |
-
-See the [Settings reference](settings/index.md) for every individual setting.
-
 ## Tools
 
 ![Tools menu](../assets/screenshots/main/menu-tools.png)
 
 | Item | Description |
 | --- | --- |
-| Snippet Manager… | Create, edit, organize, send and export command snippets in one workspace: the library and the snippets you edit as tabs, each with its stored Full code analysis |
-| JobScheduler… | Schedule background command / snippet / AI-agent / AI-swarm / SFTP / Rsync jobs |
-| Video Manager… | Manage terminal recordings and export to WebM/MKV via `ffmpeg` |
+| Snippet Manager… | Create, edit, organize, send and export command snippets in one workspace: the library and the snippets you edit as tabs, each with its stored Full code analysis (++ctrl+shift+s++) |
+| JobScheduler… | Schedule background command / snippet / AI-agent / AI-swarm / SFTP / Rsync jobs (++ctrl+shift+j++) |
+| Video Manager… | Manage terminal recordings and export to WebM/MKV via `ffmpeg` (++ctrl+shift+v++) |
 | Start/Stop Terminal Recording | Toggle recording of the active terminal (++ctrl+shift+e++) |
 | Logfile Manager… | Browse, filter, view, export (optionally trimmed to a time range) and delete the files written by [terminal logging](../features/terminal.md#logfile-manager) (++ctrl+shift+x++) |
 | Session Journals… | Manage [session journals](../features/session-journal.md): search, open, rename, describe, export and delete them, and set the journal options (++ctrl+alt+j++) |
 | Start/Stop Session Journal | Toggle the session journal of the active terminal tab; starting mid-session imports the existing scrollback (++ctrl+alt+t++) |
 | Add Journal Screenshot | Snapshot the active terminal into its running session journal (++ctrl+alt+c++) |
 | Session Processes… | List the [session workers](../features/session-isolation.md#ssh-sessions-in-a-session-worker) of isolated SSH sessions with their memory, CPU share and running time, and end one |
-| ASCII Art… | Two tabs in one dialog: **Text Banner** renders text as a FIGlet banner in multiple font styles, **AI Picture** lets an AI profile draw a subject as ASCII art |
+| ASCII Art… | Two tabs in one dialog: **Text Banner** renders text as a FIGlet banner in multiple font styles, **AI Picture** lets an AI profile draw a subject as ASCII art (++ctrl+shift+a++) |
 
 The three session-journal items stay visible but are disabled when an [enterprise policy](../features/session-journal.md#enterprise-policy) denies the session-journal feature.
 
@@ -96,15 +97,15 @@ The three session-journal items stay visible but are disabled when an [enterpris
 
 | Item | Description |
 | --- | --- |
-| AI Manager… | Manage AI profiles, integrated GGUF models, RAG knowledge stores, the AI Skills library, and Text/Coding roles |
+| AI Manager… | Manage AI profiles, integrated GGUF models, RAG knowledge stores, the AI Skills library, and Text/Coding roles (++ctrl+shift+y++) |
 | Saved Chats… | Open the saved AI chat conversations directly in their own window; invoking it again brings the existing window to the front |
-| AI Agent… | Open the terminal AI agent |
-| AI Planning… | Open the AI planning workflow |
+| AI Agent… | Open the terminal AI agent Open the terminal AI agent (++ctrl+alt+a++) |
+| AI Planning… | Open the AI planning workflow Open the AI planning workflow (++ctrl+alt+p++) |
 | AI Swarm… | Broadcast one AI task to many servers and compare the answers (++ctrl+alt+s++) |
 
 **AI Manager** opens as a modeless window, so it can remain visible while you use the main window. Invoking it again restores and focuses the same manager for that main window instead of creating a duplicate. Its five sections are **Profiles** (connection mode, model, prompt preset, reasoning, internet access and token budget), **Local Models** (search/download/import GGUF models), **Knowledge Stores** (RAG sources), **AI Skills** (the skill library, moved here from the global settings dialog) and **Local AI** (Text/Coding/embedding roles and the local runtime). The open primary section remains marked by a bold accent underline after you move focus into its tables, fields, or buttons:
 
-![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/ai-manager.png)
+![AI Manager with Local Models selected and persistently underlined](../assets/screenshots/ai/local-models.png)
 
 ## Plugins
 
@@ -125,6 +126,14 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Connection toolbar | — | Show or hide the saved-server and group row independently of the action row; an empty connection row stays hidden outside customization |
 | File Browser ▸ Show on Left | ++ctrl+shift+k++ | Dock the local [file browser](../features/file-browser.md) to the left of the terminal; unchecking the active side hides it |
 | File Browser ▸ Show on Right | ++ctrl+shift+r++ | Dock the local [file browser](../features/file-browser.md) to the right of the terminal; unchecking the active side hides it |
+| AI Agent Panel ▸ At Bottom / Dock Left / Dock Right | | Choose where the AI agent activity panel lives |
+| Live Journal ▸ Dock Left / Dock Right | | Dock the [live journal panel](../features/session-journal.md#the-live-journal-panel) beside the terminal; selecting the active side hides it |
+| Live Journal ▸ Show/Hide | ++ctrl+alt+l++ | Toggle the live journal panel on its last-used side (right by default) |
+| Coding Agents ▸ Dock Left / Dock Right | | Dock the [Coding Agents panel](../features/coding-agents.md#the-coding-agents-panel) beside the terminal; selecting the active side hides it |
+| Coding Agents ▸ Show/Hide | ++ctrl+alt+g++ | Toggle the Coding Agents panel on its last-used side (right by default) |
+| Coding Agents ▸ Next Blocked Agent | ++ctrl+alt+n++ | Bring the next coding agent that is waiting for a decision to the front, across windows |
+| Remote Files Sidebar ▸ Dock Left / Dock Right | | Dock the [remote files sidebar](../features/terminal.md#remote-files-sidebar) beside the panes of every terminal tab; unchecking the active side hides it. Offered while the active tab has an SSH pane or the sidebar is on |
+| Remote Files Sidebar ▸ Show/Hide Remote Files Sidebar | | Show the remote files sidebar on the right, or hide it; hiding asks first while sidebar transfers are running |
 | Zoom In | ++alt+plus++ | Increase terminal font size |
 | Zoom Out | ++alt+minus++ | Decrease terminal font size |
 | Reset Zoom | ++alt+0++ | Reset terminal font size |
@@ -143,17 +152,10 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Highlighting ▸ Highlighting On | ++ctrl+shift+h++ | Switch [keyword highlighting](../features/highlighting.md) on or off for the focused pane of the active tab; switching it back on restores the set the pane showed last. Applies to the running session only |
 | Highlighting ▸ None / rule set | | Choose the rule set the focused pane shows: **None**, a built-in set (**Errors and warnings**, **Network addresses**, **Network devices**) or one of your own. Applies to the running session only |
 | Highlighting ▸ Manage Rule Sets… | | Open the [rule-set editor](../features/highlighting.md#your-own-rule-sets) to create, change, duplicate or delete your own rule sets and look at the built-in ones; it opens on the set the focused pane shows |
+| Terminal Effect ▸ | | Choose the [terminal effect](../features/terminal-effect-plugins.md) of the active terminal tab: **None** or one of the installed effect plugins. The submenu is greyed out while terminal effects are switched off; its animation-speed slider below the plugins is enabled only while a plugin is active |
 | Fullscreen | ++f12++ | Toggle window fullscreen |
 | Terminal-only Fullscreen | ++ctrl+shift+f++ | Show the whole korTTY window — menus, tabs and status bar included — kept at its previous window size and centered on an empty fullscreen background, hiding the desktop and other windows |
 | Hide terminal scrollbars in fullscreen | | Also hide scrollbars while in fullscreen |
-| AI Agent Panel ▸ At Bottom / Dock Left / Dock Right | | Choose where the AI agent activity panel lives |
-| Live Journal ▸ Dock Left / Dock Right | | Dock the [live journal panel](../features/session-journal.md#the-live-journal-panel) beside the terminal; selecting the active side hides it |
-| Live Journal ▸ Show/Hide | ++ctrl+alt+l++ | Toggle the live journal panel on its last-used side (right by default) |
-| Coding Agents ▸ Dock Left / Dock Right | | Dock the [Coding Agents panel](../features/coding-agents.md#the-coding-agents-panel) beside the terminal; selecting the active side hides it |
-| Coding Agents ▸ Show/Hide | ++ctrl+alt+g++ | Toggle the Coding Agents panel on its last-used side (right by default) |
-| Coding Agents ▸ Next Blocked Agent | ++ctrl+alt+n++ | Bring the next coding agent that is waiting for a decision to the front, across windows |
-| Remote Files Sidebar ▸ Dock Left / Dock Right | | Dock the [remote files sidebar](../features/terminal.md#remote-files-sidebar) beside the panes of every terminal tab; unchecking the active side hides it. Offered while the active tab has an SSH pane or the sidebar is on |
-| Remote Files Sidebar ▸ Show/Hide Remote Files Sidebar | | Show the remote files sidebar on the right, or hide it; hiding asks first while sidebar transfers are running |
 
 ## Teamwork
 
@@ -172,11 +174,15 @@ The manual has its own text-size buttons at the top left of its window: `A-`, th
 
 Screenshots and diagrams enlarge on click: the picture opens over the page at the largest size the window allows, with **−** / **+** buttons and a percentage that returns it to that fitted size. Zoom further to read a single setting row, drag the picture to pan, and close with the **×**, ++esc++ or a click next to the picture. ++ctrl++ and the wheel zoom as well. The same works in the online guide.
 
+## JobScheduler status
+
+This menu sits after **Help** and appears only while the **Show Jobs status in menu bar** option of the [JobScheduler](../features/jobscheduler.md) is on and a scheduled entry is active. It always starts with **Open JobScheduler…**. While jobs run it lists a **Running jobs** header, a status line per job and a **Cancel** item per job; the cancel items work without a window. Below them, **Next jobs** lists the queued scheduled jobs with their start times.
+
 ## macOS Dock & menu bar
 
 On macOS the packaged app keeps running in the background (so the JobScheduler can run scheduled jobs) even after the last window is closed. korTTY therefore adds two extra entry points so it stays reachable — and quittable — with no window open:
 
-- **Dock icon menu** — right-click korTTY's Dock icon for quick actions: **New Window**, **New Tab**, **Manage Connections…**, **Open Project…**, **Manual**, **About korTTY**, and **Quit**.
+- **Dock icon menu** — right-click korTTY's Dock icon for quick actions: **New Window**, **New Tab in Current Window**, **Manage Connections…**, **Open Project…**, **Manual**, **About korTTY**, and **Quit**.
 - **Menu-bar (status) icon** — a system-tray icon with **New Window** and **Quit**; clicking the icon opens a new window.
 
 Both provide a reliable **Quit** even when every window is closed.

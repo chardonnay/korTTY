@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -870,7 +878,7 @@
 </div>
 <div class="admonition danger">
 <p class="admonition-title">Auto-Login speichert Ihr Master-Passwort auf der Festplatte</p>
-<p>Die Aktivierung von „Master-Passwort-Frage beim Programmstart deaktivieren“ lässt korTTY Ihr Master-Passwort speichern – nur verschleiert (nicht sicher verschlüsselt) im <code>~/.kortty/master.autounlock</code> mit Besitzerrechten auf der Datei – und entsperrt den Tresor automatisch bei jedem Start ohne Dialog. Im Gegensatz zur Deaktivierung der Option oben bleiben verschlüsselte Daten (KI-Profile, SSH-Passwörter, Zugangsdaten) nutzbar, da der Tresor tatsächlich entsperrt wird. Der Preis dafür ist, dass jeder, der Ihren <code>~/.kortty</code>-Ordner oder eine Sicherung lesen kann, alle gespeicherten Passwörter, SSH-Schlüssel und API-Schlüssel entschlüsseln kann – die Dateirechte sind die einzige verbleibende Schutzmaßnahme. Bei einem neuen Profil erstellt korTTY ein Standardpasswort automatisch, sodass die Anwendung ohne Eingabe starten kann. korTTY fragt Sie vor der Aktivierung nach Bestätigung, und diese Einstellung ist ausschließlich für kurzfristige oder Testumgebungen wie eine Virtuelle Maschine vorgesehen. Solange automatischer Login aktiv ist, ist „Master-Passwort beim Programmstart anfordern“ deaktiviert und grau, da beide Optionen gegenseitig ausschließend sind. Eine Unternehmensrichtlinie, die ein Master-Passwort erfordert, überschreibt diese Einstellung.</p>
+<p>Das Aktivieren von "Disable master password prompt on startup" lässt korTTY Ihr Master-Passwort merken — gespeichert in <code>~/.kortty/master.autounlock</code>, verschlüsselt mit AES-256-GCM aber mit einem Schlüssel, der in korTTY eingebaut ist, sodass es verschleiert statt geheim ist, mit Dateiberechtigungen nur für den Eigentümer — und öffnet das Tresor automatisch bei jedem Start, ohne Dialog. Im Gegensatz zum Deaktivieren der obigen Option bleiben verschlüsselte Daten (KI-Profile, SSH-Passwörter, Anmeldedaten) nutzbar, weil der Tresor tatsächlich geöffnet ist. Kompromiss: Jeder, der Ihren <code>~/.kortty</code>-Ordner oder ein Backup lesen kann, kann dann <strong>alle</strong> gespeicherten Passwörter, SSH-Schlüssel und API-Schlüssel entschlüsseln — die Dateiberechtigungen sind der einzige verbleibende Schutz. Bei einem brandneuen Profil richtet korTTY automatisch ein Standardpasswort ein, sodass die App ohne Eingabe starten kann. korTTY bittet Sie um Bestätigung, bevor es aktiviert wird, und ist nur für einmalige/Testumgebungen wie eine VM gedacht. Während die automatische Anmeldung aktiviert ist, wird <strong>Master-Passwort beim Programmstart anfordern</strong> ausgeschaltet und ausgegraut — die beiden Optionen sind gegenseitig ausschließend. Eine Unternehmensrichtlinie, die ein Master-Passwort verlangt, überschreibt diese Option.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Unbeaufsichtigter erster Start (Automatisierungs-/Test-VMs)</p>
@@ -884,7 +892,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Schaltfläche „Master-Passwort ändern“</p>
-<p>Öffnet ein Dialogfeld, das das <strong>Aktuelle Passwort</strong>, das <strong>Neue Passwort (mindestens 6 Zeichen)</strong> und eine <strong>Neues Passwort bestätigen</strong>-Wiederholung erfordert; <strong>Ändern</strong> wendet diese Anpassung an. korTTY lehnt ein falsches aktuelles Passwort, ein neues Passwort mit weniger als sechs Zeichen und eine Ungleichheit zwischen den beiden neuen Eingaben ab, jeweils mit einer eigenen Nachricht. Im Erfolg wird angegeben, wie viele Geheimnisse neu verschlüsselt wurden: Jedes Geheimnis, das mit dem Master-Passwort geschützt ist, wird mit dem alten Passwort entschlüsselt und mit dem neuen Passwort neu verschlüsselt — Verbindungspasswörter und Schlüsselphrasen, Jump-Server-Passwörter, SSH-Schlüsselphrasen, gespeicherte Zugangsdaten, KI-Profile-API-Schlüssel und andere KI-/Übersetzungsschlüssel sowie RAG- und Job-Scheduler-Geheimnisse — so dass nach der Änderung nichts unlesbar wird.</p>
+<p>Öffnet einen Dialog, der nach dem <strong>Aktuellen Passwort</strong>, dem <strong>Neuen Passwort (mindestens 6 Zeichen)</strong> und einer Wiederholung des <strong>Neuen Passworts bestätigen</strong> fragt; <strong>Ändern</strong> wendet es an. korTTY lehnt ein falsches aktuelles Passwort, ein neues Passwort unter sechs Zeichen und eine Diskrepanz zwischen den beiden neuen Eingaben ab, jeweils mit einer eigenen Meldung. Bei Erfolg meldet es, wie viele Geheimnisse neu verschlüsselt wurden: jedes mit Master-Passwort geschützte Geheimnis wird mit dem alten Passwort entschlüsselt und mit dem neuen verschlüsselt — Verbindungs-Passwörter und Schlüsselpassphrasen, Jump-Server-Passwörter, SSH-Schlüsselpassphrasen, gespeicherte Anmeldedaten, KI-Profil API-Schlüssel, KI-Skill-Provider-Geheimnisse und die anderen KI/Übersetzungsschlüssel sowie RAG- und Job Scheduler-Geheimnisse — sodass nichts nach der Änderung unlesbar wird.</p>
 <p>Das neue Passwort übernimmt erst dann, wenn alle Speicher übertragen wurden, sodass ein Fehler während des Prozesses das alte Passwort behält statt Sie teilweise auszuschließen. Wenn ein einzelnes Geheimnis nicht übertragen werden kann (zum Beispiel ein Geheimnis, das mit einem anderen Passwort verschlüsselt wurde), bleibt korTTY das alte Wert unverändert, meldet, wie viele Elemente betroffen sind, und notiert dies im Protokoll — diese Geheimnisse behalten das alte Passwort und müssen manuell neu eingegeben werden. Wenn automatischer Login aktiv ist, wird das in <code>~/.kortty/master.autounlock</code> gespeicherte Passwort mit dem neuen Master-Passwort überschrieben, sodass das automatische Entsperrungsverhalten nach der Änderung weiterhin funktioniert.</p>
 </div></p>
     </article>

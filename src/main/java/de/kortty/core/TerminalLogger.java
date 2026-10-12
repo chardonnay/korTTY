@@ -433,19 +433,68 @@ public class TerminalLogger {
     /**
      * Escapes XML text. The old implementation wrapped lines in CDATA, which silently produced
      * broken documents as soon as terminal output contained {@code ]]>} — plain escaping cannot.
+     *
+     * <p>What XML 1.0 forbids outright — control characters below 0x20 other than tab, LF and CR,
+     * the non-characters U+FFFE and U+FFFF, and lone surrogates — becomes U+FFFD, since no
+     * escaping makes a parser accept it. CR and LF are written as character references so an
+     * entry stays on one physical line. {@link SessionJournalAnsiProcessor} never passes any of
+     * these through, but a policy replacement ({@link SessionJournalReplacer}) is taken as typed.</p>
+     *
+     * <p>Package-private so {@code TerminalLogTrimmer} rewrites entries with the very same
+     * escaping: a trimmed file has to match its source byte for byte.</p>
      */
-    private String escapeXml(String text) {
+    static String escapeXml(String text) {
         if (text == null) {
             return "";
         }
-        return text.replace("&", "&amp;")
-                   .replace("<", "&lt;")
-                   .replace(">", "&gt;")
-                   .replace("\"", "&quot;")
-                   .replace("'", "&apos;");
+        StringBuilder out = null;
+        int length = text.length();
+        for (int i = 0; i < length; i++) {
+            char c = text.charAt(i);
+            String replacement = switch (c) {
+                case '&' -> "&amp;";
+                case '<' -> "&lt;";
+                case '>' -> "&gt;";
+                case '"' -> "&quot;";
+                case '\'' -> "&apos;";
+                case '\r' -> "&#13;";
+                case '\n' -> "&#10;";
+                default -> null;
+            };
+            if (replacement == null) {
+                if (Character.isHighSurrogate(c) && i + 1 < length
+                    && Character.isLowSurrogate(text.charAt(i + 1))) {
+                    // A proper pair is a supplementary character XML allows; keep both halves.
+                    if (out != null) {
+                        out.append(c).append(text.charAt(i + 1));
+                    }
+                    i++;
+                    continue;
+                }
+                if (isXmlChar(c)) {
+                    if (out != null) {
+                        out.append(c);
+                    }
+                    continue;
+                }
+                replacement = "\uFFFD";
+            }
+            if (out == null) {
+                // Allocated only once something needs changing; most lines need nothing.
+                out = new StringBuilder(length + 16).append(text, 0, i);
+            }
+            out.append(replacement);
+        }
+        return out == null ? text : out.toString();
     }
 
-    private String escapeJson(String text) {
+    /** XML 1.0 {@code Char} for one UTF-16 unit; LF, CR and surrogate pairs are the caller's. */
+    private static boolean isXmlChar(char c) {
+        return c == '\t' || (c >= 0x20 && c <= 0xD7FF) || (c >= 0xE000 && c <= 0xFFFD);
+    }
+
+    /** Package-private for the same reason as {@link #escapeXml}. */
+    static String escapeJson(String text) {
         if (text == null) {
             return "";
         }

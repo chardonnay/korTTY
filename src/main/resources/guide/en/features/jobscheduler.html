@@ -221,6 +221,14 @@
     </li>
                     
     <li class="drac-box-ternary">
+        <a href="../reference/settings/messaging.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Messaging
+        </a>
+    </li>
+                    
+    <li class="drac-box-ternary">
         <a href="../reference/settings/window.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -808,7 +816,7 @@
         <p><h1 id="jobscheduler">JobScheduler<a class="headerlink" href="#jobscheduler" title="Permanent link">&para;</a></h1>
 <p>The JobScheduler runs unattended background jobs while KorTTY is open. It does not require an operating system service or an active SSH terminal tab. Jobs execute automatically on a configured schedule using saved SSH connections from the Connection Manager.</p>
 <p>On macOS and Windows, an enabled job with a future run keeps the computer from entering system sleep while korTTY is running when <strong>Configuration &gt; Prevent System Sleep</strong> is enabled, so the scheduled time remains reachable. The Scheduler uses a single wake-up for the next due run and owns no polling timer when no enabled future job exists. With no terminal connection, future or running Scheduler job, or active AI request, system sleep remains available even while the setting is checked. While a job is running, macOS does not put korTTY into App Nap. Display sleep is not blocked. Linux power inhibition is not yet supported.</p>
-<p>Open it with <strong>Tools &gt; JobScheduler...</strong>. The dialog remembers its window position and size. The German interface now translates all labels, action names, status values, validation messages, target selectors and supporting prompts; technical protocol and format names such as SFTP, Rsync, ZIP, TAR, stdout and stderr remain unchanged.</p>
+<p>Open it with <strong>Tools &gt; JobScheduler...</strong>. The dialog remembers its window position and size. Its job list has <strong>New</strong>, <strong>Save</strong>, <strong>Delete</strong>, <strong>Run now</strong> and <strong>Webhook targets...</strong> buttons and the <strong>Show Jobs status in menu bar</strong> check box; <strong>Run now</strong> saves the selected job and starts it at once. The German interface now translates all labels, action names, status values, validation messages, target selectors and supporting prompts; technical protocol and format names such as SFTP, Rsync, ZIP, TAR, stdout and stderr remain unchanged.</p>
 <p><img alt="JobScheduler execution" src="../assets/diagrams/jobscheduler-execution.svg" /></p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>JobScheduler supports six types of actions:</p>
@@ -1012,6 +1020,65 @@
 </tr>
 </tbody>
 </table>
+<p>Each action shows only these fields besides the <strong>Action</strong> selector. The <strong>Sudo</strong> field is a check box labelled <strong>Use sudo</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>COMMAND</strong></td>
+<td>Command, Virtual terminal, Sudo</td>
+</tr>
+<tr>
+<td><strong>SNIPPET_SCRIPT</strong></td>
+<td>Snippet search, Snippet script, Snippet parameters, Virtual terminal, Sudo</td>
+</tr>
+<tr>
+<td><strong>AI_AGENT</strong></td>
+<td>AI profile, AI prompt, AI agent may change the server without runtime confirmation, Sudo</td>
+</tr>
+<tr>
+<td><strong>AI_SWARM</strong></td>
+<td>AI profile, AI prompt, AI agent may change the server without runtime confirmation, Swarm parallelism, Swarm read-only</td>
+</tr>
+<tr>
+<td><strong>SFTP_UPLOAD</strong>, <strong>SFTP_DOWNLOAD</strong></td>
+<td>Local path, Remote path, Sudo, and SFTP sudo staging while Use sudo is ticked</td>
+</tr>
+<tr>
+<td><strong>SFTP_SYNC</strong></td>
+<td>Local path, Remote path, Sync direction, Sudo, and SFTP sudo staging while Use sudo is ticked</td>
+</tr>
+<tr>
+<td><strong>SFTP_DELETE</strong>, <strong>SFTP_MKDIR</strong></td>
+<td>Remote path, Sudo</td>
+</tr>
+<tr>
+<td><strong>SFTP_RENAME</strong>, <strong>SFTP_COPY_REMOTE</strong></td>
+<td>Remote source, Remote destination, Sudo</td>
+</tr>
+<tr>
+<td><strong>SFTP_CHMOD</strong></td>
+<td>Remote path, Permissions, Sudo</td>
+</tr>
+<tr>
+<td><strong>SFTP_CHOWN</strong></td>
+<td>Remote path, Owner, Group, Sudo</td>
+</tr>
+<tr>
+<td><strong>SFTP_ARCHIVE</strong></td>
+<td>Archive sources, Archive excludes, Archive path, Archive format, Archive password (password-protected ZIP only), Compression (not for TAR), Archive download, Archive download path (while Archive download is ticked), Sudo</td>
+</tr>
+<tr>
+<td><strong>RSYNC_SYNC</strong></td>
+<td>Rsync direction, Rsync sources, Rsync target root, Delete missing files</td>
+</tr>
+</tbody>
+</table>
 <p>Path fields provide local Finder/Explorer selection where the path is local and remote directory browsing where the path is remote. Remote browsing requires a selected target and host-key verification unless the job explicitly disables host-key verification.</p>
 <h4 id="virtual-terminal-and-screenshots">Virtual Terminal and Screenshots<a class="headerlink" href="#virtual-terminal-and-screenshots" title="Permanent link">&para;</a></h4>
 <p><strong>COMMAND</strong> and <strong>SNIPPET_SCRIPT</strong> actions can run in an invisible <strong>virtual terminal</strong>: the command gets a pseudo terminal on the server, korTTY interprets its output locally with the same terminal emulator a terminal tab uses, and screenshots of that screen are added to the run's <a href="#session-journal-per-run">session journal</a>. No window opens and no terminal you are working in is touched, so progress bars, <code>top</code> or AI coding tools in non-interactive mode (for example <code>claude -p …</code> or <code>codex exec …</code>) become visible in the journal.</p>
@@ -1079,8 +1146,9 @@
 <p>A scheduled swarm with <strong>Swarm read-only</strong> off and <strong>AI agent may change the server without runtime confirmation</strong> on changes systems unattended. Test the prompt interactively in the AI Swarm tab before enabling such a job.</p>
 </div>
 <h4 id="sftp-archive-jobs">SFTP Archive Jobs<a class="headerlink" href="#sftp-archive-jobs" title="Permanent link">&para;</a></h4>
-<p>SFTP archive jobs support ZIP, password-protected ZIP, TAR, and TAR.BZ2. Archive sources and exclude patterns accept one path or pattern per line. The archive can optionally be downloaded after creation.</p>
-<p>When <strong>Use sudo staging for SFTP paths</strong> is enabled, KorTTY stages files in a temporary location and uses sudo-assisted remote commands such as <code>mv</code>, <code>cp</code>, <code>tar</code>, <code>chmod</code>, and <code>chown</code> where elevated rights are required. Cleanup failures are written to the journal.</p>
+<p>SFTP archive jobs support ZIP, password-protected ZIP, TAR, and TAR.BZ2. Archive sources and exclude patterns accept one path or pattern per line. With <strong>Archive download</strong> ticked, the archive is downloaded to <strong>Archive download path</strong> after it is created. With <strong>Sudo</strong> ticked, the archive commands run through <code>sudo</code>.</p>
+<h4 id="sftp-sudo-staging">SFTP Sudo Staging<a class="headerlink" href="#sftp-sudo-staging" title="Permanent link">&para;</a></h4>
+<p>With <strong>Use sudo</strong> and <strong>Use sudo staging for SFTP paths</strong> ticked, an upload, download or sync stages its files in a temporary location and moves them into place with sudo (<code>mv</code> for an upload, <code>cp</code> for a download). Cleanup failures are written to the journal.</p>
 <h2 id="rsync-jobs">Rsync Jobs<a class="headerlink" href="#rsync-jobs" title="Permanent link">&para;</a></h2>
 <p><code>RSYNC_SYNC</code> supports upload and download between the local filesystem and saved SSH TCP connections.</p>
 <ul>
@@ -1110,7 +1178,7 @@
 <p>When a job run fails or is blocked, korTTY shows a desktop notification, also while the JobScheduler window is closed. The notification is titled <em>korTTY · Job</em> followed by the job's name, and its text only says how the run ended, its exit code when it had one, and whether it was started manually or by its schedule, for example <em>Failed · Exit code 2 · Scheduled run</em>. It never contains the run's output, detail or summary, because those can name servers, paths or secrets and a notification can appear on the lock screen. Control characters and invisible direction-changing characters are removed from the job name.</p>
 <p>Successful runs and recoveries (a successful run right after a failed or blocked one) do not notify by default, and cancelled runs never do. A job shows at most one notification per minute, so a job that fails every minute does not flood the desktop; its journal still records every run. Notifications use the same desktop notification service as the terminal, so where the operating system offers none, nothing is shown.</p>
 <h3 id="choosing-when-a-job-notifies">Choosing When a Job Notifies<a class="headerlink" href="#choosing-when-a-job-notifies" title="Permanent link">&para;</a></h3>
-<p>Each job has a <strong>Notifications</strong> section on its <strong>Job</strong> tab, just above the session journal section. Tick the run results that notify: <strong>Fails</strong> and <strong>Is blocked</strong> are on for every job, <strong>Recovers (succeeds after a failure)</strong> and <strong>Succeeds</strong> are off until you tick them. <strong>Show a desktop notification</strong> switches the desktop notification off for this job, for example for a job that only reports to a team channel. Below, tick the webhook targets this job sends to; no job sends to a webhook until you tick one. The section warns when nothing is ticked or when the enterprise policy blocks the ticked webhooks. Click <strong>Save</strong> to keep the changes.</p>
+<p>Each job has a <strong>Notifications</strong> section on its <strong>Job</strong> tab, just above the session journal section. Under <strong>Notify when a run:</strong>, tick the run results that notify: <strong>Fails</strong> and <strong>Is blocked</strong> are on for every job, <strong>Recovers (succeeds after a failure)</strong> and <strong>Succeeds</strong> are off until you tick them. <strong>Show a desktop notification</strong> switches the desktop notification off for this job, for example for a job that only reports to a team channel. Below, under <strong>Send to these webhook targets:</strong>, tick the webhook targets this job sends to; no job sends to a webhook until you tick one. The section warns when nothing is ticked or when the enterprise policy blocks the ticked webhooks. Click <strong>Save</strong> to keep the changes.</p>
 <h3 id="webhook-targets">Webhook Targets<a class="headerlink" href="#webhook-targets" title="Permanent link">&para;</a></h3>
 <p>A webhook target is a receiver that gets a message for every matching run, also when korTTY is in the background: a Slack channel, a Microsoft Teams channel, or any service that accepts JSON over HTTPS. Click <strong>Webhook targets...</strong> in the job list or in the <strong>Notifications</strong> section to add, edit or delete targets. Each target has a <strong>Name</strong>, a <strong>Format</strong> and a <strong>URL</strong>:</p>
 <table>
