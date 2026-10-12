@@ -908,6 +908,41 @@
 <td><code>SSHClientMonitor</code>, <code>SSHClientMonitorMBean</code></td>
 </tr>
 <tr>
+<td><strong>codingagent</strong></td>
+<td>Coding-agent awareness: detects terminal coding agents in panes, tracks their state, and feeds the Coding Agents panel and notifications</td>
+<td><code>CodingAgentDetector</code>, <code>CodingAgentMonitor</code>, <code>CodingAgentRegistry</code>, <code>CodingAgentService</code></td>
+</tr>
+<tr>
+<td><strong>isolation</strong></td>
+<td>Session isolation levels and the sandboxed local shells; SSH sessions run in session worker processes (<code>core.worker</code>)</td>
+<td><code>IsolationLevel</code>, <code>IsolationSettings</code>, <code>SandboxBackend</code>, <code>MacSandboxBackend</code>, <code>BubblewrapSandboxBackend</code>, <code>SessionWorkerProcess</code></td>
+</tr>
+<tr>
+<td><strong>paste</strong></td>
+<td>Paste protection: inspects pasted text and decides whether to confirm, sanitize or pace it</td>
+<td><code>PasteGuard</code>, <code>PasteInspection</code>, <code>PasteRules</code>, <code>PastePacer</code></td>
+</tr>
+<tr>
+<td><strong>policy</strong></td>
+<td>Enterprise policy file (<code>kortty-policy.toml</code>): managed settings, restrictions and encrypted policy values</td>
+<td><code>PolicyManager</code>, <code>PolicyLoader</code>, <code>EffectivePolicy</code>, <code>ServerAccessPolicy</code>, <code>PolicyValueCipher</code></td>
+</tr>
+<tr>
+<td><strong>shellintegration</strong></td>
+<td>Shell integration (prompt marks, command status, notifications) and per-pane activity tracking</td>
+<td><code>ShellIntegrationInjection</code>, <code>ShellIntegrationWrapperDirectory</code>, <code>PromptNavigator</code>, <code>CommandBlockStore</code></td>
+</tr>
+<tr>
+<td><strong>perf</strong></td>
+<td>Opt-in UI timing trace for performance work</td>
+<td><code>PerfTrace</code></td>
+</tr>
+<tr>
+<td><strong>platform</strong></td>
+<td>Platform support for packaged builds, such as Flatpak</td>
+<td><code>FlatpakSupport</code></td>
+</tr>
+<tr>
 <td><strong>update</strong></td>
 <td>Version checking and update notifications</td>
 <td>Update service and version metadata</td>
@@ -964,7 +999,7 @@
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── ssh-host-keys.properties     # Shared interactive Terminal/SFTP/Mosh host-key pins
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 </span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── kortty.log                   # Application log file
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── logs/                        # Application log (kortty.log) and its archives
 </span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── history/                     # Project screen snapshots (gzip, one per terminal tab)
 </span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── plugins/                     # Imported external terminal-effect plugin JARs
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
@@ -975,15 +1010,15 @@
 <h3 id="serialization-and-encryption">Serialization and Encryption<a class="headerlink" href="#serialization-and-encryption" title="Permanent link">&para;</a></h3>
 <p><strong>JAXB Marshaling</strong> converts domain objects to/from XML with automatic schema validation. Key repositories include:</p>
 <ul>
-<li><code>XMLConnectionRepository</code>: Manages <code>Connection</code> objects with SFTP, jump server, and tunnel details</li>
-<li><code>CredentialRepository</code>: Stores environment-specific credential patterns</li>
+<li><code>XMLConnectionRepository</code>: Manages <code>ServerConnection</code> objects with SFTP, jump server, and tunnel details</li>
+<li><code>CredentialManager</code>: Stores environment-specific credential patterns</li>
 <li><code>SSHKeyManager</code>: Wraps imported SSH keys with encrypted passphrases</li>
-<li><code>JobSchedulerPersistence</code>: Persists <code>JobScheduleEntry</code> objects and execution journal</li>
+<li><code>JobSchedulerRepository</code>: Persists <code>JobSchedule</code> objects and the execution journal</li>
 </ul>
 <p><strong>AES-256-GCM encryption</strong> protects sensitive fields:</p>
 <ul>
 <li>Master password is hashed once on first login, stored as <code>master.key</code></li>
-<li>All encrypted fields use AES-256-GCM with random IVs derived from the master password</li>
+<li>All encrypted fields use AES-256-GCM with random IVs, under a key derived from the master password</li>
 <li>SSH key passphrases, connection passwords, and sudo secrets are encrypted before persistence</li>
 <li>Backup archives can be encrypted with password-protected ZIP or GPG</li>
 </ul>
@@ -1088,16 +1123,47 @@
 </thead>
 <tbody>
 <tr>
-<td><code>JobScheduler</code></td>
+<td><code>JobSchedulerService</code></td>
 <td>Main scheduler service; manages scheduled jobs and execution queue</td>
 </tr>
 <tr>
-<td><code>JobExecutor</code></td>
+<td><code>JobSchedulerJobRunner</code></td>
 <td>Executes individual jobs (SSH command, script, AI agent, SFTP, Rsync)</td>
 </tr>
 <tr>
-<td><code>JobJournal</code></td>
-<td>Persistent audit log with redaction support and auto-cleanup (14 days default)</td>
+<td><code>JobJournalEntry</code></td>
+<td>Run journal entries kept in <code>job-scheduler.xml</code>, with secrets redacted and the configured retention (14 days by default)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="session-journal">Session Journal<a class="headerlink" href="#session-journal" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th><strong>Component</strong></th>
+<th><strong>Responsibility</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SessionJournalService</code></td>
+<td>Creates and stores one journal per session in <code>journals/</code>: the curated <code>journal.xml</code> and the rotated capture log</td>
+</tr>
+<tr>
+<td><code>SessionJournalExportService</code></td>
+<td>Exports a journal to its supported formats</td>
+</tr>
+<tr>
+<td><code>SessionJournalCrossSearchService</code></td>
+<td>Searches across all journals, with the per-journal search cards</td>
+</tr>
+<tr>
+<td><code>SessionJournalSearchCardIndex</code></td>
+<td>Caches one search card per journal in <code>search-card.json</code>, rebuilt when the journal changes</td>
+</tr>
+<tr>
+<td><code>SessionJournalSemanticIndex</code></td>
+<td>Optional semantic search index in the journals folder (<code>.semantic-index/</code>), built with the local embedding model</td>
 </tr>
 </tbody>
 </table>
@@ -1116,11 +1182,11 @@
 <td>Top-level application window containing menu bar, tab bar, terminal panes, dashboard, SFTP browser</td>
 </tr>
 <tr>
-<td><code>TerminalPane</code></td>
-<td>Single terminal tab with split-pane support and inline AI activity panel</td>
+<td><code>TerminalTab</code></td>
+<td>One terminal tab with split-pane support (in <code>TerminalView</code>) and inline AI activity panel</td>
 </tr>
 <tr>
-<td><code>ConnectionDialog</code></td>
+<td><code>ConnectionEditDialog</code></td>
 <td>Multi-tab editor for connection details (SSH, tunnels, jump server, logging, etc.)</td>
 </tr>
 <tr>
@@ -1128,8 +1194,8 @@
 <td>Dual-panel file manager tab for local and remote file operations</td>
 </tr>
 <tr>
-<td><code>SnippetEditor</code></td>
-<td>Monaco-powered code editor with syntax highlighting, AI assistance, and Mermaid flowcharts</td>
+<td><code>SnippetEditDialog</code></td>
+<td>Snippet editor with a Monaco code editor, syntax highlighting, AI assistance, and Mermaid flowcharts</td>
 </tr>
 <tr>
 <td><code>LocalModelManagerPane</code></td>
@@ -1447,17 +1513,17 @@
 <h3 id="job-scheduling-flow">Job Scheduling Flow<a class="headerlink" href="#job-scheduling-flow" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>User creates scheduled job
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    ↓
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>JobScheduler stores in job-scheduler.xml
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>JobSchedulerService stores in job-scheduler.xml
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    ↓
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>JobExecutor runs on schedule (background thread)
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>JobSchedulerJobRunner runs on schedule (background thread)
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    ↓
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>JobJournal records output with redaction
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>JobJournalEntry records output with redaction
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    ↓
 </span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>Menu-bar status displays next runs / live countdown
 </span></code></pre></div>
 <h2 id="logging-and-diagnostics">Logging and Diagnostics<a class="headerlink" href="#logging-and-diagnostics" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Log file</strong>: <code>~/.kortty/kortty.log</code> (SLF4J with Logback backend)</li>
+<li><strong>Log file</strong>: <code>~/.kortty/logs/kortty.log</code>, rolled over daily, with the log directory and retention set under <strong>Settings → Logging</strong> (SLF4J with Logback backend)</li>
 <li><strong>JMX monitoring</strong>: MBean <code>de.kortty:type=SSHClient</code> exposes the live SSH and Mosh terminal connections (each split pane counts, local shells do not), memory and uptime; <code>BufferedTextSize</code> is not tracked and stays 0</li>
 <li><strong>JobScheduler journal</strong>: Detailed execution logs with configurable retention (14 days default, unlimited if set to 0)</li>
 <li><strong>Project screen snapshots</strong>: The last visible screen of each terminal tab of a saved project, gzip-compressed in <code>~/.kortty/history/</code> and shown locally (never sent to the server) when the project is reopened with Auto-Reconnect</li>
@@ -1489,8 +1555,8 @@
 </ol>
 <h3 id="for-integrators">For Integrators<a class="headerlink" href="#for-integrators" title="Permanent link">&para;</a></h3>
 <ol>
-<li><strong>JAXB Repositories</strong>: Extend <code>XMLConnectionRepository</code> or <code>CredentialRepository</code> to add custom data sources</li>
-<li><strong>JobScheduler Actions</strong>: Add new action types to <code>JobExecutor</code> (e.g., custom SFTP operations)</li>
+<li><strong>JAXB Repositories</strong>: Extend <code>XMLConnectionRepository</code> or add a store beside <code>CredentialManager</code> for custom data sources</li>
+<li><strong>JobScheduler Actions</strong>: Add new action types to <code>JobSchedulerJobRunner</code> (e.g., custom SFTP operations)</li>
 </ol>
 <h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
 <ul>

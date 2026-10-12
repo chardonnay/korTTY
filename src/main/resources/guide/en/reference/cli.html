@@ -893,8 +893,213 @@
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>kortty-cli<span class="w"> </span>raw<span class="w"> </span>events.unsubscribe<span class="w"> </span><span class="s1">'{"subscription":"s1"}'</span>
 </span></code></pre></div>
 <p><code>kortty-cli schema</code> prints the complete machine-readable command surface — every command, its options, its result shape, its errors and a worked example — straight from the running korTTY. The parameters, results and errors come from the same declarations the server dispatches, and each entry's <code>cli</code> line is checked against this client's own parser before release, so both describe the version you are actually talking to; use it rather than guessing, especially from a script that has to keep working across versions.</p>
+<h2 id="command-reference">Command reference<a class="headerlink" href="#command-reference" title="Permanent link">&para;</a></h2>
+<p>Every flag the client accepts is one of the global flags below or belongs to one of the commands in the table after them. A flag that a command does not list is refused with exit 2 before anything is sent to korTTY.</p>
+<h3 id="global-flags">Global flags<a class="headerlink" href="#global-flags" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--config-dir &lt;path&gt;</code></td>
+<td>Looks for <code>control/endpoint.json</code> below <code>&lt;path&gt;</code> instead of <code>~/.kortty</code>.</td>
+</tr>
+<tr>
+<td><code>--timeout &lt;ms&gt;</code></td>
+<td>The client deadline for the whole call. The default is 5000 ms; a command that waits on korTTY gets its wait plus five seconds instead, and <code>events</code> has no deadline unless you give one.</td>
+</tr>
+<tr>
+<td><code>--raw</code></td>
+<td>Prints plain text instead of JSON, for the commands that carry text: <code>pane read</code> and <code>agent explain</code>.</td>
+</tr>
+<tr>
+<td><code>--pretty</code></td>
+<td>Indents the JSON instead of printing one compact line.</td>
+</tr>
+<tr>
+<td><code>-q</code>, <code>--quiet</code></td>
+<td>Prints nothing; the exit code is the only answer.</td>
+</tr>
+<tr>
+<td><code>--version</code></td>
+<td>Prints the client version and the protocol version, without contacting korTTY.</td>
+</tr>
+<tr>
+<td><code>-h</code>, <code>--help</code></td>
+<td>Prints the help for a group or a command, without contacting korTTY.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="commands">Commands<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>API method</th>
+<th>Options and notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ping</code></td>
+<td><code>ping</code></td>
+<td>Checks that korTTY answers.</td>
+</tr>
+<tr>
+<td><code>schema [--method &lt;name&gt;]</code></td>
+<td><code>api.schema</code></td>
+<td>Prints the machine-readable API schema, or one method of it.</td>
+</tr>
+<tr>
+<td><code>events [--kinds a,b] [--panes p1,p2] [--include-evidence] [--count N]</code></td>
+<td><code>events.subscribe</code></td>
+<td>Streams one event per line; see <a href="#watching-events">Watching events</a>.</td>
+</tr>
+<tr>
+<td><code>window list</code></td>
+<td><code>window.list</code></td>
+<td>Lists the open windows.</td>
+</tr>
+<tr>
+<td><code>tab list [--window &lt;id&gt;]</code></td>
+<td><code>tab.list</code></td>
+<td>Lists the tabs of one window, or of every window.</td>
+</tr>
+<tr>
+<td><code>tab focus --tab &lt;id&gt;</code></td>
+<td><code>tab.focus</code></td>
+<td>Raises the window and selects the tab.</td>
+</tr>
+<tr>
+<td><code>tab create --connection &lt;id or name&gt; [--isolation none, process or sandbox] [--incognito] [--window &lt;id&gt;]</code></td>
+<td><code>tab.create</code></td>
+<td>Opens a saved connection in a new tab; see <a href="#opening-a-connection">Opening a connection</a>.</td>
+</tr>
+<tr>
+<td><code>tab close</code>, <code>tab rename</code></td>
+<td>reserved</td>
+<td>Refused locally with exit 2: not implemented in this version.</td>
+</tr>
+<tr>
+<td><code>pane list [--tab &lt;id&gt;] [--window &lt;id&gt;] [--local-shell-only]</code></td>
+<td><code>pane.list</code></td>
+<td>Lists the open panes, with their isolation and whether they are incognito.</td>
+</tr>
+<tr>
+<td><code>pane current</code></td>
+<td><code>pane.current</code></td>
+<td>Prints the pane the user is looking at.</td>
+</tr>
+<tr>
+<td><code>pane get &lt;selector&gt;</code></td>
+<td><code>pane.get</code></td>
+<td>Prints one pane.</td>
+</tr>
+<tr>
+<td><code>pane focus &lt;selector&gt; [--no-raise]</code></td>
+<td><code>pane.focus</code></td>
+<td>Requests focus for a pane; <code>--no-raise</code> does not raise the window that owns it.</td>
+</tr>
+<tr>
+<td><code>pane read &lt;selector&gt; [--visible, --recent or --detection] [--lines N] [--raw]</code></td>
+<td><code>pane.read</code></td>
+<td>Reads the screen (<code>--visible</code>, the default), the scrollback and the screen (<code>--recent</code>, 200 rows unless <code>--lines</code> says otherwise), or the coding-agent detection.</td>
+</tr>
+<tr>
+<td><code>pane send-text &lt;selector&gt; --text &lt;s&gt; or --stdin [--submit] [--bracketed auto, never or always] [--allow-shortcut-conflict]</code></td>
+<td><code>pane.send_text</code></td>
+<td>Types text into the pane. <code>--stdin</code> reads the text from standard input; <code>--submit</code> presses Enter afterwards; <code>--bracketed</code> defaults to <code>auto</code>.</td>
+</tr>
+<tr>
+<td><code>pane run &lt;selector&gt; --command &lt;s&gt;</code></td>
+<td><code>pane.run</code></td>
+<td>Types one single-line command and presses Enter.</td>
+</tr>
+<tr>
+<td><code>pane send-keys &lt;selector&gt; &lt;key&gt;...</code></td>
+<td><code>pane.send_keys</code></td>
+<td>Sends key names such as <code>enter</code>, <code>tab</code>, <code>up</code> or <code>ctrl+c</code>; an unknown name is refused before anything is sent.</td>
+</tr>
+<tr>
+<td><code>pane wait-output &lt;selector&gt; (--regex &lt;r&gt; or --contains &lt;s&gt;) [--visible or --recent] [--lines N] [--timeout-ms N] [--poll-ms N]</code></td>
+<td><code>pane.wait_output</code></td>
+<td>Waits until the output matches. It searches the recent output by default, waits 30 seconds unless <code>--timeout-ms</code> says otherwise, and polls every 150 ms unless <code>--poll-ms</code> says otherwise.</td>
+</tr>
+<tr>
+<td><code>pane split &lt;selector&gt; [--vertical or --horizontal] [--no-focus]</code></td>
+<td><code>pane.split</code></td>
+<td>Splits a local-shell pane and prints the new pane.</td>
+</tr>
+<tr>
+<td><code>pane close &lt;selector&gt;</code></td>
+<td><code>pane.close</code></td>
+<td>Closes a split pane; a tab's last pane is refused.</td>
+</tr>
+<tr>
+<td><code>agent list [--state S] [--kind K] [--tab &lt;id&gt;] [--window &lt;id&gt;]</code></td>
+<td><code>agent.list</code></td>
+<td>Lists the coding agents, most urgent first.</td>
+</tr>
+<tr>
+<td><code>agent get &lt;selector&gt;</code></td>
+<td><code>agent.get</code></td>
+<td>Prints one agent.</td>
+</tr>
+<tr>
+<td><code>agent explain &lt;selector&gt; [--raw]</code></td>
+<td><code>agent.explain</code></td>
+<td>Explains why the agent is in its state; <code>--raw</code> prints the text only.</td>
+</tr>
+<tr>
+<td><code>agent wait &lt;selector&gt; --until blocked, done, working, idle or any [--timeout-ms N]</code></td>
+<td><code>agent.wait</code></td>
+<td>Waits for the agent to reach a state; the wait is 60 seconds unless <code>--timeout-ms</code> says otherwise.</td>
+</tr>
+<tr>
+<td><code>agent prompt &lt;selector&gt; --text &lt;s&gt; or --stdin [--wait-until done, idle, blocked or any] [--timeout-ms N]</code></td>
+<td><code>agent.prompt</code></td>
+<td>Sends a prompt. With <code>--wait-until</code> it also waits, for 60 seconds unless <code>--timeout-ms</code> says otherwise.</td>
+</tr>
+<tr>
+<td><code>agent send-keys &lt;selector&gt; &lt;key&gt;...</code></td>
+<td><code>agent.send_keys</code></td>
+<td>Answers the agent's prompt with key names.</td>
+</tr>
+<tr>
+<td><code>agent rename &lt;selector&gt; --alias &lt;s&gt;</code></td>
+<td><code>agent.rename</code></td>
+<td>Sets an agent's alias; a blank alias clears it.</td>
+</tr>
+<tr>
+<td><code>agent start (&lt;selector&gt; or --split-from &lt;selector&gt; [--vertical or --horizontal]) --kind &lt;k&gt; [--command &lt;s&gt;] [--prompt &lt;s&gt;] [--wait] [--until done or idle] [--timeout-ms N]</code></td>
+<td><code>agent.start</code></td>
+<td>Launches a coding agent in a pane, or in a new split of one, and waits until korTTY has registered it. <code>--command</code> is split at white space into arguments and is not run through a shell. With <code>--wait</code> the default wait after the prompt is 300 seconds.</td>
+</tr>
+<tr>
+<td><code>notify --title &lt;s&gt; --body &lt;s&gt;</code></td>
+<td><code>notification.show</code></td>
+<td>Raises one desktop notification.</td>
+</tr>
+<tr>
+<td><code>mcp</code></td>
+<td>MCP over stdio</td>
+<td>Serves the tools described in <a href="#serving-mcp-clients">Serving MCP clients</a>.</td>
+</tr>
+<tr>
+<td><code>raw &lt;method&gt; [&lt;json&gt;]</code> or <code>raw &lt;method&gt; --stdin</code></td>
+<td>any</td>
+<td>Calls any method. The optional JSON object is its parameters; with <code>--stdin</code> the standard input is.</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>--kind</code> values of <code>agent list</code> and <code>agent start</code> are <code>claude-code</code>, <code>codex</code>, <code>gemini-cli</code>, <code>minimax-code</code>, <code>qwen-code</code>, <code>opencode</code>, <code>cursor-agent</code>, <code>aider</code>, <code>amp</code>, <code>goose</code>, <code>crush</code>, <code>kiro</code>, <code>continue</code>, <code>grok</code>, <code>jules</code>, <code>copilot</code> and <code>grok-build</code>. The <code>--state</code> values of <code>agent list</code> are <code>blocked</code>, <code>working</code>, <code>done</code>, <code>idle</code> and <code>unknown</code>.</p>
+<p><code>tab close</code> and <code>tab rename</code> are listed by the API as reserved; <code>kortty-cli</code> refuses them itself, so they never reach korTTY.</p>
 <h2 id="choosing-a-pane">Choosing a pane<a class="headerlink" href="#choosing-a-pane" title="Permanent link">&para;</a></h2>
-<p>Every <code>pane</code> and <code>agent</code> command takes <strong>exactly one</strong> selector, and every selector is a flag:</p>
+<p>Every command that addresses one pane takes <strong>exactly one</strong> selector, and every selector is a flag. <code>pane list</code>, <code>pane current</code> and <code>agent list</code> take none, and <code>agent start</code> accepts <code>--split-from</code> in place of a selector:</p>
 <table>
 <thead>
 <tr>
@@ -943,7 +1148,7 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kortty-cli<span class="w"> </span>events<span class="w"> </span>--kinds<span class="w"> </span>agent.state_changed<span class="w"> </span>--panes<span class="w"> </span>p1a2b3c4d<span class="w"> </span>--count<span class="w"> </span><span class="m">1</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kortty-cli<span class="w"> </span>events<span class="w"> </span>--include-evidence<span class="w"> </span>--timeout<span class="w"> </span><span class="m">60000</span>
 </span></code></pre></div>
-<p><code>--kinds</code> and <code>--panes</code> take comma-separated lists and narrow what is delivered; <code>--include-evidence</code> adds the detector's evidence to each event; <code>--count N</code> stops after N events. Three things end the stream: <code>--count</code> is reached, the <code>--timeout</code> passes, or you interrupt it. The first two exit 0. An interrupt is <strong>not</strong> handled — there is deliberately no signal handler, so the process ends with the shell's 128 + SIGINT = 130, which is worth allowing for in a CI job that wraps the stream in <code>timeout</code>.</p>
+<p><code>--kinds</code> and <code>--panes</code> take comma-separated lists and narrow what is delivered. The kinds are <code>agent.added</code>, <code>agent.state_changed</code>, <code>agent.seen</code>, <code>agent.alias_changed</code>, <code>agent.removed</code>, <code>agent.evidence</code> and <code>events.overflow</code>. Without <code>--kinds</code>, every kind except <code>agent.evidence</code> is sent. <code>agent.evidence</code> is sent only with <code>--include-evidence</code>, and at most once a second per pane. <code>events.overflow</code> is always sent and reports how many frames were dropped when the stream fell behind. <code>--count N</code> stops after N events. Three things end the stream: <code>--count</code> is reached, the <code>--timeout</code> passes, or you interrupt it. The first two exit 0. An interrupt is <strong>not</strong> handled — there is deliberately no signal handler, so the process ends with the shell's 128 + SIGINT = 130, which is worth allowing for in a CI job that wraps the stream in <code>timeout</code>.</p>
 <p>With neither <code>--count</code> nor <code>--timeout</code>, the stream has no deadline at all and runs until korTTY exits or you stop it.</p>
 <h2 id="serving-mcp-clients">Serving MCP clients<a class="headerlink" href="#serving-mcp-clients" title="Permanent link">&para;</a></h2>
 <p><code>kortty-cli mcp</code> turns the client into a <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> server, so an AI assistant that speaks MCP can read your korTTY panes. It speaks the MCP stdio transport only: the assistant's host starts <code>kortty-cli mcp</code> as a child process and exchanges newline-delimited JSON-RPC messages with it on stdin and stdout. There is no network listener; the process reaches korTTY over the same local Control API endpoint as every other command, and declares itself as an <code>mcp</code> client so korTTY applies the <a href="control-api.html#mcp-clients">MCP rules</a> to every request.</p>
@@ -1034,18 +1239,18 @@
 </tr>
 <tr>
 <td>1</td>
-<td>The request was valid but could not be carried out: no such pane, tab, agent or connection; not connected; the write failed; the last pane cannot be closed</td>
+<td>The request was valid but could not be carried out: no such window, tab, pane, agent or connection, or a <code>--current</code> that matches no pane; a stale <code>instance</code>; not connected; the write failed; an agent that must be answered first; the last pane cannot be closed; a split the pane cannot take or that aborted; an internal error in korTTY</td>
 <td>Sometimes — the answer's <code>retryable</code> field says</td>
 </tr>
 <tr>
 <td>2</td>
-<td>The request itself was wrong: a bad selector, an unknown key name, an invalid regular expression, a missing or out-of-range parameter, an unknown command</td>
+<td>The request itself was wrong: a bad selector, an unknown key name, an invalid regular expression, a missing or out-of-range parameter, an empty text, an unknown command, a selector that matches more than one pane, a connection name that two connections share, or a text whose first line korTTY's own shortcut would swallow</td>
 <td>No</td>
 </tr>
 <tr>
 <td>3</td>
-<td>Refused: the Control API is off, enterprise policy denies it, the token was rejected, korTTY is not ready yet, or too many connections are open</td>
-<td>No, until you change something</td>
+<td>Refused: the Control API is off, enterprise policy denies it or blocks the connection, the token was rejected, an MCP client is not allowed to make the call or its write was denied, or too many connections are open</td>
+<td>No, until you change something; a korTTY that is not ready yet, or has too many connections open, is worth a retry shortly</td>
 </tr>
 <tr>
 <td>4</td>
@@ -1064,7 +1269,7 @@
 </span></code></pre></div>
 <p>Failures the client diagnoses on its own are the exception: an unparseable command line, a korTTY that is not running, a <code>--current</code> that matches no pane and an expired client deadline never reached the server, so they carry no wire code and print a bare <code>kortty-cli: &lt;message&gt;</code> on either setting. Branch on the exit code for those.</p>
 <h2 id="checking-the-installation">Checking the installation<a class="headerlink" href="#checking-the-installation" title="Permanent link">&para;</a></h2>
-<p><code>kortty-cli --version</code> prints the version and exits 0. It is the only command that does <strong>not</strong> need a running korTTY, which makes it the right thing to put in an installation check or a CI smoke test.</p>
+<p><code>kortty-cli --version</code> prints the version and exits 0. <code>--version</code> and <code>--help</code> both answer without a running korTTY, which makes <code>--version</code> the right thing to put in an installation check or a CI smoke test.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kortty-cli<span class="w"> </span>--version<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s1">'kortty-cli is not installed or not on PATH'</span>
 </span></code></pre></div>
 <h2 id="scripting-notes">Scripting notes<a class="headerlink" href="#scripting-notes" title="Permanent link">&para;</a></h2>

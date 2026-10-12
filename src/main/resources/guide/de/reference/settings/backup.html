@@ -836,10 +836,10 @@
 </tr>
 <tr>
 <td>ZIP mit Passwort</td>
-<td>umschalten</td>
+<td>radio (one of two)</td>
 <td>—</td>
-<td>Ein</td>
-<td><code>backupEncryptionType</code></td>
+<td>On</td>
+<td><code>backupEncryptionType</code> (<code>PASSWORD</code>)</td>
 </tr>
 <tr>
 <td>Anmeldeinformationen</td>
@@ -850,10 +850,10 @@
 </tr>
 <tr>
 <td>GPG-Verschlüsselung</td>
-<td>umschalten</td>
-<td>–</td>
+<td>radio (one of two)</td>
+<td>—</td>
 <td>Aus</td>
-<td><code>backupEncryptionType</code></td>
+<td><code>backupEncryptionType</code> (<code>GPG</code>)</td>
 </tr>
 <tr>
 <td>GPG-Schlüssel</td>
@@ -866,13 +866,15 @@
 </table>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>Backups werden IMMER verschlüsselt. Beide Verschlüsselungsmodi (ZIP mit Passwort und GPG) sind obligatorisch – mindestens einer muss konfiguriert werden, bevor Backups durchgeführt werden können.</p>
+<p>Backups werden IMMER verschlüsselt. Wählen Sie einen Modus, ZIP mit Passwort oder GPG. Der gewählte Modus benötigt seine Anmeldeinformationen oder seinen GPG-Schlüssel; ohne einen davon stoppt das Backup mit einem Fehler, bevor etwas geschrieben wird.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p><strong>Maximale Backups:</strong> Setzen Sie <code>0</code>, um Sicherungen unbegrenzt zu behalten; jeder andere Wert (1–100) löscht automatisch die ältesten Sicherungen in <code>old-backups/</code>, sobald das Limit erreicht ist, wobei Passwort-ZIP- und GPG-Sicherungen zusammen gezählt werden. Bei passwortbasierter Verschlüsselung wählen Sie ein Credential aus dem Verwaltungssystem. Bei GPG-Verschlüsselung wählen Sie einen verfügbaren GPG-Schlüssel aus. Der Verschlüsselungstyp wird in den globalen Einstellungen gespeichert und bestimmt, welches Credential oder welche Schlüssel-ID für zukünftige Sicherungen verwendet wird.</p>
 </div>
+<p>Sobald ein Backup erstellt wurde, zeigt der Tab <strong>Letztes Backup:</strong> mit Datum, Uhrzeit und dem Pfad, in den es geschrieben wurde.</p>
 <p>Sicherungen umfassen <code>ssh-host-keys.properties</code>, sodass normalisierte Host:Port-Vertrauensentscheidungen, die von interaktiven Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen geteilt werden, die Wiederherstellung überleben; Die transiente prozessübergreifende Datei <code>.lock</code> ist nicht enthalten. JobScheduler-Hostschlüssel-Pins bleiben separat in <code>job-scheduler.xml</code> gespeichert.</p>
+<p>Neben diesen enthält ein Backup die Verbindungen, Anmeldedaten, GPG- und SSH-Schlüssel-Einträge mit den kopierten SSH-Schlüsseldateien, globale Einstellungen, JobScheduler-Jobs, Snippets und Snippet-Analysen, KI- und Schwarm-Chats, Themen, Umgebungen, Projektarbeitsbereiche und die Master-Passwort-Prüfdatei <code>master.key</code>, jedoch nicht die Auto-Entsperr-Kopie des Master-Passworts. Die vollständige Liste dessen, was ein Backup enthält und auslässt, finden Sie auf <a href="../../features/backup.html">Sicherung &amp; Wiederherstellung</a>.</p>
 <p>Lokale KI-Backups enthalten <code>llm/models.xml</code>, <code>llm/mlx-models.json</code> und <code>rag/stores.json</code>, sodass GGUF- und MLX-Modellregistrierungen, Rollenzuweisungen und Wissensquellendefinitionen wiederhergestellt werden können. Sie schließen GGUF-Gewichte, llama.cpp-Laufzeitpakete, temporäre Sidecar-Daten, Quellunterlagen und regenerierbare HNSW-Snapshots aus; Siehe <a href="../../features/backup.html">Sicherung &amp; Wiederherstellung</a>.</p></p>
     </article>
 </section>

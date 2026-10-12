@@ -913,18 +913,20 @@
 <p><img alt="Terminal Effects manager" src="../assets/screenshots/plugins/terminal-effects.png" /></p>
 <p>The dialog shows the loaded plugin list with:</p>
 <ul>
-<li>Active/inactive state</li>
+<li>An <strong>Active</strong> check box per plugin</li>
 <li>Display name</li>
 <li>Short description</li>
 </ul>
 <p>Next to the table, a preview panel plays a live animated preview of the selected plugin (a small fake terminal in the effect's colors with the effect overlay on top). If a plugin does not implement <code>createPreview()</code>, the panel shows a placeholder text instead. The preview stops when the selection changes, the global terminal-effects switch is turned off, or the dialog closes.</p>
 <p>Users can:</p>
 <ul>
-<li>Enable or disable a plugin</li>
+<li>Enable or disable a plugin by ticking or clearing its <strong>Active</strong> check box</li>
+<li>Switch the whole feature off with <strong>Enable terminal effects</strong> at the top of the dialog; while it is off, the table, <strong>Import</strong> and <strong>Reload</strong> are greyed out and the preview stops</li>
+<li>Reload the plugins with <strong>Reload</strong>, for example after copying a JAR into <code>~/.kortty/plugins</code> by hand</li>
 <li>Import an external <code>.jar</code> plugin, which KorTTY copies to <code>~/.kortty/plugins</code></li>
-<li>Export plugins that have a source JAR (the bundled MOTHER and effect-pack JARs are exportable)</li>
+<li>Export plugins that have a source JAR (the bundled MOTHER and effect-pack JARs are exportable); <strong>Export</strong> is available for the selected row while the feature is on</li>
 </ul>
-<p>Users select effects per terminal session from the terminal context menu or <strong>View &gt; Terminal Effect</strong>. Saved connections can also store the selected effect and animation speed through Quick Connect and Connection Manager. The speed slider covers <code>1x</code> through <code>10x</code>; the numeric field accepts values up to <code>99x</code>.</p>
+<p>Users select effects per terminal session from the terminal context menu or <strong>View &gt; Terminal Effect</strong>, which offer the effects only while <strong>Enable terminal effects</strong> is on. Saved connections can also store the selected effect and animation speed through Quick Connect and Connection Manager. The speed slider covers <code>1x</code> through <code>10x</code>; the numeric field accepts values up to <code>99x</code>.</p>
 <h2 id="spi-classes">SPI Classes<a class="headerlink" href="#spi-classes" title="Permanent link">&para;</a></h2>
 <p>The public SPI lives under <code>de.kortty.plugin.terminaleffects</code>.</p>
 <h3 id="terminaleffectplugin">TerminalEffectPlugin<a class="headerlink" href="#terminaleffectplugin" title="Permanent link">&para;</a></h3>

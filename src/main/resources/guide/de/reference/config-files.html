@@ -828,36 +828,53 @@
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│   ├── models/                        # Managed GGUF weights
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│   ├── runtime/                       # Versioned llama.cpp packages, activation and revocation state
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│   ├── catalog/                       # Verified model/prompt catalog cache
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   └── run/                           # Temporary sidecar state
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>├── rag/
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── stores.json                    # Knowledge stores and source configuration
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   └── stores/                        # Local HNSW snapshots
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── ai-chats.xml                       # Saved AI conversations
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── snippets.xml                       # Code snippets and scripts
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── snippet-variables.xml              # Snippet variable storage
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── snippet-analyses/                  # Stored Full code analyses, one &lt;snippet-id&gt;.json per snippet
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── snippet-drafts/                    # Unsaved snippet-editor forms (owner-only; not backed up)
-</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
-</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
-</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
-</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── ssh-tunnel-approvals.properties    # SSH tunnel sets you allowed to open, per connection (not backed up)
-</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── master.key                         # Hashed master password (PBKDF2)
-</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── master.autounlock                  # Optional auto-login password (obfuscated; owner-only)
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
-</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── coding-agents/                     # User overrides for coding-agent detection rules
-</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
-</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
-</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>├── kortty.log                         # Application log file
-</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>├── history/                           # Terminal session history (compressed)
-</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>├── journals/                          # Session journals (one directory per journal)
-</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
-</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>├── plugins/                           # Imported terminal-effect plugin JARs
-</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
-</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>├── projects/                          # Project files (.kortty)
-</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>├── session/                           # Session snapshots for Restore Previous Session (owner-only; not backed up)
-</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>├── i18n/                              # Generated language files (messages_*.properties)
-</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   ├── mlx/                           # MLX runtime, models and temporary run state
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   ├── mlx-models.json                # MLX model registrations
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── huggingface-token.enc          # Optional Hugging Face token, encrypted with the master password
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   └── run/                           # Temporary sidecar state
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── rag/
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│   ├── stores.json                    # Knowledge stores and source configuration
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│   └── stores/                        # Local HNSW snapshots
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── ai-chats.xml                       # Saved AI conversations
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── snippets.xml                       # Code snippets and scripts
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── snippet-variables.xml              # Snippet variable storage
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── snippet-analyses/                  # Stored Full code analyses, one &lt;snippet-id&gt;.json per snippet
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>├── snippet-drafts/                    # Unsaved snippet-editor forms (owner-only; not backed up)
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>├── job-scheduler.xml                  # JobScheduler jobs, host-key pins, sudo secrets, journal
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>├── ssh-host-keys.properties           # Interactive Terminal/SFTP/Mosh host-key pins
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>├── ssh-host-keys.properties.lock      # Transient cross-process writer lock (not backed up)
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>├── ssh-tunnel-approvals.properties    # SSH tunnel sets you allowed to open, per connection (not backed up)
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>├── master.key                         # Hashed master password (PBKDF2)
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>├── master.autounlock                  # Optional auto-login password (owner-only; not encrypted with the master password)
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>├── themes.xml                         # Your terminal themes (color profiles)
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>├── swarm-chats.xml                    # Saved AI Swarm conversations
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>├── journal-search-visited.xml         # Journal search hits you have already opened
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>├── sftp-resume-index.json             # Unfinished SFTP transfers that a retry can continue (not backed up)
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>├── jvm-launch.properties              # JVM resource profile (Settings → Resources)
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>├── teamwork-cache.xml                 # Cached connections of teamwork sources
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>├── teamwork-recycle-bin.xml           # Teamwork connections you deleted locally
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>├── teamwork-repos/                    # Local clones of Git-based teamwork sources
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>├── telemetry-spool.json               # Anonymous usage events waiting to be sent (see Anonymous data)
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>├── telemetry-run.marker               # Present while korTTY runs; a leftover marker marks an unclean exit
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>├── terminal-effect-plugins.disabled   # Disabled terminal-effect plugin IDs
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>├── coding-agents/                     # User overrides for coding-agent detection rules
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>├── control/                           # Control API endpoint (owner-only 0700; only while enabled)
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>│   ├── control.sock                   # Unix socket (Linux/macOS); absent on Windows
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>│   └── endpoint.json                  # Transport, port and access token (0600); deleted on exit
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>├── logs/                              # Application log (kortty.log) and its archives; ai-answers/ keeps unusable AI answers
+</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>├── history/                           # Terminal session history (compressed)
+</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>├── journals/                          # Session journals (one directory per journal)
+</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>├── terminal-logs/                     # Default folder for per-connection terminal logs
+</span><span id="__span-0-50"><a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>├── recordings/                        # Default folder for terminal recordings (Video Manager)
+</span><span id="__span-0-51"><a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>├── mosh4j/                            # Downloaded mosh4j release and its dependency JARs for built-in Mosh
+</span><span id="__span-0-52"><a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>├── guide/                             # Generated translations of the manual and their translation memory
+</span><span id="__span-0-53"><a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>├── shell-integration/                 # Wrapper folders of local shells (left-behind folders are removed after a day)
+</span><span id="__span-0-54"><a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>├── plugins/                           # Imported terminal-effect plugin JARs
+</span><span id="__span-0-55"><a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a>├── bundled-plugins/                   # Runtime copies of bundled exportable plugins
+</span><span id="__span-0-56"><a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a>├── projects/                          # Project files (.kortty)
+</span><span id="__span-0-57"><a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a>├── session/                           # Session snapshots for Restore Previous Session (owner-only; not backed up)
+</span><span id="__span-0-58"><a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a>├── i18n/                              # Generated language files (messages_*.properties)
+</span><span id="__span-0-59"><a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a>└── ssh-keys/                          # Optional copied SSH keys (included in backups)
 </span></code></pre></div>
 <h2 id="core-konfigurationsdateien">Core-Konfigurationsdateien<a class="headerlink" href="#core-konfigurationsdateien" title="Permanent link">&para;</a></h2>
 <h3 id="connectionsxml">connections.xml<a class="headerlink" href="#connectionsxml" title="Permanent link">&para;</a></h3>
@@ -946,6 +963,9 @@
 <li><code>sessionRestoreScrollback</code>: ob eine wiederhergestellte Sitzung auch die <a href="../features/projects.html#die-ausgabe-wiederherstellen">gespeicherte Ausgabe jedes Terminalbereichs</a> anzeigt (standardmäßig aus); <code>sessionRestoreScrollbackLines</code>: wie viele Ausgabezeilen pro Bereich behalten werden, 100 bis 5000 (1000, wenn der Wert fehlt)</li>
 <li><code>keyBindingOverrides</code>: Ihre eigenen <a href="settings/keyboard.html">Tastaturkürzel</a>, ein <code>binding</code>-Eintrag pro geändertem Befehl, z. B. <code>menu.view.commandPalette=Shortcut+Alt+P</code> oder <code>menu.view.dashboard=none</code>; ohne diesen Eintrag behält jeder Befehl sein Standardkürzel</li>
 <li>Angedocktes Live-Sitzungsjournal-Panel: Platzierung (versteckt/links/rechts) und Breite</li>
+<li>Coding-Agents-Panel: <code>codingAgentPanelPlacement</code> (versteckt, links oder rechts), <code>codingAgentPanelSide</code> (Die Seite, auf der es zuletzt angedockt war, wird beibehalten, solange es verborgen ist) <code>codingAgentPanelWidth</code>, und <code>codingAgentPanelAutoVisibility</code> (anzeigen und verbergen mit Agentenerkennung, standardmäßig eingeschaltet)</li>
+<li>Symbolleiste: die <code>iconToolbar</code> Element mit Sichtbarkeit der Aktionszeile (<code>visible</code> Attribut) und der Verbindungszeile (<code>connectionsVisible</code>), und einer <code>entry</code> pro Schaltfläche mit <code>id</code>, <code>kind</code> (<code>ACTION</code>, <code>CONNECTION</code>, <code>GROUP</code> oder <code>SEPARATOR</code>), <code>section</code> (<code>TERMINAL</code>, <code>TOOLS</code>, <code>SETTINGS</code> oder <code>CONNECTIONS</code>) und <code>target</code> (eine Action-ID, eine Verbindungs-ID oder ein Gruppenpfad). Einträge enthalten nur Referenzen, niemals Passwörter oder Schlüssel; ohne das Element gilt das Standardlayout.</li>
+<li><code>toolbarIconSize</code>: die Symbolgröße sowohl der beiden Toolbar-Reihen als auch des Anpassungskatalogs, 16 bis 64 Pixel (24 bei fehlenden Symbolen)</li>
 <li>JobScheduler-Statusanzeigeeinstellung</li>
 <li>Letzte Vorschau-Zoomstufe des ASCII-Art-Dialogfelds</li>
 <li>Letzte ASCII-Art-Bildgröße (Klein bis Extragroß) für die Registerkarte „KI-Bild“ und separat für die Registerkarte „Bilddatei“.</li>
@@ -969,7 +989,7 @@
 <ul>
 <li>KI-Profilstandards, Text-/Coding-Rollenzuweisungen, eingebettete GGUF-Referenzen, Eingabeaufforderungsvoreinstellungen und Wissensspeicherzuordnungen</li>
 <li>RAG-Einbettungsmodell-ID und llama.cpp bevorzugte Laufzeit-Backend-/Update-Richtlinie</li>
-<li>Optional verschlüsseltes Hugging Face-Token</li>
+<li>Der Hugging Face token wird nicht in dieser Datei gespeichert; er bleibt verschlüsselt in <code>llm/huggingface-token.enc</code></li>
 <li>Zeitlimit für KI-Anfragen in Minuten (0 = keine Begrenzung)</li>
 </ul>
 <h4 id="sitzungsjournal">Sitzungsjournal<a class="headerlink" href="#sitzungsjournal" title="Permanent link">&para;</a></h4>
@@ -1092,7 +1112,7 @@
 <p>Wenn Sie Ihr Master-Passwort vergessen, löschen Sie <code>master.key</code> und <code>credentials.xml</code>, starten Sie KorTTY neu, legen Sie ein neues Master-Passwort fest und geben Sie Ihre Passwörter erneut ein. Es gibt keinen Wiederherstellungsmechanismus für das verlorene Passwort.</p>
 </div>
 <h3 id="masterautounlock">master.autounlock<a class="headerlink" href="#masterautounlock" title="Permanent link">&para;</a></h3>
-<p>Wird nur geschrieben, während <a href="settings/security.html">auto-login</a> aktiviert ist: eine Kopie des Master-Passworts, <strong>nur verschleiert – nicht verschlüsselt</strong>, mit Dateiberechtigungen nur für Besitzer. Wenn Sie es löschen (oder die Option deaktivieren), wird die normale Startaufforderung wiederhergestellt.</p>
+<p>Wird nur geschrieben, wenn <a href="settings/security.html">Automatisches Anmelden</a> aktiviert ist: eine Kopie des Master-Passworts, verschlüsselt nur mit einem in korTTY eingebauten Schlüssel (AES-256-GCM), nicht mit dem Master-Passwort selbst, mit Dateiberechtigungen nur für den Eigentümer. Das Löschen (oder Deaktivieren der Option) stellt die normale Startaufforderung wieder her.</p>
 <h3 id="terminal-effect-pluginsdisabled">terminal-effect-plugins.disabled<a class="headerlink" href="#terminal-effect-pluginsdisabled" title="Permanent link">&para;</a></h3>
 <p>Textdatei mit den IDs der deaktivierten Terminaleffekt-Plugins (eine pro Zeile).</p>
 <p><strong>Zweck:</strong> Wenn Sie ein Terminaleffekt-Plugin über <em>Plugins &gt; Terminaleffekte</em> deaktivieren, wird seine ID in diese Datei geschrieben, sodass es nach dem Neustart deaktiviert bleibt.</p>
@@ -1100,7 +1120,7 @@
 <p>Optionale Benutzerüberschreibungen für die Regeln der Coding-Agent-Erkennung, eine JSON-Datei pro Agent (<code>claude-code.json</code>, <code>codex.json</code>, <code>gemini-cli.json</code>, <code>minimax-code.json</code>, <code>qwen-code.json</code>, <code>opencode.json</code>, <code>cursor-agent.json</code>, <code>aider.json</code>, <code>amp.json</code>, <code>goose.json</code>, <code>crush.json</code>, <code>kiro.json</code>, <code>continue.json</code>, <code>grok.json</code>, <code>jules.json</code>, <code>copilot.json</code>, <code>grok-build.json</code>).</p>
 <p><strong>Zweck:</strong> Eine Datei hier ersetzt die im Paket enthaltene Regeldatei des entsprechenden Agents vollständig. Eine ungültige Datei wird im Log als <em>Coding-Agents</em>-Warnung gemeldet und die im Paket enthaltenen Regeln bleiben aktiv. Das Verzeichnis existiert erst dann, wenn es erstellt wird. Siehe <a href="../features/coding-agents.html#eigene-regeln">Coding-Agents → Benutzerdefinierte Regeln</a>.</p>
 <h3 id="korttylog">kortty.log<a class="headerlink" href="#korttylog" title="Permanent link">&para;</a></h3>
-<p>Anwendungsprotokolldatei.</p>
+<p>Anwendungsprotokolldatei, im <code>logs/</code>-Ordner: standardmäßig <code>~/.kortty/logs/kortty.log</code>, oder der Ordner, der unter <strong>Einstellungen → Logs → Log-Verzeichnis</strong> festgelegt ist.</p>
 <p><strong>Enthält:</strong>
 - Startmeldungen
 - Verbindungsversuche und Ergebnisse
@@ -1108,7 +1128,8 @@
 - Konfigurationsänderungen
 - Fehler und Warnungen
 - Leistungsmetriken (auf Anfrage über JMX)</p>
-<p><strong>Rotation:</strong> Die Protokolldatei wächst während der Anwendungssitzung. Alte Protokolle werden nicht automatisch rotiert (die Protokolldatei bleibt bestehen, bis KorTTY beendet wird oder Sie sie manuell löschen).</p>
+<p><strong>Rotation:</strong> Jeden Tag wird die aktuelle Datei geschlossen und das Log in <code>kortty.YYYY-MM-DD.log</code> fortgesetzt. Archive älter als 24 Stunden werden automatisch komprimiert, und <strong>Einstellungen → Logs → Logs aufbewahren</strong> löscht Archive älter als die von Ihnen gewählte Anzahl Tage (0 behält alle). Eine Unternehmensrichtlinie kann die Anzahl der Archive und deren Gesamtspeicher begrenzen.</p>
+<p><strong>ai-answers/:</strong> Der <code>logs/ai-answers/</code>-Ordner speichert die letzten wenigen KI-Antworten, die korTTY nicht verwenden konnte, vollständig neben dem Log, sodass ein fehlgeschlagener Schritt später untersucht werden kann. Der Ordner ist auf eine Handvoll Antworten begrenzt.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>Überprüfen Sie diese Datei, wenn Sie Verbindungsprobleme, Probleme beim Laden von Plugins oder unerwartetes Verhalten beheben. Zu den hier protokollierten häufigen Problemen gehören SSH-Fehler, Verschlüsselungsfehler und Import-/Exportprobleme.</p>
@@ -1126,6 +1147,7 @@
 </div>
 <h3 id="journals">journals/<a class="headerlink" href="#journals" title="Permanent link">&para;</a></h3>
 <p>Sitzungsjournale – ein eigenständiges Verzeichnis pro Journal (Speicherort konfigurierbar unter <strong>Einstellungen &gt; Protokollierung &gt; Sitzungsjournal</strong>). Jedes Journalverzeichnis enthält <code>journal.xml</code> (das kuratierte Dokument: Metadaten, KI-Zusammenfassungen, Markierungen, Notizen, Screenshot-Referenzen), das Nur-Anhängen-Capture-Log <code>session-log.json</code> / <code>.xml</code> / <code>.yaml</code> (standardmäßig JSON Lines) mit zstd-komprimierten gedrehten Teilen (Teilgröße und Teileanzahl sind pro Verbindung auf der Registerkarte „Journal“ konfigurierbar, standardmäßig 25 MB und 20 Teile; Journale aus älteren Versionen behalten ihre gzip-komprimierte <code>.gz</code>-Teile), die generierte <code>journal.html</code>-Timeline-Seite und <code>screenshots/*.png</code>. Siehe <a href="../features/session-journal.html">Sitzungsjournal</a>.</p>
+<p>Der Ordner "journals" kann ebenfalls einen <code>.semantic-index/</code>-Ordner für semantische Journaleinsuche enthalten, und jeder Journalordner einen abgeleiteten <code>search-card.json</code>-Cache. korTTY baut entweder eines neu, wenn es fehlt, und das Löschen eines Journals entfernt dessen Cache ebenfalls.</p>
 <h3 id="terminal-logs">terminal-logs/<a class="headerlink" href="#terminal-logs" title="Permanent link">&para;</a></h3>
 <p>Standardmäßige Zielordner für den <a href="../features/terminal.html#terminalprotokollierung">per-Verbindung-Terminal-Log</a>, wenn das Feld für den Log-Ordner einer Verbindung leer bleibt. Die Dateinamenerstellung, tägige Rotation, Kompression und Aufbewahrung folgen der Logging-Konfiguration der Verbindung.</p>
 <h3 id="plugins">plugins/<a class="headerlink" href="#plugins" title="Permanent link">&para;</a></h3>
@@ -1292,7 +1314,7 @@
 - Stellen Sie sicher, dass sich die Plugin-JAR in <code>~/.kortty/plugins/</code> befindet und <code>META-INF/services/de.kortty.plugin.terminaleffects.TerminalEffectPlugin</code> enthält.
 - Verwenden Sie <em>Plugins &gt; Terminaleffekte &gt; Neu laden</em>, um die Plugin-Liste zu aktualisieren.</p>
 <p><strong>Größe der Protokolldatei:</strong>
-- <code>kortty.log</code> wächst während der Anwendungssitzung. Es wird nicht automatisch gedreht. Sie können es sicher löschen, während KorTTY geschlossen ist.</p>
+- <code>kortty.log</code> wächst im Laufe des Tages und wird um Mitternacht rotiert, und Archive werden gemäß <strong>Logs aufbewahren</strong> gelöscht. Sie können die Logdateien sicher löschen, während korTTY geschlossen ist.</p>
 <p><strong>Wiederherstellung des Master-Passworts:</strong>
 - Es gibt keine Wiederherstellung für ein vergessenes Master-Passwort. Wenn Sie es verlieren, löschen Sie <code>master.key</code> und <code>credentials.xml</code>, starten Sie KorTTY neu und legen Sie ein neues Passwort fest.</p></p>
     </article>

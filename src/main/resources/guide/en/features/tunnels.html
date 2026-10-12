@@ -913,7 +913,7 @@
 <h2 id="when-tunnels-open">When Tunnels Open<a class="headerlink" href="#when-tunnels-open" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Once per terminal tab:</strong> the tunnels open right after login on the tab's first SSH session and stay open while the tab is connected. Split panes neither open them again nor conflict with them.</li>
-<li><strong>Asked once:</strong> the first time a connection's tunnels are about to open, korTTY lists them and asks <strong>Open Tunnels</strong> or <strong>Not Now</strong>. <strong>Not Now</strong> is the default button, so a key you are still typing into the terminal when the question appears never opens them. The answer is remembered for that connection; korTTY asks again when its tunnels or its server change. <strong>Not Now</strong> applies to the tab, including its reconnects — open the connection in a new tab to be asked again.</li>
+<li><strong>Asked once:</strong> the first time a connection's tunnels are about to open, korTTY lists them and asks <strong>Open Tunnels</strong> or <strong>Not Now</strong>. <strong>Not Now</strong> is the default button, so a key you are still typing into the terminal when the question appears never opens them. The question is titled <strong>SSH Tunnels</strong> and lists each tunnel as the tunnel list shows it, marking those other computers may reach. The answer is remembered for that connection; korTTY asks again when its tunnels or its server change, that is when a tunnel is added, removed, enabled or disabled, or gets another address, port or type, or when the connection points to another server. A changed description does not count, and tunnels that could not open anyway are not listed: the status bar reports them instead, and when none of the tunnels could open, korTTY does not ask at all. <strong>Not Now</strong> applies to the tab, including its reconnects — open the connection in a new tab to be asked again.</li>
 <li><strong>Reconnect:</strong> a manual or automatic reconnect closes the tunnels first and opens them again on the new session.</li>
 <li><strong>Closing panes:</strong> if you close the pane the tunnels run on (or type <code>exit</code> there) while a pane opened with <strong>Split Right (same server)</strong> or <strong>Split Down (same server)</strong> from a pane on the tab's server stays open, the tunnels move to that pane. Panes opened with <strong>Split Right (new connection)</strong> or <strong>Split Down (new connection)</strong>, and the same-server splits made from them, never take them over, even when they connect to the same server.</li>
 <li><strong>Closing the tab</strong> closes its tunnels.</li>
@@ -922,7 +922,81 @@
 <li><strong>Server side:</strong> the SSH server must allow forwarding (<code>AllowTcpForwarding</code> in OpenSSH). A remote tunnel the server refuses (forwarding disabled, or its port already in use on the server) is reported in the status bar; the other tunnels still open.</li>
 </ul>
 <h3 id="status-bar">Status Bar<a class="headerlink" href="#status-bar" title="Permanent link">&para;</a></h3>
-<p>While a tab has tunnels, its status bar shows <code>Tunnels: 2/3 active</code>, followed by the first tunnel that failed and why (for example <code>Address already in use</code>) and by the first tunnel that other computers may reach. Hover over the status bar to see every tunnel with its state.</p>
+<p>While a tab has tunnels, its status bar shows <code>Tunnels: 2/3 active</code>, followed by the first tunnel that failed and why (for example <code>Address already in use</code>) and by the first tunnel that other computers may reach. If none of the tunnels of the tab could start, the status bar says so in one sentence instead: that the tunnels are disabled by your organization, that they were not allowed for this tab, or that they need the SSH protocol.</p>
+<p>Hover over the status bar to see every tunnel on its own line, with its state:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>starting</td>
+<td>the forward is being requested</td>
+</tr>
+<tr>
+<td>active on <em>address</em></td>
+<td>the forward listens on that address; an active tunnel other computers may reach also says <em>may be reachable from other computers</em></td>
+</tr>
+<tr>
+<td>failed: <em>reason</em></td>
+<td>the forward could not be opened or the server refused it</td>
+</tr>
+<tr>
+<td>stopped</td>
+<td>the forward was open and is closed (reconnect, session gone or tab closed)</td>
+</tr>
+<tr>
+<td>not started: <em>reason</em></td>
+<td>the tunnel was refused before anything was opened, see the reasons below</td>
+</tr>
+</tbody>
+</table>
+<p>A failed or refused tunnel shows one of these reasons:</p>
+<table>
+<thead>
+<tr>
+<th>Reason</th>
+<th>When it appears</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>invalid port</td>
+<td>the port is not between 1 and 65535</td>
+</tr>
+<tr>
+<td>the port could not be opened</td>
+<td>the local listener could not be created; the operating system's own message, such as <code>Address already in use</code>, is shown when it has one</td>
+</tr>
+<tr>
+<td>the SSH server refused it</td>
+<td>a remote tunnel that the server did not accept, for example because the port is in use there or <code>AllowTcpForwarding</code> is disabled</td>
+</tr>
+<tr>
+<td>disabled by your organization</td>
+<td>the enterprise policy forbids port forwarding</td>
+</tr>
+<tr>
+<td>not allowed for this tab</td>
+<td>you declined the question for this tab; see <a href="#when-tunnels-open">When Tunnels Open</a></td>
+</tr>
+<tr>
+<td>needs the SSH protocol</td>
+<td>the connection is Mosh, which cannot carry tunnels</td>
+</tr>
+<tr>
+<td>shared (Teamwork) connections may only bind to localhost</td>
+<td>a local or dynamic tunnel of a shared connection names another address</td>
+</tr>
+<tr>
+<td>shared (Teamwork) connections never open remote tunnels</td>
+<td>a remote tunnel of a shared connection, which is never opened</td>
+</tr>
+</tbody>
+</table>
 <h3 id="shared-teamwork-connections">Shared (Teamwork) Connections<a class="headerlink" href="#shared-teamwork-connections" title="Permanent link">&para;</a></h3>
 <p>Tunnels of a connection that comes from a <a href="teamwork.html">Teamwork</a> source were written by whoever edits the shared file, so korTTY limits them:</p>
 <ul>

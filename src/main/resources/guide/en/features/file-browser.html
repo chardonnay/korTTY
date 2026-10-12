@@ -827,7 +827,7 @@
 <tbody>
 <tr>
 <td><strong>View → File Browser → Show on Left</strong></td>
-<td><span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-b">B</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-b">B</kbd></span></td>
+<td><span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-k">K</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span></td>
 </tr>
 <tr>
 <td><strong>View → File Browser → Show on Right</strong></td>
@@ -835,7 +835,7 @@
 </tr>
 </tbody>
 </table>
-<p>Selecting the item again, or the <strong>✕</strong> button in the panel's title bar, hides the panel. A draggable divider resizes it (280–900 px, 380 px by default); the window keeps that width instead of squeezing the panel when the terminal needs room. The panel's <strong>position, width, Show Hidden Files setting and last directory are remembered across restarts</strong>.</p>
+<p>Selecting the item again, or the <strong>✕</strong> button in the panel's title bar, hides the panel. A draggable divider resizes it (280–900 px, 380 px by default). korTTY keeps that width while the window has room for the panel and a usable terminal, and shrinks the panel towards 280 px only when the window is too narrow for both. The panel's <strong>position, width, Show Hidden Files setting and last directory are remembered across restarts</strong>.</p>
 <h2 id="navigation">Navigation<a class="headerlink" href="#navigation" title="Permanent link">&para;</a></h2>
 <p>The listing shows one folder at a time. <strong>Double-click</strong> a folder (or select it and press <span class="keys"><kbd class="key-enter">Enter</kbd></span>) to change into it; the <strong>..</strong> row at the top goes up to the parent folder. The title bar's buttons:</p>
 <table>
@@ -868,7 +868,7 @@
 </tr>
 <tr>
 <td>Sort</td>
-<td>Choose the sort key (Name, Size, Date modified) and direction (Ascending / Descending); a click on the <strong>Name</strong>, <strong>Size</strong> or <strong>Modified</strong> column header does the same, and a second click reverses the direction. Hidden entries (names starting with a dot) always stay at the top, then folders before files</td>
+<td>Choose the sort key (Name, Size, Date modified) and direction (Ascending / Descending); a click on the <strong>Name</strong>, <strong>Size</strong> or <strong>Modified</strong> column header does the same, a second click reverses the direction, and a third click returns to <strong>Name</strong>, ascending. Hidden entries (names starting with a dot) always stay at the top, then folders before files</td>
 </tr>
 <tr>
 <td>Show hidden files</td>
@@ -931,12 +931,14 @@
 <ul>
 <li><strong>Open</strong> — open the file with the operating system's default application, or change into the selected folder.</li>
 <li><strong>Open in Snippet Editor</strong> — load a text file (up to 10 MB) into the <a href="snippets.html">Snippet Editor</a>.</li>
-<li><strong>Rename</strong> — rename inline; a name clash is resolved by appending <code>(2)</code>, <code>(3)</code>, …</li>
+<li><strong>Rename</strong> — rename inline; a name clash gets a number before the extension, such as <code>report (2).txt</code>.</li>
 <li><strong>Copy</strong> / <strong>Cut</strong> / <strong>Paste</strong> — move or copy within the browser.</li>
 <li><strong>Copy Path</strong> — copy the item's absolute path to the clipboard.</li>
 <li><strong>Delete</strong> — a confirmation prompt offers <strong>Move to Trash</strong> or <strong>Delete Permanently</strong>. Moving to the Trash is reversible; permanent deletion cannot be undone. On a system without a Trash, only permanent deletion is offered. The deletion runs in the background so a large folder does not freeze the window.</li>
 <li><strong>New Folder</strong> / <strong>New File</strong> — create an item.</li>
-<li><strong>Set owner / group / permissions</strong> — change ownership and POSIX permissions (where the filesystem supports it).</li>
+<li><strong>Show Hidden Files</strong> — the same switch as the title bar's button.</li>
+<li><strong>Select All</strong> — select every entry in the folder shown.</li>
+<li><strong>Set Owner/Permissions...</strong> — change ownership and POSIX permissions (where the filesystem supports it).</li>
 <li><strong>Archive</strong> — pack the selection into a <code>ZIP</code>, <code>TAR</code> or <code>TAR.GZ</code> archive.</li>
 <li><strong>Details</strong> — show type, size, path, modification time and permissions.</li>
 </ul>

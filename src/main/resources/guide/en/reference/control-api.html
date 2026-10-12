@@ -847,7 +847,7 @@
 <td>A listener is up and <code>endpoint.json</code> has been written. The text names the socket or the loopback port.</td>
 </tr>
 <tr>
-<td>Status: could not start — …</td>
+<td>Status: could not start - …</td>
 <td>The listener refused to start. The most common reason is that another korTTY already owns the socket; the text says which.</td>
 </tr>
 </tbody>
@@ -872,7 +872,7 @@
 </tr>
 </tbody>
 </table>
-<p>Both switches are greyed out while the Control API checkbox is unticked, with a hint that says so; they keep their values and take effect again when you tick the Control API. When the enterprise policy denies <code>mcp-server</code> or <code>control-api</code>, both are unticked and locked with the "Managed by your organization" hint. Saving with either switch off also drops every "allow for this pane in this session" answer, so switching the write tools on again later asks afresh.</p>
+<p>Both switches are greyed out while the Control API checkbox is unticked, with the hint <em>Tick the Control API above to use the MCP server.</em>; they keep their values and take effect again when you tick the Control API. When the enterprise policy denies <code>mcp-server</code> or <code>control-api</code>, both are unticked and locked, with the hint <em>Your organization does not allow the MCP server.</em> Saving with either switch off also drops every "allow for this pane in this session" answer, so switching the write tools on again later asks afresh.</p>
 <h2 id="where-the-endpoint-lives">Where the endpoint lives<a class="headerlink" href="#where-the-endpoint-lives" title="Permanent link">&para;</a></h2>
 <p>Everything the API owns lives in its own directory, <code>~/.kortty/control/</code>, created with owner-only permissions (<code>0700</code>) <strong>before</strong> anything binds. The directory, not the socket file, is the real protection: a socket inode is created with the process umask, which on most systems is world-readable.</p>
 <table>
@@ -903,7 +903,7 @@
 <h2 id="speaking-the-protocol">Speaking the protocol<a class="headerlink" href="#speaking-the-protocol" title="Permanent link">&para;</a></h2>
 <p>The protocol is newline-delimited JSON-RPC 2.0 — exactly one JSON object per line, UTF-8, at most 1 MiB per line. The first request on a connection must be <code>auth</code>; anything else, and the connection is closed. One failed token closes the connection too.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>→ {"jsonrpc":"2.0","id":1,"method":"auth","params":{"token":"kQ7f…","client":"my-script"}}
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>← {"jsonrpc":"2.0","id":1,"result":{"api":"kortty-control","protocol_version":1,"transport":"unix","ids_survive_restart":false,"capabilities":["events","split","agent_start","pane_resolve"]}}
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>← {"jsonrpc":"2.0","id":1,"result":{"api":"kortty-control","protocol_version":1,"transport":"unix","ids_survive_restart":false,"capabilities":["events","split","agent_start","pane_resolve","notifications"]}}
 </span></code></pre></div>
 <p>Requests on one connection are executed <strong>one at a time</strong>: the next line is read only after the previous answer has been queued. A client that needs a long wait and concurrent calls opens a second connection — up to eight at once.</p>
 <p>Rather than duplicating the method list here, ask korTTY: <code>api.schema</code> returns the full machine-readable surface — every method with its parameters, result shape, errors, CLI equivalent and a worked example, plus the key vocabulary, the error table and the limits. The parameters, results, errors and limits are generated from the same declarations the dispatcher registers, so they cannot drift from the implementation; each <code>cli</code> line is a command the shipped <code>kortty-cli</code> is tested to accept for that very method.</p>
@@ -935,7 +935,7 @@
 <tr>
 <td><code>pane</code></td>
 <td><code>pane.list</code>, <code>pane.current</code>, <code>pane.get</code>, <code>pane.resolve</code>, <code>pane.focus</code>, <code>pane.read</code>, <code>pane.send_text</code>, <code>pane.run</code>, <code>pane.send_keys</code>, <code>pane.wait_output</code>, <code>pane.split</code>, <code>pane.close</code></td>
-<td>Read a pane, type into it, wait for output, split a local shell or close a split.</td>
+<td>Read a pane, type into it, wait for output, split a local shell, close a split, or find the pane a script runs in from its process ids (<code>pane.resolve</code>).</td>
 </tr>
 <tr>
 <td><code>agent</code></td>
@@ -950,6 +950,7 @@
 </tbody>
 </table>
 <p>The title <code>tab.list</code> reports for a terminal tab is its name without the coding-agent glyph, the group prefix or the <code>(DISCONNECT)</code> suffix: the name you gave it with <a href="../features/terminal.html#working-with-tabs">Rename Tab</a>, otherwise the <a href="../features/terminal.html#title-from-the-shell">title its shell set</a>, otherwise the connection's name. The shell's title is chosen by the server, so a client that needs to know which host a tab is connected to should not rely on the title alone. Renaming stays with you in the user interface.</p>
+<p><code>pane.list</code> and <code>pane.get</code> report each pane's <code>isolation</code>, which is <code>none</code>, <code>process</code>, <code>sandboxed</code> or <code>degraded</code> (a sandbox was asked for but is not active), and whether its tab is <code>incognito</code>; see <a href="../features/session-isolation.html">Session isolation</a>.</p>
 <p><code>tab.create</code> opens a saved or teamwork connection — by its id, or by its name as the Connection Manager shows it — in a new tab of the focused window (or of <code>window</code>), with <code>isolation</code> (<code>none</code>, <code>process</code> or <code>sandbox</code>) in place of the connection's own <a href="../features/session-isolation.html">session isolation</a> and <code>incognito</code> for an <a href="../features/session-isolation.html#incognito-sessions">incognito session</a>. A name two connections share is refused with <code>ambiguous_connection</code> and their ids, an unknown one with <code>connection_not_found</code>. The organization's policy still applies: a blocked server, an isolation below <code>[rule.isolation] minimum</code> or an incognito session the policy forbids is refused with <code>blocked_by_policy</code>, and a teamwork connection can only be made stricter. korTTY never waits for a question while the call is open: when signing in needs a password, a temporary key or the vault unlocked, the answer is <code>pending: true</code> without a tab, and korTTY asks you and opens the tab afterwards. MCP clients cannot call it.</p>
 <p><code>tab.close</code> and <code>tab.rename</code> are <strong>reserved</strong>: they answer a definite "not implemented in this version" rather than an unknown-method error, and they are listed as reserved in <code>api.schema</code>, so a client can tell "korTTY will never do this for you" apart from "you spelled it wrong".</p>
 <h3 id="addressing-a-pane">Addressing a pane<a class="headerlink" href="#addressing-a-pane" title="Permanent link">&para;</a></h3>
@@ -990,7 +991,7 @@
 <p>Ids are minted per korTTY run. Every reply that carries ids also carries the <code>instance</code> of the running korTTY, and every mutating method accepts an optional <code>instance</code> parameter: when it does not match, the call fails with <code>stale_instance</code> instead of writing into whatever pane inherited the id. Re-enumerate whenever <code>instance</code> changes.</p>
 </div>
 <h3 id="reading-a-pane">Reading a pane<a class="headerlink" href="#reading-a-pane" title="Permanent link">&para;</a></h3>
-<p><code>pane.read</code> has three modes. <code>visible</code> returns the live screen, including the alternate buffer, right-trimmed. <code>recent</code> returns the scrollback plus the screen, read under a single buffer lock, newest <code>lines</code> rows. <code>detection</code> returns what korTTY's coding-agent detector last published for the pane — the detector is never re-run for a request.</p>
+<p><code>pane.read</code> has three modes, and <code>visible</code> is the default. <code>visible</code> returns the live screen, including the alternate buffer, right-trimmed. <code>recent</code> returns the scrollback plus the screen, read under a single buffer lock, newest <code>lines</code> rows (200 by default). <code>detection</code> returns what korTTY's coding-agent detector last published for the pane — the detector is never re-run for a request.</p>
 <p><code>pane.wait_output</code> blocks until a regular expression or a literal string appears, polling the pane. Output that appears and scrolls away inside a single poll window can be missed in <code>visible</code> mode; the default <code>recent</code> mode also searches the scrollback and does not have that gap.</p>
 <h3 id="typing-into-a-pane">Typing into a pane<a class="headerlink" href="#typing-into-a-pane" title="Permanent link">&para;</a></h3>
 <p><code>pane.send_text</code>, <code>pane.run</code> and the single-character keys of <code>pane.send_keys</code> are encoded in the pane's <a href="../features/connections.html#character-encoding">character encoding</a>, so they arrive as the bytes the same keystrokes would produce: an SSH pane set to ISO-8859-1 receives <code>é</code> as the single byte <code>E9</code>, not as UTF-8. A character that encoding cannot represent is sent as <code>?</code>. The <code>agent.*</code> methods always send UTF-8, which is what the coding agents read.</p>
@@ -999,12 +1000,12 @@
 <p><code>pane.split</code> works <strong>only</strong> on a pane whose tab is a local shell. Anything else is refused with <code>unsupported</code>. The new shell is started without any dialog, so a script never ends up waiting on a window it cannot see; a split that would need a new connection needs a human, and is not offered.</p>
 <p><code>pane.close</code> refuses a tab's <strong>last</strong> pane. Closing it would leave an empty terminal area inside a still-open tab, which is exactly why korTTY's own "Close split" menu item is greyed out in that case. Close the tab yourself.</p>
 <h2 id="what-it-cannot-do">What it cannot do<a class="headerlink" href="#what-it-cannot-do" title="Permanent link">&para;</a></h2>
-<p>The threat model is a local process running as you, while the API is on. Such a process <strong>can</strong> enumerate your windows, read any pane, type into any pane including submitting commands, split a local shell, close a split pane, drive a detected coding agent, and raise a notification.</p>
+<p>The threat model is a local process running as you, while the API is on. Such a process <strong>can</strong> enumerate your windows, read any pane, type into any pane including submitting commands, open a tab for a saved connection, split a local shell, close a split pane, drive a detected coding agent, and raise a notification.</p>
 <p>It <strong>cannot</strong>:</p>
 <ul>
 <li>reach anything before you tick the box, or at all when enterprise policy denies the feature;</li>
-<li>open a new tab, a new window or a connection of any kind — there is no way to reach a server that is not already open;</li>
-<li>split anything other than a same-server local shell;</li>
+<li>open a new window, or a tab for anything but a saved or teamwork connection: <code>tab.create</code> takes only the id or the name of one, and the policy still applies to it;</li>
+<li>split anything other than a local shell, or split into a new connection;</li>
 <li>close a tab, close korTTY's last pane, or rename a tab;</li>
 <li>read or write your settings, your credentials, the vault, your SSH keys or the master password;</li>
 <li>reach anything over the network — the listener is a unix socket or loopback, never anything else, and there is no setting that can widen it;</li>
@@ -1044,7 +1045,7 @@
 <p>Everything an <code>mcp</code> client reads is masked, always, because its model usually runs in the cloud: korTTY treats it like a cloud AI profile, with no opt-out. The screen and scrollback of <code>pane.read</code>, the matched line and screen of <code>pane.wait_output</code>, the evidence line and the process command line of <code>agent.list</code>, <code>agent.get</code> and the agent inside a pane description, and the tab and window titles all lose the connection's password, the organisation's replacement rules from the <a href="enterprise-policy.html">enterprise policy</a> and well-known token formats such as cloud access keys, each replaced by <code>***</code>. A command line is masked too, because it can carry an API key. A secret that runs over the right edge of a full-width row into the next one is masked as well; those rows are then wrapped again at the pane width.</p>
 <p><code>pane.read</code> and <code>pane.wait_output</code> give an <code>mcp</code> client at most 2000 rows and 64,000 characters, the newest ones kept, and set <code>truncated</code> when anything was left out; a <code>cli</code> client keeps the protocol's own limits. <code>pane.read</code> adds <code>masked_count</code>, the number of secrets masked in what it returned. <code>pane.wait_output</code> searches the masked text, so a pattern cannot confirm a guessed password by whether it matched. A <code>cli</code> client reads the raw text exactly as before.</p>
 <h3 id="writes-by-an-mcp-client">Writes by an MCP client<a class="headerlink" href="#writes-by-an-mcp-client" title="Permanent link">&para;</a></h3>
-<p>When <strong>Allow write tools</strong> is on, korTTY still asks you before every write an <code>mcp</code> client wants to make. <code>pane.send_text</code>, <code>pane.run</code> and <code>pane.send_keys</code> open a prompt in korTTY that shows the client's name, marked as reported by the client because nothing proves it, the target pane with its tab title and host, whether the write submits a line, and the exact text or key names. Control characters and invisible characters are shown as symbols, such as <code>␊</code> for a line break, <code>␛</code> for Escape and <code>&lt;U+202E&gt;</code> for a direction override, so nothing reaches the pane that you could not see.</p>
+<p>When <strong>Allow write tools</strong> is on, korTTY still asks you before every write an <code>mcp</code> client wants to make. <code>pane.send_text</code>, <code>pane.run</code> and <code>pane.send_keys</code> open a prompt in korTTY titled <em>MCP write request</em>, under the header <em>An AI assistant wants to type into a terminal</em>. It shows the client's name, marked <em>Client (reported by the client)</em> because nothing proves it; the action, <em>Type text</em>, <em>Run a command</em> or <em>Press keys</em>; the target pane with its tab title and host, under <em>Pane:</em>; whether the write submits a line, answered <em>Yes, it runs as soon as it arrives</em> or <em>No</em>; and the exact text or key names. The prompt also warns that an AI assistant may be repeating text it read in a terminal or on a web page, and asks you to allow the write only if you would type it yourself. Control characters and invisible characters are shown as symbols, such as <code>␊</code> for a line break, <code>␛</code> for Escape and <code>&lt;U+202E&gt;</code> for a direction override, so nothing reaches the pane that you could not see.</p>
 <table>
 <thead>
 <tr>
@@ -1079,6 +1080,10 @@
 </thead>
 <tbody>
 <tr>
+<td><code>pane_state_unknown</code></td>
+<td>korTTY cannot tell what the pane is doing</td>
+</tr>
+<tr>
 <td><code>paste_pacing</code></td>
 <td>is still sending a paste line by line</td>
 </tr>
@@ -1111,7 +1116,7 @@
 </div>
 <h2 id="audit-and-visibility">Audit and visibility<a class="headerlink" href="#audit-and-visibility" title="Permanent link">&para;</a></h2>
 <p>Every action the API takes writes exactly one line to korTTY's log, carrying <strong>byte counts and shapes only</strong> — <code>bytes=28 bracketed=false submitted=true</code>, <code>keys=2</code>, <code>orientation=vertical</code> — never terminal text. The line goes to korTTY's log and only there — the API writes nothing into a tab's session journal.</p>
-<p>The first time a program types into a pane during a korTTY run you get one desktop notification. One, not one per keystroke: the point is that a takeover is never silent, not that it becomes noise you learn to dismiss. korTTY also logs a warning naming the endpoint whenever the listener starts.</p>
+<p>The first time a program types into a pane, splits or closes a pane, or sends a prompt or keys to a coding agent during a korTTY run, you get one desktop notification titled <em>A local program is controlling this window</em>. One, not one per keystroke: the point is that a takeover is never silent, not that it becomes noise you learn to dismiss. korTTY also logs a warning naming the endpoint whenever the listener starts.</p>
 <p>Actions a coding agent performs through the API are logged distinguishably from the ones you trigger in the Coding Agents panel, so reading the log tells you which was which.</p>
 <h2 id="limits">Limits<a class="headerlink" href="#limits" title="Permanent link">&para;</a></h2>
 <table>
