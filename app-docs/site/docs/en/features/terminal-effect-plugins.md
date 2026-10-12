@@ -63,7 +63,7 @@ The Terminal Effects manager window is resizable, so you can expand the plugin t
 
 The dialog shows the loaded plugin list with:
 
-- Active/inactive state
+- An **Active** check box per plugin
 - Display name
 - Short description
 
@@ -71,11 +71,13 @@ Next to the table, a preview panel plays a live animated preview of the selected
 
 Users can:
 
-- Enable or disable a plugin
+- Enable or disable a plugin by ticking or clearing its **Active** check box
+- Switch the whole feature off with **Enable terminal effects** at the top of the dialog; while it is off, the table, **Import** and **Reload** are greyed out and the preview stops
+- Reload the plugins with **Reload**, for example after copying a JAR into `~/.kortty/plugins` by hand
 - Import an external `.jar` plugin, which KorTTY copies to `~/.kortty/plugins`
-- Export plugins that have a source JAR (the bundled MOTHER and effect-pack JARs are exportable)
+- Export plugins that have a source JAR (the bundled MOTHER and effect-pack JARs are exportable); **Export** is available for the selected row while the feature is on
 
-Users select effects per terminal session from the terminal context menu or **View > Terminal Effect**. Saved connections can also store the selected effect and animation speed through Quick Connect and Connection Manager. The speed slider covers `1x` through `10x`; the numeric field accepts values up to `99x`.
+Users select effects per terminal session from the terminal context menu or **View > Terminal Effect**, which offer the effects only while **Enable terminal effects** is on. Saved connections can also store the selected effect and animation speed through Quick Connect and Connection Manager. The speed slider covers `1x` through `10x`; the numeric field accepts values up to `99x`.
 
 ## SPI Classes
 

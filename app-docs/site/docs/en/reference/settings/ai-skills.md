@@ -77,7 +77,7 @@ When an external skill is selected, the banner above the editor shows its provid
 
 ![Import AI skills from the internet](../../assets/screenshots/ai/ai-skills-import.png)
 
-Choose a provider, enter a search and click **Search**. Selecting a result loads its `SKILL.md` into the preview. Select one or more results and click **Import selected**; results marked ✓ are already in the library and are skipped. What you enter depends on the provider type:
+Choose a provider, enter a search and click **Search**. Selecting a result loads its `SKILL.md` into the preview. The results table shows each skill's name, source, GitHub stars and description; a ✓ before the name marks a skill that is already in the library. Select one or more results and click **Import selected**; results marked ✓ are skipped. What you enter depends on the provider type:
 
 | Provider type | Enter | Example |
 | --- | --- | --- |

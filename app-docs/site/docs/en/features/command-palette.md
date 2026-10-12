@@ -92,7 +92,7 @@ The Snippet Palette has no keyboard shortcut of its own by default, because ++ct
 | ++up++ / ++down++ | Choose a row |
 | ++enter++ or a double click | Run the chosen row, or the first row when none is chosen |
 | ++alt+enter++ (++option+enter++ on macOS) | Open the chosen snippet in the Snippet Manager instead of running it; on any other row the same as ++enter++ |
-| ++tab++ / ++shift+tab++ | Move between the search field and the list |
+| ++tab++ / ++shift+tab++ | Move between the search field and the list, while the list has rows |
 | ++esc++ | Close the palette |
 | ++ctrl+shift+p++ (++cmd+shift+p++ on macOS) | Close the palette |
 

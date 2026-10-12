@@ -10,7 +10,7 @@ Beim ersten Start fordert korTTY Sie auf, ein **Master-Passwort** zu erstellen. 
 Bei nachfolgenden Starts werden Sie aufgefordert, das Master-Passwort einzugeben, um Ihre verschlüsselten Daten zu entsperren.
 
 !!! warning "Deaktivieren der Eingabeaufforderung"
-    **Einstellungen → Sicherheit** bietet zwei Möglichkeiten, die Abfrage zu überspringen. Das Abschalten von **Master-Passwort beim Programmstart anfordern** versteckt die Abfrage und startet korTTY mit dem Tresor gesperrt: gespeicherte Passwörter und Schlüssel bleiben unzugänglich, bis Sie **Konfiguration → Sicherheit → Tresor entsperren…** wählen oder in jeder Meldung „Tresor gesperrt“ auf **Tresor entsperren…** klicken. **Master-Passwort-Anfrage beim Programmstart deaktivieren (Auto-Login)** entsperrt den Tresor stattdessen automatisch aus einer Kopie Ihres Master-Passworts, die auf der Festplatte gespeichert ist – nur obfuskiert, nicht verschlüsselt, daher für Einmal- oder Testumgebungen reservieren. Siehe die [Sicherheitseinstellungen](../reference/settings/security.md) für Details, einschließlich unbemannter Erststarts, die den Setup-Dialog vollständig überspringen.
+    **Einstellungen → Sicherheit** bietet zwei Möglichkeiten, den Prompt zu überspringen. Das Ausschalten von **Master-Passwort beim Programmstart anfordern** versteckt den Prompt und startet korTTY mit dem Tresor gesperrt: gespeicherte Passwörter und Schlüssel bleiben unzugänglich, bis Sie **Konfiguration → Sicherheit → Tresor entsperren…** wählen oder auf **Tresor entsperren…** in jeder "tresor gesperrt"-Nachricht klicken. **Master-Passwort-Prompt beim Programmstart deaktivieren (Auto-Login)** entsperrt den Tresor stattdessen automatisch aus einer Kopie Ihres Master-Passworts, die auf der Festplatte gespeichert ist. Diese Kopie wird nur mit einem Schlüssel verschlüsselt, der in korTTY eingebaut ist, nicht mit Ihrem Master-Passwort; sie schützt nur vor beiläufiger Offenlegung. Verwenden Sie diese Option ausschließlich für Ein-mal-Verwendung oder Testumgebungen. Siehe die [Sicherheitseinstellungen](../reference/settings/security.md) für Details, einschließlich unbemannter Erststarts, die den Setup-Dialog vollständig überspringen.
 
 ## Was ist verschlüsselt?
 
@@ -20,7 +20,8 @@ Bei nachfolgenden Starts werden Sie aufgefordert, das Master-Passwort einzugeben
 | Gespeicherte Anmeldeinformationen | `~/.kortty/credentials.xml` | AES-256-GCM |
 | SSH-Schlüsselpassphrasen | `~/.kortty/ssh-keys.xml` | AES-256-GCM |
 | Master-Passwort | `~/.kortty/master.key` | Salted Hash (nur Verifizierung) |
-| Master-Passwort gespeichert (nur automatische Anmeldung) | `~/.kortty/master.autounlock` | nur verschleiert – nicht verschlüsselt; Nur-Eigentümer-Dateiberechtigungen |
+| Gespeichertes Master-Passwort (nur Auto-Login) | `~/.kortty/master.autounlock` | AES-256-GCM mit einem Schlüssel, der in korTTY eingebaut ist, nicht Ihr Master-Passwort; Besitzer-nur Dateiberechtigungen |
+| Wiederhergestelltes Terminalausgabe (optional) | `~/.kortty/session/scrollback/<ref>.enc` | AES-256-GCM (master-password-abgeleiteter Schlüssel); nur geschrieben, wenn **Auch die Ausgabe jedes Terminalfensters (verschlüsselt) wiederherstellen** unter **Einstellungen → Fenster → Sitzungswiederherstellung** aktiviert ist, und nichts wird geschrieben, während der Tresor gesperrt ist |
 
 Das vollständige Verschlüsselungs- und Sicherungsmodell finden Sie in der [-Sicherheitsreferenz ](../features/connections.md).
 

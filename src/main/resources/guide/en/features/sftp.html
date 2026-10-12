@@ -829,6 +829,7 @@
 <p>Each pane gets its own SFTP tab, so two panes of the same server can be browsed side by side; choosing <strong>Open SFTP Here</strong> again for the same pane selects its tab. A tab opened from <em>Connections → SFTP-Client...</em> with a connection picked is still one per connection, and the two kinds never replace each other.</p>
 <p>Such a tab copies at most two files at once, even when <em>Settings → SFTP Manager</em> allows more, so the terminal on the same session stays responsive. Closing the tab never closes the terminal. When the terminal's session ends, or the pane is closed or now runs another user or host, the tab shows <strong>Disconnected</strong> with <strong>Reconnect</strong>, which uses the pane's session again once it is back, and <strong>Separate login</strong>, which closes the tab and opens one with its own login for the pane's connection.</p>
 <p>When the pane has no SSH session to share (a Mosh or local shell tab), or the server or a proxy refuses SFTP on it, korTTY opens an SFTP tab with its own login for the pane's connection instead, as before. A saved <a href="projects.html#sftp-manager-tabs">project</a> restores such a tab as an ordinary SFTP tab with its own login, in the folders it was in.</p>
+<p>For a quick look without opening a tab, <strong>View → Remote Files Sidebar</strong> docks a file list beside the terminal panes that lists the folder the focused SSH pane's shell is in, over that pane's session, and follows the shell as you <code>cd</code>. The sidebar never types into the terminal; its uploads, downloads and drops go through the <a href="#transfer-list">transfer list</a> after a confirmation that names the server folder. See <a href="terminal.html#remote-files-sidebar">Remote files sidebar</a>.</p>
 <h2 id="interface">Interface<a class="headerlink" href="#interface" title="Permanent link">&para;</a></h2>
 <p>The SFTP Manager uses a <strong>two-panel layout</strong> for easy side-by-side file management:</p>
 <table>
@@ -865,7 +866,7 @@
 </tr>
 <tr>
 <td><strong>Type</strong></td>
-<td>Directory (📁) or file (📄) indicator</td>
+<td>A type icon: a folder, or a file icon chosen by the file name (code, image, archive, document, other)</td>
 </tr>
 <tr>
 <td><strong>Size</strong></td>
@@ -955,11 +956,22 @@
 </tr>
 <tr>
 <td><strong>Set Owner/Permissions</strong></td>
-<td>Select entries, then click <strong>Rights</strong> or choose <strong>Set Owner/Permissions...</strong> in the context menu. Separate fields for User, Group, and octal permissions (e.g., 755)</td>
+<td>Select entries, then click <strong>Rights</strong> or choose <strong>Set Owner/Permissions...</strong> in the context menu. Separate fields for User, Group, and octal permissions (e.g., 755). With <strong>Apply recursively to directories</strong> the change also reaches what is inside the selected folders</td>
+</tr>
+<tr>
+<td><strong>Open Image</strong></td>
+<td>Select one image file and choose <strong>Open Image</strong> in the context menu of either panel. The image opens in an image viewer tab; a server image is downloaded into memory first</td>
 </tr>
 </tbody>
 </table>
 <p>A name for <strong>Rename</strong> or <strong>New Folder</strong> must be a single entry in the folder shown: it may not be empty, <code>.</code> or <code>..</code>, or contain <code>/</code> or <code>\</code>. The dialog stays open with an error until the name is usable.</p>
+<h3 id="creating-archives">Creating archives<a class="headerlink" href="#creating-archives" title="Permanent link">&para;</a></h3>
+<p>The archive dialog takes the format (ZIP, TAR.BZ2 or 7z; a format whose tool the server lacks is marked <em>not installed</em>), the archive's path and a compression level from none to best. Its other fields are optional:</p>
+<ul>
+<li><strong>Exclude</strong> — one pattern per line, such as <code>*.log</code>, <code>.git</code> or <code>node_modules</code>; it exists in both panels.</li>
+<li><strong>Password</strong> — local archives only. It is greyed out for TAR.BZ2, a format without encryption, and server archives get no password at all.</li>
+<li><strong>Owner</strong> and <strong>Permissions</strong> — remote archives only. The owner is set with <code>chown</code> and the permissions, as octal digits, with <code>chmod</code> once the archive is written. The permissions field is prefilled with <code>644</code>.</li>
+</ul>
 <h3 id="extracting-archives-on-the-server">Extracting archives on the server<a class="headerlink" href="#extracting-archives-on-the-server" title="Permanent link">&para;</a></h3>
 <p><strong>Extract Here...</strong> in the remote context menu unpacks the selected archive on the server itself, so nothing is downloaded or uploaded. After you confirm, a progress window shows each step, and <strong>Cancel</strong> stops the extraction and removes what was already unpacked.</p>
 <ul>
@@ -1044,7 +1056,7 @@
 <li><strong>Downloaded names stay inside the target folder.</strong> A server name such as <code>..</code> or <code>a/b</code> is refused. On Windows, names that Windows reserves for devices (<code>CON</code>, <code>PRN</code>, <code>AUX</code>, <code>NUL</code>, <code>COM1</code> to <code>COM9</code>, <code>LPT1</code> to <code>LPT9</code>, also with an extension such as <code>nul.txt</code>) and names that end in a dot or a space or contain <code>:</code> are refused too, because Windows would write them somewhere else or change them.</li>
 </ul>
 <h3 id="transfer-list">Transfer list<a class="headerlink" href="#transfer-list" title="Permanent link">&para;</a></h3>
-<p>Uploads and downloads run in the background, up to three files at a time (<em>Settings → SFTP Manager → <a href="../reference/settings/sftp.html#transfers">Parallel transfers</a></em>, 1 to 8), each over its own SFTP channel. The first transfer opens the <strong>Transfers</strong> list at the bottom of the tab; the arrow on its left collapses it to its header. Each row is a file or folder you transferred, with its direction, a progress bar, the bytes so far, the speed and the time left; a folder row adds up the files in it. The status bar shows how many files of all running transfers are done and the overall speed, and says <strong>Upload complete</strong> or <strong>Download complete</strong> when a batch is finished.</p>
+<p>Uploads and downloads run in the background, by default three files at a time (<em>Settings → SFTP Manager → <a href="../reference/settings/sftp.html#transfers">Parallel transfers</a></em>, 1 to 8), each over its own SFTP channel. A tab that borrows a terminal's session copies at most two at a time. The first transfer opens the <strong>Transfers</strong> list at the bottom of the tab; the arrow on its left collapses it to its header. Each row is a file or folder you transferred, with its direction, a progress bar, the bytes so far, the speed and the time left; a folder row adds up the files in it. The status bar shows how many files of all running transfers are done and the overall speed, and says <strong>Upload complete</strong> or <strong>Download complete</strong> when a batch is finished.</p>
 <p><img alt="Transfer list with a folder upload, a failed file inside it, a running download and finished rows" src="../assets/screenshots/sftp/sftp-transfer-list.png" /></p>
 <table>
 <thead>
@@ -1149,14 +1161,14 @@
 </ul>
 <p>The file-mode buttons provide these save choices:</p>
 <ul>
-<li><strong>Overwrite file</strong> — writes the current editor content back to the original local or remote file</li>
+<li><strong>Overwrite remote file</strong> (<strong>Overwrite local file</strong> for a file in the left panel) — writes the current editor content back to the original file</li>
 <li><strong>Save as...</strong> — writes a new local file through a file chooser, or for remote files prompts for a new file name in the same remote directory</li>
 <li><strong>Save as snippet</strong> — stores the current content as a new Snippet Manager snippet without marking the source file as saved</li>
 </ul>
 <p>An organization can restrict editing server files with the <code>load-into-snippet-editor</code> key of its <a href="../reference/enterprise-policy.html">enterprise policy</a>. With <code>read-only</code>, remote files still open in the Snippet Editor and can be saved as a snippet, but <strong>Overwrite file</strong> and <strong>Save as...</strong> are locked and their tooltip names the policy. With <code>deny</code>, <strong>Edit in Snippet Editor</strong> and <strong>Open image</strong> are disabled for remote files. Local files in the left panel are on your own computer and stay editable either way.</p>
 <p><img alt="SFTP dual-panel file manager" src="../assets/screenshots/sftp/sftp-manager.png" /></p>
 <h3 id="editing-in-your-own-editor">Editing in your own editor<a class="headerlink" href="#editing-in-your-own-editor" title="Permanent link">&para;</a></h3>
-<p><strong>Edit in External Editor</strong> (in the right-click menu of a server file and in the remote <strong>Edit</strong> menu) opens the selected server file in your own text editor and copies every save back to the server. Choose the editor under <a href="../reference/settings/sftp.html#external-editor"><em>Settings → SFTP Manager → External editor</em></a>; without one, the file opens as text in the system's editor.</p>
+<p><strong>Edit in External Editor</strong> (in the right-click menu of a server file and in the remote <strong>Edit</strong> menu) opens the selected server file in your own text editor and copies every save back to the server. Choose the editor under <a href="../reference/settings/sftp.html#external-editor"><em>Settings → SFTP Manager → External editor</em></a>; without one, macOS opens the file in the default text editor, Windows opens it with its edit verb (scripts go to Notepad), and Linux opens text files with the default application for text and asks for an editor command for any other file type.</p>
 <ul>
 <li><strong>Local copy</strong> — the file is downloaded into a private folder named <code>kortty-remote-edit-…</code> in the system temp folder that only you can open, under a cleaned-up name: characters other than letters, digits, <code>.</code>, <code>_</code>, <code>-</code> and spaces become <code>_</code>, and Windows device names such as <code>CON</code> get a <code>_</code> in front. A symbolic link is followed once and the file it points to is edited.</li>
 <li><strong>Auto-upload</strong> — korTTY checks the copy every second. About a second after you save, the new content is uploaded and the status bar says <strong>Uploaded</strong> with the file name; saving the same content again uploads nothing. The upload works like any other: through a <code>.kortty-part</code> file that keeps the file's permissions, or written in place when the file belongs to another user, so its owner stays.</li>
@@ -1237,7 +1249,7 @@
 </tr>
 </tbody>
 </table>
-<p>When the server lets korTTY run commands and has <code>find</code>, the search runs there and only the matching paths travel over the connection; otherwise korTTY walks the folders over SFTP, which is slower and stops after reading 200,000 entries. Symbolic links are listed but never followed, so a link that points back up the tree cannot make the search loop. <strong>Stay on this file system</strong> (on by default) keeps <code>find</code> out of other mounted file systems such as network shares and <code>/proc</code>; the walk over SFTP cannot tell file systems apart. Folders you cannot read are skipped. The search only reads names on the server, so it stays available when an enterprise policy blocks file transfers.</p>
+<p>When the server lets korTTY run commands and has <code>find</code>, the search runs there and only the matching paths travel over the connection; otherwise korTTY walks the folders over SFTP, which is slower and stops after reading 200,000 entries. Symbolic links are listed but never followed, so a link that points back up the tree cannot make the search loop. <strong>Stay on this file system</strong> (on by default, and only with <strong>Include subfolders</strong>) keeps <code>find</code> out of other mounted file systems such as network shares and <code>/proc</code>; the walk over SFTP cannot tell file systems apart. Folders you cannot read are skipped. The search only reads names on the server, so it stays available when an enterprise policy blocks file transfers.</p>
 <hr /></p>
     </article>
 </section>

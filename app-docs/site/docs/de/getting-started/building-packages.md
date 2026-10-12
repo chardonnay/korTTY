@@ -80,7 +80,7 @@ Der erste Wrapper-Aufruf lädt Gradle herunter. Ein sauberer Anwendungsbuild klo
 
 ### Berichte und Budgets in Paketgröße
 
-Der plattformunabhängige Größenreporter trennt das App-Image, die Laufzeit, Formatierer-/Mosh-Nutzlasten, Abhängigkeits-JARs und komprimierte Anwendungs-JAR-Ressourcen und schreibt dann JSON und Markdown. Es versteht die von `jpackage` erstellten macOS-Layouts `Contents/app` und `Contents/runtime`, Windows `app` und `runtime` sowie Linux `lib/app` und `lib/runtime`. CI vergleicht native Installationsprogramme mit der festgeschriebenen Release-Baseline, erfordert eine Reduzierung um mindestens 15 %, wendet die 190-MiB-App-Image- und 150-MiB-DMG-Grenzwerte an und verwendet eine Regressionstoleranz von 2 %, sobald eine neue Plattformgröße überprüft wurde:
+Der plattformunabhängige Größenbericht trennt das App-Image, die Laufzeit, Formatter/Mosh-Payloads, Abhängigkeits-JARs und komprimierte Anwendungs-JAR-Ressourcen, schreibt anschließend JSON und Markdown. Er versteht die macOS `Contents/app` und `Contents/runtime`, Windows `app` und `runtime` sowie Linux `lib/app` und `lib/runtime` Layouts, die von `jpackage` erzeugt werden. CI vergleicht native Installer mit der im Commit hinterlegten Release-Basis und verlangt mindestens eine Reduktion von 15 %. Das App-Image jeder Plattform muss mindestens 100 MiB betragen, das macOS-App-Image ist auf 190 MiB begrenzt und jeder native Installer wird gegen sein Budget in `package/size-baselines.json` geprüft, das die verifizierte Größe plus eine Regressionstoleranz von 2 % enthält (nie über dem gespeicherten Akzeptanzbudget).
 
 ```bash
 DMG="$(find build/jpackage -maxdepth 1 -name 'korTTY-*.dmg' -print -quit)"
@@ -170,7 +170,7 @@ Installieren Sie CMake und eine native C/C++-Toolchain. Ein Vulkan-Paket benöti
     ./gradlew generateLlamaRuntimeManifest -Pllama.backend=VULKAN
     ```
 
-Die Task-Kette lädt nur das angeheftete Commit-Archiv herunter, überprüft dessen SHA-256, extrahiert es, konfiguriert einen Release-Build mit deaktiviertem Curl, RPC, Tests, Beispielen, Tools und Server-Web-UI, erstellt `llama-server`, stellt die erforderlichen Bibliotheken und Lizenzen bereit und erstellt einen reproduzierbaren ZIP- und JSON-Deskriptor unter `build/llama-runtime/packages/`. Der Deskriptor zeichnet die unveränderliche Laufzeit-ID, das Tag/Commit, die API-Vertragsversion, die korTTY-Mindestversion, die Plattform, die Architektur, das konkrete Backend, die Paketgröße/SHA-256, den Platzhalter für die Veröffentlichungs-URL, den Einstiegspunkt und das Widerrufsflag auf.
+Die Aufgabenkette lädt ausschließlich das festgepinte Commit-Archiv herunter, prüft dessen SHA-256, entpackt es, konfiguriert einen Release-Build mit curl, RPC, Tests, Beispielen, dem App-Ziel und der Web-UI deaktiviert sowie die Tools aktiviert, baut `llama-server`, stellt die benötigten Bibliotheken und Lizenzen bereit und erstellt ein reproduzierbares ZIP plus einen JSON-Descriptor unter `build/llama-runtime/packages/`. Der Descriptor protokolliert die unveränderliche Laufzeit-ID, Tag/Commit, API-Vertragsversion, minimale korTTY-Version, Plattform, Architektur, konkretes Backend, Paketgröße/SHA-256, Platzhalter für die Veröffentlichungs-URL, Einstiegspunkt und das Widerrufsfeld.
 
 !!! important "Ein Build-Host kann nicht die gesamte Matrix erstellen"
     Native llama.cpp-Artefakte folgen der gleichen Zielplattformregel wie `jpackage`: Erstellen Sie jede Kombination aus Betriebssystem, Architektur und Backend auf einem passenden Host. Der Laufzeitworkflow umfasst macOS arm64/x86_64 CPU+Metal, Windows x86_64 CPU+Vulkan, Linux x86_64/arm64 CPU+Vulkan. CUDA ist nicht in der ersten Matrix.
@@ -458,7 +458,7 @@ Verwenden Sie nur den Inspektionsbefehl, der für das von Ihnen erstellte Paket 
 
 ### Zusätzliche Software
 
-Verwenden Sie ein PowerShell-Terminal mit den allgemeinen Voraussetzungen. Für die portable App-Image-Aufgabe ist kein externer Installer-Builder erforderlich, für die MSI-Erstellung ist jedoch WiX Toolset 3 oder höher erforderlich, wobei `candle.exe` und `light.exe` in `PATH` verfügbar sind. Der Release-Workflow nutzt die WiX 3-Toolchain für seine Windows-Paketierungsaufgaben.
+Verwenden Sie ein PowerShell-Terminal mit den üblichen Voraussetzungen. Die portable App-Image-Aufgabe benötigt keinen externen Installer-Builder, aber die MSI-Erstellung erfordert WiX Toolset 3 oder höher mit `candle.exe` und `light.exe`, die in `PATH` verfügbar sind.
 
 ```powershell
 Get-Command java, javac, jpackage, git, mvn, curl

@@ -54,9 +54,9 @@ Das Backup umfasst:
 ### Passwortgeschützte ZIP-Datei (Standard)
 
 1. Öffnen Sie **Einstellungen → Backup**
-2. Wählen Sie **Verschlüsselungstyp: Passwort**
+2. Wählen Sie **ZIP mit Passwort** unter **Backup-Verschlüsselung**
 3. Wählen oder erstellen Sie Anmeldeinformationen, die als Verschlüsselungskennwort verwendet werden sollen
-4. Optional **Maximale Backups** festlegen (0 = unbegrenzt)
+4. Optional setzen Sie **Maximale Anzahl von Backups** (0 = unbegrenzt)
 5. Speichern
 
 Passwortgeschützte Backups werden mit AES-256 verschlüsselt (über die zip4j-Bibliothek); Das Passwort der Anmeldeinformationen verschlüsselt alle Dateien im Archiv. Mit älteren korTTY-Versionen erstellte Backups verwendeten die veraltete ZIP-Verschlüsselung und können weiterhin importiert werden – die Entschlüsselungsmethode wird aus dem Archiv selbst gelesen. Beachten Sie, dass AES-verschlüsselte ZIPs ein AES-fähiges Tool (7-Zip, WinZip, `unzip` 6+) benötigen, wenn Sie jemals eines außerhalb von korTTY extrahieren.
@@ -64,15 +64,15 @@ Passwortgeschützte Backups werden mit AES-256 verschlüsselt (über die zip4j-B
 ### GPG-Verschlüsselung
 
 1. Öffnen Sie **Einstellungen → Backup**
-2. Wählen Sie **Verschlüsselungstyp: GPG**
-3. Wählen Sie einen GPG-Schlüssel aus **GPG-Schlüssel verwalten...**
-4. Optional **Maximale Backups** festlegen (0 = unbegrenzt)
+2. Wählen Sie **GPG-Verschlüsselung** unter **Backup-Verschlüsselung**
+3. Wählen Sie den Schlüssel im Feld **GPG-Schlüssel**; Schlüssel werden unter **Konfiguration → Sicherheit → GPG-Schlüssel...** verwaltet
+4. Optional setzen Sie **Maximale Anzahl von Backups** (0 = unbegrenzt)
 5. Speichern
 
 GPG-Backups werden für den öffentlichen Schlüssel Ihres ausgewählten GPG-Schlüssels verschlüsselt. KorTTY erstellt ein unverschlüsseltes ZIP in einem privaten temporären Ordner, auf den nur Ihr Benutzer zugreifen kann, verschlüsselt es mit `gpg`, speichert das Ergebnis als `kortty-backup.zip.gpg` und löscht anschließend das temporäre ZIP mit seinem Ordner. Ein GPG-Backup zu erstellen erfordert die installierte `gpg` und den öffentlichen Schlüssel des Empfängers; zur Wiederherstellung wird `gpg` und der passende **private** Schlüssel benötigt, daher bewahren Sie diesen Schlüssel (und sein Passwort) an einem Ort außerhalb des Backups auf.
 
 !!! tip
-    Wenn Sie noch keine GPG-Schlüssel eingerichtet haben, verwenden Sie **Verwaltung → GPG-Schlüssel verwalten...**, um Schlüssel aus Ihrem Systemschlüsselbund zu importieren oder sie manuell hinzuzufügen.
+    Falls Sie noch keine GPG-Schlüssel eingerichtet haben, nutzen Sie **Konfiguration → Sicherheit → GPG-Schlüssel...** um Schlüssel aus Ihrem Systemschlüsselbund zu importieren oder manuell hinzuzufügen.
 
 ## Ein Backup wird importiert
 
@@ -125,6 +125,8 @@ Sowohl `.zip`- als auch `.zip.gpg`-Backups enthalten dieselben Dateien:
 
 Die Sitzungs-Snapshots in `~/.kortty/session/`, die *Datei → Vorherige Sitzung wiederherstellen* öffnet, sind nicht enthalten: Sie beschreiben die Fenster und Tabs dieses Computers, und die Liste „Zuletzt geschlossen“, die sie enthalten, bleibt mit ihnen auf diesem Computer. Nach dem Wiederherstellen eines Backups öffnet *Vorherige Sitzung wiederherstellen* weiterhin die Sitzung dieses Computers, und ihre Tabs öffnen sich mit den wiederhergestellten Verbindungen. Siehe [Vorherige Sitzung](projects.md#vorherige-sitzung).
 
+Einige Dateien verbleiben ebenfalls auf dem Computer: `master.autounlock`, die Auto-Login-Datei, wird absichtlich nicht kopiert, weil ihr Obfuskationsschlüssel mit korTTY ausgeliefert wird; die Genehmigungen von SSH-Tunneln (`ssh-tunnel-approvals.properties`) werden ebenfalls nicht kopiert, sodass nach einer Wiederherstellung die Tunnel einer Verbindung erneut gefragt werden; und die Sprachdateien, die unter [Languages](i18n.md#dynamische-ubersetzung-zusatzliche-sprachen) in `~/.kortty/i18n/` erzeugt werden, gehören nicht zu einem Backup.
+
 !!! note
     Alle Passwörter und Anmeldeinformationen im Backup bleiben mit Ihrem Master-Passwort verschlüsselt. Wenn Sie ein Backup importieren, müssen Sie korTTY mit dem Master-Passwort entsperren, damit die Anmeldeinformationen entschlüsselt werden können. Ein zusammenführender Import eines Backups, das mit einem anderen Master-Passwort erstellt wurde, verschlüsselt sie mit Ihrem aktuellen neu (siehe [Ein Backup mit einem anderen Master-Passwort](#ein-backup-wird-importiert)).
 
@@ -137,11 +139,11 @@ Wenn Sie ein neues Backup in einem Verzeichnis erstellen, das bereits eines enth
 
 1. Erstellt die neue Sicherung — `kortty-backup.zip` für ein passwortgeschütztes ZIP, `kortty-backup.zip.gpg` für GPG — und stoppt hier, wobei die vorhandene Sicherung unverändert bleibt, falls das fehlschlägt
 2. Verschiebt jede vorhandene aktuelle Sicherung, egal welcher Art, nach `old-backups/kortty-backup_<timestamp>.zip` oder `old-backups/kortty-backup_<timestamp>.zip.gpg`; eine in der gleichen Sekunde rotierte Sicherung erhält `-1`, `-2` … angehängt statt die frühere zu ersetzen
-3. Wenn die Anzahl der alten Backups **Maximale Backups** überschreitet, werden die ältesten gelöscht
+3. Wenn die Anzahl alter Backups **Maximale Anzahl von Backups** überschreitet, werden die ältesten gelöscht
 
-**Maximale Backups** zählen ZIP- und GPG-Backups zusammen. Sobald Sie den Verschlüsselungstyp wechseln, rotiert das erste neue Backup auch das aktuelle Backup des anderen Typs, sodass das älteste Backup einen Backup früher gelöscht werden kann, als Sie erwarten würden.
+**Maximale Anzahl von Backups** zählt ZIP- und GPG-Backups zusammen. Sobald Sie den Verschlüsselungstyp wechseln, rotiert das erste neue Backup auch das aktuelle Backup des anderen Typs, sodass das älteste alte Backup ein Backup früher gelöscht werden kann, als Sie erwarten würden.
 
-Um unbegrenzte alte Sicherungen zu behalten, setzen Sie **Maximale Backups** auf `0` in **Einstellungen → Sicherung**. Um nur eine alte Sicherung neben der aktuellen zu behalten, setzen Sie **Maximale Backups** auf `1`.
+Um unbegrenzte alte Sicherungen zu behalten, setzen Sie **Maximale Anzahl von Backups** auf `0` in **Einstellungen → Sicherung**. Um nur eine alte Sicherung neben der aktuellen zu behalten, setzen Sie **Maximale Anzahl von Backups** auf `1`.
 
 ## Verwenden von Backups auf mehreren Maschinen
 
@@ -178,7 +180,7 @@ Alle gesicherten Verbindungen, Einstellungen, Snippets, gespeicherten Chats, int
 : `gpg` konnte die Sicherung nicht entschlüsseln: der private Schlüssel, der zum GPG-Schlüssel der Sicherung passt, befindet sich nicht in Ihrem Schlüsselbund, `gpg` ist nicht installiert oder Sie haben die Passphrase-Eingabe abgebrochen. Importieren Sie den privaten Schlüssel in Ihren GPG-Schlüsselbund (zum Beispiel mit `gpg --import`) und versuchen Sie es erneut.
 
 **„GPG-Schlüssel nicht gefunden“**
-: Der zur Verschlüsselung verwendete GPG-Schlüssel fehlt. Verwenden Sie **Verwaltung → GPG-Schlüssel verwalten...**, um den Schlüssel zu importieren oder hinzuzufügen, und versuchen Sie es dann erneut.
+: Der für die Verschlüsselung verwendete GPG-Schlüssel fehlt. Verwenden Sie **Konfiguration → Sicherheit → GPG-Schlüssel...**, um den Schlüssel zu importieren oder hinzuzufügen, und versuchen Sie es dann erneut.
 
 **„Kein Passwort für Backup-Verschlüsselung ausgewählt“ oder „Kein GPG-Schlüssel ausgewählt“**
 : Konfigurieren Sie unter **Einstellungen → Backup** ein Passwort oder einen GPG-Schlüssel, bevor Sie ein Backup erstellen.

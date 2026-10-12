@@ -92,7 +92,7 @@ Die Snippet-Palette hat standardmäßig kein eigenes Tastenkürzel, weil ++ctrl+
 | ++up++ / ++down++ | Zeile wählen |
 | ++enter++ oder Doppelklick | Die gewählte Zeile ausführen, oder die erste Zeile, wenn keine gewählt ist |
 | ++alt+enter++ (++option+enter++ unter macOS) | Das gewählte Snippet im Snippet-Manager öffnen, statt es auszuführen; in jeder anderen Zeile wie ++enter++ |
-| ++tab++ / ++shift+tab++ | Zwischen Suchfeld und Liste wechseln |
+| ++tab++ / ++shift+tab++ | Bewegen Sie sich zwischen dem Suchfeld und der Liste, während die Liste Zeilen enthält |
 | ++esc++ | Palette schließen |
 | ++ctrl+shift+p++ (++cmd+shift+p++ unter macOS) | Palette schließen |
 

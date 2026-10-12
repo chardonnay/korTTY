@@ -40,6 +40,13 @@ KorTTY ist in verschiedene Funktionsmodule unterteilt. Das folgende Diagramm gru
 | **cli** | Der Client `kortty-cli`, der die Steuerungs-API spricht (siehe [Steuerungs-CLI](cli.md)) | `KorttyCli` |
 | **Teamarbeit** | Funktionen für Zusammenarbeit und Fernzugriff | Teambasierte Sitzungsfreigabe und -koordination |
 | **jmx** | Überwachung der Java-Verwaltungserweiterungen | `SSHClientMonitor`, `SSHClientMonitorMBean` |
+| **Coding-Agents** | Coding-Agent-Bewusstsein: erkennt Terminal-Coding-Agents in Fenstern, verfolgt ihren Status und speist das Coding-Agents-Panel sowie Benachrichtigungen | `CodingAgentDetector`, `CodingAgentMonitor`, `CodingAgentRegistry`, `CodingAgentService` |
+| **Sitzungs-Isolation** | Sitzungs-Isolationsstufen und die sandboxed lokalen Shells; SSH-Sitzungen laufen in Sitzungs-Worker-Prozessen (`core.worker`) | `IsolationLevel`, `IsolationSettings`, `SandboxBackend`, `MacSandboxBackend`, `BubblewrapSandboxBackend`, `SessionWorkerProcess` |
+| **Einfügeschutz** | Einfügeschutz: prüft eingefügten Text und entscheidet, ob er bestätigt, bereinigt oder verzögert werden soll | `PasteGuard`, `PasteInspection`, `PasteRules`, `PastePacer` |
+| **policy** | Unternehmensrichtlinien-Datei (`kortty-policy.toml`): verwaltete Einstellungen, Einschränkungen und verschlüsselte Richtlinienwerte | `PolicyManager`, `PolicyLoader`, `EffectivePolicy`, `ServerAccessPolicy`, `PolicyValueCipher` |
+| **shellintegration** | Shell-Integration (Prompt-Markierungen, Befehlsstatus, Benachrichtigungen) und pro-Pane-Aktivitätstracking | `ShellIntegrationInjection`, `ShellIntegrationWrapperDirectory`, `PromptNavigator`, `CommandBlockStore` |
+| **perf** | Optionale UI-Zeitverfolgung für Leistungsoptimierung | `PerfTrace` |
+| **platform** | Plattformunterstützung für verpackte Builds, z. B. Flatpak | `FlatpakSupport` |
 | **Update** | Versionsprüfung und Update-Benachrichtigungen | Update-Dienst und Versionsmetadaten |
 
 ## SithTermFX Terminal-Engine
@@ -98,7 +105,7 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 ├── ssh-host-keys.properties     # Shared interactive Terminal/SFTP/Mosh host-key pins
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 ├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
-├── kortty.log                   # Application log file
+├── logs/                        # Application log (kortty.log) and its archives
 ├── history/                     # Project screen snapshots (gzip, one per terminal tab)
 ├── plugins/                     # Imported external terminal-effect plugin JARs
 ├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
@@ -111,15 +118,15 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 
 **JAXB Marshaling** konvertiert Domänenobjekte in/aus XML mit automatischer Schemavalidierung. Zu den wichtigsten Repositories gehören:
 
-- `XMLConnectionRepository`: Verwaltet `Connection`-Objekte mit SFTP-, Jump-Server- und Tunneldetails
-- `CredentialRepository`: Speichert umgebungsspezifische Anmeldeinformationsmuster
+- `XMLConnectionRepository`: Verwaltet `ServerConnection`-Objekte mit SFTP-, Jump-Server- und Tunneldetails
+- `CredentialManager`: Speichert umgebungsspezifische Anmeldeinformationsmuster
 - `SSHKeyManager`: Umschließt importierte SSH-Schlüssel mit verschlüsselten Passphrasen
-- `JobSchedulerPersistence`: Behält `JobScheduleEntry`-Objekte und Ausführungsjournal bei
+- `JobSchedulerRepository`: Speichert `JobSchedule` Objekte und das Ausführungsjournal
 
 **AES-256-GCM-Verschlüsselung** schützt vertrauliche Felder:
 
 - Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und gespeichert als `master.key`
-- Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Hauptkennwort abgeleitet werden
+- Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, unter einem Schlüssel abgeleitet vom Master-Passwort
 - SSH-Schlüsselpassphrasen, Verbindungskennwörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt
 - Backup-Archive können mit passwortgeschütztem ZIP oder GPG verschlüsselt werden
 
@@ -156,9 +163,19 @@ KorTTY speichert seine Hauptkonfiguration, Anmeldeinformationen und Sitzungsstat
 
 | **Komponente** | **Verantwortung** |
 |---|---|
-| `JobScheduler` | Hauptplanerdienst; verwaltet geplante Jobs und die Ausführungswarteschlange |
-| `JobExecutor` | Führt einzelne Jobs aus (SSH-Befehl, Skript, KI-Agent, SFTP, Rsync) |
-| `JobJournal` | Persistentes Prüfprotokoll mit Schwärzungsunterstützung und automatischer Bereinigung (Standard 14 Tage) |
+| `JobSchedulerService` | Hauptplanerdienst; verwaltet geplante Jobs und die Ausführungswarteschlange |
+| `JobSchedulerJobRunner` | Führt einzelne Jobs aus (SSH-Befehl, Skript, KI-Agent, SFTP, Rsync) |
+| `JobJournalEntry` | Führen Sie Journal-Einträge in `job-scheduler.xml` aus, wobei Geheimnisse ausgeblendet und die konfigurierte Aufbewahrungszeit (standardmäßig 14 Tage) gelten |
+
+### Sitzungsjournal
+
+| **Komponente** | **Verantwortung** |
+|---|---|
+| `SessionJournalService` | Erstellt und speichert ein Journal pro Sitzung in `journals/`: das kuratierte `journal.xml` und das rotiertes Aufnahmelog |
+| `SessionJournalExportService` | Exportiert ein Journal in seine unterstützten Formate |
+| `SessionJournalCrossSearchService` | Durchsucht alle Journale, mit den pro Journal Suchkarten |
+| `SessionJournalSearchCardIndex` | Speichert eine Suchkarte pro Journal in `search-card.json`, neu aufgebaut wenn sich das Journal ändert |
+| `SessionJournalSemanticIndex` | Optionaler semantischer Suchindex im Journale-Ordner (`.semantic-index/`), erstellt mit dem lokalen Einbettungsmodell |
 
 ## UI-Modulorganisation
 
@@ -167,10 +184,10 @@ Die UI-Ebene basiert auf JavaFX und ist in logische Komponenten unterteilt:
 | **Komponente** | **Zweck** |
 |---|---|
 | `MainWindow` | Anwendungsfenster der obersten Ebene mit Menüleiste, Registerkartenleiste, Terminalbereichen, Dashboard, SFTP-Browser |
-| `TerminalPane` | Einzelne Terminal-Registerkarte mit Split-Panee-Unterstützung und Inline-KI-Aktivitätspanel |
-| `ConnectionDialog` | Multi-Tab-Editor für Verbindungsdetails (SSH, Tunnel, Jump-Server, Protokollierung usw.) |
+| `TerminalTab` | Ein Terminal-Tab mit Split-Pane-Unterstützung (in `TerminalView`) und inline KI-Aktivitätspanel |
+| `ConnectionEditDialog` | Multi-Tab-Editor für Verbindungsdetails (SSH, Tunnel, Jump-Server, Protokollierung usw.) |
 | `SFTPManagerTab` | Zweispaltiger Dateimanager-Tab für lokale und entfernte Dateioperationen |
-| `SnippetEditor` | Monaco-basierter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und Mermaid-Flussdiagrammen |
+| `SnippetEditDialog` | Snippet-Editor mit einem Monaco-Code-Editor, Syntaxhervorhebung, KI-Unterstützung und Mermaid-Flussdiagrammen |
 | `LocalModelManagerPane` | Sucht/lädt/importiert GGUF-Dateien und steuert gleichzeitige llama.cpp-Sidecars |
 | `RagKnowledgeStorePane` | Erstellt Wissensspeicher, zeigt Quellenvorschau an, zeigt den persistierten Indexzustand an, synchronisiert sie und führt Abfragen zur Wiederfindung durch |
 | `JobSchedulerDialog` | Joberstellung, Planung und Journalprüfung |
@@ -336,18 +353,18 @@ Persistence (saved chats stored in global-settings.xml)
 ```
 User creates scheduled job
     ↓
-JobScheduler stores in job-scheduler.xml
+JobSchedulerService stores in job-scheduler.xml
     ↓
-JobExecutor runs on schedule (background thread)
+JobSchedulerJobRunner runs on schedule (background thread)
     ↓
-JobJournal records output with redaction
+JobJournalEntry records output with redaction
     ↓
 Menu-bar status displays next runs / live countdown
 ```
 
 ## Protokollierung und Diagnose
 
-- **Protokolldatei**: `~/.kortty/kortty.log` (SLF4J mit Logback-Backend)
+- **Protokolldatei**: `~/.kortty/logs/kortty.log`, rollt täglich, mit dem Log-Verzeichnis und der Aufbewahrung unter **Einstellungen → Logs** (SLF4J mit Logback-Backend).
 - **JMX-Überwachung**: MBean `de.kortty:type=SSHClient` gibt die Live SSH- und Mosh-Terminalverbindungen (jedes geteilte Panel zählt, lokale Shells nicht), Speicher und Betriebszeit aus; `BufferedTextSize` wird nicht verfolgt und bleibt 0
 - **JobScheduler-Journal**: Detaillierte Ausführungsprotokolle mit konfigurierbarer Aufbewahrung (standardmäßig 14 Tage, unbegrenzt, wenn auf 0 gesetzt)
 - **Projekt-Bildschirm-Snapshots**: Der zuletzt sichtbare Bildschirm jedes Terminal-Tabs eines gespeicherten Projekts, gzip-komprimiert in `~/.kortty/history/` und lokal angezeigt (nie an den Server gesendet), wenn das Projekt mit Auto-Reconnect wieder geöffnet wird
@@ -380,8 +397,8 @@ Menu-bar status displays next runs / live countdown
 
 ### Für Integratoren
 
-1. **JAXB-Repositorys**: Erweitern Sie `XMLConnectionRepository` oder `CredentialRepository`, um benutzerdefinierte Datenquellen hinzuzufügen
-2. **JobScheduler-Aktionen**: Neue Aktionstypen zu `JobExecutor` hinzufügen (z. B. benutzerdefinierte SFTP-Vorgänge)
+1. **JAXB-Repositorien**: Erweitern `XMLConnectionRepository` oder fügen Sie einen Speicher neben `CredentialManager` für benutzerdefinierte Datenquellen.
+2. **JobScheduler-Aktionen**: Neue Aktionstypen zu `JobSchedulerJobRunner` hinzufügen (z. B. benutzerdefinierte SFTP-Vorgänge)
 
 ## Leistungsüberlegungen
 

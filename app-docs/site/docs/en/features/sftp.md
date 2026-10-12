@@ -28,6 +28,8 @@ Such a tab copies at most two files at once, even when *Settings → SFTP Manage
 
 When the pane has no SSH session to share (a Mosh or local shell tab), or the server or a proxy refuses SFTP on it, korTTY opens an SFTP tab with its own login for the pane's connection instead, as before. A saved [project](projects.md#sftp-manager-tabs) restores such a tab as an ordinary SFTP tab with its own login, in the folders it was in.
 
+For a quick look without opening a tab, **View → Remote Files Sidebar** docks a file list beside the terminal panes that lists the folder the focused SSH pane's shell is in, over that pane's session, and follows the shell as you `cd`. The sidebar never types into the terminal; its uploads, downloads and drops go through the [transfer list](#transfer-list) after a confirmation that names the server folder. See [Remote files sidebar](terminal.md#remote-files-sidebar).
+
 ## Interface
 
 The SFTP Manager uses a **two-panel layout** for easy side-by-side file management:
@@ -44,7 +46,7 @@ Both panels display the same columns, all of which are sortable by clicking the 
 | Column | Description |
 |--------|---|
 | **Name** | File or directory name |
-| **Type** | Directory (📁) or file (📄) indicator |
+| **Type** | A type icon: a folder, or a file icon chosen by the file name (code, image, archive, document, other) |
 | **Size** | File size in human-readable format (directories show —); sorting uses the exact byte count, with folders first |
 | **Date** | Last modified date and time |
 | **User** | Owner name (local: from filesystem; remote: from SFTP or UID) |
@@ -94,9 +96,18 @@ Each panel has its own group of toolbar buttons below the lists (local on the le
 | **Edit in Snippet Editor** | Select exactly one local or remote file, then use the *Edit* toolbar menu or the right-click context menu |
 | **Archive** | **Archive** in the remote toolbar, or **Archive...** in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side. A local archive can have a password; an archive on the server cannot, because `zip` and `7z` would need the password on the server's command line, where other users of the server can read it |
 | **Extract Here** | Right-click one archive on the server (`.zip`, `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz` or `.7z`) and choose **Extract Here...**. It is unpacked on the server into a new folder next to it; see [Extracting archives on the server](#extracting-archives-on-the-server) |
-| **Set Owner/Permissions** | Select entries, then click **Rights** or choose **Set Owner/Permissions...** in the context menu. Separate fields for User, Group, and octal permissions (e.g., 755) |
+| **Set Owner/Permissions** | Select entries, then click **Rights** or choose **Set Owner/Permissions...** in the context menu. Separate fields for User, Group, and octal permissions (e.g., 755). With **Apply recursively to directories** the change also reaches what is inside the selected folders |
+| **Open Image** | Select one image file and choose **Open Image** in the context menu of either panel. The image opens in an image viewer tab; a server image is downloaded into memory first |
 
 A name for **Rename** or **New Folder** must be a single entry in the folder shown: it may not be empty, `.` or `..`, or contain `/` or `\`. The dialog stays open with an error until the name is usable.
+
+### Creating archives
+
+The archive dialog takes the format (ZIP, TAR.BZ2 or 7z; a format whose tool the server lacks is marked *not installed*), the archive's path and a compression level from none to best. Its other fields are optional:
+
+- **Exclude** — one pattern per line, such as `*.log`, `.git` or `node_modules`; it exists in both panels.
+- **Password** — local archives only. It is greyed out for TAR.BZ2, a format without encryption, and server archives get no password at all.
+- **Owner** and **Permissions** — remote archives only. The owner is set with `chown` and the permissions, as octal digits, with `chmod` once the archive is written. The permissions field is prefilled with `644`.
 
 ### Extracting archives on the server
 
@@ -148,7 +159,7 @@ Upload copies the selected local files and folders into the remote folder that w
 
 ### Transfer list
 
-Uploads and downloads run in the background, up to three files at a time (*Settings → SFTP Manager → [Parallel transfers](../reference/settings/sftp.md#transfers)*, 1 to 8), each over its own SFTP channel. The first transfer opens the **Transfers** list at the bottom of the tab; the arrow on its left collapses it to its header. Each row is a file or folder you transferred, with its direction, a progress bar, the bytes so far, the speed and the time left; a folder row adds up the files in it. The status bar shows how many files of all running transfers are done and the overall speed, and says **Upload complete** or **Download complete** when a batch is finished.
+Uploads and downloads run in the background, by default three files at a time (*Settings → SFTP Manager → [Parallel transfers](../reference/settings/sftp.md#transfers)*, 1 to 8), each over its own SFTP channel. A tab that borrows a terminal's session copies at most two at a time. The first transfer opens the **Transfers** list at the bottom of the tab; the arrow on its left collapses it to its header. Each row is a file or folder you transferred, with its direction, a progress bar, the bytes so far, the speed and the time left; a folder row adds up the files in it. The status bar shows how many files of all running transfers are done and the overall speed, and says **Upload complete** or **Download complete** when a batch is finished.
 
 ![Transfer list with a folder upload, a failed file inside it, a running download and finished rows](../assets/screenshots/sftp/sftp-transfer-list.png)
 
@@ -225,7 +236,7 @@ When the file opens in the Snippet Editor, the full toolbar remains available, i
 
 The file-mode buttons provide these save choices:
 
-- **Overwrite file** — writes the current editor content back to the original local or remote file
+- **Overwrite remote file** (**Overwrite local file** for a file in the left panel) — writes the current editor content back to the original file
 - **Save as...** — writes a new local file through a file chooser, or for remote files prompts for a new file name in the same remote directory
 - **Save as snippet** — stores the current content as a new Snippet Manager snippet without marking the source file as saved
 
@@ -235,7 +246,7 @@ An organization can restrict editing server files with the `load-into-snippet-ed
 
 ### Editing in your own editor
 
-**Edit in External Editor** (in the right-click menu of a server file and in the remote **Edit** menu) opens the selected server file in your own text editor and copies every save back to the server. Choose the editor under [*Settings → SFTP Manager → External editor*](../reference/settings/sftp.md#external-editor); without one, the file opens as text in the system's editor.
+**Edit in External Editor** (in the right-click menu of a server file and in the remote **Edit** menu) opens the selected server file in your own text editor and copies every save back to the server. Choose the editor under [*Settings → SFTP Manager → External editor*](../reference/settings/sftp.md#external-editor); without one, macOS opens the file in the default text editor, Windows opens it with its edit verb (scripts go to Notepad), and Linux opens text files with the default application for text and asks for an editor command for any other file type.
 
 - **Local copy** — the file is downloaded into a private folder named `kortty-remote-edit-…` in the system temp folder that only you can open, under a cleaned-up name: characters other than letters, digits, `.`, `_`, `-` and spaces become `_`, and Windows device names such as `CON` get a `_` in front. A symbolic link is followed once and the file it points to is edited.
 - **Auto-upload** — korTTY checks the copy every second. About a second after you save, the new content is uploaded and the status bar says **Uploaded** with the file name; saving the same content again uploads nothing. The upload works like any other: through a `.kortty-part` file that keeps the file's permissions, or written in place when the file belongs to another user, so its owner stays.
@@ -285,7 +296,7 @@ Check **Include subfolders** next to the remote search field and press ++enter++
 | Results | 5000 |
 | Time | 60 seconds |
 
-When the server lets korTTY run commands and has `find`, the search runs there and only the matching paths travel over the connection; otherwise korTTY walks the folders over SFTP, which is slower and stops after reading 200,000 entries. Symbolic links are listed but never followed, so a link that points back up the tree cannot make the search loop. **Stay on this file system** (on by default) keeps `find` out of other mounted file systems such as network shares and `/proc`; the walk over SFTP cannot tell file systems apart. Folders you cannot read are skipped. The search only reads names on the server, so it stays available when an enterprise policy blocks file transfers.
+When the server lets korTTY run commands and has `find`, the search runs there and only the matching paths travel over the connection; otherwise korTTY walks the folders over SFTP, which is slower and stops after reading 200,000 entries. Symbolic links are listed but never followed, so a link that points back up the tree cannot make the search loop. **Stay on this file system** (on by default, and only with **Include subfolders**) keeps `find` out of other mounted file systems such as network shares and `/proc`; the walk over SFTP cannot tell file systems apart. Folders you cannot read are skipped. The search only reads names on the server, so it stays available when an enterprise policy blocks file transfers.
 
 ---
 

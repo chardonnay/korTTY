@@ -15,5 +15,8 @@ Konfigurieren Sie die Sprache der Benutzeroberfläche für korTTY. Unterstützt 
 !!! note
     Sprachänderungen werden nach dem Neustart der Anwendung wirksam. Die Einstellung wird beim nächsten Start von korTTY auf die Beschriftungen, Menüs und Dialoge der Benutzeroberfläche angewendet.
 
+!!! note "Zusätzliche Sprachen"
+    Sprachen, die Sie mit einem Übersetzungsdienst erstellt haben (siehe [Übersetzung](translation.md)), erscheinen unter den integrierten Sprachen im Dropdown, beschriftet mit dem Sprachnamen und seinem Code; siehe [Sprachen & dynamische Übersetzung](../../features/i18n.md).
+
 !!! note "Datums- und Zahlenformate"
     Die installierte Anwendung bündelt Java-Gebietsschemadaten nur für die 8 unterstützten Oberflächensprachen. Läuft Ihr Betriebssystem in einem Gebietsschema außerhalb dieser Liste, werden Datums- und Zahlenangaben nach englischen Konventionen formatiert.

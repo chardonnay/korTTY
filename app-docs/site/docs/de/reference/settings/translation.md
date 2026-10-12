@@ -24,7 +24,7 @@ Konfigurieren Sie die dynamische Übersetzung der Benutzeroberfläche von korTTY
 | Veraltete Schaltfläche „|“ neu generieren | (sichtbar, wenn veraltete Dateien vorhanden sind) | – | – |
 
 !!! note
-    **Speicherung des API-Schlüssels:** Der API-Schlüssel wird mit Ihrem Master-Passwort verschlüsselt und sicher in `global-settings.xml` gespeichert. Wenn der Master-Passwort-Tresor gesperrt ist, erhalten Sie eine Warnung und der Schlüssel wird im Feld aufbewahrt, bis Sie den Tresor entsperren oder in den Einstellungen ein Master-Passwort festlegen können.
+    **API-Schlüssel-Speicherung:** Der API-Schlüssel wird mit Ihrem Master-Passwort verschlüsselt und sicher in `global-settings.xml` gespeichert. Wenn der Passwort-Tresor gesperrt ist, zeigt korTTY eine Warnung mit einem **Tresor entsperren…**-Button an, hält das Einstellungsfenster offen ohne zu speichern und lässt den Schlüssel im Feld stehen; entsperren Sie den Tresor und speichern Sie erneut.
 
 !!! note
     **Generierte Sprachen:** In der Liste „Generierte Sprachen“ werden Sprachdateien angezeigt, die über die Schaltfläche „Sprachdatei generieren“ erstellt wurden. Jede generierte Datei entspricht einer dynamisch übersetzten Benutzeroberfläche in dieser Zielsprache. Verwenden Sie die Schaltfläche „Löschen“, um eine Sprachdatei zu entfernen, oder verwenden Sie „Veraltet neu generieren“, um Dateien, die mit einer älteren App-Version erstellt wurden, so zu aktualisieren, dass sie neu hinzugefügte Übersetzungsschlüssel enthalten.
@@ -41,7 +41,7 @@ LibreTranslate, ein regionaler Azure-Endpunkt oder ein Proxy.
 | DeepL | DeepL API v2 | Ihr DeepL-Authentifizierungsschlüssel, gesendet als `DeepL-Auth-Key` | `https://api.deepl.com/v2/translate` oder `https://api-free.deepl.com/v2/translate` für einen kostenlosen Schlüssel |
 | LibreTranslate | LibreTranslate `/translate` | Optional; Wird von öffentlichen Instanzen benötigt, die Quoten erzwingen | `https://libretranslate.com` |
 | Microsoft Translator | Azure AI Translator v3.0 | Der Azure Translator-Ressourcenabonnementschlüssel | `https://api.cognitive.microsofttranslator.com` |
-| Yandex | Yandex Cloud Translate v2 | Ein Yandex Cloud **Dienstkonto-API-Schlüssel**, gesendet als `Api-Key` | `https://translate.api.cloud.yandex.net/translate/v2` |
+| Yandex | Yandex Cloud Translate v2 | A Yandex Cloud **Service-Account-API-Key**, gesendet als `Api-Key`; ein Wert, der mit `t1.` beginnt, wird stattdessen als Bearer-IAM-Token gesendet | `https://translate.api.cloud.yandex.net/translate/v2` |
 
 !!! warning "Yandex: Die v1.5-API ist nicht mehr verwendbar"
     Yandex hat die Ausgabe von Schlüsseln für die alte Translate API v1.5 (`translate.yandex.net/api/v1.5`) eingestellt und

@@ -8,7 +8,7 @@ The JobScheduler runs unattended background jobs while KorTTY is open. It does n
 
 On macOS and Windows, an enabled job with a future run keeps the computer from entering system sleep while korTTY is running when **Configuration > Prevent System Sleep** is enabled, so the scheduled time remains reachable. The Scheduler uses a single wake-up for the next due run and owns no polling timer when no enabled future job exists. With no terminal connection, future or running Scheduler job, or active AI request, system sleep remains available even while the setting is checked. While a job is running, macOS does not put korTTY into App Nap. Display sleep is not blocked. Linux power inhibition is not yet supported.
 
-Open it with **Tools > JobScheduler...**. The dialog remembers its window position and size. The German interface now translates all labels, action names, status values, validation messages, target selectors and supporting prompts; technical protocol and format names such as SFTP, Rsync, ZIP, TAR, stdout and stderr remain unchanged.
+Open it with **Tools > JobScheduler...**. The dialog remembers its window position and size. Its job list has **New**, **Save**, **Delete**, **Run now** and **Webhook targets...** buttons and the **Show Jobs status in menu bar** check box; **Run now** saves the selected job and starts it at once. The German interface now translates all labels, action names, status values, validation messages, target selectors and supporting prompts; technical protocol and format names such as SFTP, Rsync, ZIP, TAR, stdout and stderr remain unchanged.
 
 
 ![JobScheduler execution](../assets/diagrams/jobscheduler-execution.svg)
@@ -109,6 +109,23 @@ Use the **Action** tab to choose what the job does. The tab shows only the field
 | **SFTP_ARCHIVE** | Create a remote archive. |
 | **RSYNC_SYNC** | Synchronize one or more directories via external `rsync` over SSH. |
 
+Each action shows only these fields besides the **Action** selector. The **Sudo** field is a check box labelled **Use sudo**:
+
+| Action | Fields |
+|--------|--------|
+| **COMMAND** | Command, Virtual terminal, Sudo |
+| **SNIPPET_SCRIPT** | Snippet search, Snippet script, Snippet parameters, Virtual terminal, Sudo |
+| **AI_AGENT** | AI profile, AI prompt, AI agent may change the server without runtime confirmation, Sudo |
+| **AI_SWARM** | AI profile, AI prompt, AI agent may change the server without runtime confirmation, Swarm parallelism, Swarm read-only |
+| **SFTP_UPLOAD**, **SFTP_DOWNLOAD** | Local path, Remote path, Sudo, and SFTP sudo staging while Use sudo is ticked |
+| **SFTP_SYNC** | Local path, Remote path, Sync direction, Sudo, and SFTP sudo staging while Use sudo is ticked |
+| **SFTP_DELETE**, **SFTP_MKDIR** | Remote path, Sudo |
+| **SFTP_RENAME**, **SFTP_COPY_REMOTE** | Remote source, Remote destination, Sudo |
+| **SFTP_CHMOD** | Remote path, Permissions, Sudo |
+| **SFTP_CHOWN** | Remote path, Owner, Group, Sudo |
+| **SFTP_ARCHIVE** | Archive sources, Archive excludes, Archive path, Archive format, Archive password (password-protected ZIP only), Compression (not for TAR), Archive download, Archive download path (while Archive download is ticked), Sudo |
+| **RSYNC_SYNC** | Rsync direction, Rsync sources, Rsync target root, Delete missing files |
+
 Path fields provide local Finder/Explorer selection where the path is local and remote directory browsing where the path is remote. Remote browsing requires a selected target and host-key verification unless the job explicitly disables host-key verification.
 
 #### Virtual Terminal and Screenshots
@@ -150,9 +167,11 @@ The fastest way to create an AI Swarm job is the **Schedule…** button in the [
 
 #### SFTP Archive Jobs
 
-SFTP archive jobs support ZIP, password-protected ZIP, TAR, and TAR.BZ2. Archive sources and exclude patterns accept one path or pattern per line. The archive can optionally be downloaded after creation.
+SFTP archive jobs support ZIP, password-protected ZIP, TAR, and TAR.BZ2. Archive sources and exclude patterns accept one path or pattern per line. With **Archive download** ticked, the archive is downloaded to **Archive download path** after it is created. With **Sudo** ticked, the archive commands run through `sudo`.
 
-When **Use sudo staging for SFTP paths** is enabled, KorTTY stages files in a temporary location and uses sudo-assisted remote commands such as `mv`, `cp`, `tar`, `chmod`, and `chown` where elevated rights are required. Cleanup failures are written to the journal.
+#### SFTP Sudo Staging
+
+With **Use sudo** and **Use sudo staging for SFTP paths** ticked, an upload, download or sync stages its files in a temporary location and moves them into place with sudo (`mv` for an upload, `cp` for a download). Cleanup failures are written to the journal.
 
 ## Rsync Jobs
 
@@ -196,7 +215,7 @@ Successful runs and recoveries (a successful run right after a failed or blocked
 
 ### Choosing When a Job Notifies
 
-Each job has a **Notifications** section on its **Job** tab, just above the session journal section. Tick the run results that notify: **Fails** and **Is blocked** are on for every job, **Recovers (succeeds after a failure)** and **Succeeds** are off until you tick them. **Show a desktop notification** switches the desktop notification off for this job, for example for a job that only reports to a team channel. Below, tick the webhook targets this job sends to; no job sends to a webhook until you tick one. The section warns when nothing is ticked or when the enterprise policy blocks the ticked webhooks. Click **Save** to keep the changes.
+Each job has a **Notifications** section on its **Job** tab, just above the session journal section. Under **Notify when a run:**, tick the run results that notify: **Fails** and **Is blocked** are on for every job, **Recovers (succeeds after a failure)** and **Succeeds** are off until you tick them. **Show a desktop notification** switches the desktop notification off for this job, for example for a job that only reports to a team channel. Below, under **Send to these webhook targets:**, tick the webhook targets this job sends to; no job sends to a webhook until you tick one. The section warns when nothing is ticked or when the enterprise policy blocks the ticked webhooks. Click **Save** to keep the changes.
 
 ### Webhook Targets
 

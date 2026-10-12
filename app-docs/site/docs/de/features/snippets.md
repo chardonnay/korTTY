@@ -35,6 +35,7 @@ Die Bibliothek listet jedes Snippet in einer Tabelle auf:
 
 - **Systemspalte (Betriebssystem)** – Eine sortierbare Betriebssystemspalte für jedes Snippet (Beliebig, Linux, macOS, Windows). Wird automatisch festgelegt, wenn ein Snippet über *Workflow-Skript generieren* erstellt wird.
 - **Sortierbare Spalten** — Alle Spalten (Name, Analyse, Sprache, Exec, Kategorie, System, Tags, Zeilen, Letzte Änderung, Benutzt) sind sortierbar.
+- **Favoriten** — **★ Favorit umschalten**, in der Schaltflächenreihe unterhalb der Tabelle und im Rechtsklickmenü, markiert die ausgewählten Snippets mit einem ★ in der ersten Spalte. Die Standardreihenfolge listet zuerst Favoriten, dann die am häufigsten verwendeten Snippets.
 - **Ausführs-Spalte** — Ob das Snippet als ausführbare Datei exportiert oder auf einen Server kopiert wird. Eine dunkle Kontrollkästchen ist der automatische Wert; ein Klick darauf setzt das Flag explizit, ein Klick darauf zurück auf den automatischen Wert führt zu **Automatisch**. Siehe [Ausführbar-Flag](#ausfuhrbar-flag).
 - **Analyse-Spalte** — Zeigt den Status jedes Snippets' gespeicherter [Vollständige Code-Analyse](#vollstandige-code-analyse) auf einen Blick: **⚠ 3** — drei Ergebnisse der neuesten Analyse wurden noch nicht auf das gespeicherte Snippet übertragen; **◷** — ein Ergebnis wartet auf Ihre Prüfung ("Später prüfen"); **✓** — alle Ergebnisse wurden angewendet oder die Analyse fand nichts zu beheben; **✎** — ein KI-Ergebnis wurde im Editor angewendet, aber das Snippet wurde nie mit diesem gespeichert, korTTY erinnert sich an diesen Zustand (siehe [Angewendet, aber nicht gespeichert](#angewendet-aber-nicht-gespeichert)); **↻** nach dem Symbol — das Snippet hat sich seit der Analyse geändert. Hover über eine Zelle für Details und den Datum der Analyse. Die Spalte wird im Hintergrund ausgefüllt, sobald der Snippet-Manager geöffnet wird und folgt jeder neuen Analyse, Anwendung, Ablehnung und Speicherung, sodass selbst eine Bibliothek mit hunderten Snippets sofort geöffnet werden kann, ohne zu warten. Die Sortierung nach dieser Spalte zeigt zuerst die offen zu prüfenden Ergebnisse, dann die Snippets mit einem erinnerten, nicht gespeicherten Ergebnis und schließlich die Snippets mit den meisten offenen Ergebnissen.
 - **Analyse-Filter** — Das Dropdown neben dem Kategorie-Filter reduziert die Liste auf die Snippets, die Aufmerksamkeit erfordern: **Offene Findings**, **Veraltete Analyse** oder **Prüfung ausstehend** — ein Postfach für Entscheidungen, die Sie noch offen haben: Ergebnisse, die Sie für später beibehalten haben, und Ergebnisse, die Sie noch nicht gespeichert haben. **Alle Snippets** zeigt alles erneut. Der Filter kombiniert sich mit der Suche und dem Kategorie-Filter.
@@ -582,9 +583,9 @@ JobScheduler Snippet-Jobs und **Skript ausführen…** im KI-Swarm können keine
 
 ## Snippets an das Terminal senden
 
-Der Snippet-Manager kann ein ausgewähltes Snippet direkt an ein Terminal seines Hauptfensters senden: den ausgewählten Terminal-Tab oder – wenn der Snippet-Manager selbst der ausgewählte Tab ist – den zuletzt verwendeten (oder einzigen) offenen Terminal-Tab. korTTY wechselt dann zu diesem Tab und zeigt **An … gesendet** in der Statusleiste. **In Editor einfügen** wählt den Dateieditor-Tab auf die gleiche Weise. Das Snippet wird in den ersten Bereich des Tabs geschrieben, also den, mit dem der Tab geöffnet wurde, auch wenn ein anderer Bereich eines geteilten Tabs den Fokus hat. Ein Snippet, das Sie aus der [Befehlspalette](command-palette.md#snippets-ausfuhren) ausführen, geht dagegen in den fokussierten Bereich.
+Der Snippet-Manager kann ein ausgewähltes Snippet direkt an ein Terminal seines Hauptfensters senden: den ausgewählten Terminal-Tab, oder — wenn der Snippet-Manager selbst der ausgewählte Tab ist — den zuletzt verwendeten (oder einzigen offenen) Terminal-Tab. korTTY wechselt dann zu diesem Tab und zeigt **Sent to …** in der Statusleiste an. **In Editor einfügen** wählt den Dateieditor-Tab auf die gleiche Weise. Das Snippet wird in das erste Pane des Tabs geschrieben, also in das, mit dem der Tab geöffnet wurde, auch wenn ein anderes Pane eines geteilten Tabs den Fokus hat. Ein Snippet, das Sie aus der [Befehls-Palette](command-palette.md#snippets-ausfuhren) starten, geht stattdessen in das fokussierte Pane.
 
-Ohne den Snippet-Manager zu öffnen, führt die [Befehlspalette](command-palette.md#snippets-ausfuhren) ein Snippet auf dieselbe Weise aus: Drücken Sie ++ctrl+shift+p++ (++cmd+shift+p++ unter macOS), geben Sie `$` und einen Teil des Snippet-Namens ein und drücken Sie ++enter++; jede Zeile nennt das Terminal, in dem das Snippet läuft, und ++alt+enter++ (++option+enter++ unter macOS) öffnet das Snippet stattdessen hier.
+Ohne den Snippet-Manager zu öffnen, führt die [Befehls-Palette](command-palette.md#snippets-ausfuhren) ein Snippet auf die gleiche Weise aus: drücken Sie ++ctrl+shift+p++ (++cmd+shift+p++ auf macOS), geben Sie `$` und einen Teil des Snippet-Namens ein, und drücken Sie ++enter++. **Ansehen → Snippet-Palette…** öffnet die Palette mit bereits eingegebenem `$`. Jede Zeile benennt das Terminal, in dem es ausgeführt wird, und ++alt+enter++ (++option+enter++ auf macOS) öffnet stattdessen das Snippet hier.
 
 ### An Terminal senden
 
@@ -654,7 +655,7 @@ Wählen Sie für skriptspezifische Exporte Folgendes:
 #### ZIP-Skriptarchiv
 
 - Schreibt eine ZIP-Datei mit einer Skriptdatei pro Snippet
-- Behalten Sie den eigenen Namen jeder Datei bei oder erzwingen Sie eine einheitliche Erweiterung für alle Dateien
+- **Endung aus der Name-Spalte verwenden** behält den eigenen Namen jeder Datei bei oder wählt eine erzwungene Endung für alle Dateien
 - Mit ihren eigenen Namen behalten die Dateien ihre Unterordner und ihr ausführbares Flag bei (`unzip` stellt den Modus wieder her); ein passwortgeschütztes Archiv trägt den Modus nur dort, wo das Dateisystem POSIX-Berechtigungen hat
 - Unterstützte erzwungene Erweiterungen: `.sh`, `.py`, `.pl`, `.rb`, `.ps1`, `.sql`, `.txt` oder benutzerdefiniert
 
@@ -664,9 +665,9 @@ Wählen Sie für skriptspezifische Exporte Folgendes:
 
 #### ZIP-Verschlüsselungsoptionen
 
-- **Unverschlüsselt** – Standard-ZIP-Archiv
-- **AES passwortgeschützt** – Passwortverschlüsselt mit AES-256
-- **GPG-verschlüsselt** – Erstellt eine `.zip.gpg`-Datei; erfordert den lokalen Befehl `gpg` und einen verwendbaren öffentlichen Schlüssel
+- **Keine Verschlüsselung** — Standard-ZIP-Archiv
+- **Passwort-Verschlüsselung (ZIP)** — Passwortverschlüsselt mit AES-256
+- **GPG-Verschlüsselung** — Erstellt eine `.zip.gpg`-Datei; erfordert den lokalen Befehl `gpg` und einen nutzbaren öffentlichen Schlüssel
 
 !!! tip
     Wählen Sie zwei Snippets aus, exportieren Sie sie als Nur-Text und bestätigen Sie, dass die erstellten Dateien die Namen aus der Spalte **Name** verwenden. Exportieren Sie dann dieselbe Auswahl als ZIP mit der erzwungenen Erweiterung `.txt` und überprüfen Sie, ob alle ZIP-Einträge `.txt` verwenden. Bestätigen Sie für den Passwortexport, dass die ZIP-Datei vor dem Extrahieren das Passwort erfordert. Für den GPG-Export entschlüsseln Sie `.zip.gpg` mit Ihrem lokalen GPG-Setup und überprüfen Sie die ZIP-Einträge.

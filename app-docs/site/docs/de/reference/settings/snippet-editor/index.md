@@ -10,7 +10,7 @@ Schriftart, Farbe und Cursor-Übernahme für den Snippet-Manager und das Snippet
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Schriftartenfamilie | Dropdown-Liste | Leer (übernehmen) oder eine installierte Monospace-Familie | leer (übernehmen) | `snippetFontFamily` |
+| Schriftart | dropdown | Leer (erben) oder jede installierte Schriftfamilie; übliche Monospace-Familien werden zuerst aufgeführt. | Leer (vererbt) | `snippetFontFamily` |
 | Schriftgröße | Nummer | 0–72 (0 = erben) | 0 (erben) | `snippetFontSize` |
 | Vordergrundfarbe | Farbe | – | erben (Auswahl zeigt `#d4d4d4`) | `snippetForegroundColor` |
 | Hintergrundfarbe | Farbe | – | erben (Auswahl zeigt `#1e1e1e`) | `snippetBackgroundColor` |

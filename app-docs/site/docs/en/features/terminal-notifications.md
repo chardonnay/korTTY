@@ -34,7 +34,7 @@ With **Desktop notification when the bell rings in a tab you are not looking at*
 - A pane shows at most one bell notification every 10 seconds; further bells in that time only keep the mark on the tab. Each pane of a split tab counts on its own, but the panes that take part in [multi-exec](terminal.md#multi-exec) count as one, whichever tabs they are in. A bell that rings in a pane within 2 seconds of keys you typed in another pane reaching it through [broadcast mode](terminal.md#broadcast-mode) or multi-exec, such as a failed ++tab++ completion on every server at once, answers those keys: it neither marks the tab nor notifies.
 - The setting is off by default, because shells ring the bell on every failed ++tab++ completion. A change applies to the open tabs as soon as you save.
 - A pane in which korTTY detected a [coding agent](coding-agents.md) gets no bell notification while **Desktop notification when a coding agent needs a decision or finishes while you are not looking at its pane** is on: agents ring the bell when they wait for you, and their own notification already says so, with more detail. The tab still gets its mark.
-- Clicking the notification does not bring the tab to the front; the notification services korTTY uses cannot report the click back. Look for the 🔔 in the tab bar instead.
+- Clicking the notification brings the window to the front, selects the tab and focuses the pane the bell rang in, as for every desktop notification of korTTY (see [Clicking a notification](#clicking-a-notification)). The 🔔 in the tab bar stays until you look at the tab.
 
 ## Long-running commands
 

@@ -827,7 +827,7 @@
 <tbody>
 <tr>
 <td><strong>Ansicht → Dateibrowser → Links anzeigen</strong></td>
-<td><span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-b">B</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-b">B</kbd></span></td>
+<td><span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-k">K</kbd></span> / <span class="keys"><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span></td>
 </tr>
 <tr>
 <td><strong>Ansicht → Dateibrowser → Rechts anzeigen</strong></td>
@@ -835,7 +835,7 @@
 </tr>
 </tbody>
 </table>
-<p>Wird der Eintrag erneut ausgewählt oder der <strong>✕</strong>-Button in der Titelleiste des Panels gedrückt, wird das Panel ausgeblendet. Ein verschiebbarer Trenner passt die Größe an (280–900 px, standardmäßig 380 px); das Fenster behält diese Breite bei, anstatt das Panel zusammenzudrücken, wenn das Terminal Platz braucht. <strong>Position, Breite, Einstellung „Versteckte Dateien anzeigen" und letztes Verzeichnis des Panels bleiben auch nach Neustarts erhalten.</strong></p>
+<p>Das erneute Auswählen des Elements oder der <strong>✕</strong>-Schaltfläche in der Titelleiste des Panels versteckt das Panel. Ein ziehbarer Trenner ändert seine Größe (280–900 px, standardmäßig 380 px). korTTY behält diese Breite bei, solange das Fenster Platz für das Panel und ein nutzbares Terminal bietet, verkleinert das Panel jedoch auf 280 px, wenn das Fenster zu schmal ist. Die <strong>Position, Breite, Einstellung "Versteckte Dateien anzeigen" und das letzte Verzeichnis</strong> des Panels werden über Neustarts hinweg gespeichert.</p>
 <h2 id="navigation">Navigation<a class="headerlink" href="#navigation" title="Permanent link">&para;</a></h2>
 <p>Die Liste zeigt jeweils nur einen Ordner an. <strong>Doppelklicken</strong> Sie auf einen Ordner (oder wählen Sie ihn aus und drücken Sie <span class="keys"><kbd class="key-enter">Enter</kbd></span>), um in ihn zu wechseln; die <strong>..</strong>-Zeile oben führt in den übergeordneten Ordner. Die Schaltflächen in der Titelleiste:</p>
 <table>
@@ -868,7 +868,7 @@
 </tr>
 <tr>
 <td>Sortieren</td>
-<td>Wählen Sie den Sortierschlüssel (Name, Größe, Änderungsdatum) und die Richtung (Aufsteigend / Absteigend); ein Klick auf die Spaltenüberschrift <strong>Name</strong>, <strong>Größe</strong> oder <strong>Geändert</strong> bewirkt dasselbe, und ein zweiter Klick kehrt die Richtung um. Versteckte Einträge (Namen, die mit einem Punkt beginnen) bleiben immer oben, danach Ordner vor Dateien</td>
+<td>Wählen Sie den Sortierschlüssel (Name, Größe, Änderungsdatum) und die Richtung (aufsteigend / absteigend); ein Klick auf die Spaltenüberschrift <strong>Name</strong>, <strong>Größe</strong> oder <strong>Geändert</strong> führt dasselbe aus, ein zweiter Klick kehrt die Richtung um und ein dritter Klick bringt zurück zu <strong>Name</strong>, aufsteigend. Versteckte Einträge (Namen, die mit einem Punkt beginnen) bleiben immer oben, danach Ordner vor Dateien</td>
 </tr>
 <tr>
 <td>Versteckte Dateien</td>
@@ -931,12 +931,14 @@
 <ul>
 <li><strong>Öffnen</strong> — die Datei mit der Standardanwendung des Betriebssystems öffnen oder in den gewählten Ordner wechseln.</li>
 <li><strong>Im Snippet-Editor öffnen</strong> – Laden Sie eine Textdatei (bis zu 10 MB) in den <a href="snippets.html">Snippet-Editor</a>.</li>
-<li><strong>Umbenennen</strong> – Inline umbenennen; Ein Namenskonflikt wird durch Anhängen von <code>(2)</code>, <code>(3)</code>, … gelöst.</li>
+<li><strong>Umbenennen</strong> — inline umbenennen; bei Namenskonflikt wird eine Zahl vor der Erweiterung angehängt, z. B. <code>report (2).txt</code>.</li>
 <li><strong>Kopieren</strong> / <strong>Ausschneiden</strong> / <strong>Einfügen</strong> – Verschieben oder Kopieren im Browser.</li>
 <li><strong>Pfad kopieren</strong> – Kopieren Sie den absoluten Pfad des Elements in die Zwischenablage.</li>
 <li><strong>Löschen</strong> – eine Bestätigungsaufforderung bietet <strong>In den Papierkorb verschieben</strong> oder <strong>Endgültig löschen</strong>. Das Verschieben in den Papierkorb ist rückgängig zu machen; Die dauerhafte Löschung kann nicht rückgängig gemacht werden. Auf einem System ohne Papierkorb wird nur die dauerhafte Löschung angeboten. Der Löschvorgang läuft im Hintergrund, sodass das Fenster bei einem großen Ordner nicht einfriert.</li>
 <li><strong>Neuer Ordner</strong> / <strong>Neue Datei</strong> – ein Element erstellen.</li>
-<li><strong>Eigentümer/Gruppe/Berechtigungen festlegen</strong> – Eigentümer und POSIX-Berechtigungen ändern (sofern das Dateisystem dies unterstützt).</li>
+<li><strong>Versteckte Dateien anzeigen</strong> — derselbe Schalter wie die Schaltfläche in der Titelleiste.</li>
+<li><strong>Alles auswählen</strong> — select every entry in the folder shown.</li>
+<li><strong>Besitzer/Berechtigungen setzen...</strong> — change ownership and POSIX permissions (where the filesystem supports it).</li>
 <li><strong>Archiv</strong> – Packen Sie die Auswahl in ein <code>ZIP</code>-, <code>TAR</code>- oder <code>TAR.GZ</code>-Archiv.</li>
 <li><strong>Details</strong> – Typ, Größe, Pfad, Änderungszeit und Berechtigungen anzeigen.</li>
 </ul>

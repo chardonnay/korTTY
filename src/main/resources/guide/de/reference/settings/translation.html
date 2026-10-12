@@ -915,7 +915,7 @@
 </table>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><strong>Speicherung des API-Schlüssels:</strong> Der API-Schlüssel wird mit Ihrem Master-Passwort verschlüsselt und sicher in <code>global-settings.xml</code> gespeichert. Wenn der Master-Passwort-Tresor gesperrt ist, erhalten Sie eine Warnung und der Schlüssel wird im Feld aufbewahrt, bis Sie den Tresor entsperren oder in den Einstellungen ein Master-Passwort festlegen können.</p>
+<p><strong>API-Schlüssel-Speicherung:</strong> Der API-Schlüssel wird mit Ihrem Master-Passwort verschlüsselt und sicher in <code>global-settings.xml</code> gespeichert. Wenn der Passwort-Tresor gesperrt ist, zeigt korTTY eine Warnung mit einem <strong>Tresor entsperren…</strong>-Button an, hält das Einstellungsfenster offen ohne zu speichern und lässt den Schlüssel im Feld stehen; entsperren Sie den Tresor und speichern Sie erneut.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -962,7 +962,7 @@ LibreTranslate, ein regionaler Azure-Endpunkt oder ein Proxy.</p>
 <tr>
 <td>Yandex</td>
 <td>Yandex Cloud Translate v2</td>
-<td>Ein Yandex Cloud <strong>Dienstkonto-API-Schlüssel</strong>, gesendet als <code>Api-Key</code></td>
+<td>A Yandex Cloud <strong>Service-Account-API-Key</strong>, gesendet als <code>Api-Key</code>; ein Wert, der mit <code>t1.</code> beginnt, wird stattdessen als Bearer-IAM-Token gesendet</td>
 <td><code>https://translate.api.cloud.yandex.net/translate/v2</code></td>
 </tr>
 </tbody>

@@ -12,10 +12,10 @@ Toggle the panel from the menu bar:
 
 | Menu item | Shortcut |
 |-----------|----------|
-| **View → File Browser → Show on Left** | ++shift+cmd+b++ / ++shift+ctrl+b++ |
+| **View → File Browser → Show on Left** | ++shift+cmd+k++ / ++shift+ctrl+k++ |
 | **View → File Browser → Show on Right** | ++shift+cmd+r++ / ++shift+ctrl+r++ |
 
-Selecting the item again, or the **✕** button in the panel's title bar, hides the panel. A draggable divider resizes it (280–900 px, 380 px by default); the window keeps that width instead of squeezing the panel when the terminal needs room. The panel's **position, width, Show Hidden Files setting and last directory are remembered across restarts**.
+Selecting the item again, or the **✕** button in the panel's title bar, hides the panel. A draggable divider resizes it (280–900 px, 380 px by default). korTTY keeps that width while the window has room for the panel and a usable terminal, and shrinks the panel towards 280 px only when the window is too narrow for both. The panel's **position, width, Show Hidden Files setting and last directory are remembered across restarts**.
 
 ## Navigation
 
@@ -28,7 +28,7 @@ The listing shows one folder at a time. **Double-click** a folder (or select it 
 | Home | Show your home directory |
 | Refresh | Reload the folder shown, keeping the selection |
 | New folder / New file | Create an item in the folder shown |
-| Sort | Choose the sort key (Name, Size, Date modified) and direction (Ascending / Descending); a click on the **Name**, **Size** or **Modified** column header does the same, and a second click reverses the direction. Hidden entries (names starting with a dot) always stay at the top, then folders before files |
+| Sort | Choose the sort key (Name, Size, Date modified) and direction (Ascending / Descending); a click on the **Name**, **Size** or **Modified** column header does the same, a second click reverses the direction, and a third click returns to **Name**, ascending. Hidden entries (names starting with a dot) always stay at the top, then folders before files |
 | Show hidden files | Toggle dotfiles on or off |
 | ✕ | Hide the panel |
 
@@ -57,12 +57,14 @@ Right-click an entry for the full menu:
 
 - **Open** — open the file with the operating system's default application, or change into the selected folder.
 - **Open in Snippet Editor** — load a text file (up to 10 MB) into the [Snippet Editor](snippets.md).
-- **Rename** — rename inline; a name clash is resolved by appending ` (2)`, ` (3)`, …
+- **Rename** — rename inline; a name clash gets a number before the extension, such as `report (2).txt`.
 - **Copy** / **Cut** / **Paste** — move or copy within the browser.
 - **Copy Path** — copy the item's absolute path to the clipboard.
 - **Delete** — a confirmation prompt offers **Move to Trash** or **Delete Permanently**. Moving to the Trash is reversible; permanent deletion cannot be undone. On a system without a Trash, only permanent deletion is offered. The deletion runs in the background so a large folder does not freeze the window.
 - **New Folder** / **New File** — create an item.
-- **Set owner / group / permissions** — change ownership and POSIX permissions (where the filesystem supports it).
+- **Show Hidden Files** — the same switch as the title bar's button.
+- **Select All** — select every entry in the folder shown.
+- **Set Owner/Permissions...** — change ownership and POSIX permissions (where the filesystem supports it).
 - **Archive** — pack the selection into a `ZIP`, `TAR` or `TAR.GZ` archive.
 - **Details** — show type, size, path, modification time and permissions.
 

@@ -92,7 +92,7 @@ Configure your browser or application to use `localhost:1080` as a SOCKS5 (or SO
 ## When Tunnels Open
 
 - **Once per terminal tab:** the tunnels open right after login on the tab's first SSH session and stay open while the tab is connected. Split panes neither open them again nor conflict with them.
-- **Asked once:** the first time a connection's tunnels are about to open, korTTY lists them and asks **Open Tunnels** or **Not Now**. **Not Now** is the default button, so a key you are still typing into the terminal when the question appears never opens them. The answer is remembered for that connection; korTTY asks again when its tunnels or its server change. **Not Now** applies to the tab, including its reconnects — open the connection in a new tab to be asked again.
+- **Asked once:** the first time a connection's tunnels are about to open, korTTY lists them and asks **Open Tunnels** or **Not Now**. **Not Now** is the default button, so a key you are still typing into the terminal when the question appears never opens them. The question is titled **SSH Tunnels** and lists each tunnel as the tunnel list shows it, marking those other computers may reach. The answer is remembered for that connection; korTTY asks again when its tunnels or its server change, that is when a tunnel is added, removed, enabled or disabled, or gets another address, port or type, or when the connection points to another server. A changed description does not count, and tunnels that could not open anyway are not listed: the status bar reports them instead, and when none of the tunnels could open, korTTY does not ask at all. **Not Now** applies to the tab, including its reconnects — open the connection in a new tab to be asked again.
 - **Reconnect:** a manual or automatic reconnect closes the tunnels first and opens them again on the new session.
 - **Closing panes:** if you close the pane the tunnels run on (or type `exit` there) while a pane opened with **Split Right (same server)** or **Split Down (same server)** from a pane on the tab's server stays open, the tunnels move to that pane. Panes opened with **Split Right (new connection)** or **Split Down (new connection)**, and the same-server splits made from them, never take them over, even when they connect to the same server.
 - **Closing the tab** closes its tunnels.
@@ -102,7 +102,30 @@ Configure your browser or application to use `localhost:1080` as a SOCKS5 (or SO
 
 ### Status Bar
 
-While a tab has tunnels, its status bar shows `Tunnels: 2/3 active`, followed by the first tunnel that failed and why (for example `Address already in use`) and by the first tunnel that other computers may reach. Hover over the status bar to see every tunnel with its state.
+While a tab has tunnels, its status bar shows `Tunnels: 2/3 active`, followed by the first tunnel that failed and why (for example `Address already in use`) and by the first tunnel that other computers may reach. If none of the tunnels of the tab could start, the status bar says so in one sentence instead: that the tunnels are disabled by your organization, that they were not allowed for this tab, or that they need the SSH protocol.
+
+Hover over the status bar to see every tunnel on its own line, with its state:
+
+| State | Meaning |
+| --- | --- |
+| starting | the forward is being requested |
+| active on *address* | the forward listens on that address; an active tunnel other computers may reach also says *may be reachable from other computers* |
+| failed: *reason* | the forward could not be opened or the server refused it |
+| stopped | the forward was open and is closed (reconnect, session gone or tab closed) |
+| not started: *reason* | the tunnel was refused before anything was opened, see the reasons below |
+
+A failed or refused tunnel shows one of these reasons:
+
+| Reason | When it appears |
+| --- | --- |
+| invalid port | the port is not between 1 and 65535 |
+| the port could not be opened | the local listener could not be created; the operating system's own message, such as `Address already in use`, is shown when it has one |
+| the SSH server refused it | a remote tunnel that the server did not accept, for example because the port is in use there or `AllowTcpForwarding` is disabled |
+| disabled by your organization | the enterprise policy forbids port forwarding |
+| not allowed for this tab | you declined the question for this tab; see [When Tunnels Open](#when-tunnels-open) |
+| needs the SSH protocol | the connection is Mosh, which cannot carry tunnels |
+| shared (Teamwork) connections may only bind to localhost | a local or dynamic tunnel of a shared connection names another address |
+| shared (Teamwork) connections never open remote tunnels | a remote tunnel of a shared connection, which is never opened |
 
 ### Shared (Teamwork) Connections
 

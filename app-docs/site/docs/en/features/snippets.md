@@ -35,6 +35,7 @@ The library lists every snippet in a table:
 
 - **System (OS) column** — A sortable operating-system column for each snippet (Any, Linux, macOS, Windows). Auto-set when a snippet is created via *Generate Workflow Script*.
 - **Sortable columns** — All columns (Name, Analysis, Language, Exec, Category, System, Tags, Lines, Last modified, Used) are sortable.
+- **Favorites** — **★ Toggle Favorite**, in the row of buttons below the table and in its right-click menu, marks the selected snippets with a ★ in the first column. The default order lists favorites first, then the snippets you use most.
 - **Exec column** — Whether the snippet is written as an executable file when it is exported or copied to a server. A dimmed checkbox is the automatic value; clicking it sets the flag explicitly, and clicking back to the automatic value returns to **Automatic**. See [Executable flag](#executable-flag).
 - **Analysis column** — Shows the state of each snippet's stored [Full code analysis](#full-code-analysis) at a glance: **⚠ 3** — three findings of the newest analysis are not applied to the saved snippet yet; **◷** — a result waits for your review ("Review later"); **✓** — every finding was applied, or the analysis found nothing to fix; **✎** — an AI result was applied in the editor but the snippet was never saved with it, and korTTY remembers that state (see [Applied but not saved](#applied-but-not-saved)); **↻** after the symbol — the snippet changed since that analysis. Hover a cell for the details and the date of the analysis. The column is filled in the background when the Snippet Manager opens and follows every new analysis, apply, discard and save, so even a library with hundreds of snippets opens without waiting. Sorting by it puts pending reviews first, then the snippets with a remembered unsaved result, then the snippets with the most open findings.
 - **Analysis filter** — The drop-down next to the category filter narrows the list to the snippets that need attention: **Open findings**, **Stale analysis** or **Review pending** — an inbox for the decisions you still owe: results you kept for later and applied results you have not saved. **All snippets** shows everything again. It combines with the search and the category filter.
@@ -582,9 +583,9 @@ JobScheduler snippet jobs and **Run script…** in the AI Swarm cannot ask for a
 
 ## Sending snippets to the terminal
 
-The Snippet Manager can send a selected snippet directly to a terminal of its main window: the selected terminal tab, or — when the Snippet Manager is itself the selected tab — the terminal tab you used last (or the only one that is open). korTTY then switches to that tab and shows **Sent to …** in the status bar. **Insert into editor** picks the file editor tab the same way. The snippet is written to the tab's first pane, the one the tab opened with, also when another pane of a split tab has the focus. A snippet you run from the [command palette](command-palette.md#running-snippets) goes to the focused pane instead.
+The Snippet Manager can send a selected snippet directly to a terminal of its main window: the selected terminal tab, or — when the Snippet Manager is itself the selected tab — the terminal tab you used last (or the only one that is open). korTTY then switches to that tab and shows **Sent to …** in the status bar. **Insert into Editor** picks the file editor tab the same way. The snippet is written to the tab's first pane, the one the tab opened with, also when another pane of a split tab has the focus. A snippet you run from the [command palette](command-palette.md#running-snippets) goes to the focused pane instead.
 
-Without opening the Snippet Manager, the [command palette](command-palette.md#running-snippets) runs a snippet the same way: press ++ctrl+shift+p++ (++cmd+shift+p++ on macOS), type `$` and part of the snippet's name, and press ++enter++; each row names the terminal it runs in, and ++alt+enter++ (++option+enter++ on macOS) opens the snippet here instead.
+Without opening the Snippet Manager, the [command palette](command-palette.md#running-snippets) runs a snippet the same way: press ++ctrl+shift+p++ (++cmd+shift+p++ on macOS), type `$` and part of the snippet's name, and press ++enter++. **View → Snippet Palette…** opens the palette with `$` already typed. Each row names the terminal it runs in, and ++alt+enter++ (++option+enter++ on macOS) opens the snippet here instead.
 
 ### Send to Terminal
 
@@ -654,7 +655,7 @@ For script-specific exports, choose:
 #### ZIP script archive
 
 - Writes one ZIP containing one script file per snippet
-- Keep each file's own name or force one extension for all files
+- **Use extension from Name column** keeps each file's own name, or choose one forced extension for all files
 - With their own names, the files keep their sub-folders and their executable flag (`unzip` restores the mode); a password-protected archive carries the mode only where the file system has POSIX permissions
 - Supported forced extensions: `.sh`, `.py`, `.pl`, `.rb`, `.ps1`, `.sql`, `.txt`, or custom
 
@@ -664,9 +665,9 @@ For script-specific exports, choose:
 
 #### ZIP encryption options
 
-- **Unencrypted** — Standard ZIP archive
-- **AES password-protected** — Password-encrypted with AES-256
-- **GPG-encrypted** — Creates a `.zip.gpg` file; requires local `gpg` command and a usable public key
+- **No encryption** — Standard ZIP archive
+- **Password encryption (ZIP)** — Password-encrypted with AES-256
+- **GPG encryption** — Creates a `.zip.gpg` file; requires local `gpg` command and a usable public key
 
 !!! tip
     Select two snippets, export them as plain text and confirm the created files use the names from the **Name** column. Then export the same selection as a ZIP with a forced `.txt` extension and verify all ZIP entries use `.txt`. For password export, confirm the ZIP requires the password before extraction. For GPG export, decrypt the `.zip.gpg` with your local GPG setup and inspect the ZIP entries.

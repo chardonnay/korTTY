@@ -15,10 +15,10 @@ When **Configuration > Prevent System Sleep** is enabled on macOS or Windows, ko
 
 ## Setup
 
-1. Open **Edit > Global Settings**.
+1. Open **Configuration > Global Settings**.
 2. Go to **AI**.
-3. Create one or more AI profiles in **Settings > AI** or **AI > AI Manager > Profiles**. Choose **HTTP API**, **Local CLI**, or **Integrated llama.cpp** as the connection mode.
-4. For HTTP profiles, enter an API URL, model, and optional encrypted API key. For an embedded profile, select an installed GGUF model; korTTY supplies the private endpoint and temporary key. Use **AI Manager > Local Models** first when no GGUF is installed.
+3. Create one or more AI profiles in **Settings > AI** or **AI > AI Manager > Profiles**. Choose **HTTP API**, **Local CLI**, **Integrated llama.cpp**, or **Integrated MLX (Apple Silicon)** as the connection mode.
+4. For HTTP profiles, enter an API URL, model, and optional encrypted API key. For an embedded profile, select an installed GGUF model (or an installed MLX model for **Integrated MLX**); korTTY supplies the private endpoint and temporary key. Use **AI Manager > Local Models** first when no model is installed.
 5. Optionally configure **Prompt optimization**, **Max characters**, **Tokenizer**, **Token limit**, warning thresholds, token reset cycle, **Price per 1M tokens** (to see AI costs in money; see [Token quota management](../reference/settings/ai.md#token-quota-management)), supported **Reasoning** effort, and **Internet access** per profile. korTTY exposes reasoning choices based on the configured endpoint and model; LM Studio's exact native capability metadata takes precedence over compatibility probes so a silently converted effort is not shown as supported. Profiles without a supported explicit reasoning mode keep provider-default behavior.
 6. Optionally set an **AI request timeout** in minutes. korTTY does not time out AI requests on its own, so a long task such as the snippet editor's **Full code analysis** runs until the model answers. The value on the **Profiles** page applies to every profile; **Timeout for this profile** overrides it for a single profile, and 0 there means that profile never times out. See [AI settings](../reference/settings/ai.md).
 7. Click **Test AI Connection**.
@@ -29,20 +29,20 @@ When **Configuration > Prevent System Sleep** is enabled on macOS or Windows, ko
 
 ## AI Profile Setup Wizard
 
-A guided wizard creates AI profiles with support for both local and cloud-based language models.
+A guided wizard creates AI profiles for a cloud service, a local AI server, or a local command-line tool.
 
 To open the wizard:
 
-* **Settings > AI**, click **Add Profile** or **Edit** an existing profile.
-* **Tools > AI Manager > Profiles**, click **Add**.
+* **AI > AI Manager > Profiles**, click **Setup wizard**.
+* korTTY also offers it when you start an AI Agent, AI Planning or Ask Agent run without any usable AI profile.
 
 The wizard guides you through:
 
-1. **Connection Type** - Choose local LM Studio or a cloud provider.
-2. **LM Studio Setup** - If local: pick a loaded LM Studio model from the list or use **Auto** mode.
-3. **Cloud Provider Setup** - If cloud: select the provider (Anthropic Claude API, OpenAI, or other OpenAI-compatible endpoint).
-4. **API Details** - Enter API Key and select or enter the Model name — the model list is pre-filled with common models for the chosen provider, and **Load models** merges the endpoint's live model list on top. Optionally configure Reasoning effort (if the provider/model supports extended thinking).
-5. **Profile Name** - Enter a display name for the profile (e.g., "Claude Opus", "Local LM Studio").
+1. **Connection type** - Choose **Cloud service (API key)**, **Local AI server** (for example LM Studio or Ollama running on your machine), or **Local command-line tool** (a CLI such as Claude Code or Codex that is already installed).
+2. **Provider, server or tool** - For a cloud service, choose OpenAI, Anthropic (Claude), Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax, or **Other / OpenAI-compatible** with your own API URL. For a local AI server, paste its API URL and an optional key, then choose **Auto** or pick a model. For a local CLI, choose the tool; korTTY checks that it is installed, and LM Studio's `lms` tool adds a model picker.
+3. **Key and model** - For a cloud service, enter the API key, then select or enter the model; **Load models** merges the endpoint's live model list on top of the examples. Optionally set **Reasoning** to Disabled or Enabled with a level; only the levels the endpoint and model support are offered.
+4. **Name it** - Enter a display name for the profile; **Make this the default profile** is selected by default.
+5. **Test and finish** - The wizard tests the connection; **Skip test** continues without it.
 
 Native Anthropic (Claude) API support is included alongside existing OpenAI-compatible endpoints.
 
@@ -50,13 +50,13 @@ For fully integrated GGUF inference, use the separate **AI Manager > Local Model
 
 ## Model selection
 
-The model selector in **Settings > AI** and **Tools > AI Manager > Profiles** is editable:
+The model selector in **Settings > AI** and **AI > AI Manager > Profiles** is editable:
 
 * For known cloud providers the dropdown is pre-filled with common model names for the configured endpoint, so a concrete model can be chosen without an API key. The refresh button next to the selector merges the endpoint's live `/v1/models` list on top when the API key is valid.
 * Choosing a listed model stores it as the manual selection.
 * Typing a model name stores it as the manual selection so any OpenAI-compatible endpoint works.
 * **Auto** is offered only for local LM Studio endpoints, where korTTY can actually detect the loaded model. Cloud profiles need a concrete model; if none is selected, requests stop with an explicit "select a specific AI model" error.
-* An **Integrated llama.cpp** profile lists installed model IDs from `~/.kortty/llm/models.xml`; it does not use the HTTP URL or manual cloud-model field.
+* An **Integrated llama.cpp** profile lists the installed chat models from `~/.kortty/llm/models.xml`; an **Integrated MLX** profile lists the installed MLX models instead (Apple Silicon only). Neither uses the HTTP URL or the manual cloud-model field.
 
 ## Role routing, RAG, and prompt order
 
@@ -89,6 +89,8 @@ Required provider configuration is entered under **Settings > AI > Internet tool
 Important behavior:
 
 * Snippet AI, text correction, translation, snippet descriptions, alternative-solution requests, and AI ASCII-art generation do not use internet access.
+* Local CLI profiles have no internet access: their **Internet access** field is disabled.
+* Integrated llama.cpp and MLX profiles support only **Disabled** and **KorTTY Tavily Tool**; the LM Studio MCP modes are refused for them.
 * Direct korTTY web tools have a 5-second connect timeout, a 20-second request timeout (40 seconds for page reads), and a maximum of two web-tool rounds with up to three tool calls each per AI request.
 * A mode can only be selected in a profile once its required global setting (for example the Tavily API key) is stored under **Settings > AI > Internet tool configuration**; otherwise the AI Manager explains where the value belongs and keeps the previous mode. The profile's own **API Key** field is only for the AI provider itself.
 * Profiles on the native Anthropic Messages API (an API URL ending in `/v1/messages`, such as `https://api.anthropic.com/v1/messages`) do not support internet access, because korTTY sends no web tools to that API. The **Internet access** dropdown is locked to **Disabled** for them and a hint below it says why. A profile that still carries another mode from an earlier version keeps working without web access; it shows **Disabled** as soon as you open it, and saving stores that value.
@@ -155,7 +157,7 @@ When an AI Agent run uses one or more skills, the terminal-agent activity panel 
 4. Confirm the request in the preview dialog. The preview shows the text as it will be sent: secrets korTTY recognized are already replaced with `***`, and a line above the text says how many (see [Masking secrets before sending](#masking-secrets-before-sending)). You can edit the selected text before sending it. For **Ask**, add your own prompt. The dialog also shows the estimated request tokens and projected remaining quota.
 5. The response opens in a temporary AI tab. You can continue the same context with follow-up prompts from the bottom composer field.
 6. Use **Save** in the AI tab to store the conversation under a custom title.
-7. Reopen saved conversations later via **Tools > AI Manager** or ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).
+7. Reopen saved conversations later via **AI > Saved Chats...**.
 
 ### Summarizing recent output without a selection
 
@@ -164,7 +166,7 @@ Right-click a terminal pane without selecting anything and choose **AI > Summari
 * the output of the last finished command, the same text **Copy Last Output** copies, when [shell integration](shell-integration.md) marks the pane's commands,
 * otherwise the last 200 lines of the pane.
 
-Either way the text is cleaned of terminal escape sequences and limited to the last 16,000 characters (and to the profile's selection limit, if that is smaller), so the newest output is what goes out. It then takes the same path as a selection: secrets are masked first (see [Masking secrets before sending](#masking-secrets-before-sending)), the preview dialog shows the exact text unless you turned it off for **Summarize**, and the chat's code blocks go back to the pane you right-clicked (see [Code blocks in the terminal](#code-blocks-in-the-terminal)). While a full-screen program such as an editor or pager runs, or the pane is empty, the status bar says there is nothing to summarize. When your organization's policy does not allow AI chats, the entry is shown greyed out.
+Either way the text is cleaned of terminal escape sequences and limited to the last 16,384 characters (and to the profile's selection limit, if that is smaller), so the newest output is what goes out. It then takes the same path as a selection: secrets are masked first (see [Masking secrets before sending](#masking-secrets-before-sending)), the preview dialog shows the exact text unless you turned it off for **Summarize**, and the chat's code blocks go back to the pane you right-clicked (see [Code blocks in the terminal](#code-blocks-in-the-terminal)). While a full-screen program such as an editor or pager runs, or the pane is empty, the status bar says there is nothing to summarize. When your organization's policy does not allow AI chats, the entry is shown greyed out.
 
 ### Masking secrets before sending
 
@@ -282,13 +284,15 @@ Open **AI > AI Manager** or press ++Ctrl+Shift+Y++ (++Cmd+Shift+Y++ on macOS).
 
 The AI Manager is a modeless window: you can keep it open while you continue working in the main window. Invoking **AI Manager** again restores and focuses the same manager for that main window instead of opening a duplicate. Its active primary section remains marked by a bold accent underline after focus moves into the section's controls.
 
-The manager combines profile, local-inference, retrieval, and saved-chat management:
+The manager combines profile, local-inference, retrieval, and skill management:
 
 * **Profiles** - Create, edit, test, save, and remove AI profiles. The profile list shows the current quota/usage status for each profile.
 * **Local Models** - Search Hugging Face, import/download/configure GGUF files, run the post-install function test, and start or stop several llama.cpp sidecars.
-* **Local AI** - Assign Text/translation, Coding and [session journal](session-journal.md#ai-summaries) profiles, choose the embedding model and preferred runtime backend, store an encrypted Hugging Face token, and select the runtime-update policy.
 * **Knowledge Stores** - Create local HNSW stores, add reviewed files or recursive folders, synchronize sources, and run a test search.
-* **Saved Chats** - Open, rename, refresh, or delete previously saved AI conversations. Saved [AI Swarm](ai-swarm.md) conversations appear in their own **Swarm Chats** section, including those produced by scheduled swarm jobs.
+* **AI Skills** - Manage the skill library described under [AI Skills](#ai-skills).
+* **Local AI** - Assign Text/translation, Coding and [session journal](session-journal.md#ai-summaries) profiles, choose the embedding model and preferred runtime backend, store an encrypted Hugging Face token, and select the runtime-update policy.
+
+Saved chats are not a tab of the AI Manager. **AI > Saved Chats...** opens them in their own window, with a **Chats** tab for saved AI conversations and a **Swarm Chats** tab for saved [AI Swarm](ai-swarm.md) conversations, including those produced by scheduled swarm jobs. There you can open, rename, refresh, or delete an entry.
 
 Use **Settings > AI** for global behavior switches and **AI Manager** for day-to-day profile, model, knowledge-store, and chat management.
 
@@ -320,8 +324,8 @@ korTTY supports agent-style workflows for an active terminal session.
 
 ### Starting the agent
 
-* **AI Agent** - Start from **Tools > AI Agent...**, from the terminal right-click menu, or with the terminal shortcut command. The agent can open in a dedicated chat tab or target the active terminal window, depending on **Settings > AI**.
-* **AI Planning** - Start from **Tools > AI Planning...**, from the terminal right-click menu, or with `agent-plan` / `agent -plan`. Planning mode asks clarifying questions, proposes one or more options, creates a final plan report, and lets you start the accepted plan.
+* **AI Agent** - Start from **AI > AI Agent...**, from the terminal right-click menu, or with the terminal shortcut command. The agent can open in a dedicated chat tab or target the active terminal window, depending on **Settings > AI**.
+* **AI Planning** - Start from **AI > AI Planning...**, from the terminal right-click menu, or with `agent-plan` / `agent -plan`. Planning mode asks clarifying questions, proposes one or more options, creates a final plan report, and lets you start the accepted plan.
 
 ### Activity panel and placement
 
@@ -333,6 +337,7 @@ korTTY supports agent-style workflows for an active terminal session.
   - ⏸ paused
   - ✓ finished
 * **Concurrent runs** - Multiple concurrent runs per split are shown as closable tabs in the activity panel (one tab per run), with a per-widget concurrency cap of 5 runs. Finished runs stay as tabs until closed.
+* **Desktop notifications** - A run in a tab you are not looking at can send a desktop notification when it finishes, stops without finishing, or waits for your approval or a password; see [AI agent and AI Swarm runs](terminal-notifications.md#ai-agent-and-ai-swarm-runs).
 * **Typing while running** - Typing is no longer locked while a run is active. You can continue typing in the shell prompt and launch another `agent ...` command (it opens a new concurrent tab). Only run-control keys are intercepted: ++Esc++ or ++Ctrl+C++ cancel the selected tab's run; ++Ctrl+R++ toggles that run's thinking details.
 * **Pause and Resume** - Each run tab shows pause and cancel buttons. Pause parks the agent at a safe point between steps; paused time is excluded from the run work-time.
 * **Current directory** - Terminal shortcut runs use korTTY's tracked current directory for SSH and local shells. A local run captures one stable directory for its probe and every command, so commands and generated files remain relative to where the interactive shell was working when the run began.
@@ -418,7 +423,7 @@ Activity rows use semantic emoji icons to indicate the action type:
 
 | Icon | Meaning |
 |------|---------|
-| 💾 | Request or input: write/create file |
+| 💾 | Action: write or create a file |
 | 📖 | Action: read file/directory |
 | ▶️ | Action: run/execute command |
 | 📁 | Action: directory operation |

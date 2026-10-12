@@ -917,24 +917,24 @@
 <h3 id="password-protected-zip-default">Password-protected ZIP (default)<a class="headerlink" href="#password-protected-zip-default" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Open <strong>Settings → Backup</strong></li>
-<li>Select <strong>Encryption Type: Password</strong></li>
+<li>Select <strong>ZIP with Password</strong> under <strong>Backup Encryption</strong></li>
 <li>Choose or create a credential to use as the encryption password</li>
-<li>Optionally set <strong>Maximum Backups</strong> (0 = unlimited)</li>
+<li>Optionally set <strong>Maximum number of backups</strong> (0 = unlimited)</li>
 <li>Save</li>
 </ol>
 <p>Password-protected backups are encrypted with AES-256 (via the zip4j library); the credential's password encrypts all files in the archive. Backups created by older korTTY versions used legacy ZIP encryption and can still be imported — the decryption method is read from the archive itself. Note that AES-encrypted ZIPs need an AES-capable tool (7-Zip, WinZip, <code>unzip</code> 6+) if you ever extract one outside korTTY.</p>
 <h3 id="gpg-encryption">GPG encryption<a class="headerlink" href="#gpg-encryption" title="Permanent link">&para;</a></h3>
 <ol>
 <li>Open <strong>Settings → Backup</strong></li>
-<li>Select <strong>Encryption Type: GPG</strong></li>
-<li>Choose a GPG key from <strong>Manage GPG Keys...</strong></li>
-<li>Optionally set <strong>Maximum Backups</strong> (0 = unlimited)</li>
+<li>Select <strong>GPG Encryption</strong> under <strong>Backup Encryption</strong></li>
+<li>Choose the key in the <strong>GPG Key</strong> field; keys are managed under <strong>Configuration → Security → GPG-Keys...</strong></li>
+<li>Optionally set <strong>Maximum number of backups</strong> (0 = unlimited)</li>
 <li>Save</li>
 </ol>
 <p>GPG backups are encrypted for the public key of your selected GPG key. KorTTY builds an unencrypted ZIP in a private temporary folder that only your user can read, encrypts it with <code>gpg</code>, stores the result as <code>kortty-backup.zip.gpg</code> and then deletes the temporary ZIP with its folder. Creating a GPG backup needs the installed <code>gpg</code> and the recipient's public key; restoring it needs <code>gpg</code> and the matching <strong>private</strong> key, so keep that key (and its passphrase) somewhere other than the backup.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>If you don't have GPG keys set up yet, use <strong>Management → Manage GPG Keys...</strong> to import keys from your system keyring or add them manually.</p>
+<p>If you don't have GPG keys set up yet, use <strong>Configuration → Security → GPG-Keys...</strong> to import keys from your system keyring or add them manually.</p>
 </div>
 <h2 id="importing-a-backup">Importing a backup<a class="headerlink" href="#importing-a-backup" title="Permanent link">&para;</a></h2>
 <ol>
@@ -983,6 +983,7 @@
 <li><code>projects/</code> — All saved project workspace files (<code>.kortty</code>)</li>
 </ul>
 <p>The session snapshots in <code>~/.kortty/session/</code>, which <em>File → Restore Previous Session</em> opens, are not included: they describe the windows and tabs of this computer, and the Recently Closed list they keep stays on this computer with them. After a restore, <em>Restore Previous Session</em> still opens the session of this computer, and its tabs open with the restored connections. See <a href="projects.html#previous-session">Previous session</a>.</p>
+<p>Some files stay on the computer as well: <code>master.autounlock</code>, the auto-login file, is deliberately never copied, because its obfuscation key ships with korTTY; the approvals of SSH tunnels (<code>ssh-tunnel-approvals.properties</code>) are not copied either, so after a restore the tunnels of a connection ask again; and the language files generated under <a href="i18n.html#dynamic-translation-additional-languages">Languages</a> in <code>~/.kortty/i18n/</code> are not part of a backup.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>All passwords and credentials inside the backup remain encrypted with your master password. When you import a backup, you must unlock the master password for KorTTY to decrypt the credentials. A merging import of a backup made with another master password re-encrypts them with your current one (see <a href="#importing-a-backup">A backup with another master password</a>).</p>
@@ -996,10 +997,10 @@
 <ol>
 <li>Creates the new backup — <code>kortty-backup.zip</code> for a password-protected ZIP, <code>kortty-backup.zip.gpg</code> for GPG — and stops here, leaving the existing backup untouched, if that fails</li>
 <li>Moves every existing current backup, of either kind, to <code>old-backups/kortty-backup_&lt;timestamp&gt;.zip</code> or <code>old-backups/kortty-backup_&lt;timestamp&gt;.zip.gpg</code>; a backup rotated in the same second gets <code>-1</code>, <code>-2</code> … appended instead of replacing the earlier one</li>
-<li>If the number of old backups exceeds <strong>Maximum Backups</strong>, deletes the oldest ones</li>
+<li>If the number of old backups exceeds <strong>Maximum number of backups</strong>, deletes the oldest ones</li>
 </ol>
-<p><strong>Maximum Backups</strong> counts ZIP and GPG backups together. After you switch the encryption type, the first new backup also rotates the current backup of the other type, so the oldest old backup can be deleted one backup earlier than you might expect.</p>
-<p>To keep unlimited old backups, set <strong>Maximum Backups</strong> to <code>0</code> in <strong>Settings → Backup</strong>. To keep only one old backup next to the current one, set <strong>Maximum Backups</strong> to <code>1</code>.</p>
+<p><strong>Maximum number of backups</strong> counts ZIP and GPG backups together. After you switch the encryption type, the first new backup also rotates the current backup of the other type, so the oldest old backup can be deleted one backup earlier than you might expect.</p>
+<p>To keep unlimited old backups, set <strong>Maximum number of backups</strong> to <code>0</code> in <strong>Settings → Backup</strong>. To keep only one old backup next to the current one, set <strong>Maximum number of backups</strong> to <code>1</code>.</p>
 <h2 id="using-backups-across-machines">Using backups across machines<a class="headerlink" href="#using-backups-across-machines" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Export your current configuration:</strong></li>
@@ -1035,7 +1036,7 @@
 <dt><strong>"GPG decryption failed"</strong></dt>
 <dd><code>gpg</code> could not decrypt the backup: the private key that matches the backup's GPG key is not in your keyring, <code>gpg</code> is not installed, or you cancelled the passphrase prompt. Import the private key into your GPG keyring (for example with <code>gpg --import</code>) and try again.</dd>
 <dt><strong>"GPG key not found"</strong></dt>
-<dd>The GPG key used for encryption is missing. Use <strong>Management → Manage GPG Keys...</strong> to import or add the key, then try again.</dd>
+<dd>The GPG key used for encryption is missing. Use <strong>Configuration → Security → GPG-Keys...</strong> to import or add the key, then try again.</dd>
 <dt><strong>"No password selected for backup encryption" or "No GPG key selected"</strong></dt>
 <dd>Configure a password credential or GPG key in <strong>Settings → Backup</strong> before creating a backup.</dd>
 <dt><strong>A <code>*.corrupt-&lt;timestamp&gt;</code> file appeared in <code>~/.kortty</code></strong></dt>

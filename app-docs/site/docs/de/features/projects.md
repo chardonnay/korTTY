@@ -10,14 +10,14 @@ Projekte speichern und stellen Ihren gesamten Arbeitsbereichsstatus wieder her �
 
 1. Öffnen Sie *Datei > Projekt speichern* oder drücken Sie ++ctrl+s++ (++cmd+s++ unter macOS).
 2. Geben Sie einen **Namen** und optional eine **Beschreibung** für das Projekt ein.
-3. Konfigurieren Sie **Auto-Reconnect**:
+3. Configure **Automatisches Wiederverbinden** (the check box *SSH-Verbindungen automatisch wiederherstellen* in the save dialog):
    - Wenn aktiviert, verbindet sich beim Öffnen des Projekts automatisch jeder gespeicherte Terminal- und SFTP-Tab erneut; ein Tab, der ein Passwort, einen neuen temporären SSH-Schlüssel oder den gesperrten Tresor braucht, wartet stattdessen in der [Wiederherstellungsleiste](#tabs-die-auf-sie-warten).
    - Wenn deaktiviert, stellt das Öffnen des Projekts nur die Fenster mit ihrer Position und Größe sowie die Tabs des lokalen Dateieditors und Bildbetrachters wieder her; Terminal-, SFTP- und Remote-Datei-Tabs werden übersprungen.
 4. Klicken Sie auf *Speichern*.
 
 Projekte sind `.kortty`-Dateien, die Sie an beliebiger Stelle im Speicherdialog speichern können, zum Beispiel in `~/.kortty/projects/`.
 
-Ein Projekt behält jedes offene korTTY-Fenster, nicht nur das, in dem Sie *Projekt speichern* wählen; dieses Fenster wird zuerst gespeichert. Ein Fenster, das nur KI-Ergebnis- und Werkzeug-Tabs enthält, die Projekte nicht behalten, wird ausgelassen, damit es nicht leer zurückkommt; das Fenster, aus dem Sie speichern, wird wegen seiner Position und Größe immer behalten.
+Ein [incognito](session-isolation.md#inkognito-sitzungen) Tab behält seinen Platz in einem Projekt, aber nichts von seinem Bildschirm. Ein Projekt speichert jedes offene korTTY-Fenster, nicht nur das, in dem Sie *Projekt speichern* wählen; dieses Fenster wird zuerst gespeichert. Ein Fenster, das nur KI-Ergebnis- und Tool-Tabs enthält, die Projekte nicht behalten, wird ausgelassen, sodass es nicht leer zurückkommt; das Fenster, von dem Sie speichern, bleibt immer erhalten, für seine Position und Größe.
 
 ## Ein Projekt öffnen
 
