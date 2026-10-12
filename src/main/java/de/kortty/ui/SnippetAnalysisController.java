@@ -2385,9 +2385,16 @@ final class SnippetAnalysisController {
 
         progressHolder = new VBox();
         progressHolder.setId(PROGRESS_HOLDER_ID);
-        progressHolder.setPrefHeight(300);
-        progressHolder.setMinHeight(0);
-        progressHolder.setMaxHeight(360);
+        progressHolder.setPrefHeight(340);
+        // No explicit minimum: the holder asks for what the progress view needs (its checklist
+        // included), so the report above yields first.
+        progressHolder.setMaxHeight(420);
+        // A progress view taller than its slot must not paint (and catch clicks) past it: the
+        // dialog's button bar lies beneath the content, and "Close" stopped reacting.
+        javafx.scene.shape.Rectangle progressClip = new javafx.scene.shape.Rectangle();
+        progressClip.widthProperty().bind(progressHolder.widthProperty());
+        progressClip.heightProperty().bind(progressHolder.heightProperty());
+        progressHolder.setClip(progressClip);
 
         applyButton = new Button(SnippetAiDialogSupport.AI_ACTION_PREFIX + I18n.get("snippets.ai.analysis.applySelected"));
         applyButton.setId(APPLY_BUTTON_ID);

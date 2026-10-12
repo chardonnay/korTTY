@@ -53,6 +53,8 @@ final class SnippetAiApplyProgressPane extends VBox {
 
     private static final int MAX_DESCRIPTION_LINES = 3;
     private static final double DESCRIPTION_LINE_HEIGHT_FACTOR = 1.35;
+    /** The checklist of work items never collapses below this, however short the panel. */
+    static final double CHECKLIST_MIN_HEIGHT = 96;
 
     private final ProgressBar improvementsProgressBar = new ProgressBar(0);
     private final Label improvementsProgressLabel = new Label();
@@ -127,20 +129,25 @@ final class SnippetAiApplyProgressPane extends VBox {
         HBox metrics = new HBox(8, elapsedLabel, metricsSpacer, tokenLabel);
         metrics.setAlignment(Pos.CENTER_LEFT);
 
+        configureSummary();
+        configureRecovery();
+        buildActionBar();
+
+        // The summary scrolls with the checklist, below it: kept above the scroll it took the
+        // checklist's height in a short panel, and the finished run showed no work items at all.
         VBox list = new VBox(8,
             improvementsHeading,
             improvementRows,
             hardeningHeading,
-            hardeningRows);
+            hardeningRows,
+            summaryBox);
         list.setPadding(new Insets(2, 4, 8, 2));
         ScrollPane scroll = new ScrollPane(list);
+        scroll.setId("snippet-analysis-progress-checklist");
         scroll.setFitToWidth(true);
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.setMinHeight(CHECKLIST_MIN_HEIGHT);
         VBox.setVgrow(scroll, Priority.ALWAYS);
-
-        configureSummary();
-        configureRecovery();
-        buildActionBar();
 
         setSpacing(8);
         getChildren().setAll(
@@ -148,7 +155,6 @@ final class SnippetAiApplyProgressPane extends VBox {
             hardeningProgressGroup,
             metrics,
             currentStepLabel,
-            summaryBox,
             recoveryBox,
             new Separator(),
             scroll,
