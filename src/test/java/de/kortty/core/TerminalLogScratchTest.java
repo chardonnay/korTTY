@@ -7,9 +7,11 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
@@ -256,25 +258,30 @@ class TerminalLogScratchTest {
         Path root = Files.createDirectory(workDir.resolve("temp"));
         UserPrincipal owner = Files.getOwner(workDir);
         Instant now = Instant.now();
-        // A folder created the real way holds its lock file; make it look a day old.
-        Path inUse = TerminalLogScratch.create();
-        Path moved = root.resolve(inUse.getFileName());
-        Files.move(inUse, moved);
-        Files.setLastModifiedTime(moved, FileTime.from(now.minus(Duration.ofDays(2))));
-        Files.setLastModifiedTime(moved.resolve(TerminalLogScratch.LOCK_NAME), FileTime.from(now.minus(Duration.ofDays(2))));
-        Path abandoned = makeFolder(root, TerminalLogScratch.PREFIX + UUID.randomUUID(), now.minus(Duration.ofDays(2)));
+        Instant old = now.minus(Duration.ofDays(2));
+        // A viewer folder another korTTY still uses: old by mtime, but its lock file is held — the
+        // lock is taken here the way TerminalLogScratch.create takes it. (Not a real create() moved
+        // into place: Windows refuses to move a folder with an open file in it.)
+        Path inUse = makeFolder(root, TerminalLogScratch.PREFIX + UUID.randomUUID(), old);
+        Path lockFile = inUse.resolve(TerminalLogScratch.LOCK_NAME);
+        Path abandoned = makeFolder(root, TerminalLogScratch.PREFIX + UUID.randomUUID(), old);
         Files.writeString(abandoned.resolve(TerminalLogScratch.LOCK_NAME), "");
         // The sweep ages a folder by its newest entry, so the stale lock file must be old as well.
-        Files.setLastModifiedTime(abandoned.resolve(TerminalLogScratch.LOCK_NAME), FileTime.from(now.minus(Duration.ofDays(2))));
-        Files.setLastModifiedTime(abandoned, FileTime.from(now.minus(Duration.ofDays(2))));
+        Files.setLastModifiedTime(abandoned.resolve(TerminalLogScratch.LOCK_NAME), FileTime.from(old));
+        Files.setLastModifiedTime(abandoned, FileTime.from(old));
+        try (FileChannel held = FileChannel.open(lockFile, StandardOpenOption.CREATE,
+                StandardOpenOption.READ, StandardOpenOption.WRITE)) {
+            held.lock(0L, Long.MAX_VALUE, true);
+            Files.setLastModifiedTime(lockFile, FileTime.from(old));
+            Files.setLastModifiedTime(inUse, FileTime.from(old));
 
-        int removed = TerminalLogScratch.sweep(root, owner, now, Duration.ofHours(24));
+            int removed = TerminalLogScratch.sweep(root, owner, now, Duration.ofHours(24));
 
-        assertThat(removed).isEqualTo(1);
-        assertThat(Files.exists(moved)).isTrue();
-        assertThat(Files.exists(abandoned)).isFalse();
-        TerminalLogScratch.delete(inUse);
-        RemoteEditTempDirs.deleteTree(moved);
+            assertThat(removed).isEqualTo(1);
+            assertThat(Files.exists(inUse)).isTrue();
+            assertThat(Files.exists(abandoned)).isFalse();
+        }
+        RemoteEditTempDirs.deleteTree(inUse);
     }
 
     @Test
