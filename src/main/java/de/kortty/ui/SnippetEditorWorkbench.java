@@ -6,6 +6,7 @@ import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Region;
+import javafx.scene.shape.Rectangle;
 
 /**
  * The snippet editor's content row: the editor area, and while it is shown, a drag divider plus the
@@ -36,6 +37,12 @@ final class SnippetEditorWorkbench extends Pane {
         this.editorArea = editorArea;
         this.divider = divider;
         getChildren().add(editorArea);
+        // A child laid out taller than a short dialog must not spill over the button bar beneath
+        // it: the content is painted (and picked) above the buttons, so they would stop reacting.
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(widthProperty());
+        clip.heightProperty().bind(heightProperty());
+        setClip(clip);
     }
 
     /** Shows {@code panel} (with the divider) beside the editor area; {@code null} hides it. */
