@@ -52,7 +52,7 @@ A journal whose summaries can never be written is of little use, so when the jou
 
 While a journal is available, a bar below the terminal shows its state (**Journal active since HH:MM**) and offers **Stop journal**, **Screenshot** and **Note**:
 
-- **Screenshot** (++ctrl+alt+c++, also in the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.
+- **Screenshot** (++ctrl+alt+c++, also **Tools > Add Journal Screenshot** and the terminal's right-click menu) snapshots the terminal — in a split layout, the right-click menu captures exactly the pane under the cursor — and files it into the journal timeline.
 - **Note** opens the [note editor](#writing-notes) for a free-text remark that appears as its own timeline entry at the current position.
 
 ### Writing notes
@@ -77,6 +77,8 @@ Closing the tab instead also ends the journal with its closing summary. Without 
 JobScheduler jobs — including scheduled AI Swarm jobs — and runs started in the [AI Swarm](ai-swarm.md#session-journal-per-run) tab can record a session journal for every run on their own, without a terminal tab: one journal per target server, holding the commands the automation sent, their output, its summary and the outcome on that server. They are set up per job in the JobScheduler — see [Session journal per run](jobscheduler.md#session-journal-per-run) for the settings (AI summaries always / only for failed runs / off, keep always / only failed runs, automatic deletion after N days or on a date, maximum runs and disk space, discarding runs identical to the previous one) and the cost warning shown when they are switched on.
 
 Jobs whose command runs in the [virtual terminal](jobscheduler.md#virtual-terminal-and-screenshots) also add screenshots of that invisible screen; the AI describes them in the closing pass when the AI mode applies. Automation journals are titled after the job, the server and the start time, and their AI summaries run once after the run has finished — on their own worker, so they never delay the summaries of the terminal you are working in. **AI profile for automation journals** in **Settings > Logging > Session Journal** picks the profile they use when a job does not choose its own; **Same as for summaries** uses the journal profile described under [AI summaries](#ai-summaries). A cheap or local model keeps unattended runs affordable.
+
+Administrators can forbid these journals or cap them with the `automation-allowed`, `automation-max-retention-days`, `automation-max-storage-mb` and `automation-max-journals` keys of the [enterprise policy](../reference/enterprise-policy.md#rulesession-journal); the JobScheduler section then says so and its controls are limited.
 
 Expired automation journals are deleted automatically — a minute after korTTY starts and then every hour — as are the oldest runs of a job beyond its maximum number of runs or disk space. Running journals, journals whose summary is still being written, pinned journals and interactive journals are never touched. In the [journal manager](#managing-journals) the **Deleted on** column shows when a journal goes, and **Keep (pin)** in a journal's right-click menu exempts it from automatic deletion (**Release pin** undoes it).
 
@@ -299,7 +301,7 @@ The chosen profile is tested first; if it does not answer, nothing is changed. O
 The result appears on both sides of the panel:
 
 - The **answer chat** on the left supports follow-up questions about the same results.
-- The **hit tree** on the right lists each matching journal with its total hit count (hovering shows the AI's one-sentence reason), and under it the individual hits — matching entries and exact log lines with timestamp and snippet. Clicking a hit opens the journal and jumps straight to that entry or log line. Hits you have already opened turn muted with a check mark, and that marking survives new searches and restarts — orientation for working through a long hit list.
+- The **hit tree** on the right lists each matching journal with its total hit count (hovering shows the AI's one-sentence reason), and under it the individual hits — matching entries and exact log lines with timestamp and snippet. Clicking a hit opens the journal and jumps straight to that entry or log line; double-clicking a journal's own row opens the whole journal. Hits you have already opened turn muted with a check mark, and that marking survives new searches and restarts — orientation for working through a long hit list.
 - The header shows the total: *n hits in m journals*. Repeated identical output lines are stored coalesced, and the count includes their repeat factors, so it reflects real occurrences.
 
 The table itself stays complete: journals with hits get a sorted **Hits** column and a row highlight instead of filtering everything else away. **Selection only** restricts the search to the journals selected in the table.
@@ -452,7 +454,7 @@ Journals contain full terminal transcripts, so every export can be encrypted. Pi
 |------------|--------|
 | **No encryption** | The file as described above, unencrypted — a deliberate choice for transcripts |
 | **Protect with a password (ZIP, AES-256)** | An archive (HTML bundle, several journals) is encrypted directly. A single PDF or Markdown file is packed into a password-protected ZIP archive. |
-| **Encrypt with GPG** | The export — PDF, Markdown or ZIP — becomes a `.gpg` file for one of the keys under **Security > GPG-Keys...**; only the owner of the matching private key can decrypt it (`gpg --decrypt`). |
+| **Encrypt with GPG** | The export — PDF, Markdown or ZIP — becomes a `.gpg` file for the key you pick in **Select a GPG key**, one of the keys under **Security > GPG-Keys...**; only the owner of the matching private key can decrypt it (`gpg --decrypt`). |
 
 GPG needs `gpg` installed. korTTY encrypts for the key file it manages, so the key does not have to be in your GPG keyring. Without stored keys the option explains where to add one. While a protected export is written, the unencrypted version exists only in a private temporary folder that is deleted right afterwards, also when encryption fails.
 

@@ -6,7 +6,7 @@ title: KI-Schwarm
 
 Der KI-Schwarm sendet eine KI-Agentenaufgabe gleichzeitig an viele Server. Jeder ausgewählte Server erhält seinen eigenen unabhängigen Agenten, der über seine SSH-Sitzung ausgeführt wird, und die Antworten pro Server werden in einer einzigen Vergleichstabelle – einer Zeile pro Server – in einer gemeinsamen Konversation zusammengefasst.
 
-Öffnen Sie es mit **Tools > AI Swarm...** oder ++ctrl+alt+s++ (Cmd unter macOS). Der Schwarm wird als normaler Tab geöffnet, sodass Terminals während der Ausführung eines Schwarms nutzbar bleiben.
+Öffnen Sie es mit **AI > AI Swarm...** oder ++ctrl+alt+s++ (Cmd auf macOS). Der Schwarm öffnet sich als regulärer Tab, sodass Terminals weiterhin nutzbar bleiben, während ein Schwarm läuft.
 
 ## Der Schwarm-Tab
 
@@ -36,12 +36,14 @@ Eine Kugel pro Agent, gefärbt und animiert nach Bundesstaat:
 | --- | --- | --- |
 | **In der Warteschlange** | grau | Warten auf einen freien Slot |
 | **Laufen** | blau, pulsierend mit einem umlaufenden Punkt | Agent arbeitet; verstrichene Zeit tickt |
-| **Warte auf Eingabe** | bernsteinfarben, blinkender Ring | Ein Genehmigungsdialog erwartet Sie |
+| **Warte auf Freigabe** | Ambra, blinkender Ring | Ein Genehmigungsdialog wartet auf Sie. |
 | **Pausiert** | violett mit Pausenbalken | Über die Laufsteuerung angehalten; der Timer stoppt |
 | **Ungewöhnlich lang** | blau mit einem bernsteinfarbenen Ping-Ring | Läuft viel länger als seine Mitbewerber (siehe unten) |
 | **Fertig** | grün | Antwort gesammelt |
 | **Fehlgeschlagen** | rot | Der Lauf ist fehlerhaft; Einzelheiten finden Sie in der Agentenzeile |
 | **Abgebrochen / Übersprungen** | dunkelgrau | Angehalten oder übersprungen (z. B. nicht unterstützte Shell) |
+
+Die beiden Startphasen, **Verbinde** (Öffnen der SSH-Sitzung) und **Untersuche** (Umgebungsprobe), zeigen die gleiche blaue Kugel wie **Läuft**.
 
 **Adaptive langsame Erkennung** – ein Agent wird als *ungewöhnlich lange* gekennzeichnet, wenn seine verstrichene Zeit `max(60 s, 2 × median of the finished agents)` überschreitet; Bis mindestens zwei Agenten fertig sind, gilt ein fester Schwellenwert von 180 Sekunden. Angehaltene und wartende Agenten werden nie gekennzeichnet und die angehaltene Zeit wird von der verstrichenen Zeit abgezogen, damit der Vergleich fair bleibt.
 
@@ -60,6 +62,8 @@ Jeder Server verfügt über eine Zeile in der **Agents**-Liste, in der sein Stat
 Die Überschrift über den Zeilen summiert die gesamte Laufzeit: **Σ Tokens** aller Agenten plus der endgültigen kombinierten Antwort, gefolgt von den Kosten in Geld, wenn das KI-Profil ein [Preis pro 1 M Tokens](../reference/settings/ai.md#token-quoten-verwaltung) (oder `local · no token costs` für ein lokales Profil) hat. Jeder Agentenaufruf und die kombinierte Antwort zählen ebenfalls zum Token-Kontingent des Profils — für interaktive Läufe und für [geplante Schwarmläufe](#schwarmlaufe-planen-jobscheduler) gleichermaßen.
 
 **Klicken Sie mit der rechten Maustaste auf eine Zeile**, um die Kontrolle pro Agent zu erhalten: **Pause**, **Fortsetzen**, **Neustart** und **Stopp** gelten nur für diesen Agenten. Durch den Neustart eines Agenten werden die anderen nicht gestört. seine Antwort wird im kombinierten Ergebnis ersetzt.
+
+Der Agent jedes Servers maskiert, was er dem Modell sendet, auf die gleiche Weise wie ein Terminal-Agent ausgeführt wird, mit dem eigenen Passwort des Servers; das Transkript und das Sitzungsjournal behalten den Originaltext bei (siehe [Maskierung dessen, was der Agent sendet](ai-tools.md#maskieren-dessen-was-der-agent-sendet)).
 
 ## Session-Journal pro Lauf
 
@@ -94,7 +98,7 @@ Tabellenzellen sind oft zu klein für eine vollständige Befehlsausgabe – **kl
 
 ## Konversation kopieren, exportieren und speichern
 
-Der Gesprächsheader verfügt über eine **Kopieren**-Schaltfläche (gesamtes Gespräch in die Zwischenablage) und ein **Exportieren**-Menü mit **Plain Text**, **Markdown** und **PDF**. **Speichern** speichert das Gespräch als benannten Swarm-Chat; gespeicherte Swarm-Chats erscheinen in einem dedizierten **Swarm-Chats**-Bereich des [KI-Manager](ai-assistant.md#ki-manager) und können später wieder geöffnet werden.
+Der Konversationskopf hat einen **Kopieren**-Button (ganze Konversation in die Zwischenablage) und ein **Exportieren**-Menü mit **Plain Text**, **Markdown** und **PDF**. **Speichern** speichert die Konversation als benannten Swarm-Chat; gespeicherte Swarm-Chats erscheinen im **Swarm-Chats**-Tab von **KI > Gespeicherte Chats...** (siehe [KI-Manager](ai-assistant.md#ki-manager)) und können später wieder geöffnet werden.
 
 ## Skripte ohne KI ausführen
 
@@ -126,6 +130,8 @@ Auf der Registerkarte „AI Swarm“ selbst wird ein farbiger Statuspunkt angeze
 | Violett, stetig | Schwarm ist pausiert |
 | Grün, konstant | Lauf beendet – bleibt bestehen, bis der nächste Lauf startet |
 
+Wenn der Swarm-Tab nicht der ist, den Sie gerade betrachten, kann eine Desktop-Benachrichtigung ebenfalls melden, dass die Ausführung beendet wurde, ohne abgeschlossen zu werden, oder auf Ihre Genehmigung oder ein Passwort wartet; siehe [KI-Agent und KI-Swarm-Ausführungen](terminal-notifications.md#laufe-von-ki-agent-und-ki-swarm).
+
 ## Schwarmläufe planen (JobScheduler)
 
 Schwarmläufe können unbeaufsichtigt als [JobScheduler](jobscheduler.md)-Jobs mit dem Aktionstyp **AI Swarm** ausgeführt werden. Die Schaltfläche **Schedule…** in der Swarm-Symbolleiste ist der schnellste Weg: Sie öffnet den JobScheduler mit einem neuen Job, der auf der aktuellen Registerkarte vorab ausgefüllt ist – die ausgewählten Server, die aktuelle Eingabeaufforderung, das KI-Profil und die schreibgeschützte Einstellung. Der Job wird deaktiviert erstellt, sodass Sie den Zeitplan überprüfen können, bevor Sie ihn aktivieren.
@@ -140,14 +146,14 @@ Geplante Schwarmjobs laufen völlig kopflos über SSH-Hintergrundsitzungen – e
 | **Schwarmparallelität** | Wie viele Server gleichzeitig laufen (1–16, Standard 4) |
 | **Schwarm schreibgeschützt** | Alle Agenten auf nicht mutierende Befehle beschränken (Standard: Ein) |
 
-Ergebnisse landen an **zwei Stellen**: das Job-**Journal** zeichnet das Ergebnis pro Lauf auf (mit dem [Session-Journal des Jobs pro Lauf](jobscheduler.md#sitzungsjournal-pro-ausfuhrung), außerdem ein vollständiges Journal pro Server), und das komplette Gespräch – einschließlich der kombinierten Vergleichstabelle – wird als **gespeicherter Swarm-Chat** gespeichert, sodass Sie es später im KI-Manager aus dem Abschnitt *Swarm-Chats* öffnen und die Ergebnis-Tabelle wie einen interaktiven Lauf durchklicken können. Die Master-Passwort- und Host-Key-Gates des Planers gelten wie bei anderen Jobtypen.
+Ergebnisse landen an **zwei Orten**: das Job-**journal** zeichnet das Ergebnis pro Ausführung auf (mit dem [session journal des Jobs pro Ausführung](jobscheduler.md#sitzungsjournal-pro-ausfuhrung), auch ein vollständiges Journal pro Server), und das komplette Gespräch — einschließlich der kombinierten Vergleichstabelle — wird als **gespeicherter Swarm-Chat** gespeichert, sodass Sie es später aus **KI > Gespeicherte Chats...**, im Tab **Swarm-Chats**, öffnen und die Ergebnis-Tabelle wie eine interaktive Ausführung durchklicken können. Die Master-Passwort- und Host-Key-Gates des Planers gelten wie bei anderen Jobtypen.
 
 !!! tip "Empfohlener Arbeitsablauf: Interaktiv optimieren, dann planen"
     Pünktliche Qualität entscheidet über die Ergebnisqualität. Führen Sie den Schwarm zunächst interaktiv aus, verfeinern Sie die Eingabeaufforderung, bis die Vergleichstabelle richtig aussieht, und klicken Sie dann auf **Planen…** – die abgestimmte Eingabeaufforderung und die Zielliste werden in den Job übernommen.
 
 Typische Kombinationen von Schwarm + Scheduler:
 
-- **Nächtlicher Flottenzustandsbericht** – eine schreibgeschützte Eingabeaufforderung wie *„Datenträgernutzung, ausgefallene Systemeinheiten und ausstehende Sicherheitsupdates melden“* für alle Produktionsserver jede Nacht; Sehen Sie sich jeden Morgen die kombinierte Tabelle vom KI-Manager an.
+- **Nachtlicher Flotten-Statusbericht** — ein schreibgeschütztes Prompt wie *"Bericht über Festplattennutzung, fehlgeschlagene systemd-Units und ausstehende Sicherheitsupdates"* auf allen Produktionsservern jede Nacht; überprüfen Sie die kombinierte Tabelle jeden Morgen aus **KI > Gespeicherte Chats...**.
 - **Erkennung von Konfigurationsabweichungen** – Abfrage der effektiven Einstellungen eines Dienstes auf jedem Host; Abweichungen fallen in den Zeilen pro Server und in der Spalte *Fehler* auf.
 - **Bestandsaufnahme auf Patch-Ebene** – Sammeln Sie Kernel- und Paketversionen in der gesamten Flotte in einem wöchentlichen Zeitplan und exportieren Sie die resultierende Tabelle.
 

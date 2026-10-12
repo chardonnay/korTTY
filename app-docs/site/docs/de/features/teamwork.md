@@ -120,6 +120,8 @@ Sobald eine Quelle synchronisiert ist:
 
 Die [Befehlspalette](command-palette.md#verbinden) listet die Teamwork-Verbindungen ebenfalls auf, gekennzeichnet mit **Geteilt (Teamwork)**, sodass Sie sich auch verbinden können, indem Sie `@` und einen Teil eines Namens eingeben.
 
+Eine gemeinsame Verbindung kann auch die Terminaleinstellungen tragen, die die Datei ihr gibt, wie z. B. ihre [Tabfarbe](connections.md#tab-farbe) und [Einfüge-Schutz](connections.md#einfugeschutz). Ihre eigene Sitzungsisolierung kann ihre Sitzungen nur strenger machen als Ihr Ordner oder die Einstellungen, wie unter [Auswahl eines Levels](session-isolation.md#eine-stufe-wahlen) beschrieben.
+
 Das Löschen einer Teamwork-Verbindung versteckt sie nur auf diesem Computer, auch in der Befehlspalette; die Quelle wird nicht geändert. In der Schaltflächenspalte des Connection-Managers holt **Gelöschte wiederherstellen** versteckte Verbindungen zurück, und **Aktualisieren** lädt die Liste aus der letzten Synchronisierung neu, ohne die Quelle erneut abzurufen.
 
 ### Lokale Überschreibungen

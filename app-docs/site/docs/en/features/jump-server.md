@@ -23,9 +23,9 @@ To configure a jump server for a connection:
 
 1. Open the *Connection Manager* and edit (or create) a connection.
 2. Go to the **Jump Server** tab.
-3. Enable **Jump Server**.
+3. Tick **Enable Jump Server / Auto-Hop**.
 4. Enter the jump server's details:
-    - **Host** — hostname or IP address of the jump server
+    - **Jump server host** — hostname or IP address of the jump server
     - **Port** — SSH port (default: 22)
     - **Username** — login username for the jump server
 5. Choose an **Authentication** method:
@@ -41,7 +41,7 @@ An incomplete jump setup (no username, or key authentication without a usable ke
 
 ## Host key verification
 
-The jump server's host key is verified on first use exactly like any other host: korTTY shows the key's SHA-256 fingerprint and asks you to confirm it, then pins it. On later connections a changed jump-server key is refused, the same trust-on-first-use protection the target host gets. The bastion is always checked strictly: [relaxing host-key verification](security.md#relaxing-host-key-verification) applies to target hosts only, never to the jump hop.
+The jump server's host key is verified on first use exactly like any other host: korTTY shows the key's SHA-256 fingerprint and asks you to confirm it, then pins it. On later connections a changed jump-server key is refused, the same trust-on-first-use protection the target host gets. When the connection was opened from a terminal tab or the SFTP manager, the changed-key alert offers **Review and Replace…** for the jump server as well, under the same rules as for the target (see [SSH host-key verification](connections.md#ssh-host-key-verification)). The bastion is always checked strictly: [relaxing host-key verification](security.md#relaxing-host-key-verification) applies to target hosts only, never to the jump hop.
 
 This holds even when host-key verification has been relaxed for the target: the per-connection, per-group and global opt-outs never cover the bastion, so its key is always verified strictly. See [Relaxing host-key verification](security.md#relaxing-host-key-verification).
 
@@ -54,4 +54,4 @@ The target host is verified under its own name even though the transport goes th
 - Internal infrastructure uses private addresses and needs an intermediary for access.
 
 !!! note
-    Jump server passwords are stored encrypted with your master password, alongside the connection's own credentials. Because the stored password is never shown back, editing the connection with an empty jump-server password field keeps the stored one; type a new value only to change it. If the master password vault is locked when you save a new jump password, korTTY reports that the jump password could not be saved and leaves the other settings untouched.
+    Jump server passwords are stored encrypted with your master password, alongside the connection's own credentials. Because the stored password is never shown back, editing the connection with an empty jump-server password field keeps the stored one; type a new value only to change it. If the master password vault is locked when you save a new jump password, korTTY offers **Unlock Vault…**; if the vault stays locked, korTTY says that the jump server password cannot be saved, keeps the stored password as it was, and still saves the other settings of the connection.

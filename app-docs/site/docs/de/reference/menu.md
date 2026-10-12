@@ -45,14 +45,24 @@ Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von 
 
 | Artikel | Beschreibung |
 | --- | --- |
-| Schnellverbindung… | Stellen Sie eine Verbindung zu einem Host her, ohne zu speichern |
-| Verbindungen verwalten… | Öffnen Sie den Connection-Manager (Struktur, Suche, Bearbeiten) |
+| Schnellverbindung… | Verbinden Sie sich mit einem Host ohne zu speichern (++ctrl+k++) |
+| Verbindungen verwalten… | Öffnen Sie den Connection-Manager (Baum, Suche, Bearbeiten) (++ctrl+m++) |
 | Importieren… | Verbindungen von anderen Clients importieren |
 | Export… | Exportverbindungen |
-| SFTP-Client… | Öffnen Sie den Dual-Panel-SFTP-Dateimanager |
+| SFTP-Client… | Öffnen Sie den Dual-Panel SFTP-Dateimanager (++ctrl+shift+u++) |
 | SFTP hier öffnen | Öffnen Sie den SFTP-Dateimanager über die eigene SSH-Sitzung des fokussierten Terminalbereichs, in dem Ordner, in dem sich dessen Shell befindet |
 
-## Sicherheit
+## Konfiguration
+
+| Artikel | Beschreibung |
+| --- | --- |
+| Sicherheit ▸ | Der Tresor, der Credential-Manager, der GPG-Key- und SSH-Key-Manager sowie die bekannte Hosts-Liste; siehe [Sicherheit](#sicherheit) unten |
+| Globale Einstellungen… | Öffnen Sie das Dialogfeld für die globalen Einstellungen (alle Tabs), ++ctrl+comma++ |
+| System-Ruhezustand verhindern | Aktivieren Sie unter macOS und Windows die aktivitätsbasierte Verhinderung des System-Ruhezustands. Der Computer bleibt nur dann wach, wenn ein Terminal angeschlossen ist, ein aktivierter Scheduler-Job in Zukunft ausgeführt wird oder ausgeführt wird oder eine KI-Anfrage ausgeführt wird. Wenn keine dieser Aktivitäten erfolgt, bleibt der Systemschlaf auch dann verfügbar, wenn das Element überprüft wird. Der Display-Ruhezustand ist davon nicht betroffen. Unter Linux ist das Element sichtbar, aber deaktiviert. |
+
+Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md).
+
+### Sicherheit
 
 | Element | Verknüpfung | Beschreibung |
 | --- | --- | --- |
@@ -62,30 +72,21 @@ Verbindungs-Einträge (Schnellverbindung, Verwalten/Importieren/Exportieren von 
 | SSH-Schlüssel… | ++ctrl+shift+i++ | SSH-Schlüssel und Passphrasen verwalten |
 | Bekannte Hosts… | | Vertrauenswürdige SSH-Hostschlüssel prüfen, durchsuchen und entfernen |
 
-## Konfiguration
-
-| Artikel | Beschreibung |
-| --- | --- |
-| Globale Einstellungen… | Öffnen Sie den globalen Einstellungsdialog (alle Registerkarten) |
-| System-Ruhezustand verhindern | Aktivieren Sie unter macOS und Windows die aktivitätsbasierte Verhinderung des System-Ruhezustands. Der Computer bleibt nur dann wach, wenn ein Terminal angeschlossen ist, ein aktivierter Scheduler-Job in Zukunft ausgeführt wird oder ausgeführt wird oder eine KI-Anfrage ausgeführt wird. Wenn keine dieser Aktivitäten erfolgt, bleibt der Systemschlaf auch dann verfügbar, wenn das Element überprüft wird. Der Display-Ruhezustand ist davon nicht betroffen. Unter Linux ist das Element sichtbar, aber deaktiviert. |
-
-Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md).
-
 ## Tools
 
 ![Tools menu](../assets/screenshots/main/menu-tools.png)
 
 | Artikel | Beschreibung |
 | --- | --- |
-| Snippet-Manager… | Erstellen, bearbeiten, organisieren, senden und exportieren Sie Befehls-Snippets in einem Arbeitsbereich: die Bibliothek und die Snippets, die Sie als Tabs bearbeiten, jeweils mit ihrer gespeicherten Vollständigen Code-Analyse |
-| JobScheduler… | Hintergrundbefehl/Snippet/KI-Agent/KI-Swarm/SFTP/Rsync-Jobs planen |
-| Videomanager… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie über WebM/MKV `ffmpeg` |
+| Snippet-Manager… | Erstellen, bearbeiten, organisieren, senden und exportieren Sie Befehls-Snippets in einem Arbeitsbereich: die Bibliothek und die Snippets, die Sie als Tabs bearbeiten, jeweils mit ihrer gespeicherten Vollständigen Code-Analyse (++ctrl+shift+s++) |
+| JobScheduler… | Planen Sie Hintergrundbefehle / Snippets / KI-Agenten / KI-Swarm / SFTP / Rsync-Jobs (++ctrl+shift+j++) |
+| Videoverwaltung… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie als WebM/MKV über `ffmpeg` (++ctrl+shift+v++) |
 | Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
 | Sitzungsjournale… | Manage [session journals](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
 | Sitzungsjournal starten/stoppen | Toggle the session journal of the active terminal tab; starting mid-session imports the existing scrollback (++ctrl+alt+t++) |
 | Journal-Screenshot hinzufügen | Erstellen Sie einen Schnappschuss des aktiven Terminals in das laufende Sitzungsjournal (++ctrl+alt+c++) |
 | Sitzungsprozesse… | Listet die [Session-Worker](../features/session-isolation.md#ssh-sitzungen-in-einem-session-worker) isolierter SSH-Sitzungen mit Speicher, CPU-Anteil und Laufzeit und beendet einen davon |
-| ASCII-Art… | Zwei Tabs in einem Dialog: **Text-Banner** rendert Text als FIGlet-Banner in mehreren Schriftstilen, **KI-Bild** lässt ein KI-Profil ein Thema als ASCII-Art zeichnen |
+| ASCII Art… | Zwei Tabs in einem Dialog: **Text-Banner** rendert Text als FIGlet-Banner in mehreren Schriftstilen, **KI-Bild** lässt ein KI-Profil ein Motiv als ASCII-Art zeichnen (++ctrl+shift+a++) |
 
 Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktiviert, wenn eine [Unternehmensrichtlinie](../features/session-journal.md#unternehmensrichtlinie) die Funktion des Sitzungsjournals ablehnt.
 
@@ -95,10 +96,10 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 
 | Artikel | Beschreibung |
 | --- | --- |
-| KI-Manager… | Manage AI profiles, integrated GGUF models, RAG knowledge stores, the AI Skills library, and Text/Coding roles |
+| KI-Manager… | Verwalten von KI-Profilen, integrierten GGUF-Modellen, RAG-Wissensspeichern, der KI-Skills-Bibliothek und Text/Coding-Rollen (++ctrl+shift+y++) |
 | Gespeicherte Chats… | Öffnen Sie die gespeicherten KI-Chatgespräche direkt in ihrem eigenen Fenster; ein erneutes Aufrufen bringt das vorhandene Fenster nach vorne |
-| AI Agent… | Öffnen Sie den Terminal AI Agent |
-| KI-Planung… | Öffnen Sie den KI-Planungsworkflow |
+| KI-Agent… | Öffnen des Terminal-KI-Agents Öffnen des Terminal-KI-Agents (++ctrl+alt+a++) |
+| KI-Planung… | Öffnen des KI-Planungsworkflows Öffnen des KI-Planungsworkflows (++ctrl+alt+p++) |
 | KI-Schwarm… | Senden Sie eine KI-Aufgabe an viele Server und vergleichen Sie die Antworten (++ctrl+alt+s++) |
 
 **KI-Manager** wird als modales Fenster geöffnet, sodass es sichtbar bleiben kann, während Sie das Hauptfenster verwenden. Durch einen erneuten Aufruf wird derselbe Manager für dieses Hauptfenster wiederhergestellt und fokussiert, anstatt ein Duplikat zu erstellen. Seine fünf Abschnitte sind **Profile** (Verbindungsmodus, Modell, Eingabeaufforderungsvoreinstellung, Reasoning, Internetzugang und Token-Budget), **Lokale Modelle** (Suchen/Herunterladen/Importieren von GGUF-Modellen), **Wissensspeicher** (RAG-Quellen), **KI-Skills** (die Fertigkeitsbibliothek, aus dem globalen Einstellungsdialog hierher verschoben) und **Lokale KI** (Text-/Codierungs-/Einbettungsrollen und die lokale Laufzeit). Der geöffnete primäre Abschnitt bleibt durch eine fette Akzentunterstreichung gekennzeichnet, nachdem Sie den Fokus auf seine Tabellen, Felder oder Schaltflächen verschoben haben:
@@ -124,6 +125,14 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 | Verbindungsleiste | — | Zeigen oder verbergen Sie die gespeicherte-Server- und Gruppenzeile unabhängig von der Aktionszeile; eine leere Verbindungszeile bleibt außerhalb der Anpassung verborgen |
 | File Browser ▸ Show on Left | ++ctrl+shift+k++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) links vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
 | Dateibrowser ▸ Rechts anzeigen | ++ctrl+shift+r++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) rechts vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
+| KI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das KI-Agent-Aktivitätspanel befindet |
+| Live-Journal ▸ Links andocken / Rechts andocken | | Andocken des [Live-Journal-Panel](../features/session-journal.md#das-live-journal-panel) neben dem Terminal; Auswahl der aktiven Seite versteckt es |
+| Live-Journal ▸ Anzeigen/Ausblenden | ++ctrl+alt+l++ | Schalten Sie das Live-Journal-Panel auf seiner zuletzt verwendeten Seite (standardmäßig rechts) |
+| Coding-Agents ▸ Links andocken / Rechts andocken | | Andocken Sie das [Coding-Agents-Panel](../features/coding-agents.md#das-coding-agents-panel) neben dem Terminal; die Auswahl der aktiven Seite blendet es aus. |
+| Coding-Agents ▸ Ein-/Ausblenden | ++ctrl+alt+g++ | Blenden Sie das Coding-Agents-Panel auf seiner zuletzt verwendeten Seite ein oder aus (standardmäßig rechts) |
+| Coding-Agents ▸ Nächster wartender Agent | ++ctrl+alt+n++ | Holen Sie den nächsten Coding-Agent, der auf eine Entscheidung wartet, über Fenster hinweg nach vorne |
+| Seitenleiste Remote-Dateien ▸ Links andocken / Rechts andocken | | Docken Sie das [Remote-Dateien-Seitenleiste](../features/terminal.md#seitenleiste-remote-dateien) Neben den Fenstern jedes Terminal-Tabs; das Deaktivieren der aktiven Seite versteckt sie. Wird angeboten, wenn der aktive Tab ein SSH-Fenster hat oder die Seitenleiste aktiviert ist. |
+| Seitenleiste Remote-Dateien ▸ Seitenleiste Remote-Dateien ein-/ausblenden | | Die Seitenleiste Remote-Dateien rechts einblenden oder ausblenden; beim Ausblenden wird zuerst nachgefragt, solange Übertragungen der Seitenleiste laufen |
 | Vergrößern | ++alt+plus++ | Erhöhen Sie die Schriftgröße des Terminals |
 | Herauszoomen | ++alt+minus++ | Verringern Sie die Schriftgröße des Terminals |
 | Zoom zurücksetzen | ++alt+0++ | Setzen Sie die Schriftgröße des Terminals zurück |
@@ -142,17 +151,10 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 | Hervorhebung ▸ Hervorhebung ein | ++ctrl+shift+h++ | Schalten Sie die [Hervorhebung von Schlüsselwörtern](../features/highlighting.md) für den fokussierten Bereich des aktiven Tabs ein oder aus; beim Wiedereinschalten kehrt der Regelsatz zurück, den der Bereich zuletzt gezeigt hat. Gilt nur für die laufende Sitzung |
 | Hervorhebung ▸ Keine / Regelsatz | | Wählen Sie den Regelsatz, den der fokussierte Bereich zeigt: **Keine**, einen mitgelieferten Regelsatz (**Fehler und Warnungen**, **Netzwerkadressen**, **Netzwerkgeräte**) oder einen eigenen. Gilt nur für die laufende Sitzung |
 | Hervorhebung ▸ Regelsätze verwalten… | | Öffnen Sie den [Regelsatz-Editor](../features/highlighting.md#ihre-eigenen-regelsatze), um eigene Regelsätze anzulegen, zu ändern, zu duplizieren oder zu löschen und die mitgelieferten anzusehen; er öffnet sich mit dem Regelsatz, den der fokussierte Bereich zeigt |
+| Terminal-Effekt ▸ | | Wählen Sie den [Terminal-Effekt](../features/terminal-effect-plugins.md) des aktiven Terminal-Tabs: **Keine** oder einen der installierten Effekt-Plugins. Das Untermenü ist ausgegraut, solange Terminal-Effekte ausgeschaltet sind; der Animationsgeschwindigkeits-Schieberegler unter den Plugins ist nur aktiviert, wenn ein Plugin aktiv ist |
 | Vollbild | ++f12++ | Fenster-Vollbild umschalten |
 | Nur Terminal-Vollbild | ++ctrl+shift+f++ | Zeigt das gesamte korTTY-Fenster an – einschließlich Menüs, Registerkarten und Statusleiste – in der vorherigen Fenstergröße und zentriert auf einem leeren Vollbildhintergrund, wodurch der Desktop und andere Fenster ausgeblendet werden |
 | Terminal-Bildlaufleisten im Vollbildmodus ausblenden | | Bildlaufleisten auch im Vollbildmodus ausblenden |
-| KI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das KI-Agent-Aktivitätspanel befindet |
-| Live-Journal ▸ Links andocken / Rechts andocken | | Der [Live-Journal-Panel](../features/session-journal.md#das-live-journal-panel) wird neben dem Terminal ange dockt; die Auswahl der aktiven Seite verdeckt ihn |
-| Live-Journal ▸ Anzeigen/Ausblenden | ++ctrl+alt+l++ | Schalten Sie das Live-Journal-Panel auf seiner zuletzt verwendeten Seite (standardmäßig rechts) |
-| Coding-Agents ▸ Links andocken / Rechts andocken | | Das [Coding-Agents-Komponente](../features/coding-agents.md#das-coding-agents-panel) neben dem Terminal anordnen; die Aktivierung einer Seite verdeckt sie |
-| Coding-Agents ▸ Ein-/Ausblenden | ++ctrl+alt+g++ | Blenden Sie das Coding-Agents-Panel auf seiner zuletzt verwendeten Seite ein oder aus (standardmäßig rechts) |
-| Coding-Agents ▸ Nächster wartender Agent | ++ctrl+alt+n++ | Holen Sie den nächsten Coding-Agent, der auf eine Entscheidung wartet, über Fenster hinweg nach vorne |
-| Seitenleiste Remote-Dateien ▸ Links andocken / Rechts andocken | | Die [Seitenleiste Remote-Dateien](../features/terminal.md#seitenleiste-remote-dateien) neben den Bereichen jedes Terminal-Tabs andocken; das Abwählen der aktiven Seite blendet sie aus. Verfügbar, solange der aktive Tab einen SSH-Bereich hat oder die Seitenleiste eingeschaltet ist |
-| Seitenleiste Remote-Dateien ▸ Seitenleiste Remote-Dateien ein-/ausblenden | | Die Seitenleiste Remote-Dateien rechts einblenden oder ausblenden; beim Ausblenden wird zuerst nachgefragt, solange Übertragungen der Seitenleiste laufen |
 
 ## Teamarbeit
 
@@ -171,11 +173,15 @@ Die Anleitung verfügt über eigene Schaltflächen für die Textgröße im obere
 
 Screenshots und Diagramme werden durch Klicken vergrößert: Das Bild wird über der Seite in der größtmöglichen Größe geöffnet, die das Fenster zulässt, mit den Schaltflächen **−** / ***+** und einem Prozentsatz, der es auf die angepasste Größe zurücksetzt. Zoomen Sie weiter, um eine einzelne Einstellungszeile zu lesen, ziehen Sie das Bild zum Schwenken und schließen Sie es mit *×**, ++esc++ oder einem Klick neben dem Bild. ++ctrl++ und der Radzoom ebenfalls. Dasselbe funktioniert auch im Online-Ratgeber.
 
+## JobScheduler Status
+
+Dieses Menü befindet sich nach **Hilfe** und erscheint nur, wenn die Option **Jobs-Anzeige in der Menüleiste anzeigen** des [JobScheduler](../features/jobscheduler.md) aktiviert ist und ein geplanter Eintrag aktiv ist. Es beginnt immer mit **JobScheduler öffnen…**. Während Jobs laufen listet es einen **Laufende Jobs**-Kopf, eine Statuszeile pro Job und ein **Abbrechen**-Element pro Job; die Abbrechen-Elemente funktionieren ohne Fenster. Darunter listet **Nächste Jobs** die wartenden geplanten Jobs mit ihren Startzeiten.
+
 ## macOS Dock & Menüleiste
 
 Unter macOS läuft die gepackte App weiterhin im Hintergrund (damit der JobScheduler geplante Jobs ausführen kann), auch nachdem das letzte Fenster geschlossen wurde. korTTY fügt daher zwei zusätzliche Einstiegspunkte hinzu, damit es erreichbar – und beendet – bleibt, auch wenn kein Fenster geöffnet ist:
 
-- **Dock-Symbolmenü** – Klicken Sie mit der rechten Maustaste auf das Dock-Symbol von korTTY, um schnelle Aktionen durchzuführen: **Neues Fenster**, **Neuer Tab**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
+- **Dock-Icon-Menü** — Rechtsklick auf das Dock-Symbol von korTTY für schnelle Aktionen: **Neues Fenster**, **Neuer Tab im aktuellen Fenster**, **Verbindungen verwalten…**, **Projekt öffnen…**, **Anleitung**, **Über korTTY** und **Beenden**.
 - **Menüleisten-(Status-)Symbol** – ein Taskleistensymbol mit **Neues Fenster** und **Beenden**; Durch Klicken auf das Symbol wird ein neues Fenster geöffnet.
 
 Beide bieten ein zuverlässiges **Beenden**, selbst wenn jedes Fenster geschlossen ist.

@@ -913,18 +913,20 @@
 <p><img alt="Terminal Effects manager" src="../../en/assets/screenshots/plugins/terminal-effects.png" /></p>
 <p>Der Dialog zeigt die geladene Plugin-Liste mit:</p>
 <ul>
-<li>Aktiver/inaktiver Zustand</li>
+<li>Ein <strong>Aktiv</strong> Kontrollkästchen pro Plugin</li>
 <li>Anzeigename</li>
 <li>Kurze Beschreibung</li>
 </ul>
 <p>Neben der Tabelle spielt ein Vorschaufenster eine animierte Live-Vorschau des ausgewählten Plugins ab (ein kleines gefälschtes Terminal in den Farben des Effekts mit der Effektüberlagerung darüber). Wenn ein Plugin <code>createPreview()</code> nicht implementiert, zeigt das Panel stattdessen einen Platzhaltertext an. Die Vorschau stoppt, wenn sich die Auswahl ändert, der globale Schalter für Terminaleffekte ausgeschaltet wird oder das Dialogfeld geschlossen wird.</p>
 <p>Benutzer können:</p>
 <ul>
-<li>Aktivieren oder deaktivieren Sie ein Plugin</li>
+<li>Ein Plugin aktivieren oder deaktivieren, indem Sie sein <strong>Aktiv</strong> Kontrollkästchen setzen oder entfernen</li>
+<li>Schalten Sie die gesamte Funktion mit <strong>Terminal-Effekte aktivieren</strong> oben im Dialog aus; während sie deaktiviert ist, sind die Tabelle, <strong>Importieren</strong> und <strong>Neu laden</strong> ausgegraut und die Vorschau stoppt</li>
+<li>Laden Sie die Plugins mit <strong>Neu laden</strong> neu, zum Beispiel nach dem Kopieren einer JAR-Datei in <code>~/.kortty/plugins</code> von Hand</li>
 <li>Importieren Sie eine externe <code>.jar</code> Plugin, in das KorTTY kopiert <code>~/.kortty/plugins</code></li>
-<li>Exportieren Sie Plugins, die über eine Quell-JAR verfügen (die gebündelten MOTHER- und Effect-Pack-JARs sind exportierbar)</li>
+<li>Exportieren Sie Plugins, die eine Quell-JAR haben (die gebündelten MOTHER- und effect-pack JARs sind exportierbar); <strong>Exportieren</strong> ist für die ausgewählte Zeile verfügbar, solange die Funktion aktiviert ist.</li>
 </ul>
-<p>Benutzer wählen Effekte pro Terminalsitzung aus dem Terminal-Kontextmenü oder <strong>Ansicht &gt; Terminaleffekt</strong> aus. Gespeicherte Verbindungen können auch den ausgewählten Effekt und die Animationsgeschwindigkeit über die Schnellverbindung und den Connection-Manager speichern. Der Geschwindigkeitsregler deckt <code>1x</code> bis <code>10x</code> ab; Das numerische Feld akzeptiert Werte bis zu <code>99x</code>.</p>
+<p>Benutzer wählen Effekte pro Terminalsession aus dem Terminal-Kontextmenü oder <strong>Ansehen &gt; Terminal-Effekt</strong>, die die Effekte nur anbieten, solange <strong>Terminal-Effekte aktivieren</strong> eingeschaltet ist. Gespeicherte Verbindungen können ebenfalls den ausgewählten Effekt und die Animationsgeschwindigkeit über Schnellverbindung und Connection-Manager speichern. Der Geschwindigkeitsregler deckt <code>1x</code> bis <code>10x</code> ab; das numerische Feld akzeptiert Werte bis zu <code>99x</code>.</p>
 <h2 id="spi-klassen">SPI-Klassen<a class="headerlink" href="#spi-klassen" title="Permanent link">&para;</a></h2>
 <p>Der öffentliche SPI lebt unter <code>de.kortty.plugin.terminaleffects</code>.</p>
 <h3 id="terminaleffectplugin">TerminalEffectPlugin<a class="headerlink" href="#terminaleffectplugin" title="Permanent link">&para;</a></h3>

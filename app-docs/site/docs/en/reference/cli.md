@@ -68,9 +68,64 @@ kortty-cli raw events.unsubscribe '{"subscription":"s1"}'
 
 `kortty-cli schema` prints the complete machine-readable command surface — every command, its options, its result shape, its errors and a worked example — straight from the running korTTY. The parameters, results and errors come from the same declarations the server dispatches, and each entry's `cli` line is checked against this client's own parser before release, so both describe the version you are actually talking to; use it rather than guessing, especially from a script that has to keep working across versions.
 
+## Command reference
+
+Every flag the client accepts is one of the global flags below or belongs to one of the commands in the table after them. A flag that a command does not list is refused with exit 2 before anything is sent to korTTY.
+
+### Global flags
+
+| Flag | Meaning |
+| --- | --- |
+| `--config-dir <path>` | Looks for `control/endpoint.json` below `<path>` instead of `~/.kortty`. |
+| `--timeout <ms>` | The client deadline for the whole call. The default is 5000 ms; a command that waits on korTTY gets its wait plus five seconds instead, and `events` has no deadline unless you give one. |
+| `--raw` | Prints plain text instead of JSON, for the commands that carry text: `pane read` and `agent explain`. |
+| `--pretty` | Indents the JSON instead of printing one compact line. |
+| `-q`, `--quiet` | Prints nothing; the exit code is the only answer. |
+| `--version` | Prints the client version and the protocol version, without contacting korTTY. |
+| `-h`, `--help` | Prints the help for a group or a command, without contacting korTTY. |
+
+### Commands
+
+| Command | API method | Options and notes |
+| --- | --- | --- |
+| `ping` | `ping` | Checks that korTTY answers. |
+| `schema [--method <name>]` | `api.schema` | Prints the machine-readable API schema, or one method of it. |
+| `events [--kinds a,b] [--panes p1,p2] [--include-evidence] [--count N]` | `events.subscribe` | Streams one event per line; see [Watching events](#watching-events). |
+| `window list` | `window.list` | Lists the open windows. |
+| `tab list [--window <id>]` | `tab.list` | Lists the tabs of one window, or of every window. |
+| `tab focus --tab <id>` | `tab.focus` | Raises the window and selects the tab. |
+| `tab create --connection <id or name> [--isolation none, process or sandbox] [--incognito] [--window <id>]` | `tab.create` | Opens a saved connection in a new tab; see [Opening a connection](#opening-a-connection). |
+| `tab close`, `tab rename` | reserved | Refused locally with exit 2: not implemented in this version. |
+| `pane list [--tab <id>] [--window <id>] [--local-shell-only]` | `pane.list` | Lists the open panes, with their isolation and whether they are incognito. |
+| `pane current` | `pane.current` | Prints the pane the user is looking at. |
+| `pane get <selector>` | `pane.get` | Prints one pane. |
+| `pane focus <selector> [--no-raise]` | `pane.focus` | Requests focus for a pane; `--no-raise` does not raise the window that owns it. |
+| `pane read <selector> [--visible, --recent or --detection] [--lines N] [--raw]` | `pane.read` | Reads the screen (`--visible`, the default), the scrollback and the screen (`--recent`, 200 rows unless `--lines` says otherwise), or the coding-agent detection. |
+| `pane send-text <selector> --text <s> or --stdin [--submit] [--bracketed auto, never or always] [--allow-shortcut-conflict]` | `pane.send_text` | Types text into the pane. `--stdin` reads the text from standard input; `--submit` presses Enter afterwards; `--bracketed` defaults to `auto`. |
+| `pane run <selector> --command <s>` | `pane.run` | Types one single-line command and presses Enter. |
+| `pane send-keys <selector> <key>...` | `pane.send_keys` | Sends key names such as `enter`, `tab`, `up` or `ctrl+c`; an unknown name is refused before anything is sent. |
+| `pane wait-output <selector> (--regex <r> or --contains <s>) [--visible or --recent] [--lines N] [--timeout-ms N] [--poll-ms N]` | `pane.wait_output` | Waits until the output matches. It searches the recent output by default, waits 30 seconds unless `--timeout-ms` says otherwise, and polls every 150 ms unless `--poll-ms` says otherwise. |
+| `pane split <selector> [--vertical or --horizontal] [--no-focus]` | `pane.split` | Splits a local-shell pane and prints the new pane. |
+| `pane close <selector>` | `pane.close` | Closes a split pane; a tab's last pane is refused. |
+| `agent list [--state S] [--kind K] [--tab <id>] [--window <id>]` | `agent.list` | Lists the coding agents, most urgent first. |
+| `agent get <selector>` | `agent.get` | Prints one agent. |
+| `agent explain <selector> [--raw]` | `agent.explain` | Explains why the agent is in its state; `--raw` prints the text only. |
+| `agent wait <selector> --until blocked, done, working, idle or any [--timeout-ms N]` | `agent.wait` | Waits for the agent to reach a state; the wait is 60 seconds unless `--timeout-ms` says otherwise. |
+| `agent prompt <selector> --text <s> or --stdin [--wait-until done, idle, blocked or any] [--timeout-ms N]` | `agent.prompt` | Sends a prompt. With `--wait-until` it also waits, for 60 seconds unless `--timeout-ms` says otherwise. |
+| `agent send-keys <selector> <key>...` | `agent.send_keys` | Answers the agent's prompt with key names. |
+| `agent rename <selector> --alias <s>` | `agent.rename` | Sets an agent's alias; a blank alias clears it. |
+| `agent start (<selector> or --split-from <selector> [--vertical or --horizontal]) --kind <k> [--command <s>] [--prompt <s>] [--wait] [--until done or idle] [--timeout-ms N]` | `agent.start` | Launches a coding agent in a pane, or in a new split of one, and waits until korTTY has registered it. `--command` is split at white space into arguments and is not run through a shell. With `--wait` the default wait after the prompt is 300 seconds. |
+| `notify --title <s> --body <s>` | `notification.show` | Raises one desktop notification. |
+| `mcp` | MCP over stdio | Serves the tools described in [Serving MCP clients](#serving-mcp-clients). |
+| `raw <method> [<json>]` or `raw <method> --stdin` | any | Calls any method. The optional JSON object is its parameters; with `--stdin` the standard input is. |
+
+The `--kind` values of `agent list` and `agent start` are `claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`, `jules`, `copilot` and `grok-build`. The `--state` values of `agent list` are `blocked`, `working`, `done`, `idle` and `unknown`.
+
+`tab close` and `tab rename` are listed by the API as reserved; `kortty-cli` refuses them itself, so they never reach korTTY.
+
 ## Choosing a pane
 
-Every `pane` and `agent` command takes **exactly one** selector, and every selector is a flag:
+Every command that addresses one pane takes **exactly one** selector, and every selector is a flag. `pane list`, `pane current` and `agent list` take none, and `agent start` accepts `--split-from` in place of a selector:
 
 | Selector | Means |
 | --- | --- |
@@ -110,7 +165,7 @@ kortty-cli events --kinds agent.state_changed --panes p1a2b3c4d --count 1
 kortty-cli events --include-evidence --timeout 60000
 ```
 
-`--kinds` and `--panes` take comma-separated lists and narrow what is delivered; `--include-evidence` adds the detector's evidence to each event; `--count N` stops after N events. Three things end the stream: `--count` is reached, the `--timeout` passes, or you interrupt it. The first two exit 0. An interrupt is **not** handled — there is deliberately no signal handler, so the process ends with the shell's 128 + SIGINT = 130, which is worth allowing for in a CI job that wraps the stream in `timeout`.
+`--kinds` and `--panes` take comma-separated lists and narrow what is delivered. The kinds are `agent.added`, `agent.state_changed`, `agent.seen`, `agent.alias_changed`, `agent.removed`, `agent.evidence` and `events.overflow`. Without `--kinds`, every kind except `agent.evidence` is sent. `agent.evidence` is sent only with `--include-evidence`, and at most once a second per pane. `events.overflow` is always sent and reports how many frames were dropped when the stream fell behind. `--count N` stops after N events. Three things end the stream: `--count` is reached, the `--timeout` passes, or you interrupt it. The first two exit 0. An interrupt is **not** handled — there is deliberately no signal handler, so the process ends with the shell's 128 + SIGINT = 130, which is worth allowing for in a CI job that wraps the stream in `timeout`.
 
 With neither `--count` nor `--timeout`, the stream has no deadline at all and runs until korTTY exits or you stop it.
 
@@ -160,9 +215,9 @@ The exit code comes from the server, not from a table the client keeps, so the t
 | Code | Meaning | Retry? |
 | --- | --- | --- |
 | 0 | Success | — |
-| 1 | The request was valid but could not be carried out: no such pane, tab, agent or connection; not connected; the write failed; the last pane cannot be closed | Sometimes — the answer's `retryable` field says |
-| 2 | The request itself was wrong: a bad selector, an unknown key name, an invalid regular expression, a missing or out-of-range parameter, an unknown command | No |
-| 3 | Refused: the Control API is off, enterprise policy denies it, the token was rejected, korTTY is not ready yet, or too many connections are open | No, until you change something |
+| 1 | The request was valid but could not be carried out: no such window, tab, pane, agent or connection, or a `--current` that matches no pane; a stale `instance`; not connected; the write failed; an agent that must be answered first; the last pane cannot be closed; a split the pane cannot take or that aborted; an internal error in korTTY | Sometimes — the answer's `retryable` field says |
+| 2 | The request itself was wrong: a bad selector, an unknown key name, an invalid regular expression, a missing or out-of-range parameter, an empty text, an unknown command, a selector that matches more than one pane, a connection name that two connections share, or a text whose first line korTTY's own shortcut would swallow | No |
+| 3 | Refused: the Control API is off, enterprise policy denies it or blocks the connection, the token was rejected, an MCP client is not allowed to make the call or its write was denied, or too many connections are open | No, until you change something; a korTTY that is not ready yet, or has too many connections open, is worth a retry shortly |
 | 4 | A wait timed out | Usually |
 | 130 | `kortty-cli events` was interrupted (Ctrl-C). The stream has no signal handler, so this is the shell's own 128 + SIGINT | — |
 
@@ -176,7 +231,7 @@ Failures the client diagnoses on its own are the exception: an unparseable comma
 
 ## Checking the installation
 
-`kortty-cli --version` prints the version and exits 0. It is the only command that does **not** need a running korTTY, which makes it the right thing to put in an installation check or a CI smoke test.
+`kortty-cli --version` prints the version and exits 0. `--version` and `--help` both answer without a running korTTY, which makes `--version` the right thing to put in an installation check or a CI smoke test.
 
 ```bash
 kortty-cli --version || echo 'kortty-cli is not installed or not on PATH'

@@ -22,7 +22,7 @@ Die Funktion ist **standardmäßig aus** und muss pro Installation unter **Einst
 | Status: aus | Der Haken ist nicht gesetzt, oder korTTY hat den Listener beendet. |
 | Status: von Ihrer Organisation gesperrt | Die Unternehmensrichtlinie verbietet die Funktion `control-api`; das Kontrollkästchen ist gesperrt. |
 | Status: lauscht auf … | Ein Listener läuft und `endpoint.json` wurde geschrieben. Der Text nennt den Socket oder den Loopback-Port. |
-| Status: konnte nicht starten – … | Der Listener ist nicht gestartet. Der häufigste Grund ist, dass bereits ein anderes korTTY den Socket besitzt; der Text sagt welcher. |
+| Status: konnte nicht starten - … | Der Listener verweigerte den Start. Der häufigste Grund ist, dass ein anderes korTTY bereits das Socket besitzt; der Text sagt aus, welches. |
 
 Das Entfernen des Hakens beendet den Listener und löscht den Socket sofort.
 
@@ -33,7 +33,7 @@ Zwei weitere Schalter unter der Statuszeile gehören zu den [MCP-Clients](#mcp-c
 | **MCP-Server** | Bedient Clients, die sich als MCP-Clients ausweisen, mit der schreibgeschützten Methodenliste, maskierter Ausgabe und begrenzten Lesezugriffen, wie unten beschrieben. |
 | **Schreib-Tools erlauben** | Bietet solchen Clients zusätzlich `pane.send_text`, `pane.run` und `pane.send_keys` an. korTTY fragt Sie trotzdem vor jedem Schreibzugriff. Der Schalter lässt sich nur ändern, solange **MCP-Server** angehakt ist. |
 
-Beide Schalter sind ausgegraut, solange das Kontrollkästchen der Steuerungs-API nicht angehakt ist, mit einem entsprechenden Hinweis; sie behalten ihre Werte und wirken wieder, sobald Sie die Steuerungs-API anhaken. Wenn die Unternehmensrichtlinie `mcp-server` oder `control-api` verweigert, sind beide nicht angehakt und mit dem Hinweis „Verwaltet von Ihrer Organisation“ gesperrt. Wenn Sie speichern, während einer der beiden Schalter aus ist, werden außerdem alle Antworten „Für diesen Bereich in dieser Sitzung erlauben“ verworfen, sodass nach erneutem Einschalten der Schreib-Tools wieder neu gefragt wird.
+Beide Schalter sind ausgegraut, während das Kontrollkästchen Steuerungs-API untickt ist, mit dem Hinweis *Aktivieren Sie die Steuerungs-API oben, um den MCP-Server zu nutzen.*; sie behalten ihre Werte und wirken erneut, wenn Sie die Steuerungs-API aktivieren. Wenn die Unternehmensrichtlinie `mcp-server` oder `control-api` verweigert, sind beide untickt und gesperrt, mit dem Hinweis *Ihre Organisation erlaubt den MCP-Server nicht.* Das Speichern mit einem der Schalter ausgeschaltet führt außerdem dazu, dass jede "Erlaubnis für dieses Fenster in dieser Sitzung"-Antwort gelöscht wird, sodass das erneute Einschalten der Schreibwerkzeuge später erneut nachfragt.
 
 ## Wo der Endpunkt liegt
 
@@ -62,7 +62,7 @@ Das Protokoll ist zeilenweises JSON-RPC 2.0 – genau ein JSON-Objekt pro Zeile,
 
 ```
 → {"jsonrpc":"2.0","id":1,"method":"auth","params":{"token":"kQ7f…","client":"my-script"}}
-← {"jsonrpc":"2.0","id":1,"result":{"api":"kortty-control","protocol_version":1,"transport":"unix","ids_survive_restart":false,"capabilities":["events","split","agent_start","pane_resolve"]}}
+← {"jsonrpc":"2.0","id":1,"result":{"api":"kortty-control","protocol_version":1,"transport":"unix","ids_survive_restart":false,"capabilities":["events","split","agent_start","pane_resolve","notifications"]}}
 ```
 
 Anfragen einer Verbindung werden **nacheinander** ausgeführt: die nächste Zeile wird erst gelesen, wenn die vorige Antwort in der Warteschlange liegt. Ein Client, der gleichzeitig lange warten und andere Aufrufe absetzen will, öffnet eine zweite Verbindung – bis zu acht gleichzeitig.
@@ -76,11 +76,13 @@ Statt die Methodenliste hier zu wiederholen, fragen Sie korTTY: `api.schema` lie
 | `api` | `ping`, `auth`, `api.schema` | Handshake und Erkundung. |
 | `events` | `events.subscribe`, `events.unsubscribe` | Meldungen, wenn ein Coding-Agent seinen Zustand ändert. |
 | `window` / `tab` | `window.list`, `tab.list`, `tab.focus`, `tab.create` | Fenster und Tabs auflisten, eines nach vorn holen und eine gespeicherte Verbindung in einem neuen Tab öffnen. |
-| `pane` | `pane.list`, `pane.current`, `pane.get`, `pane.resolve`, `pane.focus`, `pane.read`, `pane.send_text`, `pane.run`, `pane.send_keys`, `pane.wait_output`, `pane.split`, `pane.close` | Einen Bereich lesen, darin tippen, auf Ausgabe warten, eine lokale Shell teilen oder einen geteilten Bereich schließen. |
+| `pane` | `pane.list`, `pane.current`, `pane.get`, `pane.resolve`, `pane.focus`, `pane.read`, `pane.send_text`, `pane.run`, `pane.send_keys`, `pane.wait_output`, `pane.split`, `pane.close` | Lesen Sie ein Fenster, tippen Sie hinein, warten Sie auf die Ausgabe, teilen Sie eine lokale Shell, schließen Sie einen Split oder finden Sie das Fenster, in dem ein Skript läuft, anhand seiner Prozess-IDs (`pane.resolve`). |
 | `agent` | `agent.list`, `agent.get`, `agent.explain`, `agent.prompt`, `agent.send_keys`, `agent.wait`, `agent.rename`, `agent.start` | Mit den von korTTY erkannten Coding-Agents arbeiten – siehe [Coding-Agents](../features/coding-agents.md). |
 | `notification` | `notification.show` | Eine Desktop-Benachrichtigung auslösen. |
 
 Der Titel, den `tab.list` für einen Terminal-Tab meldet, ist sein Name ohne das Coding-Agent-Symbol, das Gruppenpräfix und das Suffix `(DISCONNECT)`: der Name, den Sie ihm mit [Tab umbenennen](../features/terminal.md#arbeiten-mit-tabs) gegeben haben, andernfalls der [Titel, den seine Shell gesetzt hat](../features/terminal.md#titel-aus-der-shell), andernfalls der Name der Verbindung. Den Titel der Shell wählt der Server, daher sollte sich ein Client, der wissen muss, mit welchem Host ein Tab verbunden ist, nicht allein auf den Titel verlassen. Umbenennen können nur Sie selbst in der Benutzeroberfläche.
+
+`pane.list` und `pane.get` melden das `isolation` jedes Fensters, welches `none`, `process`, `sandboxed` oder `degraded` ist (es wurde ein Sandbox angefordert, aber nicht aktiv), und ob sein Tab `incognito` ist; siehe [Sitzungs-Isolation](../features/session-isolation.md).
 
 `tab.create` öffnet eine gespeicherte oder Teamwork-Verbindung – über ihre ID oder ihren Namen, wie ihn der Connection-Manager zeigt – in einem neuen Tab des fokussierten Fensters (oder von `window`), mit `isolation` (`none`, `process` oder `sandbox`) anstelle der eigenen [Sitzungs-Isolation](../features/session-isolation.md) der Verbindung und `incognito` für eine [Inkognito-Sitzung](../features/session-isolation.md#inkognito-sitzungen). Einen Namen, den zwei Verbindungen tragen, lehnt korTTY mit `ambiguous_connection` und deren IDs ab, einen unbekannten mit `connection_not_found`. Die Richtlinie der Organisation gilt weiter: ein gesperrter Server, eine Isolation unter `[rule.isolation] minimum` oder eine von der Richtlinie verbotene Inkognito-Sitzung wird mit `blocked_by_policy` abgelehnt, und eine Teamwork-Verbindung kann nur strenger werden. korTTY wartet nie auf eine Rückfrage, solange der Aufruf offen ist: braucht die Anmeldung ein Passwort, einen temporären Schlüssel oder den entsperrten Tresor, lautet die Antwort `pending: true` ohne Tab, und korTTY fragt Sie und öffnet den Tab danach. MCP-Clients können sie nicht aufrufen.
 
@@ -102,7 +104,7 @@ Jeder Parameter namens `pane` akzeptiert auch eine reine Tab-Kennung – gemeint
 
 ### Einen Bereich lesen
 
-`pane.read` kennt drei Modi. `visible` liefert den aktuellen Bildschirm einschließlich des Alternativpuffers, rechts beschnitten. `recent` liefert den Scrollback plus den Bildschirm, unter einer einzigen Puffersperre gelesen, die neuesten `lines` Zeilen. `detection` liefert das, was korTTYs Coding-Agent-Erkennung zuletzt für den Bereich veröffentlicht hat – die Erkennung wird für eine Anfrage nie neu ausgeführt.
+`pane.read` hat drei Modi, und `visible` ist der Standard. `visible` gibt den Live-Bildschirm zurück, einschließlich des alternativen Puffers, rechts abgeschnitten. `recent` gibt den Scrollback plus den Bildschirm zurück, gelesen unter einem einzigen Puffer-Block, die neuesten `lines` Zeilen (200 standardmäßig). `detection` gibt zurück, was der Coding-Agent-Detektor von korTTY zuletzt für das Pane veröffentlicht hat – der Detektor wird bei einer Anfrage nie erneut ausgeführt.
 
 `pane.wait_output` blockiert, bis ein regulärer Ausdruck oder eine Zeichenkette erscheint, und fragt den Bereich dafür regelmäßig ab. Ausgabe, die innerhalb eines Abfrageintervalls erscheint und wieder weggescrollt wird, kann im Modus `visible` übersehen werden; der Standardmodus `recent` durchsucht auch den Scrollback und hat diese Lücke nicht.
 
@@ -120,13 +122,13 @@ Wenn `pane.send_text` seinen Text in Bracketed Paste einbettet – `bracketed` i
 
 ## Was sie nicht kann
 
-Das Bedrohungsmodell ist ein lokaler Prozess, der als Sie läuft, während die API an ist. Ein solcher Prozess **kann** Ihre Fenster auflisten, jeden Bereich lesen, in jeden Bereich tippen einschließlich des Absendens von Befehlen, eine lokale Shell teilen, einen geteilten Bereich schließen, einen erkannten Coding-Agent steuern und eine Benachrichtigung auslösen.
+Das Bedrohungsmodell ist ein lokaler Prozess, der als Sie läuft, während die API aktiv ist. Ein solcher Prozess **kann** Ihre Fenster auflisten, jedes Pane lesen, in jedes Pane tippen einschließlich Befehlen zu senden, einen Tab für eine gespeicherte Verbindung öffnen, ein lokales Shell aufteilen, ein geteiltes Pane schließen, einen erkannten Coding-Agenten steuern und eine Benachrichtigung auslösen.
 
 Er **kann nicht**:
 
 * irgendetwas erreichen, bevor Sie den Haken setzen, oder überhaupt, wenn die Unternehmensrichtlinie die Funktion verbietet;
-* einen neuen Tab, ein neues Fenster oder irgendeine Verbindung öffnen – es gibt keinen Weg zu einem Server, der nicht schon offen ist;
-* etwas anderes teilen als eine lokale Shell desselben Servers;
+*  öffnen Sie ein neues Fenster oder einen Tab für alles außer eine gespeicherte oder Teamarbeit-Verbindung: `tab.create` nimmt nur die ID oder den Namen eines, und die Richtlinie gilt weiterhin dafür;
+*  teilen Sie alles außer ein lokales Shell, oder teilen Sie in eine neue Verbindung;
 * einen Tab schließen, korTTYs letzten Bereich schließen oder einen Tab umbenennen;
 * Ihre Einstellungen lesen oder schreiben, Ihre Zugangsdaten, den Tresor, Ihre SSH-Schlüssel oder das Master-Passwort lesen;
 * irgendetwas über das Netzwerk erreichen – der Listener ist ein Unix-Socket oder Loopback, nie etwas anderes, und keine Einstellung kann das aufweiten;
@@ -157,7 +159,7 @@ Alles, was ein `mcp`-Client liest, wird immer maskiert, weil sein Modell in der 
 
 ### Schreibvorgänge eines MCP-Clients
 
-Wenn **Schreib-Tools erlauben** eingeschaltet ist, fragt korTTY Sie trotzdem vor jedem Schreibzugriff, den ein `mcp`-Client vornehmen möchte. `pane.send_text`, `pane.run` und `pane.send_keys` öffnen in korTTY eine Rückfrage, die den Namen des Clients zeigt (als vom Client angegeben gekennzeichnet, weil nichts ihn belegt), den Zielbereich mit seinem Tab-Titel und Host, ob der Schreibzugriff eine Zeile absendet, sowie den genauen Text oder die Tastennamen. Steuerzeichen und unsichtbare Zeichen werden als Symbole dargestellt, etwa `␊` für einen Zeilenumbruch, `␛` für Escape und `<U+202E>` für eine Richtungsumkehr, sodass nichts den Bereich erreicht, was Sie nicht sehen könnten.
+Wenn **Schreib-Tools erlauben** aktiviert ist, fragt korTTY Sie vor jedem Schreiben eines `mcp` Client an. `pane.send_text`, `pane.run` und `pane.send_keys` öffnen einen Prompt in korTTY mit dem Titel *MCP-Schreibanfrage*, unter der Überschrift *Ein KI-Assistent möchte in ein Terminal tippen*. Er zeigt den Namen des Clients, markiert *Client (vom Client angegeben)*, weil nichts es beweist; die Aktion, *Text eingeben*, *Befehl ausführen* oder *Tasten drücken*; den Zielbereich mit seinem Tab-Titel und Host, unter *Bereich:*; ob das Schreiben eine Zeile einreicht, beantwortet mit *Ja, sie wird sofort ausgeführt* oder *Nein*; und den genauen Text oder die Tastennamen. Der Prompt warnt auch, dass ein KI-Assistent möglicherweise Text wiederholt, den er in einem Terminal oder auf einer Webseite gelesen hat, und fordert Sie auf, das Schreiben nur zu erlauben, wenn Sie es selbst eingeben würden. Steuerzeichen und unsichtbare Zeichen werden als Symbole angezeigt, wie `␊` für einen Zeilenumbruch, `␛` für Escape und `<U+202E>` für eine Richtungsüberschreibung, sodass nichts den Bereich erreicht, das Sie nicht sehen könnten.
 
 | Antwort | Was sie erlaubt |
 | --- | --- |
@@ -173,6 +175,7 @@ korTTY verweigert manche Schreibzugriffe ohne Rückfrage, mit `mcp_write_refused
 
 | `data.reason` | Der Bereich |
 | --- | --- |
+| `pane_state_unknown` | korTTY kann nicht erkennen, was der Bereich tut |
 | `paste_pacing` | sendet noch ein Einfügen Zeile für Zeile |
 | `alternate_screen` | zeigt ein Vollbildprogramm wie `vim` oder `less` |
 | `foreign_session` | läuft vermutlich als anderer Benutzer oder auf einem anderen Host, nach `su` oder einem verschachtelten `ssh` |
@@ -189,7 +192,7 @@ Diese Prüfungen laufen unmittelbar vor dem Tippen des Textes erneut, sodass ein
 
 Jede Aktion der API schreibt genau eine Zeile in korTTYs Protokoll, und zwar **nur Byte-Anzahlen und Formen** – `bytes=28 bracketed=false submitted=true`, `keys=2`, `orientation=vertical` – niemals Terminaltext. Die Zeile steht in korTTYs Protokoll und nur dort – in das Sitzungsjournal eines Tabs schreibt die API nichts.
 
-Beim ersten Tippen eines Programms in einen Bereich während eines korTTY-Laufs erhalten Sie eine Desktop-Benachrichtigung. Eine, nicht eine pro Tastendruck: es geht darum, dass eine Übernahme nie unbemerkt bleibt, nicht darum, dass sie zu Lärm wird, den man wegzuklicken lernt. korTTY protokolliert außerdem eine Warnung mit dem Endpunkt, sobald der Listener startet.
+Beim ersten Mal, wenn ein Programm in einen Bereich tippt, einen Bereich teilt oder schließt, oder einen Prompt oder Tasten an einen Coding-Agenten während eines korTTY-Laufs sendet, erhalten Sie eine Desktop-Benachrichtigung mit dem Titel *Ein lokales Programm steuert dieses Fenster*. Einmal, nicht einmal pro Tastendruck: der Punkt ist, dass ein Übernahme niemals still ist, nicht dass sie zu einem Geräusch wird, das Sie lernen, abzulehnen. korTTY protokolliert außerdem eine Warnung mit dem Namen des Endpunkts, sobald der Listener startet.
 
 Aktionen, die ein Coding-Agent über die API ausführt, werden unterscheidbar von denen protokolliert, die Sie im Coding-Agents-Panel auslösen – ein Blick ins Protokoll sagt also, was was war.
 

@@ -18,9 +18,9 @@ Die Erkennung umfasst die siebzehn unten aufgeführten Agents, gestartet aus ein
 | Codex | `codex` |
 | Gemini CLI | `gemini` |
 | MiniMax Code | `mcode` (der laufende Agent benennt seinen Prozess in `minimax-code` um; korTTY liest diesen Prozessnamen, wenn `node` kein Skript meldet) |
-| Qwen Code | `qwen` |
+| Qwen-Code | `qwen`, `qwen-code` |
 | OpenCode | `opencode` |
-| Cursor Agent | `cursor-agent`, `agent` (der Launcher startet ein gebündeltes `node` auf `…/cursor-agent/versions/<version>/index.js`; korTTY erkennt diesen Installationspfad) |
+| Cursor-Agent | `cursor-agent`, und das gebundene `node`-Skript unter `…/cursor-agent/versions/<version>/index.js` (der Launcher führt es aus; korTTY erkennt diesen Installationspfad) |
 | Aider | `aider` (ein Python-Konsolenskript, auch `python -m aider`) |
 | Amp | `amp` (seine Bildschirmregeln wurden noch nicht gegen Live-Sitzungen verifiziert; Amp erscheint ab seinem ersten Arbeits- oder Genehmigungsbildschirm) |
 | Goose | `goose` (Goose-CLI von Block; das Datenbank-Migrationswerkzeug gleichen Namens wird nie gemeldet) |
@@ -29,7 +29,7 @@ Die Erkennung umfasst die siebzehn unten aufgeführten Agents, gestartet aus ein
 | Continue | `cn` (ein `node`-Skript des npm-Pakets `@continuedev/cli`) |
 | Grok CLI | `grok` als `node`-Skript (Open-Source-grok-cli von Superagent, npm-Paket `@vibe-kit/grok-cli`) |
 | Jules | `jules` (asynchroner Agent von Google: seine Sitzungen laufen in der Cloud, sodass korTTY das lokale `jules`-Dashboard überwacht, das sie auflistet; die Bildschirmregeln wurden noch nicht gegen Live-Sitzungen verifiziert) |
-| GitHub Copilot CLI | `copilot` |
+| GitHub-Copilot-CLI | `copilot` |
 | Grok Build | `grok` als natives Programm (Grok Build von xAI, installiert als `~/.grok/bin/grok` oder als die `grok-<os>-<arch>`-Binärdatei, auf die es verweist; der `agent`-Alias des Installers wird nicht erkannt; sein Berechtigungsdialog wählt *always-approve* voraus, sodass **Enter** allein jeden späteren Tool-Aufruf genehmigt — ablehnen mit **↓**, **↓**, **↓**, **Enter**) |
 
 Jeder geteilte Bereich wird einzeln verfolgt, sodass eine Registerkarte mit zwei Bereichen einen arbeitenden Agent zeigen kann, während der andere auf eine Berechtigungsentscheidung wartet. Ein Bereich, in dem kein Agent läuft oder dessen Agent beendet wurde, hat einfach kein Erkennungsergebnis.

@@ -915,7 +915,7 @@
 </table>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><strong>API Key storage:</strong> The API key is encrypted using your master password and stored securely in <code>global-settings.xml</code>. If the master password vault is locked, you will receive a warning and the key will be kept in the field until you can unlock the vault or set a master password in Settings.</p>
+<p><strong>API Key storage:</strong> The API key is encrypted using your master password and stored securely in <code>global-settings.xml</code>. If the password vault is locked, korTTY shows a warning with an <strong>Unlock Vault…</strong> button, keeps the Settings dialog open without saving, and leaves the key in the field; unlock the vault and save again.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -962,7 +962,7 @@ LibreTranslate, a regional Azure endpoint, or a proxy.</p>
 <tr>
 <td>Yandex</td>
 <td>Yandex Cloud Translate v2</td>
-<td>A Yandex Cloud <strong>service account API key</strong>, sent as <code>Api-Key</code></td>
+<td>A Yandex Cloud <strong>service account API key</strong>, sent as <code>Api-Key</code>; a value starting with <code>t1.</code> is sent as a Bearer IAM token instead</td>
 <td><code>https://translate.api.cloud.yandex.net/translate/v2</code></td>
 </tr>
 </tbody>

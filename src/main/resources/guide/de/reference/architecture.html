@@ -908,6 +908,41 @@
 <td><code>SSHClientMonitor</code>, <code>SSHClientMonitorMBean</code></td>
 </tr>
 <tr>
+<td><strong>Coding-Agents</strong></td>
+<td>Coding-Agent-Bewusstsein: erkennt Terminal-Coding-Agents in Fenstern, verfolgt ihren Status und speist das Coding-Agents-Panel sowie Benachrichtigungen</td>
+<td><code>CodingAgentDetector</code>, <code>CodingAgentMonitor</code>, <code>CodingAgentRegistry</code>, <code>CodingAgentService</code></td>
+</tr>
+<tr>
+<td><strong>Sitzungs-Isolation</strong></td>
+<td>Sitzungs-Isolationsstufen und die sandboxed lokalen Shells; SSH-Sitzungen laufen in Sitzungs-Worker-Prozessen (<code>core.worker</code>)</td>
+<td><code>IsolationLevel</code>, <code>IsolationSettings</code>, <code>SandboxBackend</code>, <code>MacSandboxBackend</code>, <code>BubblewrapSandboxBackend</code>, <code>SessionWorkerProcess</code></td>
+</tr>
+<tr>
+<td><strong>Einfügeschutz</strong></td>
+<td>Einfügeschutz: prüft eingefügten Text und entscheidet, ob er bestätigt, bereinigt oder verzögert werden soll</td>
+<td><code>PasteGuard</code>, <code>PasteInspection</code>, <code>PasteRules</code>, <code>PastePacer</code></td>
+</tr>
+<tr>
+<td><strong>policy</strong></td>
+<td>Unternehmensrichtlinien-Datei (<code>kortty-policy.toml</code>): verwaltete Einstellungen, Einschränkungen und verschlüsselte Richtlinienwerte</td>
+<td><code>PolicyManager</code>, <code>PolicyLoader</code>, <code>EffectivePolicy</code>, <code>ServerAccessPolicy</code>, <code>PolicyValueCipher</code></td>
+</tr>
+<tr>
+<td><strong>shellintegration</strong></td>
+<td>Shell-Integration (Prompt-Markierungen, Befehlsstatus, Benachrichtigungen) und pro-Pane-Aktivitätstracking</td>
+<td><code>ShellIntegrationInjection</code>, <code>ShellIntegrationWrapperDirectory</code>, <code>PromptNavigator</code>, <code>CommandBlockStore</code></td>
+</tr>
+<tr>
+<td><strong>perf</strong></td>
+<td>Optionale UI-Zeitverfolgung für Leistungsoptimierung</td>
+<td><code>PerfTrace</code></td>
+</tr>
+<tr>
+<td><strong>platform</strong></td>
+<td>Plattformunterstützung für verpackte Builds, z. B. Flatpak</td>
+<td><code>FlatpakSupport</code></td>
+</tr>
+<tr>
 <td><strong>Update</strong></td>
 <td>Versionsprüfung und Update-Benachrichtigungen</td>
 <td>Update-Dienst und Versionsmetadaten</td>
@@ -964,7 +999,7 @@
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── ssh-host-keys.properties     # Shared interactive Terminal/SFTP/Mosh host-key pins
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 </span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── kortty.log                   # Application log file
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── logs/                        # Application log (kortty.log) and its archives
 </span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── history/                     # Project screen snapshots (gzip, one per terminal tab)
 </span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── plugins/                     # Imported external terminal-effect plugin JARs
 </span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
@@ -975,15 +1010,15 @@
 <h3 id="serialisierung-und-verschlusselung">Serialisierung und Verschlüsselung<a class="headerlink" href="#serialisierung-und-verschlusselung" title="Permanent link">&para;</a></h3>
 <p><strong>JAXB Marshaling</strong> konvertiert Domänenobjekte in/aus XML mit automatischer Schemavalidierung. Zu den wichtigsten Repositories gehören:</p>
 <ul>
-<li><code>XMLConnectionRepository</code>: Verwaltet <code>Connection</code>-Objekte mit SFTP-, Jump-Server- und Tunneldetails</li>
-<li><code>CredentialRepository</code>: Speichert umgebungsspezifische Anmeldeinformationsmuster</li>
+<li><code>XMLConnectionRepository</code>: Verwaltet <code>ServerConnection</code>-Objekte mit SFTP-, Jump-Server- und Tunneldetails</li>
+<li><code>CredentialManager</code>: Speichert umgebungsspezifische Anmeldeinformationsmuster</li>
 <li><code>SSHKeyManager</code>: Umschließt importierte SSH-Schlüssel mit verschlüsselten Passphrasen</li>
-<li><code>JobSchedulerPersistence</code>: Behält <code>JobScheduleEntry</code>-Objekte und Ausführungsjournal bei</li>
+<li><code>JobSchedulerRepository</code>: Speichert <code>JobSchedule</code> Objekte und das Ausführungsjournal</li>
 </ul>
 <p><strong>AES-256-GCM-Verschlüsselung</strong> schützt vertrauliche Felder:</p>
 <ul>
 <li>Das Master-Passwort wird bei der ersten Anmeldung einmal gehasht und gespeichert als <code>master.key</code></li>
-<li>Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, die vom Hauptkennwort abgeleitet werden</li>
+<li>Alle verschlüsselten Felder verwenden AES-256-GCM mit zufälligen IVs, unter einem Schlüssel abgeleitet vom Master-Passwort</li>
 <li>SSH-Schlüsselpassphrasen, Verbindungskennwörter und Sudo-Geheimnisse werden vor der Persistenz verschlüsselt</li>
 <li>Backup-Archive können mit passwortgeschütztem ZIP oder GPG verschlüsselt werden</li>
 </ul>
@@ -1088,16 +1123,47 @@
 </thead>
 <tbody>
 <tr>
-<td><code>JobScheduler</code></td>
+<td><code>JobSchedulerService</code></td>
 <td>Hauptplanerdienst; verwaltet geplante Jobs und die Ausführungswarteschlange</td>
 </tr>
 <tr>
-<td><code>JobExecutor</code></td>
+<td><code>JobSchedulerJobRunner</code></td>
 <td>Führt einzelne Jobs aus (SSH-Befehl, Skript, KI-Agent, SFTP, Rsync)</td>
 </tr>
 <tr>
-<td><code>JobJournal</code></td>
-<td>Persistentes Prüfprotokoll mit Schwärzungsunterstützung und automatischer Bereinigung (Standard 14 Tage)</td>
+<td><code>JobJournalEntry</code></td>
+<td>Führen Sie Journal-Einträge in <code>job-scheduler.xml</code> aus, wobei Geheimnisse ausgeblendet und die konfigurierte Aufbewahrungszeit (standardmäßig 14 Tage) gelten</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sitzungsjournal">Sitzungsjournal<a class="headerlink" href="#sitzungsjournal" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th><strong>Komponente</strong></th>
+<th><strong>Verantwortung</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SessionJournalService</code></td>
+<td>Erstellt und speichert ein Journal pro Sitzung in <code>journals/</code>: das kuratierte <code>journal.xml</code> und das rotiertes Aufnahmelog</td>
+</tr>
+<tr>
+<td><code>SessionJournalExportService</code></td>
+<td>Exportiert ein Journal in seine unterstützten Formate</td>
+</tr>
+<tr>
+<td><code>SessionJournalCrossSearchService</code></td>
+<td>Durchsucht alle Journale, mit den pro Journal Suchkarten</td>
+</tr>
+<tr>
+<td><code>SessionJournalSearchCardIndex</code></td>
+<td>Speichert eine Suchkarte pro Journal in <code>search-card.json</code>, neu aufgebaut wenn sich das Journal ändert</td>
+</tr>
+<tr>
+<td><code>SessionJournalSemanticIndex</code></td>
+<td>Optionaler semantischer Suchindex im Journale-Ordner (<code>.semantic-index/</code>), erstellt mit dem lokalen Einbettungsmodell</td>
 </tr>
 </tbody>
 </table>
@@ -1116,11 +1182,11 @@
 <td>Anwendungsfenster der obersten Ebene mit Menüleiste, Registerkartenleiste, Terminalbereichen, Dashboard, SFTP-Browser</td>
 </tr>
 <tr>
-<td><code>TerminalPane</code></td>
-<td>Einzelne Terminal-Registerkarte mit Split-Panee-Unterstützung und Inline-KI-Aktivitätspanel</td>
+<td><code>TerminalTab</code></td>
+<td>Ein Terminal-Tab mit Split-Pane-Unterstützung (in <code>TerminalView</code>) und inline KI-Aktivitätspanel</td>
 </tr>
 <tr>
-<td><code>ConnectionDialog</code></td>
+<td><code>ConnectionEditDialog</code></td>
 <td>Multi-Tab-Editor für Verbindungsdetails (SSH, Tunnel, Jump-Server, Protokollierung usw.)</td>
 </tr>
 <tr>
@@ -1128,8 +1194,8 @@
 <td>Zweispaltiger Dateimanager-Tab für lokale und entfernte Dateioperationen</td>
 </tr>
 <tr>
-<td><code>SnippetEditor</code></td>
-<td>Monaco-basierter Code-Editor mit Syntaxhervorhebung, KI-Unterstützung und Mermaid-Flussdiagrammen</td>
+<td><code>SnippetEditDialog</code></td>
+<td>Snippet-Editor mit einem Monaco-Code-Editor, Syntaxhervorhebung, KI-Unterstützung und Mermaid-Flussdiagrammen</td>
 </tr>
 <tr>
 <td><code>LocalModelManagerPane</code></td>
@@ -1447,17 +1513,17 @@
 <h3 id="jobplanungsablauf">Jobplanungsablauf<a class="headerlink" href="#jobplanungsablauf" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>User creates scheduled job
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    ↓
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>JobScheduler stores in job-scheduler.xml
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>JobSchedulerService stores in job-scheduler.xml
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    ↓
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>JobExecutor runs on schedule (background thread)
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>JobSchedulerJobRunner runs on schedule (background thread)
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    ↓
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>JobJournal records output with redaction
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>JobJournalEntry records output with redaction
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    ↓
 </span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>Menu-bar status displays next runs / live countdown
 </span></code></pre></div>
 <h2 id="protokollierung-und-diagnose">Protokollierung und Diagnose<a class="headerlink" href="#protokollierung-und-diagnose" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Protokolldatei</strong>: <code>~/.kortty/kortty.log</code> (SLF4J mit Logback-Backend)</li>
+<li><strong>Protokolldatei</strong>: <code>~/.kortty/logs/kortty.log</code>, rollt täglich, mit dem Log-Verzeichnis und der Aufbewahrung unter <strong>Einstellungen → Logs</strong> (SLF4J mit Logback-Backend).</li>
 <li><strong>JMX-Überwachung</strong>: MBean <code>de.kortty:type=SSHClient</code> gibt die Live SSH- und Mosh-Terminalverbindungen (jedes geteilte Panel zählt, lokale Shells nicht), Speicher und Betriebszeit aus; <code>BufferedTextSize</code> wird nicht verfolgt und bleibt 0</li>
 <li><strong>JobScheduler-Journal</strong>: Detaillierte Ausführungsprotokolle mit konfigurierbarer Aufbewahrung (standardmäßig 14 Tage, unbegrenzt, wenn auf 0 gesetzt)</li>
 <li><strong>Projekt-Bildschirm-Snapshots</strong>: Der zuletzt sichtbare Bildschirm jedes Terminal-Tabs eines gespeicherten Projekts, gzip-komprimiert in <code>~/.kortty/history/</code> und lokal angezeigt (nie an den Server gesendet), wenn das Projekt mit Auto-Reconnect wieder geöffnet wird</li>
@@ -1489,8 +1555,8 @@
 </ol>
 <h3 id="fur-integratoren">Für Integratoren<a class="headerlink" href="#fur-integratoren" title="Permanent link">&para;</a></h3>
 <ol>
-<li><strong>JAXB-Repositorys</strong>: Erweitern Sie <code>XMLConnectionRepository</code> oder <code>CredentialRepository</code>, um benutzerdefinierte Datenquellen hinzuzufügen</li>
-<li><strong>JobScheduler-Aktionen</strong>: Neue Aktionstypen zu <code>JobExecutor</code> hinzufügen (z. B. benutzerdefinierte SFTP-Vorgänge)</li>
+<li><strong>JAXB-Repositorien</strong>: Erweitern <code>XMLConnectionRepository</code> oder fügen Sie einen Speicher neben <code>CredentialManager</code> für benutzerdefinierte Datenquellen.</li>
+<li><strong>JobScheduler-Aktionen</strong>: Neue Aktionstypen zu <code>JobSchedulerJobRunner</code> hinzufügen (z. B. benutzerdefinierte SFTP-Vorgänge)</li>
 </ol>
 <h2 id="leistungsuberlegungen">Leistungsüberlegungen<a class="headerlink" href="#leistungsuberlegungen" title="Permanent link">&para;</a></h2>
 <ul>

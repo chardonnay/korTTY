@@ -23,9 +23,9 @@ So konfigurieren Sie einen Jump-Server für eine Verbindung:
 
 1. Öffnen Sie den *Connection-Manager* und bearbeiten (oder erstellen) Sie eine Verbindung.
 2. Gehen Sie zur Registerkarte **Jump-Server**.
-3. **Jump-Server** aktivieren.
+3. Tick **Jump Server / Auto-Hop aktivieren**.
 4. Geben Sie die Details des Jump-Servers ein:
-    - **Host** – Hostname oder IP-Adresse des Jump-Servers
+    - **Jump-Server Host** — hostname or IP address of the jump server
     - **Port** – SSH-Port (Standard: 22)
     - **Benutzername** – Anmeldebenutzername für den Jump-Server
 5. Wählen Sie eine **Authentifizierungsmethode**:
@@ -41,7 +41,7 @@ Ein unvollständiges Jump-Setup (kein Benutzername, oder Schlüssel-Authentifizi
 
 ## Host-Schlüsselüberprüfung
 
-Das Host-Key des Jump-Servers wird beim ersten Einsatz genau wie jedes andere Host-System überprüft: korTTY zeigt den SHA-256-Fingerprint des Schlüssels und bittet Sie, ihn zu bestätigen, danach wird er gespeichert. Bei späteren Verbindungen wird ein geändertes Host-Key des Jump-Servers abgelehnt, genauso wie die gleiche 'Trust-on-First-Use'-Sicherheit dem Ziel-Host gewährt wird. Der Bastion wird stets streng überprüft: [Die Entspannung der Host-Key-Überprüfung](security.md#lockere-uberprufung-des-hostschlussels) gilt ausschließlich für Ziel-Hosts und wird nie für den Jump-Hop angewendet.
+Der Hostschlüssel des Jump-Servers wird beim ersten Einsatz genau wie bei jedem anderen Host überprüft: korTTY zeigt den SHA-256-Fingerabdruck des Schlüssels an und bittet Sie, ihn zu bestätigen, danach wird er festgeheftet. Bei späteren Verbindungen wird ein geänderter Jump-Server-Schlüssel abgelehnt, die gleiche Trust-on-First-Use-Schutzmaßnahme wie beim Zielhost. Wenn die Verbindung von einem Terminal-Tab oder dem SFTP-Manager aus geöffnet wurde, bietet der geänderte-Schlüssel-Alarm auch **Prüfen und ersetzen…** für den Jump-Server an, unter denselben Regeln wie für das Ziel (siehe [SSH-Hostschlüssel-Verifizierung](connections.md#ssh-hostschlusseluberprufung)). Der Bastion wird immer strikt geprüft: [Lockern der Hostschlüsselüberprüfung](security.md#lockere-uberprufung-des-hostschlussels) gilt nur für Zielhosts, niemals für den Jump-Hop.
 
 Dies gilt auch dann, wenn die Host-Key-Überprüfung für das Ziel gelockt wurde: Die pro-Verbindung, pro-Gruppe und globale Ausnahmen betreffen den Bastion nie, sodass dessen Schlüssel stets streng überprüft wird. Siehe [Entspannung der Host-Key-Überprüfung](security.md#lockere-uberprufung-des-hostschlussels).
 
@@ -54,4 +54,4 @@ Der Zielhost wird unter seinem eigenen Namen verifiziert, auch wenn der Transpor
 - Die interne Infrastruktur verwendet private Adressen und benötigt einen Vermittler für den Zugriff.
 
 !!! note
-    Jump-Server-Passwörter werden zusammen mit den Anmeldeinformationen der Verbindung verschlüsselt mit Ihrem Master-Passwort gespeichert. Da das gespeicherte Passwort nie wieder angezeigt wird, bleibt das gespeicherte Passwort erhalten, wenn Sie die Verbindung mit einem leeren Jump-Server-Passwortfeld bearbeiten. Geben Sie einen neuen Wert ein, nur um ihn zu ändern. Wenn der Master-Passwort-Tresor beim Speichern eines neuen Jump-Passworts gesperrt ist, meldet korTTY, dass das Jump-Passwort nicht gespeichert werden konnte und lässt die anderen Einstellungen unberührt.
+    Jump-Server-Passwörter werden verschlüsselt mit Ihrem Master-Passwort gespeichert, zusammen mit den eigenen Anmeldeinformationen der Verbindung. Da das gespeicherte Passwort nie wieder angezeigt wird, behält die Bearbeitung einer Verbindung mit einem leeren Jump-Server-Passwortfeld das gespeicherte Passwort bei; geben Sie einen neuen Wert ein, um es zu ändern. Wenn der Master-Passwort-Tresor gesperrt ist, wenn Sie ein neues Jump-Password speichern, bietet korTTY **Tresor entsperren…** an; bleibt der Tresor gesperrt, sagt korTTY, dass das Jump-Server-Passwort nicht gespeichert werden kann, behält das gespeicherte Passwort wie es war und speichert dennoch die anderen Einstellungen der Verbindung.

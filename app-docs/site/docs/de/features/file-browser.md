@@ -12,10 +12,10 @@ Blenden Sie die Leiste über die Menüleiste ein:
 
 | Menüpunkt | Tastenkürzel |
 |-----------|----------|
-| **Ansicht → Dateibrowser → Links anzeigen** | ++shift+cmd+b++ / ++shift+ctrl+b++ |
+| **Ansicht → Dateibrowser → Links anzeigen** | ++shift+cmd+k++ / ++shift+ctrl+k++ |
 | **Ansicht → Dateibrowser → Rechts anzeigen** | ++shift+cmd+r++ / ++shift+ctrl+r++ |
 
-Wird der Eintrag erneut ausgewählt oder der **✕**-Button in der Titelleiste des Panels gedrückt, wird das Panel ausgeblendet. Ein verschiebbarer Trenner passt die Größe an (280–900 px, standardmäßig 380 px); das Fenster behält diese Breite bei, anstatt das Panel zusammenzudrücken, wenn das Terminal Platz braucht. **Position, Breite, Einstellung „Versteckte Dateien anzeigen" und letztes Verzeichnis des Panels bleiben auch nach Neustarts erhalten.**
+Das erneute Auswählen des Elements oder der **✕**-Schaltfläche in der Titelleiste des Panels versteckt das Panel. Ein ziehbarer Trenner ändert seine Größe (280–900 px, standardmäßig 380 px). korTTY behält diese Breite bei, solange das Fenster Platz für das Panel und ein nutzbares Terminal bietet, verkleinert das Panel jedoch auf 280 px, wenn das Fenster zu schmal ist. Die **Position, Breite, Einstellung "Versteckte Dateien anzeigen" und das letzte Verzeichnis** des Panels werden über Neustarts hinweg gespeichert.
 
 ## Navigation
 
@@ -28,7 +28,7 @@ Die Liste zeigt jeweils nur einen Ordner an. **Doppelklicken** Sie auf einen Ord
 | Home | Zeigt Ihr Home-Verzeichnis |
 | Aktualisieren | Lädt den angezeigten Ordner neu und behält die Auswahl bei |
 | Neuer Ordner / Neue Datei | Erstellen Sie ein Element im angezeigten Ordner |
-| Sortieren | Wählen Sie den Sortierschlüssel (Name, Größe, Änderungsdatum) und die Richtung (Aufsteigend / Absteigend); ein Klick auf die Spaltenüberschrift **Name**, **Größe** oder **Geändert** bewirkt dasselbe, und ein zweiter Klick kehrt die Richtung um. Versteckte Einträge (Namen, die mit einem Punkt beginnen) bleiben immer oben, danach Ordner vor Dateien |
+| Sortieren | Wählen Sie den Sortierschlüssel (Name, Größe, Änderungsdatum) und die Richtung (aufsteigend / absteigend); ein Klick auf die Spaltenüberschrift **Name**, **Größe** oder **Geändert** führt dasselbe aus, ein zweiter Klick kehrt die Richtung um und ein dritter Klick bringt zurück zu **Name**, aufsteigend. Versteckte Einträge (Namen, die mit einem Punkt beginnen) bleiben immer oben, danach Ordner vor Dateien |
 | Versteckte Dateien | Punktdateien ein- oder ausblenden |
 | ✕ | Panel ausblenden |
 
@@ -57,12 +57,14 @@ Rechtsklick auf einen Eintrag öffnet das vollständige Menü:
 
 - **Öffnen** — die Datei mit der Standardanwendung des Betriebssystems öffnen oder in den gewählten Ordner wechseln.
 - **Im Snippet-Editor öffnen** – Laden Sie eine Textdatei (bis zu 10 MB) in den [Snippet-Editor](snippets.md).
-- **Umbenennen** – Inline umbenennen; Ein Namenskonflikt wird durch Anhängen von ` (2)`, ` (3)`, … gelöst.
+- **Umbenennen** — inline umbenennen; bei Namenskonflikt wird eine Zahl vor der Erweiterung angehängt, z. B. `report (2).txt`.
 - **Kopieren** / **Ausschneiden** / **Einfügen** – Verschieben oder Kopieren im Browser.
 - **Pfad kopieren** – Kopieren Sie den absoluten Pfad des Elements in die Zwischenablage.
 - **Löschen** – eine Bestätigungsaufforderung bietet **In den Papierkorb verschieben** oder **Endgültig löschen**. Das Verschieben in den Papierkorb ist rückgängig zu machen; Die dauerhafte Löschung kann nicht rückgängig gemacht werden. Auf einem System ohne Papierkorb wird nur die dauerhafte Löschung angeboten. Der Löschvorgang läuft im Hintergrund, sodass das Fenster bei einem großen Ordner nicht einfriert.
 - **Neuer Ordner** / **Neue Datei** – ein Element erstellen.
-- **Eigentümer/Gruppe/Berechtigungen festlegen** – Eigentümer und POSIX-Berechtigungen ändern (sofern das Dateisystem dies unterstützt).
+- **Versteckte Dateien anzeigen** — derselbe Schalter wie die Schaltfläche in der Titelleiste.
+- **Alles auswählen** — select every entry in the folder shown.
+- **Besitzer/Berechtigungen setzen...** — change ownership and POSIX permissions (where the filesystem supports it).
 - **Archiv** – Packen Sie die Auswahl in ein `ZIP`-, `TAR`- oder `TAR.GZ`-Archiv.
 - **Details** – Typ, Größe, Pfad, Änderungszeit und Berechtigungen anzeigen.
 

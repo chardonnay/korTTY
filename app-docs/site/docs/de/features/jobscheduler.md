@@ -8,7 +8,7 @@ Der JobScheduler führt unbeaufsichtigte Hintergrundjobs aus, während KorTTY ge
 
 Unter macOS und Windows verhindert ein aktivierter Job mit einer zukünftigen Ausführung, dass der Computer in den Systemschlaf wechselt, während korTTY ausgeführt wird, wenn **Konfiguration > Systemschlaf verhindern** aktiviert ist, sodass die geplante Zeit erreichbar bleibt. Der Scheduler verwendet einen einzigen Weckvorgang für den nächsten fälligen Lauf und verfügt über keinen Abfrage-Timer, wenn kein aktivierter zukünftiger Job vorhanden ist. Ohne Terminalverbindung, zukünftiger oder laufender Scheduler-Auftrag oder aktive KI-Anfrage bleibt der Systemschlaf auch dann verfügbar, wenn die Einstellung überprüft wird. Während ein Job ausgeführt wird, fügt macOS korTTY nicht in App Nap ein. Der Display-Ruhezustand ist nicht blockiert. Die Linux-Stromunterdrückung wird noch nicht unterstützt.
 
-Öffnen Sie es mit **Tools > JobScheduler...**. Der Dialog merkt sich seine Fensterposition und -größe. Die deutsche Benutzeroberfläche übersetzt jetzt alle Beschriftungen, Aktionsnamen, Statuswerte, Validierungsmeldungen, Zielselektoren und unterstützenden Eingabeaufforderungen. Technische Protokoll- und Formatnamen wie SFTP, Rsync, ZIP, TAR, stdout und stderr bleiben unverändert.
+Öffnen Sie es mit **Werkzeuge > JobScheduler...**. Das Dialogfenster merkt sich seine Fensterposition und -größe. Seine Auftragsliste verfügt über **Neu**, **Speichern**, **Löschen**, **Jetzt ausführen** und **Webhook-Ziele...** Schaltflächen sowie das Kontrollkästchen **Jobs-Anzeige in der Menüleiste anzeigen**; **Jetzt ausführen** speichert den ausgewählten Auftrag und startet ihn sofort. Die deutsche Oberfläche übersetzt jetzt alle Beschriftungen, Aktionsnamen, Statuswerte, Validierungsnachrichten, Zielauswahlen und unterstützende Eingabeaufforderungen; technische Protokoll- und Formatnamen wie SFTP, Rsync, ZIP, TAR, stdout und stderr bleiben unverändert.
 
 
 ![JobScheduler execution](../assets/diagrams/jobscheduler-execution.svg)
@@ -109,6 +109,23 @@ Verwenden Sie die Registerkarte **Aktion**, um auszuwählen, was der Job tun sol
 | **SFTP_ARCHIVE** | Erstellen Sie ein Remote-Archiv. |
 | **RSYNC_SYNC** | Synchronisieren Sie ein oder mehrere Verzeichnisse über externes `rsync` über SSH. |
 
+Jede Aktion zeigt nur diese Felder neben dem **Aktion**-Auswahlfeld. Das **Sudo**-Feld ist ein Kontrollkästchen mit der Bezeichnung **Sudo verwenden**:
+
+| Aktion | Felder |
+|--------|--------|
+| **COMMAND** | Befehl, Virtuelles Terminal, Sudo |
+| **Snippet-Skript** | Snippet-Suche, Snippet-Skript, Snippet-Parameter, Virtuelles Terminal, Sudo |
+| **AI_AGENT** | KI-Profil, KI-Eingabeaufforderung, KI-Agent kann den Server ohne Laufzeitbestätigung ändern, Sudo |
+| **AI_SWARM** | KI-Profil, KI-Eingabeaufforderung, KI-Agent kann den Server ohne Laufzeitbestätigung ändern, Schwarmparallelität, Schwarm schreibgeschützt |
+| **SFTP_UPLOAD**, **SFTP_DOWNLOAD** | Lokaler Pfad, Fernpfad, Sudo verwenden, und SFTP-Sudo-Staging, während Sudo verwenden aktiviert ist |
+| **SFTP_SYNC** | Lokaler Pfad, Fernpfad, Synchronisierungsrichtung, Sudo verwenden, und SFTP-Sudo-Staging während Sudo verwenden ist aktiviert |
+| **SFTP_DELETE**, **SFTP_MKDIR** | Fernpfad, Sudo |
+| **SFTP_RENAME**, **SFTP_COPY_REMOTE** | Remote-Quelle, Remote-Ziel, Sudo |
+| **SFTP_CHMOD** | Fernpfad, Berechtigungen, Sudo |
+| **SFTP_CHOWN** | Fernpfad, Owner, Group, Sudo |
+| **SFTP_ARCHIVE** | Archivquellen, Archiv-Ausschlussmuster, Archivpfad, Archivformat, Archivpasswort (nur passwortgeschützte ZIP), Kompression (nicht für TAR), Archiv-Download, Archiv-Downloadpfad (während Archiv-Download aktiviert ist), Sudo |
+| **RSYNC_SYNC** | Rsync-Richtung, Rsync-Quellen, Rsync-Zielstammverzeichnis, Fehlende Dateien löschen |
+
 Pfadfelder bieten eine lokale Finder-/Explorer-Auswahl, wenn der Pfad lokal ist, und das Durchsuchen von Remote-Verzeichnissen, wenn der Pfad remote ist. Remote-Browsing erfordert eine ausgewählte Ziel- und Hostschlüsselüberprüfung, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.
 
 #### Virtuelles Terminal und Screenshots
@@ -150,9 +167,11 @@ Der schnellste Weg, einen KI-Swarm-Job zu erstellen, ist der **Schedule…** But
 
 #### SFTP-Archivierungsjobs
 
-SFTP-Archivierungsjobs unterstützen ZIP, passwortgeschütztes ZIP, TAR und TAR.BZ2. Archivquellen und Ausschlussmuster akzeptieren einen Pfad oder ein Muster pro Zeile. Das Archiv kann optional nach der Erstellung heruntergeladen werden.
+SFTP-Archivjobs unterstützen ZIP, passwortgeschützte ZIP, TAR und TAR.BZ2. Archivquellen und Ausschlussmuster akzeptieren je Zeile einen Pfad oder ein Muster. Mit **Archiv-Download** aktiviert wird das Archiv nach seiner Erstellung in den **Archiv-Downloadpfad** heruntergeladen. Mit **Sudo** aktiviert werden die Archivbefehle über `sudo` ausgeführt.
 
-Wenn **Sudo-Staging für SFTP-Pfade verwenden** aktiviert ist, stellt KorTTY Dateien an einem temporären Speicherort bereit und verwendet Sudo-unterstützte Remote-Befehle wie `mv`, `cp`, `tar`, `chmod` und `chown`, wenn erhöhte Rechte erforderlich sind. Bereinigungsfehler werden in das Journal geschrieben.
+#### SFTP Sudo Staging
+
+Mit **Sudo verwenden** und **Sudo-Staging für SFTP-Pfade verwenden** aktiviert, stagiert ein Upload, Download oder Sync seine Dateien an einem temporären Ort und verschiebt sie mit sudo an den endgültigen Speicherort (`mv` für einen Upload, `cp` für einen Download). Fehler beim Aufräumen werden im Journal protokolliert.
 
 ## Rsync-Jobs
 
@@ -196,7 +215,7 @@ Erfolgreiche Läufe und Erholungen (ein erfolgreicher Lauf direkt nach einem feh
 
 ### Festlegen, wann ein Job benachrichtigt
 
-Jeder Job hat auf seinem Tab **Job** einen Abschnitt **Benachrichtigungen**, direkt über dem Abschnitt zum Sitzungsjournal. Kreuzen Sie die Laufergebnisse an, die benachrichtigen sollen: **fehlschlägt** und **blockiert wird** sind für jeden Job eingeschaltet, **sich erholt (nach einem Fehler erfolgreich ist)** und **erfolgreich ist** bleiben aus, bis Sie sie ankreuzen. **Desktop-Benachrichtigung anzeigen** schaltet die Desktop-Benachrichtigung für diesen Job ab, zum Beispiel für einen Job, der nur an einen Team-Kanal berichtet. Darunter kreuzen Sie die Webhook-Ziele an, an die dieser Job sendet; kein Job sendet an einen Webhook, bevor Sie eines ankreuzen. Der Abschnitt warnt, wenn nichts angekreuzt ist oder wenn die Unternehmensrichtlinie die angekreuzten Webhooks blockiert. Klicken Sie auf **Speichern**, um die Änderungen zu übernehmen.
+Jeder Job hat einen **Benachrichtigungen**-Abschnitt auf seinem **Job**-Tab, direkt über dem Sitzungsjournal. Unter **Benachrichtigen, wenn ein Lauf:** markieren Sie die Laufresultate, die Benachrichtigungen auslösen: **fehlschlägt** und **blockiert wird** sind für jeden Job aktiviert, **sich erholt (nach einem Fehler erfolgreich ist)** und **erfolgreich ist** sind deaktiviert, bis Sie sie aktivieren. **Desktop-Benachrichtigung anzeigen** schaltet die Desktop-Benachrichtigung für diesen Job aus, z. B. für einen Job, der nur an einen Team-Channel berichtet. Darunter, unter **An diese Webhook-Ziele senden:** markieren Sie die Webhooks, an die dieser Job sendet; kein Job sendet an einen Webhook, bis Sie eines aktivieren. Der Abschnitt warnt, wenn nichts aktiviert ist oder wenn die Unternehmensrichtlinie die ausgewählten Webhooks blockiert. Klicken Sie auf **Speichern**, um die Änderungen zu übernehmen.
 
 ### Webhook-Ziele
 

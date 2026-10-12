@@ -42,10 +42,10 @@ In **Tools > Video Manager**, set these options:
 | Option | Description |
 |--------|-------------|
 | **Storage path** | Directory where replay files are saved (default: `~/.kortty/recordings`) |
-| **Default scope** | Record active split only or entire tab |
-| **Auto-pause on idle** | Pause recording when terminal is inactive |
-| **Idle threshold** | Seconds of inactivity before pause (default: 20) |
-| **Capture colors** | Include per-cell terminal style runs in new recordings |
+| **Default scope** | Record the active split only, or the whole tab |
+| **Auto-pause when the terminal is idle** | Pause recording when terminal is inactive |
+| **Idle threshold (seconds)** | Seconds of inactivity before pause (default: 20) |
+| **Capture terminal colors in new recordings** | Include per-cell terminal style runs in new recordings |
 | **ffmpeg path** | Path to local `ffmpeg` binary for video export |
 
 !!! tip
@@ -71,9 +71,11 @@ On macOS and Linux, if `ffmpeg` is in your PATH, KorTTY auto-detects it. On Wind
    - Press ++ctrl+shift+e++ (++cmd+shift+e++ on macOS)
 3. If the tab contains split terminals, choose:
    - **Active split** — record only the focused terminal pane
-   - **Entire tab** — record all visible splits
+   - **Whole tab** — record all visible splits
 
 The terminal bar control is hidden until recording is enabled or the menu item/shortcut is used.
+
+An [incognito session](session-isolation.md#incognito-sessions) is never recorded: starting a recording in one shows the message *Incognito sessions are not recorded.* instead.
 
 ### Stop recording
 
@@ -157,5 +159,5 @@ Each screen event includes terminal content, dimensions, and optional color styl
 - **Large terminal windows**: Terminal geometry is recorded, so wide screens export correctly without cropping
 - **Color accuracy**: Enable color capture before recording if you plan to export video with terminal colors
 - **Idle pause**: Auto-pause helps reduce file size during long idle periods; enable it unless you need to preserve exact timing
-- **Split-scope selection**: Choose your recording scope (active split vs. entire tab) each time you start recording to match your workflow
+- **Split-scope selection**: Choose your recording scope (active split vs. whole tab) each time you start recording to match your workflow
 - **Legacy files**: Old `.korttyrec.jsonl` (uncompressed) replay files are still readable in the Video Manager

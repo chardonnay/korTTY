@@ -120,6 +120,8 @@ Once a source is synced:
 
 The [command palette](command-palette.md#connecting) lists the teamwork connections as well, marked **Shared (Teamwork)**, so you can also connect by typing `@` and part of a name.
 
+A shared connection can also carry the terminal settings the file gives it, such as its [tab color](connections.md#tab-color) and [paste protection](connections.md#paste-protection). Its own session isolation can only make its sessions stricter than your folder or Settings, as described under [Choosing a level](session-isolation.md#choosing-a-level).
+
 Deleting a teamwork connection only hides it on this computer, also in the command palette; the source is not changed. In the Connection Manager's button column, **Restore deleted** brings hidden connections back and **Refresh** reloads the list from the last sync without fetching the source again.
 
 ### Local overrides

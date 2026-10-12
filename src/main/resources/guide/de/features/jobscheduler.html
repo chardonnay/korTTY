@@ -816,7 +816,7 @@
         <p><h1 id="jobscheduler">JobScheduler<a class="headerlink" href="#jobscheduler" title="Permanent link">&para;</a></h1>
 <p>Der JobScheduler führt unbeaufsichtigte Hintergrundjobs aus, während KorTTY geöffnet ist. Es ist kein Betriebssystemdienst oder eine aktive SSH-Terminalregisterkarte erforderlich. Jobs werden automatisch nach einem konfigurierten Zeitplan mithilfe gespeicherter SSH-Verbindungen aus dem Connection-Manager ausgeführt.</p>
 <p>Unter macOS und Windows verhindert ein aktivierter Job mit einer zukünftigen Ausführung, dass der Computer in den Systemschlaf wechselt, während korTTY ausgeführt wird, wenn <strong>Konfiguration &gt; Systemschlaf verhindern</strong> aktiviert ist, sodass die geplante Zeit erreichbar bleibt. Der Scheduler verwendet einen einzigen Weckvorgang für den nächsten fälligen Lauf und verfügt über keinen Abfrage-Timer, wenn kein aktivierter zukünftiger Job vorhanden ist. Ohne Terminalverbindung, zukünftiger oder laufender Scheduler-Auftrag oder aktive KI-Anfrage bleibt der Systemschlaf auch dann verfügbar, wenn die Einstellung überprüft wird. Während ein Job ausgeführt wird, fügt macOS korTTY nicht in App Nap ein. Der Display-Ruhezustand ist nicht blockiert. Die Linux-Stromunterdrückung wird noch nicht unterstützt.</p>
-<p>Öffnen Sie es mit <strong>Tools &gt; JobScheduler...</strong>. Der Dialog merkt sich seine Fensterposition und -größe. Die deutsche Benutzeroberfläche übersetzt jetzt alle Beschriftungen, Aktionsnamen, Statuswerte, Validierungsmeldungen, Zielselektoren und unterstützenden Eingabeaufforderungen. Technische Protokoll- und Formatnamen wie SFTP, Rsync, ZIP, TAR, stdout und stderr bleiben unverändert.</p>
+<p>Öffnen Sie es mit <strong>Werkzeuge &gt; JobScheduler...</strong>. Das Dialogfenster merkt sich seine Fensterposition und -größe. Seine Auftragsliste verfügt über <strong>Neu</strong>, <strong>Speichern</strong>, <strong>Löschen</strong>, <strong>Jetzt ausführen</strong> und <strong>Webhook-Ziele...</strong> Schaltflächen sowie das Kontrollkästchen <strong>Jobs-Anzeige in der Menüleiste anzeigen</strong>; <strong>Jetzt ausführen</strong> speichert den ausgewählten Auftrag und startet ihn sofort. Die deutsche Oberfläche übersetzt jetzt alle Beschriftungen, Aktionsnamen, Statuswerte, Validierungsnachrichten, Zielauswahlen und unterstützende Eingabeaufforderungen; technische Protokoll- und Formatnamen wie SFTP, Rsync, ZIP, TAR, stdout und stderr bleiben unverändert.</p>
 <p><img alt="JobScheduler execution" src="../assets/diagrams/jobscheduler-execution.svg" /></p>
 <h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
 <p>JobScheduler unterstützt sechs Arten von Aktionen:</p>
@@ -1020,6 +1020,65 @@
 </tr>
 </tbody>
 </table>
+<p>Jede Aktion zeigt nur diese Felder neben dem <strong>Aktion</strong>-Auswahlfeld. Das <strong>Sudo</strong>-Feld ist ein Kontrollkästchen mit der Bezeichnung <strong>Sudo verwenden</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Aktion</th>
+<th>Felder</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>COMMAND</strong></td>
+<td>Befehl, Virtuelles Terminal, Sudo</td>
+</tr>
+<tr>
+<td><strong>Snippet-Skript</strong></td>
+<td>Snippet-Suche, Snippet-Skript, Snippet-Parameter, Virtuelles Terminal, Sudo</td>
+</tr>
+<tr>
+<td><strong>AI_AGENT</strong></td>
+<td>KI-Profil, KI-Eingabeaufforderung, KI-Agent kann den Server ohne Laufzeitbestätigung ändern, Sudo</td>
+</tr>
+<tr>
+<td><strong>AI_SWARM</strong></td>
+<td>KI-Profil, KI-Eingabeaufforderung, KI-Agent kann den Server ohne Laufzeitbestätigung ändern, Schwarmparallelität, Schwarm schreibgeschützt</td>
+</tr>
+<tr>
+<td><strong>SFTP_UPLOAD</strong>, <strong>SFTP_DOWNLOAD</strong></td>
+<td>Lokaler Pfad, Fernpfad, Sudo verwenden, und SFTP-Sudo-Staging, während Sudo verwenden aktiviert ist</td>
+</tr>
+<tr>
+<td><strong>SFTP_SYNC</strong></td>
+<td>Lokaler Pfad, Fernpfad, Synchronisierungsrichtung, Sudo verwenden, und SFTP-Sudo-Staging während Sudo verwenden ist aktiviert</td>
+</tr>
+<tr>
+<td><strong>SFTP_DELETE</strong>, <strong>SFTP_MKDIR</strong></td>
+<td>Fernpfad, Sudo</td>
+</tr>
+<tr>
+<td><strong>SFTP_RENAME</strong>, <strong>SFTP_COPY_REMOTE</strong></td>
+<td>Remote-Quelle, Remote-Ziel, Sudo</td>
+</tr>
+<tr>
+<td><strong>SFTP_CHMOD</strong></td>
+<td>Fernpfad, Berechtigungen, Sudo</td>
+</tr>
+<tr>
+<td><strong>SFTP_CHOWN</strong></td>
+<td>Fernpfad, Owner, Group, Sudo</td>
+</tr>
+<tr>
+<td><strong>SFTP_ARCHIVE</strong></td>
+<td>Archivquellen, Archiv-Ausschlussmuster, Archivpfad, Archivformat, Archivpasswort (nur passwortgeschützte ZIP), Kompression (nicht für TAR), Archiv-Download, Archiv-Downloadpfad (während Archiv-Download aktiviert ist), Sudo</td>
+</tr>
+<tr>
+<td><strong>RSYNC_SYNC</strong></td>
+<td>Rsync-Richtung, Rsync-Quellen, Rsync-Zielstammverzeichnis, Fehlende Dateien löschen</td>
+</tr>
+</tbody>
+</table>
 <p>Pfadfelder bieten eine lokale Finder-/Explorer-Auswahl, wenn der Pfad lokal ist, und das Durchsuchen von Remote-Verzeichnissen, wenn der Pfad remote ist. Remote-Browsing erfordert eine ausgewählte Ziel- und Hostschlüsselüberprüfung, es sei denn, der Job deaktiviert die Hostschlüsselüberprüfung ausdrücklich.</p>
 <h4 id="virtuelles-terminal-und-screenshots">Virtuelles Terminal und Screenshots<a class="headerlink" href="#virtuelles-terminal-und-screenshots" title="Permanent link">&para;</a></h4>
 <p><strong>Befehl</strong> und <strong>Snippet-Skript</strong> Aktionen können in einem unsichtbaren <strong>virtuellen Terminal</strong> ausgeführt werden: der Befehl erhält auf dem Server ein Pseudo-Terminal, korTTY interpretiert dessen Ausgabe lokal mit demselben Terminal-Emulator, den ein Terminal-Tab verwendet, und Screenshots dieses Bildschirms werden dem <a href="#sitzungsjournal-pro-ausfuhrung">Sitzungsjournal</a> hinzugefügt. Kein Fenster öffnet sich und kein Terminal, in dem Sie arbeiten, wird berührt, sodass Fortschrittsbalken, <code>top</code> oder KI-Codierungswerkzeuge im nicht-interaktiven Modus (zum Beispiel <code>claude -p …</code> oder <code>codex exec …</code>) im Journal sichtbar werden.</p>
@@ -1087,8 +1146,9 @@
 <p>Ein geplanter Schwarm, bei dem <strong>Schwarm schreibgeschützt</strong> deaktiviert und <strong>Der KI-Agent kann den Server ohne Laufzeitbestätigung ändern</strong> aktiviert ist, verändert Systeme unbeaufsichtigt. Testen Sie die Eingabeaufforderung interaktiv auf der Registerkarte „AI Swarm“, bevor Sie einen solchen Job aktivieren.</p>
 </div>
 <h4 id="sftp-archivierungsjobs">SFTP-Archivierungsjobs<a class="headerlink" href="#sftp-archivierungsjobs" title="Permanent link">&para;</a></h4>
-<p>SFTP-Archivierungsjobs unterstützen ZIP, passwortgeschütztes ZIP, TAR und TAR.BZ2. Archivquellen und Ausschlussmuster akzeptieren einen Pfad oder ein Muster pro Zeile. Das Archiv kann optional nach der Erstellung heruntergeladen werden.</p>
-<p>Wenn <strong>Sudo-Staging für SFTP-Pfade verwenden</strong> aktiviert ist, stellt KorTTY Dateien an einem temporären Speicherort bereit und verwendet Sudo-unterstützte Remote-Befehle wie <code>mv</code>, <code>cp</code>, <code>tar</code>, <code>chmod</code> und <code>chown</code>, wenn erhöhte Rechte erforderlich sind. Bereinigungsfehler werden in das Journal geschrieben.</p>
+<p>SFTP-Archivjobs unterstützen ZIP, passwortgeschützte ZIP, TAR und TAR.BZ2. Archivquellen und Ausschlussmuster akzeptieren je Zeile einen Pfad oder ein Muster. Mit <strong>Archiv-Download</strong> aktiviert wird das Archiv nach seiner Erstellung in den <strong>Archiv-Downloadpfad</strong> heruntergeladen. Mit <strong>Sudo</strong> aktiviert werden die Archivbefehle über <code>sudo</code> ausgeführt.</p>
+<h4 id="sftp-sudo-staging">SFTP Sudo Staging<a class="headerlink" href="#sftp-sudo-staging" title="Permanent link">&para;</a></h4>
+<p>Mit <strong>Sudo verwenden</strong> und <strong>Sudo-Staging für SFTP-Pfade verwenden</strong> aktiviert, stagiert ein Upload, Download oder Sync seine Dateien an einem temporären Ort und verschiebt sie mit sudo an den endgültigen Speicherort (<code>mv</code> für einen Upload, <code>cp</code> für einen Download). Fehler beim Aufräumen werden im Journal protokolliert.</p>
 <h2 id="rsync-jobs">Rsync-Jobs<a class="headerlink" href="#rsync-jobs" title="Permanent link">&para;</a></h2>
 <p><code>RSYNC_SYNC</code> unterstützt den Upload und Download zwischen dem lokalen Dateisystem und gespeicherten SSH-TCP-Verbindungen.</p>
 <ul>
@@ -1118,7 +1178,7 @@
 <p>Wenn ein Joblauf fehlschlägt oder blockiert wird, zeigt korTTY eine Desktop-Benachrichtigung an, auch wenn das JobScheduler-Fenster geschlossen ist. Die Benachrichtigung trägt den Titel <em>korTTY · Job</em>, gefolgt vom Namen des Jobs, und ihr Text nennt nur, wie der Lauf endete, seinen Exit-Code, falls es einen gab, und ob er manuell oder durch seinen Zeitplan gestartet wurde, zum Beispiel <em>Fehlgeschlagen · Exit-Code 2 · Geplanter Lauf</em>. Sie enthält niemals die Ausgabe, die Details oder die Zusammenfassung des Laufs, weil diese Server, Pfade oder Geheimnisse nennen können und eine Benachrichtigung auf dem Sperrbildschirm erscheinen kann. Steuerzeichen und unsichtbare Zeichen, die die Schreibrichtung ändern, werden aus dem Jobnamen entfernt.</p>
 <p>Erfolgreiche Läufe und Erholungen (ein erfolgreicher Lauf direkt nach einem fehlgeschlagenen oder blockierten) benachrichtigen standardmäßig nicht, abgebrochene Läufe nie. Ein Job zeigt höchstens eine Benachrichtigung pro Minute, sodass ein Job, der jede Minute fehlschlägt, den Desktop nicht überflutet; sein Journal hält trotzdem jeden Lauf fest. Benachrichtigungen nutzen denselben Desktop-Benachrichtigungsdienst wie das Terminal; bietet das Betriebssystem keinen an, wird nichts angezeigt.</p>
 <h3 id="festlegen-wann-ein-job-benachrichtigt">Festlegen, wann ein Job benachrichtigt<a class="headerlink" href="#festlegen-wann-ein-job-benachrichtigt" title="Permanent link">&para;</a></h3>
-<p>Jeder Job hat auf seinem Tab <strong>Job</strong> einen Abschnitt <strong>Benachrichtigungen</strong>, direkt über dem Abschnitt zum Sitzungsjournal. Kreuzen Sie die Laufergebnisse an, die benachrichtigen sollen: <strong>fehlschlägt</strong> und <strong>blockiert wird</strong> sind für jeden Job eingeschaltet, <strong>sich erholt (nach einem Fehler erfolgreich ist)</strong> und <strong>erfolgreich ist</strong> bleiben aus, bis Sie sie ankreuzen. <strong>Desktop-Benachrichtigung anzeigen</strong> schaltet die Desktop-Benachrichtigung für diesen Job ab, zum Beispiel für einen Job, der nur an einen Team-Kanal berichtet. Darunter kreuzen Sie die Webhook-Ziele an, an die dieser Job sendet; kein Job sendet an einen Webhook, bevor Sie eines ankreuzen. Der Abschnitt warnt, wenn nichts angekreuzt ist oder wenn die Unternehmensrichtlinie die angekreuzten Webhooks blockiert. Klicken Sie auf <strong>Speichern</strong>, um die Änderungen zu übernehmen.</p>
+<p>Jeder Job hat einen <strong>Benachrichtigungen</strong>-Abschnitt auf seinem <strong>Job</strong>-Tab, direkt über dem Sitzungsjournal. Unter <strong>Benachrichtigen, wenn ein Lauf:</strong> markieren Sie die Laufresultate, die Benachrichtigungen auslösen: <strong>fehlschlägt</strong> und <strong>blockiert wird</strong> sind für jeden Job aktiviert, <strong>sich erholt (nach einem Fehler erfolgreich ist)</strong> und <strong>erfolgreich ist</strong> sind deaktiviert, bis Sie sie aktivieren. <strong>Desktop-Benachrichtigung anzeigen</strong> schaltet die Desktop-Benachrichtigung für diesen Job aus, z. B. für einen Job, der nur an einen Team-Channel berichtet. Darunter, unter <strong>An diese Webhook-Ziele senden:</strong> markieren Sie die Webhooks, an die dieser Job sendet; kein Job sendet an einen Webhook, bis Sie eines aktivieren. Der Abschnitt warnt, wenn nichts aktiviert ist oder wenn die Unternehmensrichtlinie die ausgewählten Webhooks blockiert. Klicken Sie auf <strong>Speichern</strong>, um die Änderungen zu übernehmen.</p>
 <h3 id="webhook-ziele">Webhook-Ziele<a class="headerlink" href="#webhook-ziele" title="Permanent link">&para;</a></h3>
 <p>Ein Webhook-Ziel ist ein Empfänger, der für jeden passenden Lauf eine Nachricht erhält, auch wenn korTTY im Hintergrund läuft: ein Slack-Kanal, ein Microsoft-Teams-Kanal oder ein beliebiger Dienst, der JSON über HTTPS annimmt. Klicken Sie in der Jobliste oder im Abschnitt <strong>Benachrichtigungen</strong> auf <strong>Webhook-Ziele...</strong>, um Ziele hinzuzufügen, zu bearbeiten oder zu löschen. Jedes Ziel hat einen <strong>Name</strong>, ein <strong>Format</strong> und eine <strong>URL</strong>:</p>
 <table>

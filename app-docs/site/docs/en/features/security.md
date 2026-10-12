@@ -29,14 +29,14 @@ Every secret is encrypted with the master password it was saved under. Importing
 On subsequent launches, KorTTY prompts you to enter the master password to unlock encrypted data. Turning off **Require master password on startup** in **Settings > Security** hides this prompt and starts with the vault locked: stored passwords and keys stay unavailable until you unlock it (see [Unlocking the vault later](#unlocking-the-vault-later)).
 
 !!! danger "Optional auto-login weakens at-rest protection"
-    The second Security option, **Disable master password prompt on startup (auto-login)**, also removes the prompt but keeps the vault fully usable: korTTY writes your master password to `~/.kortty/master.autounlock` — **obfuscated only, not encrypted**, with owner-only file permissions — and unlocks automatically on every start. The obfuscation key is embedded in the application, so file permissions are the only real boundary; anyone who can read `~/.kortty` or a backup can decrypt all saved secrets. On a brand-new profile the option bootstraps a default master password with no dialog at all. korTTY asks for confirmation before enabling it, it is meant for throwaway/test environments, and a [policy configuration](../reference/enterprise-policy.md) that requires a master password disables it. Details: [Security settings](../reference/settings/security.md).
+    The second Security option, **Disable master password prompt on startup (auto-login)**, also removes the prompt but keeps the vault fully usable: korTTY writes your master password to `~/.kortty/master.autounlock` — **encrypted with AES-256-GCM, but with a key built into korTTY** (so effectively obfuscated, not secret), with owner-only file permissions — and unlocks automatically on every start. Anyone with the korTTY binary can recover that key, so file permissions are the only real boundary; anyone who can read `~/.kortty` or a backup can decrypt all saved secrets. On a brand-new profile the option bootstraps a default master password with no dialog at all. korTTY asks for confirmation before enabling it, it is meant for throwaway/test environments, and a [policy configuration](../reference/enterprise-policy.md) that requires a master password disables it. Details: [Security settings](../reference/settings/security.md).
 
 !!! note
     If you lose the master password, encrypted data cannot be recovered. Delete `master.key` and `credentials.xml`, restart, set a new master password, and re-enter your passwords.
 
 ### Unlocking the vault later
 
-With the vault locked, choose **Configuration > Security > Unlock Vault…** and enter the master password; the menu item is greyed out while the vault is open. Saving an AI or translation API key, a Hugging Face token, a jump server password or a Job Scheduler password, starting an AI Swarm run on servers without an open terminal, asking the guide a question and generating a single- or multi-server workflow script with an encrypted AI key show their "vault locked" message with an **Unlock Vault…** button instead of a dead end. Connecting a saved connection whose password is stored in the vault, with **Connect** in the Connection Manager, a tab's **Duplicate** or **Reopen Closed Tab**, offers **Unlock Vault…** as well; if you do not unlock the vault there, korTTY asks you to type the password instead (see [Signing in](connections.md#signing-in)). Opening a project while the vault is locked lists the tabs whose password is in the vault in the window's restore bar; unlocking the vault, with its **Unlock Vault…** or any other way, opens them in every window (see [Tabs that wait for you](projects.md#tabs-that-wait-for-you)). Some places still only report the locked vault, for example an AI chat request or a key passphrase in the connection editor; unlock the vault from the menu first. After a successful unlock the action continues; **Cancel** leaves the vault locked without a second error. A wrong password keeps the dialog open, and cancelling it never quits korTTY.
+With the vault locked, choose **Configuration > Security > Unlock Vault…** and enter the master password; the menu item is greyed out while the vault is open. Saving an AI or translation API key, a Hugging Face token, the token of an external AI skill provider, a jump server password, a Job Scheduler password or a job notification webhook URL, starting an AI Swarm run on servers without an open terminal, asking the guide a question and generating a single- or multi-server workflow script with an encrypted AI key show their "vault locked" message with an **Unlock Vault…** button instead of a dead end. Connecting a saved connection whose password is stored in the vault, with **Connect** in the Connection Manager, a tab's **Duplicate** or **Reopen Closed Tab**, offers **Unlock Vault…** as well; if you do not unlock the vault there, korTTY asks you to type the password instead (see [Signing in](connections.md#signing-in)). Opening a project while the vault is locked lists the tabs whose password is in the vault in the window's restore bar; unlocking the vault, with its **Unlock Vault…** or any other way, opens them in every window (see [Tabs that wait for you](projects.md#tabs-that-wait-for-you)). Some places still only report the locked vault, for example an AI chat request or a key passphrase in the connection editor; unlock the vault from the menu first. After a successful unlock the action continues; **Cancel** leaves the vault locked without a second error. A wrong password keeps the dialog open, and cancelling it never quits korTTY.
 
 Unlocking also restores the temporary SSH keys that could not be decrypted at the locked start; until then they stay stored encrypted, so saving connections in the meantime does not lose them. Windows that were already open while the vault was locked, such as the Connection Manager or the credential and key managers, do not pick up the unlock — reopen them to use stored secrets there.
 
@@ -218,9 +218,9 @@ The following sensitive and security-related data is stored in `~/.kortty/`; sec
 |------|----------|------------|
 | `credentials.xml` | Stored username/password credentials | AES-256-GCM |
 | `ssh-keys.xml` | SSH key paths and encrypted passphrases | AES-256-GCM |
-| `connections.xml` | Connection passwords (inline) and key passphrases (if not using SSH key management) | AES-256-GCM |
+| `connections.xml` | Connection passwords (inline), jump server passwords and key passphrases (if not using SSH key management) | AES-256-GCM |
 | `ssh-host-keys.properties` | Trusted public host keys for interactive Terminal, SFTP, and Mosh bootstrap connections | Public verification data; not encrypted |
-| `job-scheduler.xml` | Scheduler sudo passwords and archive passwords; journal entries redact KorTTY-managed secrets | AES-256-GCM |
+| `job-scheduler.xml` | Scheduler sudo passwords, archive passwords and the URLs of notification webhooks; journal entries redact KorTTY-managed secrets | AES-256-GCM |
 | `master.key` | Master password hash (PBKDF2, 310,000 iterations) and salt | PBKDF2 hash only |
 | `master.autounlock` | Remembered master password for the optional auto-login | Obfuscated only — not encrypted; owner-only file permissions |
 | `global-settings.xml` | AI profile API keys, translation API keys, optional Hugging Face token | AES-256-GCM |
@@ -265,6 +265,7 @@ A data file with connections, credentials, SSH or GPG keys, environments, themes
 
 - API keys for AI endpoints are encrypted with your master password.
 - The optional Hugging Face token is encrypted with the master password and is used only for approved model search/download requests to the trusted Hugging Face host.
+- The secret of an external AI-skill provider, such as the token for a skill source, is encrypted with the master password as well; a provider that needs its secret asks for the vault only when it is used or saved.
 - Each integrated `llama-server` binds only to `127.0.0.1` on a random port and requires a generated local API key. Offline mode is mandatory; web UI, agent, UI MCP proxy, slot endpoint, and inherited server-option overrides are disabled.
 - GGUF downloads require an immutable repository revision and exact SHA-256 metadata. Runtime indexes require an Ed25519 signature, and every runtime ZIP is checked against its signed size and SHA-256 before safe extraction. Official application builds embed only the public runtime-channel trust root; a missing or invalid key fails closed before any update request, while the signing private key remains isolated in the human-dispatched promotion workflow.
 - Signed runtime withdrawals are durable and fail closed. A verified index adds withdrawn runtime and installation IDs to `llm/runtime/revoked-v1`, marks each installed package, clears a matching active pointer, stops its sidecars, removes it from healthy rollback history, and quarantines affected model bindings. The installer and process launcher both reject those packages, including after an interrupted update. Notification-only checks enforce a withdrawal without silently installing the offered replacement; **Off** makes no index request and therefore learns no new withdrawal until an explicit or enabled check.
@@ -291,7 +292,7 @@ A data file with connections, credentials, SSH or GPG keys, environments, themes
 | Model/prompt catalog | Independent Ed25519 trust root, strict schema, monotonic anti-replay sequence, reverified atomic cache, protected human promotion, bootstrap fallback |
 | RAG source ingestion | Central allowlist, UTF-8/PDF content checks, no symlink traversal, reviewed preview |
 | RAG prompt context | Fixed retrieval limits, stable source markers, explicitly untrusted wrapper, explicit profile-based local/cloud disclosure |
-| Optional auto-login | Master password stored obfuscated in `master.autounlock` with owner-only permissions; off by default, confirmation required, blocked by a policy that requires a master password |
+| Optional auto-login | Master password stored in `master.autounlock`, AES-256-GCM with a key built into korTTY (obfuscation, not secrecy), owner-only permissions; off by default, confirmation required, blocked by a policy that requires a master password |
 | Backup Encryption | AES-256 password-protected ZIP or GPG-encrypted (legacy ZIP-encrypted backups remain importable) |
 | JobScheduler Secrets | Sudo and archive passwords encrypted; journal redaction enabled by default |
 | JobScheduler Host Keys | Host-key pinning required by default for unattended SSH/SFTP/Rsync jobs |
@@ -306,7 +307,7 @@ To change your master password (which re-encrypts all stored secrets with a new 
 2. Click **Change Master Password**.
 3. Enter your current (old) master password.
 4. Enter the new master password twice.
-5. Every master-password-protected secret is automatically re-encrypted with the new key: connection and jump-server passwords, SSH-key passphrases, stored credentials, AI-profile API keys and the global AI/translation/Hugging Face keys, RAG store secrets, and JobScheduler sudo/archive passwords. The change is staged — the new password only takes over once every store has migrated, so an error part-way through leaves the old password in effect. Individual secrets that cannot be migrated are left untouched, counted in the result message, and noted in the log; re-enter those manually.
+5. Every master-password-protected secret is automatically re-encrypted with the new key: connection and jump-server passwords, SSH-key passphrases, stored credentials and their external commands, AI-profile API keys, AI-skill provider secrets, the global AI, translation, Hugging Face, Tavily, Bright Data and Brave Search keys, RAG store secrets, and JobScheduler sudo and archive passwords and webhook URLs. The change is staged — the new password only takes over once every store has migrated, so an error part-way through leaves the old password in effect. Individual secrets that cannot be migrated are left untouched, counted in the result message, and noted in the log; re-enter those manually.
 
 ## Configuration Files Reference
 
@@ -315,7 +316,7 @@ All KorTTY data is stored under `~/.kortty/`. Key security-related files:
 ```text
 ~/.kortty/
 ├── master.key               # Master password hash and salt (PBKDF2)
-├── master.autounlock        # Optional auto-login password (obfuscated, owner-only permissions)
+├── master.autounlock        # Optional auto-login password (built-in key, owner-only permissions)
 ├── credentials.xml           # Encrypted credentials (AES-256-GCM)
 ├── ssh-keys.xml             # SSH key paths and encrypted passphrases
 ├── gpg-keys.xml             # GPG keys for backup/export encryption
