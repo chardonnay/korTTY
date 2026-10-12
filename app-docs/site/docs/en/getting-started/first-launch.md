@@ -10,7 +10,7 @@ On first launch, korTTY asks you to create a **master password**. This password 
 On subsequent launches you are prompted to enter the master password to unlock your encrypted data.
 
 !!! warning "Disabling the prompt"
-    **Settings → Security** offers two ways to skip the prompt. Turning off **Require master password on startup** hides the prompt and starts korTTY with the vault locked: stored passwords and keys stay unavailable until you choose **Configuration → Security → Unlock Vault…** or click **Unlock Vault…** in any "vault locked" message. **Disable master password prompt on startup (auto-login)** instead unlocks the vault automatically from a copy of your master password kept on disk — only obfuscated, not encrypted, so reserve it for throwaway or test environments. See the [Security settings](../reference/settings/security.md) for details, including unattended first launches that skip the setup dialog entirely.
+    **Settings → Security** offers two ways to skip the prompt. Turning off **Require master password on startup** hides the prompt and starts korTTY with the vault locked: stored passwords and keys stay unavailable until you choose **Configuration → Security → Unlock Vault…** or click **Unlock Vault…** in any "vault locked" message. **Disable master password prompt on startup (auto-login)** instead unlocks the vault automatically from a copy of your master password kept on disk. That copy is encrypted only with a key built into korTTY, not with your master password, so it guards against casual disclosure only; reserve this option for throwaway or test environments. See the [Security settings](../reference/settings/security.md) for details, including unattended first launches that skip the setup dialog entirely.
 
 ## What is encrypted
 
@@ -20,7 +20,8 @@ On subsequent launches you are prompted to enter the master password to unlock y
 | Stored credentials | `~/.kortty/credentials.xml` | AES-256-GCM |
 | SSH key passphrases | `~/.kortty/ssh-keys.xml` | AES-256-GCM |
 | Master password | `~/.kortty/master.key` | salted hash (verification only) |
-| Remembered master password (auto-login only) | `~/.kortty/master.autounlock` | obfuscated only — not encrypted; owner-only file permissions |
+| Remembered master password (auto-login only) | `~/.kortty/master.autounlock` | AES-256-GCM with a key built into korTTY, not your master password; owner-only file permissions |
+| Restored terminal output (optional) | `~/.kortty/session/scrollback/<ref>.enc` | AES-256-GCM (master-password-derived key); written only while **Also restore the output of each terminal pane (encrypted)** is enabled under **Settings → Window → Session Restore**, and nothing is written while the vault is locked |
 
 See the [Security reference](../features/connections.md) for the full encryption and backup model.
 

@@ -80,7 +80,7 @@ The first wrapper invocation downloads Gradle. A clean application build also cl
 
 ### Package-size reports and budgets
 
-The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. It understands the macOS `Contents/app` and `Contents/runtime`, Windows `app` and `runtime`, and Linux `lib/app` and `lib/runtime` layouts produced by `jpackage`. CI compares native installers with the committed release baseline, requires at least 15% reduction, applies the 190 MiB app-image and 150 MiB DMG limits, and uses a 2% regression tolerance once a new platform size is verified:
+The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. It understands the macOS `Contents/app` and `Contents/runtime`, Windows `app` and `runtime`, and Linux `lib/app` and `lib/runtime` layouts produced by `jpackage`. CI compares native installers with the committed release baseline and requires at least a 15% reduction. Every platform's app image must be at least 100 MiB, the macOS app image is capped at 190 MiB, and each native installer is checked against its budget in `package/size-baselines.json`, which is the verified size plus a 2% regression tolerance (never above the stored acceptance budget):
 
 ```bash
 DMG="$(find build/jpackage -maxdepth 1 -name 'korTTY-*.dmg' -print -quit)"
@@ -170,7 +170,7 @@ Install CMake and a native C/C++ toolchain. A Vulkan package additionally needs 
     ./gradlew generateLlamaRuntimeManifest -Pllama.backend=VULKAN
     ```
 
-The task chain downloads only the pinned commit archive, verifies its SHA-256, extracts it, configures a Release build with curl, RPC, tests, examples, tools, and server Web UI disabled, builds `llama-server`, stages its required libraries and license, and creates a reproducible ZIP plus JSON descriptor under `build/llama-runtime/packages/`. The descriptor records the immutable runtime ID, tag/commit, API-contract version, minimum korTTY version, platform, architecture, concrete backend, package size/SHA-256, publication URL placeholder, entrypoint, and revocation flag.
+The task chain downloads only the pinned commit archive, verifies its SHA-256, extracts it, configures a Release build with curl, RPC, tests, examples, the app target and the Web UI disabled and the tools enabled, builds `llama-server`, stages its required libraries and license, and creates a reproducible ZIP plus JSON descriptor under `build/llama-runtime/packages/`. The descriptor records the immutable runtime ID, tag/commit, API-contract version, minimum korTTY version, platform, architecture, concrete backend, package size/SHA-256, publication URL placeholder, entrypoint, and revocation flag.
 
 !!! important "One build host cannot create the whole matrix"
     Native llama.cpp artifacts follow the same target-platform rule as `jpackage`: build each operating-system/architecture/backend combination on a matching host. The runtime workflow covers macOS arm64/x86_64 CPU+Metal, Windows x86_64 CPU+Vulkan, Linux x86_64/arm64 CPU+Vulkan. CUDA is not in the first matrix.
@@ -458,7 +458,7 @@ Use only the inspection command available for the package you built. Test instal
 
 ### Additional software
 
-Use a PowerShell terminal with the common prerequisites. The portable app-image task needs no external installer builder, but MSI creation requires WiX Toolset 3 or later with `candle.exe` and `light.exe` available in `PATH`. The release workflow uses the WiX 3 toolchain for its Windows packaging jobs.
+Use a PowerShell terminal with the common prerequisites. The portable app-image task needs no external installer builder, but MSI creation requires WiX Toolset 3 or later with `candle.exe` and `light.exe` available in `PATH`.
 
 ```powershell
 Get-Command java, javac, jpackage, git, mvn, curl

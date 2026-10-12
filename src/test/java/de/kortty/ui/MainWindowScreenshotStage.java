@@ -10,6 +10,7 @@ import javafx.application.Platform;
 import javafx.geometry.Bounds;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuButton;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -126,6 +127,7 @@ public final class MainWindowScreenshotStage {
         Stage stage = new Stage();
         MainWindow window = new MainWindow(stage);
         window.show();
+        showInWindowMenuBar(stage);
         // Size and position after show(): MainWindow.show() applies persisted geometry, which an
         // isolated home does not have, but an explicit size must still win over its default.
         stage.setWidth(WIDTH);
@@ -176,6 +178,21 @@ public final class MainWindowScreenshotStage {
             done.countDown();
         });
         poll.play();
+    }
+
+    /**
+     * The in-window menu bar starts hidden in every new window (the icon toolbar took its place;
+     * View > Show Menu Bar brings it back for the session). The guide's menu shots show the menu
+     * title together with its popup, so the bar is shown before a menu is opened. The macOS
+     * system menu bar (useSystemMenuBar) is left alone.
+     */
+    private static void showInWindowMenuBar(Stage stage) {
+        for (Node node : stage.getScene().getRoot().lookupAll(".menu-bar")) {
+            if (node instanceof MenuBar bar && !bar.isUseSystemMenuBar()) {
+                bar.setVisible(true);
+                bar.setManaged(true);
+            }
+        }
     }
 
     private static Path pathProperty(String key) {

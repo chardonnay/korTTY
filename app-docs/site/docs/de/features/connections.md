@@ -10,7 +10,7 @@ korTTY verwaltet SSH-, Mosh- und **Local-Shell**-Verbindungen über drei Einstie
 
 ## Connection-Manager
 
-**Verbindungen → Verbindungen verwalten…** öffnet einen durchsuchbaren Baum gespeicherter Verbindungen (optional gruppiert); Das Suchfeld durchsucht Name, Host, IP-Adresse oder [Tag](#tags), mit `*` als Platzhalter. Von hier aus können Sie Verbindungen erstellen, bearbeiten, duplizieren, löschen, markieren, importieren und exportieren.
+**Verbindungen → Verbindungen verwalten…** öffnet einen durchsuchbaren Baum gespeicherter Verbindungen (optional gruppiert); das Suchfeld entspricht Namen, Host, IP-Adresse oder [Tag](#tags), wobei `*` als Platzhalter dient. Von hier aus erstellen, bearbeiten, duplizieren, löschen, taggen, importieren und exportieren Sie Verbindungen. Das Kontextmenü eines Ordners legt zudem dessen **Sitzungs-Isolation**-Level für jede Verbindung darin fest, die selbst keine Isolationsebene definiert (siehe [Level auswählen](session-isolation.md#eine-stufe-wahlen)).
 
 ### Anmelden
 
@@ -30,8 +30,8 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 
 | Registerkarte | Inhalt |
 | --- | --- |
-| Verbindung | Host, Port, Benutzername, Protokoll (SSH / Mosh / Lokale Shell), Terminalemulation, **Zeichenkodierung** (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), **Host-Key-Prüfung** (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuweisung und ein optionaler Freitext [Tag](#tags). Für **Lokale Shell** Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe [Zeichenkodierung](#zeichenkodierung). |
-| Terminal-Einstellungen | **Globale Terminal-Einstellungen verwenden** oder **Eigene Einstellungen für diese Verbindung** mit Farben, Schriftart und ANSI/TrueColor-Behandlung pro Verbindung (siehe [Eigene Terminaleinstellungen](#eigene-terminaleinstellungen)), der Abschnitt **Terminal-Verhalten** mit der [Tab-Farbe](#tab-farbe), dem Regelsatz für die [Hervorhebung von Schlüsselwörtern](#hervorhebung-von-schlusselwortern) und dem [Einfügeschutz](#einfugeschutz), der Abschnitt **Sitzungs-Isolation** mit [Isolationsstufe, strengem Terminal-Modus und Inkognito-Schalter](session-isolation.md), Terminal-Effekt |
+| Verbindung | Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ) oder Lokale Shell), Terminalemulation, **Zeichenkodierung** (Standard / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), **Host-Key-Prüfung** (Standard / prüfen / nicht prüfen), Gruppen-/Ordnerzuweisung und ein optionaler Freitext [Tag](#tags), **Verbindungstimeout** (1–300 Sekunden) und **Wiederholungsversuche** (1–20 Versuche, verwendet während **Verbindungswiederholungen aktivieren** in *Einstellungen → Terminal* eingeschaltet ist). Für **Lokale Shell** Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe [Zeichenkodierung](#zeichenkodierung). |
+| Terminal-Einstellungen | **Globale Terminal-Einstellungen verwenden** oder **Eigene Einstellungen für diese Verbindung** mit verbindungsabhängigen Farben, Schriftart und ANSI/TrueColor-Handhabung (siehe [Eigene Terminaleinstellungen](#eigene-terminaleinstellungen)), dem **Terminal-Verhalten** Abschnitt mit dem [Tab-Farbe](#tab-farbe), der [Schlüsselworthervorhebung](#hervorhebung-von-schlusselwortern) Regelset und das [Einfüge-Schutz](#einfugeschutz), und darunter die Zeilen zur Sitzungs-Isolation mit dem [Isolationsebene, strikter Terminalmodus und Incognito-Schalter](session-isolation.md), Terminal-Effekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
 | Terminal-Logging | Schreibt den Terminal-Ausgang dieser Verbindung in eine Datei – Ordner, Format, tägige Rotation, Kompression und Aufbewahrung. Siehe [Terminal-Logging](terminal.md#terminalprotokollierung). |
@@ -104,6 +104,9 @@ Eine **Tab-Farbe** markiert jeden Terminal-Tab einer Verbindung mit einem kleine
 === "Mosh"
     Roaming, latenzfreundlicher Mosh-Transport (mosh4j). Das Mosh-Backend ist in nativen Builds gebündelt; Bestehende Verbindungen benötigen keine Migration.
 
+=== "Mosh-Client (nativ)"
+    Roaming Mosh-Sitzung mit dem `mosh-client` Programm, das auf diesem Computer installiert ist, angezeigt in einem Terminal-Tab. korTTY startet die Sitzung über SSH selbst und übergibt dann den Bildschirm an `mosh-client`, das auf dem `PATH` sein muss (installieren Sie es mit Ihrem Systempaketmanager, z. B. Homebrew, apt oder dnf). Eine Verbindung zu einem Server hinter einem [ Sprungserver](jump-server.md) wird verweigert, weil die Mosh-Sitzung über UDP läuft, das der Tunnel des Sprungservers nicht transportieren kann. Mit [ Sitzungs-Isolation](session-isolation.md) kann dieses Protokoll ebenfalls in einer Betriebssystem-Sandbox ausgeführt werden.
+
 === "Lokale Shell"
     Öffnet die **lokale Maschine**-Shell in einem Terminal-Tab (ohne Netzwerk) über einen pty4j-gebackenen Pseudoterminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe unten [Lokale Shell](#lokale-shell).
 
@@ -134,11 +137,11 @@ Eine **Lokale Shell**-Verbindung erzeugt ein lokales Pseudo-Terminal (PTY) auf I
 | Plattform | Optionen |
 | --- | --- |
 | Windows | **PowerShell** (Standard) oder **cmd.exe**. **Git Bash**, **Cygwin** und **WSL** werden ebenfalls als Voreinstellungen angeboten – allerdings nur, wenn sie tatsächlich installiert sind (Git Bash/Cygwin werden über ihre üblichen Installationsorte / `PATH` erkannt; WSL erscheint nur, wenn `wsl.exe` vorhanden und mindestens eine Distribution installiert ist). |
-| macOS / Linux | Standardmäßig Ihr `$SHELL` (Rückfall auf `/bin/zsh` oder `/bin/bash`). |
+| macOS / Linux | **Zsh** und **Bash** werden auf macOS angeboten und **Bash** auf Linux (**ksh** auf Solaris), wobei der erste für eine neue Verbindung ausgewählt wird. Ein **Eigener Befehl** leer gelassen startet Ihr `$SHELL`, wobei auf `/bin/zsh` oder `/bin/bash` zurückgegriffen wird. |
 
 Ein Freiformfeld **Benutzerdefinierter Befehl** akzeptiert jede ausführbare Datei mit Argumenten (z. B. `pwsh.exe`, `wsl.exe -d Ubuntu`, ein Git-Bash-Pfad) und ein optionales **Startverzeichnis** kann festgelegt werden. Der Befehlsparser erkennt Anführungszeichen, sodass Shell-Pfade, die Leerzeichen enthalten – wie `"C:\Program Files\Git\bin\bash.exe"` – korrekt gestartet werden.
 
-**Shell-Integration automatisch hinzufügen** unterhalb des Startverzeichnisses startet bash, zsh oder fish mit der [Shell-Integration](shell-integration.md#local-shells) von korTTY, ohne ein Snippet in Ihren Startdateien, die korTTY nie ändert: Die Shell führt zuerst Ihre eigenen Startdateien und dann das Snippet von korTTY aus, sodass Sie zwischen Prompts springen und sehen können, wie jeder Befehl geendet hat. Die Option ist ausgeschaltet, bis Sie sie ankreuzen, die Zeile darunter sagt, wann die gewählte Shell sie nicht erhalten kann, und sie gilt nie für SSH- oder Mosh-Verbindungen oder für über Teamwork geteilte Verbindungen; ein Export lässt sie weg.
+**Shell-Integration automatisch hinzufügen**, unterhalb des Startverzeichnisses startet bash, zsh oder fish mit korTTY's [Shell-Integration](shell-integration.md#local-shells) ohne ein Snippet in Ihren Startdateien, die korTTY nie ändert: die Shell führt zuerst Ihre eigenen Startdateien aus und dann den Snippet von korTTY, sodass Sie zwischen Prompten wechseln und sehen können, wie jeder Befehl beendet wurde. Es ist deaktiviert, bis Sie es aktivieren; die Zeile darunter sagt, wann die ausgewählte Shell es nicht erhalten kann, und es gilt nie für SSH- oder Mosh-Verbindungen oder für über Teamwork geteilte Verbindungen; ein Export lässt es zurück. Während **Verwenden Sie die Befehlsmarkierungen von Shells, die für die Shell-Integration eingerichtet sind (OSC 133).** in *Einstellungen → Terminal* ausgeschaltet ist, bleibt das Kästchen anklickbar, aber die Zeile darunter sagt, dass korTTY nichts hinzufügt, bis die Einstellung wieder aktiviert ist.
 
 Wenn korTTY über sein Flatpak-Paket ausgeführt wird, wird die lokale Shell auf dem Host über `flatpak-spawn --host` gestartet, einschließlich des ausgewählten Startverzeichnisses und des Terminalgebietsschemas. Das Paket verfügt über Host-Dateisystemzugriff, sodass Terminaldateiaktionen Hostpfade verwenden können. Da die Sandbox-seitige Prozess-ID zu `flatpak-spawn` und nicht zur Host-Shell gehört, verwendet die Verfolgung des aktuellen Verzeichnisses vertrauenswürdige absolute Eingabeaufforderungspfade, anstatt `/proc/<pid>/cwd` zu lesen. Wenn kein sicherer Hostpfad eingerichtet werden kann, werden pfadabhängige Aktionen mit einem expliziten Fehler beendet.
 
@@ -148,6 +151,8 @@ Die Terminalprotokollierung und -aufzeichnung sowie die KI-Eingabe-/Daten-Hooks 
 
 !!! note "AI Agent in lokalen Shells"
     Der **KI-Agent** und die **KI-Planung** laufen ebenfalls in lokalen Shells unter Windows, macOS und Linux – siehe [KI-Assistenz](ai-assistant.md#ai-agent-und-ki-planung).
+
+Eine lokale Shell kann ebenfalls von korTTY und den anderen Tabs isoliert werden, in ihrem eigenen Prozess oder in einer Betriebssystem-Sandbox, mit der **Isolation** Einstellung ihrer Verbindung oder ihres Ordners; siehe [Sitzungs-Isolierung](session-isolation.md). Eine sandboxed lokale Shell speichert ihre Historie und temporären Dateien in einem eigenen Ordner, der beim Ende der Sitzung entfernt wird.
 
 ## Tunnels und Sprungserver
 

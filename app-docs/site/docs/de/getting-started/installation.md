@@ -13,11 +13,21 @@ Jeder native Asset-Name enthält seine Prozessorarchitektur. Verwenden Sie `aarc
     Verwenden Sie die `x86_64`-Assets auf Intel/AMD-PCs und unter Windows auf ARM, wo Windows sie durch x64-Emulation ausführt. korTTY erkennt diese emulierte Windows-ARM-Kombination beim Start und verwendet den Software-Renderer von JavaFX, da die emulierte Direct3D-Pipeline Fenster leer lassen kann; Native x64-Systeme behalten das Hardware-Rendering bei. korTTY veröffentlicht derzeit kein natives Windows-ARM-Paket, da die angeheftete OpenJFX-Zeile keine nativen Windows-ARM-Pakete enthält. Das MSI ist das Installationsprogramm; Die ZIP-Datei enthält das vollständige tragbare Anwendungsverzeichnis, einschließlich `korTTY.exe` und seiner Laufzeit. Die ausführbare Datei in diesem Verzeichnis ist keine eigenständige Einzeldateianwendung.
 
 === "Linux"
-    Verwenden Sie das Paket für Ihre Architektur und Distribution: DEB für Debian/Ubuntu, RPM für RPM-basierte Distributionen, Pacman `x86_64` für Arch Linux, Pacman `aarch64` für Arch Linux ARM oder das ZIP/TAR-Archiv für eine tragbare Installation. Das Archiv enthält ein vollständiges `jpackage`-Anwendungsbildverzeichnis; Es handelt sich nicht um eine Linux-`.AppImage`-Datei.
+    Verwenden Sie das Paket für Ihre Architektur und Distribution: DEB für Debian/Ubuntu, RPM für RPM-basierte Distributionen, Pacman `x86_64` für Arch Linux, Pacman `aarch64` für Arch Linux ARM, das Flatpak-Bundle für eine sandboxed Installation oder das ZIP/TAR-Archiv für eine portable Installation. Das Archiv enthält ein komplettes `jpackage` Anwendungs-Image-Verzeichnis; es ist keine Linux-`.AppImage` Datei.
+
+!!! note "Flatpak-Paket"
+    Das `.flatpak` Bundle führt korTTY in einer Flatpak-Sandbox auf dem Freedesktop 25.08 Runtime aus, die von Flathub stammt. Installieren Sie ein heruntergeladenes Bundle über ein Host-Terminal mit `flatpak install --user ./kortty-Linux-<version>-<architecture>.flatpak`.
+
+!!! note "Java-Archive und Signaturen"
+    Die dünne `korTTY-Java-<version>.jar` ist keine eigenständige ausführbare Datei. Die `.zip` und `.tar` Distributionen enthalten die Abhängigkeiten und Startskripte, jedoch keinen Java Runtime, sodass das Ziel ein JDK 25 benötigt. Linux-Pakete, Flatpak-Bundles, Pacman-Pakete und die Java-Archive kommen jeweils mit einer abgetrennten GPG-Signatur (`.sig`); der Signaturschlüssel `kortty-linux-signing-public.asc` wird mit derselben Version veröffentlicht.
 
 ## Das `kortty-cli` Befehl
 
-Jedes native Paket installiert einen zweiten Starter, `kortty-cli`, neben der Anwendung: den Client für korTTYs standardmäßig ausgeschaltete [Steuerungs-API](../reference/control-api.md). Er liegt im selben Verzeichnis wie der grafische Starter – `korTTY.app/Contents/MacOS/kortty-cli` unter macOS, neben `korTTY.exe` unter Windows, `bin/kortty-cli` im Linux-Anwendungsverzeichnis – und nur das Arch-Paket legt ihn als `/usr/bin/kortty-cli` in Ihren `PATH`. `kortty-cli --version` ist der einzige Befehl, der ohne laufendes korTTY funktioniert, und damit der schnellste Weg, die Installation zu prüfen. Die plattformweise `PATH`-Einrichtung steht unter [Steuerungs-CLI](../reference/cli.md).
+Jedes native Paket installiert einen zweiten Launcher, `kortty-cli`, neben der Anwendung: den Client für korTTYs Standard-off [control API](../reference/control-api.md). Er befindet sich im selben Verzeichnis wie der grafische Launcher — `korTTY.app/Contents/MacOS/kortty-cli` auf macOS, neben `korTTY.exe` auf Windows, `bin/kortty-cli` im Linux-Anwendungsverzeichnis — und nur das Arch-Paket platziert ihn auf Ihrem `PATH`, als `/usr/bin/kortty-cli`. Im Flatpak führen Sie es als `flatpak run --command=kortty-cli io.github.chardonnay.korTTY` aus. `kortty-cli --version` ist der einzige Befehl, der ohne laufendes korTTY funktioniert, sodass es die schnellste Möglichkeit ist, die Installation zu bestätigen. Siehe [Control CLI](../reference/cli.md) für das plattformspezifische `PATH` Setup.
+
+## Befehlszeilenoptionen
+
+Administratoren können einen Wert für eine [unternehmensrichtlinie](../reference/enterprise-policy.md) Datei verschlüsseln, ohne die Oberfläche zu starten: `korTTY --encrypt-policy-value` gibt eine `kortty-enc:v1:` Umschlag für den Richtlinien-Schlüssel aus. Übergeben Sie den Klartext als Argument oder lassen Sie ihn weg, um den Wert am Prompt einzugeben.
 
 ## Optionale Systemtools
 

@@ -24,7 +24,7 @@ Configure dynamic translation of korTTY's user interface using external translat
 | Regenerate outdated | button | (visible when outdated files exist) | — | — |
 
 !!! note
-    **API Key storage:** The API key is encrypted using your master password and stored securely in `global-settings.xml`. If the master password vault is locked, you will receive a warning and the key will be kept in the field until you can unlock the vault or set a master password in Settings.
+    **API Key storage:** The API key is encrypted using your master password and stored securely in `global-settings.xml`. If the password vault is locked, korTTY shows a warning with an **Unlock Vault…** button, keeps the Settings dialog open without saving, and leaves the key in the field; unlock the vault and save again.
 
 !!! note
     **Generated languages:** The "Generated languages" list displays language files that have been created via the Generate Language File button. Each generated file corresponds to a dynamically translated UI in that target language. Use the Delete button to remove a language file, or use Regenerate outdated to update files created with an older app version to include newly added translation keys.
@@ -41,7 +41,7 @@ LibreTranslate, a regional Azure endpoint, or a proxy.
 | DeepL | DeepL API v2 | Your DeepL auth key, sent as `DeepL-Auth-Key` | `https://api.deepl.com/v2/translate`, or `https://api-free.deepl.com/v2/translate` for a free key |
 | LibreTranslate | LibreTranslate `/translate` | Optional; required by public instances that enforce quotas | `https://libretranslate.com` |
 | Microsoft Translator | Azure AI Translator v3.0 | The Azure Translator resource subscription key | `https://api.cognitive.microsofttranslator.com` |
-| Yandex | Yandex Cloud Translate v2 | A Yandex Cloud **service account API key**, sent as `Api-Key` | `https://translate.api.cloud.yandex.net/translate/v2` |
+| Yandex | Yandex Cloud Translate v2 | A Yandex Cloud **service account API key**, sent as `Api-Key`; a value starting with `t1.` is sent as a Bearer IAM token instead | `https://translate.api.cloud.yandex.net/translate/v2` |
 
 !!! warning "Yandex: the v1.5 API is no longer usable"
     Yandex stopped issuing keys for the old Translate API v1.5 (`translate.yandex.net/api/v1.5`) and

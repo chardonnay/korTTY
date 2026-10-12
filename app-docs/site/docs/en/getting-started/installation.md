@@ -13,11 +13,21 @@ Each native asset name includes its processor architecture. Use `aarch64` or `ar
     Use the `x86_64` assets on Intel/AMD PCs and on Windows on ARM, where Windows runs them through x64 emulation. korTTY detects that emulated Windows ARM combination at startup and uses JavaFX's software renderer because the emulated Direct3D pipeline can leave windows blank; native x64 systems retain hardware rendering. korTTY does not currently publish a native Windows ARM package because the pinned OpenJFX line has no Windows ARM natives. The MSI is the installer; the ZIP contains the complete portable application directory, including `korTTY.exe` and its runtime. The executable inside that directory is not a stand-alone single-file application.
 
 === "Linux"
-    Use the package for your architecture and distribution: DEB for Debian/Ubuntu, RPM for RPM-based distributions, Pacman `x86_64` for Arch Linux, Pacman `aarch64` for Arch Linux ARM, or the ZIP/TAR archive for a portable installation. The archive contains a complete `jpackage` application-image directory; it is not a Linux `.AppImage` file.
+    Use the package for your architecture and distribution: DEB for Debian/Ubuntu, RPM for RPM-based distributions, Pacman `x86_64` for Arch Linux, Pacman `aarch64` for Arch Linux ARM, the Flatpak bundle for a sandboxed installation, or the ZIP/TAR archive for a portable installation. The archive contains a complete `jpackage` application-image directory; it is not a Linux `.AppImage` file.
+
+!!! note "Flatpak bundle"
+    The `.flatpak` bundle runs korTTY in a Flatpak sandbox on the Freedesktop 25.08 runtime, which comes from Flathub. Install a downloaded bundle from a host terminal with `flatpak install --user ./kortty-Linux-<version>-<architecture>.flatpak`.
+
+!!! note "Java archives and signatures"
+    The thin `korTTY-Java-<version>.jar` is not a stand-alone executable. The `.zip` and `.tar` distributions contain the dependencies and launch scripts but no Java runtime, so the destination needs a JDK 25. Linux packages, Flatpak bundles, Pacman packages and the Java archives each come with a detached GPG signature (`.sig`); the signing public key `kortty-linux-signing-public.asc` is published with the same release.
 
 ## The `kortty-cli` command
 
-Every native package installs a second launcher, `kortty-cli`, beside the application: the client for korTTY's default-off [control API](../reference/control-api.md). It sits in the same directory as the graphical launcher — `korTTY.app/Contents/MacOS/kortty-cli` on macOS, next to `korTTY.exe` on Windows, `bin/kortty-cli` inside the Linux application directory — and only the Arch package puts it on your `PATH`, as `/usr/bin/kortty-cli`. `kortty-cli --version` is the one command that works without a running korTTY, so it is the quickest way to confirm the installation. See [Control CLI](../reference/cli.md) for the per-platform `PATH` setup.
+Every native package installs a second launcher, `kortty-cli`, beside the application: the client for korTTY's default-off [control API](../reference/control-api.md). It sits in the same directory as the graphical launcher — `korTTY.app/Contents/MacOS/kortty-cli` on macOS, next to `korTTY.exe` on Windows, `bin/kortty-cli` inside the Linux application directory — and only the Arch package puts it on your `PATH`, as `/usr/bin/kortty-cli`. In the Flatpak, run it as `flatpak run --command=kortty-cli io.github.chardonnay.korTTY`. `kortty-cli --version` is the one command that works without a running korTTY, so it is the quickest way to confirm the installation. See [Control CLI](../reference/cli.md) for the per-platform `PATH` setup.
+
+## Command-line options
+
+Administrators can encrypt a value for an [enterprise policy](../reference/enterprise-policy.md) file without starting the interface: `korTTY --encrypt-policy-value` prints a `kortty-enc:v1:` envelope for the policy key. Pass the plaintext as an argument, or omit it to type the value at the prompt.
 
 ## Optional system tools
 

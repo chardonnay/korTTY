@@ -18,9 +18,9 @@ Detection covers the seventeen agents below, started from a **Local Shell** tab 
 | Codex | `codex` |
 | Gemini CLI | `gemini` |
 | MiniMax Code | `mcode` (the running agent renames its process to `minimax-code`; korTTY reads that process title when `node` reports no script) |
-| Qwen Code | `qwen` |
+| Qwen Code | `qwen`, `qwen-code` |
 | OpenCode | `opencode` |
-| Cursor Agent | `cursor-agent`, `agent` (the launcher starts a bundled `node` on `…/cursor-agent/versions/<version>/index.js`; korTTY recognises that install path) |
+| Cursor Agent | `cursor-agent`, and the bundled `node` script under `…/cursor-agent/versions/<version>/index.js` (the launcher runs it; korTTY recognises that install path) |
 | Aider | `aider` (a Python console script, also `python -m aider`) |
 | Amp | `amp` (its screen rules are not yet verified against live sessions; Amp shows up from its first working or approval screen) |
 | Goose | `goose` (Block's goose CLI; the database-migration tool of the same name is never reported) |

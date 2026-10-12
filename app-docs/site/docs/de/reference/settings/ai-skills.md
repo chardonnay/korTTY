@@ -77,7 +77,7 @@ Wenn ein externes KI-Skill ausgewählt wird, zeigt das Banner über dem Editor d
 
 ![Import AI skills from the internet](../../assets/screenshots/ai/ai-skills-import.png)
 
-Anbieter wählen, geben Sie eine Suche ein und klicken **Suchen**. Das Auswählen eines Ergebnisses lädt dessen `SKILL.md` in die Vorschau. Wählen Sie ein oder mehrere Ergebnisse aus und klicken **Auswahl importieren**; Ergebnisse mit ✓ sind bereits in der Bibliothek und werden übersprungen. Was Sie eingeben, hängt vom Typ des Anbieters ab:
+Anbieter wählen, eine Suche eingeben und **Suchen** anklicken. Beim Auswählen eines Ergebnisses wird dessen `SKILL.md` in die Vorschau geladen. Die Ergebnisliste zeigt den Namen, die Quelle, GitHub-Sterne und die Beschreibung jeder Fähigkeit; ein ✓ vor dem Namen kennzeichnet eine Fähigkeit, die bereits in der Bibliothek vorhanden ist. Wählen Sie ein oder mehrere Ergebnisse aus und klicken Sie auf **Auswahl importieren**; Ergebnisse mit ✓ werden übersprungen. Was Sie eingeben, hängt vom Anbieter-Typ ab:
 
 | Anbietertyp | Eingabe | Beispiel |
 | --- | --- | --- |

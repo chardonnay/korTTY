@@ -40,6 +40,13 @@ KorTTY is organized into distinct functional modules. The diagram below groups t
 | **cli** | The `kortty-cli` client that speaks the control API (see [Control CLI](cli.md)) | `KorttyCli` |
 | **teamwork** | Collaboration and remote access features | Team-based session sharing and coordination |
 | **jmx** | Java Management Extensions monitoring | `SSHClientMonitor`, `SSHClientMonitorMBean` |
+| **codingagent** | Coding-agent awareness: detects terminal coding agents in panes, tracks their state, and feeds the Coding Agents panel and notifications | `CodingAgentDetector`, `CodingAgentMonitor`, `CodingAgentRegistry`, `CodingAgentService` |
+| **isolation** | Session isolation levels and the sandboxed local shells; SSH sessions run in session worker processes (`core.worker`) | `IsolationLevel`, `IsolationSettings`, `SandboxBackend`, `MacSandboxBackend`, `BubblewrapSandboxBackend`, `SessionWorkerProcess` |
+| **paste** | Paste protection: inspects pasted text and decides whether to confirm, sanitize or pace it | `PasteGuard`, `PasteInspection`, `PasteRules`, `PastePacer` |
+| **policy** | Enterprise policy file (`kortty-policy.toml`): managed settings, restrictions and encrypted policy values | `PolicyManager`, `PolicyLoader`, `EffectivePolicy`, `ServerAccessPolicy`, `PolicyValueCipher` |
+| **shellintegration** | Shell integration (prompt marks, command status, notifications) and per-pane activity tracking | `ShellIntegrationInjection`, `ShellIntegrationWrapperDirectory`, `PromptNavigator`, `CommandBlockStore` |
+| **perf** | Opt-in UI timing trace for performance work | `PerfTrace` |
+| **platform** | Platform support for packaged builds, such as Flatpak | `FlatpakSupport` |
 | **update** | Version checking and update notifications | Update service and version metadata |
 
 ## SithTermFX Terminal Engine
@@ -98,7 +105,7 @@ KorTTY stores its main configuration, credentials, and session state under `~/.k
 ├── ssh-host-keys.properties     # Shared interactive Terminal/SFTP/Mosh host-key pins
 ├── terminal-effect-plugins.disabled # Disabled terminal-effect plugin IDs (one per line)
 ├── master.key                   # PBKDF2-hashed master password (310,000 iterations)
-├── kortty.log                   # Application log file
+├── logs/                        # Application log (kortty.log) and its archives
 ├── history/                     # Project screen snapshots (gzip, one per terminal tab)
 ├── plugins/                     # Imported external terminal-effect plugin JARs
 ├── bundled-plugins/             # Runtime copies of bundled exportable plugin JARs
@@ -111,15 +118,15 @@ KorTTY stores its main configuration, credentials, and session state under `~/.k
 
 **JAXB Marshaling** converts domain objects to/from XML with automatic schema validation. Key repositories include:
 
-- `XMLConnectionRepository`: Manages `Connection` objects with SFTP, jump server, and tunnel details
-- `CredentialRepository`: Stores environment-specific credential patterns
+- `XMLConnectionRepository`: Manages `ServerConnection` objects with SFTP, jump server, and tunnel details
+- `CredentialManager`: Stores environment-specific credential patterns
 - `SSHKeyManager`: Wraps imported SSH keys with encrypted passphrases
-- `JobSchedulerPersistence`: Persists `JobScheduleEntry` objects and execution journal
+- `JobSchedulerRepository`: Persists `JobSchedule` objects and the execution journal
 
 **AES-256-GCM encryption** protects sensitive fields:
 
 - Master password is hashed once on first login, stored as `master.key`
-- All encrypted fields use AES-256-GCM with random IVs derived from the master password
+- All encrypted fields use AES-256-GCM with random IVs, under a key derived from the master password
 - SSH key passphrases, connection passwords, and sudo secrets are encrypted before persistence
 - Backup archives can be encrypted with password-protected ZIP or GPG
 
@@ -156,9 +163,19 @@ KorTTY stores its main configuration, credentials, and session state under `~/.k
 
 | **Component** | **Responsibility** |
 |---|---|
-| `JobScheduler` | Main scheduler service; manages scheduled jobs and execution queue |
-| `JobExecutor` | Executes individual jobs (SSH command, script, AI agent, SFTP, Rsync) |
-| `JobJournal` | Persistent audit log with redaction support and auto-cleanup (14 days default) |
+| `JobSchedulerService` | Main scheduler service; manages scheduled jobs and execution queue |
+| `JobSchedulerJobRunner` | Executes individual jobs (SSH command, script, AI agent, SFTP, Rsync) |
+| `JobJournalEntry` | Run journal entries kept in `job-scheduler.xml`, with secrets redacted and the configured retention (14 days by default) |
+
+### Session Journal
+
+| **Component** | **Responsibility** |
+|---|---|
+| `SessionJournalService` | Creates and stores one journal per session in `journals/`: the curated `journal.xml` and the rotated capture log |
+| `SessionJournalExportService` | Exports a journal to its supported formats |
+| `SessionJournalCrossSearchService` | Searches across all journals, with the per-journal search cards |
+| `SessionJournalSearchCardIndex` | Caches one search card per journal in `search-card.json`, rebuilt when the journal changes |
+| `SessionJournalSemanticIndex` | Optional semantic search index in the journals folder (`.semantic-index/`), built with the local embedding model |
 
 ## UI Module Organization
 
@@ -167,10 +184,10 @@ The UI layer is built on JavaFX and organized into logical components:
 | **Component** | **Purpose** |
 |---|---|
 | `MainWindow` | Top-level application window containing menu bar, tab bar, terminal panes, dashboard, SFTP browser |
-| `TerminalPane` | Single terminal tab with split-pane support and inline AI activity panel |
-| `ConnectionDialog` | Multi-tab editor for connection details (SSH, tunnels, jump server, logging, etc.) |
+| `TerminalTab` | One terminal tab with split-pane support (in `TerminalView`) and inline AI activity panel |
+| `ConnectionEditDialog` | Multi-tab editor for connection details (SSH, tunnels, jump server, logging, etc.) |
 | `SFTPManagerTab` | Dual-panel file manager tab for local and remote file operations |
-| `SnippetEditor` | Monaco-powered code editor with syntax highlighting, AI assistance, and Mermaid flowcharts |
+| `SnippetEditDialog` | Snippet editor with a Monaco code editor, syntax highlighting, AI assistance, and Mermaid flowcharts |
 | `LocalModelManagerPane` | Searches/downloads/imports GGUF files and controls concurrent llama.cpp sidecars |
 | `RagKnowledgeStorePane` | Creates knowledge stores, previews sources, displays persisted indexing state, synchronizes them, and runs retrieval tests |
 | `JobSchedulerDialog` | Job creation, scheduling, and journal inspection |
@@ -336,18 +353,18 @@ Persistence (saved chats stored in global-settings.xml)
 ```
 User creates scheduled job
     ↓
-JobScheduler stores in job-scheduler.xml
+JobSchedulerService stores in job-scheduler.xml
     ↓
-JobExecutor runs on schedule (background thread)
+JobSchedulerJobRunner runs on schedule (background thread)
     ↓
-JobJournal records output with redaction
+JobJournalEntry records output with redaction
     ↓
 Menu-bar status displays next runs / live countdown
 ```
 
 ## Logging and Diagnostics
 
-- **Log file**: `~/.kortty/kortty.log` (SLF4J with Logback backend)
+- **Log file**: `~/.kortty/logs/kortty.log`, rolled over daily, with the log directory and retention set under **Settings → Logging** (SLF4J with Logback backend)
 - **JMX monitoring**: MBean `de.kortty:type=SSHClient` exposes the live SSH and Mosh terminal connections (each split pane counts, local shells do not), memory and uptime; `BufferedTextSize` is not tracked and stays 0
 - **JobScheduler journal**: Detailed execution logs with configurable retention (14 days default, unlimited if set to 0)
 - **Project screen snapshots**: The last visible screen of each terminal tab of a saved project, gzip-compressed in `~/.kortty/history/` and shown locally (never sent to the server) when the project is reopened with Auto-Reconnect
@@ -380,8 +397,8 @@ Menu-bar status displays next runs / live countdown
 
 ### For Integrators
 
-1. **JAXB Repositories**: Extend `XMLConnectionRepository` or `CredentialRepository` to add custom data sources
-2. **JobScheduler Actions**: Add new action types to `JobExecutor` (e.g., custom SFTP operations)
+1. **JAXB Repositories**: Extend `XMLConnectionRepository` or add a store beside `CredentialManager` for custom data sources
+2. **JobScheduler Actions**: Add new action types to `JobSchedulerJobRunner` (e.g., custom SFTP operations)
 
 ## Performance Considerations
 

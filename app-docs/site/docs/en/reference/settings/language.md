@@ -15,5 +15,8 @@ Configure the user interface language for korTTY. Supports 8 built-in languages 
 !!! note
     Language changes take effect after the application is restarted. The setting will apply to the user interface labels, menus, and dialogs the next time korTTY launches.
 
+!!! note "Additional languages"
+    Languages you generated with a translation service (see [Translation](translation.md)) appear below the built-in ones in the dropdown, labeled with the language name and its code; see [Languages & dynamic translation](../../features/i18n.md).
+
 !!! note "Date and number formats"
     The installed application bundles Java locale data only for the 8 supported interface languages. If your operating system runs in a locale outside this list, dates and numbers are formatted using English conventions.

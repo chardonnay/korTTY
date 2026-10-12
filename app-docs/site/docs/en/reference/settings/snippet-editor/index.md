@@ -10,7 +10,7 @@ Font, color and cursor overrides for the Snippet Manager and the Snippet Edit di
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
-| Font Family | dropdown | Empty (inherit) or an installed monospace family | empty (inherit) | `snippetFontFamily` |
+| Font Family | dropdown | Empty (inherit) or any installed font family; common monospace families are listed first | empty (inherit) | `snippetFontFamily` |
 | Font Size | number | 0–72 (0 = inherit) | 0 (inherit) | `snippetFontSize` |
 | Foreground Color | color | — | inherit (picker shows `#d4d4d4`) | `snippetForegroundColor` |
 | Background Color | color | — | inherit (picker shows `#1e1e1e`) | `snippetBackgroundColor` |

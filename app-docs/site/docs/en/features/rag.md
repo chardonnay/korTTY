@@ -10,7 +10,7 @@ A **knowledge store** lets an AI profile answer with relevant excerpts from loca
 
 ## Create a local knowledge store
 
-Open **AI > AI Manager > Knowledge Stores** and choose **Create**. The beginner flow needs a name, an installed embedding model, role assignments, and at least one reviewed source. Store type, vector dimensions, and optional Qdrant connection fields stay collapsed under **Advanced**; korTTY manages the local HNSW graph parameters internally, so normal use requires no vector-index tuning.
+Open **AI > AI Manager > Knowledge Stores** and choose **Create knowledge store**. The beginner flow needs a name, an installed embedding model, role assignments, and at least one reviewed source. Store type, **Embedding dimensions**, and the optional Qdrant fields (**Qdrant endpoint**, **Collection**, **API key**) stay collapsed under **Advanced**; korTTY manages the local HNSW graph parameters internally, so normal use requires no vector-index tuning.
 
 ![Knowledge Stores with a local HNSW demo store and one manual folder source](../assets/screenshots/ai/knowledge-stores.png)
 
@@ -26,7 +26,7 @@ To add content:
 
 ![Real review preview with unchanged, changed, and skipped demo files](../assets/screenshots/ai/rag-preview.png)
 
-The source table shows the path, source type, synchronization mode, status, file/chunk counts, problem count, and last successful index. These values persist across restarts. Available actions include **Add files**, **Add folder**, **Update now**, **Disable/Enable**, **Remove**, and **Test search**.
+The source table shows the path, source type, synchronization mode, status, file/chunk counts, problem count, and last successful index. These values persist across restarts. Available source actions include **Add files**, **Add folder**, **Update now**, **Sync mode**, **Advanced**, **Enable / disable**, and **Remove**; **Cancel** stops a running scan or indexing job. The store table has **Create knowledge store**, **Configure**, **Delete store**, **Test search**, and **Refresh**.
 
 !!! important "A folder is always reviewed first"
     Adding a directory never means “send every file.” korTTY scans without following symbolic links, applies the central format allowlist and safe directory exclusions, validates the file contents on a background worker, and presents the accepted and skipped set before indexing begins. The source is not saved and indexing does not start unless you confirm that preview.
@@ -51,7 +51,7 @@ The default limit is 50 MiB per file. A source can set it from 1 MiB to 1 GiB un
 
 ## Safe folder scanning
 
-Folder sources are recursive by default. korTTY does not follow symbolic links and excludes hidden paths plus common metadata, dependency, build, cache, and IDE directories:
+Folder sources are recursive by default; the **Scan folders recursively** option under **Advanced** turns that off. korTTY does not follow symbolic links and excludes hidden paths plus common metadata, dependency, build, cache, and IDE directories:
 
 ```text
 .git  .hg  .svn  .gradle  .idea  .vscode  .venv  venv
@@ -89,7 +89,7 @@ The optional Qdrant adapter creates or validates a cosine collection, stores the
 
 ## Use a store with an AI profile
 
-When creating or configuring a knowledge store, select **Text**, **Coding**, or both roles. korTTY associates the knowledge store with the profiles currently assigned to those roles. Enable **Autonomous workflows** separately only when agent-style background prompts may retrieve from this knowledge store.
+When creating or configuring a knowledge store, select **Text / translation**, **Coding**, or both roles. korTTY associates the knowledge store with the profiles currently assigned to those roles. The third checkbox, **Agent, planning, swarm, and jobs (explicit opt-in)**, is separate: enable it only when agent-style or scheduled prompts may retrieve from this knowledge store.
 
 !!! warning "Cloud profiles receive retrieved excerpts"
     korTTY never sends the complete source collection, HNSW graph, or Qdrant collection to a chat model. It sends only the bounded excerpts retrieved for the current request. Those excerpts remain on this computer with an integrated llama.cpp or provably loopback HTTP profile, but they leave the computer when the selected Text/Coding profile uses a cloud endpoint. Selecting a knowledge-store role records that knowledge store on the profile currently assigned to the role and is therefore explicit permission to disclose matching excerpts to that profile. The service factory may automatically add other eligible role-assigned knowledge stores only to integrated or loopback profiles; cloud, LAN, hostname-lookalike, and CLI profiles use only their persisted explicit knowledge-store assignments.

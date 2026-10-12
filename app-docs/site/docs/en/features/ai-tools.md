@@ -37,7 +37,7 @@ The base command name is configurable in **Settings > AI**. If you rename `agent
 ### Command purposes
 
 - **`agent <goal>`** — Execute safe terminal commands to accomplish a goal. The agent inspects the session, plans non-interactive commands, requests approval when needed, and (by default) writes the final answer back to the terminal. The run dialog offers a **Show final answer in the terminal too** option: leave it on to mirror the answer into the terminal, or turn it off so the answer stays only in the AI agent activity panel. Either way the commands still run and their output and any files they create remain on the server; only the display of the final answer text changes. The last choice is remembered as the default.
-- **`agent-ask <question>`** — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (**AI → Ask AI Agent**) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.
+- **`agent-ask <question>`** — Get a non-executing answer about the current session context without running any commands. When started from the terminal right-click menu (**AI → Ask Agent...**) with text selected, the selection is sent along as context, so the question is answered about the selected output or script.
 - **`agent-plan <task>` / `agent -plan <task>`** — Enter planning mode first. The agent asks clarifying questions, proposes approaches, generates a final plan, and runs implementation only after you click **Implement**.
 
 ### Examples
@@ -73,6 +73,15 @@ The Terminal AI Agent follows a strict, safe execution loop:
 4. **Validate the decision** — KorTTY validates the JSON schema and command constraints. Invalid responses are repaired once; unsafe or unsupported decisions are rejected.
 5. **Execute approved commands** — KorTTY runs approved commands through the active backend: SSH exec channels for SSH sessions, or a fresh local process for local shells. Each command starts in the tracked active terminal directory captured for this run. A `cd` inside a one-shot command does not persist to the next command, while an interactive `cd` completed before the run is included in the captured directory.
 6. **Iterate or conclude** — Command output is added to the activity panel and to the next model turn until the task completes, is blocked, cancelled, or the turn limit is reached (8 turns maximum).
+
+### What the agent can call
+
+The model answers each turn with one decision, and korTTY carries out only the decisions and tools listed here:
+
+- **`run_commands`** — Up to 3 non-interactive shell commands for the active backend. System-changing commands go through the approval gate described under [Approval gates](#approval-gates).
+- **`needs_confirmation`** — Asks you to confirm a command set before it runs.
+- **`done`** or **`blocked`** — Ends the run with the final answer, or with an explanation of why the task cannot continue.
+- **`web_search` and `web_extract`** — Only with the **KorTTY Tavily Tool** internet mode (see [Internet access](#internet-access)). The search returns five short results; the page read returns the text of one web page, up to 12,000 characters.
 
 ### Suitable tasks
 
@@ -133,7 +142,7 @@ Activity rows use semantic emoji icons (static, non-blinking):
 
 | Icon | Meaning |
 |------|---------|
-| 💾 | Request or input: write/create file |
+| 💾 | Action: write or create a file |
 | 📖 | Action: read file/directory |
 | ▶️ | Action: run/execute command |
 | 📁 | Action: directory operation |
@@ -157,7 +166,7 @@ KorTTY enforces multiple guardrails around agent execution:
 
 - **Per-turn limit** — A maximum of 3 commands per turn prevents runaway automation.
 - **Non-interactive only** — The agent rejects interactive commands (like `vim`, `less`, `su`) that would hang in a non-interactive command backend.
-- **Mutating-command detection** — Commands that change the system (`chmod`, `rm`, `mv`, `mkdir`, etc.) are flagged for confirmation unless the agent has auto-approval bypass.
+- **Mutating-command detection** — A command that starts with one of `chmod`, `chown`, `chgrp`, `rm`, `rmdir`, `mv`, `cp`, `mkdir`, `touch`, `ln`, `tee`, `dd`, `truncate` or `install` (after `;`, `&`, `|` or `(` too) is treated as changing the system and flagged for confirmation unless the agent has auto-approval bypass.
 
 ### Privilege handling
 
@@ -171,7 +180,7 @@ KorTTY enforces multiple guardrails around agent execution:
 ### Approval gates
 
 - **Mutating commands** — By default, the agent asks for approval before running commands that modify the system (unless auto-approval is enabled in settings).
-- **Confirmation dialog** — The approval dialog shows the planned commands and their purposes. You can approve once, approve all remaining commands in the run, or cancel.
+- **Confirmation dialog** — The approval dialog (**AI Agent Approval**) shows the planned commands and their purposes. You can choose **Allow Once**, **Allow Always** for the remaining commands in the run, or cancel.
 - **Sudo preflight** — After accepting a planning report, if the plan requires sudo and your SSH session requires a sudo password, KorTTY performs the preflight check immediately after acceptance so execution is not interrupted later.
 
 ### Directory tracking
@@ -271,7 +280,7 @@ To start an agent task:
    - Real-time command output as it runs
    - Any approval or password requests
 
-5. **Approvals** — When the agent needs approval to run system-changing commands, click **Approve once** (just this set) or **Approve always** (all remaining sets in the run), or click **Cancel**.
+5. **Approvals** — When the agent needs approval to run system-changing commands, click **Allow Once** (just this set) or **Allow Always** (all remaining sets in the run), or click **Cancel**.
 
 6. **Sudo password** — When prompted, enter your sudo password. It can optionally be cached for the session.
 
@@ -306,15 +315,15 @@ Configure the Terminal AI Agent in **Settings > AI**:
 
 | Setting | Effect |
 |---------|--------|
-| **AI Agent enabled** | Enable or disable the agent feature globally |
+| **Enable AI Agent execution** | Enable or disable executable agent runs and plan implementation; AI Planning and Ask Agent stay available |
 | **Agent command name** | The base command (default: `agent`); other variants are derived automatically |
-| **Case-insensitive** | Make command matching case-insensitive |
-| **Execution target** | Choose whether agent runs open in dedicated tabs or inline at the terminal split |
-| **Per-run setup dialog** | Show a setup dialog before each run (disabled uses the default profile) |
-| **Input history size** | Number of recent prompts to remember (5–100, default 20) |
+| **Match agent command name case-insensitively** | Make command matching case-insensitive |
+| **AI agent task target** | **Terminal window** (the activity panel at the terminal split) or **New chat window** |
+| **Show terminal agent setup dialog before each run** | Show a setup dialog before each run (disabled uses the default profile) |
+| **Terminal agent input history size** | Number of recent prompts to remember (5–100, default 20) |
 | **Default profile** | The AI profile used when the setup dialog is disabled |
-| **Activity panel placement** | Choose **At Bottom** or **Dock Left/Right** |
-| **Keep collapsed preference** | Start the panel minimized and keep it collapsed during execution |
+
+The panel placement is set under **View → AI Agent Panel**, and **Keep collapsed** is an option of the activity panel itself (see [Panel placement](#panel-placement) and [Panel features](#panel-features)).
 
 ## AI Skills
 
@@ -332,10 +341,10 @@ See the **AI Skills** section in the main AI documentation for setup and managem
 The agent can optionally use web tools when the task clearly requires current or external information:
 
 - **Disabled** (default) — No web tools or MCP integrations are sent with agent requests.
-- **KorTTY Tavily Tool** — Direct web search via Tavily API.
+- **KorTTY Tavily Tool** — Direct web search and page reading through the Tavily API (`web_search` and `web_extract`, see [What the agent can call](#what-the-agent-can-call)).
 - **LM Studio MCP modes** — Integrate Tavily, Bright Data, Brave Search, SearXNG, or LM Studio Toolpack through LM Studio's native MCP support.
 
-Configure internet access per AI profile in **Settings > AI > Internet access**.
+Configure internet access per AI profile with the **Internet access** field of the profile editor; the Tavily key and the other web-tool settings are entered under **Settings > AI > Internet tool configuration**.
 
 !!! warning
     **Web tools are withheld from local file/script review tasks** unless your prompt clearly asks for current or external information. Inspecting a local file should use shell commands like `sed`, `cat`, `find`, or language-specific tools, not web search.

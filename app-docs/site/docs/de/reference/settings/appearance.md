@@ -33,7 +33,7 @@ Die sieben AtlantaFX-Einträge wenden das User-Agent-Design **Primer Dark**, **P
 
 ### UI-Schriftgröße
 
-**UI-Schriftgröße** skaliert die eigene Benutzeroberfläche von korTTY – die Menüleiste und ihre Dropdowns, Dialoge, Formularbeschriftungen, Schaltflächen, Registerkartentitel, das Dashboard, den Dateibrowser und die Statusleiste. Es wird in dem Moment wirksam, in dem Sie speichern. Es ist kein Neustart erforderlich und die Größe bereits geöffneter Fenster ändert sich damit. Die Größe des Hauptfensters beim ersten Start wächst mit, und Dialoge, die sich ihre Größe merken, werden nach einer Änderung neu gemessen, anstatt in einer Größe erneut geöffnet zu werden, die nicht mehr zu ihrem Text passt.
+**UI-Schriftgröße** skaliert die eigene Benutzeroberfläche von korTTY – die Menüleiste und ihre Dropdowns, Dialoge, Formularbeschriftungen, Schaltflächen, Tab-Titel, das Dashboard, den Dateibrowser und die Statusleiste. Die Änderung tritt sofort nach dem Speichern in Kraft; ein Neustart ist nicht nötig, und bereits geöffnete Fenster passen sich automatisch an. Die Größe des Hauptfensters bei der ersten Öffnung wächst mit, und Dialoge sowie die Anleitung-Fenster, die ihre Größe merken, werden nach einer Änderung neu gemessen statt bei einer Größe zu öffnen, die ihren Text nicht mehr enthält.
 
 Es berührt bewusst **keine** Oberflächen, die bereits über eine eigene Größenkontrolle verfügen, sodass die beiden nie gegeneinander antreten:
 
@@ -97,7 +97,7 @@ Erstellen, bearbeiten und verwalten Sie Terminal-Farbschemata. Schemata definier
 | Aktion | Beschreibung |
 | --- | --- |
 | **Hinzufügen** | Erstellen Sie ein neues benutzerdefiniertes Farbthema |
-| **Bearbeiten** | Das ausgewählte Thema ändern. Die Schaltfläche bleibt für integrierte Designs aktiviert, führt aber beim Klicken nichts aus – duplizieren Sie zuerst das Design |
+| **Bearbeiten** | Öffnen Sie das ausgewählte Thema im Themeneditor, inklusive integrierter Themen. Die Änderung wird in `~/.kortty/themes.xml` gespeichert; ein bearbeitetes integriertes Thema behält seine *(integriert)*-Bezeichnung und kann immer noch nicht gelöscht werden. Duplizieren Sie es zuerst, wenn Sie das Original behalten möchten |
 | **Duplizieren** | Kopieren Sie das ausgewählte Design als neues benutzerdefiniertes Design |
 | **Löschen** | Entfernen Sie ein benutzerdefiniertes Design (integrierte Designs können nicht gelöscht werden) |
 
@@ -115,7 +115,7 @@ Erstellen, bearbeiten und verwalten Sie Terminal-Farbschemata. Schemata definier
 korTTY enthält eine Reihe integrierter Farbthemen (z. B. Standard, Dunkelmodus, Solarisiertes Licht). Integrierte und benutzerdefinierte Designs werden zusammen in einer einzigen Datei, `~/.kortty/themes.xml`, gespeichert. Alle Themen werden in der Farbprofilauswahl der Registerkarte „Farben“ und in verbindungsspezifischen Themen-Dropdown-Menüs angezeigt.
 
 !!! warning
-    Integrierte Designs können nicht bearbeitet oder gelöscht werden. Um ein integriertes Design zu ändern, duplizieren Sie es zunächst und bearbeiten Sie dann die benutzerdefinierte Kopie.
+    Integrierte Themen können bearbeitet, aber nicht gelöscht werden, und korTTY stellt ihre ursprünglichen Farben nicht automatisch wieder her. Um das Original zu behalten, duplizieren Sie zunächst das Thema und bearbeiten die benutzerdefinierte Kopie.
 
 ### Theme-Vorschau
 

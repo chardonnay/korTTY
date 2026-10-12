@@ -28,6 +28,8 @@ Ein solcher Tab kopiert höchstens zwei Dateien gleichzeitig, auch wenn *Einstel
 
 Hat der Bereich keine SSH-Sitzung, die er teilen kann (ein Mosh- oder lokaler Shell-Tab), oder verweigert der Server oder ein Proxy SFTP darüber, öffnet korTTY stattdessen wie bisher einen SFTP-Tab mit eigener Anmeldung für die Verbindung des Bereichs. Ein gespeichertes [Projekt](projects.md#sftp-manager-tabs) stellt einen solchen Tab als gewöhnlichen SFTP-Tab mit eigener Anmeldung wieder her, in den Ordnern, in denen er sich befand.
 
+Für einen schnellen Blick ohne Tab zu öffnen, **Ansicht → Seitenleiste Remote-Dateien** dockt eine Dateiliste neben die Terminalfenster an, die den Ordner auflistet, in dem sich die Shell des fokussierten SSH-Panes befindet, über die Sitzung dieses Panels und folgt der Shell, während Sie `cd`. Die Seitenleiste tippt niemals in das Terminal; ihre Uploads, Downloads und Drops gehen über die [Transferliste](#ubertragungsliste) nach einer Bestätigung, die den Serverordner nennt. Siehe [Seitenleiste Remote-Dateien](terminal.md#seitenleiste-remote-dateien).
+
 ## Schnittstelle
 
 Der SFTP-Manager verwendet ein **Zwei-Panel-Layout** für eine einfache Dateiverwaltung nebeneinander:
@@ -44,7 +46,7 @@ Beide Paneele zeigen die gleichen Spalten an, von denen alle durch Klicken auf d
 | Spalte | Beschreibung |
 |--------|---|
 | **Name** | Datei oder Verzeichnisaname |
-| **Typ** | Verzeichnis (📁) oder Datei (📄) Hinweis |
+| **Typ** | Ein Typ-Icon: ein Ordner oder ein Dateiknopf, der anhand des Dateinamens (Code, Bild, Archiv, Dokument, anderes) gewählt wird |
 | **Größe** | Dateigröße im menschenlesbaren Format (Verzeichnisse zeigen —); die Sortierung verwendet die exakte Byteanzahl, mit Ordnern zuerst |
 | **Datum** | Letzte Änderungsdatum und -zeit |
 | **Benutzer** | Eigentümername (lokale Umgebung: aus der Dateisystem; remote: aus SFTP oder UID) |
@@ -94,9 +96,18 @@ Jedes Panel hat seine eigene Gruppe von Toolbar-Buttons unter den Listen (lokal 
 | **Im Snippet-Editor bearbeiten** | Wählen Sie genau eine lokale oder Remote-Datei aus und verwenden Sie dann das Symbolleistenmenü *Bearbeiten* oder das Kontextmenü mit der rechten Maustaste |
 | **Archivieren** | **Archivieren** in der Remote-Werkzeugleiste, oder **Archivieren...** im jeweiligen Kontextmenü, packt die Auswahl als ZIP, TAR.BZ2 oder 7z, je nach verfügbaren Tools auf dieser Seite. Ein lokales Archiv kann ein Passwort haben, ein Archiv auf dem Server nicht, weil `zip` und `7z` das Passwort auf der Befehlszeile des Servers bräuchten, wo andere Benutzer des Servers es lesen können |
 | **Hier entpacken** | Klicken Sie mit der rechten Maustaste auf ein Archiv auf dem Server (`.zip`, `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz` oder `.7z`) und wählen Sie **Hier entpacken...**. Es wird auf dem Server in einen neuen Ordner daneben entpackt; siehe [Archive auf dem Server entpacken](#archive-auf-dem-server-entpacken) |
-| **Besitzer/Berechtigungen setzen** | Wählen Sie Einträge aus, klicken dann auf **Rechte** oder wählen **Besitzer/Berechtigungen setzen...** im Kontextmenü. Separate Felder für Benutzer, Gruppe und oktale Berechtigungen (z.B., 755) |
+| **Besitzer/Berechtigungen setzen** | Wählen Sie Einträge aus, klicken dann auf **Rechte** oder wählen **Besitzer/Berechtigungen setzen…** im Kontextmenü. Separate Felder für Benutzer, Gruppe und oktale Berechtigungen (z. B. 755). Mit **Rekursiv auf Verzeichnisse anwenden** erreicht die Änderung auch das, was sich in den ausgewählten Ordnern befindet |
+| **Bild öffnen** | Wählen Sie eine Bilddatei aus und wählen **Bild öffnen** im Kontextmenü eines der beiden Panels. Das Bild öffnet sich in einem Bildbetrachter-Tab; ein Serverbild wird zunächst in den Speicher heruntergeladen |
 
 Ein Name für **Umbenennen** oder **Neuer Ordner** muss ein einzelnes Element im angezeigten Ordner sein: er darf nicht leer, `.` oder `..` sein, und darf `/` oder `\` nicht enthalten. Das Dialogfeld bleibt mit einem Fehler offen, bis der Name nutzbar ist.
+
+### Archive erstellen
+
+Das Archivdialogfeld akzeptiert das Format (ZIP, TAR.BZ2 oder 7z; ein Format, dessen Tool der Server nicht besitzt, wird als *nicht installiert* gekennzeichnet), den Pfad des Archivs und ein Kompressionslevel von keines bis best. Die übrigen Felder sind optional:
+
+- **Exclude** — ein Muster pro Zeile, z. B. `*.log`, `.git` oder `node_modules`; es existiert in beiden Panels.
+- **Passwort** — local archives only. It is greyed out for TAR.BZ2, a format without encryption, and server archives get no password at all.
+- **Besitzer** und **Berechtigungen** — nur für Remote-Archive. Der Besitzer wird mit `chown` und die Berechtigungen, als Oktalzahlen, mit `chmod` festgelegt, sobald das Archiv geschrieben wird. Das Berechtigungsfeld ist vorgefüllt mit `644`.
 
 ### Archive auf dem Server entpacken
 
@@ -148,7 +159,7 @@ Diese Tasten funktionieren in beiden Panels:
 
 ### Übertragungsliste
 
-Uploads und Downloads laufen im Hintergrund, bis zu drei Dateien gleichzeitig (*Einstellungen → SFTP-Manager → [Parallele Übertragungen](../reference/settings/sftp.md#ubertragungen)*, 1 bis 8), jede über einen eigenen SFTP-Kanal. Die erste Übertragung öffnet die Liste **Übertragungen** am unteren Rand des Tabs; der Pfeil links davon klappt sie auf ihre Kopfzeile zusammen. Jede Zeile ist eine Datei oder ein Ordner, den Sie übertragen haben, mit Richtung, Fortschrittsbalken, bisher übertragenen Bytes, Geschwindigkeit und Restzeit; eine Ordnerzeile fasst die darin enthaltenen Dateien zusammen. Die Statusleiste zeigt, wie viele Dateien aller laufenden Übertragungen fertig sind, und die Gesamtgeschwindigkeit an und meldet **Hochgeladen** oder **Heruntergeladen**, wenn ein Stapel abgeschlossen ist.
+Uploads und Downloads laufen im Hintergrund, standardmäßig drei Dateien gleichzeitig (*Settings → SFTP Manager → [Parallele Übertragungen](../reference/settings/sftp.md#ubertragungen)*, 1 bis 8), jeweils über einen eigenen SFTP-Kanal. Ein Tab, der die Sitzung eines Terminals übernimmt, kopiert maximal zwei Dateien gleichzeitig. Die erste Übertragung öffnet die **Übertragungen**-Liste am unteren Rand des Tabs; der Pfeil links davon verkleinert sie auf die Überschrift. Jede Zeile ist eine Datei oder ein Ordner, den Sie übertragen haben, mit ihrer Richtung, einer Fortschrittsleiste, den bisher übertragenen Bytes, der Geschwindigkeit und der verbleibenden Zeit; eine Ordnerzeile summiert die darin enthaltenen Dateien. Die Statusleiste zeigt, wie viele Dateien aller laufenden Übertragungen abgeschlossen sind und die Gesamtschnelligkeit an, und sagt **Upload abgeschlossen** oder **Download abgeschlossen**, wenn ein Batch beendet ist.
 
 ![Übertragungsliste mit einem Ordner-Upload, einer fehlgeschlagenen Datei darin, einem laufenden Download und fertigen Zeilen](../assets/screenshots/sftp/sftp-transfer-list.png)
 
@@ -225,7 +236,7 @@ Wenn die Datei im Snippet-Editor geöffnet wird, bleibt die vollständige Symbol
 
 Die Dateimodus-Schaltflächen bieten folgende Speicheroptionen:
 
-- **Datei überschreiben** – schreibt den aktuellen Editorinhalt zurück in die ursprüngliche lokale oder Remote-Datei
+- **Remote-Datei überschreiben** (**Lokale Datei überschreiben** für eine Datei im linken Panel) — schreibt den aktuellen Editorinhalt zurück in die ursprüngliche Datei
 - **Speichern unter...** – schreibt eine neue lokale Datei über eine Dateiauswahl oder fordert für Remote-Dateien zur Eingabe eines neuen Dateinamens im selben Remote-Verzeichnis auf
 - **Als Snippet speichern** – speichert den aktuellen Inhalt als neues Snippet-Manager-Snippet, ohne die Quelldatei als gespeichert zu markieren
 
@@ -235,7 +246,7 @@ Eine Organisation kann das Bearbeiten von Serverdateien mit dem Schlüssel `load
 
 ### Im eigenen Editor bearbeiten
 
-**In externem Editor bearbeiten** (im Rechtsklickmenü einer Serverdatei und im Remote-Menü **Bearbeiten**) öffnet die ausgewählte Serverdatei in Ihrem eigenen Texteditor und kopiert jedes Speichern zurück auf den Server. Den Editor wählen Sie unter [*Einstellungen → SFTP-Manager → Externer Editor*](../reference/settings/sftp.md#externer-editor); ist keiner festgelegt, öffnet sich die Datei als Text im Editor des Systems.
+**In externem Editor bearbeiten** (im Rechtsklick-Menü einer Serverdatei und im Remote **Bearbeiten** Menü) öffnet die ausgewählte Serverdatei in Ihrem eigenen Texteditor und kopiert jede Speicherung zurück zum Server. Wählen Sie den Editor unter [*Settings → SFTP Manager → External editor*](../reference/settings/sftp.md#externer-editor); ohne einen öffnet macOS die Datei im Standard-Texteditor, Windows nutzt seinen Edit-Befehl (Skripte gehen zu Notepad), und Linux öffnet Textdateien mit der Standardanwendung für Text und fragt nach einem Editor-Befehl für andere Dateitypen.
 
 - **Lokale Kopie** — die Datei wird in einen privaten Ordner namens `kortty-remote-edit-…` im temporären Ordner des Systems heruntergeladen, den nur Sie öffnen können, und zwar unter einem bereinigten Namen: Andere Zeichen als Buchstaben, Ziffern, `.`, `_`, `-` und Leerzeichen werden zu `_`, und Windows-Gerätenamen wie `CON` erhalten ein vorangestelltes `_`. Einem symbolischen Link wird einmal gefolgt, und bearbeitet wird die Datei, auf die er zeigt.
 - **Automatischer Upload** — korTTY prüft die Kopie jede Sekunde. Etwa eine Sekunde nach dem Speichern wird der neue Inhalt hochgeladen, und die Statusleiste meldet **hochgeladen** mit dem Dateinamen; erneutes Speichern desselben Inhalts lädt nichts hoch. Der Upload funktioniert wie jeder andere: über eine `.kortty-part`-Datei, die die Berechtigungen der Datei beibehält, oder direkt an Ort und Stelle geschrieben, wenn die Datei einem anderen Benutzer gehört, sodass ihr Eigentümer erhalten bleibt.
@@ -285,7 +296,7 @@ Aktivieren Sie **Unterordner einbeziehen** neben dem Remote-Suchfeld und drücke
 | Treffer | 5000 |
 | Zeit | 60 Sekunden |
 
-Wenn der Server korTTY Befehle ausführen lässt und `find` vorhanden ist, läuft die Suche dort, und nur die passenden Pfade werden über die Verbindung übertragen; andernfalls durchläuft korTTY die Ordner per SFTP, was langsamer ist und nach 200.000 gelesenen Einträgen stoppt. Symbolische Links werden aufgelistet, aber nie verfolgt, sodass ein Link, der im Baum nach oben zurückzeigt, die Suche nicht in eine Schleife schicken kann. **Auf diesem Dateisystem bleiben** (standardmäßig aktiviert) hält `find` aus anderen eingehängten Dateisystemen wie Netzwerkfreigaben und `/proc` heraus; der Durchlauf per SFTP kann Dateisysteme nicht unterscheiden. Ordner, die Sie nicht lesen können, werden übersprungen. Die Suche liest auf dem Server nur Namen, daher bleibt sie verfügbar, wenn eine Unternehmensrichtlinie Dateiübertragungen blockiert.
+Wenn der Server korTTY das Ausführen von Befehlen erlaubt und `find`, läuft die Suche dort und nur die passenden Pfade werden über die Verbindung übertragen; andernfalls durchsucht korTTY die Ordner per SFTP, was langsamer ist und nach dem Lesen von 200.000 Einträgen stoppt. Symbolische Links werden aufgelistet, aber nie verfolgt, sodass ein Link, der zurück zum Stamm führt, die Suche nicht in eine Schleife bringt. **Auf diesem Dateisystem bleiben** (standardmäßig aktiviert und nur mit **Unterordner einbeziehen**) hält `find` von anderen gemounteten Dateisystemen wie Netzwerklaufwerken und `/proc` fern; die Durchsuchung per SFTP kann Dateisysteme nicht unterscheiden. Ordner, die Sie nicht lesen können, werden übersprungen. Die Suche liest nur Namen auf dem Server, sodass sie verfügbar bleibt, wenn eine Unternehmensrichtlinie Dateitransfers blockiert.
 
 ---
 

@@ -63,7 +63,7 @@ Die Größe des Fensters des Terminal Effects Managers lässt sich ändern, soda
 
 Der Dialog zeigt die geladene Plugin-Liste mit:
 
-- Aktiver/inaktiver Zustand
+- Ein **Aktiv** Kontrollkästchen pro Plugin
 - Anzeigename
 - Kurze Beschreibung
 
@@ -71,11 +71,13 @@ Neben der Tabelle spielt ein Vorschaufenster eine animierte Live-Vorschau des au
 
 Benutzer können:
 
-- Aktivieren oder deaktivieren Sie ein Plugin
+- Ein Plugin aktivieren oder deaktivieren, indem Sie sein **Aktiv** Kontrollkästchen setzen oder entfernen
+- Schalten Sie die gesamte Funktion mit **Terminal-Effekte aktivieren** oben im Dialog aus; während sie deaktiviert ist, sind die Tabelle, **Importieren** und **Neu laden** ausgegraut und die Vorschau stoppt
+- Laden Sie die Plugins mit **Neu laden** neu, zum Beispiel nach dem Kopieren einer JAR-Datei in `~/.kortty/plugins` von Hand
 - Importieren Sie eine externe `.jar` Plugin, in das KorTTY kopiert `~/.kortty/plugins`
-- Exportieren Sie Plugins, die über eine Quell-JAR verfügen (die gebündelten MOTHER- und Effect-Pack-JARs sind exportierbar)
+- Exportieren Sie Plugins, die eine Quell-JAR haben (die gebündelten MOTHER- und effect-pack JARs sind exportierbar); **Exportieren** ist für die ausgewählte Zeile verfügbar, solange die Funktion aktiviert ist.
 
-Benutzer wählen Effekte pro Terminalsitzung aus dem Terminal-Kontextmenü oder **Ansicht > Terminaleffekt** aus. Gespeicherte Verbindungen können auch den ausgewählten Effekt und die Animationsgeschwindigkeit über die Schnellverbindung und den Connection-Manager speichern. Der Geschwindigkeitsregler deckt `1x` bis `10x` ab; Das numerische Feld akzeptiert Werte bis zu `99x`.
+Benutzer wählen Effekte pro Terminalsession aus dem Terminal-Kontextmenü oder **Ansehen > Terminal-Effekt**, die die Effekte nur anbieten, solange **Terminal-Effekte aktivieren** eingeschaltet ist. Gespeicherte Verbindungen können ebenfalls den ausgewählten Effekt und die Animationsgeschwindigkeit über Schnellverbindung und Connection-Manager speichern. Der Geschwindigkeitsregler deckt `1x` bis `10x` ab; das numerische Feld akzeptiert Werte bis zu `99x`.
 
 ## SPI-Klassen
 

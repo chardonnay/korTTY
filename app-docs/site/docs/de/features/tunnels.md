@@ -92,7 +92,7 @@ Konfigurieren Sie Ihren Browser oder Ihre Anwendung so, dass sie `localhost:1080
 ## Wenn Tunnel geöffnet sind
 
 - **Einmal pro Terminal-Tab:** die Tunnel öffnen sich unmittelbar nach dem Login in der ersten SSH-Sitzung des Tabs und bleiben offen, solange der Tab verbunden ist. Aufgeteilte Panes öffnen sie nicht erneut und stehen auch nicht im Konflikt mit ihnen.
-- **Einmal gefragt:** Beim ersten Öffnen der Tunnel einer Verbindung listet korTTY sie auf und fragt **Tunnel öffnen** oder **Nicht jetzt**. **Nicht jetzt** ist die Standardschaltfläche, sodass ein Tastendruck, den Sie noch in das Terminal eingeben, wenn die Frage erscheint, sie nicht öffnet. Die Antwort wird für diese Verbindung gespeichert; korTTY fragt erneut, wenn sich die Tunnel oder der Server ändern. **Nicht jetzt** gilt für den Tab, einschließlich seiner Neuverbindungen – öffnen Sie die Verbindung in einem neuen Tab, um erneut gefragt zu werden.
+- **Einmal gefragt:** Beim ersten Öffnen der Tunnel einer Verbindung listet korTTY sie auf und fragt **Tunnel öffnen** oder **Nicht jetzt**. **Nicht jetzt** ist die Standardtaste, sodass ein Tastendruck, den Sie noch in das Terminal eingeben, wenn die Frage erscheint, sie nicht öffnet. Die Frage trägt den Titel **SSH-Tunnel** und listet jeden Tunnel so auf, wie er in der Tunnelliste erscheint, wobei markiert wird, welche anderen Computer ihn erreichen können. Die Antwort wird für diese Verbindung gespeichert; korTTY fragt erneut, wenn sich seine Tunnel oder sein Server ändern – das ist der Fall, wenn ein Tunnel hinzugefügt, entfernt, aktiviert oder deaktiviert wird, eine andere Adresse, Port oder Art erhält oder wenn die Verbindung zu einem anderen Server zeigt. Eine geänderte Beschreibung zählt nicht, und Tunnel, die ohnehin nicht öffnen konnten, werden nicht aufgeführt: stattdessen meldet die Statusleiste sie, und wenn keiner der Tunnel öffnen konnte, fragt korTTY überhaupt nicht. **Nicht jetzt** gilt für den Tab, einschließlich seiner Wiederverbindungen – öffnen Sie die Verbindung in einem neuen Tab, um erneut gefragt zu werden.
 - **Neu verbinden:** Eine manuelle oder automatische Neuverbindung schließt zunächst die Tunnel und öffnet sie anschließend in der neuen Sitzung.
 - **Bereiche schließen:** Wenn Sie den Bereich schließen, in dem die Tunnel laufen (oder dort `exit` eingeben), während ein Bereich offen bleibt, der mit **Rechts teilen (gleicher Server)** oder **Unten teilen (gleicher Server)** aus einem Bereich auf dem Server des Tabs geöffnet wurde, wechseln die Tunnel in diesen Bereich. Bereiche, die mit **Rechts teilen (neue Verbindung)** oder **Unten teilen (neue Verbindung)** geöffnet wurden, und die daraus erstellten Teilungen zum gleichen Server übernehmen sie nie, auch wenn sie sich mit demselben Server verbinden.
 - **Tab schließen** schließt seine Tunnel.
@@ -102,7 +102,30 @@ Konfigurieren Sie Ihren Browser oder Ihre Anwendung so, dass sie `localhost:1080
 
 ### Statusleiste
 
-Während ein Tab Tunnel hat, zeigt die Statusleiste `Tunnel: 2/3 aktiv`, gefolgt vom ersten Tunnel, der fehlgeschlagen ist und warum (zum Beispiel `Address already in use`) sowie dem ersten Tunnel, den andere Computer erreichen können. Bewegen Sie die Maus über die Statusleiste, um jeden Tunnel mit seinem Zustand anzuzeigen.
+Während ein Tab Tunnel hat, zeigt seine Statusleiste `Tunnels: 2/3 active`, gefolgt vom ersten fehlgeschlagenen Tunnel und dem Grund (zum Beispiel `Address already in use`) sowie dem ersten Tunnel, den andere Computer erreichen können. Wenn keiner der Tunnel des Tabs starten konnte, sagt die Statusleiste stattdessen in einem Satz: dass die Tunnel von Ihrer Organisation deaktiviert sind, dass sie für diesen Tab nicht erlaubt sind oder dass sie das SSH-Protokoll benötigen.
+
+Bewegen Sie die Maus über die Statusleiste, um jeden Tunnel in einer eigenen Zeile mit seinem Status anzuzeigen:
+
+| Status | Bedeutung |
+| --- | --- |
+| wird gestartet | die Weiterleitung wird angefordert |
+| aktiv auf *Adresse* | die Weiterleitung lauscht an dieser Adresse; ein aktiver Tunnel, von dem andere Computer ebenfalls erreicht werden können, sagt *möglicherweise von anderen Computern erreichbar* |
+| fehlgeschlagen: *Grund* | die Weiterleitung konnte nicht geöffnet werden oder der Server hat sie abgelehnt |
+| gestoppt | die Weiterleitung war offen und ist geschlossen (Neuverbindung, Sitzung beendet oder Tab geschlossen) |
+| nicht gestartet: *Grund* | der Tunnel wurde abgelehnt, bevor etwas geöffnet wurde, siehe die Gründe unten |
+
+Ein fehlgeschlagener oder abgelehnter Tunnel zeigt einen dieser Gründe an:
+
+| Grund | Wenn es erscheint |
+| --- | --- |
+| ungültiger Port | der Port liegt nicht zwischen 1 und 65535 |
+| der Port konnte nicht geöffnet werden | der lokale Listener konnte nicht erstellt werden; die eigene Meldung des Betriebssystems, wie `Address already in use`, wird angezeigt, wenn sie eine hat |
+| der SSH-Server verweigerte ihn | ein Remote-Tunnel, den der Server nicht akzeptierte, zum Beispiel weil der Port dort in Benutzung ist oder `AllowTcpForwarding` deaktiviert ist |
+| von Ihrer Organisation deaktiviert | die Unternehmensrichtlinie verbietet Portweiterleitung |
+| für diesen Tab nicht erlaubt | Sie haben die Frage für diesen Tab abgelehnt; siehe [Wenn Tunnel geöffnet werden](#wenn-tunnel-geoffnet-sind) |
+| benötigt das SSH-Protokoll | die Verbindung ist Mosh, welche keine Tunnel transportieren kann |
+| geteilte (Teamwork) Verbindungen können sich nur an localhost binden | ein lokaler oder dynamischer Tunnel einer geteilten Verbindung benennt eine andere Adresse |
+| geteilte (Teamwork) Verbindungen öffnen niemals entfernte Tunnel | ein entfernter Tunnel einer geteilten Verbindung, der nie geöffnet wird |
 
 ### Geteilte Verbindungen (Teamarbeit)
 
