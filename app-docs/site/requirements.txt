@@ -35,12 +35,12 @@ ghp-import==2.1.0
 idna==3.20
 Jinja2==3.1.6
 Markdown==3.11
-MarkupSafe==3.0.3
+MarkupSafe==3.0.4
 mergedeep==1.3.4
 mkdocs-get-deps==0.2.2
 packaging==26.3
 pathspec==1.1.1
-platformdirs==4.12.2
+platformdirs==4.12.4
 Pygments==2.21.0
 python-dateutil==2.9.0.post0
 PyYAML==6.0.3
