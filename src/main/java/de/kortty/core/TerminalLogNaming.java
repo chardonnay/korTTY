@@ -1,7 +1,12 @@
 package de.kortty.core;
 
+import de.kortty.model.TerminalLogConfig;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -9,8 +14,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -52,11 +59,128 @@ public final class TerminalLogNaming {
     private static final Pattern OWNED_ARCHIVE = Pattern.compile(
         "^(\\d{4}-\\d{2}-\\d{2})-\\d{2}-\\d{2}-\\d{2}-.+_\\d+(?:\\.p\\d+)?\\.(?:log|txt|xml|json)\\.gz$");
 
+    /**
+     * Every file korTTY's logger could have written, plain or compressed. The greedy slug group
+     * hands the <em>last</em> {@code _<digits>} to the sequence, so a slug like {@code web_2}
+     * parses as intended. The {@code .gz} subset is exactly what {@link #OWNED_ARCHIVE} accepts,
+     * which keeps the manager's listing and the retention sweep in agreement.
+     */
+    private static final Pattern ANY_LOG = Pattern.compile(
+        "^(\\d{4}-\\d{2}-\\d{2})-(\\d{2})-(\\d{2})-(\\d{2})-(.+)_(\\d+)(?:\\.p(\\d+))?"
+            + "\\.(log|txt|xml|json)(?:\\.(gz|zst|bz2))?$");
+
+    /** The compression a log file's outer suffix names. */
+    public enum Compression {
+        NONE(""), GZIP(".gz"), ZSTD(".zst"), BZIP2(".bz2");
+
+        public final String suffix;
+
+        Compression(String suffix) {
+            this.suffix = suffix;
+        }
+
+        /** By outer suffix; {@link #NONE} for anything else. */
+        public static Compression ofName(String fileName) {
+            if (fileName == null) {
+                return NONE;
+            }
+            String lower = fileName.toLowerCase(Locale.ROOT);
+            for (Compression candidate : values()) {
+                if (candidate != NONE && lower.endsWith(candidate.suffix)) {
+                    return candidate;
+                }
+            }
+            return NONE;
+        }
+    }
+
+    /**
+     * What a log file's name says about it. {@code startedAt} is when this part was opened —
+     * each {@code .p<n>} part carries its own stamp.
+     */
+    public record ParsedName(LocalDateTime startedAt, String slug, int sequence, int part,
+                             TerminalLogConfig.LogFormat format, Compression compression) {
+    }
+
     /** An opened log file together with the sequence number it ended up claiming. */
     public record Allocated(Path file, BufferedWriter writer, int sequence) {
     }
 
+    /** Matches the hidden lock sidecar a logger keeps beside the file it writes. */
+    private static final Pattern LOCK_FILE = Pattern.compile("^\\..+\\.lock$");
+
     private TerminalLogNaming() {
+    }
+
+    /**
+     * The hidden sidecar a logger locks while it writes {@code logFile}: {@code .<name>.lock} in
+     * the same folder. The lock sits on a file of its own, not on the log, because POSIX drops a
+     * process's locks on a file as soon as it closes <em>any</em> descriptor of that file — the
+     * viewer and the liveness probe both open and close the log, and would silently unlock it.
+     */
+    public static Path lockFileFor(Path logFile) {
+        return logFile.resolveSibling("." + logFile.getFileName() + ".lock");
+    }
+
+    /** Whether {@code fileName} is a lock sidecar ({@code .<name>.lock}). */
+    public static boolean isLockFile(String fileName) {
+        return fileName != null && LOCK_FILE.matcher(fileName).matches();
+    }
+
+    /** The log file a lock sidecar belongs to, by name, or {@code null} for any other name. */
+    public static String lockedFileName(String lockFileName) {
+        return isLockFile(lockFileName) ? lockFileName.substring(1, lockFileName.length() - ".lock".length()) : null;
+    }
+
+    /**
+     * Reads a file name korTTY's logger produced, or {@code null} for any other file.
+     *
+     * <p>The date resolves the way {@link #archiveDate(String)} resolves it, so the two agree on
+     * which {@code .gz} files are korTTY's; an impossible month or day is not ours. An impossible
+     * time of day (the sweep never looks at it) is read as midnight rather than rejecting a file
+     * the sweep would still delete.</p>
+     */
+    public static ParsedName parse(String fileName) {
+        if (fileName == null) {
+            return null;
+        }
+        Matcher matcher = ANY_LOG.matcher(fileName);
+        if (!matcher.matches()) {
+            return null;
+        }
+        LocalDate date;
+        try {
+            date = LocalDate.parse(matcher.group(1), DATE_PREFIX);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+        LocalTime time;
+        try {
+            time = LocalTime.of(Integer.parseInt(matcher.group(2)), Integer.parseInt(matcher.group(3)),
+                Integer.parseInt(matcher.group(4)));
+        } catch (java.time.DateTimeException | NumberFormatException e) {
+            time = LocalTime.MIDNIGHT;
+        }
+        int sequence = saturatingInt(matcher.group(6));
+        int part = matcher.group(7) != null ? saturatingInt(matcher.group(7)) : 1;
+        TerminalLogConfig.LogFormat format = switch (matcher.group(8)) {
+            case "xml" -> TerminalLogConfig.LogFormat.XML;
+            case "json" -> TerminalLogConfig.LogFormat.JSON;
+            default -> TerminalLogConfig.LogFormat.PLAIN_TEXT;
+        };
+        Compression compression = matcher.group(9) != null
+            ? Compression.ofName("." + matcher.group(9)) : Compression.NONE;
+        return new ParsedName(LocalDateTime.of(date, time), matcher.group(5), sequence, part,
+            format, compression);
+    }
+
+    /** Digits only (the regex guarantees it); absurdly long runs saturate instead of throwing. */
+    private static int saturatingInt(String digits) {
+        try {
+            return Integer.parseInt(digits);
+        } catch (NumberFormatException e) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     /**
@@ -79,6 +203,12 @@ public final class TerminalLogNaming {
     /**
      * Creates the next free log file in {@code directory} and returns it with its writer.
      *
+     * <p>While the writer is open, a <em>shared</em> lock is held on a hidden sidecar next to the
+     * file ({@link #lockFileFor}). It costs nothing here and lets another korTTY instance (the
+     * Logfile Manager's {@link TerminalLogLiveness}) tell that the file is still being written
+     * before it deletes or exports it. Closing the writer releases the lock and removes the
+     * sidecar. Shared, so nothing is ever blocked by it — on Windows locks are mandatory.</p>
+     *
      * @param preferredSeq the number to try first; a session passes its current one so it keeps
      *                     the same number across a daily roll
      */
@@ -100,16 +230,74 @@ public final class TerminalLogNaming {
                 continue;
             }
             try {
-                BufferedWriter writer = Files.newBufferedWriter(candidate, StandardCharsets.UTF_8,
-                    StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+                Writer plain = new OutputStreamWriter(Files.newOutputStream(candidate,
+                    StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE), StandardCharsets.UTF_8);
                 restrictToOwner(candidate, "rw-------");
-                return new Allocated(candidate, writer, sequence);
+                return new Allocated(candidate, new LockedWriter(plain, holdLock(candidate)), sequence);
             } catch (FileAlreadyExistsException e) {
                 // Someone else won the race for this number; take the next one.
             }
         }
         throw new IOException("No free terminal log name in " + directory
             + " after " + MAX_SEQUENCE + " attempts");
+    }
+
+    /** The sidecar lock of an open log: its channel (the lock lives as long as it) and its path. */
+    private record SidecarLock(FileChannel channel, Path file) {
+
+        void release() {
+            try {
+                channel.close();
+            } catch (IOException ignored) {
+                // The lock is gone with the channel either way.
+            }
+            try {
+                Files.deleteIfExists(file);
+            } catch (IOException ignored) {
+                // A stale sidecar is harmless: with nobody holding it, the probe reads "not live".
+            }
+        }
+    }
+
+    /** Takes the shared lock on the sidecar; {@code null} when the file system will not play along. */
+    private static SidecarLock holdLock(Path logFile) {
+        Path lockFile = lockFileFor(logFile);
+        try {
+            // READ as well: a shared lock needs a readable channel.
+            FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE,
+                StandardOpenOption.READ, StandardOpenOption.WRITE);
+            restrictToOwner(lockFile, "rw-------");
+            try {
+                channel.lock(0L, Long.MAX_VALUE, true);
+            } catch (IOException | java.nio.channels.OverlappingFileLockException e) {
+                // Best effort: the sidecar still marks the file as open for a probe that finds it.
+            }
+            return new SidecarLock(channel, lockFile);
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** The log's writer; closing it also gives up the sidecar lock and removes the sidecar. */
+    private static final class LockedWriter extends BufferedWriter {
+
+        private final SidecarLock lock;
+
+        LockedWriter(Writer out, SidecarLock lock) {
+            super(out);
+            this.lock = lock;
+        }
+
+        @Override
+        public void close() throws IOException {
+            try {
+                super.close();
+            } finally {
+                if (lock != null) {
+                    lock.release();
+                }
+            }
+        }
     }
 
     /** Re-applies owner-only mode to a compressed archive, which the compressor creates anew. */
@@ -158,9 +346,11 @@ public final class TerminalLogNaming {
             return null;
         }
         try {
+            // SMART resolution: a day past the end of its month (2026-02-30) is clamped to the
+            // last day, so only an impossible month or day (13, 32) ends up here.
             return LocalDate.parse(matcher.group(1), DATE_PREFIX);
         } catch (DateTimeParseException e) {
-            return null; // digits in the right shape but not a real date (e.g. 2026-02-30)
+            return null; // digits in the right shape but not a real date (e.g. month 13)
         }
     }
 }

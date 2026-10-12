@@ -8470,6 +8470,13 @@ public class TerminalView extends BorderPane {
             terminalLogger.setWarningListener(reason ->
                 showError(I18n.get("terminal.log.error.start", reason != null ? reason : "")));
             terminalLogger.start();
+            // The Logfile Manager lists every folder a logger ever wrote into — Quick Connect
+            // sessions and connections deleted later have no other trace.
+            de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
+            if (app != null && app.getGlobalSettingsManager() != null) {
+                de.kortty.core.TerminalLogCatalog.rememberFolder(app.getGlobalSettingsManager(),
+                    terminalLogger.directory(), logConfig.getRetentionDays());
+            }
             if (logConfig.getFormat() != null) {
                 // Measures actual logging sessions, not just configuration.
                 de.kortty.telemetry.Telemetry.track(de.kortty.telemetry.TelemetryEvents.TERMINAL_LOG_STARTED,

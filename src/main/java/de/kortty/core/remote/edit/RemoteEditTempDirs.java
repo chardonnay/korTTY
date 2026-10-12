@@ -99,9 +99,9 @@ public final class RemoteEditTempDirs {
 
     /**
      * Deletes the tree at {@code root} bottom-up. A link is deleted as a link; its target is never
-     * entered or touched.
+     * entered or touched. Shared with other private temp folders (the log viewer's scratch).
      */
-    static boolean deleteTree(Path root) {
+    public static boolean deleteTree(Path root) {
         if (root == null || !Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
             return true;
         }
@@ -145,7 +145,8 @@ public final class RemoteEditTempDirs {
         }
     }
 
-    private static void restrictAclToOwner(Path path) throws IOException {
+    /** Windows: an ACL that only lets the owner in. A no-op where there is no ACL view. */
+    public static void restrictAclToOwner(Path path) throws IOException {
         AclFileAttributeView view = Files.getFileAttributeView(path, AclFileAttributeView.class,
             LinkOption.NOFOLLOW_LINKS);
         if (view == null) {

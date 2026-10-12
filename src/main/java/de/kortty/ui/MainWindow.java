@@ -208,6 +208,10 @@ public class MainWindow {
         new KeyCodeCombination(KeyCode.J, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final KeyCombination VIDEO_MANAGER_ACCELERATOR =
         new KeyCodeCombination(KeyCode.V, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    // Shift rather than Alt: Ctrl+Alt+<letter> is AltGr+<letter> on Windows/Linux layouts, and
+    // AltGr+E types the euro sign on German keyboards.
+    private static final KeyCombination LOGFILE_MANAGER_ACCELERATOR =
+        new KeyCodeCombination(KeyCode.X, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
     private static final KeyCombination AI_AGENT_ACCELERATOR =
         new KeyCodeCombination(KeyCode.A, KeyCombination.SHORTCUT_DOWN, KeyCombination.ALT_DOWN);
     private static final KeyCombination AI_PLANNING_ACCELERATOR =
@@ -563,6 +567,8 @@ public class MainWindow {
     private SessionJournalManagerDialog sessionJournalManagerDialog;
     /** Open journal viewers keyed by normalized journal directory (one viewer per journal). */
     private final Map<java.nio.file.Path, SessionJournalViewerDialog> sessionJournalViewers = new HashMap<>();
+    /** Open log viewers by the real path of their file, so a second "View" fronts the existing one. */
+    private final Map<java.nio.file.Path, LogfileViewerDialog> logfileViewers = new HashMap<>();
 
     private volatile boolean quickConnectDialogOpen = false;
     private volatile boolean startupComplete = false; // Prevent QuickConnect during startup
@@ -2184,6 +2190,10 @@ public class MainWindow {
         toggleRecording.setAccelerator(RECORDING_TOGGLE_ACCELERATOR);
         toggleRecording.setOnAction(e -> toggleTerminalRecording());
 
+        MenuItem logfileManager = menuItem("menu.tools.logfileManager");
+        logfileManager.setAccelerator(LOGFILE_MANAGER_ACCELERATOR);
+        logfileManager.setOnAction(e -> showLogfileManager());
+
         MenuItem sessionJournals = menuItem("menu.tools.sessionJournals");
         sessionJournals.setAccelerator(SESSION_JOURNAL_MANAGER_ACCELERATOR);
         sessionJournals.setOnAction(e -> showSessionJournalManager());
@@ -2216,6 +2226,7 @@ public class MainWindow {
             new SeparatorMenuItem(),
             videoManager,
             toggleRecording,
+            logfileManager,
             new SeparatorMenuItem(),
             sessionJournals,
             toggleSessionJournal,
@@ -13637,6 +13648,85 @@ public class MainWindow {
             if (tab instanceof TerminalTab terminalTab) {
                 terminalTab.refreshRecordingControlsVisibility();
             }
+        }
+    }
+
+    private void showLogfileManager() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "logfile_manager"));
+        try {
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("logfileManager") == null) {
+                    hostToolTab("logfileManager", newLogfileManagerDialog(), null);
+                }
+                return;
+            }
+            LogfileManagerDialog dialog = newLogfileManagerDialog();
+            dialog.initOwner(stage);
+            dialog.show();
+        } catch (Exception e) {
+            logger.error("Failed to open the logfile manager", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    private LogfileManagerDialog newLogfileManagerDialog() {
+        return new LogfileManagerDialog(app.getGlobalSettingsManager(), app.getConfigManager(),
+            this::showLogfileViewer, this::openLogfileFolder);
+    }
+
+    /** Opens (or fronts) the viewer for one terminal log file. */
+    void showLogfileViewer(de.kortty.core.TerminalLogFile file) {
+        if (file == null) {
+            return;
+        }
+        java.nio.file.Path key = logfileViewerKey(file.path());
+        try {
+            LogfileViewerDialog existing = logfileViewers.get(key);
+            if (existing != null) {
+                if (existing.isOpenAsDialogOrTab()) {
+                    bringDialogToFront(existing);
+                    return;
+                }
+                logfileViewers.remove(key);
+            }
+            LogfileViewerDialog viewer = new LogfileViewerDialog(file, app.getGlobalSettingsManager(),
+                app.getTerminalHighlightService(), this::onLogfileViewerClosed);
+            logfileViewers.put(key, viewer);
+            if (toolTabsEnabled()) {
+                hostMultiInstanceToolTab(viewer);
+            } else {
+                viewer.initOwner(stage);
+                viewer.show();
+                bringDialogToFront(viewer);
+            }
+        } catch (Exception e) {
+            logger.error("Failed to open the log viewer for {}", file.name(), e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    /** Called from the viewer's hidden handler, which fires twice when hosted — removal is idempotent. */
+    void onLogfileViewerClosed(java.nio.file.Path file) {
+        if (file != null) {
+            logfileViewers.remove(logfileViewerKey(file));
+        }
+    }
+
+    /** A lexical key: open and close use the same form, and no disk access happens on the FX thread. */
+    private static java.nio.file.Path logfileViewerKey(java.nio.file.Path file) {
+        return file.toAbsolutePath().normalize();
+    }
+
+    /** Shows a log folder in the system file manager. */
+    private void openLogfileFolder(java.nio.file.Path directory) {
+        if (directory == null) {
+            return;
+        }
+        try {
+            app.getHostServices().showDocument(directory.toUri().toString());
+        } catch (Exception e) {
+            logger.warn("Could not open the log folder {}: {}", directory, e.getMessage());
+            showError(I18n.get("error.title"), e.getMessage());
         }
     }
 

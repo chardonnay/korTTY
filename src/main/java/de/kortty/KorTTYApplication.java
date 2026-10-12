@@ -221,6 +221,10 @@ public class KorTTYApplication extends Application {
             "kortty-remote-edit-sweep");
         remoteEditSweep.setDaemon(true);
         remoteEditSweep.start();
+        // Same for the log viewer's decompressed copies of terminal logs.
+        Thread logViewSweep = new Thread(de.kortty.core.TerminalLogScratch::sweepAtStartup, "kortty-log-view-sweep");
+        logViewSweep.setDaemon(true);
+        logViewSweep.start();
         
         // Install global exception handler to suppress SithTermFX bug
         installGlobalExceptionHandler();
@@ -882,6 +886,7 @@ public class KorTTYApplication extends Application {
         // Runtime.halt(0) skips deleteOnExit: delete the local copies of remote files still open
         // in an external editor here.
         shutdownStep("delete remote-edit folders", de.kortty.core.remote.edit.RemoteEditTempDirs::deleteAllLive);
+        shutdownStep("delete log-view folders", de.kortty.core.TerminalLogScratch::deleteAllLive);
         shutdownStep("stop local knowledge-store coordination",
             de.kortty.rag.RagCoordinator::shutdownDefault);
         if (llamaRuntimeStatusSubscription != null) {

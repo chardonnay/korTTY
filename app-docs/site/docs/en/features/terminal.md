@@ -362,6 +362,36 @@ Log files and a log folder KorTTY created itself are set to owner-only permissio
 !!! warning "Redaction only covers what KorTTY knows"
     A password KorTTY stores for the connection is redacted. A secret you type into a command yourself, or one a program prints, is not — KorTTY has no way to recognise it. Treat the log folder as sensitive, and use policy replacement rules for patterns that recur.
 
+### Logfile Manager
+
+**Tools > Logfile Manager…** (++ctrl+shift+x++, ++cmd+shift+x++ on macOS) lists every file terminal logging has written, lets you filter, view, export and delete them, and shows when the retention sweep may remove each one. It opens as a window or, with **Settings > Window > Open tool windows as tabs**, as a tab.
+
+![Logfile Manager](../assets/screenshots/terminal/logfile-manager.png)
+
+**What is listed.** Only files whose names KorTTY itself generates (`<date>-<time>-<server>_<number>[.p<part>].<log|xml|json>`, plain or compressed) from the default folder, the log folder of every saved connection, every folder a logger has ever written into (so Quick Connect sessions and connections deleted since are covered), and folders you add with **Add folder…**. Anything else in those folders is ignored, and a file that is still being written is marked **live**: it can be viewed, but not exported or deleted.
+
+| Column | Meaning |
+| --- | --- |
+| File name | The name on disk; a **live** badge marks files still being written |
+| Started | When this file (or part) was opened, taken from the name — the default sort, newest first |
+| Size (MB) | Size on disk; for `.gz`, `.zst` and `.bz2` files that is the compressed size |
+| Type | Plain Text, XML or JSON |
+| Compression | none, gzip, zstd or bzip2 |
+| Deletable from | The first day the retention sweep may delete the file. The sweep runs when a connection with logging starts and at each daily rollover, so the actual deletion can be later; uncompressed files, zstd/bzip2 exports and folders without a known retention never expire and show a dash |
+| Folder | Shown when files from more than one folder are listed |
+
+Click a column header to sort by it, and again to flip the direction.
+
+**Filtering.** The filter bar narrows the list by a text that must occur in the file name or folder, by a time range, by type and by compression. The time range matches every file that *overlaps* it: a session that started at 08:00 and ran until 09:30 is listed for the range 09:00–09:30 because it holds entries from that time. Leave a time empty to mean the whole day; an unreadable time is marked and ignored.
+
+**Export.** Select one or more files and choose **Export…**: pick zstd (default), gzip or bzip2, then a file name (one file) or a target folder (several). The originals stay where they are; exports are written owner-only like the logs themselves. Tick **Export only a time range** to trim each file to the entries between *From* and *To* (*To* includes the whole minute): trimmed exports are named `…-cut-<from>-<to>`, stay in the file's own format with a regenerated header and footer, and are never listed as logs or touched by retention. A plain gzip export that keeps the log's name is refused inside a log folder, because the retention sweep would delete it there later — choose zstd or bzip2, or another folder.
+
+**Delete** removes the selected files after a confirmation that names uncompressed files separately: those may still be written by another running KorTTY instance that this one cannot see.
+
+**Viewing.** **View** (or a double-click) opens the file in a viewer that reads only the lines on screen, so a multi-hundred-megabyte log opens without loading it into memory; a compressed file is first unpacked into a private temporary copy that is deleted when the viewer closes. **Highlight links and paths** underlines web addresses, e-mail addresses and file paths — a click copies them to the clipboard, nothing is opened — and **Highlight keywords** colours matches of a [keyword highlighting](highlighting.md) set, by default the built-in *Errors* set. ++ctrl+f++ opens the search (case-insensitive; `ß` and `ss` count as different letters), **Go to line** jumps, and the context menu copies a line or the selected lines (up to 2 000 at a time). Very long lines are shown up to 8 192 characters; **Copy line** copies up to 64 KiB of such a line, while **Copy selected lines** copies them as displayed. A live file is shown as a snapshot with a **Refresh** button; if the logger rotates or compresses it while the viewer is open, the viewer says so and offers to reload.
+
+![Log viewer](../assets/screenshots/terminal/logfile-viewer.png)
+
 ## Terminal recording
 
 Terminal recording is designed as a low-resource replay feature. KorTTY records terminal screen-state changes and timing events into one JDK/GZIP streaming-compressed `.korttyrec.jsonl.gz` file per terminal tab session. Legacy `.korttyrec.jsonl` replay files remain readable.

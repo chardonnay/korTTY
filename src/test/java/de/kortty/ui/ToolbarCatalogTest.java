@@ -59,5 +59,9 @@ public class ToolbarCatalogTest {
             .isEqualTo("snippetEditor");
         assertThat(catalog.describe(Entry.action("menu.tools.videoManager", Section.TOOLS)).icon())
             .isEqualTo("video");
+        // The logfile manager is offered in the customizer with its own glyph, without being a default button.
+        assertThat(catalog.actions().stream().map(Entry::target).toList()).contains("menu.tools.logfileManager");
+        assertThat(catalog.describe(Entry.action("menu.tools.logfileManager", Section.TOOLS)).icon())
+            .isEqualTo("logfile");
     }
 }

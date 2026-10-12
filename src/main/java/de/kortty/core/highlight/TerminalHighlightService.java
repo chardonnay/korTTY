@@ -336,6 +336,15 @@ public final class TerminalHighlightService implements AutoCloseable {
         return id != null && catalog.get().sets().containsKey(id.trim());
     }
 
+    /**
+     * The compiled set for {@code id} (built-in or user), or {@code null} for an unknown id. For
+     * viewers that pick a set themselves rather than resolving one for a pane; the master switch
+     * does not apply to them.
+     */
+    public CompiledHighlightSet compiledSet(String id) {
+        return id != null ? catalog.get().sets().get(id.trim()) : null;
+    }
+
     /** The master switch: false means no pane shows any set, whatever is chosen. */
     public boolean isEnabled() {
         return catalog.get().enabled();

@@ -3452,6 +3452,16 @@ tasks.register<JavaExec>("dialogHostTabSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("logfileManagerSmoke") {
+    group = "verification"
+    description = "Opens the Logfile Manager and the log viewer against a generated set of terminal logs (plain, gzip, zstd, bzip2, a live one and a 50 MB file): listing, sorting, filtering, export, trimming, delete, search and highlighting; writes the guide screenshots."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.LogfileManagerDialogSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+    // The guide screenshots it writes must show the Normal design (AGENTS.md house style).
+    systemProperty("kortty.smoke.design", "normal")
+}
+
 tasks.register<JavaExec>("sftpManagerTabSmoke") {
     group = "verification"
     description = "Drives the SFTP manager tab against a loopback SFTP server: background listing, size sort, folder re-upload, wildcard search, rename and new folder, the drag-and-drop transfers, Disconnected and Reconnect, restore at saved folders."

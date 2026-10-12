@@ -81,6 +81,7 @@ See the [Settings reference](settings/index.md) for every individual setting.
 | JobScheduler… | Schedule background command / snippet / AI-agent / AI-swarm / SFTP / Rsync jobs |
 | Video Manager… | Manage terminal recordings and export to WebM/MKV via `ffmpeg` |
 | Start/Stop Terminal Recording | Toggle recording of the active terminal (++ctrl+shift+e++) |
+| Logfile Manager… | Browse, filter, view, export (optionally trimmed to a time range) and delete the files written by [terminal logging](../features/terminal.md#logfile-manager) (++ctrl+shift+x++) |
 | Session Journals… | Manage [session journals](../features/session-journal.md): search, open, rename, describe, export and delete them, and set the journal options (++ctrl+alt+j++) |
 | Start/Stop Session Journal | Toggle the session journal of the active terminal tab; starting mid-session imports the existing scrollback (++ctrl+alt+t++) |
 | Add Journal Screenshot | Snapshot the active terminal into its running session journal (++ctrl+alt+c++) |

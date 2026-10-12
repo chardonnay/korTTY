@@ -72,6 +72,8 @@ final class ToolbarIcons {
             case "appearance" -> blue("M3 4 H21 V20 H3 Z M3 9 H21 M9 9 V20", "M13 13 H18 M13 16 H17");
             case "window" -> blue("M3 4 H21 V20 H3 Z M3 9 H21", "M6 7 H7 M10 7 H11 M14 7 H15");
             case "video" -> new Glyph("M3 4 H21 V20 H3 Z M7 4 V20 M17 4 V20 M3 9 H7 M3 15 H7 M17 9 H21 M17 15 H21", "M10 9 L14 12 L10 15 Z", "#a56ae6");
+            // A document with text lines and a folded corner: the terminal log files.
+            case "logfile" -> teal("M6 3 H14 L19 8 V21 H6 Z M14 3 V8 H19", "M9 12 H16 M9 15 H16 M9 18 H13");
             case "backup" -> teal("M3 8 H21 V21 H3 Z M2 3 H22 V8 H2 Z", "M8 13 H16 M12 10 V18 M9 15 L12 18 L15 15");
             case "export" -> teal("M13 3 H5 V21 H19 V13", "M10 14 L21 3 M15 3 H21 V9");
             case "updates" -> blue("M20 9 A8 8 0 0 0 6 5 L3 8 M3 15 A8 8 0 0 0 17 19 L21 16", "M3 3 V8 H8 M16 16 H21 V21");
