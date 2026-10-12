@@ -82,6 +82,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | JobScheduler… | Planen Sie Hintergrundbefehle / Snippets / KI-Agenten / KI-Swarm / SFTP / Rsync-Jobs (++ctrl+shift+j++) |
 | Videoverwaltung… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie als WebM/MKV über `ffmpeg` (++ctrl+shift+v++) |
 | Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |
+| Logdatei-Manager… | Durchsuchen, filtern, anzeigen, exportieren (optional auf einen Zeitbereich gekürzt) und löschen der von [Terminal-Protokollierung](../features/terminal.md#logdatei-manager) (++ctrl+shift+x++) |
 | Sitzungsjournale… | Manage [session journals](../features/session-journal.md): Suchen, Öffnen, Umbenennen, Beschreiben, Exportieren und Löschen sowie Festlegen der Journaloptionen (++ctrl+alt+j++) |
 | Sitzungsjournal starten/stoppen | Toggle the session journal of the active terminal tab; starting mid-session imports the existing scrollback (++ctrl+alt+t++) |
 | Journal-Screenshot hinzufügen | Erstellen Sie einen Schnappschuss des aktiven Terminals in das laufende Sitzungsjournal (++ctrl+alt+c++) |

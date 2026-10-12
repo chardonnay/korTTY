@@ -1172,6 +1172,54 @@ The <strong>Extras</strong> submenu at the end holds <strong>Split Terminal</str
 <p class="admonition-title">Redaction only covers what KorTTY knows</p>
 <p>A password KorTTY stores for the connection is redacted. A secret you type into a command yourself, or one a program prints, is not — KorTTY has no way to recognise it. Treat the log folder as sensitive, and use policy replacement rules for patterns that recur.</p>
 </div>
+<h3 id="logfile-manager">Logfile Manager<a class="headerlink" href="#logfile-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Tools &gt; Logfile Manager…</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-x">X</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-x">X</kbd></span> on macOS) lists every file terminal logging has written, lets you filter, view, export and delete them, and shows when the retention sweep may remove each one. It opens as a window or, with <strong>Settings &gt; Window &gt; Open tool windows as tabs</strong>, as a tab.</p>
+<p><img alt="Logfile Manager" src="../assets/screenshots/terminal/logfile-manager.png" /></p>
+<p><strong>What is listed.</strong> Only files whose names KorTTY itself generates (<code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;[.p&lt;part&gt;].&lt;log|xml|json&gt;</code>, plain or compressed) from the default folder, the log folder of every saved connection, every folder a logger has ever written into (so Quick Connect sessions and connections deleted since are covered), and folders you add with <strong>Add folder…</strong>. Anything else in those folders is ignored, and a file that is still being written is marked <strong>live</strong>: it can be viewed, but not exported or deleted.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>File name</td>
+<td>The name on disk; a <strong>live</strong> badge marks files still being written</td>
+</tr>
+<tr>
+<td>Started</td>
+<td>When this file (or part) was opened, taken from the name — the default sort, newest first</td>
+</tr>
+<tr>
+<td>Size (MB)</td>
+<td>Size on disk; for <code>.gz</code>, <code>.zst</code> and <code>.bz2</code> files that is the compressed size</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Plain Text, XML or JSON</td>
+</tr>
+<tr>
+<td>Compression</td>
+<td>none, gzip, zstd or bzip2</td>
+</tr>
+<tr>
+<td>Deletable from</td>
+<td>The first day the retention sweep may delete the file. The sweep runs when a connection with logging starts and at each daily rollover, so the actual deletion can be later; uncompressed files, zstd/bzip2 exports and folders without a known retention never expire and show a dash</td>
+</tr>
+<tr>
+<td>Folder</td>
+<td>Shown when files from more than one folder are listed</td>
+</tr>
+</tbody>
+</table>
+<p>Click a column header to sort by it, and again to flip the direction.</p>
+<p><strong>Filtering.</strong> The filter bar narrows the list by a text that must occur in the file name or folder, by a time range, by type and by compression. The time range matches every file that <em>overlaps</em> it: a session that started at 08:00 and ran until 09:30 is listed for the range 09:00–09:30 because it holds entries from that time. Leave a time empty to mean the whole day; an unreadable time is marked and ignored.</p>
+<p><strong>Export.</strong> Select one or more files and choose <strong>Export…</strong>: pick zstd (default), gzip or bzip2, then a file name (one file) or a target folder (several). The originals stay where they are; exports are written owner-only like the logs themselves. Tick <strong>Export only a time range</strong> to trim each file to the entries between <em>From</em> and <em>To</em> (<em>To</em> includes the whole minute): trimmed exports are named <code>…-cut-&lt;from&gt;-&lt;to&gt;</code>, stay in the file's own format with a regenerated header and footer, and are never listed as logs or touched by retention. A plain gzip export that keeps the log's name is refused inside a log folder, because the retention sweep would delete it there later — choose zstd or bzip2, or another folder.</p>
+<p><strong>Delete</strong> removes the selected files after a confirmation that names uncompressed files separately: those may still be written by another running KorTTY instance that this one cannot see.</p>
+<p><strong>Viewing.</strong> <strong>View</strong> (or a double-click) opens the file in a viewer that reads only the lines on screen, so a multi-hundred-megabyte log opens without loading it into memory; a compressed file is first unpacked into a private temporary copy that is deleted when the viewer closes. <strong>Highlight links and paths</strong> underlines web addresses, e-mail addresses and file paths — a click copies them to the clipboard, nothing is opened — and <strong>Highlight keywords</strong> colours matches of a <a href="highlighting.html">keyword highlighting</a> set, by default the built-in <em>Errors</em> set. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> opens the search (case-insensitive; <code>ß</code> and <code>ss</code> count as different letters), <strong>Go to line</strong> jumps, and the context menu copies a line or the selected lines (up to 2 000 at a time). Very long lines are shown up to 8 192 characters; <strong>Copy line</strong> copies up to 64 KiB of such a line, while <strong>Copy selected lines</strong> copies them as displayed. A live file is shown as a snapshot with a <strong>Refresh</strong> button; if the logger rotates or compresses it while the viewer is open, the viewer says so and offers to reload.</p>
+<p><img alt="Log viewer" src="../assets/screenshots/terminal/logfile-viewer.png" /></p>
 <h2 id="terminal-recording">Terminal recording<a class="headerlink" href="#terminal-recording" title="Permanent link">&para;</a></h2>
 <p>Terminal recording is designed as a low-resource replay feature. KorTTY records terminal screen-state changes and timing events into one JDK/GZIP streaming-compressed <code>.korttyrec.jsonl.gz</code> file per terminal tab session. Legacy <code>.korttyrec.jsonl</code> replay files remain readable.</p>
 <h3 id="configure-recordings">Configure recordings<a class="headerlink" href="#configure-recordings" title="Permanent link">&para;</a></h3>

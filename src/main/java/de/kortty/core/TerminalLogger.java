@@ -34,7 +34,9 @@ import java.util.function.Consumer;
 public class TerminalLogger {
 
     private static final Logger logger = LoggerFactory.getLogger(TerminalLogger.class);
-    private static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+
+    /** The stamp every entry carries on disk; {@link TerminalLogTrimmer} reads it back with this. */
+    static final DateTimeFormatter TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
     /** How long a poll waits, and therefore how soon after midnight the day roll happens. */
     private static final long POLL_MILLIS = 100;
@@ -118,6 +120,39 @@ public class TerminalLogger {
         return Path.of(System.getProperty("user.home"), ".kortty", "terminal-logs")
             .toAbsolutePath()
             .normalize();
+    }
+
+    /** The directory this logger writes into. */
+    public Path directory() {
+        return directory;
+    }
+
+    /**
+     * Whether a logger in this process has {@code file} open for writing right now.
+     *
+     * <p>Compared by real path: two connections may reach one folder through different names
+     * (a symlink, a mounted alias), and the live set holds whichever one the logger was given.</p>
+     */
+    public static boolean isLive(Path file) {
+        if (file == null || LIVE_FILES.isEmpty()) {
+            return false;
+        }
+        Path wanted = realOrNormalized(file);
+        for (Path live : LIVE_FILES) {
+            if (realOrNormalized(live).equals(wanted)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The real path where the file exists, otherwise the normalized absolute one. */
+    static Path realOrNormalized(Path path) {
+        try {
+            return path.toRealPath();
+        } catch (IOException | RuntimeException e) {
+            return path.toAbsolutePath().normalize();
+        }
     }
 
     /** Called once if logging stops on its own (disk full, directory gone). */

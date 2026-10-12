@@ -1172,6 +1172,54 @@ Das <strong>Extras</strong>-Untermenü am Ende enthält <strong>Terminal teilen<
 <p class="admonition-title">Redaction deckt nur das ab, was KorTTY weiß</p>
 <p>Ein Passwort, das korTTY für die Verbindung speichert, wird ausgeblendet. Ein Geheimnis, das Sie selbst in einen Befehl eingeben oder das ein Programm ausgibt, wird nicht ausgeblendet – korTTY kann dies nicht erkennen. Behandeln Sie den Log-Ordner als sensibel und verwenden Sie Richtlinien zur Ersetzung von Mustern, die sich wiederholen.</p>
 </div>
+<h3 id="logdatei-manager">Logdatei-Manager<a class="headerlink" href="#logdatei-manager" title="Permanent link">&para;</a></h3>
+<p><strong>Werkzeuge &gt; Logdatei-Manager…</strong> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-x">X</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-x">X</kbd></span> auf macOS) listet jede Datei auf, die das Terminalprotokoll geschrieben hat, ermöglicht Filtern, Anzeigen, Exportieren und Löschen sowie zeigt an, wann der Aufräumvorgang jede einzelne Datei entfernen kann. Es öffnet sich als Fenster oder, mit <strong>Einstellungen &gt; Fenster &gt; Tool-Fenster als Tabs öffnen</strong>, als Tab.</p>
+<p><img alt="Logfile Manager" src="../../en/assets/screenshots/terminal/logfile-manager.png" /></p>
+<p><strong>Was aufgeführt ist.</strong> Nur Dateien, deren Namen von KorTTY selbst generiert werden (<code>&lt;date&gt;-&lt;time&gt;-&lt;server&gt;_&lt;number&gt;[.p&lt;part&gt;].&lt;log|xml|json&gt;</code>, unkomprimiert oder komprimiert) aus dem Standardordner, dem Log-Ordner jeder gespeicherten Verbindung, jedem Ordner, in den ein Logger jemals geschrieben hat (also Schnellverbindungssitzungen und seitdem gelöschte Verbindungen sind abgedeckt), sowie Ordner, die Sie mit <strong>Ordner hinzufügen…</strong> einfügen. Alles andere in diesen Ordnern wird ignoriert, und eine Datei, die noch geschrieben wird, ist als <strong>live</strong> gekennzeichnet: sie kann angezeigt werden, aber nicht exportiert oder gelöscht werden.</p>
+<table>
+<thead>
+<tr>
+<th>Spalte</th>
+<th>Bedeutung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dateiname</td>
+<td>Der Name auf der Festplatte; ein <strong>live</strong> Badge kennzeichnet Dateien, die noch geschrieben werden</td>
+</tr>
+<tr>
+<td>Gestartet</td>
+<td>Wann diese Datei (oder ein Teil) geöffnet wurde, entnommen aus dem Namen — die Standardsortierung, neueste zuerst</td>
+</tr>
+<tr>
+<td>Größe (MB)</td>
+<td>Größe auf der Festplatte; für <code>.gz</code>, <code>.zst</code> und <code>.bz2</code> Dateien ist das die komprimierte Größe</td>
+</tr>
+<tr>
+<td>Typ</td>
+<td>Klartext, XML oder JSON</td>
+</tr>
+<tr>
+<td>Komprimierung</td>
+<td>none, gzip, zstd oder bzip2</td>
+</tr>
+<tr>
+<td>Löschbar ab</td>
+<td>Der erste Tag, an dem der Aufräumprozess die Datei löschen kann. Der Aufräumvorgang läuft, wenn eine Verbindung mit Protokollierung gestartet wird und bei jedem täglichen Rollover; die eigentliche Löschung kann später erfolgen. Nicht komprimierte Dateien, zstd/bzip2-Exporte und Ordner ohne bekannte Aufbewahrungsfrist verfallen nie und zeigen ein Minuszeichen</td>
+</tr>
+<tr>
+<td>Ordner</td>
+<td>Wird angezeigt, wenn Dateien aus mehr als einem Ordner aufgelistet werden</td>
+</tr>
+</tbody>
+</table>
+<p>Klicken Sie auf einen Spaltenkopf, um nach dieser Spalte zu sortieren, und erneut klicken, um die Richtung umzudrehen.</p>
+<p><strong>Filtern.</strong> Die Filterleiste schränkt die Liste nach einem Text ein, der im Dateinamen oder Ordnernamen vorkommen muss, nach einem Zeitfenster, nach Typ und nach Kompression. Das Zeitfenster umfasst jede Datei, die <em>überlappt</em>: eine Sitzung, die um 08:00 gestartet und bis 09:30 lief, wird im Bereich 09:00–09:30 aufgeführt, weil sie Einträge aus dieser Zeit enthält. Lassen Sie ein Zeitfeld leer, um den ganzen Tag zu bedeuten; eine ungültige Zeit wird markiert und ignoriert.</p>
+<p><strong>Exportieren.</strong> Wählen Sie eine oder mehrere Dateien aus und klicken Sie auf <strong>Export…</strong>: wählen Sie zstd (Standard), gzip oder bzip2, dann einen Dateinamen (eine Datei) oder ein Zielverzeichnis (mehrere). Die Originale bleiben an ihrem Ort; Exporte werden ausschließlich für den Eigentümer geschrieben, wie die Protokolle selbst. Aktivieren Sie <strong>Nur ein Zeitfenster exportieren</strong>, um jede Datei auf die Einträge zwischen <em>Von</em> und <em>Bis</em> (<em>Bis</em> umfasst die ganze Minute) zu kürzen: gekürzte Exporte werden <code>…-cut-&lt;from&gt;-&lt;to&gt;</code> genannt, bleiben im eigenen Format mit neu generiertem Header und Footer und werden nie als Protokolle gelistet oder von der Aufbewahrung betroffen. Ein einfacher gzip-Export, der den Namen des Protokolls beibehält, wird in einem Protokollordner abgelehnt, weil der Aufbewahrungssweep es dort später löschen würde – wählen Sie zstd oder bzip2, oder einen anderen Ordner.</p>
+<p><strong>Löschen</strong> entfernt die ausgewählten Dateien nach einer Bestätigung, die unkomprimierte Dateien einzeln nennt: diese könnten noch von einer anderen laufenden KorTTY-Instanz geschrieben werden, die diese Instanz nicht sehen kann.</p>
+<p><strong>Ansehen.</strong> <strong>Ansehen</strong> (oder ein Doppelklick) öffnet die Datei in einem Viewer, der nur die Zeilen auf dem Bildschirm liest, sodass ein mehrhundert-Megabyte-Log geöffnet wird, ohne in den Speicher geladen zu werden; eine komprimierte Datei wird zunächst in einen privaten temporären Kopie entpackt, die gelöscht wird, wenn der Viewer geschlossen wird. <strong>Links und Pfade hervorheben</strong> unterstreicht Webadressen, E-Mail-Adressen und Dateipfade – ein Klick kopiert sie in die Zwischenablage, nichts wird geöffnet – und <strong>Schlüsselwörter hervorheben</strong> färbt Treffer eines <a href="highlighting.html">Schlüsselworthervorhebung</a>-Sets, standardmäßig das eingebaute <em>Fehler</em>-Set. <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-f">F</kbd></span> öffnet die Suche (unabhängig von Groß-/Kleinschreibung; <code>ß</code> und <code>ss</code> gelten als unterschiedliche Buchstaben), <strong>Zu Zeile</strong> springt, und das Kontextmenü kopiert eine Zeile oder die ausgewählten Zeilen (bis zu 2 000 gleichzeitig). Sehr lange Zeilen werden bis zu 8 192 Zeichen angezeigt; <strong>Zeile kopieren</strong> kopiert bis zu 64 KiB einer solchen Zeile, während <strong>Ausgewählte Zeilen kopieren</strong> sie wie angezeigt kopiert. Eine Live-Datei wird als Schnappschuss mit einem <strong>Aktualisieren</strong>-Button angezeigt; wenn der Logger sie rotiert oder komprimiert, während der Viewer geöffnet ist, informiert der Viewer darüber und bietet einen Reload an.</p>
+<p><img alt="Log viewer" src="../../en/assets/screenshots/terminal/logfile-viewer.png" /></p>
 <h2 id="terminalaufzeichnung">Terminalaufzeichnung<a class="headerlink" href="#terminalaufzeichnung" title="Permanent link">&para;</a></h2>
 <p>Die Terminalaufzeichnung ist als ressourcenschonende Wiedergabefunktion konzipiert. KorTTY zeichnet Terminal-Bildschirmstatusänderungen und Zeitereignisse in einer JDK/GZIP-Streaming-komprimierten <code>.korttyrec.jsonl.gz</code>-Datei pro Terminal-Tab-Sitzung auf. Ältere <code>.korttyrec.jsonl</code>-Wiedergabedateien bleiben lesbar.</p>
 <h3 id="aufzeichnungen-konfigurieren">Aufzeichnungen konfigurieren<a class="headerlink" href="#aufzeichnungen-konfigurieren" title="Permanent link">&para;</a></h3>

@@ -366,6 +366,36 @@ Protokolldateien und ein Protokollordner, den KorTTY selbst erstellt hat, sind a
 !!! warning "Redaction deckt nur das ab, was KorTTY weiß"
     Ein Passwort, das korTTY für die Verbindung speichert, wird ausgeblendet. Ein Geheimnis, das Sie selbst in einen Befehl eingeben oder das ein Programm ausgibt, wird nicht ausgeblendet – korTTY kann dies nicht erkennen. Behandeln Sie den Log-Ordner als sensibel und verwenden Sie Richtlinien zur Ersetzung von Mustern, die sich wiederholen.
 
+### Logdatei-Manager
+
+**Werkzeuge > Logdatei-Manager…** (++ctrl+shift+x++, ++cmd+shift+x++ auf macOS) listet jede Datei auf, die das Terminalprotokoll geschrieben hat, ermöglicht Filtern, Anzeigen, Exportieren und Löschen sowie zeigt an, wann der Aufräumvorgang jede einzelne Datei entfernen kann. Es öffnet sich als Fenster oder, mit **Einstellungen > Fenster > Tool-Fenster als Tabs öffnen**, als Tab.
+
+![Logfile Manager](../assets/screenshots/terminal/logfile-manager.png)
+
+**Was aufgeführt ist.** Nur Dateien, deren Namen von KorTTY selbst generiert werden (`<date>-<time>-<server>_<number>[.p<part>].<log|xml|json>`, unkomprimiert oder komprimiert) aus dem Standardordner, dem Log-Ordner jeder gespeicherten Verbindung, jedem Ordner, in den ein Logger jemals geschrieben hat (also Schnellverbindungssitzungen und seitdem gelöschte Verbindungen sind abgedeckt), sowie Ordner, die Sie mit **Ordner hinzufügen…** einfügen. Alles andere in diesen Ordnern wird ignoriert, und eine Datei, die noch geschrieben wird, ist als **live** gekennzeichnet: sie kann angezeigt werden, aber nicht exportiert oder gelöscht werden.
+
+| Spalte | Bedeutung |
+| --- | --- |
+| Dateiname | Der Name auf der Festplatte; ein **live** Badge kennzeichnet Dateien, die noch geschrieben werden |
+| Gestartet | Wann diese Datei (oder ein Teil) geöffnet wurde, entnommen aus dem Namen — die Standardsortierung, neueste zuerst |
+| Größe (MB) | Größe auf der Festplatte; für `.gz`, `.zst` und `.bz2` Dateien ist das die komprimierte Größe |
+| Typ | Klartext, XML oder JSON |
+| Komprimierung | none, gzip, zstd oder bzip2 |
+| Löschbar ab | Der erste Tag, an dem der Aufräumprozess die Datei löschen kann. Der Aufräumvorgang läuft, wenn eine Verbindung mit Protokollierung gestartet wird und bei jedem täglichen Rollover; die eigentliche Löschung kann später erfolgen. Nicht komprimierte Dateien, zstd/bzip2-Exporte und Ordner ohne bekannte Aufbewahrungsfrist verfallen nie und zeigen ein Minuszeichen |
+| Ordner | Wird angezeigt, wenn Dateien aus mehr als einem Ordner aufgelistet werden |
+
+Klicken Sie auf einen Spaltenkopf, um nach dieser Spalte zu sortieren, und erneut klicken, um die Richtung umzudrehen.
+
+**Filtern.** Die Filterleiste schränkt die Liste nach einem Text ein, der im Dateinamen oder Ordnernamen vorkommen muss, nach einem Zeitfenster, nach Typ und nach Kompression. Das Zeitfenster umfasst jede Datei, die *überlappt*: eine Sitzung, die um 08:00 gestartet und bis 09:30 lief, wird im Bereich 09:00–09:30 aufgeführt, weil sie Einträge aus dieser Zeit enthält. Lassen Sie ein Zeitfeld leer, um den ganzen Tag zu bedeuten; eine ungültige Zeit wird markiert und ignoriert.
+
+**Exportieren.** Wählen Sie eine oder mehrere Dateien aus und klicken Sie auf **Export…**: wählen Sie zstd (Standard), gzip oder bzip2, dann einen Dateinamen (eine Datei) oder ein Zielverzeichnis (mehrere). Die Originale bleiben an ihrem Ort; Exporte werden ausschließlich für den Eigentümer geschrieben, wie die Protokolle selbst. Aktivieren Sie **Nur ein Zeitfenster exportieren**, um jede Datei auf die Einträge zwischen *Von* und *Bis* (*Bis* umfasst die ganze Minute) zu kürzen: gekürzte Exporte werden `…-cut-<from>-<to>` genannt, bleiben im eigenen Format mit neu generiertem Header und Footer und werden nie als Protokolle gelistet oder von der Aufbewahrung betroffen. Ein einfacher gzip-Export, der den Namen des Protokolls beibehält, wird in einem Protokollordner abgelehnt, weil der Aufbewahrungssweep es dort später löschen würde – wählen Sie zstd oder bzip2, oder einen anderen Ordner.
+
+**Löschen** entfernt die ausgewählten Dateien nach einer Bestätigung, die unkomprimierte Dateien einzeln nennt: diese könnten noch von einer anderen laufenden KorTTY-Instanz geschrieben werden, die diese Instanz nicht sehen kann.
+
+**Ansehen.** **Ansehen** (oder ein Doppelklick) öffnet die Datei in einem Viewer, der nur die Zeilen auf dem Bildschirm liest, sodass ein mehrhundert-Megabyte-Log geöffnet wird, ohne in den Speicher geladen zu werden; eine komprimierte Datei wird zunächst in einen privaten temporären Kopie entpackt, die gelöscht wird, wenn der Viewer geschlossen wird. **Links und Pfade hervorheben** unterstreicht Webadressen, E-Mail-Adressen und Dateipfade – ein Klick kopiert sie in die Zwischenablage, nichts wird geöffnet – und **Schlüsselwörter hervorheben** färbt Treffer eines [Schlüsselworthervorhebung](highlighting.md)-Sets, standardmäßig das eingebaute *Fehler*-Set. ++ctrl+f++ öffnet die Suche (unabhängig von Groß-/Kleinschreibung; `ß` und `ss` gelten als unterschiedliche Buchstaben), **Zu Zeile** springt, und das Kontextmenü kopiert eine Zeile oder die ausgewählten Zeilen (bis zu 2 000 gleichzeitig). Sehr lange Zeilen werden bis zu 8 192 Zeichen angezeigt; **Zeile kopieren** kopiert bis zu 64 KiB einer solchen Zeile, während **Ausgewählte Zeilen kopieren** sie wie angezeigt kopiert. Eine Live-Datei wird als Schnappschuss mit einem **Aktualisieren**-Button angezeigt; wenn der Logger sie rotiert oder komprimiert, während der Viewer geöffnet ist, informiert der Viewer darüber und bietet einen Reload an.
+
+![Log viewer](../assets/screenshots/terminal/logfile-viewer.png)
+
 ## Terminalaufzeichnung
 
 Die Terminalaufzeichnung ist als ressourcenschonende Wiedergabefunktion konzipiert. KorTTY zeichnet Terminal-Bildschirmstatusänderungen und Zeitereignisse in einer JDK/GZIP-Streaming-komprimierten `.korttyrec.jsonl.gz`-Datei pro Terminal-Tab-Sitzung auf. Ältere `.korttyrec.jsonl`-Wiedergabedateien bleiben lesbar.

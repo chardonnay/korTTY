@@ -17,6 +17,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.UserPrincipal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 /**
  * Removes edit folders ({@code kortty-remote-edit-<uuid>}) a crashed or killed korTTY left in the
@@ -63,7 +65,25 @@ public final class RemoteEditTempSweeper {
      * @return the number of folders removed
      */
     public static int sweep(Path root, UserPrincipal user, Instant now, Duration maximumAge) {
-        if (root == null || user == null) {
+        return sweep(root, RemoteEditTempDirs.PREFIX, RemoteEditTempDirs.NAME, user, now, maximumAge);
+    }
+
+    /**
+     * The same sweep for any family of private temp folders korTTY names {@code <prefix><id>}:
+     * only entries whose whole name matches {@code name} are candidates.
+     */
+    public static int sweep(Path root, String prefix, Pattern name, UserPrincipal user, Instant now,
+                            Duration maximumAge) {
+        return sweep(root, prefix, name, user, now, maximumAge, entry -> false);
+    }
+
+    /**
+     * As above, but a folder for which {@code inUse} says true is left alone whatever its age — for
+     * folder families whose owner holds a lock while it works in them.
+     */
+    public static int sweep(Path root, String prefix, Pattern name, UserPrincipal user, Instant now,
+                            Duration maximumAge, Predicate<Path> inUse) {
+        if (root == null || user == null || prefix == null || name == null) {
             return 0;
         }
         Path folder = root.toAbsolutePath().normalize();
@@ -72,9 +92,10 @@ public final class RemoteEditTempSweeper {
         }
         Instant cutoff = now.minus(maximumAge);
         int removed = 0;
-        try (DirectoryStream<Path> entries = Files.newDirectoryStream(folder, RemoteEditTempDirs.PREFIX + "*")) {
+        try (DirectoryStream<Path> entries = Files.newDirectoryStream(folder, prefix + "*")) {
             for (Path entry : entries) {
-                if (isStaleFolderOwnedBy(entry, user, cutoff) && RemoteEditTempDirs.deleteTree(entry)) {
+                if (isStaleFolderOwnedBy(entry, name, user, cutoff) && !inUse.test(entry)
+                    && RemoteEditTempDirs.deleteTree(entry)) {
                     removed++;
                 }
             }
@@ -84,9 +105,9 @@ public final class RemoteEditTempSweeper {
         return removed;
     }
 
-    private static boolean isStaleFolderOwnedBy(Path entry, UserPrincipal user, Instant cutoff) {
+    private static boolean isStaleFolderOwnedBy(Path entry, Pattern namePattern, UserPrincipal user, Instant cutoff) {
         Path name = entry.getFileName();
-        if (name == null || !RemoteEditTempDirs.NAME.matcher(name.toString()).matches()) {
+        if (name == null || !namePattern.matcher(name.toString()).matches()) {
             return false;
         }
         try {

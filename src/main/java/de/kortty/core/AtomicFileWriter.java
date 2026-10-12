@@ -156,7 +156,8 @@ public final class AtomicFileWriter {
         }
     }
 
-    private static void moveIntoPlaceRetryingOnce(Path tempFile, Path targetPath) throws IOException {
+    /** Moves {@code tempFile} over {@code targetPath} (replacing it), retrying once on Windows' transient AccessDenied. */
+    static void moveIntoPlaceRetryingOnce(Path tempFile, Path targetPath) throws IOException {
         try {
             moveIntoPlace(tempFile, targetPath);
         } catch (AccessDeniedException firstFailure) {

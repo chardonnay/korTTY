@@ -679,6 +679,23 @@ public class GlobalSettings {
     @XmlElement(name = "section")
     private java.util.List<String> quickConnectExpandedSections = new java.util.ArrayList<>();
 
+    /** Folders terminal logs were ever written into, for the Logfile Manager (see TerminalLogKnownFolder). */
+    @XmlElementWrapper(name = "terminalLogKnownFolders")
+    @XmlElement(name = "folder")
+    private java.util.List<TerminalLogKnownFolder> terminalLogKnownFolders = new java.util.ArrayList<>();
+
+    /** Logfile viewer: underline web links and paths so they can be copied with a click. */
+    @XmlElement
+    private boolean logfileViewerHighlightLinks = true;
+
+    /** Logfile viewer: colour keywords (ERROR, WARN, …) with a highlight rule set. */
+    @XmlElement
+    private boolean logfileViewerHighlightKeywords = true;
+
+    /** Logfile viewer: the highlight rule set used for keywords. */
+    @XmlElement
+    private String logfileViewerKeywordSetId = "builtin.errors";
+
     /** Code languages the user added to the snippet editor's built-in list, normalized and lowercased. */
     @XmlElementWrapper(name = "customSnippetCodeLanguages")
     @XmlElement(name = "language")
@@ -3006,6 +3023,45 @@ public class GlobalSettings {
         this.quickConnectExpandedSections = quickConnectExpandedSections != null
             ? new java.util.ArrayList<>(quickConnectExpandedSections)
             : new java.util.ArrayList<>();
+    }
+
+    /** Folders terminal logs were written into, oldest first (never null). */
+    public java.util.List<TerminalLogKnownFolder> getTerminalLogKnownFolders() {
+        if (terminalLogKnownFolders == null) {
+            terminalLogKnownFolders = new java.util.ArrayList<>();
+        }
+        return terminalLogKnownFolders;
+    }
+
+    public void setTerminalLogKnownFolders(java.util.List<TerminalLogKnownFolder> terminalLogKnownFolders) {
+        this.terminalLogKnownFolders = terminalLogKnownFolders != null
+            ? new java.util.ArrayList<>(terminalLogKnownFolders)
+            : new java.util.ArrayList<>();
+    }
+
+    public boolean isLogfileViewerHighlightLinks() {
+        return logfileViewerHighlightLinks;
+    }
+
+    public void setLogfileViewerHighlightLinks(boolean logfileViewerHighlightLinks) {
+        this.logfileViewerHighlightLinks = logfileViewerHighlightLinks;
+    }
+
+    public boolean isLogfileViewerHighlightKeywords() {
+        return logfileViewerHighlightKeywords;
+    }
+
+    public void setLogfileViewerHighlightKeywords(boolean logfileViewerHighlightKeywords) {
+        this.logfileViewerHighlightKeywords = logfileViewerHighlightKeywords;
+    }
+
+    public String getLogfileViewerKeywordSetId() {
+        return logfileViewerKeywordSetId != null && !logfileViewerKeywordSetId.isBlank()
+            ? logfileViewerKeywordSetId : "builtin.errors";
+    }
+
+    public void setLogfileViewerKeywordSetId(String logfileViewerKeywordSetId) {
+        this.logfileViewerKeywordSetId = logfileViewerKeywordSetId;
     }
 
     /** User-added snippet code languages, in the order they were added (never null). */
