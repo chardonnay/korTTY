@@ -104,7 +104,7 @@ class TerminalLogExporterTest {
     private static byte[] sizedPlainLog(long minBytes) {
         StringBuilder text = new StringBuilder();
         LocalDateTime at = START;
-        for (int i = 0; text.length() < minBytes; i++) {
+        for (int i = 0; (long) text.length() < minBytes; i++) {
             appendEntry(text, at, i);
             at = at.plusNanos(7_000_000L);
         }
