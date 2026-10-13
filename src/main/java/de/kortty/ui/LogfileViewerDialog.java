@@ -148,6 +148,8 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
     private static final AtomicInteger SEQUENCE = new AtomicInteger();
 
     private final TerminalLogFile file;
+    private final CheckBox formattedCheck = new CheckBox(I18n.get("logfile.viewer.formatted"));
+    private final Button exportSelectionButton = new Button(I18n.get("logfile.viewer.exportSelection"));
     private final GlobalSettingsManager settings;
     private final TerminalHighlightService highlights;
     private final Consumer<Path> onClosed;
@@ -221,7 +223,7 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
      * copy), its line index, the reader over it, and the scratch folder to delete on close.
      */
     private record Opened(Path readable, TerminalLogLineIndex index, TerminalLogReader reader,
-                          Path scratchDir, long snapshotLength) {
+                          Path scratchDir, long snapshotLength, Path selectionMap) {
     }
 
     private record SpanEntry(int epoch, List<LogfileLineStyler.Span> spans) {
@@ -266,6 +268,8 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
         buildHeader();
         buildFindBar();
         listView = buildList();
+        exportSelectionButton.disableProperty().bind(Bindings.isEmpty(listView.getSelectionModel().getSelectedIndices())
+            .or(new javafx.beans.property.SimpleBooleanProperty(file.live())));
         clampHorizontal();
         buildOverlays();
         buildStatus();
@@ -354,6 +358,10 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
 
     private void buildHeader() {
         boolean live = file.live();
+        formattedCheck.setSelected(file.format() != de.kortty.model.TerminalLogConfig.LogFormat.PLAIN_TEXT && !live);
+        formattedCheck.setDisable(file.format() == de.kortty.model.TerminalLogConfig.LogFormat.PLAIN_TEXT || live);
+        formattedCheck.setOnAction(event -> startOpening());
+        exportSelectionButton.setOnAction(event -> exportSelection());
         infoLabel.setText("");
         snapshotLabel.setVisible(live);
         snapshotLabel.setManaged(live);
@@ -415,7 +423,7 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
         goToButton.setOnAction(event -> goToLineFromField());
         FlowPane header = new FlowPane(8, 6,
             infoLabel, snapshotLabel, refreshButton, linksBox, keywordsBox, keywordSetLabel, keywordSet,
-            findButton, goToField, goToButton);
+            formattedCheck, findButton, goToField, goToButton, exportSelectionButton);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(8, 12, 4, 12));
         return header;
@@ -536,12 +544,14 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
         rotatedPane.setVisible(false);
         showOpening(true);
         openingLabel.setText(I18n.get("logfile.viewer.placeholder"));
+        boolean formatted = formattedCheck.isSelected();
         Task<Opened> task = new Task<>() {
             @Override
             protected Opened call() throws Exception {
-                return openLog(this::updateMessage, this::isCancelled);
+                return openLog(this::updateMessage, this::isCancelled, formatted);
             }
         };
+        if (openTask != null) { openTask.cancel(); }
         openTask = task;
         task.messageProperty().addListener((obs, before, message) -> {
             if (message != null && !message.isBlank() && task == openTask) {
@@ -560,7 +570,7 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
      * scratch folder first; a plain live file is read in place, with no channel held open, so the
      * logger can still compress it when it rotates.
      */
-    private Opened openLog(Consumer<String> progress, BooleanSupplier cancelled) throws IOException {
+    private Opened openLog(Consumer<String> progress, BooleanSupplier cancelled, boolean formatted) throws IOException {
         Path source = resolveSource();
         TerminalLogNaming.Compression compression =
             TerminalLogNaming.Compression.ofName(source.getFileName().toString());
@@ -573,6 +583,18 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
                 scratch = TerminalLogScratch.create();
                 progress.accept(I18n.get("logfile.viewer.decompressing", file.name()));
                 readable = TerminalLogScratch.decompress(source, scratch, null, cancelled);
+            }
+            Path selectionMap = null;
+            if (formatted) {
+                if (scratch == null) { scratch = TerminalLogScratch.create(); }
+                Path pretty = scratch.resolve("formatted." + file.format().getExtension());
+                selectionMap = scratch.resolve("line-map.bin");
+                if (file.format() == de.kortty.model.TerminalLogConfig.LogFormat.XML) {
+                    de.kortty.core.TerminalLogPresentation.formatXml(readable, pretty, selectionMap, cancelled);
+                } else {
+                    de.kortty.core.TerminalLogPresentation.formatJson(readable, pretty, selectionMap, cancelled);
+                }
+                readable = pretty;
             }
             long length = Files.size(readable);
             TerminalLogLineIndex index = TerminalLogLineIndex.build(readable, length,
@@ -588,7 +610,7 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
                 TerminalLogScratch.register(scratch, reader);
             }
             complete = true;
-            return new Opened(readable, index, reader, scratch, length);
+            return new Opened(readable, index, reader, scratch, length, selectionMap);
         } finally {
             if (!complete) {
                 closeQuietly(reader);
@@ -1267,7 +1289,10 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
             MenuItem copyMany = new MenuItem(I18n.get("logfile.viewer.copySelection"));
             copyMany.setDisable(listView.getSelectionModel().getSelectedIndices().isEmpty());
             copyMany.setOnAction(event -> copySelection());
-            menu.getItems().addAll(copyOne, copyMany);
+            MenuItem export = new MenuItem(I18n.get("logfile.viewer.exportSelection"));
+            export.setDisable(file.live() || listView.getSelectionModel().getSelectedIndices().isEmpty());
+            export.setOnAction(event -> exportSelection());
+            menu.getItems().addAll(copyOne, copyMany, export);
             menu.show(this, screenX, screenY);
         }
     }
@@ -1298,6 +1323,59 @@ public final class LogfileViewerDialog extends ThemeAwareDialog<Void> {
                 Platform.runLater(() -> showStatus(I18n.get("logfile.viewer.error", String.valueOf(e.getMessage()))));
             }
         });
+    }
+
+    private void exportSelection() {
+        Opened current = opened;
+        if (current == null || file.live()) { return; }
+        java.util.BitSet displayed = new java.util.BitSet();
+        listView.getSelectionModel().getSelectedIndices().forEach(displayed::set);
+        if (displayed.isEmpty()) { return; }
+        var choice = new LogfileExportDialog(getDialogPane().getScene().getWindow(), List.of(file), null).showAndWait();
+        if (choice.isEmpty()) { return; }
+        var options = choice.get().options();
+        var chooser = new javafx.stage.FileChooser();
+        chooser.setTitle(I18n.get("logfile.export.saveAs"));
+        chooser.setInitialFileName(de.kortty.core.TerminalLogExporter.targetName(file, options, choice.get().range(), true));
+        var selected = chooser.showSaveDialog(getDialogPane().getScene().getWindow());
+        if (selected == null) { options.close(); return; }
+        Path target = selected.toPath();
+        AtomicBoolean cancel = new AtomicBoolean();
+        ThemeAwareDialog<Void> progress = new ThemeAwareDialog<>();
+        progress.initOwner(getDialogPane().getScene().getWindow());
+        progress.setTitle(I18n.get("logfile.export.progress.title"));
+        progress.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);
+        var bar = new javafx.scene.control.ProgressBar();
+        progress.getDialogPane().setContent(bar);
+        progress.setOnCloseRequest(event -> { event.consume(); cancel.set(true); });
+        Task<de.kortty.core.TerminalLogExporter.Result> task = new Task<>() {
+            @Override protected de.kortty.core.TerminalLogExporter.Result call() throws IOException {
+                try (options) {
+                    if (Files.size(file.path()) != file.sizeBytes()
+                        || !Files.getLastModifiedTime(file.path()).equals(file.modified())) {
+                        throw new IOException(I18n.get("logfile.viewer.sourceChanged"));
+                    }
+                    java.util.BitSet original = de.kortty.core.TerminalLogPresentation.sourceSelection(current.selectionMap(), displayed);
+                    return de.kortty.core.TerminalLogExporter.exportOne(file, target, options,
+                        false, choice.get().range(), original, List.of(file.directory()),
+                        bytes -> updateProgress(bytes, Math.max(1, file.sizeBytes())), cancel::get);
+                }
+            }
+        };
+        bar.progressProperty().bind(task.progressProperty());
+        task.setOnSucceeded(event -> {
+            progress.setOnCloseRequest(null); progress.close();
+            var result = task.getValue();
+            showStatus(result.status() == de.kortty.core.TerminalLogExporter.Status.OK
+                ? I18n.get("logfile.export.done", 1, target.toString())
+                : I18n.get("logfile.viewer.error", result.status() + (result.error() != null ? ": " + result.error() : "")));
+        });
+        task.setOnFailed(event -> {
+            progress.setOnCloseRequest(null); progress.close();
+            showStatus(I18n.get("logfile.viewer.error", task.getException().getMessage()));
+        });
+        progress.show();
+        submit(pageExecutor, task);
     }
 
     private void copySelection() {

@@ -2227,6 +2227,7 @@ public class MainWindow {
             new SeparatorMenuItem(),
             videoManager,
             toggleRecording,
+            new SeparatorMenuItem(),
             logfileManager,
             new SeparatorMenuItem(),
             sessionJournals,

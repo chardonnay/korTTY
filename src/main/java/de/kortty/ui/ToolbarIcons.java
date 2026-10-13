@@ -52,6 +52,13 @@ final class ToolbarIcons {
 
     private static Glyph glyph(String name) {
         return switch (name) {
+            case "pin" -> blue("M8 3 H16 M9 3 V10 L6 15 H18 L15 10 V3", "M12 15 V22");
+            case "check" -> teal("M12 3 A9 9 0 1 0 12.01 3", "M7 12 L10 15 L17 8");
+            case "warning" -> new Glyph("M12 3 L22 21 H2 Z", "M12 9 V14 M12 18 H12.1", "#dc9825");
+            case "star" -> blue("M12 2 L15 8 L22 9 L17 14 L18 21 L12 18 L6 21 L7 14 L2 9 L9 8 Z", "M12 9 V14");
+            case "flag" -> blue("M5 22 V3 H13 L15 5 H21 V15 H13 L11 13 H5", "M8 7 H11");
+            case "search" -> blue("M10 3 A7 7 0 1 0 10.01 3 M15 15 L22 22", "M7 10 H13");
+            case "clock" -> blue("M12 2 A10 10 0 1 0 12.01 2", "M12 6 V12 L16 15");
             case "tab" -> blue("M3 20 V6 Q3 3 6 3 H18 Q21 3 21 6 V20", "M8 12 H16 M12 8 V16");
             case "shell", "terminal" -> blue("M5 3 H19 Q21 3 21 5 V19 Q21 21 19 21 H5 Q3 21 3 19 V5 Q3 3 5 3", "M7 8 L11 12 L7 16 M13 16 H17");
             case "sftp" -> teal("M3 7 V5 Q3 3 5 3 H10 L13 6 H19 Q21 6 21 8 V19 Q21 21 19 21 H5 Q3 21 3 19 Z", "M7 11 H17 L14 8 M17 16 H7 L10 19");

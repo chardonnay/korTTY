@@ -296,6 +296,8 @@ A malformed policy file falls back to lockdown, which denies `job-webhooks` like
 
 ### `[rule.logging]`
 
+The `terminal-*` keys below apply to terminal output logs. Unset values leave the connection preference in effect. They resolve per field using the existing rule tiers; at the same tier `false` wins for username, while directory choices resolve in the order `none`, `relative`, `full`. The logger applies them at startup as well as locking the connection editor controls. Unknown working directories remain empty. These keys do not enable logging on their own.
+
 korTTY rotates its log daily (`kortty.YYYY-MM-DD.log`); this table controls where the files go, how long they live, how they are formatted and how rotation is capped. Directory and retention are forced into the corresponding (then locked) user settings; format, compression and the rotation caps have no user setting and act directly. The configuration is applied before the very first log line of a start, so even startup logging follows the admin's scheme.
 
 | Key | Type | Values | Effect |
@@ -306,6 +308,8 @@ korTTY rotates its log daily (`kortty.YYYY-MM-DD.log`); this table controls wher
 | `format` | string | `text`, `json` | `json` writes one structured JSON object per event (logback JSON encoder — convenient for SIEM/central log collection) |
 | `rotation-max-files` | integer | `0` = unlimited | Keep at most N rotated daily files |
 | `rotation-total-size-mb` | integer | `0` = uncapped | Cap the total size of all rotated files (oldest deleted first) |
+| `terminal-include-username` | boolean | `true`, `false` | Mandate whether terminal log entries include the SSH username; locks the connection setting |
+| `terminal-directory-mode` | string | `none`, `full`, `relative` | Mandate the terminal log working-directory field; `relative` uses the first session-reported directory, also recorded as `directoryBase`; locks the connection setting |
 
 ```toml
 [[rule]]

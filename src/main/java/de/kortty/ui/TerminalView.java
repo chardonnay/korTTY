@@ -8465,6 +8465,7 @@ public class TerminalView extends BorderPane {
         try {
             terminalLogger = new de.kortty.core.TerminalLogger(
                 logConfig, connection.getDisplayName(), buildCaptureRedactor());
+            terminalLogger.setHost(connection.getHost());
             // Logging can give up on its own (disk full, volume unmounted); say so once instead of
             // leaving the user to discover an empty file later.
             terminalLogger.setWarningListener(reason ->
@@ -8487,7 +8488,7 @@ public class TerminalView extends BorderPane {
             if (ttyConnector instanceof ObservableTtyConnector observableConnector) {
                 terminalLoggerDataListener = data -> {
                     if (terminalLogger != null) {
-                        terminalLogger.log(data);
+                        terminalLogger.log(data, connection.getUsername(), observableConnector.getCurrentWorkingDirectory());
                     }
                 };
                 observableConnector.addDataListener(terminalLoggerDataListener);

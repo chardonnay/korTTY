@@ -1,6 +1,11 @@
 package de.kortty.ui;
 
 import de.kortty.core.LogTimeRange;
+import de.kortty.core.TerminalLogExportOptions;
+import de.kortty.core.SessionJournalExportProtection;
+import de.kortty.model.TerminalLogConfig.LogFormat;
+import de.kortty.model.GPGKey;
+import javafx.scene.control.PasswordField;
 import de.kortty.core.SessionJournalExportFilter;
 import de.kortty.core.TerminalLogFile;
 import de.kortty.core.TerminalLogNaming;
@@ -47,10 +52,16 @@ public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDia
      * whole-file copies. An open range (no bounds at all) cuts nothing and is reported as {@code null}
      * too, so the caller treats it exactly like a plain copy.
      */
-    public record ExportChoice(TerminalLogNaming.Compression format, LogTimeRange range) {
+    public record ExportChoice(TerminalLogExportOptions options, LogTimeRange range) {
     }
 
-    private final ComboBox<TerminalLogNaming.Compression> formatCombo = new ComboBox<>();
+    private final ComboBox<TerminalLogExportOptions.Archive> formatCombo = new ComboBox<>();
+    private final ComboBox<String> contentCombo = new ComboBox<>();
+    private final CheckBox passwordCheck = new CheckBox(I18n.get("logfile.export.password"));
+    private final PasswordField password = new PasswordField();
+    private final PasswordField confirmation = new PasswordField();
+    private final CheckBox gpgCheck = new CheckBox(I18n.get("logfile.export.gpg"));
+    private final ComboBox<GPGKey> gpgKeys = new ComboBox<>();
     private final CheckBox rangeCheck = new CheckBox(I18n.get("logfile.export.range"));
     private final DatePicker fromDate = new DatePicker();
     private final TextField fromTime = new TextField();
@@ -70,22 +81,27 @@ public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDia
         setTitle(I18n.get("logfile.export.title"));
         setHeaderText(I18n.get("logfile.export.header", files.size()));
 
-        formatCombo.getItems().setAll(
-            TerminalLogNaming.Compression.ZSTD,
-            TerminalLogNaming.Compression.GZIP,
-            TerminalLogNaming.Compression.BZIP2);
-        formatCombo.setValue(TerminalLogNaming.Compression.ZSTD);
-        formatCombo.setConverter(new StringConverter<TerminalLogNaming.Compression>() {
-            @Override
-            public String toString(TerminalLogNaming.Compression compression) {
-                return LogfileManagerDialog.compressionLabel(compression);
+        formatCombo.getItems().setAll(TerminalLogExportOptions.Archive.values());
+        formatCombo.setValue(TerminalLogExportOptions.Archive.ZSTD);
+        formatCombo.setConverter(new StringConverter<>() {
+            @Override public String toString(TerminalLogExportOptions.Archive value) {
+                return value == null ? "" : value == TerminalLogExportOptions.Archive.ZIP ? "ZIP"
+                    : LogfileManagerDialog.compressionLabel(value.compression());
             }
-
-            @Override
-            public TerminalLogNaming.Compression fromString(String text) {
-                return null;
-            }
+            @Override public TerminalLogExportOptions.Archive fromString(String text) { return null; }
         });
+        contentCombo.getItems().add(I18n.get("logfile.export.unchanged"));
+        for (LogFormat value : LogFormat.values()) { contentCombo.getItems().add(value.getDisplayName()); }
+        contentCombo.getSelectionModel().selectFirst();
+        passwordCheck.disableProperty().bind(formatCombo.valueProperty().isNotEqualTo(TerminalLogExportOptions.Archive.ZIP));
+        password.disableProperty().bind(passwordCheck.selectedProperty().not().or(passwordCheck.disabledProperty()));
+        confirmation.disableProperty().bind(password.disableProperty());
+        confirmation.setPromptText(I18n.get("logfile.export.confirmPassword"));
+        var app = de.kortty.KorTTYApplication.getInstance();
+        if (app != null && app.getGpgKeyManager() != null) { gpgKeys.getItems().setAll(app.getGpgKeyManager().getAllKeys()); }
+        if (!gpgKeys.getItems().isEmpty()) { gpgKeys.getSelectionModel().selectFirst(); }
+        gpgCheck.setDisable(gpgKeys.getItems().isEmpty());
+        gpgKeys.disableProperty().bind(gpgCheck.selectedProperty().not());
 
         rangeCheck.setSelected(preset != null && !preset.isOpen());
         prefillRange(files, preset);
@@ -128,11 +144,26 @@ public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDia
         grid.add(new HBox(8, toDate, toTime), 1, 3);
         grid.add(cutHint, 1, 4);
         grid.add(rangeInvalid, 1, 5);
+        grid.add(new Label(I18n.get("logfile.export.contentFormat")), 0, 6);
+        grid.add(contentCombo, 1, 6);
+        grid.add(passwordCheck, 0, 7);
+        grid.add(password, 1, 7);
+        grid.add(confirmation, 1, 8);
+        grid.add(gpgCheck, 0, 9);
+        grid.add(gpgKeys, 1, 9);
+        if (gpgKeys.getItems().isEmpty()) { grid.add(new Label(I18n.get("export.noGPGKeys")), 1, 10); }
         getDialogPane().setContent(grid);
 
         getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         Button ok = (Button) getDialogPane().lookupButton(ButtonType.OK);
-        ok.disableProperty().bind(invalid);
+        BooleanBinding invalidProtection = Bindings.createBooleanBinding(() ->
+            (formatCombo.getValue() == TerminalLogExportOptions.Archive.ZIP && passwordCheck.isSelected()
+                && (password.getText().isEmpty() || !password.getText().equals(confirmation.getText())))
+            || (gpgCheck.isSelected() && gpgKeys.getValue() == null),
+            formatCombo.valueProperty(), passwordCheck.selectedProperty(), password.textProperty(),
+            confirmation.textProperty(), gpgCheck.selectedProperty(), gpgKeys.valueProperty());
+        ok.disableProperty().bind(invalid.or(invalidProtection));
+        setOnHidden(event -> { password.clear(); confirmation.clear(); });
         setResultConverter(button -> button == ButtonType.OK ? choice() : null);
     }
 
@@ -160,7 +191,18 @@ public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDia
         LogTimeRange range = rangeCheck.isSelected()
             ? rangeOf(fromDate.getValue(), fromTime.getText(), toDate.getValue(), toTime.getText())
             : null;
-        return new ExportChoice(formatCombo.getValue(), range);
+        int content = contentCombo.getSelectionModel().getSelectedIndex();
+        GPGKey key = gpgCheck.isSelected() ? gpgKeys.getValue() : null;
+        var protection = key == null ? SessionJournalExportProtection.Protection.NONE
+            : SessionJournalExportProtection.Protection.gpg(
+                key.getFingerprint() != null && !key.getFingerprint().isBlank() ? key.getFingerprint() : key.getKeyId(),
+                key.getPublicKeyPath());
+        char[] secret = passwordCheck.isSelected() && formatCombo.getValue() == TerminalLogExportOptions.Archive.ZIP
+            ? password.getText().toCharArray() : null;
+        try {
+            return new ExportChoice(new TerminalLogExportOptions(content == 0 ? null : LogFormat.values()[content - 1],
+                formatCombo.getValue(), secret, protection), range);
+        } finally { if (secret != null) { java.util.Arrays.fill(secret, '\0'); } }
     }
 
     /**

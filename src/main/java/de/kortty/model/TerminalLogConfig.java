@@ -45,6 +45,20 @@ public class TerminalLogConfig {
         }
     }
 
+    @XmlEnum
+    public enum DirectoryMode { NONE, FULL, RELATIVE }
+
+    @XmlElement
+    private boolean includeUsername;
+
+    @XmlElement
+    private DirectoryMode directoryMode = DirectoryMode.NONE;
+
+    public boolean isIncludeUsername() { return includeUsername; }
+    public void setIncludeUsername(boolean value) { includeUsername = value; }
+    public DirectoryMode getDirectoryMode() { return directoryMode != null ? directoryMode : DirectoryMode.NONE; }
+    public void setDirectoryMode(DirectoryMode value) { directoryMode = value != null ? value : DirectoryMode.NONE; }
+
     /** Default retention; 0 means keep everything. */
     public static final int DEFAULT_RETENTION_DAYS = 30;
 
@@ -85,6 +99,8 @@ public class TerminalLogConfig {
         if (source == null) {
             return;
         }
+        this.includeUsername = source.includeUsername;
+        this.directoryMode = source.getDirectoryMode();
         this.enabled = source.enabled;
         this.logDirectoryPath = source.logDirectoryPath;
         this.maxFileSizeMB = source.maxFileSizeMB;

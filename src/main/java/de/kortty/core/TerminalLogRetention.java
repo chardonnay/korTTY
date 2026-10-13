@@ -75,7 +75,9 @@ public final class TerminalLogRetention {
                         continue;
                     }
                     try {
+                        if (TerminalLogBadges.held(file)) { continue; }
                         Files.deleteIfExists(file);
+                        Files.deleteIfExists(TerminalLogBadges.sidecar(file));
                         deleted++;
                     } catch (IOException e) {
                         logger.warn("Could not delete expired terminal log {}: {}", name, e.getMessage());
@@ -93,7 +95,7 @@ public final class TerminalLogRetention {
         return deleted;
     }
 
-    private static synchronized Object lockFor(Path directory) {
+    static synchronized Object lockFor(Path directory) {
         return DIRECTORY_LOCKS.computeIfAbsent(directory.toAbsolutePath().normalize(), key -> new Object());
     }
 }

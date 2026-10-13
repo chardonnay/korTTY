@@ -55,7 +55,22 @@ public class TerminalLogger {
     private final Path directory;
     private final Clock clock;
     private final SessionJournalRedactor redactor;
-    private final BlockingQueue<String> logQueue;
+    private final BlockingQueue<java.util.Map<String, String>> logQueue;
+    private String captureUsername = "";
+    private String captureDirectory = "";
+    private String initialDirectory;
+    private String host = "";
+
+    /** Set before start; the host is recorded, never resolved or invented by the logger. */
+    public void setHost(String value) { host = value != null ? value : ""; }
+
+    /** Capture metadata on the same reader thread as terminal output, before it is queued. */
+    public synchronized void log(String data, String username, String workingDirectory) {
+        captureUsername = username != null ? username : "";
+        captureDirectory = workingDirectory != null ? workingDirectory : "";
+        if (initialDirectory == null && !captureDirectory.isBlank()) { initialDirectory = captureDirectory; }
+        log(data);
+    }
     private final Thread writerThread;
     private final SessionJournalAnsiProcessor ansi;
 
@@ -87,7 +102,10 @@ public class TerminalLogger {
     /** Test seam: an explicit directory and clock make rotation and retention observable. */
     TerminalLogger(TerminalLogConfig config, String connectionName, Path directory, Clock clock,
                    SessionJournalRedactor redactor) {
-        this.config = config;
+        this.config = new TerminalLogConfig(config);
+        var policy = de.kortty.policy.PolicyManager.effective().logging();
+        if (policy.terminalIncludeUsername() != null) { this.config.setIncludeUsername(policy.terminalIncludeUsername()); }
+        if (policy.terminalDirectoryMode() != null) { this.config.setDirectoryMode(policy.terminalDirectoryMode()); }
         this.connectionName = connectionName;
         this.directory = directory;
         this.clock = clock;
@@ -209,7 +227,7 @@ public class TerminalLogger {
      * Accepts a chunk of terminal output. Chunks may split lines, escape sequences and even UTF-8
      * characters at arbitrary boundaries; {@link SessionJournalAnsiProcessor} is built for that.
      */
-    public void log(String data) {
+    public synchronized void log(String data) {
         if (!running || data == null || data.isEmpty()) {
             return;
         }
@@ -217,7 +235,19 @@ public class TerminalLogger {
     }
 
     private void enqueue(String line) {
-        if (!logQueue.offer(line)) {
+        java.util.Map<String, String> entry = new java.util.LinkedHashMap<>();
+        entry.put("timestamp", LocalDateTime.now(clock).format(TIMESTAMP_FORMAT));
+        entry.put("line", line);
+        if (config.isIncludeUsername()) { entry.put("username", redactor.redact(captureUsername)); }
+        if (config.getDirectoryMode() != TerminalLogConfig.DirectoryMode.NONE) {
+            String cwd = captureDirectory;
+            if (config.getDirectoryMode() == TerminalLogConfig.DirectoryMode.RELATIVE && initialDirectory != null) {
+                cwd = relativeDirectory(initialDirectory, cwd);
+                entry.put("directoryBase", redactor.redact(initialDirectory));
+            }
+            entry.put("directory", redactor.redact(cwd));
+        }
+        if (!logQueue.offer(java.util.Collections.unmodifiableMap(entry))) {
             logger.warn("Terminal log queue full, dropping line");
         }
     }
@@ -234,7 +264,7 @@ public class TerminalLogger {
                     // or a whole day's output lands in yesterday's file.
                     roll(true);
                 }
-                String line = logQueue.poll(POLL_MILLIS, TimeUnit.MILLISECONDS);
+                java.util.Map<String, String> line = logQueue.poll(POLL_MILLIS, TimeUnit.MILLISECONDS);
                 if (line != null) {
                     writeLine(line);
                 }
@@ -254,7 +284,7 @@ public class TerminalLogger {
 
     /** Catches anything queued between the loop's last check and its exit. */
     private void drainRemainder() {
-        String line;
+        java.util.Map<String, String> line;
         while (!stopped && (line = logQueue.poll()) != null) {
             try {
                 writeLine(line);
@@ -286,7 +316,7 @@ public class TerminalLogger {
         return true;
     }
 
-    private void writeLine(String line) throws IOException {
+    private void writeLine(java.util.Map<String, String> line) throws IOException {
         if (stopped) {
             return;
         }
@@ -398,6 +428,12 @@ public class TerminalLogger {
 
     /** Header for a fresh file; every file is a document of its own, so this runs once per file. */
     private String fileHeader() {
+        if (!host.isBlank() || config.isIncludeUsername() || config.getDirectoryMode() != TerminalLogConfig.DirectoryMode.NONE) {
+            java.util.Map<String, String> metadata = new java.util.LinkedHashMap<>();
+            metadata.put("connection", redactor.redact(connectionName));
+            metadata.put("host", redactor.redact(host));
+            return TerminalLogDocument.header(config.getFormat(), metadata);
+        }
         return switch (config.getFormat()) {
             case XML -> "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<terminal-log connection=\""
                 + escapeXml(connectionName) + "\">\n";
@@ -420,14 +456,28 @@ public class TerminalLogger {
         return fileHeader().getBytes(StandardCharsets.UTF_8).length;
     }
 
-    private String formatLine(String line) {
-        String timestamp = LocalDateTime.now(clock).format(TIMESTAMP_FORMAT);
-        return switch (config.getFormat()) {
-            case PLAIN_TEXT -> String.format("[%s] %s%n", timestamp, line);
-            case XML -> "  <entry timestamp=\"" + timestamp + "\">" + escapeXml(line) + "</entry>\n";
-            case JSON -> (currentFileSize > jsonHeaderLength() ? ",\n" : "")
-                + "    {\"timestamp\": \"" + timestamp + "\", \"line\": \"" + escapeJson(line) + "\"}";
-        };
+    private String formatLine(java.util.Map<String, String> line) {
+        if (config.getFormat() == TerminalLogConfig.LogFormat.PLAIN_TEXT && host.isBlank()
+            && !config.isIncludeUsername() && config.getDirectoryMode() == TerminalLogConfig.DirectoryMode.NONE) {
+            return "[" + line.get("timestamp") + "] " + line.get("line") + "\n";
+        }
+        String entry = TerminalLogDocument.entry(config.getFormat(), line);
+        return config.getFormat() == TerminalLogConfig.LogFormat.JSON
+            ? (currentFileSize > jsonHeaderLength() ? ",\n" : "") + entry : entry + "\n";
+    }
+
+    /** Remote POSIX paths are independent of the operating system running korTTY. */
+    static String relativeDirectory(String base, String directory) {
+        if (directory == null || directory.isBlank()) { return ""; }
+        if (!base.startsWith("/") || !directory.startsWith("/")) { return directory; }
+        String[] from = base.substring(1).split("/");
+        String[] to = directory.substring(1).split("/");
+        int common = 0;
+        while (common < from.length && common < to.length && from[common].equals(to[common])) { common++; }
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        for (int i = common; i < from.length; i++) { if (!from[i].isEmpty()) { parts.add(".."); } }
+        for (int i = common; i < to.length; i++) { if (!to[i].isEmpty()) { parts.add(to[i]); } }
+        return parts.isEmpty() ? "." : String.join("/", parts);
     }
 
     /**

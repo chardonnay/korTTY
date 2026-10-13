@@ -3495,6 +3495,14 @@ tasks.register<JavaExec>("dialogHostTabSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("logfileBadgePreviewSmoke") {
+    group = "verification"
+    description = "Renders all 30 terminal-log badge symbols in each of the five styles."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.LogfileBadgePreviewSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("logfileManagerSmoke") {
     group = "verification"
     description = "Opens the Logfile Manager and the log viewer against a generated set of terminal logs (plain, gzip, zstd, bzip2, a live one and a 50 MB file): listing, sorting, filtering, export, trimming, delete, search and highlighting; writes the guide screenshots."

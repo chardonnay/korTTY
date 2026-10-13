@@ -72,6 +72,10 @@ public record TerminalLogFilter(String text, LogTimeRange range, TerminalLogConf
             return true;
         }
         String folder = Objects.toString(file.directory(), "").toLowerCase(Locale.ROOT);
-        return folder.contains(needle);
+        return folder.contains(needle)
+            || file.displayConnectionName().toLowerCase(Locale.ROOT).contains(needle)
+            || file.recordedAddress().toLowerCase(Locale.ROOT).contains(needle)
+            || file.connectionName().toLowerCase(Locale.ROOT).contains(needle)
+            || file.badges().stream().anyMatch(badge -> badge.name().toLowerCase(Locale.ROOT).contains(needle));
     }
 }

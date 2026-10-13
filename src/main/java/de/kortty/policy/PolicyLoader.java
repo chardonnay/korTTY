@@ -54,7 +54,8 @@ public final class PolicyLoader {
     private static final Set<String> ISOLATION_KEYS = Set.of("minimum");
     private static final Set<String> SFTP_KEYS = Set.of("max-parallel-transfers", "conflict-default");
     private static final Set<String> LOGGING_KEYS = Set.of("directory", "retention-days",
-        "compress", "format", "rotation-max-files", "rotation-total-size-mb");
+        "compress", "format", "rotation-max-files", "rotation-total-size-mb",
+        "terminal-include-username", "terminal-directory-mode");
     private static final Set<String> SESSION_JOURNAL_KEYS = Set.of("enforced", "log-format",
         "ai-max-lines", "storage-path", "allow-rename", "allow-delete", "name-template", "ai-title",
         "ai-screenshot-analysis", "ai-ask", "max-log-parts", "replace", "automation-allowed",
@@ -419,8 +420,18 @@ public final class PolicyLoader {
         }
         Integer rotationMaxFiles = getNonNegativeInt(table, "rotation-max-files", tableContext);
         Integer rotationTotalSizeMb = getNonNegativeInt(table, "rotation-total-size-mb", tableContext);
+        Boolean username = getBoolean(table, "terminal-include-username", tableContext);
+        de.kortty.model.TerminalLogConfig.DirectoryMode directoryMode = null;
+        String mode = getString(table, "terminal-directory-mode", tableContext);
+        if (mode != null) {
+            try {
+                directoryMode = de.kortty.model.TerminalLogConfig.DirectoryMode.valueOf(mode.toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                errors.add(tableContext + ": terminal-directory-mode must be none, full or relative");
+            }
+        }
         PolicyRule.LoggingRule logging = new PolicyRule.LoggingRule(
-            directory, retentionDays, compress, format, rotationMaxFiles, rotationTotalSizeMb);
+            directory, retentionDays, compress, format, rotationMaxFiles, rotationTotalSizeMb, username, directoryMode);
         if (!logging.isEmpty()) {
             builder.logging(logging);
         }

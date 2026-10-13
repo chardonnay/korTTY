@@ -37,9 +37,9 @@ public final class TerminalLogTrimmer {
     /** The stamp as {@link TerminalLogger} writes it; {@link TerminalLogger#TIMESTAMP_FORMAT} reads it back. */
     private static final String STAMP = "(\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3})";
     private static final Pattern PLAIN_START = Pattern.compile("^\\[" + STAMP + "\\](?: |$)");
-    private static final Pattern XML_START = Pattern.compile("^\\s*<entry timestamp=\"" + STAMP + "\">");
+    private static final Pattern XML_START = Pattern.compile("^\\s*<entry timestamp=\"" + STAMP + "\"(?: [^>]*?)?>");
     private static final Pattern JSON_START = Pattern.compile("^\\s*\\{\"timestamp\": \"" + STAMP + "\", \"line\": ");
-    private static final Pattern XML_CONNECTION = Pattern.compile("<terminal-log connection=\"([^\"]*)\">");
+    private static final Pattern XML_CONNECTION = Pattern.compile("<terminal-log connection=\"([^\"]*)\"(?: [^>]*?)?>");
     private static final String XML_ENTRY_END = "</entry>";
     private static final String XML_DOCUMENT_END = "</terminal-log>";
     private static final String JSON_CONNECTION = "\"connection\": \"";

@@ -147,6 +147,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private TextField logFilePathField;
     private Spinner<Integer> maxFileSizeMBSpinner;
     private ComboBox<de.kortty.model.TerminalLogConfig.LogFormat> logFormatCombo;
+    private CheckBox logUsernameCheck;
+    private ComboBox<de.kortty.model.TerminalLogConfig.DirectoryMode> logDirectoryModeCombo;
     private CheckBox logCompressCheck;
     private CheckBox logRotateDailyCheck;
     private Spinner<Integer> logRetentionDaysSpinner;
@@ -809,6 +811,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 de.kortty.model.TerminalLogConfig logConfig = connection.getLogConfig();
                 if (enableLoggingCheck != null) {
                     logConfig.setEnabled(enableLoggingCheck.isSelected());
+                    logConfig.setIncludeUsername(logUsernameCheck.isSelected());
+                    logConfig.setDirectoryMode(logDirectoryModeCombo.getValue());
                     if (enableLoggingCheck.isSelected()) {
                         logConfig.setLogDirectoryPath(logFilePathField != null && logFilePathField.getText() != null
                             ? logFilePathField.getText().trim() : "");
@@ -2015,6 +2019,30 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         logFormatCombo.setValue(logConfig != null ? logConfig.getFormat() : de.kortty.model.TerminalLogConfig.LogFormat.PLAIN_TEXT);
         logFormatCombo.setPrefWidth(200);
 
+        logUsernameCheck = new CheckBox(I18n.get("connEdit.log.username"));
+        logUsernameCheck.setSelected(logConfig != null && logConfig.isIncludeUsername());
+        logDirectoryModeCombo = new ComboBox<>();
+        logDirectoryModeCombo.getItems().setAll(de.kortty.model.TerminalLogConfig.DirectoryMode.values());
+        logDirectoryModeCombo.setValue(logConfig != null ? logConfig.getDirectoryMode()
+            : de.kortty.model.TerminalLogConfig.DirectoryMode.NONE);
+        logDirectoryModeCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override public String toString(de.kortty.model.TerminalLogConfig.DirectoryMode mode) {
+                return mode == null ? "" : I18n.get("connEdit.log.directoryMode." + mode.name());
+            }
+            @Override public de.kortty.model.TerminalLogConfig.DirectoryMode fromString(String text) { return null; }
+        });
+        var loggingPolicy = de.kortty.policy.PolicyManager.effective().logging();
+        if (loggingPolicy.terminalIncludeUsername() != null) {
+            logUsernameCheck.setSelected(loggingPolicy.terminalIncludeUsername());
+            logUsernameCheck.setDisable(true);
+            logUsernameCheck.setTooltip(new Tooltip(I18n.get("journal.options.managed")));
+        }
+        if (loggingPolicy.terminalDirectoryMode() != null) {
+            logDirectoryModeCombo.setValue(loggingPolicy.terminalDirectoryMode());
+            logDirectoryModeCombo.setDisable(true);
+            logDirectoryModeCombo.setTooltip(new Tooltip(I18n.get("journal.options.managed")));
+        }
+
         logCompressCheck = new CheckBox(I18n.get("connEdit.log.compress"));
         logCompressCheck.setSelected(logConfig == null || logConfig.isCompress());
         logCompressCheck.setTooltip(new Tooltip(I18n.get("connEdit.log.compress.hint")));
@@ -2060,6 +2088,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             new Label(I18n.get("connEdit.log.retention.unit")));
         grid.add(retentionBox, 1, row++);
 
+        grid.add(logUsernameCheck, 1, row++);
+        grid.add(new Label(I18n.get("connEdit.log.directoryMode")), 0, row);
+        grid.add(logDirectoryModeCombo, 1, row++);
         grid.add(logRotateDailyCheck, 1, row++);
         grid.add(logCompressCheck, 1, row++);
 

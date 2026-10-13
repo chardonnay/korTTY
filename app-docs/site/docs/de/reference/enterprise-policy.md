@@ -296,6 +296,8 @@ Eine fehlerhafte Richtliniendatei führt zum Lockdown, der `job-webhooks` wie je
 
 ### `[rule.logging]`
 
+Die unten angegebenen `terminal-*`-Tastenkombinationen gelten für Protokolldaten des Terminalausganges. Ungeführte Werte bleiben der Verbindungseinstellung unterliegen. Sie werden pro Feld gemäß den bestehenden Regeln aufgelöst; bei gleicher Ebene gewinnt `false` bei Benutzernamen, während die Verzeichnisauswahlen in der Reihenfolge `none`, `relative`, `full` erfolgen. Der Logger wendet sie beim Start an und schaltet die Steuerung des Verbindungseingabefensters ab. Unbekannte Arbeitsverzeichnisse bleiben leer. Diese Einstellungen aktivieren das Protokollieren nicht allein.
+
 korTTY rotiert sein Protokoll täglich (`kortty.YYYY-MM-DD.log`); Diese Tabelle steuert, wohin die Dateien gehen, wie lange sie leben, wie sie formatiert sind und wie die Rotation begrenzt wird. Verzeichnis und Aufbewahrung werden in die entsprechenden (dann gesperrten) Benutzereinstellungen gezwungen; Format, Komprimierung und die Rotationsbeschränkungen haben keine Benutzereinstellung und wirken direkt. Die Konfiguration wird vor der allerersten Protokollzeile eines Starts angewendet, sodass auch die Startprotokollierung dem Schema des Administrators folgt.
 
 | Schlüssel | Typ | Werte | Wirkung |
@@ -306,6 +308,8 @@ korTTY rotiert sein Protokoll täglich (`kortty.YYYY-MM-DD.log`); Diese Tabelle 
 | `format` | Zeichenfolge | `text`, `json` | `json` schreibt ein strukturiertes JSON-Objekt pro Ereignis (Logback-JSON-Encoder – praktisch für SIEM/zentrale Protokollerfassung) |
 | `rotation-max-files` | Ganzzahl | `0` = unbegrenzt | Behalten Sie höchstens N rotierte tägliche Dateien bei |
 | `rotation-total-size-mb` | Ganzzahl | `0` = nicht begrenzt | Begrenzen Sie die Gesamtgröße aller gedrehten Dateien (älteste zuerst gelöscht) |
+| `terminal-include-username` | boolean | `true`, `false` | Bestimmt, ob die Terminal-Log-Einträge den SSH-Benutzernamen enthalten; verhindert die Änderung der Verbindungseinstellung |
+| `terminal-directory-mode` | string | `none`, `full`, `relative` | Bestimmt das Feld des Terminal-Log-Verzeichnisses; `relative` verwendet das erste vom Sitzungsbetrieb gemeldete Verzeichnis, das ebenfalls als `directoryBase` gespeichert wird; verhindert die Änderung der Verbindungseinstellung |
 
 ```toml
 [[rule]]

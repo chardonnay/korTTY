@@ -179,7 +179,7 @@ public final class TerminalLogExporter {
         Objects.requireNonNull(c, "target compression");
         LogTimeRange effective = effectiveRange(range);
         LongConsumer progress = bytesDone != null ? bytesDone : bytes -> { };
-        BooleanSupplier stop = cancelled != null ? cancelled : () -> false;
+        BooleanSupplier stop = () -> Thread.currentThread().isInterrupted() || (cancelled != null && cancelled.getAsBoolean());
         Path source = src.path();
         try {
             if (!Files.isRegularFile(source)) {
@@ -225,7 +225,7 @@ public final class TerminalLogExporter {
         Objects.requireNonNull(c, "target compression");
         LogTimeRange effective = effectiveRange(range);
         Consumer<Progress> listener = progress != null ? progress : update -> { };
-        BooleanSupplier stop = cancelled != null ? cancelled : () -> false;
+        BooleanSupplier stop = () -> Thread.currentThread().isInterrupted() || (cancelled != null && cancelled.getAsBoolean());
         int total = sources.size();
         long bytesTotal = 0;
         for (TerminalLogFile src : sources) {
@@ -257,6 +257,108 @@ public final class TerminalLogExporter {
             listener.accept(new Progress(i + 1, total, bytesBefore, totalBytes, src.name()));
         }
         return results;
+    }
+
+    /** Names converted copies separately so retention never mistakes an export for a recorded log. */
+    public static String targetName(TerminalLogFile source, TerminalLogExportOptions options, LogTimeRange range,
+                                    boolean selection) {
+        String base = targetName(source.name(), TerminalLogNaming.Compression.NONE, range);
+        int dot = base.lastIndexOf('.');
+        String extension = options.format() != null ? options.format().getExtension() : source.format().getExtension();
+        return (dot >= 0 ? base.substring(0, dot) : base) + (selection ? "-selection" : "-export")
+            + "." + extension + options.suffix();
+    }
+
+    /** Converts complete entries before archiving; password ZIP and GPG may be combined. */
+    public static Result exportOne(TerminalLogFile src, Path target, TerminalLogExportOptions options,
+                                   boolean overwrite, LogTimeRange range, java.util.BitSet selection,
+                                   Collection<Path> folders, LongConsumer bytesDone, BooleanSupplier cancelled) {
+        BooleanSupplier stop = () -> Thread.currentThread().isInterrupted() || (cancelled != null && cancelled.getAsBoolean());
+        LongConsumer progress = bytesDone != null ? bytesDone : bytes -> { };
+        Path temp = null;
+        Path work = null;
+        try {
+            if (!Files.isRegularFile(src.path(), java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+                return failed(src, target, "Source is not a regular file");
+            }
+            if (TerminalLogLiveness.isLive(src.path(), src.compression(), currentModified(src), Instant.now())) {
+                return outcome(src, target, Status.LIVE);
+            }
+            if (canonical(src.path()).equals(canonical(target))) { return outcome(src, target, Status.SAME_FILE); }
+            if (!overwrite && Files.exists(target)) { return outcome(src, target, Status.EXISTS); }
+            if (wouldBeSwept(target, folders)) { return outcome(src, target, Status.WOULD_BE_SWEPT); }
+            if (range != null && range.isInvalid()) { return outcome(src, target, Status.EMPTY_RANGE); }
+            if (stop.getAsBoolean()) { return outcome(src, target, Status.CANCELLED); }
+            Path parent = target.toAbsolutePath().getParent();
+            Files.createDirectories(parent);
+            temp = Files.createTempFile(parent, TEMP_PREFIX, options.suffix());
+            AtomicFileWriter.restrictToOwner(temp);
+            Path archive = temp;
+            if (options.gpg().usesGpg()) {
+                work = SessionJournalExportProtection.privateTempDir("kortty-log-export-");
+                archive = work.resolve("log" + options.archive().suffix);
+            }
+            long count;
+            try (ProgressInputStream raw = openCounted(src, progress);
+                 InputStream in = decode(raw, src.compression());
+                 OutputStream out = exportOutput(archive, src, options)) {
+                if (options.format() == null && effectiveRange(range) == null && selection == null) {
+                    byte[] block = new byte[BLOCK_BYTES];
+                    int n;
+                    while ((n = in.read(block)) >= 0) {
+                        if (stop.getAsBoolean()) { throw new TerminalLogTrimmer.CancelledException(); }
+                        out.write(block, 0, n);
+                    }
+                    count = NOT_COUNTED;
+                } else {
+                    Writer writer = new OutputStreamWriter(out, StandardCharsets.UTF_8);
+                    count = TerminalLogDocument.convert(new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)),
+                        writer, src.format(), options.format() != null ? options.format() : src.format(),
+                        src.parsed().slug(), range, selection, stop);
+                }
+                raw.reportFinal();
+            }
+            if (count == 0) { return outcome(src, target, Status.EMPTY_RANGE); }
+            if (stop.getAsBoolean()) { return outcome(src, target, Status.CANCELLED); }
+            if (options.gpg().usesGpg()) {
+                SessionJournalExportProtection.encryptWithSystemGpg(archive, temp,
+                    options.gpg().gpgKeyId(), options.gpg().gpgPublicKeyPath(), stop);
+            }
+            if (stop.getAsBoolean()) { return outcome(src, target, Status.CANCELLED); }
+            if (publish(temp, target, overwrite) == Status.EXISTS) { return outcome(src, target, Status.EXISTS); }
+            return new Result(src.path(), target, Status.OK, Files.size(target), count, null);
+        } catch (TerminalLogTrimmer.CancelledException e) {
+            return outcome(src, target, Status.CANCELLED);
+        } catch (IOException | RuntimeException e) {
+            return failed(src, target, messageOf(e));
+        } finally {
+            deleteQuietly(temp);
+            SessionJournalExportProtection.deleteRecursively(work);
+        }
+    }
+
+    private static OutputStream exportOutput(Path path, TerminalLogFile source, TerminalLogExportOptions options)
+            throws IOException {
+        if (options.archive() != TerminalLogExportOptions.Archive.ZIP) {
+            return TerminalLogCodecs.openOutput(path, options.archive().compression());
+        }
+        var parameters = new net.lingala.zip4j.model.ZipParameters();
+        var format = options.format() != null ? options.format() : source.format();
+        parameters.setFileNameInZip("terminal-log." + format.getExtension());
+        boolean encrypted = options.password() != null && options.password().length > 0;
+        parameters.setEncryptFiles(encrypted);
+        if (encrypted) {
+            parameters.setEncryptionMethod(net.lingala.zip4j.model.enums.EncryptionMethod.AES);
+            parameters.setAesKeyStrength(net.lingala.zip4j.model.enums.AesKeyStrength.KEY_STRENGTH_256);
+        }
+        var zip = new net.lingala.zip4j.io.outputstream.ZipOutputStream(Files.newOutputStream(path), options.password());
+        try {
+            zip.putNextEntry(parameters);
+            return zip;
+        } catch (IOException | RuntimeException e) {
+            zip.close();
+            throw e;
+        }
     }
 
     private static LogTimeRange effectiveRange(LogTimeRange range) {

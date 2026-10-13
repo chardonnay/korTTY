@@ -159,6 +159,8 @@
 #   format = "json"                   # "text" (default) | "json" (one JSON object per line)
 #   rotation-max-files = 14           # keep at most N rotated daily files (0 = unlimited)
 #   rotation-total-size-mb = 512      # cap total size of rotated files in MB (0 = uncapped)
+#   terminal-include-username = true # SSH username per terminal log entry
+#   terminal-directory-mode = "full" # none | full | relative (first reported directory)
 
 #   [rule.session-journal]
 #   enforced = true                   # write a journal for EVERY connection; users cannot stop it

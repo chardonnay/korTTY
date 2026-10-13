@@ -301,8 +301,24 @@ public final class TerminalLogCatalog {
             // archive the logger is still producing from its plain sibling.
             boolean live = TerminalLogLiveness.isLive(path, parsed.compression(),
                 attributes.lastModifiedTime(), now);
+            Map<String, String> metadata = Map.of();
+            try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(
+                    TerminalLogCodecs.openInput(path), java.nio.charset.StandardCharsets.UTF_8))) {
+                metadata = TerminalLogDocument.metadata(reader, parsed.format());
+            } catch (IOException | RuntimeException e) {
+                logger.debug("Cannot read terminal log metadata {}: {}", name, e.getMessage());
+            }
+            List<de.kortty.model.TerminalLogBadge> badges = List.of();
+            boolean badgeError = false;
+            try { badges = TerminalLogBadges.read(path); }
+            catch (IOException e) {
+                badgeError = true;
+                logger.warn("Cannot read terminal log badges {}: {}", name, e.getMessage());
+            }
+            boolean held = badges.stream().anyMatch(de.kortty.model.TerminalLogBadge::hold);
             files.add(new TerminalLogFile(path, directory, parsed, attributes.size(),
-                attributes.lastModifiedTime(), deletableFrom(name, folder.retentionDays()), live));
+                attributes.lastModifiedTime(), held || badgeError ? null : deletableFrom(name, folder.retentionDays()), live,
+                metadata.getOrDefault("connection", parsed.slug()), metadata.getOrDefault("host", ""), badges, badgeError));
         }
         return files;
     }

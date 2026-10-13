@@ -855,8 +855,19 @@ public final class EffectivePolicy {
         Integer rotationTotalSizeMb = resolver.resolve(
             rule -> rule.logging() != null ? rule.logging().rotationTotalSizeMb() : null,
             EffectivePolicy::tighterCap);
+        Boolean username = resolver.resolve(
+            rule -> rule.logging() != null ? rule.logging().terminalIncludeUsername() : null,
+            (a, b) -> a && b);
+        de.kortty.model.TerminalLogConfig.DirectoryMode directoryMode = resolver.resolve(
+            rule -> rule.logging() != null ? rule.logging().terminalDirectoryMode() : null,
+            (a, b) -> a == de.kortty.model.TerminalLogConfig.DirectoryMode.NONE
+                || b == de.kortty.model.TerminalLogConfig.DirectoryMode.NONE
+                ? de.kortty.model.TerminalLogConfig.DirectoryMode.NONE
+                : a == de.kortty.model.TerminalLogConfig.DirectoryMode.RELATIVE
+                    || b == de.kortty.model.TerminalLogConfig.DirectoryMode.RELATIVE
+                    ? de.kortty.model.TerminalLogConfig.DirectoryMode.RELATIVE : a);
         return new PolicyRule.LoggingRule(
-            directory, retentionDays, compress, format, rotationMaxFiles, rotationTotalSizeMb);
+            directory, retentionDays, compress, format, rotationMaxFiles, rotationTotalSizeMb, username, directoryMode);
     }
 
     /**

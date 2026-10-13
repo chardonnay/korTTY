@@ -22,7 +22,24 @@ import java.time.ZoneId;
  * @param live          still being written — by this process or, as far as can be told, another
  */
 public record TerminalLogFile(Path path, Path directory, TerminalLogNaming.ParsedName parsed,
-                              long sizeBytes, FileTime modified, LocalDate deletableFrom, boolean live) {
+                              long sizeBytes, FileTime modified, LocalDate deletableFrom, boolean live,
+                              String connectionName, String host, java.util.List<de.kortty.model.TerminalLogBadge> badges,
+                              boolean badgeError) {
+
+    public TerminalLogFile {
+        badges = java.util.List.copyOf(badges);
+    }
+
+    public TerminalLogFile(Path path, Path directory, TerminalLogNaming.ParsedName parsed,
+                           long sizeBytes, FileTime modified, LocalDate deletableFrom, boolean live) {
+        this(path, directory, parsed, sizeBytes, modified, deletableFrom, live, parsed.slug(), "", java.util.List.of(), false);
+    }
+    public boolean held() { return badges.stream().anyMatch(de.kortty.model.TerminalLogBadge::hold); }
+    public String recordedAddress() {
+        return host.isBlank() && TerminalLogIdentity.isAddress(connectionName) ? connectionName : host;
+    }
+    public String displayConnectionName() { return TerminalLogIdentity.displayName(connectionName, host); }
+
 
     private static final double MEBIBYTE = 1024.0 * 1024.0;
 

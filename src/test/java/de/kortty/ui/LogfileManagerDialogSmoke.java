@@ -219,6 +219,11 @@ public final class LogfileManagerDialogSmoke {
             }
         }
         backdateClosedFiles();
+        var tagged = find(scan(), "smoke-gz-json", TerminalLogNaming.Compression.GZIP);
+        de.kortty.core.TerminalLogBadges.write(tagged.path(), List.of(
+            de.kortty.model.TerminalLogBadge.defaults().get(0),
+            new de.kortty.model.TerminalLogBadge("demo-custom", "Release review", "search", "#4488cc",
+                de.kortty.model.TerminalLogBadge.Style.SOFT)));
         System.out.println("fixtures in " + logDir + ": " + scan().size() + " korTTY files");
     }
 
@@ -339,10 +344,31 @@ public final class LogfileManagerDialogSmoke {
             onFxRun(() -> manager.close());
             return;
         }
+        waitUntil(() -> tableOf(manager).lookupAll(".label").stream()
+            .anyMatch(node -> node instanceof Label label && I18n.get("logfile.manager.live").equals(label.getText())), 5000);
         checkManagerListing(manager);
         checkSorting(manager);
         checkFilters(manager);
+        TextField badgeSearch = fieldWithPrompt(manager, I18n.get("logfile.manager.filter.text.prompt"));
+        onFxRun(() -> badgeSearch.setText("release REVIEW"));
+        check(waitUntil(() -> tableOf(manager).getItems().size() == 1, 5000), "custom badge names are searchable in the table");
+        onFxRun(badgeSearch::clear);
+        waitUntil(() -> tableOf(manager).getItems().size() == EXPECTED_FILES, 5000);
         checkManagerScreenshot(manager);
+        var badgeDialog = onFx(() -> {
+            var dialog = new LogfileBadgeDialog(manager.getDialogPane().getScene().getWindow(), List.of(),
+                List.of(de.kortty.model.TerminalLogBadge.defaults().get(0)));
+            dialog.show(); return dialog;
+        });
+        savePng(badgeDialog.getDialogPane(), SCREENSHOTS.resolve("logfile-badges.png"));
+        onFxRun(badgeDialog::close);
+        var exportDialog = onFx(() -> {
+            var dialog = new LogfileExportDialog(manager.getDialogPane().getScene().getWindow(),
+                List.of(tableOf(manager).getItems().get(0)), null);
+            dialog.show(); return dialog;
+        });
+        savePng(exportDialog.getDialogPane(), SCREENSHOTS.resolve("logfile-export.png"));
+        onFxRun(exportDialog::close);
         onFxRun(manager::close);
         checkPureHelpers();
         runViewer();
@@ -400,7 +426,7 @@ public final class LogfileManagerDialogSmoke {
         // Restore the default order for the remaining checks.
         onFxRun(() -> {
             TableView<TerminalLogFile> table = tableOf(manager);
-            TableColumn<TerminalLogFile, ?> started = table.getColumns().get(1);
+            TableColumn<TerminalLogFile, ?> started = table.getColumns().stream().filter(column -> "logfile-started".equals(column.getId())).findFirst().orElseThrow();
             started.setSortType(TableColumn.SortType.DESCENDING);
             table.getSortOrder().setAll(List.of(started));
         });
@@ -481,7 +507,7 @@ public final class LogfileManagerDialogSmoke {
         onFxRun(() -> {
             tableOf(manager).getSelectionModel().select(0);
             Window window = manager.getDialogPane().getScene().getWindow();
-            window.setWidth(1100);
+            window.setWidth(1500);
             window.setHeight(640);
         });
         Thread.sleep(800);
@@ -541,6 +567,9 @@ public final class LogfileManagerDialogSmoke {
             return dialog;
         });
         int xmlLines = countLines(xml.path());
+        check(waitUntil(() -> listOf(xmlViewer).getItems().size() > xmlLines, 30_000), "XML opens formatted by default");
+        savePng(xmlViewer.getDialogPane(), SCREENSHOTS.resolve("logfile-viewer-xml.png"));
+        onFxRun(() -> checkWithText(xmlViewer, I18n.get("logfile.viewer.formatted")).fire());
         boolean xmlOpened = waitUntil(() -> listOf(xmlViewer).getItems().size() == xmlLines, 30_000);
         check(xmlOpened, "gzipped XML viewer lists its " + xmlLines + " lines");
         if (xmlOpened) {
@@ -551,6 +580,17 @@ public final class LogfileManagerDialogSmoke {
         }
         onFxRun(xmlViewer::close);
         waitUntil(() -> closedViewers.contains(xml.path()), 5_000);
+        TerminalLogFile json = find(scan(), "smoke-gz-json", TerminalLogNaming.Compression.GZIP);
+        var jsonViewer = onFx(() -> {
+            var dialog = new LogfileViewerDialog(json, settings, null, closedViewers::add);
+            dialog.show(); return dialog;
+        });
+        int rawJsonLines = countLines(json.path());
+        check(waitUntil(() -> listOf(jsonViewer).getItems().size() > rawJsonLines, 30000), "JSON opens formatted by default");
+        savePng(jsonViewer.getDialogPane(), SCREENSHOTS.resolve("logfile-viewer-json.png"));
+        onFxRun(() -> checkWithText(jsonViewer, I18n.get("logfile.viewer.formatted")).fire());
+        check(waitUntil(() -> listOf(jsonViewer).getItems().size() == rawJsonLines, 30000), "JSON raw view restores physical source rows");
+        onFxRun(jsonViewer::close);
     }
 
     private void checkViewerTail(LogfileViewerDialog viewer) throws Exception {
@@ -799,9 +839,14 @@ public final class LogfileManagerDialogSmoke {
     }
 
     /** Sorts the table on Size through the table API, the same state a header click sets. */
+    private static CheckBox checkWithText(Dialog<?> dialog, String text) {
+        return (CheckBox) allNodes(dialog.getDialogPane()).stream()
+            .filter(node -> node instanceof CheckBox check && text.equals(check.getText())).findFirst().orElseThrow();
+    }
+
     private static void sortBySize(LogfileManagerDialog manager, TableColumn.SortType type) {
         TableView<TerminalLogFile> table = tableOf(manager);
-        TableColumn<TerminalLogFile, ?> size = table.getColumns().get(2);
+        TableColumn<TerminalLogFile, ?> size = table.getColumns().stream().filter(column -> "logfile-size".equals(column.getId())).findFirst().orElseThrow();
         size.setSortType(type);
         table.getSortOrder().setAll(List.of(size));
         table.sort();

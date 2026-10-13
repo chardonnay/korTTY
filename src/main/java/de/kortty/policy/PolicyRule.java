@@ -136,11 +136,19 @@ public record PolicyRule(
         Boolean compress,
         LogFormat format,
         Integer rotationMaxFiles,
-        Integer rotationTotalSizeMb) {
+        Integer rotationTotalSizeMb,
+        Boolean terminalIncludeUsername,
+        de.kortty.model.TerminalLogConfig.DirectoryMode terminalDirectoryMode) {
+
+        public LoggingRule(String directory, Integer retentionDays, Boolean compress, LogFormat format,
+                           Integer rotationMaxFiles, Integer rotationTotalSizeMb) {
+            this(directory, retentionDays, compress, format, rotationMaxFiles, rotationTotalSizeMb, null, null);
+        }
 
         public boolean isEmpty() {
             return directory == null && retentionDays == null && compress == null
-                && format == null && rotationMaxFiles == null && rotationTotalSizeMb == null;
+                && format == null && rotationMaxFiles == null && rotationTotalSizeMb == null
+                && terminalIncludeUsername == null && terminalDirectoryMode == null;
         }
     }
 

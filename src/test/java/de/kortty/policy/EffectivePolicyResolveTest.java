@@ -349,6 +349,22 @@ class EffectivePolicyResolveTest {
     }
 
     @Test
+    void terminalLogContextResolvesPerTierAndUsesDeterministicSameTierChoices() {
+        var full = PolicyRule.builder().logging(new PolicyRule.LoggingRule(null, null, null, null, null, null,
+            true, de.kortty.model.TerminalLogConfig.DirectoryMode.FULL)).build();
+        var relative = PolicyRule.builder().logging(new PolicyRule.LoggingRule(null, null, null, null, null, null,
+            false, de.kortty.model.TerminalLogConfig.DirectoryMode.RELATIVE)).build();
+        var resolved = EffectivePolicy.resolve(file(Map.of(), full, relative), identity("alice"));
+        assertThat(resolved.logging().terminalIncludeUsername()).isFalse();
+        assertThat(resolved.logging().terminalDirectoryMode()).isEqualTo(de.kortty.model.TerminalLogConfig.DirectoryMode.RELATIVE);
+        var user = PolicyRule.builder().users(Set.of("alice")).logging(new PolicyRule.LoggingRule(null, null, null, null, null, null,
+            true, de.kortty.model.TerminalLogConfig.DirectoryMode.FULL)).build();
+        var specific = EffectivePolicy.resolve(file(Map.of(), relative, user), identity("alice"));
+        assertThat(specific.logging().terminalIncludeUsername()).isTrue();
+        assertThat(specific.logging().terminalDirectoryMode()).isEqualTo(de.kortty.model.TerminalLogConfig.DirectoryMode.FULL);
+    }
+
+    @Test
     void loggingResolvesPerFieldWithTighterCapsWinning() {
         PolicyRule first = PolicyRule.builder()
             .groups(Set.of("g"))

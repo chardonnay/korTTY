@@ -175,38 +175,48 @@ public final class SessionJournalExportProtection {
 
     private static void encryptWithSystemGpg(Path input, Path output, String keyId, String publicKeyPath)
             throws IOException {
+        encryptWithSystemGpg(input, output, keyId, publicKeyPath, () -> false);
+    }
+
+    /** Bounded, cancellable encryption; diagnostic output never blocks the process wait. */
+    public static void encryptWithSystemGpg(Path input, Path output, String keyId, String publicKeyPath,
+                                            java.util.function.BooleanSupplier cancelled) throws IOException {
         String gpg = resolveGpg().orElseThrow(() -> new IOException("gpg is not installed or not found"));
-        List<String> command = new ArrayList<>(List.of(gpg, "--batch", "--yes", "--trust-model", "always",
-            "--encrypt"));
-        if (publicKeyPath != null && !publicKeyPath.isBlank() && Files.isRegularFile(Path.of(publicKeyPath))) {
-            // the key file korTTY manages works even when the key is not in the gpg keyring
-            command.addAll(List.of("--recipient-file", publicKeyPath));
+        List<String> command = new ArrayList<>(List.of(gpg, "--no-options", "--batch", "--yes", "--trust-model", "always", "--encrypt"));
+        if (publicKeyPath != null && !publicKeyPath.isBlank()) {
+            if (!Files.isRegularFile(Path.of(publicKeyPath))) { throw new IOException("GPG public key file is missing"); }
+            command.addAll(List.of("--recipient-file", Path.of(publicKeyPath).toAbsolutePath().toString()));
         } else {
             command.addAll(List.of("--recipient", keyId));
         }
-        command.addAll(List.of("--output", output.toString(), input.toString()));
-        Process process;
-        try {
-            process = new ProcessBuilder(command).redirectErrorStream(true).start();
-        } catch (IOException e) {
-            throw new IOException("gpg is not installed or not on the PATH", e);
+        command.addAll(List.of("--output", output.toAbsolutePath().toString(), "--", input.toAbsolutePath().toString()));
+        Path work = privateTempDir("kortty-gpg-");
+        if (publicKeyPath != null && !publicKeyPath.isBlank()) {
+            command.addAll(1, List.of("--homedir", work.toAbsolutePath().toString()));
         }
-        String log = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).strip();
+        Process process = null;
         try {
-            if (!process.waitFor(120, TimeUnit.SECONDS)) {
-                process.destroyForcibly();
-                throw new IOException("gpg did not finish within 120 seconds");
+            Path diagnostic = work.resolve("diagnostic.txt");
+            process = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(diagnostic.toFile()).start();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(120);
+            while (!process.waitFor(200, TimeUnit.MILLISECONDS)) {
+                if (cancelled.getAsBoolean()) { throw new TerminalLogTrimmer.CancelledException(); }
+                if (System.nanoTime() >= deadline) { throw new IOException("gpg did not finish within 120 seconds"); }
+            }
+            if (process.exitValue() != 0) {
+                String detail;
+                try (var in = Files.newInputStream(diagnostic)) {
+                    detail = new String(in.readNBytes(8192), StandardCharsets.UTF_8).strip();
+                }
+                throw new IOException("gpg failed (exit " + process.exitValue() + "): " + detail);
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            process.destroyForcibly();
             throw new IOException("GPG encryption was interrupted", e);
+        } finally {
+            if (process != null && process.isAlive()) { process.destroyForcibly(); }
+            deleteRecursively(work);
         }
-        if (process.exitValue() != 0) {
-            Files.deleteIfExists(output);
-            throw new IOException("gpg failed (exit " + process.exitValue() + ")" + (log.isEmpty() ? "" : ": " + log));
-        }
-        logger.info("Encrypted {} with GPG for key {}", output.getFileName(), keyId);
     }
 
     /** A new owner-only ({@code rwx------}) temporary folder for an export's plaintext. */

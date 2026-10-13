@@ -15,6 +15,18 @@ import static com.google.common.truth.Truth.assertThat;
 
 class PolicyLoaderTest {
 
+    @Test
+    void terminalLogContextPolicyParsesAndRejectsUnknownMode() throws IOException {
+        String toml = "[meta]\nschema-version = 1\n[[rule]]\nname = \"log-context\"\n"
+            + "[rule.logging]\nterminal-include-username = false\nterminal-directory-mode = \"relative\"\n";
+        var result = PolicyLoader.load(write(toml));
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.file().rules().get(0).logging().terminalIncludeUsername()).isFalse();
+        assertThat(result.file().rules().get(0).logging().terminalDirectoryMode())
+            .isEqualTo(de.kortty.model.TerminalLogConfig.DirectoryMode.RELATIVE);
+        assertThat(PolicyLoader.load(write(toml.replace("relative", "invented"))).errors()).isNotEmpty();
+    }
+
     private static final String FULL_EXAMPLE = """
         [meta]
         schema-version = 1

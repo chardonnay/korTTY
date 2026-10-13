@@ -35,6 +35,7 @@ public final class TerminalLogFiles {
         MISSING,
         /** Being written right now, so it was left alone. */
         SKIPPED_LIVE,
+        SKIPPED_HOLD,
         /** Not named the way korTTY names its logs, so it is not korTTY's to delete. */
         SKIPPED_NOT_OWNED,
         /** A symbolic link, directory or other non-file; deleting it could remove something else. */
@@ -62,7 +63,9 @@ public final class TerminalLogFiles {
         }
         Instant moment = now != null ? now : Instant.now();
         for (TerminalLogFile file : files) {
-            outcomes.add(deleteOne(file, moment));
+            synchronized (TerminalLogRetention.lockFor(file.path().toAbsolutePath().getParent())) {
+                outcomes.add(deleteOne(file, moment));
+            }
         }
         return outcomes;
     }
@@ -89,9 +92,11 @@ public final class TerminalLogFiles {
             if (TerminalLogLiveness.isLive(path, parsed.compression(), attributes.lastModifiedTime(), now)) {
                 return new DeleteOutcome(path, DeleteStatus.SKIPPED_LIVE, null);
             }
-            return Files.deleteIfExists(path)
-                ? new DeleteOutcome(path, DeleteStatus.DELETED, null)
-                : new DeleteOutcome(path, DeleteStatus.MISSING, null);
+            if (TerminalLogBadges.held(path)) { return new DeleteOutcome(path, DeleteStatus.SKIPPED_HOLD, "Hold"); }
+            if (!Files.deleteIfExists(path)) { return new DeleteOutcome(path, DeleteStatus.MISSING, null); }
+            try { Files.deleteIfExists(TerminalLogBadges.sidecar(path)); }
+            catch (IOException e) { logger.warn("Could not remove deleted log's badge sidecar: {}", e.getMessage()); }
+            return new DeleteOutcome(path, DeleteStatus.DELETED, null);
         } catch (IOException | RuntimeException e) {
             String message = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             logger.warn("Could not delete terminal log {}: {}", path != null ? path.getFileName() : "?", message);

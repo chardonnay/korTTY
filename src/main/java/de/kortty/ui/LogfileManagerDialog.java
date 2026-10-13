@@ -13,6 +13,7 @@ import de.kortty.core.TerminalLogNaming;
 import de.kortty.model.TerminalLogConfig;
 import de.kortty.model.TerminalLogKnownFolder;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -121,6 +122,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
     private final Button refreshButton = new Button(I18n.get("logfile.manager.refresh"));
     private final Button viewButton = new Button(I18n.get("logfile.manager.view"));
     private final Button exportButton = new Button(I18n.get("logfile.manager.export"));
+    private final Button badgesButton = new Button(I18n.get("logfile.badges.title"));
     private final Button deleteButton = new Button(I18n.get("logfile.manager.delete"));
     private final Button openFolderButton = new Button(I18n.get("logfile.manager.openFolder"));
     private final Button addFolderButton = new Button(I18n.get("logfile.manager.addFolder"));
@@ -187,7 +189,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
         setHeaderText(I18n.get("logfile.manager.header"));
         setResizable(true);
         initModality(Modality.NONE);
-        getDialogPane().setPrefSize(1040, 620);
+        getDialogPane().setPrefSize(1400, 620);
         getDialogPane().setMinSize(760, 420);
         getDialogPane().setContent(buildContent());
         getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
@@ -217,6 +219,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
         refreshButton.setOnAction(event -> refresh());
         viewButton.setOnAction(event -> viewSelected());
         exportButton.setOnAction(event -> exportSelected());
+        badgesButton.setOnAction(event -> editBadges());
         deleteButton.setOnAction(event -> deleteSelected());
         openFolderButton.setOnAction(event -> openFolderOfSelection());
         addFolderButton.setOnAction(event -> addFolder());
@@ -227,7 +230,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        HBox bar = new HBox(8, refreshButton, viewButton, exportButton, deleteButton, openFolderButton,
+        HBox bar = new HBox(8, refreshButton, viewButton, exportButton, badgesButton, deleteButton, openFolderButton,
             addFolderButton, spacer, scanIndicator);
         bar.setAlignment(Pos.CENTER_LEFT);
         return bar;
@@ -322,7 +325,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
     private Node buildTable() {
         table.setItems(sorted);
         sorted.comparatorProperty().bind(table.comparatorProperty());
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        table.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         // One fixed row height for every row, derived from the UI font so larger fonts get room.
         table.setFixedCellSize(rowHeight());
@@ -341,6 +344,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
             TerminalLogFile::startedAt,
             time -> time != null ? STARTED_FORMAT.format(time) : "",
             Comparator.nullsLast(Comparator.<LocalDateTime>naturalOrder()));
+        startedColumn.setId("logfile-started");
         startedColumn.setMinWidth(150);
 
         TableColumn<TerminalLogFile, Long> sizeColumn = LogfileManagerDialog.<Long>typedColumn(
@@ -348,6 +352,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
             TerminalLogFile::sizeBytes,
             bytes -> formatSize(bytes),
             Comparator.<Long>naturalOrder());
+        sizeColumn.setId("logfile-size");
         sizeColumn.setMinWidth(110);
         withHeaderTooltip(sizeColumn, "logfile.manager.column.size.tooltip");
 
@@ -384,7 +389,36 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
         // Only useful when the files really come from several folders; hidden for the common case.
         folderColumn.setVisible(false);
 
-        table.getColumns().setAll(List.of(nameColumn, startedColumn, sizeColumn, typeColumn, compressionColumn,
+        TableColumn<TerminalLogFile, String> connectionColumn = new TableColumn<>(I18n.get("logfile.manager.column.connection"));
+        connectionColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().displayConnectionName()));
+        connectionColumn.setMinWidth(170);
+        connectionColumn.setCellFactory(column -> new TableCell<>() {
+            @Override protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                setText(empty ? null : value);
+                TerminalLogFile item = getTableRow() != null ? getTableRow().getItem() : null;
+                setTooltip(empty || item == null ? null : new Tooltip(item.recordedAddress().isBlank()
+                    ? I18n.get("logfile.manager.hostUnknown") : item.recordedAddress()));
+            }
+        });
+        TableColumn<TerminalLogFile, TerminalLogFile> badgesColumn = new TableColumn<>(I18n.get("logfile.badges.title"));
+        badgesColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue()));
+        badgesColumn.setMinWidth(200);
+        badgesColumn.setSortable(false);
+        badgesColumn.setCellFactory(column -> new TableCell<>() {
+            @Override protected void updateItem(TerminalLogFile item, boolean empty) {
+                super.updateItem(item, empty);
+                setGraphic(null); setText(null); setTooltip(null);
+                if (empty || item == null) { return; }
+                HBox labels = new HBox(5);
+                item.badges().forEach(badge -> labels.getChildren().add(LogfileBadgeView.create(badge)));
+                setGraphic(labels);
+                if (item.badgeError()) { setText(I18n.get("logfile.badges.readError")); }
+                setTooltip(new Tooltip(item.badges().stream().map(de.kortty.model.TerminalLogBadge::name)
+                    .collect(Collectors.joining(", "))));
+            }
+        });
+        table.getColumns().setAll(List.of(nameColumn, connectionColumn, badgesColumn, startedColumn, sizeColumn, typeColumn, compressionColumn,
             deletableColumn, folderColumn));
         startedColumn.setSortType(TableColumn.SortType.DESCENDING);
         table.getSortOrder().add(startedColumn);
@@ -459,7 +493,9 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
         MenuItem forget = new MenuItem(I18n.get("logfile.manager.forgetFolder"));
         forget.setOnAction(event -> forgetFolderOfSelection());
 
-        ContextMenu menu = new ContextMenu(view, export, delete, new SeparatorMenuItem(), openFolderItem, forget);
+        MenuItem badges = new MenuItem(I18n.get("logfile.badges.title"));
+        badges.setOnAction(event -> editBadges());
+        ContextMenu menu = new ContextMenu(view, export, badges, delete, new SeparatorMenuItem(), openFolderItem, forget);
         menu.setOnShowing(event -> {
             // Right-clicking a row acts on that row, unless it is already part of the selection.
             if (row.getIndex() >= 0 && !table.getSelectionModel().isSelected(row.getIndex())) {
@@ -469,6 +505,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
             List<TerminalLogFile> selected = selectedFiles();
             boolean actionable = selected.stream().anyMatch(file -> !file.live());
             view.setDisable(selected.isEmpty());
+            badges.setDisable(!idle || selected.isEmpty());
             export.setDisable(!idle || !actionable);
             delete.setDisable(!idle || !actionable);
             openFolderItem.setDisable(!idle || selected.isEmpty());
@@ -627,6 +664,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
         addFolderButton.setDisable(!idle);
         viewButton.setDisable(!idle || !any);
         exportButton.setDisable(!idle || !actionable);
+        badgesButton.setDisable(!idle || selectedFiles().isEmpty());
         deleteButton.setDisable(!idle || !actionable);
         openFolderButton.setDisable(!idle || !any);
         scanIndicator.setVisible(scanning);
@@ -820,6 +858,38 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
             .collect(Collectors.joining("\n"));
     }
 
+    private void editBadges() {
+        List<TerminalLogFile> files = selectedFiles();
+        if (!isIdle() || files.isEmpty()) { return; }
+        Path library = de.kortty.KorTTYApplication.getConfigDirectory().resolve("terminal-log-badges.json");
+        Task<List<de.kortty.model.TerminalLogBadge>> load = new Task<>() {
+            @Override protected List<de.kortty.model.TerminalLogBadge> call() throws IOException {
+                return de.kortty.core.TerminalLogBadges.readStore(library);
+            }
+        };
+        setBusy(true);
+        load.setOnFailed(event -> { setBusy(false); showError(messageOf(load.getException())); });
+        load.setOnSucceeded(event -> {
+            setBusy(false);
+            var choice = new LogfileBadgeDialog(ownerWindow(), load.getValue(), files.get(0).badges()).showAndWait();
+            if (choice.isEmpty()) { return; }
+            Task<Void> save = new Task<>() {
+                @Override protected Void call() throws IOException {
+                    de.kortty.core.TerminalLogBadges.writeStore(library, choice.get().library());
+                    for (TerminalLogFile file : files) {
+                        de.kortty.core.TerminalLogBadges.write(file.path(), choice.get().selected());
+                    }
+                    return null;
+                }
+            };
+            setBusy(true);
+            save.setOnSucceeded(done -> { setBusy(false); refresh(); });
+            save.setOnFailed(done -> { setBusy(false); showError(messageOf(save.getException())); refresh(); });
+            runInBackground(save, "LogfileBadgesSave");
+        });
+        runInBackground(load, "LogfileBadgesLoad");
+    }
+
     private void exportSelected() {
         if (!isIdle()) {
             return;
@@ -848,6 +918,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
         LogfileExportDialog.ExportChoice choice = asked.get();
         ExportTarget target = chooseTarget(files, choice);
         if (target == null) {
+            choice.options().close();
             return;
         }
         List<Path> folders = logFolders;
@@ -866,16 +937,19 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
             Preflight preflight = check.getValue();
             if (preflight.swept()) {
                 showError(I18n.get("logfile.export.wouldBeSwept"));
+                choice.options().close();
                 exportFiles(files, preset);
                 return;
             }
             if (!preflight.existing().isEmpty() && !confirmReplace(preflight.existing())) {
+                choice.options().close();
                 return;
             }
             startExport(files, choice, target, !preflight.existing().isEmpty());
         });
         check.setOnFailed(event -> {
             setBusy(false);
+            choice.options().close();
             showError(messageOf(check.getException()));
         });
         runInBackground(check, "LogfileExportCheck");
@@ -884,21 +958,21 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
     /** Asks for the destination: a save name for one file, a folder for several. Null when cancelled. */
     private ExportTarget chooseTarget(List<TerminalLogFile> files, LogfileExportDialog.ExportChoice choice) {
         Window owner = ownerWindow();
-        TerminalLogNaming.Compression format = choice.format();
+        var options = choice.options();
         LogTimeRange range = choice.range();
         if (files.size() == 1) {
             TerminalLogFile file = files.get(0);
             FileChooser chooser = new FileChooser();
             chooser.setTitle(I18n.get("logfile.export.saveAs"));
-            chooser.setInitialFileName(TerminalLogExporter.targetName(file.name(), format, range));
+            chooser.setInitialFileName(TerminalLogExporter.targetName(file, options, range, false));
             chooser.setInitialDirectory(initialDirectory(file.directory()));
             chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter(compressionLabel(format), "*" + format.suffix));
+                new FileChooser.ExtensionFilter(options.archive().name(), "*" + options.suffix()));
             File chosen = chooser.showSaveDialog(owner);
             if (chosen == null) {
                 return null;
             }
-            Path target = withSuffix(chosen.toPath().toAbsolutePath().normalize(), format.suffix);
+            Path target = withSuffix(chosen.toPath().toAbsolutePath().normalize(), options.suffix());
             Path directory = target.getParent() != null ? target.getParent() : initialDirectory(null).toPath();
             return new ExportTarget(directory, List.of(target));
         }
@@ -911,7 +985,7 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
         }
         Path directory = chosen.toPath();
         List<Path> paths = files.stream()
-            .map(file -> directory.resolve(TerminalLogExporter.targetName(file.name(), format, range)))
+            .map(file -> directory.resolve(TerminalLogExporter.targetName(file, options, range, false)))
             .toList();
         return new ExportTarget(directory, paths);
     }
@@ -957,33 +1031,27 @@ public final class LogfileManagerDialog extends ThemeAwareDialog<Void> {
                              ExportTarget target, boolean overwrite) {
         List<Path> folders = logFolders;
         LogTimeRange range = choice.range();
-        TerminalLogNaming.Compression format = choice.format();
+        var options = choice.options();
         AtomicBoolean cancelRequested = new AtomicBoolean();
         BooleanSupplier cancelled = cancelRequested::get;
-        boolean single = files.size() == 1;
 
         Task<List<TerminalLogExporter.Result>> task = new Task<>() {
             @Override
             protected List<TerminalLogExporter.Result> call() {
-                if (single) {
-                    TerminalLogFile file = files.get(0);
-                    long total = Math.max(1, file.sizeBytes());
-                    TerminalLogExporter.Result result = TerminalLogExporter.exportOne(file, target.paths().get(0),
-                        format, overwrite, range, folders,
-                        bytes -> {
-                            updateProgress(bytes, total);
-                            updateMessage(I18n.get("logfile.export.progress.message", 0, 1, formatMb(bytes)));
-                        },
-                        cancelled);
-                    return List.of(result);
+                try (options) {
+                    List<TerminalLogExporter.Result> results = new ArrayList<>();
+                    for (int i = 0; i < files.size(); i++) {
+                        TerminalLogFile file = files.get(i);
+                        int index = i;
+                        results.add(TerminalLogExporter.exportOne(file, target.paths().get(i), options,
+                            overwrite, range, null, folders,
+                            bytes -> {
+                                updateProgress(index + (double) bytes / Math.max(1, file.sizeBytes()), files.size());
+                                updateMessage(I18n.get("logfile.export.progress.message", index, files.size(), formatMb(bytes)));
+                            }, cancelled));
+                    }
+                    return results;
                 }
-                return TerminalLogExporter.exportAll(files, target.directory(), format, overwrite, range, folders,
-                    progress -> {
-                        updateProgress(progress.bytesDone(), Math.max(1, progress.bytesTotal()));
-                        updateMessage(I18n.get("logfile.export.progress.message",
-                            progress.filesDone(), progress.filesTotal(), formatMb(progress.bytesDone())));
-                    },
-                    cancelled);
             }
         };
 
