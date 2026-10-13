@@ -490,10 +490,45 @@ jobs:
           cd build/jpackage
           ditto -c -k --keepParent korTTY.app korTTY-notarization-${{ steps.version.outputs.version }}-${{ matrix.arch }}.zip
 
+      - name: Prepare macOS ticket service retries
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          helper_script="${RUNNER_TEMP}/kortty-stapler-retry.sh"
+          cat > "${helper_script}" <<'BASH'
+          # Shared library for retrieving and validating accepted notarization tickets.
+          # Retry EX_NOHOST (68) from the ticket service; propagate other failures.
+          stapler_with_retry() {
+            local action="${1}"
+            local target_path="${2}"
+            local attempt
+            local exit_code
+            for attempt in 1 2 3 4 5; do
+              if xcrun stapler "${action}" "${target_path}"; then
+                return 0
+              else
+                exit_code=$?
+              fi
+              if (( exit_code != 68 || attempt == 5 )); then
+                return "${exit_code}"
+              fi
+              printf 'Apple ticket service failed (68), retrying %s in 15s (%s/5).\n' \
+                "${action}" "${attempt}" >&2
+              sleep 15
+            done
+          }
+          BASH
+          printf 'KORTTY_STAPLER_HELPER=%s\n' "${helper_script}" >> "${GITHUB_ENV}"
+
       - name: Notarize and staple macOS app
         if: matrix.platform == 'macos'
         shell: bash
         run: |
+          # Generated in RUNNER_TEMP above and linted separately.
+          # shellcheck source=/dev/null
+          source "${KORTTY_STAPLER_HELPER}"
           require_accepted_notarization() {
             local submit_log="$1"
             local submission_id
@@ -528,8 +563,8 @@ jobs:
           fi
           require_accepted_notarization "$RUNNER_TEMP/notary-app-submit.log"
           set -e
-          xcrun stapler staple build/jpackage/korTTY.app
-          xcrun stapler validate build/jpackage/korTTY.app
+          stapler_with_retry staple build/jpackage/korTTY.app
+          stapler_with_retry validate build/jpackage/korTTY.app
 
       # mermaidRendererSmoke above runs pre-jpackage on the unsigned Gradle test classpath, so it
       # cannot see the signing trap at javaFxVersion: a hardened re-sign of libjfxwebkit.dylib kills
@@ -545,6 +580,9 @@ jobs:
         if: matrix.platform == 'macos'
         shell: bash
         run: |
+          # Generated in RUNNER_TEMP above and linted separately.
+          # shellcheck source=/dev/null
+          source "${KORTTY_STAPLER_HELPER}"
           require_accepted_notarization() {
             local submit_log="$1"
             local submission_id
@@ -583,8 +621,8 @@ jobs:
           fi
           require_accepted_notarization "$RUNNER_TEMP/notary-dmg-submit.log"
           set -e
-          xcrun stapler staple "$dmg_file"
-          xcrun stapler validate "$dmg_file"
+          stapler_with_retry staple "$dmg_file"
+          stapler_with_retry validate "$dmg_file"
 
       - name: Build Windows .exe
         if: matrix.platform == 'windows'
