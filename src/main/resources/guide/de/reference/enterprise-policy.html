@@ -1489,6 +1489,7 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 </span></code></pre></div>
 <p>Eine fehlerhafte Richtliniendatei führt zum Lockdown, der <code>job-webhooks</code> wie jede andere Funktion verweigert.</p>
 <h3 id="rulelogging"><code>[rule.logging]</code><a class="headerlink" href="#rulelogging" title="Permanent link">&para;</a></h3>
+<p>Die unten angegebenen <code>terminal-*</code>-Tastenkombinationen gelten für Protokolldaten des Terminalausganges. Ungeführte Werte bleiben der Verbindungseinstellung unterliegen. Sie werden pro Feld gemäß den bestehenden Regeln aufgelöst; bei gleicher Ebene gewinnt <code>false</code> bei Benutzernamen, während die Verzeichnisauswahlen in der Reihenfolge <code>none</code>, <code>relative</code>, <code>full</code> erfolgen. Der Logger wendet sie beim Start an und schaltet die Steuerung des Verbindungseingabefensters ab. Unbekannte Arbeitsverzeichnisse bleiben leer. Diese Einstellungen aktivieren das Protokollieren nicht allein.</p>
 <p>korTTY rotiert sein Protokoll täglich (<code>kortty.YYYY-MM-DD.log</code>); Diese Tabelle steuert, wohin die Dateien gehen, wie lange sie leben, wie sie formatiert sind und wie die Rotation begrenzt wird. Verzeichnis und Aufbewahrung werden in die entsprechenden (dann gesperrten) Benutzereinstellungen gezwungen; Format, Komprimierung und die Rotationsbeschränkungen haben keine Benutzereinstellung und wirken direkt. Die Konfiguration wird vor der allerersten Protokollzeile eines Starts angewendet, sodass auch die Startprotokollierung dem Schema des Administrators folgt.</p>
 <table>
 <thead>
@@ -1535,6 +1536,18 @@ stellen <code>[[ai-profile]]</code>-Einträge bereit, die auf einen internen End
 <td>Ganzzahl</td>
 <td><code>0</code> = nicht begrenzt</td>
 <td>Begrenzen Sie die Gesamtgröße aller gedrehten Dateien (älteste zuerst gelöscht)</td>
+</tr>
+<tr>
+<td><code>terminal-include-username</code></td>
+<td>boolean</td>
+<td><code>true</code>, <code>false</code></td>
+<td>Bestimmt, ob die Terminal-Log-Einträge den SSH-Benutzernamen enthalten; verhindert die Änderung der Verbindungseinstellung</td>
+</tr>
+<tr>
+<td><code>terminal-directory-mode</code></td>
+<td>string</td>
+<td><code>none</code>, <code>full</code>, <code>relative</code></td>
+<td>Bestimmt das Feld des Terminal-Log-Verzeichnisses; <code>relative</code> verwendet das erste vom Sitzungsbetrieb gemeldete Verzeichnis, das ebenfalls als <code>directoryBase</code> gespeichert wird; verhindert die Änderung der Verbindungseinstellung</td>
 </tr>
 </tbody>
 </table>
