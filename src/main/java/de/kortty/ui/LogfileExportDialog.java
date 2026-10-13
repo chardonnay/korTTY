@@ -19,11 +19,13 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -41,11 +43,13 @@ import javafx.util.StringConverter;
  *
  * <p>The range fields are prefilled from the list's current time filter when there is one, and from
  * the earliest start to now otherwise, so the user only has to narrow them down. A range whose start
- * is after its end can never match anything, so OK stays disabled until it is fixed.</p>
+ * is after its end can never match anything, so Export stays disabled until it is fixed.</p>
  */
 public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDialog.ExportChoice> {
 
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
+    private static final double CONTENT_WIDTH = 720;
+    private static final double CONTENT_HEIGHT = 440;
 
     /**
      * The answer: the compression of the copies, and the range to cut them to, or {@code null} for
@@ -80,6 +84,7 @@ public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDia
         }
         setTitle(I18n.get("logfile.export.title"));
         setHeaderText(I18n.get("logfile.export.header", files.size()));
+        setResizable(true);
 
         formatCombo.getItems().setAll(TerminalLogExportOptions.Archive.values());
         formatCombo.setValue(TerminalLogExportOptions.Archive.ZSTD);
@@ -152,19 +157,29 @@ public final class LogfileExportDialog extends ThemeAwareDialog<LogfileExportDia
         grid.add(gpgCheck, 0, 9);
         grid.add(gpgKeys, 1, 9);
         if (gpgKeys.getItems().isEmpty()) { grid.add(new Label(I18n.get("export.noGPGKeys")), 1, 10); }
-        getDialogPane().setContent(grid);
+        ScrollPane scroll = new ScrollPane(grid);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.setPrefViewportWidth(CONTENT_WIDTH);
+        scroll.setPrefViewportHeight(CONTENT_HEIGHT);
+        // A restored small window must shrink the viewport, never push the button bar off-screen.
+        scroll.setMinSize(0, 0);
+        scroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        getDialogPane().setContent(scroll);
 
-        getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        Button ok = (Button) getDialogPane().lookupButton(ButtonType.OK);
+        ButtonType exportType = new ButtonType(I18n.get("logfile.manager.export"), ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelType = new ButtonType(I18n.get("dialog.cancel"), ButtonBar.ButtonData.CANCEL_CLOSE);
+        getDialogPane().getButtonTypes().addAll(exportType, cancelType);
+        Button export = (Button) getDialogPane().lookupButton(exportType);
         BooleanBinding invalidProtection = Bindings.createBooleanBinding(() ->
             (formatCombo.getValue() == TerminalLogExportOptions.Archive.ZIP && passwordCheck.isSelected()
                 && (password.getText().isEmpty() || !password.getText().equals(confirmation.getText())))
             || (gpgCheck.isSelected() && gpgKeys.getValue() == null),
             formatCombo.valueProperty(), passwordCheck.selectedProperty(), password.textProperty(),
             confirmation.textProperty(), gpgCheck.selectedProperty(), gpgKeys.valueProperty());
-        ok.disableProperty().bind(invalid.or(invalidProtection));
+        export.disableProperty().bind(invalid.or(invalidProtection));
         setOnHidden(event -> { password.clear(); confirmation.clear(); });
-        setResultConverter(button -> button == ButtonType.OK ? choice() : null);
+        setResultConverter(button -> button == exportType ? choice() : null);
     }
 
     /**

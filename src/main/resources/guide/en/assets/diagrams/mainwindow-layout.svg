@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
   <title id="title">korTTY main window layout</title>
-  <desc id="desc">Annotated map of the main window regions, including the customizable two-row icon toolbar above the optional menu bar, which starts hidden.</desc>
+  <desc id="desc">Annotated map of the main window regions, including the customizable two-row icon toolbar above the menu bar, which starts visible.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#67e8f9"/></marker>
     <style>text{font-family:Arial,Helvetica,sans-serif;fill:#e6f3ff;font-size:16px}.bg{fill:#07111d}.box{fill:#13243a;stroke:#38bdf8;stroke-width:2;rx:12}.title{font-size:28px;font-weight:700;fill:#f8fafc}.subtitle{font-size:14px;fill:#b9c8da}.small{font-size:13px;fill:#b9c8da}.line{stroke:#67e8f9;stroke-width:2.6;fill:none;marker-end:url(#arrow)}.dash{stroke:#64748b;stroke-dasharray:7 7;fill:none}.secure{stroke:#f59e0b}.state{stroke:#34d399}.ai{stroke:#a78bfa}.external{stroke:#fb7185}.service{stroke:#60a5fa}.label{font-size:14px;font-weight:700;fill:#f8fafc}.strip{fill:#0e1b2c}</style>
@@ -17,7 +17,7 @@
   <text class="small" x="80" y="195">Saved server / group buttons in a separate row · right-click to customize · hide or restore from View</text>
 
   <rect class="box strip" x="64" y="228" width="1072" height="48" rx="8"/>
-  <text class="label" x="80" y="250">Menu bar (hidden by default)</text>
+  <text class="label" x="80" y="250">Menu bar (visible by default)</text>
   <text class="small" x="80" y="268">File · Edit · Connections · Configuration · Tools · AI · Teamwork · Plugins · View · Help</text>
 
   <rect class="box strip" x="64" y="286" width="1072" height="38" rx="8"/>

@@ -10,6 +10,8 @@ between sections — and 3 lines from each of es/fr/hr/it/nl/pt.
 
 A backfill run must be strictly additive: every pre-existing line survives
 verbatim and in order, and the only new lines are the missing `key=value` pairs.
+Shipped locale completeness is checked separately, with the missing key names
+reported independently of the additions-only guarantee.
 
 Run:  python3 scripts/test_backfill_i18n_keys.py
 """
@@ -162,6 +164,13 @@ class AdditionsOnly(unittest.TestCase):
 class RealBundles(unittest.TestCase):
     """The same guarantee against the shipped bundles, which is where the damage happened."""
 
+    def test_every_shipped_locale_has_all_english_keys(self):
+        english_keys = set(bf.parse_values(I18N / "messages.properties"))
+        for name in bf.ALL_TARGETS:
+            with self.subTest(bundle=name):
+                missing = english_keys - set(bf.parse_values(I18N / name))
+                self.assertFalse(missing, f"{name}: missing translation keys: {', '.join(sorted(missing))}")
+
     def test_every_shipped_locale_takes_a_new_key_without_losing_a_line(self):
         english = (I18N / "messages.properties").read_text(encoding="utf-8")
         # One key mid-file and one at the very end, as a feature branch would add them.
@@ -171,11 +180,17 @@ class RealBundles(unittest.TestCase):
         for name in bf.ALL_TARGETS:
             with self.subTest(bundle=name):
                 before = (I18N / name).read_text(encoding="utf-8")
+                target_values = bf.parse_values(I18N / name)
+                expected = []
+                for line in english.splitlines():
+                    if bf.is_key_line(line):
+                        key, value = line.split("=", 1)
+                        if key.strip() not in target_values:
+                            expected.append(f"{key.strip()}={value}")
                 after, added, dupes = backfill(english, before)
-                self.assertEqual((added, dupes), (2, 0))
+                self.assertEqual((added, dupes), (len(expected), 0))
                 inserted = assert_additions_only(self, before, after)
-                self.assertEqual(sorted(inserted),
-                                 ["app.test.injected=Injected", "zzz.test.trailing=Trailing"])
+                self.assertEqual(sorted(inserted), sorted(expected))
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ import de.kortty.core.SessionJournalLogCompressor;
 import de.kortty.core.TerminalLogCatalog;
 import de.kortty.core.TerminalLogCodecs;
 import de.kortty.core.TerminalLogExporter;
+import de.kortty.core.TerminalLogExportOptions;
 import de.kortty.core.TerminalLogFile;
 import de.kortty.core.TerminalLogFiles;
 import de.kortty.core.TerminalLogNaming;
@@ -27,12 +28,15 @@ import javafx.geometry.Point2D;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -368,10 +372,92 @@ public final class LogfileManagerDialogSmoke {
             dialog.show(); return dialog;
         });
         savePng(exportDialog.getDialogPane(), SCREENSHOTS.resolve("logfile-export.png"));
-        onFxRun(exportDialog::close);
+        checkCompactExportDialog(exportDialog);
+        LogfileExportDialog germanExport = onFx(() -> {
+            LanguageManager.getInstance().setLocale(Locale.GERMAN);
+            try {
+                var dialog = new LogfileExportDialog(manager.getDialogPane().getScene().getWindow(),
+                    List.of(tableOf(manager).getItems().get(0)), null);
+                dialog.show();
+                return dialog;
+            } finally {
+                LanguageManager.getInstance().setLocale(Locale.ENGLISH);
+            }
+        });
+        checkCompactExportDialog(germanExport, "Exportieren...", "Abbrechen", "de");
         onFxRun(manager::close);
         checkPureHelpers();
         runViewer();
+    }
+
+    private void checkCompactExportDialog(LogfileExportDialog dialog) throws Exception {
+        checkCompactExportDialog(dialog, I18n.get("logfile.manager.export"), "Cancel", "en");
+    }
+
+    private void checkCompactExportDialog(LogfileExportDialog dialog, String label, String cancelLabel,
+                                         String language) throws Exception {
+        ButtonType exportType = onFx(() -> dialog.getDialogPane().getButtonTypes().stream()
+            .filter(type -> type.getButtonData() == ButtonBar.ButtonData.OK_DONE).findFirst().orElseThrow());
+        ButtonType cancelType = onFx(() -> dialog.getDialogPane().getButtonTypes().stream()
+            .filter(type -> type.getButtonData() == ButtonBar.ButtonData.CANCEL_CLOSE).findFirst().orElseThrow());
+        Button export = onFx(() -> (Button) dialog.getDialogPane().lookupButton(exportType));
+        Button cancel = onFx(() -> (Button) dialog.getDialogPane().lookupButton(cancelType));
+        check(onFx(() -> label.equals(export.getText())),
+            language + " export options have an explicitly labelled Export button");
+        // The Java default remains English while the German dialog uses korTTY's selected language.
+        check(onFx(() -> cancelLabel.equals(cancel.getText())),
+            language + " Cancel uses the selected app language independently of the Java default");
+        checkExportProtection(dialog, export);
+        onFxRun(() -> {
+            dialog.setWidth(787);
+            dialog.setHeight(390);
+        });
+        check(waitUntil(() -> dialog.getDialogPane().getHeight() > 0
+            && dialog.getDialogPane().getHeight() <= 390, 5000), "export dialog fits a compact window");
+        check(onFx(() -> buttonFitsScene(export) && buttonFitsScene(cancel)),
+            "Export and Cancel remain inside the visible compact dialog");
+        savePng(dialog.getDialogPane(), Path.of("build", "smoke", "logfile-export-compact-" + language + ".png"));
+        onFxRun(export::fire);
+        LogfileExportDialog.ExportChoice choice = onFx(dialog::getResult);
+        check(choice != null, "Export returns the options used by the subsequent save dialog");
+        if (choice != null) {
+            check(choice.options().archive() == TerminalLogExportOptions.Archive.ZSTD,
+                "Export preserves the selected archive format");
+            choice.options().close();
+        }
+        onFxRun(dialog::close);
+    }
+
+    private void checkExportProtection(LogfileExportDialog dialog, Button export) throws Exception {
+        onFxRun(() -> {
+            ComboBox<?> archive = allNodes(dialog.getDialogPane()).stream()
+                .filter(node -> node instanceof ComboBox<?> combo && combo.getItems().contains(TerminalLogExportOptions.Archive.ZIP))
+                .map(node -> (ComboBox<?>) node).findFirst().orElseThrow();
+            List<PasswordField> passwords = allNodes(dialog.getDialogPane()).stream()
+                .filter(PasswordField.class::isInstance).map(PasswordField.class::cast).toList();
+            CheckBox protect = allNodes(dialog.getDialogPane()).stream()
+                .filter(node -> node instanceof CheckBox box && box.disableProperty().isBound())
+                .map(node -> (CheckBox) node).findFirst().orElseThrow();
+            archive.getSelectionModel().select(archive.getItems().indexOf(TerminalLogExportOptions.Archive.ZIP));
+            protect.setSelected(true);
+            check(export.isDisabled(), "encrypted ZIP export requires a non-empty password");
+            // Throwaway test password; no user credentials enter this smoke.
+            passwords.get(0).setText("logfile-smoke-only");
+            passwords.get(1).setText("different-smoke-password");
+            check(export.isDisabled(), "encrypted ZIP export rejects mismatched passwords");
+            passwords.get(1).setText("logfile-smoke-only");
+            check(!export.isDisabled(), "matching ZIP passwords enable Export");
+            protect.setSelected(false);
+            passwords.forEach(PasswordField::clear);
+            archive.getSelectionModel().select(archive.getItems().indexOf(TerminalLogExportOptions.Archive.ZSTD));
+        });
+    }
+
+    private static boolean buttonFitsScene(Button button) {
+        Bounds bounds = button.localToScene(button.getBoundsInLocal());
+        return button.isVisible() && bounds.getMinX() >= 0 && bounds.getMinY() >= 0
+            && bounds.getMaxX() <= button.getScene().getWidth()
+            && bounds.getMaxY() <= button.getScene().getHeight();
     }
 
     private void checkManagerListing(LogfileManagerDialog manager) throws Exception {

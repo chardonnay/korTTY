@@ -964,7 +964,7 @@
 <li><code>keyBindingOverrides</code>: your own <a href="settings/keyboard.html">keyboard shortcuts</a>, one <code>binding</code> entry per changed command, such as <code>menu.view.commandPalette=Shortcut+Alt+P</code> or <code>menu.view.dashboard=none</code>; without it every command keeps its default shortcut</li>
 <li>Docked live session-journal panel: placement (hidden/left/right) and width</li>
 <li>Coding Agents panel: <code>codingAgentPanelPlacement</code> (hidden, left or right), <code>codingAgentPanelSide</code> (the side it was last docked on, kept while it is hidden), <code>codingAgentPanelWidth</code>, and <code>codingAgentPanelAutoVisibility</code> (show and hide it with agent detection, on by default)</li>
-<li>Icon toolbar: the <code>iconToolbar</code> element with the visibility of the action row (<code>visible</code> attribute) and of the connection row (<code>connectionsVisible</code>), and one <code>entry</code> per button with <code>id</code>, <code>kind</code> (<code>ACTION</code>, <code>CONNECTION</code>, <code>GROUP</code> or <code>SEPARATOR</code>), <code>section</code> (<code>TERMINAL</code>, <code>TOOLS</code>, <code>SETTINGS</code> or <code>CONNECTIONS</code>) and <code>target</code> (an action id, a connection id or a group path). Entries hold references only, never passwords or keys; without the element the default layout applies</li>
+<li>Icon toolbar: the <code>iconToolbar</code> element with the visibility of the action row (<code>visible</code> attribute) and of the connection row (<code>connectionsVisible</code>), and one <code>entry</code> per button with <code>id</code>, <code>kind</code> (<code>ACTION</code>, <code>CONNECTION</code>, <code>GROUP</code> or <code>SEPARATOR</code>), <code>section</code> (<code>TERMINAL</code>, <code>TOOLS</code>, <code>SETTINGS</code> or <code>CONNECTIONS</code>) and <code>target</code> (an action id, a connection id or a group path). Entries hold references only, never passwords or keys; without the element the default layout applies. The <code>logfileManagerMigrated</code> attribute records the one-time addition of the Logfile Manager to older layouts, preserving existing entries and allowing later customization to remove it</li>
 <li><code>toolbarIconSize</code>: the icon size of both toolbar rows and the customization catalog, 16 to 64 pixels (24 when missing)</li>
 <li>JobScheduler status display preference</li>
 <li>Last ASCII Art dialog preview zoom level</li>
@@ -1324,7 +1324,7 @@
             <!-- block footer -->
 <footer class="kt-footer">
   <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
-  <div class="kt-footer__line">korTTY <strong>v2.19.0</strong></div>
+  <div class="kt-footer__line">korTTY <strong>v2.20.0</strong></div>
 </footer>
 
             <!-- endblock -->
