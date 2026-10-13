@@ -159,10 +159,30 @@ jobs:
         if: runner.os != 'Windows'
         run: chmod +x gradlew
 
+      - name: Prepare native GnuPG (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          # Only the CLI tools are needed; the installer can block unattended runners.
+          choco install gnupg --version=2.5.21 --yes --no-progress --skip-powershell
+          if ($LASTEXITCODE -ne 0) { throw "GnuPG package download failed" }
+          $installer = Get-ChildItem "$env:ChocolateyInstall\lib\gnupg\tools" -Filter 'gnupg-*.exe' | Select-Object -First 1
+          if (-not $installer) { throw "GnuPG package installer not found" }
+          $gpgDir = Join-Path $env:RUNNER_TEMP 'kortty-test-gnupg'
+          & 7z.exe x $installer.FullName "-o$gpgDir" -y
+          if ($LASTEXITCODE -ne 0) { throw "GnuPG extraction failed" }
+          $gpgBin = Join-Path $gpgDir 'bin'
+          if (-not (Test-Path (Join-Path $gpgBin 'gpg.exe'))) { throw "Native GnuPG executable not found" }
+          "KORTTY_TEST_GPG_BIN=$gpgBin" >> $env:GITHUB_ENV
+          & (Join-Path $gpgBin 'gpg.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw "Native GnuPG version check failed" }
+
       - name: Run tests
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
-            export PATH="/c/ProgramData/chocolatey/bin:$PATH"
+            # Java passes native Windows paths. Git's MSYS GPG interprets those as relative Unix paths.
+            export PATH="$(cygpath -u "$KORTTY_TEST_GPG_BIN"):/c/ProgramData/chocolatey/bin:$PATH"
           fi
           ./gradlew test

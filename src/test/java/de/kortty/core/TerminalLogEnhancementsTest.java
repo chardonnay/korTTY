@@ -227,12 +227,30 @@ public class TerminalLogEnhancementsTest {
     private static void runGpg(String executable, Path home, String... args) throws Exception {
         var command = new java.util.ArrayList<>(List.of(executable, "--no-options", "--homedir", home.toString(), "--batch", "--yes"));
         command.addAll(List.of(args));
-        Process process = new ProcessBuilder(command).redirectOutput(ProcessBuilder.Redirect.DISCARD)
-            .redirectError(ProcessBuilder.Redirect.DISCARD).start();
+        Path diagnostic = Files.createTempFile(home, "gpg-test-", ".log");
+        Process process = null;
         try {
-            if (!process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) { throw new java.io.IOException("GPG test timed out"); }
-            assertThat(process.exitValue()).isEqualTo(0);
-        } finally { if (process.isAlive()) { process.destroyForcibly(); } }
+            process = new ProcessBuilder(command).redirectErrorStream(true)
+                .redirectOutput(diagnostic.toFile()).start();
+            process.getOutputStream().close();
+            if (!process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)) {
+                throw new java.io.IOException("GPG test timed out: " + command);
+            }
+            if (process.exitValue() != 0) {
+                String detail;
+                try (var in = Files.newInputStream(diagnostic)) {
+                    detail = new String(in.readNBytes(8192), java.nio.charset.StandardCharsets.UTF_8).strip();
+                }
+                throw new java.io.IOException("GPG test command failed (exit " + process.exitValue()
+                    + "): " + command + "\n" + detail);
+            }
+        } finally {
+            if (process != null && process.isAlive()) {
+                process.destroyForcibly();
+                process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+            }
+            Files.deleteIfExists(diagnostic);
+        }
     }
 
     private static TerminalLogFile fixture(Path dir, LogFormat format, TerminalLogNaming.Compression compression) throws Exception {
