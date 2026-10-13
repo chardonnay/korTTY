@@ -30,6 +30,7 @@ public final class CodingAgentActions {
 
     private static final String VERB_SEND_TEXT = "sendText";
     private static final String VERB_SEND_KEYS = "sendKeys";
+    private static final String VERB_ANSWER = "answer";
     private static final String VERB_PROMPT = "prompt";
     private static final String VERB_EXPLAIN = "explain";
     private static final String VERB_RENAME = "rename";
@@ -53,6 +54,21 @@ public final class CodingAgentActions {
         byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
         write(pane, bytes);
         audit(VERB_SEND_TEXT, pane, bytes.length);
+    }
+
+    /**
+     * Answers the agent's question: {@code text} followed by Enter in one write, so a click on a
+     * YES/NO quick answer confirms it right away. Unlike {@link #prompt} it is allowed while the
+     * agent is BLOCKED — that is when it asks.
+     */
+    public void answer(PaneRef pane, String text) throws CodingAgentActionException {
+        requireEntry(pane);
+        if (text == null || text.isEmpty()) {
+            throw new CodingAgentActionException(CodingAgentActionException.Code.EMPTY_INPUT, "Nothing to send");
+        }
+        byte[] bytes = (text + "\r").getBytes(StandardCharsets.UTF_8);
+        write(pane, bytes);
+        audit(VERB_ANSWER, pane, bytes.length);
     }
 
     /** Writes the chords' bytes in order. */

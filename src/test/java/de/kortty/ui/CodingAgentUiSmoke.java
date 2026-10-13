@@ -166,7 +166,7 @@ public final class CodingAgentUiSmoke {
         require(send != null, "the Send button was not found");
         require(send.isDisabled(), "Send must be disabled for a BLOCKED target");
 
-        // Answers write whole words to the BLOCKED pane, without changing physical key chords.
+        // Answers write whole words plus Enter to the BLOCKED pane, without changing physical key chords.
         ListCell<?> claudeCell = cellFor(list, ids.claude());
         require(claudeCell != null, "no visible cell for the Claude row");
         Button yButton = buttonWithText(claudeCell, "YES");
@@ -174,8 +174,8 @@ public final class CodingAgentUiSmoke {
         require(yButton.getStyle() != null && yButton.getStyle().contains("-fx-background-color: #f59e0b"),
             "answer buttons of a BLOCKED row carry the explicit blocked accent, style was " + yButton.getStyle());
         yButton.fire();
-        require("YES".equals(fixture.connector(ids.claude()).writtenText()),
-            "clicking YES must write 'YES', wrote " + fixture.connector(ids.claude()).writtenText());
+        require("YES\r".equals(fixture.connector(ids.claude()).writtenText()),
+            "clicking YES must write 'YES' + Enter, wrote " + fixture.connector(ids.claude()).writtenText());
         require(fixture.connector(ids.codex()).written().length == 0, "YES must not reach another pane");
         require(labelWithText(panel, I18n.get("codingAgent.panel.sent", "Claude Code")) != null,
             "the status line must confirm 'Sent to Claude Code'");
