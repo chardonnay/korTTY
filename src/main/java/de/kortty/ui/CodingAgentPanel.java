@@ -625,7 +625,7 @@ public class CodingAgentPanel extends BorderPane {
     }
 
     private void sendAnswer(CodingAgentEntry entry, String answer) {
-        if (runAction(entry, () -> actions.sendText(entry.pane(), answer), null, true)) {
+        if (runAction(entry, () -> actions.answer(entry.pane(), answer), null, true)) {
             Telemetry.track(TelemetryEvents.CODING_AGENT_ACTION, Map.of("action", "panel_send_key"));
         }
     }

@@ -63,6 +63,19 @@ class CodingAgentActionsTest {
     }
 
     @Test
+    void answerIsTextPlusEnterEvenWhileBlocked() throws Exception {
+        actions.answer(BLOCKED_PANE, "YES");
+
+        assertThat(text(blockedConnector)).isEqualTo("YES\r");
+        assertThat(blockedConnector.writeCount()).isEqualTo(1);
+        assertThat(auditLines).containsExactly("answer terminal-b bytes=4");
+
+        CodingAgentActionException empty = expectThrows(CodingAgentActionException.class,
+            () -> actions.answer(PANE, ""));
+        assertThat(empty.code()).isEqualTo(CodingAgentActionException.Code.EMPTY_INPUT);
+    }
+
+    @Test
     void unknownPaneIsPaneNotFound() {
         CodingAgentActionException e = expectThrows(CodingAgentActionException.class,
             () -> actions.sendText(UNKNOWN_PANE, "x"));
