@@ -1224,8 +1224,8 @@ public class MainWindow {
         }
         // The user's shortcut overrides: on the in-window menu bar and the scene shortcut router.
         applyKeymap();
-        // Start with the icon toolbar; menu-bar visibility remains a per-window session choice.
-        applyMenuBarVisibility(false);
+        // Show the menus for discoverability; visibility remains a per-window session choice.
+        applyMenuBarVisibility(true);
         syncDashboardMenuItems(shouldRestoreDashboardOnStartup());
         syncTimestampMenuItems(false);
         syncPaneMenuItems();

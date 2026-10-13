@@ -77,7 +77,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/main/java/de/kortty/ui/DashboardView.java, src/main/java/de/kortty/ui/IconToolbar.java, src/main/java/de/kortty/ui/ToolbarCatalog.java, src/main/java/de/kortty/ui/ToolbarEditorModel.java, src/main/java/de/kortty/ui/ToolbarIcons.java, src/main/java/de/kortty/ui/SettingsSection.java, src/main/java/de/kortty/model/IconToolbarSettings.java, src/main/resources/styles/icon-toolbar.css]
     diagrams: [architecture.svg, mainwindow-layout.svg]
     screenshots: [main/main-window.png, main/icon-toolbar.png, main/icon-toolbar-customize.png, main/icon-toolbar-context-menu.png]
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "3d540d7aa"
 
   # ---- Reference: menus & shortcuts ------------------------------------------
   - path: app-docs/site/docs/en/reference/menu.md
@@ -86,7 +86,7 @@ pages:
     screenshots:
       - main/menu-tools.png
       - main/menu-ai.png
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "3d540d7aa"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/monaco/completion.js, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/ui/TerminalNavigationKeys.java, src/main/java/de/kortty/ui/SceneShortcutRouter.java, src/main/java/de/kortty/ui/SceneShortcutKeys.java, src/main/java/de/kortty/ui/KeyTypedResidueGuard.java, src/main/java/de/kortty/ui/TabKeyboardShortcuts.java, src/main/java/de/kortty/ui/PaneShortcuts.java, src/main/java/de/kortty/ui/PaneNavigator.java, src/main/java/de/kortty/core/KeyChord.java, src/main/java/de/kortty/core/KeymapOverrides.java, src/main/java/de/kortty/ui/KeymapSupport.java, src/main/java/de/kortty/ui/RoutedChord.java]
@@ -508,8 +508,8 @@ pages:
     last_synced_ref: "f8e06604"
   - path: app-docs/site/docs/en/reference/config-files.md
     owns_i18n: []
-    owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/ServerConnection.java, src/main/java/de/kortty/model/EnvironmentColor.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java, src/main/java/de/kortty/core/SessionSnapshotStore.java]
-    last_synced_ref: "f8e06604"
+    owns_code: [src/main/java/de/kortty/persistence, src/main/java/de/kortty/model/ServerConnection.java, src/main/java/de/kortty/model/EnvironmentColor.java, src/main/java/de/kortty/model/SnippetDiagram.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/IconToolbarSettings.java, src/main/java/de/kortty/ai/llama/LlamaModelRegistry.java, src/main/java/de/kortty/rag/RagConfigurationManager.java, src/main/java/de/kortty/core/SessionSnapshotStore.java]
+    last_synced_ref: "3d540d7aa"
   - path: app-docs/site/docs/en/reference/control-api.md
     owns_i18n: [settings.controlApi., controlApi.]
     owns_code:

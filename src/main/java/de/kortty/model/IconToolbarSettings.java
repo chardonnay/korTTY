@@ -1,5 +1,6 @@
 package de.kortty.model;
 
+import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlAttribute;
@@ -19,6 +20,8 @@ public final class IconToolbarSettings {
     private boolean visible = true;
     @XmlAttribute
     private Boolean connectionsVisible;
+    @XmlAttribute
+    private boolean logfileManagerMigrated = true;
     @XmlElement(name = "entry")
     private List<Entry> entries = new ArrayList<>();
 
@@ -27,7 +30,30 @@ public final class IconToolbarSettings {
     public IconToolbarSettings(IconToolbarSettings source) {
         visible = source.visible;
         connectionsVisible = source.isConnectionsVisible();
+        logfileManagerMigrated = source.logfileManagerMigrated;
         entries = new ArrayList<>(source.entries());
+    }
+
+    /** A missing XML marker identifies layouts saved before the logfile-manager default. */
+    private void beforeUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        logfileManagerMigrated = false;
+    }
+
+    private void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
+        if (logfileManagerMigrated) return;
+        logfileManagerMigrated = true;
+        entries = new ArrayList<>(entries());
+        if (entries.stream().anyMatch(entry -> entry.kind == Kind.ACTION
+                && "menu.tools.logfileManager".equals(entry.target))) return;
+
+        int insertionIndex = entries.size();
+        for (int index = 0; index < entries.size(); index++) {
+            Entry entry = entries.get(index);
+            if (entry.section != Section.TOOLS) continue;
+            insertionIndex = index + 1;
+            if (entry.kind == Kind.ACTION && "menu.tools.sessionJournals".equals(entry.target)) break;
+        }
+        entries.add(insertionIndex, Entry.action("menu.tools.logfileManager", Section.TOOLS));
     }
 
     public boolean isVisible() { return visible; }
@@ -55,7 +81,7 @@ public final class IconToolbarSettings {
         settings.entries.add(Entry.action("menu.file.newTab", Section.TERMINAL));
         settings.entries.add(Entry.action("toolbar.localShell", Section.TERMINAL));
         for (String id : List.of("menu.connections.sftpClient", "menu.tools.snippets",
-                "menu.tools.sessionJournals", "menu.tools.aiManager",
+                "menu.tools.sessionJournals", "menu.tools.logfileManager", "menu.tools.aiManager",
                 "menu.tools.jobScheduler", "menu.tools.videoManager")) {
             settings.entries.add(Entry.action(id, Section.TOOLS));
         }

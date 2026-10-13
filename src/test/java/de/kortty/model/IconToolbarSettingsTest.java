@@ -17,15 +17,15 @@ public class IconToolbarSettingsTest {
         assertThat(entries.stream().map(Entry::target).toList()).containsExactly(
             "menu.file.newTab", "toolbar.localShell",
             "menu.connections.sftpClient", "menu.tools.snippets", "menu.tools.sessionJournals",
-            "menu.tools.aiManager", "menu.tools.jobScheduler", "menu.tools.videoManager",
+            "menu.tools.logfileManager", "menu.tools.aiManager", "menu.tools.jobScheduler", "menu.tools.videoManager",
             "toolbar.settings.font", "toolbar.settings.colors", "toolbar.settings.keyboard",
             "toolbar.settings.logging", "toolbar.settings.window", "toolbar.settings.terminal",
             "toolbar.settings.ai").inOrder();
         assertThat(entries.subList(0, 2).stream().map(Entry::section).toList())
             .containsExactly(Section.TERMINAL, Section.TERMINAL);
-        assertThat(entries.subList(2, 8).stream().map(Entry::section).distinct().toList())
+        assertThat(entries.subList(2, 9).stream().map(Entry::section).distinct().toList())
             .containsExactly(Section.TOOLS);
-        assertThat(entries.subList(8, 15).stream().map(Entry::section).distinct().toList())
+        assertThat(entries.subList(9, 16).stream().map(Entry::section).distinct().toList())
             .containsExactly(Section.SETTINGS);
     }
 
@@ -37,7 +37,7 @@ public class IconToolbarSettingsTest {
         for (int size : List.of(16, 24, 32, 64)) {
             legacy.setToolbarIconSize(size);
             assertThat(roundTrip(legacy).getToolbarIconSize()).isEqualTo(size);
-            assertThat(legacy.getIconToolbar().entries()).hasSize(15);
+            assertThat(legacy.getIconToolbar().entries()).hasSize(16);
         }
         legacy.setToolbarIconSize(0);
         assertThat(legacy.getToolbarIconSize()).isEqualTo(16);
@@ -54,7 +54,7 @@ public class IconToolbarSettingsTest {
         GlobalSettings old = (GlobalSettings) context.createUnmarshaller().unmarshal(new StringReader("<globalSettings/>"));
         assertThat(old.getIconToolbar().isVisible()).isTrue();
         assertThat(old.getIconToolbar().isConnectionsVisible()).isTrue();
-        assertThat(old.getIconToolbar().entries()).hasSize(15);
+        assertThat(old.getIconToolbar().entries()).hasSize(16);
         assertThat(old.getIconToolbar().entries().stream().map(Entry::target).toList())
             .doesNotContain("menu.settings.global");
         old.setIconToolbar(new IconToolbarSettings());
@@ -120,7 +120,7 @@ public class IconToolbarSettingsTest {
         var editing = global.getIconToolbar();
         editing.setEntries(List.of());
         editing.setVisible(false);
-        assertThat(global.getIconToolbar().entries()).hasSize(15);
+        assertThat(global.getIconToolbar().entries()).hasSize(16);
         assertThat(global.getIconToolbar().isVisible()).isTrue();
     }
 
@@ -146,8 +146,69 @@ public class IconToolbarSettingsTest {
             + "</iconToolbar></globalSettings>";
         GlobalSettings restored = (GlobalSettings) JAXBContext.newInstance(GlobalSettings.class)
             .createUnmarshaller().unmarshal(new StringReader(xml));
-        assertThat(restored.getIconToolbar().entries()).hasSize(1);
+        assertThat(restored.getIconToolbar().entries()).hasSize(2);
         assertThat(restored.getIconToolbar().entries().getFirst().target()).isEqualTo("unknown.action");
+    }
+
+    @Test
+    void legacyCustomizedLayoutGainsLogfileManagerWithoutMovingExistingEntries() throws Exception {
+        String xml = "<globalSettings><iconToolbar visible=\"false\" connectionsVisible=\"true\">"
+            + "<entry id=\"font\" kind=\"ACTION\" section=\"SETTINGS\" target=\"toolbar.settings.font\"/>"
+            + "<entry id=\"video\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.videoManager\"/>"
+            + "<entry id=\"journal\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.sessionJournals\"/>"
+            + "<entry id=\"gap\" kind=\"SEPARATOR\" section=\"TOOLS\"/>"
+            + "<entry id=\"server\" kind=\"CONNECTION\" section=\"CONNECTIONS\" target=\"demo\"/>"
+            + "</iconToolbar></globalSettings>";
+        var settings = (GlobalSettings) JAXBContext.newInstance(GlobalSettings.class)
+            .createUnmarshaller().unmarshal(new StringReader(xml));
+        var migrated = settings.getIconToolbar();
+        var logfile = migrated.entries().get(3);
+        assertThat(logfile.target()).isEqualTo("menu.tools.logfileManager");
+        assertThat(logfile.section()).isEqualTo(Section.TOOLS);
+        assertThat(migrated.entries().stream().filter(entry -> !entry.id().equals(logfile.id())).map(Entry::id).toList())
+            .containsExactly("font", "video", "journal", "gap", "server").inOrder();
+        assertThat(migrated.isVisible()).isFalse();
+        assertThat(migrated.isConnectionsVisible()).isTrue();
+        assertThat(roundTrip(settings).getIconToolbar().entries().stream().map(Entry::id).toList())
+            .containsExactlyElementsIn(migrated.entries().stream().map(Entry::id).toList()).inOrder();
+
+        migrated.setEntries(migrated.entries().stream().filter(entry -> !entry.id().equals(logfile.id())).toList());
+        settings.setIconToolbar(migrated);
+        assertThat(roundTrip(settings).getIconToolbar().entries().stream().map(Entry::id).toList())
+            .containsExactly("font", "video", "journal", "gap", "server").inOrder();
+    }
+
+    @Test
+    void legacyLayoutWithLogfileManagerPreservesItsPositionWithoutDuplicates() throws Exception {
+        String xml = "<globalSettings><iconToolbar>"
+            + "<entry id=\"logfile\" kind=\"ACTION\" section=\"SETTINGS\" target=\"menu.tools.logfileManager\"/>"
+            + "<entry id=\"journal\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.sessionJournals\"/>"
+            + "</iconToolbar></globalSettings>";
+        var settings = (GlobalSettings) JAXBContext.newInstance(GlobalSettings.class)
+            .createUnmarshaller().unmarshal(new StringReader(xml));
+        var migrated = roundTrip(settings).getIconToolbar();
+        assertThat(migrated.entries().stream().map(Entry::id).toList()).containsExactly("logfile", "journal").inOrder();
+        assertThat(migrated.entries().getFirst().section()).isEqualTo(Section.SETTINGS);
+    }
+
+    @Test
+    void legacyLayoutWithoutJournalsAppendsToToolsAndWithoutToolsCreatesTheGroup() throws Exception {
+        for (boolean withTools : List.of(false, true)) {
+            String xml = "<globalSettings><iconToolbar>"
+                + "<entry id=\"shell\" kind=\"ACTION\" section=\"TERMINAL\" target=\"toolbar.localShell\"/>"
+                + (withTools ? "<entry id=\"video\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.videoManager\"/>" : "")
+                + "<entry id=\"font\" kind=\"ACTION\" section=\"SETTINGS\" target=\"toolbar.settings.font\"/>"
+                + "</iconToolbar></globalSettings>";
+            var settings = (GlobalSettings) JAXBContext.newInstance(GlobalSettings.class)
+                .createUnmarshaller().unmarshal(new StringReader(xml));
+            var entries = settings.getIconToolbar().entries();
+            assertThat(entries.stream().filter(entry -> entry.section() == Section.TOOLS).map(Entry::target).toList())
+                .containsExactlyElementsIn(withTools
+                    ? List.of("menu.tools.videoManager", "menu.tools.logfileManager")
+                    : List.of("menu.tools.logfileManager")).inOrder();
+            assertThat(entries.stream().filter(entry -> !"menu.tools.logfileManager".equals(entry.target())).map(Entry::id).toList())
+                .containsExactlyElementsIn(withTools ? List.of("shell", "video", "font") : List.of("shell", "font")).inOrder();
+        }
     }
 
     private static GlobalSettings roundTrip(GlobalSettings settings) throws Exception {

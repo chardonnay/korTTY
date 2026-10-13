@@ -1,6 +1,6 @@
 # Menu reference
 
-Every item in korTTY's menu bar, with its shortcut (where defined) and what it does. The in-window menu bar starts hidden in each new window. Right-click either icon-toolbar row and choose **Show/hide menu bar** to toggle it, or press ++ctrl+shift+l++ (++cmd+shift+l++ on macOS). You can also restore it by right-clicking the terminal or status bar. Visibility applies to the current window for this session; the macOS system menu bar remains available.
+Every item in korTTY's menu bar, with its shortcut (where defined) and what it does. The in-window menu bar starts visible in each new window. Right-click either icon-toolbar row and choose **Show/hide menu bar** to toggle it, or press ++ctrl+shift+l++ (++cmd+shift+l++ on macOS). You can also restore it by right-clicking the terminal or status bar. Visibility applies to the current window for this session; the macOS system menu bar remains available.
 
 ## File
 
@@ -121,7 +121,7 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Snippet Palette… | none (assign one in [Settings → Keyboard](settings/keyboard.md)) | Open the command palette with `$` already typed, so it lists only the [snippets](../features/command-palette.md#snippet-palette) and runs the one you choose in the focused pane of the terminal; a shortcut you assign also works while a terminal has the focus, and closes the palette again |
 | Show Dashboard | ++ctrl+shift+d++ | Toggle the connections dashboard |
 | Show Command Timestamps | ++ctrl+shift+t++ | Toggle inline command timestamps |
-| Show Menu Bar | ++ctrl+shift+l++ | Toggle the in-window menu bar for this session; hidden by default, also available from either icon-toolbar row’s context menu |
+| Show Menu Bar | ++ctrl+shift+l++ | Toggle the in-window menu bar for this session; visible by default, also available from either icon-toolbar row’s context menu |
 | Action toolbar | — | Show or hide the action row above the menu bar independently of the connection row; saved across windows and restarts |
 | Connection toolbar | — | Show or hide the saved-server and group row independently of the action row; an empty connection row stays hidden outside customization |
 | File Browser ▸ Show on Left | ++ctrl+shift+k++ | Dock the local [file browser](../features/file-browser.md) to the left of the terminal; unchecking the active side hides it |

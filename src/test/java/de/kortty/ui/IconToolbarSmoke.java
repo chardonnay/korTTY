@@ -78,11 +78,22 @@ public final class IconToolbarSmoke {
         layout(root);
         IconToolbar toolbar = (IconToolbar) root.lookup(".icon-toolbar");
         check(toolbar != null && toolbar.isVisible(), "Toolbar visible on fresh window");
+        Entry logfileEntry = entries.stream().filter(entry -> "menu.tools.logfileManager".equals(entry.target()))
+            .findFirst().orElseThrow();
+        Button logfileManager = (Button) toolbar.lookup("#toolbar-entry-" + logfileEntry.id());
+        check(logfileManager != null && !logfileManager.isDisabled() && logfileManager.getGraphic() != null,
+            "Default toolbar offers the logfile manager with its icon");
         Path output = Files.createDirectories(Path.of("build/smoke/icon-toolbar"
             + (Locale.GERMAN.getLanguage().equals(Locale.getDefault().getLanguage()) ? "-de" : "")));
         snapshot(root, output.resolve("main-window.png"));
         snapshot(toolbar, output.resolve("normal.png"));
         checkMenuBarToggle(stage, toolbar, output);
+        logfileManager.fire();
+        Stage logfileWindow = javafx.stage.Window.getWindows().stream().filter(Stage.class::isInstance)
+            .map(Stage.class::cast).filter(window -> I18n.get("logfile.manager.title").equals(window.getTitle()))
+            .findFirst().orElseThrow(() -> new AssertionError("Toolbar opens the logfile manager"));
+        var logfilePane = (javafx.scene.control.DialogPane) logfileWindow.getScene().getRoot();
+        ((Button) logfilePane.lookupButton(javafx.scene.control.ButtonType.CLOSE)).fire();
         checkStableButtonFocus(stage, toolbar);
         int initialTabs = ((TabPane) root.lookup(".tab-pane")).getTabs().size();
         toolbar.beginEditing();
@@ -322,12 +333,13 @@ public final class IconToolbarSmoke {
 
     private static void checkMenuBarToggle(Stage stage, IconToolbar toolbar, Path output) throws Exception {
         var bar = windowMenuBar(stage);
-        check(!bar.isVisible() && !bar.isManaged(), "New windows start with the menu bar hidden");
+        check(bar.isVisible() && bar.isManaged(), "New windows start with the menu bar visible");
         var viewToggle = bar.getMenus().stream().flatMap(menu -> menu.getItems().stream())
             .filter(javafx.scene.control.CheckMenuItem.class::isInstance)
             .map(javafx.scene.control.CheckMenuItem.class::cast)
             .filter(item -> I18n.get("menu.view.menuBar").equals(item.getText())).findFirst().orElseThrow();
-        for (boolean expected : List.of(false, true)) {
+        check(viewToggle.isSelected(), "View menu reflects the visible menu bar on startup");
+        for (boolean expected : List.of(true, false)) {
             Node row = toolbar.lookup(expected ? ".toolbar-connections" : ".toolbar-tasks");
             var menu = toolbarContextMenu(toolbar, row);
             try {
@@ -336,7 +348,7 @@ public final class IconToolbarSmoke {
                     .filter(item -> I18n.get("toolbar.menuBar").equals(item.getText())).findFirst().orElseThrow();
                 check(!toggle.isDisable(), "Menu bar switch remains available while hidden");
                 check(toggle.isSelected() == expected, "Toolbar context menu reads the current menu bar state");
-                if (!expected) {
+                if (expected) {
                     layout(menu.getScene().getRoot());
                     snapshot(menu.getScene().getRoot(), output.resolve("context-menu.png"));
                 }

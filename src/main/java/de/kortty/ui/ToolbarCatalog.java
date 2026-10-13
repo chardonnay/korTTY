@@ -31,8 +31,6 @@ final class ToolbarCatalog {
 
     List<Entry> actions() {
         List<Entry> result = new ArrayList<>(de.kortty.model.IconToolbarSettings.defaults().entries());
-        // Not a default button, but offered in the customizer like the other Tools dialogs.
-        result.add(Entry.action("menu.tools.logfileManager", Section.TOOLS));
         result.add(Entry.action("menu.settings.global", Section.SETTINGS));
         for (SettingsSection section : SettingsSection.values()) {
             if (result.stream().noneMatch(entry -> entry.target().equals(section.actionId()))) {
