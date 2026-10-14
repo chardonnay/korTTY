@@ -132,6 +132,8 @@ final class SnippetAnalysisController {
     static final double DEFAULT_PANEL_WIDTH = 520;
     static final String HEADER_ID = "snippet-analysis-header";
     static final double MIN_PANEL_WIDTH = 360;
+    /** The share of the side panel's height the progress view may claim before it scrolls. */
+    static final double PROGRESS_MAX_SHARE = 0.6;
 
     private static final DateTimeFormatter HISTORY_TIME =
         DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
@@ -2383,12 +2385,23 @@ final class SnippetAnalysisController {
         contentHolder.setMinHeight(0);
         VBox.setVgrow(contentHolder, Priority.ALWAYS);
 
-        progressHolder = new VBox();
+        // The holder is as tall as the progress view needs — every work item of the checklist
+        // included — up to a share of the panel, and the report above yields first. A fixed height
+        // left the checklist only its emergency minimum: the bars, the clock and the action bar
+        // took the rest, and the items being processed sat out of sight below the first one.
+        progressHolder = new VBox() {
+            @Override
+            protected double computeMinHeight(double width) {
+                return progressHolderHeight(super.computeMinHeight(width), super.computePrefHeight(width),
+                    sidePanel != null ? sidePanel.getHeight() : 0);
+            }
+
+            @Override
+            protected double computePrefHeight(double width) {
+                return computeMinHeight(width);
+            }
+        };
         progressHolder.setId(PROGRESS_HOLDER_ID);
-        progressHolder.setPrefHeight(340);
-        // No explicit minimum: the holder asks for what the progress view needs (its checklist
-        // included), so the report above yields first.
-        progressHolder.setMaxHeight(420);
         // A progress view taller than its slot must not paint (and catch clicks) past it: the
         // dialog's button bar lies beneath the content, and "Close" stopped reacting.
         javafx.scene.shape.Rectangle progressClip = new javafx.scene.shape.Rectangle();
@@ -2417,6 +2430,8 @@ final class SnippetAnalysisController {
 
         sidePanel = new VBox(8, header, bannerScroll, contentHolder, progressHolder, footer);
         sidePanel.setId(SIDE_PANEL_ID);
+        // The holder's share follows the panel's height; a resize alone would keep its cached size.
+        sidePanel.heightProperty().addListener((obs, was, isNow) -> progressHolder.requestLayout());
         sidePanel.setPadding(new Insets(8, 10, 10, 10));
         sidePanel.setMinWidth(MIN_PANEL_WIDTH);
         sidePanel.setPrefWidth(storedPanelWidth());
@@ -3112,6 +3127,16 @@ final class SnippetAnalysisController {
         }
         progressHolder.setVisible(true);
         progressHolder.setManaged(true);
+    }
+
+    /**
+     * The height of the progress holder: what the progress view needs, capped at
+     * {@link #PROGRESS_MAX_SHARE} of the panel (past that its checklist scrolls), but never below
+     * the view's own minimum. A panel not laid out yet ({@code panelHeight <= 0}) caps nothing.
+     */
+    static double progressHolderHeight(double viewMinimum, double viewNeeds, double panelHeight) {
+        double capped = panelHeight > 0 ? Math.min(viewNeeds, panelHeight * PROGRESS_MAX_SHARE) : viewNeeds;
+        return Math.max(viewMinimum, capped);
     }
 
     /** Whether a decided run still has the text its read-only "View changes" preview is built from. */

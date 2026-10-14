@@ -54,6 +54,19 @@ class SnippetAnalysisControllerTest {
     }
 
     @Test
+    void progressHolderTakesWhatTheViewNeedsUpToItsShareOfThePanel() {
+        // Room enough: the whole view, checklist included — never a fixed height that starves it.
+        assertThat(SnippetAnalysisController.progressHolderHeight(320, 452, 1000)).isEqualTo(452.0);
+        // Past its share the view gets the share, and its checklist scrolls.
+        assertThat(SnippetAnalysisController.progressHolderHeight(320, 452, 700))
+            .isWithin(0.001).of(700 * SnippetAnalysisController.PROGRESS_MAX_SHARE);
+        // Never below the view's own minimum, however short the panel.
+        assertThat(SnippetAnalysisController.progressHolderHeight(320, 452, 400)).isEqualTo(320.0);
+        // A panel not laid out yet caps nothing.
+        assertThat(SnippetAnalysisController.progressHolderHeight(320, 452, 0)).isEqualTo(452.0);
+    }
+
+    @Test
     void stalenessComparesTheAnalysedContentWithTheEditor() {
         SnippetAnalysisRecord record = record();
         assertThat(SnippetAnalysisController.staleness(record, SOURCE_SHA))
