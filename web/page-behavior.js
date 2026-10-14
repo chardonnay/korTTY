@@ -649,6 +649,18 @@
       tog(r.querySelector('[data-t="2"]'), 'hot', t >= 9.5 && t < 12);
       tog($(r, 'd'), 'foc', t >= 12);
     }],
+    lf: [22, (r, t) => {
+      const s = t >= 2.8 && t < 6.3 ? typ('review', t, 2.8, 3.8) : '', f = s === 'review';
+      field($(r, 'q'), s, 'File, connection, server or badge', t >= 2.6 && t < 6.3);
+      r.querySelectorAll('tbody tr').forEach(x => tog(x, 'hide', f && !x.dataset.rv));
+      txt($(r, 'st'), f ? '2 of 10 files · 1.4 MB · 0 live' : '10 of 10 files · 70.1 MB · 1 live');
+      tog($(r, 'bdg'), 'hot', t >= 9.9 && t < 10.5);
+      const held = t >= 10.2, lv = t >= 16.7, r2 = $(r, 'r2');
+      tog($(r, 'b2'), 'off', !held); tog($(r, 'b3'), 'off', !held);
+      txt($(r, 'dl'), held ? '—' : '13.11.2026');
+      tog(r2, 'new', held); tog(r2, 'sel', !lv); tog($(r, 'r5'), 'sel', lv);
+      tog($(r, 'exp'), 'dis', lv); tog($(r, 'del'), 'dis', lv);
+    }],
     th: [21, (r, t) => {
       const name = TN[Math.floor(t / 3) % TN.length], c = THEMES[name];
       r.querySelectorAll('[data-th]').forEach(x => tog(x, 'sel', x.dataset.th === name));
