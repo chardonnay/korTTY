@@ -159,20 +159,40 @@ jobs:
         if: runner.os != 'Windows'
         run: chmod +x gradlew
 
+      # Keeps most runs off community.chocolatey.org, whose transient 503s used to fail the whole leg.
+      - name: Cache native GnuPG (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/kortty-test-gnupg
+          key: kortty-test-gnupg-windows-2.5.21-v1
+
       - name: Prepare native GnuPG (Windows)
         if: runner.os == 'Windows'
-        timeout-minutes: 5
+        timeout-minutes: 8
         shell: pwsh
         run: |
-          # Only the CLI tools are needed; the installer can block unattended runners.
-          choco install gnupg --version=2.5.21 --yes --no-progress --skip-powershell
-          if ($LASTEXITCODE -ne 0) { throw "GnuPG package download failed" }
-          $installer = Get-ChildItem "$env:ChocolateyInstall\lib\gnupg\tools" -Filter 'gnupg-*.exe' | Select-Object -First 1
-          if (-not $installer) { throw "GnuPG package installer not found" }
           $gpgDir = Join-Path $env:RUNNER_TEMP 'kortty-test-gnupg'
-          & 7z.exe x $installer.FullName "-o$gpgDir" -y
-          if ($LASTEXITCODE -ne 0) { throw "GnuPG extraction failed" }
           $gpgBin = Join-Path $gpgDir 'bin'
+          if (Test-Path (Join-Path $gpgBin 'gpg.exe')) {
+            Write-Host "Using cached GnuPG from $gpgDir"
+          } else {
+            # Only the CLI tools are needed; the installer can block unattended runners.
+            # Chocolatey's community feed occasionally answers 503; retry with a backoff before failing.
+            $maxAttempts = 4
+            for ($attempt = 1; ; $attempt++) {
+              choco install gnupg --version=2.5.21 --yes --no-progress --skip-powershell
+              if ($LASTEXITCODE -eq 0) { break }
+              if ($attempt -ge $maxAttempts) { throw "GnuPG package download failed after $maxAttempts attempts" }
+              $delay = 8 + 12 * $attempt
+              Write-Warning "choco install gnupg failed (exit $LASTEXITCODE, attempt $attempt/$maxAttempts); retrying in $delay s"
+              Start-Sleep -Seconds $delay
+            }
+            $installer = Get-ChildItem "$env:ChocolateyInstall\lib\gnupg\tools" -Filter 'gnupg-*.exe' | Select-Object -First 1
+            if (-not $installer) { throw "GnuPG package installer not found" }
+            & 7z.exe x $installer.FullName "-o$gpgDir" -y
+            if ($LASTEXITCODE -ne 0) { throw "GnuPG extraction failed" }
+          }
           if (-not (Test-Path (Join-Path $gpgBin 'gpg.exe'))) { throw "Native GnuPG executable not found" }
           "KORTTY_TEST_GPG_BIN=$gpgBin" >> $env:GITHUB_ENV
           & (Join-Path $gpgBin 'gpg.exe') --version
