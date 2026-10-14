@@ -862,6 +862,22 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 .km-tcap span.d{color:#c4cad6}
 .shot-live.touring .shot-tip,.shot-live.touring .shot-cursor{visibility:hidden}
 .km-sw{display:inline-block;width:16px;height:12px;border-radius:2px;border:1px solid #4a5263;vertical-align:-2px}
+.lf-w{display:flex;flex-direction:column;height:100%}
+.lf-hd{padding:7px 12px;background:var(--k1);border-bottom:1px solid var(--kb);color:var(--kh);font-size:12.5px}
+.lf-tb{padding:9px 12px 0;gap:6px}
+.lf-tb .km-btn{padding:4px 12px}
+.lf-fl{padding:8px 12px 9px;gap:6px;flex-wrap:nowrap}
+.lf-fl .km-in.lf-hm{flex:none;width:60px}
+.lf-dt{display:inline-flex;flex:none;height:24px;border:1px solid var(--kb2);border-radius:5px;overflow:hidden;background:#0a0d12}
+.lf-dt span{width:84px}
+.lf-dt i{width:24px;display:grid;place-items:center;border-left:1px solid var(--kb2);background:#1c222d;color:var(--kmu);font-style:normal;font-size:11px}
+.lf-tw{flex:1;margin:0 12px;min-height:0}
+.lf-t td{height:25px}
+.lf-ft{padding:7px 12px 9px}
+.lf-bs{display:inline-flex;gap:5px;vertical-align:middle}
+.lf-b{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 8px 0 6px;border-radius:999px;font-size:11px;line-height:1;white-space:nowrap;background:color-mix(in srgb,var(--c) 24%,#0d1117);color:color-mix(in srgb,var(--c) 28%,#e6edf3)}
+.lf-b svg{width:11px;height:11px;flex:none;fill:none;stroke:var(--c);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.lf-live{display:inline-block;margin-left:7px;padding:0 7px;height:16px;line-height:14px;border-radius:999px;font-size:10.5px;color:#8ddb9f;background:rgba(63,185,80,.14);border:1px solid rgba(63,185,80,.5);vertical-align:1px}
 
 </style>
 </head>
@@ -1250,9 +1266,47 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
   </section>
 
+  <section class="sec" id="logfiles" data-screen-label="Logfile Manager">
+    <div class="sec-head">
+      <span class="kicker" data-i18n="lf.k">10 — Logfile Manager</span>
+      <h2 class="sec-title" data-i18n="lf.t">Every log korTTY ever wrote, in one window</h2>
+      <p class="lead" data-i18n="lf.l">Since v2.20.0, Tools → Logfile Manager… (<span class="kbd">Ctrl/Cmd+Shift+X</span>) collects the files terminal logging has written: from the default folder, every saved connection's log folder, every folder a logger has ever written into and the folders you add. Filter by name, time range, format or compression, check each file's size and the first day retention may delete it, then view, export or delete. A file that is still being written is marked <em>live</em>: you can view it, but not export or delete it.</p>
+    </div>
+    <figure class="shot reveal" style="margin-top: calc(1.5 * var(--leading))">
+      <div class="shot-bar"><span class="term-dot" style="background:#ff5f57"></span><span class="term-dot" style="background:#febc2e"></span><span class="term-dot" style="background:#28c840"></span><span class="shot-title">Logfile Manager</span></div>
+      <span class="shot-live" style="--pd:28s;--cd:22s;--cdel:0s;--po:40% 30%;--px:-1.2%;--py:1%;--s1x:22%;--s1y:17%;--s2x:30%;--s2y:10%;--s3x:24%;--s3y:52%"><div class="km" data-mock="lf" data-dw="1120" data-hx="34"><div class="lf-w"><div class="lf-hd">Log files written by KorTTY's terminal logging</div><div class="km-r lf-tb"><span class="km-btn">⟳ Refresh</span><span class="km-btn">View</span><span class="km-btn" data-k="exp">⤓ Export…</span><span class="km-btn" data-k="bdg" data-t="2">Badges</span><span class="km-btn" data-k="del">Delete</span><span class="km-btn">Open folder</span><span class="km-btn">+ Add folder…</span></div><div class="km-r lf-fl"><span class="mu">Search</span><span class="km-in" data-k="q" data-t="1"><span class="ph">File, connection, server or badge</span></span><span class="mu">From</span><span class="lf-dt"><span></span><i>▦</i></span><span class="km-in lf-hm"><span class="ph">HH:MM</span></span><span class="mu">To</span><span class="lf-dt"><span></span><i>▦</i></span><span class="km-in lf-hm"><span class="ph">HH:MM</span></span><span class="mu">Type</span><span class="km-sel" style="min-width:64px">All</span><span class="mu">Compression</span><span class="km-sel" style="min-width:60px">All</span><span class="km-btn">Clear filters</span></div><div class="km-tw lf-tw"><table class="km-t lf-t"><colgroup><col style="width:25.5%"><col style="width:11.5%"><col style="width:18%"><col style="width:13%"><col style="width:7%"><col style="width:7.5%"><col style="width:8.5%"><col style="width:9%"></colgroup><thead><tr><th>File name</th><th>Connection name</th><th>Badges</th><th>Started ▾</th><th>Size (MB)</th><th>Type</th><th>Compression</th><th>Deletable from</th></tr></thead><tbody><tr data-rv="1"><td>2026-10-13-17-46-47-web01_1.json.gz</td><td>Web Server</td><td><span class="lf-bs"><span class="lf-b" style="--c:#c08020"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6 13.4 3.7v3.8c0 3.1-2.2 5.6-5.4 6.9-3.2-1.3-5.4-3.8-5.4-6.9V3.7z"/></svg>Hold</span><span class="lf-b" style="--c:#4488cc"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.5 10.5 3.6 3.6"/></svg>Release review</span></span></td><td>13.10.2026 17:46:47</td><td>0.42 MB</td><td>JSON</td><td>gzip</td><td>—</td></tr><tr data-k="r2" class="sel"><td>2026-10-13-16-02-11-db01_1.xml.gz</td><td>Database</td><td><span class="lf-bs"><span class="lf-b km-fade off" data-k="b2" style="--c:#cc5555"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.2 14.6 13.6H1.4z"/><path d="M8 6.4v3.4M8 11.9v.2"/></svg>Incident</span><span class="lf-b km-fade off" data-k="b3" style="--c:#c08020"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6 13.4 3.7v3.8c0 3.1-2.2 5.6-5.4 6.9-3.2-1.3-5.4-3.8-5.4-6.9V3.7z"/></svg>Hold</span></span></td><td>13.10.2026 16:02:11</td><td>1.86 MB</td><td>XML</td><td>gzip</td><td data-k="dl">13.11.2026</td></tr><tr><td>2026-10-13-14-30-12-web01_2.log</td><td>Web Server</td><td></td><td>13.10.2026 14:30:12</td><td>0.08 MB</td><td>Plain Text</td><td>none</td><td>—</td></tr><tr><td>2026-10-13-11-05-40-ci01_1.log.zst</td><td>Build Host</td><td><span class="lf-bs"><span class="lf-b" style="--c:#339977"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="m5.3 8.2 1.9 1.9 3.6-3.8"/></svg>Done</span></span></td><td>13.10.2026 11:05:40</td><td>0.31 MB</td><td>Plain Text</td><td>zstd</td><td>—</td></tr><tr data-k="r5"><td>2026-10-13-09-12-03-jump_1.log<span class="lf-live" data-t="3">live</span></td><td>Jump Host</td><td></td><td>13.10.2026 09:12:03</td><td>2.14 MB</td><td>Plain Text</td><td>none</td><td>—</td></tr><tr data-rv="1"><td>2026-10-12-22-15-09-web02_1.log.gz</td><td>Web Server</td><td><span class="lf-bs"><span class="lf-b" style="--c:#4488cc"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="m10.5 10.5 3.6 3.6"/></svg>Review</span></span></td><td>12.10.2026 22:15:09</td><td>0.97 MB</td><td>Plain Text</td><td>gzip</td><td>12.11.2026</td></tr><tr><td>2026-10-12-07-58-31-web01_1.log.gz</td><td>Web Server</td><td></td><td>12.10.2026 07:58:31</td><td>9.71 MB</td><td>Plain Text</td><td>gzip</td><td>12.11.2026</td></tr><tr><td>2026-09-30-03-00-00-db02_1.json.bz2</td><td>Database</td><td></td><td>30.09.2026 03:00:00</td><td>3.20 MB</td><td>JSON</td><td>bzip2</td><td>—</td></tr><tr><td>2026-09-14-10-00-00-db01_1.log.gz</td><td>Database</td><td></td><td>14.09.2026 10:00:00</td><td>0.66 MB</td><td>Plain Text</td><td>gzip</td><td>15.10.2026</td></tr><tr><td>2026-08-02-21-40-00-ci01_1.log</td><td>Build Host</td><td></td><td>02.08.2026 21:40:00</td><td>50.79 MB</td><td>Plain Text</td><td>none</td><td>—</td></tr></tbody></table></div><div class="km-r lf-ft"><span class="mu" data-k="st">10 of 10 files · 70.1 MB · 1 live</span><span class="km-btn" style="margin-left:auto">Close</span></div></div></div><span class="shot-tip t1" data-i18n="tp.lf1">Searches file names, folders, connections, server addresses and badge names</span><span class="shot-tip t2" data-i18n="tp.lf2">Pins badges to the selected logs; Hold keeps a file safe from retention and Delete</span><span class="shot-tip t3" data-i18n="tp.lf3">Still being written: it can be viewed, but not exported or deleted</span><span class="shot-cursor"></span></span>
+    </figure>
+    <p class="figcap" data-i18n="lf.cap">What this window shows: ten logs from four saved connections, newest first, in every format and compression the manager recognises. Searching <em>review</em> also matches badge names: the preset Review and a custom Release review. Pinning <em>Hold</em> to the database's incident log turns its <em>Deletable from</em> date into a dash, so retention leaves it alone. The jump-host session is still being written, so Export and Delete are greyed out.</p>
+    <div class="feature">
+      <p class="f-num">01</p>
+      <h3 class="f-title" data-i18n="lf1t">Finds its own logs and ignores everything else</h3>
+      <p class="f-copy" data-i18n="lf1c">Only files whose names korTTY generates are listed, plain or compressed with gzip, zstd or bzip2, so a folder you share with other tools stays untouched. Because the manager remembers every folder a logger has written into, logs from Quick Connect sessions and from connections deleted since still turn up. A time range matches every file that <em>overlaps</em> it: a session from 08:00 to 09:30 is listed for 09:00–09:30. <em>Deletable from</em> shows the first day the retention sweep may remove a file; files it never deletes show a dash.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">02</p>
+      <h3 class="f-title" data-i18n="lf2t">A viewer that never loads the whole file</h3>
+      <p class="f-copy" data-i18n="lf2c"><em>View</em> reads only the lines on screen, so a log of several hundred megabytes opens without filling memory; a compressed log is unpacked into a private temporary copy that is deleted when the viewer closes. <span class="kbd">Ctrl+F</span> searches, <em>Go to line</em> jumps, and up to 2,000 selected lines copy at once. Links, e-mail addresses and paths are underlined (a click copies them, nothing is opened), and a keyword-highlighting set colours errors and warnings. JSON and XML logs open formatted, with a switch back to the raw lines; a live log is shown as a snapshot with a Refresh button.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">03</p>
+      <h3 class="f-title" data-i18n="lf3t">Badges, and one that means it</h3>
+      <p class="f-copy" data-i18n="lf3c">Select logs, choose <em>Badges</em> and pin Hold, Review, Incident, Important, Done or Share, or a badge of your own: up to 40 characters, a colour, one of 30 symbols and one of five styles. Badges are searchable and live in hidden sidecar files beside the log, so they survive gzip compression. Only <em>Hold</em> changes behaviour: automatic retention and <em>Delete</em> both skip the file until Hold is removed. Delete asks first and lists uncompressed files separately, because another running korTTY could still be writing them.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">04</p>
+      <h3 class="f-title" data-i18n="lf4t">Exports you can trim, convert and lock</h3>
+      <p class="f-copy" data-i18n="lf4c">Export whole logs or only the lines selected in the viewer, optionally trimmed to a time range. The content format (unchanged, plain text, XML or JSON) is chosen independently of the archive (none, zstd, gzip, bzip2 or ZIP), so a JSON log can leave as XML inside a gzip archive. ZIP archives can carry an AES-256 password, and any archive can additionally be encrypted with GPG for a key from GPG Key Management. Exports run in the background with progress and cancel; a failed or cancelled export leaves no partial file, and export passwords are never saved.</p>
+    </div>
+    <div class="feature">
+      <p class="f-num">05</p>
+      <h3 class="f-title" data-i18n="lf5t">Who, where, and on which server</h3>
+      <p class="f-copy" data-i18n="lf5c">A saved connection can write the SSH username and the working directory into every log line, as the full path or relative to the first directory the session reported. Both are captured before buffering and pass through the secret redactor, and an enterprise policy can mandate either setting. In the list, servers known only by IP address get a stable alias from 10,000 generated names, with the recorded address on hover; an address an old log never recorded is shown as unknown instead of being looked up in DNS.</p>
+    </div>
+  </section>
+
   <section class="sec" id="journal" data-screen-label="Session journal">
     <div class="sec-head">
-      <span class="kicker" data-i18n="sj.k">10 — Session journal</span>
+      <span class="kicker" data-i18n="sj.k">11 — Session journal</span>
       <h2 class="sec-title" data-i18n="sj.t">The session writes its own report</h2>
       <p class="lead" data-i18n="sj.l">Every terminal tab can keep a journal: server output and typed commands go into an append-only capture log, an AI condenses the activity into a readable timeline, and screenshots and notes drop in from the journal bar. Enable it per connection, or mid-session with <span class="kbd">Ctrl/Cmd+Alt+T</span> — the existing scrollback is imported first, so the timeline covers what already happened.</p>
     </div>
@@ -1305,7 +1359,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="broadcast" data-screen-label="Split-screen broadcast">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k8">11 — Split-screen broadcast</span>
+      <span class="kicker" data-i18n="k8">12 — Split-screen broadcast</span>
       <h2 class="sec-title" data-i18n="t8">Type once, land everywhere</h2>
       <p class="lead" data-i18n="l8">Split a tab horizontally or vertically, put a different connection in every pane, and flip on broadcast: keystrokes go to all visible panes simultaneously. The fastest way to run one command on three boxes — and the second-fastest way to run it on the wrong three.</p>
     </div>
@@ -1326,7 +1380,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="themes" data-screen-label="Themes and designs">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k9">12 — Themes &amp; designs</span>
+        <span class="kicker" data-i18n="k9">13 — Themes &amp; designs</span>
         <h2 class="split-title" data-i18n="t9">Dress the whole app, not just the text</h2>
         <p class="note" data-i18n="n9a">Terminal theme profiles — IntelliJ-inspired presets, live preview, fully editable — stay separate from app designs, which restyle every window and dialog: Default, Matrix Terminal, Holographic Interface, Klingon Tactical, Elegant Dark, Amber CRT, Synthwave '84, Gruvbox Retro, Nord Arctic, Dracula.</p>
         <p class="note" data-i18n="n9b">On top: terminal-effect plugins per pane — Digital Rain, VHS 1987, Deep Space Radar, or the MU/TH/UR 6000 reference effect — with animated previews and a plugin SPI for writing your own.</p>
@@ -1347,7 +1401,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="files" data-screen-label="SFTP and Snippets">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k10">13 — Files &amp; snippets</span>
+      <span class="kicker" data-i18n="k10">14 — Files &amp; snippets</span>
       <h2 class="sec-title" data-i18n="t10">The toolbox around the terminal</h2>
       <p class="lead" data-i18n="l10">An SFTP manager with user/group columns, remote editing through the Snippet Editor, and archive jobs with exclude patterns — next to a Snippet Manager with Monaco highlighting, categories, script arguments, and ZIP/GPG-encrypted exports.</p>
     </div>
@@ -1423,7 +1477,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="isolation" data-screen-label="Session isolation">
     <div class="sec-head">
-      <span class="kicker" data-i18n="si.k">14 — Security: session isolation</span>
+      <span class="kicker" data-i18n="si.k">15 — Security: session isolation</span>
       <h2 class="sec-title" data-i18n="si.t">One tab crashes. The other nine don't notice.</h2>
       <p class="lead" data-i18n="si.l">Since v2.19.0 korTTY can keep a terminal session apart from itself and from every other tab — per connection, per folder or as the default: None, Own process, or Own process + sandbox. Each tab wears a shield that says what the session actually got, and an incognito session leaves no trace in korTTY at all.</p>
     </div>
@@ -1508,7 +1562,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="automation" data-screen-label="JobScheduler">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k11">15 — JobScheduler</span>
+        <span class="kicker" data-i18n="k11">16 — JobScheduler</span>
         <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t11">Automation that survives closed tabs</h2>
         <p class="note" data-i18n="n11a">Schedule background jobs against saved connections and groups — weekdays, fixed times, date ranges, intervals — no terminal tab required. Actions: remote commands, Snippet scripts with argv, SFTP transfers, rsync syncs, headless AI agents, and whole AI swarms with per-job parallelism.</p>
         <p class="note" data-i18n="n11b">A journal records every run — redacted or full, searchable with wildcards, auto-pruned after 14 days — and korTTY warns before quitting while jobs run, then drains cleanly. Host keys must be pinned before anything runs unattended.</p>
@@ -1531,7 +1585,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="security" data-screen-label="Security">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k12">16 — Security</span>
+      <span class="kicker" data-i18n="k12">17 — Security</span>
       <h2 class="sec-title" data-i18n="t12">Paranoid by default. We checked.</h2>
       <p class="lead" data-i18n="l12">Built for people whose servers matter — and audited along the way by pipelines with trust issues.</p>
     </div>
@@ -1617,7 +1671,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
   <section class="sec" id="languages" data-screen-label="Languages">
     <div class="split" style="padding: 0; align-items: center">
       <div class="split-copy">
-        <span class="kicker" data-i18n="k13">17 — Languages</span>
+        <span class="kicker" data-i18n="k13">18 — Languages</span>
         <h2 class="sec-title" style="font-size: clamp(28px, 3.2vw, 40px)" data-i18n="t13">Eight languages built in. The rest, generated.</h2>
         <p class="note" data-i18n="n13">English, German, Italian, Spanish, Portuguese, French, Croatian and Dutch ship in the box. Need Klingon adjacent? Settings → Translation generates full language files for any language via Google Translate, DeepL, LibreTranslate, Microsoft or Yandex.</p>
       </div>
@@ -1640,7 +1694,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="compare" data-screen-label="Comparison">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k14">18 — The obligatory table</span>
+      <span class="kicker" data-i18n="k14">19 — The obligatory table</span>
       <h2 class="sec-title" data-i18n="t14">Against the usual suspects</h2>
       <p class="lead" data-i18n="l14">All fine tools. None of them puts an agent on your servers.</p>
     </div>
@@ -1670,7 +1724,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
 
   <section class="sec" id="download" data-screen-label="Download">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k15">19 — Download</span>
+      <span class="kicker" data-i18n="k15">20 — Download</span>
       <h2 class="sec-title" data-i18n="t15">Pick your build. We signed them all.</h2>
       <p class="lead" data-i18n="l15">Direct downloads per platform and CPU — self-contained, trimmed runtime included, no Java installation needed. All assets also on <a href="https://github.com/chardonnay/korTTY/releases" target="_blank" rel="noopener">GitHub Releases</a> with Ed25519 signatures.</p>
     </div>
@@ -1697,47 +1751,37 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     <p class="figcap" style="margin-top: var(--leading)" data-i18n="fc.mig">Migrating? korTTY imports connections from MTPuTTY, MobaXterm and PuTTY Connection Manager — then encrypts them properly.</p>
   </section>
 
-  <section class="sec" id="release" data-screen-label="Release 2.17">
+  <section class="sec" id="release" data-screen-label="Release 2.20">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k16">20 — What's new in v2.17.0</span>
+      <span class="kicker" data-i18n="k16">21 — What's new in v2.20.0</span>
       <h2 class="sec-title" data-i18n="t16">Fresh off the pipeline</h2>
     </div>
     <div class="feature">
-      <p class="f-num">2.17</p>
-      <h3 class="f-title" data-i18n="ca.rl1t">Coding agents, detected</h3>
-      <p class="f-copy" data-i18n="ca.rl1c">Claude Code, Codex and Gemini CLI are recognised in local shell tabs, with a dockable <a href="#agents">Coding Agents panel</a>, dashboard chips, a status strip, an app-icon badge and desktop notifications.</p>
+      <p class="f-num">2.20</p>
+      <h3 class="f-title" data-i18n="rn1t">Logfile Manager</h3>
+      <p class="f-copy" data-i18n="rn1c">All terminal logs in one window: filter, view, badge, export and delete — Hold keeps a file safe from retention.</p>
     </div>
     <div class="feature">
-      <p class="f-num">2.17</p>
-      <h3 class="f-title" data-i18n="ca.rl2t">Control API and kortty-cli</h3>
-      <p class="f-copy" data-i18n="ca.rl2c">A local socket lets a script — or another coding agent — list your windows, read any pane, type into it and drive a detected agent. Off by default.</p>
+      <p class="f-num">2.20</p>
+      <h3 class="f-title" data-i18n="rn2t">14 more coding agents</h3>
+      <p class="f-copy" data-i18n="rn2c">Cursor Agent, Aider, OpenCode, Goose, Grok, Copilot CLI and more are now detected in local shell tabs.</p>
     </div>
     <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl1t">Full code analysis</h3>
-      <p class="f-copy" data-i18n="rl1c">The Snippet Editor's AI opens a non-modal analysis window: plain-language summary, dependency review, tickable Security/Optimization/Design improvements, and an auto-generated flow diagram that highlights source lines on hover.</p>
+      <p class="f-num">2.20</p>
+      <h3 class="f-title" data-i18n="rn3t">Customizable icon toolbar</h3>
+      <p class="f-copy" data-i18n="rn3c">Add, rearrange and resize the toolbar buttons from 16 to 64 px.</p>
     </div>
     <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl2t">One local Mermaid renderer</h3>
-      <p class="f-copy" data-i18n="rl2c">Snippet diagrams, code analysis, workflow generation and AI-chat Mermaid blocks share one SHA-256-pinned Mermaid 11.16 renderer — no Graphviz subprocess, no first-use download.</p>
-    </div>
-    <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl3t">Explained security fixes</h3>
-      <p class="f-copy" data-i18n="rl3c">Security checks now show a side-by-side diff; hovering a changed block names the findings it addresses, with every rationale listed as a card below.</p>
-    </div>
-    <div class="feature">
-      <p class="f-num">2.7</p>
-      <h3 class="f-title" data-i18n="rl4t">Transparent terminals, quieter tabs</h3>
-      <p class="f-copy" data-i18n="rl4c">A 0–100 % background-transparency slider keeps text sharp while the terminal sees through to the desktop — and closing an idle tab finally stops asking if you're sure.</p>
+      <p class="f-num">2.20</p>
+      <h3 class="f-title" data-i18n="rn4t">Import external AI skills</h3>
+      <p class="f-copy" data-i18n="rn4c">Pull SKILL.md files from GitHub, SkillsMP or any HTTP source — imports start deactivated.</p>
     </div>
     <p class="figcap" data-i18n="fc.rel"><a href="https://github.com/chardonnay/korTTY/blob/main/app-docs/RELEASE_NOTES.adoc" target="_blank" rel="noopener">Full release notes on GitHub</a></p>
   </section>
 
   <section class="sec" id="faq" data-screen-label="FAQ">
     <div class="sec-head">
-      <span class="kicker" data-i18n="k17">21 — FAQ</span>
+      <span class="kicker" data-i18n="k17">22 — FAQ</span>
       <h2 class="sec-title" data-i18n="t17">Questions people actually ask</h2>
     </div>
     <div class="faq" style="margin-top: calc(1.5 * var(--leading))">
@@ -1772,7 +1816,7 @@ html:not(.js) .themer-body .tp { animation: themetp 15s steps(1) infinite; }
     </div>
 
   <section class="close" id="opensource" data-screen-label="Open source close">
-    <span class="kicker" data-i18n="k18">22 — Open source</span>
+    <span class="kicker" data-i18n="k18">23 — Open source</span>
     <h3 data-i18n="t18">Point an agent at it.</h3>
     <p class="sub" data-i18n="cl.sub">korTTY is built in the open — MIT-licensed, signed releases, public docs, and release notes that read like release notes. If it saves your on-call night, a star is the accepted currency.</p>
     <div class="signup" style="max-width: none">
