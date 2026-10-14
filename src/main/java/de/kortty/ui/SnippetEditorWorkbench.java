@@ -10,7 +10,8 @@ import javafx.scene.shape.Rectangle;
 
 /**
  * The snippet editor's content row: the editor area, and while it is shown, a drag divider plus the
- * Full-code-analysis panel beside it.
+ * Full-code-analysis panel beside it — and, at the right edge, the docked "AI processing" column
+ * of a running apply when the panel shows one.
  *
  * <p>Unlike an {@code HBox}, which shrinks every child evenly towards its minimum when the row is
  * narrower than the sum of the preferred widths, this row gives the panel its preferred (stored or
@@ -32,6 +33,7 @@ final class SnippetEditorWorkbench extends Pane {
     private final Region editorArea;
     private final Region divider;
     private Region panel;
+    private Region dock;
 
     SnippetEditorWorkbench(Region editorArea, Region divider) {
         this.editorArea = editorArea;
@@ -54,7 +56,51 @@ final class SnippetEditorWorkbench extends Pane {
         this.panel = panel;
         if (panel != null) {
             getChildren().addAll(divider, panel);
+            if (dock != null) {
+                getChildren().add(dock);
+            }
+        } else {
+            dock = null;
         }
+    }
+
+    /**
+     * Docks {@code column} at the right edge, beside the panel; {@code null} removes it. Only shown
+     * together with the panel. It keeps its preferred width and yields before the panel does.
+     */
+    void setDock(Region column) {
+        if (dock == column || (column != null && panel == null)) {
+            return;
+        }
+        if (dock != null) {
+            getChildren().remove(dock);
+        }
+        dock = column;
+        if (column != null) {
+            getChildren().add(column);
+        }
+    }
+
+    Region dock() {
+        return dock;
+    }
+
+    private double dockWidthAt(double width) {
+        if (dock == null) {
+            return 0;
+        }
+        return dockWidth(width - dividerWidth(), panel != null ? panel.minWidth(-1) : 0,
+            dock.prefWidth(-1), dock.minWidth(-1));
+    }
+
+    /**
+     * The docked column's width at {@code available} px for editor, panel and column: its
+     * {@code preferred} width while the code and the panel keep their minimums, never below
+     * {@code minimum}.
+     */
+    static double dockWidth(double available, double panelMinimum, double preferred, double minimum) {
+        double room = available - Math.max(0, panelMinimum) - MIN_EDITOR_WIDTH;
+        return Math.max(minimum, Math.min(preferred, room));
     }
 
     Region panel() {
@@ -67,7 +113,8 @@ final class SnippetEditorWorkbench extends Pane {
 
     /** The widest the panel may be dragged to at the current width. */
     double maximumPanelWidth(double panelMinimum) {
-        return Math.max(panelMinimum, contentWidth() - divider.prefWidth(-1) - MIN_EDITOR_WIDTH);
+        return Math.max(panelMinimum,
+            contentWidth() - divider.prefWidth(-1) - dockWidthAt(contentWidth()) - MIN_EDITOR_WIDTH);
     }
 
     /**
@@ -112,19 +159,25 @@ final class SnippetEditorWorkbench extends Pane {
             return;
         }
         double dividerWidth = dividerWidth();
-        double available = Math.max(0, width - dividerWidth);
+        double dockWidth = dockWidthAt(width);
+        double available = Math.max(0, width - dividerWidth - dockWidth);
         double panelWidth = panelWidth(available, panel.prefWidth(-1), panel.minWidth(-1), MIN_EDITOR_WIDTH);
         double editorWidth = Math.max(0, available - panelWidth);
         layoutInArea(editorArea, x, y, editorWidth, height, 0, HPos.LEFT, VPos.TOP);
         layoutInArea(divider, x + editorWidth, y, dividerWidth, height, 0, HPos.LEFT, VPos.TOP);
         layoutInArea(panel, x + editorWidth + dividerWidth, y, panelWidth, height, 0, HPos.LEFT, VPos.TOP);
+        if (dock != null) {
+            layoutInArea(dock, x + editorWidth + dividerWidth + panelWidth, y, dockWidth, height, 0,
+                HPos.LEFT, VPos.TOP);
+        }
     }
 
     @Override
     protected double computeMinWidth(double height) {
         Insets insets = getInsets();
         double minimum = panel == null ? editorArea.minWidth(-1)
-            : Math.max(editorArea.minWidth(-1), MIN_EDITOR_WIDTH) + dividerWidth() + panel.minWidth(-1);
+            : Math.max(editorArea.minWidth(-1), MIN_EDITOR_WIDTH) + dividerWidth() + panel.minWidth(-1)
+                + (dock != null ? dock.minWidth(-1) : 0);
         return insets.getLeft() + minimum + insets.getRight();
     }
 
@@ -134,6 +187,9 @@ final class SnippetEditorWorkbench extends Pane {
         double preferred = editorArea.prefWidth(-1);
         if (panel != null) {
             preferred += dividerWidth() + Math.max(panel.minWidth(-1), panel.prefWidth(-1));
+        }
+        if (dock != null) {
+            preferred += Math.max(dock.minWidth(-1), dock.prefWidth(-1));
         }
         return insets.getLeft() + preferred + insets.getRight();
     }

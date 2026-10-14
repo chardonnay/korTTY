@@ -270,6 +270,8 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     private final Map<Class<?>, Dialog<?>> childWindows = new HashMap<>();
     private boolean editorClosed;
     private boolean widenedForAnalysisPanel;
+    /** The editor window grew once for the docked "AI processing" column (like for the panel). */
+    private boolean widenedForProgressDock;
     private boolean rememberCodeTextLanguageAnswer = true;
     private boolean programmaticNameUpdate;
     private boolean programmaticLanguageUpdate;
@@ -7842,6 +7844,21 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         }
     }
 
+    /** Docks the "AI processing" column beside the analysis panel; a windowed editor grows once for it. */
+    private void showAnalysisProgressDock(Region column) {
+        if (column == null || analysisWorkbench.dock() == column || !analysisWorkbench.isPanelShown()) {
+            return;
+        }
+        analysisWorkbench.setDock(column);
+        if (!widenedForProgressDock) {
+            widenedForProgressDock = widenWindowBy(column.prefWidth(-1));
+        }
+    }
+
+    private void hideAnalysisProgressDock() {
+        analysisWorkbench.setDock(null);
+    }
+
     private void hideAnalysisSidePanel() {
         boolean shown = analysisWorkbench.isPanelShown();
         analysisWorkbench.setPanel(null);
@@ -7902,21 +7919,31 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
      * analysis does not squeeze the code. A hosted editor shares its tab instead.
      */
     private void widenWindowForAnalysisPanel(double width) {
-        if (widenedForAnalysisPanel || isHostedInTab() || embedding != null) {
-            return;
+        if (!widenedForAnalysisPanel) {
+            widenedForAnalysisPanel = widenWindowBy(width);
+        }
+    }
+
+    /**
+     * Grows a shown, windowed editor by {@code width} as far as its screen allows (moving it left
+     * when needed). {@code false} when the editor is hosted, maximized or not shown — nothing to
+     * grow, so the caller may try again later.
+     */
+    private boolean widenWindowBy(double width) {
+        if (isHostedInTab() || embedding != null) {
+            return false;
         }
         Window window = getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
         if (!(window instanceof Stage stage) || !stage.isShowing() || stage.isMaximized() || stage.isFullScreen()) {
-            return;
+            return false;
         }
-        widenedForAnalysisPanel = true;
         try {
             javafx.geometry.Rectangle2D bounds = Screen.getScreensForRectangle(
                     stage.getX(), stage.getY(), Math.max(1, stage.getWidth()), Math.max(1, stage.getHeight()))
                 .stream().findFirst().orElse(Screen.getPrimary()).getVisualBounds();
             double target = Math.min(stage.getWidth() + width, bounds.getWidth());
             if (target <= stage.getWidth()) {
-                return;
+                return true;
             }
             double x = stage.getX();
             if (x + target > bounds.getMaxX()) {
@@ -7927,6 +7954,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         } catch (RuntimeException e) {
             logger.debug("Could not widen the snippet editor for the analysis panel", e);
         }
+        return true;
     }
 
     /**
@@ -8515,6 +8543,16 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         @Override
         public void hideSidePanel() {
             hideAnalysisSidePanel();
+        }
+
+        @Override
+        public void showProgressDock(Region column) {
+            showAnalysisProgressDock(column);
+        }
+
+        @Override
+        public void hideProgressDock() {
+            hideAnalysisProgressDock();
         }
 
         @Override

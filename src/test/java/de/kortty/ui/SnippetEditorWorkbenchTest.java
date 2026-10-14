@@ -43,4 +43,15 @@ class SnippetEditorWorkbenchTest {
         assertThat(SnippetEditorWorkbench.codeWidth(500, 740, PANEL_MIN)).isEqualTo(500 - divider - PANEL_MIN);
         assertThat(SnippetEditorWorkbench.codeWidth(200, 740, PANEL_MIN)).isEqualTo(0.0);
     }
+
+    @Test
+    void theDockedColumnKeepsItsWidthAndYieldsBeforeThePanelMinimum() {
+        // Room for everything: the column gets its preferred width.
+        assertThat(SnippetEditorWorkbench.dockWidth(2000, PANEL_MIN, 400, 300)).isEqualTo(400.0);
+        // Tight: the code and the panel keep their minimums, the column shrinks first ...
+        assertThat(SnippetEditorWorkbench.dockWidth(1000, PANEL_MIN, 400, 300))
+            .isEqualTo(1000 - PANEL_MIN - EDITOR_MIN);
+        // ... but never below its own minimum.
+        assertThat(SnippetEditorWorkbench.dockWidth(700, PANEL_MIN, 400, 300)).isEqualTo(300.0);
+    }
 }

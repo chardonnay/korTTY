@@ -1299,11 +1299,11 @@ public class GlobalSettings {
     private Boolean snippetAnalysisPanelVisible;
 
     /**
-     * Whether a running Full-code-analysis apply shows its progress in the separate "AI processing"
-     * window (unset = yes); {@code false} keeps it inside the analysis panel.
+     * Whether a Full-code-analysis apply shows its progress in the "AI processing" column docked at
+     * the snippet editor's right edge (unset = yes); {@code false} keeps it at the analysis panel's bottom.
      */
     @XmlElement
-    private Boolean snippetAiProgressWindowVisible;
+    private Boolean snippetAiProgressDockVisible;
 
     /**
      * The AI profile the user last started a Full code analysis with; preselected in the next "New
@@ -4879,12 +4879,12 @@ public class GlobalSettings {
         this.snippetAnalysisPanelVisible = snippetAnalysisPanelVisible;
     }
 
-    public boolean isSnippetAiProgressWindowVisible() {
-        return !Boolean.FALSE.equals(snippetAiProgressWindowVisible);
+    public boolean isSnippetAiProgressDockVisible() {
+        return !Boolean.FALSE.equals(snippetAiProgressDockVisible);
     }
 
-    public void setSnippetAiProgressWindowVisible(boolean snippetAiProgressWindowVisible) {
-        this.snippetAiProgressWindowVisible = snippetAiProgressWindowVisible;
+    public void setSnippetAiProgressDockVisible(boolean snippetAiProgressDockVisible) {
+        this.snippetAiProgressDockVisible = snippetAiProgressDockVisible;
     }
 
     public String getSnippetAnalysisLastProfileId() {
