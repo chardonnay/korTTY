@@ -100,7 +100,11 @@ final class SnippetAnalysisController {
     static final String MODULARIZE_CHECK_ID = "snippet-analysis-modularize";
     static final String START_CANCEL_ID = "snippet-analysis-start-cancel";
     static final String PROGRESS_HOLDER_ID = "snippet-analysis-progress-holder";
-    static final String PROGRESS_WINDOW_TOGGLE_ID = "snippet-analysis-progress-window-toggle";
+    static final String PROGRESS_DOCK_TOGGLE_ID = "snippet-analysis-progress-dock-toggle";
+    static final String PROGRESS_DOCK_ID = "snippet-analysis-progress-dock";
+    /** Preferred and minimum width of the docked "AI processing" column, in px. */
+    static final double PROGRESS_DOCK_WIDTH = 400;
+    static final double PROGRESS_DOCK_MIN_WIDTH = 300;
     static final String STALE_BANNER_ID = "snippet-analysis-stale-banner";
     static final String REVIEW_BANNER_ID = "snippet-analysis-review-banner";
     static final String RERUNNING_BANNER_ID = "snippet-analysis-rerunning-banner";
@@ -220,6 +224,13 @@ final class SnippetAnalysisController {
         void showSidePanel(Region panel);
 
         void hideSidePanel();
+
+        /** Docks {@code column} at the right edge beside the side panel (the "AI processing" column). */
+        default void showProgressDock(Region column) {
+        }
+
+        default void hideProgressDock() {
+        }
 
         /**
          * Shows the review instead of the editor form. While another review holds the editor area,
@@ -352,12 +363,13 @@ final class SnippetAnalysisController {
     /** The analysis diagram, large; one per editor, closed with it. */
     private SnippetDiagramZoomWindow zoomWindow;
     private VBox progressHolder;
-    /** The "AI processing" window, while it hosts a progress view; one per editor, closed with it. */
-    private SnippetAiApplyProgressWindow progressWindow;
-    /** Footer switch that shows the progress view in that window or in the panel. */
-    private ToggleButton progressWindowToggle;
-    /** Set while the controller closes the window itself, so the close is not taken as the user's choice. */
-    private boolean closingProgressWindow;
+    /** The docked "AI processing" column at the editor's right edge; part of the panel's views. */
+    private VBox progressDock;
+    private VBox progressDockContent;
+    /** Footer switch that shows the progress view in the docked column or at the panel's bottom. */
+    private ToggleButton progressDockToggle;
+    /** The user docked the column this session, so a stored run's view goes there too. */
+    private boolean dockStoredRuns;
     private Button applyButton;
     private Button plainRerunButton;
     private Button verifyButton;
@@ -475,7 +487,6 @@ final class SnippetAnalysisController {
         }
         disposed = true;
         closeDiagramZoomWindow();
-        closeProgressWindow();
         analysisElapsedTicker.stop();
         if (analysisTask != null && !analysisTask.isDone()) {
             analysisTask.cancel(true);
@@ -606,6 +617,7 @@ final class SnippetAnalysisController {
         persistPanelWidth();
         panelVisible = false;
         startPending = false;
+        host.hideProgressDock();
         host.hideSidePanel();
         persistPanelVisible(false);
         disposePanelViews();
@@ -633,8 +645,7 @@ final class SnippetAnalysisController {
             analysisPanel = null;
         }
         renderedRecordId = null;
-        // A stored run's view in the "AI processing" window stays there until the window closes.
-        if (restoredPane != null && (progressWindow == null || progressWindow.pane() != restoredPane)) {
+        if (restoredPane != null) {
             restoredPane.dispose();
             restoredPane = null;
             restoredPaneKey = null;
@@ -647,7 +658,9 @@ final class SnippetAnalysisController {
         renderedHistoryLabels = List.of();
         contentHolder = null;
         progressHolder = null;
-        progressWindowToggle = null;
+        progressDock = null;
+        progressDockContent = null;
+        progressDockToggle = null;
         applyButton = null;
         plainRerunButton = null;
         verifyButton = null;
@@ -1416,9 +1429,6 @@ final class SnippetAnalysisController {
         host.followTaskProgress(task);
         host.beginAiAction(task);
         showPanel();
-        if (progressWindowWanted()) {
-            showProgressWindow(pane);
-        }
 
         task.setOnRunning(event -> {
             String message = task.getMessage() != null && !task.getMessage().isBlank()
@@ -2439,14 +2449,15 @@ final class SnippetAnalysisController {
         });
         Region footerSpacer = new Region();
         HBox.setHgrow(footerSpacer, Priority.ALWAYS);
-        progressWindowToggle = new ToggleButton(I18n.get("snippets.ai.analysis.progress.window.toggle"));
-        progressWindowToggle.setId(PROGRESS_WINDOW_TOGGLE_ID);
-        progressWindowToggle.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.progress.window.toggle.tooltip")));
-        progressWindowToggle.setMinWidth(Region.USE_PREF_SIZE);
-        progressWindowToggle.setOnAction(event -> toggleProgressWindow(progressWindowToggle.isSelected()));
-        HBox footer = new HBox(8, headerStatusLabel, footerSpacer, progressWindowToggle, verifyButton, applyButton);
+        progressDockToggle = new ToggleButton(I18n.get("snippets.ai.analysis.progress.dock.toggle"));
+        progressDockToggle.setId(PROGRESS_DOCK_TOGGLE_ID);
+        progressDockToggle.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.progress.dock.toggle.tooltip")));
+        progressDockToggle.setMinWidth(Region.USE_PREF_SIZE);
+        progressDockToggle.setOnAction(event -> toggleProgressDock(progressDockToggle.isSelected()));
+        HBox footer = new HBox(8, headerStatusLabel, footerSpacer, progressDockToggle, verifyButton, applyButton);
         footer.setAlignment(Pos.CENTER_LEFT);
 
+        buildProgressDock();
         sidePanel = new VBox(8, header, bannerScroll, contentHolder, progressHolder, footer);
         sidePanel.setId(SIDE_PANEL_ID);
         // The holder's share follows the panel's height; a resize alone would keep its cached size.
@@ -3110,15 +3121,22 @@ final class SnippetAnalysisController {
             return;
         }
         SnippetAiApplyProgressPane shown = progressViewFor(record);
-        boolean inWindow = shown != null && progressWindow != null && progressWindow.isShowing()
-            && progressWindow.pane() == shown;
-        if (progressWindowToggle != null) {
-            progressWindowToggle.setVisible(shown != null);
-            progressWindowToggle.setManaged(shown != null);
-            progressWindowToggle.setSelected(inWindow);
+        boolean docked = shown != null && progressDockWanted()
+            && (dockStoredRuns || isLiveView(shown));
+        if (progressDockToggle != null) {
+            progressDockToggle.setVisible(shown != null);
+            progressDockToggle.setManaged(shown != null);
+            progressDockToggle.setSelected(docked);
         }
-        if (shown == null || inWindow) {
-            // The window shows the view; the report keeps the panel.
+        if (docked) {
+            moveInto(progressDockContent, shown);
+            host.showProgressDock(progressDock);
+        } else {
+            progressDockContent.getChildren().clear();
+            host.hideProgressDock();
+        }
+        if (shown == null || docked) {
+            // The docked column shows the view; the report keeps the panel.
             progressHolder.getChildren().clear();
             progressHolder.setVisible(false);
             progressHolder.setManaged(false);
@@ -3166,77 +3184,62 @@ final class SnippetAnalysisController {
     }
 
     // =====================================================================================
-    // The "AI processing" window
+    // The docked "AI processing" column
     // =====================================================================================
 
-    /** The footer switch: shows the shown entry's progress view in the window, or takes it back. */
-    private void toggleProgressWindow(boolean show) {
-        persistProgressWindowVisible(show);
-        SnippetAiApplyProgressPane view = show ? progressViewFor(shownRecord()) : null;
-        if (view != null) {
-            showProgressWindow(view);
-        } else if (progressWindow != null) {
-            closeProgressWindow();
-        } else {
-            refreshState();
-        }
-    }
-
     /**
-     * Moves {@code view} into the "AI processing" window, opening it beside the editor. The window
-     * is owned by the editor's current window; after the editor moved, it is re-created there.
+     * The column at the editor's right edge that holds the progress view of a run: a title, a ✕
+     * that docks it back into the panel, and the view. One editor window, no gap to a second one.
      */
-    private void showProgressWindow(SnippetAiApplyProgressPane view) {
-        if (disposed || view == null) {
-            return;
-        }
-        javafx.stage.Window owner = sidePanel != null && sidePanel.getScene() != null
-            ? sidePanel.getScene().getWindow() : host.ownerWindow();
-        if (progressWindow != null && (!progressWindow.isShowing() || progressWindow.getOwner() != owner)) {
-            closeProgressWindow();
-        }
-        if (progressWindow == null) {
-            SnippetAiApplyProgressWindow window = new SnippetAiApplyProgressWindow(owner);
-            window.setOnHidden(event -> progressWindowHidden(window));
-            progressWindow = window;
-        }
-        progressWindow.showPane(view);
-        render();
+    private void buildProgressDock() {
+        Label title = new Label(I18n.get("snippets.ai.analysis.progress.title"));
+        title.setStyle("-fx-font-weight: bold;");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Button hide = new Button("✕");
+        hide.setId("snippet-analysis-progress-dock-hide");
+        hide.setTooltip(new Tooltip(I18n.get("snippets.ai.analysis.progress.dock.hide")));
+        hide.setOnAction(event -> toggleProgressDock(false));
+        HBox dockHeader = new HBox(8, title, spacer, hide);
+        dockHeader.setAlignment(Pos.CENTER_LEFT);
+        progressDockContent = new VBox();
+        VBox.setVgrow(progressDockContent, Priority.ALWAYS);
+        progressDock = new VBox(8, dockHeader, progressDockContent);
+        progressDock.setId(PROGRESS_DOCK_ID);
+        progressDock.setPadding(new Insets(8, 10, 10, 10));
+        progressDock.setPrefWidth(PROGRESS_DOCK_WIDTH);
+        progressDock.setMinWidth(PROGRESS_DOCK_MIN_WIDTH);
+        // A hairline towards the panel; literal colour, so it reads in Normal and in AtlantaFX.
+        progressDock.setStyle("-fx-border-color: transparent transparent transparent rgba(128,128,128,0.35);"
+            + " -fx-border-width: 0 0 0 1;");
     }
 
-    /** Closes the window without recording a choice; its view goes back into the panel. */
-    private void closeProgressWindow() {
-        SnippetAiApplyProgressWindow window = progressWindow;
-        if (window == null) {
-            return;
-        }
-        closingProgressWindow = true;
-        try {
-            window.close();
-        } finally {
-            closingProgressWindow = false;
-        }
-        progressWindowHidden(window);
+    /** The footer switch and the column's ✕: dock the view at the right edge, or keep it in the panel. */
+    private void toggleProgressDock(boolean dock) {
+        persistProgressDockVisible(dock);
+        dockStoredRuns = dock;
+        refreshState();
     }
 
-    private void progressWindowHidden(SnippetAiApplyProgressWindow window) {
-        if (progressWindow != window) {
-            return;
-        }
-        progressWindow = null;
-        window.releasePane();
-        if (!closingProgressWindow && !disposed) {
-            // Closed by the user: the next run keeps its progress in the panel until switched back on.
-            persistProgressWindowVisible(false);
-        }
-        if (!disposed && panelVisible) {
-            render();
-        }
+    /** A view of the running apply or of a run finished in this session (not one rebuilt from storage). */
+    private boolean isLiveView(SnippetAiApplyProgressPane view) {
+        return (activeRun != null && activeRun.pane == view) || livePanes.containsValue(view);
     }
 
-    /** The window, while it exists (tests). */
-    SnippetAiApplyProgressWindow progressWindow() {
-        return progressWindow;
+    private static void moveInto(VBox target, SnippetAiApplyProgressPane view) {
+        if (target.getChildren().size() == 1 && target.getChildren().get(0) == view) {
+            return;
+        }
+        if (view.getParent() instanceof javafx.scene.layout.Pane parent && parent != target) {
+            parent.getChildren().remove(view);
+        }
+        target.getChildren().setAll(view);
+        VBox.setVgrow(view, Priority.ALWAYS);
+    }
+
+    /** The docked column while it exists (tests). */
+    VBox progressDock() {
+        return progressDock;
     }
 
     /**
@@ -3265,8 +3268,7 @@ final class SnippetAnalysisController {
         if (restoredPane != null && paneKey.equals(restoredPaneKey)) {
             return restoredPane;
         }
-        // A stored run's view in the "AI processing" window stays there until the window closes.
-        if (restoredPane != null && (progressWindow == null || progressWindow.pane() != restoredPane)) {
+        if (restoredPane != null) {
             restoredPane.dispose();
         }
         SnippetAiApplyProgressPane pane = SnippetAiApplyProgressPane.restored(run);
@@ -3669,13 +3671,13 @@ final class SnippetAnalysisController {
         updateSettings(settings -> settings.setSnippetAnalysisPanelWidth(width));
     }
 
-    private static boolean progressWindowWanted() {
+    private static boolean progressDockWanted() {
         GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
-        return settings == null || settings.isSnippetAiProgressWindowVisible();
+        return settings == null || settings.isSnippetAiProgressDockVisible();
     }
 
-    private static void persistProgressWindowVisible(boolean visible) {
-        updateSettings(settings -> settings.setSnippetAiProgressWindowVisible(visible));
+    private static void persistProgressDockVisible(boolean visible) {
+        updateSettings(settings -> settings.setSnippetAiProgressDockVisible(visible));
     }
 
     private static void persistPanelVisible(boolean visible) {
