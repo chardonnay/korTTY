@@ -390,12 +390,14 @@ class GlobalSettingsManagerTest {
             GlobalSettingsManager manager = new GlobalSettingsManager(dir);
             manager.getSettings().setSnippetAnalysisPanelWidth(612.0);
             manager.getSettings().setSnippetAnalysisPanelVisible(true);
+            manager.getSettings().setSnippetAiProgressWindowVisible(false);
             manager.save();
 
             GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
             reloaded.load();
             assertThat(reloaded.getSettings().getSnippetAnalysisPanelWidth()).isEqualTo(612.0);
             assertThat(reloaded.getSettings().isSnippetAnalysisPanelVisible()).isTrue();
+            assertThat(reloaded.getSettings().isSnippetAiProgressWindowVisible()).isFalse();
 
             // Junk widths read as "unset", tiny ones are raised to the panel's minimum.
             reloaded.getSettings().setSnippetAnalysisPanelWidth(-4.0);
@@ -409,6 +411,8 @@ class GlobalSettingsManagerTest {
             legacy.load();
             assertThat(legacy.getSettings().getSnippetAnalysisPanelWidth()).isNull();
             assertThat(legacy.getSettings().isSnippetAnalysisPanelVisible()).isFalse();
+            // The "AI processing" window is on unless the user switched it off.
+            assertThat(legacy.getSettings().isSnippetAiProgressWindowVisible()).isTrue();
         } finally {
             Files.deleteIfExists(dir.resolve("global-settings.xml"));
             Files.deleteIfExists(dir);
