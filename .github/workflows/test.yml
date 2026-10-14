@@ -121,8 +121,23 @@ jobs:
       - name: Install Maven (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        timeout-minutes: 8
         run: |
-          choco install maven -y
+          # windows-latest ships Maven; only fall back to Chocolatey when it is missing.
+          if (Get-Command mvn -ErrorAction SilentlyContinue) {
+            Write-Host "Using preinstalled Maven: $((Get-Command mvn).Source)"
+          } else {
+            # Chocolatey's community feed occasionally answers 503; retry with a backoff before failing.
+            $maxAttempts = 4
+            for ($attempt = 1; ; $attempt++) {
+              choco install maven -y --no-progress
+              if ($LASTEXITCODE -eq 0) { break }
+              if ($attempt -ge $maxAttempts) { throw "Maven package download failed after $maxAttempts attempts" }
+              $delay = 8 + 12 * $attempt
+              Write-Warning "choco install maven failed (exit $LASTEXITCODE, attempt $attempt/$maxAttempts); retrying in $delay s"
+              Start-Sleep -Seconds $delay
+            }
+          }
           "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Set up JDK 21 for SithTermFX Maven build
