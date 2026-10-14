@@ -32,7 +32,8 @@ class SnippetAiFlowModalityTest {
     /**
      * The windows around the flow: the editor that hosts the integrated analysis, the workspace that
      * embeds editors, the stand-alone diff window (no longer used by the editor, kept for other
-     * hosts) and the result windows the editor opens beside itself.
+     * hosts), the result windows the editor opens beside itself and the "AI processing" window that
+     * shows a running apply's progress beside it.
      */
     private static final List<String> FLOW_WINDOWS = List.of(
         "SnippetEditDialog.java",
@@ -42,7 +43,8 @@ class SnippetAiFlowModalityTest {
         "SnippetDescriptionDialog.java",
         "AlternativeSnippetSolutionsDialog.java",
         "SnippetAiReviewDialog.java",
-        "SnippetEditorProfileDialog.java");
+        "SnippetEditorProfileDialog.java",
+        "SnippetAiApplyProgressWindow.java");
 
     /** The windows the editor opens beside itself; each must be shown without a nested event loop. */
     private static final List<String> EDITOR_CHILD_WINDOWS = List.of(
@@ -171,13 +173,25 @@ class SnippetAiFlowModalityTest {
             .that(offenders).isEmpty();
     }
 
-    /** The removed satellite windows stay removed. */
+    /**
+     * The removed satellite windows stay removed. The apply-progress window came back on request as
+     * the "AI processing" window — non-modal (see above), shown without a nested event loop, and
+     * only a host for the progress pane the controller owns, so it is guarded instead of banned.
+     */
     @Test
     void theFlowHasNoSatelliteWindowsAnyMore() {
-        for (String removed : List.of("SnippetCodeAnalysisDialog.java", "SnippetAiApplyProgressWindow.java",
-                "WindowDockGroup.java")) {
+        for (String removed : List.of("SnippetCodeAnalysisDialog.java", "WindowDockGroup.java")) {
             assertWithMessage(removed + " came back").that(Files.exists(UI_ROOT.resolve(removed))).isFalse();
         }
+    }
+
+    @Test
+    void theProgressWindowNeverBlocks() throws IOException {
+        String source = code(UI_ROOT.resolve("SnippetAiApplyProgressWindow.java"));
+        assertWithMessage("the AI processing window must open with show(), never a nested event loop")
+            .that(source).doesNotContain("showAndWait(");
+        assertWithMessage("the AI processing window raises no alerts and opens no further windows")
+            .that(source).doesNotContainMatch("new (Alert|Stage)\\(");
     }
 
     /** A question raised by the flow blocks nothing while the editor lives in a tab of the main window. */
