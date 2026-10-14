@@ -159,20 +159,53 @@ jobs:
         if: runner.os != 'Windows'
         run: chmod +x gradlew
 
+      # Keeps most runs off community.chocolatey.org, whose transient 503s used to fail the whole leg.
+      - name: Cache native GnuPG (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/kortty-test-gnupg
+          key: kortty-test-gnupg-windows-2.5.21-v1
+
       - name: Prepare native GnuPG (Windows)
         if: runner.os == 'Windows'
-        timeout-minutes: 5
+        timeout-minutes: 10
         shell: pwsh
         run: |
-          # Only the CLI tools are needed; the installer can block unattended runners.
-          choco install gnupg --version=2.5.21 --yes --no-progress --skip-powershell
-          if ($LASTEXITCODE -ne 0) { throw "GnuPG package download failed" }
-          $installer = Get-ChildItem "$env:ChocolateyInstall\lib\gnupg\tools" -Filter 'gnupg-*.exe' | Select-Object -First 1
-          if (-not $installer) { throw "GnuPG package installer not found" }
           $gpgDir = Join-Path $env:RUNNER_TEMP 'kortty-test-gnupg'
-          & 7z.exe x $installer.FullName "-o$gpgDir" -y
-          if ($LASTEXITCODE -ne 0) { throw "GnuPG extraction failed" }
           $gpgBin = Join-Path $gpgDir 'bin'
+          if (Test-Path (Join-Path $gpgBin 'gpg.exe')) {
+            Write-Host "Using cached GnuPG from $gpgDir"
+          } else {
+            # Only the CLI tools are needed; the installer can block unattended runners.
+            # Chocolatey's community feed occasionally answers 503; retry with a backoff before failing.
+            $maxAttempts = 4
+            $installerPath = $null
+            for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+              choco install gnupg --version=2.5.21 --yes --no-progress --skip-powershell
+              if ($LASTEXITCODE -eq 0) {
+                $installer = Get-ChildItem "$env:ChocolateyInstall\lib\gnupg\tools" -Filter 'gnupg-*.exe' | Select-Object -First 1
+                if (-not $installer) { throw "GnuPG package installer not found" }
+                $installerPath = $installer.FullName
+                break
+              }
+              if ($attempt -lt $maxAttempts) {
+                $delay = 8 + 12 * $attempt
+                Write-Warning "choco install gnupg failed (exit $LASTEXITCODE, attempt $attempt/$maxAttempts); retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            if (-not $installerPath) {
+              # Same installer the Chocolatey package embeds, fetched from gnupg.org and pinned by SHA-256.
+              Write-Warning "Chocolatey unavailable after $maxAttempts attempts; downloading the GnuPG installer from gnupg.org"
+              $installerPath = Join-Path $env:RUNNER_TEMP 'gnupg-w32-2.5.21_20260702.exe'
+              Invoke-WebRequest -Uri 'https://gnupg.org/ftp/gcrypt/binary/gnupg-w32-2.5.21_20260702.exe' -OutFile $installerPath -MaximumRetryCount 3 -RetryIntervalSec 15
+              $sha256 = (Get-FileHash $installerPath -Algorithm SHA256).Hash
+              if ($sha256 -ne '6246C925A73167253444AFC24A0DEB83A3F43B7D636AF84D6AAF48A98A62F024') { throw "GnuPG package download failed (checksum mismatch: $sha256)" }
+            }
+            & 7z.exe x $installerPath "-o$gpgDir" -y
+            if ($LASTEXITCODE -ne 0) { throw "GnuPG extraction failed" }
+          }
           if (-not (Test-Path (Join-Path $gpgBin 'gpg.exe'))) { throw "Native GnuPG executable not found" }
           "KORTTY_TEST_GPG_BIN=$gpgBin" >> $env:GITHUB_ENV
           & (Join-Path $gpgBin 'gpg.exe') --version
