@@ -816,7 +816,7 @@
         <p><h1 id="jobscheduler">JobScheduler<a class="headerlink" href="#jobscheduler" title="Permanent link">&para;</a></h1>
 <p>Der JobScheduler führt unbeaufsichtigte Hintergrundjobs aus, während KorTTY geöffnet ist. Es ist kein Betriebssystemdienst oder eine aktive SSH-Terminalregisterkarte erforderlich. Jobs werden automatisch nach einem konfigurierten Zeitplan mithilfe gespeicherter SSH-Verbindungen aus dem Connection-Manager ausgeführt.</p>
 <p>Unter macOS und Windows verhindert ein aktivierter Job mit einer zukünftigen Ausführung, dass der Computer in den Systemschlaf wechselt, während korTTY ausgeführt wird, wenn <strong>Konfiguration &gt; Systemschlaf verhindern</strong> aktiviert ist, sodass die geplante Zeit erreichbar bleibt. Der Scheduler verwendet einen einzigen Weckvorgang für den nächsten fälligen Lauf und verfügt über keinen Abfrage-Timer, wenn kein aktivierter zukünftiger Job vorhanden ist. Ohne Terminalverbindung, zukünftiger oder laufender Scheduler-Auftrag oder aktive KI-Anfrage bleibt der Systemschlaf auch dann verfügbar, wenn die Einstellung überprüft wird. Während ein Job ausgeführt wird, fügt macOS korTTY nicht in App Nap ein. Der Display-Ruhezustand ist nicht blockiert. Die Linux-Stromunterdrückung wird noch nicht unterstützt.</p>
-<p>Öffnen Sie es mit <strong>Werkzeuge &gt; JobScheduler...</strong>. Das Dialogfenster merkt sich seine Fensterposition und -größe. Seine Auftragsliste verfügt über <strong>Neu</strong>, <strong>Speichern</strong>, <strong>Löschen</strong>, <strong>Jetzt ausführen</strong> und <strong>Webhook-Ziele...</strong> Schaltflächen sowie das Kontrollkästchen <strong>Jobs-Anzeige in der Menüleiste anzeigen</strong>; <strong>Jetzt ausführen</strong> speichert den ausgewählten Auftrag und startet ihn sofort. Die deutsche Oberfläche übersetzt jetzt alle Beschriftungen, Aktionsnamen, Statuswerte, Validierungsnachrichten, Zielauswahlen und unterstützende Eingabeaufforderungen; technische Protokoll- und Formatnamen wie SFTP, Rsync, ZIP, TAR, stdout und stderr bleiben unverändert.</p>
+<p>Öffnen Sie es mit <strong>Werkzeuge &gt; JobScheduler...</strong>. Das Dialogfenster merkt sich seine Fensterposition und -größe. Seine Auftragsliste verfügt über die Schaltflächen <strong>Neu</strong>, <strong>Speichern</strong>, <strong>Löschen</strong>, <strong>Jetzt ausführen</strong>, <strong>Mit Nachfolgern ausführen</strong>, <strong>Abhängigkeitsdiagramm</strong> und <strong>Webhook-Ziele...</strong> sowie das Kontrollkästchen <strong>Jobs-Anzeige in der Menüleiste anzeigen</strong>; <strong>Jetzt ausführen</strong> speichert den ausgewählten Auftrag und startet ihn sofort. Die Spalte <strong>Abhängig von</strong> listet die Jobs auf, von denen ein Job abhängt (siehe <a href="#job-dependencies">Job-Abhängigkeiten</a>). <strong>Löschen</strong> fragt vorher nach einer Bestätigung. Die deutsche Oberfläche übersetzt jetzt alle Beschriftungen, Aktionsnamen, Statuswerte, Validierungsnachrichten, Zielauswahlen und unterstützende Eingabeaufforderungen; technische Protokoll- und Formatnamen wie SFTP, Rsync, ZIP, TAR, stdout und stderr bleiben unverändert.</p>
 <p><img alt="JobScheduler execution" src="../assets/diagrams/jobscheduler-execution.svg" /></p>
 <h2 id="ubersicht">Übersicht<a class="headerlink" href="#ubersicht" title="Permanent link">&para;</a></h2>
 <p>JobScheduler unterstützt sechs Arten von Aktionen:</p>
@@ -887,12 +887,71 @@
 <p class="admonition-title">Note</p>
 <p>Scheduler-Jobs unterstützen nur gespeicherte SSH-TCP-Verbindungen. Mosh-Ziele werden als nicht unterstützt blockiert und der Grund wird in das Journal geschrieben.</p>
 </div>
+<h3 id="job-dependencies">Job-Abhängigkeiten<a class="headerlink" href="#job-dependencies" title="Permanent link">&para;</a></h3>
+<p>Ein Job kann von anderen Jobs abhängen, zum Beispiel darf <em>job3</em> nur laufen, wenn <em>job1</em> und <em>job2</em> fehlerfrei beendet wurden. Öffnen Sie auf der Registerkarte <strong>Job</strong> den einklappbaren Abschnitt <strong>Abhängigkeiten</strong>, klicken Sie auf <strong>Hinzufügen...</strong> und wählen Sie die Vorgänger-Jobs aus; <strong>Entfernen</strong> entfernt die ausgewählten. Jobs, die einen Kreis erzeugen würden (der Job selbst oder ein Job, der bereits direkt oder indirekt von ihm abhängt), werden nicht angeboten, und das Speichern eines Kreises wird abgelehnt. Klicken Sie auf <strong>Speichern</strong>, um die Änderungen zu übernehmen.</p>
+<table>
+<thead>
+<tr>
+<th>Einstellung</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Abhängig von</strong></td>
+<td>Die Vorgänger-Jobs. Jeder von ihnen muss erfolgreich gewesen sein.</td>
+</tr>
+<tr>
+<td><strong>Modus</strong></td>
+<td><strong>Bedingung (eigener Zeitplan)</strong>: Der Job behält seinen eigenen Zeitplan, und ein geplanter Lauf wird blockiert, wenn nicht der letzte abgeschlossene Lauf jedes Vorgängers erfolgreich war. <strong>Kette (Start nach den Vorgängern)</strong>: Der Job startet automatisch, sobald jeder Vorgänger seit dem letzten Lauf dieses Jobs erfolgreich war; ein eigener Zeitplan ist optional und wird wie eine Bedingung geprüft.</td>
+</tr>
+<tr>
+<td><strong>Max. Alter des Erfolgs (Min.)</strong></td>
+<td>Der Erfolg eines Vorgängers zählt nur, wenn er höchstens so viele Minuten zurückliegt. <code>0</code> bedeutet unbegrenzt.</td>
+</tr>
+</tbody>
+</table>
+<p>Ein blockierter Lauf wird auf der Registerkarte <strong>Journal</strong> mit dem Status <em>Blockiert</em> und dem Grund je Vorgänger festgehalten, zum Beispiel <em>job1 last finished FAILED</em> oder <em>job2 has never run</em>, und benachrichtigt wie jeder blockierte Lauf. Ein durch eine Kette gestarteter Job zeigt den Startgrund <em>Durch Abhängigkeit gestartet</em>.</p>
+<p><strong>Jetzt ausführen</strong> wird durch Abhängigkeiten nicht blockiert: Ist ein Vorgänger nicht erfüllt, listet korTTY die Gründe auf und fragt, ob der Job trotzdem ausgeführt werden soll. <strong>Mit Nachfolgern ausführen</strong> führt den ausgewählten Job aus und danach jeden Job, der direkt oder indirekt von ihm abhängt, in Abhängigkeitsreihenfolge, jeden sobald alle seine Vorgänger innerhalb dieses Laufs erfolgreich waren, unabhängig von ihrem Modus. Vorgänger außerhalb dieses Laufs müssen die übliche Bedingung erfüllen. Schlägt ein Job fehl, werden die Jobs darunter nicht gestartet und mit dem Namen des fehlgeschlagenen Vorgängers als <em>Blockiert</em> festgehalten.</p>
+<p>Beim Löschen eines Jobs, von dem andere Jobs abhängen, erscheint eine Warnung mit diesen Jobs. Wenn Sie bestätigen, wird die Abhängigkeit bei ihnen entfernt, sodass sie nicht mehr auf den gelöschten Job warten.</p>
+<h4 id="dependency-diagram">Abhängigkeitsdiagramm<a class="headerlink" href="#dependency-diagram" title="Permanent link">&para;</a></h4>
+<p><strong>Abhängigkeitsdiagramm</strong> öffnet ein Fenster, das die Job-Abhängigkeiten als Flussdiagramm zeichnet, lokal gerendert mit der mitgelieferten Mermaid-Bibliothek. Jedes Kästchen zeigt den Namen eines Jobs und das Ergebnis seines letzten Laufs, eingefärbt nach Status: grün für erfolgreich, rot für fehlgeschlagen, gelb für blockiert, orange für abgebrochen, blau für laufend und grau für nie gelaufen; ein deaktivierter Job hat einen gestrichelten Rahmen. Ein durchgezogener Pfeil ist eine Kettenabhängigkeit, ein gestrichelter Pfeil eine Bedingung. Das Diagramm aktualisiert sich, wenn sich Jobs ändern oder Läufe enden.</p>
+<table>
+<thead>
+<tr>
+<th>Bedienelement</th>
+<th>Beschreibung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Ausrichtung</strong></td>
+<td><strong>Vertikal</strong> (von oben nach unten, die Voreinstellung) oder <strong>Horizontal</strong> (von links nach rechts). korTTY merkt sich die Auswahl.</td>
+</tr>
+<tr>
+<td><strong>Anzeigen</strong></td>
+<td><strong>Alle Jobs</strong>, <strong>Nur Jobs mit Abhängigkeiten</strong> oder <strong>Ausgewählter Job und seine Kette</strong> (der in der Jobliste ausgewählte Job mit allem, wovon er abhängt, und allem, was von ihm abhängt).</td>
+</tr>
+<tr>
+<td><strong>−</strong> / <strong>100 %</strong> / <strong>+</strong></td>
+<td>Zoomt das Diagramm.</td>
+</tr>
+<tr>
+<td><strong>SVG speichern</strong> / <strong>PNG speichern</strong></td>
+<td>Speichert das gerenderte Diagramm als Bild.</td>
+</tr>
+<tr>
+<td><strong>Mermaid kopieren</strong></td>
+<td>Kopiert den Mermaid-Quelltext des Diagramms in die Zwischenablage.</td>
+</tr>
+</tbody>
+</table>
 <h3 id="sitzungsjournal-pro-ausfuhrung">Sitzungsjournal pro Ausführung<a class="headerlink" href="#sitzungsjournal-pro-ausfuhrung" title="Permanent link">&para;</a></h3>
 <p>Der einklappbare <strong>Session-Journal pro Lauf</strong>-Bereich am unteren Rand des <strong>Job</strong>-Tabs zeichnet ein vollständiges <a href="session-journal.html">Session-Journal</a> für jeden Lauf des Jobs auf – ein Journal pro Zielserver, mit jedem Befehl, den der Job gesendet hat, dessen Ausgabe, dem Zusammenfassung des Jobs und dem Ergebnis auf diesem Server. Im Gegensatz zur kurzen Laufhistorie im <strong>Journal</strong>-Tab behält er die komplette Ausgabe bei, kann von der KI zusammengefasst, durchsucht, exportiert und <a href="session-journal.html#die-ki-nach-einem-journal-fragen">gestellte Fragen</a> wie jedes interaktive Journal behandelt werden, und wird automatisch gelöscht, sobald seine Aufbewahrungsfrist endet. SFTP- und rsync-Aktionen senden keinen Shell-Befehl; ihr Journal protokolliert stattdessen die Aktion und deren Ergebnis.</p>
 <table>
 <thead>
 <tr>
-<th>Setting</th>
+<th>Einstellung</th>
 <th>Beschreibung</th>
 </tr>
 </thead>
@@ -1085,7 +1144,7 @@
 <table>
 <thead>
 <tr>
-<th>Setting</th>
+<th>Einstellung</th>
 <th>Beschreibung</th>
 </tr>
 </thead>
@@ -1175,7 +1234,7 @@
 <p>Der Protokoll-/Detailbereich unterhalb der Tabelle ist durch einen vertikalen Splitter getrennt. Ändern Sie die Größe, um der Ausgabe mehr oder weniger Höhe zu verleihen. KorTTY speichert diese Teilerposition in den globalen Einstellungen. Markieren Sie im Detailtextbereich den Text und klicken Sie mit der rechten Maustaste, um den ausgewählten Text in die Zwischenablage zu kopieren.</p>
 <p>Zu den Journalstatus gehören erfolgreiche, fehlgeschlagene, blockierte, abgebrochene und ausgeführte/Systemeinträge. Gründe wie gesperrtes Master-Passwort, fehlende Hostschlüssel-PIN, fehlender <code>rsync</code>/<code>ssh</code>, nicht unterstütztes Mosh-Ziel oder Shutdown-Drain werden als Journaldetails geschrieben.</p>
 <h2 id="lauf-benachrichtigungen">Lauf-Benachrichtigungen<a class="headerlink" href="#lauf-benachrichtigungen" title="Permanent link">&para;</a></h2>
-<p>Wenn ein Joblauf fehlschlägt oder blockiert wird, zeigt korTTY eine Desktop-Benachrichtigung an, auch wenn das JobScheduler-Fenster geschlossen ist. Die Benachrichtigung trägt den Titel <em>korTTY · Job</em>, gefolgt vom Namen des Jobs, und ihr Text nennt nur, wie der Lauf endete, seinen Exit-Code, falls es einen gab, und ob er manuell oder durch seinen Zeitplan gestartet wurde, zum Beispiel <em>Fehlgeschlagen · Exit-Code 2 · Geplanter Lauf</em>. Sie enthält niemals die Ausgabe, die Details oder die Zusammenfassung des Laufs, weil diese Server, Pfade oder Geheimnisse nennen können und eine Benachrichtigung auf dem Sperrbildschirm erscheinen kann. Steuerzeichen und unsichtbare Zeichen, die die Schreibrichtung ändern, werden aus dem Jobnamen entfernt.</p>
+<p>Wenn ein Joblauf fehlschlägt oder blockiert wird, zeigt korTTY eine Desktop-Benachrichtigung an, auch wenn das JobScheduler-Fenster geschlossen ist. Die Benachrichtigung trägt den Titel <em>korTTY · Job</em>, gefolgt vom Namen des Jobs, und ihr Text nennt nur, wie der Lauf endete, seinen Exit-Code, falls es einen gab, und wie er gestartet wurde (manuell, durch seinen Zeitplan, durch eine Abhängigkeit oder mit den Nachfolgern seines Vorgängers), zum Beispiel <em>Fehlgeschlagen · Exit-Code 2 · Geplanter Lauf</em>. Sie enthält niemals die Ausgabe, die Details oder die Zusammenfassung des Laufs, weil diese Server, Pfade oder Geheimnisse nennen können und eine Benachrichtigung auf dem Sperrbildschirm erscheinen kann. Steuerzeichen und unsichtbare Zeichen, die die Schreibrichtung ändern, werden aus dem Jobnamen entfernt.</p>
 <p>Erfolgreiche Läufe und Erholungen (ein erfolgreicher Lauf direkt nach einem fehlgeschlagenen oder blockierten) benachrichtigen standardmäßig nicht, abgebrochene Läufe nie. Ein Job zeigt höchstens eine Benachrichtigung pro Minute, sodass ein Job, der jede Minute fehlschlägt, den Desktop nicht überflutet; sein Journal hält trotzdem jeden Lauf fest. Benachrichtigungen nutzen denselben Desktop-Benachrichtigungsdienst wie das Terminal; bietet das Betriebssystem keinen an, wird nichts angezeigt.</p>
 <h3 id="festlegen-wann-ein-job-benachrichtigt">Festlegen, wann ein Job benachrichtigt<a class="headerlink" href="#festlegen-wann-ein-job-benachrichtigt" title="Permanent link">&para;</a></h3>
 <p>Jeder Job hat einen <strong>Benachrichtigungen</strong>-Abschnitt auf seinem <strong>Job</strong>-Tab, direkt über dem Sitzungsjournal. Unter <strong>Benachrichtigen, wenn ein Lauf:</strong> markieren Sie die Laufresultate, die Benachrichtigungen auslösen: <strong>fehlschlägt</strong> und <strong>blockiert wird</strong> sind für jeden Job aktiviert, <strong>sich erholt (nach einem Fehler erfolgreich ist)</strong> und <strong>erfolgreich ist</strong> sind deaktiviert, bis Sie sie aktivieren. <strong>Desktop-Benachrichtigung anzeigen</strong> schaltet die Desktop-Benachrichtigung für diesen Job aus, z. B. für einen Job, der nur an einen Team-Channel berichtet. Darunter, unter <strong>An diese Webhook-Ziele senden:</strong> markieren Sie die Webhooks, an die dieser Job sendet; kein Job sendet an einen Webhook, bis Sie eines aktivieren. Der Abschnitt warnt, wenn nichts aktiviert ist oder wenn die Unternehmensrichtlinie die ausgewählten Webhooks blockiert. Klicken Sie auf <strong>Speichern</strong>, um die Änderungen zu übernehmen.</p>
@@ -1202,7 +1261,7 @@
 </tr>
 <tr>
 <td><strong>Generisches JSON</strong></td>
-<td>korTTYs eigenes JSON-Dokument, Schema <code>kortty.job-run/1</code>, mit ID und Namen des Jobs, <code>status</code>, <code>recovered</code>, <code>exitCode</code>, <code>trigger</code> (<code>manual</code> oder <code>scheduled</code>) und <code>finishedAt</code></td>
+<td>korTTYs eigenes JSON-Dokument, Schema <code>kortty.job-run/1</code>, mit ID und Namen des Jobs, <code>status</code>, <code>recovered</code>, <code>exitCode</code>, <code>trigger</code> (<code>manual</code> oder <code>scheduled</code>; durch eine Abhängigkeit gestartete Läufe zählen als <code>scheduled</code>, mit Nachfolgern gestartete als <code>manual</code>) und <code>finishedAt</code></td>
 <td>ein beliebiger eigener HTTPS-Endpunkt</td>
 </tr>
 </tbody>
