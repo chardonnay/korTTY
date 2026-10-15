@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -29,6 +30,14 @@ public class JobSchedulerService {
     private static final Logger logger = LoggerFactory.getLogger(JobSchedulerService.class);
     private static final long WORKER_SHUTDOWN_TIMEOUT_SECONDS = 30L;
 
+    /** {@link JobJournalEntry#getTriggerType()} values. */
+    public static final String TRIGGER_MANUAL = "manual";
+    public static final String TRIGGER_SCHEDULED = "scheduled";
+    /** Started automatically because all chain-mode predecessors succeeded. */
+    public static final String TRIGGER_DEPENDENCY = "dependency";
+    /** Started by "run with successors". */
+    public static final String TRIGGER_CASCADE = "cascade";
+
     private final KorTTYApplication app;
     private final JobSchedulerRepository repository;
     private final JobScheduleCalculator scheduleCalculator;
@@ -37,6 +46,10 @@ public class JobSchedulerService {
     private final ScheduledExecutorService schedulerExecutor;
     private final ExecutorService workerExecutor;
     private final Map<String, ActiveJobControl> activeJobs = new ConcurrentHashMap<>();
+    /** Pending members of "run with successors" cascades, keyed by job id. */
+    private final Map<String, CascadeRun> cascadeMembers = new ConcurrentHashMap<>();
+    /** Started cascade jobs whose result the cascade still waits for, keyed by job id. */
+    private final Map<String, CascadeRun> cascadeRunning = new ConcurrentHashMap<>();
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
     private final List<JobRunEventListener> runEventListeners = new CopyOnWriteArrayList<>();
     private final Object drainMonitor = new Object();
@@ -159,11 +172,57 @@ public class JobSchedulerService {
         if (draining) {
             throw new IllegalStateException("JobScheduler is waiting for running jobs before shutdown.");
         }
+        validateDependencies(job);
         updateNextRun(job);
         repository.upsertJob(job);
         repository.save();
         notifyListeners();
         scheduleNextTick();
+    }
+
+    /** Snapshot of the stored jobs' dependency relation. */
+    public JobDependencyGraph getDependencyGraph() {
+        return new JobDependencyGraph(repository.getJobs());
+    }
+
+    /** The jobs that directly depend on {@code jobId}; deleting it removes their dependency. */
+    public List<ScheduledJob> findDependentJobs(String jobId) {
+        return getDependencyGraph().successorsOf(jobId);
+    }
+
+    /** Whether the job's predecessors currently allow it to run (gate semantics). */
+    public JobDependencyGraph.DependencyCheck checkDependencies(String jobId) {
+        ScheduledJob job = repository.findJob(jobId).orElse(null);
+        return JobDependencyGraph.evaluateGate(job, repository::findJob, repository::findLastFinishedEntry, clock.instant());
+    }
+
+    /** The status of the job's most recent finished run, if any. */
+    public Optional<JobRunStatus> findLastFinishedStatus(String jobId) {
+        return repository.findLastFinishedStatus(jobId);
+    }
+
+    /** Whether the job is currently running. */
+    public boolean isJobActive(String jobId) {
+        return jobId != null && activeJobs.containsKey(jobId);
+    }
+
+    private void validateDependencies(ScheduledJob job) {
+        if (job == null || !job.hasDependencies()) {
+            return;
+        }
+        List<ScheduledJob> jobs = new ArrayList<>(repository.getJobs());
+        jobs.removeIf(existing -> existing.getId().equals(job.getId()));
+        jobs.add(job);
+        JobDependencyGraph graph = new JobDependencyGraph(jobs);
+        for (String dependencyId : job.getDependsOnJobIds()) {
+            if (graph.job(dependencyId).isEmpty()) {
+                throw new IllegalArgumentException("Job depends on an unknown job: " + dependencyId);
+            }
+        }
+        if (graph.ancestorsOf(job.getId()).contains(job.getId())
+            || graph.wouldCreateCycle(job.getId(), job.getDependsOnJobIds())) {
+            throw new IllegalArgumentException("Job dependencies would form a cycle.");
+        }
     }
 
     public void deleteJob(String jobId) throws Exception {
@@ -208,7 +267,38 @@ public class JobSchedulerService {
             appendJournal(JobJournalEntry.system(JobRunStatus.BLOCKED, "Manual job start blocked.", "KorTTY is waiting for running jobs before shutdown."));
             return;
         }
-        repository.findJob(jobId).ifPresent(job -> submitJob(job, "manual"));
+        repository.findJob(jobId).ifPresent(job -> submitJob(job, TRIGGER_MANUAL));
+    }
+
+    /**
+     * Starts the job now and then every job that depends on it, directly or transitively, each as
+     * soon as all its predecessors within the cascade have succeeded. Predecessors outside the
+     * cascade must satisfy the usual gate check. When a job does not succeed, the cascade members
+     * below it are recorded as blocked instead of being started.
+     *
+     * @return the cascade's job ids in start order, starting with {@code jobId}
+     */
+    public List<String> runJobWithSuccessors(String jobId) {
+        if (draining) {
+            appendJournal(JobJournalEntry.system(JobRunStatus.BLOCKED, "Manual job start blocked.", "KorTTY is waiting for running jobs before shutdown."));
+            return List.of();
+        }
+        ScheduledJob root = repository.findJob(jobId).orElse(null);
+        if (root == null) {
+            return List.of();
+        }
+        JobDependencyGraph graph = getDependencyGraph();
+        List<String> order = graph.topologicalOrder(root.getId());
+        CascadeRun cascade = new CascadeRun(root.getId(), order);
+        for (String memberId : order.subList(1, order.size())) {
+            cascadeMembers.put(memberId, cascade);
+        }
+        cascadeRunning.put(root.getId(), cascade);
+        if (!submitJob(root, TRIGGER_CASCADE)) {
+            cascadeRunning.remove(root.getId(), cascade);
+            order.subList(1, order.size()).forEach(memberId -> cascadeMembers.remove(memberId, cascade));
+        }
+        return order;
     }
 
     public List<JobJournalEntry> getJournal() {
@@ -446,25 +536,30 @@ public class JobSchedulerService {
                 continue;
             }
             if (!nextRun.isAfter(now)) {
-                submitJob(job, "scheduled");
+                submitJob(job, TRIGGER_SCHEDULED);
             }
         }
         repository.save();
         notifyListeners();
     }
 
-    private void submitJob(ScheduledJob job, String triggerType) {
+    /** Test hook: submits a stored job with an explicit trigger type. */
+    boolean submitJobForTest(String jobId, String triggerType) {
+        return repository.findJob(jobId).map(job -> submitJob(job, triggerType)).orElse(false);
+    }
+
+    private boolean submitJob(ScheduledJob job, String triggerType) {
         String runId;
         String startedAt;
         ScheduledJob jobToRun;
         ActiveJobControl control;
         synchronized (drainMonitor) {
             if (draining) {
-                return;
+                return false;
             }
             jobToRun = repository.findJob(job.getId()).orElse(null);
             if (jobToRun == null) {
-                return;
+                return false;
             }
             runId = UUID.randomUUID().toString();
             startedAt = currentJournalTimestamp();
@@ -472,12 +567,13 @@ public class JobSchedulerService {
             control = new ActiveJobControl(summary);
             ActiveJobControl existing = activeJobs.putIfAbsent(jobToRun.getId(), control);
             if (existing != null) {
-                return;
+                return false;
             }
         }
         notifyListeners();
         try {
             workerExecutor.submit(() -> runJob(jobToRun, runId, startedAt, triggerType));
+            return true;
         } catch (RejectedExecutionException e) {
             removeActiveJob(jobToRun.getId(), control);
             notifyListeners();
@@ -485,6 +581,7 @@ public class JobSchedulerService {
             if (!draining) {
                 logger.warn("JobScheduler worker rejected job {}", jobToRun.getId(), e);
             }
+            return false;
         }
     }
 
@@ -496,8 +593,13 @@ public class JobSchedulerService {
         JobExecutionOutcome outcome;
         de.kortty.core.AutomationJournalRun journalRun = beginJournalRun(job, runId);
         try {
+            JobDependencyGraph.DependencyCheck dependencyCheck = gateCheckFor(job, triggerType);
             if (control != null && control.isCancellationRequested()) {
                 outcome = JobExecutionOutcome.cancelled("Job cancelled before execution.", "Cancellation was requested before the worker started.");
+            } else if (!dependencyCheck.satisfied()) {
+                outcome = JobExecutionOutcome.blocked(
+                    "Job blocked: dependencies not satisfied.",
+                    "Predecessor check failed: " + dependencyCheck.describe());
             } else {
                 outcome = jobRunner.run(job, runId, journalRun);
                 if (control != null && control.isCancellationRequested()) {
@@ -555,7 +657,149 @@ public class JobSchedulerService {
             publishRunEvent(job, runEvent);
             removeActiveJob(job.getId(), control);
             notifyListeners();
+            startDependents(job.getId(), outcome.status());
             scheduleNextTick();
+        }
+    }
+
+    /**
+     * Gate check before a run. Manual starts are confirmed in the UI and cascade members were
+     * checked when the cascade released them, so only scheduled and chain-triggered runs check here.
+     */
+    private JobDependencyGraph.DependencyCheck gateCheckFor(ScheduledJob job, String triggerType) {
+        if (!TRIGGER_SCHEDULED.equals(triggerType) && !TRIGGER_DEPENDENCY.equals(triggerType)) {
+            return JobDependencyGraph.DependencyCheck.ok();
+        }
+        ScheduledJob current = repository.findJob(job.getId()).orElse(job);
+        return JobDependencyGraph.evaluateGate(current, repository::findJob, repository::findLastFinishedEntry, clock.instant());
+    }
+
+    /**
+     * After a run: advances a cascade the job belongs to and starts the chain-mode jobs whose
+     * predecessors have now all succeeded. Never throws.
+     */
+    private void startDependents(String jobId, JobRunStatus status) {
+        if (draining) {
+            cascadeMembers.clear();
+            cascadeRunning.clear();
+            return;
+        }
+        try {
+            JobDependencyGraph graph = getDependencyGraph();
+            CascadeRun cascade = cascadeRunning.remove(jobId);
+            if (cascade != null) {
+                synchronized (cascade) {
+                    advanceCascade(cascade, jobId, status, graph);
+                }
+            }
+            if (status != JobRunStatus.SUCCESS) {
+                return;
+            }
+            Instant now = clock.instant();
+            for (ScheduledJob successor : graph.successorsOf(jobId)) {
+                if (!successor.isEnabled()
+                    || successor.getDependencyMode() != JobDependencyMode.CHAIN
+                    || cascadeMembers.containsKey(successor.getId())) {
+                    continue;
+                }
+                JobDependencyGraph.DependencyCheck check = JobDependencyGraph.evaluateChain(
+                    successor, repository::findJob, repository::findLastFinishedEntry, now);
+                if (check.satisfied()) {
+                    submitJob(successor, TRIGGER_DEPENDENCY);
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Could not start the jobs depending on JobScheduler job {}", jobId, e);
+        }
+    }
+
+    private void advanceCascade(CascadeRun cascade, String jobId, JobRunStatus status, JobDependencyGraph graph) {
+        if (status == JobRunStatus.SUCCESS) {
+            cascade.succeeded().add(jobId);
+        } else {
+            String jobName = graph.job(jobId).map(ScheduledJob::getName).orElse(jobId);
+            for (String descendantId : graph.descendantsOf(jobId)) {
+                if (cascadeMembers.remove(descendantId, cascade)) {
+                    recordCascadeBlocked(graph, descendantId, jobName, status);
+                }
+            }
+            return;
+        }
+        Instant now = clock.instant();
+        for (String memberId : cascade.order()) {
+            if (cascadeMembers.get(memberId) != cascade) {
+                continue;
+            }
+            ScheduledJob member = repository.findJob(memberId).orElse(null);
+            if (member == null) {
+                cascadeMembers.remove(memberId, cascade);
+                continue;
+            }
+            boolean ready = true;
+            List<String> outsidePredecessors = new ArrayList<>();
+            for (String predecessorId : member.getDependsOnJobIds()) {
+                if (cascade.order().contains(predecessorId)) {
+                    ready &= cascade.succeeded().contains(predecessorId);
+                } else {
+                    outsidePredecessors.add(predecessorId);
+                }
+            }
+            if (!ready) {
+                continue;
+            }
+            ScheduledJob outsideView = new ScheduledJob();
+            outsideView.setId(member.getId());
+            outsideView.setDependsOnJobIds(outsidePredecessors);
+            outsideView.setDependencyMaxAgeMinutes(member.getDependencyMaxAgeMinutes());
+            JobDependencyGraph.DependencyCheck check = JobDependencyGraph.evaluateGate(
+                outsideView, repository::findJob, repository::findLastFinishedEntry, now);
+            cascadeMembers.remove(memberId, cascade);
+            if (!check.satisfied()) {
+                recordBlocked(member, "Job blocked: dependencies not satisfied.", "Predecessor check failed: " + check.describe());
+                for (String descendantId : graph.descendantsOf(memberId)) {
+                    if (cascadeMembers.remove(descendantId, cascade)) {
+                        recordCascadeBlocked(graph, descendantId, member.getName(), JobRunStatus.BLOCKED);
+                    }
+                }
+                continue;
+            }
+            cascadeRunning.put(memberId, cascade);
+            if (!submitJob(member, TRIGGER_CASCADE)) {
+                cascadeRunning.remove(memberId, cascade);
+                for (String descendantId : graph.descendantsOf(memberId)) {
+                    cascadeMembers.remove(descendantId, cascade);
+                }
+            }
+        }
+    }
+
+    private void recordCascadeBlocked(JobDependencyGraph graph, String jobId, String predecessorName, JobRunStatus predecessorStatus) {
+        graph.job(jobId).ifPresent(job -> recordBlocked(
+            job,
+            "Job blocked: predecessor did not succeed.",
+            "Run with successors stopped because " + predecessorName + " finished " + predecessorStatus + "."));
+    }
+
+    private void recordBlocked(ScheduledJob job, String summary, String detail) {
+        String now = currentJournalTimestamp();
+        JobJournalEntry entry = new JobJournalEntry();
+        entry.setJobId(job.getId());
+        entry.setJobName(job.getName());
+        entry.setRunId(UUID.randomUUID().toString());
+        entry.setStatus(JobRunStatus.BLOCKED);
+        entry.setTriggerType(TRIGGER_CASCADE);
+        entry.setStartedAt(now);
+        entry.setFinishedAt(now);
+        entry.setExitCode(-1);
+        entry.setSummary(summary);
+        entry.setDetailText(detail);
+        appendJournal(entry);
+    }
+
+    /** One "run with successors" request: its members in start order and those that succeeded. */
+    private record CascadeRun(String rootId, List<String> order, Set<String> succeeded) {
+        CascadeRun(String rootId, List<String> order) {
+            this(rootId, List.copyOf(order), ConcurrentHashMap.newKeySet());
         }
     }
 

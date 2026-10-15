@@ -194,6 +194,9 @@ public class GlobalSettings {
     private boolean jobSchedulerMenuStatusEnabled = true; // Show JobScheduler status in the menu bar
 
     @XmlElement
+    private boolean jobSchedulerDependencyDiagramHorizontal; // Dependency diagram left-to-right instead of top-down
+
+    @XmlElement
     private boolean preventSystemSleep = false; // Manual, persistent power-management override
 
     // 0 means keep journal entries indefinitely.
@@ -1910,6 +1913,14 @@ public class GlobalSettings {
 
     public void setJobSchedulerMenuStatusEnabled(boolean jobSchedulerMenuStatusEnabled) {
         this.jobSchedulerMenuStatusEnabled = jobSchedulerMenuStatusEnabled;
+    }
+
+    public boolean isJobSchedulerDependencyDiagramHorizontal() {
+        return jobSchedulerDependencyDiagramHorizontal;
+    }
+
+    public void setJobSchedulerDependencyDiagramHorizontal(boolean jobSchedulerDependencyDiagramHorizontal) {
+        this.jobSchedulerDependencyDiagramHorizontal = jobSchedulerDependencyDiagramHorizontal;
     }
 
     public boolean isPreventSystemSleep() {

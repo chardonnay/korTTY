@@ -207,7 +207,9 @@ public final class WebhookPayloadFormatter {
         payload.addProperty("status", event.status().name().toLowerCase(Locale.ROOT));
         payload.addProperty("recovered", event.recovered());
         payload.addProperty("exitCode", event.exitCode());
-        payload.addProperty("trigger", "scheduled".equals(event.trigger()) ? "scheduled" : "manual");
+        // Chain-started runs are automatic like scheduled ones; the payload keeps its two values.
+        payload.addProperty("trigger", JobSchedulerService.TRIGGER_SCHEDULED.equals(event.trigger())
+            || JobSchedulerService.TRIGGER_DEPENDENCY.equals(event.trigger()) ? "scheduled" : "manual");
         payload.addProperty("finishedAt", finishedAt(event));
         if (summary != null) {
             payload.addProperty("summary", summary);
