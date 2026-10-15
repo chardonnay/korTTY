@@ -111,7 +111,6 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private static final double DEFAULT_DIALOG_WIDTH = 1360;
     private static final double DEFAULT_DIALOG_HEIGHT = 800;
     private static final double FORM_LABEL_MIN_WIDTH = 170;
-    private static final double TIME_COMBO_WIDTH = 86;
     private static final double DEFAULT_JOURNAL_DETAIL_DIVIDER_POSITION = 0.72;
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter JOURNAL_TIMESTAMP_FORMAT =
@@ -2790,8 +2789,10 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void configureCompactTimeCombo(ComboBox<String> comboBox) {
-        comboBox.setMinWidth(TIME_COMBO_WIDTH);
-        comboBox.setPrefWidth(TIME_COMBO_WIDTH);
+        // Size to the "HH:mm" content (like the fixed-time combo) so the value is never
+        // elided under larger fonts or UI scaling, but keep the grid from stretching it.
+        comboBox.setMinWidth(Region.USE_PREF_SIZE);
+        comboBox.setPrefWidth(Region.USE_COMPUTED_SIZE);
         comboBox.setMaxWidth(Region.USE_PREF_SIZE);
     }
 
