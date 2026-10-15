@@ -23,9 +23,9 @@ Every published GitHub release must include a clear **Downloads** section groupe
 
 The release **title is exactly the tag**, e.g. `v2.18.0` — never `korTTY v2.18.0` or `Version 2.18.0` (`gh release create "$TAG" --title "$TAG"`). `build-release.yml` resets the title to the tag whenever it updates the Downloads section.
 
-## Pull requests
+## Commits and pull requests
 
-Pull request titles and descriptions, PR comments and review replies carry **no AI-tool attribution**: no "Generated with Claude Code" / "Created by Claude Code" line, no robot-emoji footer, no `---` attribution footer and no link to an agent session. Describe the change and how it was tested, nothing else.
+Commit messages, pull request titles and descriptions, PR comments and review replies carry **no AI-tool attribution**: no "Generated with Claude Code" / "Created by Claude Code" line, no `Co-Authored-By: Claude …` or `Claude-Session: …` trailer, no robot-emoji footer, no `---` attribution footer and no link to an agent session. Describe the change and how it was tested, nothing else.
 
 ## Documentation system
 
