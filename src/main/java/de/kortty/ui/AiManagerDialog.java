@@ -50,14 +50,12 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
-import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.Tooltip;
-import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -109,7 +107,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private AiSkillsPane aiSkillsPane;
     private final javafx.stage.Window paneOwner;
     private Tab localModelsTab;
-    private final ComboBox<AiProfile> defaultProfileCombo;
+    /** "Use as default profile" for the selected profile; a default always exists, so it can only move. */
+    private final CheckBox defaultProfileCheck;
     private final TextField profileNameField;
     private final ComboBox<AiConnectionMode> connectionModeCombo;
     private final TextField apiUrlField;
@@ -152,6 +151,18 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final ComboBox<String> priceCurrencyCombo;
     private final Label statusLabel;
     private final BooleanProperty profileTestRunning = new SimpleBooleanProperty(false);
+    /**
+     * The editor's sections. The connection and model grids are rebuilt for the connection mode in
+     * the editor (see {@link #updateConnectionModeUi()}): rows of the other modes are left out.
+     */
+    private final GridPane connectionGrid = AiManagerSections.formGrid();
+    private final GridPane modelGrid = AiManagerSections.formGrid();
+    private final HBox apiKeyBox;
+    private final HBox cliProviderBox;
+    private final HBox modelBox;
+    private final HBox reasoningBox;
+    /** Stands in for the URL and key rows while an integrated (llama.cpp or MLX) profile is edited. */
+    private final Label embeddedConnectionHintLabel;
 
     private final Map<String, String> plainApiKeysByProfileId = new HashMap<>();
     private final Set<String> clearedApiKeysByProfileId = new HashSet<>();
@@ -188,7 +199,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         paneOwner = ownerWindow != null ? ownerWindow.getStage() : null;
 
         profileListView = buildProfileListView();
-        defaultProfileCombo = new ComboBox<>();
+        defaultProfileCheck = new CheckBox(I18n.get("ai.wizard.name.makeDefault"));
         profileNameField = new TextField();
         connectionModeCombo = new ComboBox<>();
         apiUrlField = new TextField();
@@ -240,6 +251,18 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         priceCompletionField = new TextField();
         priceCurrencyCombo = new ComboBox<>();
         statusLabel = new Label();
+        apiKeyBox = new HBox(10, apiKeyField, clearApiKeyCheck);
+        apiKeyBox.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(apiKeyField, Priority.ALWAYS);
+        cliProviderBox = new HBox(6, cliProviderCombo, refreshCliStatusButton);
+        HBox.setHgrow(cliProviderCombo, Priority.ALWAYS);
+        modelBox = new HBox(6, modelCombo, refreshModelsButton);
+        HBox.setHgrow(modelCombo, Priority.ALWAYS);
+        reasoningBox = new HBox(6, reasoningCombo, refreshReasoningButton);
+        HBox.setHgrow(reasoningCombo, Priority.ALWAYS);
+        embeddedConnectionHintLabel = new Label(I18n.get("ai.manager.profile.embedded.hint"));
+        embeddedConnectionHintLabel.setWrapText(true);
+        embeddedConnectionHintLabel.setStyle(MutedTextStyle.HINT);
 
         TabPane tabPane = new TabPane();
         tabPane.getStyleClass().add("ai-manager-primary-navigation");
@@ -339,31 +362,33 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         return listView;
     }
 
-    private void configureDefaultProfileCombo() {
-        defaultProfileCombo.setPrefWidth(260);
-        defaultProfileCombo.setTooltip(new Tooltip(I18n.get("settings.ai.defaultProfile.hint")));
-        defaultProfileCombo.setCellFactory(listView -> new ListCell<>() {
-            @Override
-            protected void updateItem(AiProfile item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? "" : displayName(item));
-            }
-        });
-        defaultProfileCombo.setButtonCell(new ListCell<>() {
-            @Override
-            protected void updateItem(AiProfile item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? "" : displayName(item));
-            }
-        });
-        defaultProfileCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
-            if (updatingDefaultProfileSelection) {
+    private void configureDefaultProfileCheck() {
+        defaultProfileCheck.setTooltip(new Tooltip(I18n.get("settings.ai.defaultProfile.hint")));
+        defaultProfileCheck.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            if (updatingDefaultProfileSelection || loadingProfile || selectedProfile == null) {
                 return;
             }
-            defaultProfileId = newValue != null ? ensureProfileId(newValue) : null;
+            if (!newValue) {
+                // There is always a default profile; it moves by ticking the box on another one.
+                refreshDefaultProfileCheck();
+                statusLabel.setText(I18n.get("ai.manager.profile.defaultRequired"));
+                return;
+            }
+            defaultProfileId = ensureProfileId(selectedProfile);
             profileListView.refresh();
             persistDefaultProfileSelection();
         });
+    }
+
+    /** Mirrors whether the profile in the editor is the default; never a user action. */
+    private void refreshDefaultProfileCheck() {
+        updatingDefaultProfileSelection = true;
+        try {
+            defaultProfileCheck.setSelected(isDefaultProfile(selectedProfile));
+            defaultProfileCheck.setDisable(selectedProfile == null);
+        } finally {
+            updatingDefaultProfileSelection = false;
+        }
     }
 
     private Tab buildProfilesTab() {
@@ -493,7 +518,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             refreshReasoningOptions(reasoningCombo.getValue()));
         cliStatusLabel.setWrapText(true);
         cliStatusLabel.setStyle(MutedTextStyle.HINT);
-        configureDefaultProfileCombo();
+        configureDefaultProfileCheck();
 
         profileNameField.textProperty().addListener((obs, oldValue, newValue) -> {
             if (selectedProfile != null) {
@@ -512,80 +537,18 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         });
         clearApiKeyCheck.selectedProperty().addListener((obs, oldValue, newValue) -> updateApiKeyPromptText());
 
-        GridPane editorGrid = new GridPane();
-        editorGrid.setHgap(10);
-        editorGrid.setVgap(10);
-        // The field labels keep their full width; when the window is narrow the field column gives
-        // way instead (the editor scrolls sideways at its minimum), so no label is ever cut short.
-        ColumnConstraints labelColumn = new ColumnConstraints();
-        labelColumn.setMinWidth(Region.USE_PREF_SIZE);
-        ColumnConstraints fieldColumn = new ColumnConstraints();
-        fieldColumn.setHgrow(Priority.ALWAYS);
-        editorGrid.getColumnConstraints().addAll(labelColumn, fieldColumn);
-
-        int row = 0;
-        editorGrid.add(new Label(I18n.get("settings.ai.profile.name")), 0, row);
-        editorGrid.add(profileNameField, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.defaultProfile")), 0, row);
-        editorGrid.add(defaultProfileCombo, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.timeout.global")), 0, row);
         globalRequestTimeoutSpinner.setEditable(true);
         globalRequestTimeoutSpinner.setPrefWidth(110);
-        Label globalTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
-        globalTimeoutHint.setStyle(MutedTextStyle.HINT);
-        HBox globalTimeoutBox = new HBox(6, globalRequestTimeoutSpinner, globalTimeoutHint);
-        globalTimeoutBox.setAlignment(Pos.CENTER_LEFT);
-        Tooltip globalTimeoutTooltip = new Tooltip(I18n.get("settings.ai.timeout.global.tooltip"));
-        globalRequestTimeoutSpinner.setTooltip(globalTimeoutTooltip);
-        editorGrid.add(globalTimeoutBox, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.connectionMode")), 0, row);
+        globalRequestTimeoutSpinner.setTooltip(new Tooltip(I18n.get("settings.ai.timeout.global.tooltip")));
         connectionModeCombo.setPrefWidth(220);
-        editorGrid.add(connectionModeCombo, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.apiUrl")), 0, row);
         apiUrlField.setPrefWidth(360);
-        editorGrid.add(apiUrlField, 1, row++);
         trustedLocalEndpointCheck.setWrapText(true);
-        editorGrid.add(trustedLocalEndpointCheck, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.cli.provider")), 0, row);
         cliProviderCombo.setPrefWidth(260);
-        HBox cliProviderBox = new HBox(6, cliProviderCombo, refreshCliStatusButton);
-        HBox.setHgrow(cliProviderCombo, Priority.ALWAYS);
-        editorGrid.add(cliProviderBox, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.cli.status")), 0, row);
-        editorGrid.add(cliStatusLabel, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.cli.executable")), 0, row);
-        editorGrid.add(cliExecutableField, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.model")), 0, row);
         modelCombo.setPrefWidth(260);
         refreshModelsButton.setMinWidth(36);
         refreshModelsButton.setOnAction(e -> refreshLocalModels(true));
-        HBox modelBox = new HBox(6, modelCombo, refreshModelsButton);
-        HBox.setHgrow(modelCombo, Priority.ALWAYS);
-        editorGrid.add(modelBox, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.cli.customModel")), 0, row);
-        editorGrid.add(cliCustomModelField, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.reasoning")), 0, row);
         refreshReasoningButton.setMinWidth(36);
         refreshReasoningButton.setOnAction(e -> refreshReasoningFromConnection(refreshReasoningButton));
-        HBox reasoningBox = new HBox(6, reasoningCombo, refreshReasoningButton);
-        HBox.setHgrow(reasoningCombo, Priority.ALWAYS);
-        editorGrid.add(reasoningBox, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.vision")), 0, row);
-        editorGrid.add(visionCombo, 1, row++);
-
-        editorGrid.add(new Label(I18n.get("settings.ai.promptPreset")), 0, row);
-        editorGrid.add(promptPresetCombo, 1, row++);
 
         internetAccessModeCombo.getItems().addAll(AiInternetAccessMode.values());
         internetAccessModeCombo.setPrefWidth(260);
@@ -602,13 +565,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                 profileListView.refresh();
             }
         });
-        editorGrid.add(new Label(I18n.get("settings.ai.internet.mode")), 0, row);
-        editorGrid.add(internetAccessModeCombo, 1, row++);
         internetUnsupportedHintLabel.setWrapText(true);
         internetUnsupportedHintLabel.setStyle(MutedTextStyle.HINT);
         internetUnsupportedHintLabel.setVisible(false);
         internetUnsupportedHintLabel.setManaged(false);
-        editorGrid.add(internetUnsupportedHintLabel, 1, row++);
 
         apiUrlField.textProperty().addListener((obs, oldValue, newValue) -> {
             refreshReasoningOptions(reasoningCombo.getValue());
@@ -620,19 +580,116 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         modelCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) ->
             refreshReasoningOptions(reasoningCombo.getValue()));
 
-        editorGrid.add(new Label(I18n.get("settings.ai.apiKey")), 0, row);
-        editorGrid.add(apiKeyField, 1, row++);
+        // The editor header stays visible on every section: the name and the default-profile switch.
+        GridPane headerGrid = AiManagerSections.formGrid();
+        HBox nameBox = new HBox(12, profileNameField, defaultProfileCheck);
+        nameBox.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(profileNameField, Priority.ALWAYS);
+        AiManagerSections.addRow(headerGrid, "settings.ai.profile.name", nameBox);
 
-        editorGrid.add(clearApiKeyCheck, 1, row++);
+        // One section per topic, each small enough to show without scrolling. The connection and
+        // model grids are (re)built for the connection mode in updateConnectionModeUi(), so the
+        // rows of the other modes are left out rather than greyed.
+        TabPane sections = AiManagerSections.tabPane(
+            AiManagerSections.tab("ai.manager.profile.section.connection", connectionGrid),
+            AiManagerSections.tab("ai.manager.profile.section.model", modelGrid),
+            AiManagerSections.tab("ai.manager.profile.section.limits", buildLimitsSection()),
+            AiManagerSections.tab("ai.manager.profile.section.budget", buildBudgetSection()));
 
-        editorGrid.add(new Label(I18n.get("settings.ai.cli.arguments")), 0, row);
-        editorGrid.add(cliArgumentsTemplateArea, 1, row++);
+        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
+        var selectedProfileProperty = profileListView.getSelectionModel().selectedItemProperty();
 
-        editorGrid.add(new Label(I18n.get("settings.ai.maxChars")), 0, row);
+        Button testButton = new Button(I18n.get("settings.ai.testConnection"));
+        testButton.disableProperty().bind(selectedProfileProperty.isNull().or(profileTestRunning));
+        testButton.setOnAction(event -> testSelectedProfile());
+        applyButtonIcon(testButton, ICON_TEST);
+
+        Button deleteButton = new Button(I18n.get("ai.manager.delete"));
+        // Policy-managed profiles are read-only: never deletable, never editable.
+        deleteButton.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> selectedProfileProperty.get() == null
+                || selectedProfileProperty.get().isPolicyManaged(),
+            selectedProfileProperty));
+        deleteButton.setOnAction(event -> deleteSelectedProfile());
+        applyButtonIcon(deleteButton, ICON_DELETE);
+
+        Button saveButton = new Button(I18n.get("settings.save"));
+        saveButton.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> selectedProfileProperty.get() == null
+                || selectedProfileProperty.get().isPolicyManaged()
+                || !policy.aiProfileEditAllowed(),
+            selectedProfileProperty));
+        saveButton.setOnAction(event -> saveProfiles());
+        applyButtonIcon(saveButton, ICON_SAVE);
+
+        // The actions on the selected profile sit under the editor; the list's own actions above the list.
+        Region editorSpacer = new Region();
+        HBox.setHgrow(editorSpacer, Priority.ALWAYS);
+        HBox editorActions = new HBox(8, testButton, editorSpacer, deleteButton, saveButton);
+        editorActions.setAlignment(Pos.CENTER_LEFT);
+
+        VBox editor = new VBox(10, headerGrid, sections, editorActions);
+        editor.setMinWidth(480);
+        VBox.setVgrow(sections, Priority.ALWAYS);
+        // The editor form follows the same rule as the save button.
+        editor.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
+            () -> selectedProfileProperty.get() != null
+                && (selectedProfileProperty.get().isPolicyManaged() || !policy.aiProfileEditAllowed()),
+            selectedProfileProperty));
+
+        HBox content = new HBox(16, profileListView, editor);
+        HBox.setHgrow(editor, Priority.ALWAYS);
+        VBox.setVgrow(content, Priority.ALWAYS);
+
+        Button wizardButton = new Button(I18n.get("ai.wizard.button"));
+        wizardButton.setOnAction(event -> openProfileWizard());
+        applyButtonIcon(wizardButton, ICON_WIZARD);
+
+        // The label carries its own "+" for the icon-less Settings dialog; here the icon says it.
+        Button addButton = new Button(I18n.get("settings.ai.profile.add").replaceFirst("^\\+\\s*", ""));
+        addButton.setOnAction(event -> addProfile());
+        applyButtonIcon(addButton, ICON_ADD);
+
+        Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
+        refreshButton.setOnAction(event -> refreshAll());
+        applyButtonIcon(refreshButton, ICON_REFRESH);
+
+        if (!policy.aiProfileCreateAllowed()) {
+            addButton.setDisable(true);
+            addButton.setTooltip(new Tooltip(I18n.get("policy.aiProfile.createForbidden")));
+            wizardButton.setDisable(true);
+            wizardButton.setTooltip(new Tooltip(I18n.get("policy.aiProfile.createForbidden")));
+        }
+
+        HBox listActions = new HBox(8, wizardButton, addButton, refreshButton);
+        listActions.setAlignment(Pos.CENTER_LEFT);
+
+        VBox root = new VBox(10, listActions, content);
+        root.setPadding(new Insets(6));
+        VBox.setVgrow(content, Priority.ALWAYS);
+
+        Tab tab = new Tab(I18n.get("ai.manager.tab.profiles"));
+        tab.setContent(root);
+        return tab;
+    }
+
+    /** Limits & timeouts: the global timeout first, visibly apart from the per-profile rows. */
+    private GridPane buildLimitsSection() {
+        GridPane grid = AiManagerSections.formGrid();
+        Label globalTimeoutHint = new Label(I18n.get("settings.ai.timeout.hint"));
+        globalTimeoutHint.setStyle(MutedTextStyle.HINT);
+        HBox globalTimeoutBox = new HBox(6, globalRequestTimeoutSpinner, globalTimeoutHint);
+        globalTimeoutBox.setAlignment(Pos.CENTER_LEFT);
+        AiManagerSections.addRow(grid, "settings.ai.timeout.global", globalTimeoutBox);
+        Label globalTimeoutNote = new Label(I18n.get("ai.manager.profile.limits.globalNote"));
+        globalTimeoutNote.setWrapText(true);
+        globalTimeoutNote.setStyle(MutedTextStyle.HINT);
+        AiManagerSections.addFieldRow(grid, globalTimeoutNote);
+        AiManagerSections.addSeparator(grid);
+
         maxSelectionCharsSpinner.setEditable(true);
-        editorGrid.add(maxSelectionCharsSpinner, 1, row++);
+        AiManagerSections.addRow(grid, "settings.ai.maxChars", maxSelectionCharsSpinner);
 
-        editorGrid.add(new Label(I18n.get("settings.ai.timeout.profile")), 0, row);
         profileRequestTimeoutSpinner.setEditable(true);
         profileRequestTimeoutSpinner.setPrefWidth(110);
         // Without the override the profile follows the global value, so the spinner would only
@@ -647,9 +704,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         HBox profileTimeoutBox = new HBox(
             6, profileRequestTimeoutOverrideCheck, profileRequestTimeoutSpinner, profileTimeoutHint);
         profileTimeoutBox.setAlignment(Pos.CENTER_LEFT);
-        editorGrid.add(profileTimeoutBox, 1, row++);
+        AiManagerSections.addRow(grid, "settings.ai.timeout.profile", profileTimeoutBox);
 
-        editorGrid.add(new Label(I18n.get("settings.ai.maxOutput")), 0, row);
         profileMaxOutputTokensSpinner.setEditable(true);
         profileMaxOutputTokensSpinner.setPrefWidth(110);
         // Without the override korTTY resolves the limit per model and action, so an enabled spinner
@@ -664,17 +720,19 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         maxOutputHint.setStyle(MutedTextStyle.HINT);
         HBox maxOutputBox = new HBox(6, profileMaxOutputTokensOverrideCheck, profileMaxOutputTokensSpinner, maxOutputHint);
         maxOutputBox.setAlignment(Pos.CENTER_LEFT);
-        editorGrid.add(maxOutputBox, 1, row++);
+        AiManagerSections.addRow(grid, "settings.ai.maxOutput", maxOutputBox);
+        return grid;
+    }
 
-        editorGrid.add(new Label(I18n.get("settings.ai.tokenizer")), 0, row);
-        editorGrid.add(tokenizerCombo, 1, row++);
+    /** Budget & usage: tokenizer, quota, warning thresholds, reset cycle, prices, and the usage bar. */
+    private GridPane buildBudgetSection() {
+        GridPane grid = AiManagerSections.formGrid();
+        AiManagerSections.addRow(grid, "settings.ai.tokenizer", tokenizerCombo);
 
-        editorGrid.add(new Label(I18n.get("settings.ai.token.limit")), 0, row);
         tokenLimitAmountSpinner.setEditable(true);
         HBox tokenLimitBox = new HBox(8, tokenLimitAmountSpinner, tokenLimitUnitCombo);
-        editorGrid.add(tokenLimitBox, 1, row++);
+        AiManagerSections.addRow(grid, "settings.ai.token.limit", tokenLimitBox);
 
-        editorGrid.add(new Label(I18n.get("settings.ai.token.warn")), 0, row);
         tokenWarningYellowSpinner.setEditable(true);
         tokenWarningRedSpinner.setEditable(true);
         HBox warningBox = new HBox(
@@ -683,9 +741,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             tokenWarningYellowSpinner,
             new Label(I18n.get("settings.ai.token.warn.red")),
             tokenWarningRedSpinner);
-        editorGrid.add(warningBox, 1, row++);
+        warningBox.setAlignment(Pos.CENTER_LEFT);
+        AiManagerSections.addRow(grid, "settings.ai.token.warn", warningBox);
 
-        editorGrid.add(new Label(I18n.get("settings.ai.token.reset")), 0, row);
         tokenResetDaysSpinner.setEditable(true);
         HBox resetBox = new HBox(
             8,
@@ -693,9 +751,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             new Label(I18n.get("settings.ai.token.reset.days")),
             new Label(I18n.get("settings.ai.token.reset.anchor")),
             tokenResetAnchorPicker);
-        editorGrid.add(resetBox, 1, row++);
+        resetBox.setAlignment(Pos.CENTER_LEFT);
+        AiManagerSections.addRow(grid, "settings.ai.token.reset", resetBox);
 
-        editorGrid.add(new Label(I18n.get("settings.ai.price")), 0, row);
         pricePromptField.setPrefColumnCount(7);
         pricePromptField.setPromptText("0.00");
         priceCompletionField.setPrefColumnCount(7);
@@ -711,92 +769,52 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             priceCompletionField,
             priceCurrencyCombo);
         priceBox.setAlignment(Pos.CENTER_LEFT);
-        editorGrid.add(priceBox, 1, row++);
+        AiManagerSections.addRow(grid, "settings.ai.price", priceBox);
         Label priceHint = new Label(I18n.get("settings.ai.price.hint"));
         priceHint.setWrapText(true);
         priceHint.setStyle(MutedTextStyle.HINT);
-        editorGrid.add(priceHint, 1, row++);
+        AiManagerSections.addFieldRow(grid, priceHint);
+        AiManagerSections.addSeparator(grid);
 
         tokenUsageBar.setPrefWidth(360);
-        editorGrid.add(tokenUsageBar, 1, row++);
         tokenUsageLabel.setWrapText(true);
         tokenUsageLabel.setStyle(MutedTextStyle.HINT);
-        editorGrid.add(tokenUsageLabel, 1, row++);
+        VBox usageBox = new VBox(4, tokenUsageBar, tokenUsageLabel);
+        AiManagerSections.addRow(grid, "ai.manager.profile.usage", usageBox);
+        return grid;
+    }
 
-        VBox editorBox = new VBox(10, editorGrid);
-        editorBox.setMinWidth(580);
-        ScrollPane editorScrollPane = new ScrollPane(editorBox);
-        editorScrollPane.setFitToWidth(true);
-        editorScrollPane.setFitToHeight(false);
-        editorScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        editorScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-
-        HBox content = new HBox(16, profileListView, editorScrollPane);
-        HBox.setHgrow(editorScrollPane, Priority.ALWAYS);
-        VBox.setVgrow(content, Priority.ALWAYS);
-
-        Button addButton = new Button(I18n.get("settings.ai.profile.add"));
-        addButton.setOnAction(event -> addProfile());
-        applyButtonIcon(addButton, ICON_ADD);
-
-        Button testButton = new Button(I18n.get("settings.ai.testConnection"));
-        testButton.disableProperty().bind(
-                profileListView.getSelectionModel().selectedItemProperty().isNull().or(profileTestRunning));
-        testButton.setOnAction(event -> testSelectedProfile());
-        applyButtonIcon(testButton, ICON_TEST);
-
-        de.kortty.policy.EffectivePolicy policy = de.kortty.policy.PolicyManager.effective();
-        var selectedProfileProperty = profileListView.getSelectionModel().selectedItemProperty();
-
-        Button deleteButton = new Button(I18n.get("ai.manager.delete"));
-        // Policy-managed profiles are read-only: never deletable, never editable.
-        deleteButton.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
-            () -> selectedProfileProperty.get() == null
-                || selectedProfileProperty.get().isPolicyManaged(),
-            selectedProfileProperty));
-        deleteButton.setOnAction(event -> deleteSelectedProfile());
-        applyButtonIcon(deleteButton, ICON_DELETE);
-
-        Button refreshButton = new Button(I18n.get("ai.manager.refresh"));
-        refreshButton.setOnAction(event -> refreshAll());
-        applyButtonIcon(refreshButton, ICON_REFRESH);
-
-        Button saveButton = new Button(I18n.get("settings.save"));
-        saveButton.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
-            () -> selectedProfileProperty.get() == null
-                || selectedProfileProperty.get().isPolicyManaged()
-                || !policy.aiProfileEditAllowed(),
-            selectedProfileProperty));
-        saveButton.setOnAction(event -> saveProfiles());
-        applyButtonIcon(saveButton, ICON_SAVE);
-
-        // The editor form follows the same rule as the save button.
-        editorScrollPane.disableProperty().bind(javafx.beans.binding.Bindings.createBooleanBinding(
-            () -> selectedProfileProperty.get() != null
-                && (selectedProfileProperty.get().isPolicyManaged() || !policy.aiProfileEditAllowed()),
-            selectedProfileProperty));
-
-        Button wizardButton = new Button(I18n.get("ai.wizard.button"));
-        wizardButton.setOnAction(event -> openProfileWizard());
-        applyButtonIcon(wizardButton, ICON_WIZARD);
-
-        if (!policy.aiProfileCreateAllowed()) {
-            addButton.setDisable(true);
-            addButton.setTooltip(new Tooltip(I18n.get("policy.aiProfile.createForbidden")));
-            wizardButton.setDisable(true);
-            wizardButton.setTooltip(new Tooltip(I18n.get("policy.aiProfile.createForbidden")));
+    /** Lays out the connection section for the connection mode in the editor. */
+    private void rebuildConnectionSection() {
+        AiConnectionMode mode = selectedConnectionMode();
+        connectionGrid.getChildren().clear();
+        AiManagerSections.addRow(connectionGrid, "settings.ai.connectionMode", connectionModeCombo);
+        if (mode == AiConnectionMode.LOCAL_CLI) {
+            AiManagerSections.addRow(connectionGrid, "settings.ai.cli.provider", cliProviderBox);
+            AiManagerSections.addRow(connectionGrid, "settings.ai.cli.status", cliStatusLabel);
+            AiManagerSections.addRow(connectionGrid, "settings.ai.cli.executable", cliExecutableField);
+            AiManagerSections.addRow(connectionGrid, "settings.ai.cli.arguments", cliArgumentsTemplateArea);
+        } else if (mode != null && mode.isEmbedded()) {
+            AiManagerSections.addFieldRow(connectionGrid, embeddedConnectionHintLabel);
+        } else {
+            AiManagerSections.addRow(connectionGrid, "settings.ai.apiUrl", apiUrlField);
+            AiManagerSections.addRow(connectionGrid, "settings.ai.apiKey", apiKeyBox);
+            AiManagerSections.addFieldRow(connectionGrid, trustedLocalEndpointCheck);
         }
+    }
 
-        HBox actionBar = new HBox(8, wizardButton, addButton, testButton, deleteButton, refreshButton, saveButton);
-        actionBar.setAlignment(Pos.CENTER_LEFT);
-
-        VBox root = new VBox(10, actionBar, content);
-        root.setPadding(new Insets(6));
-        VBox.setVgrow(content, Priority.ALWAYS);
-
-        Tab tab = new Tab(I18n.get("ai.manager.tab.profiles"));
-        tab.setContent(root);
-        return tab;
+    /** Lays out the model section; only a CLI profile has the custom-model row. */
+    private void rebuildModelSection() {
+        modelGrid.getChildren().clear();
+        AiManagerSections.addRow(modelGrid, "settings.ai.model", modelBox);
+        if (selectedConnectionMode() == AiConnectionMode.LOCAL_CLI) {
+            AiManagerSections.addRow(modelGrid, "settings.ai.cli.customModel", cliCustomModelField);
+        }
+        AiManagerSections.addRow(modelGrid, "settings.ai.reasoning", reasoningBox);
+        AiManagerSections.addRow(modelGrid, "settings.ai.vision", visionCombo);
+        AiManagerSections.addRow(modelGrid, "settings.ai.promptPreset", promptPresetCombo);
+        AiManagerSections.addRow(modelGrid, "settings.ai.internet.mode", internetAccessModeCombo);
+        AiManagerSections.addFieldRow(modelGrid, internetUnsupportedHintLabel);
     }
 
     private Tab buildAiSkillsTab() {
@@ -1013,21 +1031,15 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void refreshDefaultProfileSelection(String preferredProfileId) {
-        updatingDefaultProfileSelection = true;
-        try {
-            defaultProfileCombo.getItems().setAll(profiles);
-            AiProfile selection = findProfileById(preferredProfileId);
-            if (selection == null) {
-                selection = findProfileById(defaultProfileId);
-            }
-            if (selection == null && !profiles.isEmpty()) {
-                selection = profiles.getFirst();
-            }
-            defaultProfileId = selection != null ? ensureProfileId(selection) : null;
-            defaultProfileCombo.getSelectionModel().select(selection);
-        } finally {
-            updatingDefaultProfileSelection = false;
+        AiProfile selection = findProfileById(preferredProfileId);
+        if (selection == null) {
+            selection = findProfileById(defaultProfileId);
         }
+        if (selection == null && !profiles.isEmpty()) {
+            selection = profiles.getFirst();
+        }
+        defaultProfileId = selection != null ? ensureProfileId(selection) : null;
+        refreshDefaultProfileCheck();
         profileListView.refresh();
     }
 
@@ -1714,6 +1726,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private void updateConnectionModeUi() {
+        rebuildConnectionSection();
+        rebuildModelSection();
         boolean cliMode = isCliModeSelected();
         boolean embeddedMode = isEmbeddedModeSelected();
         boolean managedLocalMode = cliMode || embeddedMode;
@@ -1938,6 +1952,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             pricePromptField.setText("");
             priceCompletionField.setText("");
             priceCurrencyCombo.setValue(AiCostCalculator.DEFAULT_CURRENCY);
+            refreshDefaultProfileCheck();
             updateConnectionModeUi();
             return;
         }
@@ -1987,6 +2002,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         clearApiKeyCheck.setSelected(cleared);
         clearApiKeyCheck.setDisable(plainApiKey != null && !plainApiKey.isBlank());
         updateApiKeyPromptText();
+        refreshDefaultProfileCheck();
         updateConnectionModeUi();
         updateTokenUsagePreview();
     }

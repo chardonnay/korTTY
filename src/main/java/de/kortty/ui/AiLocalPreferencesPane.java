@@ -7,13 +7,17 @@ import de.kortty.model.GlobalSettings;
 import de.kortty.model.LlamaRuntimeUpdatePolicy;
 import de.kortty.security.EncryptionService;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
@@ -22,7 +26,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** AI role, local runtime update, Hugging Face, and RAG embedding preferences. */
+/**
+ * AI role, local runtime update, Hugging Face, and RAG embedding preferences, on three section
+ * tabs (the same strip as the Profiles editor): profile roles, the local runtime, Hugging Face.
+ */
 final class AiLocalPreferencesPane extends VBox {
 
     private final KorTTYApplication app;
@@ -38,8 +45,8 @@ final class AiLocalPreferencesPane extends VBox {
 
     AiLocalPreferencesPane(KorTTYApplication app) {
         this.app = app;
-        setSpacing(12);
-        setPadding(new Insets(14));
+        setSpacing(10);
+        setPadding(new Insets(6));
 
         Label intro = new Label(I18n.get("ai.local.preferences.intro"));
         intro.setWrapText(true);
@@ -79,37 +86,50 @@ final class AiLocalPreferencesPane extends VBox {
         huggingFaceToken.setPromptText(I18n.get("ai.local.preferences.hfToken.prompt"));
         clearHuggingFaceToken.setText(I18n.get("ai.local.preferences.hfToken.clear"));
 
-        GridPane grid = new GridPane();
-        grid.setHgap(12);
-        grid.setVgap(10);
-        int row = 0;
-        grid.add(new Label(I18n.get("ai.local.preferences.textProfile")), 0, row);
-        grid.add(textProfile, 1, row++);
-        grid.add(new Label(I18n.get("ai.local.preferences.codingProfile")), 0, row);
-        grid.add(codingProfile, 1, row++);
-        grid.add(new Label(I18n.get("ai.local.preferences.journalProfile")), 0, row);
-        grid.add(journalProfile, 1, row++);
+        // Section 1: which profile answers for which role.
+        GridPane roles = AiManagerSections.formGrid();
+        AiManagerSections.addRow(roles, "ai.local.preferences.textProfile", textProfile);
+        AiManagerSections.addRow(roles, "ai.local.preferences.codingProfile", codingProfile);
+        AiManagerSections.addRow(roles, "ai.local.preferences.journalProfile", journalProfile);
         Label journalHint = new Label(I18n.get("ai.local.preferences.journalProfile.hint"));
         journalHint.setWrapText(true);
         journalHint.setMinHeight(Region.USE_PREF_SIZE);
-        journalHint.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
-        journalHint.setMaxWidth(320);
-        grid.add(journalHint, 1, row++);
-        grid.add(new Label(I18n.get("ai.local.preferences.embeddingModel")), 0, row);
-        grid.add(embeddingModelId, 1, row++);
-        grid.add(new Label(I18n.get("ai.local.preferences.runtimeUpdates")), 0, row);
-        grid.add(updatePolicy, 1, row++);
-        grid.add(new Label(I18n.get("ai.local.preferences.runtimeBackend")), 0, row);
-        grid.add(runtimeBackend, 1, row++);
-        grid.add(new Label(I18n.get("ai.local.preferences.hfToken")), 0, row);
-        grid.add(huggingFaceToken, 1, row++);
-        grid.add(clearHuggingFaceToken, 1, row++);
+        journalHint.setStyle(MutedTextStyle.HINT);
+        journalHint.setMaxWidth(420);
+        AiManagerSections.addFieldRow(roles, journalHint);
+        VBox rolesPage = new VBox(12, intro, roles);
+
+        // Section 2: the llama.cpp / MLX runtime and the local embedding model.
+        GridPane runtime = AiManagerSections.formGrid();
+        AiManagerSections.addRow(runtime, "ai.local.preferences.runtimeUpdates", updatePolicy);
+        AiManagerSections.addRow(runtime, "ai.local.preferences.runtimeBackend", runtimeBackend);
+        AiManagerSections.addRow(runtime, "ai.local.preferences.embeddingModel", embeddingModelId);
+
+        // Section 3: the optional Hugging Face token for gated downloads.
+        GridPane huggingFace = AiManagerSections.formGrid();
+        AiManagerSections.addRow(huggingFace, "ai.local.preferences.hfToken", huggingFaceToken);
+        AiManagerSections.addFieldRow(huggingFace, clearHuggingFaceToken);
+        Label tokenHint = new Label(I18n.get("ai.local.preferences.hfToken.hint"));
+        tokenHint.setWrapText(true);
+        tokenHint.setMinHeight(Region.USE_PREF_SIZE);
+        tokenHint.setStyle(MutedTextStyle.HINT);
+        AiManagerSections.addFieldRow(huggingFace, tokenHint);
+
+        TabPane sections = AiManagerSections.tabPane(
+            AiManagerSections.tab("ai.local.preferences.section.roles", rolesPage),
+            AiManagerSections.tab("ai.local.preferences.section.runtime", runtime),
+            AiManagerSections.tab("ai.local.preferences.section.huggingFace", huggingFace));
+        VBox.setVgrow(sections, Priority.ALWAYS);
 
         Button save = new Button(I18n.get("settings.save"));
         save.setOnAction(event -> save());
+        ButtonIcons.apply(save, ButtonIcons.SAVE);
         status.setWrapText(true);
         status.setStyle(MutedTextStyle.HINT);
-        getChildren().addAll(intro, grid, save, status);
+        HBox actions = new HBox(10, save, status);
+        actions.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(status, Priority.ALWAYS);
+        getChildren().addAll(sections, actions);
         refresh(List.of());
     }
 

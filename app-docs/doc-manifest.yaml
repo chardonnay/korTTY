@@ -86,7 +86,7 @@ pages:
     screenshots:
       - main/menu-tools.png
       - main/menu-ai.png
-    last_synced_ref: "3d540d7aa"
+    last_synced_ref: "0fc5f4e"
   - path: app-docs/site/docs/en/reference/keyboard-shortcuts.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/MainWindow.java, src/monaco/completion.js, src/main/java/com/sithtermfx/ui/split/TerminalSplitPane.java, src/main/java/de/kortty/ui/TerminalNavigationKeys.java, src/main/java/de/kortty/ui/SceneShortcutRouter.java, src/main/java/de/kortty/ui/SceneShortcutKeys.java, src/main/java/de/kortty/ui/KeyTypedResidueGuard.java, src/main/java/de/kortty/ui/TabKeyboardShortcuts.java, src/main/java/de/kortty/ui/PaneShortcuts.java, src/main/java/de/kortty/ui/PaneNavigator.java, src/main/java/de/kortty/core/KeyChord.java, src/main/java/de/kortty/core/KeymapOverrides.java, src/main/java/de/kortty/ui/KeymapSupport.java, src/main/java/de/kortty/ui/RoutedChord.java]
@@ -205,7 +205,7 @@ pages:
     screenshots:
       - settings/ai.png
       - ai/ai-profiles.png
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "0fc5f4e"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
     owns_i18n: [settings.aiSkills.]
     owns_code: [src/main/java/de/kortty/model/AiSkill.java, src/main/java/de/kortty/model/AiSkillTarget.java, src/main/java/de/kortty/model/AiSkillBuiltinBaseline.java, src/main/java/de/kortty/core/AiSkillRelevanceSelector.java, src/main/java/de/kortty/core/AiSkillRelevanceClassifier.java, src/main/java/de/kortty/core/AiSkillPromptSupport.java, src/main/java/de/kortty/core/AiSkillMarkdownCodec.java, src/main/java/de/kortty/core/BuiltinAiSkillSupport.java, src/main/java/de/kortty/core/BuiltinAiSkillCatalog.java, src/main/java/de/kortty/core/BuiltinAiSkillProvisioner.java, src/main/java/de/kortty/ui/AiSkillPickerControl.java, src/main/java/de/kortty/ui/AiSkillsPane.java, src/main/java/de/kortty/ui/AiSkillListFormat.java, src/main/java/de/kortty/ui/AiSkillStorageGuard.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/AiSkillProvider.java, src/main/java/de/kortty/model/AiSkillProviderType.java, src/main/java/de/kortty/model/AiSkillProviderAuth.java, src/main/java/de/kortty/model/AiSkillExternalSource.java, src/main/java/de/kortty/core/ExternalAiSkillSupport.java, src/main/java/de/kortty/core/GitHubAiSkillClient.java, src/main/java/de/kortty/core/GitHubSkillReference.java, src/main/java/de/kortty/core/SkillsMpAiSkillClient.java, src/main/java/de/kortty/core/HttpAiSkillClient.java, src/main/java/de/kortty/core/ExternalAiSkillHttp.java, src/main/java/de/kortty/ui/ExternalAiSkillImportDialog.java, src/main/java/de/kortty/ui/ExternalAiSkillUpdateDialog.java, src/main/java/de/kortty/ui/AiSkillProvidersDialog.java]
@@ -215,7 +215,7 @@ pages:
       - ai/ai-skills-external.png
       - ai/ai-skills-import.png
       - ai/ai-skill-providers.png
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "0fc5f4e"
   - path: app-docs/site/docs/en/reference/settings/sftp.md
     owns_i18n: [settings.sftp.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
@@ -310,13 +310,13 @@ pages:
     owns_code: [src/main/java/de/kortty/core, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiResultTab.java, src/main/java/de/kortty/ui/AiCodeBlockTerminalAction.java, src/main/java/de/kortty/ui/AiCodeBlockTerminalButtons.java, src/main/java/de/kortty/ui/TerminalPaneRef.java, src/main/java/de/kortty/ui/TerminalRecentOutputSource.java, src/main/java/de/kortty/ui/AiTextActionInput.java, src/main/java/de/kortty/ui/AiStreamCoalescer.java, src/main/java/de/kortty/ui/AiChatStreamingView.java, src/main/java/de/kortty/ui/ChatRenderResourceBundle.java, src/main/java/de/kortty/ui/ChatMarkdownView.java, src/main/java/de/kortty/ui/ChatAutoScrollSupport.java, src/main/java/de/kortty/ui/AiChatRenderSupport.java, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-mermaid.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-sequence.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-state.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-class.md, src/main/resources/builtin-action-ai-skills/builtin.action.snippet-er.md]
     diagrams: [ai-api-integration.svg]
     screenshots: [ai/chat-code-block-actions.png]
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "0fc5f4e"
   - path: app-docs/site/docs/en/features/local-models.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ai/catalog, src/main/java/de/kortty/ai/huggingface, src/main/java/de/kortty/ai/llama, src/main/java/de/kortty/ai/runtimeupdate, src/main/java/de/kortty/ui/LocalModelManagerPane.java, src/main/java/de/kortty/ui/LocalAiSetupWizardDialog.java, src/main/java/de/kortty/ui/LocalAiSetupWizardModel.java, src/main/java/de/kortty/ui/LocalAiSetupWorkflow.java, src/main/java/de/kortty/ui/AiLocalPreferencesPane.java, src/main/java/de/kortty/model/AiWorkload.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/LlamaRuntimeUpdatePolicy.java, ai-catalog/model-prompt-catalog-v1.json, .github/workflows/ai-catalog-release.yml, .github/workflows/llama-runtime.yml, build.gradle.kts]
     diagrams: []
     screenshots: [ai/local-models.png]
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "0fc5f4e"
   - path: app-docs/site/docs/en/features/rag.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/rag, src/main/java/de/kortty/core/RagAugmentedAiService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/ui/RagKnowledgeStorePane.java, src/main/java/de/kortty/ui/RagKnowledgeStorePresentation.java, src/main/java/de/kortty/model/AiProfile.java]

@@ -42,13 +42,22 @@ Configure AI profiles and terminal AI Agent settings. This is the largest settin
 
 The security-check profile is a dedicated AI profile for snippet **Security Check** actions. Leave it empty (or use **Clear**) to reuse the default profile. It can also be set directly in the snippet Security Check window, and both places share the same remembered setting.
 
-**AI request timeout** is the maximum runtime of a single AI request and applies to every profile. The default `0` means korTTY imposes no timeout at all: long-running tasks such as the snippet editor's **Full code analysis** run until the model answers. Set a positive number of minutes to cancel requests that exceed it. A profile can override the value — see **Timeout for this profile** below.
+**AI request timeout** is the maximum runtime of a single AI request and applies to every profile. The default `0` means korTTY imposes no timeout at all: long-running tasks such as the snippet editor's **Full code analysis** run until the model answers. Set a positive number of minutes to cancel requests that exceed it. A profile can override the value — see **Timeout for this profile** below. In the AI Manager the global value is the first row of the profile editor's **Limits & timeouts** section.
 
-### Profile Settings (in Editor Grid)
+In the AI Manager the default profile is chosen with the **Use as default profile** check box next to the profile name; one profile is always the default, so ticking the box on another profile moves it.
 
-The same fields are edited in **AI > AI Manager > Profiles**, where the whole form is visible at once:
+### Profile Settings (in Editor Sections)
+
+The same fields are edited in **AI > AI Manager > Profiles**. The editor keeps **Profile name** and **Use as default profile** above four section tabs, and the **Connection** and **Model & capabilities** sections show only the rows that apply to the selected **Connection** mode (the URL and key rows for **HTTP API**, the CLI rows for **Local CLI**, a note for **Integrated llama.cpp** and **Integrated MLX**):
 
 ![AI Manager profiles tab](../../assets/screenshots/ai/ai-profiles.png)
+
+| Section | Fields |
+| --- | --- |
+| **Connection** | Connection, API URL, Trusted local endpoint, API Key (with **Clear stored API key** beside it), CLI provider, CLI status, CLI executable, CLI arguments |
+| **Model & capabilities** | Model, Custom model, Reasoning, Image input (vision), Prompt optimization, Internet access |
+| **Limits & timeouts** | AI request timeout (applies to every profile, shown first), Max characters, Timeout for this profile, Max output tokens |
+| **Budget & usage** | Tokenizer, Max tokens, Warning thresholds, Reset, Price per 1M tokens, Usage (the quota bar and the usage line) |
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
@@ -117,6 +126,8 @@ An explicitly chosen or security-check profile remains most specific. Otherwise 
 The AI Manager is modeless and can remain open while you use the main window. Invoking it again restores and focuses the same manager for that main window, and its open primary section remains visibly marked with a bold accent underline when you interact with controls inside that section.
 
 ### Local AI manager settings
+
+**AI > AI Manager > Local AI** groups these settings on three section tabs: **Profile roles** (the three profile selectors), **Local runtime** (runtime updates, preferred backend, RAG embedding model ID) and **Hugging Face** (the token). **Save** under the sections writes all of them.
 
 | Setting | Values | Default | Stored as |
 | --- | --- | --- | --- |
