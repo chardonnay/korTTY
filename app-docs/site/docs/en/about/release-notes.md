@@ -25,6 +25,11 @@ What changed in the current release. The version this guide was built for is sho
 - **Notification clicks return to the pane** — clicking a desktop notification selects its window, tab and terminal pane. The Flatpak sandbox permits the desktop notification service, and macOS development runs build a native notification helper. The enterprise policy can disable desktop notifications for every feature. See [Clicking a notification](../features/terminal-notifications.md#clicking-a-notification).
 - **Import and update external AI skills** — the AI Skills manager imports `SKILL.md` files from GitHub, SkillsMP and HTTP(S) providers. Provider tokens and passwords are encrypted with the master password, and source updates are previewed as a side-by-side diff. Imported skills start deactivated; only the skill text is imported, with a 256 KiB limit and HTTPS required except for loopback addresses. See [External skills](../reference/settings/ai-skills.md#external-skills).
 
+### JobScheduler
+
+- **Job dependencies** — a job can depend on other jobs and either keep its own schedule but only run when every predecessor's last run succeeded (**Condition**), or start automatically once all predecessors have succeeded (**Chain**), optionally only counting recent successes. Cycles are refused, the job list shows a **Depends on** column, and deleting a job that others depend on warns first. **Run with successors** runs a job and everything below it in dependency order, and **Disable chain** switches a job and all its dependents off or on at once. See [Job Dependencies](../features/jobscheduler.md#job-dependencies).
+- **Dependency diagram** — draws the job dependencies as a Mermaid flowchart colored by each job's last result, vertical or horizontal, in light or dark mode, with SVG/PNG export. See [Dependency Diagram](../features/jobscheduler.md#dependency-diagram).
+
 ### Fixes and maintenance
 
 - **Log export controls stay visible** — the options dialog is resizable and scrollable, with an explicit **Export…** button that opens the save dialog for one log or a line selection, or a folder chooser for several logs. Export and Cancel stay visible even in a short window. See [Logfile Manager](../features/terminal.md#logfile-manager).

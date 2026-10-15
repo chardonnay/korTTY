@@ -816,7 +816,7 @@
         <p><h1 id="jobscheduler">JobScheduler<a class="headerlink" href="#jobscheduler" title="Permanent link">&para;</a></h1>
 <p>The JobScheduler runs unattended background jobs while KorTTY is open. It does not require an operating system service or an active SSH terminal tab. Jobs execute automatically on a configured schedule using saved SSH connections from the Connection Manager.</p>
 <p>On macOS and Windows, an enabled job with a future run keeps the computer from entering system sleep while korTTY is running when <strong>Configuration &gt; Prevent System Sleep</strong> is enabled, so the scheduled time remains reachable. The Scheduler uses a single wake-up for the next due run and owns no polling timer when no enabled future job exists. With no terminal connection, future or running Scheduler job, or active AI request, system sleep remains available even while the setting is checked. While a job is running, macOS does not put korTTY into App Nap. Display sleep is not blocked. Linux power inhibition is not yet supported.</p>
-<p>Open it with <strong>Tools &gt; JobScheduler...</strong>. The dialog remembers its window position and size. Its job list has <strong>New</strong>, <strong>Save</strong>, <strong>Delete</strong>, <strong>Run now</strong> and <strong>Webhook targets...</strong> buttons and the <strong>Show Jobs status in menu bar</strong> check box; <strong>Run now</strong> saves the selected job and starts it at once. The German interface now translates all labels, action names, status values, validation messages, target selectors and supporting prompts; technical protocol and format names such as SFTP, Rsync, ZIP, TAR, stdout and stderr remain unchanged.</p>
+<p>Open it with <strong>Tools &gt; JobScheduler...</strong>. The dialog remembers its window position and size. Its job list has <strong>New</strong>, <strong>Save</strong>, <strong>Delete</strong>, <strong>Run now</strong>, <strong>Run with successors</strong>, <strong>Disable chain</strong>, <strong>Dependency diagram</strong> and <strong>Webhook targets...</strong> buttons and the <strong>Show Jobs status in menu bar</strong> check box; <strong>Run now</strong> saves the selected job and starts it at once. The <strong>Depends on</strong> column lists the jobs each job depends on (see <a href="#job-dependencies">Job Dependencies</a>). <strong>Delete</strong> asks for confirmation first. The German interface now translates all labels, action names, status values, validation messages, target selectors and supporting prompts; technical protocol and format names such as SFTP, Rsync, ZIP, TAR, stdout and stderr remain unchanged.</p>
 <p><img alt="JobScheduler execution" src="../assets/diagrams/jobscheduler-execution.svg" /></p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>JobScheduler supports six types of actions:</p>
@@ -887,6 +887,70 @@
 <p class="admonition-title">Note</p>
 <p>Scheduler jobs support saved SSH TCP connections only. Mosh targets are blocked as unsupported and the reason is written to the journal.</p>
 </div>
+<h3 id="job-dependencies">Job Dependencies<a class="headerlink" href="#job-dependencies" title="Permanent link">&para;</a></h3>
+<p>A job can depend on other jobs, for example <em>job3</em> may only run when <em>job1</em> and <em>job2</em> finished without errors. Open the collapsible <strong>Dependencies</strong> section on the <strong>Job</strong> tab, click <strong>Add...</strong> and select the predecessor jobs; <strong>Remove</strong> drops the selected ones. Jobs that would create a cycle (the job itself, or a job that already depends on it directly or indirectly) are not offered, and saving a cycle is refused. Click <strong>Save</strong> to keep the changes.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Depends on</strong></td>
+<td>The predecessor jobs. Every one of them must have succeeded.</td>
+</tr>
+<tr>
+<td><strong>Mode</strong></td>
+<td><strong>Condition (own schedule)</strong>: the job keeps its own schedule, and a scheduled run is blocked unless the last finished run of every predecessor succeeded. <strong>Chain (start after predecessors)</strong>: the job starts automatically as soon as every predecessor has succeeded since this job last ran; its own schedule is optional and is checked like a condition.</td>
+</tr>
+<tr>
+<td><strong>Max. age of success (min)</strong></td>
+<td>A predecessor's success only counts if it finished at most this many minutes ago. <code>0</code> means unlimited.</td>
+</tr>
+</tbody>
+</table>
+<p>A blocked run is recorded in the <strong>Journal</strong> tab with status <em>Blocked</em> and the reason per predecessor, for example <em>job1 last finished FAILED</em> or <em>job2 has never run</em>, and notifies like any blocked run. A job started by a chain shows the start reason <em>Started by dependency</em>.</p>
+<p><strong>Run now</strong> does not block on dependencies: when a predecessor is not satisfied, korTTY lists the reasons and asks whether to run the job anyway. <strong>Run with successors</strong> runs the selected job and then every job that depends on it, directly or indirectly, in dependency order, each one as soon as all its predecessors within this run have succeeded, regardless of their mode. Predecessors outside this run must satisfy the usual condition. When a job fails, the jobs below it are not started and are recorded as <em>Blocked</em> with the failed predecessor's name.</p>
+<p>Deleting a job that other jobs depend on shows a warning listing those jobs. When you confirm, the dependency is removed from them, so they no longer wait for the deleted job.</p>
+<p><strong>Disable chain</strong> switches off the selected job together with every job that depends on it, directly or indirectly, after a confirmation that lists them. Disabled jobs are neither scheduled nor started by a chain or by <strong>Run with successors</strong>; jobs that are already running finish normally. While the selected job is disabled, the button reads <strong>Enable chain</strong> and switches the same jobs on again. A single job can still be switched with <strong>Enabled</strong>.</p>
+<h4 id="dependency-diagram">Dependency Diagram<a class="headerlink" href="#dependency-diagram" title="Permanent link">&para;</a></h4>
+<p><strong>Dependency diagram</strong> opens a window that draws the job dependencies as a flowchart, rendered locally with the bundled Mermaid library. Each box shows a job's name and the result of its last run, colored by status: green for successful, red for failed, yellow for blocked, orange for cancelled, blue for running and gray for never run; a disabled job has a dashed frame. A solid arrow is a chain dependency, a dashed arrow a condition. The diagram updates when jobs change or runs finish.</p>
+<table>
+<thead>
+<tr>
+<th>Control</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Orientation</strong></td>
+<td><strong>Vertical</strong> (top to bottom, the default) or <strong>Horizontal</strong> (left to right). korTTY remembers the choice.</td>
+</tr>
+<tr>
+<td><strong>Dark mode</strong></td>
+<td><strong>Auto</strong> (follows korTTY's design), <strong>Light</strong> or <strong>Dark</strong>. korTTY remembers the choice.</td>
+</tr>
+<tr>
+<td><strong>Show</strong></td>
+<td><strong>All jobs</strong>, <strong>Only jobs with dependencies</strong>, or <strong>Selected job and its chain</strong> (the job selected in the job list with everything it depends on and everything depending on it).</td>
+</tr>
+<tr>
+<td><strong>−</strong> / <strong>100 %</strong> / <strong>+</strong></td>
+<td>Zoom the diagram.</td>
+</tr>
+<tr>
+<td><strong>Save SVG</strong> / <strong>Save PNG</strong></td>
+<td>Save the rendered diagram as an image.</td>
+</tr>
+<tr>
+<td><strong>Copy Mermaid</strong></td>
+<td>Copy the diagram's Mermaid source to the clipboard.</td>
+</tr>
+</tbody>
+</table>
 <h3 id="session-journal-per-run">Session Journal per Run<a class="headerlink" href="#session-journal-per-run" title="Permanent link">&para;</a></h3>
 <p>The collapsible <strong>Session journal per run</strong> section at the bottom of the <strong>Job</strong> tab records a full <a href="session-journal.html">session journal</a> for every run of the job — one journal per target server, with every command the job sent, its output, the job's summary and the outcome on that server. Unlike the short run history in the <strong>Journal</strong> tab, it keeps the complete output, can be summarized by the AI, searched, exported and <a href="session-journal.html#asking-the-ai-about-a-journal">asked questions</a> like any interactive journal, and it is deleted automatically when its retention ends. SFTP and rsync actions send no shell command; their journal records the action and its result instead.</p>
 <table>
@@ -1175,7 +1239,7 @@
 <p>The protocol/detail area below the table is separated by a vertical splitter. Resize it to give the output more or less height; KorTTY stores that divider position in the global settings. In the detail text area, mark text and right-click to copy the selected text to the clipboard.</p>
 <p>Journal statuses include successful, failed, blocked, cancelled, and running/system entries. Reasons such as locked master password, missing host-key pin, missing <code>rsync</code>/<code>ssh</code>, unsupported Mosh target, or shutdown drain are written as journal details.</p>
 <h2 id="run-notifications">Run Notifications<a class="headerlink" href="#run-notifications" title="Permanent link">&para;</a></h2>
-<p>When a job run fails or is blocked, korTTY shows a desktop notification, also while the JobScheduler window is closed. The notification is titled <em>korTTY · Job</em> followed by the job's name, and its text only says how the run ended, its exit code when it had one, and whether it was started manually or by its schedule, for example <em>Failed · Exit code 2 · Scheduled run</em>. It never contains the run's output, detail or summary, because those can name servers, paths or secrets and a notification can appear on the lock screen. Control characters and invisible direction-changing characters are removed from the job name.</p>
+<p>When a job run fails or is blocked, korTTY shows a desktop notification, also while the JobScheduler window is closed. The notification is titled <em>korTTY · Job</em> followed by the job's name, and its text only says how the run ended, its exit code when it had one, and how it was started (manually, by its schedule, by a dependency, or with its predecessor's successors), for example <em>Failed · Exit code 2 · Scheduled run</em>. It never contains the run's output, detail or summary, because those can name servers, paths or secrets and a notification can appear on the lock screen. Control characters and invisible direction-changing characters are removed from the job name.</p>
 <p>Successful runs and recoveries (a successful run right after a failed or blocked one) do not notify by default, and cancelled runs never do. A job shows at most one notification per minute, so a job that fails every minute does not flood the desktop; its journal still records every run. Notifications use the same desktop notification service as the terminal, so where the operating system offers none, nothing is shown.</p>
 <h3 id="choosing-when-a-job-notifies">Choosing When a Job Notifies<a class="headerlink" href="#choosing-when-a-job-notifies" title="Permanent link">&para;</a></h3>
 <p>Each job has a <strong>Notifications</strong> section on its <strong>Job</strong> tab, just above the session journal section. Under <strong>Notify when a run:</strong>, tick the run results that notify: <strong>Fails</strong> and <strong>Is blocked</strong> are on for every job, <strong>Recovers (succeeds after a failure)</strong> and <strong>Succeeds</strong> are off until you tick them. <strong>Show a desktop notification</strong> switches the desktop notification off for this job, for example for a job that only reports to a team channel. Below, under <strong>Send to these webhook targets:</strong>, tick the webhook targets this job sends to; no job sends to a webhook until you tick one. The section warns when nothing is ticked or when the enterprise policy blocks the ticked webhooks. Click <strong>Save</strong> to keep the changes.</p>
@@ -1202,7 +1266,7 @@
 </tr>
 <tr>
 <td><strong>Generic JSON</strong></td>
-<td>korTTY's own JSON document, schema <code>kortty.job-run/1</code>, with the job's id and name, <code>status</code>, <code>recovered</code>, <code>exitCode</code>, <code>trigger</code> (<code>manual</code> or <code>scheduled</code>) and <code>finishedAt</code></td>
+<td>korTTY's own JSON document, schema <code>kortty.job-run/1</code>, with the job's id and name, <code>status</code>, <code>recovered</code>, <code>exitCode</code>, <code>trigger</code> (<code>manual</code> or <code>scheduled</code>; runs started by a dependency count as <code>scheduled</code>, runs started with successors as <code>manual</code>) and <code>finishedAt</code></td>
 <td>any HTTPS endpoint of your own</td>
 </tr>
 </tbody>

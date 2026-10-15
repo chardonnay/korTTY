@@ -5,6 +5,8 @@ import de.kortty.jobscheduler.ActiveJobSummary;
 import de.kortty.jobscheduler.JobAction;
 import de.kortty.jobscheduler.JobActionType;
 import de.kortty.jobscheduler.JobArchiveFormat;
+import de.kortty.jobscheduler.JobDependencyGraph;
+import de.kortty.jobscheduler.JobDependencyMode;
 import de.kortty.jobscheduler.JobJournalEntry;
 import de.kortty.jobscheduler.JobNotificationFormModel;
 import de.kortty.jobscheduler.JobNotificationTrigger;
@@ -133,6 +135,12 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         text("hostKey.warningUnsafe"));
 
     private final TextField nameField = new TextField();
+    private final ObservableList<String> dependencyIds = FXCollections.observableArrayList();
+    private final ListView<String> dependencyList = new ListView<>(dependencyIds);
+    private final ComboBox<JobDependencyMode> dependencyModeCombo = new ComboBox<>();
+    private final Spinner<Integer> dependencyMaxAgeSpinner = new Spinner<>(0, 525600, 0, 15);
+    private javafx.scene.control.TitledPane dependenciesSection;
+    private final Button chainToggleButton = new Button(text("button.chainDisable"));
     private final CheckBox enabledCheck = new CheckBox(text("enabled"));
     private final CheckBox hostKeyVerificationDisabledCheck = new CheckBox(text("hostKey.disableUnsafe"));
     private final TextField connectionSummaryField = new TextField();
@@ -355,11 +363,22 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         enabledColumn.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(cell.getValue().isEnabled()));
         TableColumn<ScheduledJob, String> nextRunColumn = new TableColumn<>(text("job.column.nextRun"));
         nextRunColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(nonBlank(cell.getValue().getNextRunAt(), "")));
+        TableColumn<ScheduledJob, String> dependsOnColumn = new TableColumn<>(text("job.column.dependsOn"));
+        dependsOnColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(dependencySummary(cell.getValue())));
+        dependsOnColumn.setCellFactory(column -> new javafx.scene.control.TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item);
+                setTooltip(empty || item == null || item.isBlank() ? null : new Tooltip(item));
+            }
+        });
         TableColumn<ScheduledJob, String> journalTokensColumn = new TableColumn<>(text("job.column.journalTokens"));
         journalTokensColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(jobJournalTokens(cell.getValue())));
         jobsTable.getColumns().add(nameColumn);
         jobsTable.getColumns().add(enabledColumn);
         jobsTable.getColumns().add(nextRunColumn);
+        jobsTable.getColumns().add(dependsOnColumn);
         jobsTable.getColumns().add(journalTokensColumn);
         jobsTable.getSelectionModel().selectedItemProperty().addListener((obs, oldJob, newJob) -> {
             if (!suppressJobSelectionLoad) {
@@ -379,11 +398,23 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         Button runButton = new Button(text("button.runNow"));
         runButton.setGraphic(iconLabel("\u25B6", 18));
         runButton.setOnAction(event -> runSelectedJob());
+        Button runWithSuccessorsButton = new Button(text("button.runWithSuccessors"));
+        runWithSuccessorsButton.setGraphic(iconLabel("\u23E9", 18));
+        runWithSuccessorsButton.setTooltip(new Tooltip(text("button.runWithSuccessors.tooltip")));
+        runWithSuccessorsButton.setOnAction(event -> runSelectedJobWithSuccessors());
+        chainToggleButton.setGraphic(iconLabel("\u23FB", 18));
+        chainToggleButton.setTooltip(new Tooltip(text("button.chain.tooltip")));
+        chainToggleButton.setOnAction(event -> toggleSelectedChain());
+        updateChainToggleButton();
+        Button diagramButton = new Button(text("button.dependencyDiagram"));
+        diagramButton.setGraphic(iconLabel("\uD83D\uDD00", 18));
+        diagramButton.setTooltip(new Tooltip(text("button.dependencyDiagram.tooltip")));
+        diagramButton.setOnAction(event -> openDependencyDiagram());
         Button webhooksButton = new Button(text("button.webhookTargets"));
         webhooksButton.setGraphic(iconLabel("\uD83D\uDD14", 18));
         webhooksButton.setOnAction(event -> openWebhookTargets());
         javafx.scene.layout.FlowPane buttons = new javafx.scene.layout.FlowPane(8, 8, newButton, saveButton, deleteButton,
-            runButton, webhooksButton);
+            runButton, runWithSuccessorsButton, chainToggleButton, diagramButton, webhooksButton);
         menuBarStatusCheck.setSelected(isJobSchedulerMenuStatusEnabled());
         menuBarStatusCheck.setOnAction(event -> saveJobSchedulerMenuStatusPreference());
 
@@ -510,8 +541,191 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             hostKeyVerificationDisabledCheck,
             hostKeyVerificationWarningLabel,
             securityButtons,
+            buildDependenciesSection(),
             buildNotificationsSection(),
             sessionJournalSection));
+    }
+
+    /** The jobs this job depends on, how they gate it, and how old their success may be. */
+    private javafx.scene.control.TitledPane buildDependenciesSection() {
+        dependencyList.setPrefHeight(110);
+        dependencyList.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        dependencyList.setPlaceholder(new Label(text("dependencies.none")));
+        dependencyList.setCellFactory(list -> new javafx.scene.control.ListCell<>() {
+            @Override
+            protected void updateItem(String jobId, boolean empty) {
+                super.updateItem(jobId, empty);
+                setText(empty || jobId == null ? null : jobNameFor(jobId));
+            }
+        });
+        dependencyIds.addListener((javafx.collections.ListChangeListener<String>) change -> updateDependenciesSectionTitle());
+        Button addButton = new Button(text("button.addEllipsis"));
+        addButton.setGraphic(iconLabel("\u2795", 16));
+        addButton.setOnAction(event -> addDependencies());
+        Button removeButton = new Button(text("button.remove"));
+        removeButton.setGraphic(iconLabel("\u2715", 16));
+        removeButton.setOnAction(event -> dependencyIds.removeAll(
+            new ArrayList<>(dependencyList.getSelectionModel().getSelectedItems())));
+        removeButton.disableProperty().bind(dependencyList.getSelectionModel().selectedItemProperty().isNull());
+        VBox listButtons = new VBox(8, addButton, removeButton);
+        HBox listBox = new HBox(8, dependencyList, listButtons);
+        HBox.setHgrow(dependencyList, Priority.ALWAYS);
+
+        dependencyModeCombo.getItems().setAll(JobDependencyMode.values());
+        dependencyModeCombo.setConverter(localizedEnumConverter("dependencies.mode."));
+        dependencyModeCombo.getSelectionModel().select(JobDependencyMode.GATE);
+        Label modeHint = new Label();
+        modeHint.setWrapText(true);
+        modeHint.textProperty().bind(javafx.beans.binding.Bindings.createStringBinding(
+            () -> text("dependencies.mode." + (dependencyModeCombo.getValue() == JobDependencyMode.CHAIN ? "chain" : "gate") + ".hint"),
+            dependencyModeCombo.valueProperty()));
+        dependencyMaxAgeSpinner.setEditable(true);
+        dependencyMaxAgeSpinner.setTooltip(new Tooltip(text("dependencies.maxAge.tooltip")));
+
+        GridPane grid = formGrid();
+        int row = 0;
+        addRow(grid, row++, text("dependencies.jobs"), listBox);
+        addRow(grid, row++, text("dependencies.mode"), dependencyModeCombo);
+        addRow(grid, row++, "", modeHint);
+        addRow(grid, row++, text("dependencies.maxAge"), dependencyMaxAgeSpinner);
+
+        dependenciesSection = new javafx.scene.control.TitledPane(text("dependencies.title"), grid);
+        dependenciesSection.setExpanded(false);
+        updateDependenciesSectionTitle();
+        return dependenciesSection;
+    }
+
+    private void updateDependenciesSectionTitle() {
+        if (dependenciesSection == null) {
+            return;
+        }
+        dependenciesSection.setText(dependencyIds.isEmpty()
+            ? text("dependencies.title")
+            : text("dependencies.titleCount", dependencyIds.size()));
+    }
+
+    /** Lets the user pick further predecessors; jobs that would close a cycle are not offered. */
+    private void addDependencies() {
+        String jobId = selectedJob != null ? selectedJob.getId() : null;
+        JobDependencyGraph graph = schedulerService.getDependencyGraph();
+        List<ScheduledJob> candidates = graph.allowedPredecessors(jobId).stream()
+            .filter(job -> !dependencyIds.contains(job.getId()))
+            .toList();
+        if (candidates.isEmpty()) {
+            showInfo(text("dependencies.add.title"), text("dependencies.add.noCandidates"));
+            return;
+        }
+        ListView<ScheduledJob> choices = new ListView<>(FXCollections.observableArrayList(candidates));
+        choices.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        choices.setPrefSize(420, 280);
+        choices.setCellFactory(list -> new javafx.scene.control.ListCell<>() {
+            @Override
+            protected void updateItem(ScheduledJob job, boolean empty) {
+                super.updateItem(job, empty);
+                setText(empty || job == null ? null : job.getName());
+            }
+        });
+        Dialog<List<String>> picker = new Dialog<>();
+        DialogThemeHelper.applyTheme(picker);
+        picker.initOwner(dialogWindow());
+        picker.setTitle(text("dependencies.add.title"));
+        picker.setHeaderText(text("dependencies.add.header"));
+        picker.getDialogPane().setContent(choices);
+        picker.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        picker.setResultConverter(button -> button == ButtonType.OK
+            ? choices.getSelectionModel().getSelectedItems().stream().map(ScheduledJob::getId).toList()
+            : null);
+        picker.showAndWait().ifPresent(selected -> selected.stream()
+            .filter(id -> !dependencyIds.contains(id))
+            .forEach(dependencyIds::add));
+    }
+
+    private String jobNameFor(String jobId) {
+        return jobs.stream()
+            .filter(job -> job.getId().equals(jobId))
+            .map(ScheduledJob::getName)
+            .findFirst()
+            .orElse(jobId);
+    }
+
+    /** Table text: the predecessors' names, prefixed with the job's dependency mode. */
+    private String dependencySummary(ScheduledJob job) {
+        if (job == null || !job.hasDependencies()) {
+            return "";
+        }
+        String names = String.join(", ", job.getDependsOnJobIds().stream().map(this::jobNameFor).toList());
+        return (job.getDependencyMode() == JobDependencyMode.CHAIN ? "\u26D3 " : "\uD83D\uDD12 ") + names;
+    }
+
+    /** "Disable chain" while the selected job is enabled, "Enable chain" otherwise. */
+    private void updateChainToggleButton() {
+        boolean saved = selectedJob != null && schedulerService.findJob(selectedJob.getId()).isPresent();
+        chainToggleButton.setDisable(!saved);
+        chainToggleButton.setText(text(saved && !selectedJob.isEnabled() ? "button.chainEnable" : "button.chainDisable"));
+    }
+
+    /** Enables or disables the selected job together with every job that depends on it. */
+    private void toggleSelectedChain() {
+        saveSelectedJob();
+        if (selectedJob == null || schedulerService.findJob(selectedJob.getId()).isEmpty()) {
+            return;
+        }
+        boolean enable = !selectedJob.isEnabled();
+        List<ScheduledJob> chain = schedulerService.getChain(selectedJob.getId());
+        StringBuilder names = new StringBuilder();
+        for (ScheduledJob job : chain) {
+            names.append("\n\u2022 ").append(job.getName());
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "", ButtonType.OK, ButtonType.CANCEL);
+        DialogThemeHelper.applyTheme(confirm);
+        confirm.initOwner(dialogWindow());
+        confirm.setTitle(text(enable ? "chain.enable.title" : "chain.disable.title"));
+        confirm.setHeaderText(null);
+        confirm.setContentText(text(enable ? "chain.enable.message" : "chain.disable.message", names.toString()));
+        if (confirm.showAndWait().filter(ButtonType.OK::equals).isEmpty()) {
+            return;
+        }
+        try {
+            schedulerService.setChainEnabled(selectedJob.getId(), enable);
+            // The form shows the job being edited; keep it in step so the next Save does not undo this.
+            enabledCheck.setSelected(selectedJob.isEnabled());
+            refresh();
+        } catch (Exception e) {
+            showError(text("error.saveJob"), e.getMessage());
+        }
+    }
+
+    private void openDependencyDiagram() {
+        String focus = selectedJob != null && schedulerService.findJob(selectedJob.getId()).isPresent()
+            ? selectedJob.getId()
+            : null;
+        new JobDependencyDiagramDialog(app, dialogWindow(), focus).show();
+    }
+
+    /** Asks before a manual start whose predecessors are not satisfied; true to go ahead. */
+    private boolean confirmUnsatisfiedDependencies(ScheduledJob job) {
+        JobDependencyGraph.DependencyCheck check = schedulerService.checkDependencies(job.getId());
+        if (check.satisfied()) {
+            return true;
+        }
+        StringBuilder reasons = new StringBuilder();
+        for (JobDependencyGraph.Blocker blocker : check.blockers()) {
+            reasons.append("\n\u2022 ").append(describeBlocker(blocker));
+        }
+        Alert confirm = new Alert(Alert.AlertType.WARNING, "", ButtonType.OK, ButtonType.CANCEL);
+        DialogThemeHelper.applyTheme(confirm);
+        confirm.initOwner(dialogWindow());
+        confirm.setTitle(text("dependencies.unsatisfied.title"));
+        confirm.setHeaderText(text("dependencies.unsatisfied.header", job.getName()));
+        confirm.setContentText(text("dependencies.unsatisfied.message", reasons.toString()));
+        return confirm.showAndWait().filter(ButtonType.OK::equals).isPresent();
+    }
+
+    private String describeBlocker(JobDependencyGraph.Blocker blocker) {
+        String status = blocker.lastStatus() != null
+            ? text("status." + blocker.lastStatus().name().toLowerCase(Locale.ROOT))
+            : "";
+        return text("dependencies.reason." + blocker.reason().name().toLowerCase(Locale.ROOT), blocker.jobName(), status);
     }
 
     /** The job's notification triggers, the desktop toggle and its webhook targets. */
@@ -1289,6 +1503,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             ? text("status.noJobsRunning")
             : text("status.jobsRunning", active.size(), active.stream().map(ActiveJobSummary::jobName).toList()));
         updateHostKeyLabel();
+        updateChainToggleButton();
     }
 
     private void restoreJobSelection(String selectedJobId) {
@@ -1353,6 +1568,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
     private void loadJob(ScheduledJob job) {
         selectedJob = job;
+        updateChainToggleButton();
         if (job == null) {
             if (sessionJournalPane != null) {
                 sessionJournalPane.load(new de.kortty.model.AutomationJournalConfig());
@@ -1365,6 +1581,10 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             return;
         }
         nameField.setText(job.getName());
+        dependencyIds.setAll(job.getDependsOnJobIds());
+        dependencyModeCombo.getSelectionModel().select(job.getDependencyMode());
+        dependencyMaxAgeSpinner.getValueFactory().setValue(
+            job.getDependencyMaxAgeMinutes() != null ? job.getDependencyMaxAgeMinutes() : 0);
         enabledCheck.setSelected(job.isEnabled());
         hostKeyVerificationDisabledCheck.setSelected(job.isHostKeyVerificationDisabled());
         selectedConnectionIds.clear();
@@ -1455,7 +1675,15 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             }
         }
         try {
+            List<String> dependencies = new ArrayList<>(dependencyIds);
+            if (schedulerService.getDependencyGraph().wouldCreateCycle(selectedJob.getId(), dependencies)) {
+                showError(text("error.saveJob"), text("dependencies.error.cycle"));
+                return;
+            }
             selectedJob.setName(nameField.getText());
+            selectedJob.setDependsOnJobIds(dependencies);
+            selectedJob.setDependencyMode(dependencyModeCombo.getValue());
+            selectedJob.setDependencyMaxAgeMinutes(dependencyMaxAgeSpinner.getValue());
             selectedJob.setEnabled(enabledCheck.isSelected());
             selectedJob.setHostKeyVerificationDisabled(hostKeyVerificationDisabledCheck.isSelected());
             selectedJob.setTargetConnectionIds(selectedConnectionIds);
@@ -1550,6 +1778,26 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         if (selectedJob == null) {
             return;
         }
+        List<ScheduledJob> dependents = schedulerService.findDependentJobs(selectedJob.getId());
+        Alert confirm = new Alert(dependents.isEmpty() ? Alert.AlertType.CONFIRMATION : Alert.AlertType.WARNING,
+            "", ButtonType.OK, ButtonType.CANCEL);
+        DialogThemeHelper.applyTheme(confirm);
+        confirm.initOwner(dialogWindow());
+        confirm.setTitle(text("delete.title"));
+        if (dependents.isEmpty()) {
+            confirm.setHeaderText(null);
+            confirm.setContentText(text("delete.confirm", selectedJob.getName()));
+        } else {
+            StringBuilder names = new StringBuilder();
+            for (ScheduledJob dependent : dependents) {
+                names.append("\n\u2022 ").append(dependent.getName());
+            }
+            confirm.setHeaderText(text("delete.dependents.header", selectedJob.getName()));
+            confirm.setContentText(text("delete.dependents.message", names.toString()));
+        }
+        if (confirm.showAndWait().filter(ButtonType.OK::equals).isEmpty()) {
+            return;
+        }
         try {
             schedulerService.deleteJob(selectedJob.getId());
             selectedJob = null;
@@ -1595,10 +1843,26 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
     private void runSelectedJob() {
         saveSelectedJob();
-        if (selectedJob != null) {
+        if (selectedJob != null && schedulerService.findJob(selectedJob.getId()).isPresent()
+            && confirmUnsatisfiedDependencies(selectedJob)) {
             schedulerService.runJobNow(selectedJob.getId());
             refresh();
         }
+    }
+
+    /** Runs the job, then every job depending on it once its predecessors have succeeded. */
+    private void runSelectedJobWithSuccessors() {
+        saveSelectedJob();
+        if (selectedJob == null || schedulerService.findJob(selectedJob.getId()).isEmpty()
+            || !confirmUnsatisfiedDependencies(selectedJob)) {
+            return;
+        }
+        List<String> order = schedulerService.runJobWithSuccessors(selectedJob.getId());
+        if (order.size() > 1) {
+            statusLabel.setText(text("cascade.started", order.size() - 1,
+                String.join(" \u2192 ", order.stream().map(this::jobNameFor).toList())));
+        }
+        refresh();
     }
 
     private void pinHostKey() {

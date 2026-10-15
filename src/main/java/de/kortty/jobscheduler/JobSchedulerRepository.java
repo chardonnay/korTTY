@@ -159,8 +159,18 @@ public class JobSchedulerRepository {
         jobs.add(job);
     }
 
+    /** Removes the job and drops it from the predecessor list of every job that depended on it. */
     public synchronized void deleteJob(String jobId) {
         data.getJobs().removeIf(job -> job.getId().equals(jobId));
+        if (jobId == null) {
+            return;
+        }
+        for (ScheduledJob job : data.getJobs()) {
+            List<String> dependsOn = job.getDependsOnJobIds();
+            if (dependsOn.remove(jobId)) {
+                job.setDependsOnJobIds(dependsOn);
+            }
+        }
     }
 
     public synchronized List<JobJournalEntry> getJournal() {
@@ -184,6 +194,14 @@ public class JobSchedulerRepository {
      * with the same timestamp the later-appended one wins. Empty for a job without finished runs.
      */
     public synchronized Optional<JobRunStatus> findLastFinishedStatus(String jobId) {
+        return findLastFinishedEntry(jobId).map(JobJournalEntry::getStatus);
+    }
+
+    /**
+     * The journal entry of the job's most recent finished run, ignoring {@code RUNNING} entries;
+     * among runs with the same timestamp the later-appended one wins.
+     */
+    public synchronized Optional<JobJournalEntry> findLastFinishedEntry(String jobId) {
         if (jobId == null) {
             return Optional.empty();
         }
@@ -200,7 +218,7 @@ public class JobSchedulerRepository {
                 latestInstant = instant;
             }
         }
-        return Optional.ofNullable(latest).map(JobJournalEntry::getStatus);
+        return Optional.ofNullable(latest);
     }
 
     public synchronized void appendJournal(JobJournalEntry entry) {
@@ -458,6 +476,28 @@ public class JobSchedulerRepository {
             getJournal().forEach(JobJournalEntry::getId);
             getWebhookTargets().forEach(WebhookTarget::getId);
             migrateAiAgentAutoApproveDefault();
+            dropUnknownDependencies();
+        }
+
+        /** Drops predecessor ids that name no stored job, e.g. after a hand-edited file. */
+        private void dropUnknownDependencies() {
+            Set<String> knownIds = new HashSet<>();
+            for (ScheduledJob job : getJobs()) {
+                if (job != null) {
+                    knownIds.add(job.getId());
+                }
+            }
+            for (ScheduledJob job : getJobs()) {
+                if (job == null) {
+                    continue;
+                }
+                List<String> dependsOn = job.getDependsOnJobIds();
+                if (dependsOn.removeIf(id -> !knownIds.contains(id))) {
+                    String updatedAt = job.getUpdatedAt();
+                    job.setDependsOnJobIds(dependsOn);
+                    job.setUpdatedAt(updatedAt);
+                }
+            }
         }
 
         private void migrateAiAgentAutoApproveDefault() {

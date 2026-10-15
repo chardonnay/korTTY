@@ -60,6 +60,18 @@ public class ScheduledJob {
     @XmlElement
     private JobSchedule schedule = new JobSchedule();
 
+    /** Jobs that must have succeeded before this one may run. */
+    @XmlElementWrapper(name = "dependsOn")
+    @XmlElement(name = "jobId")
+    private List<String> dependsOnJobIds = new ArrayList<>();
+
+    @XmlElement
+    private JobDependencyMode dependencyMode;
+
+    /** Maximum age of a predecessor's success in minutes; {@code null} or {@code <= 0} means unlimited. */
+    @XmlElement
+    private Integer dependencyMaxAgeMinutes;
+
     @XmlElement
     private JobAction action = new JobAction();
 
@@ -150,6 +162,42 @@ public class ScheduledJob {
 
     public void setTargetGroupNames(Collection<String> targetGroupNames) {
         this.targetGroupNames = normalizeList(targetGroupNames);
+        touch();
+    }
+
+    public List<String> getDependsOnJobIds() {
+        List<String> normalized = normalizeList(dependsOnJobIds);
+        normalized.remove(getId());
+        return normalized;
+    }
+
+    public void setDependsOnJobIds(Collection<String> dependsOnJobIds) {
+        this.dependsOnJobIds = normalizeList(dependsOnJobIds);
+        this.dependsOnJobIds.remove(getId());
+        touch();
+    }
+
+    public boolean hasDependencies() {
+        return !getDependsOnJobIds().isEmpty();
+    }
+
+    public JobDependencyMode getDependencyMode() {
+        return dependencyMode != null ? dependencyMode : JobDependencyMode.GATE;
+    }
+
+    public void setDependencyMode(JobDependencyMode dependencyMode) {
+        this.dependencyMode = dependencyMode;
+        touch();
+    }
+
+    public Integer getDependencyMaxAgeMinutes() {
+        return dependencyMaxAgeMinutes != null && dependencyMaxAgeMinutes > 0 ? dependencyMaxAgeMinutes : null;
+    }
+
+    public void setDependencyMaxAgeMinutes(Integer dependencyMaxAgeMinutes) {
+        this.dependencyMaxAgeMinutes = dependencyMaxAgeMinutes != null && dependencyMaxAgeMinutes > 0
+            ? dependencyMaxAgeMinutes
+            : null;
         touch();
     }
 

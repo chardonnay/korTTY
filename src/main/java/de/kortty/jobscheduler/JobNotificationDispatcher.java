@@ -198,7 +198,12 @@ public final class JobNotificationDispatcher implements JobRunEventListener {
     }
 
     private static String triggerText(@Nullable String trigger, BiFunction<String, Object[], String> i18n) {
-        String key = "scheduled".equals(trigger) ? "trigger.scheduled" : "trigger.manual";
+        String key = switch (trigger != null ? trigger : "") {
+            case JobSchedulerService.TRIGGER_SCHEDULED -> "trigger.scheduled";
+            case JobSchedulerService.TRIGGER_DEPENDENCY -> "trigger.dependency";
+            case JobSchedulerService.TRIGGER_CASCADE -> "trigger.cascade";
+            default -> "trigger.manual";
+        };
         return i18n.apply(KEY_PREFIX + key, new Object[0]);
     }
 
