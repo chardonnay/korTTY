@@ -123,18 +123,65 @@ jobs:
       - name: Install Maven (Linux)
         if: runner.os == 'Linux'
         shell: bash
-        run: sudo apt-get update && sudo apt-get install -y maven
+        timeout-minutes: 8
+        run: |
+          # ubuntu-latest ships Maven; only fall back to apt when it is missing.
+          if command -v mvn >/dev/null; then
+            echo "Using preinstalled Maven: $(command -v mvn)"
+          else
+            # Mirrors occasionally fail mid-update; retry with a backoff before failing.
+            max_attempts=4
+            for attempt in $(seq 1 "$max_attempts"); do
+              if sudo apt-get update && sudo apt-get install -y maven; then break; fi
+              if [ "$attempt" -ge "$max_attempts" ]; then echo "::error::Maven install failed after $max_attempts attempts"; exit 1; fi
+              delay=$((8 + 12 * attempt))
+              echo "::warning::apt-get install maven failed (attempt $attempt/$max_attempts); retrying in $delay s"
+              sleep "$delay"
+            done
+          fi
+          mvn --version | head -1
 
       - name: Install Maven (macOS)
         if: runner.os == 'macOS'
         shell: bash
-        run: brew install maven
+        timeout-minutes: 8
+        run: |
+          # macos-latest ships Maven; only fall back to Homebrew when it is missing.
+          if command -v mvn >/dev/null; then
+            echo "Using preinstalled Maven: $(command -v mvn)"
+          else
+            # Homebrew's bottle CDN occasionally fails; retry with a backoff before failing.
+            max_attempts=4
+            for attempt in $(seq 1 "$max_attempts"); do
+              if brew install maven; then break; fi
+              if [ "$attempt" -ge "$max_attempts" ]; then echo "::error::Maven install failed after $max_attempts attempts"; exit 1; fi
+              delay=$((8 + 12 * attempt))
+              echo "::warning::brew install maven failed (attempt $attempt/$max_attempts); retrying in $delay s"
+              sleep "$delay"
+            done
+          fi
+          mvn --version | head -1
 
       - name: Install Maven (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        timeout-minutes: 8
         run: |
-          choco install maven -y
+          # windows-latest ships Maven; only fall back to Chocolatey when it is missing.
+          if (Get-Command mvn -ErrorAction SilentlyContinue) {
+            Write-Host "Using preinstalled Maven: $((Get-Command mvn).Source)"
+          } else {
+            # Chocolatey's community feed occasionally answers 503; retry with a backoff before failing.
+            $maxAttempts = 4
+            for ($attempt = 1; ; $attempt++) {
+              choco install maven -y --no-progress
+              if ($LASTEXITCODE -eq 0) { break }
+              if ($attempt -ge $maxAttempts) { throw "Maven package download failed after $maxAttempts attempts" }
+              $delay = 8 + 12 * $attempt
+              Write-Warning "choco install maven failed (exit $LASTEXITCODE, attempt $attempt/$maxAttempts); retrying in $delay s"
+              Start-Sleep -Seconds $delay
+            }
+          }
           "C:\ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Set up JDK 21 for SithTermFX Maven build
@@ -371,20 +418,53 @@ jobs:
         if: runner.os != 'Windows'
         run: chmod +x gradlew
 
+      # Keeps most runs off community.chocolatey.org, whose transient 503s fail the whole build.
+      - name: Cache native GnuPG (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/kortty-test-gnupg
+          key: kortty-test-gnupg-windows-2.5.21-v1
+
       - name: Prepare native GnuPG (Windows)
         if: runner.os == 'Windows'
-        timeout-minutes: 5
+        timeout-minutes: 10
         shell: pwsh
         run: |
-          # Only the CLI tools are needed; the installer can block unattended runners.
-          choco install gnupg --version=2.5.21 --yes --no-progress --skip-powershell
-          if ($LASTEXITCODE -ne 0) { throw "GnuPG package download failed" }
-          $installer = Get-ChildItem "$env:ChocolateyInstall\lib\gnupg\tools" -Filter 'gnupg-*.exe' | Select-Object -First 1
-          if (-not $installer) { throw "GnuPG package installer not found" }
           $gpgDir = Join-Path $env:RUNNER_TEMP 'kortty-test-gnupg'
-          & 7z.exe x $installer.FullName "-o$gpgDir" -y
-          if ($LASTEXITCODE -ne 0) { throw "GnuPG extraction failed" }
           $gpgBin = Join-Path $gpgDir 'bin'
+          if (Test-Path (Join-Path $gpgBin 'gpg.exe')) {
+            Write-Host "Using cached GnuPG from $gpgDir"
+          } else {
+            # Only the CLI tools are needed; the installer can block unattended runners.
+            # Chocolatey's community feed occasionally answers 503; retry with a backoff before failing.
+            $maxAttempts = 4
+            $installerPath = $null
+            for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+              choco install gnupg --version=2.5.21 --yes --no-progress --skip-powershell
+              if ($LASTEXITCODE -eq 0) {
+                $installer = Get-ChildItem "$env:ChocolateyInstall\lib\gnupg\tools" -Filter 'gnupg-*.exe' | Select-Object -First 1
+                if (-not $installer) { throw "GnuPG package installer not found" }
+                $installerPath = $installer.FullName
+                break
+              }
+              if ($attempt -lt $maxAttempts) {
+                $delay = 8 + 12 * $attempt
+                Write-Warning "choco install gnupg failed (exit $LASTEXITCODE, attempt $attempt/$maxAttempts); retrying in $delay s"
+                Start-Sleep -Seconds $delay
+              }
+            }
+            if (-not $installerPath) {
+              # Same installer the Chocolatey package embeds, fetched from gnupg.org and pinned by SHA-256.
+              Write-Warning "Chocolatey unavailable after $maxAttempts attempts; downloading the GnuPG installer from gnupg.org"
+              $installerPath = Join-Path $env:RUNNER_TEMP 'gnupg-w32-2.5.21_20260702.exe'
+              Invoke-WebRequest -Uri 'https://gnupg.org/ftp/gcrypt/binary/gnupg-w32-2.5.21_20260702.exe' -OutFile $installerPath -MaximumRetryCount 3 -RetryIntervalSec 15
+              $sha256 = (Get-FileHash $installerPath -Algorithm SHA256).Hash
+              if ($sha256 -ne '6246C925A73167253444AFC24A0DEB83A3F43B7D636AF84D6AAF48A98A62F024') { throw "GnuPG package download failed (checksum mismatch: $sha256)" }
+            }
+            & 7z.exe x $installerPath "-o$gpgDir" -y
+            if ($LASTEXITCODE -ne 0) { throw "GnuPG extraction failed" }
+          }
           if (-not (Test-Path (Join-Path $gpgBin 'gpg.exe'))) { throw "Native GnuPG executable not found" }
           "KORTTY_TEST_GPG_BIN=$gpgBin" >> $env:GITHUB_ENV
           & (Join-Path $gpgBin 'gpg.exe') --version
