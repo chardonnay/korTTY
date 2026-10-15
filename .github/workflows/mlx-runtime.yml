@@ -127,7 +127,8 @@ jobs:
       - name: Install lock tooling
         if: steps.upstream.outputs.changed == 'true'
         shell: bash
-        run: brew install uv
+        timeout-minutes: 10
+        run: bash scripts/ci-retry.sh "brew install uv" brew install uv
 
       - name: Rewrite the pin and regenerate the hash-locked requirements
         if: steps.upstream.outputs.changed == 'true'
@@ -218,7 +219,8 @@ jobs:
 
       - name: Install build tools
         shell: bash
-        run: brew install jq zstd uv
+        timeout-minutes: 10
+        run: bash scripts/ci-retry.sh "brew install build tools" brew install jq zstd uv
 
       - name: Resolve the pinned mlx-lm version and immutable installation id
         shell: bash

@@ -232,20 +232,33 @@ jobs:
       - name: Install native build dependencies (Linux)
         if: runner.os == 'Linux'
         shell: bash
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libvulkan-dev glslc spirv-headers spirv-tools mesa-vulkan-drivers curl jq
+          bash scripts/ci-retry.sh "apt-get install native build dependencies" bash -c \
+            'sudo apt-get update && sudo apt-get install -y cmake ninja-build libvulkan-dev glslc spirv-headers spirv-tools mesa-vulkan-drivers curl jq'
 
       - name: Install native build dependencies (macOS)
         if: runner.os == 'macOS'
         shell: bash
-        run: brew install cmake ninja jq
+        timeout-minutes: 10
+        run: bash scripts/ci-retry.sh "brew install native build dependencies" brew install cmake ninja jq
 
       - name: Install native build dependencies (Windows)
         if: runner.os == 'Windows' && matrix.backend == 'VULKAN'
         shell: pwsh
+        timeout-minutes: 25
         run: |
-          choco install cmake ninja vulkan-sdk jq -y --no-progress
+          # Chocolatey's community feed occasionally answers 503; retry with a backoff before failing.
+          # Packages that already installed on an earlier attempt are skipped by choco on the next one.
+          $maxAttempts = 4
+          for ($attempt = 1; ; $attempt++) {
+            choco install cmake ninja vulkan-sdk jq -y --no-progress
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -ge $maxAttempts) { throw "Native build dependency install failed after $maxAttempts attempts" }
+            $delay = 8 + 12 * $attempt
+            Write-Warning "choco install failed (exit $LASTEXITCODE, attempt $attempt/$maxAttempts); retrying in $delay s"
+            Start-Sleep -Seconds $delay
+          }
           $vulkanSdk = [Environment]::GetEnvironmentVariable("VULKAN_SDK", "Machine")
           if ([string]::IsNullOrWhiteSpace($vulkanSdk)) {
             $vulkanSdk = Get-ChildItem 'C:\VulkanSDK' -Directory | Sort-Object Name | Select-Object -Last 1 -ExpandProperty FullName
@@ -410,7 +423,16 @@ jobs:
 
       - name: Install build dependencies
         shell: bash
-        run: sudo apt-get update && sudo apt-get install -y maven curl
+        timeout-minutes: 8
+        run: |
+          # ubuntu-latest ships Maven and curl; only fall back to apt when one is missing.
+          if command -v mvn >/dev/null && command -v curl >/dev/null; then
+            echo "Using preinstalled Maven: $(command -v mvn)"
+          else
+            bash scripts/ci-retry.sh "apt-get install maven curl" bash -c \
+              'sudo apt-get update && sudo apt-get install -y maven curl'
+          fi
+          mvn --version | head -1
 
       - name: Wait for pinned Qdrant service
         shell: bash
