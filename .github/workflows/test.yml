@@ -111,12 +111,44 @@ jobs:
       - name: Install Maven (Linux)
         if: runner.os == 'Linux'
         shell: bash
-        run: sudo apt-get update && sudo apt-get install -y maven
+        timeout-minutes: 8
+        run: |
+          # ubuntu-latest ships Maven; only fall back to apt when it is missing.
+          if command -v mvn >/dev/null; then
+            echo "Using preinstalled Maven: $(command -v mvn)"
+          else
+            # Mirrors occasionally fail mid-update; retry with a backoff before failing.
+            max_attempts=4
+            for attempt in $(seq 1 "$max_attempts"); do
+              if sudo apt-get update && sudo apt-get install -y maven; then break; fi
+              if [ "$attempt" -ge "$max_attempts" ]; then echo "::error::Maven install failed after $max_attempts attempts"; exit 1; fi
+              delay=$((8 + 12 * attempt))
+              echo "::warning::apt-get install maven failed (attempt $attempt/$max_attempts); retrying in $delay s"
+              sleep "$delay"
+            done
+          fi
+          mvn --version | head -1
 
       - name: Install Maven (macOS)
         if: runner.os == 'macOS'
         shell: bash
-        run: brew install maven
+        timeout-minutes: 8
+        run: |
+          # macos-latest ships Maven; only fall back to Homebrew when it is missing.
+          if command -v mvn >/dev/null; then
+            echo "Using preinstalled Maven: $(command -v mvn)"
+          else
+            # Homebrew's bottle CDN occasionally fails; retry with a backoff before failing.
+            max_attempts=4
+            for attempt in $(seq 1 "$max_attempts"); do
+              if brew install maven; then break; fi
+              if [ "$attempt" -ge "$max_attempts" ]; then echo "::error::Maven install failed after $max_attempts attempts"; exit 1; fi
+              delay=$((8 + 12 * attempt))
+              echo "::warning::brew install maven failed (attempt $attempt/$max_attempts); retrying in $delay s"
+              sleep "$delay"
+            done
+          fi
+          mvn --version | head -1
 
       - name: Install Maven (Windows)
         if: runner.os == 'Windows'
