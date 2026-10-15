@@ -27,8 +27,8 @@ What changed in the current release. The version this guide was built for is sho
 
 ### JobScheduler
 
-- **Job dependencies** — a job can depend on other jobs and either keep its own schedule but only run when every predecessor's last run succeeded (**Condition**), or start automatically once all predecessors have succeeded (**Chain**), optionally only counting recent successes. Cycles are refused, the job list shows a **Depends on** column, and deleting a job that others depend on warns first. **Run with successors** runs a job and everything below it in dependency order. See [Job Dependencies](../features/jobscheduler.md#job-dependencies).
-- **Dependency diagram** — draws the job dependencies as a Mermaid flowchart colored by each job's last result, vertical or horizontal, with SVG/PNG export. See [Dependency Diagram](../features/jobscheduler.md#dependency-diagram).
+- **Job dependencies** — a job can depend on other jobs and either keep its own schedule but only run when every predecessor's last run succeeded (**Condition**), or start automatically once all predecessors have succeeded (**Chain**), optionally only counting recent successes. Cycles are refused, the job list shows a **Depends on** column, and deleting a job that others depend on warns first. **Run with successors** runs a job and everything below it in dependency order, and **Disable chain** switches a job and all its dependents off or on at once. See [Job Dependencies](../features/jobscheduler.md#job-dependencies).
+- **Dependency diagram** — draws the job dependencies as a Mermaid flowchart colored by each job's last result, vertical or horizontal, in light or dark mode, with SVG/PNG export. See [Dependency Diagram](../features/jobscheduler.md#dependency-diagram).
 
 ### Fixes and maintenance
 

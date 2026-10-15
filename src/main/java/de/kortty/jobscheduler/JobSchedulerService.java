@@ -201,6 +201,46 @@ public class JobSchedulerService {
         return repository.findLastFinishedStatus(jobId);
     }
 
+    /**
+     * The job followed by every job that depends on it, directly or transitively, in dependency
+     * order: the jobs that {@link #setChainEnabled} switches.
+     */
+    public List<ScheduledJob> getChain(String jobId) {
+        JobDependencyGraph graph = getDependencyGraph();
+        return graph.topologicalOrder(jobId).stream()
+            .map(graph::job)
+            .flatMap(Optional::stream)
+            .toList();
+    }
+
+    /**
+     * Enables or disables the job and every job depending on it, directly or transitively. A
+     * disabled job is neither scheduled nor started by a chain or by "run with successors"; jobs
+     * already running finish normally.
+     *
+     * @return the jobs whose enabled state changed
+     */
+    public List<ScheduledJob> setChainEnabled(String jobId, boolean enabled) throws Exception {
+        if (draining) {
+            throw new IllegalStateException("JobScheduler is waiting for running jobs before shutdown.");
+        }
+        List<ScheduledJob> changed = new ArrayList<>();
+        for (ScheduledJob job : getChain(jobId)) {
+            if (job.isEnabled() != enabled) {
+                job.setEnabled(enabled);
+                updateNextRun(job);
+                repository.upsertJob(job);
+                changed.add(job);
+            }
+        }
+        if (!changed.isEmpty()) {
+            repository.save();
+            notifyListeners();
+            scheduleNextTick();
+        }
+        return changed;
+    }
+
     /** Whether the job is currently running. */
     public boolean isJobActive(String jobId) {
         return jobId != null && activeJobs.containsKey(jobId);
@@ -288,7 +328,18 @@ public class JobSchedulerService {
             return List.of();
         }
         JobDependencyGraph graph = getDependencyGraph();
-        List<String> order = graph.topologicalOrder(root.getId());
+        // Disabled jobs, and everything that would have to wait for them, are left out.
+        Set<String> excluded = new java.util.HashSet<>();
+        for (String memberId : graph.topologicalOrder(root.getId())) {
+            if (!memberId.equals(root.getId())
+                && graph.job(memberId).map(job -> !job.isEnabled()).orElse(true)) {
+                excluded.add(memberId);
+                excluded.addAll(graph.descendantsOf(memberId));
+            }
+        }
+        List<String> order = graph.topologicalOrder(root.getId()).stream()
+            .filter(memberId -> !excluded.contains(memberId))
+            .toList();
         CascadeRun cascade = new CascadeRun(root.getId(), order);
         for (String memberId : order.subList(1, order.size())) {
             cascadeMembers.put(memberId, cascade);
@@ -731,8 +782,10 @@ public class JobSchedulerService {
                 continue;
             }
             ScheduledJob member = repository.findJob(memberId).orElse(null);
-            if (member == null) {
+            if (member == null || !member.isEnabled()) {
+                // Deleted or disabled while the cascade ran: it and the jobs below it stay put.
                 cascadeMembers.remove(memberId, cascade);
+                graph.descendantsOf(memberId).forEach(descendantId -> cascadeMembers.remove(descendantId, cascade));
                 continue;
             }
             boolean ready = true;

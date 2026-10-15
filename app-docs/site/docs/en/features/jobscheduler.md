@@ -8,7 +8,7 @@ The JobScheduler runs unattended background jobs while KorTTY is open. It does n
 
 On macOS and Windows, an enabled job with a future run keeps the computer from entering system sleep while korTTY is running when **Configuration > Prevent System Sleep** is enabled, so the scheduled time remains reachable. The Scheduler uses a single wake-up for the next due run and owns no polling timer when no enabled future job exists. With no terminal connection, future or running Scheduler job, or active AI request, system sleep remains available even while the setting is checked. While a job is running, macOS does not put korTTY into App Nap. Display sleep is not blocked. Linux power inhibition is not yet supported.
 
-Open it with **Tools > JobScheduler...**. The dialog remembers its window position and size. Its job list has **New**, **Save**, **Delete**, **Run now**, **Run with successors**, **Dependency diagram** and **Webhook targets...** buttons and the **Show Jobs status in menu bar** check box; **Run now** saves the selected job and starts it at once. The **Depends on** column lists the jobs each job depends on (see [Job Dependencies](#job-dependencies)). **Delete** asks for confirmation first. The German interface now translates all labels, action names, status values, validation messages, target selectors and supporting prompts; technical protocol and format names such as SFTP, Rsync, ZIP, TAR, stdout and stderr remain unchanged.
+Open it with **Tools > JobScheduler...**. The dialog remembers its window position and size. Its job list has **New**, **Save**, **Delete**, **Run now**, **Run with successors**, **Disable chain**, **Dependency diagram** and **Webhook targets...** buttons and the **Show Jobs status in menu bar** check box; **Run now** saves the selected job and starts it at once. The **Depends on** column lists the jobs each job depends on (see [Job Dependencies](#job-dependencies)). **Delete** asks for confirmation first. The German interface now translates all labels, action names, status values, validation messages, target selectors and supporting prompts; technical protocol and format names such as SFTP, Rsync, ZIP, TAR, stdout and stderr remain unchanged.
 
 
 ![JobScheduler execution](../assets/diagrams/jobscheduler-execution.svg)
@@ -66,6 +66,8 @@ A blocked run is recorded in the **Journal** tab with status *Blocked* and the r
 
 Deleting a job that other jobs depend on shows a warning listing those jobs. When you confirm, the dependency is removed from them, so they no longer wait for the deleted job.
 
+**Disable chain** switches off the selected job together with every job that depends on it, directly or indirectly, after a confirmation that lists them. Disabled jobs are neither scheduled nor started by a chain or by **Run with successors**; jobs that are already running finish normally. While the selected job is disabled, the button reads **Enable chain** and switches the same jobs on again. A single job can still be switched with **Enabled**.
+
 #### Dependency Diagram
 
 **Dependency diagram** opens a window that draws the job dependencies as a flowchart, rendered locally with the bundled Mermaid library. Each box shows a job's name and the result of its last run, colored by status: green for successful, red for failed, yellow for blocked, orange for cancelled, blue for running and gray for never run; a disabled job has a dashed frame. A solid arrow is a chain dependency, a dashed arrow a condition. The diagram updates when jobs change or runs finish.
@@ -73,6 +75,7 @@ Deleting a job that other jobs depend on shows a warning listing those jobs. Whe
 | Control | Description |
 |---------|-------------|
 | **Orientation** | **Vertical** (top to bottom, the default) or **Horizontal** (left to right). korTTY remembers the choice. |
+| **Dark mode** | **Auto** (follows korTTY's design), **Light** or **Dark**. korTTY remembers the choice. |
 | **Show** | **All jobs**, **Only jobs with dependencies**, or **Selected job and its chain** (the job selected in the job list with everything it depends on and everything depending on it). |
 | **−** / **100 %** / **+** | Zoom the diagram. |
 | **Save SVG** / **Save PNG** | Save the rendered diagram as an image. |

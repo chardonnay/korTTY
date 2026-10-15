@@ -43,6 +43,21 @@ class JobDependencyMermaidBuilderTest {
     }
 
     @Test
+    void darkPaletteColorsTheNodesForADarkCanvas() {
+        ScheduledJob a = JobDependencyGraphTest.job("a");
+        JobDependencyGraph graph = new JobDependencyGraph(List.of(a));
+
+        String light = JobDependencyMermaidBuilder.build(graph, JobDependencyMermaidBuilder.Direction.TB,
+            JobDependencyMermaidBuilder.Scope.ALL, null, id -> Optional.of(JobRunStatus.SUCCESS), id -> false, LABELS);
+        String dark = JobDependencyMermaidBuilder.build(graph, JobDependencyMermaidBuilder.Direction.TB,
+            JobDependencyMermaidBuilder.Scope.ALL, null, id -> Optional.of(JobRunStatus.SUCCESS), id -> false, LABELS, true);
+
+        assertThat(light).contains("classDef jobOk fill:#dcfce7,stroke:#16a34a,color:#14532d");
+        assertThat(dark).contains("classDef jobOk fill:#14532d,stroke:#4ade80,color:#dcfce7");
+        assertThat(JobDependencyMermaidBuilder.colors(null, true).fill()).isEqualTo("#334155");
+    }
+
+    @Test
     void horizontalAndScopesSelectTheRightJobs() {
         ScheduledJob a = JobDependencyGraphTest.job("a");
         ScheduledJob b = JobDependencyGraphTest.job("b", a);

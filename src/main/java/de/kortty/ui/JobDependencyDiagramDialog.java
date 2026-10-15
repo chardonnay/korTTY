@@ -2,6 +2,8 @@ package de.kortty.ui;
 
 import de.kortty.KorTTYApplication;
 import de.kortty.core.MermaidRenderService;
+import de.kortty.core.SnippetDiagramSupport.DiagramColorMode;
+import de.kortty.core.SystemThemeDetector;
 import de.kortty.jobscheduler.JobDependencyGraph;
 import de.kortty.jobscheduler.JobDependencyMermaidBuilder;
 import de.kortty.jobscheduler.JobRunStatus;
@@ -62,6 +64,8 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
     private final ToggleButton verticalButton = new ToggleButton(text("vertical"));
     private final ToggleButton horizontalButton = new ToggleButton(text("horizontal"));
     private final ComboBox<JobDependencyMermaidBuilder.Scope> scopeCombo = new ComboBox<>();
+    private final ComboBox<DiagramColorMode> colorModeCombo = new ComboBox<>();
+    private final HBox legend = new HBox(12);
     private final Button saveSvgButton = new Button(I18n.get("snippets.ai.diagram.saveSvg"));
     private final Button savePngButton = new Button(I18n.get("snippets.ai.diagram.savePng"));
     private final Button copyMermaidButton = new Button(I18n.get("snippets.ai.diagram.copyMermaid"));
@@ -73,6 +77,7 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
     private byte[] renderedPng;
     private long renderGeneration;
     private CompletableFuture<MermaidRenderService.RenderResult> pendingRender;
+    private boolean renderedDark;
 
     JobDependencyDiagramDialog(KorTTYApplication app, Window owner, String focusJobId) {
         this.app = app;
@@ -90,6 +95,12 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
         refreshDebounce.setOnFinished(event -> render());
         schedulerService.addListener(schedulerListener);
         setOnHidden(event -> dispose());
+        // The design's colors are only known once the pane is styled; re-render if Auto now resolves differently.
+        setOnShown(event -> {
+            if (isDark() != renderedDark) {
+                render();
+            }
+        });
         render();
     }
 
@@ -130,6 +141,25 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
         scopeCombo.getSelectionModel().select(JobDependencyMermaidBuilder.Scope.ALL);
         scopeCombo.valueProperty().addListener((obs, oldScope, newScope) -> render());
 
+        colorModeCombo.getItems().setAll(DiagramColorMode.values());
+        colorModeCombo.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(DiagramColorMode mode) {
+                return mode != null ? I18n.get("snippets.ai.diagram.darkMode." + mode.key()) : "";
+            }
+
+            @Override
+            public DiagramColorMode fromString(String string) {
+                return null;
+            }
+        });
+        colorModeCombo.getSelectionModel().select(loadColorModePreference());
+        colorModeCombo.setTooltip(new javafx.scene.control.Tooltip(text("darkMode.tooltip")));
+        colorModeCombo.valueProperty().addListener((obs, oldMode, newMode) -> {
+            saveColorModePreference(newMode);
+            render();
+        });
+
         Button refreshButton = new Button(I18n.get("jobscheduler.dialog.button.refresh"));
         refreshButton.setOnAction(event -> render());
         Button zoomOut = new Button("−");
@@ -145,6 +175,7 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
         FlowPane toolbar = new FlowPane(8, 8,
             new Label(text("orientation")), orientationBox,
             new Label(text("scope")), scopeCombo,
+            new Label(I18n.get("snippets.ai.diagram.darkMode") + ":"), colorModeCombo,
             refreshButton, zoomOut, zoomReset, zoomIn,
             saveSvgButton, savePngButton, copyMermaidButton);
         toolbar.setAlignment(Pos.CENTER_LEFT);
@@ -158,7 +189,7 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
         VBox.setVgrow(content, Priority.ALWAYS);
 
         statusLabel.setWrapText(true);
-        HBox legend = buildLegend();
+        legend.setAlignment(Pos.CENTER_LEFT);
         VBox bottom = new VBox(6, legend, statusLabel);
         bottom.setPadding(new Insets(8, 0, 0, 0));
 
@@ -171,21 +202,21 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
         return root;
     }
 
-    private HBox buildLegend() {
-        HBox legend = new HBox(12);
-        legend.setAlignment(Pos.CENTER_LEFT);
-        legend.getChildren().add(new Label(text("legend")));
-        legend.getChildren().add(swatch("#dcfce7", "#16a34a", I18n.get("jobscheduler.dialog.status.success")));
-        legend.getChildren().add(swatch("#fee2e2", "#dc2626", I18n.get("jobscheduler.dialog.status.failed")));
-        legend.getChildren().add(swatch("#fef9c3", "#ca8a04", I18n.get("jobscheduler.dialog.status.blocked")));
-        legend.getChildren().add(swatch("#ffedd5", "#ea580c", I18n.get("jobscheduler.dialog.status.cancelled")));
-        legend.getChildren().add(swatch("#dbeafe", "#2563eb", I18n.get("jobscheduler.dialog.status.running")));
-        legend.getChildren().add(swatch("#f1f5f9", "#94a3b8", text("neverRan")));
+    private void updateLegend(boolean dark) {
+        legend.getChildren().setAll(new Label(text("legend")));
+        legend.getChildren().add(swatch(JobRunStatus.SUCCESS, dark, I18n.get("jobscheduler.dialog.status.success")));
+        legend.getChildren().add(swatch(JobRunStatus.FAILED, dark, I18n.get("jobscheduler.dialog.status.failed")));
+        legend.getChildren().add(swatch(JobRunStatus.BLOCKED, dark, I18n.get("jobscheduler.dialog.status.blocked")));
+        legend.getChildren().add(swatch(JobRunStatus.CANCELLED, dark, I18n.get("jobscheduler.dialog.status.cancelled")));
+        legend.getChildren().add(swatch(JobRunStatus.RUNNING, dark, I18n.get("jobscheduler.dialog.status.running")));
+        legend.getChildren().add(swatch(null, dark, text("neverRan")));
         legend.getChildren().add(new Label(text("legend.edges")));
-        return legend;
     }
 
-    private static HBox swatch(String fill, String stroke, String label) {
+    private static HBox swatch(JobRunStatus status, boolean dark, String label) {
+        JobDependencyMermaidBuilder.StatusColors colors = JobDependencyMermaidBuilder.colors(status, dark);
+        String fill = colors.fill();
+        String stroke = colors.stroke();
         Region box = new Region();
         box.setMinSize(14, 14);
         box.setPrefSize(14, 14);
@@ -197,6 +228,10 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
 
     private void render() {
         long generation = ++renderGeneration;
+        boolean dark = isDark();
+        renderedDark = dark;
+        updateLegend(dark);
+        webView.setPageFill(javafx.scene.paint.Color.web(canvasColor(dark)));
         if (pendingRender != null) {
             pendingRender.cancel(true);
             pendingRender = null;
@@ -212,7 +247,8 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
             focusJobId,
             schedulerService::findLastFinishedStatus,
             schedulerService::isJobActive,
-            labels());
+            labels(),
+            dark);
         renderedSvg = null;
         renderedPng = null;
         updateExportButtons();
@@ -234,7 +270,12 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
         }
         String source = currentSource;
         CompletableFuture<MermaidRenderService.RenderResult> future = MermaidRenderService.render(
-            new MermaidRenderService.RenderRequest(source, MermaidRenderService.Theme.LIGHT, "#FFFFFF", true, null));
+            new MermaidRenderService.RenderRequest(
+                source,
+                dark ? MermaidRenderService.Theme.DARK : MermaidRenderService.Theme.LIGHT,
+                canvasColor(dark),
+                true,
+                null));
         pendingRender = future;
         future.whenComplete((result, error) -> Platform.runLater(() -> {
             if (generation != renderGeneration) {
@@ -244,7 +285,7 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
             if (error == null && result != null && result.success() && !result.svg().isBlank()) {
                 renderedSvg = result.svg();
                 renderedPng = result.png();
-                webView.getEngine().loadContent(svgHtml(result.svg()));
+                webView.getEngine().loadContent(svgHtml(result.svg(), canvasColor(dark)));
                 content.getChildren().setAll(webView);
                 if (edgeCount > 0 || scope != JobDependencyMermaidBuilder.Scope.ALL) {
                     statusLabel.setText("");
@@ -274,12 +315,53 @@ final class JobDependencyDiagramDialog extends ThemeAwareDialog<Void> {
         updateExportButtons();
     }
 
-    /** The rendered SVG on a white canvas at its natural size, so WebView zoom and scrolling work. */
-    private static String svgHtml(String svg) {
+    private static String canvasColor(boolean dark) {
+        return dark ? de.kortty.core.SnippetDiagramSupport.DARK_BACKGROUND_COLOR : "#FFFFFF";
+    }
+
+    /** Light or dark as chosen; Auto follows korTTY's design, or the system before the pane is styled. */
+    private boolean isDark() {
+        DiagramColorMode mode = colorModeCombo.getValue() != null ? colorModeCombo.getValue() : DiagramColorMode.AUTO;
+        if (mode != DiagramColorMode.AUTO) {
+            return mode == DiagramColorMode.DARK;
+        }
+        javafx.scene.layout.Background background = getDialogPane().getBackground();
+        if (background != null) {
+            for (javafx.scene.layout.BackgroundFill fill : background.getFills()) {
+                if (fill.getFill() instanceof javafx.scene.paint.Color color && color.getOpacity() > 0.5) {
+                    double luminance = 0.2126 * color.getRed() + 0.7152 * color.getGreen() + 0.0722 * color.getBlue();
+                    return luminance < 0.5;
+                }
+            }
+        }
+        return SystemThemeDetector.isSystemDarkMode();
+    }
+
+    private DiagramColorMode loadColorModePreference() {
+        try {
+            return DiagramColorMode.fromKey(app.getGlobalSettingsManager().getSettings().getJobSchedulerDependencyDiagramColorMode());
+        } catch (Exception e) {
+            logger.debug("Could not read the dependency diagram color mode", e);
+            return DiagramColorMode.AUTO;
+        }
+    }
+
+    private void saveColorModePreference(DiagramColorMode mode) {
+        try {
+            app.getGlobalSettingsManager().getSettings().setJobSchedulerDependencyDiagramColorMode(
+                (mode != null ? mode : DiagramColorMode.AUTO).key());
+            app.getGlobalSettingsManager().save();
+        } catch (Exception e) {
+            logger.debug("Could not save the dependency diagram color mode", e);
+        }
+    }
+
+    /** The rendered SVG on a canvas of the given color at its natural size, so WebView zoom and scrolling work. */
+    private static String svgHtml(String svg, String canvas) {
         return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
             + "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; "
             + "style-src 'unsafe-inline'; object-src 'none'; frame-src 'none'; connect-src 'none'\">"
-            + "<style>html,body{margin:0;padding:12px;background:#ffffff;}"
+            + "<style>html,body{margin:0;padding:12px;background:" + canvas + ";}"
             + "svg{display:block;margin:0 auto;max-width:none !important;}</style></head><body>"
             + svg
             + "</body></html>";

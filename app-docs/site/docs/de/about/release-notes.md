@@ -27,8 +27,8 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 
 ### JobScheduler
 
-- **Job-Abhängigkeiten** — ein Job kann von anderen Jobs abhängen und entweder seinen eigenen Zeitplan behalten, aber nur laufen, wenn der letzte Lauf jedes Vorgängers erfolgreich war (**Bedingung**), oder automatisch starten, sobald alle Vorgänger erfolgreich waren (**Kette**), wahlweise nur mit aktuellen Erfolgen. Kreise werden abgelehnt, die Jobliste zeigt eine Spalte **Abhängig von**, und das Löschen eines Jobs, von dem andere abhängen, warnt vorher. **Mit Nachfolgern ausführen** führt einen Job und alles darunter in Abhängigkeitsreihenfolge aus. Siehe [Job-Abhängigkeiten](../features/jobscheduler.md#job-dependencies).
-- **Abhängigkeitsdiagramm** — zeichnet die Job-Abhängigkeiten als Mermaid-Flussdiagramm, eingefärbt nach dem letzten Ergebnis jedes Jobs, vertikal oder horizontal, mit SVG/PNG-Export. Siehe [Abhängigkeitsdiagramm](../features/jobscheduler.md#dependency-diagram).
+- **Job-Abhängigkeiten** — ein Job kann von anderen Jobs abhängen und entweder seinen eigenen Zeitplan behalten, aber nur laufen, wenn der letzte Lauf jedes Vorgängers erfolgreich war (**Bedingung**), oder automatisch starten, sobald alle Vorgänger erfolgreich waren (**Kette**), wahlweise nur mit aktuellen Erfolgen. Kreise werden abgelehnt, die Jobliste zeigt eine Spalte **Abhängig von**, und das Löschen eines Jobs, von dem andere abhängen, warnt vorher. **Mit Nachfolgern ausführen** führt einen Job und alles darunter in Abhängigkeitsreihenfolge aus, und **Kette deaktivieren** schaltet einen Job und alle davon abhängigen Jobs auf einmal ab oder an. Siehe [Job-Abhängigkeiten](../features/jobscheduler.md#job-dependencies).
+- **Abhängigkeitsdiagramm** — zeichnet die Job-Abhängigkeiten als Mermaid-Flussdiagramm, eingefärbt nach dem letzten Ergebnis jedes Jobs, vertikal oder horizontal, hell oder dunkel, mit SVG/PNG-Export. Siehe [Abhängigkeitsdiagramm](../features/jobscheduler.md#dependency-diagram).
 
 ### Fehlerbehebungen und Wartung
 

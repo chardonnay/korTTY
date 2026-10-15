@@ -140,6 +140,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
     private final ComboBox<JobDependencyMode> dependencyModeCombo = new ComboBox<>();
     private final Spinner<Integer> dependencyMaxAgeSpinner = new Spinner<>(0, 525600, 0, 15);
     private javafx.scene.control.TitledPane dependenciesSection;
+    private final Button chainToggleButton = new Button(text("button.chainDisable"));
     private final CheckBox enabledCheck = new CheckBox(text("enabled"));
     private final CheckBox hostKeyVerificationDisabledCheck = new CheckBox(text("hostKey.disableUnsafe"));
     private final TextField connectionSummaryField = new TextField();
@@ -401,6 +402,10 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         runWithSuccessorsButton.setGraphic(iconLabel("\u23E9", 18));
         runWithSuccessorsButton.setTooltip(new Tooltip(text("button.runWithSuccessors.tooltip")));
         runWithSuccessorsButton.setOnAction(event -> runSelectedJobWithSuccessors());
+        chainToggleButton.setGraphic(iconLabel("\u23FB", 18));
+        chainToggleButton.setTooltip(new Tooltip(text("button.chain.tooltip")));
+        chainToggleButton.setOnAction(event -> toggleSelectedChain());
+        updateChainToggleButton();
         Button diagramButton = new Button(text("button.dependencyDiagram"));
         diagramButton.setGraphic(iconLabel("\uD83D\uDD00", 18));
         diagramButton.setTooltip(new Tooltip(text("button.dependencyDiagram.tooltip")));
@@ -409,7 +414,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         webhooksButton.setGraphic(iconLabel("\uD83D\uDD14", 18));
         webhooksButton.setOnAction(event -> openWebhookTargets());
         javafx.scene.layout.FlowPane buttons = new javafx.scene.layout.FlowPane(8, 8, newButton, saveButton, deleteButton,
-            runButton, runWithSuccessorsButton, diagramButton, webhooksButton);
+            runButton, runWithSuccessorsButton, chainToggleButton, diagramButton, webhooksButton);
         menuBarStatusCheck.setSelected(isJobSchedulerMenuStatusEnabled());
         menuBarStatusCheck.setOnAction(event -> saveJobSchedulerMenuStatusPreference());
 
@@ -650,6 +655,44 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
         }
         String names = String.join(", ", job.getDependsOnJobIds().stream().map(this::jobNameFor).toList());
         return (job.getDependencyMode() == JobDependencyMode.CHAIN ? "\u26D3 " : "\uD83D\uDD12 ") + names;
+    }
+
+    /** "Disable chain" while the selected job is enabled, "Enable chain" otherwise. */
+    private void updateChainToggleButton() {
+        boolean saved = selectedJob != null && schedulerService.findJob(selectedJob.getId()).isPresent();
+        chainToggleButton.setDisable(!saved);
+        chainToggleButton.setText(text(saved && !selectedJob.isEnabled() ? "button.chainEnable" : "button.chainDisable"));
+    }
+
+    /** Enables or disables the selected job together with every job that depends on it. */
+    private void toggleSelectedChain() {
+        saveSelectedJob();
+        if (selectedJob == null || schedulerService.findJob(selectedJob.getId()).isEmpty()) {
+            return;
+        }
+        boolean enable = !selectedJob.isEnabled();
+        List<ScheduledJob> chain = schedulerService.getChain(selectedJob.getId());
+        StringBuilder names = new StringBuilder();
+        for (ScheduledJob job : chain) {
+            names.append("\n\u2022 ").append(job.getName());
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "", ButtonType.OK, ButtonType.CANCEL);
+        DialogThemeHelper.applyTheme(confirm);
+        confirm.initOwner(dialogWindow());
+        confirm.setTitle(text(enable ? "chain.enable.title" : "chain.disable.title"));
+        confirm.setHeaderText(null);
+        confirm.setContentText(text(enable ? "chain.enable.message" : "chain.disable.message", names.toString()));
+        if (confirm.showAndWait().filter(ButtonType.OK::equals).isEmpty()) {
+            return;
+        }
+        try {
+            schedulerService.setChainEnabled(selectedJob.getId(), enable);
+            // The form shows the job being edited; keep it in step so the next Save does not undo this.
+            enabledCheck.setSelected(selectedJob.isEnabled());
+            refresh();
+        } catch (Exception e) {
+            showError(text("error.saveJob"), e.getMessage());
+        }
     }
 
     private void openDependencyDiagram() {
@@ -1460,6 +1503,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
             ? text("status.noJobsRunning")
             : text("status.jobsRunning", active.size(), active.stream().map(ActiveJobSummary::jobName).toList()));
         updateHostKeyLabel();
+        updateChainToggleButton();
     }
 
     private void restoreJobSelection(String selectedJobId) {
@@ -1524,6 +1568,7 @@ public class JobSchedulerDialog extends ThemeAwareDialog<Void> {
 
     private void loadJob(ScheduledJob job) {
         selectedJob = job;
+        updateChainToggleButton();
         if (job == null) {
             if (sessionJournalPane != null) {
                 sessionJournalPane.load(new de.kortty.model.AutomationJournalConfig());

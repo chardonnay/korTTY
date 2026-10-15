@@ -1,6 +1,7 @@
 package de.kortty.jobscheduler;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -53,12 +54,50 @@ public final class JobDependencyMermaidBuilder {
     static final String CLASS_DISABLED = "jobDisabled";
     static final String CLASS_FOCUS = "jobFocus";
 
+    /** Fill, border and text color of one status class. */
+    public record StatusColors(String fill, String stroke, String text) {
+    }
+
+    private static final Map<String, StatusColors> LIGHT_COLORS = Map.of(
+        CLASS_SUCCESS, new StatusColors("#dcfce7", "#16a34a", "#14532d"),
+        CLASS_FAILED, new StatusColors("#fee2e2", "#dc2626", "#7f1d1d"),
+        CLASS_BLOCKED, new StatusColors("#fef9c3", "#ca8a04", "#713f12"),
+        CLASS_CANCELLED, new StatusColors("#ffedd5", "#ea580c", "#7c2d12"),
+        CLASS_NEVER, new StatusColors("#f1f5f9", "#94a3b8", "#334155"),
+        CLASS_RUNNING, new StatusColors("#dbeafe", "#2563eb", "#1e3a8a"));
+    private static final Map<String, StatusColors> DARK_COLORS = Map.of(
+        CLASS_SUCCESS, new StatusColors("#14532d", "#4ade80", "#dcfce7"),
+        CLASS_FAILED, new StatusColors("#7f1d1d", "#f87171", "#fee2e2"),
+        CLASS_BLOCKED, new StatusColors("#713f12", "#facc15", "#fef9c3"),
+        CLASS_CANCELLED, new StatusColors("#7c2d12", "#fb923c", "#ffedd5"),
+        CLASS_NEVER, new StatusColors("#334155", "#94a3b8", "#e2e8f0"),
+        CLASS_RUNNING, new StatusColors("#1e3a8a", "#60a5fa", "#dbeafe"));
+
     private static final Pattern CLICK_WORD = Pattern.compile("(?i)click");
 
     private JobDependencyMermaidBuilder() {
     }
 
+    /** The colors of a status (or never-ran when {@code status} is null) in the light or dark palette. */
+    public static StatusColors colors(JobRunStatus status, boolean dark) {
+        return (dark ? DARK_COLORS : LIGHT_COLORS).get(statusClass(status));
+    }
+
+    /** Builds the diagram in the light palette. */
+    public static String build(
+        JobDependencyGraph graph,
+        Direction direction,
+        Scope scope,
+        String focusJobId,
+        Function<String, Optional<JobRunStatus>> lastStatus,
+        Predicate<String> running,
+        Labels labels) {
+
+        return build(graph, direction, scope, focusJobId, lastStatus, running, labels, false);
+    }
+
     /**
+     * @param dark whether to color the nodes for a dark canvas (render with Mermaid's dark theme)
      * @return the Mermaid source, or {@code null} when the scope selects no job
      */
     public static String build(
@@ -68,7 +107,8 @@ public final class JobDependencyMermaidBuilder {
         String focusJobId,
         Function<String, Optional<JobRunStatus>> lastStatus,
         Predicate<String> running,
-        Labels labels) {
+        Labels labels,
+        boolean dark) {
 
         Set<String> included = selectJobs(graph, scope, focusJobId);
         if (included.isEmpty()) {
@@ -115,12 +155,15 @@ public final class JobDependencyMermaidBuilder {
                     .append('\n');
             }
         }
-        out.append("    classDef ").append(CLASS_SUCCESS).append(" fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px\n");
-        out.append("    classDef ").append(CLASS_FAILED).append(" fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px\n");
-        out.append("    classDef ").append(CLASS_BLOCKED).append(" fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px\n");
-        out.append("    classDef ").append(CLASS_CANCELLED).append(" fill:#ffedd5,stroke:#ea580c,color:#7c2d12,stroke-width:2px\n");
-        out.append("    classDef ").append(CLASS_NEVER).append(" fill:#f1f5f9,stroke:#94a3b8,color:#334155,stroke-width:2px\n");
-        out.append("    classDef ").append(CLASS_RUNNING).append(" fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:3px\n");
+        Map<String, StatusColors> palette = dark ? DARK_COLORS : LIGHT_COLORS;
+        for (String statusClass : List.of(CLASS_SUCCESS, CLASS_FAILED, CLASS_BLOCKED, CLASS_CANCELLED, CLASS_NEVER, CLASS_RUNNING)) {
+            StatusColors colors = palette.get(statusClass);
+            out.append("    classDef ").append(statusClass)
+                .append(" fill:").append(colors.fill())
+                .append(",stroke:").append(colors.stroke())
+                .append(",color:").append(colors.text())
+                .append(statusClass.equals(CLASS_RUNNING) ? ",stroke-width:3px\n" : ",stroke-width:2px\n");
+        }
         out.append("    classDef ").append(CLASS_DISABLED).append(" stroke-dasharray:6 4,opacity:0.7\n");
         out.append("    classDef ").append(CLASS_FOCUS).append(" stroke-width:4px\n");
         for (String jobId : included) {

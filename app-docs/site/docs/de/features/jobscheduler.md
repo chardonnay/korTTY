@@ -8,7 +8,7 @@ Der JobScheduler führt unbeaufsichtigte Hintergrundjobs aus, während KorTTY ge
 
 Unter macOS und Windows verhindert ein aktivierter Job mit einer zukünftigen Ausführung, dass der Computer in den Systemschlaf wechselt, während korTTY ausgeführt wird, wenn **Konfiguration > Systemschlaf verhindern** aktiviert ist, sodass die geplante Zeit erreichbar bleibt. Der Scheduler verwendet einen einzigen Weckvorgang für den nächsten fälligen Lauf und verfügt über keinen Abfrage-Timer, wenn kein aktivierter zukünftiger Job vorhanden ist. Ohne Terminalverbindung, zukünftiger oder laufender Scheduler-Auftrag oder aktive KI-Anfrage bleibt der Systemschlaf auch dann verfügbar, wenn die Einstellung überprüft wird. Während ein Job ausgeführt wird, fügt macOS korTTY nicht in App Nap ein. Der Display-Ruhezustand ist nicht blockiert. Die Linux-Stromunterdrückung wird noch nicht unterstützt.
 
-Öffnen Sie es mit **Werkzeuge > JobScheduler...**. Das Dialogfenster merkt sich seine Fensterposition und -größe. Seine Auftragsliste verfügt über die Schaltflächen **Neu**, **Speichern**, **Löschen**, **Jetzt ausführen**, **Mit Nachfolgern ausführen**, **Abhängigkeitsdiagramm** und **Webhook-Ziele...** sowie das Kontrollkästchen **Jobs-Anzeige in der Menüleiste anzeigen**; **Jetzt ausführen** speichert den ausgewählten Auftrag und startet ihn sofort. Die Spalte **Abhängig von** listet die Jobs auf, von denen ein Job abhängt (siehe [Job-Abhängigkeiten](#job-dependencies)). **Löschen** fragt vorher nach einer Bestätigung. Die deutsche Oberfläche übersetzt jetzt alle Beschriftungen, Aktionsnamen, Statuswerte, Validierungsnachrichten, Zielauswahlen und unterstützende Eingabeaufforderungen; technische Protokoll- und Formatnamen wie SFTP, Rsync, ZIP, TAR, stdout und stderr bleiben unverändert.
+Öffnen Sie es mit **Werkzeuge > JobScheduler...**. Das Dialogfenster merkt sich seine Fensterposition und -größe. Seine Auftragsliste verfügt über die Schaltflächen **Neu**, **Speichern**, **Löschen**, **Jetzt ausführen**, **Mit Nachfolgern ausführen**, **Kette deaktivieren**, **Abhängigkeitsdiagramm** und **Webhook-Ziele...** sowie das Kontrollkästchen **Jobs-Anzeige in der Menüleiste anzeigen**; **Jetzt ausführen** speichert den ausgewählten Auftrag und startet ihn sofort. Die Spalte **Abhängig von** listet die Jobs auf, von denen ein Job abhängt (siehe [Job-Abhängigkeiten](#job-dependencies)). **Löschen** fragt vorher nach einer Bestätigung. Die deutsche Oberfläche übersetzt jetzt alle Beschriftungen, Aktionsnamen, Statuswerte, Validierungsnachrichten, Zielauswahlen und unterstützende Eingabeaufforderungen; technische Protokoll- und Formatnamen wie SFTP, Rsync, ZIP, TAR, stdout und stderr bleiben unverändert.
 
 
 ![JobScheduler execution](../assets/diagrams/jobscheduler-execution.svg)
@@ -66,6 +66,8 @@ Ein blockierter Lauf wird auf der Registerkarte **Journal** mit dem Status *Bloc
 
 Beim Löschen eines Jobs, von dem andere Jobs abhängen, erscheint eine Warnung mit diesen Jobs. Wenn Sie bestätigen, wird die Abhängigkeit bei ihnen entfernt, sodass sie nicht mehr auf den gelöschten Job warten.
 
+**Kette deaktivieren** schaltet den ausgewählten Job zusammen mit jedem Job, der direkt oder indirekt von ihm abhängt, nach einer Bestätigung mit der Liste dieser Jobs ab. Deaktivierte Jobs werden weder geplant noch durch eine Kette oder **Mit Nachfolgern ausführen** gestartet; bereits laufende Jobs laufen normal zu Ende. Solange der ausgewählte Job deaktiviert ist, heißt die Schaltfläche **Kette aktivieren** und schaltet dieselben Jobs wieder ein. Ein einzelner Job lässt sich weiterhin über **Aktiviert** umschalten.
+
 #### Abhängigkeitsdiagramm { #dependency-diagram }
 
 **Abhängigkeitsdiagramm** öffnet ein Fenster, das die Job-Abhängigkeiten als Flussdiagramm zeichnet, lokal gerendert mit der mitgelieferten Mermaid-Bibliothek. Jedes Kästchen zeigt den Namen eines Jobs und das Ergebnis seines letzten Laufs, eingefärbt nach Status: grün für erfolgreich, rot für fehlgeschlagen, gelb für blockiert, orange für abgebrochen, blau für laufend und grau für nie gelaufen; ein deaktivierter Job hat einen gestrichelten Rahmen. Ein durchgezogener Pfeil ist eine Kettenabhängigkeit, ein gestrichelter Pfeil eine Bedingung. Das Diagramm aktualisiert sich, wenn sich Jobs ändern oder Läufe enden.
@@ -73,6 +75,7 @@ Beim Löschen eines Jobs, von dem andere Jobs abhängen, erscheint eine Warnung 
 | Bedienelement | Beschreibung |
 |---------|-------------|
 | **Ausrichtung** | **Vertikal** (von oben nach unten, die Voreinstellung) oder **Horizontal** (von links nach rechts). korTTY merkt sich die Auswahl. |
+| **Dunkelmodus** | **Auto** (folgt dem Design von korTTY), **Hell** oder **Dunkel**. korTTY merkt sich die Auswahl. |
 | **Anzeigen** | **Alle Jobs**, **Nur Jobs mit Abhängigkeiten** oder **Ausgewählter Job und seine Kette** (der in der Jobliste ausgewählte Job mit allem, wovon er abhängt, und allem, was von ihm abhängt). |
 | **−** / **100 %** / **+** | Zoomt das Diagramm. |
 | **SVG speichern** / **PNG speichern** | Speichert das gerenderte Diagramm als Bild. |

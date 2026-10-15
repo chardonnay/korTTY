@@ -142,6 +142,58 @@ class JobSchedulerServiceDependencyTest {
     }
 
     @Test
+    void aChainCanBeDisabledAndEnabledAsAWhole() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-deps-chain-toggle");
+        JobSchedulerService service = newService(dir, new ConcurrentHashMap<>());
+        try {
+            ScheduledJob a = store(service, "a");
+            ScheduledJob b = store(service, "b", a);
+            ScheduledJob c = store(service, "c", b);
+            ScheduledJob unrelated = store(service, "unrelated");
+
+            assertThat(service.getChain(b.getId())).containsExactly(b, c).inOrder();
+            assertThat(service.setChainEnabled(b.getId(), false)).containsExactly(b, c);
+            assertThat(a.isEnabled()).isTrue();
+            assertThat(b.isEnabled()).isFalse();
+            assertThat(c.isEnabled()).isFalse();
+            assertThat(unrelated.isEnabled()).isTrue();
+            JobSchedulerRepository reloaded = new JobSchedulerRepository(dir);
+            reloaded.load();
+            assertThat(reloaded.findJob(c.getId()).orElseThrow().isEnabled()).isFalse();
+
+            assertThat(service.setChainEnabled(a.getId(), true)).containsExactly(b, c);
+            assertThat(b.isEnabled()).isTrue();
+            assertThat(c.isEnabled()).isTrue();
+        } finally {
+            cleanup(service, dir);
+        }
+    }
+
+    @Test
+    void disabledJobsAreNeitherChainedNorPartOfRunWithSuccessors() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-job-deps-disabled");
+        JobSchedulerService service = newService(dir, new ConcurrentHashMap<>());
+        try {
+            ScheduledJob a = store(service, "a");
+            ScheduledJob b = chain(store(service, "b", a), service);
+            ScheduledJob c = store(service, "c", b);
+            ScheduledJob d = store(service, "d", a);
+            b.setEnabled(false);
+            service.saveJob(b);
+
+            List<String> order = service.runJobWithSuccessors(a.getId());
+
+            assertThat(order).containsExactly(a.getId(), d.getId()).inOrder();
+            awaitJournal(service, d, 1);
+            settle(service);
+            assertThat(service.getJournalForJob(b.getId())).isEmpty();
+            assertThat(service.getJournalForJob(c.getId())).isEmpty();
+        } finally {
+            cleanup(service, dir);
+        }
+    }
+
+    @Test
     void savingACycleIsRejected() throws Exception {
         Path dir = Files.createTempDirectory("kortty-job-deps-cycle");
         JobSchedulerService service = newService(dir, new ConcurrentHashMap<>());

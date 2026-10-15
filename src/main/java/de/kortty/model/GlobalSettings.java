@@ -197,6 +197,9 @@ public class GlobalSettings {
     private boolean jobSchedulerDependencyDiagramHorizontal; // Dependency diagram left-to-right instead of top-down
 
     @XmlElement
+    private String jobSchedulerDependencyDiagramColorMode = "auto"; // auto | light | dark
+
+    @XmlElement
     private boolean preventSystemSleep = false; // Manual, persistent power-management override
 
     // 0 means keep journal entries indefinitely.
@@ -1921,6 +1924,14 @@ public class GlobalSettings {
 
     public void setJobSchedulerDependencyDiagramHorizontal(boolean jobSchedulerDependencyDiagramHorizontal) {
         this.jobSchedulerDependencyDiagramHorizontal = jobSchedulerDependencyDiagramHorizontal;
+    }
+
+    public String getJobSchedulerDependencyDiagramColorMode() {
+        return jobSchedulerDependencyDiagramColorMode != null ? jobSchedulerDependencyDiagramColorMode : "auto";
+    }
+
+    public void setJobSchedulerDependencyDiagramColorMode(String jobSchedulerDependencyDiagramColorMode) {
+        this.jobSchedulerDependencyDiagramColorMode = jobSchedulerDependencyDiagramColorMode;
     }
 
     public boolean isPreventSystemSleep() {
