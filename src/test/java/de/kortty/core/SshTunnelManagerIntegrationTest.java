@@ -9,7 +9,12 @@ import de.kortty.model.SSHTunnel;
 import de.kortty.model.TunnelType;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.common.channel.RequestHandler;
+import org.apache.sshd.common.session.ConnectionService;
+import org.apache.sshd.common.session.helpers.AbstractConnectionServiceRequestHandler;
+import org.apache.sshd.common.util.buffer.Buffer;
 import org.apache.sshd.server.SshServer;
+import org.apache.sshd.server.global.CancelTcpipForwardHandler;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -217,6 +222,40 @@ class SshTunnelManagerIntegrationTest {
         }
         try (Socket socket = new Socket("localhost", serverPort)) {
             assertThat(roundTrip(socket, "remote again")).isEqualTo("remote again");
+        }
+    }
+
+    @Test
+    void stopThenAttachWaitsUntilTheServerHasReleasedTheRemotePort() throws Exception {
+        // MINA sends cancel-tcpip-forward without want-reply. Holding the server back on it widens
+        // the race the handover used to lose now and then ("address already in use" on the server).
+        List<RequestHandler<ConnectionService>> handlers = new ArrayList<>();
+        handlers.add(new AbstractConnectionServiceRequestHandler() {
+            @Override
+            public Result process(ConnectionService service, String request, boolean wantReply, Buffer buffer)
+                throws Exception {
+                if (CancelTcpipForwardHandler.REQUEST.equals(request)) {
+                    Thread.sleep(300);
+                }
+                return Result.Unsupported;
+            }
+        });
+        handlers.addAll(server.getGlobalRequestHandlers());
+        server.setGlobalRequestHandlers(handlers);
+        int serverPort = freePort();
+        List<SSHTunnel> tunnels = List.of(tunnel(TunnelType.REMOTE, "127.0.0.1", echo.port(), "localhost", serverPort));
+        SshTunnelManager manager = manager();
+        ClientSession firstSession = login(client, server);
+        ClientSession secondSession = login(client, server);
+
+        manager.attach(firstSession, tunnels, false);
+        manager.stop();
+        manager.attach(secondSession, tunnels, false);
+
+        TunnelStatus status = manager.snapshot().get(0);
+        assertWithMessage("re-requested remote forward: %s", status).that(status.state()).isEqualTo(State.ACTIVE);
+        try (Socket socket = new Socket("localhost", serverPort)) {
+            assertThat(roundTrip(socket, "remote after handover")).isEqualTo("remote after handover");
         }
     }
 
