@@ -5,8 +5,11 @@ import de.kortty.model.ServerConnection;
 import de.kortty.model.TunnelType;
 import de.kortty.policy.PolicyManager;
 import org.apache.sshd.client.session.ClientSession;
+import org.apache.sshd.client.session.forward.ExplicitPortForwardingTracker;
 import org.apache.sshd.client.session.forward.PortForwardingTracker;
+import org.apache.sshd.common.SshConstants;
 import org.apache.sshd.common.session.Session;
+import org.apache.sshd.common.util.buffer.Buffer;
 import org.apache.sshd.common.util.net.SshdSocketAddress;
 import org.apache.sshd.server.forward.ForwardingFilter;
 import org.apache.sshd.server.forward.StaticDecisionForwardingFilter;
@@ -15,10 +18,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
@@ -58,6 +64,10 @@ import java.util.function.Consumer;
 public final class SshTunnelManager {
 
     private static final Logger logger = LoggerFactory.getLogger(SshTunnelManager.class);
+
+    /** Answered by every server (OpenSSH replies with a failure, which is still a reply). */
+    private static final String CANCEL_BARRIER_REQUEST = "keepalive@openssh.com";
+    private static final Duration CANCEL_BARRIER_TIMEOUT = Duration.ofSeconds(5);
 
     /** Lifecycle of one configured tunnel. */
     public enum State {
@@ -648,13 +658,37 @@ public final class SshTunnelManager {
             batch = new ArrayList<>(pendingClose);
             pendingClose.clear();
         }
+        Set<ClientSession> cancelledRemote = new LinkedHashSet<>();
         for (PortForwardingTracker tracker : batch) {
             ClientSession trackerSession = tracker.getClientSession();
             // On a closed session the forwarder already released everything; on an open one this
-            // frees the local listener or cancels the remote forward synchronously.
+            // frees the local listener synchronously or sends the server a remote-forward cancel.
             if (trackerSession != null && trackerSession.isOpen()) {
                 closeQuietly(tracker);
+                if (tracker instanceof ExplicitPortForwardingTracker explicit && !explicit.isLocalForwarding()) {
+                    cancelledRemote.add(trackerSession);
+                }
             }
+        }
+        cancelledRemote.forEach(SshTunnelManager::awaitRemoteCancels);
+    }
+
+    /**
+     * Waits until the server has processed the remote-forward cancels sent on {@code session}.
+     * MINA SSHD sends {@code cancel-tcpip-forward} without asking for a reply, so closing a REMOTE
+     * tracker returns while the server may still hold the port, and a handover that requests the
+     * same port on another session right away can lose that race ("address already in use"). The
+     * server handles a session's global requests in order, so the reply to one sent afterwards
+     * means every cancel before it is done. Callers hold {@link #attachLock}, never the FX thread.
+     */
+    private static void awaitRemoteCancels(ClientSession session) {
+        try {
+            Buffer buffer = session.createBuffer(SshConstants.SSH_MSG_GLOBAL_REQUEST, 32);
+            buffer.putString(CANCEL_BARRIER_REQUEST);
+            buffer.putBoolean(true); // want reply
+            session.request(CANCEL_BARRIER_REQUEST, buffer, CANCEL_BARRIER_TIMEOUT);
+        } catch (IOException | RuntimeException e) {
+            logger.debug("Waiting for remote-forward cancels failed: {}", e.getMessage());
         }
     }
 
