@@ -962,13 +962,47 @@
 <td>—</td>
 <td><code>securityCheckAiProfileId</code></td>
 </tr>
+<tr>
+<td>Other computers on the network (setup wizard quick start)</td>
+<td>text</td>
+<td>host, <code>host:port</code> or <code>http://</code> URL, comma-separated; probed besides localhost</td>
+<td>—</td>
+<td><code>aiWizardScanHosts</code></td>
+</tr>
 </tbody>
 </table>
 <p>The security-check profile is a dedicated AI profile for snippet <strong>Security Check</strong> actions. Leave it empty (or use <strong>Clear</strong>) to reuse the default profile. It can also be set directly in the snippet Security Check window, and both places share the same remembered setting.</p>
-<p><strong>AI request timeout</strong> is the maximum runtime of a single AI request and applies to every profile. The default <code>0</code> means korTTY imposes no timeout at all: long-running tasks such as the snippet editor's <strong>Full code analysis</strong> run until the model answers. Set a positive number of minutes to cancel requests that exceed it. A profile can override the value — see <strong>Timeout for this profile</strong> below.</p>
-<h3 id="profile-settings-in-editor-grid">Profile Settings (in Editor Grid)<a class="headerlink" href="#profile-settings-in-editor-grid" title="Permanent link">&para;</a></h3>
-<p>The same fields are edited in <strong>AI &gt; AI Manager &gt; Profiles</strong>, where the whole form is visible at once:</p>
+<p><strong>AI request timeout</strong> is the maximum runtime of a single AI request and applies to every profile. The default <code>0</code> means korTTY imposes no timeout at all: long-running tasks such as the snippet editor's <strong>Full code analysis</strong> run until the model answers. Set a positive number of minutes to cancel requests that exceed it. A profile can override the value — see <strong>Timeout for this profile</strong> below. In the AI Manager the global value is the first row of the profile editor's <strong>Limits &amp; timeouts</strong> section.</p>
+<p>In the AI Manager the default profile is chosen with the <strong>Use as default profile</strong> check box next to the profile name; one profile is always the default, so ticking the box on another profile moves it.</p>
+<h3 id="profile-settings-in-editor-sections">Profile Settings (in Editor Sections)<a class="headerlink" href="#profile-settings-in-editor-sections" title="Permanent link">&para;</a></h3>
+<p>The same fields are edited in <strong>AI &gt; AI Manager &gt; Profiles</strong>. The editor keeps <strong>Profile name</strong> and <strong>Use as default profile</strong> above four section tabs, and the <strong>Connection</strong> and <strong>Model &amp; capabilities</strong> sections show only the rows that apply to the selected <strong>Connection</strong> mode (the URL and key rows for <strong>HTTP API</strong>, the CLI rows for <strong>Local CLI</strong>, a note for <strong>Integrated llama.cpp</strong> and <strong>Integrated MLX</strong>):</p>
 <p><img alt="AI Manager profiles tab" src="../../assets/screenshots/ai/ai-profiles.png" /></p>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>Fields</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Connection</strong></td>
+<td>Connection, API URL, Trusted local endpoint, API Key (with <strong>Clear stored API key</strong> beside it), CLI provider, CLI status, CLI executable, CLI arguments</td>
+</tr>
+<tr>
+<td><strong>Model &amp; capabilities</strong></td>
+<td>Model, Custom model, Reasoning, Image input (vision), Prompt optimization, Internet access</td>
+</tr>
+<tr>
+<td><strong>Limits &amp; timeouts</strong></td>
+<td>AI request timeout (applies to every profile, shown first), Max characters, Timeout for this profile, Max output tokens</td>
+</tr>
+<tr>
+<td><strong>Budget &amp; usage</strong></td>
+<td>Tokenizer, Max tokens, Warning thresholds, Reset, Price per 1M tokens, Usage (the quota bar and the usage line)</td>
+</tr>
+</tbody>
+</table>
 <table>
 <thead>
 <tr>
@@ -1281,6 +1315,7 @@
 <p>An explicitly chosen or security-check profile remains most specific. Otherwise terminal text actions use the configured Text profile, code actions use the Coding profile, and an unassigned role falls back to the <strong>Default profile</strong>. Configure those roles and the local runtime under <strong>AI &gt; AI Manager &gt; Local AI</strong>; see <a href="../../features/local-models.html">Local models with llama.cpp</a>.</p>
 <p>The AI Manager is modeless and can remain open while you use the main window. Invoking it again restores and focuses the same manager for that main window, and its open primary section remains visibly marked with a bold accent underline when you interact with controls inside that section.</p>
 <h3 id="local-ai-manager-settings">Local AI manager settings<a class="headerlink" href="#local-ai-manager-settings" title="Permanent link">&para;</a></h3>
+<p><strong>AI &gt; AI Manager &gt; Local AI</strong> groups these settings on three section tabs: <strong>Profile roles</strong> (the three profile selectors), <strong>Local runtime</strong> (runtime updates, preferred backend, RAG embedding model ID) and <strong>Hugging Face</strong> (the token). <strong>Save</strong> under the sections writes all of them.</p>
 <table>
 <thead>
 <tr>

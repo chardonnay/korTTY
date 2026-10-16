@@ -1,5 +1,8 @@
 package de.kortty.ui;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiCliArgumentTemplate;
 import de.kortty.core.AiCloudModelCatalog;
@@ -37,9 +40,13 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -47,7 +54,12 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -57,15 +69,20 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Beginner-friendly, branching step-by-step wizard for configuring a single AI profile so that a
- * connection to the AI can be established and used by the terminal agent. On finish the new profile
- * is persisted to {@link GlobalSettings} and (optionally) made the default; the dialog result is the
- * created profile, or an empty {@link java.util.Optional} when cancelled.
+ * Step-by-step creation of an AI profile. A sidebar lists the stages with the choices already
+ * made, the first stage looks for local AI servers and installed command-line tools and offers
+ * ready-made profiles, and the last stage tests the connection on its own and shows a summary
+ * with links back to every choice.
  */
 public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
     private static final Logger logger = LoggerFactory.getLogger(AiProfileWizardDialog.class);
     private static final String DEFAULT_OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+    private static final double SIDEBAR_WIDTH = 230;
+    private static final double SIDEBAR_TEXT_WIDTH = 150;
+    private static final double SIDEBAR_ILLUSTRATION_SIZE = 40;
+    /** The quick start waits this long for a local server; one that is not running refuses at once. */
+    private static final Duration PROBE_TIMEOUT = Duration.ofSeconds(3);
 
     /**
      * A selectable cloud provider with a pre-filled endpoint. {@code url == null} means the user
@@ -99,11 +116,54 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             "https://www.minimax.io/platform")
     );
 
+    /**
+     * A server the quick start probes: the product expected there, its host and its port. The two
+     * loopback candidates are fixed; the others come from the hosts the user enters and from the
+     * HTTP profiles that already exist.
+     */
+    private record LocalServerCandidate(String product, String host, int port) {
+        String apiUrl() {
+            return "http://" + host + ":" + port + "/v1/chat/completions";
+        }
+
+        boolean isLoopback() {
+            return LocalLmModelResolver.isLoopbackHttpUrl(apiUrl());
+        }
+
+        String displayName() {
+            return isLoopback() ? product : I18n.get("ai.wizard.scan.onHost", product, host);
+        }
+
+        String key() {
+            return host.toLowerCase(java.util.Locale.ROOT) + ":" + port;
+        }
+    }
+
+    private static final int LM_STUDIO_PORT = 1234;
+    private static final int OLLAMA_PORT = 11434;
+    private static final List<LocalServerCandidate> LOOPBACK_CANDIDATES = List.of(
+        new LocalServerCandidate("LM Studio", "127.0.0.1", LM_STUDIO_PORT),
+        new LocalServerCandidate("Ollama", "127.0.0.1", OLLAMA_PORT)
+    );
+
+    private record DetectedServer(LocalServerCandidate candidate, List<String> models) {
+    }
+
+    private record DetectedCli(AiCliProviderDescriptor provider, String executable) {
+    }
+
+    private record ScanResult(List<LocalServerCandidate> candidates, List<DetectedServer> servers, List<DetectedCli> tools) {
+    }
+
     private enum WizardPath { CLOUD_API, LOCAL_SERVER, LOCAL_CLI }
 
     private enum WizardStep {
-        WELCOME, CLOUD_PROVIDER, CLOUD_KEY, SERVER_URL, SERVER_MODEL,
+        SCAN, WELCOME, CLOUD_PROVIDER, CLOUD_KEY, SERVER_URL, SERVER_MODEL,
         CLI_PROVIDER, CLI_CHECK, NAME, TEST_FINISH
+    }
+
+    /** One sidebar entry: the step it stands for ({@code null} while the path is unknown) and its label. */
+    private record Stage(WizardStep step, String label) {
     }
 
     private final KorTTYApplication app;
@@ -112,8 +172,11 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     private WizardPath selectedPath;
     private int currentIndex;
 
+    // Sidebar
+    private final StackPane sidebarIllustration = new StackPane();
+    private final VBox stageList = new VBox(6);
+
     // Header
-    private final StackPane illustrationHolder = new StackPane();
     private final Label titleLabel = new Label();
     private final Label subtitleLabel = new Label();
     private final VBox contentHolder = new VBox();
@@ -123,15 +186,31 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     private final Button nextButton = new Button(I18n.get("ai.wizard.next"));
     private final Button finishButton = new Button(I18n.get("ai.wizard.finish"));
     private final Button cancelButton = new Button(I18n.get("ai.wizard.cancel"));
+    private final Button retestButton = new Button(I18n.get("ai.wizard.test.retry"));
+    private final Button rescanButton = new Button(I18n.get("ai.wizard.scan.rescan"));
 
     // Cached step content (keeps user input when navigating back/forward)
     private final Map<WizardStep, Node> stepContent = new EnumMap<>(WizardStep.class);
 
+    // Quick start
+    private VBox scanResultsBox;
+    /** Hosts to probe besides localhost: host, host:port or an http URL, comma-separated. */
+    private TextField scanHostsField;
+    private ScanResult scanResult;
+    private boolean scanRunning;
+    /** Bumped per scan so a slow result of an earlier scan is ignored. */
+    private int scanGeneration;
+    /** What the quick-start stage shows in the sidebar once it is passed. */
+    private String detectedLabel;
+    /** Profile name suggested by the detection, e.g. "LM Studio (local)". */
+    private String detectedName;
+
     // Welcome controls
-    private ComboBox<WizardPath> connectionTypeCombo;
+    private ToggleGroup connectionTypeGroup;
 
     // Cloud controls
-    private ComboBox<CloudProvider> cloudProviderCombo;
+    private ToggleGroup cloudProviderGroup;
+    private CloudProvider selectedCloudProvider;
     private TextField cloudUrlField;
     private VBox cloudUrlBox;
     private PasswordField cloudKeyField;
@@ -171,9 +250,11 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     private CheckBox makeDefaultCheck;
 
     // Test controls
-    private Button runTestButton;
+    private HBox testResultBox;
     private ProgressIndicator testProgress;
     private Label testStatusLabel;
+    private Hyperlink skipTestLink;
+    private GridPane summaryGrid;
     private boolean testPassedOrSkipped;
     private boolean testRunning;
 
@@ -189,17 +270,11 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         setResultConverter(buttonType -> null);
 
         titleLabel.setStyle("-fx-font-size: 1.2308em; -fx-font-weight: bold;");
+        titleLabel.setWrapText(true);
         subtitleLabel.setWrapText(true);
         subtitleLabel.setStyle("-fx-font-size: 0.9231em; " + MutedTextStyle.MUTED);
-        illustrationHolder.setMinSize(96, 96);
-        illustrationHolder.setPrefSize(96, 96);
-
-        VBox headerText = new VBox(4, titleLabel, subtitleLabel);
-        headerText.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(headerText, Priority.ALWAYS);
-        HBox header = new HBox(16, illustrationHolder, headerText);
-        header.setAlignment(Pos.CENTER_LEFT);
-        header.setPadding(new Insets(4, 4, 12, 4));
+        VBox header = new VBox(4, titleLabel, subtitleLabel);
+        header.setPadding(new Insets(4, 4, 10, 4));
 
         ScrollPane scroll = new ScrollPane(contentHolder);
         scroll.setFitToWidth(true);
@@ -211,29 +286,32 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         backButton.setOnAction(e -> goBack());
         nextButton.setOnAction(e -> goNext());
         finishButton.setOnAction(e -> doFinish());
-        finishButton.setDefaultButton(true);
+        retestButton.setOnAction(e -> runTest());
+        rescanButton.setOnAction(e -> {
+            scanResult = null;
+            startScan();
+        });
         cancelButton.setOnAction(e -> {
             setResult(null);
             close();
         });
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox footer = new HBox(8, backButton, spacer, cancelButton, nextButton, finishButton);
+        HBox footer = new HBox(8, cancelButton, spacer, backButton, rescanButton, retestButton, nextButton, finishButton);
         footer.setAlignment(Pos.CENTER_RIGHT);
         footer.setPadding(new Insets(12, 4, 4, 4));
 
-        BorderPane root = new BorderPane();
-        root.setTop(header);
-        root.setCenter(scroll);
-        root.setBottom(footer);
-        root.setPadding(new Insets(8));
+        VBox main = new VBox(header, scroll, footer);
+        main.setPadding(new Insets(8, 8, 8, 14));
+        HBox.setHgrow(main, Priority.ALWAYS);
 
+        HBox root = new HBox(buildSidebar(), main);
         getDialogPane().setContent(root);
-        getDialogPane().setPrefSize(720, 560);
-        getDialogPane().setMinSize(560, 460);
+        getDialogPane().setPrefSize(860, 600);
+        getDialogPane().setMinSize(720, 500);
 
         // Keep ButtonType.CLOSE for ESC / window-close handling, but hide its button so the
-        // wizard's own footer (Back/Next/Cancel/Finish) is the only visible control row.
+        // wizard's own footer (Cancel/Back/Next/Finish) is the only visible control row.
         Node closeButton = getDialogPane().lookupButton(ButtonType.CLOSE);
         if (closeButton != null) {
             closeButton.setVisible(false);
@@ -244,10 +322,151 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         showStep();
     }
 
+    // ----- Sidebar ----------------------------------------------------------------------------
+
+    private Node buildSidebar() {
+        sidebarIllustration.getChildren().setAll(WizardIllustrations.forKey("welcome", SIDEBAR_ILLUSTRATION_SIZE));
+        Label caption = new Label(I18n.get("ai.wizard.welcome.title"));
+        caption.setStyle("-fx-font-weight: bold;");
+        caption.setWrapText(true);
+        HBox head = new HBox(10, sidebarIllustration, caption);
+        head.setAlignment(Pos.CENTER_LEFT);
+        VBox sidebar = new VBox(16, head, stageList);
+        sidebar.getStyleClass().add("ai-wizard-sidebar");
+        sidebar.setPadding(new Insets(16, 12, 16, 12));
+        sidebar.setPrefWidth(SIDEBAR_WIDTH);
+        sidebar.setMinWidth(SIDEBAR_WIDTH);
+        sidebar.setMaxWidth(SIDEBAR_WIDTH);
+        return sidebar;
+    }
+
+    /** The sidebar's entries for the current path: the two middle ones only get a step once a path is chosen. */
+    private List<Stage> stages() {
+        List<Stage> stages = new ArrayList<>();
+        stages.add(new Stage(WizardStep.SCAN, I18n.get("ai.wizard.scan.title")));
+        stages.add(new Stage(WizardStep.WELCOME, I18n.get("ai.wizard.stage.connection")));
+        if (selectedPath == null) {
+            stages.add(new Stage(null, I18n.get("ai.wizard.stage.endpoint")));
+            stages.add(new Stage(null, I18n.get("ai.wizard.stage.access")));
+        } else {
+            switch (selectedPath) {
+                case CLOUD_API -> {
+                    stages.add(new Stage(WizardStep.CLOUD_PROVIDER, I18n.get("ai.wizard.stage.cloudProvider")));
+                    stages.add(new Stage(WizardStep.CLOUD_KEY, I18n.get("ai.wizard.stage.access")));
+                }
+                case LOCAL_SERVER -> {
+                    stages.add(new Stage(WizardStep.SERVER_URL, I18n.get("ai.wizard.stage.server")));
+                    stages.add(new Stage(WizardStep.SERVER_MODEL, I18n.get("ai.wizard.stage.model")));
+                }
+                case LOCAL_CLI -> {
+                    stages.add(new Stage(WizardStep.CLI_PROVIDER, I18n.get("ai.wizard.stage.cliTool")));
+                    stages.add(new Stage(WizardStep.CLI_CHECK, I18n.get("ai.wizard.stage.cliCheck")));
+                }
+            }
+        }
+        stages.add(new Stage(WizardStep.NAME, I18n.get("ai.wizard.stage.name")));
+        stages.add(new Stage(WizardStep.TEST_FINISH, I18n.get("ai.wizard.stage.test")));
+        return stages;
+    }
+
+    private void refreshSidebar() {
+        List<WizardStep> steps = steps();
+        WizardStep current = currentStep();
+        stageList.getChildren().clear();
+        int number = 0;
+        for (Stage stage : stages()) {
+            number++;
+            int index = stage.step() != null ? steps.indexOf(stage.step()) : -1;
+            boolean isCurrent = stage.step() == current;
+            boolean done = index >= 0 && index < currentIndex;
+            stageList.getChildren().add(buildStageRow(stage, number, isCurrent, done));
+        }
+    }
+
+    private Node buildStageRow(Stage stage, int number, boolean current, boolean done) {
+        Label badge = new Label(done ? "✓" : Integer.toString(number));
+        badge.getStyleClass().add("ai-wizard-stage-badge");
+        Label name = new Label(stage.label());
+        name.getStyleClass().add("ai-wizard-stage-label");
+        name.setWrapText(true);
+        name.setPrefWidth(SIDEBAR_TEXT_WIDTH);
+        name.setMaxWidth(SIDEBAR_TEXT_WIDTH);
+        VBox text = new VBox(1, name);
+        if (current) {
+            badge.getStyleClass().add("current");
+            name.getStyleClass().add("current");
+        } else if (done) {
+            badge.getStyleClass().add("done");
+            name.getStyleClass().add("done");
+            String value = stageValue(stage.step());
+            if (value != null && !value.isBlank()) {
+                Label valueLabel = new Label(value);
+                valueLabel.getStyleClass().add("ai-wizard-stage-value");
+                valueLabel.setWrapText(true);
+                valueLabel.setPrefWidth(SIDEBAR_TEXT_WIDTH);
+                valueLabel.setMaxWidth(SIDEBAR_TEXT_WIDTH);
+                text.getChildren().add(valueLabel);
+            }
+        }
+        HBox row = new HBox(10, badge, text);
+        row.setAlignment(Pos.TOP_LEFT);
+        if (done && stage.step() != null) {
+            // A passed stage is a shortcut back to it; the summary's "Change" links do the same.
+            Button jump = new Button();
+            jump.setGraphic(row);
+            jump.getStyleClass().add("ai-wizard-stage-button");
+            jump.setMaxWidth(Double.MAX_VALUE);
+            jump.setAlignment(Pos.CENTER_LEFT);
+            WizardStep target = stage.step();
+            jump.setOnAction(e -> jumpTo(target));
+            return jump;
+        }
+        row.setPadding(new Insets(4, 6, 4, 6));
+        return row;
+    }
+
+    /** The short account of a passed stage shown under its name in the sidebar, or {@code null}. */
+    private String stageValue(WizardStep step) {
+        if (step == null) {
+            return null;
+        }
+        return switch (step) {
+            case SCAN -> detectedLabel;
+            case WELCOME -> selectedPath != null ? pathTitle(selectedPath) : null;
+            case CLOUD_PROVIDER -> {
+                CloudProvider provider = cloudProvider();
+                if (provider == null) {
+                    yield null;
+                }
+                yield provider.isCustom() ? hostOf(trimToNull(text(cloudUrlField))) : provider.name();
+            }
+            case CLOUD_KEY -> join(resolveCloudModel(), apiKeyState(trimToNull(text(cloudKeyField)) != null));
+            case SERVER_URL -> hostOf(trimToNull(text(serverUrlField)));
+            case SERVER_MODEL -> serverAutoRadio != null && serverAutoRadio.isSelected()
+                ? I18n.get("ai.wizard.value.auto")
+                : resolveServerModel();
+            case CLI_PROVIDER -> cliProviderCombo != null && cliProviderCombo.getValue() != null
+                ? cliProviderCombo.getValue().displayName()
+                : null;
+            case CLI_CHECK -> join(fileName(trimToNull(text(cliPathField))), cliModelSummary());
+            case NAME -> {
+                String name = trimToNull(text(nameField));
+                if (name == null) {
+                    yield null;
+                }
+                yield makeDefaultCheck != null && makeDefaultCheck.isSelected()
+                    ? name + " · " + I18n.get("ai.wizard.value.default")
+                    : name;
+            }
+            case TEST_FINISH -> null;
+        };
+    }
+
     // ----- Navigation -----------------------------------------------------------------------
 
     private List<WizardStep> steps() {
         List<WizardStep> steps = new ArrayList<>();
+        steps.add(WizardStep.SCAN);
         steps.add(WizardStep.WELCOME);
         if (selectedPath != null) {
             switch (selectedPath) {
@@ -283,15 +502,28 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     }
 
     private void goNext() {
+        if (currentStep() == WizardStep.SCAN && detectedLabel == null) {
+            detectedLabel = I18n.get("ai.wizard.scan.manualChosen");
+        }
         if (currentIndex < steps().size() - 1) {
             currentIndex++;
             showStep();
         }
     }
 
+    /** Shows {@code step} when the current path contains it; the sidebar and the summary use this. */
+    private void jumpTo(WizardStep step) {
+        int index = steps().indexOf(step);
+        if (index >= 0) {
+            currentIndex = index;
+            showStep();
+        }
+    }
+
     private void showStep() {
         WizardStep step = currentStep();
-        illustrationHolder.getChildren().setAll(WizardIllustrations.forKey(illustrationKey(step)));
+        sidebarIllustration.getChildren().setAll(
+            WizardIllustrations.forKey(illustrationKey(step), SIDEBAR_ILLUSTRATION_SIZE));
         titleLabel.setText(stepTitle(step));
         subtitleLabel.setText(stepSubtitle(step));
         contentHolder.getChildren().setAll(contentFor(step));
@@ -300,23 +532,32 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     }
 
     private void updateButtons() {
-        List<WizardStep> steps = steps();
         WizardStep step = currentStep();
-        boolean isLast = currentIndex >= steps.size() - 1;
-        boolean hasPath = selectedPath != null;
+        boolean isLast = step == WizardStep.TEST_FINISH;
+        boolean isScan = step == WizardStep.SCAN;
 
         backButton.setDisable(currentIndex == 0);
-        // On the final (test) step Next is replaced by Finish.
-        nextButton.setVisible(!isLast || !hasPath);
-        nextButton.setManaged(nextButton.isVisible());
+        // On the final (test) step Next is replaced by Test again + Finish.
+        nextButton.setVisible(!isLast);
+        nextButton.setManaged(!isLast);
         nextButton.setDisable(!isStepValid(step));
-        finishButton.setVisible(isLast && hasPath);
-        finishButton.setManaged(finishButton.isVisible());
-        finishButton.setDisable(!(step == WizardStep.TEST_FINISH && testPassedOrSkipped));
+        nextButton.setDefaultButton(!isLast);
+        finishButton.setVisible(isLast);
+        finishButton.setManaged(isLast);
+        finishButton.setDisable(!(isLast && testPassedOrSkipped && !testRunning));
+        finishButton.setDefaultButton(isLast);
+        retestButton.setVisible(isLast);
+        retestButton.setManaged(isLast);
+        retestButton.setDisable(testRunning);
+        rescanButton.setVisible(isScan);
+        rescanButton.setManaged(isScan);
+        rescanButton.setDisable(scanRunning);
+        refreshSidebar();
     }
 
     private boolean isStepValid(WizardStep step) {
         return switch (step) {
+            case SCAN -> true;
             case WELCOME -> selectedPath != null;
             case CLOUD_PROVIDER -> trimToNull(resolveCloudUrl()) != null;
             case CLOUD_KEY -> trimToNull(text(cloudKeyField)) != null && trimToNull(resolveCloudModel()) != null;
@@ -338,8 +579,13 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
     private void onStepShown(WizardStep step) {
         switch (step) {
+            case SCAN -> {
+                if (scanResult == null && !scanRunning) {
+                    startScan();
+                }
+            }
             case CLOUD_KEY -> {
-                applyProviderHelp(cloudProviderCombo != null ? cloudProviderCombo.getValue() : null);
+                applyProviderHelp(cloudProvider());
                 refreshReasoningLevels();
             }
             case SERVER_MODEL -> refreshReasoningLevels();
@@ -364,7 +610,10 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             case TEST_FINISH -> {
                 testPassedOrSkipped = false;
                 testStatusLabel.setText("");
-                testStatusLabel.setStyle(MutedTextStyle.MUTED);
+                setTestResultStyle("ai-wizard-result-neutral");
+                refreshSummary();
+                // The test needs no click: entering the step sends the request.
+                runTest();
             }
             default -> { }
         }
@@ -374,6 +623,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
     private String illustrationKey(WizardStep step) {
         return switch (step) {
+            case SCAN -> "localserver";
             case WELCOME -> "welcome";
             case CLOUD_PROVIDER -> "cloud";
             case CLOUD_KEY -> "key";
@@ -388,6 +638,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
     private String stepTitle(WizardStep step) {
         return switch (step) {
+            case SCAN -> I18n.get("ai.wizard.scan.title");
             case WELCOME -> I18n.get("ai.wizard.welcome.title");
             case CLOUD_PROVIDER -> I18n.get("ai.wizard.cloud.provider.title");
             case CLOUD_KEY -> I18n.get("ai.wizard.cloud.key.title");
@@ -402,6 +653,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
     private String stepSubtitle(WizardStep step) {
         return switch (step) {
+            case SCAN -> I18n.get("ai.wizard.scan.subtitle");
             case WELCOME -> I18n.get("ai.wizard.welcome.subtitle");
             case CLOUD_PROVIDER -> I18n.get("ai.wizard.cloud.provider.subtitle");
             case CLOUD_KEY -> I18n.get("ai.wizard.cloud.key.subtitle");
@@ -414,6 +666,25 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         };
     }
 
+    private static String pathTitle(WizardPath path) {
+        if (path == null) {
+            return "";
+        }
+        return switch (path) {
+            case CLOUD_API -> I18n.get("ai.wizard.type.cloud.title");
+            case LOCAL_SERVER -> I18n.get("ai.wizard.type.localServer.title");
+            case LOCAL_CLI -> I18n.get("ai.wizard.type.cli.title");
+        };
+    }
+
+    private static String pathDescription(WizardPath path) {
+        return switch (path) {
+            case CLOUD_API -> I18n.get("ai.wizard.type.cloud.desc");
+            case LOCAL_SERVER -> I18n.get("ai.wizard.type.localServer.desc");
+            case LOCAL_CLI -> I18n.get("ai.wizard.type.cli.desc");
+        };
+    }
+
     // ----- Step content (cached) -----------------------------------------------------------
 
     private Node contentFor(WizardStep step) {
@@ -422,6 +693,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
     private Node buildContent(WizardStep step) {
         return switch (step) {
+            case SCAN -> buildScan();
             case WELCOME -> buildWelcome();
             case CLOUD_PROVIDER -> buildCloudProvider();
             case CLOUD_KEY -> buildCloudKey();
@@ -434,105 +706,488 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         };
     }
 
-    private Node buildWelcome() {
-        Label flowIntro = new Label(I18n.get("ai.wizard.flow.intro"));
-        flowIntro.setWrapText(true);
+    // ----- Quick start ----------------------------------------------------------------------
 
-        connectionTypeCombo = new ComboBox<>();
-        connectionTypeCombo.getItems().addAll(WizardPath.CLOUD_API, WizardPath.LOCAL_SERVER, WizardPath.LOCAL_CLI);
-        connectionTypeCombo.setConverter(new javafx.util.StringConverter<>() {
-            @Override
-            public String toString(WizardPath path) {
-                if (path == null) {
-                    return "";
+    private Node buildScan() {
+        scanResultsBox = new VBox(8);
+
+        Label manualTitle = new Label(I18n.get("ai.wizard.scan.manual"));
+        manualTitle.getStyleClass().add("ai-wizard-divider");
+        Separator left = new Separator();
+        Separator right = new Separator();
+        HBox.setHgrow(left, Priority.ALWAYS);
+        HBox.setHgrow(right, Priority.ALWAYS);
+        HBox divider = new HBox(10, left, manualTitle, right);
+        divider.setAlignment(Pos.CENTER);
+
+        Button cloud = manualCard(
+            I18n.get("ai.wizard.scan.manual.cloud.title"),
+            I18n.get("ai.wizard.scan.manual.cloud.desc"),
+            () -> {
+                detectedLabel = I18n.get("ai.wizard.scan.manualChosen");
+                detectedName = null;
+                selectedPath = WizardPath.CLOUD_API;
+                syncConnectionTypeCards();
+                jumpTo(WizardStep.CLOUD_PROVIDER);
+            });
+        Button other = manualCard(
+            I18n.get("ai.wizard.scan.manual.other.title"),
+            I18n.get("ai.wizard.scan.manual.other.desc"),
+            () -> {
+                detectedLabel = I18n.get("ai.wizard.scan.manualChosen");
+                detectedName = null;
+                jumpTo(WizardStep.WELCOME);
+            });
+        HBox manual = new HBox(10, cloud, other);
+        HBox.setHgrow(cloud, Priority.ALWAYS);
+        HBox.setHgrow(other, Priority.ALWAYS);
+
+        GlobalSettings settings = settings();
+        scanHostsField = new TextField(settings != null && settings.getAiWizardScanHosts() != null
+            ? settings.getAiWizardScanHosts()
+            : "");
+        scanHostsField.setPromptText(I18n.get("ai.wizard.scan.hosts.prompt"));
+        scanHostsField.setOnAction(e -> {
+            scanResult = null;
+            startScan();
+        });
+        Label hostsHint = new Label(I18n.get("ai.wizard.scan.hosts.hint"));
+        hostsHint.setWrapText(true);
+        hostsHint.getStyleClass().add("ai-wizard-card-desc");
+        VBox hosts = new VBox(4, new Label(I18n.get("ai.wizard.scan.hosts")), scanHostsField, hostsHint);
+
+        return new VBox(14, scanResultsBox, hosts, divider, manual);
+    }
+
+    /**
+     * Everything the scan should probe: localhost, the hosts entered in the field (remembered in
+     * the settings) and the hosts of the HTTP profiles that exist already. An entry without a port
+     * is checked on both the LM Studio and the Ollama port.
+     */
+    private List<LocalServerCandidate> scanCandidates() {
+        java.util.LinkedHashMap<String, LocalServerCandidate> candidates = new java.util.LinkedHashMap<>();
+        for (LocalServerCandidate candidate : LOOPBACK_CANDIDATES) {
+            candidates.put(candidate.key(), candidate);
+        }
+        String hostsText = scanHostsField != null ? trimToNull(scanHostsField.getText()) : null;
+        for (LocalServerCandidate candidate : parseHostEntries(hostsText)) {
+            candidates.putIfAbsent(candidate.key(), candidate);
+        }
+        GlobalSettings settings = settings();
+        if (settings != null) {
+            if (!java.util.Objects.equals(settings.getAiWizardScanHosts(), hostsText)) {
+                settings.setAiWizardScanHosts(hostsText);
+                try {
+                    app.getGlobalSettingsManager().save();
+                } catch (Exception e) {
+                    logger.debug("Could not remember the quick-start hosts: {}", e.getMessage());
                 }
-                return switch (path) {
-                    case CLOUD_API -> I18n.get("ai.wizard.type.cloud.title");
-                    case LOCAL_SERVER -> I18n.get("ai.wizard.type.localServer.title");
-                    case LOCAL_CLI -> I18n.get("ai.wizard.type.cli.title");
-                };
             }
+            if (settings.getAiProfiles() != null) {
+                for (AiProfile profile : settings.getAiProfiles()) {
+                    if (profile == null || profile.getConnectionMode() != AiConnectionMode.HTTP_API) {
+                        continue;
+                    }
+                    String url = trimToNull(profile.getApiUrl());
+                    if (url == null || LocalLmModelResolver.isLoopbackHttpUrl(url)) {
+                        continue;
+                    }
+                    LocalServerCandidate candidate = candidateFromUrl(url);
+                    if (candidate != null) {
+                        candidates.putIfAbsent(candidate.key(), candidate);
+                    }
+                }
+            }
+        }
+        return List.copyOf(candidates.values());
+    }
 
-            @Override
-            public WizardPath fromString(String string) {
+    /** "host", "host:port" or an http URL per entry, separated by commas or whitespace. */
+    static List<LocalServerCandidate> parseHostEntries(String text) {
+        List<LocalServerCandidate> candidates = new ArrayList<>();
+        if (text == null) {
+            return candidates;
+        }
+        for (String entry : text.split("[,;\\s]+")) {
+            String value = entry.trim();
+            if (value.isEmpty()) {
+                continue;
+            }
+            if (value.contains("://")) {
+                LocalServerCandidate candidate = candidateFromUrl(value);
+                if (candidate != null) {
+                    candidates.add(candidate);
+                } else {
+                    String host = hostOf(value);
+                    if (host != null && !host.contains("://")) {
+                        candidates.addAll(bothProductsOn(host));
+                    }
+                }
+                continue;
+            }
+            int colon = value.lastIndexOf(':');
+            if (colon > 0 && value.indexOf(':') == colon) {
+                try {
+                    int port = Integer.parseInt(value.substring(colon + 1));
+                    if (port > 0 && port <= 65535) {
+                        candidates.add(new LocalServerCandidate(productFor(port), value.substring(0, colon), port));
+                        continue;
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Not host:port after all; probe the whole text as a host below.
+                }
+            }
+            candidates.addAll(bothProductsOn(value));
+        }
+        return candidates;
+    }
+
+    private static List<LocalServerCandidate> bothProductsOn(String host) {
+        return List.of(
+            new LocalServerCandidate("LM Studio", host, LM_STUDIO_PORT),
+            new LocalServerCandidate("Ollama", host, OLLAMA_PORT));
+    }
+
+    /** The candidate behind an http URL with an explicit port, or {@code null}. */
+    private static LocalServerCandidate candidateFromUrl(String url) {
+        try {
+            URI uri = URI.create(url);
+            if (!"http".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getPort() <= 0) {
                 return null;
             }
-        });
-        connectionTypeCombo.setMaxWidth(Double.MAX_VALUE);
-        if (selectedPath != null) {
-            connectionTypeCombo.getSelectionModel().select(selectedPath);
+            return new LocalServerCandidate(productFor(uri.getPort()), uri.getHost(), uri.getPort());
+        } catch (IllegalArgumentException ex) {
+            return null;
         }
-        Label typeDesc = new Label();
-        typeDesc.setWrapText(true);
-        typeDesc.getStyleClass().add("ai-wizard-card-desc");
-        connectionTypeCombo.valueProperty().addListener((obs, oldV, newV) -> {
-            selectedPath = newV;
-            currentIndex = 0;
-            typeDesc.setText(connectionTypeDescription(newV));
-            updateButtons();
-        });
-        typeDesc.setText(connectionTypeDescription(selectedPath));
-
-        VBox box = new VBox(12,
-            flowIntro,
-            buildWorkflowDiagram(),
-            new VBox(4, new Label(I18n.get("ai.wizard.welcome.typeLabel")), connectionTypeCombo),
-            typeDesc);
-        box.setMaxWidth(Double.MAX_VALUE);
-        return box;
     }
 
-    private String connectionTypeDescription(WizardPath path) {
-        if (path == null) {
-            return "";
+    private static String productFor(int port) {
+        if (port == LM_STUDIO_PORT) {
+            return "LM Studio";
         }
-        return switch (path) {
-            case CLOUD_API -> I18n.get("ai.wizard.type.cloud.desc");
-            case LOCAL_SERVER -> I18n.get("ai.wizard.type.localServer.desc");
-            case LOCAL_CLI -> I18n.get("ai.wizard.type.cli.desc");
-        };
+        if (port == OLLAMA_PORT) {
+            return "Ollama";
+        }
+        return I18n.get("ai.wizard.scan.customServer");
     }
 
-    /** Small overview diagram of the wizard steps so beginners see what they will fill in. */
-    private Node buildWorkflowDiagram() {
-        String[] stepKeys = {
-            "ai.wizard.flow.step.type",
-            "ai.wizard.flow.step.details",
-            "ai.wizard.flow.step.name",
-            "ai.wizard.flow.step.test"
-        };
-        HBox row = new HBox(6);
+    private Button manualCard(String title, String description, Runnable action) {
+        Label titleLabel = new Label(title);
+        titleLabel.getStyleClass().add("ai-wizard-card-title");
+        Label descriptionLabel = new Label(description);
+        descriptionLabel.getStyleClass().add("ai-wizard-card-desc");
+        descriptionLabel.setWrapText(true);
+        descriptionLabel.setPrefWidth(220);
+        descriptionLabel.setMaxWidth(Double.MAX_VALUE);
+        Button card = new Button();
+        card.setGraphic(new VBox(3, titleLabel, descriptionLabel));
+        card.getStyleClass().add("ai-wizard-card");
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setOnAction(e -> action.run());
+        return card;
+    }
+
+    private void startScan() {
+        int generation = ++scanGeneration;
+        scanRunning = true;
+        ProgressIndicator spinner = new ProgressIndicator();
+        spinner.setPrefSize(18, 18);
+        Label searching = new Label(I18n.get("ai.wizard.scan.searching"));
+        searching.setStyle(MutedTextStyle.MUTED);
+        HBox row = new HBox(8, spinner, searching);
         row.setAlignment(Pos.CENTER_LEFT);
-        for (int i = 0; i < stepKeys.length; i++) {
-            if (i > 0) {
-                Label arrow = new Label("→");
-                arrow.getStyleClass().add("ai-wizard-flow-arrow");
-                row.getChildren().add(arrow);
+        scanResultsBox.getChildren().setAll(row);
+        updateButtons();
+
+        List<LocalServerCandidate> candidates = scanCandidates();
+        CompletableFuture
+            .supplyAsync(() -> scan(candidates))
+            .whenComplete((result, error) -> Platform.runLater(() -> {
+                if (generation != scanGeneration) {
+                    return;
+                }
+                scanRunning = false;
+                if (error != null) {
+                    logger.debug("Quick-start scan failed: {}", error.toString());
+                }
+                scanResult = error == null && result != null
+                    ? result
+                    : new ScanResult(candidates, List.of(), List.of());
+                renderScanResults(scanResult);
+                updateButtons();
+            }));
+    }
+
+    /** Runs off the FX thread: asks each candidate server for its models and looks up every CLI. */
+    private ScanResult scan(List<LocalServerCandidate> candidates) {
+        List<DetectedServer> servers = new ArrayList<>();
+        for (LocalServerCandidate candidate : candidates) {
+            List<String> models = probeOpenAiModels(candidate.apiUrl());
+            if (models != null) {
+                servers.add(new DetectedServer(candidate, models));
             }
-            Label chip = new Label((i + 1) + ". " + I18n.get(stepKeys[i]));
-            chip.getStyleClass().add("ai-wizard-flow-chip");
-            row.getChildren().add(chip);
+        }
+        List<DetectedCli> tools = new ArrayList<>();
+        for (AiCliProviderDescriptor provider : AiCliProviderRegistry.providers()) {
+            AiCliProviderRegistry.findProviderExecutable(provider.id())
+                .ifPresent(executable -> tools.add(new DetectedCli(provider, executable)));
+        }
+        return new ScanResult(candidates, List.copyOf(servers), List.copyOf(tools));
+    }
+
+    /**
+     * GETs {@code /v1/models} on the server behind {@code chatUrl}: {@code null} when nothing
+     * answers there, otherwise the model ids the server lists (empty when it answers with
+     * something else, e.g. an authentication error, which still means it is running).
+     */
+    private static List<String> probeOpenAiModels(String chatUrl) {
+        try {
+            URI chat = URI.create(chatUrl);
+            URI models = new URI(chat.getScheme(), null, chat.getHost(), chat.getPort(), "/v1/models", null, null);
+            HttpClient client = HttpClient.newBuilder().connectTimeout(PROBE_TIMEOUT).build();
+            HttpRequest request = HttpRequest.newBuilder(models).timeout(PROBE_TIMEOUT).GET().build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            List<String> ids = new ArrayList<>();
+            if (response.statusCode() / 100 == 2) {
+                JsonElement root = JsonParser.parseString(response.body());
+                JsonElement data = root.isJsonObject() ? root.getAsJsonObject().get("data") : null;
+                if (data instanceof JsonArray array) {
+                    for (JsonElement element : array) {
+                        JsonElement id = element.isJsonObject() ? element.getAsJsonObject().get("id") : null;
+                        if (id != null && id.isJsonPrimitive()) {
+                            ids.add(id.getAsString());
+                        }
+                    }
+                }
+            }
+            return ids;
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (IOException | RuntimeException | java.net.URISyntaxException ex) {
+            return null;
+        }
+    }
+
+    private void renderScanResults(ScanResult result) {
+        scanResultsBox.getChildren().clear();
+        for (LocalServerCandidate candidate : result.candidates()) {
+            DetectedServer detected = result.servers().stream()
+                .filter(server -> server.candidate() == candidate)
+                .findFirst()
+                .orElse(null);
+            if (detected != null) {
+                String detail = detected.models().isEmpty()
+                    ? I18n.get("ai.wizard.scan.serverNoModels")
+                    : I18n.get("ai.wizard.scan.serverModels",
+                        Integer.toString(detected.models().size()),
+                        String.join(", ", detected.models().subList(0, Math.min(3, detected.models().size()))));
+                Button create = new Button(I18n.get("ai.wizard.scan.create"));
+                create.setOnAction(e -> applyDetectedServer(detected));
+                scanResultsBox.getChildren().add(detectedRow(true, candidate.displayName(),
+                    I18n.get("ai.wizard.scan.serverFound", candidate.apiUrl()) + " · " + detail, create));
+            } else {
+                // Not reachable: the URL can still be taken over as a starting point.
+                Button enterUrl = new Button(I18n.get("ai.wizard.scan.enterUrl"));
+                enterUrl.setOnAction(e -> applyManualServer(candidate));
+                scanResultsBox.getChildren().add(detectedRow(false, candidate.displayName(),
+                    I18n.get("ai.wizard.scan.serverMissing", Integer.toString(candidate.port())), enterUrl));
+            }
+        }
+        if (result.tools().isEmpty()) {
+            Label none = new Label(I18n.get("ai.wizard.scan.cliNone"));
+            none.setWrapText(true);
+            none.setStyle(MutedTextStyle.MUTED);
+            scanResultsBox.getChildren().add(none);
+        }
+        for (DetectedCli tool : result.tools()) {
+            Button create = new Button(I18n.get("ai.wizard.scan.create"));
+            create.setOnAction(e -> applyDetectedCli(tool));
+            scanResultsBox.getChildren().add(detectedRow(true, tool.provider().displayName(),
+                I18n.get("ai.wizard.cli.check.found", tool.executable()), create));
+        }
+    }
+
+    private Node detectedRow(boolean reachable, String title, String detail, Button action) {
+        Region dot = new Region();
+        dot.getStyleClass().add("ai-wizard-detect-dot");
+        if (!reachable) {
+            dot.getStyleClass().add("off");
+        }
+        Label titleLabel = new Label(title);
+        titleLabel.getStyleClass().add("ai-wizard-card-title");
+        Label detailLabel = new Label(detail);
+        detailLabel.getStyleClass().add("ai-wizard-card-desc");
+        detailLabel.setWrapText(true);
+        detailLabel.setPrefWidth(320);
+        detailLabel.setMaxWidth(Double.MAX_VALUE);
+        VBox text = new VBox(2, titleLabel, detailLabel);
+        text.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(text, Priority.ALWAYS);
+        HBox row = new HBox(12, dot, text);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.getStyleClass().add("ai-wizard-card");
+        if (action != null) {
+            row.getChildren().add(action);
+        }
+        if (!reachable) {
+            // Only the text is dimmed; the button stays fully usable.
+            titleLabel.setOpacity(0.6);
+            detailLabel.setOpacity(0.7);
+            dot.setOpacity(0.6);
         }
         return row;
     }
 
-    private Node buildCloudProvider() {
-        cloudProviderCombo = new ComboBox<>();
-        cloudProviderCombo.getItems().addAll(CLOUD_PROVIDERS);
-        cloudProviderCombo.getItems().add(new CloudProvider(I18n.get("ai.wizard.cloud.preset.other"), null, null));
-        cloudProviderCombo.setConverter(new javafx.util.StringConverter<>() {
-            @Override
-            public String toString(CloudProvider provider) {
-                return provider != null ? provider.name() : "";
-            }
+    /** Starts the manual server path with the candidate's URL filled in, for a server that did not answer. */
+    private void applyManualServer(LocalServerCandidate candidate) {
+        selectedPath = WizardPath.LOCAL_SERVER;
+        detectedLabel = I18n.get("ai.wizard.scan.manualChosen");
+        detectedName = candidate.isLoopback()
+            ? I18n.get("ai.wizard.scan.localName", candidate.product())
+            : candidate.displayName();
+        contentFor(WizardStep.SERVER_URL);
+        serverUrlField.setText(candidate.apiUrl());
+        syncConnectionTypeCards();
+        if (nameField != null) {
+            nameField.clear();
+        }
+        jumpTo(WizardStep.SERVER_URL);
+    }
 
-            @Override
-            public CloudProvider fromString(String string) {
-                return null;
+    /** Fills the local-server path from a detected server and goes straight to the name step. */
+    private void applyDetectedServer(DetectedServer detected) {
+        LocalServerCandidate candidate = detected.candidate();
+        selectedPath = WizardPath.LOCAL_SERVER;
+        detectedLabel = I18n.get("ai.wizard.scan.detected", candidate.displayName());
+        detectedName = candidate.isLoopback()
+            ? I18n.get("ai.wizard.scan.localName", candidate.product())
+            : candidate.displayName();
+        contentFor(WizardStep.SERVER_URL);
+        contentFor(WizardStep.SERVER_MODEL);
+        serverUrlField.setText(candidate.apiUrl());
+        serverKeyField.clear();
+        serverAutoRadio.setSelected(true);
+        serverModelCombo.getItems().setAll(detected.models());
+        syncConnectionTypeCards();
+        if (nameField != null) {
+            nameField.clear();
+        }
+        jumpTo(WizardStep.NAME);
+    }
+
+    /** Fills the CLI path from a found tool; stops at the check step only when the tool still needs a model. */
+    private void applyDetectedCli(DetectedCli tool) {
+        selectedPath = WizardPath.LOCAL_CLI;
+        detectedLabel = I18n.get("ai.wizard.scan.detected", tool.provider().displayName());
+        detectedName = tool.provider().displayName();
+        contentFor(WizardStep.CLI_PROVIDER);
+        contentFor(WizardStep.CLI_CHECK);
+        cliProviderCombo.getSelectionModel().select(tool.provider());
+        cliPathField.setText(tool.executable());
+        syncConnectionTypeCards();
+        if (nameField != null) {
+            nameField.clear();
+        }
+        boolean needsModel = !isLmStudioSelected() && cliProviderRequiresModel();
+        jumpTo(needsModel ? WizardStep.CLI_CHECK : WizardStep.NAME);
+    }
+
+    /** Keeps the connection-type cards in step with a path chosen elsewhere (quick start). */
+    private void syncConnectionTypeCards() {
+        if (connectionTypeGroup == null) {
+            return;
+        }
+        for (javafx.scene.control.Toggle toggle : connectionTypeGroup.getToggles()) {
+            if (toggle.getUserData() == selectedPath) {
+                toggle.setSelected(true);
+                return;
             }
+        }
+    }
+
+    // ----- Connection type ------------------------------------------------------------------
+
+    private Node buildWelcome() {
+        connectionTypeGroup = new ToggleGroup();
+        VBox box = new VBox(10);
+        for (WizardPath path : WizardPath.values()) {
+            ToggleButton card = pathCard(path);
+            card.setToggleGroup(connectionTypeGroup);
+            card.setUserData(path);
+            if (path == selectedPath) {
+                card.setSelected(true);
+            }
+            box.getChildren().add(card);
+        }
+        connectionTypeGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
+            if (newToggle == null) {
+                // Clicking the selected card again must not leave the wizard without a path.
+                if (oldToggle != null) {
+                    oldToggle.setSelected(true);
+                }
+                return;
+            }
+            WizardPath path = (WizardPath) newToggle.getUserData();
+            if (path != selectedPath) {
+                selectedPath = path;
+                detectedName = null;
+            }
+            updateButtons();
         });
-        cloudProviderCombo.setMaxWidth(Double.MAX_VALUE);
-        cloudProviderCombo.getSelectionModel().selectFirst();
+        return box;
+    }
+
+    private ToggleButton pathCard(WizardPath path) {
+        Label title = new Label(pathTitle(path));
+        title.getStyleClass().add("ai-wizard-card-title");
+        Label description = new Label(pathDescription(path));
+        description.getStyleClass().add("ai-wizard-card-desc");
+        description.setWrapText(true);
+        description.setPrefWidth(440);
+        description.setMaxWidth(Double.MAX_VALUE);
+        ToggleButton card = new ToggleButton();
+        card.setGraphic(new VBox(3, title, description));
+        card.getStyleClass().add("ai-wizard-card");
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setAlignment(Pos.CENTER_LEFT);
+        return card;
+    }
+
+    // ----- Cloud ------------------------------------------------------------------------------
+
+    private CloudProvider cloudProvider() {
+        return selectedCloudProvider;
+    }
+
+    private Node buildCloudProvider() {
+        List<CloudProvider> providers = new ArrayList<>(CLOUD_PROVIDERS);
+        providers.add(new CloudProvider(I18n.get("ai.wizard.cloud.preset.other"), null, null));
+        if (selectedCloudProvider == null) {
+            selectedCloudProvider = providers.get(0);
+        }
+
+        cloudProviderGroup = new ToggleGroup();
+        GridPane grid = new GridPane();
+        grid.setHgap(8);
+        grid.setVgap(8);
+        for (int column = 0; column < 3; column++) {
+            ColumnConstraints constraints = new ColumnConstraints();
+            constraints.setPercentWidth(100.0 / 3);
+            grid.getColumnConstraints().add(constraints);
+        }
+        int index = 0;
+        for (CloudProvider provider : providers) {
+            ToggleButton tile = providerTile(provider);
+            tile.setToggleGroup(cloudProviderGroup);
+            tile.setUserData(provider);
+            if (provider.name().equals(selectedCloudProvider.name())) {
+                tile.setSelected(true);
+            }
+            grid.add(tile, index % 3, index / 3);
+            index++;
+        }
 
         cloudUrlField = new TextField();
         cloudUrlField.setPromptText(I18n.get("ai.wizard.cloud.url.prompt"));
@@ -540,20 +1195,67 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         cloudUrlBox = new VBox(4, new Label(I18n.get("ai.wizard.cloud.url.label")), cloudUrlField);
 
         Runnable syncUrlVisibility = () -> {
-            CloudProvider provider = cloudProviderCombo.getValue();
-            boolean custom = provider != null && provider.isCustom();
+            boolean custom = selectedCloudProvider != null && selectedCloudProvider.isCustom();
             cloudUrlBox.setVisible(custom);
             cloudUrlBox.setManaged(custom);
             updateButtons();
         };
-        cloudProviderCombo.valueProperty().addListener((o, a, b) -> syncUrlVisibility.run());
+        cloudProviderGroup.selectedToggleProperty().addListener((obs, oldToggle, newToggle) -> {
+            if (newToggle == null) {
+                if (oldToggle != null) {
+                    oldToggle.setSelected(true);
+                }
+                return;
+            }
+            selectedCloudProvider = (CloudProvider) newToggle.getUserData();
+            detectedName = null;
+            syncUrlVisibility.run();
+        });
         syncUrlVisibility.run();
 
-        return new VBox(10, new VBox(4, new Label(I18n.get("ai.wizard.cloud.provider.label")), cloudProviderCombo), cloudUrlBox);
+        return new VBox(12, grid, cloudUrlBox);
+    }
+
+    private ToggleButton providerTile(CloudProvider provider) {
+        Label badge = new Label(initials(provider));
+        badge.getStyleClass().add("ai-wizard-tile-badge");
+        Label name = new Label(provider.name());
+        name.setWrapText(true);
+        HBox content = new HBox(8, badge, name);
+        content.setAlignment(Pos.CENTER_LEFT);
+        ToggleButton tile = new ToggleButton();
+        tile.setGraphic(content);
+        tile.getStyleClass().add("ai-wizard-tile");
+        tile.setMaxWidth(Double.MAX_VALUE);
+        tile.setAlignment(Pos.CENTER_LEFT);
+        return tile;
+    }
+
+    /** Two letters that stand for the provider on its tile: the first of each word or camel-case part. */
+    static String initials(CloudProvider provider) {
+        if (provider.isCustom()) {
+            return "…";
+        }
+        String name = provider.name();
+        StringBuilder result = new StringBuilder();
+        char previous = ' ';
+        for (int i = 0; i < name.length() && result.length() < 2; i++) {
+            char c = name.charAt(i);
+            boolean wordStart = Character.isLetter(c) && !Character.isLetter(previous);
+            boolean camelCase = Character.isUpperCase(c) && Character.isLowerCase(previous);
+            if (wordStart || camelCase) {
+                result.append(Character.toUpperCase(c));
+            }
+            previous = c;
+        }
+        if (result.length() < 2 && name.length() > 1) {
+            result.append(Character.toUpperCase(name.charAt(1)));
+        }
+        return result.toString();
     }
 
     private Node buildCloudKey() {
-        CloudProvider provider = cloudProviderCombo != null ? cloudProviderCombo.getValue() : null;
+        CloudProvider provider = cloudProvider();
 
         cloudKeyHelp = new Label();
         cloudKeyHelp.setWrapText(true);
@@ -589,14 +1291,22 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         cloudModelStatus.setWrapText(true);
         cloudModelStatus.getStyleClass().add("ai-wizard-card-desc");
 
-        Node reasoningSection = buildReasoningSection();
+        TitledPane advanced = advancedReasoningPane();
         applyProviderHelp(provider);
 
         return new VBox(12,
             keyHelpRow,
             new VBox(4, new Label(I18n.get("ai.wizard.cloud.key.prompt")), cloudKeyField),
             new VBox(4, new Label(I18n.get("ai.wizard.cloud.model.label")), modelRow, cloudModelStatus),
-            reasoningSection);
+            advanced);
+    }
+
+    /** Reasoning stays out of a beginner's way: a collapsed pane holds it. */
+    private TitledPane advancedReasoningPane() {
+        TitledPane pane = new TitledPane(I18n.get("ai.wizard.advanced.reasoning"), buildReasoningSection());
+        pane.setExpanded(false);
+        pane.setAnimated(false);
+        return pane;
     }
 
     /**
@@ -616,13 +1326,16 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         ComboBoxEditorSync.install(reasoningLevelCombo);
         reasoningLevelCombo.setPromptText(I18n.get("ai.wizard.reasoning.levelPrompt"));
         reasoningLevelCombo.disableProperty().bind(reasoningOffRadio.selectedProperty());
+        reasoningToggle.selectedToggleProperty().addListener((o, a, b) -> updateButtons());
         Label reasoningHint = new Label(I18n.get("ai.wizard.reasoning.hint"));
         reasoningHint.setWrapText(true);
         reasoningHint.getStyleClass().add("ai-wizard-card-desc");
         HBox reasoningRow = new HBox(12, reasoningOffRadio, reasoningOnRadio, reasoningLevelCombo);
         reasoningRow.setAlignment(Pos.CENTER_LEFT);
         refreshReasoningLevels();
-        return new VBox(4, new Label(I18n.get("ai.wizard.reasoning.label")), reasoningRow, reasoningHint);
+        VBox box = new VBox(6, new Label(I18n.get("ai.wizard.reasoning.label")), reasoningRow, reasoningHint);
+        box.setPadding(new Insets(6, 2, 2, 2));
+        return box;
     }
 
     private void applyProviderHelp(CloudProvider provider) {
@@ -655,7 +1368,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     }
 
     private void openKeyHelpUrl() {
-        CloudProvider provider = cloudProviderCombo != null ? cloudProviderCombo.getValue() : null;
+        CloudProvider provider = cloudProvider();
         String url = provider != null && provider.keyUrl() != null ? provider.keyUrl() : null;
         if (url == null) {
             return;
@@ -746,15 +1459,17 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         return resolveCloudModel();
     }
 
+    // ----- Local server -----------------------------------------------------------------------
+
     private Node buildServerUrl() {
         serverUrlField = new TextField();
         serverUrlField.setPromptText(I18n.get("ai.wizard.server.url.prompt"));
         serverUrlField.textProperty().addListener((o, a, b) -> updateButtons());
         serverKeyField = new PasswordField();
-        VBox box = new VBox(10,
+        serverKeyField.textProperty().addListener((o, a, b) -> updateButtons());
+        return new VBox(10,
             new VBox(4, new Label(I18n.get("ai.wizard.cloud.url.label")), serverUrlField),
             new VBox(4, new Label(I18n.get("ai.wizard.server.key.label")), serverKeyField));
-        return box;
     }
 
     private Node buildServerModel() {
@@ -789,9 +1504,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         });
         HBox chooseRow = new HBox(8, serverModelCombo, loadButton);
         HBox.setHgrow(serverModelCombo, Priority.ALWAYS);
-        Node reasoningSection = buildReasoningSection();
-        VBox box = new VBox(10, serverAutoRadio, serverChooseRadio, chooseRow, serverModelStatus, reasoningSection);
-        return box;
+        return new VBox(10, serverAutoRadio, serverChooseRadio, chooseRow, serverModelStatus, advancedReasoningPane());
     }
 
     private void loadServerModels() {
@@ -827,6 +1540,8 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             }));
     }
 
+    // ----- Local CLI --------------------------------------------------------------------------
+
     private Node buildCliProvider() {
         List<AiCliProviderDescriptor> found = new ArrayList<>();
         List<AiCliProviderDescriptor> others = new ArrayList<>();
@@ -859,6 +1574,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             if (cliPathField != null) {
                 cliPathField.clear();
             }
+            detectedName = null;
             updateButtons();
         });
         cliProviderCombo.setMaxWidth(Double.MAX_VALUE);
@@ -883,7 +1599,10 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         cliStatusLabel = new Label();
         cliStatusLabel.setWrapText(true);
         cliPathField = new TextField();
-        cliPathField.textProperty().addListener((o, a, b) -> refreshCliStatus());
+        cliPathField.textProperty().addListener((o, a, b) -> {
+            refreshCliStatus();
+            updateButtons();
+        });
 
         cliModelField = new TextField();
         cliModelField.setPromptText(I18n.get("ai.wizard.cli.model.prompt"));
@@ -893,12 +1612,11 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         cliModelHint.getStyleClass().add("ai-wizard-card-desc");
         cliModelBox = new VBox(4, new Label(I18n.get("ai.wizard.cli.model.label")), cliModelField, cliModelHint);
 
-        VBox box = new VBox(10,
+        return new VBox(10,
             cliStatusLabel,
             new VBox(4, new Label(I18n.get("ai.wizard.cli.check.override")), cliPathField),
             cliModelBox,
             buildLmsModelBox());
-        return box;
     }
 
     /** LM Studio CLI model picker: use the loaded model, or list / load a specific one via lms. */
@@ -964,6 +1682,16 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             return value;
         }
         return trimToNull(lmsModelCombo != null ? lmsModelCombo.getEditor().getText() : null);
+    }
+
+    /** The model a CLI profile will use, as the sidebar and the summary state it. */
+    private String cliModelSummary() {
+        if (isLmStudioSelected()) {
+            return lmsUseLoadedRadio == null || lmsUseLoadedRadio.isSelected()
+                ? I18n.get("ai.wizard.value.auto")
+                : lmsModelValue();
+        }
+        return trimToNull(text(cliModelField));
     }
 
     private void queryLmsModels(boolean loadedOnly) {
@@ -1082,35 +1810,138 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         }
     }
 
+    // ----- Name and test ----------------------------------------------------------------------
+
     private Node buildName() {
         nameField = new TextField();
         nameField.setPromptText(I18n.get("ai.wizard.name.prompt"));
         nameField.textProperty().addListener((o, a, b) -> updateButtons());
         makeDefaultCheck = new CheckBox(I18n.get("ai.wizard.name.makeDefault"));
         makeDefaultCheck.setSelected(true);
+        makeDefaultCheck.selectedProperty().addListener((o, a, b) -> updateButtons());
         return new VBox(10, new VBox(4, new Label(I18n.get("ai.wizard.name.prompt")), nameField), makeDefaultCheck);
     }
 
     private Node buildTest() {
-        runTestButton = new Button(I18n.get("ai.wizard.test.run"));
-        runTestButton.setOnAction(e -> runTest());
         testProgress = new ProgressIndicator();
         testProgress.setVisible(false);
         testProgress.setManaged(false);
         testProgress.setPrefSize(20, 20);
         testStatusLabel = new Label();
         testStatusLabel.setWrapText(true);
-        Hyperlink skip = new Hyperlink(I18n.get("ai.wizard.skipTest"));
-        skip.setOnAction(e -> {
+        testStatusLabel.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(testStatusLabel, Priority.ALWAYS);
+        testResultBox = new HBox(10, testProgress, testStatusLabel);
+        testResultBox.setAlignment(Pos.CENTER_LEFT);
+        testResultBox.getStyleClass().add("ai-wizard-result-neutral");
+
+        skipTestLink = new Hyperlink(I18n.get("ai.wizard.skipTest"));
+        skipTestLink.setOnAction(e -> {
             testPassedOrSkipped = true;
             testStatusLabel.setText(I18n.get("ai.wizard.test.skipped"));
-            testStatusLabel.setStyle(MutedTextStyle.MUTED);
-            illustrationHolder.getChildren().setAll(WizardIllustrations.forKey("success"));
+            setTestResultStyle("ai-wizard-result-neutral");
+            sidebarIllustration.getChildren().setAll(WizardIllustrations.forKey("success", SIDEBAR_ILLUSTRATION_SIZE));
             updateButtons();
         });
-        HBox controls = new HBox(8, runTestButton, testProgress);
-        controls.setAlignment(Pos.CENTER_LEFT);
-        return new VBox(10, controls, testStatusLabel, skip);
+
+        Label summaryTitle = new Label(I18n.get("ai.wizard.summary.title"));
+        summaryTitle.setStyle("-fx-font-weight: bold;");
+        summaryGrid = new GridPane();
+        summaryGrid.setHgap(12);
+        summaryGrid.setVgap(6);
+        ColumnConstraints keyColumn = new ColumnConstraints();
+        keyColumn.setMinWidth(Region.USE_PREF_SIZE);
+        ColumnConstraints valueColumn = new ColumnConstraints();
+        valueColumn.setHgrow(Priority.ALWAYS);
+        summaryGrid.getColumnConstraints().addAll(keyColumn, valueColumn);
+
+        Label later = new Label(I18n.get("ai.wizard.summary.laterHint"));
+        later.setWrapText(true);
+        later.setStyle(MutedTextStyle.HINT);
+
+        return new VBox(12, testResultBox, skipTestLink, new VBox(6, summaryTitle, summaryGrid), later);
+    }
+
+    private void setTestResultStyle(String styleClass) {
+        if (testResultBox == null) {
+            return;
+        }
+        testResultBox.getStyleClass().removeAll("ai-wizard-result-neutral", "ai-wizard-result-ok", "ai-wizard-result-failed");
+        testResultBox.getStyleClass().add(styleClass);
+    }
+
+    /** Every choice on one grid, each with a link back to the step that made it. */
+    private void refreshSummary() {
+        if (summaryGrid == null || selectedPath == null) {
+            return;
+        }
+        summaryGrid.getChildren().clear();
+        int row = 0;
+        addSummaryRow(row++, "ai.wizard.summary.connection", pathTitle(selectedPath), WizardStep.WELCOME);
+        switch (selectedPath) {
+            case CLOUD_API -> {
+                CloudProvider provider = cloudProvider();
+                String url = resolveCloudUrl();
+                String endpoint = provider != null && !provider.isCustom()
+                    ? join(provider.name(), url)
+                    : url;
+                addSummaryRow(row++, "ai.wizard.summary.endpoint", endpoint, WizardStep.CLOUD_PROVIDER);
+                addSummaryRow(row++, "ai.wizard.summary.model", modelWithReasoning(resolveCloudModel()), WizardStep.CLOUD_KEY);
+                addSummaryRow(row++, "ai.wizard.summary.apiKey",
+                    apiKeyState(trimToNull(text(cloudKeyField)) != null), WizardStep.CLOUD_KEY);
+            }
+            case LOCAL_SERVER -> {
+                addSummaryRow(row++, "ai.wizard.summary.endpoint", trimToNull(text(serverUrlField)), WizardStep.SERVER_URL);
+                String model = serverAutoRadio != null && serverAutoRadio.isSelected()
+                    ? I18n.get("ai.wizard.value.auto")
+                    : modelWithReasoning(resolveServerModel());
+                addSummaryRow(row++, "ai.wizard.summary.model", model, WizardStep.SERVER_MODEL);
+                addSummaryRow(row++, "ai.wizard.summary.apiKey",
+                    trimToNull(text(serverKeyField)) != null
+                        ? I18n.get("ai.wizard.value.keyStored")
+                        : I18n.get("ai.wizard.summary.notNeeded"),
+                    WizardStep.SERVER_URL);
+            }
+            case LOCAL_CLI -> {
+                String provider = cliProviderCombo != null && cliProviderCombo.getValue() != null
+                    ? cliProviderCombo.getValue().displayName()
+                    : null;
+                addSummaryRow(row++, "ai.wizard.summary.endpoint", join(provider, trimToNull(text(cliPathField))), WizardStep.CLI_PROVIDER);
+                addSummaryRow(row++, "ai.wizard.summary.model", cliModelSummary(), WizardStep.CLI_CHECK);
+                addSummaryRow(row++, "ai.wizard.summary.apiKey", I18n.get("ai.wizard.summary.notNeeded"), null);
+            }
+        }
+        String name = trimToNull(text(nameField));
+        boolean asDefault = makeDefaultCheck != null && makeDefaultCheck.isSelected();
+        addSummaryRow(row, "ai.wizard.summary.name",
+            asDefault ? join(name, I18n.get("ai.wizard.value.default")) : name, WizardStep.NAME);
+    }
+
+    private void addSummaryRow(int row, String labelKey, String value, WizardStep target) {
+        Label key = new Label(I18n.get(labelKey));
+        key.setStyle(MutedTextStyle.MUTED);
+        Label valueLabel = new Label(value != null ? value : "");
+        valueLabel.setWrapText(true);
+        valueLabel.setMaxWidth(Double.MAX_VALUE);
+        summaryGrid.add(key, 0, row);
+        summaryGrid.add(valueLabel, 1, row);
+        if (target != null) {
+            Hyperlink change = new Hyperlink(I18n.get("ai.wizard.summary.change"));
+            change.setOnAction(e -> jumpTo(target));
+            summaryGrid.add(change, 2, row);
+        }
+    }
+
+    private String modelWithReasoning(String model) {
+        AiReasoningEffort effort = resolveReasoningEffort();
+        if (effort == null || effort == AiReasoningEffort.DISABLED) {
+            return model;
+        }
+        return join(model, stripColon(I18n.get("ai.wizard.reasoning.label")) + " " + effort.apiValue());
+    }
+
+    private static String apiKeyState(boolean entered) {
+        return I18n.get(entered ? "ai.wizard.value.keyStored" : "ai.wizard.value.noKey");
     }
 
     private void runTest() {
@@ -1155,18 +1986,16 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         AiService finalService = service;
         testRunning = true;
         testPassedOrSkipped = false;
-        runTestButton.setDisable(true);
         testProgress.setVisible(true);
         testProgress.setManaged(true);
         testStatusLabel.setText(I18n.get("ai.wizard.test.running"));
-        testStatusLabel.setStyle(MutedTextStyle.MUTED);
+        setTestResultStyle("ai-wizard-result-neutral");
         updateButtons();
 
         CompletableFuture
             .supplyAsync(finalService::testConnection)
             .whenComplete((success, error) -> Platform.runLater(() -> {
                 testRunning = false;
-                runTestButton.setDisable(false);
                 testProgress.setVisible(false);
                 testProgress.setManaged(false);
                 if (error != null) {
@@ -1175,8 +2004,11 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
                 } else if (Boolean.TRUE.equals(success)) {
                     testPassedOrSkipped = true;
                     testStatusLabel.setText(I18n.get("ai.wizard.test.success"));
-                    testStatusLabel.setStyle("-fx-text-fill: #7ec699;");
-                    illustrationHolder.getChildren().setAll(WizardIllustrations.forKey("success"));
+                    setTestResultStyle("ai-wizard-result-ok");
+                    if (currentStep() == WizardStep.TEST_FINISH) {
+                        sidebarIllustration.getChildren().setAll(
+                            WizardIllustrations.forKey("success", SIDEBAR_ILLUSTRATION_SIZE));
+                    }
                     updateButtons();
                 } else {
                     testFailed("");
@@ -1187,7 +2019,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     private void testFailed(String detail) {
         testPassedOrSkipped = false;
         testStatusLabel.setText(I18n.get("ai.wizard.test.failed", detail != null ? detail : ""));
-        testStatusLabel.setStyle("-fx-text-fill: #e06c75;");
+        setTestResultStyle("ai-wizard-result-failed");
         updateButtons();
     }
 
@@ -1346,7 +2178,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     }
 
     private String resolveCloudUrl() {
-        CloudProvider provider = cloudProviderCombo != null ? cloudProviderCombo.getValue() : null;
+        CloudProvider provider = cloudProvider();
         if (provider == null) {
             return DEFAULT_OPENAI_URL;
         }
@@ -1408,15 +2240,14 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     }
 
     private String suggestedName() {
+        if (detectedName != null) {
+            return detectedName;
+        }
         if (selectedPath == WizardPath.LOCAL_CLI && cliProviderCombo != null && cliProviderCombo.getValue() != null) {
             return cliProviderCombo.getValue().displayName();
         }
-        if (selectedPath == WizardPath.CLOUD_API && cloudProviderCombo != null && cloudProviderCombo.getValue() != null
-            && !cloudProviderCombo.getValue().isCustom()) {
-            return cloudProviderCombo.getValue().name();
-        }
-        if (selectedPath == WizardPath.CLOUD_API) {
-            return I18n.get("ai.wizard.cloud.preset.openai");
+        if (selectedPath == WizardPath.CLOUD_API && cloudProvider() != null && !cloudProvider().isCustom()) {
+            return cloudProvider().name();
         }
         return I18n.get("ai.wizard.name.default");
     }
@@ -1450,6 +2281,48 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             alert.initOwner(getDialogPane().getScene().getWindow());
         }
         alert.showAndWait();
+    }
+
+    /** "host:port" of a URL for the sidebar, or the text itself when it is not a URL. */
+    private static String hostOf(String url) {
+        if (url == null) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(url);
+            if (uri.getHost() != null) {
+                return uri.getPort() > 0 ? uri.getHost() + ":" + uri.getPort() : uri.getHost();
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Not a URL yet while the user is still typing; show the text as it is.
+        }
+        return url;
+    }
+
+    private static String fileName(String path) {
+        if (path == null) {
+            return null;
+        }
+        try {
+            java.nio.file.Path name = java.nio.file.Path.of(path).getFileName();
+            return name != null ? name.toString() : path;
+        } catch (RuntimeException ex) {
+            return path;
+        }
+    }
+
+    /** Joins the non-empty parts with a middle dot; {@code null} when both are empty. */
+    private static String join(String first, String second) {
+        String a = trimToNull(first);
+        String b = trimToNull(second);
+        if (a == null) {
+            return b;
+        }
+        return b == null ? a : a + " · " + b;
+    }
+
+    private static String stripColon(String label) {
+        return label != null ? label.replaceFirst("\\s*:\\s*$", "") : "";
     }
 
     private static String text(TextField field) {

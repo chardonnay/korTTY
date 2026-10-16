@@ -9,7 +9,7 @@ korTTY can run local language models directly through integrated, model-specific
 Open **AI > AI Manager** and use these tabs:
 
 - **Local Models** installs, imports, configures, starts, stops, and removes local model registrations (GGUF everywhere, additionally MLX on Apple Silicon).
-- **Local AI** assigns profiles to the Text/translation and Coding roles and to the session journal's AI summaries, selects the RAG embedding model, stores an optional Hugging Face token, and records the llama.cpp runtime-update policy.
+- **Local AI** assigns profiles to the Text/translation and Coding roles and to the session journal's AI summaries (**Profile roles**), selects the RAG embedding model and records the llama.cpp runtime-update policy and preferred backend (**Local runtime**), and stores an optional Hugging Face token (**Hugging Face**).
 - **Profiles** creates an **Integrated llama.cpp** or **Integrated MLX (Apple Silicon)** profile for an installed model and controls its prompt optimization preset.
 
 Every action button in the tab carries a matching glyph (install, wizard, import, configure, set as default, start, stop, remove, refresh, search, load more, download, pause, cancel), and the pause control switches between pause and resume glyphs during a download.
@@ -110,7 +110,7 @@ Select an installed model and choose **Configure**. The available settings are d
 | GPU layers | -1–10,000; `-1` means automatic | Automatic |
 | Unload after | 1–1,440 minutes, or **Never** | 10 minutes |
 
-The per-model backend describes how that model should run. In **AI Manager > Local AI**, **Preferred runtime backend** controls which signed native package is installed and updated: macOS offers Auto, CPU, and Metal; Windows/Linux offer Auto, CPU, and Vulkan. **Automatic (keep active backend)** preserves the already active backend during updates. For a first installation, Auto prefers Metal and falls back to CPU on macOS; on Windows and Linux it prefers CPU and falls back to Vulkan only when no compatible CPU package is published. An explicitly selected backend requires an exact compatible package and never changes to another backend silently.
+The per-model backend describes how that model should run. In **AI Manager > Local AI > Local runtime**, **Preferred runtime backend** controls which signed native package is installed and updated: macOS offers Auto, CPU, and Metal; Windows/Linux offer Auto, CPU, and Vulkan. **Automatic (keep active backend)** preserves the already active backend during updates. For a first installation, Auto prefers Metal and falls back to CPU on macOS; on Windows and Linux it prefers CPU and falls back to Vulkan only when no compatible CPU package is published. An explicitly selected backend requires an exact compatible package and never changes to another backend silently.
 
 Use multi-selection and **Start selected** to load several different models concurrently. Profiles that point to the same installed model and runtime configuration share one authenticated sidecar. The table reports `STOPPED`, `STARTING`, `LOADING`, `READY`, `BUSY`, `SLEEPING`, or `FAILED`.
 
@@ -131,7 +131,7 @@ Errors reported by the model itself are logged too, so a failing request can be 
 
 ## Text, coding, translation, and embedding roles
 
-In **AI Manager > Local AI**, choose separate profiles for **Text and translation** and **Coding**. Leaving either choice at **Use default AI profile** preserves the normal fallback. The same pane also holds a **Session journal profile** selector used only for the [session journal](session-journal.md)'s AI summaries — the Text/Coding roles do not apply there; leave it on the default profile unless the journal should run on a different model. Terminal summarization, problem solving, questions, descriptions, and translation use the Text role; snippet generation, completion, analysis, security fixes, and workflow generation use the Coding role.
+In **AI Manager > Local AI > Profile roles**, choose separate profiles for **Text and translation** and **Coding**. Leaving either choice at **Use default AI profile** preserves the normal fallback. The same section also holds a **Session journal profile** selector used only for the [session journal](session-journal.md)'s AI summaries — the Text/Coding roles do not apply there; leave it on the default profile unless the journal should run on a different model. Terminal summarization, problem solving, questions, descriptions, and translation use the Text role; snippet generation, completion, analysis, security fixes, and workflow generation use the Coding role.
 
 Profile resolution follows the most specific available choice: an explicitly selected profile, then a security-specific profile or connection profile where applicable, then the Text/Coding role, then the default profile. The same role mechanism works with embedded, remote HTTP, or local CLI profiles; a role does not force a local model.
 
@@ -217,7 +217,7 @@ The **Runtimes** table in **Local Models** shows the installed version and state
 : The GGUF remains registered so you can inspect it. Confirm that the matching signed runtime backend is active, reduce the model context or GPU layers if memory is tight, and retry by starting the model. Embedding tests additionally require readable GGUF embedding-dimension metadata.
 
 **A gated Hugging Face repository returns an authorization error**
-: Accept the repository terms on Hugging Face, unlock the korTTY master-password vault, and save an authorized token under **AI Manager > Local AI**. The token is sent only to the trusted Hugging Face host, not to redirected storage hosts.
+: Accept the repository terms on Hugging Face, unlock the korTTY master-password vault, and save an authorized token under **AI Manager > Local AI > Hugging Face**. The token is sent only to the trusted Hugging Face host, not to redirected storage hosts.
 
 **A download cannot resume**
 : If the repository's ETag or immutable file metadata changed, korTTY restarts that file instead of appending incompatible bytes. A checksum mismatch deletes the invalid partial file.

@@ -9,7 +9,7 @@ korTTY kann lokale Sprachmodelle direkt über integrierte, modellspezifische Sid
 Öffnen Sie **KI > KI-Manager** und verwenden Sie diese Registerkarten:
 
 - **Local Models** installiert, importiert, konfiguriert, startet, stoppt und entfernt lokale Modellregistrierungen (GGUF überall, zusätzlich MLX auf Apple Silicon).
-- **Lokale KI** weist Profile den Rollen Text/Übersetzung und Codierung sowie den KI-Zusammenfassungen des Sitzungsjournals zu, wählt das RAG-Einbettungsmodell aus, speichert ein optionales Hugging Face-Token und zeichnet die Laufzeitaktualisierungsrichtlinie llama.cpp auf.
+- **Local AI** assigns profiles to the Text/translation and Coding roles and to the session journal's AI summaries (**Profile roles**), selects the RAG embedding model and records the llama.cpp runtime-update policy and preferred backend (**Local runtime**), and stores an optional Hugging Face token (**Hugging Face**).
 - **Profiles** erstellt ein **Integrated llama.cpp**- oder **Integrated MLX (Apple Silicon)**-Profil für ein installiertes Modell und steuert dessen Prompt-Optimierungsvoreinstellung.
 
 Jede Aktionsschaltfläche auf der Registerkarte trägt ein entsprechendes Symbol (Installieren, Assistent, Importieren, Konfigurieren, Als Standard festlegen, Starten, Stoppen, Entfernen, Aktualisieren, Suchen, Weitere laden, Herunterladen, Anhalten, Abbrechen), und die Pausensteuerung wechselt während eines Downloads zwischen den Symbolen „Pause“ und „Fortsetzen“.
@@ -110,7 +110,7 @@ Wählen Sie ein installiertes Modell aus und wählen Sie **Konfigurieren**. Die 
 | GPU-Schichten | -1–10.000; `-1` bedeutet automatisch | automatisch |
 | Entladen nach | 1–1.440 Minuten oder **Niemals** | 10 Minuten |
 
-Das Backend pro Modell beschreibt, wie dieses Modell ausgeführt werden soll. In **KI-Manager > Local AI** steuert **Bevorzugtes Laufzeit-Backend**, welches signierte native Paket installiert und aktualisiert wird: macOS bietet Auto, CPU und Metal; Windows/Linux bieten Auto, CPU und Vulkan. **Automatisch (aktives Backend beibehalten)** behält das bereits aktive Backend bei Aktualisierungen bei. Bei einer Erstinstallation bevorzugt Auto Metal und greift unter macOS auf CPU zurück; unter Windows und Linux bevorzugt es die CPU und greift nur dann auf Vulkan zurück, wenn kein kompatibles CPU-Paket veröffentlicht wird. Ein explizit ausgewähltes Backend erfordert ein exakt kompatibles Paket und wechselt niemals stillschweigend zu einem anderen Backend.
+The per-model backend describes how that model should run. In **KI-Manager > Local AI > Local runtime**, **Preferred runtime backend** controls which signed native package is installed and updated: macOS offers Auto, CPU, and Metal; Windows/Linux offer Auto, CPU, and Vulkan. **Automatic (keep active backend)** preserves the already active backend during updates. For a first installation, Auto prefers Metal and falls back to CPU on macOS; on Windows and Linux it prefers CPU and falls back to Vulkan only when no compatible CPU package is published. An explicitly selected backend requires an exact compatible package and never changes to another backend silently.
 
 Verwenden Sie die Mehrfachauswahl und **Auswahl starten**, um mehrere verschiedene Modelle gleichzeitig zu laden. Profile, die auf dasselbe installierte Modell und dieselbe Laufzeitkonfiguration verweisen, teilen sich einen authentifizierten Sidecar. Die Tabelle meldet `STOPPED`, `STARTING`, `LOADING`, `READY`, `BUSY`, `SLEEPING` oder `FAILED`.
 
@@ -131,7 +131,7 @@ Vom Modell selbst gemeldete Fehler werden ebenfalls protokolliert, sodass eine f
 
 ## Text-, Codierungs-, Übersetzungs- und Einbettungsrollen
 
-Wählen Sie unter **KI-Manager > Lokale KI** separate Profile für **Text und Übersetzung** und **Codierung**. Wenn Sie eine der beiden Optionen auf **Standard-KI-Profil verwenden** belassen, bleibt der normale Fallback erhalten. Derselbe Bereich enthält auch einen **Sitzungsjournalprofil-Selektor**, der nur für die KI-Zusammenfassungen des [Sitzungsjournals](session-journal.md) verwendet wird – die Text-/Codierungsrollen gelten dort nicht; Behalten Sie das Standardprofil bei, es sei denn, das Journal soll auf einem anderen Modell laufen. Terminalzusammenfassung, Problemlösung, Fragen, Beschreibungen und Übersetzung verwenden die Textrolle; Für die Generierung, Vervollständigung, Analyse, Sicherheitskorrekturen und Workflow-Generierung von Snippets wird die Coding-Rolle verwendet.
+In **KI-Manager > Local AI > Profile roles**, choose separate profiles for **Text and translation** and **Coding**. Leaving either choice at **Use default AI profile** preserves the normal fallback. The same section also holds a **Session journal profile** selector used only for the [session journal](session-journal.md)'s AI summaries — the Text/Coding roles do not apply there; leave it on the default profile unless the journal should run on a different model. Terminal summarization, problem solving, questions, descriptions, and translation use the Text role; snippet generation, completion, analysis, security fixes, and workflow generation use the Coding role.
 
 Die Profilauflösung folgt der spezifischsten verfügbaren Auswahl: einem explizit ausgewählten Profil, dann ggf. einem sicherheitsspezifischen Profil oder Verbindungsprofil, dann der Text-/Codierungsrolle und dann dem Standardprofil. Der gleiche Rollenmechanismus funktioniert mit eingebetteten, Remote-HTTP- oder lokalen CLI-Profilen; Eine Rolle erzwingt kein lokales Modell.
 
@@ -217,7 +217,7 @@ Die Tabelle **Laufzeiten** in **Lokale Modelle** zeigt die installierte Version 
 : Der GGUF bleibt registriert, sodass Sie ihn einsehen können. Bestätigen Sie, dass das passende signierte Laufzeit-Backend aktiv ist, reduzieren Sie den Modellkontext oder die GPU-Ebenen, wenn der Speicher knapp ist, und versuchen Sie es erneut, indem Sie das Modell starten. Einbettungstests erfordern zusätzlich lesbare GGUF-Einbettungsdimensionsmetadaten.
 
 **Ein geschlossenes Hugging Face-Repository gibt einen Autorisierungsfehler zurück**
-: Akzeptieren Sie die Repository-Bedingungen für Hugging Face, entsperren Sie den korTTY-Master-Passwort-Tresor und speichern Sie ein autorisiertes Token unter **KI-Manager > Lokale KI**. Das Token wird nur an den vertrauenswürdigen Hugging Face-Host gesendet, nicht an umgeleitete Speicherhosts.
+: Accept the repository terms on Hugging Face, unlock the korTTY master-password vault, and save an authorized token under **KI-Manager > Local AI > Hugging Face**. The token is sent only to the trusted Hugging Face host, not to redirected storage hosts.
 
 **Ein Download kann nicht fortgesetzt werden**
 : Wenn sich das ETag oder die unveränderlichen Dateimetadaten des Repositorys geändert haben, startet korTTY diese Datei neu, anstatt inkompatible Bytes anzuhängen. Bei einer Prüfsummenabweichung wird die ungültige Teildatei gelöscht.
