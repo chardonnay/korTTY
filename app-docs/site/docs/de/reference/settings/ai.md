@@ -42,13 +42,22 @@ Konfigurieren von KI-Profilen und Einstellungen für den Terminal-KI-Agent. Dies
 
 Das Security-Check-Profil ist ein spezielles KI-Profil für Snippet-**Security-Check**-Aktionen. Lassen Sie es leer (oder verwenden Sie **Keine**) um das Standardprofil zu verwenden. Es kann ebenfalls direkt im Fenster für das Snippet-Security Check festgelegt werden, und beide Orte teilen dieselbe gemerkte Einstellung.
 
-**Zeitlimit für KI-Anfragen** ist die maximale Laufzeit einer einzelnen KI-Anfrage und gilt für jedes Profil. Der Standardwert `0` bedeutet, dass korTTY kein Zeitlimit vorschreibt: Aufwändige Aufgaben wie die **Vollständige Code-Analyse** im Snippet-Editor laufen bis der KI-Modell eine Antwort gibt. Legen Sie eine positive Zahl in Minuten fest, um Anfragen zu unterbrechen, die diese Dauer überschreiten. Ein Profil kann den Wert überschreiben — siehe unten unter **Zeitlimit für dieses Profil**.
+**AI request timeout** is the maximum runtime of a single AI request and applies to every profile. The default `0` means korTTY imposes no timeout at all: long-running tasks such as the snippet editor's **Full code analysis** run until the model answers. Set a positive number of minutes to cancel requests that exceed it. A profile can override the value — see **Timeout for this profile** below. In the KI-Manager the global value is the first row of the profile editor's **Limits & timeouts** section.
 
-### Profil-Einstellungen (in Editor-Grid)
+In the KI-Manager the default profile is chosen with the **Use as default profile** check box next to the profile name; one profile is always the default, so ticking the box on another profile moves it.
 
-Die gleichen Felder werden im **KI > KI-Manager > Profile** bearbeitet, wo das gesamte Formular sofort sichtbar ist:
+### Profile Settings (in Editor Sections)
+
+The same fields are edited in **KI > KI-Manager > Profiles**. The editor keeps **Profile name** and **Use as default profile** above four section tabs, and the **Connection** and **Model & capabilities** sections show only the rows that apply to the selected **Connection** mode (the URL and key rows for **HTTP API**, the CLI rows for **Local CLI**, a note for **Integrated llama.cpp** and **Integrated MLX**):
 
 ![KI-Manager profiles tab](../../assets/screenshots/ai/ai-profiles.png)
+
+| Section | Fields |
+| --- | --- |
+| **Connection** | Connection, API URL, Trusted local endpoint, API Key (with **Clear stored API key** beside it), CLI provider, CLI status, CLI executable, CLI arguments |
+| **Model & capabilities** | Model, Custom model, Reasoning, Image input (vision), Prompt optimization, Internet access |
+| **Limits & timeouts** | AI request timeout (applies to every profile, shown first), Max characters, Timeout for this profile, Max output tokens |
+| **Budget & usage** | Tokenizer, Max tokens, Warning thresholds, Reset, Price per 1M tokens, Usage (the quota bar and the usage line) |
 
 | Einstellung | Typ | Werte | Standard | Speichert als |
 | --- | --- | --- | --- | --- |
@@ -117,6 +126,8 @@ Ein explizit ausgewählter oder sicherheitsgeprüfter Profil bleibt am spezifisc
 Der KI-Manager ist moduslos und kann während der Nutzung des Hauptfensters geöffnet bleiben. Ein erneutes Aufrufen des Managers führt dazu, dass der gleiche Manager für das Hauptfenster wiederhergestellt und gefokussiert wird, und der offene primäre Abschnitt bleibt bei Interaktion mit den Steuerelementen sichtbar mit einem fett unterstrichenen Akzent.
 
 ### Einstellungen des lokalen KI-Managers
+
+**KI > KI-Manager > Local AI** groups these settings on three section tabs: **Profile roles** (the three profile selectors), **Local runtime** (runtime updates, preferred backend, RAG embedding model ID) and **Hugging Face** (the token). **Save** under the sections writes all of them.
 
 | Wert für | Werte | Standard | als gespeichert |
 | --- | --- | --- | --- |
