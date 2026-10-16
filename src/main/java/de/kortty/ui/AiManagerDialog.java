@@ -47,6 +47,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.PasswordField;
@@ -151,6 +152,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final ComboBox<String> priceCurrencyCombo;
     private final Label statusLabel;
     private final BooleanProperty profileTestRunning = new SimpleBooleanProperty(false);
+    /** The connection test's result above the editor sections: green, red or neutral while it runs. */
+    private HBox profileTestResultBox;
+    private Label profileTestResultLabel;
+    private ProgressIndicator profileTestProgress;
+    private static final List<String> PROFILE_TEST_RESULT_STYLES = List.of(
+        "ai-wizard-result-neutral", "ai-wizard-result-ok", "ai-wizard-result-failed");
     /**
      * The editor's sections. The connection and model grids are rebuilt for the connection mode in
      * the editor (see {@link #updateConnectionModeUi()}): rows of the other modes are left out.
@@ -357,6 +364,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         listView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             snapshotSelectedProfileState();
             selectedProfile = newValue;
+            hideProfileTestResult();
             loadSelectedProfile(newValue);
         });
         return listView;
@@ -587,6 +595,23 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         HBox.setHgrow(profileNameField, Priority.ALWAYS);
         AiManagerSections.addRow(headerGrid, "settings.ai.profile.name", nameBox);
 
+        // The last connection test's result sits right under the header, coloured like the wizard's
+        // result bar, so it is not missed in the status line at the bottom. Hidden until a test runs.
+        profileTestProgress = new ProgressIndicator();
+        profileTestProgress.setPrefSize(20, 20);
+        profileTestProgress.setVisible(false);
+        profileTestProgress.setManaged(false);
+        profileTestResultLabel = new Label();
+        profileTestResultLabel.setWrapText(true);
+        profileTestResultLabel.setMaxWidth(Double.MAX_VALUE);
+        profileTestResultLabel.setStyle("-fx-font-weight: bold;");
+        HBox.setHgrow(profileTestResultLabel, Priority.ALWAYS);
+        profileTestResultBox = new HBox(10, profileTestProgress, profileTestResultLabel);
+        profileTestResultBox.setAlignment(Pos.CENTER_LEFT);
+        profileTestResultBox.getStyleClass().add("ai-wizard-result-neutral");
+        profileTestResultBox.setVisible(false);
+        profileTestResultBox.setManaged(false);
+
         // One section per topic, each small enough to show without scrolling. The connection and
         // model grids are (re)built for the connection mode in updateConnectionModeUi(), so the
         // rows of the other modes are left out rather than greyed.
@@ -628,7 +653,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         HBox editorActions = new HBox(8, testButton, editorSpacer, deleteButton, saveButton);
         editorActions.setAlignment(Pos.CENTER_LEFT);
 
-        VBox editor = new VBox(10, headerGrid, sections, editorActions);
+        VBox editor = new VBox(10, headerGrid, profileTestResultBox, sections, editorActions);
         editor.setMinWidth(480);
         VBox.setVgrow(sections, Priority.ALWAYS);
         // The editor form follows the same rule as the save button.
@@ -2138,32 +2163,60 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
         AiService aiService = createAiService(selectedProfile);
         if (aiService == null) {
-            showSimpleAlert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed"));
+            showProfileTestFailed(null);
             return;
         }
         if (aiService instanceof FailingAiService failingService) {
-            statusLabel.setText(I18n.get("settings.ai.error.testFailed"));
-            showSimpleAlert(Alert.AlertType.ERROR, failingService.message());
+            showProfileTestFailed(failingService.message());
             return;
         }
 
         profileTestRunning.set(true);
-        statusLabel.setText(I18n.get("settings.ai.testConnection"));
+        showProfileTestResult("ai-wizard-result-neutral", I18n.get("ai.manager.profile.test.running"), true);
         CompletableFuture
             .supplyAsync(aiService::testConnection)
             .whenComplete((success, error) -> Platform.runLater(() -> {
                 profileTestRunning.set(false);
                 if (error != null) {
-                    statusLabel.setText(I18n.get("settings.ai.error.testFailed"));
                     Throwable cause = error.getCause() != null ? error.getCause() : error;
-                    showSimpleAlert(Alert.AlertType.ERROR, cause.getMessage() != null ? cause.getMessage() : cause.toString());
+                    showProfileTestFailed(cause.getMessage() != null ? cause.getMessage() : cause.toString());
                 } else if (Boolean.TRUE.equals(success)) {
-                    statusLabel.setText(I18n.get("ai.manager.profile.test.success"));
+                    showProfileTestResult("ai-wizard-result-ok", I18n.get("ai.manager.profile.test.success"), false);
                 } else {
-                    statusLabel.setText(I18n.get("settings.ai.error.testFailed"));
-                    showSimpleAlert(Alert.AlertType.ERROR, I18n.get("settings.ai.error.testFailed"));
+                    showProfileTestFailed(null);
                 }
             }));
+    }
+
+    /** Shows the test's state in the bar above the sections and mirrors it in the status line. */
+    private void showProfileTestResult(String styleClass, String text, boolean running) {
+        statusLabel.setText(text);
+        if (profileTestResultBox == null) {
+            return;
+        }
+        profileTestResultBox.getStyleClass().removeAll(PROFILE_TEST_RESULT_STYLES);
+        profileTestResultBox.getStyleClass().add(styleClass);
+        profileTestResultLabel.setText(text);
+        profileTestProgress.setVisible(running);
+        profileTestProgress.setManaged(running);
+        profileTestResultBox.setVisible(true);
+        profileTestResultBox.setManaged(true);
+    }
+
+    /** A failed test: the generic message, with the cause appended when there is one. */
+    private void showProfileTestFailed(String detail) {
+        String trimmedDetail = trimToNull(detail);
+        showProfileTestResult("ai-wizard-result-failed", trimmedDetail == null
+            ? I18n.get("settings.ai.error.testFailed")
+            : I18n.get("ai.manager.profile.test.failed", trimmedDetail), false);
+    }
+
+    private void hideProfileTestResult() {
+        if (profileTestResultBox == null) {
+            return;
+        }
+        profileTestResultBox.setVisible(false);
+        profileTestResultBox.setManaged(false);
     }
 
     private boolean validateInternetConfigurationForTest(AiProfile profile) {

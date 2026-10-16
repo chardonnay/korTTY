@@ -114,6 +114,8 @@ class AiI18nCoverageTest {
         "ai.manager.tab.chats",
         "ai.manager.profile.saved",
         "ai.manager.profile.test.success",
+        "ai.manager.profile.test.running",
+        "ai.manager.profile.test.failed",
         "menu.tools.aiAgent",
         "menu.tools.aiPlanning",
         "terminal.contextMenu.ai.agent",
