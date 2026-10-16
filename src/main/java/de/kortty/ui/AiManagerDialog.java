@@ -1565,7 +1565,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noModel"));
             return;
         }
-        if (!validateInternetConfigurationForTest(selectedProfile)) {
+        String internetProblem = internetConfigurationProblem(selectedProfile);
+        if (internetProblem != null) {
+            statusLabel.setText(I18n.get("settings.ai.error.testFailed"));
+            showSimpleAlert(Alert.AlertType.ERROR, internetProblem);
             return;
         }
         AiProfile profileSnapshot = new AiProfile(selectedProfile);
@@ -2148,17 +2151,20 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         if (selectedProfile == null || profileTestRunning.get()) {
             return;
         }
+        // Everything that stops the test before it starts is shown in the result bar as well.
         if (selectedProfile.getConnectionMode() != AiConnectionMode.LOCAL_CLI
             && !selectedProfile.getConnectionMode().isEmbedded()
             && trimToNull(selectedProfile.getApiUrl()) == null) {
-            showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noUrl"));
+            showProfileTestResult("ai-wizard-result-failed", I18n.get("settings.ai.error.noUrl"), false);
             return;
         }
         if (requiresModelForTest(selectedProfile) && !hasConfiguredTestModel(selectedProfile)) {
-            showSimpleAlert(Alert.AlertType.WARNING, I18n.get("settings.ai.error.noModel"));
+            showProfileTestResult("ai-wizard-result-failed", I18n.get("settings.ai.error.noModel"), false);
             return;
         }
-        if (!validateInternetConfigurationForTest(selectedProfile)) {
+        String internetProblem = internetConfigurationProblem(selectedProfile);
+        if (internetProblem != null) {
+            showProfileTestFailed(internetProblem);
             return;
         }
         AiService aiService = createAiService(selectedProfile);
@@ -2219,25 +2225,25 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         profileTestResultBox.setManaged(false);
     }
 
-    private boolean validateInternetConfigurationForTest(AiProfile profile) {
+    /**
+     * Why the profile's internet access keeps a test (or a reasoning refresh) from running, or
+     * {@code null} when it is disabled or complete. The caller decides how to show it.
+     */
+    private String internetConfigurationProblem(AiProfile profile) {
         if (profile == null || !profile.getInternetAccessMode().isEnabled()) {
-            return true;
+            return null;
         }
         AiInternetAccessConfiguration config = buildInternetAccessConfiguration(profile);
         String missingSettingKey = missingInternetSettingLabelKey(config);
         if (missingSettingKey != null) {
-            statusLabel.setText(I18n.get("settings.ai.error.testFailed"));
-            showSimpleAlert(Alert.AlertType.ERROR, missingInternetSettingMessage(
-                "ai.manager.internet.missingGlobalSetting", config.mode(), missingSettingKey));
-            return false;
+            return missingInternetSettingMessage(
+                "ai.manager.internet.missingGlobalSetting", config.mode(), missingSettingKey);
         }
         try {
             config.validate();
-            return true;
+            return null;
         } catch (IllegalStateException ex) {
-            statusLabel.setText(I18n.get("settings.ai.error.testFailed"));
-            showSimpleAlert(Alert.AlertType.ERROR, ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName());
-            return false;
+            return ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
         }
     }
 
