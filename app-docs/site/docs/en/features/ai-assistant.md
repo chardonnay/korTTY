@@ -36,13 +36,14 @@ To open the wizard:
 * **AI > AI Manager > Profiles**, click **Setup wizard**.
 * korTTY also offers it when you start an AI Agent, AI Planning or Ask Agent run without any usable AI profile.
 
-The wizard guides you through:
+A sidebar lists the stages and, under every stage you have passed, the choice you made there; clicking a passed stage goes back to it. The wizard guides you through:
 
-1. **Connection type** - Choose **Cloud service (API key)**, **Local AI server** (for example LM Studio or Ollama running on your machine), or **Local command-line tool** (a CLI such as Claude Code or Codex that is already installed).
-2. **Provider, server or tool** - For a cloud service, choose OpenAI, Anthropic (Claude), Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax, or **Other / OpenAI-compatible** with your own API URL. For a local AI server, paste its API URL and an optional key, then choose **Auto** or pick a model. For a local CLI, choose the tool; korTTY checks that it is installed, and LM Studio's `lms` tool adds a model picker.
-3. **Key and model** - For a cloud service, enter the API key, then select or enter the model; **Load models** merges the endpoint's live model list on top of the examples. Optionally set **Reasoning** to Disabled or Enabled with a level; only the levels the endpoint and model support are offered.
-4. **Name it** - Enter a display name for the profile; **Make this the default profile** is selected by default.
-5. **Test and finish** - The wizard tests the connection; **Skip test** continues without it.
+1. **Quick start** - korTTY looks for LM Studio (port 1234) and Ollama (port 11434) on this computer and for installed command-line tools. **Create profile** next to a found server or tool fills in the connection and jumps to the name step; **Search again** repeats the scan. **Cloud service with API key** and **Enter a server or tool yourself** start the manual path.
+2. **Connection type** - Choose **Cloud service (API key)**, **Local AI server** (for example LM Studio or Ollama running on your machine), or **Local command-line tool** (a CLI such as Claude Code or Codex that is already installed). The three choices are cards with a description.
+3. **Provider, server or tool** - For a cloud service, pick a tile: OpenAI, Anthropic (Claude), Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax, or **Other / OpenAI-compatible** with your own API URL. For a local AI server, paste its API URL and an optional key, then choose **Auto** or pick a model. For a local CLI, choose the tool; korTTY checks that it is installed, and LM Studio's `lms` tool adds a model picker.
+4. **Access and model** - For a cloud service, enter the API key, then select or enter the model; **Load models** merges the endpoint's live model list on top of the examples. **Advanced: reasoning**, collapsed by default, sets **Reasoning** to Disabled or Enabled with a level; only the levels the endpoint and model support are offered.
+5. **Name it** - Enter a display name for the profile; **Use as default profile** is selected by default.
+6. **Test and finish** - The wizard tests the connection as soon as the step opens and shows the result above a summary of every choice, each with a **Change** link back to its step. **Test again** repeats the test; **Skip test** continues without it.
 
 Native Anthropic (Claude) API support is included alongside existing OpenAI-compatible endpoints.
 

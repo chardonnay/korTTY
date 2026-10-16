@@ -23,6 +23,7 @@ What changed in the current release. The version this guide was built for is sho
 
 - **Profile editor in sections** — the **Profiles** tab keeps the profile name and **Use as default profile** at the top and groups the fields into **Connection**, **Model & capabilities**, **Limits & timeouts** and **Budget & usage**. Only the rows of the selected connection mode are shown, the request timeout that applies to every profile heads the Limits & timeouts section, and **Test AI Connection**, **Delete** and **Save** sit under the editor. See [AI Manager](../features/ai-assistant.md#ai-manager).
 - **Local AI in sections** — the **Local AI** tab splits into **Profile roles**, **Local runtime** and **Hugging Face**. See [Text, coding, translation, and embedding roles](../features/local-models.md#text-coding-translation-and-embedding-roles).
+- **Profile setup wizard** — a sidebar shows the stages and the choices already made, a **Quick start** finds LM Studio, Ollama and installed command-line tools and offers one-click profiles, connection types and providers are cards, reasoning sits under **Advanced**, and the last step runs the test by itself and shows a summary with **Change** links. See [AI Profile Setup Wizard](../features/ai-assistant.md#ai-profile-setup-wizard).
 
 ### Notifications and AI skills
 
