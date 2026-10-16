@@ -39,6 +39,7 @@ Configure AI profiles and terminal AI Agent settings. This is the largest settin
 | Default profile | dropdown | (list of configured profiles) | — | `defaultAiProfileId` |
 | AI request timeout | number | 0–1440 minutes | 0 (no timeout) | `aiRequestTimeoutMinutes` |
 | Security-check profile | dropdown | (list of configured profiles; empty = use default profile) | — | `securityCheckAiProfileId` |
+| Other computers on the network (setup wizard quick start) | text | host, `host:port` or `http://` URL, comma-separated; probed besides localhost | — | `aiWizardScanHosts` |
 
 The security-check profile is a dedicated AI profile for snippet **Security Check** actions. Leave it empty (or use **Clear**) to reuse the default profile. It can also be set directly in the snippet Security Check window, and both places share the same remembered setting.
 

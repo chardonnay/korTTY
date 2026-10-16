@@ -116,13 +116,34 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             "https://www.minimax.io/platform")
     );
 
-    /** A local server the quick start probes: its name, the chat URL a profile uses, its port. */
-    private record LocalServerCandidate(String name, String apiUrl, int port) {
+    /**
+     * A server the quick start probes: the product expected there, its host and its port. The two
+     * loopback candidates are fixed; the others come from the hosts the user enters and from the
+     * HTTP profiles that already exist.
+     */
+    private record LocalServerCandidate(String product, String host, int port) {
+        String apiUrl() {
+            return "http://" + host + ":" + port + "/v1/chat/completions";
+        }
+
+        boolean isLoopback() {
+            return LocalLmModelResolver.isLoopbackHttpUrl(apiUrl());
+        }
+
+        String displayName() {
+            return isLoopback() ? product : I18n.get("ai.wizard.scan.onHost", product, host);
+        }
+
+        String key() {
+            return host.toLowerCase(java.util.Locale.ROOT) + ":" + port;
+        }
     }
 
-    private static final List<LocalServerCandidate> LOCAL_SERVER_CANDIDATES = List.of(
-        new LocalServerCandidate("LM Studio", "http://127.0.0.1:1234/v1/chat/completions", 1234),
-        new LocalServerCandidate("Ollama", "http://127.0.0.1:11434/v1/chat/completions", 11434)
+    private static final int LM_STUDIO_PORT = 1234;
+    private static final int OLLAMA_PORT = 11434;
+    private static final List<LocalServerCandidate> LOOPBACK_CANDIDATES = List.of(
+        new LocalServerCandidate("LM Studio", "127.0.0.1", LM_STUDIO_PORT),
+        new LocalServerCandidate("Ollama", "127.0.0.1", OLLAMA_PORT)
     );
 
     private record DetectedServer(LocalServerCandidate candidate, List<String> models) {
@@ -131,7 +152,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
     private record DetectedCli(AiCliProviderDescriptor provider, String executable) {
     }
 
-    private record ScanResult(List<DetectedServer> servers, List<DetectedCli> tools) {
+    private record ScanResult(List<LocalServerCandidate> candidates, List<DetectedServer> servers, List<DetectedCli> tools) {
     }
 
     private enum WizardPath { CLOUD_API, LOCAL_SERVER, LOCAL_CLI }
@@ -173,6 +194,8 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
     // Quick start
     private VBox scanResultsBox;
+    /** Hosts to probe besides localhost: host, host:port or an http URL, comma-separated. */
+    private TextField scanHostsField;
     private ScanResult scanResult;
     private boolean scanRunning;
     /** Bumped per scan so a slow result of an earlier scan is ignored. */
@@ -719,7 +742,133 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         HBox.setHgrow(cloud, Priority.ALWAYS);
         HBox.setHgrow(other, Priority.ALWAYS);
 
-        return new VBox(14, scanResultsBox, divider, manual);
+        GlobalSettings settings = settings();
+        scanHostsField = new TextField(settings != null && settings.getAiWizardScanHosts() != null
+            ? settings.getAiWizardScanHosts()
+            : "");
+        scanHostsField.setPromptText(I18n.get("ai.wizard.scan.hosts.prompt"));
+        scanHostsField.setOnAction(e -> {
+            scanResult = null;
+            startScan();
+        });
+        Label hostsHint = new Label(I18n.get("ai.wizard.scan.hosts.hint"));
+        hostsHint.setWrapText(true);
+        hostsHint.getStyleClass().add("ai-wizard-card-desc");
+        VBox hosts = new VBox(4, new Label(I18n.get("ai.wizard.scan.hosts")), scanHostsField, hostsHint);
+
+        return new VBox(14, scanResultsBox, hosts, divider, manual);
+    }
+
+    /**
+     * Everything the scan should probe: localhost, the hosts entered in the field (remembered in
+     * the settings) and the hosts of the HTTP profiles that exist already. An entry without a port
+     * is checked on both the LM Studio and the Ollama port.
+     */
+    private List<LocalServerCandidate> scanCandidates() {
+        java.util.LinkedHashMap<String, LocalServerCandidate> candidates = new java.util.LinkedHashMap<>();
+        for (LocalServerCandidate candidate : LOOPBACK_CANDIDATES) {
+            candidates.put(candidate.key(), candidate);
+        }
+        String hostsText = scanHostsField != null ? trimToNull(scanHostsField.getText()) : null;
+        for (LocalServerCandidate candidate : parseHostEntries(hostsText)) {
+            candidates.putIfAbsent(candidate.key(), candidate);
+        }
+        GlobalSettings settings = settings();
+        if (settings != null) {
+            if (!java.util.Objects.equals(settings.getAiWizardScanHosts(), hostsText)) {
+                settings.setAiWizardScanHosts(hostsText);
+                try {
+                    app.getGlobalSettingsManager().save();
+                } catch (Exception e) {
+                    logger.debug("Could not remember the quick-start hosts: {}", e.getMessage());
+                }
+            }
+            if (settings.getAiProfiles() != null) {
+                for (AiProfile profile : settings.getAiProfiles()) {
+                    if (profile == null || profile.getConnectionMode() != AiConnectionMode.HTTP_API) {
+                        continue;
+                    }
+                    String url = trimToNull(profile.getApiUrl());
+                    if (url == null || LocalLmModelResolver.isLoopbackHttpUrl(url)) {
+                        continue;
+                    }
+                    LocalServerCandidate candidate = candidateFromUrl(url);
+                    if (candidate != null) {
+                        candidates.putIfAbsent(candidate.key(), candidate);
+                    }
+                }
+            }
+        }
+        return List.copyOf(candidates.values());
+    }
+
+    /** "host", "host:port" or an http URL per entry, separated by commas or whitespace. */
+    static List<LocalServerCandidate> parseHostEntries(String text) {
+        List<LocalServerCandidate> candidates = new ArrayList<>();
+        if (text == null) {
+            return candidates;
+        }
+        for (String entry : text.split("[,;\\s]+")) {
+            String value = entry.trim();
+            if (value.isEmpty()) {
+                continue;
+            }
+            if (value.contains("://")) {
+                LocalServerCandidate candidate = candidateFromUrl(value);
+                if (candidate != null) {
+                    candidates.add(candidate);
+                } else {
+                    String host = hostOf(value);
+                    if (host != null && !host.contains("://")) {
+                        candidates.addAll(bothProductsOn(host));
+                    }
+                }
+                continue;
+            }
+            int colon = value.lastIndexOf(':');
+            if (colon > 0 && value.indexOf(':') == colon) {
+                try {
+                    int port = Integer.parseInt(value.substring(colon + 1));
+                    if (port > 0 && port <= 65535) {
+                        candidates.add(new LocalServerCandidate(productFor(port), value.substring(0, colon), port));
+                        continue;
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Not host:port after all; probe the whole text as a host below.
+                }
+            }
+            candidates.addAll(bothProductsOn(value));
+        }
+        return candidates;
+    }
+
+    private static List<LocalServerCandidate> bothProductsOn(String host) {
+        return List.of(
+            new LocalServerCandidate("LM Studio", host, LM_STUDIO_PORT),
+            new LocalServerCandidate("Ollama", host, OLLAMA_PORT));
+    }
+
+    /** The candidate behind an http URL with an explicit port, or {@code null}. */
+    private static LocalServerCandidate candidateFromUrl(String url) {
+        try {
+            URI uri = URI.create(url);
+            if (!"http".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getPort() <= 0) {
+                return null;
+            }
+            return new LocalServerCandidate(productFor(uri.getPort()), uri.getHost(), uri.getPort());
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private static String productFor(int port) {
+        if (port == LM_STUDIO_PORT) {
+            return "LM Studio";
+        }
+        if (port == OLLAMA_PORT) {
+            return "Ollama";
+        }
+        return I18n.get("ai.wizard.scan.customServer");
     }
 
     private Button manualCard(String title, String description, Runnable action) {
@@ -751,8 +900,9 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
         scanResultsBox.getChildren().setAll(row);
         updateButtons();
 
+        List<LocalServerCandidate> candidates = scanCandidates();
         CompletableFuture
-            .supplyAsync(this::scan)
+            .supplyAsync(() -> scan(candidates))
             .whenComplete((result, error) -> Platform.runLater(() -> {
                 if (generation != scanGeneration) {
                     return;
@@ -761,16 +911,18 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
                 if (error != null) {
                     logger.debug("Quick-start scan failed: {}", error.toString());
                 }
-                scanResult = error == null && result != null ? result : new ScanResult(List.of(), List.of());
+                scanResult = error == null && result != null
+                    ? result
+                    : new ScanResult(candidates, List.of(), List.of());
                 renderScanResults(scanResult);
                 updateButtons();
             }));
     }
 
-    /** Runs off the FX thread: asks each local server for its models and looks up every CLI. */
-    private ScanResult scan() {
+    /** Runs off the FX thread: asks each candidate server for its models and looks up every CLI. */
+    private ScanResult scan(List<LocalServerCandidate> candidates) {
         List<DetectedServer> servers = new ArrayList<>();
-        for (LocalServerCandidate candidate : LOCAL_SERVER_CANDIDATES) {
+        for (LocalServerCandidate candidate : candidates) {
             List<String> models = probeOpenAiModels(candidate.apiUrl());
             if (models != null) {
                 servers.add(new DetectedServer(candidate, models));
@@ -781,7 +933,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             AiCliProviderRegistry.findProviderExecutable(provider.id())
                 .ifPresent(executable -> tools.add(new DetectedCli(provider, executable)));
         }
-        return new ScanResult(List.copyOf(servers), List.copyOf(tools));
+        return new ScanResult(candidates, List.copyOf(servers), List.copyOf(tools));
     }
 
     /**
@@ -820,7 +972,7 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
 
     private void renderScanResults(ScanResult result) {
         scanResultsBox.getChildren().clear();
-        for (LocalServerCandidate candidate : LOCAL_SERVER_CANDIDATES) {
+        for (LocalServerCandidate candidate : result.candidates()) {
             DetectedServer detected = result.servers().stream()
                 .filter(server -> server.candidate() == candidate)
                 .findFirst()
@@ -833,11 +985,14 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
                         String.join(", ", detected.models().subList(0, Math.min(3, detected.models().size()))));
                 Button create = new Button(I18n.get("ai.wizard.scan.create"));
                 create.setOnAction(e -> applyDetectedServer(detected));
-                scanResultsBox.getChildren().add(detectedRow(true, candidate.name(),
+                scanResultsBox.getChildren().add(detectedRow(true, candidate.displayName(),
                     I18n.get("ai.wizard.scan.serverFound", candidate.apiUrl()) + " · " + detail, create));
             } else {
-                scanResultsBox.getChildren().add(detectedRow(false, candidate.name(),
-                    I18n.get("ai.wizard.scan.serverMissing", Integer.toString(candidate.port())), null));
+                // Not reachable: the URL can still be taken over as a starting point.
+                Button enterUrl = new Button(I18n.get("ai.wizard.scan.enterUrl"));
+                enterUrl.setOnAction(e -> applyManualServer(candidate));
+                scanResultsBox.getChildren().add(detectedRow(false, candidate.displayName(),
+                    I18n.get("ai.wizard.scan.serverMissing", Integer.toString(candidate.port())), enterUrl));
             }
         }
         if (result.tools().isEmpty()) {
@@ -877,17 +1032,38 @@ public class AiProfileWizardDialog extends ThemeAwareDialog<AiProfile> {
             row.getChildren().add(action);
         }
         if (!reachable) {
-            row.setOpacity(0.6);
+            // Only the text is dimmed; the button stays fully usable.
+            titleLabel.setOpacity(0.6);
+            detailLabel.setOpacity(0.7);
+            dot.setOpacity(0.6);
         }
         return row;
+    }
+
+    /** Starts the manual server path with the candidate's URL filled in, for a server that did not answer. */
+    private void applyManualServer(LocalServerCandidate candidate) {
+        selectedPath = WizardPath.LOCAL_SERVER;
+        detectedLabel = I18n.get("ai.wizard.scan.manualChosen");
+        detectedName = candidate.isLoopback()
+            ? I18n.get("ai.wizard.scan.localName", candidate.product())
+            : candidate.displayName();
+        contentFor(WizardStep.SERVER_URL);
+        serverUrlField.setText(candidate.apiUrl());
+        syncConnectionTypeCards();
+        if (nameField != null) {
+            nameField.clear();
+        }
+        jumpTo(WizardStep.SERVER_URL);
     }
 
     /** Fills the local-server path from a detected server and goes straight to the name step. */
     private void applyDetectedServer(DetectedServer detected) {
         LocalServerCandidate candidate = detected.candidate();
         selectedPath = WizardPath.LOCAL_SERVER;
-        detectedLabel = I18n.get("ai.wizard.scan.detected", candidate.name());
-        detectedName = I18n.get("ai.wizard.scan.localName", candidate.name());
+        detectedLabel = I18n.get("ai.wizard.scan.detected", candidate.displayName());
+        detectedName = candidate.isLoopback()
+            ? I18n.get("ai.wizard.scan.localName", candidate.product())
+            : candidate.displayName();
         contentFor(WizardStep.SERVER_URL);
         contentFor(WizardStep.SERVER_MODEL);
         serverUrlField.setText(candidate.apiUrl());

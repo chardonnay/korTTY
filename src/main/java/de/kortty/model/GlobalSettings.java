@@ -767,6 +767,10 @@ public class GlobalSettings {
     @XmlElement
     private String aiSearxngUrl;
 
+    /** Hosts the AI setup wizard's quick start probes besides localhost: host, host:port or http URL, comma-separated. */
+    @XmlElement
+    private String aiWizardScanHosts;
+
     /**
      * Offer KorTTY's web tools (Tavily search/extract) on every KI-agent step instead of only when
      * the task contains a web signal word or a URL.
@@ -3230,6 +3234,14 @@ public class GlobalSettings {
         return aiSearxngUrl;
     }
 
+    public String getAiWizardScanHosts() {
+        return aiWizardScanHosts;
+    }
+
+    public void setAiWizardScanHosts(String aiWizardScanHosts) {
+        this.aiWizardScanHosts = normalizeOptionalString(aiWizardScanHosts);
+    }
+
     public boolean isAiAgentAlwaysOfferWebTools() {
         return aiAgentAlwaysOfferWebTools;
     }
@@ -3890,6 +3902,7 @@ public class GlobalSettings {
             ? aiRequestTimeoutMinutes
             : 0;
         aiSearxngUrl = normalizeOptionalString(aiSearxngUrl);
+        aiWizardScanHosts = normalizeOptionalString(aiWizardScanHosts);
         aiTavilyMcpServerLabel = nonBlank(aiTavilyMcpServerLabel, "tavily");
         aiBrightDataMcpServerLabel = nonBlank(aiBrightDataMcpServerLabel, "bright-data");
         aiBraveSearchMcpPluginId = normalizeOptionalString(aiBraveSearchMcpPluginId);
