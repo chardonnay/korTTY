@@ -117,7 +117,7 @@ Während das Journal läuft, liest der KI-Summierer regelmäßig die neuesten Ca
 | Screenshots mit KI analysieren (Beschreibung und Tags) | Journalmanager **Optionen** | auf |
 | Semantische Journalsuche (Einbettungen) | Journalmanager **Optionen** | aus |
 
-Zusammenfassungen verwenden Ihr **Standard-KI-Profil**, es sei denn, Sie wählen ein spezielles Journalprofil aus. Diese Auswahl ist an drei gleichwertigen Stellen verfügbar: im Dialogfeld **Optionen** des Journalmanagers, **Einstellungen > Protokollierung > Sitzungsjournal** und **KI > KI-Manager > Lokale KI** neben den Rollen Text und Codierung. Die Rollenprofile Text/Coding selbst werden bewusst nicht für das Journal verwendet.
+Summaries use your **default AI profile** unless you pick a dedicated journal profile. That choice is available in three equivalent places: the journal manager's **Options** dialog, **Settings > Logging > Session Journal**, and **KI > KI-Manager > Local AI > Profile roles** next to the Text and Coding roles. The Text/Coding role profiles themselves are deliberately not used for the journal.
 
 Wenn Sie **max Zeilen auf 0** setzen, wird auf Kontextfüllung umgeschaltet: Der Zusammenfassungstext packt so viele der neuesten Zeilen, wie in das konfigurierte Token-Budget passen. Wenn **Chunking** aktiviert ist, wird das gesamte Backlog verarbeitet und nicht nur das neueste Fenster – aufeinanderfolgende Fenster der konfigurierten Größe, jeweils eine KI-Eingabeaufforderung.
 
