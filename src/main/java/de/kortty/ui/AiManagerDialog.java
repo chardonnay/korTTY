@@ -2132,6 +2132,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             app.getGlobalSettingsManager().save();
             defaultProfileId = effectiveDefaultProfileId;
             if (!quiet) {
+                // The saved profile may differ from the one tested; the old verdict no longer applies.
+                hideProfileTestResult();
                 statusLabel.setText(I18n.get("ai.manager.profile.saved"));
                 refreshProfiles();
             }
