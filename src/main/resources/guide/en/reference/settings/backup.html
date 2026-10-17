@@ -814,7 +814,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="backup">Backup<a class="headerlink" href="#backup" title="Permanent link">&para;</a></h1>
-<p>Configure backup retention policy and encryption method for korTTY session backups. Open via <strong>Configuration → Global Settings → Backup</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Configure backup retention, the encryption method and the automatic backup. Open via <strong>Configuration → Global Settings → Backup</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Backup settings tab" src="../../assets/screenshots/settings/backup.png" /></p>
 <table>
 <thead>
@@ -862,6 +862,20 @@
 <td>—</td>
 <td><code>backupGpgKeyId</code></td>
 </tr>
+<tr>
+<td>Schedule</td>
+<td>dropdown</td>
+<td>Off, Daily, Weekly, Monthly</td>
+<td>Weekly</td>
+<td><code>autoBackupInterval</code></td>
+</tr>
+<tr>
+<td>Folder</td>
+<td>path</td>
+<td>an existing folder</td>
+<td>—</td>
+<td><code>autoBackupDirectory</code></td>
+</tr>
 </tbody>
 </table>
 <div class="admonition warning">
@@ -873,6 +887,39 @@
 <p><strong>Maximum Backups:</strong> Set to <code>0</code> to keep backups indefinitely; any other value (1–100) will automatically delete the oldest backups in <code>old-backups/</code> once the limit is reached, counting password ZIP and GPG backups together. When using password-based encryption, select a credential from the management system. When using GPG encryption, select an available GPG key. The encryption type is stored in the global settings and determines which credential or key ID is used for future backups.</p>
 </div>
 <p>Once a backup has been made, the tab shows <strong>Last Backup:</strong> with its date, time and the path it was written to.</p>
+<h2 id="automatic-backup">Automatic backup<a class="headerlink" href="#automatic-backup" title="Permanent link">&para;</a></h2>
+<p>korTTY can write a backup on its own, into a folder you choose, as often as you choose. The automatic backup uses the same content and the same encryption as <strong>Configuration → Create Backup</strong>: it is always encrypted with the mode selected above, and it rotates older copies into <code>old-backups/</code> under the same <strong>Maximum number of backups</strong> rule. The section header links to this page with <strong>Open in manual</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Schedule</strong></td>
+<td><strong>Weekly</strong> is the default; <strong>Daily</strong> and <strong>Monthly</strong> are the alternatives, <strong>Off</strong> disables the automatic backup. A month is a calendar month, so a backup written on the 31<sup>st</sup> is next due at the end of the following month.</td>
+</tr>
+<tr>
+<td><strong>Folder</strong></td>
+<td>Where the backup is written, for example a folder on a network drive or in a synchronised cloud folder. Type a path or use <strong>Browse…</strong>. The folder must already exist: korTTY never creates it, because a path that is missing right now may be a drive that is not mounted, and a folder created in its place would silently receive every backup from then on.</td>
+</tr>
+</tbody>
+</table>
+<p>Nothing runs until a folder is set, so an update to a version with this feature does not start writing files anywhere by itself. korTTY checks whether a backup is due two minutes after startup and then once an hour; the check compares the stored time of the last automatic backup (<code>lastAutoBackupAt</code>) with the schedule, so a backup that was missed because the computer slept or korTTY was closed is written at the next check instead of waiting another interval. A manual backup does not reset the schedule.</p>
+<p>The status line under the two fields says when the last automatic backup ran and when the next one is due, or why none can run right now:</p>
+<ul>
+<li><strong>No folder chosen yet</strong>, or <strong>the folder does not exist right now</strong>: pick or mount the folder; korTTY retries hourly.</li>
+<li><strong>No credential selected</strong> / <strong>No GPG key selected</strong>: the encryption mode above has nothing to encrypt with; choose one. A backup is never written unencrypted.</li>
+<li><strong>Waiting for the vault to be unlocked</strong>: <em>ZIP with Password</em> decrypts the backup password with your master password, so this mode runs only while the vault is unlocked; <em>GPG Encryption</em> runs even with a locked vault.</li>
+<li><strong>The last automatic backup failed</strong>: the error message from the backup, also written to the application log.</li>
+</ul>
+<p>When a run is skipped for one of these reasons or fails, korTTY shows one desktop notification per reason (not one per hourly check), where desktop notifications are available and allowed.</p>
+<div class="admonition note">
+<p class="admonition-title">Managed by your organization</p>
+<p>An enterprise policy can set the schedule (including <em>Off</em>) and the folder with <code>[rule.backup]</code>; the locked fields then show the "managed by your organization" hint. See <a href="../enterprise-policy.html#rulebackup">Enterprise policy</a>.</p>
+</div>
 <p>Backups include <code>ssh-host-keys.properties</code>, so normalized host:port trust decisions shared by interactive Terminal, SFTP, and Mosh bootstrap connections survive restore; the transient cross-process <code>.lock</code> file is not included. JobScheduler host-key pins remain separately stored in <code>job-scheduler.xml</code>.</p>
 <p>Besides these, a backup carries the connections, credentials, GPG and SSH key entries with the copied SSH key files, global settings, JobScheduler jobs, snippets and snippet analyses, AI and swarm chats, themes, environments, project workspaces and the master-password check file <code>master.key</code>, but not the auto-unlock copy of the master password. The complete list of what a backup contains and leaves out is on <a href="../../features/backup.html">Backup &amp; restore</a>.</p>
 <p>Local-AI backups include <code>llm/models.xml</code>, <code>llm/mlx-models.json</code> and <code>rag/stores.json</code> so GGUF and MLX model registrations, role assignments, and knowledge-source definitions can be restored. They exclude GGUF weights, llama.cpp runtime packages, temporary sidecar data, source documents, and regenerable HNSW snapshots; see <a href="../../features/backup.html">Backup &amp; restore</a>.</p></p>

@@ -814,7 +814,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="backup">Backup<a class="headerlink" href="#backup" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie die Sicherungsaufbewahrungsrichtlinie und die Verschlüsselungsmethode für korTTY-Sitzungssicherungen. Öffnen über <strong>Konfiguration → Globale Einstellungen → Backup</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>Konfigurieren Sie die Sicherungsaufbewahrung, die Verschlüsselungsmethode und die automatische Sicherung. Öffnen Sie über <strong>Konfiguration → Globale Einstellungen → Sicherung</strong>; gespeichert in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Backup settings tab" src="../../../en/assets/screenshots/settings/backup.png" /></p>
 <table>
 <thead>
@@ -862,6 +862,20 @@
 <td>–</td>
 <td><code>backupGpgKeyId</code></td>
 </tr>
+<tr>
+<td>Rhythmus</td>
+<td>dropdown</td>
+<td>Aus, Täglich, Wöchentlich, Monatlich</td>
+<td>Wöchentlich</td>
+<td><code>autoBackupInterval</code></td>
+</tr>
+<tr>
+<td>Ordner</td>
+<td>path</td>
+<td>eines bestehenden Ordners</td>
+<td>—</td>
+<td><code>autoBackupDirectory</code></td>
+</tr>
 </tbody>
 </table>
 <div class="admonition warning">
@@ -873,6 +887,39 @@
 <p><strong>Maximale Backups:</strong> Setzen Sie <code>0</code>, um Sicherungen unbegrenzt zu behalten; jeder andere Wert (1–100) löscht automatisch die ältesten Sicherungen in <code>old-backups/</code>, sobald das Limit erreicht ist, wobei Passwort-ZIP- und GPG-Sicherungen zusammen gezählt werden. Bei passwortbasierter Verschlüsselung wählen Sie ein Credential aus dem Verwaltungssystem. Bei GPG-Verschlüsselung wählen Sie einen verfügbaren GPG-Schlüssel aus. Der Verschlüsselungstyp wird in den globalen Einstellungen gespeichert und bestimmt, welches Credential oder welche Schlüssel-ID für zukünftige Sicherungen verwendet wird.</p>
 </div>
 <p>Sobald ein Backup erstellt wurde, zeigt der Tab <strong>Letztes Backup:</strong> mit Datum, Uhrzeit und dem Pfad, in den es geschrieben wurde.</p>
+<h2 id="automatic-backup">Automatische Sicherung<a class="headerlink" href="#automatic-backup" title="Permanent link">&para;</a></h2>
+<p>korTTY kann selbstständig ein Backup erstellen, in einen Ordner Ihrer Wahl, so oft Sie es wünschen. Das automatische Backup verwendet denselben Inhalt und dieselbe Verschlüsselung wie <strong>Konfiguration → Erstellen Backup</strong>: es ist immer mit dem oben ausgewählten Modus verschlüsselt und rotiert ältere Kopien in <code>old-backups/</code> unter der gleichen <strong>Maximale Anzahl von Backups</strong> Regel. Der Abschnittsheader verlinkt zu dieser Seite mit <strong>In der Anleitung öffnen</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Einstellung</th>
+<th>Auswirkung</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Rhythmus</strong></td>
+<td><strong>Wöchentlich</strong> ist die Vorgabe; <strong>Täglich</strong> und <strong>Monatlich</strong> sind die Alternativen, <strong>Aus</strong> deaktiviert das automatische Backup. Ein Monat ist ein Kalendermonat, daher ist ein am 31. geschriebenes Backup im nächsten Monat zum Ende des folgenden Monats fällig.</td>
+</tr>
+<tr>
+<td><strong>Ordner</strong></td>
+<td>Wo die Sicherung geschrieben wird, zum Beispiel ein Ordner auf einem Netzlaufwerk oder in einem synchronisierten Cloud-Ordner. Geben Sie einen Pfad ein oder verwenden Sie <strong>Durchsuchen…</strong>. Der Ordner muss bereits existieren: korTTY erstellt ihn nicht, weil ein fehlender Pfad jetzt eventuell ein Laufwerk sein könnte, das nicht gemountet ist, und ein Ordner, der an seiner Stelle erstellt wird, würde stillschweigend ab dann jede Sicherung erhalten.</td>
+</tr>
+</tbody>
+</table>
+<p>Nichts wird ausgeführt, bis ein Ordner festgelegt ist, sodass ein Update auf eine Version mit dieser Funktion nicht von selbst Dateien irgendwo schreibt. korTTY prüft, ob ein Backup zwei Minuten nach dem Start fällig ist und danach einmal pro Stunde; die Prüfung vergleicht die gespeicherte Zeit des letzten automatischen Backups (<code>lastAutoBackupAt</code>) mit dem Zeitplan, sodass ein Backup, das verpasst wurde, weil der Computer im Schlafmodus war oder korTTY geschlossen wurde, beim nächsten Check geschrieben wird anstatt ein weiteres Intervall zu warten. Ein manuelles Backup setzt den Zeitplan nicht zurück.</p>
+<p>Die Statuszeile unter den beiden Feldern zeigt an, wann die letzte automatische Sicherung ausgeführt wurde und wann die nächste fällig ist, oder warum keine Sicherung gerade durchgeführt werden kann.</p>
+<ul>
+<li><strong>Noch kein Ordner ausgewählt</strong>, oder <strong>der Ordner existiert momentan nicht</strong>: wählen Sie einen Ordner aus oder mounten Sie ihn; korTTY versucht jede Stunde erneut.</li>
+<li><strong>Keine Anmeldeinformationen ausgewählt</strong> / <strong>Kein GPG-Schlüssel ausgewählt</strong>: Der oben angegebene Verschlüsselungsmodus hat nichts, womit er verschlüsseln kann; wählen Sie einen. Ein Backup wird niemals unverschlüsselt geschrieben.</li>
+<li><strong>Warten auf das Entsperren des Tresors</strong>: <em>ZIP mit Passwort</em> entschlüsselt das Backup-Passwort mit Ihrem Master-Passwort, sodass dieser Modus nur läuft, solange der Tresor entsperrt ist; <em>GPG-Verschlüsselung</em> läuft auch bei einem gesperrten Tresor.</li>
+<li><strong>Die letzte automatische Sicherung ist fehlgeschlagen</strong>: die Fehlermeldung aus dem Backup, die ebenfalls im Anwendungslog geschrieben wurde.</li>
+</ul>
+<p>Wenn ein Lauf aus einem dieser Gründe übersprungen wird oder fehlschlägt, zeigt korTTY pro Grund eine Desktop-Benachrichtigung an (nicht je Stunde), sofern Desktop-Benachrichtigungen verfügbar und erlaubt sind.</p>
+<div class="admonition note">
+<p class="admonition-title">Verwaltet von Ihrer Organisation</p>
+<p>Eine Unternehmensrichtlinie kann den Zeitplan (einschließlich <em>Aus</em>) und den Ordner mit <code>[rule.backup]</code> festlegen; die gesperrten Felder zeigen dann den Hinweis „managed by your organization“. Siehe <a href="../enterprise-policy.html#rulebackup">Unternehmensrichtlinie</a>.</p>
+</div>
 <p>Sicherungen umfassen <code>ssh-host-keys.properties</code>, sodass normalisierte Host:Port-Vertrauensentscheidungen, die von interaktiven Terminal-, SFTP- und Mosh-Bootstrap-Verbindungen geteilt werden, die Wiederherstellung überleben; Die transiente prozessübergreifende Datei <code>.lock</code> ist nicht enthalten. JobScheduler-Hostschlüssel-Pins bleiben separat in <code>job-scheduler.xml</code> gespeichert.</p>
 <p>Neben diesen enthält ein Backup die Verbindungen, Anmeldedaten, GPG- und SSH-Schlüssel-Einträge mit den kopierten SSH-Schlüsseldateien, globale Einstellungen, JobScheduler-Jobs, Snippets und Snippet-Analysen, KI- und Schwarm-Chats, Themen, Umgebungen, Projektarbeitsbereiche und die Master-Passwort-Prüfdatei <code>master.key</code>, jedoch nicht die Auto-Entsperr-Kopie des Master-Passworts. Die vollständige Liste dessen, was ein Backup enthält und auslässt, finden Sie auf <a href="../../features/backup.html">Sicherung &amp; Wiederherstellung</a>.</p>
 <p>Lokale KI-Backups enthalten <code>llm/models.xml</code>, <code>llm/mlx-models.json</code> und <code>rag/stores.json</code>, sodass GGUF- und MLX-Modellregistrierungen, Rollenzuweisungen und Wissensquellendefinitionen wiederhergestellt werden können. Sie schließen GGUF-Gewichte, llama.cpp-Laufzeitpakete, temporäre Sidecar-Daten, Quellunterlagen und regenerierbare HNSW-Snapshots aus; Siehe <a href="../../features/backup.html">Sicherung &amp; Wiederherstellung</a>.</p></p>
