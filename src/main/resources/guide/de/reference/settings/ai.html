@@ -814,8 +814,37 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="ki">KI<a class="headerlink" href="#ki" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren von KI-Profilen und Einstellungen für den Terminal-KI-Agent. Dies ist die umfassendste Einstellungs-Option, die KI-Funktionen, Profil- (mit Modell, API-Endpunkt, Verbindungsmethode und Schlussfolgerungsebene), Token-Quotenverwaltung, Einstellungen für den Snippet-Editor und die Konfiguration des Internetzugangs umfasst. Öffnen Sie sie über <strong>Konfiguration → Globale Einstellungen → KI</strong>; gespeichert in <code>~/.kortty/global-settings.xml</code>.</p>
-<p><img alt="AI settings tab" src="../../../en/assets/screenshots/settings/ai.png" /></p>
+<p>Jede KI-Einstellung befindet sich an einem Ort: <strong>KI → KI-Manager</strong>. Ihr erster Tab, <strong>Allgemein</strong>, enthält die Optionen, die nicht Teil eines Profils sind (Funktionsschalter, der Terminal-Agent, Vorgaben für Snippet-Aktionen, Internet-Tools) auf vier Abschnitts-Tabs; <strong>Profile</strong> enthält die KI-Profile mit ihrem Modell, ihrer Verbindung, ihren Grenzen und Budget; <strong>Lokale Modelle</strong>, <strong>Wissensspeicher</strong>, <strong>KI-Skills</strong> und <strong>Lokale KI</strong> den Rest. Die Werte werden in <code>~/.kortty/global-settings.xml</code> gespeichert. Das Fenster Globale Einstellungen hat keinen KI-Tab mehr.</p>
+<p><img alt="KI-Manager, General tab" src="../../../en/assets/screenshots/ai/ai-manager-general.png" /></p>
+<h2 id="general-tab">Allgemeiner Tab<a class="headerlink" href="#general-tab" title="Permanent link">&para;</a></h2>
+<p><strong>KI → KI-Manager → Allgemein</strong> gruppiert die globalen Optionen auf vier Abschnittstabellen. <strong>Speichern</strong> unter den Abschnitten schreibt alle; das Schließen des KI-Managers speichert sie ebenfalls.</p>
+<table>
+<thead>
+<tr>
+<th>Abschnitt</th>
+<th>Einstellungen</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Funktionen &amp; Sicherheit</strong></td>
+<td>KI-Funktionen aktivieren, Bestätigung vor dem Senden, KI-Chat-Codeblöcke im Terminal, Agenten-Debug und Laufzeitnachrichten</td>
+</tr>
+<tr>
+<td><strong>Terminal-Agent</strong></td>
+<td>Agenten-Ausführung, Bestätigung vor Änderungen, Setup-Dialog vor jedem Lauf, Befehlsname und Groß-/Kleinschreibung, Aufgabenziel, Eingabeverlaufgröße</td>
+</tr>
+<tr>
+<td><strong>Standards</strong></td>
+<td>Security-Check-Profil, Standardsprache für KI-Text im Code, optionale Anweisungen im Snippet-Editor, Anzahl alternativer Lösungen</td>
+</tr>
+<tr>
+<td><strong>Internetzugang</strong></td>
+<td>Tavily, Bright Data and Brave Search secrets, SearXNG URL, MCP server labels and plugin ids, "bieten Sie Internetrecherche bei jedem Schritt an"</td>
+</tr>
+</tbody>
+</table>
+<p>Die Tabellen unten listen jede Einstellung dieser Abschnitte mit ihrem gespeicherten Schlüssel auf.</p>
 <h2 id="kern-einstellungen">Kern-Einstellungen<a class="headerlink" href="#kern-einstellungen" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -943,9 +972,9 @@
 <tbody>
 <tr>
 <td>Standardprofil</td>
-<td>Dropdown-Kontrolle</td>
-<td>(Liste der konfigurierten Profile)</td>
-<td>—</td>
+<td>check box "Als Standardprofil verwenden" in the Profiles tab</td>
+<td>ein Profil ist immer das Standardprofil</td>
+<td>das erste Profil</td>
 <td><code>defaultAiProfileId</code></td>
 </tr>
 <tr>
@@ -968,8 +997,9 @@
 <p><strong>AI request timeout</strong> is the maximum runtime of a single AI request and applies to every profile. The default <code>0</code> means korTTY imposes no timeout at all: long-running tasks such as the snippet editor's <strong>Full code analysis</strong> run until the model answers. Set a positive number of minutes to cancel requests that exceed it. A profile can override the value — see <strong>Timeout for this profile</strong> below. In the KI-Manager the global value is the first row of the profile editor's <strong>Limits &amp; timeouts</strong> section.</p>
 <p>In the KI-Manager the default profile is chosen with the <strong>Use as default profile</strong> check box next to the profile name; one profile is always the default, so ticking the box on another profile moves it.</p>
 <h3 id="profile-settings-in-editor-sections">Profile Settings (in Editor Sections)<a class="headerlink" href="#profile-settings-in-editor-sections" title="Permanent link">&para;</a></h3>
-<p>The same fields are edited in <strong>KI &gt; KI-Manager &gt; Profiles</strong>. The editor keeps <strong>Profile name</strong> and <strong>Use as default profile</strong> above four section tabs, and the <strong>Connection</strong> and <strong>Model &amp; capabilities</strong> sections show only the rows that apply to the selected <strong>Connection</strong> mode (the URL and key rows for <strong>HTTP API</strong>, the CLI rows for <strong>Local CLI</strong>, a note for <strong>Integrated llama.cpp</strong> and <strong>Integrated MLX</strong>):</p>
-<p><img alt="KI-Manager profiles tab" src="../../../en/assets/screenshots/ai/ai-profiles.png" /></p>
+<p>The same fields are edited in <strong>KI &gt; KI-Manager &gt; Profiles</strong>. The editor keeps <strong>Profile name</strong> and <strong>Use as default profile</strong> above four section tabs, and the <strong>Connection</strong> and <strong>Model &amp; capabilities</strong> sections show only the rows that apply to the selected <strong>Connection</strong> mode (the URL and key rows for <strong>HTTP API</strong>, the CLI rows for <strong>Local CLI</strong>, a note for <strong>Integrated llama.cpp</strong> and <strong>Integrated MLX</strong>):
+Die Profilfelder werden in <strong>KI &gt; KI-Manager &gt; Profile</strong> bearbeitet. Der Editor behält <strong>Profilname</strong> und <strong>Als Standardprofil verwenden</strong> über den vier Abschnitts-Tabblättern, und die Abschnitte <strong>Verbindung</strong> und <strong>Modell &amp; Fähigkeiten</strong> zeigen nur die Zeilen an, die für den ausgewählten <strong>Verbindungsmodus</strong> gelten (die URL- und Schlüsselzeilen für <strong>HTTP-API</strong>, die CLI-Zeilen für <strong>Lokale CLI</strong>, ein Hinweis für <strong>Integriertes llama.cpp</strong> und <strong>Integrated MLX</strong>).
+<img alt="KI-Manager profiles tab" src="../../../en/assets/screenshots/ai/ai-profiles.png" /></p>
 <table>
 <thead>
 <tr>

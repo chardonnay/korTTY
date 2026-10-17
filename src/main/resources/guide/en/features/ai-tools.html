@@ -825,13 +825,13 @@
 <p>Knowledge stores assigned to normal Text/Coding requests do not automatically expand the Terminal AI Agent, Planning, Swarm, or scheduled job context. Those autonomous flows require an explicit RAG opt-in; see <a href="rag.html">RAG knowledge stores</a>. This prevents a background workflow from reading indexed local sources merely because the same model profile is used for interactive chat.</p>
 </div>
 <h2 id="command-variants">Command variants<a class="headerlink" href="#command-variants" title="Permanent link">&para;</a></h2>
-<p>The Terminal AI Agent is triggered via shortcut commands at the shell prompt. When enabled in <strong>Settings &gt; AI</strong>, KorTTY intercepts these commands locally instead of sending them to the server:</p>
+<p>The Terminal AI Agent is triggered via shortcut commands at the shell prompt. When enabled in <strong>AI &gt; AI Manager &gt; General</strong>, KorTTY intercepts these commands locally instead of sending them to the server:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>agent<span class="w"> </span>&lt;goal&gt;
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>agent-ask<span class="w"> </span>&lt;question&gt;
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>agent-plan<span class="w"> </span>&lt;task&gt;
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>agent<span class="w"> </span>-plan<span class="w"> </span>&lt;task&gt;
 </span></code></pre></div>
-<p>The base command name is configurable in <strong>Settings &gt; AI</strong>. If you rename <code>agent</code>, KorTTY automatically derives the matching <code>-ask</code> and <code>-plan</code> commands. The same settings page can:</p>
+<p>The base command name is configurable in <strong>AI &gt; AI Manager &gt; General</strong>. If you rename <code>agent</code>, KorTTY automatically derives the matching <code>-ask</code> and <code>-plan</code> commands. The same settings page can:</p>
 <ul>
 <li>Make the command name case-insensitive</li>
 <li>Disable the per-run setup dialog (uses the configured default profile when disabled)</li>
@@ -863,7 +863,7 @@
 <li>In the history popup, click a row's ✕ button (or press <span class="keys"><kbd class="key-delete">Del</kbd></span> on keyboards with a forward-delete key) to remove a single prompt, or use <strong>Clear all</strong> (two-step confirm) to wipe the entire history. Deletions are saved immediately.</li>
 <li>Outside this context, <span class="keys"><kbd class="key-tab">Tab</kbd></span> remains normal shell completion.</li>
 </ul>
-<p>History size is configurable in <strong>Settings &gt; AI</strong> (default 20, range 5–100).</p>
+<p>History size is configurable in <strong>AI &gt; AI Manager &gt; General</strong> (default 20, range 5–100).</p>
 <h2 id="how-the-ai-agent-works">How the AI Agent works<a class="headerlink" href="#how-the-ai-agent-works" title="Permanent link">&para;</a></h2>
 <p>The Terminal AI Agent follows a strict, safe execution loop:</p>
 <ol>
@@ -1170,7 +1170,7 @@
 <li><strong>Sudo preflight</strong> — If the plan requires sudo and a password is needed, KorTTY checks the password immediately so execution is not interrupted later.</li>
 </ol>
 <h2 id="settings-and-configuration">Settings and configuration<a class="headerlink" href="#settings-and-configuration" title="Permanent link">&para;</a></h2>
-<p>Configure the Terminal AI Agent in <strong>Settings &gt; AI</strong>:</p>
+<p>Configure the Terminal AI Agent in <strong>AI &gt; AI Manager &gt; General</strong>:</p>
 <table>
 <thead>
 <tr>
@@ -1226,7 +1226,7 @@
 <li><strong>KorTTY Tavily Tool</strong> — Direct web search and page reading through the Tavily API (<code>web_search</code> and <code>web_extract</code>, see <a href="#what-the-agent-can-call">What the agent can call</a>).</li>
 <li><strong>LM Studio MCP modes</strong> — Integrate Tavily, Bright Data, Brave Search, SearXNG, or LM Studio Toolpack through LM Studio's native MCP support.</li>
 </ul>
-<p>Configure internet access per AI profile with the <strong>Internet access</strong> field of the profile editor; the Tavily key and the other web-tool settings are entered under <strong>Settings &gt; AI &gt; Internet tool configuration</strong>.</p>
+<p>Configure internet access per AI profile with the <strong>Internet access</strong> field of the profile editor; the Tavily key and the other web-tool settings are entered under <strong>AI &gt; AI Manager &gt; General &gt; Internet access</strong>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p><strong>Web tools are withheld from local file/script review tasks</strong> unless your prompt clearly asks for current or external information. Inspecting a local file should use shell commands like <code>sed</code>, <code>cat</code>, <code>find</code>, or language-specific tools, not web search.</p>
