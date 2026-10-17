@@ -90,7 +90,8 @@ public record PolicyRule(
     Boolean sessionRestoreOutput,
     SftpRule sftp,
     List<String> webhookHostAllowlist,
-    de.kortty.isolation.IsolationLevel isolationFloor) {
+    de.kortty.isolation.IsolationLevel isolationFloor,
+    BackupRule backup) {
 
     public PolicyRule {
         webhookHostAllowlist = webhookHostAllowlist == null ? null : List.copyOf(webhookHostAllowlist);
@@ -116,6 +117,20 @@ public record PolicyRule(
 
         public boolean isEmpty() {
             return maxParallelTransfers == null && conflictDefault == null;
+        }
+    }
+
+    /**
+     * The {@code [rule.backup]} table: the automatic backup's schedule and folder. Each value forces
+     * and locks the matching setting in Settings → Backup; {@code interval} OFF switches the automatic
+     * backup off for the user.
+     *
+     * @param interval  off, daily, weekly or monthly, or null
+     * @param directory the folder automatic backups are written to (absolute or {@code ~/}-relative), or null
+     */
+    public record BackupRule(de.kortty.model.GlobalSettings.AutoBackupInterval interval, String directory) {
+        public boolean isEmpty() {
+            return interval == null && directory == null;
         }
     }
 
@@ -285,6 +300,7 @@ public record PolicyRule(
         private SftpRule sftp;
         private List<String> webhookHostAllowlist;
         private de.kortty.isolation.IsolationLevel isolationFloor;
+        private BackupRule backup;
 
         public Builder name(String value) { this.name = value; return this; }
         public Builder users(Set<String> value) { this.users = value; return this; }
@@ -328,6 +344,7 @@ public record PolicyRule(
         public Builder sftp(SftpRule value) { this.sftp = value; return this; }
         public Builder webhookHostAllowlist(List<String> value) { this.webhookHostAllowlist = value; return this; }
         public Builder isolationFloor(de.kortty.isolation.IsolationLevel value) { this.isolationFloor = value; return this; }
+        public Builder backup(BackupRule value) { this.backup = value; return this; }
 
         public PolicyRule build() {
             return new PolicyRule(name, users, groups, servers, features, agentExecution,
@@ -336,7 +353,7 @@ public record PolicyRule(
                 aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal,
                 snippetAnalysisMaxStoredContentBytes, pasteWarningFloor, allowOsc52ClipboardWrite,
-                sessionRestoreMode, sessionRestoreOutput, sftp, webhookHostAllowlist, isolationFloor);
+                sessionRestoreMode, sessionRestoreOutput, sftp, webhookHostAllowlist, isolationFloor, backup);
         }
     }
 }

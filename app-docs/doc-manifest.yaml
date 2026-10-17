@@ -164,7 +164,7 @@ pages:
     last_synced_ref: "60e9a696"
   - path: app-docs/site/docs/en/reference/settings/backup.md
     owns_i18n: [settings.backup.]
-    owns_code: [src/main/java/de/kortty/core/BackupManager.java]
+    owns_code: [src/main/java/de/kortty/core/BackupManager.java, src/main/java/de/kortty/core/AutoBackupService.java, src/main/java/de/kortty/ui/AutoBackupStatusText.java]
     screenshots:
       - settings/backup.png
     last_synced_ref: "f8e06604"

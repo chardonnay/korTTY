@@ -49,6 +49,10 @@ The backup includes:
 | Knowledge-store configuration | Store metadata and source paths, filters, sync modes, and embedding configuration; not the HNSW vectors |
 | Projects | All `.kortty` project workspace files |
 
+## Automatic backup
+
+Instead of remembering to run **Create Backup**, let korTTY do it: in **Configuration → Global Settings → Backup → Automatic backup** choose a schedule (daily, weekly or monthly) and an existing folder, for example on a network drive. korTTY then writes the same encrypted backup there on its own, checks two minutes after each start and then hourly whether one is due, and catches up on a backup missed while it was closed. The settings page describes the status line and the conditions under which a run is skipped: [Automatic backup](../reference/settings/backup.md#automatic-backup).
+
 ## Backup encryption
 
 ### Password-protected ZIP (default)

@@ -35,7 +35,7 @@ public final class PolicyLoader {
     private static final Set<String> META_KEYS = Set.of("schema-version", "organization");
     private static final Set<String> RULE_KEYS = Set.of("name", "users", "groups", "servers",
         "features", "security", "teamwork", "snippets", "ai-profiles", "ai-runtime", "updates",
-        "terminal", "logging", "session-journal", "sftp", "job-scheduler", "isolation");
+        "terminal", "logging", "session-journal", "sftp", "job-scheduler", "isolation", "backup");
     private static final Set<String> SERVERS_KEYS = Set.of("mode", "hosts");
     private static final Set<String> SECURITY_KEYS = Set.of("require-master-password",
         "enforce-host-key-check", "allow-telemetry", "allow-terminal-recording", "allow-port-forwarding",
@@ -48,6 +48,7 @@ public final class PolicyLoader {
     private static final Set<String> RULE_AI_RUNTIME_KEYS =
         Set.of("allow-runtime-downloads", "allow-model-downloads", "allow-user-models");
     private static final Set<String> UPDATES_KEYS = Set.of("enabled", "feed-url");
+    private static final Set<String> BACKUP_KEYS = Set.of("auto-interval", "auto-directory");
     private static final Set<String> TERMINAL_KEYS = Set.of("load-into-snippet-editor", "paste-warning",
         "session-restore", "session-restore-output");
     private static final Set<String> JOB_SCHEDULER_KEYS = Set.of("webhook-host-allowlist");
@@ -180,6 +181,7 @@ public final class PolicyLoader {
             parseRuleAiProfiles(table, context, builder);
             parseRuleAiRuntime(table, context, builder);
             parseRuleUpdates(table, context, builder);
+            parseRuleBackup(table, context, builder);
             parseRuleTerminal(table, context, builder);
             parseRuleLogging(table, context, builder);
             parseRuleSessionJournal(table, context, builder);
@@ -342,6 +344,37 @@ public final class PolicyLoader {
         builder.allowRuntimeDownloads(getBoolean(table, "allow-runtime-downloads", tableContext));
         builder.allowModelDownloads(getBoolean(table, "allow-model-downloads", tableContext));
         builder.allowUserModels(getBoolean(table, "allow-user-models", tableContext));
+    }
+
+    /** The {@code [rule.backup]} table: the automatic backup's interval and folder. */
+    private void parseRuleBackup(TomlTable rule, String context, PolicyRule.Builder builder) {
+        TomlTable table = getTable(rule, "backup", context);
+        if (table == null) {
+            return;
+        }
+        String tableContext = context + " [rule.backup]";
+        warnUnknownKeys(table, BACKUP_KEYS, tableContext);
+        de.kortty.model.GlobalSettings.AutoBackupInterval interval = null;
+        String intervalValue = getString(table, "auto-interval", tableContext);
+        if (intervalValue != null) {
+            interval = de.kortty.model.GlobalSettings.AutoBackupInterval.parseId(intervalValue);
+            if (interval == null) {
+                errors.add(tableContext + ": auto-interval must be \"off\", \"daily\", \"weekly\" or \"monthly\"");
+            }
+        }
+        String directory = getString(table, "auto-directory", tableContext);
+        if (directory != null) {
+            directory = directory.trim();
+            boolean homeRelative = "~".equals(directory) || directory.startsWith("~/");
+            if (directory.isEmpty() || (!homeRelative && !java.nio.file.Path.of(directory).isAbsolute())) {
+                errors.add(tableContext + ": auto-directory must be an absolute or ~/-relative path");
+                directory = null;
+            }
+        }
+        PolicyRule.BackupRule backup = new PolicyRule.BackupRule(interval, directory);
+        if (!backup.isEmpty()) {
+            builder.backup(backup);
+        }
     }
 
     private void parseRuleUpdates(TomlTable rule, String context, PolicyRule.Builder builder) {

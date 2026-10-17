@@ -238,6 +238,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     
     // Backup settings
     private final Spinner<Integer> maxBackupSpinner;
+    private ComboBox<GlobalSettings.AutoBackupInterval> autoBackupIntervalCombo;
+    private TextField autoBackupDirectoryField;
     private final javafx.scene.control.RadioButton passwordEncryptionRadio;
     private final javafx.scene.control.RadioButton gpgEncryptionRadio;
     private final ComboBox<StoredCredential> backupCredentialCombo;
@@ -1456,6 +1458,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         Label warningLabel = new Label(I18n.get("settings.backup.warning"));
         warningLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: #d97706; -fx-font-weight: bold;");
         backupGrid.add(warningLabel, 0, backupRow++, 2, 1);
+
+        backupRow = addAutoBackupSection(backupGrid, backupRow);
         
         // Show last backup info
         if (globalSettings != null && globalSettings.getLastBackupTime() > 0) {
@@ -3796,6 +3800,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     }
                     app.applyLoggingSettings();
                     app.restartUpdateCheckService();
+                    app.restartAutoBackupService();
                     if (app.getTelemetryService() != null) {
                         // Enable starts the pipeline; disable discards the queue immediately.
                         app.getTelemetryService().applyEnabledState();
@@ -4167,7 +4172,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             saveAiToggleFlagsToSettings(globalSettings);
             
             globalSettings.setMaxBackupCount(maxBackupSpinner.getValue());
-            
+            if (autoBackupIntervalCombo != null) {
+                globalSettings.setAutoBackupInterval(autoBackupIntervalCombo.getValue());
+                globalSettings.setAutoBackupDirectory(autoBackupDirectoryField.getText());
+            }
+
             // Save encryption settings
             if (passwordEncryptionRadio.isSelected()) {
                 globalSettings.setBackupEncryptionType(GlobalSettings.BackupEncryptionType.PASSWORD);
@@ -4364,6 +4373,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("video", "capture_colors", gs::isTerminalRecordingCaptureColorsEnabled, true));
             tracked.add(new TrackedSetting("backup", "max_count", gs::getMaxBackupCount, true));
             tracked.add(new TrackedSetting("backup", "encryption_type", gs::getBackupEncryptionType, true));
+            tracked.add(new TrackedSetting("backup", "auto_interval", gs::getAutoBackupInterval, true));
+            tracked.add(new TrackedSetting("backup", "auto_directory_set",
+                () -> gs.getAutoBackupDirectory() != null, true));
             tracked.add(new TrackedSetting("logging", "retention_days", gs::getLogRetentionDays, true));
             tracked.add(new TrackedSetting("logging", "directory_customized",
                 () -> gs.getLogDirectoryPath() != null && !gs.getLogDirectoryPath().isBlank(), true));
@@ -4745,6 +4757,115 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             link.setVisited(false);
         });
         return link;
+    }
+
+    /**
+     * The "Automatic backup" section of the Backup tab: interval, folder and the status line that
+     * says when the last automatic backup ran or why none can run right now.
+     *
+     * @return the next free row
+     */
+    private int addAutoBackupSection(GridPane grid, int row) {
+        grid.add(new Separator(), 0, row++, 2, 1);
+        boolean scheduleManaged = de.kortty.policy.PolicyManager.effective()
+            .isManaged(de.kortty.policy.ManagedSetting.AUTO_BACKUP_SCHEDULE);
+        boolean directoryManaged = de.kortty.policy.PolicyManager.effective()
+            .isManaged(de.kortty.policy.ManagedSetting.AUTO_BACKUP_DIRECTORY);
+        if (scheduleManaged || directoryManaged) {
+            grid.add(de.kortty.policy.PolicyUiSupport.managedTabBanner(), 0, row++, 2, 1);
+        }
+        grid.add(sectionHeader("settings.backup.auto.header", "reference/settings/backup.html#automatic-backup"),
+            0, row++, 2, 1);
+        Label info = new Label(I18n.get("settings.backup.auto.info"));
+        info.setWrapText(true);
+        info.setMaxWidth(640);
+        info.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        grid.add(info, 0, row++, 2, 1);
+
+        autoBackupIntervalCombo = new ComboBox<>();
+        autoBackupIntervalCombo.getItems().addAll(GlobalSettings.AutoBackupInterval.values());
+        autoBackupIntervalCombo.setConverter(new javafx.util.StringConverter<>() {
+            @Override
+            public String toString(GlobalSettings.AutoBackupInterval interval) {
+                return interval == null ? "" : I18n.get("settings.backup.auto.interval." + interval.id());
+            }
+
+            @Override
+            public GlobalSettings.AutoBackupInterval fromString(String text) {
+                return null;
+            }
+        });
+        autoBackupIntervalCombo.setValue(globalSettings != null
+            ? globalSettings.getAutoBackupInterval() : GlobalSettings.AutoBackupInterval.WEEKLY);
+        autoBackupIntervalCombo.setTooltip(new Tooltip(I18n.get("settings.backup.auto.interval.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(autoBackupIntervalCombo,
+            de.kortty.policy.ManagedSetting.AUTO_BACKUP_SCHEDULE);
+        grid.add(new Label(I18n.get("settings.backup.auto.interval")), 0, row);
+        grid.add(autoBackupIntervalCombo, 1, row++);
+
+        autoBackupDirectoryField = new TextField(globalSettings != null && globalSettings.getAutoBackupDirectory() != null
+            ? globalSettings.getAutoBackupDirectory() : "");
+        autoBackupDirectoryField.setPromptText(I18n.get("settings.backup.auto.directory.prompt"));
+        autoBackupDirectoryField.setPrefWidth(420);
+        HBox.setHgrow(autoBackupDirectoryField, Priority.ALWAYS);
+        Button browse = new Button(I18n.get("connEdit.browse"));
+        browse.setOnAction(event -> {
+            DirectoryChooser chooser = new DirectoryChooser();
+            chooser.setTitle(I18n.get("settings.backup.auto.directory"));
+            java.io.File current = autoBackupDirectoryField.getText().isBlank()
+                ? null : new java.io.File(autoBackupDirectoryField.getText());
+            if (current != null && current.isDirectory()) {
+                chooser.setInitialDirectory(current);
+            }
+            java.io.File chosen = chooser.showDialog(getDialogPane().getScene().getWindow());
+            if (chosen != null) {
+                autoBackupDirectoryField.setText(chosen.getAbsolutePath());
+            }
+        });
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(autoBackupDirectoryField,
+            de.kortty.policy.ManagedSetting.AUTO_BACKUP_DIRECTORY);
+        de.kortty.policy.PolicyUiSupport.lockIfManaged(browse, de.kortty.policy.ManagedSetting.AUTO_BACKUP_DIRECTORY);
+        HBox directoryRow = new HBox(8, autoBackupDirectoryField, browse);
+        directoryRow.setAlignment(Pos.CENTER_LEFT);
+        grid.add(new Label(I18n.get("settings.backup.auto.directory")), 0, row);
+        grid.add(directoryRow, 1, row++);
+
+        Label status = new Label();
+        status.setWrapText(true);
+        status.setMaxWidth(640);
+        status.setStyle("-fx-font-size: 0.8462em;");
+        Runnable refreshStatus = () -> status.setText(autoBackupStatusText());
+        refreshStatus.run();
+        autoBackupIntervalCombo.valueProperty().addListener((obs, old, value) -> refreshStatus.run());
+        autoBackupDirectoryField.textProperty().addListener((obs, old, value) -> refreshStatus.run());
+        grid.add(status, 0, row++, 2, 1);
+        return row;
+    }
+
+    /**
+     * The status line under the automatic-backup fields: the service's last outcome while the
+     * stored values are shown, else a preview computed from what the fields say right now.
+     */
+    private String autoBackupStatusText() {
+        if (globalSettings == null) {
+            return "";
+        }
+        GlobalSettings.AutoBackupInterval interval = autoBackupIntervalCombo.getValue();
+        String directory = autoBackupDirectoryField.getText();
+        boolean unchanged = interval == globalSettings.getAutoBackupInterval()
+            && java.util.Objects.equals(directory.isBlank() ? null : directory.trim(), globalSettings.getAutoBackupDirectory());
+        de.kortty.core.AutoBackupService service = app != null ? app.getAutoBackupService() : null;
+        if (unchanged && service != null) {
+            de.kortty.core.AutoBackupService.Outcome outcome = service.lastOutcome();
+            return AutoBackupStatusText.describe(outcome != null ? outcome : service.preflight(), globalSettings);
+        }
+        if (interval == GlobalSettings.AutoBackupInterval.OFF) {
+            return I18n.get("settings.backup.auto.status.disabled");
+        }
+        if (directory.isBlank()) {
+            return I18n.get("settings.backup.auto.status.noDirectory");
+        }
+        return I18n.get("settings.backup.auto.status.pendingSave");
     }
 
     /** A bold section header followed by a {@link #docLink(String)} to the manual section that explains it. */

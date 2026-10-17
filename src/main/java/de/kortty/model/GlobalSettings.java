@@ -99,6 +99,22 @@ public class GlobalSettings {
     
     @XmlElement
     private BackupEncryptionType backupEncryptionType = BackupEncryptionType.PASSWORD;
+
+    /**
+     * How often korTTY writes a backup on its own. WEEKLY by default, but nothing runs until
+     * {@link #autoBackupDirectory} names an existing folder, so an update never starts writing
+     * files to a place the user did not choose.
+     */
+    @XmlElement
+    private AutoBackupInterval autoBackupInterval = AutoBackupInterval.WEEKLY;
+
+    /** Folder the automatic backup is written to; null until the user (or a policy) picks one. */
+    @XmlElement
+    private String autoBackupDirectory;
+
+    /** When the last automatic backup finished (epoch millis); 0 = never. */
+    @XmlElement
+    private long lastAutoBackupAt;
     
     @XmlElement
     private String backupCredentialId; // Selected credential for password encryption
@@ -1454,6 +1470,33 @@ public class GlobalSettings {
         @XmlEnumValue("PASSWORD") PASSWORD,
         @XmlEnumValue("GPG") GPG
     }
+
+    /** Schedule of the automatic backup; the order matters: a smaller ordinal is the stricter policy value. */
+    @XmlEnum
+    public enum AutoBackupInterval {
+        @XmlEnumValue("OFF") OFF,
+        @XmlEnumValue("DAILY") DAILY,
+        @XmlEnumValue("WEEKLY") WEEKLY,
+        @XmlEnumValue("MONTHLY") MONTHLY;
+
+        /** The TOML / command-line spelling: {@code off}, {@code daily}, {@code weekly}, {@code monthly}. */
+        public String id() {
+            return name().toLowerCase(java.util.Locale.ROOT);
+        }
+
+        /** Parses {@link #id()} case-insensitively; null for anything else. */
+        public static AutoBackupInterval parseId(String value) {
+            if (value == null) {
+                return null;
+            }
+            for (AutoBackupInterval interval : values()) {
+                if (interval.id().equalsIgnoreCase(value.trim())) {
+                    return interval;
+                }
+            }
+            return null;
+        }
+    }
     
     public GlobalSettings() {}
 
@@ -1635,6 +1678,31 @@ public class GlobalSettings {
     
     public void setBackupEncryptionType(BackupEncryptionType backupEncryptionType) {
         this.backupEncryptionType = backupEncryptionType;
+    }
+
+    public AutoBackupInterval getAutoBackupInterval() {
+        return autoBackupInterval != null ? autoBackupInterval : AutoBackupInterval.WEEKLY;
+    }
+
+    public void setAutoBackupInterval(AutoBackupInterval autoBackupInterval) {
+        this.autoBackupInterval = autoBackupInterval != null ? autoBackupInterval : AutoBackupInterval.WEEKLY;
+    }
+
+    public String getAutoBackupDirectory() {
+        return autoBackupDirectory;
+    }
+
+    public void setAutoBackupDirectory(String autoBackupDirectory) {
+        this.autoBackupDirectory = autoBackupDirectory == null || autoBackupDirectory.isBlank()
+            ? null : autoBackupDirectory.trim();
+    }
+
+    public long getLastAutoBackupAt() {
+        return lastAutoBackupAt;
+    }
+
+    public void setLastAutoBackupAt(long lastAutoBackupAt) {
+        this.lastAutoBackupAt = lastAutoBackupAt;
     }
     
     public String getBackupCredentialId() {

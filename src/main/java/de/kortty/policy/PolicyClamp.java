@@ -164,6 +164,12 @@ public final class PolicyClamp {
         if (policy.logging().retentionDays() != null) {
             settings.setLogRetentionDays(policy.logging().retentionDays());
         }
+        if (policy.backup().interval() != null) {
+            settings.setAutoBackupInterval(policy.backup().interval());
+        }
+        if (policy.backup().directory() != null) {
+            settings.setAutoBackupDirectory(policy.backup().directory());
+        }
         PolicyRule.SessionJournalRule sessionJournal = policy.sessionJournal();
         if (sessionJournal.logFormat() != null) {
             de.kortty.model.SessionJournalLogFormat format =

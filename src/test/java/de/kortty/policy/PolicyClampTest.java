@@ -216,6 +216,33 @@ class PolicyClampTest {
     }
 
     @Test
+    void autoBackupIntervalAndDirectoryAreClamped() throws Exception {
+        PolicyRule rule = PolicyRule.builder()
+            .backup(new PolicyRule.BackupRule(de.kortty.model.GlobalSettings.AutoBackupInterval.DAILY, "/srv/kortty-backups"))
+            .build();
+        PolicyFile file = new PolicyFile(1, "ACME", Map.of(), List.of(rule),
+            List.of(), List.of(), List.of(), List.of());
+        EffectivePolicy policy = EffectivePolicy.resolve(file, new PolicyIdentity() {
+            @Override
+            public String userName() {
+                return "u";
+            }
+
+            @Override
+            public Set<String> osGroups() {
+                return Set.of();
+            }
+        });
+
+        GlobalSettingsManager manager = new GlobalSettingsManager(configDir);
+        manager.setPolicyClamp(new PolicyClamp(policy));
+        manager.load();
+        assertThat(manager.getSettings().getAutoBackupInterval())
+            .isEqualTo(de.kortty.model.GlobalSettings.AutoBackupInterval.DAILY);
+        assertThat(manager.getSettings().getAutoBackupDirectory()).isEqualTo("/srv/kortty-backups");
+    }
+
+    @Test
     void sessionJournalAiScreenshotAnalysisIsClampedInBothDirections() throws Exception {
         GlobalSettingsManager plain = new GlobalSettingsManager(configDir);
         plain.setPolicyClamp(new PolicyClamp(EffectivePolicy.unrestricted()));
