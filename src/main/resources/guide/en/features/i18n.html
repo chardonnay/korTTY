@@ -907,15 +907,13 @@ warning until you do.</p>
 <p>To generate translations for a new language:</p>
 <ol>
 <li>Open <strong>Settings → Translation</strong></li>
-<li>Choose a <strong>Translation API</strong> from the dropdown</li>
-<li>Enter your API key if required (the key is stored encrypted with your master password)</li>
-<li>Optionally set a <strong>custom API URL</strong> (for example, to point to a self-hosted LibreTranslate instance)</li>
-<li>Click <strong>Test API Connection</strong> to verify the setup works</li>
-<li>Select the <strong>target language</strong> from the language dropdown</li>
-<li>Click <strong>Generate Language File</strong></li>
+<li>Create a <a href="../reference/settings/translation.html#translation-profiles">translation profile</a> with <strong>Set up…</strong> (a translation API with its key, or one of your AI profiles) and let the assistant test it; the key is stored encrypted with your master password</li>
+<li>Click <strong>Translate now…</strong>, tick <strong>Interface strings</strong>, select the <strong>target language</strong> and the profile</li>
+<li>Optionally click <strong>Estimate duration</strong> to see how long the run will take</li>
+<li>Click <strong>Start</strong>; the dialog shows the progress and offers <strong>Pause</strong> and <strong>Cancel</strong></li>
 </ol>
 <p>The generated language file is saved to <code>~/.kortty/i18n/messages_XX.properties</code>, where <code>XX</code> is the two-letter language code. After generation, restart the application to make the new language available in <strong>Settings → Language</strong>.</p>
-<p>The same page also translates the built-in guide into the selected language, in the <strong>Guide translation</strong> section, so that <strong>Help → Guide</strong> and its search can be read in that language. That job runs in the background and can be cancelled; see <a href="../reference/settings/translation.html#guide-translation">Guide translation</a>.</p>
+<p>The same assistant also translates the built-in guide into the selected language when you tick <strong>Built-in guide</strong>, so that <strong>Help → Guide</strong> and its search can be read in that language. That job runs in the background and can be paused or cancelled; see <a href="../reference/settings/translation.html#guide-translation">Guide translation</a>.</p>
 <h3 id="after-app-upgrades">After App Upgrades<a class="headerlink" href="#after-app-upgrades" title="Permanent link">&para;</a></h3>
 <p>When KorTTY is upgraded to a new version, previously generated language files are automatically detected as outdated if they were created with an older app version. In <strong>Settings → Translation</strong>, a notice appears indicating which languages need updating.</p>
 <p>To refresh all outdated language files after an upgrade:</p>

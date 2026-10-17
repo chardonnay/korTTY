@@ -46,6 +46,7 @@ public class GlobalSettingsManager {
             JAXB_CONTEXT = JAXBContext.newInstance(
                 GlobalSettings.class,
                 de.kortty.model.AiProfile.class,
+                de.kortty.model.TranslationProfile.class,
                 de.kortty.model.AiSkill.class,
                 de.kortty.model.AiSkillBuiltinBaseline.class,
                 de.kortty.model.AiSkillTarget.class,

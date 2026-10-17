@@ -41,7 +41,12 @@ public final class GuideTranslationJob {
 
     /** Immutable view of the run, safe to read from any thread. */
     public record Snapshot(boolean running, String language, double progress,
-                           long elapsedMillis, long remainingMillis) {
+                           long elapsedMillis, long remainingMillis, boolean paused) {
+
+        /** Pre-pause constructor, kept for callers and tests that never pause. */
+        public Snapshot(boolean running, String language, double progress, long elapsedMillis, long remainingMillis) {
+            this(running, language, progress, elapsedMillis, remainingMillis, false);
+        }
 
         public int percent() {
             return (int) Math.round(Math.max(0, Math.min(1, progress)) * 100);
@@ -55,6 +60,8 @@ public final class GuideTranslationJob {
 
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
     private final AtomicBoolean cancelled = new AtomicBoolean();
+    /** Pause and cancel for the running translation; the generators poll it between batches. */
+    private final TranslationRunControl.Switch control = new TranslationRunControl.Switch();
 
     private volatile Thread worker;
     private volatile String language;
@@ -86,9 +93,13 @@ public final class GuideTranslationJob {
 
     public Snapshot snapshot() {
         boolean running = isRunning();
-        long elapsed = running || startedNanos > 0
-            ? (System.nanoTime() - startedNanos) / 1_000_000L : 0;
-        return new Snapshot(running, language, progress, elapsed, remainingMillis);
+        long elapsed = running || startedNanos > 0 ? activeMillis() : 0;
+        return new Snapshot(running, language, progress, elapsed, remainingMillis, running && control.isPaused());
+    }
+
+    /** Milliseconds the run has been working, pauses left out, so the ETA is not stretched by them. */
+    private long activeMillis() {
+        return (System.nanoTime() - startedNanos - control.pausedNanos()) / 1_000_000L;
     }
 
     /**
@@ -106,6 +117,7 @@ public final class GuideTranslationJob {
         }
         String target = targetLang.trim().toLowerCase(Locale.ROOT);
         cancelled.set(false);
+        control.reset();
         language = target;
         progress = 0;
         remainingMillis = 0;
@@ -122,7 +134,25 @@ public final class GuideTranslationJob {
 
     public void cancel() {
         cancelled.set(true);
+        control.cancel();
         notifyListeners();
+    }
+
+    /** Pauses after the batch in flight; the sidebar and dialogs show "paused" until {@link #resume()}. */
+    public void pause() {
+        if (isRunning()) {
+            control.pause();
+            notifyListeners();
+        }
+    }
+
+    public void resume() {
+        control.resume();
+        notifyListeners();
+    }
+
+    public boolean isPaused() {
+        return isRunning() && control.isPaused();
     }
 
     public boolean isCancelRequested() {
@@ -135,11 +165,11 @@ public final class GuideTranslationJob {
                 new GuideTranslationGenerator(service, configDirectory);
             GuideTranslationGenerator.Result result = generator.generate(target, fraction -> {
                 progress = fraction;
-                long elapsed = (System.nanoTime() - startedNanos) / 1_000_000L;
+                long elapsed = activeMillis();
                 remainingMillis = fraction > 0.02
                     ? Math.round(elapsed / fraction - elapsed) : 0;
                 notifyListeners();
-            }, cancelled::get);
+            }, control.asCancelPoll());
             if (!cancelled.get() && result.pagesWritten() > 0) {
                 recordVersion(configDirectory, target);
             }

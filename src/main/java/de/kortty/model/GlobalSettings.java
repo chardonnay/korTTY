@@ -651,6 +651,20 @@ public class GlobalSettings {
     @XmlElement
     private String translationApiRegion;
 
+    /**
+     * The translation profiles of Settings → Translation (an API with its key, or an AI profile).
+     * The four {@code translationApi*} fields above are the pre-profile representation: on load an
+     * empty list is seeded from them, and on every change the default profile is mirrored back into
+     * them so an older build keeps translating with the same provider.
+     */
+    @XmlElementWrapper(name = "translationProfiles")
+    @XmlElement(name = "translationProfile")
+    private java.util.List<TranslationProfile> translationProfiles = new java.util.ArrayList<>();
+
+    /** Id of the translation profile korTTY translates with; always one of {@link #translationProfiles}. */
+    @XmlElement
+    private String defaultTranslationProfileId;
+
     /** OpenAI-compatible AI API URL used for terminal selection analysis. */
     @XmlElement
     private String aiApiUrl = DEFAULT_AI_API_URL;
@@ -2986,6 +3000,107 @@ public class GlobalSettings {
 
     public void setTranslationApiRegion(String translationApiRegion) {
         this.translationApiRegion = translationApiRegion;
+    }
+
+    /** The translation profiles, migrated from the legacy single-provider fields when the list is empty. */
+    public java.util.List<TranslationProfile> getTranslationProfiles() {
+        normalizeTranslationProfiles();
+        return translationProfiles;
+    }
+
+    public void setTranslationProfiles(java.util.List<TranslationProfile> profiles) {
+        this.translationProfiles = profiles != null ? new java.util.ArrayList<>(profiles) : new java.util.ArrayList<>();
+        normalizeTranslationProfiles();
+    }
+
+    public String getDefaultTranslationProfileId() {
+        normalizeTranslationProfiles();
+        return defaultTranslationProfileId;
+    }
+
+    public void setDefaultTranslationProfileId(String id) {
+        this.defaultTranslationProfileId = id;
+        normalizeTranslationProfiles();
+    }
+
+    /** The profile korTTY translates with, or null when none is configured. */
+    public TranslationProfile getDefaultTranslationProfile() {
+        normalizeTranslationProfiles();
+        if (defaultTranslationProfileId == null) {
+            return null;
+        }
+        for (TranslationProfile profile : translationProfiles) {
+            if (defaultTranslationProfileId.equals(profile.getId())) {
+                return profile;
+            }
+        }
+        return null;
+    }
+
+    /** Id used for the profile seeded from the legacy single-provider fields. */
+    public static final String MIGRATED_TRANSLATION_PROFILE_ID = "migrated-default";
+
+    /**
+     * Keeps the list consistent: seeds it from the legacy fields once, gives every profile an id and
+     * a name, drops duplicates, makes sure exactly one default exists, and mirrors that default
+     * into the legacy fields for older builds.
+     */
+    private void normalizeTranslationProfiles() {
+        if (translationProfiles == null) {
+            translationProfiles = new java.util.ArrayList<>();
+        }
+        translationProfiles.removeIf(java.util.Objects::isNull);
+        if (translationProfiles.isEmpty() && (translationApiProvider != null
+            || (encryptedTranslationApiKey != null && !encryptedTranslationApiKey.isBlank()))) {
+            TranslationProfile migrated = new TranslationProfile();
+            migrated.setId(MIGRATED_TRANSLATION_PROFILE_ID);
+            migrated.setProvider(translationApiProvider != null ? translationApiProvider : TranslationApiProvider.GOOGLE_TRANSLATE);
+            migrated.setName(defaultTranslationProfileName(migrated.getProvider()));
+            migrated.setEncryptedApiKey(encryptedTranslationApiKey);
+            migrated.setApiUrl(translationApiUrl);
+            migrated.setApiRegion(translationApiRegion);
+            translationProfiles.add(migrated);
+            defaultTranslationProfileId = migrated.getId();
+        }
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (TranslationProfile profile : translationProfiles) {
+            if (profile.getId() == null || profile.getId().isBlank() || !ids.add(profile.getId())) {
+                profile.setId(java.util.UUID.randomUUID().toString());
+                ids.add(profile.getId());
+            }
+            if (profile.getName() == null || profile.getName().isBlank()) {
+                profile.setName(defaultTranslationProfileName(profile.getProvider()));
+            }
+        }
+        if (translationProfiles.isEmpty()) {
+            defaultTranslationProfileId = null;
+        } else if (defaultTranslationProfileId == null || !ids.contains(defaultTranslationProfileId)) {
+            defaultTranslationProfileId = translationProfiles.get(0).getId();
+        }
+        TranslationProfile current = null;
+        for (TranslationProfile profile : translationProfiles) {
+            if (profile.getId().equals(defaultTranslationProfileId)) {
+                current = profile;
+            }
+        }
+        if (current != null) {
+            translationApiProvider = current.getProvider();
+            encryptedTranslationApiKey = current.getEncryptedApiKey();
+            translationApiUrl = current.getApiUrl();
+            translationApiRegion = current.getApiRegion();
+        }
+    }
+
+    /** A readable default name for a profile that has none: the provider's product name. */
+    public static String defaultTranslationProfileName(TranslationApiProvider provider) {
+        return switch (provider != null ? provider : TranslationApiProvider.GOOGLE_TRANSLATE) {
+            case GOOGLE_TRANSLATE -> "Google Translate";
+            case DEEPL -> "DeepL";
+            case LIBRETRANSLATE -> "LibreTranslate";
+            case MICROSOFT -> "Microsoft Translator";
+            case YANDEX -> "Yandex Translate";
+            case LOCAL_AI_PROFILE -> "AI translation";
+        };
     }
 
     public String getAiApiUrl() {

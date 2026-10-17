@@ -289,24 +289,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final ComboBox<String> languageCombo;
     
     // Translation (dynamic i18n) settings
-    private final ComboBox<TranslationApiProvider> translationProviderCombo;
-    private final PasswordField translationApiKeyField;
-    private final TextField translationApiUrlField;
-    private final TextField translationApiRegionField;
-    private final ComboBox<Locale> translationTargetLanguageCombo;
     private final ListView<Locale> translationGeneratedList;
-    private final ProgressIndicator translationProgressIndicator;
     private Label translationOutdatedLabelRef;
     private Button translationRegenerateOutdatedButtonRef;
     // Guide translation runs for hours on a local model, so unlike the interface-string
     // generation it needs a progress bar and a cancel button of its own.
-    private javafx.scene.control.ProgressBar guideTranslationProgress;
-    private Button guideTranslationCancelButton;
-    private Label guideTranslationStatusLabel;
     private ListView<String> guideTranslationList;
-    private ComboBox<AiProfile> guideAiProfileCombo;
-    private ComboBox<AiProfile> interfaceAiProfileCombo;
-    private Runnable guideJobListener;
+    private TranslationProfilesPane translationProfilesPane;
+    private Label translationRunIndicator;
+    private Runnable translationRunListener;
 
     // AI settings
     private static final String DEFAULT_AI_API_URL = "https://api.openai.com/v1/chat/completions";
@@ -2272,143 +2263,68 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         LazyTabContent.defer(languageTab, languageGrid);
         
-        // Translation tab (dynamic i18n)
+        // Translation tab: translation profiles (one default), "Translate now…", generated files
         Tab translationTab = sectionTab(SettingsSection.TRANSLATION);
-        GridPane translationGrid = new GridPane();
-        translationGrid.setHgap(10);
-        translationGrid.setVgap(10);
-        translationGrid.setPadding(new Insets(20));
+        VBox translationRoot = new VBox(14);
+        translationRoot.setPadding(new Insets(20));
+        HBox systemLanguageRow = new HBox(10, new Label(I18n.get("settings.translation.systemLanguage")),
+            new Label(java.util.Locale.getDefault().getDisplayLanguage()));
+        systemLanguageRow.setAlignment(Pos.CENTER_LEFT);
+        translationRoot.getChildren().add(systemLanguageRow);
+
+        translationRoot.getChildren().add(sectionHeader("settings.translation.profiles.header",
+            "reference/settings/translation.html#translation-profiles"));
+        Label profilesHint = new Label(I18n.get("settings.translation.profiles.hint"));
+        profilesHint.setWrapText(true);
+        profilesHint.setPrefWidth(760);
+        profilesHint.setMaxWidth(760);
+        profilesHint.setMinHeight(Region.USE_PREF_SIZE);
+        profilesHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        translationRoot.getChildren().add(profilesHint);
+        if (globalSettings != null) {
+            translationProfilesPane = new TranslationProfilesPane(globalSettings, translationSecrets(),
+                () -> getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null,
+                app != null ? this::openAiManagerForTranslation : null);
+            translationRoot.getChildren().add(translationProfilesPane);
+        }
+
+        translationRoot.getChildren().add(new javafx.scene.control.Separator());
+        translationRoot.getChildren().add(sectionHeader("settings.translation.run.header",
+            "reference/settings/translation.html#translate-now"));
+        Label runHint = new Label(I18n.get("settings.translation.run.hint"));
+        runHint.setWrapText(true);
+        runHint.setPrefWidth(760);
+        runHint.setMaxWidth(760);
+        runHint.setMinHeight(Region.USE_PREF_SIZE);
+        runHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        Button translateNowButton = new Button(I18n.get("settings.translation.run.open"));
+        translateNowButton.setOnAction(e -> openTranslationRunDialog());
+        translationRunIndicator = new Label();
+        translationRunIndicator.setStyle("-fx-font-size: 0.8462em;");
+        HBox runRow = new HBox(12, translateNowButton, translationRunIndicator);
+        runRow.setAlignment(Pos.CENTER_LEFT);
+        translationRoot.getChildren().addAll(runHint, runRow);
+        installTranslationRunIndicator();
+
+        translationRoot.getChildren().add(new javafx.scene.control.Separator());
+        GridPane generatedGrid = new GridPane();
+        generatedGrid.setHgap(10);
+        generatedGrid.setVgap(10);
         int transRow = 0;
-        translationGrid.add(new Label(I18n.get("settings.translation.systemLanguage")), 0, transRow);
-        translationGrid.add(new Label(java.util.Locale.getDefault().getDisplayLanguage()), 1, transRow++);
-        translationGrid.add(new Label(I18n.get("settings.translation.provider")), 0, transRow);
-        translationProviderCombo = new ComboBox<>();
-        translationProviderCombo.getItems().addAll(
-            TranslationApiProvider.GOOGLE_TRANSLATE,
-            TranslationApiProvider.DEEPL,
-            TranslationApiProvider.LIBRETRANSLATE,
-            TranslationApiProvider.MICROSOFT,
-            TranslationApiProvider.YANDEX,
-            TranslationApiProvider.LOCAL_AI_PROFILE
-        );
-        translationProviderCombo.setConverter(new javafx.util.StringConverter<TranslationApiProvider>() {
-            @Override
-            public String toString(TranslationApiProvider p) {
-                if (p == null) return "";
-                switch (p) {
-                    case GOOGLE_TRANSLATE: return I18n.get("settings.translation.provider.google");
-                    case DEEPL: return I18n.get("settings.translation.provider.deepl");
-                    case LIBRETRANSLATE: return I18n.get("settings.translation.provider.libretranslate");
-                    case MICROSOFT: return I18n.get("settings.translation.provider.microsoft");
-                    case YANDEX: return I18n.get("settings.translation.provider.yandex");
-                    case LOCAL_AI_PROFILE: return I18n.get("settings.translation.provider.localAi");
-                    default: return p.name();
-                }
-            }
-            @Override
-            public TranslationApiProvider fromString(String s) { return null; }
-        });
-        if (globalSettings != null && globalSettings.getTranslationApiProvider() != null) {
-            translationProviderCombo.setValue(globalSettings.getTranslationApiProvider());
-        } else {
-            translationProviderCombo.setValue(TranslationApiProvider.GOOGLE_TRANSLATE);
-        }
-        translationProviderCombo.setPrefWidth(220);
-        translationGrid.add(translationProviderCombo, 1, transRow++);
-        // Which AI profile translates the interface strings. The guide section below has the same
-        // choice; without it here the interface strings were stuck on the default text profile and
-        // only when that profile ran a local model — a cloud or CLI profile produced nothing but
-        // "failed to generate language file".
-        translationGrid.add(new Label(I18n.get("settings.translation.profile")), 0, transRow);
-        interfaceAiProfileCombo = new ComboBox<>();
-        interfaceAiProfileCombo.setPrefWidth(320);
-        interfaceAiProfileCombo.setConverter(aiProfileChoiceConverter(
-            "settings.translation.profileDefault"));
-        translationGrid.add(interfaceAiProfileCombo, 1, transRow++);
-        translationGrid.add(new Label(I18n.get("settings.translation.apiKey")), 0, transRow);
-        translationApiKeyField = new PasswordField();
-        translationApiKeyField.setPrefWidth(280);
-        translationApiKeyField.setPromptText(I18n.get("settings.translation.apiKey"));
-        translationGrid.add(translationApiKeyField, 1, transRow++);
-        translationGrid.add(new Label(I18n.get("settings.translation.apiUrl")), 0, transRow);
-        translationApiUrlField = new TextField();
-        translationApiUrlField.setPrefWidth(280);
-        if (globalSettings != null && globalSettings.getTranslationApiUrl() != null) {
-            translationApiUrlField.setText(globalSettings.getTranslationApiUrl());
-        }
-        translationGrid.add(translationApiUrlField, 1, transRow++);
-        // Azure rejects a call to a regional or custom-domain Translator resource that does not name
-        // its region, so without this row those resources are simply unreachable. Only Microsoft
-        // reads it, hence the row disappears for every other provider instead of asking for
-        // something meaningless.
-        Label translationApiRegionLabel = new Label(I18n.get("settings.translation.apiRegion"));
-        translationGrid.add(translationApiRegionLabel, 0, transRow);
-        translationApiRegionField = new TextField();
-        translationApiRegionField.setPrefWidth(280);
-        translationApiRegionField.setPromptText(I18n.get("settings.translation.apiRegion.prompt"));
-        if (globalSettings != null && globalSettings.getTranslationApiRegion() != null) {
-            translationApiRegionField.setText(globalSettings.getTranslationApiRegion());
-        }
-        translationGrid.add(translationApiRegionField, 1, transRow++);
-        translationProviderCombo.valueProperty().addListener((obs, oldProvider, newProvider) -> {
-            boolean localAi = newProvider == TranslationApiProvider.LOCAL_AI_PROFILE;
-            translationApiKeyField.setDisable(localAi);
-            translationApiUrlField.setDisable(localAi);
-            // Inverse of the key/url fields: the profile choice only means anything for the AI provider.
-            interfaceAiProfileCombo.setDisable(!localAi);
-            setTranslationRegionRowVisible(
-                translationApiRegionLabel, newProvider == TranslationApiProvider.MICROSOFT);
-        });
-        boolean localAiTranslation = translationProviderCombo.getValue() == TranslationApiProvider.LOCAL_AI_PROFILE;
-        translationApiKeyField.setDisable(localAiTranslation);
-        translationApiUrlField.setDisable(localAiTranslation);
-        interfaceAiProfileCombo.setDisable(!localAiTranslation);
-        setTranslationRegionRowVisible(translationApiRegionLabel,
-            translationProviderCombo.getValue() == TranslationApiProvider.MICROSOFT);
-        refreshAiProfileCombo(interfaceAiProfileCombo);
-        Button testConnectionButton = new Button(I18n.get("settings.translation.testConnection"));
-        testConnectionButton.setOnAction(e -> testTranslationConnection());
-        translationGrid.add(testConnectionButton, 1, transRow++);
-        translationGrid.add(new Label(I18n.get("settings.translation.targetLanguage")), 0, transRow);
-        translationTargetLanguageCombo = new ComboBox<>();
-        List<Locale> allLocales = buildTranslationTargetLocales();
-        translationTargetLanguageCombo.getItems().addAll(allLocales);
-        translationTargetLanguageCombo.setConverter(new javafx.util.StringConverter<Locale>() {
-            @Override
-            public String toString(Locale l) {
-                return l == null ? "" : getLocaleDisplayNameFallback(l) + " (" + l.getLanguage() + ")";
-            }
-            @Override
-            public Locale fromString(String s) { return null; }
-        });
-        translationTargetLanguageCombo.setPrefWidth(220);
-        java.util.Locale systemLocale = java.util.Locale.getDefault();
-        translationTargetLanguageCombo.setValue(systemLocale);
-        translationGrid.add(translationTargetLanguageCombo, 1, transRow++);
-        Button generateButton = new Button(I18n.get("settings.translation.generateFile"));
-        translationProgressIndicator = new ProgressIndicator(-1);
-        translationProgressIndicator.setVisible(false);
-        HBox generateBox = new HBox(10, generateButton, translationProgressIndicator);
-        generateBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-        generateButton.setOnAction(ev -> generateTranslationFile(generateButton));
-        translationGrid.add(generateBox, 1, transRow++);
-        translationGrid.add(new Label(I18n.get("settings.translation.generatedLanguages")), 0, transRow);
+        generatedGrid.add(new Label(I18n.get("settings.translation.generatedLanguages")), 0, transRow);
         translationOutdatedLabelRef = new Label();
         translationOutdatedLabelRef.setWrapText(true);
+        translationOutdatedLabelRef.setMaxWidth(520);
         translationOutdatedLabelRef.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         translationOutdatedLabelRef.setVisible(false);
         translationRegenerateOutdatedButtonRef = new Button(I18n.get("settings.translation.regenerateOutdated"));
         translationRegenerateOutdatedButtonRef.setVisible(false);
-        translationRegenerateOutdatedButtonRef.setOnAction(ev -> regenerateOutdatedTranslations(translationRegenerateOutdatedButtonRef, translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef));
-        VBox generatedBox = new VBox(5,
-            translationOutdatedLabelRef,
-            translationRegenerateOutdatedButtonRef,
-            translationGeneratedList = new ListView<>(),
-            new Button(I18n.get("settings.translation.delete")) {{
-                setOnAction(e -> deleteSelectedGeneratedLanguage());
-            }}
-        );
-        translationGeneratedList.setPrefHeight(120);
+        translationRegenerateOutdatedButtonRef.setOnAction(ev -> regenerateOutdatedTranslations(
+            translationRegenerateOutdatedButtonRef, translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef));
+        translationGeneratedList = new ListView<>();
+        translationGeneratedList.setPrefHeight(110);
+        translationGeneratedList.setMinHeight(110);
+        translationGeneratedList.setPrefWidth(420);
         translationGeneratedList.setCellFactory(lv -> new ListCell<Locale>() {
             @Override
             protected void updateItem(Locale item, boolean empty) {
@@ -2416,58 +2332,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 setText(empty || item == null ? null : item.getDisplayLanguage() + " (" + item.getLanguage() + ")");
             }
         });
+        Button deleteGeneratedButton = new Button(I18n.get("settings.translation.delete"));
+        deleteGeneratedButton.setOnAction(e -> deleteSelectedGeneratedLanguage());
+        VBox generatedBox = new VBox(5, translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef,
+            translationGeneratedList, deleteGeneratedButton);
         refreshTranslationGeneratedList(translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef);
-        translationGrid.add(generatedBox, 1, transRow++);
+        generatedGrid.add(generatedBox, 1, transRow++);
 
-        // Guide translation. Uses the provider and target language selected above, but is a
-        // separate action: the interface strings take seconds, the guide takes hours on a local
-        // model, so the two must not share one button.
-        translationGrid.add(new javafx.scene.control.Separator(), 0, transRow, 2, 1);
-        transRow++;
-        Label guideSectionLabel = new Label(I18n.get("settings.translation.guide.section"));
-        guideSectionLabel.setStyle("-fx-font-weight: bold;");
-        translationGrid.add(guideSectionLabel, 0, transRow++, 2, 1);
-        Label guideHint = new Label(I18n.get("settings.translation.guide.hint"));
-        guideHint.setWrapText(true);
-        // prefWidth, not maxWidth: inside a GridPane cell the label reports the full text as its
-        // preferred width and is then clipped to one ellipsised line, so the warning about the
-        // multi-hour runtime — the part users most need to read — never appears.
-        guideHint.setPrefWidth(520);
-        guideHint.setMinHeight(Region.USE_PREF_SIZE);
-        guideHint.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
-        translationGrid.add(guideHint, 1, transRow++);
-
-        Button guideGenerateButton = new Button(I18n.get("settings.translation.guide.generate"));
-        guideTranslationCancelButton = new Button(I18n.get("settings.translation.guide.cancel"));
-        guideTranslationCancelButton.setVisible(false);
-        guideTranslationProgress = new javafx.scene.control.ProgressBar(0);
-        guideTranslationProgress.setPrefWidth(160);
-        guideTranslationProgress.setVisible(false);
-        guideTranslationStatusLabel = new Label();
-        guideTranslationStatusLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
-        // Which AI profile does the work. Without this the guide is stuck on the default text
-        // profile, so a user could neither benchmark a second model nor point the run at the one
-        // they actually want spending the next few hours on.
-        translationGrid.add(new Label(I18n.get("settings.translation.guide.profile")), 0, transRow);
-        guideAiProfileCombo = new ComboBox<>();
-        guideAiProfileCombo.setPrefWidth(320);
-        guideAiProfileCombo.setConverter(aiProfileChoiceConverter(
-            "settings.translation.guide.profileDefault"));
-        refreshAiProfileCombo(guideAiProfileCombo);
-        translationGrid.add(guideAiProfileCombo, 1, transRow++);
-
-        Button guideEstimateButton = new Button(I18n.get("settings.translation.guide.estimate"));
-        guideEstimateButton.setOnAction(ev ->
-            estimateGuideTranslation(guideEstimateButton, guideGenerateButton));
-        guideGenerateButton.setOnAction(ev -> generateGuideTranslation(guideGenerateButton));
-        HBox guideActionBox = new HBox(10, guideEstimateButton, guideGenerateButton,
-            guideTranslationProgress, guideTranslationCancelButton);
-        guideActionBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-        translationGrid.add(new VBox(4, guideActionBox, guideTranslationStatusLabel), 1, transRow++);
-
-        translationGrid.add(new Label(I18n.get("settings.translation.guide.generated")), 0, transRow);
+        generatedGrid.add(new Label(I18n.get("settings.translation.guide.generated")), 0, transRow);
         guideTranslationList = new ListView<>();
         guideTranslationList.setPrefHeight(90);
+        guideTranslationList.setMinHeight(90);
+        guideTranslationList.setPrefWidth(420);
         guideTranslationList.setCellFactory(lv -> new ListCell<String>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -2478,10 +2354,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         });
         Button guideDeleteButton = new Button(I18n.get("settings.translation.delete"));
         guideDeleteButton.setOnAction(e -> deleteSelectedGuideTranslation(owner));
-        translationGrid.add(new VBox(5, guideTranslationList, guideDeleteButton), 1, transRow++);
+        generatedGrid.add(new VBox(5, guideTranslationList, guideDeleteButton), 1, transRow++);
         refreshGuideTranslationList();
+        translationRoot.getChildren().add(generatedGrid);
 
-        LazyTabContent.defer(translationTab, translationGrid);
+        ScrollPane translationScroll = new ScrollPane(translationRoot);
+        translationScroll.setFitToWidth(true);
+        LazyTabContent.defer(translationTab, translationScroll);
 
         // AI tab
         Tab aiTab = sectionTab(SettingsSection.AI);
@@ -4126,32 +4005,20 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                 globalSettings.setLanguage(langCode);
             }
             
-            // Translation API settings
-            globalSettings.setTranslationApiProvider(translationProviderCombo.getValue());
-            String apiUrl = translationApiUrlField.getText();
-            globalSettings.setTranslationApiUrl(apiUrl != null && !apiUrl.trim().isEmpty() ? apiUrl.trim() : null);
-            String apiRegion = translationApiRegionField.getText();
-            globalSettings.setTranslationApiRegion(
-                apiRegion != null && !apiRegion.trim().isEmpty() ? apiRegion.trim() : null);
-            String apiKeyPlain = translationApiKeyField.getText();
-            if (apiKeyPlain != null && !apiKeyPlain.isEmpty()) {
-                char[] masterPassword = masterPasswordOrOfferUnlock(I18n.get("settings.translation.error.vaultLocked"));
-                if (masterPassword == null) {
-                    // The locked message was shown. Abort save so dialog stays open; do not call
-                    // setEncryptedTranslationApiKey
-                    return false;
-                } else {
-                    try {
-                        de.kortty.security.EncryptionService enc = new de.kortty.security.EncryptionService();
-                        String encrypted = enc.encryptPassword(apiKeyPlain, masterPassword);
-                        globalSettings.setEncryptedTranslationApiKey(encrypted);
-                    } catch (Exception ex) {
-                        org.slf4j.LoggerFactory.getLogger(getClass()).warn("Could not encrypt translation API key", ex);
-                        Alert err = new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.generationFailed") + ": " + (ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()));
-                        err.setHeaderText(null);
-                        err.showAndWait();
-                        // Do not overwrite existing encrypted key; plain key remains in field
+            // Translation profiles: typed API keys need the master password to be stored encrypted.
+            if (translationProfilesPane != null) {
+                char[] translationMaster = null;
+                if (translationProfilesPane.needsMasterPassword()) {
+                    translationMaster = masterPasswordOrOfferUnlock(I18n.get("settings.translation.error.vaultLocked"));
+                    if (translationMaster == null) {
+                        return false;
                     }
+                }
+                if (!translationProfilesPane.commitTo(globalSettings, translationMaster)) {
+                    Alert err = new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.generationFailed"));
+                    err.setHeaderText(null);
+                    err.showAndWait();
+                    return false;
                 }
             }
 
@@ -5361,40 +5228,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         return copy;
     }
     
-    /**
-     * Builds the target-language list for dynamic translations.
-     * Uses ISO language codes as base so packaged runtime images still show many entries,
-     * then enriches with any locales available in the current JVM.
-     */
-    private List<Locale> buildTranslationTargetLocales() {
-        java.util.Map<String, Locale> byLanguage = new java.util.LinkedHashMap<>();
 
-        for (String code : Locale.getISOLanguages()) {
-            if (code != null && !code.isBlank()) {
-                byLanguage.putIfAbsent(code, Locale.forLanguageTag(code));
-            }
-        }
-        for (Locale l : Locale.getAvailableLocales()) {
-            if (l.getLanguage() != null && !l.getLanguage().isBlank()) {
-                byLanguage.putIfAbsent(l.getLanguage(), l);
-            }
-        }
-        return byLanguage.values().stream()
-                .sorted((a, b) -> getLocaleDisplayNameFallback(a).compareToIgnoreCase(getLocaleDisplayNameFallback(b)))
-                .collect(Collectors.toList());
-    }
-
-    private String getLocaleDisplayNameFallback(Locale locale) {
-        if (locale == null) return "";
-        String display = locale.getDisplayLanguage();
-        if (display == null || display.isBlank()) {
-            display = locale.getDisplayLanguage(Locale.ENGLISH);
-        }
-        if (display == null || display.isBlank()) {
-            display = locale.getLanguage();
-        }
-        return display;
-    }
 
     /**
      * The legend under the mock terminal: the AI agent panel's colours, which the sample session
@@ -5839,261 +5673,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         });
     }
 
-    /**
-     * Shows or hides the Translator region row. Hidden rows are also unmanaged so the grid closes
-     * the gap rather than leaving a blank line where the field used to be.
-     */
-    private void setTranslationRegionRowVisible(Label label, boolean visible) {
-        label.setVisible(visible);
-        label.setManaged(visible);
-        translationApiRegionField.setVisible(visible);
-        translationApiRegionField.setManaged(visible);
-    }
 
-    private TranslationService createTranslationService() {
-        String key = getTranslationApiKeyPlain();
-        TranslationApiProvider provider = translationProviderCombo.getValue();
-        if (provider == null) provider = TranslationApiProvider.GOOGLE_TRANSLATE;
-        String url = translationApiUrlField.getText();
-        String urlTrimmed = (url != null && !url.trim().isEmpty()) ? url.trim() : null;
-        switch (provider) {
-            case GOOGLE_TRANSLATE:
-                if (key == null || key.isEmpty()) return null;
-                return new GoogleTranslationService(key, urlTrimmed);
-            case DEEPL:
-                if (key == null || key.isEmpty()) return null;
-                return new DeepLTranslationService(key, urlTrimmed);
-            case LIBRETRANSLATE:
-                return new LibreTranslateTranslationService(key != null ? key : "", urlTrimmed);
-            case MICROSOFT:
-                if (key == null || key.isEmpty()) return null;
-                return new MicrosoftTranslationService(key, urlTrimmed, translationApiRegionField.getText());
-            case YANDEX:
-                if (key == null || key.isEmpty()) return null;
-                return new YandexTranslationService(key, urlTrimmed);
-            case LOCAL_AI_PROFILE:
-                // A profile picked here is honoured whatever its connection mode; with nothing
-                // picked this stays the local-only default path.
-                return createLocalAiTranslationService(
-                    interfaceAiProfileCombo != null ? interfaceAiProfileCombo.getValue() : null);
-            default:
-                return key != null && !key.isEmpty() ? new GoogleTranslationService(key, urlTrimmed) : null;
-        }
-    }
 
-    /**
-     * Why a local-AI translation service could not be built, or null when that is not the problem.
-     *
-     * <p>Without this the default path's one refusal — a text profile that does not run a local
-     * model — surfaced as the generic "failed to generate language file", which named neither the
-     * cause nor the fix (pick a profile explicitly).
-     */
-    private String localAiTranslationProblem() {
-        if (translationProviderCombo == null
-            || translationProviderCombo.getValue() != TranslationApiProvider.LOCAL_AI_PROFILE) {
-            return null;
-        }
-        if (interfaceAiProfileCombo != null && interfaceAiProfileCombo.getValue() != null) {
-            return null;
-        }
-        if (globalSettings == null) {
-            return null;
-        }
-        AiProfile textProfile = AiProfileSelectionSupport.workloadProfile(
-            globalSettings.getAiProfiles(),
-            de.kortty.model.AiWorkload.TEXT,
-            globalSettings.getTextAiProfileId(),
-            globalSettings.getCodingAiProfileId(),
-            globalSettings.getDefaultAiProfileId());
-        if (textProfile == null) {
-            return I18n.get("settings.translation.error.noTextProfile");
-        }
-        return textProfile.getConnectionMode().isEmbedded()
-            ? null
-            : I18n.get("settings.translation.error.textProfileNotLocal",
-                textProfile.getName(), textProfile.getConnectionMode().toString());
-    }
 
-    /**
-     * Builds a translation service from an AI profile.
-     *
-     * <p>With {@code explicitProfile} null this keeps the original contract: the workload's text
-     * profile, and only when it runs a local model — the provider exists for users who cannot
-     * reach a translation API, so silently falling back to a cloud profile would defeat it.
-     *
-     * <p>An explicitly chosen profile is honoured whatever its connection mode. Comparing models
-     * is the reason the choice exists, and the user picking a profile by name has already made
-     * the decision the default path is protecting them from. Its API key is resolved the same way
-     * the rest of the application resolves one.
-     */
-    private TranslationService createLocalAiTranslationService(AiProfile explicitProfile) {
-        if (globalSettings == null) {
-            return null;
-        }
-        AiProfile profile = explicitProfile;
-        if (profile == null) {
-            profile = AiProfileSelectionSupport.workloadProfile(
-                globalSettings.getAiProfiles(),
-                de.kortty.model.AiWorkload.TEXT,
-                globalSettings.getTextAiProfileId(),
-                globalSettings.getCodingAiProfileId(),
-                globalSettings.getDefaultAiProfileId());
-            if (profile == null || !profile.getConnectionMode().isEmbedded()) {
-                return null;
-            }
-        }
-        // Translation never needs web search, and this call passes a disabled internet
-        // configuration; keep the profile's mode from tripping the factory's Tavily-key check.
-        // Disabling the mode on a copy is safe for embedded profiles (the LM-Studio-MCP
-        // mis-routing trap applies only to native LM Studio endpoints).
-        AiProfile translationProfile = new AiProfile(profile);
-        translationProfile.setInternetAccessMode(de.kortty.model.AiInternetAccessMode.DISABLED);
-        AiService service;
-        try {
-            service = AiServiceFactory.create(
-                translationProfile,
-                // Embedded models need no key; a chosen HTTP profile does.
-                translationProfile.getConnectionMode().isEmbedded()
-                    ? null : resolveProfileApiKey(translationProfile),
-                AiInternetAccessConfiguration.disabled(),
-                AiSkillPromptSupport.disabled());
-        } catch (IllegalStateException e) {
-            // E.g. no embedded model selected yet, or an EMBEDDED_MLX profile on a non-Apple-Silicon
-            // machine: surface the generic "test failed" path instead of an uncaught exception.
-            return null;
-        }
-        return service instanceof AiPromptService promptService
-            ? new LocalAiTranslationService(promptService)
-            : null;
-    }
 
-    /** Decrypts an AI profile's stored key; null when it has none or the vault is locked. */
-    private String resolveProfileApiKey(AiProfile profile) {
-        String policyKey = de.kortty.policy.PolicyAiProfileSupport.apiKeyOverride(profile);
-        if (policyKey != null) {
-            return policyKey;
-        }
-        String encrypted = profile.getEncryptedApiKey();
-        if (encrypted == null || encrypted.isBlank()) {
-            return null;
-        }
-        try {
-            char[] master = app != null && app.getMasterPasswordManager() != null
-                ? app.getMasterPasswordManager().getMasterPassword() : null;
-            return master == null ? null
-                : new de.kortty.security.EncryptionService().decryptPassword(encrypted, master);
-        } catch (Exception e) {
-            org.slf4j.LoggerFactory.getLogger(getClass())
-                .debug("Could not decrypt the API key of profile {}", profile.getName(), e);
-            return null;
-        }
-    }
 
-    /**
-     * The service the guide translation should use.
-     *
-     * <p>An AI profile picked in the guide section wins over the provider dropdown above. Picking
-     * a model by name is an unambiguous instruction to use it, and requiring the provider to be
-     * switched to "local AI profile" as well made the choice look ignored: with the dropdown left
-     * on Google Translate and no API key, choosing a profile produced nothing but "the guide
-     * could not be translated".
-     */
-    private TranslationService createGuideTranslationService() {
-        AiProfile chosen = guideAiProfileCombo != null ? guideAiProfileCombo.getValue() : null;
-        if (chosen != null) {
-            return createLocalAiTranslationService(chosen);
-        }
-        if (translationProviderCombo.getValue() != TranslationApiProvider.LOCAL_AI_PROFILE) {
-            return createTranslationService();
-        }
-        return createLocalAiTranslationService(null);
-    }
 
-    /**
-     * Warns before letting a reasoning model translate the guide.
-     *
-     * <p>Such a model spends most of its output thinking rather than translating — measured here
-     * at 4.4 output tokens per input token — which turns a run of about an hour into six or more.
-     * Worth interrupting for once, not worth blocking: the user may have no other model.
-     *
-     * @return true to go ahead
-     */
-    private boolean confirmReasoningModel() {
-        AiProfile chosen = guideAiProfileCombo != null ? guideAiProfileCombo.getValue() : null;
-        if (chosen == null || !de.kortty.core.ReasoningModelHint.likelyReasoningModel(chosen)) {
-            return true;
-        }
-        String model = chosen.getEmbeddedModelId() != null && !chosen.getEmbeddedModelId().isBlank()
-            ? chosen.getEmbeddedModelId() : chosen.getName();
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        DialogThemeHelper.applyTheme(alert);
-        alert.setTitle(I18n.get("settings.translation.guide.reasoning.title"));
-        alert.setHeaderText(I18n.get("settings.translation.guide.reasoning.header", model));
-        alert.setContentText(I18n.get("settings.translation.guide.reasoning.message"));
-        alert.getButtonTypes().setAll(
-            new ButtonType(I18n.get("settings.translation.guide.reasoning.continue"),
-                ButtonBar.ButtonData.OK_DONE),
-            new ButtonType(I18n.get("settings.translation.guide.cancel"),
-                ButtonBar.ButtonData.CANCEL_CLOSE));
-        ButtonType choice = alert.showAndWait().orElse(null);
-        return choice != null && choice.getButtonData() == ButtonBar.ButtonData.OK_DONE;
-    }
 
-    /**
-     * Why no service could be built, in words the user can act on. The generic failure message
-     * was actively misleading here: nothing had been translated, and the cause was a missing API
-     * key for a provider the user had not meant to use.
-     */
-    private String guideTranslationServiceProblem() {
-        AiProfile chosen = guideAiProfileCombo != null ? guideAiProfileCombo.getValue() : null;
-        if (chosen != null) {
-            return I18n.get("settings.translation.guide.error.profile", chosen.getName());
-        }
-        TranslationApiProvider provider = translationProviderCombo.getValue();
-        if (provider != TranslationApiProvider.LOCAL_AI_PROFILE) {
-            return I18n.get("settings.translation.guide.error.provider");
-        }
-        return I18n.get("settings.translation.guide.error.noLocalProfile");
-    }
 
-    private String getTranslationApiKeyPlain() {
-        String fromField = translationApiKeyField.getText();
-        if (fromField != null && !fromField.isEmpty()) return fromField;
-        String encrypted = globalSettings != null ? globalSettings.getEncryptedTranslationApiKey() : null;
-        if (encrypted == null || encrypted.isEmpty()) return null;
-        try {
-            char[] master = app.getMasterPasswordManager() != null ? app.getMasterPasswordManager().getMasterPassword() : null;
-            if (master == null) return null;
-            de.kortty.security.EncryptionService enc = new de.kortty.security.EncryptionService();
-            return enc.decryptPassword(encrypted, master);
-        } catch (Exception e) {
-            return null;
-        }
-    }
 
-    private void testTranslationConnection() {
-        TranslationApiProvider provider = translationProviderCombo.getValue();
-        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE
-            || provider == TranslationApiProvider.LOCAL_AI_PROFILE;
-        String key = getTranslationApiKeyPlain();
-        if (!keyOptional && (key == null || key.isEmpty())) {
-            new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
-            return;
-        }
-        TranslationService svc = createTranslationService();
-        if (svc == null) {
-            String problem = localAiTranslationProblem();
-            new Alert(Alert.AlertType.ERROR, problem != null ? problem
-                : I18n.get("settings.translation.error.testFailed")).showAndWait();
-            return;
-        }
-        boolean ok = svc.testConnection();
-        if (ok) {
-            new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.translation.testSuccess")).showAndWait();
-        } else {
-            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.testFailed")).showAndWait();
-        }
-    }
 
     private String getAiProfileDisplayName(AiProfile profile) {
         if (profile == null) {
@@ -7500,51 +7088,83 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
 
-    private void generateTranslationFile(Button generateButton) {
-        TranslationApiProvider provider = translationProviderCombo.getValue();
-        boolean keyOptional = provider == TranslationApiProvider.LIBRETRANSLATE
-            || provider == TranslationApiProvider.LOCAL_AI_PROFILE;
-        String key = getTranslationApiKeyPlain();
-        if (!keyOptional && (key == null || key.isEmpty())) {
-            new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
-            return;
-        }
-        TranslationService svc = createTranslationService();
-        if (svc == null) {
-            String problem = localAiTranslationProblem();
-            new Alert(Alert.AlertType.ERROR, problem != null ? problem
-                : I18n.get("settings.translation.error.generationFailed")).showAndWait();
-            return;
-        }
-        Locale target = translationTargetLanguageCombo.getValue();
-        if (target == null || target.getLanguage() == null || target.getLanguage().isEmpty()) {
-            new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.generationFailed")).showAndWait();
-            return;
-        }
-        String targetLang = target.getLanguage();
-        generateButton.setDisable(true);
-        translationProgressIndicator.setVisible(true);
-        Task<java.nio.file.Path> task = new Task<>() {
-            @Override
-            protected java.nio.file.Path call() throws Exception {
-                DynamicLanguageGenerator gen = new DynamicLanguageGenerator(svc, KorTTYApplication.getConfigDirectory());
-                return gen.generate(targetLang, progress -> Platform.runLater(() -> translationProgressIndicator.setProgress(progress)));
+
+    /** Decrypts stored translation keys with the unlocked vault; nothing while it is locked. */
+    private de.kortty.core.TranslationServiceFactory.SecretResolver translationSecrets() {
+        return encrypted -> {
+            try {
+                char[] master = app != null && app.getMasterPasswordManager() != null
+                    ? app.getMasterPasswordManager().getMasterPassword() : null;
+                return master == null ? null : new de.kortty.security.EncryptionService().decryptPassword(encrypted, master);
+            } catch (Exception e) {
+                return null;
             }
         };
-        task.setOnSucceeded(ev -> {
-            generateButton.setDisable(false);
-            translationProgressIndicator.setVisible(false);
-            refreshTranslationGeneratedList(translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef);
-            new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.translation.success")).showAndWait();
+    }
+
+    /** Opens the AI Manager from the translation tab, so an AI translation profile can be set up without leaving Settings. */
+    private void openAiManagerForTranslation() {
+        List<MainWindow> windows = MainWindow.getOpenWindows();
+        MainWindow window = windows.isEmpty() ? null : windows.get(0);
+        if (window == null) {
+            return;
+        }
+        AiManagerDialog manager = new AiManagerDialog(window);
+        if (getDialogPane().getScene() != null) {
+            manager.initOwner(getDialogPane().getScene().getWindow());
+        }
+        manager.showAndWait();
+        if (translationProfilesPane != null) {
+            translationProfilesPane.refreshAiProfiles();
+        }
+    }
+
+    private void openTranslationRunDialog() {
+        if (globalSettings == null) {
+            return;
+        }
+        TranslationRunDialog dialog = new TranslationRunDialog(globalSettings, translationSecrets(),
+            KorTTYApplication.getConfigDirectory(), () -> {
+                refreshTranslationGeneratedList(translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef);
+                refreshGuideTranslationList();
+            });
+        if (getDialogPane().getScene() != null) {
+            dialog.initOwner(getDialogPane().getScene().getWindow());
+        }
+        dialog.showAndWait();
+        refreshTranslationGeneratedList(translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef);
+        refreshGuideTranslationList();
+    }
+
+    /** The "translating … 42%" note next to the Translate-now button while a job runs, from either job. */
+    private void installTranslationRunIndicator() {
+        de.kortty.core.DynamicTranslationJob uiJob = de.kortty.core.DynamicTranslationJob.getInstance();
+        de.kortty.core.GuideTranslationJob guideJob = de.kortty.core.GuideTranslationJob.getInstance();
+        translationRunListener = () -> Platform.runLater(() -> {
+            if (translationRunIndicator == null) {
+                return;
+            }
+            if (uiJob.isRunning()) {
+                de.kortty.core.DynamicTranslationJob.Snapshot s = uiJob.snapshot();
+                translationRunIndicator.setText(I18n.get(s.paused() ? "settings.translation.run.indicator.paused"
+                    : "settings.translation.run.indicator.ui", s.percent()));
+            } else if (guideJob.isRunning()) {
+                de.kortty.core.GuideTranslationJob.Snapshot s = guideJob.snapshot();
+                translationRunIndicator.setText(I18n.get(s.paused() ? "settings.translation.run.indicator.paused"
+                    : "settings.translation.run.indicator.guide", s.percent()));
+            } else {
+                translationRunIndicator.setText("");
+                refreshTranslationGeneratedList(translationOutdatedLabelRef, translationRegenerateOutdatedButtonRef);
+                refreshGuideTranslationList();
+            }
         });
-        task.setOnFailed(ev -> {
-            generateButton.setDisable(false);
-            translationProgressIndicator.setVisible(false);
-            Throwable t = task.getException();
-            org.slf4j.LoggerFactory.getLogger(getClass()).error("Translation generation failed", t);
-            new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed") + ": " + (t != null ? t.getMessage() : "")).showAndWait();
+        uiJob.addListener(translationRunListener);
+        guideJob.addListener(translationRunListener);
+        translationRunListener.run();
+        addEventHandler(javafx.scene.control.DialogEvent.DIALOG_HIDDEN, event -> {
+            uiJob.removeListener(translationRunListener);
+            guideJob.removeListener(translationRunListener);
         });
-        new Thread(task).start();
     }
 
     private void refreshTranslationGeneratedList() {
@@ -7552,6 +7172,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     }
 
     private void refreshTranslationGeneratedList(Label outdatedLabel, Button regenerateOutdatedBtn) {
+        if (translationGeneratedList == null) {
+            return;
+        }
         translationGeneratedList.getItems().setAll(LanguageManager.getAvailableDynamicLocales());
         List<Locale> outdated = LanguageManager.getOutdatedDynamicLocales();
         if (outdatedLabel != null && regenerateOutdatedBtn != null) {
@@ -7569,224 +7192,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         }
     }
 
-    /**
-     * Translates the bundled guide into the selected language.
-     *
-     * <p>Unlike the interface strings this is a long job — hours against a local model — so it
-     * reports real progress and can be cancelled. Cancelling is safe rather than wasteful: the
-     * generator checkpoints its translation memory, so the next run resumes instead of
-     * retranslating what was already done.
-     */
-    private void generateGuideTranslation(Button generateButton) {
-        TranslationApiProvider provider = translationProviderCombo.getValue();
-        // Mirrors createGuideTranslationService: a picked guide profile wins over the provider
-        // dropdown, so its key requirement must not block the start.
-        AiProfile guideProfile = guideAiProfileCombo != null ? guideAiProfileCombo.getValue() : null;
-        boolean keyOptional = guideProfile != null
-            || provider == TranslationApiProvider.LIBRETRANSLATE
-            || provider == TranslationApiProvider.LOCAL_AI_PROFILE;
-        String key = getTranslationApiKeyPlain();
-        if (!keyOptional && (key == null || key.isEmpty())) {
-            new Alert(Alert.AlertType.WARNING, I18n.get("settings.translation.error.noKey")).showAndWait();
-            return;
-        }
-        TranslationService service = createGuideTranslationService();
-        Locale target = translationTargetLanguageCombo.getValue();
-        if (service == null || target == null || target.getLanguage() == null
-            || target.getLanguage().isEmpty()) {
-            new Alert(Alert.AlertType.ERROR, guideTranslationServiceProblem()).showAndWait();
-            return;
-        }
-        if (!confirmReasoningModel()) {
-            return;
-        }
-        de.kortty.core.GuideTranslationJob job = de.kortty.core.GuideTranslationJob.getInstance();
-        if (!job.start(service, target.getLanguage(), KorTTYApplication.getConfigDirectory())) {
-            new Alert(Alert.AlertType.INFORMATION,
-                I18n.get("settings.translation.guide.alreadyRunning")).showAndWait();
-            return;
-        }
-        generateButton.setDisable(true);
-        guideTranslationProgress.setProgress(0);
-        guideTranslationProgress.setVisible(true);
-        guideTranslationCancelButton.setVisible(true);
-        guideTranslationStatusLabel.setText(I18n.get("settings.translation.guide.progress", 0));
-        guideTranslationCancelButton.setOnAction(ev -> {
-            guideTranslationCancelButton.setDisable(true);
-            job.cancel();
-        });
-        observeGuideTranslationJob(generateButton);
-    }
 
-    /**
-     * Translates a small sample and projects the full run from it.
-     *
-     * <p>Worth a button of its own: the honest answer ranges from a minute on a cloud API to most
-     * of a night on a local model, and nobody should have to start a six-hour job to find that
-     * out. The sample is real translation, kept in the memory, so the estimate is a down payment
-     * on the run rather than throwaway work.
-     */
-    private void estimateGuideTranslation(Button estimateButton, Button generateButton) {
-        TranslationService service = createGuideTranslationService();
-        Locale target = translationTargetLanguageCombo.getValue();
-        if (service == null || target == null || target.getLanguage() == null
-            || target.getLanguage().isEmpty()) {
-            new Alert(Alert.AlertType.ERROR, guideTranslationServiceProblem()).showAndWait();
-            return;
-        }
-        if (!confirmReasoningModel()) {
-            return;
-        }
-        String targetLang = target.getLanguage();
-        int sampleSize = GuideTranslationGenerator.DEFAULT_ESTIMATE_SAMPLE;
 
-        estimateButton.setDisable(true);
-        generateButton.setDisable(true);
-        guideTranslationProgress.setProgress(-1);
-        guideTranslationProgress.setVisible(true);
-        guideTranslationCancelButton.setVisible(true);
-        // The sample size is resolved inside the generator (0 = one budget-filled batch), so the
-        // "sample of {0} segments" text waits for the callback instead of showing a literal 0.
-        guideTranslationStatusLabel.setText("");
 
-        Task<GuideTranslationGenerator.Estimate> task = new Task<>() {
-            @Override
-            protected GuideTranslationGenerator.Estimate call() throws Exception {
-                return new GuideTranslationGenerator(service, KorTTYApplication.getConfigDirectory())
-                    .estimate(targetLang, sampleSize, this::isCancelled,
-                        resolved -> Platform.runLater(() -> guideTranslationStatusLabel.setText(
-                            I18n.get("settings.translation.guide.estimateRunning", resolved))));
-            }
-        };
-        guideTranslationCancelButton.setOnAction(ev -> {
-            guideTranslationCancelButton.setDisable(true);
-            task.cancel();
-        });
-        Runnable finish = () -> {
-            estimateButton.setDisable(false);
-            generateButton.setDisable(false);
-            guideTranslationProgress.setVisible(false);
-            guideTranslationProgress.setProgress(0);
-            guideTranslationCancelButton.setVisible(false);
-            guideTranslationCancelButton.setDisable(false);
-        };
-        task.setOnSucceeded(ev -> {
-            finish.run();
-            GuideTranslationGenerator.Estimate estimate = task.getValue();
-            if (estimate.isComplete()) {
-                guideTranslationStatusLabel.setText(
-                    I18n.get("settings.translation.guide.estimateComplete"));
-            } else if (!estimate.isUsable()) {
-                guideTranslationStatusLabel.setText(
-                    I18n.get("settings.translation.guide.estimateFailed"));
-            } else {
-                guideTranslationStatusLabel.setText(I18n.get(
-                    "settings.translation.guide.estimateResult",
-                    formatDuration(estimate.lowMillis()), formatDuration(estimate.highMillis()),
-                    estimate.remainingSegments(), estimate.sampleSegments(),
-                    formatDuration(estimate.elapsedMillis())));
-            }
-        });
-        task.setOnCancelled(ev -> {
-            finish.run();
-            guideTranslationStatusLabel.setText(I18n.get("settings.translation.guide.cancelled"));
-        });
-        task.setOnFailed(ev -> {
-            finish.run();
-            Throwable error = task.getException();
-            org.slf4j.LoggerFactory.getLogger(getClass()).error("Guide estimate failed", error);
-            guideTranslationStatusLabel.setText(
-                I18n.get("settings.translation.guide.estimateFailed"));
-        });
-        Thread worker = new Thread(task, "guide-translation-estimate");
-        worker.setDaemon(true);
-        worker.start();
-    }
 
-    /** Coarse, readable duration — an estimate must not imply second-level precision. */
-    static String formatDuration(long millis) {
-        long seconds = Math.max(0, millis) / 1000;
-        if (seconds < 90) {
-            return seconds + " s";
-        }
-        long minutes = (seconds + 30) / 60;
-        if (minutes < 90) {
-            return minutes + " min";
-        }
-        long hours = minutes / 60;
-        long remainder = minutes % 60;
-        return remainder == 0 ? hours + " h" : hours + " h " + remainder + " min";
-    }
 
-    /**
-     * Mirrors the application-wide job into this dialog for as long as it stays open.
-     *
-     * <p>The dialog observes the run instead of owning it. A translation lasts hours and the user
-     * has to be able to close this window, keep working, watch progress in the menu bar and be
-     * warned before quitting — none of which survives a task that belongs to a dialog.
-     */
-    private void observeGuideTranslationJob(Button generateButton) {
-        de.kortty.core.GuideTranslationJob job = de.kortty.core.GuideTranslationJob.getInstance();
-        if (guideJobListener != null) {
-            job.removeListener(guideJobListener);
-        }
-        guideJobListener = () -> Platform.runLater(() -> {
-            de.kortty.core.GuideTranslationJob.Snapshot snapshot = job.snapshot();
-            if (snapshot.running()) {
-                guideTranslationProgress.setProgress(snapshot.progress());
-                guideTranslationStatusLabel.setText(
-                    I18n.get("settings.translation.guide.progress", snapshot.percent()));
-                return;
-            }
-            generateButton.setDisable(false);
-            guideTranslationProgress.setVisible(false);
-            guideTranslationCancelButton.setVisible(false);
-            guideTranslationCancelButton.setDisable(false);
-            guideTranslationStatusLabel.setText(job.isCancelRequested()
-                ? I18n.get("settings.translation.guide.cancelled") : "");
-            refreshGuideTranslationList();
-            job.removeListener(guideJobListener);
-            guideJobListener = null;
-        });
-        job.addListener(guideJobListener);
-    }
-
-    /** Null first: the default text profile, matching what the run uses when nothing is picked. */
-    private void refreshAiProfileCombo(ComboBox<AiProfile> combo) {
-        if (combo == null) {
-            return;
-        }
-        AiProfile previous = combo.getValue();
-        java.util.List<AiProfile> items = new java.util.ArrayList<>();
-        items.add(null);
-        if (globalSettings != null && globalSettings.getAiProfiles() != null) {
-            items.addAll(globalSettings.getAiProfiles());
-        }
-        combo.getItems().setAll(items);
-        combo.setValue(items.contains(previous) ? previous : null);
-    }
-
-    /**
-     * Renders an AI-profile choice, with {@code null} shown as the supplied "default" label.
-     *
-     * <p>The connection mode is shown, not hidden: it is the difference between an hours-long
-     * local run and sending half a megabyte to a paid endpoint.
-     */
-    private javafx.util.StringConverter<AiProfile> aiProfileChoiceConverter(String defaultLabelKey) {
-        return new javafx.util.StringConverter<>() {
-            @Override
-            public String toString(AiProfile profile) {
-                return profile == null
-                    ? I18n.get(defaultLabelKey)
-                    : profile.getName() + "  (" + profile.getConnectionMode() + ")";
-            }
-
-            @Override
-            public AiProfile fromString(String value) {
-                return null;
-            }
-        };
-    }
 
     private void refreshGuideTranslationList() {
         if (guideTranslationList == null) {
@@ -7865,15 +7275,17 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             refreshTranslationGeneratedList(outdatedLabel, regenerateOutdatedBtn);
             return;
         }
-        TranslationService svc = createTranslationService();
+        de.kortty.core.TranslationServiceFactory.Problem problem = de.kortty.core.TranslationServiceFactory.problem(
+            globalSettings != null ? globalSettings.getDefaultTranslationProfile() : null, globalSettings, translationSecrets(), null);
+        TranslationService svc = problem == null
+            ? de.kortty.core.TranslationServiceFactory.createDefault(globalSettings, translationSecrets()) : null;
         if (svc == null) {
-            String problem = localAiTranslationProblem();
-            new Alert(Alert.AlertType.WARNING, problem != null ? problem
-                : I18n.get("settings.translation.error.noKey")).showAndWait();
+            String text = TranslationUiSupport.problemText(problem);
+            new Alert(Alert.AlertType.WARNING, text != null ? text
+                : I18n.get("settings.translation.error.testFailed")).showAndWait();
             return;
         }
         regenerateButton.setDisable(true);
-        translationProgressIndicator.setVisible(true);
         Task<Void> task = new Task<>() {
             @Override
             protected Void call() throws Exception {
@@ -7883,20 +7295,18 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     final int idx = i;
                     Locale loc = outdated.get(i);
                     String lang = loc.getLanguage();
-                    gen.generate(lang, p -> Platform.runLater(() -> translationProgressIndicator.setProgress((idx + p) / total)));
+                    gen.generate(lang, p -> { });
                 }
                 return null;
             }
         };
         task.setOnSucceeded(ev -> {
             regenerateButton.setDisable(false);
-            translationProgressIndicator.setVisible(false);
             refreshTranslationGeneratedList(outdatedLabel, regenerateOutdatedBtn);
             new Alert(Alert.AlertType.INFORMATION, I18n.get("settings.translation.regenerateOutdatedDone")).showAndWait();
         });
         task.setOnFailed(ev -> {
             regenerateButton.setDisable(false);
-            translationProgressIndicator.setVisible(false);
             Throwable t = task.getException();
             org.slf4j.LoggerFactory.getLogger(getClass()).error("Regenerate outdated failed", t);
             new Alert(Alert.AlertType.ERROR, I18n.get("settings.translation.error.generationFailed") + ": " + (t != null ? t.getMessage() : "")).showAndWait();

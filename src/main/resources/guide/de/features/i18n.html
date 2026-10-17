@@ -888,7 +888,7 @@
 <td>Lokales KI-Textprofil</td>
 <td>Nein, das Profil bringt seinen eigenen Endpunkt und seine eigenen Anmeldeinformationen</td>
 <td>Das <strong>KI-Profil</strong> ausgewählt daneben</td>
-<td>Übersetzt über ein KI-Profil, zum Beispiel ein lokales Modell, statt einer Übersetzungs-API. Siehe <a href="../reference/settings/translation.html#lokale-ubersetzung">Lokale Übersetzung</a>.</td>
+<td>Übersetzt über ein KI-Profil, zum Beispiel ein lokales Modell, statt einer Übersetzungs-API. Siehe <a href="../reference/settings/translation.html#local-translation">Lokale Übersetzung</a>.</td>
 </tr>
 </tbody>
 </table>
@@ -907,15 +907,13 @@ Warnung, bis Sie es tun.</p>
 <p>So erstellen Sie Übersetzungen für eine neue Sprache:</p>
 <ol>
 <li>Öffnen <strong>Einstellungen → Übersetzung</strong></li>
-<li>Wählen Sie im Dropdown-Menü eine <strong>Übersetzungs-API</strong> aus</li>
-<li>Geben Sie bei Bedarf Ihren API-Schlüssel ein (der Schlüssel wird verschlüsselt mit Ihrem Master-Passwort gespeichert)</li>
-<li>Legen Sie optional eine <strong>benutzerdefinierte API-URL</strong> fest (um beispielsweise auf eine selbst gehostete LibreTranslate-Instanz zu verweisen)</li>
-<li>Klicken Sie auf <strong>API-Verbindung testen</strong>, um zu überprüfen, ob die Einrichtung funktioniert</li>
-<li>Wählen Sie im Sprach-Dropdown die <strong>Zielsprache</strong> aus</li>
-<li>Klicken Sie auf <strong>Sprachdatei generieren</strong></li>
+<li>Erstellen Sie ein <a href="../reference/settings/translation.html#translation-profiles">Übersetzungsprofil</a> mit <strong>Einrichten…</strong> (eine Übersetzungsschnittstelle mit ihrem Schlüssel, oder eines Ihrer KI-Profile) und lassen Sie den Assistenten es testen; der Schlüssel wird verschlüsselt mit Ihrem Master-Passwort gespeichert.</li>
+<li>Klicken Sie auf <strong>Jetzt übersetzen…</strong>, aktivieren Sie <strong>Interface strings</strong>, wählen Sie die <strong>Zielsprache</strong> und das Profil.</li>
+<li>Optionally click <strong>Dauer abschätzen</strong> to see how long the run will take</li>
+<li>Klicken Sie auf <strong>Starten</strong>; das Dialogfeld zeigt den Fortschritt an und bietet <strong>Pause</strong> sowie <strong>Abbrechen</strong></li>
 </ol>
 <p>Die generierte Sprachdatei wird unter <code>~/.kortty/i18n/messages_XX.properties</code> gespeichert, wobei <code>XX</code> der aus zwei Buchstaben bestehende Sprachcode ist. Starten Sie die Anwendung nach der Generierung neu, um die neue Sprache unter <strong>Einstellungen → Sprache</strong> verfügbar zu machen.</p>
-<p>Die gleiche Seite übersetzt auch die integrierte Anleitung in die ausgewählte Sprache, im Abschnitt <strong>Anleitung übersetzen</strong>, sodass <strong>Hilfe → Anleitung</strong> und dessen Suche in dieser Sprache gelesen werden können. Dieser Vorgang läuft im Hintergrund und kann abgebrochen werden; siehe <a href="../reference/settings/translation.html#guide-ubersetzung">Anleitung übersetzen</a>.</p>
+<p>Der gleiche Assistent übersetzt auch die eingebaute Anleitung in die gewählte Sprache, wenn Sie <strong>Eingebaute Anleitung</strong> aktivieren, sodass <strong>Hilfe → Eingebaute Anleitung</strong> und dessen Suche in dieser Sprache gelesen werden können. Dieser Vorgang läuft im Hintergrund und kann pausiert oder abgebrochen werden; siehe <a href="../reference/settings/translation.html#anleitung-ubersetzen">Anleitungsübersetzung</a>.</p>
 <h3 id="nach-app-upgrades">Nach App-Upgrades<a class="headerlink" href="#nach-app-upgrades" title="Permanent link">&para;</a></h3>
 <p>Wenn KorTTY auf eine neue Version aktualisiert wird, werden zuvor generierte Sprachdateien automatisch als veraltet erkannt, wenn sie mit einer älteren App-Version erstellt wurden. Unter <strong>Einstellungen → Übersetzung</strong> wird ein Hinweis angezeigt, der angibt, welche Sprachen aktualisiert werden müssen.</p>
 <p>So aktualisieren Sie alle veralteten Sprachdateien nach einem Upgrade:</p>
@@ -930,7 +928,7 @@ Warnung, bis Sie es tun.</p>
 <li>Erzeugte Sprachdateien werden in gespeichert <code>~/.kortty/i18n/</code></li>
 <li>Jede Datei ist eine Standard-Java-Eigenschaftendatei (messages_XX.properties).</li>
 <li>Dateien bleiben bei Anwendungsneustarts und -aktualisierungen bestehen</li>
-<li>Generierte Sprachdateien sind nicht Teil verschlüsselter Backups (siehe <a href="backup.html#inhalt-der-sicherungsdatei">Backup-Datei-Inhalte</a>); auf einem anderen Computer, kopieren <code>~/.kortty/i18n/</code> oder generieren die Dateien erneut</li>
+<li>Generierte Sprachdateien sind nicht Teil verschlüsselter Backups (siehe <a href="backup.html#inhalt-der-sicherungsdatei">Backup-Dateiinhalte</a>); auf einem anderen Computer, kopieren Sie <code>~/.kortty/i18n/</code> oder generieren Sie die Dateien erneut</li>
 </ul>
 <h2 id="wie-es-funktioniert">Wie es funktioniert<a class="headerlink" href="#wie-es-funktioniert" title="Permanent link">&para;</a></h2>
 <p>Das Internationalisierungssystem von KorTTY basiert auf einer Ressourcenbündelarchitektur:</p>
