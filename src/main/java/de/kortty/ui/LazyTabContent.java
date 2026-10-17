@@ -19,6 +19,7 @@ import java.util.function.Supplier;
 public final class LazyTabContent {
 
     private static final Object BUILDER_KEY = new Object();
+    private static final Object PREBUILT_KEY = new Object();
 
     private LazyTabContent() {
     }
@@ -43,12 +44,40 @@ public final class LazyTabContent {
         tab.selectedProperty().addListener(listener[0]);
     }
 
+    /**
+     * Attaches {@code content}, which is already built, on the tab's first selection. Unlike the
+     * supplier form, {@link #peek} can hand the node out before then, so the settings search can
+     * look through a page the user has not opened without attaching it to the scene.
+     */
+    public static void defer(Tab tab, Node content) {
+        if (tab == null || content == null) {
+            return;
+        }
+        tab.getProperties().put(PREBUILT_KEY, content);
+        defer(tab, () -> content);
+    }
+
+    /**
+     * The tab's content if it is attached or was handed over already built, without attaching or
+     * building anything; {@code null} for content a supplier still has to build.
+     */
+    public static Node peek(Tab tab) {
+        if (tab == null) {
+            return null;
+        }
+        if (!isPending(tab)) {
+            return tab.getContent();
+        }
+        return tab.getProperties().get(PREBUILT_KEY) instanceof Node node ? node : null;
+    }
+
     /** Builds the deferred content now if it has not been built yet; returns the tab's content. */
     public static Node ensureContent(Tab tab) {
         if (tab == null) {
             return null;
         }
         Object pending = tab.getProperties().remove(BUILDER_KEY);
+        tab.getProperties().remove(PREBUILT_KEY);
         if (pending instanceof Supplier<?> builder) {
             Object content = builder.get();
             if (content instanceof Node node) {

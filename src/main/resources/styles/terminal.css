@@ -1433,6 +1433,45 @@
     -fx-font-size: 0.9231em;
 }
 
+/* Settings search: the option a search result leads to, coloured for a few seconds. Literal
+   colours so the same rule reads in Modena and every AtlantaFX design. */
+.settings-search-hit {
+    -fx-background-color: rgba(245, 158, 11, 0.35);
+    -fx-background-radius: 4;
+    -fx-border-color: rgba(245, 158, 11, 0.95);
+    -fx-border-radius: 4;
+    -fx-border-width: 1.5;
+    /* Outside the label's bounds, so the colour gets some room without moving the layout. */
+    -fx-background-insets: -2 -4 -2 -4;
+    -fx-border-insets: -2 -4 -2 -4;
+}
+
+.settings-search-hit-control {
+    -fx-effect: dropshadow(gaussian, rgba(245, 158, 11, 0.95), 10, 0.55, 0, 0);
+}
+
+.settings-search-results {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 14, 0.2, 0, 4);
+}
+
+/* The design's own field padding, with room on the right for the clear button. */
+.text-field.settings-search-field {
+    -fx-padding: 0.333333em 2.4em 0.333333em 0.583em;
+}
+
+.button.settings-search-clear {
+    -fx-background-color: transparent;
+    -fx-background-radius: 12;
+    -fx-text-fill: #a0a0a0;
+    -fx-padding: 0 6 0 6;
+    -fx-font-size: 1.4em;
+    -fx-cursor: hand;
+}
+
+.button.settings-search-clear:hover {
+    -fx-background-color: rgba(128, 128, 128, 0.28);
+}
+
 /* Titled panes = collapsible sections (e.g. Quick Connect's optional settings).
    The base dialog theme had no rule, so the title text fell back to the dark JavaFX
    default and was unreadable on the dark background. App-design stylesheets override

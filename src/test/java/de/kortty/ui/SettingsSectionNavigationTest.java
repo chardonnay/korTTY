@@ -64,7 +64,7 @@ class SettingsSectionNavigationTest {
     void theLabelNamesTheTabAtTheSelectedIndex() throws IOException {
         String dialog = Files.readString(Path.of("src/main/java/de/kortty/ui/SettingsDialog.java"),
             StandardCharsets.UTF_8).replace("\r\n", "\n");
-        int start = dialog.indexOf("private static Region buildSectionNavigationContent(TabPane tabPane) {");
+        int start = dialog.indexOf("private Region buildSectionNavigationContent(TabPane tabPane) {");
         assertThat(start).isAtLeast(0);
         String body = dialog.substring(start, dialog.indexOf("\n    }\n", start));
 

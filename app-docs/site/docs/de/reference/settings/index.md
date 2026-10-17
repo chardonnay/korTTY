@@ -14,6 +14,20 @@ Auf jeder Registerkartenseite werden die Einstellungen als Tabelle aufgeführt:
 
 Das [Symbolleiste](../../getting-started/main-window.md#anpassung-der-symbolleiste) Bietet einen direkten Button für jeden Haupt-Einstellungs-Tab. Klicken Sie mit der rechten Maustaste auf die Symbolleiste, wählen Sie **Icon-Leiste anpassen…**, wählen Sie **Einstellungen** und fügen Sie die gewünschte Tastenkombination hinzu. Es öffnet den vorhandenen Einstellungsdialog auf diesem Tab.
 
+## Einstellungen durchsuchen { #finding-a-setting }
+
+Die Suchzeile oben im Einstellungsfenster durchsucht alle Tabs auf einmal: die Beschriftungen, Kontrollkästchen, Schaltflächen und Abschnittsüberschriften, einschließlich Tabs, die Sie noch nicht geöffnet haben. Geben Sie mindestens zwei Zeichen ein, und die passenden Einstellungen werden unter dem Feld aufgelistet, jeweils mit dem Tab, auf dem sie sich befinden; ein ganzer Tab wird als **Seite** aufgelistet, wenn sein Name übereinstimmt. Groß-/Kleinschreibung, Akzente und Umlautschreibungen sind egal (`schriftgroesse` findet **Schriftgröße**), und jedes Wort muss übereinstimmen, daher findet `terminal scroll` **Zurückscrollen** auf dem Terminal-Tab. Einstellungen, die im aktuellen Zustand ausgeblendet sind, wie z. B. Felder eines anderen KI-Verbindungsmodus, werden nicht angeboten.
+
+Klicken Sie auf ein Ergebnis oder wählen Sie es mit ++up++ / ++down++ aus und drücken Sie ++enter++: Der Dialog wechselt zu diesem Tab, scrollt die Einstellung in den sichtbaren Bereich, hebt sie zusammen mit den Bedienelementen in ihrer Zeile farblich hervor und setzt den Tastaturfokus auf ihr Bedienelement, sodass Sie es sofort ändern können. Die Hervorhebung verblasst nach wenigen Sekunden oder wenn Sie erneut suchen. Das **✕** am rechten Ende der Suchzeile leert diese mit einem Klick. ++cmd+f++ (++ctrl+f++ unter Windows und Linux) springt von überall im Dialog zur Suchzeile, und ++esc++ dort löscht zunächst die Suche, bevor der Dialog geschlossen wird; ++enter++ in der Suchzeile speichert die Einstellungen nie.
+
+![Searching the settings for "scroll"](../../assets/screenshots/settings/search.png)
+
+![The chosen setting, coloured on its tab](../../assets/screenshots/settings/search-hit.png)
+
+## Anleitung für jeden Tab { #manual-for-each-tab }
+
+**Anleitung zu dieser Seite** rechts in der Navigationsleiste öffnet die integrierte Anleitung auf der Seite, die den aktuell angezeigten Tab dokumentiert – zum Beispiel die [Terminal](terminal.md)-Seite dieser Referenz, wenn der Terminal-Tab angezeigt wird, und die [Anonyme Daten](../../about/anonymous-data.md)-Seite für den Datenschutz-Tab. Der Tooltip benennt den Tab. Die Anleitung öffnet sich in der Sprache der Benutzeroberfläche.
+
 ## Einstellungsregisterkarten
 
 | Registerkarte | Was es steuert |

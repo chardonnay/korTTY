@@ -6,7 +6,7 @@ title: Appearance, themes & font
 
 korTTY's visual configuration spans three tabs: **Appearance** controls the app-level UI design, **Font** configures terminal typeface and size, and **Themes** manages reusable terminal color profiles. All settings persist to `~/.kortty/global-settings.xml`.
 
-## Appearance tab
+## Appearance tab { #appearance-tab }
 
 ![Appearance settings tab](../../assets/screenshots/settings/appearance.png)
 
@@ -72,7 +72,7 @@ The range is 70–250 % in steps of 10, wider than the interface setting because
 !!! note
     This is separate from **UI font size** above, which governs the buttons and window chrome *around* the manual. If the manual's own toolbar looks too small, that is the setting to change.
 
-## Font tab
+## Font tab { #font-tab }
 
 ![Font settings tab](../../assets/screenshots/settings/font.png)
 
@@ -86,7 +86,7 @@ Set the terminal and editor typeface and size.
 !!! note
     The Font tab sets global defaults for all new terminal connections. Individual connections can override these values via their own connection settings. A live preview is shown as you adjust the controls.
 
-## Themes tab
+## Themes tab { #themes-tab }
 
 ![Themes settings tab](../../assets/screenshots/settings/themes.png)
 
