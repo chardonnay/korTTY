@@ -168,7 +168,7 @@ Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindun
        *Deaktiviert* zurückgesetzt. So überlebt weder ein Wert aus der Zeit vor der Richtlinie noch
        eine Handänderung an `global-settings.xml`.
     2. **Die Schnittstelle** – das Dropdown-Menü ist mit dem Hinweis „Von Ihrer Organisation verwaltet“ gesperrt
-       sowohl den KI-Manager als auch **Einstellungen → AI**.
+       der KI-Manager.
     3. **Jede KI-Anfrage** – korTTY weigert sich, einen Dienst für ein Profil zu erstellen, dessen Modus aktiviert ist,
        und schließt damit das Zeitfenster zwischen zwei Klemmungen. Die Anfrage scheitert mit einer
        Richtlinienmeldung, statt still ohne das angeforderte Web-Werkzeug zu antworten.

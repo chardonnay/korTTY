@@ -87,7 +87,7 @@ public final class IconToolbarSettings {
         }
         for (String id : List.of("toolbar.settings.font",
                 "toolbar.settings.colors", "toolbar.settings.keyboard", "toolbar.settings.logging",
-                "toolbar.settings.window", "toolbar.settings.terminal", "toolbar.settings.ai")) {
+                "toolbar.settings.window", "toolbar.settings.terminal")) {
             settings.entries.add(Entry.action(id, Section.SETTINGS));
         }
         return settings;

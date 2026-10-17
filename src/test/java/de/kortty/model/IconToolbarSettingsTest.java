@@ -19,13 +19,12 @@ public class IconToolbarSettingsTest {
             "menu.connections.sftpClient", "menu.tools.snippets", "menu.tools.sessionJournals",
             "menu.tools.logfileManager", "menu.tools.aiManager", "menu.tools.jobScheduler", "menu.tools.videoManager",
             "toolbar.settings.font", "toolbar.settings.colors", "toolbar.settings.keyboard",
-            "toolbar.settings.logging", "toolbar.settings.window", "toolbar.settings.terminal",
-            "toolbar.settings.ai").inOrder();
+            "toolbar.settings.logging", "toolbar.settings.window", "toolbar.settings.terminal").inOrder();
         assertThat(entries.subList(0, 2).stream().map(Entry::section).toList())
             .containsExactly(Section.TERMINAL, Section.TERMINAL);
         assertThat(entries.subList(2, 9).stream().map(Entry::section).distinct().toList())
             .containsExactly(Section.TOOLS);
-        assertThat(entries.subList(9, 16).stream().map(Entry::section).distinct().toList())
+        assertThat(entries.subList(9, 15).stream().map(Entry::section).distinct().toList())
             .containsExactly(Section.SETTINGS);
     }
 
@@ -37,7 +36,7 @@ public class IconToolbarSettingsTest {
         for (int size : List.of(16, 24, 32, 64)) {
             legacy.setToolbarIconSize(size);
             assertThat(roundTrip(legacy).getToolbarIconSize()).isEqualTo(size);
-            assertThat(legacy.getIconToolbar().entries()).hasSize(16);
+            assertThat(legacy.getIconToolbar().entries()).hasSize(15);
         }
         legacy.setToolbarIconSize(0);
         assertThat(legacy.getToolbarIconSize()).isEqualTo(16);
@@ -54,7 +53,7 @@ public class IconToolbarSettingsTest {
         GlobalSettings old = (GlobalSettings) context.createUnmarshaller().unmarshal(new StringReader("<globalSettings/>"));
         assertThat(old.getIconToolbar().isVisible()).isTrue();
         assertThat(old.getIconToolbar().isConnectionsVisible()).isTrue();
-        assertThat(old.getIconToolbar().entries()).hasSize(16);
+        assertThat(old.getIconToolbar().entries()).hasSize(15);
         assertThat(old.getIconToolbar().entries().stream().map(Entry::target).toList())
             .doesNotContain("menu.settings.global");
         old.setIconToolbar(new IconToolbarSettings());
@@ -120,7 +119,7 @@ public class IconToolbarSettingsTest {
         var editing = global.getIconToolbar();
         editing.setEntries(List.of());
         editing.setVisible(false);
-        assertThat(global.getIconToolbar().entries()).hasSize(16);
+        assertThat(global.getIconToolbar().entries()).hasSize(15);
         assertThat(global.getIconToolbar().isVisible()).isTrue();
     }
 

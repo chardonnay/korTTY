@@ -51,9 +51,8 @@ Klicken Sie auf ein Ergebnis oder wählen Sie es mit ++up++ / ++down++ aus und d
 | [Snippet Editor](snippet-editor/index.md) | Schriftart-, Farb- und Cursor-Überschreibungen für Snippet-Fenster |
 | [Sprache](language.md) | UI-Sprachauswahl (8 integrierte) + Auto-Erkennung |
 | [Übersetzung](translation.md) | Externer oder lokaler KI-Übersetzungsanbieter, Zugangsdaten, Zielsprache, Sprachdatei generieren |
-| [KI](ai.md) | KI-Funktionen, Agenten-Ausführung, HTTP/CLI/embedded Profile, Prompt-Vorlagen, Logik, Bildeingabe (Vision), Kontingent, Internet-Tools |
 
-Local-model downloads, Text/Coding role routing, embedding selection, llama.cpp runtime policy, knowledge-source synchronization, and the [AI Skills](ai-skills.md) library live in **KI > KI-Manager** rather than the global Settings window; see [Local models](../../features/local-models.md) and [RAG knowledge stores](../../features/rag.md).
+KI hat in diesem Fenster keinen Tab: jede KI-Einstellung, von den Funktionsschaltern und dem Terminal-Agent bis zu den Profilen, lokalen Modellen, Wissensspeichern und der [KI-Skills](ai-skills.md)-Bibliothek, befindet sich in **KI > KI-Manager**; siehe [KI](ai.md), [Lokale Modelle](../../features/local-models.md) und [RAG-Wissensspeicher](../../features/rag.md).
 
 !!! info "Vollständigkeit"
     Auf den Registerkartenseiten werden alle einzelnen Einstellungen aufgeführt. Die Abdeckung wird automatisch anhand der Einstellungsschlüssel der Anwendung überprüft, sodass keine Einstellung undokumentiert bleibt.
@@ -78,10 +77,5 @@ Einige der Konfigurationsregisterkarten (die einzelnen Registerkartenseiten zeig
 { .grid-caption }
 
 ![Backup settings tab](../../assets/screenshots/settings/backup.png)
-
-**KI** – Agentenausführung, Profile, Eingabeaufforderungseinstellungen, Internet-Tools
-{ .grid-caption }
-
-![AI settings tab](../../assets/screenshots/settings/ai.png)
 
 </div>

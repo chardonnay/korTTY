@@ -825,13 +825,13 @@
 <p>Wissensspeicher, die normalen Text-/Codierungsanfragen zugewiesen sind, erweitern nicht automatisch den Kontext des Terminal AI Agent, der Planung, des Schwarms oder des geplanten Jobs. Diese autonomen Flüsse erfordern ein explizites RAG-Opt-in; siehe <a href="rag.html">RAG Wissensspeicher</a>. Dadurch wird verhindert, dass ein Hintergrundworkflow indizierte lokale Quellen liest, nur weil dasselbe Modellprofil für den interaktiven Chat verwendet wird.</p>
 </div>
 <h2 id="befehlsvarianten">Befehlsvarianten<a class="headerlink" href="#befehlsvarianten" title="Permanent link">&para;</a></h2>
-<p>Das Terminal AI Agent wird über Shortcut-Befehle am Shell-Prompt ausgelöst. Wenn KorTTY unter <strong>Einstellungen &gt; AI</strong> aktiviert ist, fängt KorTTY diese Befehle lokal ab, anstatt sie an den Server zu senden:</p>
+<p>Das Terminal KI-Agent wird über Tastenkombinationen am Shell-Prompt ausgelöst. Wenn er in <strong>KI &gt; KI-Manager &gt; General</strong> aktiviert ist, interceptiert KorTTY diese Befehle lokal statt sie an den Server zu senden.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>agent<span class="w"> </span>&lt;goal&gt;
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>agent-ask<span class="w"> </span>&lt;question&gt;
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>agent-plan<span class="w"> </span>&lt;task&gt;
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>agent<span class="w"> </span>-plan<span class="w"> </span>&lt;task&gt;
 </span></code></pre></div>
-<p>Der Basisbefehlsname kann unter <strong>Einstellungen &gt; AI</strong> konfiguriert werden. Wenn Sie <code>agent</code> umbenennen, leitet KorTTY automatisch die passenden Befehle <code>-ask</code> und <code>-plan</code> ab. Die gleiche Einstellungsseite kann:</p>
+<p>Die Basisbefehlsnamen sind in <strong>KI &gt; KI-Manager &gt; Allgemein</strong> konfigurierbar. Wenn Sie <code>agent</code> umbenennen, ermittelt KorTTY automatisch die passenden Befehle <code>-ask</code> und <code>-plan</code>. Die gleiche Einstellungsseite kann:</p>
 <ul>
 <li>Machen Sie beim Befehlsnamen keine Berücksichtigung der Groß-/Kleinschreibung</li>
 <li>Deaktivieren Sie den Einrichtungsdialog pro Lauf (verwendet das konfigurierte Standardprofil, wenn es deaktiviert ist)</li>
@@ -863,7 +863,7 @@
 <li>Klicken Sie im Verlaufs-Popup auf die Schaltfläche ✕ einer Zeile (oder drücken Sie <span class="keys"><kbd class="key-delete">Del</kbd></span> auf Tastaturen mit Vorwärts-Löschen-Taste), um eine einzelne Eingabeaufforderung zu entfernen, oder verwenden Sie <strong>Alle löschen</strong> (Bestätigung in zwei Schritten), um den gesamten Verlauf zu löschen. Löschungen werden sofort gespeichert.</li>
 <li>Außerhalb dieses Kontexts bleibt <span class="keys"><kbd class="key-tab">Tab</kbd></span> die normale Shell-Vervollständigung.</li>
 </ul>
-<p>Die Verlaufsgröße kann unter <strong>Einstellungen &gt; AI</strong> konfiguriert werden (Standard 20, Bereich 5–100).</p>
+<p>Verlaufsgröße ist in <strong>KI &gt; KI-Manager &gt; Allgemein</strong> konfigurierbar (Standard 20, Bereich 5–100).</p>
 <h2 id="so-funktioniert-der-ai-agent">So funktioniert der AI Agent<a class="headerlink" href="#so-funktioniert-der-ai-agent" title="Permanent link">&para;</a></h2>
 <p>Das Terminal AI Agent folgt einer strengen, sicheren Ausführungsschleife:</p>
 <ol>
@@ -1170,7 +1170,7 @@
 <li><strong>Sudo-Preflight</strong> – Wenn der Plan Sudo erfordert und ein Passwort benötigt wird, überprüft KorTTY das Passwort sofort, damit die Ausführung später nicht unterbrochen wird.</li>
 </ol>
 <h2 id="einstellungen-und-konfiguration">Einstellungen und Konfiguration<a class="headerlink" href="#einstellungen-und-konfiguration" title="Permanent link">&para;</a></h2>
-<p>Konfigurieren Sie den Terminal AI Agent unter <strong>Einstellungen &gt; AI</strong>:</p>
+<p>Konfigurieren Sie den Terminal KI-Agenten in <strong>KI &gt; KI-Manager &gt; Allgemein</strong>:</p>
 <table>
 <thead>
 <tr>
@@ -1226,7 +1226,7 @@
 <li><strong>KorTTY Tavily Tool</strong> — Direkte Websuche und Seitenlesung über die Tavily-API (<code>web_search</code> und <code>web_extract</code>, Siehe <a href="#was-der-agent-aufrufen-kann">Was der Agent aufrufen kann</a>).</li>
 <li><strong>LM Studio MCP-Modi</strong> – Integrieren Sie Tavily, Bright Data, Brave Search, SearXNG oder LM Studio Toolpack über die native MCP-Unterstützung von LM Studio.</li>
 </ul>
-<p>Internetzugriff pro KI-Profil konfigurieren mit dem Feld <strong>Internetzugriff</strong> im Profil-Editor; der Tavily-Schlüssel und die anderen Web-Tool-Einstellungen werden unter <strong>Einstellungen &gt; KI &gt; Internet-Tool-Konfiguration</strong> eingegeben.</p>
+<p>Konfigurieren Sie den Internetzugang pro KI-Profil mit dem Feld <strong>Internetzugang</strong> im Profil-Editor; der Tavily-Schlüssel und die anderen Web-Tool-Einstellungen werden unter <strong>KI &gt; KI-Manager &gt; Allgemein &gt; Internetzugang</strong> eingegeben.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p><strong>Web-Tools werden von lokalen Datei-/Skriptüberprüfungsaufgaben ausgeschlossen</strong>, es sei denn, in Ihrer Eingabeaufforderung werden eindeutig aktuelle oder externe Informationen abgefragt. Für die Untersuchung einer lokalen Datei sollten Shell-Befehle wie <code>sed</code>, <code>cat</code>, <code>find</code> oder sprachspezifische Tools und keine Websuche verwendet werden.</p>

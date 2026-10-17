@@ -103,6 +103,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     // starts watchers or holds a WebView, none of which should be paid for merely opening the
     // dialog. Null until then — every access goes through the null-safe helpers below.
     private AiLocalPreferencesPane localPreferencesPane;
+    private AiGeneralSettingsPane generalPane;
     private LocalModelManagerPane localModelManagerPane;
     private RagKnowledgeStorePane knowledgeStorePane;
     private AiSkillsPane aiSkillsPane;
@@ -275,6 +276,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         tabPane.getStyleClass().add("ai-manager-primary-navigation");
         tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         List<Tab> primaryTabs = List.of(
+            buildGeneralTab(),
             buildProfilesTab(),
             buildLocalModelsTab(),
             buildKnowledgeStoresTab(),
@@ -314,6 +316,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                         aiSkillsPane.save(true); // quiet: no status/alerts while the dialog is closing
                     }
                     saveProfiles(true); // quiet: no modal alerts while the dialog is closing
+                    if (generalPane != null) {
+                        generalPane.save(true);
+                    }
                 }
             } catch (Exception ignored) {
                 // Best-effort persistence on close.
@@ -851,6 +856,17 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             aiSkillsPane = new AiSkillsPane(app, paneOwner);
             aiSkillsPane.activateEditor();
             return aiSkillsPane;
+        });
+        return tab;
+    }
+
+    /** The options that are not part of a profile — the former Settings → AI tab. */
+    private Tab buildGeneralTab() {
+        Tab tab = new Tab(I18n.get("ai.manager.tab.general"));
+        LazyTabContent.defer(tab, () -> {
+            generalPane = new AiGeneralSettingsPane(app);
+            generalPane.refreshProfiles(profiles);
+            return generalPane;
         });
         return tab;
     }

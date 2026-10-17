@@ -51,9 +51,8 @@ Click a result, or pick it with ++up++ / ++down++ and press ++enter++: the dialo
 | [Snippet Editor](snippet-editor/index.md) | Font, color and cursor overrides for snippet windows |
 | [Language](language.md) | UI language selection (8 built-in) + auto-detect |
 | [Translation](translation.md) | External or local-AI translation provider, credentials, target language, generate language file |
-| [AI](ai.md) | AI features, agent execution, HTTP/CLI/embedded profiles, prompt presets, reasoning, image input (vision), quota, internet tools |
 
-Local-model downloads, Text/Coding role routing, embedding selection, llama.cpp runtime policy, knowledge-source synchronization, and the [AI Skills](ai-skills.md) library live in **AI > AI Manager** rather than the global Settings window; see [Local models](../../features/local-models.md) and [RAG knowledge stores](../../features/rag.md).
+AI has no tab in this window: every AI setting, from the feature switches and the terminal agent to the profiles, local models, knowledge stores and the [AI Skills](ai-skills.md) library, lives in **AI > AI Manager**; see [AI](ai.md), [Local models](../../features/local-models.md) and [RAG knowledge stores](../../features/rag.md).
 
 !!! info "Completeness"
     The per-tab pages enumerate every individual setting. Coverage is verified automatically against the application's setting keys, so no setting is left undocumented.
@@ -78,10 +77,5 @@ A few of the configuration tabs (the per-tab pages show each in detail):
 { .grid-caption }
 
 ![Backup settings tab](../../assets/screenshots/settings/backup.png)
-
-**AI** — agent execution, profiles, prompt settings, internet tools
-{ .grid-caption }
-
-![AI settings tab](../../assets/screenshots/settings/ai.png)
 
 </div>

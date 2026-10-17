@@ -184,7 +184,7 @@ All of this is independent of both the korTTY interface language and the **Code 
 
 The list offers korTTY's own interface languages plus any [AI-generated language](../reference/settings/translation.md) you have added. **AI suggestion** can also fill it for you: it reads the snippet's comments and its printed output (`echo`, `print`, `printf`, `Write-Host` and similar) and preselects the language it finds — including a language korTTY has no interface translation for, which is then added to the list. A script without any human-readable text leaves the current choice untouched.
 
-Leave **Remember as default** unticked for a temporary choice that applies only to the current editor window. Tick it to save the selected language as the default for newly opened snippet editors; this updates the existing **Default language for AI text in code** setting under *Settings → AI*. Other editor windows that are already open keep their own selection.
+Leave **Remember as default** unticked for a temporary choice that applies only to the current editor window. Tick it to save the selected language as the default for newly opened snippet editors; this updates the existing **Default language for AI text in code** setting under *AI → AI Manager → General*. Other editor windows that are already open keep their own selection.
 
 Spelling correction uses the selected language for grammar and spelling rules without translating the text. **Translate selection…** keeps its separate target-language dialog and initially selects the current text language. Local formatters and syntax checks are unaffected.
 
@@ -196,7 +196,7 @@ Spelling correction uses the selected language for grammar and spelling rules wi
 
 ### Optional additional instructions
 
-If enabled in *Settings → AI*, the editor shows a shared instructions field sent with spelling correction, translation, and technical description requests.
+If enabled in *AI → AI Manager → General*, the editor shows a shared instructions field sent with spelling correction, translation, and technical description requests.
 
 ### Last AI change toggle
 

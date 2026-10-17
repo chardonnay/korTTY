@@ -111,7 +111,6 @@ public final class AiManagerInternetLockSmoke {
                 expect(internetCombo.getValue() == WEB_MODE && !internetCombo.isDisabled(),
                     "D2: OpenAI profile shown locked");
 
-                checkSettingsDialog();
             } catch (Throwable t) {
                 failure.compareAndSet(null, String.valueOf(t));
             } finally {
@@ -131,50 +130,6 @@ public final class AiManagerInternetLockSmoke {
         System.out.println("SMOKE OK");
     }
 
-    /** Settings &gt; AI: the same lock, on the dialog's own copies of the stored profiles. */
-    private static void checkSettingsDialog() throws Exception {
-        Path isolatedHome = Files.createTempDirectory("kortty-internet-lock-smoke");
-        GlobalSettings settings = new GlobalSettings();
-        settings.setAiProfiles(new java.util.ArrayList<>(List.of(
-            profile("s-anthropic", "Anthropic", AiConnectionMode.HTTP_API, ANTHROPIC_URL),
-            profile("s-cli", "CLI", AiConnectionMode.LOCAL_CLI, ANTHROPIC_URL),
-            profile("s-openai", "OpenAI", AiConnectionMode.HTTP_API, OPENAI_URL))));
-        SettingsDialog dialog = new SettingsDialog(
-            null, null,
-            new ConfigurationManager(isolatedHome), settings,
-            new CredentialManager(isolatedHome), new GPGKeyManager(isolatedHome));
-        ListView<AiProfile> listView = get(dialog, "aiProfileListView");
-        ComboBox<AiInternetAccessMode> internetCombo = get(dialog, "aiInternetAccessModeCombo");
-        Label hint = get(dialog, "aiInternetUnsupportedHintLabel");
-        TextField apiUrlField = get(dialog, "aiApiUrlField");
-        AiProfile anthropic = listView.getItems().get(0);
-        AiProfile cli = listView.getItems().get(1);
-        AiProfile openAi = listView.getItems().get(2);
-
-        listView.getSelectionModel().select(anthropic);
-        System.out.println("S1: combo=" + internetCombo.getValue() + " disabled=" + internetCombo.isDisabled()
-            + " hint=" + hint.isVisible() + " profile=" + anthropic.getInternetAccessMode());
-        expect(internetCombo.getValue() == AiInternetAccessMode.DISABLED && internetCombo.isDisabled()
-            && hint.isVisible(), "S1: Anthropic profile not locked to Disabled");
-        expect(anthropic.getInternetAccessMode() == AiInternetAccessMode.DISABLED, "S1: profile keeps the ignored mode");
-
-        listView.getSelectionModel().select(cli);
-        listView.getSelectionModel().select(openAi);
-        System.out.println("S2: combo=" + internetCombo.getValue() + " disabled=" + internetCombo.isDisabled()
-            + " hint=" + hint.isVisible() + " profile=" + openAi.getInternetAccessMode());
-        expect(cli.getInternetAccessMode() == WEB_MODE, "S2: CLI profile mode was forced");
-        expect(openAi.getInternetAccessMode() == WEB_MODE && internetCombo.getValue() == WEB_MODE
-            && !internetCombo.isDisabled() && !hint.isVisible(),
-            "S2: loading after a profile with an Anthropic URL locked an OpenAI profile");
-
-        apiUrlField.setText(ANTHROPIC_URL);
-        System.out.println("S3: combo=" + internetCombo.getValue() + " disabled=" + internetCombo.isDisabled()
-            + " hint=" + hint.isVisible());
-        expect(internetCombo.getValue() == AiInternetAccessMode.DISABLED && internetCombo.isDisabled()
-            && hint.isVisible(), "S3: typing an Anthropic URL did not lock the combo");
-        apiUrlField.setText(OPENAI_URL);
-        expect(!internetCombo.isDisabled() && !hint.isVisible(), "S3: lock not lifted for an OpenAI URL");
-    }
 
     private static AiProfile profile(String id, String name, AiConnectionMode mode, String apiUrl) {
         AiProfile profile = new AiProfile();

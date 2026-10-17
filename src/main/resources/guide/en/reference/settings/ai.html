@@ -814,8 +814,37 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="ai">AI<a class="headerlink" href="#ai" title="Permanent link">&para;</a></h1>
-<p>Configure AI profiles and terminal AI Agent settings. This is the largest settings tab, encompassing AI features enablement, profiles (with model, API endpoint, connection mode, and reasoning levels), token quota management, snippet editor settings, and internet access configuration. Open via <strong>Configuration → Global Settings → AI</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
-<p><img alt="AI settings tab" src="../../assets/screenshots/settings/ai.png" /></p>
+<p>Every AI setting lives in one place: <strong>AI → AI Manager</strong>. Its first tab, <strong>General</strong>, holds the options that are not part of a profile (feature switches, the terminal agent, defaults for snippet actions, internet tools) on four section tabs; <strong>Profiles</strong> holds the AI profiles with their model, connection, limits and budget; <strong>Local Models</strong>, <strong>Knowledge Stores</strong>, <strong>AI Skills</strong> and <strong>Local AI</strong> the rest. The values are stored in <code>~/.kortty/global-settings.xml</code>. The Global Settings window has no AI tab any more.</p>
+<p><img alt="AI Manager, General tab" src="../../assets/screenshots/ai/ai-manager-general.png" /></p>
+<h2 id="general-tab">General tab<a class="headerlink" href="#general-tab" title="Permanent link">&para;</a></h2>
+<p><strong>AI → AI Manager → General</strong> groups the global options on four section tabs. <strong>Save</strong> under the sections writes all of them; closing the AI Manager saves them as well.</p>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>Settings</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Features &amp; safety</strong></td>
+<td>Enable AI features, confirmation before sending, AI chat code blocks in the terminal, agent debug and runtime messages</td>
+</tr>
+<tr>
+<td><strong>Terminal agent</strong></td>
+<td>Agent execution, confirmation before changes, setup dialog before each run, command name and case matching, task target, input history size</td>
+</tr>
+<tr>
+<td><strong>Defaults</strong></td>
+<td>Security-check profile, default language for AI text in code, optional instructions in the snippet editor, number of alternative solutions</td>
+</tr>
+<tr>
+<td><strong>Internet access</strong></td>
+<td>Tavily, Bright Data and Brave Search secrets, SearXNG URL, MCP server labels and plugin ids, "offer internet research on every step"</td>
+</tr>
+</tbody>
+</table>
+<p>The tables below list every setting of these sections with its stored key.</p>
 <h2 id="core-settings">Core Settings<a class="headerlink" href="#core-settings" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -943,9 +972,9 @@
 <tbody>
 <tr>
 <td>Default profile</td>
-<td>dropdown</td>
-<td>(list of configured profiles)</td>
-<td>—</td>
+<td>check box "Use as default profile" in the Profiles tab</td>
+<td>one profile is always the default</td>
+<td>the first profile</td>
 <td><code>defaultAiProfileId</code></td>
 </tr>
 <tr>
@@ -975,7 +1004,7 @@
 <p><strong>AI request timeout</strong> is the maximum runtime of a single AI request and applies to every profile. The default <code>0</code> means korTTY imposes no timeout at all: long-running tasks such as the snippet editor's <strong>Full code analysis</strong> run until the model answers. Set a positive number of minutes to cancel requests that exceed it. A profile can override the value — see <strong>Timeout for this profile</strong> below. In the AI Manager the global value is the first row of the profile editor's <strong>Limits &amp; timeouts</strong> section.</p>
 <p>In the AI Manager the default profile is chosen with the <strong>Use as default profile</strong> check box next to the profile name; one profile is always the default, so ticking the box on another profile moves it.</p>
 <h3 id="profile-settings-in-editor-sections">Profile Settings (in Editor Sections)<a class="headerlink" href="#profile-settings-in-editor-sections" title="Permanent link">&para;</a></h3>
-<p>The same fields are edited in <strong>AI &gt; AI Manager &gt; Profiles</strong>. The editor keeps <strong>Profile name</strong> and <strong>Use as default profile</strong> above four section tabs, and the <strong>Connection</strong> and <strong>Model &amp; capabilities</strong> sections show only the rows that apply to the selected <strong>Connection</strong> mode (the URL and key rows for <strong>HTTP API</strong>, the CLI rows for <strong>Local CLI</strong>, a note for <strong>Integrated llama.cpp</strong> and <strong>Integrated MLX</strong>):</p>
+<p>The profile fields are edited in <strong>AI &gt; AI Manager &gt; Profiles</strong>. The editor keeps <strong>Profile name</strong> and <strong>Use as default profile</strong> above four section tabs, and the <strong>Connection</strong> and <strong>Model &amp; capabilities</strong> sections show only the rows that apply to the selected <strong>Connection</strong> mode (the URL and key rows for <strong>HTTP API</strong>, the CLI rows for <strong>Local CLI</strong>, a note for <strong>Integrated llama.cpp</strong> and <strong>Integrated MLX</strong>):</p>
 <p><img alt="AI Manager profiles tab" src="../../assets/screenshots/ai/ai-profiles.png" /></p>
 <table>
 <thead>

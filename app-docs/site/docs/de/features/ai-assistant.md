@@ -17,10 +17,10 @@ Wenn **Konfiguration > System-Ruhezustand verhindern** unter macOS oder Windows 
 
 1. Öffnen Sie **Konfiguration > Globale Einstellungen**.
 2. Gehe zu **AI**.
-3. Erstellen Sie ein oder mehrere KI-Profile in **Einstellungen > KI** oder **KI > KI-Manager > Profile**. Wählen Sie **HTTP-API**, **Lokale CLI**, **Integriertes llama.cpp** oder **Integriertes MLX (Apple Silicon)** als Verbindungsmodus.
+3. Erstellen Sie ein oder mehrere KI-Profile in **KI > KI-Manager > Profile**. Wählen Sie **HTTP-API**, **Lokale CLI**, **Integriertes llama.cpp** oder **Integriertes MLX (Apple Silicon)** als Verbindungsmodus.
 4. Für HTTP-Profile geben Sie eine API-URL, ein Modell und optional einen verschlüsselten API-Schlüssel ein. Für ein eingebettetes Profil wählen Sie ein installiertes GGUF-Modell (oder ein installiertes MLX-Modell für **Integriertes MLX**); korTTY stellt den privaten Endpunkt und einen temporären Schlüssel bereit. Verwenden Sie zuerst **KI-Manager > Lokale Modelle**, wenn kein Modell installiert ist.
 5. Konfigurieren Sie optional **Prompt-Optimierung**, **Maximale Zeichen**, **Tokenizer**, **Token limit**, Warnschwellen, den Zyklus für das Zurücksetzen der Tokens, **Preis pro 1 Mio. Tokens** (um die KI-Kosten in Geld anzuzeigen; siehe [Token-Kontingentverwaltung](../reference/settings/ai.md#token-quoten-verwaltung)), den unterstützten **Reasoning**-Aufwand und **Internetzugriff** pro Profil. korTTY zeigt Reasoning-Optionen basierend auf dem konfigurierten Endpunkt und Modell; die exakten nativen Metadaten von LM Studio haben Vorrang vor Kompatibilitätsprüfungen, sodass ein stillschweigend konvertierter Aufwand nicht als unterstützt angezeigt wird. Profile ohne einen explizit unterstützten Reasoning-Modus behalten das provider-standardmäßige Verhalten.
-6. Optionally set an **AI request timeout** in minutes. korTTY does not time out AI requests on its own, so a long task such as the snippet editor's **Full code analysis** runs until the model answers. The value at the top of the profile editor's **Limits & timeouts** section applies to every profile; **Timeout for this profile** below it overrides it for a single profile, and 0 there means that profile never times out. See [AI settings](../reference/settings/ai.md).
+6. Optional setzen Sie ein **Zeitlimit für KI-Anfragen** in Minuten. korTTY beendet KI-Anfragen nicht automatisch, daher läuft eine lange Aufgabe wie die **Vollständige Code-Analyse** im Snippet-Editor, bis das Modell antwortet. Der Wert am oberen Rand des Abschnitts **Grenzen & Zeitlimits** im Profil-Editor gilt für alle Profile; **Zeitlimit für dieses Profil** darunter überschreibt ihn für ein einzelnes Profil, und 0 bedeutet, dass das Profil nie abläuft. Siehe [AI settings](../reference/settings/ai.md).
 7. Klicken Sie auf **KI-Verbindung testen**.
 8. Optionally choose a **Default profile** (in the KI-Manager: tick **Use as default profile** next to the profile name), then assign separate Text/translation and Coding roles under **KI-Manager > Local AI > Profile roles**. An empty role uses the default profile.
 9. Konfigurieren Sie optional die Standardsprache für KI-generierten Text in Codekommentaren und Programmausgaben, aktivieren Sie das Feld für zusätzliche Anweisungen für Snippet-KI-Aktionen und legen Sie fest, wie viele alternative Lösungen der Snippet-Editor anfordern soll.
@@ -36,14 +36,14 @@ So öffnen Sie den Assistenten:
 * **KI > KI-Manager > Profile**, klicken Sie auf **Einrichtungsassistent**.
 * korTTY bietet es auch an, wenn Sie einen KI-Agenten, eine KI-Planung oder ein Agent fragen starten, ohne dass ein nutzbares KI-Profil vorhanden ist.
 
-A sidebar lists the stages and, under every stage you have passed, the choice you made there; clicking a passed stage goes back to it. The wizard guides you through:
+Eine Seitenleiste listet die Phasen auf und, unter jeder Phase, die Sie dort gewählt haben; ein Klick auf eine bereits durchlaufene Phase führt zurück zu ihr. Der Assistent führt Sie durch:
 
 1. **Quick start** - korTTY looks for LM Studio (port 1234) and Ollama (port 11434) on this computer and for installed command-line tools. **Create profile** next to a found server or tool fills in the connection and jumps to the name step; **Search again** repeats the scan. **Cloud service with API key** and **Enter a server or tool yourself** start the manual path.
-2. **Connection type** - Choose **Cloud service (API key)**, **Local AI server** (for example LM Studio or Ollama running on your machine), or **Local command-line tool** (a CLI such as Claude Code or Codex that is already installed). The three choices are cards with a description.
-3. **Provider, server or tool** - For a cloud service, pick a tile: OpenAI, Anthropic (Claude), Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax, or **Other / OpenAI-compatible** with your own API URL. For a local AI server, paste its API URL and an optional key, then choose **Auto** or pick a model. For a local CLI, choose the tool; korTTY checks that it is installed, and LM Studio's `lms` tool adds a model picker.
-4. **Access and model** - For a cloud service, enter the API key, then select or enter the model; **Load models** merges the endpoint's live model list on top of the examples. **Advanced: reasoning**, collapsed by default, sets **Reasoning** to Disabled or Enabled with a level; only the levels the endpoint and model support are offered.
-5. **Name it** - Enter a display name for the profile; **Use as default profile** is selected by default.
-6. **Test and finish** - The wizard tests the connection as soon as the step opens and shows the result above a summary of every choice, each with a **Change** link back to its step. **Test again** repeats the test; **Skip test** continues without it.
+2. **Verbindungsart** - Wählen Sie **Cloud-Dienst (API-Key)**, **Lokaler KI-Server** (zum Beispiel LM Studio oder Ollama, das auf Ihrem Rechner läuft), oder **Lokales Kommandozeilen-Tool** (eine CLI wie Claude Code oder Codex, die bereits installiert ist). Die drei Optionen sind Karten mit einer Beschreibung.
+3. **Anbieter, Server oder Tool** - Für einen Cloud-Dienst wählen Sie ein Symbol: OpenAI, Anthropic (Claude), Google Gemini, Mistral, DeepSeek, Groq, OpenRouter, MiniMax oder **Anderer / OpenAI-kompatibel** mit Ihrer eigenen API-URL. Für einen lokalen KI-Server fügen Sie dessen API-URL und optional einen Schlüssel ein, dann wählen Sie **Auto** oder wählen ein Modell. Für eine lokale CLI wählen Sie das Tool; korTTY prüft, ob es installiert ist, und LM Studio's `lms`-Tool fügt einen Modellauswahl hinzu.
+4. **Zugriff und Modell** - Für einen Cloud-Dienst geben Sie den API-Schlüssel ein, dann wählen oder geben Sie das Modell an; **Modelle laden** fügt die Live-Modellliste des Endpunkts oben auf die Beispiele hinzu. **Erweitert: Reasoning (Reasoning)**, standardmäßig ausgeblendet, legt **Reasoning** auf Deaktiviert oder Aktiviert mit einem Level fest; nur die Levels, die der Endpunkt und das Modell unterstützen, werden angeboten.
+5. **Benennen** - Geben Sie einen Anzeigenamen für das Profil ein; **Als Standardprofil verwenden** ist standardmäßig ausgewählt.
+6. **Testen und abschließen** - Der Assistent testet die Verbindung sofort, sobald der Schritt geöffnet wird, und zeigt das Ergebnis über einer Zusammenfassung jeder Auswahl, jeweils mit einem **Ändern**-Link zurück zu seinem Schritt. **Erneut testen** wiederholt den Test; **Test überspringen** fährt ohne ihn fort.
 
 Native Anthropic (Claude) API-Unterstützung ist neben vorhandenen OpenAI-kompatiblen Endpunkten enthalten.
 
@@ -51,7 +51,7 @@ Für eine vollständig integrierte GGUF-Inferenz verwenden Sie den separaten Ass
 
 ## Modellauswahl
 
-Der Modellauswahl in **Einstellungen > KI** und **KI > KI-Manager > Profile** ist bearbeitbar:
+Der Modellauswahl in **KI > KI-Manager > Profile** ist editierbar:
 
 * Bei bekannten Cloud-Anbietern ist das Dropdown-Menü mit allgemeinen Modellnamen für den konfigurierten Endpunkt vorgefüllt, sodass ein konkretes Modell ohne API-Schlüssel ausgewählt werden kann. Die Schaltfläche „Aktualisieren“ neben der Auswahl führt die Live-`/v1/models`-Liste des Endpunkts oben zusammen, wenn der API-Schlüssel gültig ist.
 * Wenn Sie ein aufgelistetes Modell auswählen, wird es als manuelle Auswahl gespeichert.
@@ -85,7 +85,7 @@ Der Internetzugang wird pro KI-Profil konfiguriert. Vorhandene und neue Profile 
 | **SearXNG MCP** | korTTY sendet eine native LM Studio `/api/v1/chat`-Anfrage mit einer konfigurierten SearXNG MCP-Plugin-ID. |
 | **LM Studio Toolpack** | korTTY sendet eine native LM Studio `/api/v1/chat`-Anfrage mit der konfigurierten LM Studio Toolpack MCP-Plugin-ID. |
 
-Die erforderliche Provider-Konfiguration wird unter **Einstellungen > AI > Internet-Tool-Konfiguration** eingetragen. API-Schlüssel und Token werden mit dem Master-Passwort verschlüsselt gespeichert. MCP-Serverbezeichnungen und Plugin-IDs werden als normale Einstellungen gespeichert.
+Die erforderliche Anbieter-Konfiguration wird unter **KI > KI-Manager > Allgemein > Internetzugang** eingegeben. API-Schlüssel und Token werden verschlüsselt mit dem Master-Passwort gespeichert. MCP-Server-Labels und Plugin-IDs werden als normale Einstellungen gespeichert.
 
 Wichtiges Verhalten:
 
@@ -93,13 +93,13 @@ Wichtiges Verhalten:
 * Lokale CLI Profile haben keinen Internetzugriff: ihr **Internetzugriff** Feld ist deaktiviert.
 * Integriertes llama.cpp und MLX-Profile unterstützen nur **Deaktiviert** und **KorTTY Tavily Tool**; die LM Studio MCP-Modi werden für sie verweigert.
 * Direct korTTY-Webtools haben ein Verbindungs-Timeout von 5 Sekunden, ein Anfrage-Timeout von 20 Sekunden (40 Sekunden beim Lesen von Seiten) und maximal zwei Web-Tool-Runden mit je bis zu drei Tool-Aufrufen pro KI-Anfrage.
-* Ein Modus lässt sich in einem Profil erst auswählen, wenn die zugehörige globale Einstellung (zum Beispiel der Tavily-API-Schlüssel) unter **Einstellungen > KI > Internet-Tool-Konfiguration** gespeichert ist; andernfalls erklärt der KI-Manager, wo der Wert hingehört, und behält den bisherigen Modus. Das Feld **API-Schlüssel** im Profil gilt nur für den KI-Anbieter selbst.
+* Ein Modus kann nur in einem Profil ausgewählt werden, sobald die erforderliche globale Einstellung (zum Beispiel der Tavily-API-Schlüssel) unter **KI > KI-Manager > Allgemein > Internetzugang** gespeichert ist; andernfalls erklärt der KI-Manager, wo der Wert gehört und behält den vorherigen Modus bei. Das eigene **API-Schlüssel**-Feld des Profils dient ausschließlich dem KI-Anbieter selbst.
 * Profile auf der nativen Anthropic Messages API (eine API-URL, die mit `/v1/messages` endet, z. B. `https://api.anthropic.com/v1/messages`) unterstützen keinen Internetzugriff, weil korTTY keine Web-Tools an diese API sendet. Das **Internetzugriff** Dropdown ist für sie auf **Deaktiviert** festgelegt und ein Hinweis darunter erklärt warum. Ein Profil, das noch einen anderen Modus aus einer früheren Version trägt, funktioniert weiterhin ohne Web-Zugriff; es zeigt **Deaktiviert** sobald Sie es öffnen, und beim Speichern wird dieser Wert gespeichert.
 * Die Internetnutzung wird dort angezeigt, wo sie passiert. Im KI-Chat fasst eine eingeklappte Zeile **Internetrecherche** über der Antwort die Suchen, gelesenen Seiten und Fehlschläge zusammen; aufgeklappt listet sie jede Suchanfrage, gelesene URL, Quelle und jeden Fehler. Sie wird mit gespeicherten Chats gesichert. Im Terminal-KI-Agenten erhält jeder Schritt, der das Internet genutzt hat, eine Aktivitätszeile **Web research** mit denselben Details. Bei den LM-Studio-MCP-Modi zeigt korTTY die von LM Studio gemeldeten Tool-Aufrufe mit den URLs aus deren Ausgabe.
 * LM Studio MCP-Anfragen mit Internetzugang nutzen ein längeres Gesamtanfrage-Timeout, da der MCP-Server hinter LM Studio läuft.
 * Das Abbrechen einer laufenden Anfrage unterbricht die Java-HTTP-Anfrage, wenn der aktive Anbieter eine Unterbrechung unterstützt.
 * Tool-Fehler werden als strukturierte Daten an das Modell zurückgegeben. Wenn das Web-Tool das Zeitlimit überschreitet, die Authentifizierung fehlschlägt, keine Ergebnisse zurückgibt oder das Tool-Runden-Limit erreicht, wird das Modell angewiesen, dies explizit zu sagen und keine Web-Fakten zu erfinden.
-* Für die Terminal-Agent-JSON-Planung bietet korTTY seine direkten Web-Tools nur dann an, wenn die Benutzeraufgabe ein Web-Signalwort (zum Beispiel aktuell, neueste, suche, recherchiere, Doku, Changelog, CVE, Webseite, herunterladen, Version) oder eine URL enthält. Lokale Datei-/Skriptüberprüfungsaufgaben sollten durch Shell-Befehle wie `sed`, `cat`, `find` oder Testbefehle und nicht durch die Websuche erledigt werden. Mit **KI-Agent: Internetrecherche bei jedem Schritt anbieten** unter **Einstellungen > KI > Internet-Tool-Konfiguration** werden die Tools bei jedem Agent-Schritt angeboten und das Modell entscheidet selbst; das verbraucht mehr Tavily-Credits und Tokens. Die LM-Studio-MCP-Modi hängen ihre Integration immer an Agent-Schritte an.
+* Für die JSON-Planung von terminal-agent bietet korTTY seine direkten Web-Tools nur an, wenn die Benutzervorgabe ein Web-Signalwort (z. B. current, latest, search, research, docs, changelog, CVE, website, download, version) oder eine URL enthält. Aufgaben zur Überprüfung lokaler Dateien/Skripte sollten mit Shell-Befehlen wie `sed`, `cat`, `find` oder Testbefehlen erledigt werden, nicht mit einer Web-Suche. Aktivieren Sie **KI-Agent: Internetsuche bei jedem Schritt anbieten** unter **KI > KI-Manager > Allgemein > Internetzugang**, um die Tools bei jedem Agenten-Schritt anzubieten und dem Modell die Entscheidung zu überlassen; dies verbraucht mehr Tavily-Credits und Tokens. LM Studio MCP-Modi hängen ihre Integration immer an Agenten-Schritte.
 
 ## KI-Skills
 
@@ -231,7 +231,7 @@ Codeblöcke in einer Chat-Antwort haben neben der Kopier-Schaltfläche zwei weit
 * **Nach `su`, `sudo -i` oder einem verschachtelten `ssh`** warnt die Ausführen-Bestätigung, dass der Bereich möglicherweise als anderer Benutzer oder auf einem anderen Host angemeldet ist: Die Zeile läuft unter dem Benutzer, der diese Shell gerade ausführt.
 * **Die Antwort ist nicht vertrauenswürdig.** Terminalausgaben, die die KI gelesen hat, können steuern, was sie vorschlägt; lesen Sie daher jeden Teil eines Befehls, bevor Sie ihn ausführen.
 
-Wählen Sie unter *Einstellungen → KI → KI-Chat-Codeblöcke im Terminal*, welche Schaltflächen erscheinen: **Einfügen und Ausführen** (Standard), **Nur Einfügen** oder **Aus (nur kopieren und speichern)**. Ist die Richtlinie `ai-chat` verweigert, sind beide Schaltflächen ausgegraut, und mit `ai-agent-execution = "read-only"` ist Ausführen ausgegraut; siehe [Unternehmensrichtlinie](../reference/enterprise-policy.md).
+Wählen Sie, welche Schaltflächen unter *KI → KI-Manager → Allgemein → KI-Chat-Codeblöcke im Terminal* angezeigt werden: **Einfügen und Ausführen** (Standard), **Nur Einfügen**, oder **Aus (nur kopieren und speichern)**. Mit der `ai-chat` Richtlinie verweigert sind beide Schaltflächen ausgegraut, und bei `ai-agent-execution = "read-only"` Ausführen ist ausgegraut; siehe [Unternehmensrichtlinie](../reference/enterprise-policy.md).
 
 ### gerenderte Bilder, Diagramme und Mathematik
 
@@ -295,7 +295,7 @@ Der Manager kombiniert Profil, lokale Inferenz, Abruf und Skill-Management:
 
 Gespeicherte Chats sind kein Tab des KI-Managers. **KI > Gespeicherte Chats...** öffnet sie in einem eigenen Fenster, mit einem **Chats**-Tab für gespeicherte KI-Unterhaltungen und einem **Swarm-Chats**-Tab für gespeicherte [KI-Swarm](ai-swarm.md)-Unterhaltungen, einschließlich der von geplanten Swarm-Jobs erzeugten. Dort können Sie einen Eintrag öffnen, umbenennen, aktualisieren oder löschen.
 
-Verwenden Sie **Einstellungen > KI** für globale Verhaltensänderungen und **KI-Manager** für die tägliche Profil-, Modell-, Wissensspeicher- und Chat-Verwaltung.
+Verwenden Sie **KI > KI-Manager > Allgemein** für globale Verhaltensschalter und die anderen KI-Manager-Tabs für das tägliche Profil, Modell, Wissensspeicher und Chat-Management.
 
 ## Fragen Sie nach der Anleitung (KI-Dokumentensuche)
 
@@ -325,7 +325,7 @@ korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.
 
 ### Der Agent wird gestartet
 
-* **KI-Agent** - Starten Sie über **AI > KI-Agent...**, im Rechtsklickmenü des Terminals oder mit dem Terminal-Shortcut-Befehl. Der Agent kann in einem dedizierten Chat-Tab geöffnet werden oder das aktive Terminalfenster anvisieren, je nach **Einstellungen > KI**.
+* **KI-Agent** - Starten Sie von **KI > KI-Manager...**, im Rechtsklick-Menü des Terminals oder mit dem Terminal-Tastenkürzel. Der Agent kann in einem dedizierten Chat-Tab geöffnet werden oder das aktive Terminalfenster anvisieren, je nach **KI > KI-Manager > Allgemein**.
 * **KI-Planung** - Starten Sie über **AI > KI-Planung...**, im Rechtsklickmenü des Terminals oder mit `agent-plan` / `agent -plan`. Der Planungsmodus stellt klärende Fragen, schlägt ein oder mehrere Optionen vor, erstellt einen abschließenden Planbericht und ermöglicht Ihnen, den akzeptierten Plan zu starten.
 
 ### Aktivitätspanel und Platzierung
@@ -359,7 +359,7 @@ agent-plan <task>
 agent -plan <task>
 ```
 
-Der Basisbefehlsname kann unter **Einstellungen > AI** konfiguriert werden. Wenn Sie `agent` umbenennen, leitet korTTY automatisch die passenden Befehle `-ask` und `-plan` ab. Auf derselben Einstellungsseite kann die Groß-/Kleinschreibung des Befehlsnamens nicht beachtet werden, und der Setup-Dialog pro Lauf kann deaktiviert werden. Wenn der Dialog deaktiviert ist, verwendet korTTY das konfigurierte Standardprofil.
+Der Basisbefehlsname ist in **KI > KI-Manager > Allgemein** konfigurierbar. Wenn Sie `agent` umbenennen, ermittelt korTTY automatisch die passenden `-ask` und `-plan` Befehle. Die gleiche Einstellungsseite kann den Befehl namen unabhängig von Groß-/Kleinschreibung machen und das Setup-Dialog pro Ausführung deaktivieren; wenn der Dialog deaktiviert ist, verwendet korTTY das konfigurierte Standardprofil.
 
 Nur ein Agent-Befehl, den Sie eingeben oder einfügen, wird erkannt. Text, den der Server ausgibt, z. B. eine Datei, die mit `cat` angezeigt wird und eine präparierte Escape-Sequenz enthält, kann keinen Agentenlauf starten. Im [Broadcast-Modus](terminal.md#broadcast-modus) startet der Befehl einen Lauf nur in dem Bereich, in dem Sie ihn eingeben; die anderen Bereiche erhalten ihn als gewöhnliche Befehlszeile, und der Broadcast-Modus sendet keine Tasten in einen Bereich, solange dort ein Agentenlauf aktiv ist.
 
@@ -374,7 +374,7 @@ An der Shell-Eingabeaufforderung wird die TAB-Vervollständigung für Agentenbef
 * Entfernen Sie im Verlaufs-Popup eine einzelne Eingabeaufforderung, indem Sie auf die Schaltfläche ✕ der Zeile klicken (oder ++Del++ auf Tastaturen mit Vorwärts-Löschen-Taste drücken), oder entfernen Sie den gesamten Verlauf mit **Alle löschen** (eine zweistufige Bestätigung schützt vor versehentlichem Löschen). Löschungen werden sofort gespeichert.
 * Außerhalb dieses Kontexts ist ++TAB++ eine normale Shell-Vervollständigung.
 
-Die Verlaufsgröße kann unter **Einstellungen > AI** konfiguriert werden (Standard 20, Bereich 5–100).
+Verlaufsgröße ist in **KI > KI-Manager > Allgemein** konfigurierbar (Standard 20, Bereich 5–100).
 
 In einer SSH-Sitzung erkennt korTTY, dass die Shell an ihrem Prompt steht, an den OSC-133-Markierungen einer für die [Shell-Integration](shell-integration.md) eingerichteten Shell, solange **Befehlsmarkierungen von Shells mit eingerichteter Shell-Integration nutzen (OSC 133)** in *Einstellungen → Terminal* eingeschaltet ist, und andernfalls am Text des Prompts, etwa `user@host:~$`.
 
