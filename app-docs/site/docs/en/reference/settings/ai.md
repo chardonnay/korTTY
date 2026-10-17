@@ -4,9 +4,22 @@ title: AI
 
 # AI
 
-Configure AI profiles and terminal AI Agent settings. This is the largest settings tab, encompassing AI features enablement, profiles (with model, API endpoint, connection mode, and reasoning levels), token quota management, snippet editor settings, and internet access configuration. Open via **Configuration → Global Settings → AI**; stored in `~/.kortty/global-settings.xml`.
+Every AI setting lives in one place: **AI → AI Manager**. Its first tab, **General**, holds the options that are not part of a profile (feature switches, the terminal agent, defaults for snippet actions, internet tools) on four section tabs; **Profiles** holds the AI profiles with their model, connection, limits and budget; **Local Models**, **Knowledge Stores**, **AI Skills** and **Local AI** the rest. The values are stored in `~/.kortty/global-settings.xml`. The Global Settings window has no AI tab any more.
 
-![AI settings tab](../../assets/screenshots/settings/ai.png)
+![AI Manager, General tab](../../assets/screenshots/ai/ai-manager-general.png)
+
+## General tab { #general-tab }
+
+**AI → AI Manager → General** groups the global options on four section tabs. **Save** under the sections writes all of them; closing the AI Manager saves them as well.
+
+| Section | Settings |
+| --- | --- |
+| **Features & safety** | Enable AI features, confirmation before sending, AI chat code blocks in the terminal, agent debug and runtime messages |
+| **Terminal agent** | Agent execution, confirmation before changes, setup dialog before each run, command name and case matching, task target, input history size |
+| **Defaults** | Security-check profile, default language for AI text in code, optional instructions in the snippet editor, number of alternative solutions |
+| **Internet access** | Tavily, Bright Data and Brave Search secrets, SearXNG URL, MCP server labels and plugin ids, "offer internet research on every step" |
+
+The tables below list every setting of these sections with its stored key.
 
 ## Core Settings
 
@@ -36,7 +49,7 @@ Configure AI profiles and terminal AI Agent settings. This is the largest settin
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
-| Default profile | dropdown | (list of configured profiles) | — | `defaultAiProfileId` |
+| Default profile | check box "Use as default profile" in the Profiles tab | one profile is always the default | the first profile | `defaultAiProfileId` |
 | AI request timeout | number | 0–1440 minutes | 0 (no timeout) | `aiRequestTimeoutMinutes` |
 | Security-check profile | dropdown | (list of configured profiles; empty = use default profile) | — | `securityCheckAiProfileId` |
 | Other computers on the network (setup wizard quick start) | text | host, `host:port` or `http://` URL, comma-separated; probed besides localhost | — | `aiWizardScanHosts` |
@@ -49,7 +62,7 @@ In the AI Manager the default profile is chosen with the **Use as default profil
 
 ### Profile Settings (in Editor Sections)
 
-The same fields are edited in **AI > AI Manager > Profiles**. The editor keeps **Profile name** and **Use as default profile** above four section tabs, and the **Connection** and **Model & capabilities** sections show only the rows that apply to the selected **Connection** mode (the URL and key rows for **HTTP API**, the CLI rows for **Local CLI**, a note for **Integrated llama.cpp** and **Integrated MLX**):
+The profile fields are edited in **AI > AI Manager > Profiles**. The editor keeps **Profile name** and **Use as default profile** above four section tabs, and the **Connection** and **Model & capabilities** sections show only the rows that apply to the selected **Connection** mode (the URL and key rows for **HTTP API**, the CLI rows for **Local CLI**, a note for **Integrated llama.cpp** and **Integrated MLX**):
 
 ![AI Manager profiles tab](../../assets/screenshots/ai/ai-profiles.png)
 

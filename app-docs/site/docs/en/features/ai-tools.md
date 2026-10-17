@@ -17,7 +17,7 @@ korTTY's Terminal AI Agent is a controlled automation workflow that enables safe
 
 ## Command variants
 
-The Terminal AI Agent is triggered via shortcut commands at the shell prompt. When enabled in **Settings > AI**, KorTTY intercepts these commands locally instead of sending them to the server:
+The Terminal AI Agent is triggered via shortcut commands at the shell prompt. When enabled in **AI > AI Manager > General**, KorTTY intercepts these commands locally instead of sending them to the server:
 
 ```bash
 agent <goal>
@@ -26,7 +26,7 @@ agent-plan <task>
 agent -plan <task>
 ```
 
-The base command name is configurable in **Settings > AI**. If you rename `agent`, KorTTY automatically derives the matching `-ask` and `-plan` commands. The same settings page can:
+The base command name is configurable in **AI > AI Manager > General**. If you rename `agent`, KorTTY automatically derives the matching `-ask` and `-plan` commands. The same settings page can:
 
 - Make the command name case-insensitive
 - Disable the per-run setup dialog (uses the configured default profile when disabled)
@@ -61,7 +61,7 @@ At the shell prompt, TAB completion is enhanced for agent commands:
 - In the history popup, click a row's ✕ button (or press ++del++ on keyboards with a forward-delete key) to remove a single prompt, or use **Clear all** (two-step confirm) to wipe the entire history. Deletions are saved immediately.
 - Outside this context, ++tab++ remains normal shell completion.
 
-History size is configurable in **Settings > AI** (default 20, range 5–100).
+History size is configurable in **AI > AI Manager > General** (default 20, range 5–100).
 
 ## How the AI Agent works
 
@@ -311,7 +311,7 @@ Planning mode (`agent-plan` or `agent -plan`) offers an advisory workflow before
 
 ## Settings and configuration
 
-Configure the Terminal AI Agent in **Settings > AI**:
+Configure the Terminal AI Agent in **AI > AI Manager > General**:
 
 | Setting | Effect |
 |---------|--------|
@@ -344,7 +344,7 @@ The agent can optionally use web tools when the task clearly requires current or
 - **KorTTY Tavily Tool** — Direct web search and page reading through the Tavily API (`web_search` and `web_extract`, see [What the agent can call](#what-the-agent-can-call)).
 - **LM Studio MCP modes** — Integrate Tavily, Bright Data, Brave Search, SearXNG, or LM Studio Toolpack through LM Studio's native MCP support.
 
-Configure internet access per AI profile with the **Internet access** field of the profile editor; the Tavily key and the other web-tool settings are entered under **Settings > AI > Internet tool configuration**.
+Configure internet access per AI profile with the **Internet access** field of the profile editor; the Tavily key and the other web-tool settings are entered under **AI > AI Manager > General > Internet access**.
 
 !!! warning
     **Web tools are withheld from local file/script review tasks** unless your prompt clearly asks for current or external information. Inspecting a local file should use shell commands like `sed`, `cat`, `find`, or language-specific tools, not web search.

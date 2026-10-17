@@ -17,7 +17,7 @@ When **Configuration > Prevent System Sleep** is enabled on macOS or Windows, ko
 
 1. Open **Configuration > Global Settings**.
 2. Go to **AI**.
-3. Create one or more AI profiles in **Settings > AI** or **AI > AI Manager > Profiles**. Choose **HTTP API**, **Local CLI**, **Integrated llama.cpp**, or **Integrated MLX (Apple Silicon)** as the connection mode.
+3. Create one or more AI profiles in **AI > AI Manager > Profiles**. Choose **HTTP API**, **Local CLI**, **Integrated llama.cpp**, or **Integrated MLX (Apple Silicon)** as the connection mode.
 4. For HTTP profiles, enter an API URL, model, and optional encrypted API key. For an embedded profile, select an installed GGUF model (or an installed MLX model for **Integrated MLX**); korTTY supplies the private endpoint and temporary key. Use **AI Manager > Local Models** first when no model is installed.
 5. Optionally configure **Prompt optimization**, **Max characters**, **Tokenizer**, **Token limit**, warning thresholds, token reset cycle, **Price per 1M tokens** (to see AI costs in money; see [Token quota management](../reference/settings/ai.md#token-quota-management)), supported **Reasoning** effort, and **Internet access** per profile. korTTY exposes reasoning choices based on the configured endpoint and model; LM Studio's exact native capability metadata takes precedence over compatibility probes so a silently converted effort is not shown as supported. Profiles without a supported explicit reasoning mode keep provider-default behavior.
 6. Optionally set an **AI request timeout** in minutes. korTTY does not time out AI requests on its own, so a long task such as the snippet editor's **Full code analysis** runs until the model answers. The value at the top of the profile editor's **Limits & timeouts** section applies to every profile; **Timeout for this profile** below it overrides it for a single profile, and 0 there means that profile never times out. See [AI settings](../reference/settings/ai.md).
@@ -51,7 +51,7 @@ For fully integrated GGUF inference, use the separate **AI Manager > Local Model
 
 ## Model selection
 
-The model selector in **Settings > AI** and **AI > AI Manager > Profiles** is editable:
+The model selector in **AI > AI Manager > Profiles** is editable:
 
 * For known cloud providers the dropdown is pre-filled with common model names for the configured endpoint, so a concrete model can be chosen without an API key. The refresh button next to the selector merges the endpoint's live `/v1/models` list on top when the API key is valid.
 * Choosing a listed model stores it as the manual selection.
@@ -85,7 +85,7 @@ Internet access is configured per AI profile. Existing and new profiles default 
 | **SearXNG MCP** | korTTY sends an LM Studio native `/api/v1/chat` request with a configured SearXNG MCP plugin ID. |
 | **LM Studio Toolpack** | korTTY sends an LM Studio native `/api/v1/chat` request with the configured LM Studio Toolpack MCP plugin ID. |
 
-Required provider configuration is entered under **Settings > AI > Internet tool configuration**. API keys and tokens are stored encrypted with the master password. MCP server labels and plugin IDs are stored as normal settings.
+Required provider configuration is entered under **AI > AI Manager > General > Internet access**. API keys and tokens are stored encrypted with the master password. MCP server labels and plugin IDs are stored as normal settings.
 
 Important behavior:
 
@@ -93,13 +93,13 @@ Important behavior:
 * Local CLI profiles have no internet access: their **Internet access** field is disabled.
 * Integrated llama.cpp and MLX profiles support only **Disabled** and **KorTTY Tavily Tool**; the LM Studio MCP modes are refused for them.
 * Direct korTTY web tools have a 5-second connect timeout, a 20-second request timeout (40 seconds for page reads), and a maximum of two web-tool rounds with up to three tool calls each per AI request.
-* A mode can only be selected in a profile once its required global setting (for example the Tavily API key) is stored under **Settings > AI > Internet tool configuration**; otherwise the AI Manager explains where the value belongs and keeps the previous mode. The profile's own **API Key** field is only for the AI provider itself.
+* A mode can only be selected in a profile once its required global setting (for example the Tavily API key) is stored under **AI > AI Manager > General > Internet access**; otherwise the AI Manager explains where the value belongs and keeps the previous mode. The profile's own **API Key** field is only for the AI provider itself.
 * Profiles on the native Anthropic Messages API (an API URL ending in `/v1/messages`, such as `https://api.anthropic.com/v1/messages`) do not support internet access, because korTTY sends no web tools to that API. The **Internet access** dropdown is locked to **Disabled** for them and a hint below it says why. A profile that still carries another mode from an earlier version keeps working without web access; it shows **Disabled** as soon as you open it, and saving stores that value.
 * Internet use is shown where it happens. In the AI chat, a collapsed **Internet research** line above the reply summarizes the searches, page reads and failures; expanding it lists every query, read URL, source and error. It is stored with saved chats. In the Terminal AI Agent, each step that used the internet gets a **Web research** activity row with the same details. For LM Studio MCP modes korTTY shows the tool calls LM Studio reports, with the URLs found in their output.
 * LM Studio MCP requests with internet access use a longer total request timeout because the MCP server runs behind LM Studio.
 * Canceling a running request interrupts the Java HTTP request where the active provider supports interruption.
 * Tool errors are returned to the model as structured data. If the web tool times out, fails authentication, returns no results, or reaches the tool-round limit, the model is instructed to say that explicitly and not invent web facts.
-* For terminal-agent JSON planning, korTTY offers its direct web tools only when the user task contains a web signal word (for example current, latest, search, research, docs, changelog, CVE, website, download, version) or a URL. Local file/script review tasks should be handled by shell commands such as `sed`, `cat`, `find`, or test commands, not by web search. Enable **AI agent: offer internet research on every step** under **Settings > AI > Internet tool configuration** to offer the tools on every agent step and let the model decide; this uses more Tavily credits and tokens. LM Studio MCP modes always attach their integration to agent steps.
+* For terminal-agent JSON planning, korTTY offers its direct web tools only when the user task contains a web signal word (for example current, latest, search, research, docs, changelog, CVE, website, download, version) or a URL. Local file/script review tasks should be handled by shell commands such as `sed`, `cat`, `find`, or test commands, not by web search. Enable **AI agent: offer internet research on every step** under **AI > AI Manager > General > Internet access** to offer the tools on every agent step and let the model decide; this uses more Tavily credits and tokens. LM Studio MCP modes always attach their integration to agent steps.
 
 ## AI Skills
 
@@ -231,7 +231,7 @@ Code blocks in a chat answer have two more buttons beside the copy button. **Ins
 * **After `su`, `sudo -i` or a nested `ssh`** the Run confirmation warns that the pane may be logged in as another user or on another host: the line runs as whoever that shell is.
 * **The answer is untrusted.** Terminal output the AI has read can steer what it suggests, so read every part of a command before you run it.
 
-Choose which buttons appear under *Settings → AI → AI chat code blocks in the terminal*: **Insert and Run** (the default), **Insert only**, or **Off (copy and save only)**. With the `ai-chat` policy denied both buttons are greyed out, and with `ai-agent-execution = "read-only"` Run is greyed out; see [Enterprise policy](../reference/enterprise-policy.md).
+Choose which buttons appear under *AI → AI Manager → General → AI chat code blocks in the terminal*: **Insert and Run** (the default), **Insert only**, or **Off (copy and save only)**. With the `ai-chat` policy denied both buttons are greyed out, and with `ai-agent-execution = "read-only"` Run is greyed out; see [Enterprise policy](../reference/enterprise-policy.md).
 
 ### Rendered images, diagrams, and math
 
@@ -295,7 +295,7 @@ The manager combines profile, local-inference, retrieval, and skill management:
 
 Saved chats are not a tab of the AI Manager. **AI > Saved Chats...** opens them in their own window, with a **Chats** tab for saved AI conversations and a **Swarm Chats** tab for saved [AI Swarm](ai-swarm.md) conversations, including those produced by scheduled swarm jobs. There you can open, rename, refresh, or delete an entry.
 
-Use **Settings > AI** for global behavior switches and **AI Manager** for day-to-day profile, model, knowledge-store, and chat management.
+Use **AI > AI Manager > General** for global behavior switches and the other AI Manager tabs for day-to-day profile, model, knowledge-store, and chat management.
 
 ## Ask the manual (AI docs search)
 
@@ -325,7 +325,7 @@ korTTY supports agent-style workflows for an active terminal session.
 
 ### Starting the agent
 
-* **AI Agent** - Start from **AI > AI Agent...**, from the terminal right-click menu, or with the terminal shortcut command. The agent can open in a dedicated chat tab or target the active terminal window, depending on **Settings > AI**.
+* **AI Agent** - Start from **AI > AI Agent...**, from the terminal right-click menu, or with the terminal shortcut command. The agent can open in a dedicated chat tab or target the active terminal window, depending on **AI > AI Manager > General**.
 * **AI Planning** - Start from **AI > AI Planning...**, from the terminal right-click menu, or with `agent-plan` / `agent -plan`. Planning mode asks clarifying questions, proposes one or more options, creates a final plan report, and lets you start the accepted plan.
 
 ### Activity panel and placement
@@ -359,7 +359,7 @@ agent-plan <task>
 agent -plan <task>
 ```
 
-The base command name is configurable in **Settings > AI**. If you rename `agent`, korTTY derives the matching `-ask` and `-plan` commands automatically. The same settings page can make the command name case-insensitive and can disable the per-run setup dialog; when the dialog is disabled, korTTY uses the configured default profile.
+The base command name is configurable in **AI > AI Manager > General**. If you rename `agent`, korTTY derives the matching `-ask` and `-plan` commands automatically. The same settings page can make the command name case-insensitive and can disable the per-run setup dialog; when the dialog is disabled, korTTY uses the configured default profile.
 
 Only an agent command that you type or paste is recognized. Text that the server prints, for example a file shown with `cat` that contains a crafted escape sequence, cannot start an agent run. In [broadcast mode](terminal.md#broadcast-mode) the command starts a run only in the pane you type it in; the other panes receive it as an ordinary command line, and broadcast mode sends no keys into a pane while an agent run is active there.
 
@@ -374,7 +374,7 @@ At the shell prompt, TAB completion is enhanced for agent commands:
 * In the history popup, remove a single prompt by clicking the row's ✕ button (or pressing ++Del++ on keyboards with a forward-delete key), or remove the entire history with **Clear all** (a two-step confirm guards against accidental wipes). Deletions are saved immediately.
 * Outside this context, ++TAB++ is normal shell completion.
 
-History size is configurable in **Settings > AI** (default 20, range 5–100).
+History size is configurable in **AI > AI Manager > General** (default 20, range 5–100).
 
 In an SSH session korTTY tells that the shell is at its prompt from the OSC 133 marks of a shell set up for [shell integration](shell-integration.md), while **Use the command marks of shells set up for shell integration (OSC 133)** in *Settings → Terminal* is on, and otherwise from the prompt's text, such as `user@host:~$`.
 

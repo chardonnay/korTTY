@@ -184,7 +184,7 @@ All dies ist unabhängig von der korTTY-Schnittstellensprache und dem **Codespra
 
 Die Liste enthält korTTYs eigene Schnittstellensprachen sowie alle von Ihnen hinzugefügten [KI-generierten Sprachen ](../reference/settings/translation.md). **KI-Vorschlag** kann es auch für Sie ausfüllen: Es liest die Kommentare des Snippets und seine gedruckte Ausgabe (`echo`, `print`, `printf`, `Write-Host` und ähnliches) und wählt die gefundene Sprache vor – einschließlich einer Sprache, für die korTTY keine Schnittstellenübersetzung hat, die dann der Liste hinzugefügt wird. Ein Skript ohne für Menschen lesbaren Text lässt die aktuelle Auswahl unberührt.
 
-Lassen Sie **Als Standard speichern** deaktiviert, um eine vorübergehende Auswahl zu treffen, die nur für das aktuelle Editorfenster gilt. Markieren Sie es, um die ausgewählte Sprache als Standard für neu geöffnete Snippet-Editoren zu speichern; Dadurch wird die bestehende **Standardsprache für KI-Text im Code**-Einstellung unter *Einstellungen → AI* aktualisiert. Andere bereits geöffnete Editorfenster behalten ihre eigene Auswahl.
+Lassen Sie **Als Standard speichern** nicht angekreuzt, wenn Sie eine temporäre Auswahl treffen, die nur für das aktuelle Editorfenster gilt. Kreuzen Sie es an, um die ausgewählte Sprache als Standard für neu geöffnete Snippet-Editoren zu speichern; dadurch wird die vorhandene Einstellung **Standardsprache für KI-Texte im Programmcode** unter *KI → KI-Manager → Allgemein* aktualisiert. Andere bereits geöffnete Editorfenster behalten ihre eigene Auswahl.
 
 Die Rechtschreibkorrektur verwendet die ausgewählte Sprache für Grammatik- und Rechtschreibregeln, ohne den Text zu übersetzen. **Auswahl übersetzen…** behält seinen separaten Zielsprachendialog bei und wählt zunächst die aktuelle Textsprache aus. Lokale Formatierer und Syntaxprüfungen sind davon nicht betroffen.
 
@@ -196,7 +196,7 @@ Die Rechtschreibkorrektur verwendet die ausgewählte Sprache für Grammatik- und
 
 ### Optionale zusätzliche Anweisungen
 
-Wenn die Option in *Einstellungen → KI* aktiviert ist, zeigt der Editor ein Feld mit gemeinsamen Anweisungen an, das bei Anfragen zur Rechtschreibkorrektur, Übersetzung und technischen Beschreibung gesendet wird.
+Wenn in *KI → KI-Manager → Allgemein* aktiviert, zeigt der Editor ein gemeinsames Anweisungsfeld an, das mit Rechtschreibkorrektur, Übersetzung und fachlicher Beschreibung gesendet wird.
 
 ### Letzte KI-Änderung umschalten
 

@@ -17,7 +17,7 @@ Der Terminal-KI-Agent von korTTY ist ein kontrollierter Automatisierungsworkflow
 
 ## Befehlsvarianten
 
-Das Terminal AI Agent wird über Shortcut-Befehle am Shell-Prompt ausgelöst. Wenn KorTTY unter **Einstellungen > AI** aktiviert ist, fängt KorTTY diese Befehle lokal ab, anstatt sie an den Server zu senden:
+Das Terminal KI-Agent wird über Tastenkombinationen am Shell-Prompt ausgelöst. Wenn er in **KI > KI-Manager > General** aktiviert ist, interceptiert KorTTY diese Befehle lokal statt sie an den Server zu senden.
 
 ```bash
 agent <goal>
@@ -26,7 +26,7 @@ agent-plan <task>
 agent -plan <task>
 ```
 
-Der Basisbefehlsname kann unter **Einstellungen > AI** konfiguriert werden. Wenn Sie `agent` umbenennen, leitet KorTTY automatisch die passenden Befehle `-ask` und `-plan` ab. Die gleiche Einstellungsseite kann:
+Die Basisbefehlsnamen sind in **KI > KI-Manager > Allgemein** konfigurierbar. Wenn Sie `agent` umbenennen, ermittelt KorTTY automatisch die passenden Befehle `-ask` und `-plan`. Die gleiche Einstellungsseite kann:
 
 - Machen Sie beim Befehlsnamen keine Berücksichtigung der Groß-/Kleinschreibung
 - Deaktivieren Sie den Einrichtungsdialog pro Lauf (verwendet das konfigurierte Standardprofil, wenn es deaktiviert ist)
@@ -61,7 +61,7 @@ An der Shell-Eingabeaufforderung wird die TAB-Vervollständigung für Agentenbef
 - Klicken Sie im Verlaufs-Popup auf die Schaltfläche ✕ einer Zeile (oder drücken Sie ++del++ auf Tastaturen mit Vorwärts-Löschen-Taste), um eine einzelne Eingabeaufforderung zu entfernen, oder verwenden Sie **Alle löschen** (Bestätigung in zwei Schritten), um den gesamten Verlauf zu löschen. Löschungen werden sofort gespeichert.
 - Außerhalb dieses Kontexts bleibt ++tab++ die normale Shell-Vervollständigung.
 
-Die Verlaufsgröße kann unter **Einstellungen > AI** konfiguriert werden (Standard 20, Bereich 5–100).
+Verlaufsgröße ist in **KI > KI-Manager > Allgemein** konfigurierbar (Standard 20, Bereich 5–100).
 
 ## So funktioniert der AI Agent
 
@@ -311,7 +311,7 @@ Der Planungsmodus (`agent-plan` oder `agent -plan`) bietet vor der Ausführung e
 
 ## Einstellungen und Konfiguration
 
-Konfigurieren Sie den Terminal AI Agent unter **Einstellungen > AI**:
+Konfigurieren Sie den Terminal KI-Agenten in **KI > KI-Manager > Allgemein**:
 
 | Einstellung | Wirkung |
 |---------|--------|
@@ -344,7 +344,7 @@ Der Agent kann optional Web-Tools verwenden, wenn für die Aufgabe eindeutig akt
 - **KorTTY Tavily Tool** — Direkte Websuche und Seitenlesung über die Tavily-API (`web_search` und `web_extract`, Siehe [Was der Agent aufrufen kann](#was-der-agent-aufrufen-kann)).
 - **LM Studio MCP-Modi** – Integrieren Sie Tavily, Bright Data, Brave Search, SearXNG oder LM Studio Toolpack über die native MCP-Unterstützung von LM Studio.
 
-Internetzugriff pro KI-Profil konfigurieren mit dem Feld **Internetzugriff** im Profil-Editor; der Tavily-Schlüssel und die anderen Web-Tool-Einstellungen werden unter **Einstellungen > KI > Internet-Tool-Konfiguration** eingegeben.
+Konfigurieren Sie den Internetzugang pro KI-Profil mit dem Feld **Internetzugang** im Profil-Editor; der Tavily-Schlüssel und die anderen Web-Tool-Einstellungen werden unter **KI > KI-Manager > Allgemein > Internetzugang** eingegeben.
 
 !!! warning
     **Web-Tools werden von lokalen Datei-/Skriptüberprüfungsaufgaben ausgeschlossen**, es sei denn, in Ihrer Eingabeaufforderung werden eindeutig aktuelle oder externe Informationen abgefragt. Für die Untersuchung einer lokalen Datei sollten Shell-Befehle wie `sed`, `cat`, `find` oder sprachspezifische Tools und keine Websuche verwendet werden.

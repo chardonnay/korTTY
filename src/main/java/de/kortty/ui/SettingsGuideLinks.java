@@ -35,7 +35,6 @@ final class SettingsGuideLinks {
         LOCATIONS.put(SettingsSection.SNIPPET_EDITOR, SETTINGS + "snippet-editor/index.html");
         LOCATIONS.put(SettingsSection.LANGUAGE, SETTINGS + "language.html");
         LOCATIONS.put(SettingsSection.TRANSLATION, SETTINGS + "translation.html");
-        LOCATIONS.put(SettingsSection.AI, SETTINGS + "ai.html");
     }
 
     private SettingsGuideLinks() {

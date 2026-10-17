@@ -168,7 +168,7 @@ Patterns match the host string exactly as configured in the connection — korTT
        loaded or saved, so a value from before the policy arrived does not survive, and neither does
        a hand-edit of `global-settings.xml`.
     2. **The interface** — the dropdown is locked with the "managed by your organization" hint in
-       both the AI Manager and **Settings → AI**.
+       the AI Manager.
     3. **Every AI request** — korTTY refuses to build a service for a profile whose mode is enabled,
        which closes the window between two clamps. The request fails with a policy message rather
        than quietly answering without the web tool the profile asked for.

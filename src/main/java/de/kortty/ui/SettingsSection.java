@@ -6,7 +6,7 @@ public enum SettingsSection {
     VIDEO("video"), BACKUP("backup"), LOGGING("logging"), EXPORT("export"), UPDATES("updates"),
     WINDOW("window"), KEYBOARD("keyboard"), RESOURCES("resources"), SECURITY("security"),
     PRIVACY("privacy"), SFTP("sftp"), EDITOR("editor"), SNIPPET_EDITOR("snippetEditor"),
-    LANGUAGE("language"), TRANSLATION("translation"), AI("ai");
+    LANGUAGE("language"), TRANSLATION("translation");
 
     private final String key;
     SettingsSection(String key) { this.key = key; }

@@ -4,9 +4,22 @@ title: KI
 
 # KI
 
-Konfigurieren von KI-Profilen und Einstellungen für den Terminal-KI-Agent. Dies ist die umfassendste Einstellungs-Option, die KI-Funktionen, Profil- (mit Modell, API-Endpunkt, Verbindungsmethode und Schlussfolgerungsebene), Token-Quotenverwaltung, Einstellungen für den Snippet-Editor und die Konfiguration des Internetzugangs umfasst. Öffnen Sie sie über **Konfiguration → Globale Einstellungen → KI**; gespeichert in `~/.kortty/global-settings.xml`.
+Jede KI-Einstellung befindet sich an einem Ort: **KI → KI-Manager**. Ihr erster Tab, **Allgemein**, enthält die Optionen, die nicht Teil eines Profils sind (Funktionsschalter, der Terminal-Agent, Vorgaben für Snippet-Aktionen, Internet-Tools) auf vier Abschnitts-Tabs; **Profile** enthält die KI-Profile mit ihrem Modell, ihrer Verbindung, ihren Grenzen und Budget; **Lokale Modelle**, **Wissensspeicher**, **KI-Skills** und **Lokale KI** den Rest. Die Werte werden in `~/.kortty/global-settings.xml` gespeichert. Das Fenster Globale Einstellungen hat keinen KI-Tab mehr.
 
-![AI settings tab](../../assets/screenshots/settings/ai.png)
+![KI-Manager, General tab](../../assets/screenshots/ai/ai-manager-general.png)
+
+## Allgemeiner Tab { #general-tab }
+
+**KI → KI-Manager → Allgemein** gruppiert die globalen Optionen auf vier Abschnittstabellen. **Speichern** unter den Abschnitten schreibt alle; das Schließen des KI-Managers speichert sie ebenfalls.
+
+| Abschnitt | Einstellungen |
+| --- | --- |
+| **Funktionen & Sicherheit** | KI-Funktionen aktivieren, Bestätigung vor dem Senden, KI-Chat-Codeblöcke im Terminal, Agenten-Debug und Laufzeitnachrichten |
+| **Terminal-Agent** | Agenten-Ausführung, Bestätigung vor Änderungen, Setup-Dialog vor jedem Lauf, Befehlsname und Groß-/Kleinschreibung, Aufgabenziel, Eingabeverlaufgröße |
+| **Standards** | Security-Check-Profil, Standardsprache für KI-Text im Code, optionale Anweisungen im Snippet-Editor, Anzahl alternativer Lösungen |
+| **Internetzugang** | Tavily, Bright Data and Brave Search secrets, SearXNG URL, MCP server labels and plugin ids, "bieten Sie Internetrecherche bei jedem Schritt an" |
+
+Die Tabellen unten listen jede Einstellung dieser Abschnitte mit ihrem gespeicherten Schlüssel auf.
 
 ## Kern-Einstellungen
 
@@ -36,7 +49,7 @@ Konfigurieren von KI-Profilen und Einstellungen für den Terminal-KI-Agent. Dies
 
 | Einstellung | Typ | Werte | Standard | Speichert als |
 | --- | --- | --- | --- | --- |
-| Standardprofil | Dropdown-Kontrolle | (Liste der konfigurierten Profile) | — | `defaultAiProfileId` |
+| Standardprofil | check box "Als Standardprofil verwenden" in the Profiles tab | ein Profil ist immer das Standardprofil | das erste Profil | `defaultAiProfileId` |
 | Zeitlimit für KI-Anfragen | Zahl | 0 bis 1440 Minuten | 0 (kein Timeout) | `aiRequestTimeoutMinutes` |
 | Security-Check-Profil | Dropdown-Kontrolle | (Liste der konfigurierten Profile; leer = Standardprofil verwenden) | — | `securityCheckAiProfileId` |
 
@@ -49,7 +62,7 @@ In the KI-Manager the default profile is chosen with the **Use as default profil
 ### Profile Settings (in Editor Sections)
 
 The same fields are edited in **KI > KI-Manager > Profiles**. The editor keeps **Profile name** and **Use as default profile** above four section tabs, and the **Connection** and **Model & capabilities** sections show only the rows that apply to the selected **Connection** mode (the URL and key rows for **HTTP API**, the CLI rows for **Local CLI**, a note for **Integrated llama.cpp** and **Integrated MLX**):
-
+Die Profilfelder werden in **KI > KI-Manager > Profile** bearbeitet. Der Editor behält **Profilname** und **Als Standardprofil verwenden** über den vier Abschnitts-Tabblättern, und die Abschnitte **Verbindung** und **Modell & Fähigkeiten** zeigen nur die Zeilen an, die für den ausgewählten **Verbindungsmodus** gelten (die URL- und Schlüsselzeilen für **HTTP-API**, die CLI-Zeilen für **Lokale CLI**, ein Hinweis für **Integriertes llama.cpp** und **Integrated MLX**).
 ![KI-Manager profiles tab](../../assets/screenshots/ai/ai-profiles.png)
 
 | Section | Fields |
@@ -223,3 +236,4 @@ Die Anmeldeinformationen werden verschlüsselt und sicher gespeichert. Verwenden
 
     Eine Organisation kann den Web-Zugriff vollständig verbieten, indem sie den `allow-internet`-Policy-Schlüssel verwendet — siehe
     [Enterprise-Politik](../enterprise-policy.md).
+

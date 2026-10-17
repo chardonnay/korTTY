@@ -102,7 +102,6 @@ pages:
       - settings/colors.png
       - settings/terminal.png
       - settings/backup.png
-      - settings/ai.png
       - settings/search.png
       - settings/search-hit.png
     last_synced_ref: "19851614"
@@ -202,10 +201,10 @@ pages:
       - settings/video.png
     last_synced_ref: "f8e06604"
   - path: app-docs/site/docs/en/reference/settings/ai.md
-    owns_i18n: [settings.ai.]
-    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/AiReasoningDiscoveryService.java, src/main/java/de/kortty/core/LocalLmModelResolver.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/AnthropicAiService.java, src/main/java/de/kortty/core/AnthropicModelLimits.java, src/main/java/de/kortty/model/AiChatTerminalActions.java]
+    owns_i18n: [settings.ai., ai.manager.general.]
+    owns_code: [src/main/java/de/kortty/core/TerminalAgentService.java, src/main/java/de/kortty/core/AiServiceFactory.java, src/main/java/de/kortty/core/AiReasoningDiscoveryService.java, src/main/java/de/kortty/core/LocalLmModelResolver.java, src/main/java/de/kortty/model/AiProfile.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/ui/AiGeneralSettingsPane.java, src/main/java/de/kortty/core/AnthropicAiService.java, src/main/java/de/kortty/core/AnthropicModelLimits.java, src/main/java/de/kortty/model/AiChatTerminalActions.java]
     screenshots:
-      - settings/ai.png
+      - ai/ai-manager-general.png
       - ai/ai-profiles.png
     last_synced_ref: "0fc5f4e"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
