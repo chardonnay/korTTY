@@ -984,7 +984,7 @@
 </div>
 <h2 id="themes-tab">Themes tab<a class="headerlink" href="#themes-tab" title="Permanent link">&para;</a></h2>
 <p><img alt="Themes settings tab" src="../../assets/screenshots/settings/themes.png" /></p>
-<p>Create, edit, and manage terminal color themes. Themes define the text, background and cursor colors and the styling for all terminal sessions; the 16 ANSI colors and the selection color come from <a href="colors.html">Colors</a>.</p>
+<p>Create, edit, and manage terminal color themes. Themes define the text, background and cursor colors and the styling for all terminal sessions; the 16 ANSI colors and the selection color come from <a href="colors.html">Colors</a>. The theme list sits on the left with its buttons underneath; the rest of the tab is a preview of a terminal screen in the selected theme (see <a href="#theme-preview">Theme preview</a>).</p>
 <h3 id="theme-management">Theme management<a class="headerlink" href="#theme-management" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -1042,7 +1042,7 @@
 <p>Built-in themes can be edited but not deleted, and korTTY does not restore their original colors on its own. To keep the original, duplicate the theme first and edit the custom copy.</p>
 </div>
 <h3 id="theme-preview">Theme preview<a class="headerlink" href="#theme-preview" title="Permanent link">&para;</a></h3>
-<p>A live theme preview displays the theme's colors. The preview shows six swatches — foreground, background and cursor, plus the AI agent panel's background, run and error colors — so you can evaluate a theme before applying it.</p>
+<p>To the right of the list, a mock terminal screen shows what a session looks like in the selected theme: a prompt and an <code>ls --color</code> listing (directories, an executable, a symlink and an archive in their usual colors), a <code>git status</code>, a compiler warning and error, a test summary, a row of all sixteen ANSI colors (normal, then bright) and a second prompt with the cursor in the theme's cursor color and shape (block, underline or bar). Background and text use the theme's colors; the font is the theme's own when <strong>applying a theme also changes font family and size</strong> is on, otherwise the Font tab's. The sixteen ANSI colors are taken from the Colors tab as it is set right now, unsaved changes included, so you can judge a theme and a palette together before saving. Below the mock, three swatches show the AI agent panel's background, run and error colors, which do not appear in a terminal session. The preview updates when you select, add, edit or duplicate a theme.</p>
 <h2 id="cross-tab-integration">Cross-tab integration<a class="headerlink" href="#cross-tab-integration" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Colors tab</strong>: Choose a theme via the "Color Profile" dropdown; if the Themes tab's font option is enabled, the selected theme's font is also applied.</li>
