@@ -1487,9 +1487,16 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         loggingGrid.setPadding(new Insets(20));
         int loggingRow = 0;
 
-        Label loggingHeader = new Label(I18n.get("settings.logging.header"));
-        loggingHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
-        loggingGrid.add(loggingHeader, 0, loggingRow++, 2, 1);
+        loggingGrid.add(sectionHeader("settings.logging.header", "reference/settings/logging.html#application-log"),
+            0, loggingRow++, 2, 1);
+        Label loggingScopeLabel = new Label(I18n.get("settings.logging.scope.info"));
+        loggingScopeLabel.setWrapText(true);
+        loggingScopeLabel.setMaxWidth(640);
+        loggingScopeLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        Hyperlink terminalLoggingLink = docLink("features/terminal.html#terminal-logging");
+        terminalLoggingLink.setText(I18n.get("settings.logging.scope.terminalLink"));
+        VBox loggingScopeBox = new VBox(2, loggingScopeLabel, terminalLoggingLink);
+        loggingGrid.add(loggingScopeBox, 0, loggingRow++, 2, 1);
 
         logDirectoryPathField = new TextField();
         logDirectoryPathField.setPrefWidth(420);
@@ -2043,9 +2050,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         
         int securityRow = 0;
         
-        Label securityHeader = new Label(I18n.get("settings.security.masterPassword"));
-        securityHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
-        securityGrid.add(securityHeader, 0, securityRow++, 2, 1);
+        securityGrid.add(sectionHeader("settings.security.masterPassword", "reference/settings/security.html#master-password"),
+            0, securityRow++, 2, 1);
         
         Label passwordInfoLabel = new Label(I18n.get("settings.security.masterPassword.info"));
         passwordInfoLabel.setWrapText(true);
@@ -2127,8 +2133,15 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         securityGrid.add(skipMasterPasswordPromptCheck, 0, securityRow++, 2, 1);
         securityGrid.add(skipPromptWarningLabel, 0, securityRow++, 2, 1);
 
-        // Temporary SSH key (Connection Manager + Quick Connect)
+        // Temporary SSH key (Connection Manager + Quick Connect): its own section, not a master-password option
         securityGrid.add(new Separator(), 0, securityRow++, 2, 1);
+        securityGrid.add(sectionHeader("settings.security.temporarySshKey.header",
+            "reference/settings/security.html#temporary-ssh-keys"), 0, securityRow++, 2, 1);
+        Label temporarySshKeyInfoLabel = new Label(I18n.get("settings.security.temporarySshKey.info"));
+        temporarySshKeyInfoLabel.setWrapText(true);
+        temporarySshKeyInfoLabel.setMaxWidth(640);
+        temporarySshKeyInfoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        securityGrid.add(temporarySshKeyInfoLabel, 0, securityRow++, 2, 1);
         temporarySshKeyEnabledCheck = new CheckBox(I18n.get("settings.security.temporarySshKeyEnabled"));
         temporarySshKeyEnabledCheck.setSelected(globalSettings != null && globalSettings.isTemporarySshKeyEnabled());
         temporarySshKeyEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.security.temporarySshKeyEnabled.tooltip")));
@@ -2149,9 +2162,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         int privacyRow = 0;
 
-        Label privacyHeader = new Label(I18n.get("settings.telemetry.header"));
-        privacyHeader.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
-        privacyGrid.add(privacyHeader, 0, privacyRow++, 2, 1);
+        privacyGrid.add(sectionHeader("settings.telemetry.header", de.kortty.telemetry.TelemetryEvents.GUIDE_LOCATION),
+            0, privacyRow++, 2, 1);
 
         Label privacySummaryLabel = new Label(I18n.get("settings.telemetry.summary"));
         privacySummaryLabel.setWrapText(true);
@@ -2164,20 +2176,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         de.kortty.policy.PolicyUiSupport.lockIfManaged(
             telemetryEnabledCheck, de.kortty.policy.ManagedSetting.TELEMETRY);
         telemetryEnabledCheck.setTooltip(new Tooltip(I18n.get("settings.telemetry.enable.tooltip")));
-        Button telemetryLearnMoreButton = new Button("?");
-        telemetryLearnMoreButton.setMinWidth(Region.USE_PREF_SIZE);
-        telemetryLearnMoreButton.setTooltip(new Tooltip(I18n.get("settings.telemetry.learnMore.tooltip")));
-        telemetryLearnMoreButton.setOnAction(e -> {
-            try {
-                GuideViewer.show(app, getDialogPane().getScene().getWindow(), de.kortty.telemetry.TelemetryEvents.GUIDE_LOCATION);
-            } catch (RuntimeException ex) {
-                org.slf4j.LoggerFactory.getLogger(getClass())
-                    .warn("Could not open the guide chapter on anonymous data", ex);
-            }
-        });
-        HBox telemetryEnableRow = new HBox(8, telemetryEnabledCheck, telemetryLearnMoreButton);
-        telemetryEnableRow.setAlignment(Pos.CENTER_LEFT);
-        privacyGrid.add(telemetryEnableRow, 0, privacyRow++, 2, 1);
+        privacyGrid.add(telemetryEnabledCheck, 0, privacyRow++, 2, 1);
 
         privacyGrid.add(new Separator(), 0, privacyRow++, 2, 1);
 
@@ -4729,6 +4728,34 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         return guideLink;
     }
 
+    /**
+     * A hyperlink that opens the manual at {@code guideLocation}, placed next to a section header. Carries
+     * {@link SettingsSearchBar#DOC_LINK_STYLE} so the settings search does not list it as an option.
+     */
+    private Hyperlink docLink(String guideLocation) {
+        Hyperlink link = new Hyperlink(I18n.get("docLink.open"));
+        link.getStyleClass().add(SettingsSearchBar.DOC_LINK_STYLE);
+        link.setTooltip(new Tooltip(I18n.get("docLink.open.tooltip")));
+        link.setOnAction(e -> {
+            try {
+                GuideViewer.show(app, getDialogPane().getScene().getWindow(), guideLocation);
+            } catch (RuntimeException ex) {
+                org.slf4j.LoggerFactory.getLogger(getClass()).warn("Could not open the guide at {}", guideLocation, ex);
+            }
+            link.setVisited(false);
+        });
+        return link;
+    }
+
+    /** A bold section header followed by a {@link #docLink(String)} to the manual section that explains it. */
+    private HBox sectionHeader(String labelKey, String guideLocation) {
+        Label header = new Label(I18n.get(labelKey));
+        header.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
+        HBox row = new HBox(10, header, docLink(guideLocation));
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
     /** The search line at the top of the dialog; for tests and smokes. */
     SettingsSearchBar settingsSearch() {
         return settingsSearch;
@@ -4977,8 +5004,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         VBox vbox = new VBox(12);
         vbox.setPadding(new Insets(20));
 
-        Label header = new Label(I18n.get("settings.resources.header"));
-        header.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
+        HBox header = sectionHeader("settings.resources.header", "reference/settings/resources.html");
         Label desc = new Label(I18n.get("settings.resources.description"));
         desc.setWrapText(true);
         desc.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
@@ -5337,9 +5363,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
      * @return the next free row
      */
     private int addIsolationSection(GridPane grid, int row) {
-        Label header = new Label(I18n.get("settings.security.isolation"));
-        header.setStyle("-fx-font-weight: bold; -fx-font-size: 1.0769em;");
-        grid.add(header, 0, row++, 2, 1);
+        grid.add(sectionHeader("settings.security.isolation", "features/session-isolation.html"), 0, row++, 2, 1);
         Label info = new Label(I18n.get("settings.security.isolation.info"));
         info.setWrapText(true);
         info.setMaxWidth(640);

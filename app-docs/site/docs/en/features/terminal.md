@@ -328,7 +328,7 @@ Prevent connections from dropping due to inactivity by configuring SSH keep-aliv
 !!! note
     If a server, firewall, VPN, or NAT gateway closes idle sessions sooner than the configured interval, the connection can still end. In that case, check the server-side SSH configuration and network idle-timeout settings as well as the KorTTY log.
 
-## Terminal logging
+## Terminal logging { #terminal-logging }
 
 Writes a connection's terminal output to a file, for audit and debugging. This is independent of the [Session Journal](session-journal.md): it is a plain transcript with no summaries, markers or screenshots, and the two can run at the same time.
 

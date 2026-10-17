@@ -4,9 +4,14 @@ title: Logging
 
 # Logging
 
-Configure terminal session logging, including where logs are stored and how long they are retained. Open via **Configuration → Global Settings → Logging**; stored in `~/.kortty/global-settings.xml`.
+Configure korTTY's own application log: where it is stored and how long old log files are kept. Open via **Configuration → Global Settings → Logging**; stored in `~/.kortty/global-settings.xml`.
+
+!!! note "Application log, not terminal output"
+    This tab is about `kortty.log`, the file korTTY writes about itself (startup, connections, errors) for support and troubleshooting. It does not record what your terminal sessions print. Terminal output is logged per connection, in **Connection Manager → Terminal Logging** or with the **Terminal log** option of Quick Connect; see [Terminal logging](../../features/terminal.md#terminal-logging). The tab says so at the top and links to that section with **Open in manual**.
 
 ![Logging settings tab](../../assets/screenshots/settings/logging.png)
+
+## Application log { #application-log }
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
