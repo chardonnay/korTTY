@@ -90,7 +90,7 @@ Legen Sie die Schriftart und -größe des Terminals und Editors fest.
 
 ![Themes settings tab](../../assets/screenshots/settings/themes.png)
 
-Erstellen, bearbeiten und verwalten Sie Terminal-Farbschemata. Schemata definieren die Text-, Hintergrund- und Cursorfarben sowie das Styling für alle Terminal-Sitzungen; die 16 ANSI-Farben und die Auswahlfarbe stammen aus [Farben](colors.md).
+Erstellen, bearbeiten und verwalten Sie Terminal-Farbschemas. Die Schemen definieren die Text-, Hintergrund- und Cursorfarben sowie das Styling für alle Terminal-Sitzungen; die 16 ANSI-Farben und die Auswahlfarbe stammen aus [Farben](colors.md). Die Themenliste befindet sich links mit ihren Schaltflächen darunter; der Rest des Tabs ist eine Vorschau eines Terminalbildschirms im ausgewählten Thema (siehe [Theme-Vorschau](#theme-vorschau)).
 
 ### Themenverwaltung
 
@@ -119,7 +119,7 @@ korTTY enthält eine Reihe integrierter Farbthemen (z. B. Standard, Dunkelmodus,
 
 ### Theme-Vorschau
 
-Eine Live-Theme-Vorschau zeigt die Farben des Themes an. Die Vorschau zeigt sechs Farbfelder – Vordergrund, Hintergrund und Cursor sowie die Hintergrund-, Ausführungs- und Fehlerfarben des KI-Agent-Panels – sodass Sie ein Design bewerten können, bevor Sie es anwenden.
+Rechts von der Liste zeigt ein Mock-Terminalbild, wie eine Sitzung im ausgewählten Theme aussieht: ein Prompt und ein `ls --color` Listing (Verzeichnisse, eine ausführbare Datei, ein Symlink und ein Archiv in ihren üblichen Farben), ein `git status`, eine Compiler-Warnung und ein Fehler, eine Testzusammenfassung, eine Reihe aller sechzehn ANSI-Farben (normal, dann hell) und ein zweites Prompt mit dem Cursor in der Cursorfarbe und Form des Themes (Block, Unterstrich oder Balken). Hintergrund und Text verwenden die Farben des Themes; die Schriftart ist die eigene des Themes, wenn **das Anwenden eines Themes ändert auch Schriftfamilie und Größe** aktiviert ist, sonst die des Schriftart-Tab. Die sechzehn ANSI-Farben stammen aus dem Farben-Tab, wie er gerade eingestellt ist, inklusive nicht gespeicherter Änderungen, sodass Sie ein Theme und eine Palette zusammen beurteilen können, bevor Sie speichern. Unter dem Mock zeigen drei Farbproben die Hintergrund-, Lauf- und Fehlerfarben des KI-Agenten-Panels, die in einer Terminal-Sitzung nicht erscheinen. Die Vorschau aktualisiert sich, wenn Sie ein Theme auswählen, hinzufügen, bearbeiten oder duplizieren.
 
 ## Cross-Tab-Integration
 
