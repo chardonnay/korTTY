@@ -814,8 +814,13 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="logging">Logging<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h1>
-<p>Configure terminal session logging, including where logs are stored and how long they are retained. Open via <strong>Configuration → Global Settings → Logging</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Configure korTTY's own application log: where it is stored and how long old log files are kept. Open via <strong>Configuration → Global Settings → Logging</strong>; stored in <code>~/.kortty/global-settings.xml</code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Application log, not terminal output</p>
+<p>This tab is about <code>kortty.log</code>, the file korTTY writes about itself (startup, connections, errors) for support and troubleshooting. It does not record what your terminal sessions print. Terminal output is logged per connection, in <strong>Connection Manager → Terminal Logging</strong> or with the <strong>Terminal log</strong> option of Quick Connect; see <a href="../../features/terminal.html#terminal-logging">Terminal logging</a>. The tab says so at the top and links to that section with <strong>Open in manual</strong>.</p>
+</div>
 <p><img alt="Logging settings tab" src="../../assets/screenshots/settings/logging.png" /></p>
+<h2 id="application-log">Application log<a class="headerlink" href="#application-log" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>

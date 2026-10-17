@@ -34,7 +34,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 | Terminal-Einstellungen | **Globale Terminal-Einstellungen verwenden** oder **Eigene Einstellungen für diese Verbindung** mit verbindungsabhängigen Farben, Schriftart und ANSI/TrueColor-Handhabung (siehe [Eigene Terminaleinstellungen](#eigene-terminaleinstellungen)), dem **Terminal-Verhalten** Abschnitt mit dem [Tab-Farbe](#tab-farbe), der [Schlüsselworthervorhebung](#hervorhebung-von-schlusselwortern) Regelset und das [Einfüge-Schutz](#einfugeschutz), und darunter die Zeilen zur Sitzungs-Isolation mit dem [Isolationsebene, strikter Terminalmodus und Incognito-Schalter](session-isolation.md), Terminal-Effekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
-| Terminal-Logging | Schreibt den Terminal-Ausgang dieser Verbindung in eine Datei – Ordner, Format, tägige Rotation, Kompression und Aufbewahrung. Siehe [Terminal-Logging](terminal.md#terminalprotokollierung). |
+| Terminal-Logging | Schreibt den Terminal-Ausgang dieser Verbindung in eine Datei – Ordner, Format, tägige Rotation, Kompression und Aufbewahrung. Siehe [Terminal-Logging](terminal.md#terminal-logging). |
 | Journal | Pro Verbindung [Sitzungsjournal](session-journal.md): Aktivieren Sie das Journaling für diese Verbindung und konfigurieren Sie das Capture-Log und die KI-Zusammenfassung |
 | Fenstergeometrie | Gespeicherte Größe/Position für diese Verbindung |
 | KI | KI-Standardeinstellungen pro Verbindung: die [KI-Profil](ai-assistant.md) und KI-Skills, die von Terminal-KI-Funktionen auf dieser Verbindung verwendet werden |

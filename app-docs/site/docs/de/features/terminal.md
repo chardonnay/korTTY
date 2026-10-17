@@ -328,7 +328,7 @@ Verhindern Sie, dass Verbindungen aufgrund von Inaktivität unterbrochen werden,
 !!! note
     Wenn ein Server, eine Firewall, ein VPN oder ein NAT-Gateway inaktive Sitzungen früher als im konfigurierten Intervall schließt, kann die Verbindung trotzdem beendet werden. Überprüfen Sie in diesem Fall die serverseitige SSH-Konfiguration und die Netzwerk-Leerlauf-Timeout-Einstellungen sowie das KorTTY-Protokoll.
 
-## Terminalprotokollierung
+## Terminalprotokollierung { #terminal-logging }
 
 Schreibt die Terminalausgabe einer Verbindung zur Prüfung und zum Debuggen in eine Datei. Dies ist unabhängig vom [Session Journal](session-journal.md): Es handelt sich um ein einfaches Transkript ohne Zusammenfassungen, Markierungen oder Screenshots, und beide können gleichzeitig ausgeführt werden.
 

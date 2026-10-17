@@ -400,7 +400,7 @@ Sitzungsjournale – ein eigenständiges Verzeichnis pro Journal (Speicherort ko
 Der Ordner "journals" kann ebenfalls einen `.semantic-index/`-Ordner für semantische Journaleinsuche enthalten, und jeder Journalordner einen abgeleiteten `search-card.json`-Cache. korTTY baut entweder eines neu, wenn es fehlt, und das Löschen eines Journals entfernt dessen Cache ebenfalls.
 
 ### terminal-logs/
-Standardmäßige Zielordner für den [per-Verbindung-Terminal-Log](../features/terminal.md#terminalprotokollierung), wenn das Feld für den Log-Ordner einer Verbindung leer bleibt. Die Dateinamenerstellung, tägige Rotation, Kompression und Aufbewahrung folgen der Logging-Konfiguration der Verbindung.
+Standardmäßige Zielordner für den [per-Verbindung-Terminal-Log](../features/terminal.md#terminal-logging), wenn das Feld für den Log-Ordner einer Verbindung leer bleibt. Die Dateinamenerstellung, tägige Rotation, Kompression und Aufbewahrung folgen der Logging-Konfiguration der Verbindung.
 
 ### plugins/
 Vom Benutzer importierte Terminal-Effekt-Plugin-JARs.

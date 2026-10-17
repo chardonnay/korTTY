@@ -16,11 +16,12 @@ This tab manages password vault security and SSH key authentication options. Ope
 | Enable temporary SSH key option | toggle | — | Off | `temporarySshKeyEnabled` |
 | Default isolation | dropdown | None, Own process, Own process + sandbox | None | `connectionIsolationDefault` |
 
-!!! note "Temporary SSH keys and the temp folder"
-    With this option on, the Connection Manager and Quick Connect offer a temporary SSH key: a private key you paste for the session instead of a key file. For terminal tabs, splits and SFTP, korTTY reads a temporary key in memory and never writes it to a key file; a saved connection keeps the key only encrypted with your master password in `connections.xml`. Scheduled jobs also authenticate in memory, with one exception: because an Rsync job hands the key to the external `ssh`, the JobScheduler writes the temporary key of an Rsync job to an owner-only file in the system temp folder and deletes it when the job's connection closes or fails. Key files that earlier versions left in the temp folder (`kortty_temp_key_*.key`, `kortty_scheduler_key_*.key`) are deleted at the next start, as long as they belong to you and are older than five minutes.
 
-!!! note "Session isolation"
-    **Default isolation:** in the **Session isolation** section is the isolation of every connection that sets none itself and whose folders set none; a connection and a folder can choose their own in the Connection Manager, and the folder levels are stored as `connectionGroupIsolation`. The section says whether this computer has a working sandbox, or why not, and which connection types can be isolated in this version. With an organization minimum the levels below it are not offered and the section names the minimum. See [Session isolation](../../features/session-isolation.md).
+The tab is divided into three sections, each with an **Open in manual** link that opens the matching section below: **Master password**, **Temporary SSH keys** and **Session isolation**.
+
+## Master password { #master-password }
+
+The vault that protects your passwords, SSH key passphrases and API keys is locked with the master password. The three options and the **Change Master Password** button control when korTTY asks for it.
 
 !!! warning "Master password on startup"
     If "Require master password on startup" is disabled, korTTY starts with the vault locked: encrypted passwords and SSH keys cannot be decrypted until you unlock it with **Configuration → Security → Unlock Vault…** or the **Unlock Vault…** button of any "vault locked" message. This is a security risk and should only be disabled if you understand the consequences.
@@ -44,3 +45,15 @@ This tab manages password vault security and SSH key authentication options. Ope
     Opens a dialog asking for the **Current Password**, the **New Password (at least 6 characters)** and a **Confirm New Password** repetition; **Change** applies it. korTTY rejects a wrong current password, a new password under six characters, and a mismatch between the two new entries, each with its own message. On success it reports how many secrets were re-encrypted: every master-password-protected secret is decrypted with the old password and re-encrypted with the new one — connection passwords and key passphrases, jump-server passwords, SSH-key passphrases, stored credentials, AI-profile API keys, AI-skill provider secrets and the other AI/translation keys, and RAG and Job Scheduler secrets — so nothing becomes unreadable after the change.
 
     The new password only takes over once every store has been migrated, so an error part-way through leaves the old password in effect instead of locking you out of half your data. If an individual secret cannot be migrated (for example one that was encrypted with a different password), korTTY leaves that value untouched, reports how many items were affected, and notes them in the log — those secrets keep the old password and must be re-entered manually. With auto-login enabled, the remembered password in `~/.kortty/master.autounlock` is rewritten to the new master password, so automatic unlocking keeps working after the change.
+
+## Temporary SSH keys { #temporary-ssh-keys }
+
+A temporary SSH key is a private key you paste for one session instead of choosing a key file. **Enable temporary SSH key option** shows or hides that choice everywhere; it is independent of the master-password options above.
+
+!!! note "Temporary SSH keys and the temp folder"
+    With this option on, the Connection Manager and Quick Connect offer a temporary SSH key: a private key you paste for the session instead of a key file. For terminal tabs, splits and SFTP, korTTY reads a temporary key in memory and never writes it to a key file; a saved connection keeps the key only encrypted with your master password in `connections.xml`. Scheduled jobs also authenticate in memory, with one exception: because an Rsync job hands the key to the external `ssh`, the JobScheduler writes the temporary key of an Rsync job to an owner-only file in the system temp folder and deletes it when the job's connection closes or fails. Key files that earlier versions left in the temp folder (`kortty_temp_key_*.key`, `kortty_scheduler_key_*.key`) are deleted at the next start, as long as they belong to you and are older than five minutes.
+
+## Session isolation { #session-isolation }
+
+!!! note "Default isolation"
+    **Default isolation:** in the **Session isolation** section is the isolation of every connection that sets none itself and whose folders set none; a connection and a folder can choose their own in the Connection Manager, and the folder levels are stored as `connectionGroupIsolation`. The section says whether this computer has a working sandbox, or why not, and which connection types can be isolated in this version. With an organization minimum the levels below it are not offered and the section names the minimum. See [Session isolation](../../features/session-isolation.md).

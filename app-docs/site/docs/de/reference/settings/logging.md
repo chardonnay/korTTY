@@ -4,9 +4,14 @@ title: Protokollierung
 
 # Protokollierung
 
-Konfigurieren Sie das Protokollieren von Terminal-Sitzungen, einschließlich des Speicherorts der Logs und der Dauer der Aufbewahrung. Öffnen Sie sie über **Konfiguration → Globale Einstellungen → Logs**; gespeichert im `~/.kortty/global-settings.xml`.
+Konfigurieren Sie das eigene Anwendungslog von korTTY: wo es gespeichert wird und wie lange alte Logdateien aufbewahrt werden. Öffnen Sie über **Konfiguration → Globale Einstellungen → Logs**; gespeichert in `~/.kortty/global-settings.xml`.
+
+!!! note "Anwendungsprotokoll, nicht Terminalausgabe"
+    Dieser Tab behandelt `kortty.log`, die Datei, die korTTY über sich selbst schreibt (Start, Verbindungen, Fehler) zur Unterstützung und Fehlersuche. Er zeichnet nicht auf, was Ihre Terminal-Sitzungen ausgeben. Die Terminalausgabe wird pro Verbindung protokolliert, in **Connection-Manager → Terminal Logging** oder mit der Option **Terminalprotokoll** von Schnellverbindung; siehe [Terminalprotokollierung](../../features/terminal.md#terminal-logging). Der Tab gibt dies oben an und verlinkt mit **In der Anleitung öffnen** zu diesem Abschnitt.
 
 ![Logging settings tab](../../assets/screenshots/settings/logging.png)
+
+## Anwendungsprotokoll { #application-log }
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |

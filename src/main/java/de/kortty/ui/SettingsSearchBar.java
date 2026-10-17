@@ -56,6 +56,8 @@ final class SettingsSearchBar {
     static final String HIT_STYLE_CLASS = "settings-search-hit";
     /** Style class of a highlighted input control (field, combo box, spinner). */
     static final String HIT_CONTROL_STYLE_CLASS = "settings-search-hit-control";
+    /** Style class of the "Open in manual" links next to section headers: navigation, not an option. */
+    static final String DOC_LINK_STYLE = "settings-doc-link";
     private static final Duration HIGHLIGHT_DURATION = Duration.seconds(12);
     private static final double RESULTS_WIDTH = 640;
     private static final double RESULTS_MAX_HEIGHT = 380;
@@ -189,6 +191,19 @@ final class SettingsSearchBar {
         return candidates;
     }
 
+    /**
+     * Whether a label-like node names an option. The manual links next to section headers do not: every tab
+     * has one with the same text, and choosing one would open the guide rather than show a setting.
+     */
+    static boolean isIndexable(Labeled labeled) {
+        return isIndexable(labeled.getStyleClass());
+    }
+
+    /** {@link #isIndexable(Labeled)} on a node's style classes; toolkit-free for tests. */
+    static boolean isIndexable(java.util.Collection<String> styleClasses) {
+        return !styleClasses.contains(DOC_LINK_STYLE);
+    }
+
     private static void collect(Node node, Tab section, String context, List<Object> path,
                                 List<SettingsSearchMatcher.Candidate<Target>> into) {
         if (node == null || !node.isVisible()) {
@@ -221,7 +236,9 @@ final class SettingsSearchBar {
                 path.removeLast();
             }
         } else if (node instanceof Labeled labeled) {
-            add(labeled, labeled.getText(), section, context, path, into);
+            if (isIndexable(labeled)) {
+                add(labeled, labeled.getText(), section, context, path, into);
+            }
         } else if (node instanceof Control) {
             // Fields, lists and tables: their text is user data, not an option name.
         } else if (node instanceof Parent parent) {
