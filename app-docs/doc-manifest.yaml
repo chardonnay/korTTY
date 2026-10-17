@@ -97,13 +97,15 @@ pages:
   # file exists, doc-coverage.py reports its settings.* keys as undocumented.
   - path: app-docs/site/docs/en/reference/settings/index.md
     owns_i18n: [settings.preview., settings.nav., settings.tab.]
-    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java]
+    owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/ui/SettingsSearchBar.java, src/main/java/de/kortty/ui/SettingsSearchMatcher.java, src/main/java/de/kortty/ui/SettingsGuideLinks.java]
     screenshots:
       - settings/colors.png
       - settings/terminal.png
       - settings/backup.png
       - settings/ai.png
-    last_synced_ref: "f8e06604"
+      - settings/search.png
+      - settings/search-hit.png
+    last_synced_ref: "19851614"
   - path: app-docs/site/docs/en/reference/settings/appearance.md
     owns_i18n: [settings.appearance., settings.font., theme.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/ThemeManager.java, src/main/java/de/kortty/model/AppDesign.java, src/main/java/de/kortty/ui/AppDesignStyleSupport.java, src/main/java/de/kortty/ui/AppDesignNavigation.java, src/main/java/de/kortty/ui/ChatColorProfileSupport.java, src/main/java/de/kortty/ui/UiFontScaleSupport.java, src/main/java/de/kortty/ui/GuideViewer.java, src/main/java/de/kortty/model/ConnectionSettings.java, src/main/java/de/kortty/model/GlobalSettings.java]

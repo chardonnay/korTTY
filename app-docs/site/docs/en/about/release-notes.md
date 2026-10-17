@@ -25,6 +25,11 @@ What changed in the current release. The version this guide was built for is sho
 - **Local AI in sections** — the **Local AI** tab splits into **Profile roles**, **Local runtime** and **Hugging Face**. See [Text, coding, translation, and embedding roles](../features/local-models.md#text-coding-translation-and-embedding-roles).
 - **Profile setup wizard** — a sidebar shows the stages and the choices already made, a **Quick start** finds LM Studio, Ollama (on this computer, on the hosts you enter under **Other computers on the network**, and on the hosts of existing profiles) and installed command-line tools and offers one-click profiles, connection types and providers are cards, reasoning sits under **Advanced**, and the last step runs the test by itself and shows a summary with **Change** links. See [AI Profile Setup Wizard](../features/ai-assistant.md#ai-profile-setup-wizard).
 
+### Settings
+
+- **Search in the settings** — a search line at the top of **Global Settings** finds a setting on any tab as you type. Choosing a result opens its tab, scrolls to the setting, colours it and focuses its control. See [Searching the settings](../reference/settings/index.md#finding-a-setting).
+- **Manual for each tab** — **Manual for this page** in the settings navigation bar opens the built-in manual at the page for the current tab. See [Manual for each tab](../reference/settings/index.md#manual-for-each-tab).
+
 ### Notifications and AI skills
 
 - **Messaging settings** — desktop notification choices now have a dedicated **Messaging** settings page, including a separate switch for coding-agent messages. Saving applies the choices to open sessions. See [Messaging settings](../reference/settings/messaging.md).

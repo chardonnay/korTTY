@@ -25,6 +25,11 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 - **Local AI in sections** — the **Local AI** tab splits into **Profile roles**, **Local runtime** and **Hugging Face**. See [Text, coding, translation, and embedding roles](../features/local-models.md#text-codierungs-ubersetzungs-und-einbettungsrollen).
 - **Profile setup wizard** — a sidebar shows the stages and the choices already made, a **Quick start** finds LM Studio, Ollama and installed command-line tools and offers one-click profiles, connection types and providers are cards, reasoning sits under **Advanced**, and the last step runs the test by itself and shows a summary with **Change** links. See [AI Profile Setup Wizard](../features/ai-assistant.md#ki-profil-setup-assistent).
 
+### Einstellungen
+
+- **Suche in den Einstellungen** — eine Suchzeile oben in den **Globalen Einstellungen** findet eine Einstellung auf jedem Tab, während Sie tippen. Die Auswahl eines Ergebnisses öffnet dessen Tab, scrollt zur Einstellung, hebt sie hervor und setzt den Fokus auf dessen Steuerelement. Siehe [Einstellungen durchsuchen](../reference/settings/index.md#finding-a-setting).
+- **Anleitung für jeden Tab** — **Anleitung zu dieser Seite** in der Navigationsleiste der Einstellungen öffnet die eingebaute Anleitung auf der Seite des aktuellen Tabs. Siehe [Anleitung für jeden Tab](../reference/settings/index.md#manual-for-each-tab).
+
 ### Benachrichtigungen und KI-Skills
 
 - **Messaging-Einstellungen** — Desktop-Benachrichtigungsoptionen haben jetzt eine eigene **Messaging**-Einstellungsseite, einschließlich eines separaten Schalters für Coding-Agent-Nachrichten. Beim Speichern werden die Einstellungen auf offene Sitzungen angewendet. Siehe [Messaging settings](../reference/settings/messaging.md).

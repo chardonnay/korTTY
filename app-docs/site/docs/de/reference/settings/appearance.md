@@ -6,7 +6,7 @@ title: Aussehen, Themen und Schriftart
 
 Die visuelle Konfiguration von korTTY umfasst drei Registerkarten: **Darstellung** steuert das UI-Design auf App-Ebene, **Schriftart** konfiguriert die Schriftart und -größe des Terminals und **Themen** verwaltet wiederverwendbare Terminal-Farbprofile. Alle Einstellungen bleiben bis `~/.kortty/global-settings.xml` bestehen.
 
-## Registerkarte „Aussehen“.
+## Erscheinungsbild-Tab { #appearance-tab }
 
 ![Appearance settings tab](../../assets/screenshots/settings/appearance.png)
 
@@ -72,7 +72,7 @@ Der Bereich beträgt 70–250 % in 10er-Schritten und ist breiter als die Schnit
 !!! note
     Dies ist unabhängig von der **UI-Schriftgröße** oben, die die Schaltflächen und das Fensterchrom *um* die Anleitung regelt. Wenn die Symbolleiste der Anleitungs zu klein erscheint, müssen Sie diese Einstellung ändern.
 
-## Registerkarte „Schriftart“.
+## Schriftart-Tab { #font-tab }
 
 ![Font settings tab](../../assets/screenshots/settings/font.png)
 
@@ -86,7 +86,7 @@ Legen Sie die Schriftart und -größe des Terminals und Editors fest.
 !!! note
     Auf der Registerkarte „Schriftart“ werden globale Standardeinstellungen für alle neuen Terminalverbindungen festgelegt. Einzelne Verbindungen können diese Werte über ihre eigenen Verbindungseinstellungen überschreiben. Während Sie die Steuerelemente anpassen, wird eine Live-Vorschau angezeigt.
 
-## Registerkarte „Themen“.
+## Designs-Tab { #themes-tab }
 
 ![Themes settings tab](../../assets/screenshots/settings/themes.png)
 
