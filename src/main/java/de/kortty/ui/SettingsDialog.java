@@ -4910,13 +4910,27 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         Label previewHeader = new Label(I18n.get("theme.preview"));
         previewHeader.setStyle("-fx-font-weight: bold;");
-        Label previewSample = new Label(I18n.get("theme.previewSample"));
+        // The mock terminal: the theme's colours, font and cursor on a sample session, with the ANSI
+        // colours as the Colors tab currently shows them (unsaved picker changes included).
+        TerminalThemePreview preview = new TerminalThemePreview(this::previewPalette);
         HBox previewSwatches = new HBox(6);
-        VBox previewBox = new VBox(8, previewSample, previewSwatches);
-        previewBox.setPadding(new Insets(10));
-        previewBox.setStyle("-fx-background-color: #1E1E1E; -fx-background-radius: 6;");
-        vbox.getChildren().addAll(previewHeader, previewBox);
-        
+        previewSwatches.setAlignment(Pos.CENTER_LEFT);
+        VBox previewColumn = new VBox(8, previewHeader, preview, previewSwatches);
+        VBox.setVgrow(preview, javafx.scene.layout.Priority.ALWAYS);
+        HBox.setHgrow(previewColumn, javafx.scene.layout.Priority.ALWAYS);
+        Runnable repaintPreview = () -> {
+            Theme current = selectedThemeForPreview;
+            preview.setTheme(current, previewFont(current));
+            updateAgentSwatches(current, previewSwatches);
+        };
+        themePreviewRefresher = repaintPreview;
+        applyThemeFontsProperty.addListener((obs, was, is) -> repaintPreview.run());
+        tab.selectedProperty().addListener((obs, was, shown) -> {
+            if (shown) {
+                repaintPreview.run();
+            }
+        });
+
         ListView<Theme> themeList = new ListView<>();
         themeList.getItems().addAll(themeManager.getThemes());
         themeList.setCellFactory(lv -> new ListCell<>() {
@@ -4931,6 +4945,9 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
         themeList.setPrefHeight(260);
+        themeList.setPrefWidth(240);
+        themeList.setMinWidth(220);
+        themeList.setMaxWidth(260);
         final boolean[] initializingThemeSelection = {true};
         VBox.setVgrow(themeList, javafx.scene.layout.Priority.ALWAYS);
         themeList.getSelectionModel().selectedItemProperty().addListener((obs, oldTheme, newTheme) -> {
@@ -4940,7 +4957,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
                     applyThemeCursorStyleToCurrentSettings(newTheme);
                 }
             }
-            updateThemePreview(newTheme, previewBox, previewSample, previewSwatches);
+            selectedThemeForPreview = newTheme;
+            repaintPreview.run();
         });
 
         if (selectedGlobalThemeId != null && !selectedGlobalThemeId.isEmpty()) {
@@ -4951,9 +4969,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             themeList.getSelectionModel().selectFirst();
         }
         initializingThemeSelection[0] = false;
-        updateThemePreview(themeList.getSelectionModel().getSelectedItem(), previewBox, previewSample, previewSwatches);
-        
-        HBox buttons = new HBox(10);
+        selectedThemeForPreview = themeList.getSelectionModel().getSelectedItem();
+        repaintPreview.run();
+
+        VBox buttons = new VBox(6);
+        buttons.setFillWidth(true);
         Button addBtn = new Button(I18n.get("theme.add"));
         Button editBtn = new Button(I18n.get("theme.edit"));
         Button duplicateBtn = new Button(I18n.get("theme.duplicate"));
@@ -5027,11 +5047,51 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             }
         });
         
+        for (Button button : List.of(addBtn, editBtn, duplicateBtn, deleteBtn)) {
+            button.setMaxWidth(Double.MAX_VALUE);
+        }
         buttons.getChildren().addAll(addBtn, editBtn, duplicateBtn, deleteBtn);
-        vbox.getChildren().addAll(themeList, buttons);
-        
+        VBox listColumn = new VBox(8, themeList, buttons);
+        listColumn.setPrefWidth(240);
+        listColumn.setMinWidth(220);
+        listColumn.setMaxWidth(260);
+        HBox columns = new HBox(16, listColumn, previewColumn);
+        VBox.setVgrow(columns, javafx.scene.layout.Priority.ALWAYS);
+        vbox.getChildren().add(columns);
+
         LazyTabContent.defer(tab, vbox);
         return tab;
+    }
+
+    /** The theme the Themes tab shows in its preview; kept so edits and tab switches can repaint it. */
+    private Theme selectedThemeForPreview;
+    /** Repaints the Themes tab's preview; set once the tab is built, called after list refreshes. */
+    private Runnable themePreviewRefresher;
+
+    /**
+     * The ANSI colours for the theme preview: the Colors tab's pickers when they exist (so an unsaved
+     * change shows up immediately), else the stored default terminal settings.
+     */
+    private TerminalPreviewModel.Palette previewPalette() {
+        ConnectionSettings stored = globalSettings != null ? globalSettings.getDefaultTerminalSettings() : null;
+        TerminalPreviewModel.Palette fromSettings = TerminalPreviewModel.palette(stored);
+        return (index, bright) -> {
+            ColorPicker[] pickers = bright ? ansiBrightPickers : ansiNormalPickers;
+            if (index >= 0 && index < pickers.length && pickers[index] != null && pickers[index].getValue() != null) {
+                return toHex(pickers[index].getValue());
+            }
+            return fromSettings.apply(index, bright);
+        };
+    }
+
+    /** The font the terminal would use with {@code theme}: the theme's own when themes carry fonts, else the Font tab's. */
+    private Font previewFont(Theme theme) {
+        if (theme != null && applyThemeFontsProperty.get()) {
+            return Font.font(theme.getFontFamily(), Math.max(8, theme.getFontSize()));
+        }
+        String family = fontFamilyCombo != null && fontFamilyCombo.getValue() != null ? fontFamilyCombo.getValue() : "Monospaced";
+        int size = fontSizeSpinner != null && fontSizeSpinner.getValue() != null ? fontSizeSpinner.getValue() : 13;
+        return Font.font(family, Math.max(8, size));
     }
 
     /**
@@ -5227,16 +5287,23 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             return;
         }
         themeList.getItems().setAll(themeManager.getThemes());
+        Theme selected = null;
         if (selectedThemeId != null && !selectedThemeId.isBlank()) {
             for (Theme theme : themeList.getItems()) {
                 if (selectedThemeId.equals(theme.getId())) {
-                    themeList.getSelectionModel().select(theme);
-                    return;
+                    selected = theme;
+                    break;
                 }
             }
         }
-        if (!themeList.getItems().isEmpty()) {
-            themeList.getSelectionModel().selectFirst();
+        if (selected == null && !themeList.getItems().isEmpty()) {
+            selected = themeList.getItems().getFirst();
+        }
+        themeList.getSelectionModel().select(selected);
+        // An edited theme keeps its identity, so the selection listener does not fire: repaint explicitly.
+        selectedThemeForPreview = selected;
+        if (themePreviewRefresher != null) {
+            themePreviewRefresher.run();
         }
     }
 
@@ -5329,34 +5396,22 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         return display;
     }
 
-    private void updateThemePreview(Theme theme, VBox previewBox, Label previewSample, HBox previewSwatches) {
+    /**
+     * The legend under the mock terminal: the AI agent panel's colours, which the sample session
+     * cannot show. Foreground, background and cursor are visible in the mock itself.
+     */
+    private void updateAgentSwatches(Theme theme, HBox previewSwatches) {
+        previewSwatches.getChildren().clear();
         if (theme == null) {
-            previewSample.setText(I18n.get("theme.previewSample"));
-            previewSample.setStyle("-fx-text-fill: #CCCCCC;");
-            previewBox.setStyle("-fx-background-color: #1E1E1E; -fx-background-radius: 6;");
-            previewSwatches.getChildren().clear();
             return;
         }
-
-        previewSample.setText("AaBbCcDdEe 0123456789  " + theme.getName());
-        previewSample.setFont(Font.font(theme.getFontFamily(), Math.max(10, theme.getFontSize())));
-        previewSample.setStyle("-fx-text-fill: " + theme.getForegroundColor() + ";");
-        previewBox.setStyle("-fx-background-color: " + theme.getBackgroundColor() + "; -fx-background-radius: 6;");
-
-        previewSwatches.getChildren().clear();
-        Label fg = new Label("FG");
-        fg.setStyle("-fx-text-fill: " + theme.getBackgroundColor() + "; -fx-background-color: " + theme.getForegroundColor() + "; -fx-padding: 2 8 2 8; -fx-background-radius: 4;");
-        Label bg = new Label("BG");
-        bg.setStyle("-fx-text-fill: " + theme.getForegroundColor() + "; -fx-background-color: " + theme.getBackgroundColor() + "; -fx-padding: 2 8 2 8; -fx-border-color: " + theme.getForegroundColor() + "; -fx-border-radius: 4; -fx-background-radius: 4;");
-        Label cursor = new Label("CURSOR");
-        cursor.setStyle("-fx-text-fill: " + theme.getBackgroundColor() + "; -fx-background-color: " + theme.getCursorColor() + "; -fx-padding: 2 8 2 8; -fx-background-radius: 4;");
         Label agentBg = new Label(I18n.get("settings.preview.aiBg"));
         agentBg.setStyle("-fx-text-fill: " + theme.getAgentPanelTextColor() + "; -fx-background-color: " + theme.getAgentPanelBackgroundColor() + "; -fx-padding: 2 8 2 8; -fx-border-color: " + theme.getAgentPanelBorderColor() + "; -fx-border-radius: 4; -fx-background-radius: 4;");
         Label agentAccent = new Label(I18n.get("settings.preview.aiRun"));
         agentAccent.setStyle("-fx-text-fill: " + theme.getAgentPanelBackgroundColor() + "; -fx-background-color: " + theme.getAgentPanelAccentColor() + "; -fx-padding: 2 8 2 8; -fx-background-radius: 4;");
         Label agentError = new Label(I18n.get("settings.preview.aiErr"));
         agentError.setStyle("-fx-text-fill: " + theme.getAgentPanelTextColor() + "; -fx-background-color: " + theme.getAgentPanelErrorColor() + "; -fx-padding: 2 8 2 8; -fx-background-radius: 4;");
-        previewSwatches.getChildren().addAll(fg, bg, cursor, agentBg, agentAccent, agentError);
+        previewSwatches.getChildren().addAll(agentBg, agentAccent, agentError);
     }
     
     private String toHex(Color color) {

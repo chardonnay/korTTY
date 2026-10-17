@@ -90,7 +90,7 @@ Set the terminal and editor typeface and size.
 
 ![Themes settings tab](../../assets/screenshots/settings/themes.png)
 
-Create, edit, and manage terminal color themes. Themes define the text, background and cursor colors and the styling for all terminal sessions; the 16 ANSI colors and the selection color come from [Colors](colors.md).
+Create, edit, and manage terminal color themes. Themes define the text, background and cursor colors and the styling for all terminal sessions; the 16 ANSI colors and the selection color come from [Colors](colors.md). The theme list sits on the left with its buttons underneath; the rest of the tab is a preview of a terminal screen in the selected theme (see [Theme preview](#theme-preview)).
 
 ### Theme management
 
@@ -119,7 +119,7 @@ korTTY includes a set of built-in color themes (e.g., Default, Dark Mode, Solari
 
 ### Theme preview
 
-A live theme preview displays the theme's colors. The preview shows six swatches — foreground, background and cursor, plus the AI agent panel's background, run and error colors — so you can evaluate a theme before applying it.
+To the right of the list, a mock terminal screen shows what a session looks like in the selected theme: a prompt and an `ls --color` listing (directories, an executable, a symlink and an archive in their usual colors), a `git status`, a compiler warning and error, a test summary, a row of all sixteen ANSI colors (normal, then bright) and a second prompt with the cursor in the theme's cursor color and shape (block, underline or bar). Background and text use the theme's colors; the font is the theme's own when **applying a theme also changes font family and size** is on, otherwise the Font tab's. The sixteen ANSI colors are taken from the Colors tab as it is set right now, unsaved changes included, so you can judge a theme and a palette together before saving. Below the mock, three swatches show the AI agent panel's background, run and error colors, which do not appear in a terminal session. The preview updates when you select, add, edit or duplicate a theme.
 
 ## Cross-tab integration
 
