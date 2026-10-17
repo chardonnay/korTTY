@@ -814,8 +814,13 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="protokollierung">Protokollierung<a class="headerlink" href="#protokollierung" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie das Protokollieren von Terminal-Sitzungen, einschließlich des Speicherorts der Logs und der Dauer der Aufbewahrung. Öffnen Sie sie über <strong>Konfiguration → Globale Einstellungen → Logs</strong>; gespeichert im <code>~/.kortty/global-settings.xml</code>.</p>
+<p>Konfigurieren Sie das eigene Anwendungslog von korTTY: wo es gespeichert wird und wie lange alte Logdateien aufbewahrt werden. Öffnen Sie über <strong>Konfiguration → Globale Einstellungen → Logs</strong>; gespeichert in <code>~/.kortty/global-settings.xml</code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Anwendungsprotokoll, nicht Terminalausgabe</p>
+<p>Dieser Tab behandelt <code>kortty.log</code>, die Datei, die korTTY über sich selbst schreibt (Start, Verbindungen, Fehler) zur Unterstützung und Fehlersuche. Er zeichnet nicht auf, was Ihre Terminal-Sitzungen ausgeben. Die Terminalausgabe wird pro Verbindung protokolliert, in <strong>Connection-Manager → Terminal Logging</strong> oder mit der Option <strong>Terminalprotokoll</strong> von Schnellverbindung; siehe <a href="../../features/terminal.html#terminal-logging">Terminalprotokollierung</a>. Der Tab gibt dies oben an und verlinkt mit <strong>In der Anleitung öffnen</strong> zu diesem Abschnitt.</p>
+</div>
 <p><img alt="Logging settings tab" src="../../../en/assets/screenshots/settings/logging.png" /></p>
+<h2 id="application-log">Anwendungsprotokoll<a class="headerlink" href="#application-log" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>

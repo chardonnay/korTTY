@@ -864,14 +864,9 @@
 </tr>
 </tbody>
 </table>
-<div class="admonition note">
-<p class="admonition-title">Temporary SSH keys and the temp folder</p>
-<p>With this option on, the Connection Manager and Quick Connect offer a temporary SSH key: a private key you paste for the session instead of a key file. For terminal tabs, splits and SFTP, korTTY reads a temporary key in memory and never writes it to a key file; a saved connection keeps the key only encrypted with your master password in <code>connections.xml</code>. Scheduled jobs also authenticate in memory, with one exception: because an Rsync job hands the key to the external <code>ssh</code>, the JobScheduler writes the temporary key of an Rsync job to an owner-only file in the system temp folder and deletes it when the job's connection closes or fails. Key files that earlier versions left in the temp folder (<code>kortty_temp_key_*.key</code>, <code>kortty_scheduler_key_*.key</code>) are deleted at the next start, as long as they belong to you and are older than five minutes.</p>
-</div>
-<div class="admonition note">
-<p class="admonition-title">Session isolation</p>
-<p><strong>Default isolation:</strong> in the <strong>Session isolation</strong> section is the isolation of every connection that sets none itself and whose folders set none; a connection and a folder can choose their own in the Connection Manager, and the folder levels are stored as <code>connectionGroupIsolation</code>. The section says whether this computer has a working sandbox, or why not, and which connection types can be isolated in this version. With an organization minimum the levels below it are not offered and the section names the minimum. See <a href="../../features/session-isolation.html">Session isolation</a>.</p>
-</div>
+<p>The tab is divided into three sections, each with an <strong>Open in manual</strong> link that opens the matching section below: <strong>Master password</strong>, <strong>Temporary SSH keys</strong> and <strong>Session isolation</strong>.</p>
+<h2 id="master-password">Master password<a class="headerlink" href="#master-password" title="Permanent link">&para;</a></h2>
+<p>The vault that protects your passwords, SSH key passphrases and API keys is locked with the master password. The three options and the <strong>Change Master Password</strong> button control when korTTY asks for it.</p>
 <div class="admonition warning">
 <p class="admonition-title">Master password on startup</p>
 <p>If "Require master password on startup" is disabled, korTTY starts with the vault locked: encrypted passwords and SSH keys cannot be decrypted until you unlock it with <strong>Configuration → Security → Unlock Vault…</strong> or the <strong>Unlock Vault…</strong> button of any "vault locked" message. This is a security risk and should only be disabled if you understand the consequences.</p>
@@ -894,6 +889,17 @@
 <p class="admonition-title">Change Master Password button</p>
 <p>Opens a dialog asking for the <strong>Current Password</strong>, the <strong>New Password (at least 6 characters)</strong> and a <strong>Confirm New Password</strong> repetition; <strong>Change</strong> applies it. korTTY rejects a wrong current password, a new password under six characters, and a mismatch between the two new entries, each with its own message. On success it reports how many secrets were re-encrypted: every master-password-protected secret is decrypted with the old password and re-encrypted with the new one — connection passwords and key passphrases, jump-server passwords, SSH-key passphrases, stored credentials, AI-profile API keys, AI-skill provider secrets and the other AI/translation keys, and RAG and Job Scheduler secrets — so nothing becomes unreadable after the change.</p>
 <p>The new password only takes over once every store has been migrated, so an error part-way through leaves the old password in effect instead of locking you out of half your data. If an individual secret cannot be migrated (for example one that was encrypted with a different password), korTTY leaves that value untouched, reports how many items were affected, and notes them in the log — those secrets keep the old password and must be re-entered manually. With auto-login enabled, the remembered password in <code>~/.kortty/master.autounlock</code> is rewritten to the new master password, so automatic unlocking keeps working after the change.</p>
+</div>
+<h2 id="temporary-ssh-keys">Temporary SSH keys<a class="headerlink" href="#temporary-ssh-keys" title="Permanent link">&para;</a></h2>
+<p>A temporary SSH key is a private key you paste for one session instead of choosing a key file. <strong>Enable temporary SSH key option</strong> shows or hides that choice everywhere; it is independent of the master-password options above.</p>
+<div class="admonition note">
+<p class="admonition-title">Temporary SSH keys and the temp folder</p>
+<p>With this option on, the Connection Manager and Quick Connect offer a temporary SSH key: a private key you paste for the session instead of a key file. For terminal tabs, splits and SFTP, korTTY reads a temporary key in memory and never writes it to a key file; a saved connection keeps the key only encrypted with your master password in <code>connections.xml</code>. Scheduled jobs also authenticate in memory, with one exception: because an Rsync job hands the key to the external <code>ssh</code>, the JobScheduler writes the temporary key of an Rsync job to an owner-only file in the system temp folder and deletes it when the job's connection closes or fails. Key files that earlier versions left in the temp folder (<code>kortty_temp_key_*.key</code>, <code>kortty_scheduler_key_*.key</code>) are deleted at the next start, as long as they belong to you and are older than five minutes.</p>
+</div>
+<h2 id="session-isolation">Session isolation<a class="headerlink" href="#session-isolation" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Default isolation</p>
+<p><strong>Default isolation:</strong> in the <strong>Session isolation</strong> section is the isolation of every connection that sets none itself and whose folders set none; a connection and a folder can choose their own in the Connection Manager, and the folder levels are stored as <code>connectionGroupIsolation</code>. The section says whether this computer has a working sandbox, or why not, and which connection types can be isolated in this version. With an organization minimum the levels below it are not offered and the section names the minimum. See <a href="../../features/session-isolation.html">Session isolation</a>.</p>
 </div></p>
     </article>
 </section>
