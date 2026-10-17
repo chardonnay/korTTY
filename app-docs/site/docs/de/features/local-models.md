@@ -9,7 +9,7 @@ korTTY kann lokale Sprachmodelle direkt über integrierte, modellspezifische Sid
 Öffnen Sie **KI > KI-Manager** und verwenden Sie diese Registerkarten:
 
 - **Local Models** installiert, importiert, konfiguriert, startet, stoppt und entfernt lokale Modellregistrierungen (GGUF überall, zusätzlich MLX auf Apple Silicon).
-- **Local AI** assigns profiles to the Text/translation and Coding roles and to the session journal's AI summaries (**Profile roles**), selects the RAG embedding model and records the llama.cpp runtime-update policy and preferred backend (**Local runtime**), and stores an optional Hugging Face token (**Hugging Face**).
+- **Lokale KI** weist Profile den Text/Übersetzungs- und Codierungsrollen sowie den KI-Zusammenfassungen des Sitzungsjournals (**Profil-Rollen**) zu, wählt das RAG-Embedding-Modell aus und protokolliert die llama.cpp Laufzeit-Update-Politik sowie den bevorzugten Backend (**Lokale Laufzeit**), und speichert optional einen Hugging Face token (**Hugging Face**).
 - **Profiles** erstellt ein **Integrated llama.cpp**- oder **Integrated MLX (Apple Silicon)**-Profil für ein installiertes Modell und steuert dessen Prompt-Optimierungsvoreinstellung.
 
 Jede Aktionsschaltfläche auf der Registerkarte trägt ein entsprechendes Symbol (Installieren, Assistent, Importieren, Konfigurieren, Als Standard festlegen, Starten, Stoppen, Entfernen, Aktualisieren, Suchen, Weitere laden, Herunterladen, Anhalten, Abbrechen), und die Pausensteuerung wechselt während eines Downloads zwischen den Symbolen „Pause“ und „Fortsetzen“.
@@ -135,7 +135,7 @@ In **KI-Manager > Local AI > Profile roles**, choose separate profiles for **Tex
 
 Die Profilauflösung folgt der spezifischsten verfügbaren Auswahl: einem explizit ausgewählten Profil, dann ggf. einem sicherheitsspezifischen Profil oder Verbindungsprofil, dann der Text-/Codierungsrolle und dann dem Standardprofil. Der gleiche Rollenmechanismus funktioniert mit eingebetteten, Remote-HTTP- oder lokalen CLI-Profilen; Eine Rolle erzwingt kein lokales Modell.
 
-Für die dynamische UI-Übersetzung kann **Lokales KI-Textprofil** unter **Konfiguration > Globale Einstellungen > Übersetzung** verwendet werden. Dieser Pfad sendet die Übersetzungsanforderung an das zugewiesene eingebettete Textprofil und erfordert keinen Übersetzungsanbieter-API-Schlüssel.
+Dynamic UI translation can use a translation profile of the kind **KI-Übersetzung** unter **Konfiguration > Globale Einstellungen > Übersetzung**. Mit seinem KI-Profil auf *Standard* belassen, sendet dieser Pfad die Übersetzungsanfrage an das zugewiesene eingebettete Textprofil und erfordert keinen API-Schlüssel eines Übersetzungsanbieters.
 
 Die **RAG-Einbettungsmodell-ID** identifiziert das installierte lokale Modell, das zur Vektorisierung von Wissensspeicherdokumenten und -suchen verwendet wird. Verwenden Sie ein dediziertes Einbettungs-GGUF anstelle eines Chat-Modells, es sei denn, dieses Modell unterstützt explizit die Einbettungsroute und die konfigurierten Vektordimensionen.
 

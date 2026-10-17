@@ -135,7 +135,7 @@ In **AI Manager > Local AI > Profile roles**, choose separate profiles for **Tex
 
 Profile resolution follows the most specific available choice: an explicitly selected profile, then a security-specific profile or connection profile where applicable, then the Text/Coding role, then the default profile. The same role mechanism works with embedded, remote HTTP, or local CLI profiles; a role does not force a local model.
 
-Dynamic UI translation can use **Local AI text profile** under **Configuration > Global Settings > Translation**. This path sends the translation request to the assigned embedded Text profile and does not require a translation-provider API key.
+Dynamic UI translation can use a translation profile of the kind **AI translation** under **Configuration > Global Settings > Translation**. With its AI profile left on *Default*, this path sends the translation request to the assigned embedded Text profile and does not require a translation-provider API key.
 
 The **RAG embedding model ID** identifies the installed local model used to vectorize knowledge-store documents and searches. Use a dedicated embedding GGUF rather than a chat model unless that model explicitly supports the embeddings route and the configured vector dimensions.
 

@@ -32,9 +32,6 @@ class GuideTranslationI18nCoverageTest {
         "/i18n/messages_pt.properties");
 
     private static final List<String> REQUIRED_KEYS = List.of(
-        "settings.translation.guide.section",
-        "settings.translation.guide.hint",
-        "settings.translation.guide.generate",
         "settings.translation.guide.cancel",
         "settings.translation.guide.generated",
         "settings.translation.guide.progress",
@@ -44,12 +41,8 @@ class GuideTranslationI18nCoverageTest {
         "settings.translation.guide.deleteTitle",
         "settings.translation.guide.deleteConfirm",
         "settings.translation.guide.estimate",
-        "settings.translation.guide.estimateRunning",
-        "settings.translation.guide.estimateResult",
         "settings.translation.guide.estimateComplete",
         "settings.translation.guide.estimateFailed",
-        "settings.translation.guide.profile",
-        "settings.translation.guide.profileDefault",
         "settings.translation.guide.alreadyRunning",
         "guide.translation.indicator.tooltip",
         "guide.translation.quit.title",
@@ -62,13 +55,38 @@ class GuideTranslationI18nCoverageTest {
         "guide.translation.outdated.message",
         "guide.translation.outdated.update",
         "guide.translation.outdated.later",
-        "settings.translation.guide.error.profile",
-        "settings.translation.guide.error.provider",
         "settings.translation.guide.error.noLocalProfile",
         "settings.translation.guide.reasoning.title",
         "settings.translation.guide.reasoning.header",
         "settings.translation.guide.reasoning.message",
-        "settings.translation.guide.reasoning.continue");
+        "settings.translation.guide.reasoning.continue",
+        "settings.translation.run.title",
+        "settings.translation.run.scope.ui",
+        "settings.translation.run.scope.guide",
+        "settings.translation.run.profile",
+        "settings.translation.run.start",
+        "settings.translation.run.pause",
+        "settings.translation.run.resume",
+        "settings.translation.run.pausedNote",
+        "settings.translation.run.progressEta",
+        "settings.translation.run.phase.ui",
+        "settings.translation.run.phase.guide",
+        "settings.translation.run.cancelled",
+        "settings.translation.run.estimate.ui",
+        "settings.translation.run.estimate.guide",
+        "settings.translation.run.estimate.cost",
+        "settings.translation.run.indicator.ui",
+        "settings.translation.run.indicator.guide",
+        "settings.translation.run.indicator.paused",
+        "settings.translation.profiles.header",
+        "settings.translation.profiles.useAsDefault",
+        "settings.translation.profiles.defaultRequired",
+        "settings.translation.profiles.setup",
+        "settings.translation.profiles.manageAiProfiles",
+        "settings.translation.wizard.title",
+        "settings.translation.wizard.kind.api",
+        "settings.translation.wizard.kind.ai",
+        "settings.translation.wizard.test.skip");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{(\\d+)}");
 
@@ -126,7 +144,7 @@ class GuideTranslationI18nCoverageTest {
             assertWithMessage(key).that(value).doesNotContain("Handbuch");
             assertWithMessage(key).that(value).doesNotContain("Leitfaden");
         }
-        assertThat(german.getProperty("settings.translation.guide.section")).contains("Anleitung");
+        assertThat(german.getProperty("settings.translation.run.scope.guide")).contains("Anleitung");
     }
 
     private static String placeholders(String value) {
