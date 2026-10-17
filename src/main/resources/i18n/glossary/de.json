@@ -2117,6 +2117,36 @@
       "from": "Master-Password",
       "to": "Master-Passwort",
       "note": "UI and guide term is Master-Passwort (settings.security.masterPassword)."
+    },
+    {
+      "from": "Masterpasswörter",
+      "to": "Master-Passwörter",
+      "scope": "markdown",
+      "note": "Settings → Backup labels: settings.backup.auto.interval is 'Rhythmus', the vault term is Master-Passwort."
+    },
+    {
+      "from": "Masterpasswort",
+      "to": "Master-Passwort",
+      "scope": "markdown",
+      "note": "Settings → Backup labels: settings.backup.auto.interval is 'Rhythmus', the vault term is Master-Passwort."
+    },
+    {
+      "from": "**Planen**",
+      "to": "**Rhythmus**",
+      "scope": "markdown",
+      "note": "Settings → Backup labels: settings.backup.auto.interval is 'Rhythmus', the vault term is Master-Passwort."
+    },
+    {
+      "from": "| Planen |",
+      "to": "| Rhythmus |",
+      "scope": "markdown",
+      "note": "Settings → Backup labels: settings.backup.auto.interval is 'Rhythmus', the vault term is Master-Passwort."
+    },
+    {
+      "from": "**Der letzte automatische Backup fehlgeschlagen**",
+      "to": "**Die letzte automatische Sicherung ist fehlgeschlagen**",
+      "scope": "markdown",
+      "note": "The LLM drops the auxiliary verb; matches settings.backup.auto.status.lastError."
     }
   ]
 }

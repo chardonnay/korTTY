@@ -49,6 +49,10 @@ Das Backup umfasst:
 | Wissensspeicherkonfiguration | Speichermetadaten und Quellpfade, Filter, Synchronisierungsmodi und Einbettungskonfiguration; nicht die HNSW-Vektoren |
 | Projekte | Alle `.kortty` Projektarbeitsbereichsdateien |
 
+## Automatische Sicherung
+
+Statt sich daran zu erinnern, **Backup erstellen** auszuführen, lässt korTTY das für Sie erledigen: in **Konfiguration → Globale Einstellungen → Sicherung → Automatische Sicherung** wählen Sie einen Zeitplan (täglich, wöchentlich oder monatlich) und ein vorhandenes Verzeichnis, z. B. auf einem Netzlaufwerk. korTTY schreibt dort dann automatisch die gleiche verschlüsselte Sicherung, prüft zwei Minuten nach jedem Start und anschließend stündlich, ob eine Sicherung fällig ist, und holt fehlende Sicherungen nach, die während der Schließzeit verpasst wurden. Die Einstellungsseite beschreibt die Statuszeile und die Bedingungen, unter denen ein Lauf übersprungen wird: [Automatische Sicherung](../reference/settings/backup.md#automatic-backup).
+
 ## Backup-Verschlüsselung
 
 ### Passwortgeschützte ZIP-Datei (Standard)

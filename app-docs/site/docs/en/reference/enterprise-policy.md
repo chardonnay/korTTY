@@ -215,6 +215,22 @@ groups = ["compliance"]
 | `enabled` | boolean | `false` | Disables the automatic update check and the manual check in the About dialog |
 | `feed-url` | string | http(s) URL | Update checks query this endpoint instead of GitHub; it must return the same JSON shape as the GitHub `releases/latest` API (`tag_name`, `assets[]` with `name` and `browser_download_url`) |
 
+### `[rule.backup]`
+
+Sets and locks the [automatic backup](settings/backup.md#automatic-backup) in *Settings → Backup*. Each key forces the matching setting; the user sees it with the "managed by your organization" hint. The backup itself keeps the user's encryption mode and credential or GPG key, and it is never written unencrypted.
+
+| Key | Type | Values | Effect |
+| --- | --- | --- | --- |
+| `auto-interval` | string | `off`, `daily`, `weekly`, `monthly` | Forces the schedule; `off` switches the automatic backup off for the user. When several same-tier rules set it, the stricter value wins: `off`, then the more frequent interval |
+| `auto-directory` | string | absolute or `~/`-relative path | Forces the folder the automatic backup is written to. The folder must exist on the user's machine; korTTY does not create it and reports a missing folder in the status line and the log. On a same-tier tie the lexicographically smallest path wins |
+
+```toml
+[[rule]]
+  [rule.backup]
+  auto-interval = "daily"
+  auto-directory = "~/Backups/korTTY"
+```
+
 ### `[rule.terminal]`
 
 | Key | Type | Values | Effect |

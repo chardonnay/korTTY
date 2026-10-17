@@ -29,6 +29,10 @@ public enum ManagedSetting {
      */
     CLIPBOARD,
     LOGGING,
+    /** The automatic backup's interval in Settings → Backup ({@code [rule.backup] auto-interval}). */
+    AUTO_BACKUP_SCHEDULE,
+    /** The automatic backup's folder in Settings → Backup ({@code [rule.backup] auto-directory}). */
+    AUTO_BACKUP_DIRECTORY,
     SESSION_JOURNAL,
     CONTROL_API,
     SNIPPET_ANALYSIS_CONTENT,

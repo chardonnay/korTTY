@@ -262,8 +262,10 @@ public class BackupManager {
      * @param masterPassword For decrypting stored credentials
      * @return Path to created backup file: {@code kortty-backup.zip} or {@code kortty-backup.zip.gpg}
      * @throws Exception if backup creation fails
+     * @implNote synchronized: the menu action and {@link AutoBackupService} share one manager, and
+     *           two writers rotating the same folder at once would push out each other's files.
      */
-    public Path createBackup(Path targetDir, CredentialManager credentialManager, 
+    public synchronized Path createBackup(Path targetDir, CredentialManager credentialManager,
                             GPGKeyManager gpgKeyManager, char[] masterPassword) throws Exception {
         logger.info("Creating backup to: {} with encryption type: {}", 
                    targetDir, settings.getBackupEncryptionType());

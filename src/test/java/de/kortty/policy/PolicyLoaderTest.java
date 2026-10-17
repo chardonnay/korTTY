@@ -27,6 +27,25 @@ class PolicyLoaderTest {
         assertThat(PolicyLoader.load(write(toml.replace("relative", "invented"))).errors()).isNotEmpty();
     }
 
+    @Test
+    void backupRuleParsesIntervalAndDirectory() throws Exception {
+        String toml = "[meta]\nschema-version = 1\n[[rule]]\nname = \"backup\"\n"
+            + "[rule.backup]\nauto-interval = \"daily\"\nauto-directory = \"~/Backups/korTTY\"\n";
+        var result = PolicyLoader.load(write(toml));
+        assertThat(result.errors()).isEmpty();
+        PolicyRule.BackupRule backup = result.file().rules().get(0).backup();
+        assertThat(backup.interval()).isEqualTo(de.kortty.model.GlobalSettings.AutoBackupInterval.DAILY);
+        assertThat(backup.directory()).isEqualTo("~/Backups/korTTY");
+
+        assertThat(PolicyLoader.load(write(toml.replace("daily", "hourly"))).errors()).isNotEmpty();
+        assertThat(PolicyLoader.load(write(toml.replace("~/Backups/korTTY", "Backups/korTTY"))).errors()).isNotEmpty();
+        var offOnly = PolicyLoader.load(write("[meta]\nschema-version = 1\n[[rule]]\n[rule.backup]\nauto-interval = \"off\"\n"));
+        assertThat(offOnly.errors()).isEmpty();
+        assertThat(offOnly.file().rules().get(0).backup().interval())
+            .isEqualTo(de.kortty.model.GlobalSettings.AutoBackupInterval.OFF);
+        assertThat(offOnly.file().rules().get(0).backup().directory()).isNull();
+    }
+
     private static final String FULL_EXAMPLE = """
         [meta]
         schema-version = 1

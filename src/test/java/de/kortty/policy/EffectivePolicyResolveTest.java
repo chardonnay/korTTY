@@ -365,6 +365,41 @@ class EffectivePolicyResolveTest {
     }
 
     @Test
+    void backupResolvesOffThenTheMoreFrequentIntervalAndLocksEachFieldSeparately() {
+        var interval = de.kortty.model.GlobalSettings.AutoBackupInterval.class;
+        PolicyRule weekly = PolicyRule.builder().groups(Set.of("g"))
+            .backup(new PolicyRule.BackupRule(de.kortty.model.GlobalSettings.AutoBackupInterval.WEEKLY, "/srv/b"))
+            .build();
+        PolicyRule daily = PolicyRule.builder().groups(Set.of("g"))
+            .backup(new PolicyRule.BackupRule(de.kortty.model.GlobalSettings.AutoBackupInterval.DAILY, "/srv/a"))
+            .build();
+        EffectivePolicy policy = EffectivePolicy.resolve(file(Map.of("g", Set.of("u")), weekly, daily), identity("u"));
+        assertThat(policy.backup().interval()).isEqualTo(de.kortty.model.GlobalSettings.AutoBackupInterval.DAILY);
+        assertThat(policy.backup().directory()).isEqualTo("/srv/a");
+        assertThat(policy.isManaged(ManagedSetting.AUTO_BACKUP_SCHEDULE)).isTrue();
+        assertThat(policy.isManaged(ManagedSetting.AUTO_BACKUP_DIRECTORY)).isTrue();
+
+        PolicyRule off = PolicyRule.builder().groups(Set.of("g"))
+            .backup(new PolicyRule.BackupRule(de.kortty.model.GlobalSettings.AutoBackupInterval.OFF, null))
+            .build();
+        EffectivePolicy switchedOff = EffectivePolicy.resolve(file(Map.of("g", Set.of("u")), daily, off), identity("u"));
+        assertThat(switchedOff.backup().interval()).isEqualTo(de.kortty.model.GlobalSettings.AutoBackupInterval.OFF);
+
+        PolicyRule directoryOnly = PolicyRule.builder().backup(new PolicyRule.BackupRule(null, "/srv/all")).build();
+        EffectivePolicy folderLocked = EffectivePolicy.resolve(file(Map.of(), directoryOnly), identity("u"));
+        assertThat(folderLocked.backup().interval()).isNull();
+        assertThat(folderLocked.backup().directory()).isEqualTo("/srv/all");
+        assertThat(folderLocked.isManaged(ManagedSetting.AUTO_BACKUP_SCHEDULE)).isFalse();
+        assertThat(folderLocked.isManaged(ManagedSetting.AUTO_BACKUP_DIRECTORY)).isTrue();
+
+        EffectivePolicy unset = EffectivePolicy.resolve(file(Map.of()), identity("u"));
+        assertThat(unset.backup().interval()).isNull();
+        assertThat(unset.backup().directory()).isNull();
+        assertThat(EffectivePolicy.lockdown().backup().interval()).isNull();
+        assertThat(interval.isEnum()).isTrue();
+    }
+
+    @Test
     void loggingResolvesPerFieldWithTighterCapsWinning() {
         PolicyRule first = PolicyRule.builder()
             .groups(Set.of("g"))

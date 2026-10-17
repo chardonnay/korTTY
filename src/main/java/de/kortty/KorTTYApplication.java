@@ -134,6 +134,7 @@ public class KorTTYApplication extends Application {
     private JobSchedulerService jobSchedulerService;
     private de.kortty.jobscheduler.WebhookSender jobWebhookSender;
     private UpdateCheckService updateCheckService;
+    private de.kortty.core.AutoBackupService autoBackupService;
     private TelemetryService telemetryService;
     private ScheduledExecutorService logMaintenanceExecutor;
     private PowerManagementCoordinator powerManagementCoordinator;
@@ -538,6 +539,7 @@ public class KorTTYApplication extends Application {
             } catch (Exception e) {
                 logger.warn("Failed to initialize the backup manager", e);
             }
+            startAutoBackupService();
             try {
                 jobSchedulerService = new JobSchedulerService(this, getConfigDirectory());
                 jobSchedulerService.load();
@@ -916,6 +918,10 @@ public class KorTTYApplication extends Application {
             shutdownStep("stop update check", updateCheckService::stop);
             updateCheckService = null;
         }
+        if (autoBackupService != null) {
+            autoBackupService.stop();
+            autoBackupService = null;
+        }
         if (telemetryService != null) {
             trackUsageSnapshot("shutdown");
             shutdownStep("flush telemetry", () -> telemetryService.shutdown(Duration.ofSeconds(3)));
@@ -1115,6 +1121,59 @@ public class KorTTYApplication extends Application {
                 logger.debug("Log maintenance failed", e);
             }
         }, 1, 1, TimeUnit.HOURS);
+    }
+
+    /**
+     * The scheduled backup (Settings → Backup → Automatic backup). Skips and failures that need the
+     * user reach them as one desktop notification per change of reason, never one per hourly check.
+     */
+    private void startAutoBackupService() {
+        if (globalSettingsManager == null) {
+            return;
+        }
+        if (autoBackupService != null) {
+            autoBackupService.stop();
+        }
+        java.util.concurrent.atomic.AtomicReference<de.kortty.core.AutoBackupService.Status> lastNotified =
+            new java.util.concurrent.atomic.AtomicReference<>();
+        autoBackupService = new de.kortty.core.AutoBackupService(
+            globalSettingsManager,
+            this::getBackupManager,
+            this::getCredentialManager,
+            this::getGpgKeyManager,
+            () -> masterPasswordManager != null && masterPasswordManager.isUnlocked()
+                ? masterPasswordManager.getMasterPassword() : null,
+            java.time.Clock.systemDefaultZone(),
+            outcome -> {
+                if (!outcome.needsAttention()) {
+                    lastNotified.set(null);
+                    return;
+                }
+                if (lastNotified.getAndSet(outcome.status()) == outcome.status()) {
+                    return;
+                }
+                DesktopNotifier notifier = getDesktopNotifier();
+                if (notifier != null && notifier.isSupported() && notifier.isAllowedByPolicy()) {
+                    String body = de.kortty.ui.AutoBackupStatusText.describe(outcome,
+                        globalSettingsManager.getSettings());
+                    notifier.notify(de.kortty.ui.I18n.get("settings.backup.auto.notification.title"), body);
+                }
+            });
+        autoBackupService.start();
+    }
+
+    /** After Settings → Save: picks up a changed interval or folder. */
+    public void restartAutoBackupService() {
+        if (autoBackupService == null) {
+            startAutoBackupService();
+            return;
+        }
+        autoBackupService.restart();
+    }
+
+    /** The scheduled-backup service, or null before the settings are loaded (and in test mode). */
+    public de.kortty.core.AutoBackupService getAutoBackupService() {
+        return autoBackupService;
     }
 
     private void startUpdateCheckService() {

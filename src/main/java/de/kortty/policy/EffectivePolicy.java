@@ -37,7 +37,7 @@ public final class EffectivePolicy {
         true, true, true, true, true, true, true, true, true, null, LoadIntoEditorMode.ALLOW,
         EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, null, TerminalPolicy.NONE,
         List.of(), EnumSet.noneOf(ManagedSetting.class), List.of(), List.of(), List.of(), List.of(),
-        SftpPolicy.NONE, WebhookHostAllowlist.NONE);
+        SftpPolicy.NONE, WebhookHostAllowlist.NONE, BackupPolicy.NONE);
 
     private final boolean fromPolicyFile;
     private final boolean lockdown;
@@ -73,6 +73,7 @@ public final class EffectivePolicy {
     private final List<PolicyFile.TeamworkSourceDef> teamworkSources;
     private final SftpPolicy sftp;
     private final WebhookHostAllowlist webhookHostAllowlist;
+    private final BackupPolicy backup;
 
     private EffectivePolicy(boolean fromPolicyFile, boolean lockdown, String organization,
                             Map<PolicyFeature, PolicyDecision> features, AgentExecutionMode agentExecution,
@@ -97,7 +98,8 @@ public final class EffectivePolicy {
                             List<PolicyFile.RuntimeModel> runtimeModels,
                             List<PolicyFile.TeamworkSourceDef> teamworkSources,
                             SftpPolicy sftp,
-                            WebhookHostAllowlist webhookHostAllowlist) {
+                            WebhookHostAllowlist webhookHostAllowlist,
+                            BackupPolicy backup) {
         this.fromPolicyFile = fromPolicyFile;
         this.lockdown = lockdown;
         this.organization = organization;
@@ -132,6 +134,7 @@ public final class EffectivePolicy {
         this.teamworkSources = List.copyOf(teamworkSources);
         this.sftp = sftp;
         this.webhookHostAllowlist = webhookHostAllowlist;
+        this.backup = backup;
     }
 
     /** No policy present: everything allowed. */
@@ -152,7 +155,8 @@ public final class EffectivePolicy {
             true, true, ClipboardMode.INTERNAL, false, false, false, false, false, false, false, false, false, false,
             false, false, null, LoadIntoEditorMode.DENY, EMPTY_LOGGING, EMPTY_SESSION_JOURNAL, 0L,
             TerminalPolicy.LOCKDOWN, List.of(), EnumSet.allOf(ManagedSetting.class),
-            List.of(), List.of(), List.of(), List.of(), SftpPolicy.LOCKDOWN, WebhookHostAllowlist.NONE);
+            List.of(), List.of(), List.of(), List.of(), SftpPolicy.LOCKDOWN, WebhookHostAllowlist.NONE,
+            BackupPolicy.NONE);
     }
 
     /** Resolves the policy file for {@code identity}. */
@@ -318,6 +322,22 @@ public final class EffectivePolicy {
             managed.add(ManagedSetting.WEBHOOK_HOST_ALLOWLIST);
         }
 
+        // Automatic backup: OFF is the strictest interval, then the most frequent one (fewer hours
+        // of unsaved changes); the folder picks the lexicographically smallest on a same-tier tie.
+        de.kortty.model.GlobalSettings.AutoBackupInterval backupInterval = resolver.resolve(
+            rule -> rule.backup() != null ? rule.backup().interval() : null,
+            (a, b) -> a.ordinal() <= b.ordinal() ? a : b);
+        String backupDirectory = resolver.resolve(
+            rule -> rule.backup() != null ? rule.backup().directory() : null,
+            (a, b) -> a.compareTo(b) <= 0 ? a : b);
+        BackupPolicy backup = new BackupPolicy(backupInterval, backupDirectory);
+        if (backupInterval != null) {
+            managed.add(ManagedSetting.AUTO_BACKUP_SCHEDULE);
+        }
+        if (backupDirectory != null) {
+            managed.add(ManagedSetting.AUTO_BACKUP_DIRECTORY);
+        }
+
         return new EffectivePolicy(true, false, file.organization(), features,
             orDefault(agentExecution, AgentExecutionMode.ALLOW),
             orDefault(requireMasterPassword, false), orDefault(enforceHostKeyCheck, false),
@@ -332,7 +352,7 @@ public final class EffectivePolicy {
             orDefault(loadIntoEditor, LoadIntoEditorMode.ALLOW), logging, sessionJournal,
             analysisMaxStoredContentBytes, terminal, serverRestrictions, managed,
             file.scriptHeaders(), file.aiProfiles(), file.runtimeModels(), file.teamworkSources(), sftp,
-            orDefault(webhookHosts, WebhookHostAllowlist.NONE));
+            orDefault(webhookHosts, WebhookHostAllowlist.NONE), backup);
     }
 
     // ---- accessors -------------------------------------------------------------------------
@@ -732,6 +752,20 @@ public final class EffectivePolicy {
     /** The resolved admin log configuration; all-null fields when logging is not managed. */
     public PolicyRule.LoggingRule logging() {
         return logging;
+    }
+
+    /** The automatic backup's forced interval and folder; both null when the policy leaves them to the user. */
+    public BackupPolicy backup() {
+        return backup;
+    }
+
+    /**
+     * @param interval  the forced schedule (OFF switches automatic backups off), or null
+     * @param directory the forced folder, or null
+     */
+    public record BackupPolicy(de.kortty.model.GlobalSettings.AutoBackupInterval interval, String directory) {
+        /** Nothing set: the user decides. */
+        static final BackupPolicy NONE = new BackupPolicy(null, null);
     }
 
     /**

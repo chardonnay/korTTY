@@ -215,6 +215,22 @@ groups = ["compliance"]
 | `enabled` | boolean | `false` | Deaktiviert die automatische Update-Prüfung und die manuelle Prüfung im Info-Dialog |
 | `feed-url` | Zeichenfolge | http(s)-URL | Aktualisierungsprüfungen fragen diesen Endpunkt anstelle von GitHub ab; Es muss dieselbe JSON-Form zurückgeben wie die GitHub `releases/latest`-API (`tag_name`, `assets[]` mit `name` und `browser_download_url`) |
 
+### `[rule.backup]`
+
+Setzt und sperrt das [Automatisches Backup](settings/backup.md#automatic-backup) *Einstellungen → Sicherung*. Jeder Schlüssel erzwingt die entsprechende Einstellung; der Benutzer sieht sie mit dem Hinweis „von Ihrer Organisation verwaltet“. Die Sicherung selbst behält den Verschlüsselungsmodus und die Anmeldeinformationen oder GPG-Schlüssel des Benutzers bei und wird niemals unverschlüsselt geschrieben.
+
+| Schlüssel | Typ | Werte | Wirkung |
+| --- | --- | --- | --- |
+| `auto-interval` | string | `off`, `daily`, `weekly`, `monthly` | Erzwingt den Zeitplan; `off` schaltet die automatische Sicherung für den Benutzer aus. Wenn mehrere Regeln derselben Ebene gesetzt sind, gewinnt der strengere Wert: `off`, dann das häufigere Intervall |
+| `auto-directory` | string | absolut oder `~/`-relativer Pfad | Zwingt den Ordner, in dem die automatische Sicherung geschrieben wird. Der Ordner muss auf dem Rechner des Benutzers existieren; korTTY erstellt ihn nicht und meldet einen fehlenden Ordner in der Statuszeile sowie im Log. Bei gleichwertigen Pfaden gewinnt lexikografisch der kleinste Pfad. |
+
+```toml
+[[rule]]
+  [rule.backup]
+  auto-interval = "daily"
+  auto-directory = "~/Backups/korTTY"
+```
+
 ### `[rule.terminal]`
 
 | Schlüssel | Typ | Werte | Wirkung |
