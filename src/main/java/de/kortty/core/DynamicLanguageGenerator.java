@@ -65,6 +65,34 @@ public class DynamicLanguageGenerator {
      * @return path to the written file
      */
     public Path generate(String targetLangCode, java.util.function.Consumer<Double> progress) throws IOException {
+        return generate(targetLangCode, progress, null);
+    }
+
+    /** Thrown by {@link #generate(String, java.util.function.Consumer, java.util.function.BooleanSupplier)} when the poll says stop. */
+    public static final class CancelledException extends IOException {
+        public CancelledException() {
+            super("translation cancelled");
+        }
+    }
+
+    /** The number of keys in the base bundle: what a run has to translate, for estimates. */
+    public static int keyCount() throws IOException {
+        return loadBaseProperties().size();
+    }
+
+    /** Keys per translation request; estimates multiply a sample batch's duration by the batch count. */
+    public static int batchSize() {
+        return BATCH_SIZE;
+    }
+
+    /**
+     * Like {@link #generate(String, java.util.function.Consumer)}, polling {@code cancelled} before
+     * every batch (a {@link TranslationRunControl#asCancelPoll()} blocks there while paused). A
+     * cancelled run throws {@link CancelledException} and writes no file: the bundle is written in
+     * one go at the end, so there is never a half-translated language file on disk.
+     */
+    public Path generate(String targetLangCode, java.util.function.Consumer<Double> progress,
+                         java.util.function.BooleanSupplier cancelled) throws IOException {
         if (targetLangCode == null || targetLangCode.isEmpty()) {
             throw new IllegalArgumentException("targetLangCode is required");
         }
@@ -90,6 +118,9 @@ public class DynamicLanguageGenerator {
         int processed = 0;
         int[] failedCount = {0};
         for (int i = 0; i < valuesToTranslate.size(); i += BATCH_SIZE) {
+            if (cancelled != null && cancelled.getAsBoolean()) {
+                throw new CancelledException();
+            }
             int to = Math.min(i + BATCH_SIZE, valuesToTranslate.size());
             List<String> batch = valuesToTranslate.subList(i, to);
             List<String> batchResult = translateBatchResilient(batch, targetLangCode, failedCount);

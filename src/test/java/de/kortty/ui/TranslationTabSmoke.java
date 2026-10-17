@@ -105,87 +105,46 @@ public final class TranslationTabSmoke {
         if (missingKey != null) {
             throw new IllegalStateException("Missing i18n key rendered: " + missingKey);
         }
-        require(labels.contains(I18n.get("settings.translation.guide.section")),
-            "guide section header missing; labels=" + labels);
+        require(labels.contains(I18n.get("settings.translation.profiles.header")),
+            "profiles header missing; labels=" + labels);
+        require(labels.contains(I18n.get("settings.translation.run.header")),
+            "translate-now header missing; labels=" + labels);
         require(labels.contains(I18n.get("settings.translation.guide.generated")),
             "generated-guides label missing; labels=" + labels);
+        require(labels.contains(I18n.get("settings.translation.generatedLanguages")),
+            "generated-languages label missing; labels=" + labels);
 
-        // The controls exist and start in the right state.
-        ProgressBar progress = (ProgressBar) field(dialog, "guideTranslationProgress");
-        Button cancel = (Button) field(dialog, "guideTranslationCancelButton");
+        // The profile pane and the two lists exist.
+        Object pane2 = field(dialog, "translationProfilesPane");
+        require(pane2 instanceof TranslationProfilesPane, "translation profiles pane missing");
         @SuppressWarnings("unchecked")
         ListView<String> list = (ListView<String>) field(dialog, "guideTranslationList");
-        require(progress != null && !progress.isVisible(),
-            "progress bar should exist and be hidden before a run starts");
-        require(cancel != null && !cancel.isVisible(),
-            "cancel button should exist and be hidden before a run starts");
-        require(cancel != null && cancel.getOnAction() == null,
-            "cancel must only be armed once a translation is running");
         require(list != null, "translated-guides list missing");
+        require(field(dialog, "translationGeneratedList") != null, "generated-languages list missing");
 
         List<Button> allButtons = buttons(translationTab.getContent());
-        Button start = allButtons.stream()
-            .filter(b -> I18n.get("settings.translation.guide.generate").equals(b.getText()))
+        Button translateNow = allButtons.stream()
+            .filter(b -> I18n.get("settings.translation.run.open").equals(b.getText()))
             .findFirst().orElse(null);
-        require(start != null, "start button missing");
-        require(start.getOnAction() != null, "start button is not wired to a handler");
-        require(!start.isDisabled(), "start button should be enabled");
-
-        // The estimate is what a user reaches for before committing to a multi-hour run, so it
-        // has to be there and reachable without starting one.
-        Button estimate = allButtons.stream()
-            .filter(b -> I18n.get("settings.translation.guide.estimate").equals(b.getText()))
+        require(translateNow != null, "Translate now button missing");
+        require(translateNow.getOnAction() != null, "Translate now button is not wired to a handler");
+        Button setup = allButtons.stream()
+            .filter(b -> I18n.get("settings.translation.profiles.setup").equals(b.getText()))
             .findFirst().orElse(null);
-        require(estimate != null, "estimate button missing");
-        require(estimate.getOnAction() != null, "estimate button is not wired to a handler");
-        require(!estimate.isDisabled(), "estimate button should be enabled");
+        require(setup != null, "Set up… button missing");
+        Button test = allButtons.stream()
+            .filter(b -> I18n.get("settings.translation.testConnection").equals(b.getText()))
+            .findFirst().orElse(null);
+        require(test != null, "Test connection button missing");
 
-        // The profile picker decides which model spends the next few hours, and its first entry
-        // must be the default so the section behaves as before when nothing is chosen.
-        @SuppressWarnings("unchecked")
-        javafx.scene.control.ComboBox<Object> profileCombo =
-            (javafx.scene.control.ComboBox<Object>) field(dialog, "guideAiProfileCombo");
-        require(profileCombo != null, "AI profile combo missing");
-        require(!profileCombo.getItems().isEmpty(), "AI profile combo is empty");
-        require(profileCombo.getItems().getFirst() == null,
-            "the first entry must be the default profile (null)");
-        require(profileCombo.getValue() == null, "the default profile must be preselected");
-        String rendered = profileCombo.getConverter().toString(null);
-        require(I18n.get("settings.translation.guide.profileDefault").equals(rendered),
-            "default entry renders as '" + rendered + "'");
+        // The pane's draft starts from the settings and keeps exactly one default.
+        TranslationProfilesPane profilesPane = (TranslationProfilesPane) pane2;
+        require(profilesPane.profiles().size() == settings.getTranslationProfiles().size(),
+            "the pane shows every stored profile");
+        require(profilesPane.profiles().isEmpty() || profilesPane.defaultProfileId() != null,
+            "a non-empty list has a default");
 
-        // The interface strings get the same choice as the guide. Without it that run was pinned to
-        // the default text profile and refused anything but a local model, so a cloud or CLI
-        // profile could not translate the UI at all.
-        @SuppressWarnings("unchecked")
-        javafx.scene.control.ComboBox<Object> interfaceCombo =
-            (javafx.scene.control.ComboBox<Object>) field(dialog, "interfaceAiProfileCombo");
-        require(interfaceCombo != null, "interface AI profile combo missing");
-        require(!interfaceCombo.getItems().isEmpty(), "interface AI profile combo is empty");
-        require(interfaceCombo.getItems().getFirst() == null,
-            "the first entry must be the default profile (null)");
-        require(interfaceCombo.getValue() == null, "the default profile must be preselected");
-        String interfaceRendered = interfaceCombo.getConverter().toString(null);
-        require(I18n.get("settings.translation.profileDefault").equals(interfaceRendered),
-            "default entry renders as '" + interfaceRendered + "'");
-        require(labels.contains(I18n.get("settings.translation.profile")),
-            "interface profile label missing; labels=" + labels);
-
-        // It only means anything for the AI provider, so it tracks that dropdown both ways.
-        @SuppressWarnings("unchecked")
-        javafx.scene.control.ComboBox<de.kortty.model.TranslationApiProvider> providerCombo =
-            (javafx.scene.control.ComboBox<de.kortty.model.TranslationApiProvider>)
-                field(dialog, "translationProviderCombo");
-        require(providerCombo != null, "translation provider combo missing");
-        providerCombo.setValue(de.kortty.model.TranslationApiProvider.GOOGLE_TRANSLATE);
-        require(interfaceCombo.isDisabled(),
-            "profile combo must be disabled while a translation API is selected");
-        providerCombo.setValue(de.kortty.model.TranslationApiProvider.LOCAL_AI_PROFILE);
-        require(!interfaceCombo.isDisabled(),
-            "profile combo must be enabled once the AI provider is selected");
-
-        System.out.println("  section, estimate, start, progress bar, cancel and list all present");
-        System.out.println("  interface profile picker present and tracks the provider dropdown");
+        System.out.println("  profiles pane, Set up…, Test, Translate now… and both lists present");
 
         pane.setMinSize(WIDTH, HEIGHT);
         pane.setPrefSize(WIDTH, HEIGHT);

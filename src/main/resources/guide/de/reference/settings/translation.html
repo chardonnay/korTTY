@@ -814,12 +814,15 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="ubersetzung">Übersetzung<a class="headerlink" href="#ubersetzung" title="Permanent link">&para;</a></h1>
-<p>Konfigurieren Sie die dynamische Übersetzung der Benutzeroberfläche von korTTY mithilfe externer Übersetzungs-APIs. Auf dieser Registerkarte können Sie einen Übersetzungsanbieter auswählen, sich mit seiner API authentifizieren und Sprachdateien generieren, um die Benutzeroberfläche in Ihrer Zielsprache anzuzeigen. Öffnen über <strong>Konfiguration → Globale Einstellungen → Übersetzung</strong>; in <code>~/.kortty/global-settings.xml</code> gespeichert.</p>
+<p>korTTY kann seine eigene Oberfläche und die integrierte Anleitung in Ihre Sprache übersetzen. Dieser Tab enthält die <strong>Übersetzungsprofile</strong> (welcher Dienst oder KI-Modell übersetzt), den <strong>Jetzt übersetzen</strong>-Assistenten, der eine Übersetzung mit Schätzung, Fortschritt und Pause ausführt, sowie die Listen der generierten Sprachdateien und übersetzten Anleitungen. Öffnen Sie über <strong>Konfiguration → Globale Einstellungen → Übersetzung</strong>; gespeichert in <code>~/.kortty/global-settings.xml</code>.</p>
 <p><img alt="Translation settings tab" src="../../../en/assets/screenshots/settings/translation.png" /></p>
+<h2 id="translation-profiles">Übersetzungsprofile<a class="headerlink" href="#translation-profiles" title="Permanent link">&para;</a></h2>
+<p>Ein Profil ist eine Möglichkeit der Übersetzung: eine Übersetzungs-API (Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex Translate) mit ihrem Schlüssel, Endpunkt und ihrer Region oder <strong>KI-Übersetzung</strong> über eines Ihrer KI-Profile. Sie können mehrere behalten, zum Beispiel eine günstige API für die Interface-Strings und ein lokales Modell für die Anleitung. Genau ein Profil ist das <strong>Standard</strong> (mit ★ in der Liste); es ist, was korTTY übersetzt, sofern dem Translate now-Assistenten nichts anderes mitgeteilt wird. Der Abschnittsheader verlinkt zu dieser Seite mit <strong>In der Anleitung öffnen</strong>.</p>
+<p>Die Liste befindet sich links; der Editor des ausgewählten Profils rechts. <strong>Einrichten…</strong> öffnet den <a href="#setup-assistant">Setup-Assistent</a>, <strong>Hinzufügen</strong> erstellt ein Profil zum manuellen Ausfüllen, <strong>Löschen</strong> entfernt das ausgewählte (das Standardprofil wechselt zum ersten verbleibenden Profil).</p>
 <table>
 <thead>
 <tr>
-<th>Einstellung</th>
+<th>Feld</th>
 <th>Typ</th>
 <th>Werte</th>
 <th>Standard</th>
@@ -828,135 +831,118 @@
 </thead>
 <tbody>
 <tr>
-<td>Systemsprache</td>
-<td>Text</td>
-<td>–</td>
-<td>Systemgebietsschema</td>
-<td>–</td>
+<td>Name</td>
+<td>text</td>
+<td>—</td>
+<td>der Anbietername</td>
+<td><code>translationProfiles/translationProfile/name</code></td>
 </tr>
 <tr>
 <td>Übersetzungs-API</td>
-<td>Dropdown-Liste</td>
-<td>Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex Translate, lokales KI-Textprofil</td>
+<td>Dropdown</td>
+<td>Google Translate, DeepL, LibreTranslate, Microsoft Translator, Yandex Translate, KI-Übersetzung</td>
 <td>Google Translate</td>
-<td><code>translationApiProvider</code></td>
-</tr>
-<tr>
-<td>KI-Profil</td>
-<td>Dropdown-Liste</td>
-<td>„Standard (lokales Textprofil)“ plus jedes konfigurierte KI-Profil</td>
-<td>Standard (lokales Textprofil)</td>
-<td>–</td>
+<td><code>…/provider</code></td>
 </tr>
 <tr>
 <td>API-Schlüssel</td>
-<td>Text</td>
-<td>–</td>
-<td>–</td>
-<td><code>encryptedTranslationApiKey</code></td>
+<td>Passwort</td>
+<td>—</td>
+<td>—</td>
+<td><code>…/encryptedApiKey</code> (verschlüsselt mit dem Master-Passwort)</td>
 </tr>
 <tr>
 <td>API-URL (optional)</td>
-<td>Text</td>
-<td>–</td>
-<td>– (null = Anbieterstandard verwenden)</td>
-<td><code>translationApiUrl</code></td>
+<td>text</td>
+<td>—</td>
+<td>— (leer = Standard des Anbieters)</td>
+<td><code>…/apiUrl</code></td>
 </tr>
 <tr>
 <td>Azure-Region (optional)</td>
-<td>Text</td>
-<td>–</td>
-<td>– (null = globale Ressource)</td>
-<td><code>translationApiRegion</code></td>
+<td>text</td>
+<td>—</td>
+<td>— (Microsoft-Übersetzer only)</td>
+<td><code>…/apiRegion</code></td>
+</tr>
+<tr>
+<td>KI-Profil</td>
+<td>dropdown</td>
+<td>"Standard (lokales Text-Profil)" plus jedes KI-Profil</td>
+<td>Standard</td>
+<td><code>…/aiProfileId</code> (KI-Übersetzung nur)</td>
+</tr>
+<tr>
+<td>Als Standardprofil verwenden</td>
+<td>toggle</td>
+<td>—</td>
+<td>das erste Profil</td>
+<td><code>defaultTranslationProfileId</code></td>
 </tr>
 <tr>
 <td>API-Verbindung testen</td>
-<td>Schaltfläche</td>
-<td>–</td>
-<td>–</td>
-<td>–</td>
-</tr>
-<tr>
-<td>Zielsprache</td>
-<td>Dropdown-Liste</td>
-<td>Systemgebietsschema und verfügbare Gebietsschemata (Gebietsschemaobjekte)</td>
-<td>Systemgebietsschema</td>
-<td>–</td>
-</tr>
-<tr>
-<td>Sprachdatei generieren</td>
-<td>Schaltfläche</td>
-<td>–</td>
-<td>–</td>
-<td>–</td>
-</tr>
-<tr>
-<td>Generierte Sprachen</td>
-<td>Liste</td>
-<td>Verfügbare dynamisch übersetzte Sprachdateien</td>
+<td>button</td>
+<td>Übersetzt einen kurzen Text mit dem Profil</td>
 <td>—</td>
 <td>—</td>
-</tr>
-<tr>
-<td>Schaltfläche „Löschen“</td>
-<td></td>
-<td>(entfernt die ausgewählte generierte Sprachdatei)</td>
-<td>–</td>
-<td>–</td>
-</tr>
-<tr>
-<td>Veraltete Schaltfläche „</td>
-<td>“ neu generieren</td>
-<td>(sichtbar, wenn veraltete Dateien vorhanden sind)</td>
-<td>–</td>
-<td>–</td>
 </tr>
 </tbody>
 </table>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><strong>API-Schlüssel-Speicherung:</strong> Der API-Schlüssel wird mit Ihrem Master-Passwort verschlüsselt und sicher in <code>global-settings.xml</code> gespeichert. Wenn der Passwort-Tresor gesperrt ist, zeigt korTTY eine Warnung mit einem <strong>Tresor entsperren…</strong>-Button an, hält das Einstellungsfenster offen ohne zu speichern und lässt den Schlüssel im Feld stehen; entsperren Sie den Tresor und speichern Sie erneut.</p>
+<p><strong>API-Schlüssel-Speicherung:</strong> Ein von Ihnen eingegebener Schlüssel wird mit Ihrem Master-Passwort verschlüsselt, wenn Sie das Dialogfeld speichern. Wenn der Tresor gesperrt ist, zeigt korTTY eine Warnung mit einer Schaltfläche <strong>Tresor entsperren…</strong> an, hält das Dialogfeld offen und lässt den Schlüssel im Feld stehen; entsperren Sie ihn und speichern Sie erneut. Ein gespeicherter Schlüssel wird nie angezeigt; der Editor meldet <em>ein Schlüssel ist gespeichert</em> und ein neuer Eintrag ersetzt ihn.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><strong>Generierte Sprachen:</strong> In der Liste „Generierte Sprachen“ werden Sprachdateien angezeigt, die über die Schaltfläche „Sprachdatei generieren“ erstellt wurden. Jede generierte Datei entspricht einer dynamisch übersetzten Benutzeroberfläche in dieser Zielsprache. Verwenden Sie die Schaltfläche „Löschen“, um eine Sprachdatei zu entfernen, oder verwenden Sie „Veraltet neu generieren“, um Dateien, die mit einer älteren App-Version erstellt wurden, so zu aktualisieren, dass sie neu hinzugefügte Übersetzungsschlüssel enthalten.</p>
+<p><strong>Ein Upgrade von einem einzelnen Anbieter:</strong> frühere Versionen speicherten einen Anbieter, Schlüssel und URL. Beim ersten Start werden sie zu einem Profil umgewandelt, das nach dem Anbieter benannt ist (id <code>migrated-default</code>), welches auch das Standardprofil ist. Die alten Felder <code>translationApiProvider</code>, <code>encryptedTranslationApiKey</code>, <code>translationApiUrl</code> und <code>translationApiRegion</code> bleiben in der Datei erhalten und spiegeln immer das Standardprofil wider, sodass ein älteres korTTY weiterhin mit demselben Dienst übersetzt.</p>
 </div>
-<h2 id="provider-anmeldeinformationen-und-endpunkte">Provider-Anmeldeinformationen und Endpunkte<a class="headerlink" href="#provider-anmeldeinformationen-und-endpunkte" title="Permanent link">&para;</a></h2>
-<p>Jeder Schlüsselanbieter erwartet seine eigene Art von Anmeldeinformationen im Feld <strong>API-Schlüssel</strong>. Die <strong>API-URL</strong>
-Das Feld bleibt leer, es sei denn, Sie weisen korTTY absichtlich auf einen anderen Host hin – einen selbstgehosteten
+<h3 id="setup-assistant">Einrichtungsassistent<a class="headerlink" href="#setup-assistant" title="Permanent link">&para;</a></h3>
+<p><strong>Einrichten…</strong> führt Sie in vier Schritten durch ein neues Profil: <strong>API oder KI</strong> (ein Übersetzungsdienst mit einem Schlüssel, oder eines Ihrer KI-Profile), <strong>Zugang</strong> (der Anbieter, sein Schlüssel, optional URL und Azure-Region, oder das KI-Profil; ein Link öffnet den KI-Manager, wenn noch kein KI-Profil existiert), <strong>Name</strong> (mit <em>Als Standardprofil verwenden</em>), und <strong>Test</strong>, das einen kurzen Text übersetzt und Ihnen ermöglicht, abzuschließen, oder den Test zu überspringen und später aus der Liste zu testen. Das neue Profil erscheint in der Liste und übernimmt, wenn Sie es als Standardprofil festgelegt haben, die ★.</p>
+<h2 id="translate-now">Jetzt übersetzen<a class="headerlink" href="#translate-now" title="Permanent link">&para;</a></h2>
+<p><strong>Jetzt übersetzen…</strong> öffnet den Assistenten, der eine Übersetzung durchführt.  </p>
+<ul>
+<li><strong>Dauer abschätzen</strong> übersetzt zunächst ein reales Beispiel: einen Batch von Interface-Strings und, für die Anleitung, einen budgetgerechten Batch an Anleitungstext. Aus seiner Dauer schätzt es die gesamte Laufzeit ab und zeigt das Ergebnis über der Fortschrittsleiste an. Das Beispiel ist eine echte Übersetzung, daher fallen für ein kostenpflichtiges API Gebühren an; die Anleitungsbeispiel wird gespeichert und vom Lauf wiederverwendet.</li>
+<li><strong>Starten</strong> führt zuerst die Schnittstellentexte aus und startet anschließend die Anleitung, wenn beide ausgewählt sind. Das Dialogfeld zeigt an, welche Phase ausgeführt wird, einen Fortschrittsbalken, den Prozentsatz und die verbleibende Zeit.</li>
+<li><strong>Pause</strong> stoppt den Lauf nach dem laufenden Batch (ein lokales Modell kann für einen Batch Sekunden bis Minuten benötigen) und wird zu <strong>Fortsetzen</strong>; die Zeit, die pausiert wurde, wird aus der verbleibenden Zeitabschätzung herausgerechnet. <strong>Abbrechen</strong> stoppt an der nächsten Batch-Grenze: die Interface-Strings werden am Ende auf einmal geschrieben, sodass ein abgebrochener Lauf keine halbübersetzte Sprachdatei hinterlässt, und die Anleitung behält ihren Checkpoint, sodass der nächste Lauf dort fortgesetzt wird, wo er aufgehört hat.</li>
+<li>Das Schließen des Dialogs stoppt eine laufende Übersetzung nicht; neben <strong>Jetzt übersetzen…</strong> auf dem Tab wird der Fortschritt angezeigt, und das erneute Öffnen des Dialogs verbindet sich erneut mit dem laufenden Job. Das Beenden von korTTY während die Anleitung übersetzt wird, fragt, ob sie pausiert werden soll.</li>
+</ul>
+<p>Die generierten Dateien erscheinen in den beiden Listen unter dem Assistenten: <strong>Generierte Sprachen</strong> (die Interface-Sprachdateien unter <code>~/.kortty/i18n/</code>, mit <strong>Löschen</strong> und, für Dateien aus einer älteren Version, <strong>Veraltete neu generieren</strong>) und <strong>Übersetzte Anleitungen</strong> (die Sprachen unter <code>~/.kortty/guide/</code>, mit <strong>Löschen</strong>, das die Seiten, Assets, Suchindex und Checkpoint nach einer Bestätigung entfernt).</p>
+<h2 id="anbieter-zugangsdaten-und-endpunkte">Anbieter-Zugangsdaten und Endpunkte<a class="headerlink" href="#anbieter-zugangsdaten-und-endpunkte" title="Permanent link">&para;</a></h2>
+<p>Jeder gekennzeichneter Anbieter erwartet in dem Feld <strong>API-Schlüssel</strong> seine eigene Art von Berechtigung. Die <strong>API-URL</strong>
+Das Feld bleibt leer, es sei denn Sie weisen korTTY absichtlich auf einen anderen Host — ein selbstgehostetes.
 LibreTranslate, ein regionaler Azure-Endpunkt oder ein Proxy.</p>
 <table>
 <thead>
 <tr>
 <th>Anbieter</th>
-<th>API-Version korTTY-Aufrufe</th>
-<th>Was drin ist <strong>API-Schlüssel</strong></th>
-<th>Standardendpunkt</th>
+<th>API-Version, die von korTTY aufgerufen wird</th>
+<th>Was kommt in <strong>API-Schlüssel</strong></th>
+<th>Standard-Endpunkt</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Google Translate</td>
-<td>Cloud Translation v2 (Basic)</td>
-<td>Ein Google Cloud API-Schlüssel mit aktivierter Cloud Translation API</td>
+<td>Cloud-Übersetzung v2 (Basic)</td>
+<td>Ein Google Cloud API-Schlüssel mit aktivierter Cloud Übersetzungs-API</td>
 <td><code>https://translation.googleapis.com/language/translate/v2</code></td>
 </tr>
 <tr>
 <td>DeepL</td>
 <td>DeepL API v2</td>
-<td>Ihr DeepL-Authentifizierungsschlüssel, gesendet als <code>DeepL-Auth-Key</code></td>
-<td><code>https://api.deepl.com/v2/translate</code> oder <code>https://api-free.deepl.com/v2/translate</code> für einen kostenlosen Schlüssel</td>
+<td>Ihr DeepL-Auth-Key, gesendet als <code>DeepL-Auth-Key</code></td>
+<td><code>https://api.deepl.com/v2/translate</code>, oder <code>https://api-free.deepl.com/v2/translate</code> für einen kostenlosen Key</td>
 </tr>
 <tr>
 <td>LibreTranslate</td>
 <td>LibreTranslate <code>/translate</code></td>
-<td>Optional; Wird von öffentlichen Instanzen benötigt, die Quoten erzwingen</td>
+<td>Optional; erforderlich von öffentlichen Instanzen, die Quoten durchsetzen</td>
 <td><code>https://libretranslate.com</code></td>
 </tr>
 <tr>
-<td>Microsoft Translator</td>
-<td>Azure AI Translator v3.0</td>
-<td>Der Azure Translator-Ressourcenabonnementschlüssel</td>
+<td>Microsoft-Übersetzer</td>
+<td>Azure KI Translator v3.0</td>
+<td>Der Azure Translator-Ressourcen-Abonnementschlüssel</td>
 <td><code>https://api.cognitive.microsofttranslator.com</code></td>
 </tr>
 <tr>
@@ -968,128 +954,70 @@ LibreTranslate, ein regionaler Azure-Endpunkt oder ein Proxy.</p>
 </tbody>
 </table>
 <div class="admonition warning">
-<p class="admonition-title">Yandex: Die v1.5-API ist nicht mehr verwendbar</p>
+<p class="admonition-title">Yandex: die v1.5 API ist nicht mehr nutzbar</p>
 <p>Yandex hat die Ausgabe von Schlüsseln für die alte Translate API v1.5 (<code>translate.yandex.net/api/v1.5</code>) eingestellt und
-die bereits im Umlauf befindlichen kostenlosen Schlüssel abgeschaltet. Der Gastgeber antwortet immer noch, aber Sie können keinen Schlüssel finden
-Erhalten Sie Authentifizierungen dagegen. Erstellen Sie ein Dienstkonto in der Yandex Cloud-Konsole und weisen Sie ihm zu
-<code>ai.translate.user</code>-Rolle, stellen Sie einen API-Schlüssel für dieses Konto aus und speichern Sie diesen Schlüssel hier. Verlassen
-<strong>API-URL</strong> leer: Eine Adresse, die immer noch auf den v1.5-Host verweist, wird ignoriert und korTTY schreibt eine
-Warnung im Protokoll, bis Sie sie löschen. Der Ordner wird durch das Dienstkonto impliziert, also nichts
-Sonst muss konfiguriert werden.</p>
+schalteten die freien Schlüssel bereits im Umlauf ab. Der Host antwortet noch, aber kein Schlüssel kann Sie.
+erhält sich gegen sie authentifiziert. Erstellen Sie ein Dienstkonto in der Yandex Cloud-Konsole, weisen Sie ihm das
+<code>ai.translate.user</code> Rolle, erteilen Sie einen API-Schlüssel für dieses Konto und speichern Sie diesen Schlüssel hier. Lassen Sie es
+<strong>API-URL</strong> empty: an address still pointing at the v1.5 host is ignored, and korTTY writes a
+Warnungen werden im Log protokolliert, bis Sie sie löschen. Der Ordner wird durch das Servicekonto impliziert, daher nichts.
+Else muss konfiguriert werden.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><strong>DeepL Free vs Pro:</strong> korTTY errät den Endpunkt anhand des Schlüssels – historisch gesehen nur kostenlose Schlüssel
-endet in <code>:fx</code> – und korrigiert sich einmal selbst, wenn sich herausstellt, dass der andere Endpunkt der richtige ist.
-Durch Festlegen der <strong>API-URL</strong> wird der Endpunkt explizit angeheftet und diese Korrektur deaktiviert.</p>
+<p><strong>DeepL Free gegen Pro:</strong> korTTY errät den Endpunkt aus dem Schlüssel – historisch nur bei Free-Schlüsseln.
+endet in <code>:fx</code> — und korrigiert sich einmal, falls der andere Endpunkt herausstellt, dass er der richtige ist.
+Das Setzen von <strong>API-URL</strong> verankert den Endpunkt explizit und deaktiviert diese Korrektur.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><strong>Regionale Azure-Ressourcen:</strong> Die Zeile <strong>Azure-Region</strong> wird nur angezeigt, während <em>Microsoft Translator</em>
-ist ausgewählt, da nur dieser Anbieter es liest. Lassen Sie es für eine im erstellte Ressource leer
-<em>Globale</em> Region. Eine Ressource, die in einer bestimmten Region erstellt wurde – oder eine mit einer benutzerdefinierten Domäne oder einem
-Virtuelles Netzwerk – lehnt jeden Anruf ab, der seine Region nicht angibt. Geben Sie daher die angezeigte Region ein
-die Seite <em>Schlüssel und Endpunkt</em> der Ressource, zum Beispiel <code>germanywestcentral</code>. Eine benutzerdefinierte Domain
-Die Ressource benötigt außerdem ihren vollständigen Pfad in der <strong>API-URL</strong>:
+<p><strong>Regionale Azure-Ressourcen:</strong> die <strong>Azure-Region</strong> Zeile erscheint nur während <em>Microsoft-Übersetzer</em>.
+wird ausgewählt, weil nur dieser Anbieter es liest. Lassen Sie es leer für eine Ressource, die im
+<em>Global</em> Region. Eine Ressource, die in einer bestimmten Region erstellt wurde — oder eine mit einer benutzerdefinierten Domain oder einer
+virtuelles Netzwerk — lehnt jeden Aufruf ab, der seine Region nicht nennt, also geben Sie die angezeigte Region ein auf
+die Seite <em>Schlüssel und Endpunkt</em> der Ressource, zum Beispiel <code>germanywestcentral</code>. Eine benutzerdefinierte Domäne
+Die Ressource benötigt ebenfalls ihren vollständigen Pfad in der <strong>API-URL</strong>:
 <code>https://&lt;resource&gt;.cognitiveservices.azure.com/translator/text/v3.0</code>.</p>
 </div>
-<h2 id="lokale-ubersetzung">Lokale Übersetzung<a class="headerlink" href="#lokale-ubersetzung" title="Permanent link">&para;</a></h2>
-<p>Wählen Sie <strong>Lokales KI-Textprofil</strong>, um über ein KI-Profil statt über eine Übersetzungs-API zu übersetzen. API-URL und API-Schlüssel sind für diesen Anbieter deaktiviert, da das Profil seinen eigenen Endpunkt und seine eigenen Anmeldeinformationen mitbringt. Das Modell muss ein striktes JSON-<code>translations</code>-Array mit der gleichen Anzahl und Reihenfolge der Eingabezeichenfolgen zurückgeben. Ein Stapel, der fehlerhaft zurückkommt, wird erneut versucht und in zwei Hälften geteilt, anstatt den Lauf abzubrechen, und eine Zeichenfolge, die das Modell nie in verwendbarer Form zurückgibt, behält ihren englischen Text.</p>
-<p>Das Dropdown-Menü <strong>KI-Profil</strong> daneben entscheidet, welches Profil die Arbeit erledigt:</p>
+<h2 id="local-translation">KI-Übersetzung<a class="headerlink" href="#local-translation" title="Permanent link">&para;</a></h2>
+<p>Ein Profil mit <strong>KI-Übersetzung</strong> übersetzt über eines Ihrer KI-Profile statt einer Übersetzungs-API. Das Modell muss ein einziges, strenges JSON <code>translations</code>-Array mit derselben Anzahl und Reihenfolge der Eingabestrings zurückgeben; ein Batch, das fehlerhaft zurückkommt, wird erneut versucht und in der Mitte geteilt statt den Vorgang abzubrechen, und ein String, den das Modell nie in nutzbarer Form zurückgibt, behält seinen englischen Text.</p>
+<p>Das Feld <strong>KI-Profil</strong> eines solchen Profils bestimmt, welches Modell die Arbeit erledigt:</p>
 <ul>
-<li><strong>Ein von Ihnen ausgewähltes Profil</strong> wird immer verwendet, unabhängig vom Verbindungsmodus – ein eingebettetes llama.cpp- oder MLX-Modell, ein Cloud-Endpunkt wie Anthropic oder eine OpenAI-kompatible API oder ein lokales CLI-Profil. Sein API-Schlüssel wird auf die gleiche Weise aufgelöst, wie der Rest der Anwendung ihn auflöst. Daher muss der Master-Passwort-Tresor entsperrt werden, wenn das Profil ein verschlüsseltes Geheimnis benötigt.</li>
-<li><strong>Standard (lokales Textprofil)</strong> verwendet das Profil, das der Rolle „Text/Übersetzung“ in <strong>KI &gt; KI-Manager</strong> zugewiesen ist, und nur, wenn dieses Profil ein eingebettetes (lokales) Modell ausführt. Die Standardeinstellung greift nie automatisch auf ein Cloud-Profil zurück: Dieser Anbieter existiert für Personen, die ihre Schnittstellenzeichenfolgen nicht an einen externen Dienst senden können oder wollen. Wenn diese Rolle ein Cloud- oder CLI-Profil enthält, benennt korTTY es und leitet Sie zu dieser Dropdown-Liste weiter, anstatt mit einem allgemeinen Fehler fehlzuschlagen.</li>
+<li><strong>Ein Profil, das Sie auswählen</strong> wird immer verwendet, egal welcher Verbindungsmodus — ein eingebettetes llama.cpp-oder MLX-Modell, ein Cloud-Endpunkt wie Anthropic oder eine OpenAI-kompatible API, oder ein lokales CLI-Profil. Der API-Schlüssel wird auf die gleiche Weise wie der Rest der Anwendung aufgelöst, daher muss das Master-Passwort-Tresor entsperrt sein, wenn das Profil ein verschlüsseltes Geheimnis benötigt.</li>
+<li><strong>Standard (lokales Text-Profil)</strong> verwendet das Profil, das der Rolle Text/Übersetzung im <strong>KI &gt; KI-Manager</strong> zugewiesen ist, und nur wenn dieses Profil ein eingebettetes (lokales) Modell ausführt. Das Standardprofil fällt niemals automatisch auf ein Cloud-Profil zurück: diese Option ist für Personen gedacht, die ihre Interface-Strings nicht oder nicht an einen externen Dienst senden möchten. Wenn diese Rolle ein Cloud- oder CLI-Profil besitzt, sagt der Test und der Assistent dies aus und fordert Sie auf, ein Profil auszuwählen.</li>
 </ul>
-<p>Dies spiegelt das Dropdown-Menü <strong>KI-Profil</strong> im Abschnitt „Guide-Übersetzung“ unten wider, sodass beide Übersetzungsjobs auf das gewünschte Modell verwiesen werden können – zum Beispiel ein kleines lokales Modell für die Schnittstellenzeichenfolgen und ein stärkeres Cloud-Modell für den Guide oder dasselbe Profil für beide.</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p><strong>Anmeldeinformationen:</strong> Externe Anbieter benötigen ihren normalen API-Schlüssel, mit Ausnahme eines LibreTranslate-Endpunkts, der explizit ohne diesen konfiguriert ist. Lokale KI erfordert keinen Übersetzungsanbieterschlüssel, aber ein eingebettetes Modell muss sein GGUF/MLX-Modell und seine Laufzeit installiert haben, und der Master-Passwort-Tresor muss entsperrt werden, wenn das ausgewählte KI-Profil ein verschlüsseltes Geheimnis benötigt.</p>
+<p><strong>Zugangsdaten:</strong> Übersetzungs-APIs benötigen ihren normalen API-Schlüssel, außer ein LibreTranslate-Endpunkt, der explizit ohne einen konfiguriert ist. KI-Übersetzung erfordert keinen Übersetzungsanbieter-Schlüssel, aber ein eingebettetes Modell benötigt sein GGUF/MLX-Modell und Runtime installiert, und das Master-Passwort-Vault muss entsperrt sein, wenn das ausgewählte KI-Profil ein verschlüsseltes Geheimnis benötigt.</p>
 </div>
-<h2 id="guide-ubersetzung">Guide-Übersetzung<a class="headerlink" href="#guide-ubersetzung" title="Permanent link">&para;</a></h2>
-<p>Ein zweiter, unabhängiger Job unten übersetzt den gebündelten Offline-Anleitung – dieselbe Website, zu der diese Seite gehört – in die oben ausgewählte Zielsprache, sodass das In-App-Fenster „Hilfe → Anleitung“ und seine Suche vollständig in dieser Sprache gelesen werden können und nicht nur die Schnittstellenbezeichnungen.</p>
-<table>
-<thead>
-<tr>
-<th>Einstellung</th>
-<th>Typ</th>
-<th>Werte</th>
-<th>Standard</th>
-<th>Gespeichert als</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>KI-Profil</td>
-<td>Dropdown</td>
-<td>"Standard (Text-Profil)" plus jedes konfigurierte KI-Profil</td>
-<td>Standard (Text-Profil)</td>
-<td>—</td>
-</tr>
-<tr>
-<td>Dauer abschätzen</td>
-<td>Schaltfläche</td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
-</tr>
-<tr>
-<td>Übersetzung starten</td>
-<td>Schaltfläche</td>
-<td>—</td>
-<td>—</td>
-<td>—</td>
-</tr>
-<tr>
-<td>Abbrechen</td>
-<td>Schaltfläche</td>
-<td>(wird angezeigt, während eine Übersetzung oder eine Dauerabschätzung läuft)</td>
-<td>—</td>
-<td>—</td>
-</tr>
-<tr>
-<td>Übersetzte Anleitungen</td>
-<td>Liste</td>
-<td>Sprachen der Anleitung übersetzt bisher</td>
-<td>—</td>
-<td>—</td>
-</tr>
-<tr>
-<td>Löschen</td>
-<td>Schaltfläche</td>
-<td>(entfernt die ausgewählte übersetzte Anleitung, ihre Assets und ihren Suchindex)</td>
-<td>—</td>
-<td>—</td>
-</tr>
-</tbody>
-</table>
-<p>Picking a profile in the <strong>AI profile</strong> dropdown here always uses that profile, whatever its connection mode. Leaving it on <strong>Default (text profile)</strong> follows the Translation API selection above: with the provider set to <strong>Local AI text profile</strong>, the guide uses the profile assigned to the Text/translation role in KI-Manager — and only if that profile runs an embedded (local) model — while any other provider with a stored key translates the guide through that translation API instead.</p>
-<p><strong>Übersetzung starten</strong> ohne ausgewähltes KI-Profil erfordert eine funktionierende Übersetzungs-API: mit einem Anbieter über eine keybasierte Dienstleistung (z. B. Google Translate) und ohne gespeicherten API-Schlüssel wird der Start abgelehnt mit <em>"Bitte geben Sie einen API-Schlüssel ein."</em> — ein ausgewähltes KI-Profil ist allein ausreichend. Falls der Start aufgrund eines anderen Grundes nicht möglich ist, wird die Meldung den Grund angegeben: ein ausgewähltes Profil, dessen Modell nicht heruntergeladen oder ausgewählt wurde, kein Guide-Profil und kein API-Schlüssel, oder kein lokales Textprofil konfiguriert.</p>
-<p>Die Löschung einer übersetzten Anleitung entfernt ihre gesamte Unterordner unter <code>~/.kortty/guide/&lt;language&gt;/</code> — die übersetzten Seiten, die vorbereiteten Theme-Assets, ihren Suchindex und ihren Wiederherstellungspunkt — nach einer Bestätigungsmeldung.</p>
+<h2 id="anleitung-ubersetzen">Anleitung übersetzen<a class="headerlink" href="#anleitung-ubersetzen" title="Permanent link">&para;</a></h2>
+<p>Übersetzen der Anleitung — die gleiche Seite, zu der diese Seite gehört — macht das in-App-<strong>Hilfe → Anleitung</strong>-Fenster und dessen Suche in Ihrer Sprache lesbar statt nur die Interface-Labels. Es wird vom <a href="#translate-now">Jetzt übersetzen</a>-Assistenten gestartet, wobei <strong>Eingebaute Anleitung</strong> ausgewählt ist; die <strong>Dauer abschätzen</strong>, Fortschrittsanzeige, <strong>Pause</strong> und <strong>Abbrechen</strong> gelten dafür. Der Lauf ist unabhängig von den Interface-Strings: die Strings brauchen Minuten, die Anleitung kann Stunden auf einem lokalen Modell benötigen.</p>
+<p>Das Löschen einer übersetzten Anleitung entfernt ihr gesamtes Verzeichnis unter <code>~/.kortty/guide/&lt;language&gt;/</code> — die übersetzten Seiten, die gestagten Theme-Assets, ihren Suchindex und ihren Resume-Checkpoint — nach einer Bestätigungsaufforderung.</p>
 <h3 id="warum-dies-im-hintergrund-lauft">Warum dies im Hintergrund läuft<a class="headerlink" href="#warum-dies-im-hintergrund-lauft" title="Permanent link">&para;</a></h3>
-<p>Das Übersetzen der Anleitungs ist keine schnelle Angelegenheit: Die gebündelte Website enthält etwa 5.500 verschiedene Textteile, sobald wiederholte Navigation und Überschriften dedupliziert werden, und je nach Modell kann dies zwischen einigen Minuten und fast einem Tag dauern. Beim Starten wird weder das Einstellungsdialogfeld noch der Rest von korTTY blockiert:</p>
+<p>Das Übersetzen der Anleitung ist keine schnelle Aufgabe: Die gebündelte Website enthält ungefähr 5.500 unterschiedliche Textstellen, sobald wiederholte Navigationen und Überschriften dedupliziert sind, und je nach Modell kann dies von wenigen Minuten bis zu einem Großteil eines Tages dauern. Der Start blockiert weder das Einstellungsdialogfeld noch den Rest von korTTY.</p>
 <ul>
-<li>Die Übersetzung wird weiter ausgeführt, nachdem Sie die Einstellungen geschlossen, die Registerkarten gewechselt oder in Terminals weitergearbeitet haben.</li>
-<li>Ein kleiner Fortschrittsanzeiger — eine Leiste, ein Prozentwert und eine geschätzte verbleibende Zeit — erscheint rechts am Menüband von korTTY, solange eine Anleitung übersetzt wird, und verschwindet erneut, sobald die Übersetzung abgeschlossen ist.</li>
-<li>Während der Ausführung wird das Dialogfeld eine Fortschrittsleiste und eine Statuszeile ("Übersetzen… 42%") anzeigt. <strong>Abbrechen</strong> beendet die Aufgabe an dem nächsten sicheren Punkt, anstatt das bereits Übersetzte zu verlieren: Der Fortschritt wird kontinuierlich auf der Festplatte gespeichert, sodass bei erneuter Ausführung der gleiche Sprachpaar von dem Punkt, an dem es abgab, fortgesetzt wird, anstatt von vorne zu beginnen.</li>
-<li>Die Fortschrittsanzeige im Dialog und <strong>Abbrechen</strong> gehören zum Einstellungsdialog, der den Lauf gestartet hat – ein späteres erneutes Öffnen von Einstellungen führt nicht zu einer erneuten Verknüpfung mit einem laufenden Auftrag, und <strong>Übersetzung starten</strong> meldet dann nur <em>„Eine Übersetzung der Anleitungs läuft bereits.“</em> Nach dem Schließen der Einstellungen wird der laufende Auftrag über den Beenden-Dialog unten angehalten (oder einfach zum Beenden gelassen).</li>
-<li>Wenn Sie versuchen, korTTY zu beenden, während eine Anleitungsübersetzung ausgeführt wird, wird in einem Dialogfeld angeboten, die Übersetzung anzuhalten und zu beenden oder korTTY geöffnet zu lassen. Wenn Sie sich für eine Pause entscheiden, bleibt der Kontrollpunkt für den nächsten Lauf bestehen.</li>
-<li>Nach der Installation eines korTTY-Updates, das den Inhalt der Anleitungs geändert hat, und wenn Sie bereits über eine übersetzte Anleitung für Ihre Sprache verfügen, bietet korTTY einmal pro Lauf an – ein paar Sekunden nach dem Öffnen des Fensters und nie, während eine Übersetzung bereits läuft –, um es auf den neuesten Stand zu bringen; <strong>Jetzt aktualisieren</strong> öffnet diese Registerkarte „Einstellungen“, auf der Sie den Lauf selbst starten können. Da der Fortschritt durch den genauen englischen Text jedes Stücks kontrolliert wird, werden bei der Aktualisierung nur Sätze neu übersetzt, die sich in der Veröffentlichung tatsächlich geändert haben – alles andere wird unverändert wiederverwendet.</li>
+<li>Die Übersetzung läuft weiter, nachdem Sie Einstellungen schließen, Tabs wechseln oder weiterhin in Terminals arbeiten.</li>
+<li>Ein kleiner Fortschrittsindikator — ein Balken, ein Prozentwert und eine geschätzte verbleibende Zeit — erscheint am rechten Ende der Menüleiste von korTTY, solange eine Anleitungsübersetzung läuft, und verschwindet wieder, sobald sie beendet ist.</li>
+<li>Während der Ausführung zeigt der Translate now-Assistent eine Fortschrittsleiste, den Prozentsatz und die verbleibende Zeit. <strong>Pause</strong> hält die Ausführung nach dem aktuellen Batch an, <strong>Abbrechen</strong> stoppt sie am nächsten sicheren Punkt statt das bereits Übersetzte zu verlieren: der Fortschritt wird währenddessen auf die Festplatte checkpointed, sodass das gleiche Sprachpaket erneut gestartet den Fortschritt fortsetzt statt von vorne zu beginnen.</li>
+<li>Das Schließen des Assistenten oder des Einstellungsdialogs lässt den Auftrag weiterlaufen; der Übersetzungstab zeigt dessen Fortschritt neben <strong>Jetzt übersetzen…</strong>, und das erneute Öffnen des Assistenten verbindet sich erneut damit. <strong>Starten</strong> während ein Auftrag läuft meldet nur <em>"Eine Leitungsübersetzung läuft bereits."</em></li>
+<li>Wenn Sie versuchen, korTTY zu beenden, während eine Anleitungsübersetzung läuft, bietet ein Dialog an, sie anzuhalten und zu beenden oder korTTY offen zu lassen; die Auswahl zum Anhalten lässt den Checkpoint für den nächsten Lauf bestehen.</li>
+<li>Nach der Installation eines korTTY-Updates, das den Inhalt der Anleitung geändert hat, und wenn Sie bereits eine übersetzte Anleitung für Ihre Sprache haben, bietet korTTY einmal pro Lauf – ein paar Sekunden nach dem Öffnen des Fensters und niemals während eine Übersetzung bereits läuft – an, sie auf den neuesten Stand zu bringen; <strong>Jetzt aktualisieren</strong> öffnet diesen Einstellungs-Tab, in dem Sie den Lauf selbst starten. Da der Fortschritt durch den genauen englischen Text jedes Abschnitts checkpointed wird, übersetzt das Update nur die Sätze, die tatsächlich in der Veröffentlichung geändert wurden – alles andere wird unverändert wiederverwendet.</li>
 </ul>
-<h3 id="warum-ein-reasoning-modell-schlecht-passt">Warum ein Reasoning-Modell schlecht passt<a class="headerlink" href="#warum-ein-reasoning-modell-schlecht-passt" title="Permanent link">&para;</a></h3>
-<p>Einige KI-Modelle sind so konzipiert, dass sie „laut nachdenken“, bevor sie antworten. Dabei schreiben sie vor der eigentlichen Ausgabe eine erweiterte Gedankenkette in ihre Antwort ein, eine Technik, die auf schwierige Probleme wie Mathematik oder Codierung abgestimmt ist. Dieses Reasoning ist nicht Teil der Übersetzung, aber das Modell muss sie trotzdem generieren, und das Generieren von Text ist der langsamste Teil bei der Ausführung eines lokalen Modells. Gemessen an der eigenen Anleitung dieses Projekts erzeugte ein Reasoning-Modell etwa <strong>4,4 Abschluss-Tokens für jedes Eingabe-Token</strong> – ungefähr 4.400 Reasoning-Tokens, um 1.000 Zeichen Prosa zu übersetzen. Auf identischer Hardware war dies der Unterschied zwischen einem Übersetzungslauf von etwa einer Stunde und einem von sechs Stunden oder mehr.</p>
-<p>Wenn das <strong>KI-Profil</strong>, das Sie für die Anleitungsaufgabe auswählen, ein Modell mit Rückschlussfunktion ist, warnt korTTY Sie vor der Startung oder der Schätzung, benennt das Modell und lässt Sie entweder den Vorgang fortsetzen oder abbrechen. Die Prüfung prüft den Namen des Modells (Hersteller von Modellen mit Rückschlussfunktion veröffentlichen dort den Namen — "Rückschluss", "Denken", "R1", "QwQ", "o1" und ähnliche werden erkannt), wodurch keine Kosten entstehen, es kann jedoch gelegentlich ein anderes, nicht so benanntes Modell mit Rückschlussfunktion übersehen werden, aber korTTY wird ein normales Instruct-Modell nicht fälschlicherweise warnen.</p>
-<p><strong>Eignungsmodelle</strong> sind Chat-Modelle, die auf Anweisungen optimiert ("instruct") sind und keine Rückschluss- oder Denkmodus besitzen — ein Typ, der üblicherweise für Übersetzungen, Zusammenfassungen oder Umformungen verwendet wird, nicht für mehrstufige Problemlösungen. Bei einem eingebetteten lokalen KI-Profil suchen Sie nach MLX- oder GGUF-Versionen, deren Name "instruct" enthält und nicht "Rückschluss", "Denken" oder "R1" — beispielsweise eine Qwen2.5-Instruct- oder Phi-4-mini-instruct-Version, die für Ihre Hardware komfortabel lauffähig ist (4-Bit-quantisierte 7- bis 8-Bit-Modelle sind ein praktischer Standard für Apple Silicon). Größere Instruct-Modelle übersetzen generell flüssiger, jedoch langsamer; die unten angegebene Schätzung der Dauer ermöglicht es Ihnen, vor der vollständigen Ausführung zu vergleichen.</p>
-<h3 id="schatzung-wie-lange-eine-vollstandige-ubersetzung-dauern-wird">Schätzung, wie lange eine vollständige Übersetzung dauern wird<a class="headerlink" href="#schatzung-wie-lange-eine-vollstandige-ubersetzung-dauern-wird" title="Permanent link">&para;</a></h3>
-<p><strong>Geschätzte Dauer</strong> misst das oben ausgewählte KI-Profil anhand einer realen, repräsentativen Stichprobe der Anleitungtextes und prognostiziert, wie lange die Übersetzung aller noch ausstehenden Elemente dauern würde, ohne sich auf die vollständige Ausführung festzulegen:</p>
+<h3 id="warum-ein-reasoning-modell-schlecht-geeignet-ist">Warum ein Reasoning-Modell schlecht geeignet ist<a class="headerlink" href="#warum-ein-reasoning-modell-schlecht-geeignet-ist" title="Permanent link">&para;</a></h3>
+<p>Einige KI-Modelle sind darauf ausgelegt, „laut zu denken“, bevor sie antworten – sie schreiben eine ausführliche Gedankenkette in ihre Antwort, bevor die eigentliche Ausgabe erfolgt. Diese Überlegung ist nicht Teil der Übersetzung, aber das Modell muss sie trotzdem generieren, und das Erzeugen von Text ist der langsame Teil beim Ausführen eines lokalen Modells. In diesem Projekt wurde gemessen, dass ein solches Modell etwa <strong>4,4 Fertigungstoken pro Eingabetoken</strong> erzeugt – ungefähr 4 400 Tokens an Überlegungen, um 1.000 Zeichen Prosa zu übersetzen. Auf identischer Hardware bedeutete das den Unterschied zwischen einer Übersetzung von etwa einer Stunde und einer, die sechs Stunden oder länger dauerte.</p>
+<p>Wenn das gewählte Übersetzungsprofil ein KI-Profil mit einem Reasoning-Modell ist, warnt korTTY Sie vor dem Start oder der Schätzung, nennt das Modell und lässt Sie entscheiden, ob Sie fortfahren oder abbrechen möchten. Die Prüfung erfolgt anhand des Namens des Modells (Verlage von Reasoning-Modellen bewerben es dort – „reasoning“, „thinking“, „R1“, „QwQ“, „o1“ und ähnliche werden erkannt), sodass keine Kosten entstehen, und es kann gelegentlich ein anders benanntes Reasoning-Modell übersehen werden; jedoch wird kein reines Instruktionsmodell fälschlicherweise gewarnt.</p>
+<p><strong>Geeignete Modelle</strong> sind instruction-tuned („instruct“) Chat-Modelle ohne einen Reasoning/Thinking-Modus – die Art, die üblicherweise für Übersetzungen, Zusammenfassungen oder Umschreibungen verwendet wird und nicht für mehrstufige Problemlösungen. Für ein eingebettetes lokales Profil suchen Sie nach MLX- oder GGUF-Builds, deren Name „instruct“ enthält und nicht „reasoning“, „thinking“ oder „R1“, zum Beispiel ein Qwen2.5-Instruct oder Phi-4-mini-instruct Build in einer Größe, die Ihre Hardware komfortabel ausführen kann (4-Bit-quantisierte 7–8B-Modelle sind ein praktischer Standard auf Apple Silicon). Größere Instruct-Modelle übersetzen in der Regel flüssiger, kosten jedoch an Geschwindigkeit; die unten stehende Dauerabschätzung ermöglicht es Ihnen, vor einer vollständigen Ausführung zu vergleichen.</p>
+<h3 id="schatzung-wie-lange-eine-vollstandige-ubersetzung-dauern-wird">Schätzung, wie lange eine vollständige Übersetzung dauern wird.<a class="headerlink" href="#schatzung-wie-lange-eine-vollstandige-ubersetzung-dauern-wird" title="Permanent link">&para;</a></h3>
+<p><strong>Dauer abschätzen</strong> im Translate now Assistant misst das ausgewählte Übersetzungsprofil gegen eine echte, repräsentative Stichprobe des Textes der Anleitung und projiziert, wie lange die noch ausstehenden Übersetzungen dauern würden, ohne den vollständigen Durchlauf zu starten:</p>
 <ol>
-<li>Es sendet zuerst eine kleine, zeitlich nicht festgelegte „Aufwärm“-Anfrage, damit die einmaligen Ladekosten eines lokalen Modells – die einmal für einen gesamten Lauf und nicht pro Stapel bezahlt werden – nicht mit der laufenden Übersetzungsgeschwindigkeit verwechselt und über jeden Stapel der Projektion hinweg multipliziert werden.</li>
-<li>Es übersetzt dann einen echten, budgetgroßen Stapel Leittext und synchronisiert ihn. Hierbei handelt es sich um eine echte Übersetzung, nicht um eine Simulation: Die Stichprobe wird beibehalten, sodass diese Arbeit nicht wiederholt wird, wenn zuerst geschätzt wird und dann ein vollständiger Durchlauf gestartet wird.</li>
-<li>Aus dieser einzelnen zeitbasierten Batch-Verarbeitung berechnet es zwei Projektionen für den verbleibenden Text — eine unter der Annahme, dass die Kosten mit der Anzahl der Anfragen zunehmen, und eine unter der Annahme, dass sie mit der Textmenge zunehmen — und gibt das resultierende Intervall zusammen mit der Dauer der verbleibenden Seiten und des Textes bekannt. Die Angabe eines Intervalls anstatt einer einzelnen Zahl berücksichtigt, dass ein einzelnes Beispiel nicht vollständig die festen pro-Anfrage-Overhead-Kosten eines Modells von den pro-Zeichen-Kosten trennen kann; die Schätzung lässt diese Unsicherheit sichtbar bleiben, anstatt sie hinter einer einzigen, übermäßig präzisen Zahl zu verbergen.</li>
+<li>Es sendet zunächst eine kleine, unzeitlich gemessene „Warm-up“-Anfrage, damit die einmalige Ladekosten eines lokalen Modells — die nur einmal für einen gesamten Lauf gezahlt werden, nicht pro Batch — nicht fälschlicherweise als fortlaufende Übersetzungsrate interpretiert und auf jeden Batch der Projektion multipliziert werden.</li>
+<li>Es übersetzt dann einen echten, budgetgerechten Batch von Anleitungstext und misst die Zeit. Dies ist eine echte Übersetzung, keine Simulation: Die Probe bleibt erhalten, sodass zunächst schätzen und anschließend einen vollständigen Durchlauf starten nicht die gleiche Arbeit wiederholen.</li>
+<li>Aus dieser einzelnen zeitlich begrenzten Charge berechnet es zwei Projektionen für den verbleibenden Text – eine, die annimmt, dass die Kosten mit der Anzahl der Anfragen skalieren, und eine andere, die davon ausgeht, dass sie sich nach dem Textvolumen richtet – und gibt den resultierenden Bereich zusammen mit der geschätzten Dauer für die verbleibenden Seiten und Text an. Ein Bereich statt einer einzelnen Zahl zu melden, verdeutlicht, dass eine einzelne Probe nicht vollständig die feste pro-Anfrage-Überhead eines Modells von dessen pro-Zeichen-Kosten trennen kann; die Schätzung hält diese Unsicherheit sichtbar, anstatt sie hinter einer zu präzisen Zahl zu verbergen.</li>
 </ol>
-<p>Falls die Stichprobe direkt fehlschlägt — das KI-Profil ist nicht erreichbar, falsch konfiguriert oder erzeugt nichts Nutzbares — gibt die Schätzung dies als Verbindungsaufwand anstatt als Dauer an, sodass es nicht als "Die Übersetzung wird sofort erfolgen" verstanden wird. Falls nichts mehr übersetzt werden muss, gibt die Schätzung einfach an, dass die Anleitung bereits für diese Sprache vollständig übersetzt ist.</p>
+<p>Falls die Probe vollständig fehlschlägt – das KI-Profil ist nicht erreichbar, falsch konfiguriert oder liefert nichts Nutzbares – meldet die Schätzung dies als Verbindungsproblem anstelle einer Dauer, sodass nicht fälschlicherweise angenommen wird, dass die Übersetzung sofort erfolgt. Und wenn nichts mehr zu übersetzen bleibt, gibt die Schätzung einfach an, dass die Anleitung bereits vollständig für diese Sprache übersetzt ist.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Die obige Warnung zum Reasoning-Modell wird sowohl bei <strong>Schätzdauer</strong> als auch bei <strong>Übersetzung starten</strong> angezeigt, da das Ausführen einer Schätzung anhand eines Reasoning-Modells bereits Echtzeit dafür in Anspruch nimmt.</p>
+<p>Die Warnung des Reasoning-Modells oben erscheint sowohl für <strong>Dauer abschätzen</strong> als auch für <strong>Starten</strong>, da das Ausführen einer Abschätzung gegen ein Reasoning-Modell bereits echte Zeit in Anspruch nimmt.</p>
 </div></p>
     </article>
 </section>
