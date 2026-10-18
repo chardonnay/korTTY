@@ -364,6 +364,6 @@
 "rn2t":"Cerca qualsiasi impostazione",
 "rn2c":"Digita nelle Impostazioni globali e vai dritto a ogni opzione; ogni scheda rimanda alla sua pagina del manuale.",
 "rn3t":"Backup cifrati pianificati",
-"rn3c":"Ogni giorno, settimana o mese nella cartella che scegli: mai in chiaro, e un backup saltato viene recuperato.",
+"rn3c":"Ogni giorno, ogni settimana o ogni mese nella cartella che scegli: mai in chiaro, e un backup saltato viene recuperato.",
 "rn4t":"Dipendenze tra job",
-"rn4c":"Esegui un job solo dopo che i predecessori sono riusciti, avvia intere catene e visualizzale come diagramma."}
+"rn4c":"Esegui un job solo dopo che i job precedenti sono andati a buon fine, avvia intere catene e visualizzale come diagramma."}

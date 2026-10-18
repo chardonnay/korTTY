@@ -366,4 +366,4 @@
 "rn3t":"Versleutelde back-ups op schema",
 "rn3c":"Dagelijks, wekelijks of maandelijks in een map naar keuze – nooit onversleuteld, en een gemiste run wordt ingehaald.",
 "rn4t":"Taakafhankelijkheden",
-"rn4c":"Voer een taak pas uit als zijn voorgangers geslaagd zijn, start hele ketens en bekijk ze als diagram."}
+"rn4c":"Voer een taak pas uit als de voorgaande taken geslaagd zijn, start hele ketens en bekijk ze als diagram."}

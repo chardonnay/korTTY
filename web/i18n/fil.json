@@ -364,6 +364,6 @@
 "rn2t":"Hanapin ang anumang setting",
 "rn2c":"Mag-type sa Global Settings para direktang pumunta sa anumang opsyon — bawat tab ay naka-link sa sarili nitong pahina sa manwal.",
 "rn3t":"Naka-iskedyul na naka-encrypt na backup",
-"rn3c":"Araw-araw, lingguhan o buwanan sa folder na pipiliin mo — hindi kailanman walang encryption, at hinahabol ang nalaktawang takbo.",
+"rn3c":"Araw-araw, lingguhan o buwanan sa folder na pipiliin mo — laging naka-encrypt, at pinapatakbo pa rin ang nalaktawang takbo.",
 "rn4t":"Mga dependency ng job",
 "rn4c":"Patakbuhin lang ang isang job kapag nagtagumpay ang mga nauna rito, simulan ang buong chain at tingnan ito bilang diagram."}
