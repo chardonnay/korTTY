@@ -180,6 +180,157 @@
     -fx-opacity: 0.65;
 }
 
+/* SFTP manager: the two panels. The active one (last clicked or focused), on which its toolbar
+   and the keyboard act, is framed and draws its selection in the accent colour; the other keeps a
+   muted selection. The frame is always 2px wide, so switching never moves the lists. */
+.sftp-pane {
+    -fx-border-color: transparent;
+    -fx-border-width: 2;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+}
+
+.sftp-pane:active-pane {
+    -fx-border-color: -kortty-fb-accent;
+}
+
+.sftp-pane .sftp-pane-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: -kortty-fb-dim;
+}
+
+.sftp-pane:active-pane .sftp-pane-title {
+    -fx-text-fill: -kortty-fb-accent;
+}
+
+.sftp-pane .sftp-pane-marker {
+    -fx-fill: -kortty-fb-border;
+}
+
+.sftp-pane:active-pane .sftp-pane-marker {
+    -fx-fill: -kortty-fb-accent;
+}
+
+.sftp-pane:active-pane .file-browser-table .table-row-cell:selected {
+    -fx-background-color: derive(-kortty-fb-accent, -52%);
+}
+
+/* The button row under each list: a band in the list's colours, so its text stays readable where
+   the panel itself is light (Modena under the Normal design). */
+.sftp-pane .sftp-pane-toolbar {
+    -fx-background-color: -kortty-fb-bg;
+    -fx-background-radius: 4;
+    -fx-padding: 3 4 3 4;
+}
+
+.sftp-pane .sftp-pane-toolbar .menu-button > .label {
+    -fx-text-fill: -kortty-fb-fg;
+}
+
+.sftp-pane .sftp-pane-toolbar .separator:vertical .line {
+    -fx-border-color: transparent transparent transparent -kortty-fb-border;
+    -fx-border-width: 0 0 0 1;
+}
+
+/* SFTP manager: a panel's path as clickable folders, in the look of a path field */
+.sftp-pane .sftp-breadcrumb .sftp-breadcrumb-row {
+    -fx-background-color: -kortty-fb-status-bg;
+    -fx-border-color: -kortty-fb-border;
+    -fx-border-radius: 3;
+    -fx-background-radius: 3;
+    -fx-padding: 0 4 0 4;
+    -fx-spacing: 0;
+    -fx-cursor: text;
+}
+
+.sftp-pane .sftp-breadcrumb .sftp-crumb {
+    -fx-background-color: transparent;
+    -fx-background-radius: 3;
+    -fx-padding: 2 5 2 5;
+    -fx-text-fill: -kortty-fb-fg;
+    -fx-cursor: hand;
+}
+
+.sftp-pane .sftp-breadcrumb .sftp-crumb:hover {
+    -fx-background-color: -kortty-fb-hover;
+    -fx-text-fill: -kortty-fb-selected-fg;
+}
+
+.sftp-pane .sftp-breadcrumb .sftp-crumb-current {
+    -fx-font-weight: bold;
+}
+
+.sftp-pane .sftp-breadcrumb .sftp-crumb-separator {
+    -fx-text-fill: -kortty-fb-dim;
+    -fx-padding: 0 1 0 1;
+}
+
+/* SFTP manager: a panel's status line under its list */
+.sftp-pane .sftp-pane-status {
+    -fx-text-fill: -kortty-fb-dim;
+    -fx-background-radius: 0 0 4 4;
+}
+
+.sftp-pane .sftp-transfer-button {
+    -fx-font-weight: bold;
+}
+
+/* SFTP manager: folder comparison. The bar above the lists counts the differences in chips whose
+   dots carry the colours the rows are tinted with: green only on this side, amber newer on this
+   side, red different, dimmed the same. Literal colours, as they mean the same in every design. */
+.sftp-compare-bar {
+    -fx-background-color: -kortty-fb-status-bg;
+    -fx-background-radius: 6;
+    -fx-border-color: -kortty-fb-border;
+    -fx-border-radius: 6;
+    -fx-padding: 4 8 4 10;
+}
+
+.sftp-compare-bar .sftp-compare-title {
+    -fx-text-fill: -kortty-fb-fg;
+    -fx-font-weight: bold;
+}
+
+.sftp-compare-bar .check-box {
+    -fx-text-fill: -kortty-fb-fg;
+}
+
+.sftp-compare-chip {
+    -fx-text-fill: -kortty-fb-fg;
+    -fx-font-size: 0.9231em;
+    -fx-padding: 1 8 1 6;
+    -fx-background-color: -kortty-fb-bg;
+    -fx-background-radius: 10;
+    -fx-graphic-text-gap: 5;
+}
+
+.sftp-compare-chip.cmp-chip-only .sftp-compare-dot { -fx-fill: #4caf50; }
+.sftp-compare-chip.cmp-chip-newer .sftp-compare-dot { -fx-fill: #f0a020; }
+.sftp-compare-chip.cmp-chip-different .sftp-compare-dot { -fx-fill: #e5534b; }
+.sftp-compare-chip.cmp-chip-same .sftp-compare-dot { -fx-fill: -kortty-fb-dim; }
+
+.file-browser-table .table-row-cell:cmp-only-here {
+    -fx-background-color: rgba(76, 175, 80, 0.20);
+}
+
+.file-browser-table .table-row-cell:cmp-newer-here {
+    -fx-background-color: rgba(240, 160, 32, 0.22);
+}
+
+.file-browser-table .table-row-cell:cmp-different {
+    -fx-background-color: rgba(229, 83, 75, 0.20);
+}
+
+.file-browser-table .table-row-cell:cmp-same .table-cell,
+.file-browser-table .table-row-cell:cmp-older-here .table-cell {
+    -fx-opacity: 0.55;
+}
+
+/* A selected row shows the selection, not its comparison tint (the active panel's rule is stronger still). */
+.file-browser-table .table-row-cell:selected {
+    -fx-background-color: -kortty-fb-selected;
+}
+
 /* SFTP manager: the transfer list at the bottom of the tab */
 .sftp-transfer-table .table-row-cell:failed .table-cell {
     -fx-text-fill: #e5534b;

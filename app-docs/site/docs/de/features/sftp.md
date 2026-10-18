@@ -39,6 +39,24 @@ Der SFTP-Manager verwendet ein **Zwei-Panel-Layout** für eine einfache Dateiver
 | Lokale Dateien durchstöbern | Ferndateien durchstöbern |
 | Auf Remote-System hochladen | Auf lokales System herunterladen |
 
+![SFTP Manager with the server panel active: hidden entries first, a row of buttons under each list](../assets/screenshots/sftp/sftp-manager.png)
+
+### Aktives Panel
+
+Das Panel, in dem Sie arbeiten, ist das **aktive Panel**: Durch Klicken irgendwo im Panel oder durch Bewegen des Tastaturfokus hinein wird es in der Akzentfarbe eingerahmt, der Punkt vor seinem Titel farbig markiert und die ausgewählten Zeilen in der Akzentfarbe dargestellt. Das andere Panel behält seine Auswahl, wird gedämpft angezeigt, sodass Sie auf einen Blick sehen können, welche Liste Ihre letzte Klick- und Tastenkombination wie ++delete++ und ++f2++ beeinflusst.
+
+Jedes Panel hat seine eigene Schaltflächenreihe unter seiner Liste, und jede Schaltfläche wirkt auf das Panel, in dem sie sich befindet: **Aktualisieren**, **Neuer Ordner**, **Löschen**, **Rechte**, **Archiv** und **Bearbeiten** in beiden Reihen, **Hochladen** am rechten Ende der lokalen Reihe und **Herunterladen** am linken Ende der Serverreihe, wo sich die beiden Panels treffen.
+
+### Versteckte Dateien
+
+Der Augenknopf neben dem Home-Button jedes Panels zeigt oder verbirgt die versteckten Einträge dieses Panels: Namen, die mit einem Punkt beginnen, wie `.git` oder `.bashrc`, und auf der lokalen Seite auch Dateien und Ordner, die das Dateisystem als versteckt markiert (das versteckte Attribut unter Windows). ++cmd+shift+period++ (++ctrl+shift+period++ auf Windows und Linux) führt dasselbe für die Liste aus, die den Tastaturfokus hat, wie im macOS Finder. Jedes Panel merkt sich seine Auswahl für den nächsten SFTP-Tab; bis Sie sie verbergen, werden versteckte Einträge angezeigt. Der übergeordnete Eintrag `..` bleibt immer erhalten, und das Suchfeld filtert den Rest.
+
+### Pfadleiste und Statuszeile
+
+Der Pfad jedes Panels wird als anklickbare Ordner angezeigt; klicken Sie auf einen, um dorthin zu gelangen. Um stattdessen einen Pfad einzugeben, klicken Sie auf den leeren Teil der Leiste oder drücken Sie ++cmd+l++ (++ctrl+l++ unter Windows und Linux) im Panel; ++enter++ führt dorthin, und ++escape++ kehrt zu den Ordnern zurück. Wenn der Pfad breiter als die Leiste ist, bleibt sein Ende sichtbar.
+
+Eine Zeile unter jeder Liste zählt ihre Einträge (während das Suchfeld die Liste einengt, wie viele von allen angezeigt werden), die ausgewählten Einträge mit ihrer Größe und die versteckten Einträge, die der Augen-Button ausblendet. Die **Größe**-Spalte ist rechtsbündig, und beim Überfahren eines Datums wird es vollständig angezeigt.
+
 ###  Sortierbare Spalten
 
 Beide Paneele zeigen die gleichen Spalten an, von denen alle durch Klicken auf den Spaltenkopf sortierbar sind:
@@ -47,29 +65,39 @@ Beide Paneele zeigen die gleichen Spalten an, von denen alle durch Klicken auf d
 |--------|---|
 | **Name** | Datei oder Verzeichnisaname |
 | **Typ** | Ein Typ-Icon: ein Ordner oder ein Dateiknopf, der anhand des Dateinamens (Code, Bild, Archiv, Dokument, anderes) gewählt wird |
-| **Größe** | Dateigröße im menschenlesbaren Format (Verzeichnisse zeigen —); die Sortierung verwendet die exakte Byteanzahl, mit Ordnern zuerst |
+| **Größe** | Dateigröße im menschenlesbaren Format; ein Ordner zeigt — bis [Größe berechnen](#ordnergroen) gemessen wurde. Sortierung verwendet die exakte Byte-Anzahl innerhalb jeder Gruppe des [Sortierreihenfolge](#sortierreihenfolge) |
 | **Datum** | Letzte Änderungsdatum und -zeit |
-| **Benutzer** | Eigentümername (lokale Umgebung: aus der Dateisystem; remote: aus SFTP oder UID) |
-| **Gruppe** | Gruppenname (lokal: vom Dateisystem; remote: von SFTP oder GID) |
+| **Benutzer** | Besitzername (lokal: vom Dateisystem; auf dem Server: wie der Server es sendet, oder dort nachgeschlagen, wenn er nur die UID sendet; siehe [Besitzer und Gruppenname](#besitzer-und-gruppennamen)) |
+| **Gruppe** | Gruppenname (lokal: vom Dateisystem; auf dem Server: wie der Server es sendet, oder dort nachgeschlagen, wenn er nur die GID sendet) |
 | **Berechtigungen** | Berechtigungen im Unix-Stil (z. B. `rwxr-xr-x`) |
 
-## Standardsortierreihenfolge
+## Sortierreihenfolge
 
-Standardmäßig werden Dateien in der folgenden Reihenfolge nach der Spalte **Typ** sortiert:
+Unabhängig davon, nach welcher Spalte Sie sortieren, bleiben die Einträge in diesen Gruppen:
 
 1. **Übergeordnetes Verzeichnis** (`..`) – immer oben
-2. **Verzeichnisse, die mit „.“** beginnen (z. B. `.git`, `.config`) – alphabetisch
-3. **Andere Verzeichnisse** – alphabetisch
-4. **Dateien, die mit „.“** beginnen (z. B. `.bashrc`) – alphabetisch
-5. **Alle anderen Dateien** – alphabetisch
+2. **Versteckte Ordner** — Namen, die mit "." beginnen (z. B. `.git`, `.config`)
+3. **Versteckte Dateien** (z. B. `.bashrc`)
+4. **Andere Ordner**
+5. **Andere Dateien**
 
-Klicken Sie auf eine beliebige Spaltenüberschrift, um nach dieser Spalte zu sortieren. Durch erneutes Klicken der Typ-Spalte wird zwischen aufsteigender und absteigender Reihenfolge umgeschaltet. Das übergeordnete Verzeichnis (`..`) bleibt immer oben, unabhängig von Spalte und Richtung der Sortierung.
+Klicken Sie auf einen Spaltenkopf, um die Einträge innerhalb jeder Gruppe nach dieser Spalte zu sortieren; ein erneutes Klicken kehrt die Reihenfolge um, jedoch niemals die Reihenfolge der Gruppen. Standardmäßig werden die Listen nach der Spalte **Typ** sortiert, wodurch jede Gruppe alphabetisch nach Namen geordnet wird; die Sortierung berücksichtigt keine Groß- und Kleinschreibung. Während ein Panel seine [versteckten Dateien](#versteckte-dateien) ausblendet, bleiben die Gruppen 2 und 3 ausgeschlossen.
 
 ## Durchsuchen des Servers
 
 Remote-Ordner werden im Hintergrund gelesen, sodass das Fenster auch bei Ordnern mit Zehntausenden von Einträgen reaktionsfähig bleibt. Während ein Ordner geladen wird, überdeckt ein **Wird geladen…**-Indikator die Remote-Liste. Das Pfadfeld und die Liste wechseln erst in den neuen Ordner, wenn er gelesen wurde; falls das Lesen fehlschlägt (Ordner existiert nicht oder Sie haben keine Rechte), wird ein Fehler angezeigt und der Ordner, in dem Sie sich befanden, bleibt bestehen.
 
 Geben Sie einen Pfad in das Remote-**Pfad**-Feld ein und drücken ++enter++, um dorthin zu gelangen. `~` und `~/…` stehen für Ihr Login-Verzeichnis auf dem Server, und ein Pfad ohne führendes `/` wird relativ zum angezeigten Ordner interpretiert; `..` und `.` werden aufgelöst, sodass `../logs` den Geschwisterordner `logs` öffnet.
+
+### Besitzer- und Gruppennamen
+
+OpenSSH und andere Server, die SFTP Version 3 sprechen, senden Eigentümer und Gruppen nur als Zahlen (UID und GID). korTTY fragt dann einmal vom Server die Namen hinter Zahlen ab, die es noch nicht gesehen hat, mit `getent`, das auch LDAP und andere Verzeichniskonten kennt, oder von `/etc/passwd` und `/etc/group`, wo `getent` fehlt. Die Namen ersetzen die Zahlen kurz nachdem die Liste erscheint; die Liste wartet nie auf sie. **Besitzer/Berechtigungen setzen** ist ebenfalls mit den Namen vorausgefüllt.
+
+Ein Server, der keine Befehle ausführen kann (z. B. ein auf SFTP beschränktes Konto) oder der nach 8 Sekunden nicht geantwortet hat, zeigt weiterhin die Zahlen an, und korTTY fragt nicht erneut, bis Sie sich wieder verbinden.
+
+### Ordnergrößen
+
+**Größe berechnen** im Rechtsklick-Menü der Serverliste misst die ausgewählten Ordner mit `du -sk` auf dem Server. Die Spalte **Größe** zeigt das Ergebnis für jeden Ordner und die Statusleiste den Gesamtwert an; nach **Größe** sortieren ordnet sie diese Ordner danach. Die Zahl gibt den Speicherplatz an, den die Dateien einnehmen, der sich leicht von der Summe ihrer Größen unterscheiden kann. Während die Messung läuft, lautet derselbe Menüeintrag **Größenberechnung stoppen**. Die Größen werden verworfen, wenn die Liste erneut gelesen wird.
 
 ## Verbindung verloren
 
@@ -81,29 +109,51 @@ Wenn der Server oder das Netzwerk die Sitzung beendet, zeigt die Statusleiste **
 
 SFTP-Manager-Tabs werden mit einem [Projekt](projects.md#sftp-manager-tabs) gespeichert. Das Öffnen des Projekts mit **Automatisches Wiederverbinden** verbindet jeden Tab erneut mit den lokalen und entfernten Ordnern, in denen er sich zum Zeitpunkt des Speicherns befand. Ein Ordner, der nicht mehr existiert, öffnet stattdessen den Home-Ordner; auf der entfernten Seite sagt die Statusleiste dies an.
 
+## Ordner vergleichen und synchronisieren
+
+**Vergleichen** in der lokalen Zeile der Schaltflächen vergleicht den angezeigten lokalen Ordner mit dem angezeigten Serverordner, einschließlich aller Unterverzeichnisse. Es fragt zunächst nach Mustern, die ausgeschlossen werden sollen, jeweils ein Muster pro Zeile, z. B. `node_modules` oder `.cache`. Anschließend werden beide Ordner im Hintergrund gelesen; die Leiste über den Listen zählt, was bereits gelesen wurde, und ein Button am Ende der Leiste stoppt den Vergleich. Name, Größe und Änderungszeit werden verglichen; Zeitunterschiede von weniger als 2 Sekunden gelten als gleich, da SFTP-Version 3 ganze Sekunden beibehält. Symbolische Links werden auf beiden Seiten ausgeschlossen, und bei mehr als 100 000 Einträgen auf einer Seite wird der Vergleich abgebrochen.
+
+Das Ergebnis bleibt in der Leiste über den Listen: wie viele Einträge nur auf einer Seite existieren, neuer auf einer Seite sind, unterschiedlich (gleiches Alter aber andere Größe oder eine Datei auf einer Seite und ein Ordner auf der anderen) und gleich sind. Die Zeilen erhalten Farben, jeweils aus ihrer eigenen Sicht: grün nur hier, orange neuer hier, rot verschieden und gedimmt, wenn gleich oder älter hier. Ein Ordner ist rot, wenn etwas darin unterschiedlich ist, und die Farben folgen Ihnen in die Unterordner der verglichenen Ordner. **Nur Unterschiede** verbirgt das Gleiche; **Erneut vergleichen** (der Pfeil) und **Vergleich beenden** (das Kreuz) befinden sich am Ende der Leiste.
+
+![A comparison of a local folder with its copy on the server](../assets/screenshots/sftp/sftp-compare.png)
+
+**Auf den Server** kopiert das, was auf dem Server fehlt, was hier neuer ist und was gleich alt aber anders groß ist; **Auf diesen Computer** tut das Gleiche in die andere Richtung. Ein Dialog listet zunächst auf, was kopiert wird und wie viel. Dateien, die im Ziel existieren, werden ohne Nachfrage pro Datei ersetzt, und jede Kopie behält die Änderungszeit ihres Originals bei, sodass der nächste Vergleich die beiden als gleich erkennt. Eine neuere Datei im Ziel bleibt unverändert, ebenso ein Pfad, der auf einer Seite eine Datei und auf der anderen einen Ordner ist.
+
+Der Dialog verfügt außerdem über ein Kontrollkästchen, das standardmäßig deaktiviert ist und löscht, was ausschließlich auf dem Ziel vorhanden ist; nach einer zweiten Bestätigung wird es endgültig gelöscht. Die Kopien laufen in der [Transferliste](#ubertragungsliste), und die Ordner werden erneut verglichen, sobald sie abgeschlossen sind. Wenn Ihre Organisation die Dateiübertragung deaktiviert, zeigen beide Schaltflächen nur den Grund in der Statusleiste an.
+
+![The dialog before synchronizing to the server](../assets/screenshots/sftp/sftp-sync-dialog.png)
+
 ## Dateioperationen
 
-Jedes Panel hat seine eigene Gruppe von Toolbar-Buttons unter den Listen (lokal links, remote rechts) und ein Rechtsklick-Kontextmenü:
+Jedes Panel verfügt über eigene Schaltflächen unter seiner Liste und ein Rechtsklick-Kontextmenü; eine Schaltfläche wirkt auf das Panel, in dem sie sich befindet (siehe [Aktives Panel](#aktives-panel)):
 
 | Betrieb | Wie |
 |-----------|-----|
-| **Hochladen** | Wählen Sie lokale Dateien oder Ordner aus und klicken Sie auf **Hochladen**, oder ziehen Sie sie in das Remote-Panel; siehe [Ziehen und Ablegen](#ziehen-und-ablegen) |
-| **Herunterladen** | Wählen Sie Remote-Dateien oder Ordner aus und klicken Sie auf **Herunterladen**, oder ziehen Sie sie in das lokale Panel |
+| **Hochladen** | Wählen Sie lokale Dateien oder Ordner aus und klicken Sie auf **Hochladen** am rechten Ende der lokalen Zeile, oder ziehen Sie sie in das Remote-Panel; Siehe [Ziehen und Ablegen](#ziehen-und-ablegen) |
+| **Herunterladen** | Wählen Sie Remote-Dateien oder Ordner aus und klicken Sie auf **Herunterladen** am linken Ende der Serverzeile, oder ziehen Sie sie in das lokale Panel |
 | **Umbenennen** | Wählen Sie einen Eintrag aus und drücken Sie ++f2++, oder wählen Sie **Umbenennen** im Kontextmenü. Ein vorhandener Eintrag mit dem neuen Namen wird niemals ersetzt; stattdessen erhalten Sie einen Fehler |
 | **Neuer Ordner** | Klicken Sie auf die Ordner-Schaltfläche neben **Aktualisieren**, oder wählen Sie **Neuer Ordner** im Kontextmenü, in beiden Panels. Der Ordner wird im angezeigten Verzeichnis erstellt; ein bereits vorhandener Name ist ein Fehler |
 | **Löschen** | Wählen Sie Einträge aus und klicken Sie auf **Löschen**, wählen Sie **Löschen** im Kontextmenü, oder drücken Sie ++delete++ (++ctrl+backspace++, auf macOS ++cmd+backspace++). Sie bestätigen vor dem Löschen von etwas |
 | **Kopieren** | **Kopieren nach…** im Kontextmenü kopiert innerhalb derselben Seite: lokal in ein von Ihnen ausgewähltes Verzeichnis (im Hintergrund), remote in einen von Ihnen eingegebenen Pfad. Ein Remote-Verzeichnis, das an einer Stelle kopiert wird, an der bereits ein Verzeichnis mit diesem Namen existiert, wird in dieses zusammengeführt; das Kopieren eines Elements auf sich selbst oder in einen seiner eigenen Unterordner wird mit einem Fehler abgelehnt. |
 | **Im Snippet-Editor bearbeiten** | Wählen Sie genau eine lokale oder Remote-Datei aus und verwenden Sie dann das Symbolleistenmenü *Bearbeiten* oder das Kontextmenü mit der rechten Maustaste |
-| **Archivieren** | **Archivieren** in der Remote-Werkzeugleiste, oder **Archivieren...** im jeweiligen Kontextmenü, packt die Auswahl als ZIP, TAR.BZ2 oder 7z, je nach verfügbaren Tools auf dieser Seite. Ein lokales Archiv kann ein Passwort haben, ein Archiv auf dem Server nicht, weil `zip` und `7z` das Passwort auf der Befehlszeile des Servers bräuchten, wo andere Benutzer des Servers es lesen können |
+| **Archiv** | **Archiv** in der Schaltflächenzeile beider Panels, oder **Archiv...** im Kontextmenü, packt die Auswahl als ZIP, TAR.BZ2 oder 7z, je nach verfügbaren Werkzeugen auf dieser Seite. Ein lokales Archiv kann ein Passwort haben; ein Archiv auf dem Server nicht, weil `zip` und `7z` das Passwort auf der Befehlszeile des Servers benötigen, wo andere Benutzer des Servers es lesen können |
+| **Vergleichen** | Verwenden Sie die **Vergleichen**-Schaltfläche in der lokalen Zeile; siehe [Vergleichen und Synchronisieren von Ordnern](#ordner-vergleichen-und-synchronisieren) |
+| **Größe berechnen** | Wählen Sie Serverordner aus, klicken Sie mit der rechten Maustaste darauf und wählen Sie **Größe berechnen**; siehe [Ordnergrößen](#ordnergroen) |
 | **Hier entpacken** | Klicken Sie mit der rechten Maustaste auf ein Archiv auf dem Server (`.zip`, `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz` oder `.7z`) und wählen Sie **Hier entpacken...**. Es wird auf dem Server in einen neuen Ordner daneben entpackt; siehe [Archive auf dem Server entpacken](#archive-auf-dem-server-entpacken) |
-| **Besitzer/Berechtigungen setzen** | Wählen Sie Einträge aus, klicken dann auf **Rechte** oder wählen **Besitzer/Berechtigungen setzen…** im Kontextmenü. Separate Felder für Benutzer, Gruppe und oktale Berechtigungen (z. B. 755). Mit **Rekursiv auf Verzeichnisse anwenden** erreicht die Änderung auch das, was sich in den ausgewählten Ordnern befindet |
+| **Besitzer/Berechtigungen setzen** | Wählen Sie Einträge aus, klicken dann auf **Rechte** oder wählen Sie **Besitzer/Berechtigungen setzen...** im Kontextmenü. Es verfügt über separate Felder für Benutzer und Gruppe und akzeptiert die Berechtigungen als Oktalzahlen (z. B. 755) oder als Kontrollkästchen; siehe [Berechtigungen](#berechtigungen). Mit **Rekursiv auf Verzeichnisse anwenden** erreicht die Änderung auch das, was sich in den ausgewählten Ordnern befindet |
 | **Bild öffnen** | Wählen Sie eine Bilddatei aus und wählen **Bild öffnen** im Kontextmenü eines der beiden Panels. Das Bild öffnet sich in einem Bildbetrachter-Tab; ein Serverbild wird zunächst in den Speicher heruntergeladen |
 
 Ein Name für **Umbenennen** oder **Neuer Ordner** muss ein einzelnes Element im angezeigten Ordner sein: er darf nicht leer, `.` oder `..` sein, und darf `/` oder `\` nicht enthalten. Das Dialogfeld bleibt mit einem Fehler offen, bis der Name nutzbar ist.
 
 ### Archive erstellen
 
-Das Archivdialogfeld akzeptiert das Format (ZIP, TAR.BZ2 oder 7z; ein Format, dessen Tool der Server nicht besitzt, wird als *nicht installiert* gekennzeichnet), den Pfad des Archivs und ein Kompressionslevel von keines bis best. Die übrigen Felder sind optional:
+Der obere Teil des Archivdialogs gibt an, was archiviert wird und wo: der Computer (**Server** mit dem Verbindungsnamen und user@host, oder **Dieser Computer** mit seinem Namen), der angezeigte Ordner, wie viele Ordner und Dateien ausgewählt sind, und deren Namen. Das Archiv wird auf demselben Computer geschrieben.
+
+![Archive dialog naming the server, the folder, two folders and two files](../assets/screenshots/sftp/sftp-archive-dialog.png)
+
+Bevor ein Server-Archivdialog öffnet, fragt korTTY den Server einmal nach den vorhandenen Archivierungswerkzeugen, und die Statusleiste gibt dies gleichzeitig an. Für einen Server, der keine Befehle ausführt (wie ein Konto, das nur SFTP zulässt) oder der nach 8 Sekunden nicht geantwortet hat, geht korTTY davon aus, dass `zip` und `tar` installiert sind. Für die geschätzte Größe eines Serverarchivs misst der Dialog die ausgewählten Ordner auf dieselbe Weise wie **Größe berechnen**, im Hintergrund, und addiert sie, sobald `du` antwortet; ein Ordner, den er nicht messen kann, wird ausgelassen, und der Dialog gibt dies an.
+
+Der Dialog nimmt das Format (ZIP, TAR.BZ2 oder 7z; ein Format, dessen Tool der Server nicht hat, wird als *nicht installiert* markiert), den Archivpfad und eine Kompressionsstufe von keiner bis zur besten. Die übrigen Felder sind optional:
 
 - **Exclude** — ein Muster pro Zeile, z. B. `*.log`, `.git` oder `node_modules`; es existiert in beiden Panels.
 - **Passwort** — local archives only. It is greyed out for TAR.BZ2, a format without encryption, and server archives get no password at all.
@@ -146,6 +196,8 @@ Diese Tasten funktionieren in beiden Panels:
 | ++f2++ (in der Liste) | Den ausgewählten Eintrag umbenennen |
 | ++delete++ oder ++ctrl+backspace++ (++cmd+backspace++ auf macOS, in der Liste) | Löschen der Auswahl, nach Bestätigung |
 | ++enter++ (im **Pfad** Feld) | Gehe zum eingegebenen Ordner |
+| ++cmd+l++ (++ctrl+l++ auf Windows und Linux) | Geben Sie einen Pfad in die Pfadleiste des Panels ein |
+| ++cmd+shift+period++ (++ctrl+shift+period++ auf Windows und Linux, in der Liste) | Versteckte Einträge anzeigen oder verbergen |
 
 ### Dateien und Ordner hochladen
 
@@ -217,6 +269,12 @@ Eine Organisation kann die Dateiübertragung mit ihrer [Unternehmensrichtlinie](
 
 Das Berechtigungsfeld von **Besitzer/Berechtigungen setzen** und des Remote-Archivdialogs akzeptiert genau drei Oktalziffern, wie `755` oder `644`; lassen Sie es leer (oder unverändert), um den aktuellen Modus beizubehalten. Alles andere lässt das Dialogfeld mit einem Fehler offen, sodass kein anderer Text jemals `chmod` erreicht.
 
+In **Besitzer/Berechtigungen setzen** zeigt ein Raster von Kontrollkästchen unter dem Feld den Modus als Lesen, Schreiben und Ausführen für Besitzer, Gruppe und andere an. Das Ankreuzen eines Kontrollkästchens schreibt die drei Ziffern in das Feld, und das Eingeben von drei Ziffern aktiviert die Kontrollkästchen. Neben dem Feld wird der Modus ausgeschrieben wie `ls -l` es anzeigt (`rwxr-xr-x`), oder als *unverändert*, wenn das Feld leer ist. Für einen Ordner bedeutet Ausführen, dass der Ordner geöffnet werden kann und sein Inhalt erreicht werden kann.
+
+**Besitzer/Berechtigungen setzen** ändert auch den Benutzer und die Gruppe lokaler Dateien und Ordner; ein anderer Besitzer benötigt in der Regel Administratorrechte. **Rekursiv auf Verzeichnisse anwenden** überspringt symbolische Links innerhalb eines Ordners, genau wie `chmod -R`. Ein unbekannter Name oder eine abgelehnte Änderung wird mit dem Namen des Eintrags gemeldet.
+
+![Set Owner/Permissions with the permission checkboxes](../assets/screenshots/sftp/sftp-permissions-dialog.png)
+
 ### Bearbeiten von Dateien mit dem Snippet-Editor
 
 Die Aktion **Im Snippet-Editor bearbeiten** ist nur für eine einzelne ausgewählte Datei aktiviert. Es ist deaktiviert für:
@@ -241,8 +299,6 @@ Die Dateimodus-Schaltflächen bieten folgende Speicheroptionen:
 - **Als Snippet speichern** – speichert den aktuellen Inhalt als neues Snippet-Manager-Snippet, ohne die Quelldatei als gespeichert zu markieren
 
 Eine Organisation kann das Bearbeiten von Serverdateien mit dem Schlüssel `load-into-snippet-editor` ihrer [Unternehmensrichtlinie](../reference/enterprise-policy.md) einschränken. Mit `read-only` öffnen sich Remote-Dateien weiterhin im Snippet-Editor und können als Snippet gespeichert werden, aber **Datei überschreiben** und **Speichern unter...** sind gesperrt, und ihr Tooltip nennt die Richtlinie. Mit `deny` sind **Im Snippet-Editor bearbeiten** und **Bild öffnen** für Remote-Dateien deaktiviert. Lokale Dateien im linken Panel liegen auf Ihrem eigenen Computer und bleiben in jedem Fall bearbeitbar.
-
-![SFTP dual-panel file manager](../assets/screenshots/sftp/sftp-manager.png)
 
 ### Im eigenen Editor bearbeiten
 

@@ -18,12 +18,20 @@ public final class TransferBatch {
     private final TransferDirection direction;
     private final String targetFolder;
     private final ConflictAction conflictDefault;
+    /** Whether each copied file gets its source's modification time (folder synchronization). */
+    private final boolean keepModificationTimes;
     private final List<TransferItem> items = new CopyOnWriteArrayList<>();
     private final List<String> skippedLinks = new CopyOnWriteArrayList<>();
     private volatile ConflictPolicy policy;
     private volatile boolean finishReported;
 
     TransferBatch(TransferDirection direction, String targetFolder, ConflictAction conflictDefault) {
+        this(direction, targetFolder, conflictDefault, false);
+    }
+
+    TransferBatch(TransferDirection direction, String targetFolder, ConflictAction conflictDefault,
+                  boolean keepModificationTimes) {
+        this.keepModificationTimes = keepModificationTimes;
         this.direction = Objects.requireNonNull(direction, "direction");
         this.targetFolder = targetFolder == null ? "" : targetFolder;
         this.conflictDefault = conflictDefault;
@@ -36,6 +44,14 @@ public final class TransferBatch {
 
     public TransferDirection direction() {
         return direction;
+    }
+
+    /**
+     * Whether each copied file gets the modification time of its source, so a folder comparison
+     * afterwards finds the two equal instead of the copy newer.
+     */
+    public boolean keepsModificationTimes() {
+        return keepModificationTimes;
     }
 
     /** The folder the batch writes into, for display. */

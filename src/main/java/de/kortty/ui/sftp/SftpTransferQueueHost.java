@@ -166,6 +166,25 @@ public final class SftpTransferQueueHost implements AutoCloseable {
         return Optional.of(queue.enqueueUpload(paths, remoteDirectory));
     }
 
+    /**
+     * Uploads for a folder synchronization: an existing file is replaced without asking (the user
+     * confirmed the whole list before), and each file keeps its local modification time.
+     */
+    public Optional<TransferBatch> enqueueSyncUpload(List<Path> paths, String remoteDirectory) {
+        if (queue == null || closed || paths.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(queue.enqueueUpload(paths, remoteDirectory, ConflictAction.OVERWRITE, true));
+    }
+
+    /** Downloads for a folder synchronization, the counterpart of {@link #enqueueSyncUpload}. */
+    public Optional<TransferBatch> enqueueSyncDownload(List<RemoteEntryRef> entries, Path localDirectory) {
+        if (queue == null || closed || entries.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(queue.enqueueDownload(entries, localDirectory, ConflictAction.OVERWRITE, true));
+    }
+
     /** Downloads {@code entries} into {@code localDirectory}; empty when there is no queue yet. */
     public Optional<TransferBatch> enqueueDownload(List<RemoteEntryRef> entries, Path localDirectory) {
         if (queue == null || closed || entries.isEmpty()) {

@@ -19,6 +19,11 @@ class SftpFileItemComparatorsTest {
         return SftpFileItem.fromDetails(name, "/x/" + name, false, "—", "", "", "", "", -1);
     }
 
+    private static SftpFileItem dated(String name, boolean isFile, String date) {
+        return SftpFileItem.fromDetails(name, "/x/" + name, isFile, isFile ? "1 B" : "—", date, "", "", "",
+            isFile ? 1 : -1);
+    }
+
     private static SftpFileItem parent() {
         return SftpFileItem.fromDetails("..", "/", false, "—", "", "", "", "", -1);
     }
@@ -65,7 +70,7 @@ class SftpFileItemComparatorsTest {
 
     @Test
     void typeKeepsTheDocumentedGroupOrder() {
-        // sftp.md "Default sort order": .., dot-directories, directories, dot-files, files.
+        // sftp.md "Sort order": .., hidden folders, hidden files, folders, files.
         List<SftpFileItem> items = List.of(
             file("zeta.txt", "1 B", 1),
             file(".bashrc", "1 B", 1),
@@ -77,10 +82,69 @@ class SftpFileItemComparatorsTest {
             parent());
 
         assertThat(sortedNames(items, SftpFileItemComparators.type(true)))
-            .containsExactly("..", ".config", ".git", "bin", "src", ".bashrc", "Alpha.txt", "zeta.txt")
+            .containsExactly("..", ".config", ".git", ".bashrc", "bin", "src", "Alpha.txt", "zeta.txt")
             .inOrder();
+        // Descending reverses the names within each group, never the groups.
         assertThat(sortedNames(items, SftpFileItemComparators.type(false)))
-            .containsExactly("..", "zeta.txt", "Alpha.txt", ".bashrc", "src", "bin", ".git", ".config")
+            .containsExactly("..", ".git", ".config", ".bashrc", "src", "bin", "zeta.txt", "Alpha.txt")
+            .inOrder();
+    }
+
+    @Test
+    void sizeSortsWithinTheGroups() {
+        List<SftpFileItem> items = List.of(
+            file("big.iso", "1 GB", 1_073_741_824L),
+            file(".zshrc", "2 KB", 2_048),
+            file(".profile", "10 B", 10),
+            file("note.txt", "5 B", 5),
+            dir("docs"),
+            dir(".ssh"),
+            parent());
+
+        assertThat(sortedNames(items, SftpFileItemComparators.size(true)))
+            .containsExactly("..", ".ssh", ".profile", ".zshrc", "docs", "note.txt", "big.iso")
+            .inOrder();
+        assertThat(sortedNames(items, SftpFileItemComparators.size(false)))
+            .containsExactly("..", ".ssh", ".zshrc", ".profile", "docs", "big.iso", "note.txt")
+            .inOrder();
+    }
+
+    @Test
+    void anyColumnSortsWithinTheGroups() {
+        // The Date column descending, as the table hands it over: newest first, but only per group.
+        List<SftpFileItem> items = List.of(
+            dated("old.txt", true, "2020-01-01 10:00:00"),
+            dated("new.txt", true, "2026-01-01 10:00:00"),
+            dated(".old-rc", true, "2019-01-01 10:00:00"),
+            dated(".new-rc", true, "2025-01-01 10:00:00"),
+            dated("old-dir", false, "2018-01-01 10:00:00"),
+            dated("new-dir", false, "2024-01-01 10:00:00"),
+            dated(".cache", false, "2017-01-01 10:00:00"),
+            parent());
+        Comparator<SftpFileItem> byDateDescending =
+            Comparator.comparing(SftpFileItem::getDate, Comparator.reverseOrder());
+
+        assertThat(sortedNames(items, SftpFileItemComparators.grouped(byDateDescending)))
+            .containsExactly("..", ".cache", ".new-rc", ".old-rc", "new-dir", "old-dir", "new.txt", "old.txt")
+            .inOrder();
+    }
+
+    @Test
+    void hiddenComesFromTheDotOrTheFileSystemButNeverForTheParent() {
+        assertThat(file(".env", "1 B", 1).isHidden()).isTrue();
+        assertThat(file("env", "1 B", 1).isHidden()).isFalse();
+        assertThat(parent().isHidden()).isFalse();
+        assertThat(SftpFileItem.parent("/").isHidden()).isFalse();
+        // A Windows file with the hidden attribute but no dot.
+        SftpFileItem systemHidden =
+            SftpFileItem.fromDetails("desktop.ini", "C:/x/desktop.ini", true, "1 B", "", "", "", "", 1, true);
+        assertThat(systemHidden.isHidden()).isTrue();
+        assertThat(SftpFileItem.fromDetails("..", "C:/", false, "—", "", "", "", "", -1, true).isHidden())
+            .isFalse();
+
+        List<SftpFileItem> items = List.of(file("a.txt", "1 B", 1), systemHidden, dir("folder"));
+        assertThat(sortedNames(items, SftpFileItemComparators.type(true)))
+            .containsExactly("desktop.ini", "folder", "a.txt")
             .inOrder();
     }
 

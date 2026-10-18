@@ -25,6 +25,10 @@ public class SftpFileItem {
     private final String group;
     private final long sizeBytes;
     private final boolean parentEntry;
+    private final boolean hidden;
+    /** The numeric owner and group behind {@link #owner} and {@link #group}, or -1 when they are names. */
+    private final int ownerId;
+    private final int groupId;
 
     protected SftpFileItem(
             String name,
@@ -38,6 +42,25 @@ public class SftpFileItem {
             long sizeBytes,
             boolean parentEntry
     ) {
+        this(name, path, file, size, date, permissions, owner, group, sizeBytes, parentEntry,
+                !parentEntry && isDotName(name), -1, -1);
+    }
+
+    private SftpFileItem(
+            String name,
+            String path,
+            boolean file,
+            String size,
+            String date,
+            String permissions,
+            String owner,
+            String group,
+            long sizeBytes,
+            boolean parentEntry,
+            boolean hidden,
+            int ownerId,
+            int groupId
+    ) {
         this.name = name;
         this.path = path;
         this.file = file;
@@ -48,6 +71,9 @@ public class SftpFileItem {
         this.group = group != null ? group : "";
         this.sizeBytes = sizeBytes;
         this.parentEntry = parentEntry;
+        this.hidden = hidden;
+        this.ownerId = ownerId;
+        this.groupId = groupId;
     }
 
     public static SftpFileItem fromDetails(
@@ -104,6 +130,56 @@ public class SftpFileItem {
                 sizeBytes,
                 "..".equals(name)
         );
+    }
+
+    /**
+     * Like {@link #fromDetails(String, String, boolean, String, String, String, String, String, long)},
+     * for a local entry whose file system may hide it without a leading dot (the hidden attribute on
+     * Windows): {@code systemHidden} marks it hidden as well. A dot name is hidden either way.
+     */
+    public static SftpFileItem fromDetails(
+            String name,
+            String path,
+            boolean file,
+            String size,
+            String date,
+            String permissions,
+            String owner,
+            String group,
+            long sizeBytes,
+            boolean systemHidden
+    ) {
+        boolean parentEntry = "..".equals(name);
+        return new SftpFileItem(
+                name,
+                path,
+                file,
+                size,
+                date,
+                permissions,
+                owner,
+                group,
+                sizeBytes,
+                parentEntry,
+                !parentEntry && (systemHidden || isDotName(name)),
+                -1,
+                -1
+        );
+    }
+
+    /**
+     * This entry, remembering that its owner and group came as the numbers {@code ownerId} and
+     * {@code groupId} (an SFTP v3 server sends no names), so the names can be shown once they are
+     * looked up; -1 for one that already is a name.
+     */
+    public SftpFileItem withAccountIds(int ownerId, int groupId) {
+        return new SftpFileItem(name, path, file, size, date, permissions, owner, group, sizeBytes, parentEntry,
+                hidden, ownerId, groupId);
+    }
+
+    /** Whether {@code name} is hidden by the Unix convention: it starts with a dot. */
+    public static boolean isDotName(String name) {
+        return name != null && name.startsWith(".");
     }
 
     public static SftpFileItem parent(String path) {
@@ -226,6 +302,24 @@ public class SftpFileItem {
 
     public boolean isParentEntry() {
         return parentEntry;
+    }
+
+    /**
+     * Whether the entry is hidden: its name starts with a dot, or (local entries) the file system
+     * marks it hidden. The parent entry {@code ..} never is.
+     */
+    public boolean isHidden() {
+        return hidden;
+    }
+
+    /** The numeric owner {@link #getOwner()} stands for, or -1 when the owner came as a name. */
+    public int getOwnerId() {
+        return ownerId;
+    }
+
+    /** The numeric group {@link #getGroup()} stands for, or -1 when the group came as a name. */
+    public int getGroupId() {
+        return groupId;
     }
 
     public String getType() {

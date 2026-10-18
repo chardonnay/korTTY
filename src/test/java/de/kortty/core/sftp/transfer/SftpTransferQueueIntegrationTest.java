@@ -14,6 +14,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -453,6 +454,65 @@ class SftpTransferQueueIntegrationTest {
         assertThat(Files.readString(local.resolve("flink"))).isEqualTo("s");
         assertThat(Files.exists(local.resolve("link"), LinkOption.NOFOLLOW_LINKS)).isFalse();
         assertThat(batch.skippedLinks()).containsExactly("/proj/link");
+    }
+
+    // ------------------------------------------------------------------ folder synchronization
+
+    @Test
+    void aSyncBatchReplacesWithoutAskingAndKeepsModificationTimes() throws Exception {
+        fixture = SftpLoopbackFixture.builder(tmp).start();
+        FixtureSource source = new FixtureSource(fixture, true);
+        // A resolver that would refuse: the batch's own answer must decide, and never ask.
+        SftpTransferQueue queue = queue(source, TransferSettings.defaults(), ConflictResolver.always(ConflictAction.SKIP));
+        List<Path> files = localFiles("sync", 2, 1024);
+        FileTime old = FileTime.fromMillis(1_700_000_000_000L);
+        for (Path file : files) {
+            Files.setLastModifiedTime(file, old);
+        }
+        Path dest = Files.createDirectories(fixture.root().resolve("dest"));
+        Files.writeString(dest.resolve(files.get(0).getFileName().toString()), "stale");
+
+        TransferBatch upload = queue.enqueueUpload(files, "/dest", ConflictAction.OVERWRITE, true);
+        await(upload);
+
+        assertThat(upload.keepsModificationTimes()).isTrue();
+        assertThat(upload.countFiles(TransferState.DONE)).isEqualTo(2);
+        for (Path file : files) {
+            Path copy = dest.resolve(file.getFileName().toString());
+            assertThat(Files.mismatch(file, copy)).isEqualTo(-1L);
+            assertThat(Files.getLastModifiedTime(copy).toMillis() / 1000).isEqualTo(old.toMillis() / 1000);
+        }
+
+        // Back down over a changed local copy, with the server's time.
+        FileTime serverTime = FileTime.fromMillis(1_710_000_000_000L);
+        Files.setLastModifiedTime(dest.resolve(files.get(1).getFileName().toString()), serverTime);
+        Path downloads = Files.createDirectories(tmp.resolve("down-sync"));
+        Files.writeString(downloads.resolve(files.get(1).getFileName().toString()), "local edit");
+        TransferBatch download = queue.enqueueDownload(
+            List.of(RemoteEntryRef.file("/dest/" + files.get(1).getFileName(), 1024 + 1)), downloads,
+            ConflictAction.OVERWRITE, true);
+        await(download);
+
+        Path local = downloads.resolve(files.get(1).getFileName().toString());
+        assertThat(Files.mismatch(files.get(1), local)).isEqualTo(-1L);
+        assertThat(Files.getLastModifiedTime(local).toMillis() / 1000).isEqualTo(serverTime.toMillis() / 1000);
+    }
+
+    @Test
+    void anOrdinaryBatchStillGetsTheTransferTime() throws Exception {
+        fixture = SftpLoopbackFixture.builder(tmp).start();
+        FixtureSource source = new FixtureSource(fixture, true);
+        SftpTransferQueue queue = queue(source, TransferSettings.defaults(), ConflictResolver.always(ConflictAction.OVERWRITE));
+        List<Path> files = localFiles("plain", 1, 512);
+        Files.setLastModifiedTime(files.get(0), FileTime.fromMillis(1_700_000_000_000L));
+        Files.createDirectories(fixture.root().resolve("dest"));
+
+        TransferBatch upload = queue.enqueueUpload(files, "/dest");
+        await(upload);
+
+        assertThat(upload.keepsModificationTimes()).isFalse();
+        assertThat(Files.getLastModifiedTime(fixture.root().resolve("dest").resolve(files.get(0).getFileName()))
+            .toMillis()).isGreaterThan(1_700_000_000_000L + 60_000);
     }
 
     // ------------------------------------------------------------------ helpers
