@@ -118,6 +118,20 @@ public final class SettingsTabScreenshotStage {
             settings.getDefaultTerminalSettings().setThemeId(themeId.trim());
         }
 
+        if ("settings.tab.translation".equals(tabKey)) {
+            // A throwaway demo list so the Translation tab shows what a configured installation looks like.
+            de.kortty.model.TranslationProfile deepl = new de.kortty.model.TranslationProfile(
+                "DeepL (work)", de.kortty.model.TranslationApiProvider.DEEPL);
+            deepl.setEncryptedApiKey("demo");
+            de.kortty.model.TranslationProfile google = new de.kortty.model.TranslationProfile(
+                "Google Translate", de.kortty.model.TranslationApiProvider.GOOGLE_TRANSLATE);
+            google.setEncryptedApiKey("demo");
+            de.kortty.model.TranslationProfile local = new de.kortty.model.TranslationProfile(
+                "Local model (private)", de.kortty.model.TranslationApiProvider.LOCAL_AI_PROFILE);
+            settings.setTranslationProfiles(java.util.List.of(deepl, google, local));
+            settings.setDefaultTranslationProfileId(deepl.getId());
+        }
+
         SettingsDialog dialog = new SettingsDialog(
             null, applicationWithThemes(isolatedHome.resolve(".kortty")),
             new ConfigurationManager(isolatedHome), settings,
