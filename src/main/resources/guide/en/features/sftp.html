@@ -850,6 +850,15 @@
 </tr>
 </tbody>
 </table>
+<p><img alt="SFTP Manager with the server panel active: hidden entries first, a row of buttons under each list" src="../assets/screenshots/sftp/sftp-manager.png" /></p>
+<h3 id="active-panel">Active panel<a class="headerlink" href="#active-panel" title="Permanent link">&para;</a></h3>
+<p>The panel you work in is the <strong>active panel</strong>: clicking anywhere in a panel, or moving the keyboard focus into it, frames it in the accent colour, colours the dot before its title and draws its selected rows in the accent colour. The other panel keeps its selection, drawn muted, so you can see at a glance which list your last click and keys such as <span class="keys"><kbd class="key-delete">Del</kbd></span> and <span class="keys"><kbd class="key-f2">F2</kbd></span> act on.</p>
+<p>Each panel has its own row of buttons under its list, and every button acts on the panel it sits in: <strong>Refresh</strong>, <strong>New Folder</strong>, <strong>Delete</strong>, <strong>Rights</strong>, <strong>Archive</strong> and <strong>Edit</strong> in both rows, <strong>Upload</strong> at the right end of the local row and <strong>Download</strong> at the left end of the server row, where the two panels meet.</p>
+<h3 id="hidden-files">Hidden files<a class="headerlink" href="#hidden-files" title="Permanent link">&para;</a></h3>
+<p>The eye button beside the home button of each panel shows or hides that panel's hidden entries: names starting with a dot, such as <code>.git</code> or <code>.bashrc</code>, and on the local side also files and folders the file system marks hidden (the hidden attribute on Windows). <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-period">.</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-period">.</kbd></span> on Windows and Linux) does the same for the list that has the keyboard focus, as in the macOS Finder. Each panel remembers its choice for the next SFTP tab; until you hide them, hidden entries are shown. The parent entry <code>..</code> always stays, and the search field filters what is left.</p>
+<h3 id="path-bar-and-status-line">Path bar and status line<a class="headerlink" href="#path-bar-and-status-line" title="Permanent link">&para;</a></h3>
+<p>The path of each panel is shown as clickable folders; click one to go there. To type a path instead, click the empty part of the bar or press <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-l">L</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> on Windows and Linux) in the panel; <span class="keys"><kbd class="key-enter">Enter</kbd></span> goes there, and <span class="keys"><kbd class="key-escape">Esc</kbd></span> returns to the folders. When the path is wider than the bar, its end stays visible.</p>
+<p>A line under each list counts its entries (while the search field narrows the list, how many of all are shown), the selected entries with their size, and the hidden entries the eye button hides. The <strong>Size</strong> column is right-aligned, and hovering over a date shows it in full.</p>
 <h3 id="sortable-columns">Sortable columns<a class="headerlink" href="#sortable-columns" title="Permanent link">&para;</a></h3>
 <p>Both panels display the same columns, all of which are sortable by clicking the column header:</p>
 <table>
@@ -870,7 +879,7 @@
 </tr>
 <tr>
 <td><strong>Size</strong></td>
-<td>File size in human-readable format (directories show —); sorting uses the exact byte count, with folders first</td>
+<td>File size in human-readable format; a folder shows — until <a href="#folder-sizes">Calculate size</a> measured it. Sorting uses the exact byte count within each group of the <a href="#sort-order">sort order</a></td>
 </tr>
 <tr>
 <td><strong>Date</strong></td>
@@ -878,11 +887,11 @@
 </tr>
 <tr>
 <td><strong>User</strong></td>
-<td>Owner name (local: from filesystem; remote: from SFTP or UID)</td>
+<td>Owner name (local: from the file system; on the server: as the server sends it, or looked up there when it sends only the UID; see <a href="#owner-and-group-names">Owner and group names</a>)</td>
 </tr>
 <tr>
 <td><strong>Group</strong></td>
-<td>Group name (local: from filesystem; remote: from SFTP or GID)</td>
+<td>Group name (local: from the file system; on the server: as the server sends it, or looked up there when it sends only the GID)</td>
 </tr>
 <tr>
 <td><strong>Permissions</strong></td>
@@ -890,26 +899,38 @@
 </tr>
 </tbody>
 </table>
-<h2 id="default-sort-order">Default sort order<a class="headerlink" href="#default-sort-order" title="Permanent link">&para;</a></h2>
-<p>By default, files are sorted by the <strong>Type</strong> column in this order:</p>
+<h2 id="sort-order">Sort order<a class="headerlink" href="#sort-order" title="Permanent link">&para;</a></h2>
+<p>Whichever column you sort by, the entries stay in these groups:</p>
 <ol>
 <li><strong>Parent directory</strong> (<code>..</code>) — always at the top</li>
-<li><strong>Directories starting with "."</strong> (e.g., <code>.git</code>, <code>.config</code>) — alphabetically</li>
-<li><strong>Other directories</strong> — alphabetically</li>
-<li><strong>Files starting with "."</strong> (e.g., <code>.bashrc</code>) — alphabetically</li>
-<li><strong>All other files</strong> — alphabetically</li>
+<li><strong>Hidden folders</strong> — names starting with "." (e.g., <code>.git</code>, <code>.config</code>)</li>
+<li><strong>Hidden files</strong> (e.g., <code>.bashrc</code>)</li>
+<li><strong>Other folders</strong></li>
+<li><strong>Other files</strong></li>
 </ol>
-<p>Click any column header to sort by that column. Clicking the Type column again toggles between ascending and descending order. The parent directory (<code>..</code>) stays at the top whichever column and direction you sort by.</p>
+<p>Click a column header to order the entries within each group by that column; clicking it again reverses that order, but never the order of the groups. By default the lists are sorted by the <strong>Type</strong> column, which orders each group by name; names sort without regard to upper and lower case. While a panel hides its <a href="#hidden-files">hidden files</a>, groups 2 and 3 are left out.</p>
 <h2 id="browsing-the-server">Browsing the server<a class="headerlink" href="#browsing-the-server" title="Permanent link">&para;</a></h2>
 <p>Remote folders are read in the background, so the window stays responsive even for a folder with tens of thousands of entries. While a folder loads, a <strong>Loading…</strong> indicator covers the remote list. The path field and the list switch to the new folder only once it has been read; if it cannot be read (it does not exist, or you lack the rights), an error is shown and the folder you were in stays.</p>
 <p>Type a path into the remote <strong>Path</strong> field and press <span class="keys"><kbd class="key-enter">Enter</kbd></span> to go there. <code>~</code> and <code>~/…</code> stand for your login directory on the server, and a path without a leading <code>/</code> is taken relative to the folder shown; <code>..</code> and <code>.</code> are resolved, so <code>../logs</code> opens the sibling folder <code>logs</code>.</p>
+<h3 id="owner-and-group-names">Owner and group names<a class="headerlink" href="#owner-and-group-names" title="Permanent link">&para;</a></h3>
+<p>OpenSSH and other servers that speak SFTP version 3 send owners and groups only as numbers (UID and GID). korTTY then asks the server once for the names behind numbers it has not seen yet, with <code>getent</code>, which also knows LDAP and other directory accounts, or from <code>/etc/passwd</code> and <code>/etc/group</code> where <code>getent</code> is missing. The names replace the numbers a moment after the list appears; the list never waits for them. <strong>Set Owner/Permissions</strong> is prefilled with the names too.</p>
+<p>A server that cannot run commands (such as an account limited to SFTP) or that has not answered after 8 seconds keeps showing the numbers, and korTTY does not ask it again until you reconnect.</p>
+<h3 id="folder-sizes">Folder sizes<a class="headerlink" href="#folder-sizes" title="Permanent link">&para;</a></h3>
+<p><strong>Calculate size</strong> in the right-click menu of the server list measures the selected folders with <code>du -sk</code> on the server. The <strong>Size</strong> column shows the result for each folder and the status bar the total; sorting by <strong>Size</strong> then orders these folders by it. The figure is the disk space the files take, which can differ a little from the sum of their sizes. While the measurement runs, the same menu item reads <strong>Stop calculating size</strong>. The sizes are dropped when the list is read again.</p>
 <h2 id="lost-connection">Lost connection<a class="headerlink" href="#lost-connection" title="Permanent link">&para;</a></h2>
 <p>When the server or the network ends the session, the status bar shows <strong>Disconnected from</strong> <em>host</em> with a <strong>Reconnect</strong> button, and the remote actions are disabled. If the connection drops without the server saying so, the first remote action you try (Refresh, Upload, Download and so on) brings up the same state instead of doing nothing.</p>
 <p><strong>Reconnect</strong> opens a new session with the same credentials and lists the folder you were in. The server's host key is checked as on the first connect: an unchanged key connects without a prompt, a changed key is still blocked.</p>
 <h2 id="reopening-with-a-project">Reopening with a project<a class="headerlink" href="#reopening-with-a-project" title="Permanent link">&para;</a></h2>
 <p>SFTP Manager tabs are saved with a <a href="projects.html#sftp-manager-tabs">project</a>. Opening the project with <strong>Auto-Reconnect</strong> reconnects each tab at the local and remote folders it was in when you saved. A folder that no longer exists opens the home folder instead; on the remote side the status bar says so.</p>
+<h2 id="comparing-and-synchronizing-folders">Comparing and synchronizing folders<a class="headerlink" href="#comparing-and-synchronizing-folders" title="Permanent link">&para;</a></h2>
+<p><strong>Compare</strong> in the local row of buttons compares the local folder shown with the server folder shown, including all subfolders. It first asks for patterns to leave out, one per line, such as <code>node_modules</code> or <code>.cache</code>. Then both folders are read in the background; the bar above the lists counts what has been read, and a button at its end stops the comparison. Names, sizes and modification times are compared, and times less than 2 seconds apart count as the same, because SFTP version 3 keeps whole seconds. Symbolic links are left out on both sides, and more than 100,000 entries on one side stop the comparison.</p>
+<p>The result stays in the bar above the lists: how many entries exist only on one side, are newer on one side, are different (the same age but another size, or a file on one side and a folder on the other), and are the same. The rows take colours, each seen from its own side: green only here, amber newer here, red different, and dimmed when the same or older here. A folder is red when something inside it differs, and the colours follow you into the subfolders of the compared folders. <strong>Differences only</strong> hides what is the same; <strong>Compare again</strong> (the arrow) and <strong>End the comparison</strong> (the cross) sit at the end of the bar.</p>
+<p><img alt="A comparison of a local folder with its copy on the server" src="../assets/screenshots/sftp/sftp-compare.png" /></p>
+<p><strong>To the server</strong> copies what is missing on the server, what is newer here, and what has the same age but another size; <strong>To this computer</strong> does the same in the other direction. A dialog lists what is copied and how much first. Files that exist on the target are replaced without a question per file, and every copy keeps the modification time of its original, so the next comparison finds the two the same. A newer file on the target stays as it is, and so does a path that is a file on one side and a folder on the other.</p>
+<p>The dialog also has a checkbox, off by default, that deletes what exists only on the target; after a second confirmation, it is deleted for good. The copies run in the <a href="#transfer-list">transfer list</a>, and the folders are compared again once they are done. When your organization switches file transfer off, both buttons only show the reason in the status bar.</p>
+<p><img alt="The dialog before synchronizing to the server" src="../assets/screenshots/sftp/sftp-sync-dialog.png" /></p>
 <h2 id="file-operations">File operations<a class="headerlink" href="#file-operations" title="Permanent link">&para;</a></h2>
-<p>Each panel has its own group of toolbar buttons below the lists (local on the left, remote on the right) and a right-click context menu:</p>
+<p>Each panel has its own row of buttons under its list and a right-click context menu; a button acts on the panel it sits in (see <a href="#active-panel">Active panel</a>):</p>
 <table>
 <thead>
 <tr>
@@ -920,11 +941,11 @@
 <tbody>
 <tr>
 <td><strong>Upload</strong></td>
-<td>Select local files or folders and click <strong>Upload</strong>, or drag them onto the remote panel; see <a href="#drag-and-drop">Drag and drop</a></td>
+<td>Select local files or folders and click <strong>Upload</strong> at the right end of the local row, or drag them onto the remote panel; see <a href="#drag-and-drop">Drag and drop</a></td>
 </tr>
 <tr>
 <td><strong>Download</strong></td>
-<td>Select remote files or folders and click <strong>Download</strong>, or drag them onto the local panel</td>
+<td>Select remote files or folders and click <strong>Download</strong> at the left end of the server row, or drag them onto the local panel</td>
 </tr>
 <tr>
 <td><strong>Rename</strong></td>
@@ -948,7 +969,15 @@
 </tr>
 <tr>
 <td><strong>Archive</strong></td>
-<td><strong>Archive</strong> in the remote toolbar, or <strong>Archive...</strong> in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side. A local archive can have a password; an archive on the server cannot, because <code>zip</code> and <code>7z</code> would need the password on the server's command line, where other users of the server can read it</td>
+<td><strong>Archive</strong> in either panel's row of buttons, or <strong>Archive...</strong> in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side. A local archive can have a password; an archive on the server cannot, because <code>zip</code> and <code>7z</code> would need the password on the server's command line, where other users of the server can read it</td>
+</tr>
+<tr>
+<td><strong>Compare</strong></td>
+<td>Use the <strong>Compare</strong> button in the local row; see <a href="#comparing-and-synchronizing-folders">Comparing and synchronizing folders</a></td>
+</tr>
+<tr>
+<td><strong>Calculate size</strong></td>
+<td>Select server folders, right-click them and choose <strong>Calculate size</strong>; see <a href="#folder-sizes">Folder sizes</a></td>
 </tr>
 <tr>
 <td><strong>Extract Here</strong></td>
@@ -956,7 +985,7 @@
 </tr>
 <tr>
 <td><strong>Set Owner/Permissions</strong></td>
-<td>Select entries, then click <strong>Rights</strong> or choose <strong>Set Owner/Permissions...</strong> in the context menu. Separate fields for User, Group, and octal permissions (e.g., 755). With <strong>Apply recursively to directories</strong> the change also reaches what is inside the selected folders</td>
+<td>Select entries, then click <strong>Rights</strong> or choose <strong>Set Owner/Permissions...</strong> in the context menu. It has separate fields for User and Group, and takes the permissions as octal digits (e.g., 755) or as checkboxes; see <a href="#permissions">Permissions</a>. With <strong>Apply recursively to directories</strong> the change also reaches what is inside the selected folders</td>
 </tr>
 <tr>
 <td><strong>Open Image</strong></td>
@@ -966,7 +995,10 @@
 </table>
 <p>A name for <strong>Rename</strong> or <strong>New Folder</strong> must be a single entry in the folder shown: it may not be empty, <code>.</code> or <code>..</code>, or contain <code>/</code> or <code>\</code>. The dialog stays open with an error until the name is usable.</p>
 <h3 id="creating-archives">Creating archives<a class="headerlink" href="#creating-archives" title="Permanent link">&para;</a></h3>
-<p>The archive dialog takes the format (ZIP, TAR.BZ2 or 7z; a format whose tool the server lacks is marked <em>not installed</em>), the archive's path and a compression level from none to best. Its other fields are optional:</p>
+<p>The top of the archive dialog says what is archived and where: the computer (<strong>Server</strong> with the connection's name and user@host, or <strong>This computer</strong> with its name), the folder shown, how many folders and files are selected, and their names. The archive is written on that same computer.</p>
+<p><img alt="Archive dialog naming the server, the folder, two folders and two files" src="../assets/screenshots/sftp/sftp-archive-dialog.png" /></p>
+<p>Before a server archive dialog opens, korTTY asks the server once which archive tools it has, and the status bar says so meanwhile. For a server that runs no commands (such as an account limited to SFTP) or that has not answered after 8 seconds, korTTY assumes that <code>zip</code> and <code>tar</code> are installed. For the estimated size of a server archive, the dialog measures the selected folders the same way as <strong>Calculate size</strong>, in the background, and adds them once <code>du</code> answers; a folder it cannot measure is left out, and the dialog says so.</p>
+<p>The dialog takes the format (ZIP, TAR.BZ2 or 7z; a format whose tool the server lacks is marked <em>not installed</em>), the archive's path and a compression level from none to best. Its other fields are optional:</p>
 <ul>
 <li><strong>Exclude</strong> — one pattern per line, such as <code>*.log</code>, <code>.git</code> or <code>node_modules</code>; it exists in both panels.</li>
 <li><strong>Password</strong> — local archives only. It is greyed out for TAR.BZ2, a format without encryption, and server archives get no password at all.</li>
@@ -1043,6 +1075,14 @@
 <tr>
 <td><span class="keys"><kbd class="key-enter">Enter</kbd></span> (in the <strong>Path</strong> field)</td>
 <td>Go to the typed folder</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-l">L</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-l">L</kbd></span> on Windows and Linux)</td>
+<td>Type a path in the panel's path bar</td>
+</tr>
+<tr>
+<td><span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-period">.</kbd></span> (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-period">.</kbd></span> on Windows and Linux, in the list)</td>
+<td>Show or hide hidden entries</td>
 </tr>
 </tbody>
 </table>
@@ -1144,6 +1184,9 @@
 <p>An organization can switch file transfer off with its <a href="../reference/enterprise-policy.html#rulefeatures">enterprise policy</a> (<code>file-transfer = "deny"</code>). The SFTP Manager then still opens and browses the server, and renaming, deleting, permissions, archives, search and copying on the server keep working, but <strong>Upload</strong>, <strong>Download</strong> and <strong>Retry</strong> in the transfer list are greyed out, dragging files onto the server panel or server files onto the local panel is not accepted (the pointer shows no copy symbol), and remote files cannot be dragged to the desktop. Files from the desktop can still be dropped onto the local panel. Dropping files onto a terminal pane is refused the same way while you drag, and <strong>Copy as file(s) to terminal directory</strong> and <strong>Copy folder to terminal directory</strong> in the Snippet Manager are greyed out for SSH tabs. <strong>Open SFTP Here</strong> still opens for browsing. JobScheduler jobs that upload, download or sync with SFTP, and rsync jobs, fail with the same message without connecting. Commands such as <code>scp</code> typed into a terminal are not affected.</p>
 <h3 id="permissions">Permissions<a class="headerlink" href="#permissions" title="Permanent link">&para;</a></h3>
 <p>The permissions field of <strong>Set Owner/Permissions</strong> and of the remote archive dialog accepts exactly three octal digits, such as <code>755</code> or <code>644</code>; leave it empty (or unchanged) to keep the current mode. Anything else keeps the dialog open with an error, so no other text ever reaches <code>chmod</code>.</p>
+<p>In <strong>Set Owner/Permissions</strong>, a grid of checkboxes under the field shows the mode as read, write and execute for the owner, the group and others. Ticking a checkbox writes the three digits into the field, and typing three digits ticks the checkboxes. Beside the field the mode is spelled out as <code>ls -l</code> shows it (<code>rwxr-xr-x</code>), or as <em>unchanged</em> while the field is empty. For a folder, execute means that the folder can be opened and what it contains can be reached.</p>
+<p><strong>Set Owner/Permissions</strong> also changes the user and the group of local files and folders; another owner usually needs administrator rights. <strong>Apply recursively to directories</strong> skips symbolic links inside a folder, just like <code>chmod -R</code>. An unknown name or a refused change is reported with the name of the entry.</p>
+<p><img alt="Set Owner/Permissions with the permission checkboxes" src="../assets/screenshots/sftp/sftp-permissions-dialog.png" /></p>
 <h3 id="editing-files-with-snippet-editor">Editing files with Snippet Editor<a class="headerlink" href="#editing-files-with-snippet-editor" title="Permanent link">&para;</a></h3>
 <p>The <strong>Edit in Snippet Editor</strong> action is enabled only for a single selected file. It is disabled for:</p>
 <ul>
@@ -1166,7 +1209,6 @@
 <li><strong>Save as snippet</strong> — stores the current content as a new Snippet Manager snippet without marking the source file as saved</li>
 </ul>
 <p>An organization can restrict editing server files with the <code>load-into-snippet-editor</code> key of its <a href="../reference/enterprise-policy.html">enterprise policy</a>. With <code>read-only</code>, remote files still open in the Snippet Editor and can be saved as a snippet, but <strong>Overwrite file</strong> and <strong>Save as...</strong> are locked and their tooltip names the policy. With <code>deny</code>, <strong>Edit in Snippet Editor</strong> and <strong>Open image</strong> are disabled for remote files. Local files in the left panel are on your own computer and stay editable either way.</p>
-<p><img alt="SFTP dual-panel file manager" src="../assets/screenshots/sftp/sftp-manager.png" /></p>
 <h3 id="editing-in-your-own-editor">Editing in your own editor<a class="headerlink" href="#editing-in-your-own-editor" title="Permanent link">&para;</a></h3>
 <p><strong>Edit in External Editor</strong> (in the right-click menu of a server file and in the remote <strong>Edit</strong> menu) opens the selected server file in your own text editor and copies every save back to the server. Choose the editor under <a href="../reference/settings/sftp.html#external-editor"><em>Settings → SFTP Manager → External editor</em></a>; without one, macOS opens the file in the default text editor, Windows opens it with its edit verb (scripts go to Notepad), and Linux opens text files with the default application for text and asks for an editor command for any other file type.</p>
 <ul>
