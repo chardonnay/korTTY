@@ -872,6 +872,10 @@ public class GlobalSettings {
     @XmlElement
     private Integer aiDescribeFontSize = 14;
 
+    /** Font size of the AI panel beside the SFTP manager's file comparison (question and answers). */
+    @XmlElement
+    private Integer sftpDiffAiFontSize = 13;
+
     /** Font size used in the AI alternative-solutions previews. */
     @XmlElement
     private Integer aiAlternativesFontSize = 14;
@@ -3531,6 +3535,14 @@ public class GlobalSettings {
 
     public void setAiDescribeFontSize(Integer aiDescribeFontSize) {
         this.aiDescribeFontSize = aiDescribeFontSize;
+    }
+
+    public Integer getSftpDiffAiFontSize() {
+        return sftpDiffAiFontSize;
+    }
+
+    public void setSftpDiffAiFontSize(Integer sftpDiffAiFontSize) {
+        this.sftpDiffAiFontSize = sftpDiffAiFontSize;
     }
 
     public Integer getAiAlternativesFontSize() {

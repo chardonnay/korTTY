@@ -163,7 +163,10 @@ final class SftpFileDiffDialog extends ThemeAwareDialog<Void> {
         "sftp.diff.ai.newFile.leftIntoRight",
         "sftp.diff.ai.newFile.own");
 
-    private static final int ANSWER_FONT_SIZE = 13;
+    /** The AI panel's font size (question and answers) unless one was chosen; kept in the settings. */
+    static final int DEFAULT_AI_FONT_SIZE = 13;
+    static final int MIN_AI_FONT_SIZE = 9;
+    static final int MAX_AI_FONT_SIZE = 32;
     /** How much wider the window gets for the AI panel, so the diff keeps its two columns. */
     static final double AI_PANEL_WIDTH = 460;
 
@@ -210,6 +213,11 @@ final class SftpFileDiffDialog extends ThemeAwareDialog<Void> {
     private String newFile;
     /** Who wrote the new file, or where it was saved last, as its header shows it. */
     private String newFileOrigin;
+    private int aiFontSize = clampAiFontSize(loadAiFontSize());
+    private Label aiFontSizeLabel;
+    /** The last question and its rendered answer (Markdown), drawn again when the font size changes. */
+    private String lastAsked;
+    private String lastAnswer;
 
     SftpFileDiffDialog(Window owner, Side left, Side right, AiAccess ai) {
         this(owner, left, right, ai, null);
@@ -462,9 +470,51 @@ final class SftpFileDiffDialog extends ThemeAwareDialog<Void> {
                 markSelectedMode();
             }
         });
+        // Hides the panel when it is in the way; "Ask AI" brings it back with the last answer.
+        Button hide = new Button("\u2715");
+        hide.getStyleClass().add("sftp-diff-ai-hide");
+        hide.setTooltip(new Tooltip(I18n.get("sftp.diff.ai.hide")));
+        hide.setAccessibleText(I18n.get("sftp.diff.ai.hide"));
+        hide.setOnAction(event -> {
+            askToggle.setSelected(false);
+            showAiPanel(false);
+        });
         HBox modeRow = new HBox(0, askMode, newFileMode);
         modeRow.getStyleClass().add("sftp-diff-ai-modes");
-        panel.getChildren().addAll(modeRow, aiTitle);
+        HBox.setHgrow(modeRow, Priority.ALWAYS);
+        HBox topRow = new HBox(6, modeRow, hide);
+        topRow.setAlignment(Pos.CENTER_LEFT);
+
+        Button smaller = new Button(I18n.get("editor.zoomOut"));
+        smaller.setTooltip(new Tooltip(I18n.get("menu.view.zoomOut")));
+        smaller.setOnAction(event -> changeAiFontSize(-1));
+        Button larger = new Button(I18n.get("editor.zoomIn"));
+        larger.setTooltip(new Tooltip(I18n.get("menu.view.zoomIn")));
+        larger.setOnAction(event -> changeAiFontSize(1));
+        smaller.getStyleClass().add("sftp-diff-ai-smaller");
+        larger.getStyleClass().add("sftp-diff-ai-larger");
+        aiFontSizeLabel = new Label();
+        aiFontSizeLabel.setStyle("-fx-opacity: 0.75;");
+        aiTitle.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(aiTitle, Priority.ALWAYS);
+        HBox titleRow = new HBox(6, aiTitle, smaller, aiFontSizeLabel, larger);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        panel.getChildren().addAll(topRow, titleRow);
+        // Cmd/Ctrl with + and - size the panel's text, as in the other AI windows.
+        panel.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            if (!event.isShortcutDown()) {
+                return;
+            }
+            javafx.scene.input.KeyCode code = event.getCode();
+            if (code == javafx.scene.input.KeyCode.PLUS || code == javafx.scene.input.KeyCode.ADD
+                || code == javafx.scene.input.KeyCode.EQUALS) {
+                changeAiFontSize(1);
+                event.consume();
+            } else if (code == javafx.scene.input.KeyCode.MINUS || code == javafx.scene.input.KeyCode.SUBTRACT) {
+                changeAiFontSize(-1);
+                event.consume();
+            }
+        });
 
         List<AiProfile> profiles = ai.profiles();
         AiProfile chosen = ai.defaultProfile() != null ? ai.defaultProfile() : profiles.get(0);
@@ -534,12 +584,80 @@ final class SftpFileDiffDialog extends ThemeAwareDialog<Void> {
         ScrollPane answers = new ScrollPane(answerBox);
         answers.setFitToWidth(true);
         VBox.setVgrow(answers, Priority.ALWAYS);
-        streaming = new AiChatStreamingView(answerBox, () -> ANSWER_FONT_SIZE,
+        streaming = new AiChatStreamingView(answerBox, () -> aiFontSize,
             () -> profileChoice.getValue() != null ? profileChoice.getValue().getName() : "",
             () -> aiStatus.setText(I18n.get("sftp.diff.ai.receiving")));
 
         panel.getChildren().addAll(presets, question, privacyNote, buttons, aiStatus, answers, createNewFileBar());
+        applyAiFontSize();
         return panel;
+    }
+
+    /** Makes the AI panel's text {@code delta} larger or smaller and remembers the size. */
+    private void changeAiFontSize(int delta) {
+        int next = clampAiFontSize(aiFontSize + delta);
+        if (next == aiFontSize) {
+            return;
+        }
+        aiFontSize = next;
+        applyAiFontSize();
+        saveAiFontSize(next);
+    }
+
+    /** Sizes the question and draws the shown answer again; a streaming answer picks it up itself. */
+    private void applyAiFontSize() {
+        aiFontSizeLabel.setText(aiFontSize + "pt");
+        question.setStyle("-fx-font-size: " + aiFontSize + "px;");
+        if (lastAsked != null && (streaming == null || !streaming.isActive())) {
+            renderAnswer();
+        } else if (!answerBox.getChildren().isEmpty() && answerBox.getChildren().get(0) instanceof Label asked) {
+            styleAsked(asked);
+        }
+    }
+
+    /** The question asked last and, once there is one, its answer, at the current size. */
+    private void renderAnswer() {
+        Label asked = new Label(lastAsked);
+        asked.setWrapText(true);
+        styleAsked(asked);
+        answerBox.getChildren().setAll(asked);
+        if (lastAnswer != null) {
+            AiChatRenderSupport.renderInto(answerBox, true, lastAnswer, aiFontSize);
+        }
+    }
+
+    private void styleAsked(Label asked) {
+        asked.setStyle("-fx-font-style: italic; -fx-opacity: 0.8; -fx-font-size: " + aiFontSize + "px;");
+    }
+
+    static int clampAiFontSize(int size) {
+        return Math.max(MIN_AI_FONT_SIZE, Math.min(MAX_AI_FONT_SIZE, size));
+    }
+
+    private static int loadAiFontSize() {
+        de.kortty.model.GlobalSettings settings = SnippetAiDialogSupport.currentSettings();
+        return settings != null && settings.getSftpDiffAiFontSize() != null
+            ? settings.getSftpDiffAiFontSize()
+            : DEFAULT_AI_FONT_SIZE;
+    }
+
+    private static void saveAiFontSize(int size) {
+        try {
+            de.kortty.core.GlobalSettingsManager manager =
+                de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager();
+            de.kortty.model.GlobalSettings settings = manager.getSettings();
+            if (settings != null) {
+                settings.setSftpDiffAiFontSize(size);
+                manager.save();
+            }
+        } catch (Exception e) {
+            // The size still applies to this window; it is only not remembered.
+            LoggerHolder.LOGGER.warn("Could not save the AI panel's font size", e);
+        }
+    }
+
+    private static final class LoggerHolder {
+        private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(SftpFileDiffDialog.class);
     }
 
     /** What to do with the new file: show it in the diff, save it, keep it as a snippet. Hidden until there is one. */
@@ -644,11 +762,9 @@ final class SftpFileDiffDialog extends ThemeAwareDialog<Void> {
             ? AiFileComparison.newFileRequest(masked.text(), text, ai.connectionName(), languageCode)
             : AiFileComparison.request(masked.text(), text, ai.connectionName(), languageCode);
         AiService service = ai.service(profile);
-        answerBox.getChildren().clear();
-        Label askedText = new Label(text);
-        askedText.setWrapText(true);
-        askedText.setStyle("-fx-font-style: italic; -fx-opacity: 0.8;");
-        answerBox.getChildren().add(askedText);
+        lastAsked = text;
+        lastAnswer = null;
+        renderAnswer();
         AiRequest streamed = request.withStreamListener(streaming.begin());
         Task<AiExecutionResult> task = new Task<>() {
             @Override
@@ -671,15 +787,15 @@ final class SftpFileDiffDialog extends ThemeAwareDialog<Void> {
             } else if (asked == Mode.NEW_FILE) {
                 Optional<AiFileComparison.NewFile> written = AiFileComparison.newFile(content);
                 if (written.isPresent()) {
-                    AiChatRenderSupport.renderInto(answerBox, true, written.get().explanation(), ANSWER_FONT_SIZE);
+                    showAnswer(written.get().explanation());
                     takeNewFile(written.get().content(), profile.getName());
                     aiStatus.setText(I18n.get("sftp.diff.ai.created", profile.getName()));
                 } else {
-                    AiChatRenderSupport.renderInto(answerBox, true, content, ANSWER_FONT_SIZE);
+                    showAnswer(content);
                     aiStatus.setText(I18n.get("sftp.diff.ai.noFile"));
                 }
             } else {
-                AiChatRenderSupport.renderInto(answerBox, true, content, ANSWER_FONT_SIZE);
+                showAnswer(content);
                 aiStatus.setText(I18n.get("sftp.diff.ai.done", profile.getName()));
             }
             ai.recordUsage(profile, request, result);
@@ -697,6 +813,11 @@ final class SftpFileDiffDialog extends ThemeAwareDialog<Void> {
                     error != null && error.getMessage() != null ? error.getMessage() : String.valueOf(error)));
         });
         AiTaskRunner.start(task, "sftp-diff-ai");
+    }
+
+    private void showAnswer(String markdown) {
+        lastAnswer = markdown;
+        renderAnswer();
     }
 
     private void finish(Task<AiExecutionResult> task) {
@@ -812,6 +933,10 @@ final class SftpFileDiffDialog extends ThemeAwareDialog<Void> {
 
     ToggleButton newFileMode() {
         return newFileMode;
+    }
+
+    int aiFontSize() {
+        return aiFontSize;
     }
 
     VBox newFileBar() {
