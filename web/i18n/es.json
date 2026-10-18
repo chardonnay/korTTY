@@ -365,5 +365,5 @@
 "rn2c":"Escribe en los Ajustes globales y salta directamente a cualquier opción; cada pestaña enlaza con su página del manual.",
 "rn3t":"Copias de seguridad cifradas programadas",
 "rn3c":"A diario, cada semana o cada mes en la carpeta que elijas: nunca sin cifrar, y una ejecución perdida se recupera.",
-"rn4t":"Dependencias entre tareas",
-"rn4c":"Ejecuta una tarea solo cuando sus predecesoras han terminado con éxito, lanza cadenas enteras y míralas como diagrama."}
+"rn4t":"Dependencias entre trabajos",
+"rn4c":"Ejecuta un trabajo solo cuando sus predecesores han terminado con éxito, lanza cadenas enteras y visualízalas en un diagrama."}

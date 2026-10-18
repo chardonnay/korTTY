@@ -365,5 +365,5 @@
 "rn2c":"Digite nas Configurações globais e vá direto a qualquer opção — cada aba leva à sua página no manual.",
 "rn3t":"Backups criptografados agendados",
 "rn3c":"Diariamente, semanalmente ou mensalmente na pasta que você escolher — nunca sem criptografia, e uma execução perdida é recuperada.",
-"rn4t":"Dependências entre tarefas",
-"rn4c":"Execute uma tarefa só depois que as anteriores tiverem sucesso, inicie cadeias inteiras e veja-as como diagrama."}
+"rn4t":"Dependências entre trabalhos",
+"rn4c":"Execute um trabalho só depois que os anteriores terminarem com sucesso, inicie cadeias inteiras e visualize-as em um diagrama."}
