@@ -129,6 +129,8 @@ Die beiden Dateien öffnen sich nebeneinander in einem Fenster, wobei ihre Ände
 
 **KI fragen** öffnet ein Panel neben den beiden Dateien und erweitert das Fenster dafür, sodass die Dateien nebeneinander bleiben. Wählen Sie eine vorbereitete Frage (wo die Dateien unterschiedlich sind, was die Unterschiede bewirken oder was in der rechten Version verbessert werden könnte) oder schreiben Sie Ihre eigene, wählen Sie das KI-Profil, wenn mehrere vorhanden sind, und klicken Sie auf **Fragen**; die Schaltfläche daneben stoppt die Anfrage. Beide Dateien mit Zeilennummern und ihrem einheitlichen Diff werden an das Profil übergeben, und Geheimnisse, die es erkennt, wie z. B. Schlüssel und Passwörter, werden zunächst maskiert, sofern das Profil nicht auf diesem Computer ausgeführt wird. Die Antwort erscheint unter der Frage, und die Anfrage zählt zur Nutzung des Profils wie jede andere KI-Anfrage. Dies eignet sich für Shell-Skripte und Konfigurationsdateien, bei denen eine geänderte Zeile das Verhalten eines Dienstes verändern kann.
 
+**A-** und **A+** neben dem Titel des Panels verkleinern bzw. vergrößern die Frage und die Antworten, ebenso wie ++ctrl+minus++ und ++ctrl+plus++ (++cmd++ auf macOS); korTTY merkt sich die Größe für den nächsten Vergleich. Wenn das Panel im Weg ist, versteckt der Knopf **✕** in der oberen rechten Ecke es und gibt die Breite wieder an die Dateien zurück; **KI fragen** zeigt es erneut mit der letzten Antwort.
+
 **KI fragen** kann nur angeklickt werden, wenn die KI-Funktionen aktiviert sind, Ihre Organisation KI-Anfragen zulässt und mindestens ein KI-Profil existiert; andernfalls zeigt das Überfahren mit der Maus an, was fehlt.
 
 ### Eine neue Datei aus beiden Dateien

@@ -129,6 +129,8 @@ The two files open side by side in a window with their changes marked, like the 
 
 **Ask AI** opens a panel beside the two files and widens the window for it, so the files stay side by side. Pick a prepared question (where the files differ, what the differences do, or what could be improved in the right-hand version) or write your own, choose the AI profile when there are several, and click **Ask**; the button next to it stops the request. Both files with line numbers and their unified diff go to the profile, and secrets it recognizes, such as keys and passwords, are masked first unless the profile runs on this computer. The answer appears below the question, and the request counts towards the profile's usage like any other AI request. This suits shell scripts and configuration files, where a changed line can change what a service does.
 
+**A-** and **A+** next to the title of the panel make the question and the answers smaller or larger, as do ++ctrl+minus++ and ++ctrl+plus++ (++cmd++ on macOS); korTTY remembers the size for the next comparison. When the panel is in the way, the button **✕** at its top right hides it and gives its width back to the files; **Ask AI** shows it again with the last answer.
+
 **Ask AI** can be clicked only when the AI features are on, your organization allows AI requests, and at least one AI profile exists; otherwise hovering over it tells you what is missing.
 
 ### A new file from both files

@@ -571,6 +571,43 @@ public final class SftpManagerScreenshotGenerator {
         check(asked[0].selectedText().contains("RIGHT FILE: ") && asked[0].selectedText().contains("+set -euo pipefail"),
             "both files and their diff are sent");
         check(recorded[0], "the usage is recorded");
+        // A+ and A- size the panel's text, draw the answer again and are remembered in the settings.
+        int fontBefore = fx(() -> aiDialog[0].aiFontSize());
+        int answerParts = fx(() -> aiDialog[0].answerBox().getChildren().size());
+        fx(() -> {
+            ((Button) aiDialog[0].getDialogPane().lookup(".sftp-diff-ai-larger")).fire();
+            ((Button) aiDialog[0].getDialogPane().lookup(".sftp-diff-ai-larger")).fire();
+            return null;
+        });
+        check(fx(() -> aiDialog[0].aiFontSize()) == fontBefore + 2, "A+ makes the text larger");
+        check(fx(() -> aiDialog[0].answerBox().getChildren().size()) == answerParts, "the answer is drawn again, not lost");
+        check(fx(() -> aiDialog[0].question().getStyle()).contains("-fx-font-size: " + (fontBefore + 2) + "px"),
+            "the question grows too");
+        KorTTYApplication settingsApp = field(KorTTYApplication.class, "app");
+        check(Integer.valueOf(fontBefore + 2).equals(fx(() -> settingsApp.getGlobalSettingsManager().getSettings()
+            .getSftpDiffAiFontSize())), "the size is kept in the settings");
+        fx(() -> {
+            ((Button) aiDialog[0].getDialogPane().lookup(".sftp-diff-ai-smaller")).fire();
+            ((Button) aiDialog[0].getDialogPane().lookup(".sftp-diff-ai-smaller")).fire();
+            return null;
+        });
+        check(fx(() -> aiDialog[0].aiFontSize()) == fontBefore, "A- makes it smaller again");
+        // The cross hides the panel and gives the width back; "Ask AI" brings it back with the answer.
+        double widthWithPanel = fx(() -> aiDialog[0].getDialogPane().getScene().getWindow().getWidth());
+        fx(() -> {
+            ((Button) aiDialog[0].getDialogPane().lookup(".sftp-diff-ai-hide")).fire();
+            return null;
+        });
+        check(fx(() -> aiDialog[0].getDialogPane().lookup(".sftp-diff-ai-panel")) == null, "the panel is hidden");
+        check(!fx(() -> aiDialog[0].askToggle().isSelected()), "Ask AI is no longer pressed");
+        check(fx(() -> aiDialog[0].getDialogPane().getScene().getWindow().getWidth()) < widthWithPanel - 300,
+            "the window gives the panel's width back");
+        fx(() -> {
+            aiDialog[0].askToggle().fire();
+            return null;
+        });
+        check(fx(() -> aiDialog[0].getDialogPane().lookup(".sftp-diff-ai-panel")) != null, "Ask AI shows it again");
+        check(fx(() -> aiDialog[0].answerBox().getChildren().size()) == answerParts, "with the last answer");
         settle();
         double after = fx(() -> aiDialog[0].getDialogPane().getScene().getWindow().getWidth());
         check(after > before + 300, "opening the AI panel widens the window, " + before + " -> " + after);
