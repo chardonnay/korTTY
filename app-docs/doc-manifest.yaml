@@ -112,7 +112,7 @@ pages:
       - settings/appearance.png
       - settings/themes.png
       - settings/font.png
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "9dbd70a2"
   - path: app-docs/site/docs/en/reference/settings/colors.md
     owns_i18n: [settings.colors.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/core/TerminalCursorBlink.java, src/main/java/de/kortty/core/ConnectionSettingsSupport.java]
@@ -151,7 +151,7 @@ pages:
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java]
     screenshots:
       - settings/logging.png
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "9dbd70a2"
   - path: app-docs/site/docs/en/reference/settings/export.md
     owns_i18n: [settings.export., settings.tab.export]
     screenshots:
@@ -166,7 +166,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core/BackupManager.java, src/main/java/de/kortty/core/AutoBackupService.java, src/main/java/de/kortty/ui/AutoBackupStatusText.java]
     screenshots:
       - settings/backup.png
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "9dbd70a2"
   - path: app-docs/site/docs/en/reference/settings/updates.md
     owns_i18n: [settings.updates.]
     owns_code: [src/main/java/de/kortty/update, src/main/java/de/kortty/platform/FlatpakSupport.java]
@@ -178,7 +178,7 @@ pages:
     owns_code: [src/main/java/de/kortty/security, src/main/java/de/kortty/core/TemporarySshKeyMaterial.java, src/main/java/de/kortty/core/LegacyTemporaryKeyFileCleanup.java]
     screenshots:
       - settings/security.png
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "9dbd70a2"
   - path: app-docs/site/docs/en/reference/settings/language.md
     owns_i18n: [settings.language.]
     owns_code: [src/main/java/de/kortty/core/LanguageManager.java]
@@ -193,7 +193,7 @@ pages:
     owns_code: [src/main/java/de/kortty/core/DynamicLanguageGenerator.java, src/main/java/de/kortty/core/LocalAiTranslationService.java, src/main/java/de/kortty/core/GoogleTranslationService.java, src/main/java/de/kortty/core/DeepLTranslationService.java, src/main/java/de/kortty/core/LibreTranslateTranslationService.java, src/main/java/de/kortty/core/MicrosoftTranslationService.java, src/main/java/de/kortty/core/YandexTranslationService.java, src/main/java/de/kortty/core/GuideTranslationGenerator.java, src/main/java/de/kortty/core/GuideTranslationJob.java, src/main/java/de/kortty/core/ReasoningModelHint.java, src/main/java/de/kortty/ui/GuideTranslationIndicator.java, src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/TranslationProfile.java, src/main/java/de/kortty/core/TranslationServiceFactory.java, src/main/java/de/kortty/core/TranslationRunControl.java, src/main/java/de/kortty/core/DynamicTranslationJob.java, src/main/java/de/kortty/ui/TranslationProfilesPane.java, src/main/java/de/kortty/ui/TranslationRunDialog.java, src/main/java/de/kortty/ui/TranslationSetupWizardDialog.java, src/main/java/de/kortty/ui/TranslationUiSupport.java]
     screenshots:
       - settings/translation.png
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "9dbd70a2"
   - path: app-docs/site/docs/en/reference/settings/video.md
     owns_i18n: [settings.video.]
     owns_code: [src/main/java/de/kortty/ui/SettingsDialog.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/core/TerminalRecordingRuntimeState.java]
@@ -206,7 +206,7 @@ pages:
     screenshots:
       - ai/ai-manager-general.png
       - ai/ai-profiles.png
-    last_synced_ref: "0fc5f4e"
+    last_synced_ref: "9dbd70a2"
   - path: app-docs/site/docs/en/reference/settings/ai-skills.md
     owns_i18n: [settings.aiSkills.]
     owns_code: [src/main/java/de/kortty/model/AiSkill.java, src/main/java/de/kortty/model/AiSkillTarget.java, src/main/java/de/kortty/model/AiSkillBuiltinBaseline.java, src/main/java/de/kortty/core/AiSkillRelevanceSelector.java, src/main/java/de/kortty/core/AiSkillRelevanceClassifier.java, src/main/java/de/kortty/core/AiSkillPromptSupport.java, src/main/java/de/kortty/core/AiSkillMarkdownCodec.java, src/main/java/de/kortty/core/BuiltinAiSkillSupport.java, src/main/java/de/kortty/core/BuiltinAiSkillCatalog.java, src/main/java/de/kortty/core/BuiltinAiSkillProvisioner.java, src/main/java/de/kortty/ui/AiSkillPickerControl.java, src/main/java/de/kortty/ui/AiSkillsPane.java, src/main/java/de/kortty/ui/AiSkillListFormat.java, src/main/java/de/kortty/ui/AiSkillStorageGuard.java, src/main/java/de/kortty/ui/AiManagerDialog.java, src/main/java/de/kortty/model/GlobalSettings.java, src/main/java/de/kortty/model/AiSkillProvider.java, src/main/java/de/kortty/model/AiSkillProviderType.java, src/main/java/de/kortty/model/AiSkillProviderAuth.java, src/main/java/de/kortty/model/AiSkillExternalSource.java, src/main/java/de/kortty/core/ExternalAiSkillSupport.java, src/main/java/de/kortty/core/GitHubAiSkillClient.java, src/main/java/de/kortty/core/GitHubSkillReference.java, src/main/java/de/kortty/core/SkillsMpAiSkillClient.java, src/main/java/de/kortty/core/HttpAiSkillClient.java, src/main/java/de/kortty/core/ExternalAiSkillHttp.java, src/main/java/de/kortty/ui/ExternalAiSkillImportDialog.java, src/main/java/de/kortty/ui/ExternalAiSkillUpdateDialog.java, src/main/java/de/kortty/ui/AiSkillProvidersDialog.java]
@@ -567,4 +567,4 @@ pages:
     owns_code: [src/main/java/de/kortty/telemetry]
     diagrams: [telemetry-consent-flow.svg]
     screenshots: [settings/telemetry.png]
-    last_synced_ref: "f8e06604"
+    last_synced_ref: "9dbd70a2"
