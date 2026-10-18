@@ -4326,6 +4326,17 @@ tasks.register<JavaExec>("generateSftpTransferScreenshots") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateSftpManagerScreenshots") {
+    group = "build"
+    description = "Renders the SFTP manager, its Set Owner/Permissions, archive and synchronize dialogs and a folder " +
+        "comparison for the manual (app-docs/screenshots/sftp/) against a loopback SFTP server with demo data, " +
+        "checking sort groups, hidden files, the active panel, owner names, folder sizes, the path bar, the " +
+        "permission checkboxes and compare-and-synchronize on the way."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.SftpManagerScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateRemoteSidebarScreenshot") {
     group = "build"
     description = "Renders the remote files sidebar beside a terminal pane with demo data for the manual " +

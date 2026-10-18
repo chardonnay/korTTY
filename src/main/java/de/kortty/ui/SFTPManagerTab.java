@@ -9,6 +9,11 @@ import de.kortty.core.SftpFileTransferService;
 import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.SnippetManager;
 import de.kortty.core.remote.RemoteArchiveCommands;
+import de.kortty.core.remote.RemoteCommandRunner;
+import de.kortty.core.sftp.FolderComparison;
+import de.kortty.core.sftp.FolderSnapshots;
+import de.kortty.core.sftp.RemoteAccountNames;
+import de.kortty.core.sftp.RemoteFolderSizes;
 import de.kortty.core.remote.RemoteCommandCancellation;
 import de.kortty.core.remote.RemoteCommandCancelledException;
 import de.kortty.core.remote.extract.ArchiveExtractException;
@@ -36,6 +41,9 @@ import de.kortty.ui.sftp.SftpFileItem;
 import de.kortty.ui.sftp.SftpFileItemComparators;
 import de.kortty.ui.sftp.SftpTabKeys;
 import de.kortty.ui.sftp.FxConflictResolver;
+import de.kortty.ui.sftp.LocalHostName;
+import de.kortty.ui.sftp.PermissionBitsEditor;
+import de.kortty.ui.sftp.SftpBreadcrumbBar;
 import de.kortty.ui.sftp.SftpConflictDialog;
 import de.kortty.ui.sftp.SftpTransferQueueHost;
 import de.kortty.ui.sftp.SftpTransferQueuePane;
@@ -52,7 +60,9 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.collections.transformation.FilteredList;
+import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -63,6 +73,9 @@ import javafx.scene.input.DataFormat;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.*;
 import javafx.stage.DirectoryChooser;
@@ -138,6 +151,14 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     private long remoteSearchGeneration;
     /** The cancel switch of the running recursive search, or null when none runs (FX thread). */
     private RemoteCommandCancellation remoteSearchCancellation;
+    /** Looks up owner and group names off the FX thread, one lookup at a time. */
+    private final ExecutorService remoteInfoExecutor;
+    /** The names behind the numeric owners and groups of this session; replaced on every connect. */
+    private volatile RemoteAccountNames accountNames = new RemoteAccountNames();
+    /** Sizes "Calculate size" measured for folders in the folder shown, by path; cleared by every listing (FX thread). */
+    private final java.util.Map<String, Long> remoteFolderSizes = new java.util.HashMap<>();
+    /** The running "Calculate size", or null; a second click stops it (FX thread). */
+    private RemoteCommandCancellation folderSizeCancellation;
     /** The running "Extract Here" job, if any; FX thread. */
     private RemoteCommandCancellation remoteExtractCancellation;
     private RemoteSearchResultsPane remoteSearchResults;
@@ -189,6 +210,56 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
 
     /** A remote folder listed off the FX thread: its absolute path and its entries. */
     private record RemoteListing(String path, List<SftpFileItem> items) { }
+
+    /** Shows or hides the hidden entries of the focused panel, as in the macOS Finder. */
+    static final KeyCombination TOGGLE_HIDDEN_KEYS =
+        new KeyCodeCombination(KeyCode.PERIOD, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN);
+    /** Switches a panel's path to the text field, as in a web browser's address bar. */
+    static final KeyCombination EDIT_PATH_KEYS = new KeyCodeCombination(KeyCode.L, KeyCombination.SHORTCUT_DOWN);
+    /** Marks the panel the user works in (last clicked or focused); see filebrowser.css. */
+    private static final PseudoClass ACTIVE_PANE = PseudoClass.getPseudoClass("active-pane");
+
+    /** Whether each panel lists hidden entries; its eye button and {@link #TOGGLE_HIDDEN_KEYS} switch it (FX thread). */
+    private boolean showHiddenLocal = true;
+    private boolean showHiddenRemote = true;
+    private ToggleButton localHiddenToggle;
+    private ToggleButton remoteHiddenToggle;
+    /** The two panels, framed in the accent colour while active; the toolbar under each acts on it. */
+    private VBox localPanel;
+    private VBox remotePanel;
+    /** The folder comparison both lists show, or null (FX thread). */
+    private FolderComparison comparison;
+    /** The two folders {@link #comparison} compared, and the patterns it left out. */
+    private Path comparedLocalRoot;
+    private String comparedRemoteRoot;
+    private List<String> compareExcludes = List.of();
+    /** Stops the comparison that is reading the folders; null while none runs (FX thread). */
+    private java.util.concurrent.atomic.AtomicBoolean compareCancel;
+    /** The bar above the lists: a running comparison, or its result with the Synchronize buttons. */
+    private HBox compareBar;
+    private Label compareTitle;
+    private HBox compareChips;
+    private CheckBox compareDifferencesOnly;
+    private Button compareButton;
+    private Button syncToServerButton;
+    private Button syncToLocalButton;
+    private Button recompareButton;
+    private Button stopCompareButton;
+    /** Transfer batches a synchronization started; the folders are compared again once all are done. */
+    private final java.util.Set<Long> syncBatchIds = new java.util.HashSet<>();
+    /** Deletions a synchronization runs; the comparison is repeated after them too. */
+    private int syncDeletesRunning;
+    private static final PseudoClass CMP_ONLY_HERE = PseudoClass.getPseudoClass("cmp-only-here");
+    private static final PseudoClass CMP_NEWER_HERE = PseudoClass.getPseudoClass("cmp-newer-here");
+    private static final PseudoClass CMP_OLDER_HERE = PseudoClass.getPseudoClass("cmp-older-here");
+    private static final PseudoClass CMP_DIFFERENT = PseudoClass.getPseudoClass("cmp-different");
+    private static final PseudoClass CMP_SAME = PseudoClass.getPseudoClass("cmp-same");
+    /** Each panel's path as clickable folders over its path field. */
+    private SftpBreadcrumbBar localBreadcrumb;
+    private SftpBreadcrumbBar remoteBreadcrumb;
+    /** Each panel's line under its list: entries, selection, hidden entries (FX thread). */
+    private Label localPaneStatus;
+    private Label remotePaneStatus;
 
     private TableView<SftpFileItem> localTable;
     private TableView<SftpFileItem> remoteTable;
@@ -331,6 +402,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             thread.setDaemon(true);
             return thread;
         });
+        String infoThreadName = "SFTP-Info-" + connection.getHost();
+        this.remoteInfoExecutor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, infoThreadName);
+            thread.setDaemon(true);
+            return thread;
+        });
         String searchThreadName = "SFTP-Search-" + connection.getHost();
         this.remoteSearchExecutor = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, searchThreadName);
@@ -344,6 +421,15 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             setTooltip(new Tooltip(I18n.get("sftp.borrowed.tooltip")));
         }
         
+        // Each panel remembers whether it lists hidden entries (default: it does).
+        GlobalSettings settings = globalSettingsOrNull();
+        if (settings != null) {
+            showHiddenLocal = settings.isSftpShowHiddenLocal();
+            showHiddenRemote = settings.isSftpShowHiddenRemote();
+        }
+        // The archive dialog names this computer; the lookup can be slow, so it starts now.
+        LocalHostName.prefetch();
+
         // Initialize paths: the saved folders of a restored tab, otherwise the home folders.
         currentLocalPath = SftpSessionRestoreSupport.initialLocalPath(
             initialLocalPath, Paths.get(System.getProperty("user.home")));
@@ -503,22 +589,23 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         SplitPane splitPane = new SplitPane();
         splitPane.setDividerPositions(0.5);
         
-        // Local panel
-        VBox localPanel = createLocalPanel();
-        
-        // Remote panel
-        VBox remotePanel = createRemotePanel();
-        
+        localPanel = createLocalPanel();
+        remotePanel = createRemotePanel();
         splitPane.getItems().addAll(localPanel, remotePanel);
-        
-        // Transfer buttons
-        HBox buttonBox = createButtonBox();
+
+        // Each panel's buttons sit right under its own list, so it is plain which side they act on.
+        createPaneToolbars();
+        installActivePaneTracking();
+        setActivePane(false);
+        localBreadcrumb.setAfterEditing(localTable::requestFocus);
+        remoteBreadcrumb.setAfterEditing(remoteTable::requestFocus);
         
         // Transfer list: appears with the first upload or download, collapsible to its header.
         createTransferQueue();
         createRemoteEdits();
 
-        mainBox.getChildren().addAll(splitPane, buttonBox, transferQueuePane, remoteEdits, statusBox);
+        compareBar = createCompareBar();
+        mainBox.getChildren().addAll(compareBar, splitPane, transferQueuePane, remoteEdits, statusBox);
         VBox.setVgrow(splitPane, Priority.ALWAYS);
         
         return mainBox;
@@ -562,19 +649,13 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         });
     }
 
-    private HBox createButtonBox() {
-        HBox buttonBox = new HBox(0);
-        buttonBox.setAlignment(Pos.CENTER);
-        buttonBox.setPadding(new Insets(10, 5, 5, 5));
-        
-        // === LOCAL (left) buttons ===
-        HBox localButtons = new HBox(5);
-        localButtons.setAlignment(Pos.CENTER_LEFT);
-        localButtons.setPadding(new Insets(0, 10, 0, 5));
-        
-        Label localLabel = new Label(I18n.get("sftp.localSystem"));
-        localLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #666;");
-        
+    /**
+     * Builds the button row under each list and appends it to its panel. Every button acts on the
+     * panel it sits in; the two transfer buttons face each other across the divider: Upload at the
+     * right end of the local row, Download at the left end of the server row.
+     */
+    private void createPaneToolbars() {
+        // === LOCAL buttons ===
         Button refreshLocalButton = new Button(I18n.get("sftp.refresh"));
         styleToolbarButton(refreshLocalButton, FileBrowserIcons.REFRESH);
         refreshLocalButton.setTooltip(new Tooltip(I18n.get("sftp.refreshLocal")));
@@ -609,7 +690,17 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             setLocalOwnerPermissionsDialog();
         });
 
+        Button archiveLocalButton = new Button(I18n.get("sftp.archive"));
+        styleToolbarButton(archiveLocalButton, FileBrowserIcons.ARCHIVE_BOX);
+        archiveLocalButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.archive")));
+        archiveLocalButton.setDisable(true);
+        archiveLocalButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            createLocalArchive();
+        });
+
         MenuButton editLocalButton = new MenuButton(I18n.get("sftp.edit"));
+        editLocalButton.getStyleClass().add("file-browser-toolbar-button");
         editLocalButton.setTooltip(new Tooltip(I18n.get("sftp.edit.snippetEditor")));
         editLocalButton.setDisable(true);
         MenuItem editLocalSnippetItem = new MenuItem(I18n.get("sftp.edit.snippetEditor"));
@@ -618,23 +709,48 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             openSelectedLocalFileInSnippetEditor();
         });
         editLocalButton.getItems().add(editLocalSnippetItem);
-        
-        localButtons.getChildren().addAll(localLabel, refreshLocalButton, newFolderLocalButton, deleteLocalButton,
-                ownerLocalButton, editLocalButton);
-        
-        // === Vertical separator ===
-        Separator verticalSeparator = new Separator();
-        verticalSeparator.setOrientation(javafx.geometry.Orientation.VERTICAL);
-        verticalSeparator.setPadding(new Insets(0, 15, 0, 15));
-        
-        // === REMOTE (right) buttons ===
-        HBox remoteButtons = new HBox(5);
-        remoteButtons.setAlignment(Pos.CENTER_LEFT);
-        remoteButtons.setPadding(new Insets(0, 5, 0, 10));
-        
-        Label remoteLabel = new Label(I18n.get("sftp.remoteLabel"));
-        remoteLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #666;");
-        
+
+        Button uploadButton = new Button(I18n.get("sftp.upload"));
+        styleToolbarButton(uploadButton, FileBrowserIcons.UPLOAD);
+        uploadButton.getStyleClass().add("sftp-transfer-button");
+        uploadButton.setTooltip(new Tooltip(transferRefusal(de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD)
+            .orElse(I18n.get("sftp.uploading", "..."))));
+        uploadButton.setDisable(true);
+        uploadButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            uploadSelected();
+        });
+
+        // Compare sits with the transfer buttons where the panels meet: it concerns both of them.
+        compareButton = new Button(I18n.get("sftp.compare"));
+        styleToolbarButton(compareButton, FileBrowserIcons.COMPARE);
+        compareButton.setTooltip(new Tooltip(I18n.get("sftp.compare.tooltip")));
+        compareButton.setDisable(true);
+        compareButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            startCompare();
+        });
+
+        Region localSpacer = new Region();
+        HBox.setHgrow(localSpacer, Priority.ALWAYS);
+        HBox localToolbar = paneToolbar(refreshLocalButton, newFolderLocalButton, deleteLocalButton,
+            ownerLocalButton, archiveLocalButton, editLocalButton, localSpacer, compareButton, uploadButton);
+
+        // === REMOTE buttons ===
+        Button downloadButton = new Button(I18n.get("sftp.download"));
+        styleToolbarButton(downloadButton, FileBrowserIcons.DOWNLOAD);
+        downloadButton.getStyleClass().add("sftp-transfer-button");
+        downloadButton.setTooltip(new Tooltip(transferRefusal(de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD)
+            .orElse(I18n.get("sftp.downloading", "..."))));
+        downloadButton.setDisable(true);
+        downloadButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            downloadSelected();
+        });
+
+        Separator transferSeparator = new Separator(javafx.geometry.Orientation.VERTICAL);
+        transferSeparator.setPadding(new Insets(0, 4, 0, 4));
+
         Button refreshRemoteButton = new Button(I18n.get("sftp.refresh"));
         styleToolbarButton(refreshRemoteButton, FileBrowserIcons.REFRESH);
         refreshRemoteButton.setTooltip(new Tooltip(I18n.get("sftp.refreshRemote")));
@@ -669,35 +785,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             resetAutoCloseTimer();
             setOwnerPermissionsDialog();
         });
-        
-        Separator remoteSep1 = new Separator();
-        remoteSep1.setOrientation(javafx.geometry.Orientation.VERTICAL);
-        remoteSep1.setPadding(new Insets(0, 5, 0, 5));
-        
-        Button uploadButton = new Button(I18n.get("sftp.upload"));
-        styleToolbarButton(uploadButton, FileBrowserIcons.UPLOAD);
-        uploadButton.setTooltip(new Tooltip(transferRefusal(de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD)
-            .orElse(I18n.get("sftp.uploading", "..."))));
-        uploadButton.setDisable(true);
-        uploadButton.setOnAction(e -> {
-            resetAutoCloseTimer();
-            uploadSelected();
-        });
 
-        Button downloadButton = new Button(I18n.get("sftp.download"));
-        styleToolbarButton(downloadButton, FileBrowserIcons.DOWNLOAD);
-        downloadButton.setTooltip(new Tooltip(transferRefusal(de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD)
-            .orElse(I18n.get("sftp.downloading", "..."))));
-        downloadButton.setDisable(true);
-        downloadButton.setOnAction(e -> {
-            resetAutoCloseTimer();
-            downloadSelected();
-        });
-        
-        Separator remoteSep2 = new Separator();
-        remoteSep2.setOrientation(javafx.geometry.Orientation.VERTICAL);
-        remoteSep2.setPadding(new Insets(0, 5, 0, 5));
-        
         Button archiveButton = new Button(I18n.get("sftp.archive"));
         styleToolbarButton(archiveButton, FileBrowserIcons.ARCHIVE_BOX);
         archiveButton.setTooltip(new Tooltip(I18n.get("sftp.contextMenu.archive")));
@@ -708,6 +796,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         });
 
         MenuButton editRemoteButton = new MenuButton(I18n.get("sftp.edit"));
+        editRemoteButton.getStyleClass().add("file-browser-toolbar-button");
         editRemoteButton.setTooltip(new Tooltip(I18n.get("sftp.edit.snippetEditor")));
         editRemoteButton.setDisable(true);
         MenuItem editRemoteSnippetItem = new MenuItem(I18n.get("sftp.edit.snippetEditor"));
@@ -726,16 +815,15 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             openSelectedRemoteFileAsRoot();
         });
         editRemoteButton.getItems().addAll(editRemoteSnippetItem, editRemoteExternalItem, editRemoteSudoItem);
-        
-        remoteButtons.getChildren().addAll(remoteLabel, refreshRemoteButton, newFolderRemoteButton, deleteRemoteButton,
-                ownerRemoteButton,
-                remoteSep1, uploadButton, downloadButton, remoteSep2, archiveButton, editRemoteButton);
-        
-        // Assemble main button box: local | separator | remote
-        buttonBox.getChildren().addAll(localButtons, verticalSeparator, remoteButtons);
-        HBox.setHgrow(localButtons, Priority.ALWAYS);
-        HBox.setHgrow(remoteButtons, Priority.ALWAYS);
-        
+
+        HBox remoteToolbar = paneToolbar(downloadButton, transferSeparator, refreshRemoteButton,
+            newFolderRemoteButton, deleteRemoteButton, ownerRemoteButton, archiveButton, editRemoteButton);
+
+        localPaneStatus = paneStatusLabel();
+        remotePaneStatus = paneStatusLabel();
+        localPanel.getChildren().addAll(localPaneStatus, localToolbar);
+        remotePanel.getChildren().addAll(remotePaneStatus, remoteToolbar);
+
         localSelectionActions = () -> {
             SftpFileItem selected = localTable.getSelectionModel().getSelectedItem();
             boolean hasSelection = selected != null && !selected.getName().equals("..");
@@ -745,6 +833,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 fileTransferAllowed()));
             deleteLocalButton.setDisable(!hasSelection);
             ownerLocalButton.setDisable(!hasSelection);
+            archiveLocalButton.setDisable(!hasSelection);
             editLocalButton.setDisable(!isSingleEditableFileSelection(localTable));
         };
 
@@ -767,6 +856,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 && editRemoteSudoItem.isDisable());
             // A new folder goes into the absolute folder a listing returned, not the unexpanded '~'.
             newFolderRemoteButton.setDisable(!isRemoteConnected() || !remotePathResolved);
+            compareButton.setDisable(!isRemoteConnected() || !remotePathResolved || compareCancel != null);
         };
 
         // Enable/disable buttons based on selection
@@ -782,16 +872,688 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             (ListChangeListener<SftpFileItem>) change -> localSelectionActions.run());
         remoteTable.getSelectionModel().getSelectedItems().addListener(
             (ListChangeListener<SftpFileItem>) change -> remoteSelectionActions.run());
-        
-        return buttonBox;
+
+        // The status line follows the list (listing, search, hidden entries) and the selection.
+        sortedLocalItems.addListener((ListChangeListener<SftpFileItem>) change -> updatePaneStatus(false));
+        sortedRemoteItems.addListener((ListChangeListener<SftpFileItem>) change -> updatePaneStatus(true));
+        localTable.getSelectionModel().getSelectedItems().addListener(
+            (ListChangeListener<SftpFileItem>) change -> updatePaneStatus(false));
+        remoteTable.getSelectionModel().getSelectedItems().addListener(
+            (ListChangeListener<SftpFileItem>) change -> updatePaneStatus(true));
+        updatePaneStatus(false);
+        updatePaneStatus(true);
+    }
+
+    private static Label paneStatusLabel() {
+        Label status = new Label();
+        status.getStyleClass().addAll("file-browser-footer", "sftp-pane-status");
+        status.setMaxWidth(Double.MAX_VALUE);
+        status.setMinWidth(0);
+        return status;
+    }
+
+    /**
+     * A panel's status line: how many entries it lists ("12 of 40" while the search narrows the
+     * list), how many are selected and their size, and how many hidden entries it hides.
+     */
+    private void updatePaneStatus(boolean remote) {
+        Label status = remote ? remotePaneStatus : localPaneStatus;
+        if (status == null) {
+            return;
+        }
+        ObservableList<SftpFileItem> all = remote ? remoteItems : localItems;
+        List<SftpFileItem> shown = remote ? sortedRemoteItems : sortedLocalItems;
+        boolean showHidden = remote ? showHiddenRemote : showHiddenLocal;
+        long hidden = showHidden ? 0 : all.stream().filter(SftpFileItem::isHidden).count();
+        long listed = all.stream().filter(item -> !item.isParentEntry()).count() - hidden;
+        long visible = shown.stream().filter(item -> !item.isParentEntry()).count();
+        List<String> parts = new ArrayList<>();
+        parts.add(visible == listed
+            ? I18n.get("sftp.paneStatus.entries", visible)
+            : I18n.get("sftp.paneStatus.filtered", visible, listed));
+        List<SftpFileItem> selected = (remote ? remoteTable : localTable).getSelectionModel().getSelectedItems()
+            .stream().filter(item -> item != null && !item.isParentEntry()).toList();
+        if (!selected.isEmpty()) {
+            long bytes = 0;
+            for (SftpFileItem item : selected) {
+                long size = remote ? remoteSizeBytes(item) : item.getSizeBytes();
+                bytes += Math.max(0, size);
+            }
+            parts.add(bytes > 0
+                ? I18n.get("sftp.paneStatus.selectedSize", selected.size(), formatSize(bytes))
+                : I18n.get("sftp.paneStatus.selected", selected.size()));
+        }
+        if (hidden > 0) {
+            parts.add(I18n.get("sftp.paneStatus.hidden", hidden));
+        }
+        status.setText(String.join("  \u00B7  ", parts));
+    }
+
+    // ------------------------------------------------------------------ compare and synchronize
+
+    /** The bar above the lists for a running comparison and its result; hidden until one runs. */
+    private HBox createCompareBar() {
+        compareTitle = new Label();
+        compareTitle.getStyleClass().add("sftp-compare-title");
+        compareTitle.setMinWidth(0);
+        compareChips = new HBox(6);
+        compareChips.setAlignment(Pos.CENTER_LEFT);
+        compareChips.setMinWidth(0);
+
+        compareDifferencesOnly = new CheckBox(I18n.get("sftp.compare.differencesOnly"));
+        compareDifferencesOnly.setOnAction(e -> {
+            applyRowFilter(false);
+            applyRowFilter(true);
+        });
+
+        syncToLocalButton = new Button(I18n.get("sftp.compare.syncToLocal"));
+        styleToolbarButton(syncToLocalButton, FileBrowserIcons.DOWNLOAD);
+        syncToLocalButton.setTooltip(new Tooltip(I18n.get("sftp.compare.syncToLocalTooltip")));
+        syncToLocalButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            synchronize(false);
+        });
+        syncToServerButton = new Button(I18n.get("sftp.compare.syncToServer"));
+        styleToolbarButton(syncToServerButton, FileBrowserIcons.UPLOAD);
+        syncToServerButton.setTooltip(new Tooltip(I18n.get("sftp.compare.syncToServerTooltip")));
+        syncToServerButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            synchronize(true);
+        });
+        recompareButton = new Button();
+        styleToolbarButton(recompareButton, FileBrowserIcons.REFRESH);
+        recompareButton.setTooltip(new Tooltip(I18n.get("sftp.compare.recompare")));
+        recompareButton.setOnAction(e -> {
+            resetAutoCloseTimer();
+            if (comparedLocalRoot != null && comparedRemoteRoot != null) {
+                runCompare(comparedLocalRoot, comparedRemoteRoot, compareExcludes);
+            }
+        });
+        stopCompareButton = new Button(I18n.get("sftp.compare.stop"));
+        styleToolbarButton(stopCompareButton, FileBrowserIcons.CLOSE);
+        stopCompareButton.setOnAction(e -> {
+            if (compareCancel != null) {
+                compareCancel.set(true);
+            }
+        });
+        Button closeButton = new Button();
+        styleToolbarButton(closeButton, FileBrowserIcons.CLOSE);
+        closeButton.setTooltip(new Tooltip(I18n.get("sftp.compare.close")));
+        closeButton.setOnAction(e -> closeComparison());
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        HBox bar = new HBox(8, compareTitle, compareChips, spacer, compareDifferencesOnly, syncToLocalButton,
+            syncToServerButton, recompareButton, stopCompareButton, closeButton);
+        bar.getStyleClass().add("sftp-compare-bar");
+        bar.setAlignment(Pos.CENTER_LEFT);
+        bar.setVisible(false);
+        bar.setManaged(false);
+        return bar;
+    }
+
+    /** "Compare": asks what to leave out, then compares the two folders shown. */
+    private void startCompare() {
+        if (!requireConnected() || !remotePathResolved || compareCancel != null) {
+            return;
+        }
+        Path localRoot = currentLocalPath;
+        String remoteRoot = currentRemotePath;
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("sftp.compare.title"));
+        dialog.setHeaderText(I18n.get("sftp.compare.header"));
+        applyDarkTheme(dialog);
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(8);
+        grid.setPadding(new Insets(20));
+        Label localLabel = new Label(localRoot.toString());
+        Label remoteLabel = new Label(serverDisplayName() + ":  " + remoteRoot);
+        for (Label path : List.of(localLabel, remoteLabel)) {
+            path.setStyle("-fx-font-family: \"Menlo\", \"Consolas\", monospace;");
+            path.setWrapText(true);
+            path.setMaxWidth(460);
+        }
+        grid.addRow(0, new Label(I18n.get("sftp.compare.local")), localLabel);
+        grid.addRow(1, new Label(I18n.get("sftp.compare.remote")), remoteLabel);
+        TextArea excludes = new TextArea(String.join("\n", compareExcludes));
+        excludes.setPromptText(I18n.get("sftp.archive.excludePrompt"));
+        excludes.setPrefRowCount(3);
+        excludes.setPrefWidth(460);
+        grid.addRow(2, new Label(I18n.get("sftp.archive.exclude")), excludes);
+        Label info = new Label(I18n.get("sftp.compare.info"));
+        info.setWrapText(true);
+        info.setMaxWidth(560);
+        info.setStyle("-fx-font-size: 0.8462em; -fx-opacity: 0.75;");
+        grid.add(info, 0, 3, 2, 1);
+        dialog.getDialogPane().setContent(grid);
+        ButtonType compare = new ButtonType(I18n.get("sftp.compare"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(compare, ButtonType.CANCEL);
+        dialog.showAndWait().filter(compare::equals).ifPresent(answer -> {
+            List<String> patterns = java.util.Arrays.stream(excludes.getText().split("\n"))
+                .map(String::trim)
+                .filter(pattern -> !pattern.isEmpty())
+                .toList();
+            runCompare(localRoot, remoteRoot, patterns);
+        });
+    }
+
+    /**
+     * Reads both folders with everything below them off the FX thread and shows the comparison:
+     * the bar above the lists counts the differences, the rows take their colours. Stop ends it.
+     */
+    private void runCompare(Path localRoot, String remoteRoot, List<String> excludes) {
+        if (compareCancel != null) {
+            compareCancel.set(true);
+        }
+        SFTPSession session = sftpSession;
+        if (session == null) {
+            return;
+        }
+        java.util.concurrent.atomic.AtomicBoolean cancel = new java.util.concurrent.atomic.AtomicBoolean();
+        compareCancel = cancel;
+        showCompareRunning(0);
+        refreshActionStates();
+        java.util.function.Predicate<String> excluded = relative -> matchesExclude(relative, excludes);
+        RemoteTreeReader reader = new RemoteTreeReader() {
+            @Override
+            public List<SftpClient.DirEntry> list(String folder) throws IOException {
+                return session.listFiles(folder);
+            }
+
+            @Override
+            public SftpClient.Attributes lstat(String path) throws IOException {
+                return session.getLinkAttributes(path);
+            }
+        };
+        Thread worker = new Thread(() -> {
+            FolderComparison result = null;
+            Throwable failure = null;
+            try {
+                int[] localCount = {0};
+                List<FolderComparison.Entry> local = FolderSnapshots.local(localRoot, excluded, cancel::get,
+                    count -> {
+                        localCount[0] = count;
+                        Platform.runLater(() -> showCompareProgress(cancel, count));
+                    });
+                localCount[0] = local.size();
+                List<FolderComparison.Entry> remote = FolderSnapshots.remote(reader, remoteRoot, excluded,
+                    cancel::get, count -> Platform.runLater(() -> showCompareProgress(cancel, localCount[0] + count)));
+                result = FolderComparison.compare(local, remote);
+            } catch (Exception e) {
+                failure = e;
+            }
+            FolderComparison compared = result;
+            Throwable error = failure;
+            Platform.runLater(() -> applyComparison(cancel, localRoot, remoteRoot, excludes, compared, error));
+        }, "SFTP-Compare");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void showCompareRunning(int entries) {
+        compareBar.setVisible(true);
+        compareBar.setManaged(true);
+        compareTitle.setText(I18n.get("sftp.compare.running", entries));
+        compareChips.getChildren().clear();
+        stopCompareButton.setVisible(true);
+        stopCompareButton.setManaged(true);
+        for (Node node : List.of(compareDifferencesOnly, syncToLocalButton, syncToServerButton, recompareButton)) {
+            node.setVisible(false);
+            node.setManaged(false);
+        }
+    }
+
+    private void showCompareProgress(java.util.concurrent.atomic.AtomicBoolean cancel, int entries) {
+        if (compareCancel == cancel) {
+            compareTitle.setText(I18n.get("sftp.compare.running", entries));
+        }
+    }
+
+    private void applyComparison(java.util.concurrent.atomic.AtomicBoolean cancel, Path localRoot, String remoteRoot,
+                                 List<String> excludes, FolderComparison result, Throwable error) {
+        if (closing || compareCancel != cancel) {
+            return; // replaced by a newer comparison
+        }
+        compareCancel = null;
+        refreshActionStates();
+        stopCompareButton.setVisible(false);
+        stopCompareButton.setManaged(false);
+        if (error != null) {
+            String message;
+            if (error instanceof FolderSnapshots.StoppedException stopped) {
+                message = stopped.tooMany()
+                    ? I18n.get("sftp.compare.tooMany", FolderSnapshots.MAX_ENTRIES)
+                    : I18n.get("sftp.compare.stopped");
+            } else {
+                message = I18n.get("sftp.compare.failed", failureMessage(error));
+            }
+            if (comparison == null) {
+                compareTitle.setText(message);
+            } else {
+                statusLabel.setText(message);
+                showComparisonResult();
+            }
+            return;
+        }
+        comparison = result;
+        comparedLocalRoot = localRoot;
+        comparedRemoteRoot = remoteRoot;
+        compareExcludes = List.copyOf(excludes);
+        showComparisonResult();
+        localTable.refresh();
+        remoteTable.refresh();
+        applyRowFilter(false);
+        applyRowFilter(true);
+    }
+
+    /** The bar with the counts of the comparison shown and the Synchronize buttons. */
+    private void showComparisonResult() {
+        FolderComparison current = comparison;
+        if (current == null) {
+            return;
+        }
+        compareBar.setVisible(true);
+        compareBar.setManaged(true);
+        String localName = comparedLocalRoot.getFileName() != null
+            ? comparedLocalRoot.getFileName().toString()
+            : comparedLocalRoot.toString();
+        compareTitle.setText(localName + "  ⇄  " + comparedRemoteRoot);
+        compareTitle.setTooltip(new Tooltip(comparedLocalRoot + "  ⇄  " + comparedRemoteRoot));
+        FolderComparison.Counts counts = current.counts();
+        List<Node> chips = new ArrayList<>();
+        if (counts.differing() == 0) {
+            chips.add(compareChip(I18n.get("sftp.compare.identical"), "cmp-chip-same"));
+        } else {
+            addChip(chips, counts.onlyLocal(), "sftp.compare.onlyLocal", "cmp-chip-only");
+            addChip(chips, counts.newerLocal(), "sftp.compare.newerLocal", "cmp-chip-newer");
+            addChip(chips, counts.onlyRemote(), "sftp.compare.onlyRemote", "cmp-chip-only");
+            addChip(chips, counts.newerRemote(), "sftp.compare.newerRemote", "cmp-chip-newer");
+            addChip(chips, counts.different(), "sftp.compare.different", "cmp-chip-different");
+            addChip(chips, counts.same(), "sftp.compare.same", "cmp-chip-same");
+        }
+        compareChips.getChildren().setAll(chips);
+        for (Node node : List.of(compareDifferencesOnly, syncToLocalButton, syncToServerButton, recompareButton)) {
+            node.setVisible(true);
+            node.setManaged(true);
+        }
+        syncToServerButton.setDisable(current.toUpload().isEmpty() && current.extraOnRemote().isEmpty());
+        syncToLocalButton.setDisable(current.toDownload().isEmpty() && current.extraOnLocal().isEmpty());
+    }
+
+    private static void addChip(List<Node> chips, int count, String key, String styleClass) {
+        if (count > 0) {
+            chips.add(compareChip(I18n.get(key, count), styleClass));
+        }
+    }
+
+    private static Label compareChip(String text, String styleClass) {
+        Label chip = new Label(text);
+        javafx.scene.shape.Circle dot = new javafx.scene.shape.Circle(4);
+        dot.getStyleClass().add("sftp-compare-dot");
+        chip.setGraphic(dot);
+        chip.getStyleClass().addAll("sftp-compare-chip", styleClass);
+        chip.setMinWidth(Label.USE_PREF_SIZE);
+        return chip;
+    }
+
+    /** Ends the comparison: the bar goes and the rows lose their colours. */
+    private void closeComparison() {
+        if (compareCancel != null) {
+            compareCancel.set(true);
+            compareCancel = null;
+        }
+        comparison = null;
+        compareBar.setVisible(false);
+        compareBar.setManaged(false);
+        compareDifferencesOnly.setSelected(false);
+        localTable.refresh();
+        remoteTable.refresh();
+        applyRowFilter(false);
+        applyRowFilter(true);
+        refreshActionStates();
+    }
+
+    /** Colours a row by how its entry compares, as seen from its own side. */
+    private void markComparison(TableRow<SftpFileItem> row, SftpFileItem item, boolean remote) {
+        FolderComparison.State state = item == null || item.isParentEntry() ? null : comparisonState(item, remote);
+        FolderComparison.State onlyHere = remote ? FolderComparison.State.ONLY_REMOTE : FolderComparison.State.ONLY_LOCAL;
+        FolderComparison.State newerHere = remote ? FolderComparison.State.NEWER_REMOTE : FolderComparison.State.NEWER_LOCAL;
+        FolderComparison.State newerThere = remote ? FolderComparison.State.NEWER_LOCAL : FolderComparison.State.NEWER_REMOTE;
+        row.pseudoClassStateChanged(CMP_ONLY_HERE, state == onlyHere);
+        row.pseudoClassStateChanged(CMP_NEWER_HERE, state == newerHere);
+        row.pseudoClassStateChanged(CMP_OLDER_HERE, state == newerThere);
+        row.pseudoClassStateChanged(CMP_DIFFERENT,
+            state == FolderComparison.State.DIFFERENT || state == FolderComparison.State.CONTENT_DIFFERS);
+        row.pseudoClassStateChanged(CMP_SAME, state == FolderComparison.State.SAME);
+    }
+
+    /** How a row's entry compares, or null when no comparison covers the folder it is in. */
+    private FolderComparison.State comparisonState(SftpFileItem item, boolean remote) {
+        FolderComparison current = comparison;
+        if (current == null || item == null) {
+            return null;
+        }
+        String relative = remote ? remoteRelative(item.getPath()) : localRelative(item.getPath());
+        return relative == null ? null : current.state(relative).orElse(null);
+    }
+
+    private String localRelative(String path) {
+        try {
+            Path entry = Paths.get(path).toAbsolutePath().normalize();
+            Path root = comparedLocalRoot.toAbsolutePath().normalize();
+            if (!entry.startsWith(root) || entry.equals(root)) {
+                return null;
+            }
+            return root.relativize(entry).toString().replace(File.separatorChar, '/');
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private String remoteRelative(String path) {
+        String root = comparedRemoteRoot;
+        if (path == null || root == null) {
+            return null;
+        }
+        String prefix = root.endsWith("/") ? root : root + "/";
+        return path.startsWith(prefix) && path.length() > prefix.length() ? path.substring(prefix.length()) : null;
+    }
+
+    /**
+     * "To the server" / "To this computer": shows what is copied, asks, then queues the copies in
+     * the transfer list (replacing without a question per file and keeping modification times) and,
+     * when asked for, deletes what exists only on the target. The folders are compared again after.
+     */
+    private void synchronize(boolean toServer) {
+        FolderComparison current = comparison;
+        if (current == null || !requireConnected()) {
+            return;
+        }
+        if (refuseTransfer(toServer ? de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD
+                : de.kortty.policy.FileTransferGate.Route.SFTP_DOWNLOAD)) {
+            return;
+        }
+        List<FolderComparison.Entry> copy = toServer ? current.toUpload() : current.toDownload();
+        List<FolderComparison.Entry> extra = toServer ? current.extraOnRemote() : current.extraOnLocal();
+        if (copy.isEmpty() && extra.isEmpty()) {
+            statusLabel.setText(I18n.get("sftp.sync.nothing"));
+            return;
+        }
+        Path localRoot = comparedLocalRoot;
+        String remoteRoot = comparedRemoteRoot;
+        long bytes = current.bytes(copy, toServer);
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle(I18n.get("sftp.sync.title"));
+        dialog.setHeaderText(I18n.get(toServer ? "sftp.sync.headerToServer" : "sftp.sync.headerToLocal",
+            copy.size(), formatSize(bytes)));
+        dialog.setResizable(true);
+        applyDarkTheme(dialog);
+        VBox content = new VBox(8);
+        content.setPadding(new Insets(16, 20, 16, 20));
+        GridPane paths = new GridPane();
+        paths.setHgap(10);
+        paths.setVgap(4);
+        Label from = new Label(toServer ? localRoot.toString() : serverDisplayName() + ":  " + remoteRoot);
+        Label to = new Label(toServer ? serverDisplayName() + ":  " + remoteRoot : localRoot.toString());
+        for (Label path : List.of(from, to)) {
+            path.setStyle("-fx-font-family: \"Menlo\", \"Consolas\", monospace;");
+        }
+        paths.addRow(0, new Label(I18n.get("sftp.sync.from")), from);
+        paths.addRow(1, new Label(I18n.get("sftp.sync.to")), to);
+        content.getChildren().add(paths);
+        if (!copy.isEmpty()) {
+            ListView<String> list = new ListView<>(FXCollections.observableArrayList(
+                copy.stream().map(entry -> entry.relativePath() + (entry.directory() ? "/" : "")).toList()));
+            list.setFocusTraversable(false);
+            list.setFixedCellSize(24);
+            list.setPrefHeight(Math.min(copy.size(), 8) * 24 + 4);
+            list.setPrefWidth(520);
+            content.getChildren().add(list);
+        }
+        List<String> notes = new ArrayList<>();
+        notes.add(I18n.get("sftp.sync.replaceNote"));
+        int keptNewer = toServer ? current.newerOnRemote() : current.newerOnLocal();
+        if (keptNewer > 0) {
+            notes.add(I18n.get("sftp.sync.keptNewer", keptNewer));
+        }
+        if (current.typeConflicts() > 0) {
+            notes.add(I18n.get("sftp.sync.conflicts", current.typeConflicts()));
+        }
+        Label note = new Label(String.join("\n", notes));
+        note.setWrapText(true);
+        note.setMaxWidth(520);
+        note.setStyle("-fx-font-size: 0.8462em; -fx-opacity: 0.8;");
+        content.getChildren().add(note);
+        CheckBox deleteExtra = new CheckBox(I18n.get(toServer ? "sftp.sync.deleteExtraServer"
+            : "sftp.sync.deleteExtraLocal", extra.size()));
+        deleteExtra.setDisable(extra.isEmpty());
+        content.getChildren().add(deleteExtra);
+        dialog.getDialogPane().setContent(content);
+        ButtonType start = new ButtonType(I18n.get("sftp.sync.start"), ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(start, ButtonType.CANCEL);
+        if (copy.isEmpty()) {
+            // Only deletions are left: the button needs the box ticked.
+            dialog.getDialogPane().lookupButton(start).disableProperty().bind(deleteExtra.selectedProperty().not());
+        }
+        if (dialog.showAndWait().filter(start::equals).isEmpty()) {
+            return;
+        }
+
+        boolean delete = deleteExtra.isSelected() && !extra.isEmpty() && confirmSyncDelete(toServer, extra);
+        int queued = 0;
+        java.util.Map<String, List<FolderComparison.Entry>> byFolder = new java.util.TreeMap<>();
+        for (FolderComparison.Entry entry : copy) {
+            byFolder.computeIfAbsent(entry.parent(), folder -> new ArrayList<>()).add(entry);
+        }
+        for (java.util.Map.Entry<String, List<FolderComparison.Entry>> folder : byFolder.entrySet()) {
+            String relativeFolder = folder.getKey();
+            Optional<TransferBatch> batch;
+            if (toServer) {
+                String target = relativeFolder.isEmpty() ? remoteRoot
+                    : RemotePathSupport.appendRemotePath(remoteRoot, relativeFolder);
+                List<Path> sources = folder.getValue().stream()
+                    .map(entry -> localRoot.resolve(entry.relativePath()))
+                    .toList();
+                batch = transferQueueHost.enqueueSyncUpload(sources, target);
+            } else {
+                Path target = relativeFolder.isEmpty() ? localRoot : localRoot.resolve(relativeFolder);
+                List<RemoteEntryRef> sources = folder.getValue().stream()
+                    .map(entry -> {
+                        String path = RemotePathSupport.appendRemotePath(remoteRoot, entry.relativePath());
+                        return entry.directory()
+                            ? RemoteEntryRef.directory(path)
+                            : new RemoteEntryRef(path, entry.name(), RemoteEntryRef.Type.FILE, entry.size(),
+                                entry.modifiedMillis());
+                    })
+                    .toList();
+                batch = transferQueueHost.enqueueSyncDownload(sources, target);
+            }
+            if (batch.isPresent()) {
+                syncBatchIds.add(batch.get().id());
+                queued += folder.getValue().size();
+            }
+        }
+        if (queued > 0) {
+            transferQueuePane.reveal();
+            statusLabel.setText(I18n.get("sftp.sync.started", queued));
+        }
+        if (delete) {
+            deleteSyncExtras(toServer, extra, localRoot, remoteRoot);
+        }
+    }
+
+    /** The second question before a synchronization deletes: names what goes, for good. */
+    private boolean confirmSyncDelete(boolean onServer, List<FolderComparison.Entry> extra) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle(I18n.get("sftp.sync.confirmDeleteTitle"));
+        alert.setHeaderText(I18n.get(onServer ? "sftp.sync.confirmDeleteServer" : "sftp.sync.confirmDeleteLocal",
+            extra.size()));
+        List<String> names = extra.stream().limit(12)
+            .map(entry -> entry.relativePath() + (entry.directory() ? "/" : ""))
+            .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        if (extra.size() > names.size()) {
+            names.add("…");
+        }
+        alert.setContentText(String.join("\n", names));
+        alert.getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
+        applyDarkTheme(alert);
+        return alert.showAndWait().filter(ButtonType.OK::equals).isPresent();
+    }
+
+    /** Deletes what exists only on the target side, off the FX thread; reports what could not go. */
+    private void deleteSyncExtras(boolean onServer, List<FolderComparison.Entry> extra, Path localRoot,
+                                  String remoteRoot) {
+        SFTPSession session = sftpSession;
+        syncDeletesRunning++;
+        Thread worker = new Thread(() -> {
+            List<String> failures = new ArrayList<>();
+            for (FolderComparison.Entry entry : extra) {
+                try {
+                    if (onServer) {
+                        deleteRemoteRecursive(session, RemotePathSupport.appendRemotePath(remoteRoot,
+                            entry.relativePath()), entry.directory());
+                    } else {
+                        deleteLocalRecursive(localRoot.resolve(entry.relativePath()));
+                    }
+                } catch (Exception e) {
+                    failures.add(entry.relativePath() + ": " + failureMessage(e));
+                }
+            }
+            Platform.runLater(() -> {
+                syncDeletesRunning--;
+                if (closing) {
+                    return;
+                }
+                if (onServer) {
+                    refreshRemote();
+                } else {
+                    refreshLocal();
+                }
+                if (!failures.isEmpty()) {
+                    showError(I18n.get("sftp.sync.title"), I18n.get("sftp.sync.deleteFailed", failures.size())
+                        + "\n\n" + String.join("\n", failures.subList(0, Math.min(10, failures.size()))));
+                }
+                compareAgainAfterSync();
+            });
+        }, "SFTP-SyncDelete");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    /** Once the last copy and deletion of a synchronization is done, compares the folders again. */
+    private void compareAgainAfterSync() {
+        if (!syncBatchIds.isEmpty() || syncDeletesRunning > 0 || comparison == null || closing) {
+            return;
+        }
+        Path localRoot = comparedLocalRoot;
+        String remoteRoot = comparedRemoteRoot;
+        List<String> excludes = compareExcludes;
+        // Lets the lists refresh first, as they do shortly after transfers.
+        javafx.animation.PauseTransition settle = new javafx.animation.PauseTransition(Duration.millis(900));
+        settle.setOnFinished(e -> {
+            if (!closing && comparison != null && compareCancel == null && isRemoteConnected()) {
+                runCompare(localRoot, remoteRoot, excludes);
+            }
+        });
+        settle.play();
+    }
+
+    /**
+     * A text cell aligned as given; with {@code tooltip} it shows its whole text on hover, for a
+     * column too narrow for it (the date with its time).
+     */
+    static void installTextCell(TableColumn<SftpFileItem, String> column, Pos alignment, boolean tooltip) {
+        column.setCellFactory(col -> new javafx.scene.control.TableCell<>() {
+            private final Tooltip hover = new Tooltip();
+
+            @Override
+            protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                setText(empty || value == null ? null : value);
+                setAlignment(alignment);
+                if (tooltip && !empty && value != null && !value.isBlank()) {
+                    hover.setText(value);
+                    setTooltip(hover);
+                } else {
+                    setTooltip(null);
+                }
+            }
+        });
+    }
+
+    /** One panel's button row, below its list. */
+    private static HBox paneToolbar(Node... children) {
+        HBox toolbar = new HBox(4, children);
+        toolbar.getStyleClass().add("sftp-pane-toolbar");
+        toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.setMinWidth(0);
+        return toolbar;
+    }
+
+    /**
+     * Makes a panel the active one when it is clicked or something in it gets the keyboard focus.
+     * The active panel is framed in the accent colour and draws its selection in it, so it is plain
+     * which list the keyboard (Delete, F2, ...) and the last click work on.
+     *
+     * <p>The scene's focus owner decides, not {@code focusWithin}: a table marks the row its focus
+     * model points at as focused even while another control has the keyboard, so re-sorting or
+     * filtering one list would otherwise make its panel active without the user doing anything.
+     */
+    private void installActivePaneTracking() {
+        localPanel.getStyleClass().add("sftp-pane");
+        remotePanel.getStyleClass().add("sftp-pane");
+        localPanel.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> setActivePane(false));
+        remotePanel.addEventFilter(MouseEvent.MOUSE_PRESSED, event -> setActivePane(true));
+        localPanel.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            if (EDIT_PATH_KEYS.match(event)) {
+                localBreadcrumb.edit();
+                event.consume();
+            }
+        });
+        remotePanel.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
+            if (EDIT_PATH_KEYS.match(event)) {
+                remoteBreadcrumb.edit();
+                event.consume();
+            }
+        });
+        javafx.beans.value.ChangeListener<Node> focusOwner = (obs, old, owner) -> {
+            if (isInside(owner, localPanel)) {
+                setActivePane(false);
+            } else if (isInside(owner, remotePanel)) {
+                setActivePane(true);
+            }
+        };
+        localPanel.sceneProperty().addListener((obs, oldScene, scene) -> {
+            if (oldScene != null) {
+                oldScene.focusOwnerProperty().removeListener(focusOwner);
+            }
+            if (scene != null) {
+                scene.focusOwnerProperty().addListener(focusOwner);
+            }
+        });
+    }
+
+    private static boolean isInside(Node node, Node ancestor) {
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current == ancestor) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void setActivePane(boolean remote) {
+        localPanel.pseudoClassStateChanged(ACTIVE_PANE, !remote);
+        remotePanel.pseudoClassStateChanged(ACTIVE_PANE, remote);
     }
     
     private VBox createLocalPanel() {
         VBox panel = new VBox(5);
         panel.setPadding(new Insets(5));
         
-        Label titleLabel = new Label(I18n.get("sftp.localSystem"));
-        titleLabel.setStyle("-fx-font-weight: bold;");
+        Label titleLabel = paneTitle(I18n.get("sftp.localSystem"));
         
         // Path field and navigation
         HBox pathBox = new HBox(5);
@@ -808,9 +1570,13 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         styleToolbarButton(homeButton, FileBrowserIcons.HOME);
         homeButton.setTooltip(new Tooltip(I18n.get("filebrowser.tooltip.home")));
         homeButton.setOnAction(e -> navigateLocal(System.getProperty("user.home")));
+
+        localHiddenToggle = createHiddenToggle(false);
         
-        pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), localPathField, upButton, homeButton);
-        HBox.setHgrow(localPathField, Priority.ALWAYS);
+        localBreadcrumb = new SftpBreadcrumbBar(localPathField, this::navigateLocal, File.separatorChar == '\\');
+        pathBox.setAlignment(Pos.CENTER_LEFT);
+        pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), localBreadcrumb, upButton, homeButton,
+            localHiddenToggle);
         
         // Search field
         HBox searchBox = new HBox(5);
@@ -830,6 +1596,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         nameColumn.setPrefWidth(180);
         nameColumn.setMinWidth(100);
         nameColumn.setSortable(true);
+        nameColumn.setComparator(String.CASE_INSENSITIVE_ORDER);
         
         TableColumn<SftpFileItem, String> typeColumn = new TableColumn<>(I18n.get("sftp.column.type"));
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
@@ -874,16 +1641,25 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         permColumn.setSortable(true);
         
         installTypeIconCell(typeColumn);
+        installTextCell(sizeColumn, Pos.CENTER_RIGHT, false);
+        installTextCell(dateColumn, Pos.CENTER_LEFT, true);
         localTable.getColumns().addAll(java.util.List.of(nameColumn, typeColumn, sizeColumn, dateColumn, userColumn, groupColumn, permColumn));
         
         // Context menu for local table
         ContextMenu localContextMenu = createLocalContextMenu();
         localTable.setContextMenu(localContextMenu);
-        installFileKeys(localTable, this::renameLocalSelected, this::deleteLocalSelected);
+        installFileKeys(localTable, this::renameLocalSelected, this::deleteLocalSelected,
+            () -> setShowHidden(false, !showHiddenLocal));
         
         // Double-click to navigate
         localTable.setRowFactory(tv -> {
-            TableRow<SftpFileItem> row = new TableRow<>();
+            TableRow<SftpFileItem> row = new TableRow<>() {
+                @Override
+                protected void updateItem(SftpFileItem item, boolean empty) {
+                    super.updateItem(item, empty);
+                    markComparison(this, empty ? null : item, false);
+                }
+            };
             row.setOnMouseClicked(e -> {
                 if (e.getClickCount() == 2 && !row.isEmpty()) {
                     SftpFileItem item = row.getItem();
@@ -901,10 +1677,10 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         
         // Setup data binding with filter and sort
         localItems = FXCollections.observableArrayList();
-        filteredLocalItems = new FilteredList<>(localItems, p -> true);
+        filteredLocalItems = new FilteredList<>(localItems, rowFilter("", showHiddenLocal));
         sortedLocalItems = new javafx.collections.transformation.SortedList<>(filteredLocalItems);
         
-        installSortPolicy(localTable, sortedLocalItems, typeColumn, sizeColumn);
+        installSortPolicy(localTable, sortedLocalItems, typeColumn, sizeColumn, SftpFileItem::getSizeBytes);
         localTable.setItems(sortedLocalItems);
         
         // Set default sort by type (directories first, alphabetically)
@@ -913,9 +1689,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         // Apply initial sort
         localTable.sort();
         
-        // Search filter: a glob such as *.log, or a plain substring
-        localSearchField.textProperty().addListener((obs, oldVal, newVal) ->
-            filteredLocalItems.setPredicate(searchFilter(newVal)));
+        // Search filter: a glob such as *.log, or a plain substring; hidden entries only when shown
+        localSearchField.textProperty().addListener((obs, oldVal, newVal) -> applyRowFilter(false));
         
         panel.getChildren().addAll(titleLabel, pathBox, searchBox, localTable);
         VBox.setVgrow(localTable, Priority.ALWAYS);
@@ -927,8 +1702,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         VBox panel = new VBox(5);
         panel.setPadding(new Insets(5));
         
-        Label titleLabel = new Label(I18n.get("sftp.remoteServer", connection.getHost()));
-        titleLabel.setStyle("-fx-font-weight: bold;");
+        Label titleLabel = paneTitle(I18n.get("sftp.remoteServer", connection.getHost()));
         
         // Path field and navigation
         HBox pathBox = new HBox(5);
@@ -945,9 +1719,13 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         styleToolbarButton(homeButton, FileBrowserIcons.HOME);
         homeButton.setTooltip(new Tooltip(I18n.get("filebrowser.tooltip.home")));
         homeButton.setOnAction(e -> navigateRemote("~"));
+
+        remoteHiddenToggle = createHiddenToggle(true);
         
-        pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), remotePathField, upButton, homeButton);
-        HBox.setHgrow(remotePathField, Priority.ALWAYS);
+        remoteBreadcrumb = new SftpBreadcrumbBar(remotePathField, this::navigateRemote, false);
+        pathBox.setAlignment(Pos.CENTER_LEFT);
+        pathBox.getChildren().addAll(new Label(I18n.get("sftp.path")), remoteBreadcrumb, upButton, homeButton,
+            remoteHiddenToggle);
         
         // Search field: filters the folder as you type; with "Include subfolders", Enter searches
         // the folder and everything below it on the server, Esc stops that search.
@@ -986,6 +1764,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         nameColumn.setPrefWidth(180);
         nameColumn.setMinWidth(100);
         nameColumn.setSortable(true);
+        nameColumn.setComparator(String.CASE_INSENSITIVE_ORDER);
         
         TableColumn<SftpFileItem, String> typeColumn = new TableColumn<>(I18n.get("sftp.column.type"));
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
@@ -995,7 +1774,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         typeColumn.setSortable(true);
         
         TableColumn<SftpFileItem, String> sizeColumn = new TableColumn<>(I18n.get("sftp.column.size"));
-        sizeColumn.setCellValueFactory(new PropertyValueFactory<>("size"));
+        // A folder shows the size "Calculate size" measured for it; owners and groups the server
+        // sent as numbers show their names once they are looked up.
+        sizeColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(remoteSizeLabel(cell.getValue())));
         sizeColumn.setPrefWidth(80);
         sizeColumn.setMinWidth(60);
         sizeColumn.setMaxWidth(100);
@@ -1009,14 +1790,14 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         dateColumn.setSortable(true);
         
         TableColumn<SftpFileItem, String> userColumn = new TableColumn<>(I18n.get("sftp.column.user"));
-        userColumn.setCellValueFactory(new PropertyValueFactory<>("owner"));
+        userColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(remoteOwner(cell.getValue())));
         userColumn.setPrefWidth(70);
         userColumn.setMinWidth(50);
         userColumn.setMaxWidth(100);
         userColumn.setSortable(true);
         
         TableColumn<SftpFileItem, String> groupColumn = new TableColumn<>(I18n.get("sftp.column.group"));
-        groupColumn.setCellValueFactory(new PropertyValueFactory<>("group"));
+        groupColumn.setCellValueFactory(cell -> new ReadOnlyStringWrapper(remoteGroup(cell.getValue())));
         groupColumn.setPrefWidth(70);
         groupColumn.setMinWidth(50);
         groupColumn.setMaxWidth(100);
@@ -1030,11 +1811,19 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         permColumn.setSortable(true);
         
         installTypeIconCell(typeColumn);
+        installTextCell(sizeColumn, Pos.CENTER_RIGHT, false);
+        installTextCell(dateColumn, Pos.CENTER_LEFT, true);
         remoteTable.getColumns().addAll(java.util.List.of(nameColumn, typeColumn, sizeColumn, dateColumn, userColumn, groupColumn, permColumn));
         
         // Double-click to navigate, right-click for context menu
         remoteTable.setRowFactory(tv -> {
-            TableRow<SftpFileItem> row = new TableRow<>();
+            TableRow<SftpFileItem> row = new TableRow<>() {
+                @Override
+                protected void updateItem(SftpFileItem item, boolean empty) {
+                    super.updateItem(item, empty);
+                    markComparison(this, empty ? null : item, true);
+                }
+            };
             row.setOnMouseClicked(e -> {
                 if (e.getClickCount() == 2 && !row.isEmpty()) {
                     SftpFileItem item = row.getItem();
@@ -1053,14 +1842,15 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         // Context menu for remote table
         ContextMenu remoteContextMenu = createRemoteContextMenu();
         remoteTable.setContextMenu(remoteContextMenu);
-        installFileKeys(remoteTable, this::renameRemoteSelected, this::deleteRemoteSelected);
+        installFileKeys(remoteTable, this::renameRemoteSelected, this::deleteRemoteSelected,
+            () -> setShowHidden(true, !showHiddenRemote));
         
         // Setup data binding with filter and sort
         remoteItems = FXCollections.observableArrayList();
-        filteredRemoteItems = new FilteredList<>(remoteItems, p -> true);
+        filteredRemoteItems = new FilteredList<>(remoteItems, rowFilter("", showHiddenRemote));
         sortedRemoteItems = new javafx.collections.transformation.SortedList<>(filteredRemoteItems);
         
-        installSortPolicy(remoteTable, sortedRemoteItems, typeColumn, sizeColumn);
+        installSortPolicy(remoteTable, sortedRemoteItems, typeColumn, sizeColumn, this::remoteSizeBytes);
         remoteTable.setItems(sortedRemoteItems);
         
         // Set default sort by type (directories first, alphabetically)
@@ -1069,9 +1859,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         // Apply initial sort
         remoteTable.sort();
         
-        // Search filter: a glob such as *.log, or a plain substring
-        remoteSearchField.textProperty().addListener((obs, oldVal, newVal) ->
-            filteredRemoteItems.setPredicate(searchFilter(newVal)));
+        // Search filter: a glob such as *.log, or a plain substring; hidden entries only when shown
+        remoteSearchField.textProperty().addListener((obs, oldVal, newVal) -> applyRowFilter(true));
         
         // Remote folders are listed in the background; the overlay shows while one loads.
         remoteLoadingOverlay = FileBrowserLoadingOverlay.create();
@@ -1098,6 +1887,98 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     static java.util.function.Predicate<SftpFileItem> searchFilter(String text) {
         java.util.function.Predicate<String> names = FileBrowserPaths.compileNameFilter(text);
         return item -> item.isParentEntry() || names.test(item.getName());
+    }
+
+    /** {@link #searchFilter}, without the hidden entries unless {@code showHidden}. */
+    static java.util.function.Predicate<SftpFileItem> rowFilter(String text, boolean showHidden) {
+        java.util.function.Predicate<SftpFileItem> search = searchFilter(text);
+        return showHidden ? search : item -> !item.isHidden() && search.test(item);
+    }
+
+    private void applyRowFilter(boolean remote) {
+        java.util.function.Predicate<SftpFileItem> rows = remote
+            ? rowFilter(remoteSearchField.getText(), showHiddenRemote)
+            : rowFilter(localSearchField.getText(), showHiddenLocal);
+        if (comparison != null && compareDifferencesOnly != null && compareDifferencesOnly.isSelected()) {
+            // "Differences only": what compares as the same leaves the list; anything not compared stays.
+            rows = rows.and(item -> item.isParentEntry()
+                || comparisonState(item, remote) != FolderComparison.State.SAME);
+        }
+        if (remote) {
+            filteredRemoteItems.setPredicate(rows);
+        } else {
+            filteredLocalItems.setPredicate(rows);
+        }
+    }
+
+    /** A panel's title; its dot and text take the accent colour while the panel is active. */
+    private static Label paneTitle(String text) {
+        Label title = new Label(text);
+        title.getStyleClass().add("sftp-pane-title");
+        javafx.scene.shape.Circle marker = new javafx.scene.shape.Circle(4);
+        marker.getStyleClass().add("sftp-pane-marker");
+        title.setGraphic(marker);
+        title.setGraphicTextGap(7);
+        return title;
+    }
+
+    /** The eye button beside a panel's path: shows or hides its hidden entries. */
+    private ToggleButton createHiddenToggle(boolean remote) {
+        ToggleButton toggle = new ToggleButton();
+        styleToolbarButton(toggle, FileBrowserIcons.EYE);
+        toggle.setFocusTraversable(false);
+        toggle.setSelected(remote ? showHiddenRemote : showHiddenLocal);
+        toggle.setOnAction(e -> setShowHidden(remote, toggle.isSelected()));
+        updateHiddenToggle(toggle);
+        return toggle;
+    }
+
+    private static void updateHiddenToggle(ToggleButton toggle) {
+        boolean shown = toggle.isSelected();
+        FileBrowserIcons.applyToolbarIcon(toggle, shown ? FileBrowserIcons.EYE : FileBrowserIcons.EYE_OFF,
+            fileBrowserIconColor());
+        toggle.setTooltip(new Tooltip(I18n.get(shown ? "sftp.hidden.hide" : "sftp.hidden.show")
+            + " (" + TOGGLE_HIDDEN_KEYS.getDisplayText() + ")"));
+    }
+
+    /**
+     * Shows or hides one panel's hidden entries (names starting with a dot, and local entries the
+     * file system marks hidden) and remembers the choice for new SFTP tabs.
+     */
+    private void setShowHidden(boolean remote, boolean show) {
+        resetAutoCloseTimer();
+        ToggleButton toggle = remote ? remoteHiddenToggle : localHiddenToggle;
+        toggle.setSelected(show);
+        updateHiddenToggle(toggle);
+        if (remote) {
+            showHiddenRemote = show;
+        } else {
+            showHiddenLocal = show;
+        }
+        applyRowFilter(remote);
+        GlobalSettingsManager manager = globalSettingsManagerOrNull();
+        if (manager == null || manager.getSettings() == null) {
+            return;
+        }
+        if (remote) {
+            manager.getSettings().setSftpShowHiddenRemote(show);
+        } else {
+            manager.getSettings().setSftpShowHiddenLocal(show);
+        }
+        manager.scheduleSave();
+    }
+
+    private GlobalSettingsManager globalSettingsManagerOrNull() {
+        try {
+            return app != null ? app.getGlobalSettingsManager() : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private GlobalSettings globalSettingsOrNull() {
+        GlobalSettingsManager manager = globalSettingsManagerOrNull();
+        return manager != null ? manager.getSettings() : null;
     }
 
     private void connectToSFTP() {
@@ -1248,6 +2129,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             ? I18n.get("sftp.connectedTo", connection.getHost())
             : I18n.get("sftp.connectedTo", connection.getHost()) + " \u2014 " + hint);
         transferQueueHost.onSessionReady(session);
+        accountNames = new RemoteAccountNames();
         refreshActionStates();
         refreshLocal();
         refreshRemote();
@@ -1389,6 +2271,13 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         deleteDragOutDirectories();
         cancelRemoteSearch();
         remoteSearchExecutor.shutdownNow();
+        remoteInfoExecutor.shutdownNow();
+        if (compareCancel != null) {
+            compareCancel.set(true);
+        }
+        if (folderSizeCancellation != null) {
+            folderSizeCancellation.cancel();
+        }
         if (remoteExtractCancellation != null) {
             remoteExtractCancellation.cancel();
         }
@@ -1463,8 +2352,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                     String permissions = getLocalFilePermissions(file.toPath());
                     String owner = getLocalFileOwner(file.toPath());
                     String group = getLocalFileGroup(file.toPath());
-                    localItems.add(SftpFileItem.fromDetails(file.getName(),
-                        file.getAbsolutePath(), file.isFile(), size, date, permissions, owner, group, sizeBytes));
+                    // File.isHidden: a dot name, or the hidden attribute on Windows.
+                    localItems.add(SftpFileItem.fromDetails(file.getName(), file.getAbsolutePath(),
+                        file.isFile(), size, date, permissions, owner, group, sizeBytes, file.isHidden()));
                 }
             }
             localPathField.setText(currentLocalPath.toString());
@@ -1552,22 +2442,26 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 // Get file permissions, owner and group
                 String permissions = formatRemotePermissions(attrs);
 
-                // Get owner - try name first, fall back to UID
+                // Owner and group: the names where the server sends them (SFTP 4 and later), else the
+                // UID and GID (OpenSSH speaks SFTP 3), whose names lookUpAccountNames finds later.
                 String owner = attrs.getOwner();
+                int ownerId = -1;
                 if (owner == null || owner.isEmpty()) {
                     Integer uid = attrs.getUserId();
                     owner = uid != null ? String.valueOf(uid) : "";
+                    ownerId = uid != null ? uid : -1;
                 }
-
-                // Get group - try name first, fall back to GID
                 String group = attrs.getGroup();
+                int groupId = -1;
                 if (group == null || group.isEmpty()) {
                     Integer gid = attrs.getGroupId();
                     group = gid != null ? String.valueOf(gid) : "";
+                    groupId = gid != null ? gid : -1;
                 }
 
-                items.add(SftpFileItem.fromDetails(name, RemotePathSupport.appendRemotePath(path, name),
-                    !isDir, size, date, permissions, owner, group, sizeBytes));
+                SftpFileItem item = SftpFileItem.fromDetails(name, RemotePathSupport.appendRemotePath(path, name),
+                    !isDir, size, date, permissions, owner, group, sizeBytes);
+                items.add(ownerId >= 0 || groupId >= 0 ? item.withAccountIds(ownerId, groupId) : item);
             }
             return new RemoteListing(path, items);
         } catch (IOException e) {
@@ -1602,12 +2496,189 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         restoredRemotePath = null;
         currentRemotePath = listing.path();
         remotePathResolved = true;
+        remoteFolderSizes.clear();
         remoteItems.setAll(listing.items());
+        lookUpAccountNames(listing.items());
         remotePathField.setText(currentRemotePath);
         // Re-apply sort after refresh
         remoteTable.sort();
         selectPendingRemoteEntry();
         refreshActionStates();
+    }
+
+    /** How long the owner and group name lookup may take; a server that needs longer keeps numbers. */
+    private static final java.time.Duration ACCOUNT_LOOKUP_TIMEOUT = java.time.Duration.ofSeconds(8);
+    /** getent can fall back to the whole /etc/passwd; more than this is not read. */
+    private static final long ACCOUNT_LOOKUP_OUTPUT_CAP = 1024 * 1024;
+    /** How long "Calculate size" may run before it gives up; it can be stopped any time before. */
+    private static final java.time.Duration FOLDER_SIZE_TIMEOUT = java.time.Duration.ofMinutes(10);
+
+    /**
+     * Looks up, off the FX thread, the names of the numeric owners and groups in {@code items} that
+     * were never looked up in this session; the server's User and Group columns show them once they
+     * are known. The listing never waits for it. A server that cannot run the lookup (an SFTP-only
+     * account, a shell that is not POSIX) or does not answer within {@link #ACCOUNT_LOOKUP_TIMEOUT}
+     * keeps showing numbers and is not asked again.
+     */
+    private void lookUpAccountNames(List<SftpFileItem> items) {
+        RemoteAccountNames names = accountNames;
+        List<Integer> uids = new ArrayList<>();
+        List<Integer> gids = new ArrayList<>();
+        for (SftpFileItem item : items) {
+            if (item.getOwnerId() >= 0) {
+                uids.add(item.getOwnerId());
+            }
+            if (item.getGroupId() >= 0) {
+                gids.add(item.getGroupId());
+            }
+        }
+        SFTPSession session = sftpSession;
+        if (session == null) {
+            return;
+        }
+        RemoteAccountNames.Pending pending = names.claim(uids, gids);
+        if (pending.isEmpty()) {
+            return;
+        }
+        try {
+            remoteInfoExecutor.execute(() -> {
+                try {
+                    RemoteCommandRunner.Result result = session.commandRunner().run(RemoteCommandRunner.Request
+                        .plain(RemoteAccountNames.lookupCommand(pending))
+                        .timeout(ACCOUNT_LOOKUP_TIMEOUT)
+                        .outputCap(ACCOUNT_LOOKUP_OUTPUT_CAP));
+                    if (!result.isSuccess()) {
+                        names.markUnavailable();
+                        return;
+                    }
+                    names.accept(result.stdoutText());
+                } catch (IOException | RuntimeException e) {
+                    logger.debug("Owner and group names stay numbers: {}", e.getMessage());
+                    names.markUnavailable();
+                    return;
+                }
+                Platform.runLater(() -> {
+                    if (!closing && names == accountNames) {
+                        remoteTable.refresh();
+                        remoteTable.sort();
+                    }
+                });
+            });
+        } catch (RejectedExecutionException e) {
+            // The tab is closing.
+        }
+    }
+
+    /** The owner a server row shows: its name, also when the server sent only the UID and it was looked up. */
+    private String remoteOwner(SftpFileItem item) {
+        return item.getOwnerId() >= 0 ? accountNames.user(item.getOwnerId()).orElse(item.getOwner()) : item.getOwner();
+    }
+
+    /** The group a server row shows: its name, also when the server sent only the GID and it was looked up. */
+    private String remoteGroup(SftpFileItem item) {
+        return item.getGroupId() >= 0 ? accountNames.group(item.getGroupId()).orElse(item.getGroup()) : item.getGroup();
+    }
+
+    /** A server row's size label: a folder shows the size "Calculate size" measured for it. */
+    private String remoteSizeLabel(SftpFileItem item) {
+        Long measured = item.isFile() ? null : remoteFolderSizes.get(item.getPath());
+        return measured != null ? formatSize(measured) : item.getSize();
+    }
+
+    /** A server row's byte count for sorting by size: a folder counts with its measured size. */
+    private long remoteSizeBytes(SftpFileItem item) {
+        Long measured = item.isFile() ? null : remoteFolderSizes.get(item.getPath());
+        return measured != null ? measured : item.getSizeBytes();
+    }
+
+    /**
+     * "Calculate size": measures the selected server folders with {@code du} off the FX thread and
+     * shows the sizes in the Size column; while it runs, the same menu item stops it.
+     */
+    private void calculateSelectedFolderSizes() {
+        if (folderSizeCancellation != null) {
+            folderSizeCancellation.cancel();
+            return;
+        }
+        if (!requireConnected()) {
+            return;
+        }
+        List<String> folders = remoteTable.getSelectionModel().getSelectedItems().stream()
+            .filter(item -> item != null && !item.isFile() && !item.isParentEntry())
+            .map(SftpFileItem::getPath)
+            .toList();
+        if (folders.isEmpty()) {
+            return;
+        }
+        statusLabel.setText(I18n.get("sftp.folderSize.running", folders.size()));
+        RemoteCommandCancellation[] own = new RemoteCommandCancellation[1];
+        own[0] = measureFolderSizes(folders, (sizes, error) -> {
+            if (folderSizeCancellation == own[0]) {
+                folderSizeCancellation = null;
+            }
+            if (error instanceof de.kortty.core.remote.RemoteCommandCancelledException) {
+                statusLabel.setText(I18n.get("sftp.folderSize.cancelled"));
+            } else if (error != null) {
+                statusLabel.setText(I18n.get("sftp.folderSize.failed", failureMessage(error)));
+            } else {
+                long total = sizes.values().stream().mapToLong(Long::longValue).sum();
+                statusLabel.setText(I18n.get("sftp.folderSize.done", sizes.size(), formatSize(total)));
+            }
+        });
+        folderSizeCancellation = own[0];
+    }
+
+    /**
+     * Measures {@code folders} with {@code du -sk} off the FX thread. The sizes go into the Size
+     * column while the folder they are in is still shown; {@code done} then runs on the FX thread
+     * with the sizes (possibly fewer than asked for), or with the failure and {@code null}.
+     *
+     * @return the switch that stops the measurement
+     */
+    private RemoteCommandCancellation measureFolderSizes(List<String> folders,
+                                                         java.util.function.BiConsumer<java.util.Map<String, Long>, Throwable> done) {
+        SFTPSession session = sftpSession;
+        String folderShown = currentRemotePath;
+        RemoteCommandCancellation cancellation = new RemoteCommandCancellation();
+        Thread worker = new Thread(() -> {
+            java.util.Map<String, Long> sizes = null;
+            Throwable failure = null;
+            try {
+                RemoteCommandRunner.Result result = session.commandRunner().run(RemoteCommandRunner.Request
+                    .plain(RemoteFolderSizes.command(folders))
+                    .timeout(FOLDER_SIZE_TIMEOUT)
+                    .outputCap(ACCOUNT_LOOKUP_OUTPUT_CAP)
+                    .cancellation(cancellation));
+                sizes = RemoteFolderSizes.parse(result.stdoutText(), folders);
+                if (sizes.isEmpty()) {
+                    // du prints its totals even when it could not read everything; none at all is an error.
+                    String reason = result.stderr() == null || result.stderr().isBlank()
+                        ? "du exited with " + result.exitCode()
+                        : result.stderr().trim();
+                    sizes = null;
+                    failure = new IOException(reason);
+                }
+            } catch (Exception e) {
+                failure = e;
+            }
+            java.util.Map<String, Long> measured = sizes;
+            Throwable error = failure;
+            Platform.runLater(() -> {
+                if (closing) {
+                    return;
+                }
+                if (measured != null && folderShown.equals(currentRemotePath)) {
+                    remoteFolderSizes.putAll(measured);
+                    remoteTable.refresh();
+                    remoteTable.sort();
+                    updatePaneStatus(true);
+                }
+                done.accept(measured, error);
+            });
+        }, "SFTP-FolderSize");
+        worker.setDaemon(true);
+        worker.start();
+        return cancellation;
     }
 
     /** Selects the search hit that asked for this folder, once its listing is shown. */
@@ -2086,6 +3157,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     private void onTransferBatchFinished(TransferBatch batch) {
         if (closing) {
             return;
+        }
+        if (syncBatchIds.remove(batch.id())) {
+            compareAgainAfterSync();
         }
         statusLabel.setText(SftpTransferRowModel.batchFinished(batch));
         if (batch.policy().isCancelled()) {
@@ -2937,6 +4011,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             setOwnerPermissionsDialog();
         });
         
+        MenuItem calculateSizeItem = new MenuItem(I18n.get("sftp.contextMenu.calculateSize"));
+        calculateSizeItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            calculateSelectedFolderSizes();
+        });
+
         MenuItem archiveItem = new MenuItem(I18n.get("sftp.contextMenu.archive"));
         archiveItem.setOnAction(e -> {
             resetAutoCloseTimer();
@@ -2981,7 +4061,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             new SeparatorMenuItem(),
             newFolderItem,
             new SeparatorMenuItem(),
-            ownerItem,
+            ownerItem, calculateSizeItem,
             new SeparatorMenuItem(), 
             archiveItem, extractItem,
             new SeparatorMenuItem(),
@@ -3001,6 +4081,12 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             deleteItem.setDisable(!hasSelection);
             newFolderItem.setDisable(!isRemoteConnected() || !remotePathResolved);
             ownerItem.setDisable(!hasSelection);
+            // While a measurement runs, the item stops it.
+            boolean measuring = folderSizeCancellation != null;
+            calculateSizeItem.setText(I18n.get(measuring
+                ? "sftp.contextMenu.stopCalculatingSize" : "sftp.contextMenu.calculateSize"));
+            calculateSizeItem.setDisable(!measuring && (!isRemoteConnected() || selected == null
+                || selected.stream().noneMatch(item -> item != null && !item.isFile() && !item.isParentEntry())));
             archiveItem.setDisable(!hasSelection);
             extractItem.setDisable(!isSingleFile || remoteExtractCancellation != null
                 || RemoteArchiveExtractor.detect(selected.get(0).getName()).isEmpty());
@@ -3018,12 +4104,17 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
 
     /**
      * F2 renames the selected entry, Delete (or Cmd/Ctrl+Backspace) deletes the selection after the
-     * usual confirmation, as in the file browser sidebar.
+     * usual confirmation, as in the file browser sidebar; Cmd/Ctrl+Shift+. shows or hides the
+     * hidden entries, as in the macOS Finder.
      */
-    private void installFileKeys(TableView<SftpFileItem> table, Runnable rename, Runnable delete) {
+    private void installFileKeys(TableView<SftpFileItem> table, Runnable rename, Runnable delete,
+                                 Runnable toggleHidden) {
         table.setOnKeyPressed(event -> {
             KeyCode code = event.getCode();
-            if (code == KeyCode.F2 && !event.isShortcutDown() && !event.isAltDown()) {
+            if (TOGGLE_HIDDEN_KEYS.match(event)) {
+                toggleHidden.run();
+                event.consume();
+            } else if (code == KeyCode.F2 && !event.isShortcutDown() && !event.isAltDown()) {
                 resetAutoCloseTimer();
                 rename.run();
                 event.consume();
@@ -3331,8 +4422,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         
         // Get current values from first selected item for pre-filling
         SftpFileItem firstItem = items.get(0);
-        String currentOwner = firstItem.getOwner();
-        String currentGroup = firstItem.getGroup();
+        String currentOwner = remoteOwner(firstItem);
+        String currentGroup = remoteGroup(firstItem);
         String currentPerms = getOctalPermissions(firstItem.getPermissions());
         
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -3359,11 +4450,11 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         groupField.setPromptText("group");
         grid.add(groupField, 1, row++);
         
-        // Permissions field with current value
+        // Permissions: the octal field and, below it, a checkbox per bit; each follows the other.
         grid.add(new Label(I18n.get("sftp.setOwner.permissions")), 0, row);
         TextField permField = new TextField(currentPerms);
         permField.setPromptText("755");
-        grid.add(permField, 1, row++);
+        row = addPermissionBits(grid, row, permField);
         
         // Recursive checkbox
         CheckBox recursiveCheck = new CheckBox(I18n.get("sftp.setOwner.recursive"));
@@ -3373,7 +4464,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         Label info = new Label(I18n.get("sftp.setOwner.infoSeparate"));
         info.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         info.setWrapText(true);
-        info.setMaxWidth(300);
+        info.setMaxWidth(360);
         grid.add(info, 0, row++, 2, 1);
         
         dialog.getDialogPane().setContent(grid);
@@ -3431,6 +4522,22 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     static boolean isAcceptedPermissionsInput(String input, String unchangedValue) {
         String value = input == null ? "" : input.trim();
         return value.isEmpty() || value.equals(unchangedValue) || LocalFileBrowser.isValidOctalPermissions(value);
+    }
+
+    /**
+     * Puts {@code permissionsField} with its {@code rwxr-xr-x} reading into {@code row} of the
+     * owner/permissions grid and the checkbox grid below it, both kept in step with the field.
+     *
+     * @return the next free row
+     */
+    private static int addPermissionBits(GridPane grid, int row, TextField permissionsField) {
+        PermissionBitsEditor bits = new PermissionBitsEditor(permissionsField);
+        permissionsField.setPrefColumnCount(5);
+        HBox fieldRow = new HBox(10, permissionsField, bits.symbolicLabel());
+        fieldRow.setAlignment(Pos.CENTER_LEFT);
+        grid.add(fieldRow, 1, row++);
+        grid.add(bits.grid(), 0, row++, 2, 1);
+        return row;
     }
 
     /**
@@ -3573,7 +4680,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     }
     
     // Archive format enum
-    private enum ArchiveFormat {
+    enum ArchiveFormat {
         ZIP("zip", ".zip"),
         TAR_BZ2("tar.bz2", ".tar.bz2"),
         SEVEN_ZIP("7z", ".7z");
@@ -3702,13 +4809,17 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         
         // Filter out ".." entry and collect file paths
         List<String> filesToArchive = new java.util.ArrayList<>();
+        List<SftpFileItem> selection = new java.util.ArrayList<>();
         long estimatedSize = 0;
         for (var item : selected) {
             if (item.getName().equals("..")) continue;
             filesToArchive.add(item.getPath());
-            // Estimate size (rough, since directories can't be easily calculated)
-            if (item.isFile() && item.getSizeBytes() > 0) {
-                estimatedSize += item.getSizeBytes();
+            selection.add(item);
+            // Files by their size, folders by what "Calculate size" measured; the archive dialog
+            // measures the others itself.
+            long bytes = remoteSizeBytes(item);
+            if (bytes > 0) {
+                estimatedSize += bytes;
             }
         }
 
@@ -3735,55 +4846,169 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String defaultFilename = defaultArchivePath + "/archive_" + timestamp;
         
-        // Show archive creation dialog
-        showArchiveDialog(filesToArchive, defaultFilename, defaultCompression, estimatedSize);
-    }
-    
-    // Check which archive tools are available on the remote server
-    private java.util.Map<ArchiveFormat, Boolean> checkAvailableArchiveTools() {
-        java.util.Map<ArchiveFormat, Boolean> available = new java.util.EnumMap<>(ArchiveFormat.class);
-        
-        // Default all to false
-        for (ArchiveFormat fmt : ArchiveFormat.values()) {
-            available.put(fmt, false);
-        }
-        
+        // The tools are looked up on the server off the FX thread: a server that runs no commands
+        // (an SFTP-only account) would otherwise freeze the window until the channel gives up.
         SFTPSession session = sftpSession;
-        if (session == null || !session.isConnected()) {
-            return available;
-        }
+        String folderShown = currentRemotePath;
+        int compression = defaultCompression;
+        long size = estimatedSize;
+        String statusBefore = statusLabel.getText();
+        String checking = I18n.get("sftp.archive.checkingTools");
+        statusLabel.setText(checking);
+        CompletableFuture<java.util.Map<ArchiveFormat, Boolean>> tools = new CompletableFuture<>();
+        Thread probe = new Thread(() -> tools.complete(checkAvailableArchiveTools(session)), "SFTP-ArchiveTools");
+        probe.setDaemon(true);
+        probe.start();
+        tools.completeOnTimeout(assumedArchiveTools(), ARCHIVE_TOOLS_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .thenAccept(available -> Platform.runLater(() -> {
+                if (closing) {
+                    return;
+                }
+                if (checking.equals(statusLabel.getText())) {
+                    statusLabel.setText(statusBefore);
+                }
+                showArchiveDialog(filesToArchive, selection, folderShown, defaultFilename, compression, size,
+                    available);
+            }));
+    }
 
-        try {
-            // Check zip
-            String zipCheck = session.executeCommand("which zip 2>/dev/null || command -v zip 2>/dev/null || echo ''");
-            available.put(ArchiveFormat.ZIP, !zipCheck.trim().isEmpty());
+    /** How long "Archive" waits for the server's tool list before assuming zip and tar. */
+    private static final long ARCHIVE_TOOLS_TIMEOUT_SECONDS = 8;
 
-            // Check tar (always available on Unix)
-            String tarCheck = session.executeCommand("which tar 2>/dev/null || command -v tar 2>/dev/null || echo ''");
-            available.put(ArchiveFormat.TAR_BZ2, !tarCheck.trim().isEmpty());
+    /** One round trip instead of one per tool; prints the name of each tool the server has. */
+    static final String ARCHIVE_TOOLS_PROBE =
+        "for t in zip tar 7z 7za; do command -v \"$t\" >/dev/null 2>&1 && echo \"$t\"; done; true";
 
-            // Check 7z or 7za
-            String sevenZCheck = session.executeCommand("which 7z 2>/dev/null || which 7za 2>/dev/null || command -v 7z 2>/dev/null || command -v 7za 2>/dev/null || echo ''");
-            available.put(ArchiveFormat.SEVEN_ZIP, !sevenZCheck.trim().isEmpty());
-            
-        } catch (Exception e) {
-            logger.warn("Could not check archive tool availability: {}", e.getMessage());
-            // Assume zip and tar are available as they usually are
-            available.put(ArchiveFormat.ZIP, true);
-            available.put(ArchiveFormat.TAR_BZ2, true);
-        }
-        
-        logger.debug("Archive tool availability: {}", available);
+    /** What the server is assumed to have when it cannot be asked: zip and tar, as most have. */
+    private static java.util.Map<ArchiveFormat, Boolean> assumedArchiveTools() {
+        java.util.Map<ArchiveFormat, Boolean> available = new java.util.EnumMap<>(ArchiveFormat.class);
+        available.put(ArchiveFormat.ZIP, true);
+        available.put(ArchiveFormat.TAR_BZ2, true);
+        available.put(ArchiveFormat.SEVEN_ZIP, false);
         return available;
     }
     
-    private void showArchiveDialog(List<String> filesToArchive, String defaultFilename, int defaultCompression, long estimatedSize) {
-        // Check available tools first
-        java.util.Map<ArchiveFormat, Boolean> availableTools = checkAvailableArchiveTools();
+    /** The archive dialog's content: what is archived on top, the archive settings below. */
+    private static Node archiveDialogContent(Node summary, GridPane settings) {
+        settings.setPadding(new Insets(12, 20, 20, 20));
+        Separator separator = new Separator();
+        separator.setPadding(new Insets(0, 20, 0, 20));
+        return new VBox(4, summary, separator, settings);
+    }
+
+    /**
+     * The top of an archive dialog: the computer the selection is on (the archive is written there
+     * as well), the folder it is in, how many folders and files are selected, and their names.
+     */
+    private Node archiveSelectionSummary(boolean remote, String folder, List<SftpFileItem> selection) {
+        long folders = selection.stream().filter(item -> !item.isFile()).count();
+        long files = selection.size() - folders;
+
+        GridPane summary = new GridPane();
+        summary.getStyleClass().add("sftp-archive-summary");
+        summary.setHgap(10);
+        summary.setVgap(6);
+        summary.setPadding(new Insets(16, 20, 8, 20));
+
+        Label computer = new Label(remote
+            ? I18n.get("sftp.archive.computer.remote", serverDisplayName())
+            : LocalHostName.current()
+                .map(name -> I18n.get("sftp.archive.computer.localNamed", name))
+                .orElse(I18n.get("sftp.archive.computer.local")));
+        computer.setStyle("-fx-font-weight: bold;");
+        Label folderPath = new Label(folder);
+        folderPath.setStyle("-fx-font-family: \"Menlo\", \"Consolas\", monospace;");
+        folderPath.setWrapText(true);
+        folderPath.setMaxWidth(460);
+        Label counts = new Label(I18n.get("sftp.archive.selectionCounts", folders, files));
+
+        summary.addRow(0, new Label(I18n.get("sftp.archive.computer")), computer);
+        summary.addRow(1, new Label(I18n.get("sftp.archive.folder")), folderPath);
+        summary.addRow(2, new Label(I18n.get("sftp.archive.selection")), counts);
+
+        ListView<SftpFileItem> names = new ListView<>(FXCollections.observableArrayList(selection));
+        names.getStyleClass().add("sftp-archive-names");
+        names.setFocusTraversable(false);
+        names.setFixedCellSize(24);
+        names.setPrefHeight(Math.min(selection.size(), 6) * 24 + 4);
+        names.setMinHeight(names.getPrefHeight());
+        names.setPrefWidth(460);
+        names.setCellFactory(list -> new ListCell<>() {
+            @Override
+            protected void updateItem(SftpFileItem item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                String name = item.getName() != null ? item.getName() : "";
+                FileBrowserIcons.IconKind kind = FileBrowserIcons.kindFor(name, !item.isFile(), false, false);
+                setGraphic(FileBrowserIcons.treeIcon(kind, fileBrowserIconColor(), item.isHidden(), false, "#21252b"));
+                setText(name);
+            }
+        });
+        summary.add(names, 1, 3);
+        GridPane.setHgrow(names, Priority.ALWAYS);
+        return summary;
+    }
+
+    /** The server as the archive dialog names it: the connection's name with user@host, or user@host. */
+    private String serverDisplayName() {
+        String user = connection.getUsername();
+        String userAtHost = user == null || user.isBlank() ? connection.getHost() : user + "@" + connection.getHost();
+        String name = connection.getDisplayName();
+        return name == null || name.isBlank() || name.equals(userAtHost) ? userAtHost : name + " (" + userAtHost + ")";
+    }
+
+    /** Which archive tools the server has, from one {@link #ARCHIVE_TOOLS_PROBE} run; off the FX thread. */
+    private java.util.Map<ArchiveFormat, Boolean> checkAvailableArchiveTools(SFTPSession session) {
+        if (session == null || !session.isConnected()) {
+            java.util.Map<ArchiveFormat, Boolean> none = new java.util.EnumMap<>(ArchiveFormat.class);
+            for (ArchiveFormat fmt : ArchiveFormat.values()) {
+                none.put(fmt, false);
+            }
+            return none;
+        }
+        try {
+            // The runner closes the channel at the timeout: on an SFTP-only account the command
+            // never ends, and a plain executeCommand would keep this thread for half an hour.
+            RemoteCommandRunner.Result result = session.commandRunner().run(RemoteCommandRunner.Request
+                .plain(ARCHIVE_TOOLS_PROBE)
+                .timeout(java.time.Duration.ofSeconds(ARCHIVE_TOOLS_TIMEOUT_SECONDS))
+                .outputCap(64 * 1024));
+            if (!result.isSuccess()) {
+                return assumedArchiveTools();
+            }
+            java.util.Map<ArchiveFormat, Boolean> available = parseArchiveTools(result.stdoutText());
+            logger.debug("Archive tool availability: {}", available);
+            return available;
+        } catch (Exception e) {
+            logger.warn("Could not check archive tool availability: {}", e.getMessage());
+            return assumedArchiveTools();
+        }
+    }
+
+    /** The formats {@link #ARCHIVE_TOOLS_PROBE}'s output (one tool name per line) allows. */
+    static java.util.Map<ArchiveFormat, Boolean> parseArchiveTools(String probeOutput) {
+        java.util.Set<String> tools = new java.util.HashSet<>();
+        for (String line : (probeOutput == null ? "" : probeOutput).split("\\R")) {
+            tools.add(line.trim());
+        }
+        java.util.Map<ArchiveFormat, Boolean> available = new java.util.EnumMap<>(ArchiveFormat.class);
+        available.put(ArchiveFormat.ZIP, tools.contains("zip"));
+        available.put(ArchiveFormat.TAR_BZ2, tools.contains("tar"));
+        available.put(ArchiveFormat.SEVEN_ZIP, tools.contains("7z") || tools.contains("7za"));
+        return available;
+    }
+    
+    private void showArchiveDialog(List<String> filesToArchive, List<SftpFileItem> selection, String folder,
+                                   String defaultFilename, int defaultCompression, long estimatedSize,
+                                   java.util.Map<ArchiveFormat, Boolean> availableTools) {
         
         Dialog<Void> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("sftp.archive"));
-        dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader", filesToArchive.size()));
+        dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader.remote", selection.size(), serverDisplayName()));
         dialog.setResizable(true);
         DialogGeometrySupport.installAutomatic(dialog, "sftp.remoteArchive");
         applyDarkTheme(dialog);
@@ -3913,11 +5138,36 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         timeLabel.setVisible(false);
         grid.add(timeLabel, 0, row++, 2, 1);
         
-        Label sizeLabel = new Label(I18n.get("sftp.archive.estimatedSize", formatSize(estimatedSize)));
+        // Folders not measured yet are measured now, in the background; the estimate grows once
+        // du answers, and says so if it cannot.
+        List<String> unmeasured = selection.stream()
+            .filter(item -> !item.isFile() && !remoteFolderSizes.containsKey(item.getPath()))
+            .map(SftpFileItem::getPath)
+            .toList();
+        Label sizeLabel = new Label(unmeasured.isEmpty()
+            ? I18n.get("sftp.archive.estimatedSize", formatSize(estimatedSize))
+            : I18n.get("sftp.archive.estimatedSizeCalculating", formatSize(estimatedSize), unmeasured.size()));
         sizeLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        sizeLabel.setWrapText(true);
+        sizeLabel.setMaxWidth(460);
         grid.add(sizeLabel, 0, row++, 2, 1);
+        if (!unmeasured.isEmpty()) {
+            String measuringText = sizeLabel.getText();
+            RemoteCommandCancellation measuring = measureFolderSizes(unmeasured, (sizes, error) -> {
+                if (!measuringText.equals(sizeLabel.getText())) {
+                    return; // the archive is being written; its own figures are shown now
+                }
+                long measuredBytes = sizes == null ? 0 : sizes.values().stream().mapToLong(Long::longValue).sum();
+                int missing = unmeasured.size() - (sizes == null ? 0 : sizes.size());
+                sizeLabel.setText(missing == 0
+                    ? I18n.get("sftp.archive.estimatedSize", formatSize(estimatedSize + measuredBytes))
+                    : I18n.get("sftp.archive.estimatedSizeFilesOnly", formatSize(estimatedSize + measuredBytes), missing));
+            });
+            dialog.addEventHandler(DialogEvent.DIALOG_HIDDEN, event -> measuring.cancel());
+        }
         
-        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().setContent(archiveDialogContent(
+            archiveSelectionSummary(true, folder, selection), grid));
         
         // Buttons
         ButtonType createButton = new ButtonType(I18n.get("sftp.archive.create"), ButtonBar.ButtonData.OK_DONE);
@@ -4153,15 +5403,18 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     }
     
     /**
-     * Sorts the Type column in its documented group order and the Size column by bytes rather
-     * than by the formatted label; every other column uses its cell values. The parent entry
-     * {@code ..} stays on top in each case. Columns are matched by reference, not by header text.
+     * Keeps the documented groups (hidden folders, hidden files, folders, files) whatever column
+     * is sorted; the column orders the entries within each group. The Type column sorts by name,
+     * the Size column by bytes rather than by the formatted label, every other column by its cell
+     * values. The parent entry {@code ..} stays on top in each case. Columns are matched by
+     * reference, not by header text.
      */
     private static void installSortPolicy(
             TableView<SftpFileItem> table,
             javafx.collections.transformation.SortedList<SftpFileItem> sortedItems,
             TableColumn<SftpFileItem, ?> typeColumn,
-            TableColumn<SftpFileItem, ?> sizeColumn) {
+            TableColumn<SftpFileItem, ?> sizeColumn,
+            java.util.function.ToLongFunction<SftpFileItem> sizeBytes) {
         table.setSortPolicy(view -> {
             if (view.getSortOrder().isEmpty()) {
                 sortedItems.setComparator(null);
@@ -4172,9 +5425,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             if (primaryColumn == typeColumn) {
                 sortedItems.setComparator(SftpFileItemComparators.type(ascending));
             } else if (primaryColumn == sizeColumn) {
-                sortedItems.setComparator(SftpFileItemComparators.size(ascending));
+                sortedItems.setComparator(SftpFileItemComparators.size(ascending, sizeBytes));
             } else {
-                sortedItems.setComparator(SftpFileItemComparators.parentFirst(view.getComparator()));
+                sortedItems.setComparator(SftpFileItemComparators.grouped(view.getComparator()));
             }
             return true;
         });
@@ -4360,11 +5613,11 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         }
         grid.add(groupField, 1, row++);
         
-        // Permissions field with current value
+        // Permissions: the octal field and, below it, a checkbox per bit; each follows the other.
         grid.add(new Label(I18n.get("sftp.setOwner.permissions")), 0, row);
         TextField permissionsField = new TextField(currentPerms);
         permissionsField.setPromptText("755");
-        grid.add(permissionsField, 1, row++);
+        row = addPermissionBits(grid, row, permissionsField);
         
         // Recursive checkbox
         CheckBox recursiveCheck = new CheckBox(I18n.get("sftp.setOwner.recursive"));
@@ -4373,6 +5626,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         // Info label
         Label infoLabel = new Label(I18n.get("sftp.setOwner.infoSeparate"));
         infoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
+        infoLabel.setWrapText(true);
+        infoLabel.setMaxWidth(360);
         grid.add(infoLabel, 0, row++, 2, 1);
         
         dialog.getDialogPane().setContent(grid);
@@ -4464,6 +5719,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         new Thread(() -> {
             int success = 0;
             int failed = 0;
+            StringBuilder errorMessages = new StringBuilder();
             
             for (int i = 0; i < items.size(); i++) {
                 var item = items.get(i);
@@ -4474,32 +5730,21 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 });
                 
                 try {
-                    Path path = Paths.get(item.getPath());
-                    
-                    // Set permissions (works on Unix-like systems)
-                    if (!permissions.isEmpty()) {
-                        try {
-                            // Rejects anything but three octal digits instead of guessing a mode.
-                            Files.setPosixFilePermissions(path, java.nio.file.attribute.PosixFilePermissions
-                                .fromString(LocalFileBrowser.octalToPosix(permissions)));
-                        } catch (UnsupportedOperationException e) {
-                            // On Windows, POSIX permissions are not supported
-                            logger.debug("POSIX permissions not supported on this system");
-                        }
-                    }
-                    
-                    // Note: Java doesn't provide direct API for chown
-                    // This would require native calls or ProcessBuilder
-                    
+                    applyLocalOwnerAndMode(Paths.get(item.getPath()), owner, permissions, recursive);
                     success++;
                 } catch (Exception e) {
                     logger.error("Failed to set owner/permissions for: {}", item.getPath(), e);
                     failed++;
+                    if (errorMessages.length() < 500) {
+                        if (errorMessages.length() > 0) errorMessages.append("\n");
+                        errorMessages.append(item.getName()).append(": ").append(localFailureMessage(e));
+                    }
                 }
             }
             
             int finalSuccess = success;
             int finalFailed = failed;
+            String errorMsg = errorMessages.toString();
             Platform.runLater(() -> {
                 progressDialog.close();
                 refreshLocal();
@@ -4507,11 +5752,86 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 if (finalFailed == 0) {
                     statusLabel.setText(I18n.get("sftp.setOwner.success", finalSuccess));
                 } else {
-                    showError(I18n.get("sftp.setOwner.error"),
-                        I18n.get("sftp.setOwner.errorCount", finalFailed, items.size()));
+                    String details = I18n.get("sftp.setOwner.errorCount", finalFailed, items.size());
+                    if (!errorMsg.isEmpty()) {
+                        details += "\n\n" + errorMsg;
+                    }
+                    showError(I18n.get("sftp.setOwner.error"), details);
                 }
             });
         }, "Local-SetOwner").start();
+    }
+
+    /** A local file failure with its kind: an AccessDeniedException's message is only the path. */
+    private static String localFailureMessage(Exception failure) {
+        if (failure instanceof java.nio.file.attribute.UserPrincipalNotFoundException notFound) {
+            return notFound.getClass().getSimpleName() + ": " + notFound.getName();
+        }
+        String message = failureMessage(failure);
+        String kind = failure.getClass().getSimpleName();
+        return failure instanceof IOException && !message.equals(kind) ? kind + ": " + message : message;
+    }
+
+    /**
+     * Sets the owner and group ({@code user:group}, {@code user} or {@code :group}; empty keeps
+     * them) and the mode (three octal digits; empty keeps it) of a local entry, and with
+     * {@code recursive} of everything inside a folder too. Like {@code chown -R} and {@code chmod -R},
+     * a symbolic link inside the folder is skipped, so nothing outside the folder changes; the
+     * selected entry itself is changed through a link. Entries are changed deepest first, so a mode
+     * that locks a folder cannot hide what is still to be changed inside it. Off the FX thread.
+     *
+     * @throws IOException when a name is unknown, the change is not permitted, or the walk fails
+     */
+    static void applyLocalOwnerAndMode(Path root, String ownerGroup, String octal, boolean recursive)
+            throws IOException {
+        String owner = ownerGroup == null ? "" : ownerGroup.trim();
+        int colon = owner.indexOf(':');
+        String userName = colon < 0 ? owner : owner.substring(0, colon).trim();
+        String groupName = colon < 0 ? "" : owner.substring(colon + 1).trim();
+        java.nio.file.attribute.UserPrincipalLookupService lookup =
+            root.getFileSystem().getUserPrincipalLookupService();
+        java.nio.file.attribute.UserPrincipal user = userName.isEmpty() ? null : lookup.lookupPrincipalByName(userName);
+        java.nio.file.attribute.GroupPrincipal group =
+            groupName.isEmpty() ? null : lookup.lookupPrincipalByGroupName(groupName);
+        String mode = octal == null ? "" : octal.trim();
+        java.util.Set<java.nio.file.attribute.PosixFilePermission> permissions = mode.isEmpty()
+            ? null
+            // Rejects anything but three octal digits instead of guessing a mode.
+            : java.nio.file.attribute.PosixFilePermissions.fromString(LocalFileBrowser.octalToPosix(mode));
+        if (user == null && group == null && permissions == null) {
+            return;
+        }
+
+        List<Path> targets = new ArrayList<>();
+        if (recursive && Files.isDirectory(root)) {
+            try (var stream = Files.walk(root)) {
+                stream.filter(path -> path.equals(root) || !Files.isSymbolicLink(path)).forEach(targets::add);
+            }
+            java.util.Collections.reverse(targets);
+        } else {
+            targets.add(root);
+        }
+        for (Path target : targets) {
+            LinkOption[] follow = target.equals(root) ? new LinkOption[0] : new LinkOption[] {LinkOption.NOFOLLOW_LINKS};
+            java.nio.file.attribute.PosixFileAttributeView posix =
+                Files.getFileAttributeView(target, java.nio.file.attribute.PosixFileAttributeView.class, follow);
+            if (posix == null) {
+                // Windows: an owner can be set, a group and a POSIX mode cannot.
+                if (user != null) {
+                    Files.setOwner(target, user);
+                }
+                continue;
+            }
+            if (user != null) {
+                posix.setOwner(user);
+            }
+            if (group != null) {
+                posix.setGroup(group);
+            }
+            if (permissions != null) {
+                posix.setPermissions(permissions);
+            }
+        }
     }
     
     private void createLocalArchive() {
@@ -4520,9 +5840,11 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         
         // Filter out ".." and collect items
         List<Path> filesToArchive = new java.util.ArrayList<>();
+        List<SftpFileItem> selection = new java.util.ArrayList<>();
         for (var item : selected) {
             if (!item.getName().equals("..")) {
                 filesToArchive.add(Paths.get(item.getPath()));
+                selection.add(item);
             }
         }
         
@@ -4551,7 +5873,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             }
         }
         
-        showLocalArchiveDialog(filesToArchive, defaultFilename, defaultCompression, estimatedSize);
+        showLocalArchiveDialog(filesToArchive, selection, defaultFilename, defaultCompression, estimatedSize);
     }
     
     private long estimateLocalSize(Path path) {
@@ -4600,14 +5922,14 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         return available;
     }
     
-    private void showLocalArchiveDialog(List<Path> filesToArchive, String defaultFilename, 
+    private void showLocalArchiveDialog(List<Path> filesToArchive, List<SftpFileItem> selection, String defaultFilename,
                                         int defaultCompression, long estimatedSize) {
         // Check which archive tools are available locally
         java.util.Map<ArchiveFormat, Boolean> availableTools = checkLocalArchiveTools();
         
         Dialog<Void> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("sftp.archive"));
-        dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader", filesToArchive.size()));
+        dialog.setHeaderText(I18n.get("sftp.archive.dialogHeader.local", selection.size()));
         dialog.setResizable(true);
         DialogGeometrySupport.installAutomatic(dialog, "sftp.localArchive");
         applyDarkTheme(dialog);
@@ -4753,7 +6075,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         sizeLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         grid.add(sizeLabel, 0, row++, 2, 1);
         
-        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().setContent(archiveDialogContent(
+            archiveSelectionSummary(false, currentLocalPath.toString(), selection), grid));
         
         // Buttons
         ButtonType createButton = new ButtonType(I18n.get("sftp.archive.create"), ButtonBar.ButtonData.OK_DONE);

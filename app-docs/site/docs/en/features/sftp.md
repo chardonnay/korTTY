@@ -39,6 +39,24 @@ The SFTP Manager uses a **two-panel layout** for easy side-by-side file manageme
 | Browse local files | Browse remote files |
 | Upload to remote | Download to local |
 
+![SFTP Manager with the server panel active: hidden entries first, a row of buttons under each list](../assets/screenshots/sftp/sftp-manager.png)
+
+### Active panel
+
+The panel you work in is the **active panel**: clicking anywhere in a panel, or moving the keyboard focus into it, frames it in the accent colour, colours the dot before its title and draws its selected rows in the accent colour. The other panel keeps its selection, drawn muted, so you can see at a glance which list your last click and keys such as ++delete++ and ++f2++ act on.
+
+Each panel has its own row of buttons under its list, and every button acts on the panel it sits in: **Refresh**, **New Folder**, **Delete**, **Rights**, **Archive** and **Edit** in both rows, **Upload** at the right end of the local row and **Download** at the left end of the server row, where the two panels meet.
+
+### Hidden files
+
+The eye button beside the home button of each panel shows or hides that panel's hidden entries: names starting with a dot, such as `.git` or `.bashrc`, and on the local side also files and folders the file system marks hidden (the hidden attribute on Windows). ++cmd+shift+period++ (++ctrl+shift+period++ on Windows and Linux) does the same for the list that has the keyboard focus, as in the macOS Finder. Each panel remembers its choice for the next SFTP tab; until you hide them, hidden entries are shown. The parent entry `..` always stays, and the search field filters what is left.
+
+### Path bar and status line
+
+The path of each panel is shown as clickable folders; click one to go there. To type a path instead, click the empty part of the bar or press ++cmd+l++ (++ctrl+l++ on Windows and Linux) in the panel; ++enter++ goes there, and ++escape++ returns to the folders. When the path is wider than the bar, its end stays visible.
+
+A line under each list counts its entries (while the search field narrows the list, how many of all are shown), the selected entries with their size, and the hidden entries the eye button hides. The **Size** column is right-aligned, and hovering over a date shows it in full.
+
 ### Sortable columns
 
 Both panels display the same columns, all of which are sortable by clicking the column header:
@@ -47,29 +65,39 @@ Both panels display the same columns, all of which are sortable by clicking the 
 |--------|---|
 | **Name** | File or directory name |
 | **Type** | A type icon: a folder, or a file icon chosen by the file name (code, image, archive, document, other) |
-| **Size** | File size in human-readable format (directories show —); sorting uses the exact byte count, with folders first |
+| **Size** | File size in human-readable format; a folder shows — until [Calculate size](#folder-sizes) measured it. Sorting uses the exact byte count within each group of the [sort order](#sort-order) |
 | **Date** | Last modified date and time |
-| **User** | Owner name (local: from filesystem; remote: from SFTP or UID) |
-| **Group** | Group name (local: from filesystem; remote: from SFTP or GID) |
+| **User** | Owner name (local: from the file system; on the server: as the server sends it, or looked up there when it sends only the UID; see [Owner and group names](#owner-and-group-names)) |
+| **Group** | Group name (local: from the file system; on the server: as the server sends it, or looked up there when it sends only the GID) |
 | **Permissions** | Unix-style permissions (e.g., `rwxr-xr-x`) |
 
-## Default sort order
+## Sort order
 
-By default, files are sorted by the **Type** column in this order:
+Whichever column you sort by, the entries stay in these groups:
 
 1. **Parent directory** (`..`) — always at the top
-2. **Directories starting with "."** (e.g., `.git`, `.config`) — alphabetically
-3. **Other directories** — alphabetically
-4. **Files starting with "."** (e.g., `.bashrc`) — alphabetically
-5. **All other files** — alphabetically
+2. **Hidden folders** — names starting with "." (e.g., `.git`, `.config`)
+3. **Hidden files** (e.g., `.bashrc`)
+4. **Other folders**
+5. **Other files**
 
-Click any column header to sort by that column. Clicking the Type column again toggles between ascending and descending order. The parent directory (`..`) stays at the top whichever column and direction you sort by.
+Click a column header to order the entries within each group by that column; clicking it again reverses that order, but never the order of the groups. By default the lists are sorted by the **Type** column, which orders each group by name; names sort without regard to upper and lower case. While a panel hides its [hidden files](#hidden-files), groups 2 and 3 are left out.
 
 ## Browsing the server
 
 Remote folders are read in the background, so the window stays responsive even for a folder with tens of thousands of entries. While a folder loads, a **Loading…** indicator covers the remote list. The path field and the list switch to the new folder only once it has been read; if it cannot be read (it does not exist, or you lack the rights), an error is shown and the folder you were in stays.
 
 Type a path into the remote **Path** field and press ++enter++ to go there. `~` and `~/…` stand for your login directory on the server, and a path without a leading `/` is taken relative to the folder shown; `..` and `.` are resolved, so `../logs` opens the sibling folder `logs`.
+
+### Owner and group names
+
+OpenSSH and other servers that speak SFTP version 3 send owners and groups only as numbers (UID and GID). korTTY then asks the server once for the names behind numbers it has not seen yet, with `getent`, which also knows LDAP and other directory accounts, or from `/etc/passwd` and `/etc/group` where `getent` is missing. The names replace the numbers a moment after the list appears; the list never waits for them. **Set Owner/Permissions** is prefilled with the names too.
+
+A server that cannot run commands (such as an account limited to SFTP) or that has not answered after 8 seconds keeps showing the numbers, and korTTY does not ask it again until you reconnect.
+
+### Folder sizes
+
+**Calculate size** in the right-click menu of the server list measures the selected folders with `du -sk` on the server. The **Size** column shows the result for each folder and the status bar the total; sorting by **Size** then orders these folders by it. The figure is the disk space the files take, which can differ a little from the sum of their sizes. While the measurement runs, the same menu item reads **Stop calculating size**. The sizes are dropped when the list is read again.
 
 ## Lost connection
 
@@ -81,29 +109,51 @@ When the server or the network ends the session, the status bar shows **Disconne
 
 SFTP Manager tabs are saved with a [project](projects.md#sftp-manager-tabs). Opening the project with **Auto-Reconnect** reconnects each tab at the local and remote folders it was in when you saved. A folder that no longer exists opens the home folder instead; on the remote side the status bar says so.
 
+## Comparing and synchronizing folders
+
+**Compare** in the local row of buttons compares the local folder shown with the server folder shown, including all subfolders. It first asks for patterns to leave out, one per line, such as `node_modules` or `.cache`. Then both folders are read in the background; the bar above the lists counts what has been read, and a button at its end stops the comparison. Names, sizes and modification times are compared, and times less than 2 seconds apart count as the same, because SFTP version 3 keeps whole seconds. Symbolic links are left out on both sides, and more than 100,000 entries on one side stop the comparison.
+
+The result stays in the bar above the lists: how many entries exist only on one side, are newer on one side, are different (the same age but another size, or a file on one side and a folder on the other), and are the same. The rows take colours, each seen from its own side: green only here, amber newer here, red different, and dimmed when the same or older here. A folder is red when something inside it differs, and the colours follow you into the subfolders of the compared folders. **Differences only** hides what is the same; **Compare again** (the arrow) and **End the comparison** (the cross) sit at the end of the bar.
+
+![A comparison of a local folder with its copy on the server](../assets/screenshots/sftp/sftp-compare.png)
+
+**To the server** copies what is missing on the server, what is newer here, and what has the same age but another size; **To this computer** does the same in the other direction. A dialog lists what is copied and how much first. Files that exist on the target are replaced without a question per file, and every copy keeps the modification time of its original, so the next comparison finds the two the same. A newer file on the target stays as it is, and so does a path that is a file on one side and a folder on the other.
+
+The dialog also has a checkbox, off by default, that deletes what exists only on the target; after a second confirmation, it is deleted for good. The copies run in the [transfer list](#transfer-list), and the folders are compared again once they are done. When your organization switches file transfer off, both buttons only show the reason in the status bar.
+
+![The dialog before synchronizing to the server](../assets/screenshots/sftp/sftp-sync-dialog.png)
+
 ## File operations
 
-Each panel has its own group of toolbar buttons below the lists (local on the left, remote on the right) and a right-click context menu:
+Each panel has its own row of buttons under its list and a right-click context menu; a button acts on the panel it sits in (see [Active panel](#active-panel)):
 
 | Operation | How |
 |-----------|-----|
-| **Upload** | Select local files or folders and click **Upload**, or drag them onto the remote panel; see [Drag and drop](#drag-and-drop) |
-| **Download** | Select remote files or folders and click **Download**, or drag them onto the local panel |
+| **Upload** | Select local files or folders and click **Upload** at the right end of the local row, or drag them onto the remote panel; see [Drag and drop](#drag-and-drop) |
+| **Download** | Select remote files or folders and click **Download** at the left end of the server row, or drag them onto the local panel |
 | **Rename** | Select one entry and press ++f2++, or choose **Rename** in the context menu. An existing entry of the new name is never replaced; you get an error instead |
 | **New Folder** | Click the folder button next to **Refresh**, or choose **New Folder** in the context menu, in either panel. The folder is created in the folder shown; a name that already exists is an error |
 | **Delete** | Select entries and click **Delete**, choose **Delete** in the context menu, or press ++delete++ (++ctrl+backspace++, on macOS ++cmd+backspace++). You confirm before anything is deleted |
 | **Copy** | **Copy to...** in the context menu copies within the same side: locally into a folder you pick (in the background), remotely into a folder path you type. A remote folder copied where a folder of that name exists merges into it; copying an item onto itself or into one of its own subfolders is refused with an error |
 | **Edit in Snippet Editor** | Select exactly one local or remote file, then use the *Edit* toolbar menu or the right-click context menu |
-| **Archive** | **Archive** in the remote toolbar, or **Archive...** in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side. A local archive can have a password; an archive on the server cannot, because `zip` and `7z` would need the password on the server's command line, where other users of the server can read it |
+| **Archive** | **Archive** in either panel's row of buttons, or **Archive...** in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side. A local archive can have a password; an archive on the server cannot, because `zip` and `7z` would need the password on the server's command line, where other users of the server can read it |
+| **Compare** | Use the **Compare** button in the local row; see [Comparing and synchronizing folders](#comparing-and-synchronizing-folders) |
+| **Calculate size** | Select server folders, right-click them and choose **Calculate size**; see [Folder sizes](#folder-sizes) |
 | **Extract Here** | Right-click one archive on the server (`.zip`, `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz` or `.7z`) and choose **Extract Here...**. It is unpacked on the server into a new folder next to it; see [Extracting archives on the server](#extracting-archives-on-the-server) |
-| **Set Owner/Permissions** | Select entries, then click **Rights** or choose **Set Owner/Permissions...** in the context menu. Separate fields for User, Group, and octal permissions (e.g., 755). With **Apply recursively to directories** the change also reaches what is inside the selected folders |
+| **Set Owner/Permissions** | Select entries, then click **Rights** or choose **Set Owner/Permissions...** in the context menu. It has separate fields for User and Group, and takes the permissions as octal digits (e.g., 755) or as checkboxes; see [Permissions](#permissions). With **Apply recursively to directories** the change also reaches what is inside the selected folders |
 | **Open Image** | Select one image file and choose **Open Image** in the context menu of either panel. The image opens in an image viewer tab; a server image is downloaded into memory first |
 
 A name for **Rename** or **New Folder** must be a single entry in the folder shown: it may not be empty, `.` or `..`, or contain `/` or `\`. The dialog stays open with an error until the name is usable.
 
 ### Creating archives
 
-The archive dialog takes the format (ZIP, TAR.BZ2 or 7z; a format whose tool the server lacks is marked *not installed*), the archive's path and a compression level from none to best. Its other fields are optional:
+The top of the archive dialog says what is archived and where: the computer (**Server** with the connection's name and user@host, or **This computer** with its name), the folder shown, how many folders and files are selected, and their names. The archive is written on that same computer.
+
+![Archive dialog naming the server, the folder, two folders and two files](../assets/screenshots/sftp/sftp-archive-dialog.png)
+
+Before a server archive dialog opens, korTTY asks the server once which archive tools it has, and the status bar says so meanwhile. For a server that runs no commands (such as an account limited to SFTP) or that has not answered after 8 seconds, korTTY assumes that `zip` and `tar` are installed. For the estimated size of a server archive, the dialog measures the selected folders the same way as **Calculate size**, in the background, and adds them once `du` answers; a folder it cannot measure is left out, and the dialog says so.
+
+The dialog takes the format (ZIP, TAR.BZ2 or 7z; a format whose tool the server lacks is marked *not installed*), the archive's path and a compression level from none to best. Its other fields are optional:
 
 - **Exclude** — one pattern per line, such as `*.log`, `.git` or `node_modules`; it exists in both panels.
 - **Password** — local archives only. It is greyed out for TAR.BZ2, a format without encryption, and server archives get no password at all.
@@ -146,6 +196,8 @@ These keys work in both panels:
 | ++f2++ (in the list) | Rename the selected entry |
 | ++delete++ or ++ctrl+backspace++ (++cmd+backspace++ on macOS, in the list) | Delete the selection, after confirmation |
 | ++enter++ (in the **Path** field) | Go to the typed folder |
+| ++cmd+l++ (++ctrl+l++ on Windows and Linux) | Type a path in the panel's path bar |
+| ++cmd+shift+period++ (++ctrl+shift+period++ on Windows and Linux, in the list) | Show or hide hidden entries |
 
 ### Uploading files and folders
 
@@ -217,6 +269,12 @@ An organization can switch file transfer off with its [enterprise policy](../ref
 
 The permissions field of **Set Owner/Permissions** and of the remote archive dialog accepts exactly three octal digits, such as `755` or `644`; leave it empty (or unchanged) to keep the current mode. Anything else keeps the dialog open with an error, so no other text ever reaches `chmod`.
 
+In **Set Owner/Permissions**, a grid of checkboxes under the field shows the mode as read, write and execute for the owner, the group and others. Ticking a checkbox writes the three digits into the field, and typing three digits ticks the checkboxes. Beside the field the mode is spelled out as `ls -l` shows it (`rwxr-xr-x`), or as *unchanged* while the field is empty. For a folder, execute means that the folder can be opened and what it contains can be reached.
+
+**Set Owner/Permissions** also changes the user and the group of local files and folders; another owner usually needs administrator rights. **Apply recursively to directories** skips symbolic links inside a folder, just like `chmod -R`. An unknown name or a refused change is reported with the name of the entry.
+
+![Set Owner/Permissions with the permission checkboxes](../assets/screenshots/sftp/sftp-permissions-dialog.png)
+
 ### Editing files with Snippet Editor
 
 The **Edit in Snippet Editor** action is enabled only for a single selected file. It is disabled for:
@@ -241,8 +299,6 @@ The file-mode buttons provide these save choices:
 - **Save as snippet** — stores the current content as a new Snippet Manager snippet without marking the source file as saved
 
 An organization can restrict editing server files with the `load-into-snippet-editor` key of its [enterprise policy](../reference/enterprise-policy.md). With `read-only`, remote files still open in the Snippet Editor and can be saved as a snippet, but **Overwrite file** and **Save as...** are locked and their tooltip names the policy. With `deny`, **Edit in Snippet Editor** and **Open image** are disabled for remote files. Local files in the left panel are on your own computer and stay editable either way.
-
-![SFTP dual-panel file manager](../assets/screenshots/sftp/sftp-manager.png)
 
 ### Editing in your own editor
 

@@ -17,6 +17,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -153,8 +154,19 @@ public final class SftpTransferQueue implements AutoCloseable {
      * checked by a worker, not here.
      */
     public TransferBatch enqueueUpload(List<Path> localPaths, String remoteDirectory) {
+        return enqueueUpload(localPaths, remoteDirectory, settings.conflictDefault(), false);
+    }
+
+    /**
+     * Like {@link #enqueueUpload(List, String)}, with the batch's own answer to "already exists"
+     * ({@code null} asks) and, with {@code keepModificationTimes}, each uploaded file stamped with
+     * its local modification time, as a folder synchronization needs.
+     */
+    public TransferBatch enqueueUpload(List<Path> localPaths, String remoteDirectory, ConflictAction conflictDefault,
+                                       boolean keepModificationTimes) {
         Objects.requireNonNull(remoteDirectory, "remoteDirectory");
-        TransferBatch batch = new TransferBatch(TransferDirection.UPLOAD, remoteDirectory, settings.conflictDefault());
+        TransferBatch batch = new TransferBatch(TransferDirection.UPLOAD, remoteDirectory, conflictDefault,
+            keepModificationTimes);
         for (Path path : localPaths) {
             Path absolute = path.toAbsolutePath().normalize();
             Path name = absolute.getFileName();
@@ -169,10 +181,20 @@ public final class SftpTransferQueue implements AutoCloseable {
 
     /** Downloads remote files and folders into {@code localDirectory}. */
     public TransferBatch enqueueDownload(List<RemoteEntryRef> remoteEntries, Path localDirectory) {
+        return enqueueDownload(remoteEntries, localDirectory, settings.conflictDefault(), false);
+    }
+
+    /**
+     * Like {@link #enqueueDownload(List, Path)}, with the batch's own answer to "already exists"
+     * ({@code null} asks) and, with {@code keepModificationTimes}, each downloaded file stamped with
+     * the server file's modification time.
+     */
+    public TransferBatch enqueueDownload(List<RemoteEntryRef> remoteEntries, Path localDirectory,
+                                         ConflictAction conflictDefault, boolean keepModificationTimes) {
         Objects.requireNonNull(localDirectory, "localDirectory");
         Path folder = localDirectory.toAbsolutePath().normalize();
         TransferBatch batch = new TransferBatch(TransferDirection.DOWNLOAD, folder.toString(),
-            settings.conflictDefault());
+            conflictDefault, keepModificationTimes);
         for (RemoteEntryRef entry : remoteEntries) {
             TransferItem.Kind kind = entry.type() == RemoteEntryRef.Type.DIRECTORY
                 ? TransferItem.Kind.FOLDER
@@ -660,6 +682,9 @@ public final class SftpTransferQueue implements AutoCloseable {
                 PartTransfers.Outcome outcome = PartTransfers.upload(client, cleanupClient(lease), source, target,
                     resume, settings.partRetention(), progressListener(item), cancel);
                 item.setResumedFrom(outcome.resumedFrom());
+                if (item.batch().keepsModificationTimes()) {
+                    keepRemoteModificationTime(client, target, attributes.lastModifiedTime());
+                }
                 complete(item, TransferState.DONE, null);
                 return;
             } finally {
@@ -764,6 +789,30 @@ public final class SftpTransferQueue implements AutoCloseable {
         }
     }
 
+    /**
+     * Stamps an uploaded file with its source's modification time. A server that refuses it does
+     * not fail the transfer: the file is there, only a later comparison sees it as newer.
+     */
+    private static void keepRemoteModificationTime(SftpClient client, String target, FileTime time) {
+        try {
+            SftpClient.Attributes stamp = new SftpClient.Attributes();
+            stamp.accessTime(time);
+            stamp.modifyTime(time);
+            client.setStat(target, stamp);
+        } catch (IOException | RuntimeException e) {
+            logger.debug("Could not keep the modification time of {}: {}", target, e.getMessage());
+        }
+    }
+
+    /** Stamps a downloaded file with the server file's modification time; best effort, as above. */
+    private static void keepLocalModificationTime(Path target, FileTime time) {
+        try {
+            Files.setLastModifiedTime(target, time);
+        } catch (IOException | RuntimeException e) {
+            logger.debug("Could not keep the modification time of {}: {}", target, e.getMessage());
+        }
+    }
+
     private Predicate<String> remoteTaken(SftpClient client, String folder) {
         return candidate -> {
             String path = RemotePathSupport.appendRemotePath(folder, candidate);
@@ -858,6 +907,9 @@ public final class SftpTransferQueue implements AutoCloseable {
                 PartTransfers.Outcome outcome = PartTransfers.download(client, remote, target, resume,
                     settings.partRetention(), progressListener(item), cancel);
                 item.setResumedFrom(outcome.resumedFrom());
+                if (item.batch().keepsModificationTimes() && attributes.getModifyTime() != null) {
+                    keepLocalModificationTime(target, attributes.getModifyTime());
+                }
                 complete(item, TransferState.DONE, null);
                 return;
             } finally {

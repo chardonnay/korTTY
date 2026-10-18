@@ -1166,6 +1166,14 @@ public class GlobalSettings {
     @XmlElement
     private Integer sftpDefaultZipCompression = 6; // Default compression level (0-9)
 
+    /** Whether the SFTP manager's local panel lists hidden entries; null = yes (the old behaviour). */
+    @XmlElement
+    private Boolean sftpShowHiddenLocal;
+
+    /** Whether the SFTP manager's server panel lists hidden entries; null = yes (the old behaviour). */
+    @XmlElement
+    private Boolean sftpShowHiddenRemote;
+
     /** Files the SFTP manager copies at once (1..8, default 3); null = default. */
     @XmlElement
     private Integer sftpParallelTransfers;
@@ -4572,6 +4580,24 @@ public class GlobalSettings {
      */
     public void setSftpDefaultZipCompression(Integer sftpDefaultZipCompression) {
         this.sftpDefaultZipCompression = sftpDefaultZipCompression;
+    }
+
+    /** Whether the SFTP manager's local panel lists hidden entries (default: yes). */
+    public boolean isSftpShowHiddenLocal() {
+        return sftpShowHiddenLocal == null || sftpShowHiddenLocal;
+    }
+
+    public void setSftpShowHiddenLocal(boolean show) {
+        this.sftpShowHiddenLocal = show;
+    }
+
+    /** Whether the SFTP manager's server panel lists hidden entries (default: yes). */
+    public boolean isSftpShowHiddenRemote() {
+        return sftpShowHiddenRemote == null || sftpShowHiddenRemote;
+    }
+
+    public void setSftpShowHiddenRemote(boolean show) {
+        this.sftpShowHiddenRemote = show;
     }
 
     /** Default number of files the SFTP manager copies at once. */

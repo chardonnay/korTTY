@@ -52,6 +52,24 @@ class GlobalSettingsSftpTransfersTest {
     }
 
     @Test
+    void hiddenEntriesAreShownUntilAPanelHidesThem() throws Exception {
+        // A settings file from before the eye buttons keeps listing dot files, as before.
+        GlobalSettings old = unmarshal("<globalSettings><sftpAutoCloseMinutes>5</sftpAutoCloseMinutes>"
+            + "</globalSettings>");
+        assertThat(old.isSftpShowHiddenLocal()).isTrue();
+        assertThat(old.isSftpShowHiddenRemote()).isTrue();
+
+        GlobalSettings settings = new GlobalSettings();
+        settings.setSftpShowHiddenRemote(false);
+        String xml = marshal(settings);
+        GlobalSettings restored = unmarshal(xml);
+
+        assertThat(xml).contains("<sftpShowHiddenRemote>false</sftpShowHiddenRemote>");
+        assertThat(restored.isSftpShowHiddenLocal()).isTrue();
+        assertThat(restored.isSftpShowHiddenRemote()).isFalse();
+    }
+
+    @Test
     void handEditedValuesAreClampedOrFallBackToAsk() throws Exception {
         GlobalSettings settings = unmarshal("<globalSettings><sftpParallelTransfers>99</sftpParallelTransfers>"
             + "<sftpConflictDefault>destroy</sftpConflictDefault></globalSettings>");

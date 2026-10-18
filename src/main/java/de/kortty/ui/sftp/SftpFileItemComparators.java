@@ -1,11 +1,20 @@
 package de.kortty.ui.sftp;
 
 import java.util.Comparator;
+import java.util.function.ToLongFunction;
 
 /**
- * Sort orders for the SFTP manager's file tables. The parent entry ({@code ..}) stays on top in
- * either direction, and a case-insensitive name comparison is the final tie-breaker, as in the
- * local file browser.
+ * Sort orders for the SFTP manager's file tables. Whatever column and direction is chosen, the
+ * entries stay in four groups, documented in the guide:
+ * <ol>
+ *   <li>the parent entry {@code ..} (always first)</li>
+ *   <li>hidden folders ({@link SftpFileItem#isHidden()}, such as {@code .config})</li>
+ *   <li>hidden files</li>
+ *   <li>other folders</li>
+ *   <li>other files</li>
+ * </ol>
+ * The column only orders the entries within a group; a case-insensitive name comparison is the
+ * final tie-breaker, as in the local file browser.
  */
 public final class SftpFileItemComparators {
 
@@ -16,34 +25,34 @@ public final class SftpFileItemComparators {
     }
 
     /**
-     * The Type column order, documented as the default sort order in the guide:
-     * <ol>
-     *   <li>the parent entry {@code ..} (always first)</li>
-     *   <li>directories starting with {@code .}</li>
-     *   <li>other directories</li>
-     *   <li>files starting with {@code .}</li>
-     *   <li>other files</li>
-     * </ol>
-     * Each group is sorted by name. Descending reverses the groups and the names, but keeps
-     * {@code ..} first.
+     * The Type column order, which is also the default: the groups, each sorted by name.
+     * Descending reverses the names within each group, never the groups.
      */
     public static Comparator<SftpFileItem> type(boolean ascending) {
-        Comparator<SftpFileItem> byGroupAndName =
-            Comparator.comparingInt(SftpFileItemComparators::typeGroup).thenComparing(BY_NAME);
-        return parentFirst(ascending ? byGroupAndName : byGroupAndName.reversed());
+        return grouped(ascending ? BY_NAME : BY_NAME.reversed());
+    }
+
+    /** The Size column order: by byte count within each group, the name as tie-breaker. */
+    public static Comparator<SftpFileItem> size(boolean ascending) {
+        return size(ascending, SftpFileItem::getSizeBytes);
     }
 
     /**
-     * The Size column order: by byte count, with directories before files in both directions and
-     * the name as tie-breaker.
+     * Like {@link #size(boolean)}, with the byte count from {@code bytes}, which can give a server
+     * folder the size measured for it; folders without one stay together, ordered by name.
      */
-    public static Comparator<SftpFileItem> size(boolean ascending) {
-        Comparator<SftpFileItem> bySize = Comparator.comparingLong(SftpFileItem::getSizeBytes);
-        if (!ascending) {
-            bySize = bySize.reversed();
-        }
-        return parentFirst(Comparator.comparing((SftpFileItem item) -> item.isFile())
-            .thenComparing(bySize)
+    public static Comparator<SftpFileItem> size(boolean ascending, ToLongFunction<SftpFileItem> bytes) {
+        Comparator<SftpFileItem> bySize = Comparator.comparingLong(bytes);
+        return grouped(ascending ? bySize : bySize.reversed());
+    }
+
+    /**
+     * {@code withinGroup} (any column's order, direction included) applied inside the fixed
+     * groups, with {@code ..} ahead of everything and the name as last tie-breaker.
+     */
+    public static Comparator<SftpFileItem> grouped(Comparator<? super SftpFileItem> withinGroup) {
+        return parentFirst(Comparator.comparingInt(SftpFileItemComparators::group)
+            .thenComparing(withinGroup)
             .thenComparing(BY_NAME));
     }
 
@@ -52,12 +61,12 @@ public final class SftpFileItemComparators {
         return Comparator.comparing((SftpFileItem item) -> !isParent(item)).thenComparing(order);
     }
 
-    private static int typeGroup(SftpFileItem item) {
-        boolean hidden = nameOf(item).startsWith(".");
-        if (!item.isFile()) {
-            return hidden ? 1 : 2;
+    /** 0 hidden folders, 1 hidden files, 2 folders, 3 files. */
+    static int group(SftpFileItem item) {
+        if (item.isHidden()) {
+            return item.isFile() ? 1 : 0;
         }
-        return hidden ? 3 : 4;
+        return item.isFile() ? 3 : 2;
     }
 
     private static boolean isParent(SftpFileItem item) {

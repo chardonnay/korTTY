@@ -71,9 +71,15 @@ class SftpI18nCoverageTest {
     }
 
     @Test
-    void germanRemoteLabelIsNotTheTvRemote() throws IOException {
+    void germanRemoteTextsAreNotTheTvRemote() throws IOException {
         // "Fernbedienung" is a TV remote control, not the remote server.
-        assertThat(load("_de").getProperty("sftp.remoteLabel")).isNotEqualTo("Fernbedienung");
+        Properties german = load("_de");
+        assertThat(german.getProperty("sftp.remoteServer")).startsWith("Remote-Server");
+        for (String key : german.stringPropertyNames()) {
+            if (key.startsWith("sftp.")) {
+                assertWithMessage(key).that(german.getProperty(key)).doesNotContain("Fernbedienung");
+            }
+        }
     }
 
     @Test

@@ -150,4 +150,20 @@ class SFTPManagerTabRemotePathTest {
     private static String read(String path) throws IOException {
         return Files.readString(Path.of(path), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
+
+    @Test
+    void oneProbeTellsWhichArchiveFormatsTheServerCanWrite() {
+        var available = SFTPManagerTab.parseArchiveTools("zip\ntar\n7za\n");
+        assertThat(available.get(SFTPManagerTab.ArchiveFormat.ZIP)).isTrue();
+        assertThat(available.get(SFTPManagerTab.ArchiveFormat.TAR_BZ2)).isTrue();
+        assertThat(available.get(SFTPManagerTab.ArchiveFormat.SEVEN_ZIP)).isTrue();
+
+        var tarOnly = SFTPManagerTab.parseArchiveTools("tar\r\n");
+        assertThat(tarOnly.get(SFTPManagerTab.ArchiveFormat.ZIP)).isFalse();
+        assertThat(tarOnly.get(SFTPManagerTab.ArchiveFormat.TAR_BZ2)).isTrue();
+        assertThat(tarOnly.get(SFTPManagerTab.ArchiveFormat.SEVEN_ZIP)).isFalse();
+        assertThat(SFTPManagerTab.parseArchiveTools("").containsValue(true)).isFalse();
+        // The probe always exits 0, so a missing tool is not mistaken for a failed command.
+        assertThat(SFTPManagerTab.ARCHIVE_TOOLS_PROBE).endsWith("; true");
+    }
 }
