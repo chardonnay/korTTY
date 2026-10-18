@@ -1,14 +1,28 @@
-= KorTTY - SSH Client
+= korTTY - SSH Client for macOS, Windows and Linux
 
-*v2.21.0* | link:https://github.com/chardonnay/korTTY/releases/latest[Latest release] — A modern SSH client with JavaFX interface, tabbed terminals, local-shell sessions (Windows cmd/PowerShell or your `$SHELL`), SFTP tooling, background job scheduling, and OpenAI-compatible AI assistance.
+*v2.21.0* | link:https://github.com/chardonnay/korTTY/releases/latest[Download] | link:https://kortty.app[Website & user guide] | MIT license
 
-== Architecture Overview
+*korTTY is a free, open-source SSH client for macOS, Windows and Linux* with tabbed and split terminals, an SFTP manager, Mosh, and a local AI built on llama.cpp that works without a cloud account — a free alternative to MobaXterm and Termius that imports your MobaXterm, PuTTY Connection Manager and MTPuTTY connections.
 
-The following diagram shows the main components of KorTTY and how they relate.
+image::app-docs/screenshots/terminal/remote-sidebar.png[korTTY: an SSH terminal with the remote file sidebar following the shell's working directory,align=center]
 
-image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
+== Download / Install
+
+Download the package for your system from the link:https://github.com/chardonnay/korTTY/releases/latest[latest release] — *macOS* (DMG for Apple Silicon and Intel), *Windows* (MSI, x64) or *Linux* (Flatpak, DEB, RPM, Arch Linux, tar.gz; x86_64 and aarch64) — and follow the link:https://kortty.app/guide/en/getting-started/installation.html[installation guide]. The complete user guide is at link:https://kortty.app[kortty.app] and inside the app under *Help → Manual* (F1).
+
+== Highlights
+
+* *Switch from MobaXterm or PuTTY in minutes*: import your saved connections from MobaXterm, PuTTY Connection Manager and MTPuTTY, then work in tabs, split panes with broadcast input, SSH tunnels and jump hosts.
+* *SFTP manager*: two-panel transfers with drag & drop, folder compare and sync, and a side-by-side file comparison where the AI explains the differences or writes a new file from both.
+* *Mosh*: latency-tolerant sessions that survive roaming and sleep, next to SSH and the local shell — bundled in every release.
+* *Local AI that stays on your machine*: select an error in the terminal and choose *Solve Problem* — korTTY's integrated llama.cpp runtime answers with a GGUF model on your own computer, offline; OpenAI-compatible, Anthropic and LM Studio profiles work too.
+* *Coding-agent status*: see whether Claude Code, Codex or Gemini CLI in a local tab is working, waiting for you or done, and answer their prompts from one panel.
+* *JobScheduler*: run commands, scripts, SFTP and rsync transfers and AI agent jobs on saved servers on a schedule, with a searchable journal — no terminal tab needs to stay open.
+* *Encrypted vault*: passwords, SSH-key passphrases and sudo passwords are stored AES-256-GCM encrypted behind a master password, and host keys are pinned on first use.
 
 == Features
+
+The complete feature list; each feature is explained in detail in the link:https://kortty.app[user guide].
 
 * *GUI-based*: Modern JavaFX interface with refreshed KorTTY logo, dark login screen, and selectable app-wide designs
 * *Tab Support*: Multiple SSH connections in one window
@@ -221,6 +235,12 @@ jar tf build/terminal-effect-plugins/kortty-terminal-effect-mother.jar
 ----
 
 Detailed development, packaging, lifecycle, security, and validation guidance is documented in *link:app-docs/TERMINAL_EFFECT_PLUGINS.adoc[Terminal Effect Plugin Development]*.
+
+== Architecture Overview
+
+The following diagram shows the main components of KorTTY and how they relate.
+
+image::app-docs/diagrams/architecture.svg[KorTTY architecture,align=center]
 
 == Modules and Dependencies
 
