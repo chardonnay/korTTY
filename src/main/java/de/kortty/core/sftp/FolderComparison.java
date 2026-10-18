@@ -131,6 +131,16 @@ public final class FolderComparison {
         return Optional.ofNullable(states.get(normalize(relativePath)));
     }
 
+    /** The left (local) side's entry at {@code relativePath}, if it has one. */
+    public Optional<Entry> local(String relativePath) {
+        return Optional.ofNullable(local.get(normalize(relativePath)));
+    }
+
+    /** The right (server) side's entry at {@code relativePath}, if it has one. */
+    public Optional<Entry> remote(String relativePath) {
+        return Optional.ofNullable(remote.get(normalize(relativePath)));
+    }
+
     /** Every compared path with its state, sorted by path. */
     public Map<String, State> states() {
         return Collections.unmodifiableMap(states);

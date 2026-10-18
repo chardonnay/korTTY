@@ -10769,6 +10769,8 @@ public class MainWindow {
             case GENERATE_ASCII_ART -> I18n.get("asciiArt.ai.action");
             case ANALYZE_SNIPPET_PROJECT -> I18n.get("snippets.folder.analyze");
             case PLAN_SNIPPET_MODULARIZATION, GENERATE_SNIPPET_MODULE -> I18n.get("snippets.modularize.title");
+            case COMPARE_FILES -> I18n.get("sftp.diff.ai.toggle");
+            case WRITE_COMPARED_FILE -> I18n.get("sftp.diff.ai.mode.newFile");
         };
     }
 

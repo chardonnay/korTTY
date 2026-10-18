@@ -109,11 +109,55 @@ Wenn der Server oder das Netzwerk die Sitzung beendet, zeigt die Statusleiste **
 
 SFTP-Manager-Tabs werden mit einem [Projekt](projects.md#sftp-manager-tabs) gespeichert. Das Öffnen des Projekts mit **Automatisches Wiederverbinden** verbindet jeden Tab erneut mit den lokalen und entfernten Ordnern, in denen er sich zum Zeitpunkt des Speicherns befand. Ein Ordner, der nicht mehr existiert, öffnet stattdessen den Home-Ordner; auf der entfernten Seite sagt die Statusleiste dies an.
 
+## Was wird verglichen
+
+**Vergleichen** in der lokalen Schaltflächenreihe, und **Vergleichen...** im Rechtsklick-Menü beider Listen, betrachtet das Ausgewählte:
+
+- **Zwei Dateien**, zwei ausgewählt im aktiven Panel oder jeweils eine in jedem Panel, öffnen nebeneinander; siehe [Vergleich zweier Dateien](#zwei-dateien-vergleichen).
+- **Zwei Ordner**: ein lokaler und ein Server-Ordner werden in der Leiste über den Listen verglichen, und beide Panels gehen hinein; zwei Ordner auf derselben Seite öffnen sich in einem eigenen Fenster; siehe [Zwei Ordner auf derselben Seite](#zwei-ordner-auf-der-gleichen-seite).
+- **Nichts davon**: Der angezeigte lokale Ordner wird mit dem angezeigten Serverordner verglichen.
+
+Eine Datei und ein Ordner können nicht miteinander verglichen werden; die Statusleiste weist darauf hin.
+
+## Zwei Dateien vergleichen
+
+Die beiden Dateien öffnen sich nebeneinander in einem Fenster, wobei ihre Änderungen markiert sind, ähnlich dem Vergleich von zwei Snippets im Snippet-Manager. Die Zeile darüber zählt die hinzugefügten und entfernten Zeilen. Dateien größer als 4 MB und Dateien, die kein Text sind (ein NUL-Byte nahe am Anfang), werden nicht verglichen. Eine Datei auf dem Server wird über SFTP gelesen; dafür ist eine Verbindung erforderlich und sie wird verweigert, wenn Ihre Organisation nicht zulässt, dass Serverdateien in einen Editor geladen werden. In einem Ordnervergleich öffnet ein Doppelklick auf eine Datei, die an beiden Seiten vorhanden ist, die beiden Dateien auf dieselbe Weise.
+
+![Two versions of a deploy script side by side, with the AI panel beside them](../assets/screenshots/sftp/sftp-file-diff.png)
+
+### KI anfragen
+
+**KI fragen** öffnet ein Panel neben den beiden Dateien und erweitert das Fenster dafür, sodass die Dateien nebeneinander bleiben. Wählen Sie eine vorbereitete Frage (wo die Dateien unterschiedlich sind, was die Unterschiede bewirken oder was in der rechten Version verbessert werden könnte) oder schreiben Sie Ihre eigene, wählen Sie das KI-Profil, wenn mehrere vorhanden sind, und klicken Sie auf **Fragen**; die Schaltfläche daneben stoppt die Anfrage. Beide Dateien mit Zeilennummern und ihrem einheitlichen Diff werden an das Profil übergeben, und Geheimnisse, die es erkennt, wie z. B. Schlüssel und Passwörter, werden zunächst maskiert, sofern das Profil nicht auf diesem Computer ausgeführt wird. Die Antwort erscheint unter der Frage, und die Anfrage zählt zur Nutzung des Profils wie jede andere KI-Anfrage. Dies eignet sich für Shell-Skripte und Konfigurationsdateien, bei denen eine geänderte Zeile das Verhalten eines Dienstes verändern kann.
+
+**KI fragen** kann nur angeklickt werden, wenn die KI-Funktionen aktiviert sind, Ihre Organisation KI-Anfragen zulässt und mindestens ein KI-Profil existiert; andernfalls zeigt das Überfahren mit der Maus an, was fehlt.
+
+### Eine neue Datei aus beiden Dateien
+
+Im oberen Bereich des KI-Panels wählen **Fragen** und **Neue Datei**, was die KI tun soll. Mit **Neue Datei** schreibt die KI eine neue, dritte Datei aus den beiden, wie Sie es beschreiben: wählen Sie eine vorbereitete Anweisung wie **Das Beste aus beiden** oder **Die rechte Datei verbessern**, oder schreiben Sie Ihre eigene, und klicken Sie auf **Datei erstellen**. Die KI listet zunächst auf, was sie geändert hat, und sendet dann die komplette Datei. Der Vergleich zeigt anschließend die rechte Datei gegenüber der neuen an, und die Liste über den Dateien wählt die beiden angezeigten Dateien aus: links und rechts, rechts und die neue Datei oder links und die neue Datei. Eine Antwort ohne komplette Datei, zum Beispiel eine, die abgeschnitten wurde, wird angezeigt, aber nicht als Datei übernommen.
+
+![The new file from the AI shown against the right file, with the AI panel in New file mode](../assets/screenshots/sftp/sftp-file-diff-new-file.png)
+
+Unter der Antwort bietet **Neue Datei** an, was mit der Datei zu tun ist:
+
+| Button | Aktion |
+| --- | --- |
+| **Anzeigen** | vergleicht die neue Datei erneut mit der rechten Datei |
+| **Speichern...** | fragt, wohin die Datei geht, auf dem Server oder auf diesem Computer, und welchen Pfad; der Ort der rechten Datei wird vorgeschlagen, da die neue Datei sie ersetzen soll, und **Durchsuchen...** wählt mit einem Klick einen anderen Ort |
+| **Als Snippet speichern...** | Öffnet die neue Datei im Snippet-Editor. Dort können Sie sie bearbeiten, ihr einen Namen und eine Kategorie geben und im Snippet-Manager mit **Als Snippet speichern** behalten. **Rechte Datei ersetzen** und **Speichern unter...** im Editor speichern die bearbeitete Datei stattdessen |
+
+![Saving the new file on the server](../assets/screenshots/sftp/sftp-save-new-file.png)
+
+Auf diesem Computer öffnet **Durchsuchen...** den Speicherdialog des Systems. Auf dem Server listet es die Ordner und Dateien des Servers auf: ein Doppelklick öffnet einen Ordner (`..` ist der Ordner darüber), ein Klick auf eine Datei übernimmt ihren Namen, und der Name kann auch eingegeben werden. Ein Ordner, der in das Pfadfeld über der Liste eingegeben wird, öffnet sich mit ++enter++.
+
+![Choosing the folder and the file name on the server](../assets/screenshots/sftp/sftp-remote-save-chooser.png)
+
+Falls die Datei bereits existiert, fragt korTTY vor dem Überschreiben und speichert zunächst die vorherige Version neben ihr als `.bak`, sofern Sie **Eine vorhandene Datei vorher als .bak sichern** nicht deaktivieren. Beim Überschreiben bleiben die Dateiberechtigungen erhalten, und das Backup erhält dieselben Rechte; eine Konfiguration, bei der nur der Eigentümer lesen darf, bleibt unverändert. Das Speichern auf dem Server erfordert eine Verbindung und wird nicht angeboten, wenn Ihre Organisation die Serverdateien in Editoren schreibgeschützt hält oder den Dateitransfer deaktiviert. Wenn die neue Datei über eine der beiden verglichenen Dateien gespeichert wird, zeigt der Vergleich, was diese Datei jetzt enthält.
+
 ## Ordner vergleichen und synchronisieren
 
-**Vergleichen** in der lokalen Zeile der Schaltflächen vergleicht den angezeigten lokalen Ordner mit dem angezeigten Serverordner, einschließlich aller Unterverzeichnisse. Es fragt zunächst nach Mustern, die ausgeschlossen werden sollen, jeweils ein Muster pro Zeile, z. B. `node_modules` oder `.cache`. Anschließend werden beide Ordner im Hintergrund gelesen; die Leiste über den Listen zählt, was bereits gelesen wurde, und ein Button am Ende der Leiste stoppt den Vergleich. Name, Größe und Änderungszeit werden verglichen; Zeitunterschiede von weniger als 2 Sekunden gelten als gleich, da SFTP-Version 3 ganze Sekunden beibehält. Symbolische Links werden auf beiden Seiten ausgeschlossen, und bei mehr als 100 000 Einträgen auf einer Seite wird der Vergleich abgebrochen.
+Wenn ein lokaler Ordner mit einem Serverordner (die beiden angezeigten oder zwei ausgewählte) verglichen wird, werden alle Unterordner einbezogen. Zuerst fragt er nach Mustern zum Ausschließen, jeweils eine pro Zeile, wie `node_modules` oder `.cache`. Anschließend werden beide Ordner im Hintergrund gelesen; die Leiste über den Listen zählt, was gelesen wurde, und ein Knopf am Ende stoppt den Vergleich. Name, Größe und Änderungszeit werden verglichen, und Zeitunterschiede von weniger als 2 Sekunden gelten als gleich, weil SFTP-Version 3 ganze Sekunden beibehält. Symbolische Links werden auf beiden Seiten ausgeschlossen, und mehr als 100 000 Einträge auf einer Seite stoppen den Vergleich.
 
-Das Ergebnis bleibt in der Leiste über den Listen: wie viele Einträge nur auf einer Seite existieren, neuer auf einer Seite sind, unterschiedlich (gleiches Alter aber andere Größe oder eine Datei auf einer Seite und ein Ordner auf der anderen) und gleich sind. Die Zeilen erhalten Farben, jeweils aus ihrer eigenen Sicht: grün nur hier, orange neuer hier, rot verschieden und gedimmt, wenn gleich oder älter hier. Ein Ordner ist rot, wenn etwas darin unterschiedlich ist, und die Farben folgen Ihnen in die Unterordner der verglichenen Ordner. **Nur Unterschiede** verbirgt das Gleiche; **Erneut vergleichen** (der Pfeil) und **Vergleich beenden** (das Kreuz) befinden sich am Ende der Leiste.
+Das Ergebnis bleibt in der Leiste über den Listen: wie viele Einträge nur auf einer Seite existieren, neuere auf einer Seite sind, unterschiedlich (gleich alt aber unterschiedlicher Größe oder eine Datei auf einer Seite und ein Ordner auf der anderen) und gleich sind. Die Zeilen nehmen Farben an, jede aus ihrer eigenen Sicht: grün nur hier, orange neuer hier, rot unterschiedlich und gedämpft, wenn gleich oder älter hier. Ein Ordner ist rot, wenn etwas darin unterschiedlich ist, und die Farben folgen Ihnen in die Unterordner der verglichenen Ordner. **Nur Unterschiede** verbirgt, was gleich ist; **Erneut vergleichen** (der Pfeil) und **Vergleich beenden** (das Kreuz) stehen am Ende der Leiste. Ein Doppelklick auf eine verglichene Datei, die auf beiden Seiten existiert, zeigt die beiden Dateien nebeneinander.
 
 ![A comparison of a local folder with its copy on the server](../assets/screenshots/sftp/sftp-compare.png)
 
@@ -122,6 +166,12 @@ Das Ergebnis bleibt in der Leiste über den Listen: wie viele Einträge nur auf 
 Der Dialog verfügt außerdem über ein Kontrollkästchen, das standardmäßig deaktiviert ist und löscht, was ausschließlich auf dem Ziel vorhanden ist; nach einer zweiten Bestätigung wird es endgültig gelöscht. Die Kopien laufen in der [Transferliste](#ubertragungsliste), und die Ordner werden erneut verglichen, sobald sie abgeschlossen sind. Wenn Ihre Organisation die Dateiübertragung deaktiviert, zeigen beide Schaltflächen nur den Grund in der Statusleiste an.
 
 ![The dialog before synchronizing to the server](../assets/screenshots/sftp/sftp-sync-dialog.png)
+
+### Zwei Ordner auf der gleichen Seite
+
+Zwei lokale Ordner, oder zwei Ordner auf dem Server, werden auf die gleiche Weise verglichen, mit denselben Mustern zum Ausschließen, aber das Ergebnis öffnet sich in einem eigenen Fenster: die Panels können nur einen lokalen Ordner gegen einen Serverordner einfärben. Das Fenster listet jeden Pfad mit seiner Vergleichsart auf, wie **Nur rechts** oder **Links neuer**, sowie seine Größe und Zeit auf beiden Seiten, mit **Nur Unterschiede** zunächst aktiviert. Ein Doppelklick auf eine Datei, die auf beiden Seiten existiert, zeigt die beiden Dateien nebeneinander. Synchronisieren wird hier nicht angeboten.
+
+![Two releases on the server compared in their own window](../assets/screenshots/sftp/sftp-folder-compare.png)
 
 ## Dateioperationen
 
@@ -137,7 +187,7 @@ Jedes Panel verfügt über eigene Schaltflächen unter seiner Liste und ein Rech
 | **Kopieren** | **Kopieren nach…** im Kontextmenü kopiert innerhalb derselben Seite: lokal in ein von Ihnen ausgewähltes Verzeichnis (im Hintergrund), remote in einen von Ihnen eingegebenen Pfad. Ein Remote-Verzeichnis, das an einer Stelle kopiert wird, an der bereits ein Verzeichnis mit diesem Namen existiert, wird in dieses zusammengeführt; das Kopieren eines Elements auf sich selbst oder in einen seiner eigenen Unterordner wird mit einem Fehler abgelehnt. |
 | **Im Snippet-Editor bearbeiten** | Wählen Sie genau eine lokale oder Remote-Datei aus und verwenden Sie dann das Symbolleistenmenü *Bearbeiten* oder das Kontextmenü mit der rechten Maustaste |
 | **Archiv** | **Archiv** in der Schaltflächenzeile beider Panels, oder **Archiv...** im Kontextmenü, packt die Auswahl als ZIP, TAR.BZ2 oder 7z, je nach verfügbaren Werkzeugen auf dieser Seite. Ein lokales Archiv kann ein Passwort haben; ein Archiv auf dem Server nicht, weil `zip` und `7z` das Passwort auf der Befehlszeile des Servers benötigen, wo andere Benutzer des Servers es lesen können |
-| **Vergleichen** | Verwenden Sie die **Vergleichen**-Schaltfläche in der lokalen Zeile; siehe [Vergleichen und Synchronisieren von Ordnern](#ordner-vergleichen-und-synchronisieren) |
+| **Vergleichen** | Wählen Sie zwei Dateien oder zwei Ordner (oder nichts), dann verwenden Sie **Vergleichen** in der lokalen Zeile oder **Vergleichen...** im Rechtsklick-Menü; siehe [Was wird verglichen](#was-wird-verglichen) |
 | **Größe berechnen** | Wählen Sie Serverordner aus, klicken Sie mit der rechten Maustaste darauf und wählen Sie **Größe berechnen**; siehe [Ordnergrößen](#ordnergroen) |
 | **Hier entpacken** | Klicken Sie mit der rechten Maustaste auf ein Archiv auf dem Server (`.zip`, `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz` oder `.7z`) und wählen Sie **Hier entpacken...**. Es wird auf dem Server in einen neuen Ordner daneben entpackt; siehe [Archive auf dem Server entpacken](#archive-auf-dem-server-entpacken) |
 | **Besitzer/Berechtigungen setzen** | Wählen Sie Einträge aus, klicken dann auf **Rechte** oder wählen Sie **Besitzer/Berechtigungen setzen...** im Kontextmenü. Es verfügt über separate Felder für Benutzer und Gruppe und akzeptiert die Berechtigungen als Oktalzahlen (z. B. 755) oder als Kontrollkästchen; siehe [Berechtigungen](#berechtigungen). Mit **Rekursiv auf Verzeichnisse anwenden** erreicht die Änderung auch das, was sich in den ausgewählten Ordnern befindet |
@@ -295,7 +345,7 @@ Wenn die Datei im Snippet-Editor geöffnet wird, bleibt die vollständige Symbol
 Die Dateimodus-Schaltflächen bieten folgende Speicheroptionen:
 
 - **Remote-Datei überschreiben** (**Lokale Datei überschreiben** für eine Datei im linken Panel) — schreibt den aktuellen Editorinhalt zurück in die ursprüngliche Datei
-- **Speichern unter...** – schreibt eine neue lokale Datei über eine Dateiauswahl oder fordert für Remote-Dateien zur Eingabe eines neuen Dateinamens im selben Remote-Verzeichnis auf
+- **Speichern unter...** — schreibt eine neue Datei an einen mit einem Klick ausgewählten Ort: im Speicherdialog des Systems für eine lokale Datei, in den Ordnern und Dateien des Servers für eine entfernte Datei
 - **Als Snippet speichern** – speichert den aktuellen Inhalt als neues Snippet-Manager-Snippet, ohne die Quelldatei als gespeichert zu markieren
 
 Eine Organisation kann das Bearbeiten von Serverdateien mit dem Schlüssel `load-into-snippet-editor` ihrer [Unternehmensrichtlinie](../reference/enterprise-policy.md) einschränken. Mit `read-only` öffnen sich Remote-Dateien weiterhin im Snippet-Editor und können als Snippet gespeichert werden, aber **Datei überschreiben** und **Speichern unter...** sind gesperrt, und ihr Tooltip nennt die Richtlinie. Mit `deny` sind **Im Snippet-Editor bearbeiten** und **Bild öffnen** für Remote-Dateien deaktiviert. Lokale Dateien im linken Panel liegen auf Ihrem eigenen Computer und bleiben in jedem Fall bearbeitbar.

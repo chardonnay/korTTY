@@ -34,7 +34,17 @@ public enum AiAction {
     /** Proposes how a script (or a folder) splits into functional modules, one file each. */
     PLAN_SNIPPET_MODULARIZATION,
     /** Writes one file of an accepted modularization plan. */
-    GENERATE_SNIPPET_MODULE;
+    GENERATE_SNIPPET_MODULE,
+    /**
+     * Answers a question about two text files compared side by side in the SFTP manager (where
+     * they differ, what the differences do, what to improve); free-form Markdown.
+     */
+    COMPARE_FILES,
+    /**
+     * Writes a new, third file from two compared files as the user describes it (merging them,
+     * fixing the right one); a short explanation and the whole file in one fenced code block.
+     */
+    WRITE_COMPARED_FILE;
 
     /** Deterministic role routing; no model call is needed to classify the action. */
     public AiWorkload workload() {

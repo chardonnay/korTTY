@@ -74,6 +74,9 @@ public final class AiOutputTokenLimitSupport {
                 : fullReplacementLimit(request.selectedText());
             case APPLY_SNIPPET_SECURITY_FIXES, IMPROVE_SNIPPET_CODE, ASSIST_SNIPPET_CODE, GENERATE_SNIPPET_MODULE ->
                 fullReplacementLimit(request.selectedText());
+            // A whole new file from two compared ones: a profile's small default would cut it off,
+            // and a cut-off file is refused. The material (both files and their diff) bounds it.
+            case WRITE_COMPARED_FILE -> fullReplacementLimit(request.selectedText());
             case COMPLETE_SNIPPET_CODE -> COMPLETION_MAX_COMPLETION_TOKENS;
             case GENERATE_ASCII_ART -> ASCII_ART_MAX_COMPLETION_TOKENS;
             default -> null;
