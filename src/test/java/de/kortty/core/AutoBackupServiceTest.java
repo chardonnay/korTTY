@@ -71,6 +71,13 @@ public class AutoBackupServiceTest {
 
     @AfterMethod
     void tearDown() throws IOException {
+        // A due run saves the settings asynchronously (settings.xml.tmp, then a move). The writer is
+        // single-threaded, so waiting for one more save lets those finish before the folder goes.
+        try {
+            manager.saveAsync().join();
+        } catch (RuntimeException ignored) {
+            // the cleanup below runs either way
+        }
         try (Stream<Path> files = Files.walk(root)) {
             files.sorted(Comparator.reverseOrder()).forEach(path -> path.toFile().delete());
         }
