@@ -922,13 +922,60 @@
 <p><strong>Reconnect</strong> opens a new session with the same credentials and lists the folder you were in. The server's host key is checked as on the first connect: an unchanged key connects without a prompt, a changed key is still blocked.</p>
 <h2 id="reopening-with-a-project">Reopening with a project<a class="headerlink" href="#reopening-with-a-project" title="Permanent link">&para;</a></h2>
 <p>SFTP Manager tabs are saved with a <a href="projects.html#sftp-manager-tabs">project</a>. Opening the project with <strong>Auto-Reconnect</strong> reconnects each tab at the local and remote folders it was in when you saved. A folder that no longer exists opens the home folder instead; on the remote side the status bar says so.</p>
+<h2 id="what-is-compared">What is compared<a class="headerlink" href="#what-is-compared" title="Permanent link">&para;</a></h2>
+<p><strong>Compare</strong> in the local row of buttons, and <strong>Compare...</strong> in the right-click menu of both lists, looks at what is selected:</p>
+<ul>
+<li><strong>Two files</strong>, two selected in the active panel or one in each panel, open side by side; see <a href="#comparing-two-files">Comparing two files</a>.</li>
+<li><strong>Two folders</strong>: a local and a server folder are compared in the bar above the lists, and both panels go into them; two folders on the same side open in a window of their own; see <a href="#two-folders-on-the-same-side">Two folders on the same side</a>.</li>
+<li><strong>Nothing like that</strong>: the local folder shown is compared with the server folder shown.</li>
+</ul>
+<p>A file and a folder cannot be compared with each other; the status bar says so.</p>
+<h2 id="comparing-two-files">Comparing two files<a class="headerlink" href="#comparing-two-files" title="Permanent link">&para;</a></h2>
+<p>The two files open side by side in a window with their changes marked, like the comparison of two snippets in the snippet manager. The line above them counts the added and removed lines. Files larger than 4 MB and files that are not text (a NUL byte near the start) are not compared. A file on the server is read through SFTP; that needs a connection and is refused when your organization does not let server files be loaded into an editor. In a folder comparison, a double-click on a file that exists on both sides opens the two files the same way.</p>
+<p><img alt="Two versions of a deploy script side by side, with the AI panel beside them" src="../assets/screenshots/sftp/sftp-file-diff.png" /></p>
+<h3 id="asking-the-ai">Asking the AI<a class="headerlink" href="#asking-the-ai" title="Permanent link">&para;</a></h3>
+<p><strong>Ask AI</strong> opens a panel beside the two files and widens the window for it, so the files stay side by side. Pick a prepared question (where the files differ, what the differences do, or what could be improved in the right-hand version) or write your own, choose the AI profile when there are several, and click <strong>Ask</strong>; the button next to it stops the request. Both files with line numbers and their unified diff go to the profile, and secrets it recognizes, such as keys and passwords, are masked first unless the profile runs on this computer. The answer appears below the question, and the request counts towards the profile's usage like any other AI request. This suits shell scripts and configuration files, where a changed line can change what a service does.</p>
+<p><strong>Ask AI</strong> can be clicked only when the AI features are on, your organization allows AI requests, and at least one AI profile exists; otherwise hovering over it tells you what is missing.</p>
+<h3 id="a-new-file-from-both-files">A new file from both files<a class="headerlink" href="#a-new-file-from-both-files" title="Permanent link">&para;</a></h3>
+<p>At the top of the AI panel, <strong>Ask</strong> and <strong>New file</strong> choose what the AI does. With <strong>New file</strong>, the AI writes a new, third file from the two as you describe it: pick a prepared instruction such as <strong>The best of both</strong> or <strong>Improve the right file</strong>, or write your own, and click <strong>Create file</strong>. The AI first lists what it changed and then sends the complete file. The comparison then shows the right file against the new one, and the list above the files picks the two files it shows: left and right, right and the new file, or left and the new file. An answer without a complete file, for example one that was cut off, is shown but not taken as the file.</p>
+<p><img alt="The new file from the AI shown against the right file, with the AI panel in New file mode" src="../assets/screenshots/sftp/sftp-file-diff-new-file.png" /></p>
+<p>Below the answer, <strong>New file</strong> offers what to do with the file:</p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Show</strong></td>
+<td>Compares the new file with the right file again</td>
+</tr>
+<tr>
+<td><strong>Save...</strong></td>
+<td>Asks where the file goes, on the server or on this computer, and at which path; the place of the right-hand file is proposed, since the new file is meant to replace it, and <strong>Browse...</strong> picks another place with a click</td>
+</tr>
+<tr>
+<td><strong>Save as snippet...</strong></td>
+<td>Opens the new file in the snippet editor. There you can edit it, give it a name and a category, and keep it in the Snippet Manager with <strong>Save as snippet</strong>. <strong>Replace the right file</strong> and <strong>Save as...</strong> in the editor save the edited file instead</td>
+</tr>
+</tbody>
+</table>
+<p><img alt="Saving the new file on the server" src="../assets/screenshots/sftp/sftp-save-new-file.png" /></p>
+<p>On this computer, <strong>Browse...</strong> opens the save dialog of the system. On the server, it lists the folders and files of the server: a double-click opens a folder (<code>..</code> is the folder above), a click on a file takes its name, and the name can also be typed. A folder typed into the path field above the list opens with <span class="keys"><kbd class="key-enter">Enter</kbd></span>.</p>
+<p><img alt="Choosing the folder and the file name on the server" src="../assets/screenshots/sftp/sftp-remote-save-chooser.png" /></p>
+<p>If the file already exists, korTTY asks before overwriting it and first keeps the previous version next to it as <code>.bak</code>, unless you turn off <strong>Keep an existing file as .bak first</strong>. Overwriting keeps the permissions of the file, and the backup gets the same ones, so a configuration that only its owner may read stays that way. Saving on the server needs a connection and is not offered when your organization keeps server files read-only in editors or turns off file transfer. When the new file is saved over one of the two compared files, the comparison shows what that file holds now.</p>
 <h2 id="comparing-and-synchronizing-folders">Comparing and synchronizing folders<a class="headerlink" href="#comparing-and-synchronizing-folders" title="Permanent link">&para;</a></h2>
-<p><strong>Compare</strong> in the local row of buttons compares the local folder shown with the server folder shown, including all subfolders. It first asks for patterns to leave out, one per line, such as <code>node_modules</code> or <code>.cache</code>. Then both folders are read in the background; the bar above the lists counts what has been read, and a button at its end stops the comparison. Names, sizes and modification times are compared, and times less than 2 seconds apart count as the same, because SFTP version 3 keeps whole seconds. Symbolic links are left out on both sides, and more than 100,000 entries on one side stop the comparison.</p>
-<p>The result stays in the bar above the lists: how many entries exist only on one side, are newer on one side, are different (the same age but another size, or a file on one side and a folder on the other), and are the same. The rows take colours, each seen from its own side: green only here, amber newer here, red different, and dimmed when the same or older here. A folder is red when something inside it differs, and the colours follow you into the subfolders of the compared folders. <strong>Differences only</strong> hides what is the same; <strong>Compare again</strong> (the arrow) and <strong>End the comparison</strong> (the cross) sit at the end of the bar.</p>
+<p>When a local folder is compared with a server folder (the two shown, or two selected ones), all subfolders are included. It first asks for patterns to leave out, one per line, such as <code>node_modules</code> or <code>.cache</code>. Then both folders are read in the background; the bar above the lists counts what has been read, and a button at its end stops the comparison. Names, sizes and modification times are compared, and times less than 2 seconds apart count as the same, because SFTP version 3 keeps whole seconds. Symbolic links are left out on both sides, and more than 100,000 entries on one side stop the comparison.</p>
+<p>The result stays in the bar above the lists: how many entries exist only on one side, are newer on one side, are different (equally old but of another size, or a file on one side and a folder on the other), and are the same. The rows take colours, each seen from its own side: green only here, orange newer here, red different, and dimmed when the same or older here. A folder is red when something inside it differs, and the colours follow you into the subfolders of the compared folders. <strong>Differences only</strong> hides what is the same; <strong>Compare again</strong> (the arrow) and <strong>End the comparison</strong> (the cross) sit at the end of the bar. A double-click on a compared file that exists on both sides shows the two files side by side.</p>
 <p><img alt="A comparison of a local folder with its copy on the server" src="../assets/screenshots/sftp/sftp-compare.png" /></p>
 <p><strong>To the server</strong> copies what is missing on the server, what is newer here, and what has the same age but another size; <strong>To this computer</strong> does the same in the other direction. A dialog lists what is copied and how much first. Files that exist on the target are replaced without a question per file, and every copy keeps the modification time of its original, so the next comparison finds the two the same. A newer file on the target stays as it is, and so does a path that is a file on one side and a folder on the other.</p>
 <p>The dialog also has a checkbox, off by default, that deletes what exists only on the target; after a second confirmation, it is deleted for good. The copies run in the <a href="#transfer-list">transfer list</a>, and the folders are compared again once they are done. When your organization switches file transfer off, both buttons only show the reason in the status bar.</p>
 <p><img alt="The dialog before synchronizing to the server" src="../assets/screenshots/sftp/sftp-sync-dialog.png" /></p>
+<h3 id="two-folders-on-the-same-side">Two folders on the same side<a class="headerlink" href="#two-folders-on-the-same-side" title="Permanent link">&para;</a></h3>
+<p>Two local folders, or two folders on the server, are compared the same way, with the same patterns to leave out, but the result opens in a window of its own: the panels can only colour a local folder against a server folder. The window lists every path with how it compares, such as <strong>Only right</strong> or <strong>Newer on the left</strong>, and its size and time on both sides, with <strong>Differences only</strong> ticked at first. A double-click on a file that exists on both sides shows the two files side by side. Synchronizing is not offered here.</p>
+<p><img alt="Two releases on the server compared in their own window" src="../assets/screenshots/sftp/sftp-folder-compare.png" /></p>
 <h2 id="file-operations">File operations<a class="headerlink" href="#file-operations" title="Permanent link">&para;</a></h2>
 <p>Each panel has its own row of buttons under its list and a right-click context menu; a button acts on the panel it sits in (see <a href="#active-panel">Active panel</a>):</p>
 <table>
@@ -973,7 +1020,7 @@
 </tr>
 <tr>
 <td><strong>Compare</strong></td>
-<td>Use the <strong>Compare</strong> button in the local row; see <a href="#comparing-and-synchronizing-folders">Comparing and synchronizing folders</a></td>
+<td>Select two files or two folders (or nothing), then use <strong>Compare</strong> in the local row or <strong>Compare...</strong> in the right-click menu; see <a href="#what-is-compared">What is compared</a></td>
 </tr>
 <tr>
 <td><strong>Calculate size</strong></td>
@@ -1205,7 +1252,7 @@
 <p>The file-mode buttons provide these save choices:</p>
 <ul>
 <li><strong>Overwrite remote file</strong> (<strong>Overwrite local file</strong> for a file in the left panel) — writes the current editor content back to the original file</li>
-<li><strong>Save as...</strong> — writes a new local file through a file chooser, or for remote files prompts for a new file name in the same remote directory</li>
+<li><strong>Save as...</strong> — writes a new file at a place picked with a click: in the save dialog of the system for a local file, in the folders and files of the server for a remote file</li>
 <li><strong>Save as snippet</strong> — stores the current content as a new Snippet Manager snippet without marking the source file as saved</li>
 </ul>
 <p>An organization can restrict editing server files with the <code>load-into-snippet-editor</code> key of its <a href="../reference/enterprise-policy.html">enterprise policy</a>. With <code>read-only</code>, remote files still open in the Snippet Editor and can be saved as a snippet, but <strong>Overwrite file</strong> and <strong>Save as...</strong> are locked and their tooltip names the policy. With <code>deny</code>, <strong>Edit in Snippet Editor</strong> and <strong>Open image</strong> are disabled for remote files. Local files in the left panel are on your own computer and stay editable either way.</p>

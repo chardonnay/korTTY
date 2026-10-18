@@ -49,7 +49,10 @@ public final class AiInternetPromptSupport {
                 GENERATE_ASCII_ART,
                 ANALYZE_SNIPPET_PROJECT,
                 PLAN_SNIPPET_MODULARIZATION,
-                GENERATE_SNIPPET_MODULE -> false;
+                GENERATE_SNIPPET_MODULE,
+                // Two files the user picked are the whole subject; nothing to look up on the web.
+                COMPARE_FILES,
+                WRITE_COMPARED_FILE -> false;
         };
     }
 

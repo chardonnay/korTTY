@@ -109,11 +109,55 @@ When the server or the network ends the session, the status bar shows **Disconne
 
 SFTP Manager tabs are saved with a [project](projects.md#sftp-manager-tabs). Opening the project with **Auto-Reconnect** reconnects each tab at the local and remote folders it was in when you saved. A folder that no longer exists opens the home folder instead; on the remote side the status bar says so.
 
+## What is compared
+
+**Compare** in the local row of buttons, and **Compare...** in the right-click menu of both lists, looks at what is selected:
+
+- **Two files**, two selected in the active panel or one in each panel, open side by side; see [Comparing two files](#comparing-two-files).
+- **Two folders**: a local and a server folder are compared in the bar above the lists, and both panels go into them; two folders on the same side open in a window of their own; see [Two folders on the same side](#two-folders-on-the-same-side).
+- **Nothing like that**: the local folder shown is compared with the server folder shown.
+
+A file and a folder cannot be compared with each other; the status bar says so.
+
+## Comparing two files
+
+The two files open side by side in a window with their changes marked, like the comparison of two snippets in the snippet manager. The line above them counts the added and removed lines. Files larger than 4 MB and files that are not text (a NUL byte near the start) are not compared. A file on the server is read through SFTP; that needs a connection and is refused when your organization does not let server files be loaded into an editor. In a folder comparison, a double-click on a file that exists on both sides opens the two files the same way.
+
+![Two versions of a deploy script side by side, with the AI panel beside them](../assets/screenshots/sftp/sftp-file-diff.png)
+
+### Asking the AI
+
+**Ask AI** opens a panel beside the two files and widens the window for it, so the files stay side by side. Pick a prepared question (where the files differ, what the differences do, or what could be improved in the right-hand version) or write your own, choose the AI profile when there are several, and click **Ask**; the button next to it stops the request. Both files with line numbers and their unified diff go to the profile, and secrets it recognizes, such as keys and passwords, are masked first unless the profile runs on this computer. The answer appears below the question, and the request counts towards the profile's usage like any other AI request. This suits shell scripts and configuration files, where a changed line can change what a service does.
+
+**Ask AI** can be clicked only when the AI features are on, your organization allows AI requests, and at least one AI profile exists; otherwise hovering over it tells you what is missing.
+
+### A new file from both files
+
+At the top of the AI panel, **Ask** and **New file** choose what the AI does. With **New file**, the AI writes a new, third file from the two as you describe it: pick a prepared instruction such as **The best of both** or **Improve the right file**, or write your own, and click **Create file**. The AI first lists what it changed and then sends the complete file. The comparison then shows the right file against the new one, and the list above the files picks the two files it shows: left and right, right and the new file, or left and the new file. An answer without a complete file, for example one that was cut off, is shown but not taken as the file.
+
+![The new file from the AI shown against the right file, with the AI panel in New file mode](../assets/screenshots/sftp/sftp-file-diff-new-file.png)
+
+Below the answer, **New file** offers what to do with the file:
+
+| Button | Action |
+| --- | --- |
+| **Show** | Compares the new file with the right file again |
+| **Save...** | Asks where the file goes, on the server or on this computer, and at which path; the place of the right-hand file is proposed, since the new file is meant to replace it, and **Browse...** picks another place with a click |
+| **Save as snippet...** | Opens the new file in the snippet editor. There you can edit it, give it a name and a category, and keep it in the Snippet Manager with **Save as snippet**. **Replace the right file** and **Save as...** in the editor save the edited file instead |
+
+![Saving the new file on the server](../assets/screenshots/sftp/sftp-save-new-file.png)
+
+On this computer, **Browse...** opens the save dialog of the system. On the server, it lists the folders and files of the server: a double-click opens a folder (`..` is the folder above), a click on a file takes its name, and the name can also be typed. A folder typed into the path field above the list opens with ++enter++.
+
+![Choosing the folder and the file name on the server](../assets/screenshots/sftp/sftp-remote-save-chooser.png)
+
+If the file already exists, korTTY asks before overwriting it and first keeps the previous version next to it as `.bak`, unless you turn off **Keep an existing file as .bak first**. Overwriting keeps the permissions of the file, and the backup gets the same ones, so a configuration that only its owner may read stays that way. Saving on the server needs a connection and is not offered when your organization keeps server files read-only in editors or turns off file transfer. When the new file is saved over one of the two compared files, the comparison shows what that file holds now.
+
 ## Comparing and synchronizing folders
 
-**Compare** in the local row of buttons compares the local folder shown with the server folder shown, including all subfolders. It first asks for patterns to leave out, one per line, such as `node_modules` or `.cache`. Then both folders are read in the background; the bar above the lists counts what has been read, and a button at its end stops the comparison. Names, sizes and modification times are compared, and times less than 2 seconds apart count as the same, because SFTP version 3 keeps whole seconds. Symbolic links are left out on both sides, and more than 100,000 entries on one side stop the comparison.
+When a local folder is compared with a server folder (the two shown, or two selected ones), all subfolders are included. It first asks for patterns to leave out, one per line, such as `node_modules` or `.cache`. Then both folders are read in the background; the bar above the lists counts what has been read, and a button at its end stops the comparison. Names, sizes and modification times are compared, and times less than 2 seconds apart count as the same, because SFTP version 3 keeps whole seconds. Symbolic links are left out on both sides, and more than 100,000 entries on one side stop the comparison.
 
-The result stays in the bar above the lists: how many entries exist only on one side, are newer on one side, are different (the same age but another size, or a file on one side and a folder on the other), and are the same. The rows take colours, each seen from its own side: green only here, amber newer here, red different, and dimmed when the same or older here. A folder is red when something inside it differs, and the colours follow you into the subfolders of the compared folders. **Differences only** hides what is the same; **Compare again** (the arrow) and **End the comparison** (the cross) sit at the end of the bar.
+The result stays in the bar above the lists: how many entries exist only on one side, are newer on one side, are different (equally old but of another size, or a file on one side and a folder on the other), and are the same. The rows take colours, each seen from its own side: green only here, orange newer here, red different, and dimmed when the same or older here. A folder is red when something inside it differs, and the colours follow you into the subfolders of the compared folders. **Differences only** hides what is the same; **Compare again** (the arrow) and **End the comparison** (the cross) sit at the end of the bar. A double-click on a compared file that exists on both sides shows the two files side by side.
 
 ![A comparison of a local folder with its copy on the server](../assets/screenshots/sftp/sftp-compare.png)
 
@@ -122,6 +166,12 @@ The result stays in the bar above the lists: how many entries exist only on one 
 The dialog also has a checkbox, off by default, that deletes what exists only on the target; after a second confirmation, it is deleted for good. The copies run in the [transfer list](#transfer-list), and the folders are compared again once they are done. When your organization switches file transfer off, both buttons only show the reason in the status bar.
 
 ![The dialog before synchronizing to the server](../assets/screenshots/sftp/sftp-sync-dialog.png)
+
+### Two folders on the same side
+
+Two local folders, or two folders on the server, are compared the same way, with the same patterns to leave out, but the result opens in a window of its own: the panels can only colour a local folder against a server folder. The window lists every path with how it compares, such as **Only right** or **Newer on the left**, and its size and time on both sides, with **Differences only** ticked at first. A double-click on a file that exists on both sides shows the two files side by side. Synchronizing is not offered here.
+
+![Two releases on the server compared in their own window](../assets/screenshots/sftp/sftp-folder-compare.png)
 
 ## File operations
 
@@ -137,7 +187,7 @@ Each panel has its own row of buttons under its list and a right-click context m
 | **Copy** | **Copy to...** in the context menu copies within the same side: locally into a folder you pick (in the background), remotely into a folder path you type. A remote folder copied where a folder of that name exists merges into it; copying an item onto itself or into one of its own subfolders is refused with an error |
 | **Edit in Snippet Editor** | Select exactly one local or remote file, then use the *Edit* toolbar menu or the right-click context menu |
 | **Archive** | **Archive** in either panel's row of buttons, or **Archive...** in either context menu, packs the selection as ZIP, TAR.BZ2 or 7z, depending on the tools available on that side. A local archive can have a password; an archive on the server cannot, because `zip` and `7z` would need the password on the server's command line, where other users of the server can read it |
-| **Compare** | Use the **Compare** button in the local row; see [Comparing and synchronizing folders](#comparing-and-synchronizing-folders) |
+| **Compare** | Select two files or two folders (or nothing), then use **Compare** in the local row or **Compare...** in the right-click menu; see [What is compared](#what-is-compared) |
 | **Calculate size** | Select server folders, right-click them and choose **Calculate size**; see [Folder sizes](#folder-sizes) |
 | **Extract Here** | Right-click one archive on the server (`.zip`, `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz` or `.7z`) and choose **Extract Here...**. It is unpacked on the server into a new folder next to it; see [Extracting archives on the server](#extracting-archives-on-the-server) |
 | **Set Owner/Permissions** | Select entries, then click **Rights** or choose **Set Owner/Permissions...** in the context menu. It has separate fields for User and Group, and takes the permissions as octal digits (e.g., 755) or as checkboxes; see [Permissions](#permissions). With **Apply recursively to directories** the change also reaches what is inside the selected folders |
@@ -295,7 +345,7 @@ When the file opens in the Snippet Editor, the full toolbar remains available, i
 The file-mode buttons provide these save choices:
 
 - **Overwrite remote file** (**Overwrite local file** for a file in the left panel) — writes the current editor content back to the original file
-- **Save as...** — writes a new local file through a file chooser, or for remote files prompts for a new file name in the same remote directory
+- **Save as...** — writes a new file at a place picked with a click: in the save dialog of the system for a local file, in the folders and files of the server for a remote file
 - **Save as snippet** — stores the current content as a new Snippet Manager snippet without marking the source file as saved
 
 An organization can restrict editing server files with the `load-into-snippet-editor` key of its [enterprise policy](../reference/enterprise-policy.md). With `read-only`, remote files still open in the Snippet Editor and can be saved as a snippet, but **Overwrite file** and **Save as...** are locked and their tooltip names the policy. With `deny`, **Edit in Snippet Editor** and **Open image** are disabled for remote files. Local files in the left panel are on your own computer and stay editable either way.

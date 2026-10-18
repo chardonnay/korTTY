@@ -3,6 +3,10 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.LanguageManager;
 import de.kortty.model.AppDesign;
+import de.kortty.core.AiExecutionResult;
+import de.kortty.core.AiRequest;
+import de.kortty.core.AiService;
+import de.kortty.model.AiProfile;
 import de.kortty.model.AuthMethod;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.ServerConnection;
@@ -78,6 +82,73 @@ public final class SftpManagerScreenshotGenerator {
     private static Path localDemo;
     private static SFTPManagerTab tab;
     private static Path outDir;
+
+    private static final String DEPLOY_V1 = """
+        #!/usr/bin/env bash
+        # Deploys the web shop to the application server.
+        set -e
+
+        APP_DIR=/srv/webshop
+        PORT=8080
+
+        echo "Building..."
+        ./gradlew build
+        rsync -a build/libs/ "$APP_DIR/"
+        systemctl restart webshop
+        echo "Deployed on port $PORT"
+        """;
+
+    private static final String DEPLOY_V2 = """
+        #!/usr/bin/env bash
+        # Deploys the web shop to the application server.
+        set -euo pipefail
+
+        APP_DIR=/srv/webshop
+        PORT=8443
+
+        echo "Building..."
+        ./gradlew build
+        rsync -a --delete build/libs/ "$APP_DIR/"
+        systemctl restart webshop
+        curl -fsS "https://localhost:$PORT/health" > /dev/null
+        echo "Deployed on port $PORT"
+        """;
+
+    private static final String DEMO_ANSWER = """
+        ## Differences
+        - **Line 3:** the right file runs with `set -euo pipefail`; unset variables and failing pipes now stop it.
+        - **Line 6:** the port changes from `8080` to `8443`.
+        - **Line 10:** `rsync --delete` also removes files that are gone from the build.
+        - **Line 12:** a health check calls `https://localhost:$PORT/health` after the restart.
+
+        ## Effects
+        The deployment now fails loudly instead of half-way, and old files no longer pile up in `/srv/webshop`. Clients must use port 8443 with TLS.
+        """;
+
+    /** What the stand-in AI writes as the new file: the right script, with an overridable port and a patient health check. */
+    private static final String DEPLOY_V3 = """
+        #!/usr/bin/env bash
+        # Deploys the web shop to the application server.
+        set -euo pipefail
+
+        APP_DIR=/srv/webshop
+        PORT="${PORT:-8443}"
+
+        echo "Building..."
+        ./gradlew build
+        rsync -a --delete build/libs/ "$APP_DIR/"
+        systemctl restart webshop
+        curl -fsS --retry 5 --retry-delay 2 "https://localhost:$PORT/health" > /dev/null
+        echo "Deployed on port $PORT"
+        """;
+
+    private static final String NEW_FILE_ANSWER = """
+        - Keeps `set -euo pipefail` and `rsync --delete` from the right file.
+        - `PORT` can be set from outside and falls back to `8443`.
+        - The health check retries five times, so a slow start does not fail the deployment.
+
+        ```bash
+        """ + DEPLOY_V3 + "```\n";
 
     private SftpManagerScreenshotGenerator() {
     }
@@ -408,6 +479,411 @@ public final class SftpManagerScreenshotGenerator {
                 - Files.getLastModifiedTime(localDemo.resolve("README.md")).toMillis()) < 1000,
             "the copy keeps the modification time");
         System.out.println("Compared again: " + fx(() -> labels(field(javafx.scene.layout.HBox.class, "compareBar"))));
+
+        // 9. Two files, one in each panel: "Compare" shows them side by side. Without a main window
+        // the AI cannot be asked, and the button says why.
+        fx(() -> {
+            select(localTable(), "deploy.sh");
+            select(remoteTable(), "deploy.sh");
+            invoke("compareSelection", new Class<?>[0]);
+            return null;
+        });
+        DialogPane fileDiff = waitForDialog("file diff", pane -> pane.lookup(".monaco-diff-pane") != null);
+        String fileSummary = fx(() -> labels(fileDiff));
+        check(fileSummary.contains(I18n.get("sftp.diff.summary", 4, 3)), "4 lines added, 3 removed: " + fileSummary);
+        check(fx(() -> fileDiff.lookup(".sftp-diff-ask").isDisabled()), "no AI without a main window");
+        close(fileDiff);
+
+        // 9b. The AI panel, with a stand-in for the AI that answers at once.
+        AiRequest[] asked = new AiRequest[1];
+        boolean[] recorded = new boolean[1];
+        AiProfile profile = new AiProfile();
+        profile.setName("Demo AI");
+        SftpFileDiffDialog.AiAccess access = new SftpFileDiffDialog.AiAccess() {
+            public java.util.Optional<String> unavailableReason() {
+                return java.util.Optional.empty();
+            }
+
+            public List<AiProfile> profiles() {
+                return List.of(profile);
+            }
+
+            public AiProfile defaultProfile() {
+                return profile;
+            }
+
+            public AiService service(AiProfile chosen) {
+                return new AiService() {
+                    public AiExecutionResult execute(AiRequest request) {
+                        asked[0] = request;
+                        return new AiExecutionResult(request.action() == de.kortty.core.AiAction.WRITE_COMPARED_FILE
+                            ? NEW_FILE_ANSWER : DEMO_ANSWER, null, null);
+                    }
+
+                    public boolean testConnection() {
+                        return true;
+                    }
+                };
+            }
+
+            public void recordUsage(AiProfile chosen, AiRequest request, AiExecutionResult result) {
+                recorded[0] = true;
+            }
+
+            public String connectionName() {
+                return "demo";
+            }
+        };
+        // Saving goes through the tab, as from its own "Compare": the right file is on the server.
+        String serverDeploy = "/srv/webshop/deploy.sh";
+        Class<?> fileRef = Class.forName(SFTPManagerTab.class.getName() + "$FileRef");
+        java.lang.reflect.Constructor<?> newRef = fileRef.getDeclaredConstructor(
+            de.kortty.ui.sftp.SftpComparePair.Side.class, String.class, long.class);
+        newRef.setAccessible(true);
+        Object leftRef = newRef.newInstance(de.kortty.ui.sftp.SftpComparePair.Side.LOCAL,
+            localDemo.resolve("deploy.sh").toString(), -1L);
+        Object rightRef = newRef.newInstance(de.kortty.ui.sftp.SftpComparePair.Side.REMOTE, serverDeploy, -1L);
+        SftpFileDiffDialog.NewFileTarget target = (SftpFileDiffDialog.NewFileTarget) fx(() ->
+            invoke("newFileTarget", new Class<?>[] {fileRef, fileRef}, leftRef, rightRef));
+        String localPlace = (String) fx(() -> invoke("placeOf", new Class<?>[] {de.kortty.ui.sftp.SftpComparePair.Side.class},
+            de.kortty.ui.sftp.SftpComparePair.Side.LOCAL));
+        String serverPlace = (String) fx(() -> invoke("placeOf", new Class<?>[] {de.kortty.ui.sftp.SftpComparePair.Side.class},
+            de.kortty.ui.sftp.SftpComparePair.Side.REMOTE));
+        SftpFileDiffDialog[] aiDialog = new SftpFileDiffDialog[1];
+        fx(() -> {
+            aiDialog[0] = new SftpFileDiffDialog(null,
+                new SftpFileDiffDialog.Side(localPlace, localDemo.resolve("deploy.sh").toString(), DEPLOY_V1),
+                new SftpFileDiffDialog.Side(serverPlace, serverDeploy, DEPLOY_V2),
+                access, target);
+            aiDialog[0].show();
+            return null;
+        });
+        designedSize(fx(() -> aiDialog[0].getDialogPane()));
+        double before = fx(() -> aiDialog[0].getDialogPane().getScene().getWindow().getWidth());
+        fx(() -> {
+            aiDialog[0].askToggle().fire();
+            aiDialog[0].askButton().fire();
+            return null;
+        });
+        waitFor("AI answer", () -> asked[0] != null && aiDialog[0].answerBox().getChildren().size() > 1);
+        check(asked[0].action() == de.kortty.core.AiAction.COMPARE_FILES, "the request is a file comparison");
+        check(asked[0].userPrompt().equals(I18n.get("sftp.diff.ai.question.differences")), "the prepared question");
+        check(asked[0].selectedText().contains("RIGHT FILE: ") && asked[0].selectedText().contains("+set -euo pipefail"),
+            "both files and their diff are sent");
+        check(recorded[0], "the usage is recorded");
+        settle();
+        double after = fx(() -> aiDialog[0].getDialogPane().getScene().getWindow().getWidth());
+        check(after > before + 300, "opening the AI panel widens the window, " + before + " -> " + after);
+        double diffWidth = fx(() -> aiDialog[0].getDialogPane().lookup(".monaco-diff-pane").getLayoutBounds().getWidth());
+        System.out.println("Diff width with the AI panel: " + diffWidth);
+        check(diffWidth >= 900, "the diff keeps room for two columns, got " + diffWidth);
+        waitFor("diff rendered", () -> fxQuietly(() -> ((MonacoDiffPane) aiDialog[0].getDialogPane()
+            .lookup(".monaco-diff-pane")).isReady()) == Boolean.TRUE);
+        TimeUnit.MILLISECONDS.sleep(1500);
+        snapshot(fx(() -> aiDialog[0].getDialogPane()), "sftp-file-diff.png");
+
+        // 9c. "New file": the AI writes a third file from both; it shows against the right file,
+        // is saved over the server file (kept as .bak first) and goes to the Snippet Manager.
+        Path serverDeployFile = remoteRoot.resolve("srv/webshop/deploy.sh");
+        java.util.Set<java.nio.file.attribute.PosixFilePermission> scriptMode =
+            java.nio.file.attribute.PosixFilePermissions.fromString("rwxr-x---");
+        Files.setPosixFilePermissions(serverDeployFile, scriptMode);
+        asked[0] = null;
+        fx(() -> {
+            aiDialog[0].newFileMode().fire();
+            return null;
+        });
+        check(fx(() -> aiDialog[0].askButton().getText()).equals(I18n.get("sftp.diff.ai.create")), "the button creates a file");
+        check(fx(() -> aiDialog[0].question().getText()).equals(I18n.get("sftp.diff.ai.newFile.best")),
+            "the prepared instruction");
+        check(!fx(() -> aiDialog[0].newFileBar().isVisible()), "no new file yet");
+        fx(() -> {
+            aiDialog[0].askButton().fire();
+            return null;
+        });
+        waitFor("new file", () -> fxQuietly(() -> aiDialog[0].newFileBar().isVisible()) == Boolean.TRUE);
+        check(asked[0].action() == de.kortty.core.AiAction.WRITE_COMPARED_FILE, "the request writes a file");
+        check(asked[0].userPrompt().equals(I18n.get("sftp.diff.ai.newFile.best")), "the instruction is sent");
+        check(DEPLOY_V3.equals(fx(() -> aiDialog[0].newFile())), "the new file is the code block");
+        check(fx(() -> aiDialog[0].viewChoice().getValue()) == SftpFileDiffDialog.View.RIGHT_NEW,
+            "the diff shows the new file against the right one");
+        check(fx(() -> aiDialog[0].summary().getText()).equals(I18n.get("sftp.diff.summary", 2, 2)),
+            "2 lines changed against the right file: " + fx(() -> aiDialog[0].summary().getText()));
+        check(fx(() -> aiDialog[0].rightLabel().getText()).startsWith(I18n.get("sftp.diff.newFile.which")),
+            "the right column is the new file: " + fx(() -> aiDialog[0].rightLabel().getText()));
+        String explanation = fx(() -> labels(aiDialog[0].answerBox()));
+        check(!explanation.contains("#!/usr/bin/env bash"), "the file is not repeated in the answer");
+        settle();
+        TimeUnit.MILLISECONDS.sleep(1500);
+        snapshot(fx(() -> aiDialog[0].getDialogPane()), "sftp-file-diff-new-file.png");
+
+        Platform.runLater(() -> aiDialog[0].saveNewFileButton().fire());
+        DialogPane saveDialog = waitForDialog("save new file",
+            pane -> I18n.get("sftp.saveNewFile.header").equals(pane.getHeaderText()));
+        String proposedPath = fx(() -> ((TextField) saveDialog.lookup(".text-field")).getText());
+        check(serverDeploy.equals(proposedPath), "the right file's place is proposed: " + proposedPath);
+        check(fx(() -> ((javafx.scene.control.RadioButton) saveDialog.lookupAll(".radio-button").iterator().next())
+            .isSelected()), "on the server");
+        check(fx(() -> ((CheckBox) saveDialog.lookup(".check-box")).isSelected()), "a backup is kept by default");
+        settle();
+        snapshot(saveDialog, "sftp-save-new-file.png");
+        // "Browse..." on the server: a list of its folders and files instead of typing the path.
+        Button browse = fx(() -> buttonWithText(saveDialog, I18n.get("sftp.saveNewFile.browse")));
+        check(browse != null && fx(browse::isVisible), "the server can be browsed");
+        Platform.runLater(browse::fire);
+        DialogPane chooserPane = waitForDialog("server chooser",
+            pane -> I18n.get("sftp.saveNewFile.remote.header").equals(pane.getHeaderText()));
+        @SuppressWarnings("unchecked")
+        javafx.scene.control.ListView<SftpRemoteSaveChooser.Entry> chooserList =
+            (javafx.scene.control.ListView<SftpRemoteSaveChooser.Entry>) fx(() -> chooserPane.lookup(".sftp-remote-save-list"));
+        TextField chooserFolder = fx(() -> (TextField) chooserPane.lookupAll(".text-field").iterator().next());
+        waitFor("server folder listed", () -> "/srv/webshop".equals(fxQuietly(chooserFolder::getText))
+            && fxQuietly(() -> chooserList.getItems().size()) > 2);
+        String chooserNames = fx(() -> chooserList.getItems().stream().map(SftpRemoteSaveChooser.Entry::name).toList().toString());
+        check(fx(() -> chooserList.getItems().get(0).name()).equals(".."), "the parent comes first: " + chooserNames);
+        check(fx(() -> chooserList.getSelectionModel().getSelectedItem() != null
+            && "deploy.sh".equals(chooserList.getSelectionModel().getSelectedItem().name())),
+            "the proposed file is selected: " + chooserNames);
+        settle();
+        snapshot(chooserPane, "sftp-remote-save-chooser.png");
+        doubleClick(chooserList, "..");
+        waitFor("up to /srv", () -> "/srv".equals(fxQuietly(chooserFolder::getText)));
+        doubleClick(chooserList, "webshop");
+        waitFor("back in /srv/webshop", () -> "/srv/webshop".equals(fxQuietly(chooserFolder::getText)));
+        fx(() -> {
+            chooserList.getSelectionModel().select(chooserList.getItems().stream()
+                .filter(entry -> "README.md".equals(entry.name())).findFirst().orElseThrow());
+            return null;
+        });
+        TextField chooserName = fx(() -> (TextField) chooserPane.lookupAll(".text-field").stream()
+            .filter(node -> node != chooserFolder).findFirst().orElseThrow());
+        check("README.md".equals(fx(chooserName::getText)), "a click on a file takes its name");
+        fx(() -> {
+            chooserName.setText("deploy-v3.sh");
+            ((Button) chooserPane.lookupButton(SftpRemoteSaveChooser.CHOOSE)).fire();
+            return null;
+        });
+        waitFor("chosen path", () -> "/srv/webshop/deploy-v3.sh".equals(
+            fxQuietly(() -> ((TextField) saveDialog.lookup(".text-field")).getText())));
+        // Back to the right file's place for the overwrite below.
+        fx(() -> {
+            ((TextField) saveDialog.lookup(".text-field")).setText(serverDeploy);
+            return null;
+        });
+        fx(() -> {
+            ((Button) saveDialog.lookupButton(SftpSaveNewFileDialog.SAVE)).fire();
+            return null;
+        });
+        DialogPane overwrite = waitForDialog("overwrite",
+            pane -> I18n.get("sftp.snippetEditor.confirmOverwrite.header").equals(pane.getHeaderText()));
+        check(fx(() -> overwrite.getContentText()).contains(serverPlace + ": " + serverDeploy), "asks for the server file");
+        fx(() -> {
+            ((Button) overwrite.lookupButton(ButtonType.OK)).fire();
+            return null;
+        });
+        String savedPrefix = I18n.get("sftp.diff.newFile.saved", "");
+        waitFor("saved", () -> {
+            String shownStatus = fxQuietly(() -> aiDialog[0].aiStatus().getText());
+            return shownStatus != null && shownStatus.startsWith(savedPrefix);
+        });
+        check(DEPLOY_V3.equals(Files.readString(serverDeployFile)), "the server file is the new one");
+        Path backupFile = remoteRoot.resolve("srv/webshop/deploy.sh.bak");
+        check(DEPLOY_V2.equals(Files.readString(backupFile)), "the old server file is kept as .bak");
+        check(Files.getPosixFilePermissions(serverDeployFile).equals(scriptMode),
+            "the overwritten file keeps its permissions: " + Files.getPosixFilePermissions(serverDeployFile));
+        check(Files.getPosixFilePermissions(backupFile).equals(scriptMode),
+            "the backup has the file's permissions: " + Files.getPosixFilePermissions(backupFile));
+        check(DEPLOY_V3.equals(fx(() -> aiDialog[0].rightSide().text())), "the diff knows the right file changed");
+        check(fx(() -> aiDialog[0].summary().getText()).equals(I18n.get("sftp.diff.identical")),
+            "the new file is now the right one");
+
+        // "Save as snippet..." opens the new file in the snippet editor, as a file of its own.
+        KorTTYApplication app = field(KorTTYApplication.class, "app");
+        Platform.runLater(() -> aiDialog[0].snippetButton().fire());
+        DialogPane snippetEditor = waitForDialog("snippet editor", pane -> buttonLabeled(pane,
+            I18n.get("sftp.snippetEditor.saveSnippet")) != null
+            && pane.lookupAll(".text-field").stream().anyMatch(node -> "deploy.sh".equals(((TextField) node).getText())));
+        Button keepAsSnippet = fx(() -> buttonLabeled(snippetEditor, I18n.get("sftp.snippetEditor.saveSnippet")));
+        Button replaceRight = fx(() -> buttonLabeled(snippetEditor, I18n.get("sftp.diff.newFile.replaceRight")));
+        check(replaceRight != null && buttonLabeled(snippetEditor, I18n.get("sftp.snippetEditor.saveAs")) != null,
+            "the editor can also replace the right file or save elsewhere");
+        waitFor("snippet editor ready", () -> fxQuietly(() -> !keepAsSnippet.isDisabled()) == Boolean.TRUE);
+        fx(() -> {
+            keepAsSnippet.fire();
+            return null;
+        });
+        waitFor("snippet saved", () -> fxQuietly(() -> app.getSnippetManager().getAllSnippets().stream()
+            .anyMatch(snippet -> "deploy.sh".equals(snippet.getName()))) == Boolean.TRUE);
+        de.kortty.model.Snippet kept = fx(() -> app.getSnippetManager().getAllSnippets().stream()
+            .filter(snippet -> "deploy.sh".equals(snippet.getName())).findFirst().orElseThrow());
+        check(DEPLOY_V3.strip().equals(kept.getContent().strip()), "the snippet holds the new file: " + kept.getContent());
+        check(kept.getDescription() != null && kept.getDescription().contains(serverDeploy),
+            "the snippet says where it comes from: " + kept.getDescription());
+        // "Replace the right file" writes over the server file, keeping the current one as .bak.
+        Files.writeString(backupFile, "old backup\n");
+        fx(() -> {
+            replaceRight.fire();
+            return null;
+        });
+        DialogPane replaceConfirm = waitForDialog("replace",
+            pane -> I18n.get("sftp.snippetEditor.confirmOverwrite.header").equals(pane.getHeaderText()));
+        fx(() -> {
+            ((Button) replaceConfirm.lookupButton(ButtonType.OK)).fire();
+            return null;
+        });
+        waitFor("replaced", () -> DEPLOY_V3.equals(readQuietly(backupFile)));
+        check(DEPLOY_V3.equals(Files.readString(serverDeployFile)), "the right file holds the edited file");
+        Window editorWindow = fx(() -> snippetEditor.getScene().getWindow());
+        fx(() -> {
+            buttonLabeled(snippetEditor, I18n.get("editor.close")).fire();
+            return null;
+        });
+        waitFor("snippet editor closed", () -> !editorWindow.isShowing());
+        close(fx(() -> aiDialog[0].getDialogPane()));
+
+        // 9d. "Save as..." for a server file in the snippet editor picks the place in the server's
+        // folders too, not only a name in the same folder.
+        SftpFileItem readme = SftpFileItem.fromDetails("README.md", "/srv/webshop/README.md", true, "1 B", "", "", "",
+            "", 1);
+        fx(() -> invoke("openRemoteSnippetFileDialog", new Class<?>[] {SftpFileItem.class, String.class},
+            readme, "# Web shop\n"));
+        DialogPane remoteEditor = waitForDialog("remote file editor",
+            pane -> buttonLabeled(pane, I18n.get("sftp.snippetEditor.overwriteRemote")) != null);
+        Button saveAsButton = fx(() -> buttonLabeled(remoteEditor, I18n.get("sftp.snippetEditor.saveAs")));
+        waitFor("remote editor ready", () -> fxQuietly(() -> !saveAsButton.isDisabled()) == Boolean.TRUE);
+        fx(() -> {
+            saveAsButton.fire();
+            return null;
+        });
+        DialogPane saveAsChooser = waitForDialog("save as chooser",
+            pane -> I18n.get("sftp.saveNewFile.remote.header").equals(pane.getHeaderText()));
+        @SuppressWarnings("unchecked")
+        javafx.scene.control.ListView<SftpRemoteSaveChooser.Entry> saveAsList =
+            (javafx.scene.control.ListView<SftpRemoteSaveChooser.Entry>) fx(() -> saveAsChooser.lookup(".sftp-remote-save-list"));
+        TextField saveAsFolder = fx(() -> (TextField) saveAsChooser.lookupAll(".text-field").iterator().next());
+        waitFor("file's folder listed", () -> "/srv/webshop".equals(fxQuietly(saveAsFolder::getText))
+            && fxQuietly(() -> saveAsList.getItems().size()) > 2);
+        doubleClick(saveAsList, "docs");
+        waitFor("docs opened", () -> "/srv/webshop/docs".equals(fxQuietly(saveAsFolder::getText)));
+        TextField saveAsName = fx(() -> (TextField) saveAsChooser.lookupAll(".text-field").stream()
+            .filter(node -> node != saveAsFolder).findFirst().orElseThrow());
+        check("README.md".equals(fx(saveAsName::getText)), "the file's name is proposed");
+        fx(() -> {
+            saveAsName.setText("README-copy.md");
+            ((Button) saveAsChooser.lookupButton(SftpRemoteSaveChooser.CHOOSE)).fire();
+            return null;
+        });
+        Path savedCopy = remoteRoot.resolve("srv/webshop/docs/README-copy.md");
+        waitFor("saved in another folder", () -> "# Web shop\n".equals(readQuietly(savedCopy)));
+        Window remoteEditorWindow = fx(() -> remoteEditor.getScene().getWindow());
+        fx(() -> {
+            buttonLabeled(remoteEditor, I18n.get("editor.close")).fire();
+            return null;
+        });
+        waitFor("remote editor closed", () -> !remoteEditorWindow.isShowing());
+
+        // 10. Two folders on the server: the comparison opens in its own window.
+        call("navigateRemote", "/srv/releases");
+        waitFor("releases", () -> names(remoteTable()).contains("v2"));
+        fx(() -> {
+            select(remoteTable(), "v1", "v2");
+            invoke("setActivePane", new Class<?>[] {boolean.class}, true);
+            Platform.runLater(() -> {
+                try {
+                    invoke("compareSelection", new Class<?>[0]);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+            return null;
+        });
+        DialogPane excludesDialog = waitForDialog("compare options", pane -> pane.lookup(".text-area") != null
+            && I18n.get("sftp.compare.header").equals(pane.getHeaderText()));
+        fx(() -> {
+            for (ButtonType type : excludesDialog.getButtonTypes()) {
+                if (type.getButtonData() == javafx.scene.control.ButtonBar.ButtonData.OK_DONE) {
+                    ((Button) excludesDialog.lookupButton(type)).fire();
+                }
+            }
+            return null;
+        });
+        DialogPane folderCompare = waitForDialog("folder comparison",
+            pane -> pane.lookup(".sftp-folder-compare-table") != null);
+        @SuppressWarnings("unchecked")
+        TableView<SftpFolderCompareDialog.Row> rows =
+            (TableView<SftpFolderCompareDialog.Row>) fx(() -> folderCompare.lookup(".sftp-folder-compare-table"));
+        java.util.Map<String, String> states = fx(() -> {
+            java.util.Map<String, String> map = new java.util.TreeMap<>();
+            for (SftpFolderCompareDialog.Row row : rows.getItems()) {
+                map.put(row.path(), row.state().name());
+            }
+            return map;
+        });
+        check(states.equals(java.util.Map.of("app.conf", "NEWER_REMOTE", "migrate.sql", "ONLY_REMOTE")),
+            "differences only: app.conf newer on the right, migrate.sql only right; got " + states);
+        designedSize(folderCompare);
+        settle();
+        snapshot(folderCompare, "sftp-folder-compare.png");
+        // A double-click on app.conf opens the two release files side by side.
+        fx(() -> {
+            rows.getSelectionModel().select(0);
+            javafx.scene.control.TableRow<?> row = (javafx.scene.control.TableRow<?>) rows.lookupAll(".table-row-cell")
+                .stream().filter(node -> ((javafx.scene.control.TableRow<?>) node).getItem() != null
+                    && "app.conf".equals(((SftpFolderCompareDialog.Row) ((javafx.scene.control.TableRow<?>) node)
+                        .getItem()).path()))
+                .findFirst().orElseThrow();
+            row.fireEvent(new javafx.scene.input.MouseEvent(javafx.scene.input.MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0,
+                javafx.scene.input.MouseButton.PRIMARY, 2, false, false, false, false, true, false, false, true,
+                false, false, null));
+            return null;
+        });
+        DialogPane releaseDiff = waitForDialog("release diff", pane -> pane.lookup(".monaco-diff-pane") != null);
+        String releaseLabels = fx(() -> labels(releaseDiff));
+        check(releaseLabels.contains("/srv/releases/v1/app.conf") && releaseLabels.contains("/srv/releases/v2/app.conf"),
+            "the two release files: " + releaseLabels);
+        close(releaseDiff);
+        close(folderCompare);
+    }
+
+    /** A button anywhere in {@code root} that reads {@code text}, or null. */
+    private static Button buttonWithText(javafx.scene.Parent root, String text) {
+        for (Node node : root.lookupAll(".button")) {
+            if (node instanceof Button button && text.equals(button.getText())) {
+                return button;
+            }
+        }
+        return null;
+    }
+
+    /** Double-clicks the entry {@code name} of a chooser list. */
+    private static void doubleClick(javafx.scene.control.ListView<SftpRemoteSaveChooser.Entry> list, String name)
+            throws Exception {
+        fx(() -> {
+            list.getSelectionModel().select(list.getItems().stream()
+                .filter(entry -> name.equals(entry.name())).findFirst().orElseThrow());
+            list.fireEvent(new javafx.scene.input.MouseEvent(javafx.scene.input.MouseEvent.MOUSE_CLICKED, 0, 0, 0, 0,
+                javafx.scene.input.MouseButton.PRIMARY, 2, false, false, false, false, true, false, false, true,
+                false, false, null));
+            return null;
+        });
+    }
+
+    /** The button of {@code pane} that reads {@code text}, or null. */
+    private static Button buttonLabeled(DialogPane pane, String text) {
+        for (ButtonType type : pane.getButtonTypes()) {
+            if (text.equals(type.getText()) && pane.lookupButton(type) instanceof Button button) {
+                return button;
+            }
+        }
+        return null;
+    }
+
+    private static String readQuietly(Path file) {
+        try {
+            return Files.readString(file);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** How the row {@code name} of one list compares, as the state's name, or null. */
@@ -425,11 +901,33 @@ public final class SftpManagerScreenshotGenerator {
         });
     }
 
-    /** Cancels the dialog of {@code pane} and waits until its window is gone. */
+    /**
+     * Gives a dialog the size its code asks for. Off screen, macOS pulls a window back to the
+     * screen edge and narrows it, which the real app, on a screen, never sees.
+     */
+    private static void designedSize(DialogPane pane) throws Exception {
+        fx(() -> {
+            Window window = pane.getScene().getWindow();
+            double frameWidth = window.getWidth() - pane.getWidth();
+            double frameHeight = window.getHeight() - pane.getHeight();
+            window.setWidth(pane.getPrefWidth() + frameWidth);
+            window.setHeight(pane.getPrefHeight() + frameHeight);
+            window.setX(-6000);
+            return null;
+        });
+        settle();
+        System.out.println("Dialog size " + fx(() -> pane.getWidth() + "x" + pane.getHeight()));
+    }
+
+    /** Cancels or closes the dialog of {@code pane} and waits until its window is gone. */
     private static void close(DialogPane pane) throws Exception {
         Window window = fx(() -> pane.getScene().getWindow());
         fx(() -> {
-            ((Button) pane.lookupButton(ButtonType.CANCEL)).fire();
+            Button button = (Button) pane.lookupButton(ButtonType.CANCEL);
+            if (button == null) {
+                button = (Button) pane.lookupButton(ButtonType.CLOSE);
+            }
+            button.fire();
             return null;
         });
         waitFor("dialog closed", () -> !window.isShowing());
@@ -469,7 +967,7 @@ public final class SftpManagerScreenshotGenerator {
         write(localDemo.resolve("build.gradle.kts"), 4_410);
         write(localDemo.resolve("CHANGELOG.md"), 9_870);
         write(localDemo.resolve("README.md"), 3_020);
-        write(localDemo.resolve("deploy.sh"), 1_204);
+        Files.writeString(localDemo.resolve("deploy.sh"), DEPLOY_V1);
         stamp(localDemo);
         Files.createDirectories(localDemo.resolve("src/main"));
         write(localDemo.resolve("src/main/App.java"), 1_800);
@@ -487,6 +985,7 @@ public final class SftpManagerScreenshotGenerator {
             Files.setLastModifiedTime(copy, FileTime.fromMillis(base));
         }
         Files.setLastModifiedTime(localDemo.resolve("README.md"), FileTime.fromMillis(base + 86_400_000L));
+        Files.writeString(site.resolve("deploy.sh"), DEPLOY_V2);
         Files.setLastModifiedTime(site.resolve("deploy.sh"), FileTime.fromMillis(base + 3_600_000L));
         write(site.resolve("build.gradle.kts"), 4_000);
         Files.setLastModifiedTime(site.resolve("build.gradle.kts"), FileTime.fromMillis(base));
@@ -495,6 +994,21 @@ public final class SftpManagerScreenshotGenerator {
         for (Path dir : List.of(site, site.resolve("src"), site.resolve("src/main"), site.resolve("docs"))) {
             Files.setLastModifiedTime(dir, FileTime.fromMillis(base));
         }
+
+        // Two releases on the server, for comparing two folders of the same side.
+        Path v1 = Files.createDirectories(remoteRoot.resolve("srv/releases/v1"));
+        Path v2 = Files.createDirectories(remoteRoot.resolve("srv/releases/v2"));
+        Files.writeString(v1.resolve("app.conf"), "port = 8080\nworkers = 2\nlog_level = info\ntls = off\n");
+        Files.writeString(v2.resolve("app.conf"),
+            "port = 8443\nworkers = 4\nlog_level = info\ntls = on\ncert = /etc/ssl/app.pem\n");
+        Files.writeString(v1.resolve("run.sh"), DEPLOY_V1);
+        Files.writeString(v2.resolve("run.sh"), DEPLOY_V1);
+        Files.writeString(v2.resolve("migrate.sql"), "ALTER TABLE orders ADD COLUMN paid_at TIMESTAMP;\n");
+        for (Path file : List.of(v1.resolve("app.conf"), v1.resolve("run.sh"), v2.resolve("run.sh"),
+                v2.resolve("migrate.sql"))) {
+            Files.setLastModifiedTime(file, FileTime.fromMillis(base));
+        }
+        Files.setLastModifiedTime(v2.resolve("app.conf"), FileTime.fromMillis(base + 86_400_000L));
     }
 
     private static void deleteTree(Path root) throws Exception {

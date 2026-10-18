@@ -31,6 +31,10 @@ class SftpI18nCoverageTest {
     private static final Path SESSION_SOURCE = Path.of("src/main/java/de/kortty/core/SFTPSession.java");
     private static final List<Path> SOURCE_FILES = List.of(
         Path.of("src/main/java/de/kortty/ui/SFTPManagerTab.java"),
+        Path.of("src/main/java/de/kortty/ui/SftpFileDiffDialog.java"),
+        Path.of("src/main/java/de/kortty/ui/SftpFolderCompareDialog.java"),
+        Path.of("src/main/java/de/kortty/ui/SftpSaveNewFileDialog.java"),
+        Path.of("src/main/java/de/kortty/ui/SftpRemoteSaveChooser.java"),
         SESSION_SOURCE);
     /** Every Java file below these folders is scanned too, so new SFTP classes are covered. */
     private static final List<Path> SOURCE_TREES = List.of(
@@ -68,6 +72,34 @@ class SftpI18nCoverageTest {
             }
         }
         assertWithMessage("SFTP i18n problems").that(problems).isEmpty();
+    }
+
+    @Test
+    void everyPreparedAiQuestionAndInstructionHasItsTextAndLabel() throws IOException {
+        // SftpFileDiffDialog builds these keys at run time, so the scan above cannot see them.
+        String dialog = read(Path.of("src/main/java/de/kortty/ui/SftpFileDiffDialog.java"));
+        List<String> problems = new ArrayList<>();
+        for (String locale : LOCALES) {
+            Properties bundle = load(locale);
+            for (String prefix : List.of("sftp.diff.ai.question.", "sftp.diff.ai.newFile.")) {
+                List<String> prepared = prefix.endsWith("question.")
+                    ? List.of("differences", "effects", "improvements")
+                    : List.of("best", "fixRight", "leftIntoRight");
+                for (String name : prepared) {
+                    String key = prefix + name;
+                    assertThat(dialog).contains("\"" + key + "\"");
+                    for (String needed : List.of(key, key + ".label")) {
+                        if (bundle.getProperty(needed) == null || bundle.getProperty(needed).isBlank()) {
+                            problems.add("messages" + locale + ": missing " + needed);
+                        }
+                    }
+                }
+                if (bundle.getProperty(prefix + "own.label") == null) {
+                    problems.add("messages" + locale + ": missing " + prefix + "own.label");
+                }
+            }
+        }
+        assertWithMessage("AI question and instruction texts").that(problems).isEmpty();
     }
 
     @Test

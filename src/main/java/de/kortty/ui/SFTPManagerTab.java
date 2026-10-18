@@ -44,6 +44,9 @@ import de.kortty.ui.sftp.FxConflictResolver;
 import de.kortty.ui.sftp.LocalHostName;
 import de.kortty.ui.sftp.PermissionBitsEditor;
 import de.kortty.ui.sftp.SftpBreadcrumbBar;
+import de.kortty.ui.sftp.SftpComparePair;
+import de.kortty.ui.sftp.SftpTextContent;
+import de.kortty.ui.sftp.SftpNewFilePlacement;
 import de.kortty.ui.sftp.SftpConflictDialog;
 import de.kortty.ui.sftp.SftpTransferQueueHost;
 import de.kortty.ui.sftp.SftpTransferQueuePane;
@@ -254,6 +257,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     private static final PseudoClass CMP_OLDER_HERE = PseudoClass.getPseudoClass("cmp-older-here");
     private static final PseudoClass CMP_DIFFERENT = PseudoClass.getPseudoClass("cmp-different");
     private static final PseudoClass CMP_SAME = PseudoClass.getPseudoClass("cmp-same");
+    /** Whether the server panel is the active one; decides which selection "Compare" uses (FX thread). */
+    private boolean remotePaneActive;
     /** Each panel's path as clickable folders over its path field. */
     private SftpBreadcrumbBar localBreadcrumb;
     private SftpBreadcrumbBar remoteBreadcrumb;
@@ -612,7 +617,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     }
     
     /** Icon tint shared with the local file browser (matches its resolveIconColor). */
-    private static String fileBrowserIconColor() {
+    static String fileBrowserIconColor() {
         return AppDesignStyleSupport.isCustomAppDesignActive()
             ? AppDesignStyleSupport.activeTextColor()
             : "#abb2bf";
@@ -725,10 +730,9 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         compareButton = new Button(I18n.get("sftp.compare"));
         styleToolbarButton(compareButton, FileBrowserIcons.COMPARE);
         compareButton.setTooltip(new Tooltip(I18n.get("sftp.compare.tooltip")));
-        compareButton.setDisable(true);
         compareButton.setOnAction(e -> {
             resetAutoCloseTimer();
-            startCompare();
+            compareSelection();
         });
 
         Region localSpacer = new Region();
@@ -856,7 +860,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                 && editRemoteSudoItem.isDisable());
             // A new folder goes into the absolute folder a listing returned, not the unexpanded '~'.
             newFolderRemoteButton.setDisable(!isRemoteConnected() || !remotePathResolved);
-            compareButton.setDisable(!isRemoteConnected() || !remotePathResolved || compareCancel != null);
+            // Two local files or folders compare without a server; everything else checks it when run.
+            compareButton.setDisable(compareCancel != null);
         };
 
         // Enable/disable buttons based on selection
@@ -992,13 +997,52 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         return bar;
     }
 
-    /** "Compare": asks what to leave out, then compares the two folders shown. */
+    /**
+     * "Compare": what it compares depends on the selection (see {@link SftpComparePair}). Two files
+     * open side by side, two folders are compared with everything inside them, and without such a
+     * pair the local and the server folder shown are compared.
+     */
+    private void compareSelection() {
+        SftpComparePair pair = SftpComparePair.choose(selectedInOrder(localTable), selectedInOrder(remoteTable),
+            remotePaneActive);
+        switch (pair.kind()) {
+            case FILES -> compareFiles(fileRef(pair.left()), fileRef(pair.right()));
+            case FOLDERS -> compareFolders(pair.left(), pair.right());
+            case MIXED -> statusLabel.setText(I18n.get("sftp.compare.mixed"));
+            case NONE -> startCompare();
+        }
+    }
+
+    /** The two folders shown, local against the server, in the bar above the lists. */
     private void startCompare() {
         if (!requireConnected() || !remotePathResolved || compareCancel != null) {
             return;
         }
-        Path localRoot = currentLocalPath;
-        String remoteRoot = currentRemotePath;
+        startCompare(currentLocalPath, currentRemotePath, false);
+    }
+
+    /**
+     * A local folder against a server folder, in the bar above the lists; with {@code navigate} both
+     * panels go into the two folders, so their rows take the comparison's colours.
+     */
+    private void startCompare(Path localRoot, String remoteRoot, boolean navigate) {
+        if (compareCancel != null) {
+            return;
+        }
+        askCompareExcludes(I18n.get("sftp.compare.local"), localRoot.toString(),
+            I18n.get("sftp.compare.remote"), serverDisplayName() + ":  " + remoteRoot)
+            .ifPresent(patterns -> {
+                if (navigate) {
+                    navigateLocal(localRoot.toString());
+                    navigateRemote(remoteRoot);
+                }
+                runCompare(localRoot, remoteRoot, patterns);
+            });
+    }
+
+    /** Asks for the patterns a folder comparison leaves out; empty when the user cancels. */
+    private Optional<List<String>> askCompareExcludes(String leftCaption, String leftPath, String rightCaption,
+                                                      String rightPath) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle(I18n.get("sftp.compare.title"));
         dialog.setHeaderText(I18n.get("sftp.compare.header"));
@@ -1007,15 +1051,15 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         grid.setHgap(10);
         grid.setVgap(8);
         grid.setPadding(new Insets(20));
-        Label localLabel = new Label(localRoot.toString());
-        Label remoteLabel = new Label(serverDisplayName() + ":  " + remoteRoot);
-        for (Label path : List.of(localLabel, remoteLabel)) {
+        Label leftLabel = new Label(leftPath);
+        Label rightLabel = new Label(rightPath);
+        for (Label path : List.of(leftLabel, rightLabel)) {
             path.setStyle("-fx-font-family: \"Menlo\", \"Consolas\", monospace;");
             path.setWrapText(true);
             path.setMaxWidth(460);
         }
-        grid.addRow(0, new Label(I18n.get("sftp.compare.local")), localLabel);
-        grid.addRow(1, new Label(I18n.get("sftp.compare.remote")), remoteLabel);
+        grid.addRow(0, new Label(leftCaption), leftLabel);
+        grid.addRow(1, new Label(rightCaption), rightLabel);
         TextArea excludes = new TextArea(String.join("\n", compareExcludes));
         excludes.setPromptText(I18n.get("sftp.archive.excludePrompt"));
         excludes.setPrefRowCount(3);
@@ -1029,12 +1073,572 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         dialog.getDialogPane().setContent(grid);
         ButtonType compare = new ButtonType(I18n.get("sftp.compare"), ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(compare, ButtonType.CANCEL);
-        dialog.showAndWait().filter(compare::equals).ifPresent(answer -> {
+        return dialog.showAndWait().filter(compare::equals).map(answer -> {
             List<String> patterns = java.util.Arrays.stream(excludes.getText().split("\n"))
                 .map(String::trim)
                 .filter(pattern -> !pattern.isEmpty())
                 .toList();
-            runCompare(localRoot, remoteRoot, patterns);
+            compareExcludes = List.copyOf(patterns);
+            return patterns;
+        });
+    }
+
+    /**
+     * Two folders: a local and a server folder in the bar above the lists (with Synchronize), two
+     * on the same side in {@link SftpFolderCompareDialog}, which the panels cannot colour.
+     */
+    private void compareFolders(SftpComparePair.Entry left, SftpComparePair.Entry right) {
+        if ((left.isRemote() || right.isRemote()) && !requireConnected()) {
+            return;
+        }
+        if (left.side() != right.side()) {
+            SftpComparePair.Entry local = left.isRemote() ? right : left;
+            SftpComparePair.Entry remote = left.isRemote() ? left : right;
+            startCompare(Paths.get(local.item().getPath()), remote.item().getPath(), true);
+            return;
+        }
+        if (compareCancel != null) {
+            return;
+        }
+        String leftLabel = placeOf(left.side()) + ": " + left.item().getPath();
+        String rightLabel = placeOf(right.side()) + ": " + right.item().getPath();
+        askCompareExcludes(I18n.get("sftp.diff.left"), leftLabel, I18n.get("sftp.diff.right"), rightLabel)
+            .ifPresent(patterns -> runFolderCompareDialog(left, right, leftLabel, rightLabel, patterns));
+    }
+
+    /** Reads two folders of one side off the FX thread, with the bar's progress and Stop, then shows the result. */
+    private void runFolderCompareDialog(SftpComparePair.Entry left, SftpComparePair.Entry right, String leftLabel,
+                                        String rightLabel, List<String> excludes) {
+        SFTPSession session = sftpSession;
+        java.util.concurrent.atomic.AtomicBoolean cancel = new java.util.concurrent.atomic.AtomicBoolean();
+        compareCancel = cancel;
+        showCompareRunning(0);
+        refreshActionStates();
+        java.util.function.Predicate<String> excluded = relative -> matchesExclude(relative, excludes);
+        Thread worker = new Thread(() -> {
+            FolderComparison result = null;
+            Throwable failure = null;
+            try {
+                int[] leftCount = {0};
+                List<FolderComparison.Entry> leftEntries = snapshot(left.side(), left.item().getPath(), session,
+                    excluded, cancel::get, count -> Platform.runLater(() -> showCompareProgress(cancel, count)));
+                leftCount[0] = leftEntries.size();
+                List<FolderComparison.Entry> rightEntries = snapshot(right.side(), right.item().getPath(), session,
+                    excluded, cancel::get,
+                    count -> Platform.runLater(() -> showCompareProgress(cancel, leftCount[0] + count)));
+                result = FolderComparison.compare(leftEntries, rightEntries);
+            } catch (Exception e) {
+                failure = e;
+            }
+            FolderComparison compared = result;
+            Throwable error = failure;
+            Platform.runLater(() -> {
+                if (closing || compareCancel != cancel) {
+                    return;
+                }
+                compareCancel = null;
+                refreshActionStates();
+                stopCompareButton.setVisible(false);
+                stopCompareButton.setManaged(false);
+                // The bar goes back to the comparison it showed before, or away.
+                if (comparison != null) {
+                    showComparisonResult();
+                } else {
+                    compareBar.setVisible(false);
+                    compareBar.setManaged(false);
+                }
+                if (error != null) {
+                    statusLabel.setText(compareFailureMessage(error));
+                    return;
+                }
+                new SftpFolderCompareDialog(ownerWindowOrNull(), leftLabel, rightLabel, compared,
+                    relative -> {
+                        FolderComparison.Entry leftEntry = compared.local(relative).orElse(null);
+                        FolderComparison.Entry rightEntry = compared.remote(relative).orElse(null);
+                        if (leftEntry != null && rightEntry != null) {
+                            compareFiles(
+                                new FileRef(left.side(), childPath(left.side(), left.item().getPath(), relative),
+                                    leftEntry.size()),
+                                new FileRef(right.side(), childPath(right.side(), right.item().getPath(), relative),
+                                    rightEntry.size()));
+                        }
+                    },
+                    this::formatSize).show();
+            });
+        }, "SFTP-CompareFolders");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    /** Everything below a local or a server folder, for a comparison. */
+    private static List<FolderComparison.Entry> snapshot(SftpComparePair.Side side, String root, SFTPSession session,
+                                                         java.util.function.Predicate<String> excluded,
+                                                         java.util.function.BooleanSupplier cancelled,
+                                                         FolderSnapshots.Progress progress) throws IOException {
+        return side == SftpComparePair.Side.LOCAL
+            ? FolderSnapshots.local(Paths.get(root), excluded, cancelled, progress)
+            : FolderSnapshots.remote(remoteReader(session), root, excluded, cancelled, progress);
+    }
+
+    private static RemoteTreeReader remoteReader(SFTPSession session) {
+        return new RemoteTreeReader() {
+            @Override
+            public List<SftpClient.DirEntry> list(String folder) throws IOException {
+                return session.listFiles(folder);
+            }
+
+            @Override
+            public SftpClient.Attributes lstat(String path) throws IOException {
+                return session.getLinkAttributes(path);
+            }
+        };
+    }
+
+    private static String childPath(SftpComparePair.Side side, String root, String relative) {
+        return side == SftpComparePair.Side.LOCAL
+            ? Paths.get(root).resolve(relative).toString()
+            : RemotePathSupport.appendRemotePath(root, relative);
+    }
+
+    private String compareFailureMessage(Throwable error) {
+        if (error instanceof FolderSnapshots.StoppedException stopped) {
+            return stopped.tooMany()
+                ? I18n.get("sftp.compare.tooMany", FolderSnapshots.MAX_ENTRIES)
+                : I18n.get("sftp.compare.stopped");
+        }
+        return I18n.get("sftp.compare.failed", failureMessage(error));
+    }
+
+    /** A file to compare: its panel, its path and the size the listing showed (-1 when unknown). */
+    private record FileRef(SftpComparePair.Side side, String path, long size) {
+        String name() {
+            int slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+            return slash < 0 ? path : path.substring(slash + 1);
+        }
+    }
+
+    private static FileRef fileRef(SftpComparePair.Entry entry) {
+        return new FileRef(entry.side(), entry.item().getPath(), entry.item().getSizeBytes());
+    }
+
+    /** "This computer (name)" or "Server name (user@host)", as the archive dialog says it. */
+    private String placeOf(SftpComparePair.Side side) {
+        return side == SftpComparePair.Side.LOCAL
+            ? LocalHostName.current()
+                .map(name -> I18n.get("sftp.archive.computer.localNamed", name))
+                .orElse(I18n.get("sftp.archive.computer.local"))
+            : I18n.get("sftp.archive.computer.remote", serverDisplayName());
+    }
+
+    /**
+     * Opens two text files side by side ({@link SftpFileDiffDialog}): reads them off the FX thread,
+     * refuses binary files and files over {@link SftpTextContent#MAX_BYTES}. A server file needs a
+     * connection and the policy that lets server files be loaded into an editor.
+     */
+    private void compareFiles(FileRef left, FileRef right) {
+        for (FileRef ref : List.of(left, right)) {
+            if (ref.size() > SftpTextContent.MAX_BYTES) {
+                statusLabel.setText(I18n.get("sftp.diff.tooLarge", ref.name(), formatSize(SftpTextContent.MAX_BYTES)));
+                return;
+            }
+        }
+        boolean remote = left.side() == SftpComparePair.Side.REMOTE || right.side() == SftpComparePair.Side.REMOTE;
+        if (remote && (!requireConnected()
+                || !remoteEditAllowedByPolicy(SftpEditGate.current().remoteEditorAvailable()))) {
+            return;
+        }
+        SFTPSession session = sftpSession;
+        statusLabel.setText(I18n.get("sftp.diff.loading", left.name(), right.name()));
+        Thread worker = new Thread(() -> {
+            try {
+                String leftText = readText(session, left);
+                String rightText = readText(session, right);
+                Platform.runLater(() -> {
+                    if (closing) {
+                        return;
+                    }
+                    statusLabel.setText(I18n.get("sftp.diff.title", left.name(), right.name()));
+                    new SftpFileDiffDialog(ownerWindowOrNull(),
+                        new SftpFileDiffDialog.Side(placeOf(left.side()), left.path(), leftText),
+                        new SftpFileDiffDialog.Side(placeOf(right.side()), right.path(), rightText),
+                        aiAccess(), newFileTarget(left, right)).show();
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> statusLabel.setText(I18n.get("sftp.diff.loadFailed", failureMessage(e))));
+            }
+        }, "SFTP-Diff-Load");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private String readText(SFTPSession session, FileRef ref) throws IOException {
+        byte[] bytes;
+        if (ref.side() == SftpComparePair.Side.LOCAL) {
+            Path path = Paths.get(ref.path());
+            if (Files.size(path) > SftpTextContent.MAX_BYTES) {
+                throw new IOException(I18n.get("sftp.diff.tooLarge", ref.name(), formatSize(SftpTextContent.MAX_BYTES)));
+            }
+            bytes = Files.readAllBytes(path);
+        } else {
+            bytes = session.downloadFileBytes(ref.path());
+        }
+        if (bytes.length > SftpTextContent.MAX_BYTES) {
+            throw new IOException(I18n.get("sftp.diff.tooLarge", ref.name(), formatSize(SftpTextContent.MAX_BYTES)));
+        }
+        return SftpTextContent.decode(bytes)
+            .orElseThrow(() -> new IOException(I18n.get("sftp.diff.binary", ref.name())));
+    }
+
+    /** A double-click on a compared file that exists on both sides shows the two side by side. */
+    private void openComparedFile(SftpFileItem item, boolean remote) {
+        FolderComparison current = comparison;
+        String relative = remote ? remoteRelative(item.getPath()) : localRelative(item.getPath());
+        if (current == null || relative == null) {
+            return;
+        }
+        FolderComparison.Entry local = current.local(relative).orElse(null);
+        FolderComparison.Entry server = current.remote(relative).orElse(null);
+        if (local == null || server == null || local.directory() || server.directory()) {
+            return;
+        }
+        compareFiles(
+            new FileRef(SftpComparePair.Side.LOCAL, comparedLocalRoot.resolve(relative).toString(), local.size()),
+            new FileRef(SftpComparePair.Side.REMOTE, RemotePathSupport.appendRemotePath(comparedRemoteRoot, relative),
+                server.size()));
+    }
+
+    /** The selection of a list in list order, without {@code ..}. */
+    private static List<SftpFileItem> selectedInOrder(TableView<SftpFileItem> table) {
+        List<SftpFileItem> items = table.getItems();
+        return table.getSelectionModel().getSelectedIndices().stream()
+            .filter(index -> index != null && index >= 0 && index < items.size())
+            .sorted()
+            .map(items::get)
+            .filter(item -> item != null && !item.isParentEntry())
+            .toList();
+    }
+
+    /**
+     * What {@link SftpFileDiffDialog} needs to ask the AI: the AI features must be on, the policy
+     * must allow AI requests, and a profile must exist. Requests go through the main window's
+     * profile routing, service and usage accounting, like every other AI request.
+     */
+    private SftpFileDiffDialog.AiAccess aiAccess() {
+        MainWindow window = ownerWindow;
+        return new SftpFileDiffDialog.AiAccess() {
+            @Override
+            public Optional<String> unavailableReason() {
+                GlobalSettings settings = globalSettingsOrNull();
+                if (window == null || settings == null || !settings.isAiFeaturesEnabled()) {
+                    return Optional.of(I18n.get("sftp.diff.ai.disabled"));
+                }
+                if (!de.kortty.policy.PolicyManager.effective().aiChatAllowed()) {
+                    return Optional.of(I18n.get("sftp.diff.ai.policy"));
+                }
+                if (window.getAvailableAiProfiles().isEmpty()) {
+                    return Optional.of(I18n.get("sftp.diff.ai.noProfile"));
+                }
+                return Optional.empty();
+            }
+
+            @Override
+            public List<de.kortty.model.AiProfile> profiles() {
+                return window.getAvailableAiProfiles();
+            }
+
+            @Override
+            public de.kortty.model.AiProfile defaultProfile() {
+                return window.resolveAiProfileForAction(connection, de.kortty.core.AiAction.COMPARE_FILES, null);
+            }
+
+            @Override
+            public de.kortty.core.AiService service(de.kortty.model.AiProfile profile) {
+                return window.createAiServiceForProfile(profile, connection);
+            }
+
+            @Override
+            public void recordUsage(de.kortty.model.AiProfile profile, de.kortty.core.AiRequest request,
+                                    de.kortty.core.AiExecutionResult result) {
+                window.recordAiUsageForProfile(profile, request, result);
+            }
+
+            @Override
+            public String connectionName() {
+                return connection.getDisplayName();
+            }
+        };
+    }
+
+    /**
+     * Where {@link SftpFileDiffDialog} puts a new file the AI wrote from {@code left} and
+     * {@code right}: on the server or this computer, proposing the right file's place (the file it
+     * is meant to replace), or through the snippet editor into the Snippet Manager.
+     */
+    private SftpFileDiffDialog.NewFileTarget newFileTarget(FileRef left, FileRef right) {
+        SftpNewFilePlacement.Ref leftRef = new SftpNewFilePlacement.Ref(left.side(), left.path());
+        SftpNewFilePlacement.Ref rightRef = new SftpNewFilePlacement.Ref(right.side(), right.path());
+        return new SftpFileDiffDialog.NewFileTarget() {
+            @Override
+            public void save(javafx.stage.Window owner, String content,
+                             java.util.function.Consumer<SftpFileDiffDialog.Saved> done) {
+                Optional<SftpSaveNewFileDialog.Choice> choice = askNewFilePlace(owner, content, leftRef, rightRef);
+                if (choice.isEmpty() || closing) {
+                    done.accept(SftpFileDiffDialog.Saved.cancelled());
+                    return;
+                }
+                statusLabel.setText(I18n.get("sftp.diff.newFile.saving"));
+                Thread worker = new Thread(() -> {
+                    SftpFileDiffDialog.Saved outcome;
+                    try {
+                        outcome = writeNewFile(owner, choice.get(), content);
+                    } catch (Exception e) {
+                        logger.warn("Could not save the new file at {}", choice.get().path(), e);
+                        outcome = SftpFileDiffDialog.Saved.failed(failureMessage(e));
+                    }
+                    SftpFileDiffDialog.Saved saved = outcome;
+                    Platform.runLater(() -> {
+                        noteNewFileSaved(saved);
+                        done.accept(saved);
+                    });
+                }, "SFTP-NewFile-Save");
+                worker.setDaemon(true);
+                worker.start();
+            }
+
+            @Override
+            public void edit(javafx.stage.Window owner, String name, String content, String description,
+                             java.util.function.Consumer<SftpFileDiffDialog.Saved> saved) {
+                editNewFile(owner, name, content, description, leftRef, rightRef, saved);
+            }
+        };
+    }
+
+    /** Asks on the FX thread where a new file goes; empty when the user cancelled. */
+    private Optional<SftpSaveNewFileDialog.Choice> askNewFilePlace(javafx.stage.Window owner, String content,
+                                                                   SftpNewFilePlacement.Ref left,
+                                                                   SftpNewFilePlacement.Ref right) {
+        Optional<String> serverRefusal = serverWriteRefusal();
+        SftpSaveNewFileDialog.Place server = new SftpSaveNewFileDialog.Place(
+            placeOf(SftpComparePair.Side.REMOTE),
+            SftpNewFilePlacement.proposedPath(SftpComparePair.Side.REMOTE, left, right, currentRemotePath),
+            serverRefusal.orElse(null));
+        SftpSaveNewFileDialog.Place local = new SftpSaveNewFileDialog.Place(
+            placeOf(SftpComparePair.Side.LOCAL),
+            SftpNewFilePlacement.proposedPath(SftpComparePair.Side.LOCAL, left, right,
+                currentLocalPath != null ? currentLocalPath.toString() : null),
+            null);
+        return new SftpSaveNewFileDialog(owner,
+            I18n.get("sftp.saveNewFile.summary", de.kortty.core.TextDiff.lineCount(content)),
+            server, local, SftpNewFilePlacement.proposedSide(left, right, serverRefusal.isEmpty()),
+            serverRefusal.isEmpty() ? remoteSaveLister() : null).showAndWait();
+    }
+
+    /**
+     * Lists server folders for {@link SftpRemoteSaveChooser}, off the FX thread: a relative folder
+     * is taken from the folder the server panel shows, a link to a folder counts as a folder.
+     */
+    private SftpRemoteSaveChooser.Lister remoteSaveLister() {
+        String base = currentRemotePath;
+        return folder -> {
+            SFTPSession session = connectedSession();
+            String path = resolveRemoteListingPath(folder == null || folder.isBlank() ? base : folder, base,
+                session.getCurrentDirectory());
+            List<SftpRemoteSaveChooser.Entry> entries = new ArrayList<>();
+            for (SftpClient.DirEntry entry : session.listFiles(path)) {
+                SftpClient.Attributes attrs = entry.getAttributes();
+                boolean directory = attrs.isDirectory();
+                if (!directory && attrs.isSymbolicLink()) {
+                    try {
+                        directory = session.getAttributes(
+                            RemotePathSupport.appendRemotePath(path, entry.getFilename())).isDirectory();
+                    } catch (IOException brokenLink) {
+                        directory = false;
+                    }
+                }
+                entries.add(new SftpRemoteSaveChooser.Entry(entry.getFilename(), directory));
+            }
+            return new SftpRemoteSaveChooser.Folder(path, entries);
+        };
+    }
+
+    /** Why a new file cannot go to the server now, or empty when it can. */
+    private Optional<String> serverWriteRefusal() {
+        SFTPSession session = sftpSession;
+        if (!isRemoteConnected() || session == null || !session.isConnected()) {
+            return Optional.of(I18n.get("sftp.notConnected"));
+        }
+        if (!SftpEditGate.current().remoteWriteBackAllowed()) {
+            return Optional.of(I18n.get("policy.terminal.loadReadOnly"));
+        }
+        if (!fileTransferAllowed()) {
+            return Optional.of(transferRefusal(de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD)
+                .orElse(I18n.get("policy.feature.disabled")));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Writes a new file where {@code choice} says; for a worker thread. A file already there is
+     * overwritten only after the user confirms, and first kept as {@code .bak} when asked; it keeps
+     * its permissions. Cancelled when the user declines overwriting.
+     */
+    private SftpFileDiffDialog.Saved writeNewFile(javafx.stage.Window owner, SftpSaveNewFileDialog.Choice choice,
+                                                  String content) throws Exception {
+        String place = placeOf(choice.side());
+        String text = content == null ? "" : content;
+        boolean written = choice.side() == SftpComparePair.Side.REMOTE
+            ? writeNewRemoteFile(owner, place, choice.path(), text.getBytes(StandardCharsets.UTF_8), choice.backup())
+            : writeNewLocalFile(owner, place, Paths.get(choice.path()), text, choice.backup());
+        return written
+            ? new SftpFileDiffDialog.Saved(place, choice.path(), text, null)
+            : SftpFileDiffDialog.Saved.cancelled();
+    }
+
+    /** Says in the status line how saving a new file went and shows the file in its panel. */
+    private void noteNewFileSaved(SftpFileDiffDialog.Saved saved) {
+        if (saved.done()) {
+            statusLabel.setText(I18n.get("sftp.diff.newFile.saved", saved.label()));
+            if (saved.place().equals(placeOf(SftpComparePair.Side.REMOTE))) {
+                refreshRemote();
+            } else {
+                refreshLocal();
+            }
+        } else if (saved.failure() != null) {
+            statusLabel.setText(I18n.get("sftp.diff.newFile.saveFailed", saved.failure()));
+        } else {
+            statusLabel.setText("");
+        }
+    }
+
+    /**
+     * Opens a new file in the snippet editor above {@code owner} (the comparison window), as a file
+     * of its own: "Save as snippet" keeps it in the Snippet Manager with a name and category the
+     * user picks, "Replace the right file" writes it over the file it was meant to replace, and
+     * "Save as..." asks where it goes. Every file written is reported to {@code saved}.
+     */
+    private void editNewFile(javafx.stage.Window owner, String name, String content, String description,
+                             SftpNewFilePlacement.Ref left, SftpNewFilePlacement.Ref right,
+                             java.util.function.Consumer<SftpFileDiffDialog.Saved> saved) {
+        Snippet snippet = createFileSnippetDraft(name, content);
+        snippet.setDescription(description);
+        SnippetEditDialog[] editor = new SnippetEditDialog[1];
+        java.util.function.Supplier<javafx.stage.Window> editorWindow = () -> editor[0] != null
+            && editor[0].getDialogPane().getScene() != null ? editor[0].getDialogPane().getScene().getWindow() : owner;
+        Optional<String> serverRefusal = right.side() == SftpComparePair.Side.REMOTE
+            ? serverWriteRefusal()
+            : Optional.empty();
+        SnippetEditDialog.ExternalFileAction replaceRight = serverRefusal.isPresent() ? null : draft ->
+            reportNewFile(saved, writeNewFile(editorWindow.get(),
+                new SftpSaveNewFileDialog.Choice(right.side(), right.path(), true), draft.getContent()));
+        SnippetEditDialog.ExternalFileAction saveAs = draft -> {
+            Optional<SftpSaveNewFileDialog.Choice> choice = callOnFxThread(() ->
+                askNewFilePlace(editorWindow.get(), draft.getContent(), left, right));
+            return choice.isPresent() && reportNewFile(saved, writeNewFile(editorWindow.get(), choice.get(), draft.getContent()));
+        };
+        SnippetEditDialog.ExternalFileActionConfig config = new SnippetEditDialog.ExternalFileActionConfig(
+            I18n.get("sftp.diff.newFile.editorSource", right.name()),
+            I18n.get("sftp.diff.newFile.replaceRight"),
+            I18n.get("sftp.snippetEditor.saveAs"),
+            I18n.get("sftp.snippetEditor.saveSnippet"),
+            I18n.get("sftp.snippetEditor.savedFile"),
+            I18n.get("sftp.snippetEditor.savedFile"),
+            I18n.get("sftp.snippetEditor.savedSnippet"),
+            replaceRight,
+            saveAs,
+            this::saveDraftAsSnippet,
+            serverRefusal.orElse(null));
+        List<String> categoryNames = app.getSnippetManager().getAllCategories().stream()
+            .map(SnippetCategory::getName)
+            .toList();
+        editor[0] = new SnippetEditDialog(snippet, categoryNames, SnippetAiAssistFactory.create(ownerWindow, connection),
+            config);
+        if (owner != null) {
+            editor[0].initOwner(owner);
+        }
+        editor[0].showNonBlocking(null);
+    }
+
+    /** Reports a file the snippet editor saved, on the FX thread; true when one was saved. */
+    private boolean reportNewFile(java.util.function.Consumer<SftpFileDiffDialog.Saved> saved,
+                                  SftpFileDiffDialog.Saved outcome) {
+        if (!outcome.done()) {
+            return false;
+        }
+        Platform.runLater(() -> {
+            noteNewFileSaved(outcome);
+            saved.accept(outcome);
+        });
+        return true;
+    }
+
+    private boolean writeNewRemoteFile(javafx.stage.Window owner, String place, String path, byte[] bytes,
+                                       boolean backup) throws Exception {
+        SftpEditGate.current().requireRemoteWriteBack(I18n.get("policy.terminal.loadReadOnly"));
+        if (!fileTransferAllowed()) {
+            throw new IOException(transferRefusal(de.kortty.policy.FileTransferGate.Route.SFTP_UPLOAD)
+                .orElse(I18n.get("policy.feature.disabled")));
+        }
+        SFTPSession session = connectedSession();
+        SftpClient.Attributes existing;
+        try {
+            existing = session.getAttributes(path);
+        } catch (IOException missing) {
+            existing = null;
+        }
+        if (existing != null) {
+            if (existing.isDirectory()) {
+                throw new IOException(I18n.get("sftp.saveNewFile.isFolder", path));
+            }
+            if (!confirmNewFileOverwrite(owner, place + ": " + path, backup)) {
+                return false;
+            }
+            if (backup) {
+                // The backup gets the file's permissions before it gets its content, so a
+                // configuration only its owner may read is never readable by others as .bak; the
+                // owner may always write it, or the copy could not fill it.
+                String backupPath = SftpNewFilePlacement.backupPath(path);
+                session.uploadFileBytes(new byte[0], backupPath);
+                session.setPermissions(backupPath, String.format("%04o", (existing.getPermissions() & 07777) | 0600));
+                session.copyFile(path, backupPath);
+            }
+        }
+        session.uploadFileBytes(bytes, path);
+        return true;
+    }
+
+    private boolean writeNewLocalFile(javafx.stage.Window owner, String place, Path path, String content,
+                                      boolean backup) throws Exception {
+        if (Files.isDirectory(path)) {
+            throw new IOException(I18n.get("sftp.saveNewFile.isFolder", path));
+        }
+        if (Files.exists(path)) {
+            if (!confirmNewFileOverwrite(owner, place + ": " + path, backup)) {
+                return false;
+            }
+            if (backup) {
+                Files.copy(path, Paths.get(SftpNewFilePlacement.backupPath(path.toString())),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES);
+            }
+        }
+        // Keeps the permissions of a file it replaces, such as a script's executable bit.
+        AtomicFileWriter.writeStringAtomically(path, content);
+        return true;
+    }
+
+    /** Asks on the FX thread, above {@code owner}, whether to overwrite {@code target}. */
+    private boolean confirmNewFileOverwrite(javafx.stage.Window owner, String target, boolean backup) throws Exception {
+        return callOnFxThread(() -> {
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle(I18n.get("sftp.snippetEditor.confirmOverwrite.title"));
+            confirm.setHeaderText(I18n.get("sftp.snippetEditor.confirmOverwrite.header"));
+            confirm.setContentText(I18n.get(backup ? "sftp.saveNewFile.confirmBackup" : "sftp.saveNewFile.confirm", target));
+            applyDarkTheme(confirm);
+            if (owner != null) {
+                confirm.initOwner(owner);
+            } else if (getTabPane() != null && getTabPane().getScene() != null) {
+                confirm.initOwner(getTabPane().getScene().getWindow());
+            }
+            return confirm.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
         });
     }
 
@@ -1055,17 +1659,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         showCompareRunning(0);
         refreshActionStates();
         java.util.function.Predicate<String> excluded = relative -> matchesExclude(relative, excludes);
-        RemoteTreeReader reader = new RemoteTreeReader() {
-            @Override
-            public List<SftpClient.DirEntry> list(String folder) throws IOException {
-                return session.listFiles(folder);
-            }
-
-            @Override
-            public SftpClient.Attributes lstat(String path) throws IOException {
-                return session.getLinkAttributes(path);
-            }
-        };
+        RemoteTreeReader reader = remoteReader(session);
         Thread worker = new Thread(() -> {
             FolderComparison result = null;
             Throwable failure = null;
@@ -1120,14 +1714,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         stopCompareButton.setVisible(false);
         stopCompareButton.setManaged(false);
         if (error != null) {
-            String message;
-            if (error instanceof FolderSnapshots.StoppedException stopped) {
-                message = stopped.tooMany()
-                    ? I18n.get("sftp.compare.tooMany", FolderSnapshots.MAX_ENTRIES)
-                    : I18n.get("sftp.compare.stopped");
-            } else {
-                message = I18n.get("sftp.compare.failed", failureMessage(error));
-            }
+            String message = compareFailureMessage(error);
             if (comparison == null) {
                 compareTitle.setText(message);
             } else {
@@ -1139,7 +1726,6 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         comparison = result;
         comparedLocalRoot = localRoot;
         comparedRemoteRoot = remoteRoot;
-        compareExcludes = List.copyOf(excludes);
         showComparisonResult();
         localTable.refresh();
         remoteTable.refresh();
@@ -1545,6 +2131,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
     }
 
     private void setActivePane(boolean remote) {
+        remotePaneActive = remote;
         localPanel.pseudoClassStateChanged(ACTIVE_PANE, !remote);
         remotePanel.pseudoClassStateChanged(ACTIVE_PANE, remote);
     }
@@ -1665,6 +2252,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                     SftpFileItem item = row.getItem();
                     if (!item.isFile()) {
                         navigateLocal(item.getPath());
+                    } else if (comparison != null) {
+                        openComparedFile(item, false);
                     }
                 }
             });
@@ -1829,6 +2418,8 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
                     SftpFileItem item = row.getItem();
                     if (!item.isFile()) {
                         navigateRemote(item.getPath());
+                    } else if (comparison != null) {
+                        openComparedFile(item, true);
                     }
                 }
             });
@@ -3927,6 +4518,13 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             setLocalOwnerPermissionsDialog();
         });
         
+        MenuItem compareItem = new MenuItem(I18n.get("sftp.contextMenu.compare"));
+        compareItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            setActivePane(false);
+            compareSelection();
+        });
+
         MenuItem archiveItem = new MenuItem(I18n.get("sftp.contextMenu.archive"));
         archiveItem.setOnAction(e -> {
             resetAutoCloseTimer();
@@ -3950,7 +4548,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             new SeparatorMenuItem(),
             newFolderItem,
             new SeparatorMenuItem(),
-            ownerItem,
+            ownerItem, compareItem,
             new SeparatorMenuItem(), 
             archiveItem,
             new SeparatorMenuItem(),
@@ -3970,6 +4568,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             deleteItem.setDisable(!hasSelection);
             ownerItem.setDisable(!hasSelection);
             archiveItem.setDisable(!hasSelection);
+            compareItem.setDisable(compareCancel != null);
             editWithSnippetEditorItem.setDisable(!isSingleFile);
             openImageItem.setDisable(!isImageFile);
         });
@@ -4017,6 +4616,13 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             calculateSelectedFolderSizes();
         });
 
+        MenuItem compareItem = new MenuItem(I18n.get("sftp.contextMenu.compare"));
+        compareItem.setOnAction(e -> {
+            resetAutoCloseTimer();
+            setActivePane(true);
+            compareSelection();
+        });
+
         MenuItem archiveItem = new MenuItem(I18n.get("sftp.contextMenu.archive"));
         archiveItem.setOnAction(e -> {
             resetAutoCloseTimer();
@@ -4061,7 +4667,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             new SeparatorMenuItem(),
             newFolderItem,
             new SeparatorMenuItem(),
-            ownerItem, calculateSizeItem,
+            ownerItem, calculateSizeItem, compareItem,
             new SeparatorMenuItem(), 
             archiveItem, extractItem,
             new SeparatorMenuItem(),
@@ -4088,6 +4694,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
             calculateSizeItem.setDisable(!measuring && (!isRemoteConnected() || selected == null
                 || selected.stream().noneMatch(item -> item != null && !item.isFile() && !item.isParentEntry())));
             archiveItem.setDisable(!hasSelection);
+            compareItem.setDisable(compareCancel != null);
             extractItem.setDisable(!isSingleFile || remoteExtractCancellation != null
                 || RemoteArchiveExtractor.detect(selected.get(0).getName()).isEmpty());
             SftpEditGate editGate = SftpEditGate.current();
@@ -6620,7 +7227,7 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         SnippetEditDialog.ExternalFileAction overwrite =
             draft -> overwriteRemoteSnippetFile(selected.getPath(), draft);
         SnippetEditDialog.ExternalFileAction saveAs =
-            draft -> saveRemoteSnippetFileAs(selected.getPath(), selected.getName(), draft);
+            draft -> saveRemoteSnippetFileAs(selected.getPath(), draft);
         SnippetEditDialog.ExternalFileActionConfig config = new SnippetEditDialog.ExternalFileActionConfig(
             selected.getPath(),
             I18n.get("sftp.snippetEditor.overwriteRemote"),
@@ -6683,30 +7290,20 @@ public class SFTPManagerTab extends Tab implements HostedCloseGuard {
         return true;
     }
 
-    private boolean saveRemoteSnippetFileAs(String originalRemotePath, String originalFileName, Snippet draft) throws Exception {
+    /**
+     * "Save as..." for a server file in the snippet editor: the place is picked with a click in the
+     * server's folders ({@link SftpRemoteSaveChooser}), the file's own place proposed.
+     */
+    private boolean saveRemoteSnippetFileAs(String originalRemotePath, Snippet draft) throws Exception {
         SftpEditGate.current().requireRemoteWriteBack(I18n.get("policy.terminal.loadReadOnly"));
-        Optional<String> response = callOnFxThread(() -> {
-            TextInputDialog dialog = new TextInputDialog(originalFileName);
-            dialog.setTitle(I18n.get("sftp.snippetEditor.remoteFileName.title"));
-            dialog.setHeaderText(I18n.get("sftp.snippetEditor.remoteFileName.header"));
-            dialog.setContentText(I18n.get("sftp.snippetEditor.remoteFileName.content"));
-            applyDarkTheme(dialog);
-            if (getTabPane() != null && getTabPane().getScene() != null) {
-                dialog.initOwner(getTabPane().getScene().getWindow());
-            }
-            return dialog.showAndWait();
-        });
-        if (response.isEmpty()) {
+        Optional<String> chosen = callOnFxThread(() -> new SftpRemoteSaveChooser(
+            getTabPane() != null && getTabPane().getScene() != null ? getTabPane().getScene().getWindow() : null,
+            originalRemotePath, remoteSaveLister()).showAndWait());
+        if (chosen.isEmpty()) {
             return false;
         }
 
-        String targetPath;
-        try {
-            targetPath = SftpFileTransferService.resolveSiblingRemoteFilePath(originalRemotePath, response.get());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(I18n.get("sftp.snippetEditor.invalidFileName", response.get()), e);
-        }
-
+        String targetPath = chosen.get();
         SFTPSession session = connectedSession();
         if (remoteFileExists(session, targetPath) && !confirmOverwrite(targetPath)) {
             return false;
