@@ -211,6 +211,13 @@
     -fx-fill: -kortty-fb-accent;
 }
 
+/* The same row height in every design: an AtlantaFX theme alone makes a row 3em tall, which spreads
+   a folder listing out; Modena's own is 2em. */
+.sftp-pane .file-browser-table .table-row-cell {
+    -fx-cell-size: 2em;
+    -fx-padding: 0;
+}
+
 .sftp-pane:active-pane .file-browser-table .table-row-cell:selected {
     -fx-background-color: derive(-kortty-fb-accent, -52%);
 }

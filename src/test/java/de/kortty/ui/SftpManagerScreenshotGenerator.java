@@ -175,6 +175,22 @@ public final class SftpManagerScreenshotGenerator {
                 "build.gradle.kts", "CHANGELOG.md", "deploy.sh", "README.md")),
             "local sort groups, got " + names(localTable()));
 
+        // 1a. Compact rows in every design: AtlantaFX themes alone make a row 3em tall.
+        settle();
+        double[] rowAndFont = fx(() -> {
+            for (Node node : remoteTable().lookupAll(".table-row-cell")) {
+                if (node instanceof javafx.scene.control.TableRow<?> row && row.getItem() != null) {
+                    javafx.scene.text.Font font = ((javafx.scene.control.Labeled) row.lookup(".table-cell")).getFont();
+                    return new double[] {row.getHeight(), font.getSize()};
+                }
+            }
+            return new double[] {0, 1};
+        });
+        System.out.printf("Row height %.1f px at font %.1f px (%.2f em)%n", rowAndFont[0], rowAndFont[1],
+            rowAndFont[0] / rowAndFont[1]);
+        check(rowAndFont[0] > 0 && rowAndFont[0] <= 2 * rowAndFont[1] + 1,
+            "rows must stay compact, got " + rowAndFont[0] + " px at " + rowAndFont[1] + " px font");
+
         // 1b. The server sent only numbers; the lookup puts names in their place.
         try {
             waitFor("owner names", () -> "demo".equals(remoteCell(4, "deploy.sh"))
