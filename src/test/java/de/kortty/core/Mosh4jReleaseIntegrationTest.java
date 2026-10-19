@@ -15,7 +15,7 @@ import java.util.List;
 import static com.google.common.truth.Truth.assertThat;
 
 /**
- * Verifies that the pinned mosh4j release ({@code 2.0.2}) stays in sync with the reflection
+ * Verifies that the pinned mosh4j release ({@code 2.0.3}) stays in sync with the reflection
  * contract that {@link Mosh4jTtyConnector} depends on.
  *
  * <p>The constant checks are hermetic. The reflection-contract check loads the real release JARs
@@ -25,9 +25,9 @@ import static com.google.common.truth.Truth.assertThat;
  */
 public class Mosh4jReleaseIntegrationTest {
 
-    private static final String EXPECTED_VERSION = "2.0.2";
-    private static final String EXPECTED_RELEASE_TAG = "v2.0.2";
-    private static final String EXPECTED_BCPROV_VERSION = "1.84";
+    private static final String EXPECTED_VERSION = "2.0.3";
+    private static final String EXPECTED_RELEASE_TAG = "v2.0.3";
+    private static final String EXPECTED_BCPROV_VERSION = "1.86";
     private static final String EXPECTED_PROTOBUF_VERSION = "4.36.2";
     private static final String[] MODULES = {"protocol", "crypto", "transport", "terminal", "core"};
 
@@ -40,12 +40,12 @@ public class Mosh4jReleaseIntegrationTest {
         // the two must be tracked separately or gh release download targets the wrong tag.
         assertThat(readStaticString("MOSH4J_RELEASE_TAG")).isEqualTo(EXPECTED_RELEASE_TAG);
 
-        // mosh4j 2.0.2 is a security release; the bundled Bouncy Castle dependency must be 1.84
-        // (fixes CVE-2026-5598). Guards against regressing the classpath dependency.
+        // mosh4j 2.0.3 is a security release; the Bouncy Castle dependency must be 1.86
+        // (fixes CVE-2026-8763 and CVE-2026-13506). Guards against regressing the classpath dependency.
         assertThat(readStaticString("DEP_BCPROV_VERSION")).isEqualTo(EXPECTED_BCPROV_VERSION);
         assertThat(readStaticString("DEP_BCPROV_URL")).contains("/" + EXPECTED_BCPROV_VERSION + "/");
 
-        // mosh4j 2.0.2's generated protobuf DTOs need protobuf-java 4.35.1 or a newer runtime of the
+        // mosh4j 2.0.3's generated protobuf DTOs need protobuf-java 4.36.2 or a newer runtime of the
         // same major (they reference com.google.protobuf.GeneratedFile, absent in 4.28.2). Guards
         // against the classpath regression that caused a runtime NoClassDefFoundError on the first
         // Mosh connect, and keeps this constant tied to the version the packages actually bundle.

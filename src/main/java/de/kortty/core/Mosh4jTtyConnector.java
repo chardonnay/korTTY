@@ -43,8 +43,8 @@ public class Mosh4jTtyConnector implements TtyConnector, de.kortty.isolation.Iso
     private static final Pattern MOSH_CONNECT_PATTERN =
             Pattern.compile("MOSH CONNECT\\s+(\\d+)\\s+([A-Za-z0-9+/=]+)");
 
-    /** Artifact version used in JAR file names and cache directories (e.g. mosh4j-core-2.0.2-arm64.jar). */
-    private static final String MOSH4J_VERSION = "2.0.2";
+    /** Artifact version used in JAR file names and cache directories (e.g. mosh4j-core-2.0.3-arm64.jar). */
+    private static final String MOSH4J_VERSION = "2.0.3";
     /**
      * GitHub release/git tag used for {@code gh release download} and the release download URL.
      * Note: since 2.0.1 the tag carries a leading "v" while the artifact version does not, so the
@@ -57,12 +57,12 @@ public class Mosh4jTtyConnector implements TtyConnector, de.kortty.isolation.Iso
         return MOSH4J_VERSION;
     }
 
-    private static final String DEP_BCPROV_VERSION = "1.84";
+    private static final String DEP_BCPROV_VERSION = "1.86";
     private static final String DEP_BCPROV_JAR = "bcprov-jdk18on-" + DEP_BCPROV_VERSION + ".jar";
     private static final String DEP_BCPROV_URL =
             "https://repo1.maven.org/maven2/org/bouncycastle/bcprov-jdk18on/"
                     + DEP_BCPROV_VERSION + "/" + DEP_BCPROV_JAR;
-    // mosh4j 2.0.2's mosh4j-protocol generated DTOs are compiled against protobuf-java 4.35.1
+    // mosh4j 2.0.3's mosh4j-protocol generated DTOs are compiled against protobuf-java 4.36.2
     // (they reference com.google.protobuf.GeneratedFile, absent in 4.28.2). The runtime loaded here
     // must be at least that version and share its major: protobuf's generated code checks the pair
     // on class initialization and accepts a runtime NEWER than the gencode, never an older one. So

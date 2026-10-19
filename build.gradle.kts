@@ -377,8 +377,8 @@ dependencies {
     // with an unfixed signature-malleability flaw (CVE-2020-36843, no patched release exists).
 
     // SithTermFX - Terminal emulator for JavaFX (built from source by installSithtermfxLocal)
-    implementation("com.sithtermfx:sithtermfx-core:1.2.4")
-    implementation("com.sithtermfx:sithtermfx-ui:1.2.4")
+    implementation("com.sithtermfx:sithtermfx-core:1.2.5")
+    implementation("com.sithtermfx:sithtermfx-ui:1.2.5")
     
     // Lanterna - Text-based terminal emulator with better zoom support
     implementation("com.googlecode.lanterna:lanterna:3.1.5")
@@ -535,7 +535,7 @@ tasks.named<JavaExec>("run") {
 
 // ==================== SithTermFX from source (no GitHub token required) ====================
 
-val sithtermfxVersion = "1.2.4"
+val sithtermfxVersion = "1.2.5"
 val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
 
 tasks.register("cloneSithtermfx") {
@@ -1536,7 +1536,7 @@ listOf(
 // mosh4j release to bundle.
 // mosh4jVersion must match Mosh4jTtyConnector.MOSH4J_VERSION (artifact/file-name version, no "v").
 // mosh4jReleaseTag must match Mosh4jTtyConnector.MOSH4J_RELEASE_TAG (GitHub tag; carries a leading "v" since 2.0.1).
-val mosh4jVersion = "2.0.2"
+val mosh4jVersion = "2.0.3"
 val mosh4jReleaseTag = "v$mosh4jVersion"
 val mosh4jReleaseUrl = "https://github.com/chardonnay/mosh4j/releases/download/$mosh4jReleaseTag"
 val mosh4jModules = listOf("protocol", "crypto", "transport", "terminal", "core")
@@ -1547,18 +1547,18 @@ val mosh4jProtobufJar = "protobuf-java-$mosh4jProtobufVersion.jar"
 val mosh4jProtobufSha256 = "0773e72eaf375e1285df330575bfec5bda5da674d544d0e142a17f89c8f754da"
 val mosh4jSha256 = mapOf(
     "amd64" to mapOf(
-        "core" to "c84e0a370417b9e6aea02506d8328458e4645926791765d87993e0848618f0f8",
-        "crypto" to "bdbddf9725b24703ffa4206e14f7d2f548c0698ca718503a070c4b38ddc1b16d",
-        "protocol" to "e0d4e5fe4d327bbb14d1b86d002a74a85d42a94a3dbdad77a450460c8257cba9",
-        "terminal" to "a6af1e8f04fcd00af39d9c7b82528413cadae96d156a60c825c94ce6551e3287",
-        "transport" to "688c0ea8281085dcf82c408a646b9f0780bf48dad14cae73eed575e5bd3c22fd"
+        "core" to "891072d049ca689bcba74ef85eb357a59e98bc18c57ece42c417b4291e6fa325",
+        "crypto" to "59a226f265eea268c3963286462fcfa1c9949f5b0fe57d690f0d686cb36dd71b",
+        "protocol" to "525640d906af61b6fc0db42d8b4d8e7ddc6604f3defeecd69a39173d737eb5f8",
+        "terminal" to "5c8b2670a3ad73741207c79bad6048a13cbff09be7fa78167ae4e202180dafd6",
+        "transport" to "28fea08c34603a5b5a2b94ca4298f4c8aff28d9a6e2d06ba34a7f5f7aa8f35f2"
     ),
     "arm64" to mapOf(
-        "core" to "d661a615eac679367959594d0a843b8d692a6c24df3af61582b2590ddd91718d",
-        "crypto" to "096e37300bddbeafbda62a19e5b433652ea128d9350ea8d73776bd899fd19478",
-        "protocol" to "4c7a771ff6295afe6a72e608e20efb910dd5cab5dc48f17cc36ab6a5f31b303f",
-        "terminal" to "f4f64398cda87b375327675bdb68d1205217ec2f58529c58eb4b8a7c41483c47",
-        "transport" to "b9ad71cf2efafe49b1f4f46a99c6139210f260b0e909993a9d7715f7b194e691"
+        "core" to "c5918fcab89fcceacf2c65816213ea3baf238089c97cd43ebbb93641712e29df",
+        "crypto" to "6e4c9274361d997716b82e87c0362fd8b0282acbf33b9766262f49ac89951571",
+        "protocol" to "ee3cfdf53531a3ab16782cbb0210acc1255d9960b20a694f40a72fc34c95dbe3",
+        "terminal" to "3c3435e64b2363e09ba86cf0f059b2779858749632bda48d9a748d81b065af71",
+        "transport" to "cf985f505338d496a5be2c2039ed8dbe1186c8c2956c7ca4b93c9bb42caac080"
     )
 )
 
