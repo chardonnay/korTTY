@@ -26,6 +26,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.Tab;
 import javafx.scene.control.Label;
+import javafx.scene.control.Labeled;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -738,13 +739,14 @@ public class TerminalTab extends Tab {
     }
 
     private void setRecordingButtonIcon(boolean active) {
-        recordingToggleButton.setGraphic(icon(active ? ICON_STOP : ICON_VIDEO));
+        recordingToggleButton.setGraphic(icon(recordingToggleButton, active ? ICON_STOP : ICON_VIDEO));
     }
 
-    private static Node icon(String path) {
+    private static Node icon(Labeled owner, String path) {
         SVGPath icon = new SVGPath();
         icon.setContent(path);
-        icon.setStyle("-fx-fill: -fx-text-base-color;");
+        // Follow the button's text colour: -fx-text-base-color only exists in Modena.
+        icon.fillProperty().bind(owner.textFillProperty());
         icon.setScaleX(0.72);
         icon.setScaleY(0.72);
         return icon;
@@ -769,11 +771,11 @@ public class TerminalTab extends Tab {
         journalToggleButton.setGraphicTextGap(6);
         journalToggleButton.setOnAction(event -> toggleJournalFromUser());
         journalScreenshotButton = new Button(I18n.get("terminal.journal.screenshot"));
-        journalScreenshotButton.setGraphic(icon(ICON_CAMERA));
+        journalScreenshotButton.setGraphic(icon(journalScreenshotButton, ICON_CAMERA));
         journalScreenshotButton.setGraphicTextGap(6);
         journalScreenshotButton.setOnAction(event -> takeJournalScreenshot(null));
         journalNoteButton = new Button(I18n.get("terminal.journal.note"));
-        journalNoteButton.setGraphic(icon(ICON_NOTE));
+        journalNoteButton.setGraphic(icon(journalNoteButton, ICON_NOTE));
         journalNoteButton.setGraphicTextGap(6);
         journalNoteButton.setOnAction(event -> addJournalNote());
         journalStatusLabel = new Label(I18n.get("terminal.journal.off"));
@@ -1062,7 +1064,7 @@ public class TerminalTab extends Tab {
     }
 
     private void setJournalButtonIcon(boolean active) {
-        journalToggleButton.setGraphic(icon(active ? ICON_STOP : ICON_JOURNAL));
+        journalToggleButton.setGraphic(icon(journalToggleButton, active ? ICON_STOP : ICON_JOURNAL));
     }
 
     private void showJournalError(String message) {

@@ -28,6 +28,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.Labeled;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Spinner;
@@ -609,14 +610,15 @@ public class TerminalRecordingManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     private static void setButtonIcon(Button button, String iconPath) {
-        button.setGraphic(icon(iconPath));
+        button.setGraphic(icon(button, iconPath));
         button.setGraphicTextGap(6);
     }
 
-    private static Node icon(String path) {
+    private static Node icon(Labeled owner, String path) {
         SVGPath icon = new SVGPath();
         icon.setContent(path);
-        icon.setStyle("-fx-fill: -fx-text-base-color;");
+        // Follow the button's text colour: -fx-text-base-color only exists in Modena.
+        icon.fillProperty().bind(owner.textFillProperty());
         icon.setScaleX(0.72);
         icon.setScaleY(0.72);
         return icon;
