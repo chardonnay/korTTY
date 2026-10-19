@@ -405,8 +405,8 @@ dependencies {
 
     // JSON parsing for translation API responses
     implementation("com.google.code.gson:gson:2.14.0")
-    implementation("org.commonmark:commonmark:0.30.0")
-    implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.30.0")
+    implementation("org.commonmark:commonmark:0.30.1")
+    implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.30.1")
     implementation("com.knuddels:jtokkit:1.1.0")
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
     implementation("com.google.googlejavaformat:google-java-format:1.37.0")
