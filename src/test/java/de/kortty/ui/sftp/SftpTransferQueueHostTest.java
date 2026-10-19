@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -152,23 +153,30 @@ class SftpTransferQueueHostTest {
 
     @Test
     void aRunningUploadsPartIsActiveAndTheHostCloseCancelsIt() throws Exception {
-        fixture = SftpLoopbackFixture.builder(tmp).requestDelayMillis(20).start();
+        // No WRITE gets through before close(): the upload is certain to still be running then.
+        CountDownLatch writes = new CountDownLatch(1);
+        fixture = SftpLoopbackFixture.builder(tmp).writeGate(writes).start();
         SftpTransferQueueHost host = host(new Events(), new AtomicInteger());
         host.onSessionReady(source());
         Path big = Files.write(tmp.resolve("big.bin"), new byte[4 * 1024 * 1024]);
         Files.createDirectories(fixture.root().resolve("dest"));
 
-        TransferBatch batch = host.enqueueUpload(List.of(big), "/dest/").orElseThrow();
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
-        while (batch.items().get(0).state() != TransferState.RUNNING) {
-            assertThat(System.nanoTime()).isLessThan(deadline);
-            Thread.sleep(5);
-        }
-        assertThat(host.activePartNames(TransferDirection.UPLOAD, "/dest")).containsExactly("big.bin.kortty-part");
-        assertThat(host.activePartNames(TransferDirection.DOWNLOAD, "/dest")).isEmpty();
-        assertThat(host.activePartNames(TransferDirection.UPLOAD, "/other")).isEmpty();
+        TransferBatch batch;
+        try {
+            batch = host.enqueueUpload(List.of(big), "/dest/").orElseThrow();
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
+            while (batch.items().get(0).state() != TransferState.RUNNING) {
+                assertThat(System.nanoTime()).isLessThan(deadline);
+                Thread.sleep(5);
+            }
+            assertThat(host.activePartNames(TransferDirection.UPLOAD, "/dest")).containsExactly("big.bin.kortty-part");
+            assertThat(host.activePartNames(TransferDirection.DOWNLOAD, "/dest")).isEmpty();
+            assertThat(host.activePartNames(TransferDirection.UPLOAD, "/other")).isEmpty();
 
-        host.close();
+            host.close();
+        } finally {
+            writes.countDown();
+        }
         await(batch);
         assertThat(batch.items().get(0).state()).isEqualTo(TransferState.CANCELLED);
         assertThat(host.enqueueUpload(List.of(big), "/dest").isPresent()).isFalse();

@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -44,8 +45,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <p>Options: hide every SFTP extension from the server's VERSION reply (a bare server without
  * {@code limits@openssh.com}, {@code posix-rename@openssh.com} and friends), pin the server's SFTP
- * version, slow each READ/WRITE down so pipelined requests visibly queue up, and replace the file
- * system accessor. Clients can force the negotiated version with
+ * version, slow each READ/WRITE down so pipelined requests visibly queue up, hold every WRITE until a
+ * latch opens (a transfer that is certain to still be running), and replace the file system accessor.
+ * Clients can force the negotiated version with
  * {@link SftpVersionSelector#fixedVersionSelector(int)} (see {@link #openSftp(ClientSession, int)}),
  * because MINA against MINA otherwise negotiates version 6 and never exercises the version 3 paths
  * OpenSSH servers use.
@@ -165,6 +167,7 @@ public final class SftpLoopbackFixture implements AutoCloseable {
         private boolean advertiseExtensions = true;
         private Integer serverVersion;
         private long requestDelayMillis;
+        private CountDownLatch writeGate;
         private SftpFileSystemAccessor accessor;
         private OwnerReporting ownerReporting = OwnerReporting.POSIX;
 
@@ -187,6 +190,15 @@ public final class SftpLoopbackFixture implements AutoCloseable {
         /** Sleeps this long in every READ and WRITE, so requests sent ahead queue up visibly. */
         public Builder requestDelayMillis(long millis) {
             this.requestDelayMillis = millis;
+            return this;
+        }
+
+        /**
+         * Every WRITE waits until {@code gate} opens, so an upload cannot finish before the test lets
+         * it. The test must open the gate (also on failure), or the server thread stays blocked.
+         */
+        public Builder writeGate(CountDownLatch gate) {
+            this.writeGate = Objects.requireNonNull(gate, "gate");
             return this;
         }
 
@@ -215,7 +227,7 @@ public final class SftpLoopbackFixture implements AutoCloseable {
                 SftpModuleProperties.SFTP_VERSION.set(server, serverVersion);
             }
             FixtureSubsystemFactory factory = new FixtureSubsystemFactory(stats, advertiseExtensions, requestDelayMillis,
-                ownerReporting);
+                writeGate, ownerReporting);
             if (accessor != null) {
                 factory.setFileSystemAccessor(accessor);
             }
@@ -333,20 +345,22 @@ public final class SftpLoopbackFixture implements AutoCloseable {
         private final Stats stats;
         private final boolean advertiseExtensions;
         private final long requestDelayMillis;
+        private final CountDownLatch writeGate;
         private final OwnerReporting ownerReporting;
 
         FixtureSubsystemFactory(Stats stats, boolean advertiseExtensions, long requestDelayMillis,
-                OwnerReporting ownerReporting) {
+                CountDownLatch writeGate, OwnerReporting ownerReporting) {
             this.stats = stats;
             this.advertiseExtensions = advertiseExtensions;
             this.requestDelayMillis = requestDelayMillis;
+            this.writeGate = writeGate;
             this.ownerReporting = ownerReporting;
         }
 
         @Override
         public Command createSubsystem(ChannelSession channel) throws IOException {
             FixtureSubsystem subsystem = new FixtureSubsystem(channel, this, stats, advertiseExtensions,
-                requestDelayMillis, ownerReporting);
+                requestDelayMillis, writeGate, ownerReporting);
             for (SftpEventListener listener : getRegisteredListeners()) {
                 subsystem.addSftpEventListener(listener);
             }
@@ -358,14 +372,17 @@ public final class SftpLoopbackFixture implements AutoCloseable {
         private final Stats stats;
         private final boolean advertiseExtensions;
         private final long requestDelayMillis;
+        private final CountDownLatch writeGate;
         private final OwnerReporting ownerReporting;
 
         FixtureSubsystem(ChannelSession channel, SftpSubsystemConfigurator configurator, Stats stats,
-                boolean advertiseExtensions, long requestDelayMillis, OwnerReporting ownerReporting) {
+                boolean advertiseExtensions, long requestDelayMillis, CountDownLatch writeGate,
+                OwnerReporting ownerReporting) {
             super(channel, configurator);
             this.stats = stats;
             this.advertiseExtensions = advertiseExtensions;
             this.requestDelayMillis = requestDelayMillis;
+            this.writeGate = writeGate;
             this.ownerReporting = ownerReporting;
             stats.attach(this);
         }
@@ -412,6 +429,7 @@ public final class SftpLoopbackFixture implements AutoCloseable {
         protected void doWrite(int id, String handle, long offset, int length, byte[] data, int doff, int remaining)
                 throws IOException {
             stats.recordWrite(1 + requests.size());
+            awaitWriteGate();
             pause();
             super.doWrite(id, handle, offset, length, data, doff, remaining);
         }
@@ -422,6 +440,18 @@ public final class SftpLoopbackFixture implements AutoCloseable {
                 super.destroy(channel);
             } finally {
                 stats.detach(this);
+            }
+        }
+
+        private void awaitWriteGate() throws IOException {
+            if (writeGate == null) {
+                return;
+            }
+            try {
+                writeGate.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("interrupted", e);
             }
         }
 
