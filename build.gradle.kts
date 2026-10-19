@@ -786,7 +786,7 @@ val bundledFormatterDir = layout.buildDirectory.dir("bundled-formatters")
 val bundledMosh4jDir = layout.buildDirectory.dir("bundled-mosh4j")
 val slimRuntimeJarDir = layout.buildDirectory.dir("slim-runtime-jars")
 val monacoBuildNodeDir = layout.buildDirectory.dir("monaco-node")
-val formatterNodeVersion = "24.21.0"
+val formatterNodeVersion = "24.22.0"
 val formatterShfmtVersion = "3.13.1"
 val formatterPrettierVersion = "3.6.2"
 val formatterPrettierSha256 = "bc81ab83674f175a8601b7d013786f48ec2507dd4a5fcf3415831ff13a875bdf"
@@ -1230,8 +1230,8 @@ tasks.named<ProcessResources>("processResources") {
 // Monaco Node/esbuild workspace because JavaFX 21 WebKit cannot parse the upstream target. Node
 // remains a build-only tool. Mermaid and MathJax stay separate runtime resources so each hidden
 // WebView extracts only the library it needs.
-val mermaidVersion = "12.1.0"
-val mermaidSha256 = "3e516f33246e1a6a5bc5ebcabd35434669b487c3b3791f9b0466aa2c254d004a"
+val mermaidVersion = "12.2.0"
+val mermaidSha256 = "071914164d0f6d53e5c26a10a220230d4ae8d37ed0f2263fbf072266f0af3a0a"
 val chatRenderMathJaxVersion = "3.2.2"
 val chatRenderMathJaxSha256 = "1b9c0a1c44df864e915690558e72adb9cc5203360daefd385084ced3b6c64c09"
 
