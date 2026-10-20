@@ -56,6 +56,29 @@ class LlamaRuntimePackageInstallerTest {
     }
 
     @Test
+    void rollsBackWithTheReasonAHealthCheckReports() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-unhealthy");
+        try {
+            byte[] archive = runtimeZip("unhealthy");
+            LlamaRuntimePackageDescriptor descriptor = descriptor("llama-b10025-kortty1", archive);
+            LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(
+                root, uri -> new ByteArrayInputStream(archive));
+
+            LlamaRuntimeActivationResult result = installer.installAndActivate(
+                descriptor, () -> true, installation -> {
+                    throw new LlamaRuntimeHealthCheckFailedException("a DLL it needs is missing");
+                });
+
+            assertThat(result.status()).isEqualTo(LlamaRuntimeActivationResult.Status.ROLLED_BACK);
+            assertThat(result.failureDetail()).isEqualTo("a DLL it needs is missing");
+            assertThat(installer.active()).isEmpty();
+            assertThat(installer.installed()).isEmpty();
+        } finally {
+            deleteTree(root);
+        }
+    }
+
+    @Test
     void leavesPackageStagedWhileGenerationIsActive() throws Exception {
         Path root = Files.createTempDirectory("kortty-runtime-staged");
         try {

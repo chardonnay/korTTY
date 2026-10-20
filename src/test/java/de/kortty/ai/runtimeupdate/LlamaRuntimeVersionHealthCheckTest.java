@@ -10,6 +10,7 @@ import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 class LlamaRuntimeVersionHealthCheckTest {
 
@@ -35,8 +36,48 @@ class LlamaRuntimeVersionHealthCheckTest {
         LlamaRuntimeInstallation installation = installation(directory, executable);
         long started = System.nanoTime();
 
-        assertThat(new LlamaRuntimeVersionHealthCheck(Duration.ofMillis(100)).isHealthy(installation)).isFalse();
+        LlamaRuntimeHealthCheckFailedException failure = expectThrows(
+            LlamaRuntimeHealthCheckFailedException.class,
+            () -> new LlamaRuntimeVersionHealthCheck(Duration.ofMillis(100)).isHealthy(installation));
+        assertThat(failure).hasMessageThat().contains("did not finish within 100 ms");
         assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofSeconds(3));
+    }
+
+    @Test
+    void reportsExitCodeAndOutputOfAFailedVersionCommand() throws Exception {
+        requireUnix();
+        Path directory = Files.createTempDirectory("kortty-llama-health-exit-");
+        Path executable = script(directory, "#!/bin/sh\necho 'error while loading shared libraries: libssl.so.3'\nexit 127\n");
+        LlamaRuntimeInstallation installation = installation(directory, executable);
+
+        LlamaRuntimeHealthCheckFailedException failure = expectThrows(
+            LlamaRuntimeHealthCheckFailedException.class,
+            () -> new LlamaRuntimeVersionHealthCheck(Duration.ofSeconds(30)).isHealthy(installation));
+
+        assertThat(failure).hasMessageThat().contains("exited with code 127 (0x0000007F)");
+        assertThat(failure).hasMessageThat().contains("libssl.so.3");
+    }
+
+    @Test
+    void reportsAnExecutableThatCannotBeStarted() throws Exception {
+        Path directory = Files.createTempDirectory("kortty-llama-health-missing-");
+        LlamaRuntimeInstallation installation = installation(directory, directory.resolve("llama-server-missing"));
+
+        LlamaRuntimeHealthCheckFailedException failure = expectThrows(
+            LlamaRuntimeHealthCheckFailedException.class,
+            () -> new LlamaRuntimeVersionHealthCheck(Duration.ofSeconds(30)).isHealthy(installation));
+
+        assertThat(failure).hasMessageThat().startsWith("llama-server could not be started");
+    }
+
+    @Test
+    void namesTheWindowsLoaderStatusForAMissingDll() {
+        // The exit code a Windows package without its OpenSSL DLLs ended with on user machines.
+        assertThat(LlamaRuntimeVersionHealthCheck.describeExit(0xC0000135))
+            .isEqualTo("llama-server --version exited with code -1073741515 (0xC0000135): "
+                + "a DLL it needs is missing (STATUS_DLL_NOT_FOUND).");
+        assertThat(LlamaRuntimeVersionHealthCheck.describeExit(3))
+            .isEqualTo("llama-server --version exited with code 3 (0x00000003).");
     }
 
     private static Path script(Path directory, String content) throws Exception {

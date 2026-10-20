@@ -149,6 +149,43 @@ class LlamaRuntimeUpdateCoordinatorTest {
         }
     }
 
+    @Test
+    void carriesTheHealthCheckReasonIntoARolledBackInstall() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-coordinator-rolled-back-");
+        LlamaRuntimePackageDescriptor candidate = new LlamaRuntimePackageDescriptor(
+            "llama-b10025-kortty1", "b10025", LlamaRuntimeReleaseConfiguration.BASELINE_COMMIT,
+            1, "2.5.2", LlamaRuntimePlatform.current(),
+            LlamaRuntimePackageDescriptor.currentArchitecture(), LlamaBackend.CPU,
+            1, "0".repeat(64), URI.create("https://example.test/runtime.zip"),
+            LlamaRuntimePlatform.current() == LlamaRuntimePlatform.WINDOWS
+                ? "bin/llama-server.exe" : "bin/llama-server",
+            false);
+        String reason = "llama-server --version exited with code -1073741515 (0xC0000135).";
+        LlamaRuntimeProvisioner provisioner = new LlamaRuntimeProvisioner(
+            configuration(),
+            new LlamaRuntimePackageInstaller(root.resolve("runtime"), uri -> {
+                throw new AssertionError("The stubbed update must not download a package.");
+            }),
+            LlamaModelRegistry.inDirectory(root.resolve("llm")),
+            () -> "2.5.2", () -> true, () -> { }, () -> { }, installation -> true,
+            (policy, backend, idle, health) -> new LlamaRuntimeUpdateResult(
+                LlamaRuntimeUpdateResult.Status.ROLLED_BACK,
+                candidate,
+                new LlamaRuntimeActivationResult(
+                    LlamaRuntimeActivationResult.Status.ROLLED_BACK, null, null, reason)));
+        LlamaRuntimeUpdateCoordinator coordinator = new LlamaRuntimeUpdateCoordinator(
+            provisioner, Executors.newSingleThreadScheduledExecutor());
+        try {
+            LlamaRuntimeUpdateCoordinator.Status status = coordinator.installStable(LlamaBackend.AUTO).get();
+
+            assertThat(status.state()).isEqualTo(LlamaRuntimeUpdateCoordinator.State.ROLLED_BACK);
+            assertThat(status.detail()).startsWith("The replacement failed its health check");
+            assertThat(status.detail()).endsWith(reason);
+        } finally {
+            coordinator.close();
+        }
+    }
+
     private static LlamaRuntimeReleaseConfiguration configuration() throws Exception {
         String key = Base64.getEncoder().encodeToString(
             KeyPairGenerator.getInstance("Ed25519").generateKeyPair().getPublic().getEncoded());

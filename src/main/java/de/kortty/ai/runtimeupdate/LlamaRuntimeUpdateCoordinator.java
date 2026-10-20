@@ -171,19 +171,27 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
                 case STAGED_UNTIL_IDLE -> new Status(
                     State.STAGED_UNTIL_IDLE, null, result.availablePackage(), active.orElse(null));
                 case ROLLED_BACK -> {
+                    String reason = result.activation() != null ? result.activation().failureDetail() : null;
+                    // Nothing else logs a rollback: without this line an install the user asked
+                    // for vanishes from the log as if it had never been tried.
+                    logger.warn("llama.cpp runtime {} was rolled back after a failed health check{}",
+                        result.availablePackage() != null ? result.availablePackage().runtimeId() : "(unknown)",
+                        reason != null ? ": " + reason : "");
                     if (result.revokedRuntimeId() != null && active.isEmpty()) {
                         yield new Status(
                             State.REVOKED,
-                            "The verified replacement failed its health check; local AI remains blocked.",
+                            withReason("The verified replacement failed its health check; local AI remains blocked.",
+                                reason),
                             null,
                             null,
                             result.revokedRuntimeId());
                     }
                     yield new Status(
                         State.ROLLED_BACK,
-                        active.isPresent()
+                        withReason(active.isPresent()
                             ? "The runtime failed its health check; a non-revoked previous version remains active."
                             : "The replacement failed its health check; no local runtime remains active.",
+                            reason),
                         result.availablePackage(), active.orElse(null));
                 }
             };
@@ -310,6 +318,10 @@ public final class LlamaRuntimeUpdateCoordinator implements AutoCloseable {
             return thread;
         };
         return Executors.newSingleThreadScheduledExecutor(factory);
+    }
+
+    private static String withReason(String summary, String reason) {
+        return reason != null && !reason.isBlank() ? summary + " " + reason : summary;
     }
 
     private static String message(Throwable error) {

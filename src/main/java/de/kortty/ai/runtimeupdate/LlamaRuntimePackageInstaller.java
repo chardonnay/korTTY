@@ -63,6 +63,10 @@ public final class LlamaRuntimePackageInstaller {
 
     @FunctionalInterface
     public interface RuntimeHealthCheck {
+        /**
+         * Returns {@code false} or throws {@link LlamaRuntimeHealthCheckFailedException} (preferred,
+         * it carries the reason) for an unhealthy package; any other exception aborts the install.
+         */
         boolean isHealthy(LlamaRuntimeInstallation installation) throws Exception;
     }
 
@@ -193,6 +197,13 @@ public final class LlamaRuntimePackageInstaller {
                 boolean healthy;
                 try {
                     healthy = healthCheck.isHealthy(installation);
+                } catch (LlamaRuntimeHealthCheckFailedException e) {
+                    deleteInstallationQuietly(installation);
+                    return new LlamaRuntimeActivationResult(
+                        LlamaRuntimeActivationResult.Status.ROLLED_BACK,
+                        installation,
+                        previous.orElse(null),
+                        e.getMessage());
                 } catch (Exception e) {
                     deleteInstallationQuietly(installation);
                     throw new IOException(
