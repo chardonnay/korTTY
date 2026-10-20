@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -94,15 +95,19 @@ public final class LlamaRuntimePackageIntegrity {
      * Verifies an executable when it resides below a managed {@code runtime/packages/<id>} root.
      * External user-managed llama-server binaries remain supported and are not subject to a
      * korTTY package manifest.
+     *
+     * @return the verified descriptor of the managed package — its backend tells the caller which
+     *         build will actually run — or empty for an external binary
      */
-    public static void verifyManagedExecutable(Path executable) throws IOException {
+    public static Optional<LlamaRuntimePackageDescriptor> verifyManagedExecutable(Path executable)
+        throws IOException {
         if (executable == null) {
             throw new IOException("llama-server executable is missing.");
         }
         Path realExecutable = executable.toRealPath();
         Path installationRoot = managedInstallationRoot(realExecutable);
         if (installationRoot == null) {
-            return;
+            return Optional.empty();
         }
         Path descriptorFile = installationRoot.resolve(DESCRIPTOR_FILE);
         if (!Files.isRegularFile(descriptorFile, LinkOption.NOFOLLOW_LINKS)
@@ -125,6 +130,7 @@ public final class LlamaRuntimePackageIntegrity {
             throw new IOException("Managed llama.cpp runtime executable does not match its signed descriptor.");
         }
         verify(installationRoot, descriptor);
+        return Optional.of(descriptor);
     }
 
     private static void verify(Path installationDirectory, LlamaRuntimePackageDescriptor descriptor)

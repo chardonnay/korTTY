@@ -109,7 +109,8 @@ public final class LlamaRuntimeUpdateService {
                 selectVersion(index, requestedBackend, pinned.get());
             if (pinnedPackage.isEmpty()) {
                 installer.unpinRuntime();
-            } else if (installer.active().isPresent()) {
+            } else if (installer.active().isPresent()
+                && !switchesBackend(requestedBackend, installer.active().get(), pinnedPackage.get())) {
                 return currentOrPending(null, revokedRuntimeId);
             } else {
                 return offerOrInstall(effectivePolicy, pinnedPackage.get(), runtimeIsIdle, healthCheck,
@@ -138,6 +139,7 @@ public final class LlamaRuntimeUpdateService {
         }
         if (active.isPresent()
             && !index.isRevoked(active.get().descriptor())
+            && !switchesBackend(requestedBackend, active.get(), candidate)
             && !selector.isNewer(candidate, active.get().descriptor())) {
             return new LlamaRuntimeUpdateResult(
                 LlamaRuntimeUpdateResult.Status.CURRENT, null, null);
@@ -191,6 +193,21 @@ public final class LlamaRuntimeUpdateService {
         LlamaRuntimeIndex index = indexProvider.fetch();
         enforceRevocations(index);
         return selectableVersions(index, backend != null ? backend : LlamaBackend.AUTO);
+    }
+
+    /**
+     * An explicitly requested backend the active package was not built for is a change to make even
+     * at the same build number: comparing build numbers alone kept a CPU package active after the
+     * user chose Vulkan, because the Vulkan package of the same release is not "newer". AUTO never
+     * switches, so an update check keeps whatever backend is active.
+     */
+    private static boolean switchesBackend(
+        LlamaBackend requestedBackend,
+        LlamaRuntimeInstallation active,
+        LlamaRuntimePackageDescriptor candidate
+    ) {
+        return requestedBackend != LlamaBackend.AUTO
+            && candidate.backend() != active.descriptor().backend();
     }
 
     private String enforceRevocations(LlamaRuntimeIndex index) throws IOException {

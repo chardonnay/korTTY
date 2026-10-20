@@ -165,6 +165,8 @@ final class LocalModelManagerPane extends VBox {
     private final Button runtimeVersions = new Button();
     private final Button runtimeRemove = new Button();
     private final Label status = new Label();
+    /** Backend of the active llama.cpp package, refreshed with the runtime table; {@code null} without one. */
+    private LlamaBackend activeLlamaBackend;
     private final VBox downloadStatusPanel = new VBox(6);
     private final Label downloadModelDetails = new Label();
     private final Label downloadFileDetails = new Label();
@@ -879,6 +881,23 @@ final class LocalModelManagerPane extends VBox {
         downloadStatusPanel.managedProperty().bind(downloadStatusPanel.visibleProperty());
     }
 
+    /**
+     * The model's backend, plus the active runtime package's backend when that package cannot give
+     * the model the GPU acceleration it is configured for (a VULKAN model on the CPU package).
+     */
+    private String backendCell(InstalledModel model) {
+        if (model.isMlx()) {
+            return "MLX";
+        }
+        LlamaBackend configured = model.llama().getBackend();
+        LlamaBackend active = activeLlamaBackend;
+        if (active != null && LlamaRuntimeBackendCompatibility.evaluate(active, List.of(model.llama())).status()
+            == LlamaRuntimeBackendCompatibility.Status.REQUIRES_DIFFERENT_RUNTIME) {
+            return I18n.get("ai.local.models.backend.runtimeMismatch", configured.name(), active.name());
+        }
+        return configured.name();
+    }
+
     private void configureInstalledTable() {
         // ALL_COLUMNS (not FLEX_LAST) so the long Name/GGUF-file columns absorb the free width; the
         // short metadata columns below are capped so they no longer stretch across the whole row.
@@ -891,7 +910,7 @@ final class LocalModelManagerPane extends VBox {
         TableColumn<InstalledModel, String> file = column(I18n.get("ai.local.models.column.file"),
             InstalledModel::fileName);
         TableColumn<InstalledModel, String> backend = column(I18n.get("ai.local.models.column.backend"),
-            model -> model.isMlx() ? "MLX" : model.llama().getBackend().name());
+            this::backendCell);
         TableColumn<InstalledModel, String> purpose = column(I18n.get("ai.local.models.column.purpose"),
             model -> I18n.get("ai.local.models.purpose." + (model.isMlx()
                 ? LlamaModelPurpose.CHAT
@@ -910,7 +929,8 @@ final class LocalModelManagerPane extends VBox {
         // Short metadata columns size to their content and never exceed ~30 characters, so they stop
         // eating horizontal space; anything longer is revealed by the hover tooltip.
         purpose.setMaxWidth(190);
-        backend.setMaxWidth(100);
+        // Wide enough for the "VULKAN (runtime: CPU)" mismatch marker.
+        backend.setMaxWidth(190);
         idle.setMaxWidth(130);
         age.setMaxWidth(110);
         state.setMaxWidth(120);
@@ -1966,7 +1986,13 @@ final class LocalModelManagerPane extends VBox {
                 modelsChanged.run();
             } catch (RuntimeException error) {
                 show(Alert.AlertType.ERROR, message(error));
+                return;
             }
+            // A GPU backend on the model alone changes nothing while the CPU package is active:
+            // offer the matching package right away instead of letting the model run on the CPU.
+            // Asked on every save while the mismatch lasts, so re-saving is how to get the offer back.
+            runtimeCoordinator.activeInstallation().ifPresent(active -> offerMatchingRuntime(
+                active, List.of(edited), null, "ai.local.models.runtime.backend.mismatch.saved"));
         }
     }
 
@@ -2097,25 +2123,46 @@ final class LocalModelManagerPane extends VBox {
             }
             return;
         }
+        if (!offerMatchingRuntime(activeRuntime.get(), selected, () -> startModels(selectedIds),
+                "ai.local.models.runtime.backend.mismatch")) {
+            startModels(selectedIds);
+        }
+    }
+
+    /**
+     * When the models ask for a GPU backend the active runtime package was not built for, asks to
+     * install the matching package and runs {@code continuation} once it is active.
+     *
+     * @return {@code false} when the runtime already fits, so the caller goes on itself; {@code true}
+     *         when the mismatch was handled (switch started, declined, or the models conflict)
+     */
+    private boolean offerMatchingRuntime(
+        LlamaRuntimeInstallation activeRuntime,
+        List<LlamaModel> models,
+        Runnable continuation,
+        String questionKey
+    ) {
+        LlamaBackend activeBackend = activeRuntime.descriptor().backend();
         LlamaRuntimeBackendCompatibility.Result compatibility =
-            LlamaRuntimeBackendCompatibility.evaluate(
-                activeRuntime.get().descriptor().backend(), selected);
+            LlamaRuntimeBackendCompatibility.evaluate(activeBackend, models);
         if (compatibility.status()
             == LlamaRuntimeBackendCompatibility.Status.CONFLICTING_MODEL_BACKENDS) {
             show(Alert.AlertType.ERROR, I18n.get("ai.local.models.runtime.backend.conflict"));
-            return;
+            return true;
         }
         if (compatibility.status()
-            == LlamaRuntimeBackendCompatibility.Status.REQUIRES_DIFFERENT_RUNTIME) {
-            LlamaBackend required = compatibility.requiredBackend();
-            if (confirm(I18n.get("ai.local.models.runtime.backend.mismatch",
-                backendLabel(required), backendLabel(activeRuntime.get().descriptor().backend())))) {
-                persistPreferredRuntimeBackend(required);
-                installRuntime(required, () -> startModels(selectedIds));
-            }
-            return;
+            != LlamaRuntimeBackendCompatibility.Status.REQUIRES_DIFFERENT_RUNTIME) {
+            return false;
         }
-        startModels(selectedIds);
+        LlamaBackend required = compatibility.requiredBackend();
+        if (confirm(I18n.get(questionKey, backendLabel(required), backendLabel(activeBackend)))) {
+            persistPreferredRuntimeBackend(required);
+            installRuntime(required, continuation);
+        } else {
+            status.setText(I18n.get("ai.local.models.runtime.backend.mismatch.kept",
+                backendLabel(required), backendLabel(activeBackend)));
+        }
+        return true;
     }
 
     private void startModels(List<String> selectedIds) {
@@ -2589,6 +2636,11 @@ final class LocalModelManagerPane extends VBox {
 
     private void updateRuntimeLabel() {
         Optional<LlamaRuntimeInstallation> llama = runtimeCoordinator.activeInstallation();
+        LlamaBackend previousBackend = activeLlamaBackend;
+        activeLlamaBackend = llama.map(installation -> installation.descriptor().backend()).orElse(null);
+        if (activeLlamaBackend != previousBackend) {
+            installedTable.refresh();
+        }
         LlamaRuntimeUpdateCoordinator.State llamaCoordinatorState = runtimeCoordinator.status().state();
         String llamaState = llama.isPresent()
             ? I18n.get("ai.local.models.runtime.state.ready")
