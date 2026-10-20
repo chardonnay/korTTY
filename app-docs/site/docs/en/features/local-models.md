@@ -204,6 +204,9 @@ The **Runtimes** table in **Local Models** shows the installed version and state
 **A new runtime version causes problems**
 : Select the runtime in **AI > AI Manager > Local Models**, choose **Other version…**, and install the previous version. It stays pinned, so update checks do not upgrade it again; choose the newest version or **Unpin** once a fixed release is available.
 
+**Install runtime ends with an error dialog about the health check**
+: Before a downloaded runtime is activated, korTTY runs `llama-server --version` once. When that fails, the package is removed again and an error dialog names the reason: the exit code, the Windows loader status it stands for (for example `0xC0000135`, a DLL the runtime needs is missing), and the start of the program's output. The same line is written to `kortty.log`. A missing DLL or library points at a faulty package rather than at your computer: report the message, and try another version with **Other version…** in the meantime.
+
 **A new runtime rolls back on its first model start**
 : The lightweight `--version` check passed, but the first real GGUF-backed authenticated API start failed. korTTY restores the newest healthy non-revoked package when available and the Local Models status reports that the replacement runtime failed its health check; inspect the Local Models error, model/backend compatibility, and memory settings before trying the update again.
 

@@ -294,6 +294,55 @@ jobs:
           test -n "$server"
           "$server" --version
 
+      # The link smoke above runs inside the build environment, where Git for Windows, Homebrew or
+      # the distro happen to provide shared libraries (OpenSSL above all) the package does not ship.
+      # Run the packaged binary the way korTTY does on a user machine instead: extracted from the
+      # ZIP, with no build-host library directories on the search path.
+      - name: Extract packaged runtime for the self-containment smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Windows ]; then cd /c/k; fi
+          package="$(find build/llama-runtime/packages -maxdepth 1 -name 'llama-*.zip' | head -n1)"
+          test -n "$package"
+          rm -rf build/llama-runtime/package-smoke
+          mkdir -p build/llama-runtime/package-smoke
+          (cd build/llama-runtime/package-smoke && jar xf "../../../$package")
+          server="$(find build/llama-runtime/package-smoke/bin -type f \( -name llama-server -o -name llama-server.exe \) | head -n1)"
+          test -n "$server"
+          chmod +x "$server"
+          case "$RUNNER_OS" in
+            Linux)
+              ldd "$server"
+              if ldd "$server" | grep -E 'not found|libssl|libcrypto'; then
+                echo "::error::llama-server links a library the package does not ship"
+                exit 1
+              fi
+              env -i "$server" --version
+              ;;
+            macOS)
+              otool -L "$server"
+              if otool -L "$server" | tail -n +2 | grep -vE '^\s*(/usr/lib/|/System/Library/)'; then
+                echo "::error::llama-server links a library outside the macOS system paths"
+                exit 1
+              fi
+              env -i "$server" --version
+              ;;
+          esac
+
+      - name: Packaged runtime starts without build-host DLLs (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $server = "C:\k\build\llama-runtime\package-smoke\bin\llama-server.exe"
+          # Only the Windows system directories, as for korTTY started from the Start menu.
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          $process = Start-Process $server -ArgumentList '--version' -NoNewWindow -Wait -PassThru `
+            -WorkingDirectory (Split-Path $server -Parent)
+          if ($process.ExitCode -ne 0) {
+            throw ("llama-server --version failed outside the build environment: exit 0x{0:X8}" -f $process.ExitCode)
+          }
+
       - name: Full authenticated API contract smoke
         shell: bash
         env:

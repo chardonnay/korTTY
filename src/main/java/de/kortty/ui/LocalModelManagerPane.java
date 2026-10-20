@@ -634,6 +634,7 @@ final class LocalModelManagerPane extends VBox {
                     || llamaStatus.state() == LlamaRuntimeUpdateCoordinator.State.PENDING_FIRST_LAUNCH;
                 if (!succeeded) {
                     renderRuntimeStatus(llamaStatus);
+                    reportFailedRuntimeInstall(llamaStatus);
                 }
             }
             if (succeeded) {
@@ -2682,9 +2683,11 @@ final class LocalModelManagerPane extends VBox {
             updateRuntimeLabel();
             if (error != null) {
                 status.setText(I18n.get("ai.local.models.runtime.install.failed") + ": " + message(rootCause(error)));
+                show(Alert.AlertType.ERROR, status.getText());
                 return;
             }
             renderRuntimeStatus(result);
+            reportFailedRuntimeInstall(result);
             if ((result.state() == LlamaRuntimeUpdateCoordinator.State.READY
                     || result.state() == LlamaRuntimeUpdateCoordinator.State.PENDING_FIRST_LAUNCH)
                 && continuation != null) {
@@ -2713,6 +2716,23 @@ final class LocalModelManagerPane extends VBox {
 
     private static String backendLabel(LlamaBackend backend) {
         return I18n.get("ai.local.runtime.backend." + backend.name().toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * An install the user asked for that ends without a usable runtime says so in a dialog: the
+     * muted status line under the tables alone was easy to miss, so a failed install looked as if
+     * the button had done nothing.
+     */
+    private void reportFailedRuntimeInstall(LlamaRuntimeUpdateCoordinator.Status result) {
+        boolean failed = result != null && switch (result.state()) {
+            // CURRENT without an active runtime: the signed index has no package for this machine.
+            case ROLLED_BACK, FAILED, OFFLINE, REVOKED, CURRENT -> true;
+            default -> false;
+        };
+        if (failed) {
+            show(Alert.AlertType.ERROR,
+                I18n.get("ai.local.models.runtime.install.failed") + "\n\n" + status.getText());
+        }
     }
 
     private void renderRuntimeStatus(LlamaRuntimeUpdateCoordinator.Status update) {

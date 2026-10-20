@@ -3159,6 +3159,12 @@ tasks.register<Exec>("configureLlamaRuntime") {
             "-DLLAMA_BUILD_TOOLS=ON",
             "-DLLAMA_BUILD_APP=OFF",
             "-DLLAMA_CURL=OFF",
+            // korTTY downloads models itself and serves the API on loopback only, so llama-server
+            // needs no HTTPS. Upstream defaults this ON and links whatever OpenSSL the build host
+            // has as a shared library, which the package does not ship: on Windows the runner's
+            // libssl-3-x64.dll made every package fail its health check with STATUS_DLL_NOT_FOUND
+            // on user machines.
+            "-DLLAMA_OPENSSL=OFF",
             "-DLLAMA_BUILD_UI=OFF",
             "-DLLAMA_BUILD_WEBUI=OFF",
             "-DLLAMA_USE_PREBUILT_UI=OFF",
