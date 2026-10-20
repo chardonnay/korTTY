@@ -506,7 +506,7 @@ public final class LlamaRuntimeManager implements AutoCloseable {
         return realPath;
     }
 
-    private static Path resolveExecutable(LlamaModel model) throws IOException {
+    private static ResolvedExecutable resolveExecutable(LlamaModel model) throws IOException {
         Path path = model.getServerExecutable();
         if (path == null || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS) && !Files.isRegularFile(path)) {
             throw new IOException("llama-server executable does not exist: " + path);
@@ -515,8 +515,35 @@ public final class LlamaRuntimeManager implements AutoCloseable {
         if (!Files.isExecutable(realPath)) {
             throw new IOException("llama-server is not executable: " + realPath);
         }
-        LlamaRuntimePackageIntegrity.verifyManagedExecutable(realPath);
-        return realPath;
+        LlamaBackend packageBackend = LlamaRuntimePackageIntegrity.verifyManagedExecutable(realPath)
+            .map(descriptor -> descriptor.backend())
+            .orElse(null);
+        return new ResolvedExecutable(realPath, packageBackend);
+    }
+
+    /** @param packageBackend backend of the managed package, {@code null} for an external binary */
+    private record ResolvedExecutable(Path path, LlamaBackend packageBackend) {
+    }
+
+    /**
+     * Describes a model that asks for a GPU backend the runtime package was not built for. Such a
+     * model still starts — a CPU package simply ignores {@code --n-gpu-layers} — so without this
+     * the model runs on the CPU with nothing saying so. Empty when the package fits or is external.
+     */
+    static Optional<String> backendMismatch(LlamaModel model, LlamaBackend packageBackend) {
+        if (model == null || packageBackend == null) {
+            return Optional.empty();
+        }
+        LlamaRuntimeBackendCompatibility.Result compatibility =
+            LlamaRuntimeBackendCompatibility.evaluate(packageBackend, List.of(model));
+        if (compatibility.status() != LlamaRuntimeBackendCompatibility.Status.REQUIRES_DIFFERENT_RUNTIME) {
+            return Optional.empty();
+        }
+        return Optional.of("Local model " + model.getId() + " is configured for "
+            + compatibility.requiredBackend() + ", but the active llama.cpp runtime package is the "
+            + packageBackend + " build; the model runs without " + compatibility.requiredBackend()
+            + " acceleration. Install the " + compatibility.requiredBackend()
+            + " runtime in AI Manager > Local Models.");
     }
 
     private static String createApiKey() {
@@ -613,8 +640,10 @@ public final class LlamaRuntimeManager implements AutoCloseable {
             Path resolvedExecutable = null;
             boolean runtimeLaunchAttempted = false;
             try {
-                Path executable = resolveExecutable(model);
+                ResolvedExecutable resolved = resolveExecutable(model);
+                Path executable = resolved.path();
                 resolvedExecutable = executable;
+                backendMismatch(model, resolved.packageBackend()).ifPresent(logger::warn);
                 Path gguf = resolveModelFile(model);
                 Files.createDirectories(runDirectory);
                 Path newSessionDirectory = Files.createTempDirectory(runDirectory, modelId + "-");
