@@ -224,6 +224,79 @@ class LlamaRuntimeUpdateServiceTest {
         }
     }
 
+    @Test
+    void anExplicitBackendReplacesTheSameReleaseBuiltForAnotherBackend() throws Exception {
+        // Reported on Windows: CPU package b11727 active, user chose Vulkan, "Runtime update" kept CPU
+        // because the Vulkan package of the same release has the same build number.
+        Path root = Files.createTempDirectory("kortty-runtime-backend-switch-");
+        Map<URI, byte[]> packages = new ConcurrentHashMap<>();
+        try {
+            byte[] cpuArchive = runtimeZip("cpu");
+            byte[] gpuArchive = runtimeZip("gpu");
+            LlamaRuntimePackageDescriptor cpu = descriptor("llama-b10025-kortty1", cpuArchive, LlamaBackend.CPU);
+            LlamaRuntimePackageDescriptor gpu = descriptor("llama-b10025-kortty1", gpuArchive, gpuBackend());
+            packages.put(cpu.downloadUri(), cpuArchive);
+            packages.put(gpu.downloadUri(), gpuArchive);
+            LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(
+                root, uri -> new ByteArrayInputStream(packages.get(uri)));
+            installer.installAndActivate(cpu, () -> true, installation -> true);
+            installer.confirmPendingFirstLaunch(installer.active().orElseThrow().executable());
+            LlamaRuntimeIndex index = new LlamaRuntimeIndex(1, Instant.now(), List.of(cpu, gpu), Set.of());
+
+            LlamaRuntimeUpdateResult result = service(installer, index).checkAndMaybeApply(
+                LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, gpuBackend(), () -> true, installation -> true);
+
+            assertThat(result.status()).isEqualTo(LlamaRuntimeUpdateResult.Status.PENDING_FIRST_LAUNCH);
+            assertThat(installer.active().orElseThrow().descriptor().backend()).isEqualTo(gpuBackend());
+        } finally {
+            deleteTree(root);
+        }
+    }
+
+    @Test
+    void autoKeepsTheActiveBackendOfTheSameRelease() throws Exception {
+        Path root = Files.createTempDirectory("kortty-runtime-backend-keep-");
+        Map<URI, byte[]> packages = new ConcurrentHashMap<>();
+        AtomicInteger downloads = new AtomicInteger();
+        try {
+            // Active: the backend AUTO would not pick on a fresh install, so a switch would show.
+            LlamaBackend active = LlamaRuntimePlatform.current() == LlamaRuntimePlatform.MACOS
+                ? LlamaBackend.CPU : LlamaBackend.VULKAN;
+            LlamaBackend preferred = active == LlamaBackend.CPU ? LlamaBackend.METAL : LlamaBackend.CPU;
+            byte[] activeArchive = runtimeZip("active");
+            byte[] preferredArchive = runtimeZip("preferred");
+            LlamaRuntimePackageDescriptor activePackage =
+                descriptor("llama-b10025-kortty1", activeArchive, active);
+            LlamaRuntimePackageDescriptor preferredPackage =
+                descriptor("llama-b10025-kortty1", preferredArchive, preferred);
+            packages.put(activePackage.downloadUri(), activeArchive);
+            packages.put(preferredPackage.downloadUri(), preferredArchive);
+            LlamaRuntimePackageInstaller installer = new LlamaRuntimePackageInstaller(root, uri -> {
+                downloads.incrementAndGet();
+                return new ByteArrayInputStream(packages.get(uri));
+            });
+            installer.installAndActivate(activePackage, () -> true, installation -> true);
+            installer.confirmPendingFirstLaunch(installer.active().orElseThrow().executable());
+            downloads.set(0);
+            LlamaRuntimeIndex index = new LlamaRuntimeIndex(
+                1, Instant.now(), List.of(activePackage, preferredPackage), Set.of());
+
+            LlamaRuntimeUpdateResult result = service(installer, index).checkAndMaybeApply(
+                LlamaRuntimeUpdatePolicy.AUTOMATIC_STABLE, LlamaBackend.AUTO, () -> true, installation -> true);
+
+            assertThat(result.status()).isEqualTo(LlamaRuntimeUpdateResult.Status.CURRENT);
+            assertThat(installer.active().orElseThrow().descriptor().backend()).isEqualTo(active);
+            assertThat(downloads.get()).isEqualTo(0);
+        } finally {
+            deleteTree(root);
+        }
+    }
+
+    private static LlamaBackend gpuBackend() {
+        return LlamaRuntimePlatform.current() == LlamaRuntimePlatform.MACOS
+            ? LlamaBackend.METAL : LlamaBackend.VULKAN;
+    }
+
     private static LlamaRuntimeUpdateService service(
         LlamaRuntimePackageInstaller installer,
         LlamaRuntimeIndex index
@@ -238,6 +311,11 @@ class LlamaRuntimeUpdateServiceTest {
     }
 
     private static LlamaRuntimePackageDescriptor descriptor(String id, byte[] archive) throws Exception {
+        return descriptor(id, archive, LlamaBackend.CPU);
+    }
+
+    private static LlamaRuntimePackageDescriptor descriptor(String id, byte[] archive, LlamaBackend backend)
+        throws Exception {
         String tag = id.substring("llama-".length(), id.indexOf("-kortty"));
         String executable = LlamaRuntimePlatform.current() == LlamaRuntimePlatform.WINDOWS
             ? "bin/llama-server.exe" : "bin/llama-server";
@@ -249,10 +327,10 @@ class LlamaRuntimeUpdateServiceTest {
             "2.5.2",
             LlamaRuntimePlatform.current(),
             LlamaRuntimePackageDescriptor.currentArchitecture(),
-            LlamaBackend.CPU,
+            backend,
             archive.length,
             HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(archive)),
-            URI.create("https://example.test/" + id + ".zip"),
+            URI.create("https://example.test/" + id + "-" + backend.name().toLowerCase() + ".zip"),
             executable,
             false);
     }
