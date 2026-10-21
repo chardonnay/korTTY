@@ -44,6 +44,8 @@ final class AgentDesignPreview extends StackPane {
     static final double PREVIEW_WIDTH = 620;
     static final double PREVIEW_HEIGHT = 360;
     private static final String RUN_ID = "agent-design-preview";
+    private static final String LARGEST_DIRECTORIES = "du -xh /var --max-depth=2 | sort -h | tail -3";
+    private static final String VACUUM = "sudo journalctl --vacuum-size=500M";
     private static final String ESC = "\u001b";
 
     private final ConnectionSettings terminalSettings;
@@ -75,7 +77,10 @@ final class AgentDesignPreview extends StackPane {
             Pane overlay = new Pane();
             overlay.setMouseTransparent(true);
             overlay.setPickOnBounds(false);
-            AgentDesignHost designHost = new AgentDesignHost(surfaceFor(terminal, overlay));
+            // Like a pane's control layer: its own nodes take clicks, the rest reaches the terminal.
+            Pane controls = new Pane();
+            controls.setPickOnBounds(false);
+            AgentDesignHost designHost = new AgentDesignHost(surfaceFor(terminal, overlay, controls));
             designHost.applyTheme(agentTheme);
             Region pane = terminal.getPane();
             pane.setMinSize(0, 0);
@@ -85,7 +90,7 @@ final class AgentDesignPreview extends StackPane {
             VBox column = new VBox(designHost.topSlot(), middle, designHost);
             VBox.setVgrow(middle, Priority.ALWAYS);
             column.setFillWidth(true);
-            getChildren().setAll(column, overlay);
+            getChildren().setAll(column, overlay, controls);
             widget = terminal;
             connector = demo;
             host = designHost;
@@ -130,14 +135,18 @@ final class AgentDesignPreview extends StackPane {
         boolean classic = combination.usesClassicHistory();
         Timeline timeline = new Timeline();
         List<KeyFrame> frames = timeline.getKeyFrames();
+        if ("d05".equals(combination.statusId())) {
+            // Design 05 is asked in its Spotlight, which then shrinks into the pill.
+            frames.add(at(0.05, () -> designHost.playSpotlight(prompt)));
+        }
         frames.add(at(0.5, () -> designHost.beginRun(RUN_ID, prompt, () -> { }, paused -> { }, null,
             new AiAgentActivityPanel.RunMetadata("preview", "Standard", "", "", "admin", "admin", "web-01"),
             combination)));
         frames.add(at(0.7, () -> state(designHost, TerminalAgentModels.Phase.PROBING)));
         frames.add(at(0.8, () -> designHost.publishActivity(RUN_ID, action("probe", "Inspect SSH session",
-            TerminalAgentModels.AgentActivityStatus.RUNNING, "", AgentActionCategory.INSPECT))));
+            TerminalAgentModels.AgentActivityStatus.RUNNING, "", "", AgentActionCategory.INSPECT))));
         frames.add(at(1.5, () -> designHost.publishActivity(RUN_ID, action("probe", "Inspect SSH session",
-            TerminalAgentModels.AgentActivityStatus.COMPLETED, "Ubuntu 24.04 · bash", AgentActionCategory.INSPECT))));
+            TerminalAgentModels.AgentActivityStatus.COMPLETED, "Ubuntu 24.04 · bash", "", AgentActionCategory.INSPECT))));
         frames.add(at(1.7, () -> {
             state(designHost, TerminalAgentModels.Phase.PLANNING);
             designHost.publishActivity(RUN_ID, thinking(TerminalAgentModels.AgentActivityStatus.RUNNING, ""));
@@ -146,15 +155,19 @@ final class AgentDesignPreview extends StackPane {
             I18n.get("aiAgentDesign.preview.thinking")))));
         frames.add(at(3.0, () -> {
             state(designHost, TerminalAgentModels.Phase.RUNNING_COMMANDS);
-            designHost.publishActivity(RUN_ID, action("cmd1", "du -xh /var --max-depth=2 | sort -h | tail",
-                TerminalAgentModels.AgentActivityStatus.RUNNING, "", AgentActionCategory.READ));
+            designHost.publishActivity(RUN_ID, action("cmd1", "Read(" + LARGEST_DIRECTORIES + ")",
+                TerminalAgentModels.AgentActivityStatus.RUNNING, "", "", AgentActionCategory.READ));
         }));
-        frames.add(at(4.0, () -> designHost.publishActivity(RUN_ID, action("cmd1", "du -xh /var --max-depth=2 | sort -h | tail",
-            TerminalAgentModels.AgentActivityStatus.COMPLETED, "Exit 0 - 12 output lines", AgentActionCategory.READ))));
-        frames.add(at(4.2, () -> designHost.publishActivity(RUN_ID, action("cmd2", "journalctl --disk-usage",
-            TerminalAgentModels.AgentActivityStatus.RUNNING, "", AgentActionCategory.READ))));
-        frames.add(at(5.0, () -> designHost.publishActivity(RUN_ID, action("cmd2", "journalctl --disk-usage",
-            TerminalAgentModels.AgentActivityStatus.COMPLETED, "Exit 0 - 1 output line", AgentActionCategory.READ))));
+        frames.add(at(4.0, () -> designHost.publishActivity(RUN_ID, action("cmd1", "Read(" + LARGEST_DIRECTORIES + ")",
+            TerminalAgentModels.AgentActivityStatus.COMPLETED, "Exit 0 - 3 output lines",
+            detail("Find the largest directories", LARGEST_DIRECTORIES, "1.4G\t/var/lib/docker\n21G\t/var/log/journal\n23G\t/var"),
+            AgentActionCategory.READ))));
+        frames.add(at(4.2, () -> designHost.publishActivity(RUN_ID, action("cmd2", "Read(journalctl --disk-usage)",
+            TerminalAgentModels.AgentActivityStatus.RUNNING, "", "", AgentActionCategory.READ))));
+        frames.add(at(5.0, () -> designHost.publishActivity(RUN_ID, action("cmd2", "Read(journalctl --disk-usage)",
+            TerminalAgentModels.AgentActivityStatus.COMPLETED, "Exit 0 - 1 output lines",
+            detail("Measure the journal", "journalctl --disk-usage", "Archived and active journals take up 21.4G in the file system."),
+            AgentActionCategory.READ))));
         frames.add(at(5.3, () -> {
             state(designHost, TerminalAgentModels.Phase.AWAITING_APPROVAL);
             designHost.publishActivity(RUN_ID, question(TerminalAgentModels.AgentActivityStatus.RUNNING));
@@ -172,11 +185,13 @@ final class AgentDesignPreview extends StackPane {
         }));
         frames.add(at(7.8, () -> {
             state(designHost, TerminalAgentModels.Phase.RUNNING_COMMANDS);
-            designHost.publishActivity(RUN_ID, action("cmd3", "sudo journalctl --vacuum-size=500M",
-                TerminalAgentModels.AgentActivityStatus.RUNNING, "", AgentActionCategory.WRITE));
+            designHost.publishActivity(RUN_ID, action("cmd3", "Run(" + VACUUM + ")",
+                TerminalAgentModels.AgentActivityStatus.RUNNING, "", "", AgentActionCategory.WRITE));
         }));
-        frames.add(at(8.9, () -> designHost.publishActivity(RUN_ID, action("cmd3", "sudo journalctl --vacuum-size=500M",
-            TerminalAgentModels.AgentActivityStatus.COMPLETED, "Exit 0 - 20.9G freed", AgentActionCategory.WRITE))));
+        frames.add(at(8.9, () -> designHost.publishActivity(RUN_ID, action("cmd3", "Run(" + VACUUM + ")",
+            TerminalAgentModels.AgentActivityStatus.COMPLETED, "Exit 0 - 1 output lines",
+            detail("Shrink the journal", VACUUM, "Vacuuming done, freed 20.9G of archived journals from /var/log/journal."),
+            AgentActionCategory.WRITE))));
         frames.add(at(9.2, () -> {
             designHost.publishActivity(RUN_ID, new TerminalAgentModels.AgentActivity(RUN_ID + ":message:final",
                 TerminalAgentModels.AgentActivityType.MESSAGE, TerminalAgentModels.AgentActivityStatus.COMPLETED,
@@ -191,7 +206,7 @@ final class AgentDesignPreview extends StackPane {
     private void askApproval(AgentDesignHost designHost) {
         TerminalAgentModels.Approval approval = new TerminalAgentModels.Approval(RUN_ID, "preview", null,
             I18n.get("aiAgentDesign.preview.approval"), I18n.get("aiAgentDesign.preview.approval"),
-            List.of(new TerminalAgentModels.PlannedCommand("sudo journalctl --vacuum-size=500M", "",
+            List.of(new TerminalAgentModels.PlannedCommand(VACUUM, "",
                 TerminalAgentModels.Risk.REQUIRES_CONFIRMATION)), true);
         Thread worker = new Thread(() -> designHost.requestApproval(RUN_ID, approval), "ai-agent-design-preview");
         worker.setDaemon(true);
@@ -213,12 +228,18 @@ final class AgentDesignPreview extends StackPane {
         });
     }
 
-    private static TerminalAgentModels.AgentActivity action(String id, String command,
+    /** A command step as the agent service publishes it: titled {@code Read(…)} or {@code Run(…)}. */
+    private static TerminalAgentModels.AgentActivity action(String id, String title,
                                                             TerminalAgentModels.AgentActivityStatus status,
-                                                            String summary, AgentActionCategory category) {
+                                                            String summary, String detail, AgentActionCategory category) {
         return new TerminalAgentModels.AgentActivity(RUN_ID + ":command:" + id, TerminalAgentModels.AgentActivityType.ACTION,
-            status, command, summary, "", TerminalAgentModels.AgentActivityTokenUsage.unknown(), 0L, false,
+            status, title, summary, detail, TerminalAgentModels.AgentActivityTokenUsage.unknown(), 0L, !detail.isBlank(),
             status != TerminalAgentModels.AgentActivityStatus.RUNNING, category);
+    }
+
+    /** A finished command's detail in the agent service's form: purpose, command, exit code, output. */
+    private static String detail(String purpose, String command, String stdout) {
+        return purpose + "\nCommand: " + command + "\nExit code: 0\nstdout:\n" + stdout;
     }
 
     private static TerminalAgentModels.AgentActivity thinking(TerminalAgentModels.AgentActivityStatus status, String summary) {
@@ -236,7 +257,7 @@ final class AgentDesignPreview extends StackPane {
             TerminalAgentModels.AgentActivityTokenUsage.unknown(), 0L, false, false);
     }
 
-    private AgentTerminalSurface surfaceFor(SithTermFxWidget terminal, Pane overlay) {
+    private AgentTerminalSurface surfaceFor(SithTermFxWidget terminal, Pane overlay, Pane controls) {
         return new AgentTerminalSurface() {
             @Override
             public AgentTerminalBlockWriter blockWriter() {
@@ -265,6 +286,31 @@ final class AgentDesignPreview extends StackPane {
             @Override
             public Pane overlayLayer() {
                 return overlay;
+            }
+
+            @Override
+            public Pane controlLayer() {
+                return controls;
+            }
+
+            @Override
+            public javafx.scene.Node canvas() {
+                return terminal.getTerminalPanel() != null ? terminal.getTerminalPanel().getCanvas() : null;
+            }
+
+            @Override
+            public TerminalCellGeometry cellGeometry() {
+                return terminal instanceof KorttyTermWidget kortty
+                    && kortty.getTerminalPanel() instanceof KorttyTermWidget.KorttyTerminalPanel panel
+                    ? panel.cellGeometry() : null;
+            }
+
+            @Override
+            public com.sithtermfx.core.compatibility.Point cursorCell() {
+                return terminal.getTerminal() != null
+                    ? new com.sithtermfx.core.compatibility.Point(terminal.getTerminal().getCursorX() - 1,
+                        terminal.getTerminal().getCursorY() - 1)
+                    : null;
             }
         };
     }

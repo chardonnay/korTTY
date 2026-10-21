@@ -31,7 +31,7 @@ import java.util.function.Supplier;
  * of the run, newest at the bottom. The running step glows; pointing at a segment shows a lens with the
  * step, its result and the first lines of its detail.
  */
-final class AgentDesignMinimapRail extends Pane implements AgentStatusPresenter {
+final class AgentDesignMinimapRail extends Pane implements AgentRunPresenter {
 
     static final double RAIL_WIDTH = 14.0;
     private static final double GAP = 3.0;

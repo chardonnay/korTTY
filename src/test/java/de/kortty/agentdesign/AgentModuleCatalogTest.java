@@ -39,6 +39,13 @@ class AgentModuleCatalogTest {
     }
 
     @Test
+    void allTwentyDesignsCanBeChosen() {
+        for (AgentModuleInfo module : AgentModuleCatalog.all()) {
+            assertWithMessage("module %s", module.id()).that(module.implemented()).isTrue();
+        }
+    }
+
+    @Test
     void theStandardAndClassicCombinationsUseOnlyImplementedModules() {
         for (AgentDesignCombination preset : AgentDesignPresets.all()) {
             for (AgentRole role : AgentRole.values()) {
@@ -55,7 +62,10 @@ class AgentModuleCatalogTest {
     void aModuleIsOnlyUsableInItsOwnRole() {
         assertThat(AgentModuleCatalog.isUsable("d08", AgentRole.STATUS)).isTrue();
         assertThat(AgentModuleCatalog.isUsable("d08", AgentRole.HISTORY)).isFalse();
-        assertThat(AgentModuleCatalog.isUsable("d02", AgentRole.HISTORY)).isFalse();
+        assertThat(AgentModuleCatalog.isUsable("d02", AgentRole.HISTORY)).isTrue();
+        assertThat(AgentModuleCatalog.isUsable("d02", AgentRole.STATUS)).isFalse();
+        assertThat(AgentModuleCatalog.isUsable("d14", AgentRole.APPROVAL)).isTrue();
+        assertThat(AgentModuleCatalog.isUsable("d20", AgentRole.ARRANGEMENT)).isTrue();
         assertThat(AgentModuleCatalog.isUsable(" d03 ", AgentRole.HISTORY)).isTrue();
         assertThat(AgentModuleCatalog.isUsable(null, AgentRole.HISTORY)).isFalse();
     }

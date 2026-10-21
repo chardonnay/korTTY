@@ -31,7 +31,7 @@ import java.util.List;
  * step. Finished stations are filled, the current one pulses, an open question glows amber, and a light
  * travels along the line as the run moves on. The bar fades out a few seconds after the last run ends.
  */
-final class AgentDesignMetroBar extends HBox implements AgentStatusPresenter {
+final class AgentDesignMetroBar extends HBox implements AgentRunPresenter {
 
     static final double BAR_HEIGHT = 52.0;
     private static final double STATION_SPACING = 58.0;
@@ -67,7 +67,7 @@ final class AgentDesignMetroBar extends HBox implements AgentStatusPresenter {
     private boolean reducedAnimations;
     private Colors colors = Colors.of(AgentDesignPalette.of((de.kortty.model.Theme) null));
 
-    AgentDesignMetroBar(AgentStatusPresenter.Actions actions) {
+    AgentDesignMetroBar(AgentRunPresenter.Actions actions) {
         getStyleClass().add("ai-agent-design-bar");
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(10);

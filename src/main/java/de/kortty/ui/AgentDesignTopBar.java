@@ -38,7 +38,7 @@ import java.util.function.Supplier;
  * output at the bottom. A shimmering bar shows that the agent works and names the current step; ▾
  * drops the run's steps down over the older output.
  */
-final class AgentDesignTopBar extends HBox implements AgentStatusPresenter {
+final class AgentDesignTopBar extends HBox implements AgentRunPresenter {
 
     static final double BAR_HEIGHT = 30.0;
     private static final double TRACK_HEIGHT = 4.0;
@@ -65,7 +65,7 @@ final class AgentDesignTopBar extends HBox implements AgentStatusPresenter {
     private boolean drawerOpen;
     private View view;
 
-    AgentDesignTopBar(AgentStatusPresenter.Actions actions) {
+    AgentDesignTopBar(AgentRunPresenter.Actions actions) {
         getStyleClass().add("ai-agent-design-bar");
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(10);

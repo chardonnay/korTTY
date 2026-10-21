@@ -477,8 +477,47 @@ pages:
     last_synced_ref: "f8e06604"
   - path: app-docs/site/docs/en/features/ai-agent-designs.md
     owns_i18n: [aiAgentDesign.]
-    owns_code: [src/main/java/de/kortty/agentdesign, src/main/java/de/kortty/model/AgentDesignCombinationEntry.java, src/main/java/de/kortty/ui/AgentDesignPluginManagerDialog.java, src/main/java/de/kortty/ui/AgentDesignHost.java, src/main/java/de/kortty/ui/AgentDesignMetroBar.java, src/main/java/de/kortty/ui/AgentDesignInlineBlocks.java, src/main/java/de/kortty/ui/AgentInlineBlockLayout.java, src/main/java/de/kortty/ui/AgentTerminalBlockWriter.java, src/main/java/de/kortty/ui/AgentDesignApprovalStrip.java, src/main/java/de/kortty/ui/AgentDesignPreview.java, src/main/java/de/kortty/ui/AgentDesignUiSupport.java, src/main/java/de/kortty/ui/AgentStatusPresenter.java, src/main/java/de/kortty/ui/AgentDesignPowerlineBar.java, src/main/java/de/kortty/ui/AgentDesignTopBar.java, src/main/java/de/kortty/ui/AgentDesignMinimapRail.java, src/main/java/de/kortty/ui/AgentDesignNeonTicker.java, src/main/java/de/kortty/ui/AgentDesignStepList.java]
-    screenshots: [plugins/ai-agent-design.png, plugins/ai-agent-design-finished.png, plugins/ai-agent-status-designs.png]
+    owns_code:
+      - src/main/java/de/kortty/agentdesign
+      - src/main/java/de/kortty/model/AgentDesignCombinationEntry.java
+      - src/main/java/de/kortty/ui/AgentAdaptiveDock.java
+      - src/main/java/de/kortty/ui/AgentDesignApprovalStrip.java
+      - src/main/java/de/kortty/ui/AgentDesignCardStack.java
+      - src/main/java/de/kortty/ui/AgentDesignChat.java
+      - src/main/java/de/kortty/ui/AgentDesignCountdownRing.java
+      - src/main/java/de/kortty/ui/AgentDesignCursorApproval.java
+      - src/main/java/de/kortty/ui/AgentDesignFocusMode.java
+      - src/main/java/de/kortty/ui/AgentDesignHost.java
+      - src/main/java/de/kortty/ui/AgentDesignHud.java
+      - src/main/java/de/kortty/ui/AgentDesignInlineBlocks.java
+      - src/main/java/de/kortty/ui/AgentDesignLogTable.java
+      - src/main/java/de/kortty/ui/AgentDesignMetroBar.java
+      - src/main/java/de/kortty/ui/AgentDesignMinimapRail.java
+      - src/main/java/de/kortty/ui/AgentDesignNeonTicker.java
+      - src/main/java/de/kortty/ui/AgentDesignOrbit.java
+      - src/main/java/de/kortty/ui/AgentDesignPalette.java
+      - src/main/java/de/kortty/ui/AgentDesignPictureInPicture.java
+      - src/main/java/de/kortty/ui/AgentDesignPlanExecution.java
+      - src/main/java/de/kortty/ui/AgentDesignPluginManagerDialog.java
+      - src/main/java/de/kortty/ui/AgentDesignPowerlineBar.java
+      - src/main/java/de/kortty/ui/AgentDesignPreview.java
+      - src/main/java/de/kortty/ui/AgentDesignSpotlight.java
+      - src/main/java/de/kortty/ui/AgentDesignStatusPill.java
+      - src/main/java/de/kortty/ui/AgentDesignStepList.java
+      - src/main/java/de/kortty/ui/AgentDesignTimeline.java
+      - src/main/java/de/kortty/ui/AgentDesignTmuxPane.java
+      - src/main/java/de/kortty/ui/AgentDesignToasts.java
+      - src/main/java/de/kortty/ui/AgentDesignTopBar.java
+      - src/main/java/de/kortty/ui/AgentDesignUiSupport.java
+      - src/main/java/de/kortty/ui/AgentDesignWidgets.java
+      - src/main/java/de/kortty/ui/AgentFocusLayout.java
+      - src/main/java/de/kortty/ui/AgentInlineBlockLayout.java
+      - src/main/java/de/kortty/ui/AgentRunPresenter.java
+      - src/main/java/de/kortty/ui/AgentStatusVisibility.java
+      - src/main/java/de/kortty/ui/AgentStepDetails.java
+      - src/main/java/de/kortty/ui/AgentTerminalBlockWriter.java
+      - src/main/java/de/kortty/ui/AgentTerminalSurface.java
+    screenshots: [plugins/ai-agent-design.png, plugins/ai-agent-design-finished.png, plugins/ai-agent-status-designs.png, plugins/ai-agent-history-panels.png, plugins/ai-agent-floating-designs.png, plugins/ai-agent-terminal-designs.png, plugins/ai-agent-arrangements.png]
     last_synced_ref: "733abbf4"
   - path: app-docs/site/docs/en/features/coding-agents.md
     owns_i18n: [settings.codingAgent., menu.codingAgent., codingAgent., dashboard.codingAgent.]

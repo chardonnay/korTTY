@@ -79,8 +79,8 @@ final class AgentDesignStepList extends VBox {
         AgentInlineBlockLayout.Segment marker = AgentInlineBlockLayout.marker(step, spinner);
         Label markerLabel = label(marker.text(), palette.colorOf(marker.role()));
         markerLabel.setMinWidth(14);
-        boolean command = step.type() == TerminalAgentModels.AgentActivityType.ACTION;
-        Label text = label(AgentInlineBlockLayout.oneLine(AgentInlineBlockLayout.rowText(step)),
+        boolean command = AgentStepDetails.isCommand(step);
+        Label text = label(AgentDesignPowerlineBar.stepText(step),
             step.type() == TerminalAgentModels.AgentActivityType.MESSAGE ? palette.muted() : palette.text());
         if (command) {
             text.setFont(Font.font("Monospaced", text.getFont().getSize()));
@@ -89,7 +89,8 @@ final class AgentDesignStepList extends VBox {
         text.setMinWidth(0);
         text.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(text, Priority.ALWAYS);
-        Label meta = label(AgentInlineBlockLayout.rowMeta(trace, step, nowMillis), palette.muted());
+        String result = step.status() == TerminalAgentModels.AgentActivityStatus.RUNNING ? "" : AgentStepDetails.result(step);
+        Label meta = label(result.isBlank() ? AgentInlineBlockLayout.rowMeta(trace, step, nowMillis) : result, palette.muted());
         meta.setMinWidth(Label.USE_PREF_SIZE);
         HBox row = new HBox(6, markerLabel, text, meta);
         row.setAlignment(Pos.CENTER_LEFT);

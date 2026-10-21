@@ -1938,6 +1938,64 @@ public class TerminalView extends BorderPane {
                 ? splitPane.paneOverlay(widget, com.sithtermfx.ui.split.TerminalSplitPane.PaneOverlayLayer.AGENT)
                 : null;
         }
+
+        @Override
+        public @Nullable javafx.scene.layout.Pane controlLayer() {
+            return splitPane != null
+                ? splitPane.paneOverlay(widget, com.sithtermfx.ui.split.TerminalSplitPane.PaneOverlayLayer.AGENT_CONTROLS)
+                : null;
+        }
+
+        @Override
+        public @Nullable Node canvas() {
+            return widget instanceof KorttyTermWidget korttyWidget && korttyWidget.getTerminalPanel() != null
+                ? korttyWidget.getTerminalPanel().getCanvas()
+                : null;
+        }
+
+        @Override
+        public @Nullable TerminalCellGeometry cellGeometry() {
+            return widget instanceof KorttyTermWidget korttyWidget
+                && korttyWidget.getTerminalPanel() instanceof KorttyTermWidget.KorttyTerminalPanel panel
+                ? panel.cellGeometry()
+                : null;
+        }
+
+        @Override
+        public com.sithtermfx.core.compatibility.@Nullable Point cursorCell() {
+            Terminal terminal = widget.getTerminal();
+            return terminal != null
+                ? new com.sithtermfx.core.compatibility.Point(terminal.getCursorX() - 1, terminal.getCursorY() - 1)
+                : null;
+        }
+
+        @Override
+        public void insertAtPrompt(String text) {
+            if (widget instanceof KorttyTermWidget korttyWidget && text != null && !text.isBlank()) {
+                pasteIntoPane(korttyWidget, text, PasteSource.AI);
+            }
+        }
+
+        @Override
+        public boolean canStartRuns() {
+            return !cleanedUp && terminalAgentShortcutHandler != null && isTerminalAgentShortcutEnabled()
+                && createTerminalAgentRunContext(widget) != null;
+        }
+
+        @Override
+        public boolean startRun(String prompt, @Nullable String profileName) {
+            String trimmed = prompt != null ? prompt.strip() : "";
+            TerminalAgentShortcutHandler handler = terminalAgentShortcutHandler;
+            if (trimmed.isEmpty() || handler == null || !canStartRuns()) {
+                return false;
+            }
+            String commandName = getTerminalAgentCommandName();
+            String options = profileName != null && !profileName.isBlank() ? "(profile=" + profileName.strip() + ")" : "";
+            String rawCommand = commandName + options + " " + trimmed;
+            recordAgentInputHistory(rawCommand, commandName, isTerminalAgentCommandNameCaseInsensitive());
+            handler.handle(rawCommand, createTerminalAgentRunContext(widget));
+            return true;
+        }
     }
 
     /** Cancels and discards all agent runs (and the activity wrapper) hosted by the given widget. */
@@ -6053,7 +6111,8 @@ public class TerminalView extends BorderPane {
             return false;
         }
         for (AgentDesignHost panel : terminalAgentActivityPanels.values()) {
-            if (isNodeWithin(targetNode, panel)) {
+            // Also the designs outside the panel itself: a chat column beside the terminal, the Spotlight.
+            if (panel.ownsNode(targetNode)) {
                 return true;
             }
         }

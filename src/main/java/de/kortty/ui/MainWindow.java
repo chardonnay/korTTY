@@ -2472,13 +2472,15 @@ public class MainWindow {
         }
         MenuItem aiAgentStatusBarItem = menuItem("menu.view.aiAgentPanel.statusBar");
         aiAgentStatusBarItem.setOnAction(e -> toggleAgentStatusBar());
+        MenuItem aiAgentSpotlightItem = menuItem("menu.view.aiAgentPanel.spotlight");
+        aiAgentSpotlightItem.setOnAction(e -> openAgentSpotlight());
         MenuItem aiAgentDesignItem = menuItem("menu.view.aiAgentPanel.design");
         aiAgentDesignItem.setOnAction(e -> showAgentDesignManager());
         if (!de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
             lockByPolicy(aiAgentDesignItem);
         }
         aiAgentPanelMenu.getItems().addAll(aiAgentBottomItem, aiAgentLeftItem, aiAgentRightItem,
-            new SeparatorMenuItem(), aiAgentStatusBarItem, aiAgentDesignItem);
+            new SeparatorMenuItem(), aiAgentSpotlightItem, aiAgentStatusBarItem, aiAgentDesignItem);
 
         // Live journal panel: hidden by default, dockable left/right beside the terminal tabs.
         Menu journalLivePanelMenu = new Menu(I18n.get("menu.view.journalPanel"));
@@ -13607,6 +13609,18 @@ public class MainWindow {
         } catch (Exception e) {
             logger.error("Failed to show the KI-Agent design manager", e);
             showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    /**
+     * View → AI Agent Panel → Ask in Spotlight: opens KI-Agent design 05's Spotlight in the focused pane,
+     * a field that starts a run as {@code agent …} at the shell would.
+     */
+    private void openAgentSpotlight() {
+        TerminalTab tab = getActiveTerminalTab();
+        AgentDesignHost host = tab != null ? tab.getTerminalView().getTerminalAgentActivityPanel(null) : null;
+        if (host == null || !isAiFeaturesEnabled() || !host.openSpotlight()) {
+            updateStatus(I18n.get("aiAgentDesign.spotlight.unavailable"));
         }
     }
 

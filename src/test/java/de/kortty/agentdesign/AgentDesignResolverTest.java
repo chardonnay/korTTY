@@ -53,15 +53,16 @@ class AgentDesignResolverTest {
 
     @Test
     void modulesThisVersionCannotShowAreReplacedByTheStandards() {
+        // Saved by a later korTTY: modules this version does not know, or in a role they do not fill.
         AgentDesignCombination future = new AgentDesignCombination(
-            "custom-2", "Future", false, "d02", "d99", "d14", "fixed");
+            "custom-2", "Future", false, "d21", "d99", "d02", "d19");
 
         AgentDesignResolver.Resolution resolution = AgentDesignResolver.resolve("custom-2", null, List.of(future));
 
         assertThat(resolution.combination().historyId()).isEqualTo("d03");
         assertThat(resolution.combination().statusId()).isEqualTo("d08");
         assertThat(resolution.combination().approvalId()).isEqualTo("history");
-        assertThat(resolution.combination().arrangementId()).isEqualTo("fixed");
+        assertThat(resolution.combination().arrangementId()).isEqualTo("d19");
         assertThat(resolution.combination().id()).isEqualTo("custom-2");
         assertThat(resolution.substituted())
             .containsExactly(AgentRole.HISTORY, AgentRole.STATUS, AgentRole.APPROVAL).inOrder();

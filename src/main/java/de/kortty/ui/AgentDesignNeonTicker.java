@@ -38,7 +38,7 @@ import java.util.Locale;
  * new message rolls into a small window, an open question glows amber and stays, and the LED pulses
  * while the agent works.
  */
-final class AgentDesignNeonTicker extends HBox implements AgentStatusPresenter {
+final class AgentDesignNeonTicker extends HBox implements AgentRunPresenter {
 
     static final double BAR_HEIGHT = 28.0;
 
@@ -60,7 +60,7 @@ final class AgentDesignNeonTicker extends HBox implements AgentStatusPresenter {
     private boolean reducedAnimations;
     private boolean flickered;
 
-    AgentDesignNeonTicker(AgentStatusPresenter.Actions actions) {
+    AgentDesignNeonTicker(AgentRunPresenter.Actions actions) {
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(12);
         setPadding(new Insets(0, 6, 0, 12));

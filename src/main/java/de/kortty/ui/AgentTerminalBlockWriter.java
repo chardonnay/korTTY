@@ -246,6 +246,22 @@ final class AgentTerminalBlockWriter {
         }
     }
 
+    /**
+     * The screen row of the block's first line, 0-based, for a design that draws over the block; -1
+     * once the block left the screen or while a full-screen program shows.
+     */
+    int screenRow(Region region) {
+        if (region == null || region.firstLine == null) {
+            return -1;
+        }
+        buffer.lock();
+        try {
+            return buffer.isUsingAlternateBuffer() ? -1 : buffer.findScreenLineIndex(region.firstLine);
+        } finally {
+            buffer.unlock();
+        }
+    }
+
     private void writeRows(int startRow, List<AgentInlineBlockLayout.Line> lines, Palette palette) {
         TextStyle previousStyle = styleState.getCurrent();
         int width = buffer.getWidth();

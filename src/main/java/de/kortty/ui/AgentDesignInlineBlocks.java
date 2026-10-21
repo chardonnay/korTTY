@@ -15,9 +15,17 @@ import java.util.Map;
 /**
  * KI-Agent design 03: each run shows up as a block in the terminal, right above the shell's prompt line.
  * The block lists the run's steps while it works, shows an open approval with its keys, and collapses
- * to the answer when the run ends; it then stays in the scrollback like any other output. FX thread.
+ * to the answer when the run ends; it then stays in the scrollback like any other output. Design 17
+ * (focus mode) writes its lines the same way with another {@link Renderer}. FX thread.
  */
-final class AgentDesignInlineBlocks {
+class AgentDesignInlineBlocks {
+
+    /** Lays out a run's block for the terminal's width; {@link AgentInlineBlockLayout#render} by default. */
+    @FunctionalInterface
+    interface Renderer {
+        List<AgentInlineBlockLayout.Line> render(AgentInlineBlockLayout.BlockState state, int columns,
+                                                 String spinner, long nowMillis);
+    }
 
     private static final String[] SPINNER = {"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"};
     private static final Duration FRAME = Duration.millis(150);
@@ -37,6 +45,7 @@ final class AgentDesignInlineBlocks {
     }
 
     private final AgentTerminalSurface surface;
+    private final Renderer renderer;
     private final Map<String, Block> blocks = new LinkedHashMap<>();
     private final Timeline ticker = new Timeline();
     private AgentTerminalBlockWriter.Palette palette;
@@ -45,7 +54,12 @@ final class AgentDesignInlineBlocks {
     private long lastBaselineMillis;
 
     AgentDesignInlineBlocks(AgentTerminalSurface surface) {
+        this(surface, AgentInlineBlockLayout::render);
+    }
+
+    AgentDesignInlineBlocks(AgentTerminalSurface surface, Renderer renderer) {
         this.surface = surface;
+        this.renderer = renderer;
         this.palette = paletteFor(null);
         ticker.setCycleCount(Animation.INDEFINITE);
         configureTicker();
@@ -84,6 +98,20 @@ final class AgentDesignInlineBlocks {
 
     boolean hasRun(String runId) {
         return blocks.containsKey(runId);
+    }
+
+    /**
+     * Where the run's block is on the screen: its first screen row and its row count; {@code null} before
+     * it was written, after it was written in its final form, or while it is off the screen.
+     */
+    int[] blockRows(String runId) {
+        Block block = blocks.get(runId);
+        AgentTerminalBlockWriter writer = surface != null ? surface.blockWriter() : null;
+        if (block == null || block.region == null || writer == null) {
+            return null;
+        }
+        int row = writer.screenRow(block.region);
+        return row < 0 ? null : new int[]{row, block.region.lineCount()};
     }
 
     void publishActivity(String runId, TerminalAgentModels.AgentActivity activity) {
@@ -200,7 +228,7 @@ final class AgentDesignInlineBlocks {
         }
         String spinner = reducedAnimations ? "…" : SPINNER[frame % SPINNER.length];
         List<AgentInlineBlockLayout.Line> lines =
-            AgentInlineBlockLayout.render(block.state, writer.columns(), spinner, System.currentTimeMillis());
+            renderer.render(block.state, writer.columns(), spinner, System.currentTimeMillis());
         if (lines.equals(block.shown)) {
             return;
         }
