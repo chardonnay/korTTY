@@ -1963,7 +1963,12 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         fixedGeometryInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(fixedGeometryInfoLabel, 0, windowRow++, 2, 1);
         
-        LazyTabContent.defer(windowTab, windowGrid);
+        // Four sections of checkboxes with info lines outgrow the dialog height, so scroll them.
+        ScrollPane windowScroll = new ScrollPane(windowGrid);
+        windowScroll.setFitToWidth(true);
+        windowScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        windowScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        LazyTabContent.defer(windowTab, windowScroll);
         
         // Security tab
         Tab securityTab = sectionTab(SettingsSection.SECURITY);
