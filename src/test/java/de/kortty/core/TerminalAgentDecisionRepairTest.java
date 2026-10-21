@@ -332,6 +332,38 @@ class TerminalAgentDecisionRepairTest {
             "sudo_password");
     }
 
+    @Test
+    void truncatedReplyIsNotRepairedButReportedWithTheTokenLimit() throws Exception {
+        TerminalAgentService service = new TerminalAgentService();
+        List<String> userPrompts = new ArrayList<>();
+        OpenAiCompatibleAiService aiService = new OpenAiCompatibleAiService("http://localhost", "test-model", "") {
+            @Override
+            public AiExecutionResult executeJsonPrompt(String systemPrompt, String userPrompt) {
+                userPrompts.add(userPrompt);
+                return new AiExecutionResult(
+                    "{\"status\":\"run_commands\",\"summary\":\"Create GPU usage script\",\"commands\":[",
+                    new AiTokenUsage(3184, 912, 4096),
+                    null,
+                    true);
+            }
+        };
+
+        TerminalAgentService.AgentDecision decision = service.requestAgentDecision(
+            aiService,
+            request(),
+            probe(),
+            List.of(),
+            1,
+            false,
+            new RunUiTestDouble(),
+            "run-1");
+
+        assertThat(decision.status()).isEqualTo(TerminalAgentService.AgentDecisionStatus.blocked);
+        assertThat(decision.userMessage()).contains("3184 prompt + 912 completion tokens");
+        assertThat(decision.userMessage()).contains("context size");
+        assertThat(userPrompts.size()).isEqualTo(1);
+    }
+
     /** Test double for deterministic AI responses. */
     private static final class AiServiceTestDouble extends OpenAiCompatibleAiService {
         private final Queue<String> responses;

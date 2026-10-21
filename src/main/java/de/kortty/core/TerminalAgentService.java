@@ -1145,6 +1145,17 @@ public class TerminalAgentService {
                 true);
             return decision;
         } catch (Exception firstFailure) {
+            String truncatedMessage = truncatedReplyMessage(result);
+            if (truncatedMessage != null) {
+                publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.FAILED,
+                    "Thinking",
+                    truncatedMessage,
+                    firstFailure.getMessage(),
+                    tokenUsageOf(result),
+                    elapsedSecondsSince(startedAtNanos),
+                    true);
+                return AgentDecision.blocked(truncatedMessage, truncatedMessage);
+            }
             publishThinking(ui, thinkingId, TerminalAgentModels.AgentActivityStatus.COMPLETED,
                 "Thinking",
                 "The AI response needed repair.",
@@ -1191,6 +1202,26 @@ public class TerminalAgentService {
                 return AgentDecision.blocked(message, "Please retry or use an AI profile/model that follows JSON instructions.");
             }
         }
+    }
+
+    /**
+     * Explains a reply the endpoint cut off at its token limit, or returns {@code null} for a
+     * complete one. Such a reply is not repaired: the repair prompt carries the whole request plus
+     * the broken reply, so it needs more room than the attempt that already ran out. Seen live on a
+     * local llama.cpp model with a 4096-token context — 3184 prompt + 912 completion tokens, and the
+     * repair then came back empty because the reasoning used up the rest.
+     */
+    static String truncatedReplyMessage(AiExecutionResult result) {
+        if (result == null || !result.outputTruncated() || result.streamInterrupted()) {
+            return null;
+        }
+        AiTokenUsage usage = result.usage();
+        String tokens = usage != null && usage.totalTokens() > 0
+            ? " (" + usage.promptTokens() + " prompt + " + usage.completionTokens() + " completion tokens)"
+            : "";
+        return "The AI reply was cut off at the model's token limit" + tokens + " before the JSON was complete. "
+            + "For a local model, raise its context size in the local model settings; "
+            + "otherwise raise the AI profile's maximum output tokens, then retry.";
     }
 
     private AgentDecision requestTurnLimitFinalDecision(
