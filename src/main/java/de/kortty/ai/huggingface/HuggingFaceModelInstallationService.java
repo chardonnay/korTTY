@@ -49,7 +49,7 @@ public final class HuggingFaceModelInstallationService {
             result.files().get(0),
             runtime.executable(),
             runtime.descriptor().backend(),
-            LlamaModel.DEFAULT_CONTEXT_SIZE,
+            LlamaModel.defaultContextSizeFor(model.contextLength()),
             LlamaModel.AUTO_THREADS,
             LlamaModel.AUTO_GPU_LAYERS,
             LlamaModel.DEFAULT_IDLE_TIMEOUT_MINUTES)

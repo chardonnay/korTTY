@@ -18,7 +18,25 @@ import java.util.regex.Pattern;
 @XmlAccessorType(XmlAccessType.FIELD)
 public final class LlamaModel {
 
-    public static final int DEFAULT_CONTEXT_SIZE = 4096;
+    /**
+     * Context a new chat model starts with. 4,096 tokens left the terminal agent no room: its system
+     * prompt alone takes about 1,900, so the second turn already ran out and the reply was cut off.
+     */
+    public static final int DEFAULT_CONTEXT_SIZE = 131_072;
+    /** Context a new embedding model starts with; embedding models are trained on short inputs. */
+    public static final int DEFAULT_EMBEDDING_CONTEXT_SIZE = 4096;
+
+    /**
+     * The context a new chat model starts with: {@link #DEFAULT_CONTEXT_SIZE}, or less when the model
+     * was trained for less ({@code trainedContext}; 0 or below when unknown), since a context beyond
+     * the trained one only costs memory.
+     */
+    public static int defaultContextSizeFor(long trainedContext) {
+        if (trainedContext <= 0) {
+            return DEFAULT_CONTEXT_SIZE;
+        }
+        return (int) Math.max(512, Math.min(DEFAULT_CONTEXT_SIZE, trainedContext));
+    }
     public static final int AUTO_THREADS = 0;
     public static final int AUTO_GPU_LAYERS = -1;
     public static final int DEFAULT_IDLE_TIMEOUT_MINUTES = 10;

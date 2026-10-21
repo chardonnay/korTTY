@@ -1810,9 +1810,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         }
     }
 
-    /** The context the model was trained for, or its configured size when the file does not say. */
+    /**
+     * The context the model was trained for, or the default chat context when the file does not say
+     * (and its configured size if that is larger).
+     */
     private int trainedContextLength(de.kortty.ai.llama.LlamaModel model) {
-        int fallback = model.getContextSize() > 0 ? model.getContextSize() : de.kortty.ai.llama.LlamaModel.DEFAULT_CONTEXT_SIZE;
+        int fallback = Math.max(model.getContextSize(), de.kortty.ai.llama.LlamaModel.DEFAULT_CONTEXT_SIZE);
         return trainedContextByModelFile.computeIfAbsent(model.getModelPath(), path -> {
             try {
                 return de.kortty.ai.llama.GgufMetadataReader.contextLength(path).orElse(fallback);
