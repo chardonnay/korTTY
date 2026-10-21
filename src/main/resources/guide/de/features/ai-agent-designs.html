@@ -940,6 +940,44 @@
 </ul>
 <h2 id="genehmigungen-und-passworter">Genehmigungen und Passwörter<a class="headerlink" href="#genehmigungen-und-passworter" title="Permanent link">&para;</a></h2>
 <p>Eine Genehmigung wird im Terminal mit den Tasten <strong>1</strong> (einmal erlauben), <strong>2</strong> (immer erlauben) und <strong>3</strong> (abbrechen) oder mit Buttons beantwortet. Designs mit eigenen Buttons zeigen diese an: die Verlaufs-Panels, die Meldungen am Rand und das Bild-im-Bild-Fenster. Bei Blöcken im Terminal, im Fokus-Modus oder im Verlauf des klassischen Panels öffnet eine Genehmigung eine Zeile unter dem Terminal mit den Befehlen und den Buttons <strong>1 Einmal erlauben</strong>, <strong>2 Immer erlauben</strong> und <strong>3 Abbrechen</strong>. Eine Passwortanfrage öffnet diese Zeile immer, mit einem maskierten Feld, <strong>Für diese SSH-Sitzung verwenden</strong> und <strong>OK</strong>; <span class="keys"><kbd class="key-enter">Enter</kbd></span> sendet ab und <span class="keys"><kbd class="key-escape">Esc</kbd></span> bricht ab. Das klassische Panel behält seine eigenen Prompts bei.</p>
+<h2 id="lauf-menu-und-schritt-menu">Lauf-Menü und Schritt-Menü<a class="headerlink" href="#lauf-menu-und-schritt-menu" title="Permanent link">&para;</a></h2>
+<p>Jedes Design bietet das, was die Buttons des klassischen Panels tun. Die Leisten, die Verlaufs-Panels, das Milchglas-HUD und das Bild-im-Bild-Fenster haben einen ⋯-Button; die Statuspille, die Orbit-Anzeige, die Minimap-Schiene und das Abzeichen der Meldungen am Rand öffnen dasselbe Menü per Rechtsklick. Es funktioniert bei dem Lauf, den das Design zeigt:</p>
+<table>
+<thead>
+<tr>
+<th>Eintrag</th>
+<th>Effekt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Arbeitsablauf …</td>
+<td>Wandelt die fertige Ausführung in ein wiederverwendbares Skript um, siehe <a href="ai-tools.html#workflow-skript-generieren">Workflow-Skript erzeugen</a></td>
+</tr>
+<tr>
+<td>Diesen Lauf exportieren</td>
+<td>Speichert den fertigen Lauf als Markdown, Text, YAML, XML, JSON, PDF oder Asciidoctor</td>
+</tr>
+<tr>
+<td>Alle Läufe exportieren</td>
+<td>Speichert jeden abgeschlossenen Lauf, den das Terminal aufbewahrt, in einer Datei</td>
+</tr>
+<tr>
+<td>Erneut ausführen</td>
+<td>Führt denselben Agent-Befehl erneut aus</td>
+</tr>
+<tr>
+<td>Antwort kopieren</td>
+<td>Kopiert die Antwort der Ausführung</td>
+</tr>
+<tr>
+<td>Läufe dieses Terminals</td>
+<td>Zeigt einen anderen Lauf des Terminals: die noch laufenden und die letzten fünf beendeten</td>
+</tr>
+</tbody>
+</table>
+<p>Die in das Terminal gezeichneten Designs (Blöcke, Fokus-Modus, der Vorschlag an der Cursorzeile) bieten dieselben Einträge im Kontextmenü des Terminals unter <em>KI → Letzter Agent-Lauf</em>.</p>
+<p>Ein Rechtsklick auf einen Schritt öffnet ein eigenes Menü mit <strong>Befehl kopieren</strong>, <strong>Ausgabe kopieren</strong>, <strong>Eintrag kopieren</strong> und <strong>Im Snippet-Editor öffnen</strong>. Das funktioniert auf einem Knoten der Zeitachse an der Seite, einer Zeile des Plans oder der Protokoll-Tabelle, einer Karte des Kartenstapels, einem Block des Gesprächsverlaufs, einer Zeile des tmux-Bereichs, einem Segment der Minimap-Schiene, einer Meldung am Rand und einem Schritt im Bild-im-Bild-Fenster.</p>
 <h2 id="optionen">Optionen<a class="headerlink" href="#optionen" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
