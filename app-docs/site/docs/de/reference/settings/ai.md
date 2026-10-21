@@ -17,7 +17,7 @@ Jede KI-Einstellung befindet sich an einem Ort: **KI → KI-Manager**. Ihr erste
 | **Funktionen & Sicherheit** | KI-Funktionen aktivieren, Bestätigung vor dem Senden, KI-Chat-Codeblöcke im Terminal, Agenten-Debug und Laufzeitnachrichten |
 | **Terminal-Agent** | Agenten-Ausführung, Bestätigung vor Änderungen, Setup-Dialog vor jedem Lauf, Befehlsname und Groß-/Kleinschreibung, Aufgabenziel, Eingabeverlaufgröße |
 | **Standards** | Security-Check-Profil, Standardsprache für KI-Text im Code, optionale Anweisungen im Snippet-Editor, Anzahl alternativer Lösungen |
-| **Internetzugang** | Tavily, Bright Data and Brave Search secrets, SearXNG URL, MCP server labels and plugin ids, "bieten Sie Internetrecherche bei jedem Schritt an" |
+| **Internetzugang** | Geheimnisse von Tavily, Bright Data und Brave Search, SearXNG-URL, MCP-Server-Labels und Plugin-IDs, „Internetrecherche bei jedem Schritt anbieten" |
 
 Die Tabellen unten listen jede Einstellung dieser Abschnitte mit ihrem gespeicherten Schlüssel auf.
 
@@ -29,7 +29,7 @@ Die Tabellen unten listen jede Einstellung dieser Abschnitte mit ihrem gespeiche
 | Bestätigungsdialog vor Absendung von KI-Anfragen anzeigen | Schalter | — | Ein | `aiConfirmBeforeSend` |
 | KI-Chat-Codeblöcke im Terminal | Dropdown | Aus (nur kopieren und speichern), Nur Einfügen, Einfügen und Ausführen | Einfügen und Ausführen | `aiChatTerminalActions` |
 
-Wenn **Bestätigungsdialog vor dem Senden an die KI anzeigen** aktiviert ist, zeigen **Zusammenfassen**, **Letzte Ausgabe zusammenfassen** und **Problem lösen** im **KI**-Kontextmenü des Terminals an, was sie an die KI senden, und warten auf eine Bestätigung. **Fragen** öffnet immer seinen Dialog, da die Frage dort eingegeben wird. Der Terminal-Agent hat vor jedem Start einen eigenen Dialog; er wird über **Terminal-Agent-Abfrage vor jedem Start anzeigen** unter [KI-Agent im Terminal](#ki-agent-im-terminal) deaktiviert.
+Wenn **Bestätigungsdialog vor dem Senden an die KI anzeigen** aktiviert ist, zeigen **Zusammenfassen**, **Letzte Ausgabe zusammenfassen** und **Problem lösen** im **KI**-Kontextmenü des Terminals an, was sie an die KI senden, und warten auf eine Bestätigung. **Fragen** öffnet immer seinen Dialog, da die Frage dort eingegeben wird. Der Terminal-Agent hat vor jedem Start einen eigenen Dialog; er wird unter [Terminal-KI-Agent](#ki-agent-im-terminal) über **Terminal-Agent-Abfrage vor jedem Start anzeigen** deaktiviert.
 
 **KI-Chat-Codeblöcke im Terminal** legt fest, welche Schaltflächen die Codeblöcke eines KI-Chats anbieten: **Einfügen** gibt einen Block an der Eingabeaufforderung eines Terminalbereichs ein, ohne Enter zu drücken, und **Ausführen** führt eine einzelne Shell-Befehlszeile nach einer Bestätigung aus. Die Unternehmensrichtlinie kann nur weitere Schaltflächen wegnehmen. Siehe [Codeblöcke im Terminal](../../features/ai-assistant.md#codeblocke-im-terminal).
 
@@ -54,25 +54,26 @@ Wenn **Bestätigungsdialog vor dem Senden an die KI anzeigen** aktiviert ist, ze
 | Standardprofil | check box "Als Standardprofil verwenden" in the Profiles tab | ein Profil ist immer das Standardprofil | das erste Profil | `defaultAiProfileId` |
 | Zeitlimit für KI-Anfragen | Zahl | 0 bis 1440 Minuten | 0 (kein Timeout) | `aiRequestTimeoutMinutes` |
 | Security-Check-Profil | Dropdown-Kontrolle | (Liste der konfigurierten Profile; leer = Standardprofil verwenden) | — | `securityCheckAiProfileId` |
+| Weitere Rechner im Netzwerk (Setup-Assistent Schnellstart) | Text | Host, `host:port` oder `http://` URL, kommagetrennt; wird neben localhost abgefragt | — | `aiWizardScanHosts` |
 
 Das Security-Check-Profil ist ein spezielles KI-Profil für Snippet-**Security-Check**-Aktionen. Lassen Sie es leer (oder verwenden Sie **Keine**) um das Standardprofil zu verwenden. Es kann ebenfalls direkt im Fenster für das Snippet-Security Check festgelegt werden, und beide Orte teilen dieselbe gemerkte Einstellung.
 
-**AI request timeout** is the maximum runtime of a single AI request and applies to every profile. The default `0` means korTTY imposes no timeout at all: long-running tasks such as the snippet editor's **Full code analysis** run until the model answers. Set a positive number of minutes to cancel requests that exceed it. A profile can override the value — see **Timeout for this profile** below. In the KI-Manager the global value is the first row of the profile editor's **Limits & timeouts** section.
+**Zeitlimit für KI-Anfragen** ist die maximale Laufzeit einer einzelnen KI-Anfrage und gilt für jedes Profil. Der Standardwert `0` bedeutet, dass korTTY überhaupt kein Zeitlimit setzt: Langlaufende Aufgaben wie die **Vollständige Code-Analyse** des Snippet-Editors laufen, bis das Modell antwortet. Setzen Sie eine positive Anzahl von Minuten, um Anfragen abzubrechen, die dieses Limit überschreiten. Ein Profil kann den Wert überschreiben – siehe **Zeitlimit für dieses Profil** unten. Im KI-Manager ist der globale Wert die erste Zeile des Abschnitts **Grenzen & Zeitlimits** im Profil-Editor.
 
-In the KI-Manager the default profile is chosen with the **Use as default profile** check box next to the profile name; one profile is always the default, so ticking the box on another profile moves it.
+Im KI-Manager wird das Standardprofil über das Kontrollkästchen **Als Standardprofil verwenden** neben dem Profilnamen ausgewählt; da immer ein Profil das Standardprofil ist, verschiebt sich die Zuweisung, wenn das Kästchen bei einem anderen Profil angehackt wird.
 
-### Profile Settings (in Editor Sections)
+### Profil-Einstellungen (in Editor-Abschnitten)
 
-The same fields are edited in **KI > KI-Manager > Profiles**. The editor keeps **Profile name** and **Use as default profile** above four section tabs, and the **Connection** and **Model & capabilities** sections show only the rows that apply to the selected **Connection** mode (the URL and key rows for **HTTP API**, the CLI rows for **Local CLI**, a note for **Integrated llama.cpp** and **Integrated MLX**):
-Die Profilfelder werden in **KI > KI-Manager > Profile** bearbeitet. Der Editor behält **Profilname** und **Als Standardprofil verwenden** über den vier Abschnitts-Tabblättern, und die Abschnitte **Verbindung** und **Modell & Fähigkeiten** zeigen nur die Zeilen an, die für den ausgewählten **Verbindungsmodus** gelten (die URL- und Schlüsselzeilen für **HTTP-API**, die CLI-Zeilen für **Lokale CLI**, ein Hinweis für **Integriertes llama.cpp** und **Integrated MLX**).
+Die Profilfelder werden in **KI > KI-Manager > Profile** bearbeitet. Der Editor positioniert **Profilname** und **Als Standardprofil verwenden** oberhalb von vier Abschnitts-Tab, und die Abschnitte **Verbindung** und **Modell & Fähigkeiten** zeigen nur die Zeilen, die für den gewählten **Verbindung**-Modus gelten (die URL- und Schlüsselzeilen für **HTTP-API**, die CLI-Zeilen für **Lokale CLI**, eine Anmerkung für **Integriertes llama.cpp** und **Integriertes MLX**):
+
 ![KI-Manager profiles tab](../../assets/screenshots/ai/ai-profiles.png)
 
-| Section | Fields |
+| Abschnitt | Felder |
 | --- | --- |
-| **Connection** | Connection, API URL, Trusted local endpoint, API Key (with **Clear stored API key** beside it), CLI provider, CLI status, CLI executable, CLI arguments |
-| **Model & capabilities** | Model, Custom model, Reasoning, Image input (vision), Prompt optimization, Internet access |
-| **Limits & timeouts** | AI request timeout (applies to every profile, shown first), Max characters, Timeout for this profile, Max output tokens |
-| **Budget & usage** | Tokenizer, Max tokens, Warning thresholds, Reset, Price per 1M tokens, Usage (the quota bar and the usage line) |
+| **Verbindung** | Verbindung, API-URL, Vertrauenswürdiger lokaler Endpunkt, API-Schlüssel (mit **Gespeicherten API-Schlüssel löschen** daneben), CLI-Anbieter, CLI-Status, CLI-Executable, CLI-Argumente |
+| **Modell & Fähigkeiten** | Modell, Eigenes Modell, Kontextfenster (nur Integriertes llama.cpp), Reasoning, Bild-Eingabe (Vision), Prompt-Optimierung, Internetzugang |
+| **Grenzen & Zeitlimits** | Zeitlimit für KI-Anfragen (gilt für jedes Profil, wird zuerst angezeigt), Maximale Zeichen, Zeitlimit für dieses Profil, Maximale Ausgabe-Tokens |
+| **Budget & Nutzung** | Tokenizer, Maximale Tokens, Warnschwellen, Zurücksetzen, Preis pro 1 Mio. Tokens, Nutzung (der Kontingentbalken und die Nutzungszeile) |
 
 | Einstellung | Typ | Werte | Standard | Speichert als |
 | --- | --- | --- | --- | --- |
@@ -84,6 +85,7 @@ Die Profilfelder werden in **KI > KI-Manager > Profile** bearbeitet. Der Editor 
 | CLI-Executable | Text | — | — | (Profilfeld `cliExecutablePath`) |
 | Modell | Dropdown/Text | (bearbeitbar; "Standard", vorgeschlagene Modelle von Cloud-Anbietern mit kurzen Vorschlägen plus live geladene Modelle; "Automatisch" nur für lokale LM Studio-Endpunkte) | — | (Profilfeld `model`) |
 | Lokales GGUF-Modell | Dropdown | Installierte Chat-Modelle; verfügbar, wenn Verbindung Integriertes llama.cpp ist | — | (Profilfeld `embeddedModelId`) |
+| Kontextfenster | Zahl + Schieberegler | 512 Tokens bis zur Kontextgröße, für die das ausgewählte GGUF-Modell trainiert wurde (aus der Datei gelesen); verfügbar, wenn die Verbindung Integriertes llama.cpp ist. Voreingestellt auf 32.768 Tokens (oder den trainierten Kontext, wenn dieser kleiner ist), sobald das Profil oder das Modell ausgewählt wird; eine Datei, die keinen trainierten Kontext angibt, erhält einen Bereich bis zu 131.072 Tokens. Der Wert gehört zum Modell und gilt daher für jedes Profil, das es verwendet, und entspricht **Kontextgröße** unter **Lokale Modelle > Konfigurieren**; ein größerer Kontext benötigt mehr RAM oder VRAM. Beim Speichern wird ein geladenes Modell gestoppt, damit der nächste Aufruf es mit der neuen Größe startet; ein Modell, das gerade eine Anfrage bearbeitet, behält seine Größe bei, und korTTY gibt dies an | 32.768 | (Modell `contextSize` in `llm/models.xml`) |
 | Lokales MLX-Modell | Dropdown | Installierte MLX-Modelle; verfügbar, wenn Verbindung Integriertes MLX (Apple Silicon) ist | — | (Profilfeld `embeddedModelId`) |
 | Eigenes Modell | Text | — | — | (Profil `model` Feld, geschrieben wenn das Modell-Dropdown auf **Eigenes Modell** für ein Lokales CLI-Profil gesetzt ist) |
 | Prompt-Optimierung | Dropdown | Automatisch (Modellerkennung), Allgemein, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Automatisch | (Profilfeld `promptPreset`) |
@@ -142,7 +144,7 @@ Der KI-Manager ist moduslos und kann während der Nutzung des Hauptfensters geö
 
 ### Einstellungen des lokalen KI-Managers
 
-**KI > KI-Manager > Local AI** groups these settings on three section tabs: **Profile roles** (the three profile selectors), **Local runtime** (runtime updates, preferred backend, RAG embedding model ID) and **Hugging Face** (the token). **Save** under the sections writes all of them.
+**KI > KI-Manager > Lokale KI** gruppiert diese Einstellungen in drei Abschnittstabs: **Profil-Rollen** (die drei Profil-Auswahlfelder), **Lokale Laufzeit** (Laufzeit-Updates, bevorzugtes Backend, RAG-Embedding-Modell-ID) und **Hugging Face** (der Token). **Speichern** unter den Abschnitten schreibt alle davon.
 
 | Wert für | Werte | Standard | als gespeichert |
 | --- | --- | --- | --- |
@@ -238,4 +240,3 @@ Die Anmeldeinformationen werden verschlüsselt und sicher gespeichert. Verwenden
 
     Eine Organisation kann den Web-Zugriff vollständig verbieten, indem sie den `allow-internet`-Policy-Schlüssel verwendet — siehe
     [Enterprise-Politik](../enterprise-policy.md).
-
