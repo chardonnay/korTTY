@@ -2161,6 +2161,24 @@
       "note": "The LLM drops the auxiliary verb; matches settings.backup.auto.status.lastError."
     },
     {
+      "from": "Split-Flap-Anzeige",
+      "to": "Fallblattanzeige",
+      "scope": "markdown",
+      "note": "AI Agent Design neon ticker: the LLM keeps the English 'split-flap', gives the dative wrong after 'folgt' and uses 'Themas' for the UI's 'Theme'."
+    },
+    {
+      "from": "oder andernfalls deren neueste noch laufende Ausführung,",
+      "to": "oder andernfalls deren neuester noch laufender Ausführung,",
+      "scope": "markdown",
+      "note": "AI Agent Design neon ticker: the LLM keeps the English 'split-flap', gives the dative wrong after 'folgt' and uses 'Themas' for the UI's 'Theme'."
+    },
+    {
+      "from": "die Farben dieses Themas",
+      "to": "die Farben dieses Themes",
+      "scope": "markdown",
+      "note": "AI Agent Design neon ticker: the LLM keeps the English 'split-flap', gives the dative wrong after 'folgt' and uses 'Themas' for the UI's 'Theme'."
+    },
+    {
       "from": "Bestätigungsdialog vor dem Senden von KI-Anfragen anzeigen",
       "to": "Bestätigungsdialog vor dem Senden an die KI anzeigen",
       "scope": "markdown",

@@ -822,7 +822,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="ai-agent-designs">AI agent designs<a class="headerlink" href="#ai-agent-designs" title="Permanent link">&para;</a></h1>
-<p><em>Plugins → AI Agent Design</em> decides how the runs of the terminal <a href="ai-tools.html">AI agent</a> are shown: as a block in the terminal itself, in a slim bar below it, in the classic activity panel, or in a combination of these. A <strong>combination</strong> picks one design for each role, and you can set one combination as the default and give single connections a different one.</p>
+<p><em>Plugins → AI Agent Design</em> decides how the runs of the terminal <a href="ai-tools.html">AI agent</a> are shown: as a block in the terminal itself, in a slim bar below or above it, on a rail beside it, in the classic activity panel, or in a combination of these. A <strong>combination</strong> picks one design for each role, and you can set one combination as the default and give single connections a different one.</p>
 <p><img alt="AI Agent Design with the standard combination: the live preview shows a sample run as a block in the terminal, waiting for an approval, with the metro line and the approval row below" src="../assets/screenshots/plugins/ai-agent-design.png" /></p>
 <p>Open it from <em>Plugins → AI Agent Design</em> or <em>View → AI Agent Panel → Design...</em>. With <em>open tool windows as tabs</em> turned on it opens as a tab of the main window. An organisation policy that does not allow plugins locks both entries.</p>
 <h2 id="roles-and-designs">Roles and designs<a class="headerlink" href="#roles-and-designs" title="Permanent link">&para;</a></h2>
@@ -844,7 +844,7 @@
 <tr>
 <td>Status</td>
 <td>A compact display of where the run stands, next to the history</td>
-<td><strong>Metro line</strong> (08), <strong>No status display</strong></td>
+<td><strong>Metro line</strong> (08), <strong>Powerline status line</strong> (01), <strong>Minimap rail</strong> (11), <strong>Top bar with drawer</strong> (12), <strong>Neon ticker</strong> (18), <strong>No status display</strong></td>
 </tr>
 <tr>
 <td>Approval</td>
@@ -897,6 +897,15 @@
 <h2 id="metro-line-08">Metro line (08)<a class="headerlink" href="#metro-line-08" title="Permanent link">&para;</a></h2>
 <p>A slim bar below the terminal draws the run as a metro line: one station per command, analysis and question, and an <strong>Answer</strong> station at the end. Reached stations are filled, the current one pulses, a station waiting for your input glows amber, and a light travels along the line as the run moves on; when there are more stations than fit, the oldest are summed up as <em>+N</em>. The bar also shows the question, the tokens and the time, and has buttons to pause, cancel and hide it.</p>
 <p>The bar fades out a few seconds after the last run ended; the delay is set in the dialog. <em>View → AI Agent Panel → Show or Hide Status Bar</em> brings it back or hides it.</p>
+<h2 id="more-status-displays">More status displays<a class="headerlink" href="#more-status-displays" title="Permanent link">&para;</a></h2>
+<p>Like the <strong>Metro line</strong> (08), every display here follows the terminal's run that waits for input, or else its newest run still in progress, and fades out after the last run ended. <em>View → AI Agent Panel → Show or Hide Status Bar</em> brings any of them back or hides it. A display above or beside the terminal takes its room from the terminal while it is shown.</p>
+<p><img alt="The four status displays beside the blocks in the terminal, each waiting for an approval: the Powerline status line with its steps unfolded, the top bar with its drawer, the minimap rail with a lens and the neon ticker" src="../assets/screenshots/plugins/ai-agent-status-designs.png" /></p>
+<ul>
+<li><strong>Powerline status line (01)</strong> — One line below the terminal in powerline style: the agent, the step it works on with a spinner, how many commands it ran, the tokens and the time. ▴ unfolds the run's steps over the lowest terminal lines and ▾ folds them again; an open approval unfolds them by itself.</li>
+<li><strong>Top bar with drawer (12)</strong> — A bar above the terminal, out of the way of the prompt and the newest output. A shimmering line shows that the agent works and turns green or red when the run ends; below it, the number of commands and the current step. ▾ drops the steps down over the older output.</li>
+<li><strong>Minimap rail (11)</strong> — A narrow rail at the right edge of the terminal with one coloured segment per step: blue for commands, violet for analysis, amber for questions, red for errors. The running step glows. Pointing at a segment shows a lens with the step, its result and the first lines of its detail. The rail has no buttons; <span class="keys"><kbd class="key-escape">Esc</kbd></span> cancels the run.</li>
+<li><strong>Neon ticker (18)</strong> — A bar in the style of a split-flap display below the terminal in the neon look of korTTY's logo: every new step rolls into its window, an open question glows amber with its keys, and the light at the left pulses while the agent works. On a light theme the bar uses the colours of that theme.</li>
+</ul>
 <h2 id="approvals-and-passwords">Approvals and passwords<a class="headerlink" href="#approvals-and-passwords" title="Permanent link">&para;</a></h2>
 <p>With blocks in the terminal, an approval or a password request also opens a row below the terminal. For an approval it shows the commands and the buttons <strong>1 Allow Once</strong>, <strong>2 Allow Always</strong> and <strong>3 Cancel</strong>. For a password it has a masked field, <strong>Use for this SSH session</strong> and <strong>OK</strong>; <span class="keys"><kbd class="key-enter">Enter</kbd></span> submits and <span class="keys"><kbd class="key-escape">Esc</kbd></span> cancels. The classic panel keeps its own prompts.</p>
 <h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
@@ -910,11 +919,11 @@
 <tbody>
 <tr>
 <td>Hide the status bar after a run after (seconds, 0 = keep)</td>
-<td>How long the metro line stays after the last run ended; 0 keeps it until you hide it. Default: 6 seconds.</td>
+<td>How long the status display stays after the last run ended; 0 keeps it until you hide it. Default: 6 seconds.</td>
 </tr>
 <tr>
 <td>Reduce animations</td>
-<td>Turns off the pulsing station, the moving light and the spinner in the block.</td>
+<td>Turns off the pulsing station and the moving light of the <strong>Metro line</strong>, the spinners, the shimmer of the <strong>Top bar with drawer</strong>, the rolling and glowing of the <strong>Neon ticker</strong> and the lens animation of the <strong>Minimap rail</strong>.</td>
 </tr>
 </tbody>
 </table>

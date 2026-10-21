@@ -87,6 +87,22 @@ class AgentTerminalBlockWriterTest {
     }
 
     @Test
+    void theBlockIsFoundAgainAfterTheTerminalGotNarrower() {
+        EmulatorTextBufferFixture fixture = fixture(10);
+        fixture.write("output\r\nprompt$ ");
+        AgentTerminalBlockWriter writer = writer(fixture);
+        List<AgentInlineBlockLayout.Line> block = lines("head", "row", "foot");
+        AgentTerminalBlockWriter.Region region = writer.open(block, PALETTE);
+
+        fixture.terminal.resize(new com.sithtermfx.core.util.TermSize(36, 10),
+            com.sithtermfx.core.RequestOrigin.User);
+
+        assertThat(writer.rewrite(region, lines("head", "row", "row 2", "foot"), block, PALETTE))
+            .isEqualTo(AgentTerminalBlockWriter.Result.WRITTEN);
+        assertThat(screen(fixture)).containsExactly("output", "head", "row", "row 2", "foot", "prompt$").inOrder();
+    }
+
+    @Test
     void onlyChangedRowsAreRewritten() {
         EmulatorTextBufferFixture fixture = fixture(8);
         fixture.write("prompt$ ");
