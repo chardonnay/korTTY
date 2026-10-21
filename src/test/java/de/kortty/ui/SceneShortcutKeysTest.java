@@ -27,6 +27,21 @@ class SceneShortcutKeysTest {
     }
 
     @Test
+    void ctrlVPastesIntoTheTerminalOnWindowsOnly() {
+        KeyPress ctrlV = key(KeyCode.V, "v", "", false, true, false, false, PC);
+        assertThat(SceneShortcutKeys.isWindowsTerminalPaste(ctrlV, true)).isTrue();
+        // Linux keeps Ctrl+V for the shell; the terminal's own Ctrl+Shift+V still pastes there.
+        assertThat(SceneShortcutKeys.isWindowsTerminalPaste(ctrlV, false)).isFalse();
+        // Ctrl+Shift+V is the terminal's own paste chord, and Ctrl+Alt+V is AltGr+V.
+        assertThat(SceneShortcutKeys.isWindowsTerminalPaste(
+            key(KeyCode.V, "V", "", true, true, false, false, PC), true)).isFalse();
+        assertThat(SceneShortcutKeys.isWindowsTerminalPaste(
+            key(KeyCode.V, "v", "", false, true, true, false, PC), true)).isFalse();
+        assertThat(SceneShortcutKeys.isWindowsTerminalPaste(
+            key(KeyCode.C, "c", "", false, true, false, false, PC), true)).isFalse();
+    }
+
+    @Test
     void zoomUsesCtrlOrAltOnWindowsAndLinux() {
         assertThat(SceneShortcutKeys.isZoomIn(key(KeyCode.PLUS, "+", "", false, true, false, false, PC))).isTrue();
         assertThat(SceneShortcutKeys.isZoomIn(key(KeyCode.ADD, "+", "", false, false, true, false, PC))).isTrue();

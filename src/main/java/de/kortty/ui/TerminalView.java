@@ -1277,6 +1277,23 @@ public class TerminalView extends BorderPane {
     }
 
     /**
+     * Whether {@code node} is the canvas of one of this view's terminal panes — the keyboard is in
+     * a terminal itself, not in the agent panel or another field hosted in the tab.
+     */
+    public boolean isTerminalCanvas(@Nullable Node node) {
+        if (node == null) {
+            return false;
+        }
+        for (SithTermFxWidget widget : getOrderedWidgets()) {
+            com.sithtermfx.ui.TerminalPanel panel = widget.getTerminalPanel();
+            if (panel != null && panel.getCanvas() == node) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * The output clocks of this view's panes in split order, for the tab's activity and silence
      * monitoring ({@link TerminalActivityWatcher}); a pane that never had a session has none yet.
      * JavaFX thread.

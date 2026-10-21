@@ -3138,6 +3138,10 @@ public class MainWindow {
         return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
     }
 
+    private boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
     private boolean shouldRestoreDashboardOnStartup() {
         GlobalSettings globalSettings = app.getGlobalSettingsManager().getSettings();
         return globalSettings != null && globalSettings.isRememberDashboardState() && globalSettings.isDashboardVisible();
@@ -3194,8 +3198,14 @@ public class MainWindow {
             // the chord types is swallowed.
             .consume(this::matchReboundMenuChord, this::isKeyboardInSelectedTerminal,
                 this::runReboundMenuChord, Residue.anyCharacter())
-            // Not consumed: the terminal pastes on its own, and the timestamp keeps the Paste menu
-            // accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
+            // Windows: Ctrl+V pastes into the focused terminal pane, as in Windows Terminal; its own
+            // paste chord is Ctrl+Shift+V, so Ctrl+V reached the shell as ^V and pasted nothing.
+            // Only while a terminal canvas has the keyboard, so the agent prompt and other fields
+            // in the tab keep their own Ctrl+V. Consumed, so the Paste accelerator cannot fire too.
+            .consume(press -> SceneShortcutKeys.isWindowsTerminalPaste(press, isWindows()),
+                this::isKeyboardInTerminalCanvas, this::pasteToTerminal, Residue.ofLetter('V'))
+            // Not consumed (macOS, Linux): the terminal pastes on its own, and the timestamp keeps
+            // the Paste menu accelerator from pasting a second time (wasTriggeredByTerminalPasteShortcut).
             .observe(press -> press.matches(PASTE_ACCELERATOR), terminalSelected,
                 () -> lastTerminalPasteShortcutAtNanos = System.nanoTime())
             .consume(SceneShortcutKeys::isFullscreenToggle, SceneShortcutRouter.ALWAYS,
@@ -3565,6 +3575,15 @@ public class MainWindow {
         Node focusOwner = scene != null ? scene.getFocusOwner() : null;
         Node terminalRoot = terminalTab.getContent();
         return focusOwner == null || terminalRoot == null || isNodeUnderRoot(focusOwner, terminalRoot);
+    }
+
+    /** Whether the keyboard is in a terminal pane of the selected tab, not in a field hosted beside it. */
+    private boolean isKeyboardInTerminalCanvas() {
+        if (!(tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab)) {
+            return false;
+        }
+        Scene scene = stage.getScene();
+        return scene != null && terminalTab.getTerminalView().isTerminalCanvas(scene.getFocusOwner());
     }
 
     /** F12: toggles fullscreen and gives the selected terminal the focus back once the layout settled. */

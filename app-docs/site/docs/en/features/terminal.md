@@ -94,7 +94,7 @@ The **Extras** submenu at the end holds **Split Terminal**, **Font Size** (see [
 
 ## Pasting text
 
-Every way of pasting into a terminal goes through korTTY: *Edit → Paste*, ++cmd+v++ on macOS, ++ctrl+shift+v++ on Windows and Linux, **Paste** in the right-click menu, a middle-click, which pastes the X11 primary selection on Linux and the clipboard elsewhere, and text you [drop onto a pane](#dropping-text). The text goes to the pane you paste into, and its line breaks arrive as Enter, the way they do when you type them.
+Every way of pasting into a terminal goes through korTTY: *Edit → Paste*, ++cmd+v++ on macOS, ++ctrl+v++ or ++ctrl+shift+v++ on Windows, ++ctrl+shift+v++ on Linux, where ++ctrl+v++ stays with the shell, **Paste** in the right-click menu, a middle-click, which pastes the X11 primary selection on Linux and the clipboard elsewhere, and text you [drop onto a pane](#dropping-text). The text goes to the pane you paste into, and its line breaks arrive as Enter, the way they do when you type them.
 
 When the program in the pane has switched on bracketed paste, as bash, zsh, fish and most editors do while they wait for input, korTTY wraps the text in the bracketed-paste markers. The program then receives it as one pasted block instead of typed keys, so a line break in it does not run a command on its own. Bracketed-paste markers inside the text itself are removed first, including the 8-bit form that a single-byte [character encoding](connections.md#character-encoding) sends, so text copied from a web page or a file can neither end the paste early nor have its remaining lines run as typed commands.
 

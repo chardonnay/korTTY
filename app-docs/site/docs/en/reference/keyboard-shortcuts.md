@@ -79,6 +79,7 @@ These keys work while a terminal pane has the focus. For how they behave with se
 | Shortcut | Action |
 | --- | --- |
 | ++ctrl+shift+c++ / ++ctrl+shift+v++ | Copy the terminal selection / paste into the terminal (Windows and Linux; ++cmd+c++ / ++cmd+v++ on macOS) |
+| ++ctrl+v++ (Windows) | Paste into the terminal; on Linux ++ctrl+v++ goes to the shell |
 | ++ctrl+l++ (Windows and Linux) | Sent to the shell: redraws or clears the screen in bash, psql or a REPL, and the scrollback is kept |
 | ++ctrl+f++ (Windows and Linux) | Sent to the shell: moves the cursor one character forward at a bash prompt and pages forward in `less` or `vim` |
 | ++cmd+k++ (macOS) | Clear Buffer: empty the terminal screen and its scrollback |

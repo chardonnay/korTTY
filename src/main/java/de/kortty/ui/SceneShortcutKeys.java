@@ -65,6 +65,17 @@ final class SceneShortcutKeys {
         return press.code() == KeyCode.DIGIT0 || press.code() == KeyCode.NUMPAD0;
     }
 
+    /**
+     * Plain Ctrl+V on Windows, where a terminal pastes on it as Windows Terminal does. The terminal's
+     * own paste chord is Ctrl+Shift+V there, so Ctrl+V would only send ^V to the shell. Linux keeps
+     * Ctrl+V for the shell (quoted insert) and macOS pastes on Cmd+V. Ctrl+Alt+V is AltGr+V on
+     * Windows and is left alone.
+     */
+    static boolean isWindowsTerminalPaste(KeyPress press, boolean windows) {
+        return windows && press.code() == KeyCode.V && press.ctrl()
+            && !press.shift() && !press.alt() && !press.meta();
+    }
+
     /** Ctrl+Tab, with Ctrl on macOS too; other modifiers apart from Shift are ignored. */
     static boolean isNextTab(KeyPress press) {
         return press.ctrl() && press.code() == KeyCode.TAB && !press.shift();
