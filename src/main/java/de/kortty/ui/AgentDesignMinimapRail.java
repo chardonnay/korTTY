@@ -31,7 +31,7 @@ import java.util.function.Supplier;
  * of the run, newest at the bottom. The running step glows; pointing at a segment shows a lens with the
  * step, its result and the first lines of its detail.
  */
-final class AgentDesignMinimapRail extends Pane implements AgentStatusPresenter {
+final class AgentDesignMinimapRail extends Pane implements AgentRunPresenter {
 
     static final double RAIL_WIDTH = 14.0;
     private static final double GAP = 3.0;
@@ -49,7 +49,12 @@ final class AgentDesignMinimapRail extends Pane implements AgentStatusPresenter 
     private View view;
     private List<TerminalAgentModels.AgentActivity> steps = List.of();
 
-    AgentDesignMinimapRail() {
+    private final AgentRunPresenter.Actions actions;
+
+    AgentDesignMinimapRail(AgentRunPresenter.Actions actions) {
+        this.actions = actions;
+        // A right-click on the rail opens the run menu, on a segment the menu of its step.
+        AgentDesignWidgets.runMenuOnRightClick(this, actions);
         setMinWidth(RAIL_WIDTH);
         setPrefWidth(RAIL_WIDTH);
         setMaxWidth(RAIL_WIDTH);
@@ -113,6 +118,12 @@ final class AgentDesignMinimapRail extends Pane implements AgentStatusPresenter 
             segment.setArcHeight(3);
             int index = segments.size();
             segment.setOnMouseEntered(event -> showLens(index));
+            segment.setOnContextMenuRequested(event -> {
+                if (index < steps.size()) {
+                    actions.showStepMenu(segment, steps.get(index), event.getScreenX(), event.getScreenY());
+                }
+                event.consume();
+            });
             segments.add(segment);
             getChildren().add(segment);
         }

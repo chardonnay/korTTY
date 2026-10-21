@@ -2177,6 +2177,162 @@
       "to": "die Farben dieses Themes",
       "scope": "markdown",
       "note": "AI Agent Design neon ticker: the LLM keeps the English 'split-flap', gives the dative wrong after 'folgt' and uses 'Themas' for the UI's 'Theme'."
+    },
+    {
+      "from": "**Konversation (13)**",
+      "to": "**Gesprächsverlauf (13)**",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "**Toasts (10)**",
+      "to": "**Meldungen am Rand (10)**",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "**Orbit (15)**",
+      "to": "**Orbit-Anzeige (15)**",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "Fokusmodus",
+      "to": "Fokus-Modus",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "Historien-Design",
+      "to": "Verlaufs-Design",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "Historienpanels",
+      "to": "Verlaufs-Panels",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "Historien-Panel",
+      "to": "Verlaufs-Panel",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "in der Historie des klassischen Panels",
+      "to": "im Verlauf des klassischen Panels",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "Picture-in-Picture-Fenster",
+      "to": "Bild-im-Bild-Fenster",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "die Seiten-Zeitleiste",
+      "to": "die Zeitachse an der Seite",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "die Status-Pille",
+      "to": "die Statuspille",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "Ein einmal gewähltes Display bleibt",
+      "to": "Eine einmal gewählte Anzeige bleibt",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "In Spotlight fragen…",
+      "to": "In Spotlight fragen …",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "(die [Spotlight]",
+      "to": "(das [Spotlight]",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "die Toasts und",
+      "to": "die Meldungen am Rand und",
+      "scope": "markdown",
+      "note": "AI Agent Design phases 3-5: the design names, the History role (Verlauf) and the menu item as the German UI labels them."
+    },
+    {
+      "from": "Ausführen-Menü",
+      "to": "Lauf-Menü",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "| Alle Laeufe exportieren |",
+      "to": "| Alle Läufe exportieren |",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "die Status-Kapsel",
+      "to": "die Statuspille",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "der Orbit, die Minimap-Leiste",
+      "to": "die Orbit-Anzeige, die Minimap-Schiene",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "das Badge der Toasts",
+      "to": "das Abzeichen der Meldungen am Rand",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "| Arbeitsablauf… |",
+      "to": "| Arbeitsablauf … |",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "der seitlichen Timeline",
+      "to": "der Zeitachse an der Seite",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "der Log-Tabelle",
+      "to": "der Protokoll-Tabelle",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "einer Karte des Stacks",
+      "to": "einer Karte des Kartenstapels",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "einem Block des Gesprächs,",
+      "to": "einem Block des Gesprächsverlaufs,",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "der Minimap-Leiste, einem Toast und",
+      "to": "der Minimap-Schiene, einer Meldung am Rand und",
+      "scope": "markdown",
+      "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
     }
   ]
 }
