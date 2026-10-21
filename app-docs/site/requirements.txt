@@ -28,7 +28,7 @@ pymdown-extensions==12.3
 
 # Transitive, pinned for a reproducible build (resolved from the four above)
 beautifulsoup4==4.15.0
-certifi==2026.7.22
+certifi==2026.10.19
 charset-normalizer==3.5.2
 click==8.5.0
 ghp-import==2.1.0
