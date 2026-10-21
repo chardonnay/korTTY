@@ -330,6 +330,7 @@ korTTY unterstützt Workflows im Agentenstil für eine aktive Terminalsitzung.
 
 ### Aktivitätspanel und Platzierung
 
+* **Designs** - Die Darstellung der Läufe wird unter [*Plugins → KI-Agent Design*](ai-agent-designs.md) ausgewählt: standardmäßig als Block im Terminal mit einer Metro-Linie darunter. Die folgenden Punkte beschreiben das Aktivitätsfeld der Kombination **Klassisch**.
 * **Split-Local-Aktivitätsbereich** – Auf Terminals ausgerichtete Läufe werden am unteren Rand des Terminalsplits dort angezeigt, wo der Lauf gestartet wurde. Jeder Split verfügt über ein eigenes Panel, sodass verschiedene Splits ihre eigenen Agentenaufgaben parallel ausführen können.
 * **Panel-Platzierung** – Verwenden Sie **Ansicht > AI Agent Panel**, um **Unten** (Standard), **Links andocken** oder **Rechts andocken** auszuwählen. Im angedockten Modus wird die Aktivität in einem in der Größe veränderbaren Seitenbereich angezeigt, der an das Hauptfenster angeschlossen ist. Ziehen Sie den Teiler, um die Größe zu ändern. Die Platzierung und Breite werden bei jedem Neustart gespeichert. Im Seitenmodus gibt es eine äußere Lasche pro Anschluss der aktiven Anschlusslasche und die Läufe werden vertikal gestapelt. Wenn Sie zu einer anderen Terminal-Registerkarte wechseln, wechselt das Dock zu den Terminals dieser Registerkarte.
 * **Agentenstatusanzeigen** – Ein KI-Agentenstatussymbol pro Terminal wird in der Dashboard-Struktur angezeigt und dem Registerkartentitel des Terminals vorangestellt:

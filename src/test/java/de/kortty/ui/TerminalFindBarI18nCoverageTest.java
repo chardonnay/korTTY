@@ -102,7 +102,7 @@ class TerminalFindBarI18nCoverageTest {
     void theTerminalSettingsProviderHandsTheTranslatedTextsToSithTermFx() throws Exception {
         String source = Files.readString(Path.of("src/main/java/de/kortty/ui/TerminalView.java"))
             .replace("\r\n", "\n");
-        int provider = source.indexOf("private static class KorTTYSettingsProvider");
+        int provider = source.indexOf("static class KorTTYSettingsProvider");
         assertThat(provider).isAtLeast(0);
         assertThat(source.substring(provider)).containsMatch(
             "public @NotNull com\\.sithtermfx\\.ui\\.settings\\.SearchBarText getSearchBarText\\(\\) \\{\\s*"

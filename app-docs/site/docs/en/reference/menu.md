@@ -112,6 +112,7 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | Item | Description |
 | --- | --- |
 | Terminal Effects… | Enable/disable, configure, import/export terminal-effect plugins |
+| AI Agent Design | Choose how terminal AI agent runs are shown: a combination of [designs](../features/ai-agent-designs.md), the default and your own combinations |
 
 ## View
 
@@ -127,6 +128,8 @@ The three session-journal items stay visible but are disabled when an [enterpris
 | File Browser ▸ Show on Left | ++ctrl+shift+k++ | Dock the local [file browser](../features/file-browser.md) to the left of the terminal; unchecking the active side hides it |
 | File Browser ▸ Show on Right | ++ctrl+shift+r++ | Dock the local [file browser](../features/file-browser.md) to the right of the terminal; unchecking the active side hides it |
 | AI Agent Panel ▸ At Bottom / Dock Left / Dock Right | | Choose where the AI agent activity panel lives |
+| AI Agent Panel ▸ Show or Hide Status Bar | | Show the [metro-line bar](../features/ai-agent-designs.md#metro-line-08) of the focused terminal again, or hide it |
+| AI Agent Panel ▸ Design... | | Open [*Plugins → AI Agent Design*](../features/ai-agent-designs.md) |
 | Live Journal ▸ Dock Left / Dock Right | | Dock the [live journal panel](../features/session-journal.md#the-live-journal-panel) beside the terminal; selecting the active side hides it |
 | Live Journal ▸ Show/Hide | ++ctrl+alt+l++ | Toggle the live journal panel on its last-used side (right by default) |
 | Coding Agents ▸ Dock Left / Dock Right | | Dock the [Coding Agents panel](../features/coding-agents.md#the-coding-agents-panel) beside the terminal; selecting the active side hides it |

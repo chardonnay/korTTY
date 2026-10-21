@@ -4236,6 +4236,23 @@ tasks.register<JavaExec>("generateTerminalEffectsScreenshot") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateAiAgentDesignScreenshots") {
+    group = "build"
+    description = "Renders the Plugins > AI Agent Design screenshots for the manual " +
+        "(app-docs/screenshots/plugins/ai-agent-design*.png) via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiAgentDesignScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
+tasks.register<JavaExec>("aiAgentDesignPreviewSmoke") {
+    group = "verification"
+    description = "Headed smoke: opens Plugins > AI Agent Design, plays the preview and snapshots it to build/smoke."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiAgentDesignPreviewSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateHighlightRulesScreenshot") {
     group = "build"
     description = "Renders the highlight rule-set editor screenshot for the manual " +

@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * Dockable side container for the terminal AI-agent panels. Shows one outer tab per terminal widget
  * of the currently bound (active) terminal tab; each outer tab hosts that widget's
- * {@link AiAgentActivityTabsPanel} (re-parented out of its split's bottom slot and switched to its
+ * {@link AgentDesignHost} (re-parented out of its split's bottom slot and switched to its
  * stacked layout). Only the active terminal tab is shown ("spotlight"); switching tabs rebinds.
  */
 public class AiAgentSidePanel extends VBox {
@@ -51,7 +51,7 @@ public class AiAgentSidePanel extends VBox {
         List<SithTermFxWidget> widgets = view.getOrderedWidgets();
         int index = 1;
         for (SithTermFxWidget widget : widgets) {
-            AiAgentActivityTabsPanel panel = view.getAgentPanelForWidget(widget);
+            AgentDesignHost panel = view.getAgentPanelForWidget(widget);
             if (panel == null) {
                 continue;
             }
@@ -81,7 +81,7 @@ public class AiAgentSidePanel extends VBox {
     public void unbind() {
         if (boundTab != null) {
             for (Tab outer : outerTabs.getTabs()) {
-                if (outer.getContent() instanceof AiAgentActivityTabsPanel panel) {
+                if (outer.getContent() instanceof AgentDesignHost panel) {
                     panel.setSideDocked(false);
                     outer.setContent(null);
                 }

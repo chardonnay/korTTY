@@ -34,6 +34,7 @@ public class ServerConnectionCopyPolicyTest {
             "shellIntegrationAutoInject",                                  // a duplicate runs the same local shell
             "terminalEffectPluginId", "terminalEffectAnimationSpeed", "terminalEmulationType",
             "encoding", "group", "tag", "tabColor", "disableHostKeyCheck", "aiProfileId", "aiSkillIds",
+            "aiAgentDesignId",                                             // KI-Agent design combination
             "settings");
 
     /** Duplicate deliberately leaves these behind; moving one to carried is a product decision. */
@@ -66,6 +67,8 @@ public class ServerConnectionCopyPolicyTest {
             "temporaryKeyContent", "temporaryKeyExpirationMinutes", "temporaryKeyPermanent",
             "connectionSource", "teamworkSourceId", "teamworkVersionToken", "teamworkRole",
             "aiProfileId", "aiSkillIds",
+            // Names a combination kept in this computer's global settings.
+            "aiAgentDesignId",
             // Set on the computer the shell runs on: an imported or shared file never switches on
             // korTTY's shell-integration wrapper.
             "shellIntegrationAutoInject");

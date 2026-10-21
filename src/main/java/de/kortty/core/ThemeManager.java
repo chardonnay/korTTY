@@ -4,6 +4,7 @@ import de.kortty.model.Theme;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.annotation.XmlAttribute;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import org.slf4j.Logger;
@@ -27,6 +28,8 @@ public class ThemeManager {
     private static final Logger logger = LoggerFactory.getLogger(ThemeManager.class);
     public static final String THEMES_FILE = "themes.xml";
     private static final String DEFAULT_THEME_ID = "default";
+    /** Agent-panel palette generation written with the themes; see {@link #migrateAgentPalette()}. */
+    static final int AGENT_PALETTE_VERSION = 2;
     private static final String DARK_THEME_ID = "dark";
 
     /** Shared, thread-safe JAXBContext; building one per load and save is the expensive part. */
@@ -71,7 +74,8 @@ public class ThemeManager {
                 (ThemeList) JAXB_CONTEXT.createUnmarshaller().unmarshal(new ByteArrayInputStream(content)));
             if (loaded.isPresent()) {
                 themeList = loaded.get();
-                boolean updatedThemes = ensureThemeDefaults();
+                boolean updatedThemes = migrateAgentPalette();
+                updatedThemes |= ensureThemeDefaults();
                 updatedThemes |= ensureBuiltInThemes();
                 if (updatedThemes) {
                     save();
@@ -201,6 +205,7 @@ public class ThemeManager {
 
     private void createDefaultThemes() {
         themeList = new ThemeList();
+        themeList.agentPaletteVersion = AGENT_PALETTE_VERSION;
         themeList.getThemes().addAll(createBuiltInThemes());
         ensureThemeDefaults();
         save();
@@ -226,6 +231,27 @@ public class ThemeManager {
             changed = true;
         }
         return changed;
+    }
+
+    /**
+     * Version 2 replaced the green agent-panel palette with a blue one. Colors a theme still holds from
+     * the old derivation are cleared so {@link #ensureThemeDefaults} derives them anew; colors the user
+     * picked stay. Runs once: the version is stored with the themes.
+     */
+    private boolean migrateAgentPalette() {
+        Integer version = themeList.agentPaletteVersion;
+        if (version != null && version >= AGENT_PALETTE_VERSION) {
+            return false;
+        }
+        int migrated = 0;
+        for (Theme theme : themeList.getThemes()) {
+            if (theme != null && theme.clearLegacyDerivedAgentPanelColors()) {
+                migrated++;
+            }
+        }
+        themeList.agentPaletteVersion = AGENT_PALETTE_VERSION;
+        logger.info("Moved {} theme(s) to the blue AI-agent palette", migrated);
+        return true;
     }
 
     private boolean ensureThemeDefaults() {
@@ -414,6 +440,11 @@ public class ThemeManager {
 
     @XmlRootElement(name = "themes")
     private static class ThemeList {
+        // Agent-panel palette generation the stored colors belong to; absent in files from before the
+        // blue palette (version 2).
+        @XmlAttribute
+        private Integer agentPaletteVersion;
+
         @XmlElement(name = "theme")
         private List<Theme> themes = new ArrayList<>();
 

@@ -330,6 +330,7 @@ korTTY supports agent-style workflows for an active terminal session.
 
 ### Activity panel and placement
 
+* **Designs** - How runs are shown is chosen under [*Plugins → AI Agent Design*](ai-agent-designs.md): by default as a block in the terminal with a metro-line bar below it. The points below describe the **Classic** combination's activity panel.
 * **Split-local activity panel** - Terminal-targeted runs appear at the bottom of the terminal split where the run was started. Each split has its own panel, so different splits can run their own agent tasks in parallel.
 * **Panel placement** - Use **View > AI Agent Panel** to choose **At Bottom** (default), **Dock Left**, or **Dock Right**. Docked mode shows the activity in a resizable side panel attached to the main window; drag its divider to resize. The placement and width are remembered across restarts. In side mode there is one outer tab per terminal of the active terminal tab, and runs are stacked vertically. Switching to another terminal tab swaps the dock to that tab's terminals.
 * **Agent status indicators** - A per-terminal AI-agent status icon appears in the Dashboard tree and prefixed to the terminal's tab title:

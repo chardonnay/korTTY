@@ -73,7 +73,7 @@ Die Tabellen unten listen jedes Ereignis auf, wann es gesendet wird und welche W
 | `file_browser_action` | ein Menü- oder Kontextmenü-Aktion des Dateibrowsers führt die Aktion aus: | die Aktion: `open`, `load_as_text`, `copy`, `cut`, `paste`, `delete`, `copy_path`, `details`, `archive`, `new_folder`, `new_file`, `rename` oder `owner_permissions` |
 | `coding_agent_panel_toggled` | das Coding-Agents-Panel wird angezeigt, ausgeblendet oder verschoben | `HIDDEN`, `LEFT` oder `RIGHT` |
 | `journal_live_panel_toggled` | das Live-Journal-Panel wird angezeigt, ausgeblendet oder verschoben | `HIDDEN`, `LEFT` oder `RIGHT` |
-| `tool_opened` | Ein Tool-Fenster öffnet sich | Welcher von beiden: `ai_swarm`, `teamwork_settings`, `terminal_effect_manager`, `ascii_art`, `session_processes`, `video_manager`, `snippet_manager` ( mit `tab` oder `window`), `job_scheduler`, `ai_manager`, `saved_chats`, `session_journals` oder `manual` |
+| `tool_opened` | wird ein Tool-Fenster geöffnet | welches: `ai_swarm`, `teamwork_settings`, `terminal_effect_manager`, `ai_agent_design`, `ascii_art`, `session_processes`, `video_manager`, `snippet_manager` (mit `tab` oder `window`), `job_scheduler`, `ai_manager`, `saved_chats`, `session_journals` oder `manual` |
 | `connect_ui_opened` | Schnellverbindung oder der Connection-Manager öffnet | `quick_connect` oder `connection_manager` |
 | `connection_transfer` | Verbindungen werden importiert oder exportiert | `import` oder `export`, der verwendete Importer oder Exporter (korTTY, PuTTY Connection Manager, MTPuTTY, MobaXterm) und die Anzahl der Verbindungen |
 | `project_action` | ein Projekt wird geöffnet oder gespeichert | `open` oder `save` |

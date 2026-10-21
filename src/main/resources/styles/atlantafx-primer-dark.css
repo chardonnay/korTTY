@@ -138,17 +138,17 @@
 .ai-agent-header-busy-dot,
 .ai-agent-dot-action,
 .ai-agent-option-check:selected .mark {
-    -fx-background-color: -color-success-emphasis;
+    -fx-background-color: -color-accent-emphasis;
 }
 
 .ai-agent-header-busy-dot,
 .ai-agent-dot-running {
-    -fx-effect: dropshadow(gaussian, -color-success-fg, 8, 0.35, 0, 0);
+    -fx-effect: dropshadow(gaussian, -color-accent-fg, 8, 0.35, 0, 0);
 }
 
 .ai-agent-header-busy-label,
 .terminal-agent-busy-robot {
-    -fx-text-fill: -color-success-fg;
+    -fx-text-fill: -color-accent-fg;
 }
 
 .ai-agent-activity-meta,

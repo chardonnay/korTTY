@@ -225,6 +225,14 @@ public class ServerConnection {
     @XmlElement
     private String aiProfileId;
 
+    /**
+     * KI-Agent design combination agent runs on this connection are shown in (Plugins → KI-Agent Design);
+     * null = the global default. Own combinations live in the global settings of this machine, so like
+     * the AI profile it is not exported.
+     */
+    @XmlElement
+    private String aiAgentDesignId;
+
     /** Connection-scoped AI skills (target CONNECTION) assigned to this connection. */
     @XmlElementWrapper(name = "aiSkillIds")
     @XmlElement(name = "skillId")
@@ -302,6 +310,7 @@ public class ServerConnection {
         c.teamworkVersionToken = source.teamworkVersionToken;
         c.teamworkRole = source.teamworkRole;
         c.aiProfileId = source.aiProfileId;
+        c.aiAgentDesignId = source.aiAgentDesignId;
         c.aiSkillIds = source.aiSkillIds;
         return c;
     }
@@ -338,6 +347,7 @@ public class ServerConnection {
         c.tabColor = source.tabColor;
         c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.aiProfileId = source.aiProfileId;
+        c.aiAgentDesignId = source.aiAgentDesignId;
         c.setAiSkillIds(source.getAiSkillIds());
         if (source.settings != null) {
             c.settings = new ConnectionSettings(source.settings);
@@ -458,6 +468,15 @@ public class ServerConnection {
 
     public void setAiProfileId(String aiProfileId) {
         this.aiProfileId = aiProfileId;
+    }
+
+    /** The connection's own KI-Agent design combination, or {@code null} for the global default. */
+    public String getAiAgentDesignId() {
+        return aiAgentDesignId;
+    }
+
+    public void setAiAgentDesignId(String aiAgentDesignId) {
+        this.aiAgentDesignId = aiAgentDesignId != null && !aiAgentDesignId.isBlank() ? aiAgentDesignId.trim() : null;
     }
 
     public java.util.List<String> getAiSkillIds() {
