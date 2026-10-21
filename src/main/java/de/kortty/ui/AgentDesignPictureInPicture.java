@@ -83,7 +83,8 @@ final class AgentDesignPictureInPicture extends VBox implements AgentRunPresente
         closeButton.setOnAction(event -> actions.hide());
         Region gap = new Region();
         HBox.setHgrow(gap, Priority.ALWAYS);
-        titleBar = new HBox(6, grip, title, gap, meta, detachButton, foldButton, closeButton);
+        titleBar = new HBox(6, grip, title, gap, meta, AgentDesignWidgets.runMenuButton(actions, palette),
+            detachButton, foldButton, closeButton);
         titleBar.setAlignment(Pos.CENTER_LEFT);
         titleBar.setPadding(new Insets(4, 6, 4, 8));
         titleBar.setCursor(javafx.scene.Cursor.MOVE);
@@ -92,6 +93,7 @@ final class AgentDesignPictureInPicture extends VBox implements AgentRunPresente
         titleBar.setOnMouseReleased(event -> endDrag());
         tabs.setPadding(new Insets(0, 8, 4, 8));
         steps.setMaxRows(6);
+        steps.setStepActions(actions);
         steps.setStyle("-fx-background-color: transparent;");
         compact.setPadding(new Insets(0, 4, 6, 4));
         approvalBox.setPadding(new Insets(0, 8, 0, 8));

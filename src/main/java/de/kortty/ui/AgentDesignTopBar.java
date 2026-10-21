@@ -53,6 +53,7 @@ final class AgentDesignTopBar extends HBox implements AgentRunPresenter {
     private final Button cancelButton = iconButton("■", I18n.get("dialog.cancel"));
     private final Button drawerButton = iconButton("▾", I18n.get("aiAgentDesign.steps.show"));
     private final Button hideButton = iconButton("✕", I18n.get("aiAgentDesign.metro.hide"));
+    private final Button menuButton = iconButton("⋯", I18n.get("aiAgentDesign.menu.more"));
     private final AgentStatusVisibility visibility = new AgentStatusVisibility(this);
     private final AgentDesignStepList drawer = new AgentDesignStepList();
     private final Rectangle drawerClip = new Rectangle();
@@ -113,7 +114,8 @@ final class AgentDesignTopBar extends HBox implements AgentRunPresenter {
         cancelButton.setOnAction(event -> actions.cancel());
         drawerButton.setOnAction(event -> setDrawerOpen(!drawerOpen, true));
         hideButton.setOnAction(event -> actions.hide());
-        HBox right = new HBox(4, meta, pauseButton, cancelButton, drawerButton, hideButton);
+        AgentDesignWidgets.wireRunMenuButton(menuButton, actions);
+        HBox right = new HBox(4, meta, pauseButton, cancelButton, drawerButton, menuButton, hideButton);
         right.setAlignment(Pos.CENTER_RIGHT);
         right.setMinWidth(Region.USE_PREF_SIZE);
         Region spacer = new Region();

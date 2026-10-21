@@ -55,6 +55,7 @@ final class AgentDesignPowerlineBar extends HBox implements AgentRunPresenter {
     private final Button cancelButton = AgentDesignTopBar.iconButton("■", I18n.get("dialog.cancel"));
     private final Button feedButton = AgentDesignTopBar.iconButton("▴", I18n.get("aiAgentDesign.steps.show"));
     private final Button hideButton = AgentDesignTopBar.iconButton("✕", I18n.get("aiAgentDesign.metro.hide"));
+    private final Button menuButton = AgentDesignTopBar.iconButton("⋯", I18n.get("aiAgentDesign.menu.more"));
     private final AgentStatusVisibility visibility = new AgentStatusVisibility(this);
     private final AgentDesignStepList feed = new AgentDesignStepList();
     private final Rectangle feedClip = new Rectangle();
@@ -86,7 +87,8 @@ final class AgentDesignPowerlineBar extends HBox implements AgentRunPresenter {
         cancelButton.setOnAction(event -> actions.cancel());
         feedButton.setOnAction(event -> setFeedOpen(!feedOpen, true));
         hideButton.setOnAction(event -> actions.hide());
-        HBox buttons = new HBox(3, pauseButton, cancelButton, feedButton, hideButton);
+        AgentDesignWidgets.wireRunMenuButton(menuButton, actions);
+        HBox buttons = new HBox(3, pauseButton, cancelButton, feedButton, menuButton, hideButton);
         buttons.setAlignment(Pos.CENTER_RIGHT);
         buttons.setPadding(new Insets(0, 4, 0, 0));
         buttons.setMinWidth(Region.USE_PREF_SIZE);

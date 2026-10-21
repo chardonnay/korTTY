@@ -75,7 +75,14 @@ final class AgentDesignTmuxPane extends VBox implements AgentRunPresenter {
         approvalKeys.setPrefWrapLength(MIN_WIDTH - 16);
         status.setMaxWidth(Double.MAX_VALUE);
         status.setPadding(new Insets(1, 6, 1, 6));
-        getChildren().addAll(frameTitle, scroller, approvalKeys, status);
+        javafx.scene.control.Button menuButton = AgentDesignWidgets.runMenuButton(actions, palette);
+        Region titleGap = new Region();
+        HBox.setHgrow(titleGap, Priority.ALWAYS);
+        HBox titleRow = new HBox(frameTitle, titleGap, menuButton);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        getChildren().addAll(titleRow, scroller, approvalKeys, status);
+        // A right-click on the pane opens the run menu, on a step's line the menu of that step.
+        AgentDesignWidgets.runMenuOnRightClick(this, actions);
         setMinWidth(MIN_WIDTH);
         setPrefWidth(MIN_WIDTH);
         setMaxWidth(MIN_WIDTH);
@@ -184,6 +191,7 @@ final class AgentDesignTmuxPane extends VBox implements AgentRunPresenter {
         add("» ", palette.accent(), true);
         add(AgentInlineBlockLayout.oneLine(view.prompt()) + "\n", palette.text(), true);
         for (TerminalAgentModels.AgentActivity step : AgentInlineBlockLayout.listedSteps(view.trace())) {
+            int first = lines.getChildren().size();
             AgentInlineBlockLayout.Segment marker = AgentInlineBlockLayout.marker(step, "›");
             add(marker.text() + " ", palette.colorOf(marker.role()), true);
             add(String.format("%-6s", AgentStepDetails.kind(step)), palette.think().interpolate(palette.muted(), 0.4), false);
@@ -194,6 +202,9 @@ final class AgentDesignTmuxPane extends VBox implements AgentRunPresenter {
                 ? AgentInlineBlockLayout.rowMeta(view.trace(), step, System.currentTimeMillis())
                 : AgentStepDetails.result(step);
             add(result.isBlank() ? "\n" : "  " + result + "\n", palette.muted(), false);
+            for (javafx.scene.Node part : lines.getChildren().subList(first, lines.getChildren().size())) {
+                AgentDesignWidgets.stepMenuOnRightClick(part, actions, step);
+            }
         }
         if (view.trace().pendingApproval != null) {
             TerminalAgentModels.Approval approval = view.trace().pendingApproval;

@@ -51,7 +51,8 @@ final class AgentDesignCardStack extends HBox implements AgentRunPresenter {
 
     /** What one card shows. */
     private record Card(String id, String marker, javafx.scene.paint.Color markerColor, String title, boolean mono,
-                        String result, List<String> detail, TerminalAgentModels.Approval approval) {
+                        String result, List<String> detail, TerminalAgentModels.Approval approval,
+                        TerminalAgentModels.AgentActivity step) {
     }
 
     AgentDesignCardStack(AgentRunPresenter.Actions actions) {
@@ -64,7 +65,8 @@ final class AgentDesignCardStack extends HBox implements AgentRunPresenter {
         hideButton.setOnAction(event -> actions.hide());
         prompt.setWrapText(true);
         prompt.setMaxHeight(48);
-        HBox controls = new HBox(2, history, new Region(), pauseButton, cancelButton, hideButton);
+        HBox controls = new HBox(2, history, new Region(), pauseButton, cancelButton,
+            AgentDesignWidgets.runMenuButton(actions, palette), hideButton);
         HBox.setHgrow(controls.getChildren().get(1), Priority.ALWAYS);
         controls.setAlignment(Pos.CENTER_LEFT);
         Region fill = new Region();
@@ -178,17 +180,17 @@ final class AgentDesignCardStack extends HBox implements AgentRunPresenter {
             cards.add(new Card(step.id(), marker.text(), palette.colorOf(marker.role()),
                 AgentInlineBlockLayout.oneLine(command ? AgentStepDetails.command(step) : AgentInlineBlockLayout.rowText(step)),
                 command, command ? AgentStepDetails.result(step) : AgentInlineBlockLayout.rowMeta(view.trace(), step, System.currentTimeMillis()),
-                output.subList(Math.max(0, output.size() - 2), output.size()), null));
+                output.subList(Math.max(0, output.size() - 2), output.size()), null, step));
         }
         TerminalAgentModels.Approval approval = view.trace().pendingApproval;
         if (approval != null) {
             cards.add(new Card("#approval", "?", palette.warn(), I18n.get("aiAgentDesign.toast.approval"), false,
-                AgentInlineBlockLayout.oneLine(AgentDesignWidgets.approvalMessage(approval)), List.of(), approval));
+                AgentInlineBlockLayout.oneLine(AgentDesignWidgets.approvalMessage(approval)), List.of(), approval, null));
         } else if (!view.running()) {
             String answer = AgentInlineBlockLayout.finalAnswer(view.trace());
             if (!answer.isBlank()) {
                 cards.add(new Card("#answer", "◆", palette.accent(), AgentInlineBlockLayout.oneLine(answer), false, "",
-                    List.of(), null));
+                    List.of(), null, null));
             }
         }
         return cards;
@@ -285,6 +287,7 @@ final class AgentDesignCardStack extends HBox implements AgentRunPresenter {
         node.setStyle("-fx-background-color: " + AgentDesignPalette.hex(palette.surface()) + ";"
             + " -fx-border-color: " + border + "; -fx-border-radius: 8; -fx-background-radius: 8;");
         StackPane.setAlignment(node, Pos.TOP_LEFT);
+        AgentDesignWidgets.stepMenuOnRightClick(node, actions, card.step());
         return node;
     }
 }

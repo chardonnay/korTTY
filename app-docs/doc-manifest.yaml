@@ -512,6 +512,7 @@ pages:
       - src/main/java/de/kortty/ui/AgentDesignWidgets.java
       - src/main/java/de/kortty/ui/AgentFocusLayout.java
       - src/main/java/de/kortty/ui/AgentInlineBlockLayout.java
+      - src/main/java/de/kortty/ui/AgentRunActions.java
       - src/main/java/de/kortty/ui/AgentRunPresenter.java
       - src/main/java/de/kortty/ui/AgentStatusVisibility.java
       - src/main/java/de/kortty/ui/AgentStepDetails.java

@@ -847,6 +847,12 @@ public class TerminalView extends BorderPane {
                     planningItem.setOnAction(e -> aiPlanningHandler.handle(createTerminalAgentRunContext(widget)));
                     aiMenu.getItems().add(planningItem);
                 }
+                // The newest run a KI-Agent design shows: designs drawn into the terminal have no button for it.
+                AgentDesignHost designHost = terminalAgentActivityPanels.get(widget);
+                javafx.scene.control.Menu lastRunMenu = designHost != null ? designHost.lastRunMenu(widget.getPane()) : null;
+                if (lastRunMenu != null) {
+                    aiMenu.getItems().add(lastRunMenu);
+                }
                 if (!aiMenu.getItems().isEmpty() && (hasSelectedText || offersRecentOutput)) {
                     aiMenu.getItems().add(new javafx.scene.control.SeparatorMenuItem());
                 }

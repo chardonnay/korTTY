@@ -52,6 +52,18 @@ interface AgentRunPresenter {
         default boolean canStartRuns() {
             return false;
         }
+
+        /**
+         * Opens the menu of the followed run at a point on the screen: workflow, export, run again, copy
+         * the answer, earlier runs.
+         */
+        default void showRunMenu(javafx.scene.Node anchor, double screenX, double screenY) {
+        }
+
+        /** Opens the menu of one step at a point on the screen: copy, open in the Snippet Editor. */
+        default void showStepMenu(javafx.scene.Node anchor, de.kortty.model.TerminalAgentModels.AgentActivity step,
+                                  double screenX, double screenY) {
+        }
     }
 
     /** One run of the pane, for designs that list the runs (tabs). */

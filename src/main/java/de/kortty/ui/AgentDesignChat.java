@@ -63,7 +63,7 @@ final class AgentDesignChat extends VBox implements AgentRunPresenter {
         title.setId("title");
         Region gap = new Region();
         HBox.setHgrow(gap, Priority.ALWAYS);
-        HBox header = new HBox(6, title, gap, meta, hideButton);
+        HBox header = new HBox(6, title, gap, meta, AgentDesignWidgets.runMenuButton(actions, palette), hideButton);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(6, 6, 4, 10));
         messages.setPadding(new Insets(6, 8, 6, 8));
@@ -186,6 +186,10 @@ final class AgentDesignChat extends VBox implements AgentRunPresenter {
                 case MESSAGE, QUESTION -> {
                     // The answer and an open approval get bubbles of their own below.
                 }
+            }
+            VBox stepBubble = bubbles.get(step.id());
+            if (stepBubble != null) {
+                AgentDesignWidgets.stepMenuOnRightClick(stepBubble, actions, step);
             }
         }
         TerminalAgentModels.Approval approval = view.trace().pendingApproval;

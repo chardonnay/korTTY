@@ -119,7 +119,8 @@ final class AgentDesignTimeline extends VBox implements AgentRunPresenter {
         hideButton.setOnAction(event -> actions.hide());
         Region gap = new Region();
         HBox.setHgrow(gap, Priority.ALWAYS);
-        HBox header = new HBox(4, title, gap, pauseButton, cancelButton, hideButton);
+        HBox header = new HBox(4, title, gap, pauseButton, cancelButton,
+            AgentDesignWidgets.runMenuButton(actions, palette), hideButton);
         header.setAlignment(Pos.CENTER_LEFT);
         prompt.setWrapText(true);
         prompt.setMaxHeight(36);
@@ -211,6 +212,7 @@ final class AgentDesignTimeline extends VBox implements AgentRunPresenter {
             String sub = running ? AgentInlineBlockLayout.rowMeta(view.trace(), step, System.currentTimeMillis())
                 : AgentStepDetails.result(step);
             entry.paint(colorFor(step), text, sub, palette.text(), command);
+            AgentDesignWidgets.stepMenuOnRightClick(entry, actions, step);
             setPulsing(entry, running && view.running() && !view.paused());
         }
         for (String key : List.copyOf(shown.keySet())) {

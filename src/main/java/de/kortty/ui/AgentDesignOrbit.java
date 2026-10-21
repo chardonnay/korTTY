@@ -87,7 +87,13 @@ final class AgentDesignOrbit extends HBox implements AgentRunPresenter {
         circle.setPrefSize(SIZE, SIZE);
         circle.setMaxSize(SIZE, SIZE);
         circle.setCursor(javafx.scene.Cursor.HAND);
-        circle.setOnMouseClicked(event -> setBloomOpen(!bloomOpen));
+        circle.setOnMouseClicked(event -> {
+            if (event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+                setBloomOpen(!bloomOpen);
+            }
+        });
+        AgentDesignWidgets.runMenuOnRightClick(circle, actions);
+        AgentDesignWidgets.runMenuOnRightClick(command, actions);
         command.setMaxWidth(240);
         command.setFont(javafx.scene.text.Font.font(AgentDesignWidgets.MONOSPACED, 11));
         command.setPadding(new Insets(3, 9, 3, 9));

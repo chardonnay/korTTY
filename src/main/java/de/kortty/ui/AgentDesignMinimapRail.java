@@ -49,7 +49,12 @@ final class AgentDesignMinimapRail extends Pane implements AgentRunPresenter {
     private View view;
     private List<TerminalAgentModels.AgentActivity> steps = List.of();
 
-    AgentDesignMinimapRail() {
+    private final AgentRunPresenter.Actions actions;
+
+    AgentDesignMinimapRail(AgentRunPresenter.Actions actions) {
+        this.actions = actions;
+        // A right-click on the rail opens the run menu, on a segment the menu of its step.
+        AgentDesignWidgets.runMenuOnRightClick(this, actions);
         setMinWidth(RAIL_WIDTH);
         setPrefWidth(RAIL_WIDTH);
         setMaxWidth(RAIL_WIDTH);
@@ -113,6 +118,12 @@ final class AgentDesignMinimapRail extends Pane implements AgentRunPresenter {
             segment.setArcHeight(3);
             int index = segments.size();
             segment.setOnMouseEntered(event -> showLens(index));
+            segment.setOnContextMenuRequested(event -> {
+                if (index < steps.size()) {
+                    actions.showStepMenu(segment, steps.get(index), event.getScreenX(), event.getScreenY());
+                }
+                event.consume();
+            });
             segments.add(segment);
             getChildren().add(segment);
         }

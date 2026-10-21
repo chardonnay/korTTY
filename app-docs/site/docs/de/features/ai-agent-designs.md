@@ -107,6 +107,23 @@ Diese Status-Designs schweben über dem Terminal, das seine volle Größe beibeh
 
 Eine Genehmigung wird im Terminal mit den Tasten **1** (einmal erlauben), **2** (immer erlauben) und **3** (abbrechen) oder mit Buttons beantwortet. Designs mit eigenen Buttons zeigen diese an: die Verlaufs-Panels, die Meldungen am Rand und das Bild-im-Bild-Fenster. Bei Blöcken im Terminal, im Fokus-Modus oder im Verlauf des klassischen Panels öffnet eine Genehmigung eine Zeile unter dem Terminal mit den Befehlen und den Buttons **1 Einmal erlauben**, **2 Immer erlauben** und **3 Abbrechen**. Eine Passwortanfrage öffnet diese Zeile immer, mit einem maskierten Feld, **Für diese SSH-Sitzung verwenden** und **OK**; ++enter++ sendet ab und ++esc++ bricht ab. Das klassische Panel behält seine eigenen Prompts bei.
 
+## Lauf-Menü und Schritt-Menü
+
+Jedes Design bietet das, was die Buttons des klassischen Panels tun. Die Leisten, die Verlaufs-Panels, das Milchglas-HUD und das Bild-im-Bild-Fenster haben einen ⋯-Button; die Statuspille, die Orbit-Anzeige, die Minimap-Schiene und das Abzeichen der Meldungen am Rand öffnen dasselbe Menü per Rechtsklick. Es funktioniert bei dem Lauf, den das Design zeigt:
+
+| Eintrag | Effekt |
+| --- | --- |
+| Arbeitsablauf … | Wandelt die fertige Ausführung in ein wiederverwendbares Skript um, siehe [Workflow-Skript erzeugen](ai-tools.md#workflow-skript-generieren) |
+| Diesen Lauf exportieren | Speichert den fertigen Lauf als Markdown, Text, YAML, XML, JSON, PDF oder Asciidoctor |
+| Alle Läufe exportieren | Speichert jeden abgeschlossenen Lauf, den das Terminal aufbewahrt, in einer Datei |
+| Erneut ausführen | Führt denselben Agent-Befehl erneut aus |
+| Antwort kopieren | Kopiert die Antwort der Ausführung |
+| Läufe dieses Terminals | Zeigt einen anderen Lauf des Terminals: die noch laufenden und die letzten fünf beendeten |
+
+Die in das Terminal gezeichneten Designs (Blöcke, Fokus-Modus, der Vorschlag an der Cursorzeile) bieten dieselben Einträge im Kontextmenü des Terminals unter *KI → Letzter Agent-Lauf*.
+
+Ein Rechtsklick auf einen Schritt öffnet ein eigenes Menü mit **Befehl kopieren**, **Ausgabe kopieren**, **Eintrag kopieren** und **Im Snippet-Editor öffnen**. Das funktioniert auf einem Knoten der Zeitachse an der Seite, einer Zeile des Plans oder der Protokoll-Tabelle, einer Karte des Kartenstapels, einem Block des Gesprächsverlaufs, einer Zeile des tmux-Bereichs, einem Segment der Minimap-Schiene, einer Meldung am Rand und einem Schritt im Bild-im-Bild-Fenster.
+
 ## Optionen
 
 | Option | Wirkung |

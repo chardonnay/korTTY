@@ -69,6 +69,8 @@ final class AgentDesignLogTable extends VBox implements AgentRunPresenter {
     private final TableView<Row> table = new TableView<>(rows);
     private final AgentStatusVisibility visibility = new AgentStatusVisibility(this);
     private final Map<String, Long> firstSeen = new HashMap<>();
+    // The steps behind the rows, for a row's menu.
+    private final Map<String, TerminalAgentModels.AgentActivity> stepsById = new HashMap<>();
     private final Map<String, Long> finishedAt = new HashMap<>();
     private final Set<String> flashed = new HashSet<>();
     private final Timeline spinner;
@@ -91,7 +93,8 @@ final class AgentDesignLogTable extends VBox implements AgentRunPresenter {
         prompt.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(prompt, Priority.ALWAYS);
         approvalButtons.setAlignment(Pos.CENTER_RIGHT);
-        HBox header = new HBox(6, prompt, approvalButtons, meta, pauseButton, cancelButton, hideButton);
+        HBox header = new HBox(6, prompt, approvalButtons, meta, pauseButton, cancelButton,
+            AgentDesignWidgets.runMenuButton(actions, palette), hideButton);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(3, 6, 3, 10));
         table.setFixedCellSize(ROW_HEIGHT);
@@ -234,8 +237,10 @@ final class AgentDesignLogTable extends VBox implements AgentRunPresenter {
     private void refreshRows() {
         long now = System.currentTimeMillis();
         List<Row> fresh = new java.util.ArrayList<>();
+        stepsById.clear();
         for (TerminalAgentModels.AgentActivity step : AgentInlineBlockLayout.listedSteps(view.trace())) {
             fresh.add(rowOf(step, now));
+            stepsById.put(step.id(), step);
         }
         TerminalAgentModels.Approval approval = view.trace().pendingApproval;
         if (approval != null) {
@@ -343,6 +348,15 @@ final class AgentDesignLogTable extends VBox implements AgentRunPresenter {
                 if (event.getClickCount() == 2 && getItem() != null) {
                     showDetail(this, getItem());
                 }
+            });
+            setOnContextMenuRequested(event -> {
+                TerminalAgentModels.AgentActivity step = getItem() != null ? stepsById.get(getItem().id()) : null;
+                if (step != null) {
+                    actions.showStepMenu(this, step, event.getScreenX(), event.getScreenY());
+                } else {
+                    actions.showRunMenu(this, event.getScreenX(), event.getScreenY());
+                }
+                event.consume();
             });
         }
 

@@ -62,6 +62,7 @@ final class AgentDesignMetroBar extends HBox implements AgentRunPresenter {
     private final Button pauseButton = iconButton("⏸", I18n.get("ai.agent.control.pauseRun"));
     private final Button cancelButton = iconButton("■", I18n.get("dialog.cancel"));
     private final Button hideButton = iconButton("✕", I18n.get("aiAgentDesign.metro.hide"));
+    private final Button menuButton = iconButton("⋯", I18n.get("aiAgentDesign.menu.more"));
     private final AgentStatusVisibility visibility = new AgentStatusVisibility(this);
     private final Timeline busyPulse;
     private boolean reducedAnimations;
@@ -103,7 +104,8 @@ final class AgentDesignMetroBar extends HBox implements AgentRunPresenter {
         pauseButton.setOnAction(event -> actions.togglePause());
         cancelButton.setOnAction(event -> actions.cancel());
         hideButton.setOnAction(event -> actions.hide());
-        HBox right = new HBox(5, meta, pauseButton, cancelButton, hideButton);
+        AgentDesignWidgets.wireRunMenuButton(menuButton, actions);
+        HBox right = new HBox(5, meta, pauseButton, cancelButton, menuButton, hideButton);
         right.setAlignment(Pos.CENTER_RIGHT);
         right.setMinWidth(Region.USE_PREF_SIZE);
 

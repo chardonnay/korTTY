@@ -50,6 +50,7 @@ final class AgentDesignNeonTicker extends HBox implements AgentRunPresenter {
     private final Button pauseButton = AgentDesignTopBar.iconButton("⏸", I18n.get("ai.agent.control.pauseRun"));
     private final Button cancelButton = AgentDesignTopBar.iconButton("■", I18n.get("dialog.cancel"));
     private final Button hideButton = AgentDesignTopBar.iconButton("✕", I18n.get("aiAgentDesign.metro.hide"));
+    private final Button menuButton = AgentDesignTopBar.iconButton("⋯", I18n.get("aiAgentDesign.menu.more"));
     private final AgentStatusVisibility visibility = new AgentStatusVisibility(this);
     private final Timeline ledPulse;
     private Label current;
@@ -82,7 +83,8 @@ final class AgentDesignNeonTicker extends HBox implements AgentRunPresenter {
         pauseButton.setOnAction(event -> actions.togglePause());
         cancelButton.setOnAction(event -> actions.cancel());
         hideButton.setOnAction(event -> actions.hide());
-        HBox buttons = new HBox(3, pauseButton, cancelButton, hideButton);
+        AgentDesignWidgets.wireRunMenuButton(menuButton, actions);
+        HBox buttons = new HBox(3, pauseButton, cancelButton, menuButton, hideButton);
         buttons.setAlignment(Pos.CENTER_RIGHT);
         buttons.setMinWidth(Region.USE_PREF_SIZE);
         getChildren().addAll(led, title, window, meta, buttons);

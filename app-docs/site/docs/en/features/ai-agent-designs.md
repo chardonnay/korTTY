@@ -107,6 +107,23 @@ These status designs float over the terminal, which keeps its full size. They st
 
 An approval is answered with the keys **1** (allow once), **2** (allow always) and **3** (cancel) in the terminal, or with buttons. Designs with buttons of their own show them: the history panels, the toasts and the picture-in-picture window. With blocks in the terminal, focus mode or the classic panel's history, an approval opens a row below the terminal with the commands and the buttons **1 Allow Once**, **2 Allow Always** and **3 Cancel**. A password request always opens that row, with a masked field, **Use for this SSH session** and **OK**; ++enter++ submits and ++esc++ cancels. The classic panel keeps its own prompts.
 
+## Run menu and step menu
+
+Every design offers what the classic panel's buttons do. The bars, the history panels, the frosted glass HUD and the picture-in-picture window have a ⋯ button; the status pill, the orbit, the minimap rail and the badge of the toasts open the same menu with a right-click. It works on the run the design shows:
+
+| Entry | Effect |
+| --- | --- |
+| Workflow… | Turns the finished run into a reusable script, see [Generate Workflow Script](ai-tools.md#generate-workflow-script) |
+| Export this run | Saves the finished run as Markdown, text, YAML, XML, JSON, PDF or Asciidoctor |
+| Export all runs | Saves every finished run the terminal keeps in one file |
+| Run again | Starts the same agent command again |
+| Copy answer | Copies the run's answer |
+| Runs of this terminal | Shows another run of the terminal: the ones still working and the last five that finished |
+
+The designs drawn into the terminal (blocks, focus mode, the suggestion at the cursor line) offer the same entries in the terminal's context menu under *AI → Last agent run*.
+
+A right-click on a step opens its own menu with **Copy command**, **Copy output**, **Copy entry** and **Open in Snippet Editor**. That works on a node of the side timeline, a row of the plan or the log table, a card of the stack, a block of the conversation, a line of the tmux pane, a segment of the minimap rail, a toast and a step in the picture-in-picture window.
+
 ## Options
 
 | Option | Effect |

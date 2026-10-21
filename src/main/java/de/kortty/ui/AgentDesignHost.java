@@ -111,6 +111,9 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
     private final Map<String, PendingPrompt> pendingPrompts = new ConcurrentHashMap<>();
     // Commands the user took over with Tab at the cursor line; typed at the prompt once their run ended.
     private final Map<String, String> pendingInserts = new HashMap<>();
+    // What the run menu needs of each run: the profile, users and connection, and how to start it again.
+    private final Map<String, AiAgentActivityPanel.RunMetadata> runMetadata = new ConcurrentHashMap<>();
+    private final Map<String, Runnable> runReloads = new ConcurrentHashMap<>();
     private final AgentRunRegistry registry = new AgentRunRegistry();
     private final AgentDesignApprovalStrip approvalStrip = new AgentDesignApprovalStrip();
     // Designs beside or over the terminal by module id, created on first use, and the run state they show.
@@ -133,6 +136,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
     private boolean statusBarDismissed;
     private boolean panelDismissed;
     private @Nullable String swallowTypedCharacters;
+    private @Nullable javafx.scene.control.ContextMenu openMenu;
     private javafx.animation.Timeline metaRefresh;
 
     public AgentDesignHost(@Nullable AgentTerminalSurface surface) {
@@ -173,6 +177,12 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         }
         if (pause != null) {
             runPauses.put(runId, pause);
+        }
+        if (metadata != null) {
+            runMetadata.put(runId, metadata);
+        }
+        if (reload != null) {
+            runReloads.put(runId, reload);
         }
         if (runDesign.classic()) {
             ensureClassicPanel().beginRun(runId, prompt, cancel, pause, reload, metadata);
@@ -664,6 +674,187 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         return false;
     }
 
+    // ------------------------------------------------------------------ run menu and step menu
+
+    /**
+     * The terminal context menu's entry for the newest run of this pane that a design shows (not the
+     * classic panel, which has its own buttons): the run menu as a submenu; {@code null} when there is none.
+     */
+    public @Nullable javafx.scene.control.Menu lastRunMenu(@Nullable Node owner) {
+        String runId = null;
+        for (String candidate : registry.runIds()) {
+            if (traces.containsKey(candidate)) {
+                runId = candidate;
+            }
+        }
+        if (runId == null) {
+            return null;
+        }
+        javafx.scene.control.Menu menu = new javafx.scene.control.Menu(I18n.get("aiAgentDesign.menu.lastRun"));
+        menu.getItems().setAll(runMenuItems(runId, owner));
+        return menu;
+    }
+
+    /** The run as the shared run actions (workflow, export) take it; {@code null} once it was forgotten. */
+    @Nullable AgentRunActions.RunRecord recordOf(String runId) {
+        AgentInlineBlockLayout.BlockState trace = runId != null ? traces.get(runId) : null;
+        if (trace == null) {
+            return null;
+        }
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        Long tokens = runTokens.get(runId);
+        long reported = trace.tokensKnown ? trace.tokens : tokens != null && tokens > 0 ? tokens : -1L;
+        return new AgentRunActions.RunRecord(trace.prompt, trace.prompt, runMetadata.get(runId),
+            java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(trace.startedAtMillis), zone),
+            trace.finished && trace.finishedAtMillis >= 0
+                ? java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(trace.finishedAtMillis), zone) : null,
+            trace.elapsedMillis(System.currentTimeMillis()) / 1000L, reported, List.copyOf(trace.rows.values()));
+    }
+
+    /**
+     * The run menu of {@code runId}: Workflow, export this run or all runs in a format, run again, copy the
+     * answer, and the earlier runs of the pane. Dialogs open over {@code owner}'s window.
+     */
+    List<javafx.scene.control.MenuItem> runMenuItems(String runId, @Nullable Node owner) {
+        AgentRunActions.RunRecord run = recordOf(runId);
+        boolean running = run != null && registry.state(runId) != AgentRunRegistry.State.DONE;
+        List<javafx.scene.control.MenuItem> items = new ArrayList<>();
+
+        javafx.scene.control.MenuItem workflow = new javafx.scene.control.MenuItem(I18n.get("aiAgentDesign.menu.workflow"));
+        workflow.setDisable(run == null || running || !AgentRunActions.hasReproducibleWork(run));
+        workflow.setOnAction(event -> AgentRunActions.openWorkflow(windowOf(owner), run));
+        items.add(workflow);
+
+        javafx.scene.control.Menu exportRun = new javafx.scene.control.Menu(I18n.get("aiAgentDesign.menu.exportRun"));
+        javafx.scene.control.Menu exportAll = new javafx.scene.control.Menu(I18n.get("aiAgentDesign.menu.exportAll"));
+        List<AgentRunActions.RunRecord> finished = finishedRecords();
+        for (de.kortty.core.TerminalAgentActivityExportService.Format format
+            : de.kortty.core.TerminalAgentActivityExportService.Format.values()) {
+            String label = I18n.get(AgentRunActions.exportFormatLabelKey(format));
+            javafx.scene.control.MenuItem one = new javafx.scene.control.MenuItem(label);
+            one.setOnAction(event -> AgentRunActions.export(windowOf(owner), List.of(run), format, "terminal-agent",
+                text -> exportStatus(owner, text)));
+            exportRun.getItems().add(one);
+            javafx.scene.control.MenuItem all = new javafx.scene.control.MenuItem(label);
+            all.setOnAction(event -> AgentRunActions.export(windowOf(owner), finished, format, "terminal-agent-all",
+                text -> exportStatus(owner, text)));
+            exportAll.getItems().add(all);
+        }
+        exportRun.setDisable(run == null || running);
+        exportAll.setDisable(finished.isEmpty());
+        items.add(exportRun);
+        items.add(exportAll);
+
+        javafx.scene.control.MenuItem rerun = new javafx.scene.control.MenuItem(I18n.get("aiAgentDesign.menu.rerun"));
+        Runnable reload = runReloads.get(runId);
+        rerun.setDisable(running || reload == null);
+        rerun.setOnAction(event -> {
+            if (reload != null) {
+                reload.run();
+            }
+        });
+        items.add(rerun);
+
+        String answer = run != null ? AgentInlineBlockLayout.finalAnswer(traces.get(runId)) : "";
+        javafx.scene.control.MenuItem copyAnswer = new javafx.scene.control.MenuItem(I18n.get("aiAgentDesign.menu.copyAnswer"));
+        copyAnswer.setDisable(answer.isBlank());
+        copyAnswer.setOnAction(event -> de.kortty.core.KorttyClipboard.setText(answer.strip()));
+        items.add(copyAnswer);
+
+        items.add(new javafx.scene.control.SeparatorMenuItem());
+        javafx.scene.control.Menu earlier = new javafx.scene.control.Menu(I18n.get("aiAgentDesign.menu.earlierRuns"));
+        for (String other : registry.runIds()) {
+            if (!traces.containsKey(other)) {
+                continue;
+            }
+            AgentRunRegistry.State state = registry.state(other);
+            String marker = state == AgentRunRegistry.State.AWAITING_INPUT ? "? "
+                : state == AgentRunRegistry.State.DONE ? "✓ " : "● ";
+            javafx.scene.control.CheckMenuItem item = new javafx.scene.control.CheckMenuItem(
+                marker + AiAgentActivityTabsPanel.truncateTabTitle(registry.prompt(other)));
+            item.setSelected(other.equals(runId));
+            item.setOnAction(event -> {
+                pinnedRunId = other;
+                statusBarDismissed = false;
+                panelDismissed = false;
+                refreshStatus(true);
+            });
+            earlier.getItems().add(0, item);
+        }
+        earlier.setDisable(earlier.getItems().size() < 2);
+        items.add(earlier);
+        return items;
+    }
+
+    /** The menu of one step: copy its command, its output or its text, open it in the Snippet Editor. */
+    List<javafx.scene.control.MenuItem> stepMenuItems(TerminalAgentModels.AgentActivity step, @Nullable Node owner) {
+        List<javafx.scene.control.MenuItem> items = new ArrayList<>();
+        String command = AgentRunActions.commandText(step);
+        String output = AgentRunActions.outputText(step);
+        String text = AgentRunActions.copyText(step);
+        if (!command.isBlank()) {
+            javafx.scene.control.MenuItem copyCommand = new javafx.scene.control.MenuItem(I18n.get("aiAgentDesign.step.copyCommand"));
+            copyCommand.setOnAction(event -> de.kortty.core.KorttyClipboard.setText(command));
+            items.add(copyCommand);
+        }
+        if (!output.isBlank()) {
+            javafx.scene.control.MenuItem copyOutput = new javafx.scene.control.MenuItem(I18n.get("aiAgentDesign.step.copyOutput"));
+            copyOutput.setOnAction(event -> de.kortty.core.KorttyClipboard.setText(output));
+            items.add(copyOutput);
+        }
+        javafx.scene.control.MenuItem copyEntry = new javafx.scene.control.MenuItem(I18n.get("ai.agent.activity.copyEntry"));
+        copyEntry.setDisable(text.isBlank());
+        copyEntry.setOnAction(event -> de.kortty.core.KorttyClipboard.setText(text));
+        items.add(copyEntry);
+        String snippet = command.isBlank() ? text : command;
+        javafx.scene.control.MenuItem openSnippet = new javafx.scene.control.MenuItem(I18n.get("ai.agent.activity.openSnippetEditor"));
+        openSnippet.setDisable(snippet.isBlank());
+        openSnippet.setOnAction(event -> AgentRunActions.openSnippetEditor(windowOf(owner), snippet, step));
+        items.add(openSnippet);
+        return items;
+    }
+
+    private List<AgentRunActions.RunRecord> finishedRecords() {
+        List<AgentRunActions.RunRecord> records = new ArrayList<>();
+        for (String runId : registry.runIds()) {
+            AgentRunActions.RunRecord record = registry.state(runId) == AgentRunRegistry.State.DONE ? recordOf(runId) : null;
+            if (record != null) {
+                records.add(record);
+            }
+        }
+        return records;
+    }
+
+    private void showMenu(List<javafx.scene.control.MenuItem> items, Node anchor, double screenX, double screenY) {
+        if (openMenu != null) {
+            openMenu.hide();
+        }
+        javafx.scene.control.ContextMenu menu = new javafx.scene.control.ContextMenu();
+        menu.getItems().setAll(items);
+        openMenu = menu;
+        menu.show(anchor, screenX, screenY);
+    }
+
+    /** Shows how an export goes for a few seconds next to where it was asked for. */
+    private void exportStatus(@Nullable Node owner, String text) {
+        if (owner == null || owner.getScene() == null || text == null || text.isBlank()) {
+            return;
+        }
+        javafx.scene.control.Tooltip notice = new javafx.scene.control.Tooltip(text);
+        javafx.geometry.Bounds bounds = owner.localToScreen(owner.getBoundsInLocal());
+        if (bounds == null) {
+            return;
+        }
+        notice.show(owner, bounds.getMinX(), bounds.getMaxY() + 4);
+        javafx.animation.PauseTransition linger = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(3));
+        linger.setOnFinished(event -> notice.hide());
+        linger.play();
+    }
+
+    private static @Nullable javafx.stage.Window windowOf(@Nullable Node node) {
+        return node != null && node.getScene() != null ? node.getScene().getWindow() : null;
+    }
+
     /** The classic panel, when one was created for this pane. */
     @Nullable AiAgentActivityTabsPanel classicPanel() {
         return classicPanel;
@@ -961,6 +1152,8 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
             runTokens.remove(runId);
             runTokenIds.remove(runId);
             pendingInserts.remove(runId);
+            runMetadata.remove(runId);
+            runReloads.remove(runId);
             if (runId.equals(pinnedRunId)) {
                 pinnedRunId = null;
             }
@@ -1211,7 +1404,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         PresenterActions actions = new PresenterActions(moduleId);
         AgentRunPresenter created = switch (moduleId) {
             case "d01" -> new AgentDesignPowerlineBar(actions);
-            case "d11" -> new AgentDesignMinimapRail();
+            case "d11" -> new AgentDesignMinimapRail(actions);
             case "d12" -> new AgentDesignTopBar(actions);
             case "d18" -> new AgentDesignNeonTicker(actions);
             case "d02" -> new AgentDesignTimeline(actions);
@@ -1381,6 +1574,21 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
         @Override
         public boolean canStartRuns() {
             return surface != null && surface.canStartRuns();
+        }
+
+        @Override
+        public void showRunMenu(Node anchor, double screenX, double screenY) {
+            String runId = followedRunId();
+            if (runId != null && anchor != null) {
+                showMenu(runMenuItems(runId, anchor), anchor, screenX, screenY);
+            }
+        }
+
+        @Override
+        public void showStepMenu(Node anchor, TerminalAgentModels.AgentActivity step, double screenX, double screenY) {
+            if (step != null && anchor != null) {
+                showMenu(stepMenuItems(step, anchor), anchor, screenX, screenY);
+            }
         }
 
         private @Nullable String followedOwnRun() {

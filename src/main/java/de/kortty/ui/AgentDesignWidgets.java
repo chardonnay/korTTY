@@ -77,6 +77,42 @@ final class AgentDesignWidgets {
         return button;
     }
 
+    /** The ⋯ button of a design: opens the run menu below itself. */
+    static Button runMenuButton(AgentRunPresenter.Actions actions, AgentDesignPalette palette) {
+        Button button = iconButton("⋯", I18n.get("aiAgentDesign.menu.more"), palette);
+        wireRunMenuButton(button, actions);
+        return button;
+    }
+
+    /** Makes {@code button} open the run menu below itself. */
+    static void wireRunMenuButton(Button button, AgentRunPresenter.Actions actions) {
+        button.setOnAction(event -> {
+            javafx.geometry.Bounds bounds = button.localToScreen(button.getBoundsInLocal());
+            if (bounds != null) {
+                actions.showRunMenu(button, bounds.getMinX(), bounds.getMaxY());
+            }
+        });
+    }
+
+    /** A right-click on {@code node} opens the run menu. */
+    static void runMenuOnRightClick(Node node, AgentRunPresenter.Actions actions) {
+        node.setOnContextMenuRequested(event -> {
+            actions.showRunMenu(node, event.getScreenX(), event.getScreenY());
+            event.consume();
+        });
+    }
+
+    /** A right-click on {@code node} opens the menu of the step it shows. */
+    static void stepMenuOnRightClick(Node node, AgentRunPresenter.Actions actions, TerminalAgentModels.AgentActivity step) {
+        if (step == null) {
+            return;
+        }
+        node.setOnContextMenuRequested(event -> {
+            actions.showStepMenu(node, step, event.getScreenX(), event.getScreenY());
+            event.consume();
+        });
+    }
+
     /** A borderless icon button (⏸, ■, ✕, ⤢) in the muted colour. */
     static Button iconButton(String glyph, String tooltip, AgentDesignPalette palette) {
         Button button = new Button(glyph);

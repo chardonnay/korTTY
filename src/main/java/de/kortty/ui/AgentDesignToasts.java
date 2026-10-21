@@ -74,7 +74,12 @@ final class AgentDesignToasts extends VBox implements AgentRunPresenter {
         badge.setMaxWidth(Region.USE_PREF_SIZE);
         badge.getChildren().addAll(badgeSpinner, badgeText);
         badge.setCursor(javafx.scene.Cursor.HAND);
-        badge.setOnMouseClicked(event -> setStepsOpen(!stepsOpen));
+        badge.setOnMouseClicked(event -> {
+            if (event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+                setStepsOpen(!stepsOpen);
+            }
+        });
+        AgentDesignWidgets.runMenuOnRightClick(badge, actions);
         HBox badgeRow = new HBox(badge);
         badgeRow.setAlignment(Pos.CENTER_RIGHT);
         badgeRow.setPickOnBounds(false);
@@ -233,6 +238,9 @@ final class AgentDesignToasts extends VBox implements AgentRunPresenter {
         notice.getChildren().add(countdown);
         notice.setPadding(new Insets(7, 10, 6, 10));
         notice.setStyle(AgentDesignWidgets.cardStyle(palette, 0.95, 8));
+        if (step != null) {
+            AgentDesignWidgets.stepMenuOnRightClick(notice, actions, step);
+        }
         notice.setEffect(AgentDesignWidgets.shadow(12, 0.3));
         while (notices.getChildren().size() >= MAX_NOTICES) {
             notices.getChildren().remove(approvalNotice != null && notices.getChildren().get(0) == approvalNotice ? 1 : 0);

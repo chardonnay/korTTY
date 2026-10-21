@@ -78,7 +78,7 @@ final class AgentDesignHud extends StackPane implements AgentRunPresenter {
         expand.setOnAction(event -> setStepsOpen(!stepsOpen));
         Region gap = new Region();
         HBox.setHgrow(gap, Priority.ALWAYS);
-        HBox header = new HBox(6, title, gap, meta, expand);
+        HBox header = new HBox(6, title, gap, meta, expand, AgentDesignWidgets.runMenuButton(actions, palette));
         header.setAlignment(Pos.CENTER_LEFT);
         prompt.setWrapText(false);
         step.setFont(javafx.scene.text.Font.font(AgentDesignWidgets.MONOSPACED, 11.5));

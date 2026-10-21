@@ -3,14 +3,11 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.core.AiTokenUsageManager;
 import de.kortty.core.GlobalSettingsManager;
-import de.kortty.core.SnippetLanguageSupport;
 import de.kortty.core.TerminalAgentActivityExportService;
 import de.kortty.core.TerminalAgentService;
-import de.kortty.core.WorkflowScriptSupport;
 import de.kortty.model.AgentActionCategory;
 import de.kortty.model.GlobalSettings;
 import de.kortty.model.Snippet;
-import de.kortty.model.SnippetCategory;
 import de.kortty.model.TerminalAgentModels;
 import de.kortty.model.Theme;
 import javafx.animation.Animation;
@@ -44,7 +41,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
@@ -60,7 +56,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -831,59 +826,16 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private void openSnippetEditor(String text, TerminalAgentModels.AgentActivity activity) {
-        String snippetContent = stripActivityQuotePrefixes(text);
-        if (snippetContent.isBlank()) {
-            return;
-        }
-        Snippet snippet = new Snippet();
-        snippet.setName(buildSnippetName(activity, snippetContent));
-        snippet.setContent(snippetContent);
-        snippet.setLanguage(SnippetLanguageSupport.detectSnippetLanguage("", snippetContent));
-        snippet.setDescription(nonBlank(activity != null ? activity.summary() : null, ""));
-        openSnippetEditorWithDraft(snippet);
+        AgentRunActions.openSnippetEditor(ownerWindow(), text, activity);
     }
 
     /** Opens the snippet editor pre-filled with a ready draft and persists it on save. */
     void openSnippetEditorWithDraft(Snippet snippet) {
-        if (snippet == null || snippet.getContent() == null || snippet.getContent().isBlank()) {
-            return;
-        }
-        KorTTYApplication application = KorTTYApplication.getInstance();
-        var snippetManager = application != null ? application.getSnippetManager() : null;
-        if (snippetManager == null) {
-            showPanelMessage(
-                Alert.AlertType.ERROR,
-                I18n.get("ai.result.saveSnippet.failed"),
-                "Snippet Manager not initialized");
-            return;
-        }
+        AgentRunActions.openSnippetEditorWithDraft(ownerWindow(), snippet);
+    }
 
-        List<String> categoryNames = snippetManager.getAllCategories().stream()
-            .map(SnippetCategory::getName)
-            .filter(Objects::nonNull)
-            .sorted(String::compareToIgnoreCase)
-            .toList();
-
-        SnippetEditDialog dialog = new SnippetEditDialog(snippet, categoryNames);
-        Window owner = getScene() != null ? getScene().getWindow() : null;
-        if (owner != null) {
-            dialog.initOwner(owner);
-        }
-        dialog.showNonBlocking(savedSnippet -> {
-            try {
-                ensureSnippetCategoryExists(savedSnippet.getCategory());
-                // Add-or-update: a live save already stored this snippet; saving again updates it.
-                snippetManager.addOrUpdateSnippet(savedSnippet);
-                snippetManager.save();
-            } catch (Exception e) {
-                logger.warn("Could not save terminal agent activity as snippet", e);
-                showPanelMessage(
-                    Alert.AlertType.ERROR,
-                    I18n.get("ai.result.saveSnippet.failed"),
-                    I18n.get("ai.agent.activity.openSnippetEditor.failed",
-                        e.getMessage() != null ? e.getMessage() : e.toString()));
-            }
-        });
+    private Window ownerWindow() {
+        return getScene() != null ? getScene().getWindow() : null;
     }
 
     /** Opens the Workflow dialog for the currently shown finished run. */
@@ -892,33 +844,7 @@ public class AiAgentActivityPanel extends VBox {
             return;
         }
         RunSnapshot snapshot = currentSnapshot();
-        if (snapshot == null || !currentSnapshotHasReproducibleWork()) {
-            showPanelMessage(
-                Alert.AlertType.INFORMATION,
-                I18n.get("ai.workflow.title"),
-                I18n.get("ai.workflow.error.noWork"));
-            return;
-        }
-        KorTTYApplication application = KorTTYApplication.getInstance();
-        if (application == null) {
-            showPanelMessage(Alert.AlertType.ERROR, I18n.get("ai.workflow.title"), I18n.get("ai.workflow.error.noProfile"));
-            return;
-        }
-        WorkflowScriptGenerator.RunExportData runData = new WorkflowScriptGenerator.RunExportData(
-            snapshot.profileId, snapshot.profileName, snapshot.prompt, toExportRun(snapshot),
-            detectedOperatingSystem(snapshot));
-        WorkflowScriptSupport.HeaderFacts baseFacts = new WorkflowScriptSupport.HeaderFacts(
-            WorkflowScriptSupport.defaultScriptName(snapshot.prompt, WorkflowScriptSupport.ScriptLanguage.BASH),
-            nonBlank(snapshot.creatorUser, System.getProperty("user.name")),
-            snapshot.sshUser,
-            snapshot.connectionName,
-            LocalDateTime.now(),
-            snapshot.prompt,
-            snapshot.profileName);
-        WorkflowScriptGenerator generator = new WorkflowScriptGenerator(application);
-        Window owner = getScene() != null ? getScene().getWindow() : null;
-        WorkflowScriptDialog dialog = new WorkflowScriptDialog(owner, generator, runData, baseFacts);
-        dialog.showAndWait();
+        AgentRunActions.openWorkflow(ownerWindow(), snapshot != null ? toRunRecord(snapshot) : null);
     }
 
     private RunSnapshot currentSnapshot() {
@@ -928,87 +854,9 @@ public class AiAgentActivityPanel extends VBox {
         return runHistory.get(historyIndex);
     }
 
-    /**
-     * Extracts the probed server OS from the run's activities. The "Inspect" probe activity carries a
-     * detail/summary of the form "{osRelease} | user {user} | cwd {dir} | {sudo}"; we return the
-     * {@code osRelease} prefix (before the first " | "), or null when not found.
-     */
-    private String detectedOperatingSystem(RunSnapshot snapshot) {
-        if (snapshot == null) {
-            return null;
-        }
-        for (TerminalAgentModels.AgentActivity activity : snapshot.activities) {
-            String os = extractProbeOs(activity.detail());
-            if (os != null) {
-                return os;
-            }
-            os = extractProbeOs(activity.summary());
-            if (os != null) {
-                return os;
-            }
-        }
-        return null;
-    }
-
-    private static String extractProbeOs(String text) {
-        if (text == null) {
-            return null;
-        }
-        // Only treat it as a probe summary when it carries the probe signature fields.
-        if (!text.contains(" | user ") || !text.contains(" | cwd ")) {
-            return null;
-        }
-        int bar = text.indexOf(" | ");
-        String os = (bar > 0 ? text.substring(0, bar) : text).strip();
-        return os.isEmpty() ? null : os;
-    }
-
     private boolean currentSnapshotHasReproducibleWork() {
         RunSnapshot snapshot = currentSnapshot();
-        if (snapshot == null) {
-            return false;
-        }
-        for (TerminalAgentModels.AgentActivity activity : snapshot.activities) {
-            if (activity.type() == TerminalAgentModels.AgentActivityType.ACTION
-                || activity.type() == TerminalAgentModels.AgentActivityType.ERROR) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void ensureSnippetCategoryExists(String categoryName) {
-        String normalized = categoryName != null ? categoryName.trim() : "";
-        if (normalized.isBlank()) {
-            return;
-        }
-        KorTTYApplication application = KorTTYApplication.getInstance();
-        var snippetManager = application != null ? application.getSnippetManager() : null;
-        if (snippetManager != null && snippetManager.findCategoryByName(normalized).isEmpty()) {
-            snippetManager.addCategory(new SnippetCategory(normalized));
-        }
-    }
-
-    private String buildSnippetName(TerminalAgentModels.AgentActivity activity, String snippetContent) {
-        String seed = nonBlank(
-            activity != null ? nonBlank(activity.title(), activity.summary()) : "",
-            firstNonBlankLine(snippetContent));
-        String normalized = seed.replaceAll("\\s+", " ").trim();
-        if (normalized.isBlank()) {
-            normalized = I18n.get("ai.agent.title");
-        }
-        return normalized.length() > 80 ? normalized.substring(0, 80).trim() : normalized;
-    }
-
-    private String firstNonBlankLine(String text) {
-        if (text == null || text.isBlank()) {
-            return "";
-        }
-        return text.lines()
-            .map(String::trim)
-            .filter(line -> !line.isBlank())
-            .findFirst()
-            .orElse("");
+        return snapshot != null && AgentRunActions.hasReproducibleWork(toRunRecord(snapshot));
     }
 
     private void showPreviousRun() {
@@ -1137,26 +985,11 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private String exportFormatLabelKey(TerminalAgentActivityExportService.Format format) {
-        return switch (format) {
-            case MARKDOWN -> "ai.agent.export.format.markdown";
-            case TEXT -> "ai.agent.export.format.text";
-            case YAML -> "ai.agent.export.format.yaml";
-            case XML -> "ai.agent.export.format.xml";
-            case JSON -> "ai.agent.export.format.json";
-            case PDF -> "ai.agent.export.format.pdf";
-            case ASCIIDOCTOR -> "ai.agent.export.format.asciidoctor";
-        };
+        return AgentRunActions.exportFormatLabelKey(format);
     }
 
     private File chooseExportTarget(TerminalAgentActivityExportService.Format format, String filePrefix) {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle(I18n.get("ai.agent.export.title"));
-        String safePrefix = filePrefix != null && !filePrefix.isBlank() ? filePrefix : "terminal-agent";
-        chooser.setInitialFileName(exportFileStem(safePrefix, LocalDateTime.now()));
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(I18n.get(format.filterKey()), "*" + format.extension()));
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(I18n.get("connEdit.allFiles"), "*.*"));
-        Window owner = getScene() != null ? getScene().getWindow() : null;
-        return normalizeExportTargetFile(chooser.showSaveDialog(owner), format);
+        return AgentRunActions.chooseExportTarget(ownerWindow(), format, filePrefix);
     }
 
     static String exportFileStem(String filePrefix, LocalDateTime timestamp) {
@@ -1186,42 +1019,16 @@ public class AiAgentActivityPanel extends VBox {
     }
 
     private TerminalAgentActivityExportService.ExportDocument buildExportDocument(List<RunSnapshot> snapshots) {
-        List<TerminalAgentActivityExportService.Run> runs = snapshots.stream()
-            .map(this::toExportRun)
-            .toList();
-        String title = runs.size() == 1 ? runs.getFirst().title() : I18n.get("ai.agent.export.documentTitle");
-        return new TerminalAgentActivityExportService.ExportDocument(title, LocalDateTime.now(), runs);
+        return AgentRunActions.exportDocument(snapshots.stream().map(this::toRunRecord).toList());
     }
 
-    private TerminalAgentActivityExportService.Run toExportRun(RunSnapshot snapshot) {
-        List<TerminalAgentActivityExportService.Activity> activities = snapshot.activities.stream()
-            .map(this::toExportActivity)
-            .toList();
-        return new TerminalAgentActivityExportService.Run(
-            snapshot.title,
-            snapshot.prompt,
-            snapshot.profileId,
-            snapshot.profileName,
-            snapshot.modelName,
-            snapshot.reasoningStatus,
-            snapshot.startedAt,
-            snapshot.finishedAt,
-            snapshot.elapsedSeconds(),
-            snapshot.hasReportedTokens,
-            snapshot.reportedTokens,
-            activities);
-    }
-
-    private TerminalAgentActivityExportService.Activity toExportActivity(TerminalAgentModels.AgentActivity activity) {
-        return new TerminalAgentActivityExportService.Activity(
-            activity.id(),
-            activity.type(),
-            activity.status(),
-            activity.title(),
-            activity.summary(),
-            activity.detail(),
-            activity.tokenUsage(),
-            activity.elapsedSeconds());
+    /** A shown run as the shared run actions (workflow, export) take it. */
+    private AgentRunActions.RunRecord toRunRecord(RunSnapshot snapshot) {
+        return new AgentRunActions.RunRecord(snapshot.title, snapshot.prompt,
+            new RunMetadata(snapshot.profileId, snapshot.profileName, snapshot.modelName, snapshot.reasoningStatus,
+                snapshot.creatorUser, snapshot.sshUser, snapshot.connectionName),
+            snapshot.startedAt, snapshot.finishedAt, snapshot.elapsedSeconds(),
+            snapshot.hasReportedTokens ? snapshot.reportedTokens : -1L, snapshot.activities);
     }
 
     private void showExportMessage(Alert.AlertType type, String message) {

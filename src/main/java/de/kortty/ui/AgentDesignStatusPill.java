@@ -54,7 +54,12 @@ final class AgentDesignStatusPill extends HBox implements AgentRunPresenter {
         step.setFont(javafx.scene.text.Font.font(AgentDesignWidgets.MONOSPACED, 11));
         progress.setMinWidth(Region.USE_PREF_SIZE);
         getChildren().addAll(icon, spin, step, progress);
-        setOnMouseClicked(event -> setStepsOpen(!stepsOpen));
+        setOnMouseClicked(event -> {
+            if (event.getButton() == javafx.scene.input.MouseButton.PRIMARY) {
+                setStepsOpen(!stepsOpen);
+            }
+        });
+        AgentDesignWidgets.runMenuOnRightClick(this, actions);
         setCursor(javafx.scene.Cursor.HAND);
         steps.setMaxRows(10);
         steps.setManaged(false);

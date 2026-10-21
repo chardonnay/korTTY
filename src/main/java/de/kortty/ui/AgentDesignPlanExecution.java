@@ -73,7 +73,8 @@ final class AgentDesignPlanExecution extends VBox implements AgentRunPresenter {
         prompt.setMinWidth(0);
         HBox.setHgrow(prompt, Priority.ALWAYS);
         prompt.setMaxWidth(Double.MAX_VALUE);
-        HBox header = new HBox(6, prompt, meta, pauseButton, cancelButton, hideButton);
+        HBox header = new HBox(6, prompt, meta, pauseButton, cancelButton,
+            AgentDesignWidgets.runMenuButton(actions, palette), hideButton);
         header.setAlignment(Pos.CENTER_LEFT);
         header.setPadding(new Insets(4, 8, 2, 10));
         progress.setMaxWidth(Double.MAX_VALUE);
@@ -232,6 +233,7 @@ final class AgentDesignPlanExecution extends VBox implements AgentRunPresenter {
             HBox.setHgrow(text, Priority.ALWAYS);
             HBox row = new HBox(6, markBox, text);
             row.setAlignment(Pos.CENTER_LEFT);
+            AgentDesignWidgets.stepMenuOnRightClick(row, actions, step);
             plan.getChildren().add(row);
         }
         if (view.running() && !view.awaitingInput()) {
@@ -269,6 +271,7 @@ final class AgentDesignPlanExecution extends VBox implements AgentRunPresenter {
 
     private void refreshExecution(List<TerminalAgentModels.AgentActivity> steps) {
         execution.getChildren().clear();
+        execution.setOnContextMenuRequested(null);
         TerminalAgentModels.Approval approval = view.trace().pendingApproval;
         if (approval != null) {
             execution.getChildren().add(AgentDesignWidgets.label("? " + AgentInlineBlockLayout.oneLine(AgentDesignWidgets.approvalMessage(approval)),
@@ -300,6 +303,7 @@ final class AgentDesignPlanExecution extends VBox implements AgentRunPresenter {
             return;
         }
         boolean running = command.status() == TerminalAgentModels.AgentActivityStatus.RUNNING;
+        AgentDesignWidgets.stepMenuOnRightClick(execution, actions, command);
         execution.getChildren().add(AgentDesignWidgets.mono("$ " + AgentInlineBlockLayout.oneLine(AgentStepDetails.command(command)),
             palette.accent(), 11.5, true));
         if (running) {
