@@ -16,6 +16,8 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -70,14 +72,20 @@ final class AgentDesignPreview extends StackPane {
                 terminalSettings, new DynamicFontSizeSettingsProvider(terminalSettings.getFontSize()), () -> 0));
             DemoConnector demo = new DemoConnector(transcript());
             terminal.setTtyConnector(demo);
-            AgentDesignHost designHost = new AgentDesignHost(surfaceFor(terminal));
+            Pane overlay = new Pane();
+            overlay.setMouseTransparent(true);
+            overlay.setPickOnBounds(false);
+            AgentDesignHost designHost = new AgentDesignHost(surfaceFor(terminal, overlay));
             designHost.applyTheme(agentTheme);
             Region pane = terminal.getPane();
             pane.setMinSize(0, 0);
-            VBox column = new VBox(pane, designHost);
-            VBox.setVgrow(pane, Priority.ALWAYS);
+            // The same arrangement as a pane's cell: a top slot, the terminal with a right slot, the host.
+            HBox middle = new HBox(pane, designHost.rightSlot());
+            HBox.setHgrow(pane, Priority.ALWAYS);
+            VBox column = new VBox(designHost.topSlot(), middle, designHost);
+            VBox.setVgrow(middle, Priority.ALWAYS);
             column.setFillWidth(true);
-            getChildren().setAll(column);
+            getChildren().setAll(column, overlay);
             widget = terminal;
             connector = demo;
             host = designHost;
@@ -228,7 +236,7 @@ final class AgentDesignPreview extends StackPane {
             TerminalAgentModels.AgentActivityTokenUsage.unknown(), 0L, false, false);
     }
 
-    private AgentTerminalSurface surfaceFor(SithTermFxWidget terminal) {
+    private AgentTerminalSurface surfaceFor(SithTermFxWidget terminal, Pane overlay) {
         return new AgentTerminalSurface() {
             @Override
             public AgentTerminalBlockWriter blockWriter() {
@@ -252,6 +260,11 @@ final class AgentDesignPreview extends StackPane {
 
             @Override
             public void journalLocalOutput(String text) {
+            }
+
+            @Override
+            public Pane overlayLayer() {
+                return overlay;
             }
         };
     }

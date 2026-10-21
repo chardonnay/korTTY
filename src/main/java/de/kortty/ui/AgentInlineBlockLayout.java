@@ -97,6 +97,30 @@ final class AgentInlineBlockLayout {
             }
         }
 
+        /** The service leaves a question row running; once it is answered it is done. */
+        void completeOpenQuestions() {
+            settle(TerminalAgentModels.AgentActivityType.QUESTION, TerminalAgentModels.AgentActivityStatus.COMPLETED);
+        }
+
+        /** When the run ended, no step is running any more: cancelled with the run, else done. */
+        void settleRunningSteps(boolean cancelled) {
+            settle(null, cancelled ? TerminalAgentModels.AgentActivityStatus.CANCELLED
+                : TerminalAgentModels.AgentActivityStatus.COMPLETED);
+        }
+
+        private void settle(TerminalAgentModels.AgentActivityType onlyType, TerminalAgentModels.AgentActivityStatus status) {
+            for (Map.Entry<String, TerminalAgentModels.AgentActivity> entry : new ArrayList<>(rows.entrySet())) {
+                TerminalAgentModels.AgentActivity row = entry.getValue();
+                if (row.status() == TerminalAgentModels.AgentActivityStatus.RUNNING
+                    && (onlyType == null || row.type() == onlyType)) {
+                    rows.put(entry.getKey(), new TerminalAgentModels.AgentActivity(
+                        row.id(), row.type(), status, row.title(), row.summary(), row.detail(), row.tokenUsage(),
+                        row.elapsedSeconds(), row.collapsible(), row.collapsed(), row.actionCategory()));
+                    runningSinceMillis.remove(entry.getKey());
+                }
+            }
+        }
+
         long elapsedMillis(long nowMillis) {
             long end = finished && finishedAtMillis >= 0 ? finishedAtMillis : nowMillis;
             return Math.max(0L, end - startedAtMillis);
@@ -116,9 +140,13 @@ final class AgentInlineBlockLayout {
     private AgentInlineBlockLayout() {
     }
 
+    // Columns the block leaves free at the right edge, so a slightly narrower terminal (a status rail
+    // appearing, the window dragged a little) does not wrap its rows.
+    private static final int RIGHT_MARGIN = 6;
+
     /** The block's width for a terminal of {@code columns} columns. */
     static int blockWidth(int columns) {
-        return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, columns - 1));
+        return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, columns - RIGHT_MARGIN));
     }
 
     static List<Line> render(BlockState state, int columns, String spinner, long nowMillis) {
@@ -278,7 +306,7 @@ final class AgentInlineBlockLayout {
             new Segment(oneLine(text), textRole)), width);
     }
 
-    private static Segment marker(TerminalAgentModels.AgentActivity activity, String spinner) {
+    static Segment marker(TerminalAgentModels.AgentActivity activity, String spinner) {
         if (activity.type() == TerminalAgentModels.AgentActivityType.ERROR
             || activity.status() == TerminalAgentModels.AgentActivityStatus.FAILED) {
             return new Segment("✕", Role.ERROR);
@@ -300,7 +328,7 @@ final class AgentInlineBlockLayout {
         return spinner != null && !spinner.isBlank() ? spinner : fallback;
     }
 
-    private static String rowText(TerminalAgentModels.AgentActivity activity) {
+    static String rowText(TerminalAgentModels.AgentActivity activity) {
         return switch (activity.type()) {
             case ACTION -> firstNonBlank(activity.title(), activity.summary());
             case THINKING -> activity.status() == TerminalAgentModels.AgentActivityStatus.RUNNING
@@ -311,7 +339,7 @@ final class AgentInlineBlockLayout {
         };
     }
 
-    private static String rowMeta(BlockState state, TerminalAgentModels.AgentActivity activity, long nowMillis) {
+    static String rowMeta(BlockState state, TerminalAgentModels.AgentActivity activity, long nowMillis) {
         if (activity.status() == TerminalAgentModels.AgentActivityStatus.RUNNING
             && activity.type() != TerminalAgentModels.AgentActivityType.QUESTION) {
             Long since = state.runningSinceMillis.get(activity.id());
@@ -330,6 +358,21 @@ final class AgentInlineBlockLayout {
             return oneLine(activity.summary());
         }
         return "";
+    }
+
+    /**
+     * The steps a list of the run shows, in order: everything but the start message and, while a
+     * question is open, the question row (it is shown with its keys instead).
+     */
+    static java.util.List<TerminalAgentModels.AgentActivity> listedSteps(BlockState state) {
+        boolean promptOpen = state.pendingApproval != null || state.pendingPassword != null;
+        java.util.List<TerminalAgentModels.AgentActivity> steps = new ArrayList<>();
+        for (TerminalAgentModels.AgentActivity activity : state.rows.values()) {
+            if (!isHidden(state, activity) && !(promptOpen && isOpenQuestion(activity))) {
+                steps.add(activity);
+            }
+        }
+        return steps;
     }
 
     /** The start message repeats the question the header already shows, and debug output stays out. */

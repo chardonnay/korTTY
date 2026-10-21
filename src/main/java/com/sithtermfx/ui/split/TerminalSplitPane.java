@@ -114,6 +114,8 @@ public class TerminalSplitPane extends StackPane {
          * mode), and the frame of a pane whose connection has another tab color than its tab.
          */
         DECORATION,
+        /** Step lists a KI-Agent design shows over the terminal, such as a status bar's drawer. */
+        AGENT,
         /** The drop zones shown while a pane is dragged onto this one to move it. */
         DROP_ZONES;
 
@@ -278,6 +280,9 @@ public class TerminalSplitPane extends StackPane {
 
     // Optional left-side panels (e.g. timestamp gutters) per widget
     private final Map<SithTermFxWidget, Region> widgetLeftPanels = new HashMap<>();
+    // Rows above and a column right of the terminal that a bottom panel contributes (see PaneSideSlots).
+    private final Map<SithTermFxWidget, Region> widgetTopPanels = new HashMap<>();
+    private final Map<SithTermFxWidget, Region> widgetRightPanels = new HashMap<>();
     private final Map<SithTermFxWidget, Region> widgetBottomPanels = new HashMap<>();
     // Per-widget VBox that hosts the bottom panel; kept so the panel can be detached/re-attached at
     // runtime when the AI-agent panel is docked to the side instead of the bottom.
@@ -1935,6 +1940,8 @@ public class TerminalSplitPane extends StackPane {
     /** Drops every per-widget entry of a pane that has left, or never joined, the tree. */
     private void forgetWidget(@NotNull SithTermFxWidget widget) {
         widgetLeftPanels.remove(widget);
+        widgetTopPanels.remove(widget);
+        widgetRightPanels.remove(widget);
         widgetBottomPanels.remove(widget);
         widgetBottomHosts.remove(widget);
         widgetCloseButtons.remove(widget);
@@ -2409,8 +2416,26 @@ public class TerminalSplitPane extends StackPane {
             Region bottomPanel = bottomPanelFactory.apply(widget);
             if (bottomPanel != null) {
                 widgetBottomPanels.put(widget, bottomPanel);
+                if (bottomPanel instanceof PaneSideSlots slots) {
+                    if (slots.topSlot() != null) {
+                        widgetTopPanels.put(widget, slots.topSlot());
+                    }
+                    if (slots.rightSlot() != null) {
+                        widgetRightPanels.put(widget, slots.rightSlot());
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * A bottom panel that also places a region above the terminal and one to its right, in the same
+     * cell; they stay there when the bottom panel itself is detached into a side dock.
+     */
+    public interface PaneSideSlots {
+        @Nullable Region topSlot();
+
+        @Nullable Region rightSlot();
     }
 
     public void setWidgetBottomPanel(@NotNull SithTermFxWidget widget, @NotNull Region panel) {
@@ -2472,6 +2497,8 @@ public class TerminalSplitPane extends StackPane {
             rootCell.closeAll();
         }
         widgetLeftPanels.clear();
+        widgetTopPanels.clear();
+        widgetRightPanels.clear();
         widgetBottomPanels.clear();
         widgetBottomHosts.clear();
         widgetCloseButtons.clear();
@@ -2505,10 +2532,19 @@ public class TerminalSplitPane extends StackPane {
             this.leftCell = null;
             this.rightCell = null;
             Region leftPanel = widgetLeftPanels.get(widget);
+            Region rightPanel = widgetRightPanels.get(widget);
+            Region topPanel = widgetTopPanels.get(widget);
             Region bottomPanel = widgetBottomPanels.get(widget);
             Region terminalContent;
-            if (leftPanel != null) {
-                HBox hbox = new HBox(leftPanel, widget.getPane());
+            if (leftPanel != null || rightPanel != null) {
+                HBox hbox = new HBox();
+                if (leftPanel != null) {
+                    hbox.getChildren().add(leftPanel);
+                }
+                hbox.getChildren().add(widget.getPane());
+                if (rightPanel != null) {
+                    hbox.getChildren().add(rightPanel);
+                }
                 HBox.setHgrow(widget.getPane(), Priority.ALWAYS);
                 hbox.setMinSize(0, 0);
                 hbox.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
@@ -2520,6 +2556,9 @@ public class TerminalSplitPane extends StackPane {
             // (the AI-agent panel can be docked to the side instead of the bottom). The bottom panel is
             // only embedded here when not currently detached.
             VBox bottomHost = new VBox(terminalContent);
+            if (topPanel != null) {
+                bottomHost.getChildren().add(0, topPanel);
+            }
             VBox.setVgrow(terminalContent, Priority.ALWAYS);
             bottomHost.setMinSize(0, 0);
             bottomHost.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);

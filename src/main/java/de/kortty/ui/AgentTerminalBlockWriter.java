@@ -182,6 +182,10 @@ final class AgentTerminalBlockWriter {
             }
             int startRow = buffer.findScreenLineIndex(region.firstLine);
             if (startRow < 0) {
+                // A resize can rebuild the screen's lines; the block is still there if its text is.
+                startRow = relocate(region, previous);
+            }
+            if (startRow < 0) {
                 return Result.LOST;
             }
             TextStyle previousStyle = styleState.getCurrent();
@@ -265,6 +269,29 @@ final class AgentTerminalBlockWriter {
             }
         }
         terminal.characterAttributes(previousStyle);
+    }
+
+    /**
+     * Finds the block on the screen by the text it showed last, the lowest match first (the newest block
+     * sits nearest the prompt), and tracks it by its new first line. Returns its first row or -1.
+     */
+    private int relocate(Region region, List<AgentInlineBlockLayout.Line> previous) {
+        if (previous == null || previous.isEmpty() || previous.size() != region.lineCount) {
+            return -1;
+        }
+        int height = buffer.getHeight();
+        for (int row = height - previous.size(); row >= 0; row--) {
+            boolean matches = true;
+            for (int i = 0; i < previous.size() && matches; i++) {
+                String shown = previous.get(i).plain().stripTrailing();
+                matches = buffer.getLine(row + i).getText().stripTrailing().equals(shown);
+            }
+            if (matches) {
+                region.firstLine = buffer.getLine(row);
+                return row;
+            }
+        }
+        return -1;
     }
 
     /**

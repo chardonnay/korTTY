@@ -74,7 +74,11 @@ final class AgentDesignInlineBlocks {
 
     void beginRun(String runId, String prompt) {
         blocks.put(runId, new Block(new AgentInlineBlockLayout.BlockState(prompt, System.currentTimeMillis())));
-        render(runId);
+        // The first rows go in once the pane has laid out what the run brought along (a status bar or
+        // rail changes the terminal's size), so they are not wrapped by a resize right after.
+        javafx.animation.PauseTransition settle = new javafx.animation.PauseTransition(Duration.millis(150));
+        settle.setOnFinished(event -> render(runId));
+        settle.play();
         startTicker();
     }
 
@@ -121,17 +125,7 @@ final class AgentDesignInlineBlocks {
         if (block != null) {
             block.state.pendingApproval = null;
             block.state.pendingPassword = null;
-            // The service leaves the question row running; once answered it is done.
-            for (Map.Entry<String, TerminalAgentModels.AgentActivity> entry : new ArrayList<>(block.state.rows.entrySet())) {
-                TerminalAgentModels.AgentActivity row = entry.getValue();
-                if (row.type() == TerminalAgentModels.AgentActivityType.QUESTION
-                    && row.status() == TerminalAgentModels.AgentActivityStatus.RUNNING) {
-                    block.state.rows.put(entry.getKey(), new TerminalAgentModels.AgentActivity(
-                        row.id(), row.type(), TerminalAgentModels.AgentActivityStatus.COMPLETED, row.title(),
-                        row.summary(), row.detail(), row.tokenUsage(), row.elapsedSeconds(), row.collapsible(),
-                        row.collapsed(), row.actionCategory()));
-                }
-            }
+            block.state.completeOpenQuestions();
             render(runId);
         }
     }
@@ -173,6 +167,7 @@ final class AgentDesignInlineBlocks {
         }
         block.state.finished = true;
         block.state.finishedAtMillis = System.currentTimeMillis();
+        block.state.settleRunningSteps(block.state.finalPhase == TerminalAgentModels.Phase.CANCELLED);
         block.state.pendingApproval = null;
         block.state.pendingPassword = null;
         block.state.expanded = false;

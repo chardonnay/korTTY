@@ -16,4 +16,12 @@ interface AgentTerminalSurface {
 
     /** Feeds text korTTY wrote into the terminal to the session journal's capture, as remote output is. */
     void journalLocalOutput(String text);
+
+    /**
+     * A mouse-transparent layer over the pane for lists a design shows over the terminal (a drawer, a
+     * lens), or {@code null} when the pane has none.
+     */
+    default @Nullable javafx.scene.layout.Pane overlayLayer() {
+        return null;
+    }
 }

@@ -1931,6 +1931,13 @@ public class TerminalView extends BorderPane {
         public void journalLocalOutput(String text) {
             forwardLocalOutputToJournal(text);
         }
+
+        @Override
+        public @Nullable javafx.scene.layout.Pane overlayLayer() {
+            return splitPane != null
+                ? splitPane.paneOverlay(widget, com.sithtermfx.ui.split.TerminalSplitPane.PaneOverlayLayer.AGENT)
+                : null;
+        }
     }
 
     /** Cancels and discards all agent runs (and the activity wrapper) hosted by the given widget. */

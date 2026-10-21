@@ -477,8 +477,8 @@ pages:
     last_synced_ref: "f8e06604"
   - path: app-docs/site/docs/en/features/ai-agent-designs.md
     owns_i18n: [aiAgentDesign.]
-    owns_code: [src/main/java/de/kortty/agentdesign, src/main/java/de/kortty/model/AgentDesignCombinationEntry.java, src/main/java/de/kortty/ui/AgentDesignPluginManagerDialog.java, src/main/java/de/kortty/ui/AgentDesignHost.java, src/main/java/de/kortty/ui/AgentDesignMetroBar.java, src/main/java/de/kortty/ui/AgentDesignInlineBlocks.java, src/main/java/de/kortty/ui/AgentInlineBlockLayout.java, src/main/java/de/kortty/ui/AgentTerminalBlockWriter.java, src/main/java/de/kortty/ui/AgentDesignApprovalStrip.java, src/main/java/de/kortty/ui/AgentDesignPreview.java, src/main/java/de/kortty/ui/AgentDesignUiSupport.java]
-    screenshots: [plugins/ai-agent-design.png, plugins/ai-agent-design-finished.png]
+    owns_code: [src/main/java/de/kortty/agentdesign, src/main/java/de/kortty/model/AgentDesignCombinationEntry.java, src/main/java/de/kortty/ui/AgentDesignPluginManagerDialog.java, src/main/java/de/kortty/ui/AgentDesignHost.java, src/main/java/de/kortty/ui/AgentDesignMetroBar.java, src/main/java/de/kortty/ui/AgentDesignInlineBlocks.java, src/main/java/de/kortty/ui/AgentInlineBlockLayout.java, src/main/java/de/kortty/ui/AgentTerminalBlockWriter.java, src/main/java/de/kortty/ui/AgentDesignApprovalStrip.java, src/main/java/de/kortty/ui/AgentDesignPreview.java, src/main/java/de/kortty/ui/AgentDesignUiSupport.java, src/main/java/de/kortty/ui/AgentStatusPresenter.java, src/main/java/de/kortty/ui/AgentDesignPowerlineBar.java, src/main/java/de/kortty/ui/AgentDesignTopBar.java, src/main/java/de/kortty/ui/AgentDesignMinimapRail.java, src/main/java/de/kortty/ui/AgentDesignNeonTicker.java, src/main/java/de/kortty/ui/AgentDesignStepList.java]
+    screenshots: [plugins/ai-agent-design.png, plugins/ai-agent-design-finished.png, plugins/ai-agent-status-designs.png]
     last_synced_ref: "733abbf4"
   - path: app-docs/site/docs/en/features/coding-agents.md
     owns_i18n: [settings.codingAgent., menu.codingAgent., codingAgent., dashboard.codingAgent.]

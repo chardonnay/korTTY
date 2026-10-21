@@ -3,6 +3,8 @@ package de.kortty.ui;
 import de.kortty.KorTTYApplication;
 import de.kortty.agentdesign.AgentDesignCombination;
 import de.kortty.agentdesign.AgentDesignPresets;
+import de.kortty.agentdesign.AgentModuleCatalog;
+import de.kortty.agentdesign.AgentRole;
 import de.kortty.agentdesign.AgentRunRegistry;
 import de.kortty.agentdesign.MetroStationModel;
 import de.kortty.core.AiTokenUsageManager;
@@ -14,7 +16,10 @@ import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -22,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -32,20 +38,24 @@ import java.util.function.Consumer;
 /**
  * Shows the KI-Agent runs of one terminal pane in the design combination each run was started with
  * (Plugins → KI-Agent Design). It sits in the pane's bottom slot and holds the parts the combinations
- * need: the classic activity panel, the metro-line bar (08), the approval row, and the blocks drawn into
- * the terminal itself (03). Runs started with the classic history are handed to the classic panel
- * unchanged; for the others the host keeps the run state and answers approvals itself.
+ * need: the classic activity panel, the status displays (01, 08, 11, 12, 18) in the slots around the
+ * terminal, the approval row, and the blocks drawn into the terminal itself (03). Runs started with the
+ * classic history are handed to the classic panel unchanged; for the others the host keeps the run state
+ * and answers approvals itself.
  *
  * <p>Methods that block for an answer ({@link #requestApproval}, {@link #requestPassword}) run on the
  * agent's worker thread; everything else may be called from any thread and runs on the JavaFX thread.
  */
-public class AgentDesignHost extends VBox {
+public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.TerminalSplitPane.PaneSideSlots {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentDesignHost.class);
     private static final int KEPT_FINISHED_RUNS = 5;
 
     /** How one run is shown. */
-    private record RunDesign(boolean classic, boolean inline, boolean metro) {
+    private record RunDesign(boolean classic, boolean inline, @Nullable String statusId) {
+        boolean hasStatus() {
+            return statusId != null;
+        }
     }
 
     /** An approval or password request waiting for the user. */
@@ -66,7 +76,13 @@ public class AgentDesignHost extends VBox {
     private final Map<String, PendingPrompt> pendingPrompts = new ConcurrentHashMap<>();
     private final AgentRunRegistry registry = new AgentRunRegistry();
     private final AgentDesignApprovalStrip approvalStrip = new AgentDesignApprovalStrip();
-    private final AgentDesignMetroBar metroBar;
+    // Status displays by module id, created on first use, and the run state they show.
+    private final Map<String, AgentStatusPresenter> statusPresenters = new LinkedHashMap<>();
+    private final Map<String, AgentInlineBlockLayout.BlockState> traces = new HashMap<>();
+    private final AgentStatusPresenter.Actions statusActions;
+    private final VBox topSlot = new VBox();
+    private final HBox rightSlot = new HBox();
+    private @Nullable String activeStatusId;
     private @Nullable AiAgentActivityTabsPanel classicPanel;
     private @Nullable AgentDesignInlineBlocks inlineBlocks;
     private @Nullable Theme theme;
@@ -80,7 +96,7 @@ public class AgentDesignHost extends VBox {
         this.surface = surface;
         getStyleClass().add("ai-agent-design-host");
         setFillWidth(true);
-        metroBar = new AgentDesignMetroBar(new AgentDesignMetroBar.Actions() {
+        statusActions = new AgentStatusPresenter.Actions() {
             @Override
             public void togglePause() {
                 togglePauseOfFocusedRun();
@@ -94,15 +110,21 @@ public class AgentDesignHost extends VBox {
             @Override
             public void hide() {
                 statusBarDismissed = true;
-                metroBar.hideNow();
+                AgentStatusPresenter active = activeStatus();
+                if (active != null) {
+                    active.hideNow();
+                }
             }
-        });
-        getChildren().addAll(metroBar, approvalStrip);
-        for (Node child : getChildren()) {
-            child.managedProperty().addListener((obs, oldValue, newValue) -> refreshOwnVisibility());
-        }
+        };
+        getChildren().addAll(approvalStrip);
+        approvalStrip.managedProperty().addListener((obs, oldValue, newValue) -> refreshOwnVisibility());
+        topSlot.setFillWidth(true);
+        topSlot.setVisible(false);
+        topSlot.setManaged(false);
+        rightSlot.setVisible(false);
+        rightSlot.setManaged(false);
         metaRefresh = new javafx.animation.Timeline(new javafx.animation.KeyFrame(
-            javafx.util.Duration.seconds(1), event -> refreshMetroBar()));
+            javafx.util.Duration.seconds(1), event -> refreshStatus()));
         metaRefresh.setCycleCount(javafx.animation.Animation.INDEFINITE);
         applyDesignSettings();
         refreshOwnVisibility();
@@ -123,7 +145,9 @@ public class AgentDesignHost extends VBox {
         }
         AgentDesignCombination design = combination != null ? combination : AgentDesignPresets.STANDARD;
         boolean inline = design.usesInlineBlocks() && surface != null && surface.blockWriter() != null;
-        RunDesign runDesign = new RunDesign(!inline, inline, design.usesMetroBar());
+        String statusId = AgentModuleCatalog.isUsable(design.statusId(), AgentRole.STATUS)
+            && !AgentModuleCatalog.NO_STATUS.equals(design.statusId()) ? design.statusId().trim() : null;
+        RunDesign runDesign = new RunDesign(!inline, inline, statusId);
         runDesigns.put(runId, runDesign);
         if (cancel != null) {
             runCancels.put(runId, cancel);
@@ -137,14 +161,17 @@ public class AgentDesignHost extends VBox {
         runOnFx(() -> {
             applyDesignSettings();
             registry.begin(runId, prompt, System.currentTimeMillis());
+            if (runDesign.hasStatus()) {
+                metroModels.put(runId, new MetroStationModel());
+                traces.put(runId, new AgentInlineBlockLayout.BlockState(prompt, System.currentTimeMillis()));
+                ensureStatusPresenter(runDesign.statusId());
+                statusBarDismissed = false;
+            }
+            // The status display first: it changes the terminal's size, which the block must not see.
+            refreshStatus();
             if (runDesign.inline()) {
                 ensureInlineBlocks().beginRun(runId, prompt);
             }
-            if (runDesign.metro()) {
-                metroModels.put(runId, new MetroStationModel());
-                statusBarDismissed = false;
-            }
-            refreshMetroBar();
             startMetaRefresh();
         });
     }
@@ -162,10 +189,14 @@ public class AgentDesignHost extends VBox {
             if (design.inline() && inlineBlocks != null) {
                 inlineBlocks.publishActivity(runId, activity);
             }
+            AgentInlineBlockLayout.BlockState trace = traces.get(runId);
+            if (trace != null) {
+                trace.accept(activity, System.currentTimeMillis());
+            }
             MetroStationModel model = metroModels.get(runId);
             if (model != null) {
                 model.accept(activity);
-                refreshMetroBar();
+                refreshStatus();
             }
         });
     }
@@ -176,10 +207,14 @@ public class AgentDesignHost extends VBox {
             return;
         }
         runOnFx(() -> {
+            AgentInlineBlockLayout.BlockState trace = traces.get(runId);
+            if (trace != null && isFinal(state.phase())) {
+                trace.finalPhase = state.phase();
+            }
             MetroStationModel model = metroModels.get(runId);
             if (model != null) {
                 model.acceptPhase(state.phase());
-                refreshMetroBar();
+                refreshStatus();
             }
             if (inlineBlocks != null) {
                 inlineBlocks.updatePhase(runId, state.phase());
@@ -290,13 +325,24 @@ public class AgentDesignHost extends VBox {
             if (model != null) {
                 model.finish();
             }
+            AgentInlineBlockLayout.BlockState trace = traces.get(runId);
+            if (trace != null) {
+                trace.finished = true;
+                trace.finishedAtMillis = System.currentTimeMillis();
+                trace.pendingApproval = null;
+                trace.pendingPassword = null;
+                trace.settleRunningSteps(trace.finalPhase == TerminalAgentModels.Phase.CANCELLED);
+            }
             pruneFinishedRuns();
-            refreshMetroBar();
+            refreshStatus();
             if (!registry.hasActiveRuns()) {
                 metaRefresh.stop();
-                metroBar.scheduleAutoHide(globalSettings() != null
-                    ? globalSettings().getAiAgentDesignAutoHideSeconds()
-                    : GlobalSettings.AI_AGENT_DESIGN_AUTO_HIDE_DEFAULT_SECONDS);
+                AgentStatusPresenter active = activeStatus();
+                if (active != null) {
+                    active.scheduleAutoHide(globalSettings() != null
+                        ? globalSettings().getAiAgentDesignAutoHideSeconds()
+                        : GlobalSettings.AI_AGENT_DESIGN_AUTO_HIDE_DEFAULT_SECONDS);
+                }
             }
         });
     }
@@ -383,7 +429,12 @@ public class AgentDesignHost extends VBox {
             if (activeStylesheetUrl != null) {
                 getStylesheets().add(activeStylesheetUrl);
             }
-            metroBar.setColors(AgentDesignMetroBar.Colors.of(ThemeCssSupport.resolveAgentActivityColors(theme)));
+            AgentDesignPalette palette = AgentDesignPalette.of(theme);
+            for (AgentStatusPresenter presenter : statusPresenters.values()) {
+                presenter.applyPalette(palette);
+            }
+            topSlot.getStylesheets().setAll(activeStylesheetUrl != null ? java.util.List.of(activeStylesheetUrl) : java.util.List.of());
+            rightSlot.getStylesheets().setAll(topSlot.getStylesheets());
             if (classicPanel != null) {
                 classicPanel.applyTheme(theme);
             }
@@ -410,12 +461,13 @@ public class AgentDesignHost extends VBox {
     /** Shows the status bar again after the user hid it, or hides it. */
     public void toggleStatusBar() {
         runOnFx(() -> {
-            if (metroBar.isShowing()) {
+            AgentStatusPresenter active = activeStatus();
+            if (active != null && active.isShowing()) {
                 statusBarDismissed = true;
-                metroBar.hideNow();
+                active.hideNow();
             } else {
                 statusBarDismissed = false;
-                refreshMetroBar(true);
+                refreshStatus(true);
             }
         });
     }
@@ -517,7 +569,9 @@ public class AgentDesignHost extends VBox {
     private void applyDesignSettings() {
         GlobalSettings settings = globalSettings();
         boolean reduced = settings != null && settings.isAiAgentDesignReducedAnimations();
-        metroBar.setReducedAnimations(reduced);
+        for (AgentStatusPresenter presenter : statusPresenters.values()) {
+            presenter.setReducedAnimations(reduced);
+        }
         if (inlineBlocks != null) {
             inlineBlocks.setReducedAnimations(reduced);
         }
@@ -530,9 +584,13 @@ public class AgentDesignHost extends VBox {
         if (design != null && design.inline() && inlineBlocks != null) {
             inlineBlocks.showApproval(runId, prompt.approval());
         }
+        AgentInlineBlockLayout.BlockState trace = traces.get(runId);
+        if (trace != null) {
+            trace.pendingApproval = prompt.approval();
+        }
         approvalStrip.showApproval(prompt.approval(), decision -> completePrompt(prompt, decision, null));
         statusBarDismissed = false;
-        refreshMetroBar();
+        refreshStatus();
     }
 
     private void openPassword(PendingPrompt prompt, TerminalAgentModels.PasswordRequest request) {
@@ -542,15 +600,25 @@ public class AgentDesignHost extends VBox {
         if (design != null && design.inline() && inlineBlocks != null) {
             inlineBlocks.showPassword(runId, request);
         }
+        AgentInlineBlockLayout.BlockState trace = traces.get(runId);
+        if (trace != null) {
+            trace.pendingPassword = request;
+        }
         approvalStrip.showPassword(request, response -> completePrompt(prompt, null, response));
         statusBarDismissed = false;
-        refreshMetroBar();
+        refreshStatus();
     }
 
     private void closePrompt(String runId) {
         markAwaitingInput(runId, false);
         if (inlineBlocks != null) {
             inlineBlocks.clearPrompt(runId);
+        }
+        AgentInlineBlockLayout.BlockState trace = traces.get(runId);
+        if (trace != null) {
+            trace.pendingApproval = null;
+            trace.pendingPassword = null;
+            trace.completeOpenQuestions();
         }
         questionAnswered(runId);
         PendingPrompt next = pendingPrompts.values().stream().findFirst().orElse(null);
@@ -559,7 +627,7 @@ public class AgentDesignHost extends VBox {
         } else if (next.approval() != null) {
             approvalStrip.showApproval(next.approval(), decision -> completePrompt(next, decision, null));
         }
-        refreshMetroBar();
+        refreshStatus();
     }
 
     private void questionAnswered(String runId) {
@@ -622,6 +690,7 @@ public class AgentDesignHost extends VBox {
             runCancels.remove(runId);
             runPauses.remove(runId);
             metroModels.remove(runId);
+            traces.remove(runId);
             runTokens.remove(runId);
             runTokenIds.remove(runId);
             RunDesign design = runDesigns.get(runId);
@@ -649,7 +718,11 @@ public class AgentDesignHost extends VBox {
         if (inlineBlocks != null) {
             inlineBlocks.setPaused(runId, pause);
         }
-        refreshMetroBar();
+        AgentInlineBlockLayout.BlockState trace = traces.get(runId);
+        if (trace != null) {
+            trace.paused = pause;
+        }
+        refreshStatus();
     }
 
     private void cancelFocusedRun() {
@@ -713,30 +786,46 @@ public class AgentDesignHost extends VBox {
         return counts;
     }
 
-    private void refreshMetroBar() {
-        refreshMetroBar(false);
+    private void refreshStatus() {
+        refreshStatus(false);
     }
 
-    private void refreshMetroBar(boolean force) {
+    /**
+     * Shows the run the status display follows: one waiting for input, else the newest working one,
+     * else the newest. Each run keeps the display of its combination; the others are hidden.
+     */
+    private void refreshStatus(boolean force) {
         String runId = null;
         String focus = registry.focusRunId();
-        if (focus != null && metroModels.containsKey(focus)) {
+        if (focus != null && traces.containsKey(focus)) {
             runId = focus;
         } else {
             for (String candidate : registry.runIds()) {
-                if (metroModels.containsKey(candidate)) {
+                if (traces.containsKey(candidate)) {
                     runId = candidate;
                 }
             }
         }
-        if (runId == null || (statusBarDismissed && !force)) {
-            if (runId == null) {
-                metroBar.hideNow();
+        RunDesign design = runId != null ? runDesigns.get(runId) : null;
+        AgentStatusPresenter presenter = design != null && design.hasStatus() ? statusPresenters.get(design.statusId()) : null;
+        for (AgentStatusPresenter other : statusPresenters.values()) {
+            if (other != presenter && other.isShowing()) {
+                other.hideNow();
             }
+        }
+        if (presenter == null) {
+            activeStatusId = null;
             return;
         }
-        boolean wasShowing = metroBar.isShowing();
+        activeStatusId = design.statusId();
+        if (statusBarDismissed && !force) {
+            return;
+        }
         AgentRunRegistry.State state = registry.state(runId);
+        if (!presenter.isShowing() && state == AgentRunRegistry.State.DONE && !force) {
+            // A finished run does not bring a faded-out display back.
+            return;
+        }
         long now = System.currentTimeMillis();
         String meta = AgentInlineBlockLayout.formatElapsed(registry.elapsedMillis(runId, now));
         Long tokens = runTokens.get(runId);
@@ -744,20 +833,84 @@ public class AgentDesignHost extends VBox {
             meta = I18n.get("ai.agent.activity.tokens.short", AiTokenUsageManager.formatCompact(tokens)) + " · " + meta;
         }
         int active = 0;
-        for (String candidate : metroModels.keySet()) {
-            if (registry.state(candidate) != AgentRunRegistry.State.DONE) {
+        for (String candidate : traces.keySet()) {
+            RunDesign other = runDesigns.get(candidate);
+            if (other != null && design.statusId().equals(other.statusId())
+                && registry.state(candidate) != AgentRunRegistry.State.DONE) {
                 active++;
             }
         }
-        if (!wasShowing && state == AgentRunRegistry.State.DONE && !force) {
-            // A finished run does not bring a faded-out bar back.
-            return;
-        }
-        metroBar.show(registry.prompt(runId), metroModels.get(runId), meta,
-            state != AgentRunRegistry.State.DONE, state == AgentRunRegistry.State.PAUSED, active);
+        presenter.show(new AgentStatusPresenter.View(runId, registry.prompt(runId), metroModels.get(runId),
+            traces.get(runId), meta, state != AgentRunRegistry.State.DONE, state == AgentRunRegistry.State.PAUSED,
+            state == AgentRunRegistry.State.AWAITING_INPUT, active));
         if (force && !registry.hasActiveRuns()) {
-            metroBar.scheduleAutoHide(0);
+            presenter.scheduleAutoHide(0);
         }
+    }
+
+    private @Nullable AgentStatusPresenter activeStatus() {
+        return activeStatusId != null ? statusPresenters.get(activeStatusId) : null;
+    }
+
+    /** The status display of {@code moduleId}, created and put into its slot on first use. */
+    private AgentStatusPresenter ensureStatusPresenter(String moduleId) {
+        AgentStatusPresenter existing = statusPresenters.get(moduleId);
+        if (existing != null) {
+            return existing;
+        }
+        AgentStatusPresenter created = switch (moduleId) {
+            case "d01" -> new AgentDesignPowerlineBar(statusActions);
+            case "d11" -> new AgentDesignMinimapRail();
+            case "d12" -> new AgentDesignTopBar(statusActions);
+            case "d18" -> new AgentDesignNeonTicker(statusActions);
+            default -> new AgentDesignMetroBar(statusActions);
+        };
+        created.applyPalette(AgentDesignPalette.of(theme));
+        GlobalSettings settings = globalSettings();
+        created.setReducedAnimations(settings != null && settings.isAiAgentDesignReducedAnimations());
+        created.setOverlay(() -> surface != null ? surface.overlayLayer() : null);
+        Region node = created.node();
+        switch (created.slot()) {
+            case TOP -> {
+                topSlot.getChildren().add(node);
+                node.managedProperty().addListener((obs, oldValue, newValue) -> refreshSlot(topSlot));
+            }
+            case RIGHT -> {
+                rightSlot.getChildren().add(node);
+                node.managedProperty().addListener((obs, oldValue, newValue) -> refreshSlot(rightSlot));
+            }
+            case BOTTOM -> {
+                // Below the classic panel, above the approval row.
+                getChildren().add(getChildren().indexOf(approvalStrip), node);
+                node.managedProperty().addListener((obs, oldValue, newValue) -> refreshOwnVisibility());
+            }
+        }
+        statusPresenters.put(moduleId, created);
+        return created;
+    }
+
+    /** A slot takes room only while one of its displays is shown. */
+    private static void refreshSlot(Pane slot) {
+        boolean any = slot.getChildren().stream().anyMatch(Node::isManaged);
+        slot.setVisible(any);
+        slot.setManaged(any);
+    }
+
+    private static boolean isFinal(TerminalAgentModels.Phase phase) {
+        return phase == TerminalAgentModels.Phase.DONE
+            || phase == TerminalAgentModels.Phase.BLOCKED
+            || phase == TerminalAgentModels.Phase.CANCELLED
+            || phase == TerminalAgentModels.Phase.FAILED;
+    }
+
+    @Override
+    public @Nullable Region topSlot() {
+        return topSlot;
+    }
+
+    @Override
+    public @Nullable Region rightSlot() {
+        return rightSlot;
     }
 
     private void startMetaRefresh() {

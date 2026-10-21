@@ -32,8 +32,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * Offline generator for the manual's Plugins → AI Agent Design screenshots: the REAL
  * {@link AgentDesignPluginManagerDialog} (isolated {@code user.home}, English, Normal design) while its
  * live preview waits for the sample run's approval, and the preview alone after the run collapsed to
- * its answer. Writes {@code app-docs/screenshots/plugins/ai-agent-design.png} and
- * {@code ai-agent-design-finished.png}.
+ * its answer, and the four status bars and rails (01, 11, 12, 18) beside the in-terminal blocks while the
+ * run waits for its approval. Writes {@code app-docs/screenshots/plugins/ai-agent-design.png},
+ * {@code ai-agent-design-finished.png} and {@code ai-agent-status-designs.png}.
  *
  * <p>Run via the {@code generateAiAgentDesignScreenshots} Gradle task. Exit 0 = OK.</p>
  */
@@ -41,6 +42,8 @@ public final class AiAgentDesignScreenshotGenerator {
 
     private static final String DIALOG_FILE = "app-docs/screenshots/plugins/ai-agent-design.png";
     private static final String FINISHED_FILE = "app-docs/screenshots/plugins/ai-agent-design-finished.png";
+    private static final String STATUS_FILE = "app-docs/screenshots/plugins/ai-agent-status-designs.png";
+    private static final java.util.List<String> STATUS_IDS = java.util.List.of("d01", "d12", "d11", "d18");
     /** Seconds after opening: the sample run waits for its approval, then has collapsed to its answer. */
     private static final double APPROVAL_MOMENT = 6.6;
     private static final double FINISHED_MOMENT = 10.6;
@@ -98,10 +101,40 @@ public final class AiAgentDesignScreenshotGenerator {
         stage.setY(-4000); // off-screen: no visible window flash during generation
         Node preview = (Node) rawField(dialog, "preview");
 
+        // The status designs, each beside the blocks in the terminal, in a grid of previews.
+        javafx.scene.layout.GridPane grid = new javafx.scene.layout.GridPane();
+        grid.setHgap(8);
+        grid.setVgap(8);
+        grid.setPadding(new javafx.geometry.Insets(8));
+        java.util.Map<String, AgentDesignPreview> previews = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < STATUS_IDS.size(); i++) {
+            AgentDesignPreview statusPreview = new AgentDesignPreview();
+            grid.add(statusPreview, i % 2, i / 2);
+            previews.put(STATUS_IDS.get(i), statusPreview);
+        }
+        Stage gridStage = new Stage();
+        gridStage.setScene(new javafx.scene.Scene(grid));
+        gridStage.setX(-4000);
+        gridStage.setY(-4000);
+        gridStage.show();
+        previews.forEach((statusId, statusPreview) -> statusPreview.play(
+            de.kortty.agentdesign.AgentDesignPresets.STANDARD.with(de.kortty.agentdesign.AgentRole.STATUS, statusId)));
+        PauseTransition unfold = new PauseTransition(Duration.seconds(3.6));
+        unfold.setOnFinished(event -> {
+            fire(previews.get("d01"), "▴");
+            fire(previews.get("d12"), "▾");
+        });
+        PauseTransition point = new PauseTransition(Duration.seconds(APPROVAL_MOMENT - 0.3));
+        point.setOnFinished(event -> pointAtSegment(previews.get("d11"), 1));
+        unfold.play();
+        point.play();
+
         PauseTransition approval = new PauseTransition(Duration.seconds(APPROVAL_MOMENT));
         approval.setOnFinished(event -> {
             try {
                 capture(pane, DIALOG_FILE);
+                capture(grid, STATUS_FILE);
+                gridStage.close();
             } catch (Throwable t) {
                 failure.compareAndSet(null, stack(t));
             }
@@ -135,6 +168,25 @@ public final class AiAgentDesignScreenshotGenerator {
         ImageIO.write(buffered, "png", outFile);
         System.out.println("Generated " + outFile.getAbsolutePath()
             + " (" + buffered.getWidth() + "x" + buffered.getHeight() + ")");
+    }
+
+    /** Presses the button of a preview that shows {@code text}. */
+    private static void fire(AgentDesignPreview preview, String text) {
+        for (Node node : preview.lookupAll(".button")) {
+            if (node instanceof javafx.scene.control.Button button && text.equals(button.getText())) {
+                button.fire();
+                return;
+            }
+        }
+    }
+
+    /** Points at a minimap segment so its lens opens. */
+    private static void pointAtSegment(AgentDesignPreview preview, int index) {
+        preview.lookupAll("*").stream().filter(AgentDesignMinimapRail.class::isInstance).findFirst()
+            .map(rail -> ((AgentDesignMinimapRail) rail).getChildren().stream()
+                .filter(javafx.scene.shape.Rectangle.class::isInstance).toList())
+            .filter(segments -> segments.size() > index)
+            .ifPresent(segments -> ((javafx.scene.shape.Rectangle) segments.get(index)).getOnMouseEntered().handle(null));
     }
 
     private static Object rawField(Object target, String name) throws Exception {
