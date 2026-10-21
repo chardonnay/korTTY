@@ -71,6 +71,11 @@ public record AgentDesignCombination(
         return AgentModuleCatalog.INLINE_BLOCKS.equals(historyId);
     }
 
+    /** Whether the focus mode is the history module. */
+    public boolean usesFocusMode() {
+        return AgentModuleCatalog.FOCUS_MODE.equals(historyId);
+    }
+
     /** Whether the metro-line bar is the status module. */
     public boolean usesMetroBar() {
         return AgentModuleCatalog.METRO_BAR.equals(statusId);

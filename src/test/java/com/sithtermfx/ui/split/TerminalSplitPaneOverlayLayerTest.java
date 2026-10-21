@@ -26,12 +26,13 @@ import static com.google.common.truth.Truth.assertWithMessage;
 public class TerminalSplitPaneOverlayLayerTest {
 
     @Test
-    public void aLayerIsUnmanagedMouseTransparentAndNotFocusable() {
+    public void aLayerIsUnmanagedNotFocusableAndLetsClicksThrough() {
         for (PaneOverlayLayer kind : PaneOverlayLayer.values()) {
             Pane layer = TerminalSplitPane.createOverlayLayer(kind);
 
             assertThat(layer.isManaged()).isFalse();
-            assertThat(layer.isMouseTransparent()).isTrue();
+            // Only the KI-Agent controls take clicks, and only on their own nodes: the layer never picks on bounds.
+            assertThat(layer.isMouseTransparent()).isEqualTo(kind != PaneOverlayLayer.AGENT_CONTROLS);
             assertThat(layer.isPickOnBounds()).isFalse();
             assertThat(layer.isFocusTraversable()).isFalse();
             assertThat(layer.getChildren()).isEmpty();
@@ -47,11 +48,11 @@ public class TerminalSplitPaneOverlayLayerTest {
             assertThat(layer.viewOrder()).isLessThan(previous);
             previous = layer.viewOrder();
         }
-        assertWithMessage("links, then the focus ring and badges, then a KI-Agent design's step lists, then the"
-                + " drop zones of a pane move on top")
+        assertWithMessage("links, then the focus ring and badges, then a KI-Agent design's step lists and its"
+                + " floating controls, then the drop zones of a pane move on top")
             .that(List.of(PaneOverlayLayer.values()))
             .containsExactly(PaneOverlayLayer.LINKS, PaneOverlayLayer.DECORATION, PaneOverlayLayer.AGENT,
-                PaneOverlayLayer.DROP_ZONES)
+                PaneOverlayLayer.AGENT_CONTROLS, PaneOverlayLayer.DROP_ZONES)
             .inOrder();
     }
 

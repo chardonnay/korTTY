@@ -38,7 +38,7 @@ import java.util.function.Supplier;
  * output at the bottom. A shimmering bar shows that the agent works and names the current step; ▾
  * drops the run's steps down over the older output.
  */
-final class AgentDesignTopBar extends HBox implements AgentStatusPresenter {
+final class AgentDesignTopBar extends HBox implements AgentRunPresenter {
 
     static final double BAR_HEIGHT = 30.0;
     private static final double TRACK_HEIGHT = 4.0;
@@ -53,6 +53,7 @@ final class AgentDesignTopBar extends HBox implements AgentStatusPresenter {
     private final Button cancelButton = iconButton("■", I18n.get("dialog.cancel"));
     private final Button drawerButton = iconButton("▾", I18n.get("aiAgentDesign.steps.show"));
     private final Button hideButton = iconButton("✕", I18n.get("aiAgentDesign.metro.hide"));
+    private final Button menuButton = iconButton("⋯", I18n.get("aiAgentDesign.menu.more"));
     private final AgentStatusVisibility visibility = new AgentStatusVisibility(this);
     private final AgentDesignStepList drawer = new AgentDesignStepList();
     private final Rectangle drawerClip = new Rectangle();
@@ -65,7 +66,7 @@ final class AgentDesignTopBar extends HBox implements AgentStatusPresenter {
     private boolean drawerOpen;
     private View view;
 
-    AgentDesignTopBar(AgentStatusPresenter.Actions actions) {
+    AgentDesignTopBar(AgentRunPresenter.Actions actions) {
         getStyleClass().add("ai-agent-design-bar");
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(10);
@@ -113,7 +114,8 @@ final class AgentDesignTopBar extends HBox implements AgentStatusPresenter {
         cancelButton.setOnAction(event -> actions.cancel());
         drawerButton.setOnAction(event -> setDrawerOpen(!drawerOpen, true));
         hideButton.setOnAction(event -> actions.hide());
-        HBox right = new HBox(4, meta, pauseButton, cancelButton, drawerButton, hideButton);
+        AgentDesignWidgets.wireRunMenuButton(menuButton, actions);
+        HBox right = new HBox(4, meta, pauseButton, cancelButton, drawerButton, menuButton, hideButton);
         right.setAlignment(Pos.CENTER_RIGHT);
         right.setMinWidth(Region.USE_PREF_SIZE);
         Region spacer = new Region();

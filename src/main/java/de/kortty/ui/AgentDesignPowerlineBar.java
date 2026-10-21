@@ -38,7 +38,7 @@ import java.util.function.Supplier;
  * works on with a spinner, how many steps it took, tokens and time. ▴ unfolds the run's steps over
  * the lowest terminal lines; an open approval unfolds them by itself.
  */
-final class AgentDesignPowerlineBar extends HBox implements AgentStatusPresenter {
+final class AgentDesignPowerlineBar extends HBox implements AgentRunPresenter {
 
     static final double BAR_HEIGHT = 24.0;
     private static final double ARROW_WIDTH = 9.0;
@@ -55,6 +55,7 @@ final class AgentDesignPowerlineBar extends HBox implements AgentStatusPresenter
     private final Button cancelButton = AgentDesignTopBar.iconButton("■", I18n.get("dialog.cancel"));
     private final Button feedButton = AgentDesignTopBar.iconButton("▴", I18n.get("aiAgentDesign.steps.show"));
     private final Button hideButton = AgentDesignTopBar.iconButton("✕", I18n.get("aiAgentDesign.metro.hide"));
+    private final Button menuButton = AgentDesignTopBar.iconButton("⋯", I18n.get("aiAgentDesign.menu.more"));
     private final AgentStatusVisibility visibility = new AgentStatusVisibility(this);
     private final AgentDesignStepList feed = new AgentDesignStepList();
     private final Rectangle feedClip = new Rectangle();
@@ -68,7 +69,7 @@ final class AgentDesignPowerlineBar extends HBox implements AgentStatusPresenter
     private View view;
     private int frame;
 
-    AgentDesignPowerlineBar(AgentStatusPresenter.Actions actions) {
+    AgentDesignPowerlineBar(AgentRunPresenter.Actions actions) {
         getStyleClass().add("ai-agent-design-bar");
         setAlignment(Pos.CENTER_LEFT);
         setMinHeight(BAR_HEIGHT);
@@ -86,7 +87,8 @@ final class AgentDesignPowerlineBar extends HBox implements AgentStatusPresenter
         cancelButton.setOnAction(event -> actions.cancel());
         feedButton.setOnAction(event -> setFeedOpen(!feedOpen, true));
         hideButton.setOnAction(event -> actions.hide());
-        HBox buttons = new HBox(3, pauseButton, cancelButton, feedButton, hideButton);
+        AgentDesignWidgets.wireRunMenuButton(menuButton, actions);
+        HBox buttons = new HBox(3, pauseButton, cancelButton, feedButton, menuButton, hideButton);
         buttons.setAlignment(Pos.CENTER_RIGHT);
         buttons.setPadding(new Insets(0, 4, 0, 0));
         buttons.setMinWidth(Region.USE_PREF_SIZE);
@@ -217,12 +219,16 @@ final class AgentDesignPowerlineBar extends HBox implements AgentStatusPresenter
         List<TerminalAgentModels.AgentActivity> steps = AgentInlineBlockLayout.listedSteps(view.trace());
         for (int i = steps.size() - 1; i >= 0; i--) {
             if (steps.get(i).status() == TerminalAgentModels.AgentActivityStatus.RUNNING) {
-                return AgentInlineBlockLayout.oneLine(AgentInlineBlockLayout.rowText(steps.get(i)));
+                return stepText(steps.get(i));
             }
         }
-        return steps.isEmpty()
-            ? I18n.get("ai.agent.activity.thinking")
-            : AgentInlineBlockLayout.oneLine(AgentInlineBlockLayout.rowText(steps.get(steps.size() - 1)));
+        return steps.isEmpty() ? I18n.get("ai.agent.activity.thinking") : stepText(steps.get(steps.size() - 1));
+    }
+
+    /** A step on one line: a shell command as the command itself, anything else by its text. */
+    static String stepText(TerminalAgentModels.AgentActivity step) {
+        return AgentInlineBlockLayout.oneLine(AgentStepDetails.isCommand(step)
+            ? AgentStepDetails.command(step) : AgentInlineBlockLayout.rowText(step));
     }
 
     private void setFeedOpen(boolean open, boolean animate) {

@@ -31,7 +31,7 @@ import java.util.List;
  * step. Finished stations are filled, the current one pulses, an open question glows amber, and a light
  * travels along the line as the run moves on. The bar fades out a few seconds after the last run ends.
  */
-final class AgentDesignMetroBar extends HBox implements AgentStatusPresenter {
+final class AgentDesignMetroBar extends HBox implements AgentRunPresenter {
 
     static final double BAR_HEIGHT = 52.0;
     private static final double STATION_SPACING = 58.0;
@@ -62,12 +62,13 @@ final class AgentDesignMetroBar extends HBox implements AgentStatusPresenter {
     private final Button pauseButton = iconButton("⏸", I18n.get("ai.agent.control.pauseRun"));
     private final Button cancelButton = iconButton("■", I18n.get("dialog.cancel"));
     private final Button hideButton = iconButton("✕", I18n.get("aiAgentDesign.metro.hide"));
+    private final Button menuButton = iconButton("⋯", I18n.get("aiAgentDesign.menu.more"));
     private final AgentStatusVisibility visibility = new AgentStatusVisibility(this);
     private final Timeline busyPulse;
     private boolean reducedAnimations;
     private Colors colors = Colors.of(AgentDesignPalette.of((de.kortty.model.Theme) null));
 
-    AgentDesignMetroBar(AgentStatusPresenter.Actions actions) {
+    AgentDesignMetroBar(AgentRunPresenter.Actions actions) {
         getStyleClass().add("ai-agent-design-bar");
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(10);
@@ -103,7 +104,8 @@ final class AgentDesignMetroBar extends HBox implements AgentStatusPresenter {
         pauseButton.setOnAction(event -> actions.togglePause());
         cancelButton.setOnAction(event -> actions.cancel());
         hideButton.setOnAction(event -> actions.hide());
-        HBox right = new HBox(5, meta, pauseButton, cancelButton, hideButton);
+        AgentDesignWidgets.wireRunMenuButton(menuButton, actions);
+        HBox right = new HBox(5, meta, pauseButton, cancelButton, menuButton, hideButton);
         right.setAlignment(Pos.CENTER_RIGHT);
         right.setMinWidth(Region.USE_PREF_SIZE);
 

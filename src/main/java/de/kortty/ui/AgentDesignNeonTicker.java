@@ -38,7 +38,7 @@ import java.util.Locale;
  * new message rolls into a small window, an open question glows amber and stays, and the LED pulses
  * while the agent works.
  */
-final class AgentDesignNeonTicker extends HBox implements AgentStatusPresenter {
+final class AgentDesignNeonTicker extends HBox implements AgentRunPresenter {
 
     static final double BAR_HEIGHT = 28.0;
 
@@ -50,6 +50,7 @@ final class AgentDesignNeonTicker extends HBox implements AgentStatusPresenter {
     private final Button pauseButton = AgentDesignTopBar.iconButton("⏸", I18n.get("ai.agent.control.pauseRun"));
     private final Button cancelButton = AgentDesignTopBar.iconButton("■", I18n.get("dialog.cancel"));
     private final Button hideButton = AgentDesignTopBar.iconButton("✕", I18n.get("aiAgentDesign.metro.hide"));
+    private final Button menuButton = AgentDesignTopBar.iconButton("⋯", I18n.get("aiAgentDesign.menu.more"));
     private final AgentStatusVisibility visibility = new AgentStatusVisibility(this);
     private final Timeline ledPulse;
     private Label current;
@@ -60,7 +61,7 @@ final class AgentDesignNeonTicker extends HBox implements AgentStatusPresenter {
     private boolean reducedAnimations;
     private boolean flickered;
 
-    AgentDesignNeonTicker(AgentStatusPresenter.Actions actions) {
+    AgentDesignNeonTicker(AgentRunPresenter.Actions actions) {
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(12);
         setPadding(new Insets(0, 6, 0, 12));
@@ -82,7 +83,8 @@ final class AgentDesignNeonTicker extends HBox implements AgentStatusPresenter {
         pauseButton.setOnAction(event -> actions.togglePause());
         cancelButton.setOnAction(event -> actions.cancel());
         hideButton.setOnAction(event -> actions.hide());
-        HBox buttons = new HBox(3, pauseButton, cancelButton, hideButton);
+        AgentDesignWidgets.wireRunMenuButton(menuButton, actions);
+        HBox buttons = new HBox(3, pauseButton, cancelButton, menuButton, hideButton);
         buttons.setAlignment(Pos.CENTER_RIGHT);
         buttons.setMinWidth(Region.USE_PREF_SIZE);
         getChildren().addAll(led, title, window, meta, buttons);

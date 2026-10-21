@@ -822,7 +822,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="ai-agent-designs">AI agent designs<a class="headerlink" href="#ai-agent-designs" title="Permanent link">&para;</a></h1>
-<p><em>Plugins → AI Agent Design</em> decides how the runs of the terminal <a href="ai-tools.html">AI agent</a> are shown: as a block in the terminal itself, in a slim bar below or above it, on a rail beside it, in the classic activity panel, or in a combination of these. A <strong>combination</strong> picks one design for each role, and you can set one combination as the default and give single connections a different one.</p>
+<p><em>Plugins → AI Agent Design</em> decides how the runs of the terminal <a href="ai-tools.html">AI agent</a> are shown: as lines in the terminal itself, in a slim bar below or above it, on a rail or in a column beside it, as a card floating over it, in the classic activity panel, or in a combination of these. A <strong>combination</strong> picks one design for each role, and you can set one combination as the default and give single connections a different one.</p>
 <p><img alt="AI Agent Design with the standard combination: the live preview shows a sample run as a block in the terminal, waiting for an approval, with the metro line and the approval row below" src="../assets/screenshots/plugins/ai-agent-design.png" /></p>
 <p>Open it from <em>Plugins → AI Agent Design</em> or <em>View → AI Agent Panel → Design...</em>. With <em>open tool windows as tabs</em> turned on it opens as a tab of the main window. An organisation policy that does not allow plugins locks both entries.</p>
 <h2 id="roles-and-designs">Roles and designs<a class="headerlink" href="#roles-and-designs" title="Permanent link">&para;</a></h2>
@@ -839,26 +839,26 @@
 <tr>
 <td>History</td>
 <td>Where the steps of a run are listed</td>
-<td><strong>Blocks in the terminal</strong> (03), <strong>Classic panel</strong></td>
+<td><strong>Blocks in the terminal</strong> (03), <strong>Side timeline</strong> (02), <strong>Plan and execution</strong> (06), <strong>Card stack</strong> (07), <strong>tmux pane</strong> (09), <strong>Conversation</strong> (13), <strong>Log table</strong> (16), <strong>Focus mode</strong> (17), <strong>Classic panel</strong></td>
 </tr>
 <tr>
 <td>Status</td>
 <td>A compact display of where the run stands, next to the history</td>
-<td><strong>Metro line</strong> (08), <strong>Powerline status line</strong> (01), <strong>Minimap rail</strong> (11), <strong>Top bar with drawer</strong> (12), <strong>Neon ticker</strong> (18), <strong>No status display</strong></td>
+<td><strong>Metro line</strong> (08), <strong>Powerline status line</strong> (01), <strong>Minimap rail</strong> (11), <strong>Top bar with drawer</strong> (12), <strong>Neon ticker</strong> (18), <strong>Frosted glass HUD</strong> (04), <strong>Spotlight and pill</strong> (05), <strong>Toasts</strong> (10), <strong>Orbit</strong> (15), <strong>No status display</strong></td>
 </tr>
 <tr>
 <td>Approval</td>
-<td>Where approval and password requests are answered</td>
-<td><strong>In the history</strong></td>
+<td>Where approval requests are answered</td>
+<td><strong>In the history</strong>, <strong>Suggestion at the cursor line</strong> (14)</td>
 </tr>
 <tr>
 <td>Arrangement</td>
 <td>Where the parts are placed</td>
-<td><strong>Fixed</strong></td>
+<td><strong>Fixed</strong>, <strong>Picture in picture</strong> (19), <strong>Adaptive dock</strong> (20)</td>
 </tr>
 </tbody>
 </table>
-<p>The other numbered designs are listed with <em>(coming later)</em> and cannot be ticked yet. A combination stored by a newer korTTY that names one of them uses the standard combination's design for that role instead.</p>
+<p>A combination stored by a newer korTTY that names a design this version does not know uses the standard combination's design for that role instead.</p>
 <h2 id="combinations">Combinations<a class="headerlink" href="#combinations" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -906,8 +906,78 @@
 <li><strong>Minimap rail (11)</strong> — A narrow rail at the right edge of the terminal with one coloured segment per step: blue for commands, violet for analysis, amber for questions, red for errors. The running step glows. Pointing at a segment shows a lens with the step, its result and the first lines of its detail. The rail has no buttons; <span class="keys"><kbd class="key-escape">Esc</kbd></span> cancels the run.</li>
 <li><strong>Neon ticker (18)</strong> — A bar in the style of a split-flap display below the terminal in the neon look of korTTY's logo: every new step rolls into its window, an open question glows amber with its keys, and the light at the left pulses while the agent works. On a light theme the bar uses the colours of that theme.</li>
 </ul>
+<h2 id="history-panels">History panels<a class="headerlink" href="#history-panels" title="Permanent link">&para;</a></h2>
+<p>Instead of lines in the terminal, these designs list the run in a panel below or beside the terminal. A panel stays after the run ended, so its result can still be read; ✕ hides it until the next run, and <em>View → AI Agent Panel → Show or Hide Status Bar</em> brings it back. Every panel shows an open approval with its buttons, and the keys <strong>1</strong>, <strong>2</strong> and <strong>3</strong> answer it in the terminal as well. The answer is also written into the terminal as before.</p>
+<p><img alt="The six history panels, each waiting for an approval: the side timeline, plan and execution, the card stack, the tmux pane, the conversation and the log table" src="../assets/screenshots/plugins/ai-agent-history-panels.png" /></p>
+<ul>
+<li><strong>Side timeline (02)</strong> — A column right of the terminal with a vertical line and one node per step: commands in blue, analysis in violet, an open approval in amber with its buttons right at the node, the answer at the end. The line draws itself to each new node and the running node pulses. The terminal keeps its full height.</li>
+<li><strong>Plan and execution (06)</strong> — Two columns below the terminal. On the left the run's steps as a checklist whose ticks draw themselves; on the right only what runs now: the command with its exit code and its last output lines, an open approval, or after the run the answer. A thin bar on top fills with the progress.</li>
+<li><strong>Card stack (07)</strong> — Below the terminal, a narrow column with the question, the progress and the buttons, and beside it a stack of cards: the current step in front in full, the two before it peeking out behind. The mouse wheel leafs through the older steps; an approval is the front card with its buttons.</li>
+<li><strong>tmux pane (09)</strong> — A pane right of the terminal in the terminal's font and colours, framed by lines: one line per step with its kind (<code>ssh</code>, <code>read</code>, <code>run</code>, <code>think</code>), the answer typed out behind a block cursor, and a blue status line at the bottom. It takes about 40 % of the width.</li>
+<li><strong>Conversation (13)</strong> — A chat in a column right of the terminal: your question on the right, the agent on the left with its thoughts as text and its commands as code blocks with their exit code, which unfold to their output with a click. Three dots bounce while it works. The field below asks a follow-up question, which starts a new run in the same terminal once the current one ended.</li>
+<li><strong>Log table (16)</strong> — A dense table below the terminal with the time, kind, step, result, duration and tokens of every step. A new row flashes blue, the running row has a small spinner, and an open approval puts its buttons into the header. A double-click on a row shows its output, on the last row the answer.</li>
+</ul>
+<h2 id="in-the-terminal-focus-mode-and-the-cursor-line">In the terminal: focus mode and the cursor line<a class="headerlink" href="#in-the-terminal-focus-mode-and-the-cursor-line" title="Permanent link">&para;</a></h2>
+<p><img alt="On the left focus mode, the agent's lines marked by a glowing bar while the rest of the terminal is dimmed; on the right the suggestion at the cursor line with its keys and the waiting line at the bottom" src="../assets/screenshots/plugins/ai-agent-terminal-designs.png" /></p>
+<ul>
+<li><strong>Focus mode (17)</strong> — A history design that writes what the agent does into the terminal as if it had typed it: each command as <code>$ command</code> with its last output lines, its conclusions, an open approval with its keys, and after the run the answer. A glowing bar marks these lines, a light runs along under them while the agent works, and the rest of the terminal dims; the line you type in stays bright. When the run ends the terminal brightens again and the lines stay in the scrollback.</li>
+<li><strong>Suggestion at the cursor line (14)</strong> — An approval design: the command the agent wants to run appears as ghost text right where you type, with a hint below it, and a line at the bottom of the terminal says that the agent waits. <span class="keys"><kbd class="key-enter">Enter</kbd></span> runs it once; <span class="keys"><kbd class="key-tab">Tab</kbd></span> takes it over: the run ends and the command is typed at the prompt for you to edit; <span class="keys"><kbd class="key-escape">Esc</kbd></span> declines. The keys <strong>1</strong>, <strong>2</strong> and <strong>3</strong> still answer as everywhere. A password request still uses the row below the terminal.</li>
+</ul>
+<h2 id="floating-displays">Floating displays<a class="headerlink" href="#floating-displays" title="Permanent link">&para;</a></h2>
+<p>These status designs float over the terminal, which keeps its full size. They stay clear of the rows below the terminal and fade out after the last run ended, like the bars.</p>
+<p><img alt="The four floating displays: the frosted glass HUD, the status pill, the toasts with an approval and the orbit" src="../assets/screenshots/plugins/ai-agent-floating-designs.png" /></p>
+<ul>
+<li><strong>Frosted glass HUD (04)</strong> — A translucent card over the bottom-right corner with the question, the step being run, the progress in segments and the tokens. While you type in the terminal it fades to 35 %, so the text under it stays readable. ⤢ unfolds the run's steps above it.</li>
+<li><strong>Spotlight and pill (05)</strong> — A small pill in the top-right corner with the current step, how far the run got and the time; a click unfolds the steps below it. <em>View → AI Agent Panel → Ask in Spotlight…</em> opens a field in the middle of the terminal where you ask the agent, with the profile to use and your earlier questions on <span class="keys"><kbd class="key-arrow-up">Up</kbd></span> and <span class="keys"><kbd class="key-arrow-down">Down</kbd></span>. <span class="keys"><kbd class="key-enter">Enter</kbd></span> starts the run as <code>agent …</code> at the shell would, and the field shrinks into the pill.</li>
+<li><strong>Toasts (10)</strong> — Every finished step slides in as a short notice at the bottom right and goes again after a few seconds, a bar in each showing when. An approval stays until it is answered, with its buttons. A badge counts the steps; a click on it shows them all.</li>
+<li><strong>Orbit (15)</strong> — A 72-pixel circle in the bottom-right corner: its ring fills with the run's progress, dots circle it while the agent works, and the middle shows the step count and the time; a label beside it names the current command. A click lets the steps bloom out of the circle.</li>
+</ul>
+<h2 id="arrangements">Arrangements<a class="headerlink" href="#arrangements" title="Permanent link">&para;</a></h2>
+<p><img alt="On the left picture in picture with the run's steps and an approval, on the right picture in picture holding the log table" src="../assets/screenshots/plugins/ai-agent-arrangements.png" /></p>
+<ul>
+<li><strong>Picture in picture (19)</strong> — A small window floating over the terminal. Drag it by its title and it shows the four corners it can go to, then springs into the nearest one when you let go. ⧉ makes it a window of its own, for example for a second screen, and docks it back; – folds it to its title, × hides it until the next run. With a history panel in the combination the window holds that panel; otherwise it lists the run's steps and an open approval with its buttons. Several runs in the same terminal become tabs.</li>
+<li><strong>Adaptive dock (20)</strong> — Picks the status display by the terminal's size: a wide and tall terminal (from 150 columns and 30 rows) gets the side timeline, a small one (under 70 columns or 16 rows) the status pill, anything between the Powerline status line. A display it chose stays until the size is clearly past the other side, so dragging a split does not make it flicker. After the last run a countdown ring shows how long the result stays.</li>
+</ul>
 <h2 id="approvals-and-passwords">Approvals and passwords<a class="headerlink" href="#approvals-and-passwords" title="Permanent link">&para;</a></h2>
-<p>With blocks in the terminal, an approval or a password request also opens a row below the terminal. For an approval it shows the commands and the buttons <strong>1 Allow Once</strong>, <strong>2 Allow Always</strong> and <strong>3 Cancel</strong>. For a password it has a masked field, <strong>Use for this SSH session</strong> and <strong>OK</strong>; <span class="keys"><kbd class="key-enter">Enter</kbd></span> submits and <span class="keys"><kbd class="key-escape">Esc</kbd></span> cancels. The classic panel keeps its own prompts.</p>
+<p>An approval is answered with the keys <strong>1</strong> (allow once), <strong>2</strong> (allow always) and <strong>3</strong> (cancel) in the terminal, or with buttons. Designs with buttons of their own show them: the history panels, the toasts and the picture-in-picture window. With blocks in the terminal, focus mode or the classic panel's history, an approval opens a row below the terminal with the commands and the buttons <strong>1 Allow Once</strong>, <strong>2 Allow Always</strong> and <strong>3 Cancel</strong>. A password request always opens that row, with a masked field, <strong>Use for this SSH session</strong> and <strong>OK</strong>; <span class="keys"><kbd class="key-enter">Enter</kbd></span> submits and <span class="keys"><kbd class="key-escape">Esc</kbd></span> cancels. The classic panel keeps its own prompts.</p>
+<h2 id="run-menu-and-step-menu">Run menu and step menu<a class="headerlink" href="#run-menu-and-step-menu" title="Permanent link">&para;</a></h2>
+<p>Every design offers what the classic panel's buttons do. The bars, the history panels, the frosted glass HUD and the picture-in-picture window have a ⋯ button; the status pill, the orbit, the minimap rail and the badge of the toasts open the same menu with a right-click. It works on the run the design shows:</p>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Workflow…</td>
+<td>Turns the finished run into a reusable script, see <a href="ai-tools.html#generate-workflow-script">Generate Workflow Script</a></td>
+</tr>
+<tr>
+<td>Export this run</td>
+<td>Saves the finished run as Markdown, text, YAML, XML, JSON, PDF or Asciidoctor</td>
+</tr>
+<tr>
+<td>Export all runs</td>
+<td>Saves every finished run the terminal keeps in one file</td>
+</tr>
+<tr>
+<td>Run again</td>
+<td>Starts the same agent command again</td>
+</tr>
+<tr>
+<td>Copy answer</td>
+<td>Copies the run's answer</td>
+</tr>
+<tr>
+<td>Runs of this terminal</td>
+<td>Shows another run of the terminal: the ones still working and the last five that finished</td>
+</tr>
+</tbody>
+</table>
+<p>The designs drawn into the terminal (blocks, focus mode, the suggestion at the cursor line) offer the same entries in the terminal's context menu under <em>AI → Last agent run</em>.</p>
+<p>A right-click on a step opens its own menu with <strong>Copy command</strong>, <strong>Copy output</strong>, <strong>Copy entry</strong> and <strong>Open in Snippet Editor</strong>. That works on a node of the side timeline, a row of the plan or the log table, a card of the stack, a block of the conversation, a line of the tmux pane, a segment of the minimap rail, a toast and a step in the picture-in-picture window.</p>
 <h2 id="options">Options<a class="headerlink" href="#options" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -923,7 +993,7 @@
 </tr>
 <tr>
 <td>Reduce animations</td>
-<td>Turns off the pulsing station and the moving light of the <strong>Metro line</strong>, the spinners, the shimmer of the <strong>Top bar with drawer</strong>, the rolling and glowing of the <strong>Neon ticker</strong> and the lens animation of the <strong>Minimap rail</strong>.</td>
+<td>Turns off the moving parts of every design: the pulsing station and the moving light of the <strong>Metro line</strong>, the spinners, the shimmer of the <strong>Top bar with drawer</strong>, the rolling and glowing of the <strong>Neon ticker</strong>, the lens animation of the <strong>Minimap rail</strong>, the sliding, popping and blooming of the history panels and floating displays, the typing of the <strong>tmux pane</strong> and the ghost text, the glass of the <strong>Frosted glass HUD</strong> and the fading of <strong>Focus mode</strong>.</td>
 </tr>
 </tbody>
 </table>

@@ -33,8 +33,12 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@link AgentDesignPluginManagerDialog} (isolated {@code user.home}, English, Normal design) while its
  * live preview waits for the sample run's approval, and the preview alone after the run collapsed to
  * its answer, and the four status bars and rails (01, 11, 12, 18) beside the in-terminal blocks while the
- * run waits for its approval. Writes {@code app-docs/screenshots/plugins/ai-agent-design.png},
- * {@code ai-agent-design-finished.png} and {@code ai-agent-status-designs.png}.
+ * run waits for its approval, and in the same way the history panels, the floating displays, the designs
+ * that draw into the terminal and the arrangements of phases 3 to 5. Writes
+ * {@code app-docs/screenshots/plugins/ai-agent-design.png}, {@code ai-agent-design-finished.png},
+ * {@code ai-agent-status-designs.png}, {@code ai-agent-history-panels.png},
+ * {@code ai-agent-floating-designs.png}, {@code ai-agent-terminal-designs.png} and
+ * {@code ai-agent-arrangements.png}.
  *
  * <p>Run via the {@code generateAiAgentDesignScreenshots} Gradle task. Exit 0 = OK.</p>
  */
@@ -44,6 +48,18 @@ public final class AiAgentDesignScreenshotGenerator {
     private static final String FINISHED_FILE = "app-docs/screenshots/plugins/ai-agent-design-finished.png";
     private static final String STATUS_FILE = "app-docs/screenshots/plugins/ai-agent-status-designs.png";
     private static final java.util.List<String> STATUS_IDS = java.util.List.of("d01", "d12", "d11", "d18");
+    /** More grids of designs at the approval, by file: the gallery smoke's combination names and columns. */
+    private static final java.util.Map<String, java.util.List<String>> GRIDS = new java.util.LinkedHashMap<>();
+    private static final java.util.Map<String, Integer> GRID_COLUMNS = java.util.Map.of(
+        "app-docs/screenshots/plugins/ai-agent-history-panels.png", 3);
+
+    static {
+        GRIDS.put("app-docs/screenshots/plugins/ai-agent-history-panels.png",
+            java.util.List.of("d02", "d06", "d07", "d09", "d13", "d16"));
+        GRIDS.put("app-docs/screenshots/plugins/ai-agent-floating-designs.png", java.util.List.of("d04", "d05", "d10", "d15"));
+        GRIDS.put("app-docs/screenshots/plugins/ai-agent-terminal-designs.png", java.util.List.of("d17", "d14"));
+        GRIDS.put("app-docs/screenshots/plugins/ai-agent-arrangements.png", java.util.List.of("d19", "d19-d16"));
+    }
     /** Seconds after opening: the sample run waits for its approval, then has collapsed to its answer. */
     private static final double APPROVAL_MOMENT = 6.6;
     private static final double FINISHED_MOMENT = 10.6;
@@ -87,6 +103,8 @@ public final class AiAgentDesignScreenshotGenerator {
         GlobalSettings settings = app.getGlobalSettingsManager().getSettings();
         settings.setLanguage("en");
         LanguageManager.getInstance().initialize(settings);
+        // The Normal design for every window, as the app sets it up; the grids are windows of their own.
+        AppDesignStyleSupport.initializeGlobalStyling(de.kortty.model.AppDesign.NORMAL);
 
         AgentDesignPluginManagerDialog dialog = new AgentDesignPluginManagerDialog(null, app.getGlobalSettingsManager());
         DialogThemeHelper.applyTheme(dialog);
@@ -119,6 +137,35 @@ public final class AiAgentDesignScreenshotGenerator {
         gridStage.show();
         previews.forEach((statusId, statusPreview) -> statusPreview.play(
             de.kortty.agentdesign.AgentDesignPresets.STANDARD.with(de.kortty.agentdesign.AgentRole.STATUS, statusId)));
+        java.util.Map<String, javafx.scene.layout.GridPane> grids = new java.util.LinkedHashMap<>();
+        java.util.List<Stage> gridStages = new java.util.ArrayList<>();
+        java.util.List<AgentDesignPreview> gridPreviews = new java.util.ArrayList<>();
+        java.util.Map<String, de.kortty.agentdesign.AgentDesignCombination> gallery = AiAgentDesignGallerySmoke.combinations();
+        for (java.util.Map.Entry<String, java.util.List<String>> entry : GRIDS.entrySet()) {
+            javafx.scene.layout.GridPane more = new javafx.scene.layout.GridPane();
+            more.setHgap(8);
+            more.setVgap(8);
+            more.setPadding(new javafx.geometry.Insets(8));
+            int columns = GRID_COLUMNS.getOrDefault(entry.getKey(), 2);
+            java.util.List<String> names = entry.getValue();
+            java.util.List<AgentDesignPreview> designPreviews = new java.util.ArrayList<>();
+            for (int i = 0; i < names.size(); i++) {
+                AgentDesignPreview designPreview = new AgentDesignPreview();
+                more.add(designPreview, i % columns, i / columns);
+                designPreviews.add(designPreview);
+            }
+            gridPreviews.addAll(designPreviews);
+            Stage moreStage = new Stage();
+            moreStage.setScene(new javafx.scene.Scene(more));
+            moreStage.setX(-4000);
+            moreStage.setY(-4000);
+            moreStage.show();
+            gridStages.add(moreStage);
+            for (int i = 0; i < names.size(); i++) {
+                designPreviews.get(i).play(gallery.get(names.get(i)));
+            }
+            grids.put(entry.getKey(), more);
+        }
         PauseTransition unfold = new PauseTransition(Duration.seconds(3.6));
         unfold.setOnFinished(event -> {
             fire(previews.get("d01"), "▴");
@@ -135,6 +182,12 @@ public final class AiAgentDesignScreenshotGenerator {
                 capture(pane, DIALOG_FILE);
                 capture(grid, STATUS_FILE);
                 gridStage.close();
+                for (java.util.Map.Entry<String, javafx.scene.layout.GridPane> more : grids.entrySet()) {
+                    capture(more.getValue(), more.getKey());
+                }
+                // Stop the sample runs before their windows go, as the dialog does when it closes.
+                gridPreviews.forEach(AgentDesignPreview::stop);
+                gridStages.forEach(Stage::close);
             } catch (Throwable t) {
                 failure.compareAndSet(null, stack(t));
             }

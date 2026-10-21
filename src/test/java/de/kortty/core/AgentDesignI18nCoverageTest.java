@@ -18,7 +18,8 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Every text of Plugins → KI-Agent Design — each design's name and description, the roles, the built-in
- * combinations, the in-terminal block and the connection editor — exists in every bundled language.
+ * combinations, the texts of the designs themselves and the connection editor — exists in every bundled
+ * language.
  */
 class AgentDesignI18nCoverageTest {
 
@@ -48,6 +49,49 @@ class AgentDesignI18nCoverageTest {
         "aiAgentDesign.metro.answer",
         "aiAgentDesign.steps.show",
         "aiAgentDesign.steps.hide",
+        "aiAgentDesign.lines",
+        "aiAgentDesign.exit",
+        "aiAgentDesign.cursor.run",
+        "aiAgentDesign.cursor.edit",
+        "aiAgentDesign.cursor.dismiss",
+        "aiAgentDesign.cursor.waiting",
+        "aiAgentDesign.spotlight.prompt",
+        "aiAgentDesign.spotlight.start",
+        "aiAgentDesign.spotlight.history",
+        "aiAgentDesign.spotlight.defaultProfile",
+        "aiAgentDesign.spotlight.unavailable",
+        "aiAgentDesign.hud.awaiting",
+        "aiAgentDesign.hud.progress",
+        "aiAgentDesign.toast.approval",
+        "aiAgentDesign.toast.steps",
+        "aiAgentDesign.pip.detach",
+        "aiAgentDesign.pip.attach",
+        "aiAgentDesign.pip.fold",
+        "aiAgentDesign.plan.caption",
+        "aiAgentDesign.plan.next",
+        "aiAgentDesign.plan.running",
+        "aiAgentDesign.cards.history",
+        "aiAgentDesign.tmux.panes",
+        "aiAgentDesign.chat.followUp",
+        "aiAgentDesign.chat.send",
+        "aiAgentDesign.table.time",
+        "aiAgentDesign.table.kind",
+        "aiAgentDesign.table.step",
+        "aiAgentDesign.table.result",
+        "aiAgentDesign.table.duration",
+        "aiAgentDesign.table.tokens",
+        "aiAgentDesign.table.waiting",
+        "menu.view.aiAgentPanel.spotlight",
+        "aiAgentDesign.menu.more",
+        "aiAgentDesign.menu.workflow",
+        "aiAgentDesign.menu.exportRun",
+        "aiAgentDesign.menu.exportAll",
+        "aiAgentDesign.menu.rerun",
+        "aiAgentDesign.menu.copyAnswer",
+        "aiAgentDesign.menu.earlierRuns",
+        "aiAgentDesign.menu.lastRun",
+        "aiAgentDesign.step.copyCommand",
+        "aiAgentDesign.step.copyOutput",
         "connEdit.aiAgentDesign",
         "connEdit.aiAgentDesign.default",
         "connEdit.aiAgentDesign.unavailable");

@@ -20,6 +20,7 @@ import java.util.List;
 final class AgentDesignStepList extends VBox {
 
     private int maxRows = 8;
+    private AgentRunPresenter.Actions stepActions;
     private AgentDesignPalette palette = AgentDesignPalette.of((de.kortty.model.Theme) null);
 
     AgentDesignStepList() {
@@ -27,6 +28,12 @@ final class AgentDesignStepList extends VBox {
         setPadding(new Insets(6, 10, 6, 10));
         setFillWidth(true);
         setMouseTransparent(true);
+    }
+
+    /** Lets a right-click on a step open its menu; the list then takes mouse events. */
+    void setStepActions(AgentRunPresenter.Actions actions) {
+        this.stepActions = actions;
+        setMouseTransparent(actions == null);
     }
 
     void setMaxRows(int maxRows) {
@@ -79,8 +86,8 @@ final class AgentDesignStepList extends VBox {
         AgentInlineBlockLayout.Segment marker = AgentInlineBlockLayout.marker(step, spinner);
         Label markerLabel = label(marker.text(), palette.colorOf(marker.role()));
         markerLabel.setMinWidth(14);
-        boolean command = step.type() == TerminalAgentModels.AgentActivityType.ACTION;
-        Label text = label(AgentInlineBlockLayout.oneLine(AgentInlineBlockLayout.rowText(step)),
+        boolean command = AgentStepDetails.isCommand(step);
+        Label text = label(AgentDesignPowerlineBar.stepText(step),
             step.type() == TerminalAgentModels.AgentActivityType.MESSAGE ? palette.muted() : palette.text());
         if (command) {
             text.setFont(Font.font("Monospaced", text.getFont().getSize()));
@@ -89,10 +96,14 @@ final class AgentDesignStepList extends VBox {
         text.setMinWidth(0);
         text.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(text, Priority.ALWAYS);
-        Label meta = label(AgentInlineBlockLayout.rowMeta(trace, step, nowMillis), palette.muted());
+        String result = step.status() == TerminalAgentModels.AgentActivityStatus.RUNNING ? "" : AgentStepDetails.result(step);
+        Label meta = label(result.isBlank() ? AgentInlineBlockLayout.rowMeta(trace, step, nowMillis) : result, palette.muted());
         meta.setMinWidth(Label.USE_PREF_SIZE);
         HBox row = new HBox(6, markerLabel, text, meta);
         row.setAlignment(Pos.CENTER_LEFT);
+        if (stepActions != null) {
+            AgentDesignWidgets.stepMenuOnRightClick(row, stepActions, step);
+        }
         return row;
     }
 

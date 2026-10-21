@@ -103,7 +103,8 @@ public class TerminalSplitPane extends StackPane {
      * size; it is mouse-transparent, so every click, hover and drag still reaches the terminal and
      * the wrapper's own handlers. Its {@link Node#getViewOrder() view order} keeps it above the
      * wrapper's children and the layers declared before it, whatever was added to the wrapper
-     * later. It goes away with the pane.
+     * later. It goes away with the pane. The one exception is {@link #AGENT_CONTROLS}: its own nodes
+     * take clicks, while the rest of it still lets every event through to the terminal.
      */
     public enum PaneOverlayLayer {
         /** The underline under a hovered terminal link, and quick select's boxes and labels. */
@@ -116,12 +117,22 @@ public class TerminalSplitPane extends StackPane {
         DECORATION,
         /** Step lists a KI-Agent design shows over the terminal, such as a status bar's drawer. */
         AGENT,
+        /**
+         * KI-Agent designs that float over the terminal and take clicks (a HUD card, a status pill, a
+         * picture-in-picture window); the empty rest of the layer passes every event to the terminal.
+         */
+        AGENT_CONTROLS,
         /** The drop zones shown while a pane is dragged onto this one to move it. */
         DROP_ZONES;
 
         /** Below 0, and lower for a later layer, because JavaFX draws a lower view order on top. */
         public double viewOrder() {
             return -1.0 - ordinal();
+        }
+
+        /** Whether the layer's own nodes take mouse events; the layer itself never does. */
+        public boolean interactive() {
+            return this == AGENT_CONTROLS;
         }
     }
 
@@ -1068,11 +1079,14 @@ public class TerminalSplitPane extends StackPane {
         return null;
     }
 
-    /** An empty overlay layer: unmanaged, mouse-transparent, not focusable, at the layer's view order. */
+    /**
+     * An empty overlay layer: unmanaged, not focusable, at the layer's view order, and mouse-transparent
+     * unless it is {@link PaneOverlayLayer#interactive() interactive}; it never picks on its bounds.
+     */
     static @NotNull Pane createOverlayLayer(@NotNull PaneOverlayLayer layer) {
         Pane pane = new Pane();
         pane.setManaged(false);
-        pane.setMouseTransparent(true);
+        pane.setMouseTransparent(!layer.interactive());
         pane.setPickOnBounds(false);
         pane.setFocusTraversable(false);
         pane.setViewOrder(layer.viewOrder());
