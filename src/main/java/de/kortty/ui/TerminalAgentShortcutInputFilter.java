@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * Stateful byte filter for terminal agent shortcuts.
@@ -51,6 +52,7 @@ final class TerminalAgentShortcutInputFilter {
     private final Predicate<String> shellHandlesCommand;
     private final Predicate<String> commandInterceptor;
     private final Consumer<String> commandDispatcher;
+    private final Supplier<byte[]> clearInputLine;
     /** Optional observer of every submitted line (session journal input capture); may be null. */
     private final Consumer<String> submittedLineSink;
     /** The connector's encoding; a byte of a single-byte charset is a whole character. */
@@ -95,7 +97,24 @@ final class TerminalAgentShortcutInputFilter {
         Consumer<String> commandDispatcher,
         Consumer<String> submittedLineSink,
         Charset inputCharset) {
+        this(commandResolver, shellHandlesCommand, commandInterceptor, commandDispatcher, submittedLineSink,
+            inputCharset, null);
+    }
 
+    /**
+     * @param clearInputLine the bytes that discard the shell's pending input line, asked for at each
+     *     intercepted Enter; {@code null} sends Ctrl+U ({@link #CLEAR_INPUT_LINE}).
+     */
+    TerminalAgentShortcutInputFilter(
+        Function<String, String> commandResolver,
+        Predicate<String> shellHandlesCommand,
+        Predicate<String> commandInterceptor,
+        Consumer<String> commandDispatcher,
+        Consumer<String> submittedLineSink,
+        Charset inputCharset,
+        Supplier<byte[]> clearInputLine) {
+
+        this.clearInputLine = clearInputLine != null ? clearInputLine : () -> new byte[] {CLEAR_INPUT_LINE};
         this.commandResolver = Objects.requireNonNull(commandResolver, "commandResolver");
         this.shellHandlesCommand = Objects.requireNonNull(shellHandlesCommand, "shellHandlesCommand");
         this.commandInterceptor = Objects.requireNonNull(commandInterceptor, "commandInterceptor");
@@ -238,10 +257,11 @@ final class TerminalAgentShortcutInputFilter {
         // Mirrored from the pane the user types in, which starts the run itself. The interceptor is
         // not even asked: it resets the shortcut state of this pane as if a run were starting here.
         if (!MirroredInput.active() && commandInterceptor.test(rawCommand)) {
-            // Bytes from earlier writes are already visible in the PTY. Ctrl+U clears those; bytes
-            // for the current logical line that are still in this write are removed before sending.
+            // Bytes from earlier writes are already visible in the PTY. The shell's clear-line key
+            // (Ctrl+U, or Escape in PowerShell/cmd.exe) discards those; bytes for the current
+            // logical line that are still in this write are removed before sending.
             truncate(outgoing, currentLineStart[0]);
-            outgoing.write(CLEAR_INPUT_LINE);
+            outgoing.writeBytes(clearInputLine.get());
             if (ch == '\r') {
                 swallowNextLineFeed = true;
             }

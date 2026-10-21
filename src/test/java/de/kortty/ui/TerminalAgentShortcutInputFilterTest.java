@@ -30,6 +30,23 @@ class TerminalAgentShortcutInputFilterTest {
     }
 
     @Test
+    void sendsTheShellsOwnClearLineSequence() {
+        List<String> dispatched = new ArrayList<>();
+        TerminalAgentShortcutInputFilter filter = new TerminalAgentShortcutInputFilter(
+            command -> command.trim(),
+            command -> false,
+            command -> command.startsWith("agent "),
+            dispatched::add,
+            null,
+            StandardCharsets.UTF_8,
+            () -> new byte[] {0x1B});
+
+        filter.filter(bytes("agent list patches"));
+        assertThat(filter.filter(bytes("\r\n"))).isEqualTo(new byte[] {0x1B});
+        assertThat(dispatched).containsExactly("agent list patches");
+    }
+
+    @Test
     void bracketedPasteMarkersAreExcludedAndPastedNewlineDoesNotSubmit() {
         List<String> dispatched = new ArrayList<>();
         TerminalAgentShortcutInputFilter filter = newFilter(false, dispatched);
