@@ -25,6 +25,18 @@ class LocalShellTtyConnectorTest {
     }
 
     @Test
+    void launchesWindowsConsoleShellRecognizesPowerShellAndCmd() {
+        assertThat(LocalShellTtyConnector.launchesWindowsConsoleShell(List.of("powershell.exe"))).isTrue();
+        assertThat(LocalShellTtyConnector.launchesWindowsConsoleShell(
+            List.of("C:\\Program Files\\PowerShell\\7\\pwsh.exe", "-NoLogo"))).isTrue();
+        assertThat(LocalShellTtyConnector.launchesWindowsConsoleShell(List.of("CMD.EXE"))).isTrue();
+        assertThat(LocalShellTtyConnector.launchesWindowsConsoleShell(
+            List.of("C:\\Program Files\\Git\\bin\\bash.exe", "--login"))).isFalse();
+        assertThat(LocalShellTtyConnector.launchesWindowsConsoleShell(List.of("wsl.exe"))).isFalse();
+        assertThat(LocalShellTtyConnector.launchesWindowsConsoleShell(List.of())).isFalse();
+    }
+
+    @Test
     void launchesRemoteClientIgnoresLocalShells() {
         assertThat(LocalShellTtyConnector.launchesRemoteClient(
             LocalShellTtyConnector.resolveShellCommand("/bin/zsh -l"))).isFalse();

@@ -25,9 +25,18 @@ final class LocalShellDirectoryChangeTracker {
     private boolean bracketedPaste;
     private boolean carriageReturnSubmitted;
     private SubmittedLineListener submittedLineListener;
+    private boolean escapeClearsLine;
 
     synchronized void setSubmittedLineListener(SubmittedLineListener listener) {
         this.submittedLineListener = listener;
+    }
+
+    /**
+     * Whether a write that ends in a lone Escape is the Escape key clearing the input line, as it
+     * does in PowerShell and cmd.exe. Elsewhere Escape only prefixes the next key.
+     */
+    synchronized void setEscapeClearsLine(boolean escapeClearsLine) {
+        this.escapeClearsLine = escapeClearsLine;
     }
 
     synchronized boolean accept(byte[] bytes) {
@@ -87,6 +96,10 @@ final class LocalShellDirectoryChangeTracker {
                 trimLine();
                 carriageReturnSubmitted = false;
             }
+        }
+        if (escapeClearsLine && escapeSequence.length() == 1 && !bracketedPaste) {
+            escapeSequence.setLength(0);
+            inputLine.setLength(0);
         }
         return changed;
     }

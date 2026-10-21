@@ -3472,7 +3472,8 @@ public class TerminalView extends BorderPane {
             rawCommand -> shouldInterceptFilteredAgentShortcut(widget, rawCommand),
             rawCommand -> dispatchFilteredTerminalAgentShortcut(widget, rawCommand),
             this::forwardJournalInputLine,
-            observableConnector.getCharset());
+            observableConnector.getCharset(),
+            () -> clearInputLineSequence(observableConnector));
         terminalAgentShortcutInputFilters.put(
             observableConnector,
             new TerminalAgentShortcutInputFilterRegistration(widget, inputFilter));
@@ -6159,7 +6160,7 @@ public class TerminalView extends BorderPane {
         logger.debug("Intercepting terminal AI shortcut from key event before shell execution");
 
         try {
-            connector.write("\u0015");
+            connector.write(clearInputLineSequence(unwrapTerminalEffectConnector(connector)));
         } catch (Exception e) {
             logger.debug("Failed to clear terminal line before AI shortcut interception: {}", e.getMessage());
         }
@@ -6172,6 +6173,14 @@ public class TerminalView extends BorderPane {
                 handler.handle(rawCommand, runContext);
             }
         });
+    }
+
+    /** The bytes that discard the shell's pending input line: Ctrl+U, or Escape for PowerShell/cmd.exe. */
+    private static byte[] clearInputLineSequence(@Nullable TtyConnector connector) {
+        if (connector instanceof LocalShellTtyConnector localShell) {
+            return localShell.clearInputLineSequence();
+        }
+        return new byte[] {TerminalAgentShortcutInputFilter.CLEAR_INPUT_LINE};
     }
 
     private boolean hasAgentShortcutInputFilter(@Nullable SithTermFxWidget widget) {
