@@ -13,6 +13,7 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -50,6 +51,8 @@ public class AiAgentActivityTabsPanel extends VBox {
     private static final double DEFAULT_PANEL_HEIGHT = 230.0;
     private static final double MIN_TERMINAL_HEIGHT = 100.0;
     private static final double DEFAULT_MAX_PANEL_HEIGHT = 720.0;
+    // Tab header height used before the tab pane has been laid out once.
+    private static final double FALLBACK_TAB_HEADER_HEIGHT = 36.0;
     private static final int TAB_TITLE_MAX_CHARS = 24;
 
     /** How concurrent runs are presented: as inner tabs (bottom dock) or stacked sections (side dock). */
@@ -191,7 +194,10 @@ public class AiAgentActivityTabsPanel extends VBox {
 
         statusRefreshTimer = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshRunStatus()));
         statusRefreshTimer.setCycleCount(Animation.INDEFINITE);
-        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> refreshRunStatus());
+        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            refreshRunStatus();
+            fitPanelToInputPrompt(selectedRunId());
+        });
 
         // The collapsed status bar is its own row (shown only when collapsed); the chrome row keeps
         // its original collapse/close layout untouched.
@@ -217,6 +223,7 @@ public class AiAgentActivityTabsPanel extends VBox {
                 panel.applyTheme(currentTheme);
             }
             panel.setPauseHandler(pause);
+            panel.setInputPromptListener(() -> surfaceRunNeedingInput(runId));
             panel.beginRun(prompt, cancel, reload, metadata);
 
             runPanels.put(runId, panel);
@@ -256,7 +263,7 @@ public class AiAgentActivityTabsPanel extends VBox {
         if (panel == null) {
             return TerminalAgentService.ApprovalDecision.CANCEL;
         }
-        Platform.runLater(() -> surfaceRunNeedingInput(runId));
+        // The panel calls surfaceRunNeedingInput once the prompt is built, so it can be sized to fit.
         return panel.requestApproval(approval);
     }
 
@@ -265,17 +272,72 @@ public class AiAgentActivityTabsPanel extends VBox {
         if (panel == null) {
             return null;
         }
-        Platform.runLater(() -> surfaceRunNeedingInput(runId));
         return panel.requestPassword(request);
     }
 
-    /** Brings a run that needs user input into view: select its tab and expand the panel if collapsed. */
+    /**
+     * Brings a run that needs user input into view: select its tab, expand the panel if collapsed and
+     * grow it so the whole prompt (message, command preview, buttons/password field) is visible.
+     */
     private void surfaceRunNeedingInput(String runId) {
         selectTab(runId);
         if (!sideDocked && panelCollapsed) {
             setPanelCollapsed(false);
         }
+        fitPanelToInputPrompt(runId);
         refreshRunStatus();
+    }
+
+    /**
+     * Grows the expanded bottom panel (never shrinks it) so the given run's pending input prompt fits,
+     * limited by the space the terminal has to keep. Measures now and again after the next layout
+     * pass, since a freshly expanded panel or a new prompt has no laid-out size yet.
+     */
+    private void fitPanelToInputPrompt(String runId) {
+        growPanelForInputPrompt(runId);
+        Platform.runLater(() -> growPanelForInputPrompt(runId));
+    }
+
+    private void growPanelForInputPrompt(String runId) {
+        if (sideDocked || panelCollapsed || runId == null || !isVisible()) {
+            return;
+        }
+        AiAgentActivityPanel panel = runPanels.get(runId);
+        if (panel == null || !panel.isAwaitingInput() || !runId.equals(selectedRunId())) {
+            return;
+        }
+        Insets insets = getInsets();
+        double width = panel.getWidth() > 0.0
+            ? panel.getWidth()
+            : Math.max(0.0, getWidth() - insets.getLeft() - insets.getRight());
+        double panelHeight = panel.heightNeededForInputPrompt(width);
+        if (panelHeight <= 0.0) {
+            return;
+        }
+        // Tab pane height minus its content area (the run panel may overflow that area when squeezed,
+        // so its own height cannot be used).
+        Node contentArea = tabPane.lookup(".tab-content-area");
+        double tabHeaderHeight = tabPane.getHeight() > 0.0 && contentArea instanceof Region area && area.getHeight() > 0.0
+            ? Math.max(0.0, tabPane.getHeight() - area.getHeight())
+            : FALLBACK_TAB_HEADER_HEIGHT;
+        double required = insets.getTop() + insets.getBottom() + tabHeaderHeight + panelHeight;
+        int managedChildren = 0;
+        for (Node child : getChildren()) {
+            if (!child.isManaged()) {
+                continue;
+            }
+            managedChildren++;
+            if (child != tabPane) {
+                required += child.prefHeight(width);
+            }
+        }
+        required += Math.max(0, managedChildren - 1) * getSpacing();
+        double target = clampPanelHeight(Math.ceil(required), parentHeight());
+        if (target > currentPanelHeight() + 0.5) {
+            expandedPanelHeight = target;
+            setPrefHeight(target);
+            requestContainerLayout();
+        }
     }
 
     public void finishRun(String runId) {
@@ -636,6 +698,10 @@ public class AiAgentActivityTabsPanel extends VBox {
         }
         panelCollapsed = collapsed;
         applyCollapsedState();
+        if (!collapsed) {
+            // Expanding while a run waits for input: make sure its prompt is not cut off.
+            fitPanelToInputPrompt(focusedRunId());
+        }
     }
 
     private void applyCollapsedState() {
