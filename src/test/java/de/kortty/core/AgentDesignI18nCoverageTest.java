@@ -46,6 +46,8 @@ class AgentDesignI18nCoverageTest {
         "aiAgentDesign.inline.steps",
         "aiAgentDesign.strip.approval",
         "aiAgentDesign.metro.answer",
+        "aiAgentDesign.steps.show",
+        "aiAgentDesign.steps.hide",
         "connEdit.aiAgentDesign",
         "connEdit.aiAgentDesign.default",
         "connEdit.aiAgentDesign.unavailable");

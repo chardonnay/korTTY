@@ -4,7 +4,7 @@ title: AI agent designs
 
 # AI agent designs
 
-*Plugins → AI Agent Design* decides how the runs of the terminal [AI agent](ai-tools.md) are shown: as a block in the terminal itself, in a slim bar below it, in the classic activity panel, or in a combination of these. A **combination** picks one design for each role, and you can set one combination as the default and give single connections a different one.
+*Plugins → AI Agent Design* decides how the runs of the terminal [AI agent](ai-tools.md) are shown: as a block in the terminal itself, in a slim bar below or above it, on a rail beside it, in the classic activity panel, or in a combination of these. A **combination** picks one design for each role, and you can set one combination as the default and give single connections a different one.
 
 ![AI Agent Design with the standard combination: the live preview shows a sample run as a block in the terminal, waiting for an approval, with the metro line and the approval row below](../assets/screenshots/plugins/ai-agent-design.png)
 
@@ -17,7 +17,7 @@ The table lists every design with its number, grouped by role. A tick in **Activ
 | Role | What it decides | Designs you can choose |
 | --- | --- | --- |
 | History | Where the steps of a run are listed | **Blocks in the terminal** (03), **Classic panel** |
-| Status | A compact display of where the run stands, next to the history | **Metro line** (08), **No status display** |
+| Status | A compact display of where the run stands, next to the history | **Metro line** (08), **Powerline status line** (01), **Minimap rail** (11), **Top bar with drawer** (12), **Neon ticker** (18), **No status display** |
 | Approval | Where approval and password requests are answered | **In the history** |
 | Arrangement | Where the parts are placed | **Fixed** |
 
@@ -54,6 +54,17 @@ A slim bar below the terminal draws the run as a metro line: one station per com
 
 The bar fades out a few seconds after the last run ended; the delay is set in the dialog. *View → AI Agent Panel → Show or Hide Status Bar* brings it back or hides it.
 
+## More status displays
+
+Like the **Metro line** (08), every display here follows the terminal's run that waits for input, or else its newest run still in progress, and fades out after the last run ended. *View → AI Agent Panel → Show or Hide Status Bar* brings any of them back or hides it. A display above or beside the terminal takes its room from the terminal while it is shown.
+
+![The four status displays beside the blocks in the terminal, each waiting for an approval: the Powerline status line with its steps unfolded, the top bar with its drawer, the minimap rail with a lens and the neon ticker](../assets/screenshots/plugins/ai-agent-status-designs.png)
+
+- **Powerline status line (01)** — One line below the terminal in powerline style: the agent, the step it works on with a spinner, how many commands it ran, the tokens and the time. ▴ unfolds the run's steps over the lowest terminal lines and ▾ folds them again; an open approval unfolds them by itself.
+- **Top bar with drawer (12)** — A bar above the terminal, out of the way of the prompt and the newest output. A shimmering line shows that the agent works and turns green or red when the run ends; below it, the number of commands and the current step. ▾ drops the steps down over the older output.
+- **Minimap rail (11)** — A narrow rail at the right edge of the terminal with one coloured segment per step: blue for commands, violet for analysis, amber for questions, red for errors. The running step glows. Pointing at a segment shows a lens with the step, its result and the first lines of its detail. The rail has no buttons; ++esc++ cancels the run.
+- **Neon ticker (18)** — A bar in the style of a split-flap display below the terminal in the neon look of korTTY's logo: every new step rolls into its window, an open question glows amber with its keys, and the light at the left pulses while the agent works. On a light theme the bar uses the colours of that theme.
+
 ## Approvals and passwords
 
 With blocks in the terminal, an approval or a password request also opens a row below the terminal. For an approval it shows the commands and the buttons **1 Allow Once**, **2 Allow Always** and **3 Cancel**. For a password it has a masked field, **Use for this SSH session** and **OK**; ++enter++ submits and ++esc++ cancels. The classic panel keeps its own prompts.
@@ -62,8 +73,8 @@ With blocks in the terminal, an approval or a password request also opens a row 
 
 | Option | Effect |
 | --- | --- |
-| Hide the status bar after a run after (seconds, 0 = keep) | How long the metro line stays after the last run ended; 0 keeps it until you hide it. Default: 6 seconds. |
-| Reduce animations | Turns off the pulsing station, the moving light and the spinner in the block. |
+| Hide the status bar after a run after (seconds, 0 = keep) | How long the status display stays after the last run ended; 0 keeps it until you hide it. Default: 6 seconds. |
+| Reduce animations | Turns off the pulsing station and the moving light of the **Metro line**, the spinners, the shimmer of the **Top bar with drawer**, the rolling and glowing of the **Neon ticker** and the lens animation of the **Minimap rail**. |
 
 ## A design per connection
 

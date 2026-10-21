@@ -2,11 +2,9 @@ package de.kortty.ui;
 
 import de.kortty.agentdesign.MetroStationModel;
 import javafx.animation.Animation;
-import javafx.animation.FadeTransition;
 import javafx.animation.Interpolator;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
-import javafx.animation.PauseTransition;
 import javafx.animation.ScaleTransition;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
@@ -33,37 +31,25 @@ import java.util.List;
  * step. Finished stations are filled, the current one pulses, an open question glows amber, and a light
  * travels along the line as the run moves on. The bar fades out a few seconds after the last run ends.
  */
-final class AgentDesignMetroBar extends HBox {
+final class AgentDesignMetroBar extends HBox implements AgentStatusPresenter {
 
     static final double BAR_HEIGHT = 52.0;
     private static final double STATION_SPACING = 58.0;
     private static final double STATION_RADIUS = 6.0;
     private static final double RAIL_Y = 18.0;
 
-    /** What the bar's buttons do; the host decides for which run. */
-    interface Actions {
-        void togglePause();
-
-        void cancel();
-
-        void hide();
-    }
-
     /** Colours of the line, from the agent palette of the terminal's theme. */
     record Colors(Color accent, Color rail, Color muted, Color ok, Color warn, Color error, Color background) {
 
-        static Colors of(ThemeCssSupport.AgentActivityColors palette) {
-            Color background = Color.web(palette.backgroundColor());
-            boolean dark = 0.299 * background.getRed() + 0.587 * background.getGreen() + 0.114 * background.getBlue() < 0.5;
-            Color accent = Color.web(palette.accentColor());
+        static Colors of(AgentDesignPalette palette) {
             return new Colors(
-                accent,
-                Color.web(palette.borderColor()).interpolate(accent, 0.15),
-                Color.web(palette.mutedTextColor()),
-                dark ? Color.web("#3FB68B") : Color.web("#1F8A5F"),
-                dark ? Color.web("#E5A84B") : Color.web("#B7791F"),
-                Color.web(palette.errorColor()),
-                background);
+                palette.accent(),
+                palette.border().interpolate(palette.accent(), 0.15),
+                palette.muted(),
+                palette.ok(),
+                palette.warn(),
+                palette.error(),
+                palette.background());
         }
     }
 
@@ -76,13 +62,12 @@ final class AgentDesignMetroBar extends HBox {
     private final Button pauseButton = iconButton("⏸", I18n.get("ai.agent.control.pauseRun"));
     private final Button cancelButton = iconButton("■", I18n.get("dialog.cancel"));
     private final Button hideButton = iconButton("✕", I18n.get("aiAgentDesign.metro.hide"));
-    private final PauseTransition autoHideDelay = new PauseTransition();
-    private final FadeTransition fadeOut = new FadeTransition(Duration.millis(250), this);
+    private final AgentStatusVisibility visibility = new AgentStatusVisibility(this);
     private final Timeline busyPulse;
     private boolean reducedAnimations;
-    private Colors colors = Colors.of(ThemeCssSupport.resolveAgentActivityColors(null));
+    private Colors colors = Colors.of(AgentDesignPalette.of((de.kortty.model.Theme) null));
 
-    AgentDesignMetroBar(Actions actions) {
+    AgentDesignMetroBar(AgentStatusPresenter.Actions actions) {
         getStyleClass().add("ai-agent-design-bar");
         setAlignment(Pos.CENTER_LEFT);
         setSpacing(10);
@@ -129,37 +114,44 @@ final class AgentDesignMetroBar extends HBox {
             new KeyFrame(Duration.millis(800), new KeyValue(busyDot.opacityProperty(), 0.35, Interpolator.EASE_BOTH)));
         busyPulse.setAutoReverse(true);
         busyPulse.setCycleCount(Animation.INDEFINITE);
-        autoHideDelay.setOnFinished(event -> fadeOut.playFromStart());
-        fadeOut.setFromValue(1.0);
-        fadeOut.setToValue(0.0);
-        fadeOut.setOnFinished(event -> {
-            setVisible(false);
-            setManaged(false);
-            setOpacity(1.0);
+        visibility.setOnHidden(() -> {
+            busyPulse.stop();
+            line.stopAnimations();
         });
-        setVisible(false);
-        setManaged(false);
     }
 
-    void setColors(Colors colors) {
-        this.colors = colors;
+    @Override
+    public Slot slot() {
+        return Slot.BOTTOM;
+    }
+
+    @Override
+    public Region node() {
+        return this;
+    }
+
+    @Override
+    public void applyPalette(AgentDesignPalette palette) {
+        this.colors = Colors.of(palette);
         line.requestLayout();
         line.redraw();
     }
 
-    void setReducedAnimations(boolean reducedAnimations) {
+    @Override
+    public void setReducedAnimations(boolean reducedAnimations) {
         this.reducedAnimations = reducedAnimations;
         line.redraw();
+    }
+
+    @Override
+    public void show(View view) {
+        show(view.prompt(), view.stations(), view.meta(), view.running(), view.paused(), view.activeRuns());
     }
 
     /** Shows the run the bar follows. */
     void show(String promptText, MetroStationModel model, String metaText, boolean running, boolean paused,
               int activeRuns) {
-        autoHideDelay.stop();
-        fadeOut.stop();
-        setOpacity(1.0);
-        setVisible(true);
-        setManaged(true);
+        visibility.show();
         prompt.setText(promptText);
         prompt.setTooltip(promptText == null || promptText.isBlank() ? null : new Tooltip(promptText));
         meta.setText(metaText);
@@ -182,28 +174,19 @@ final class AgentDesignMetroBar extends HBox {
         line.setModel(model);
     }
 
-    /** Fades the bar out after {@code seconds}; 0 keeps it. */
-    void scheduleAutoHide(int seconds) {
-        autoHideDelay.stop();
-        if (seconds <= 0 || !isVisible()) {
-            return;
-        }
-        autoHideDelay.setDuration(Duration.seconds(seconds));
-        autoHideDelay.playFromStart();
+    @Override
+    public void scheduleAutoHide(int seconds) {
+        visibility.scheduleHide(seconds);
     }
 
-    void hideNow() {
-        autoHideDelay.stop();
-        fadeOut.stop();
-        busyPulse.stop();
-        line.stopAnimations();
-        setVisible(false);
-        setManaged(false);
-        setOpacity(1.0);
+    @Override
+    public void hideNow() {
+        visibility.hideNow();
     }
 
-    boolean isShowing() {
-        return isVisible() && isManaged();
+    @Override
+    public boolean isShowing() {
+        return visibility.isShowing();
     }
 
     private static Button iconButton(String text, String tooltip) {

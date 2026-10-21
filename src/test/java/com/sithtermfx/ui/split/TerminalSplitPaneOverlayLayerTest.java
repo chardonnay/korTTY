@@ -47,9 +47,11 @@ public class TerminalSplitPaneOverlayLayerTest {
             assertThat(layer.viewOrder()).isLessThan(previous);
             previous = layer.viewOrder();
         }
-        assertWithMessage("links, then the focus ring and badges, then the drop zones of a pane move on top")
+        assertWithMessage("links, then the focus ring and badges, then a KI-Agent design's step lists, then the"
+                + " drop zones of a pane move on top")
             .that(List.of(PaneOverlayLayer.values()))
-            .containsExactly(PaneOverlayLayer.LINKS, PaneOverlayLayer.DECORATION, PaneOverlayLayer.DROP_ZONES)
+            .containsExactly(PaneOverlayLayer.LINKS, PaneOverlayLayer.DECORATION, PaneOverlayLayer.AGENT,
+                PaneOverlayLayer.DROP_ZONES)
             .inOrder();
     }
 
