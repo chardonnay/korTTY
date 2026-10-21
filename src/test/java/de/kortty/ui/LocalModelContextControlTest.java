@@ -16,11 +16,11 @@ class LocalModelContextControlTest {
     }
 
     @Test
-    void newChatModelsStartWithAtLeast128kUnlessTrainedForLess() {
-        assertThat(de.kortty.ai.llama.LlamaModel.DEFAULT_CONTEXT_SIZE).isAtLeast(128_000);
-        assertThat(de.kortty.ai.llama.LlamaModel.defaultContextSizeFor(-1)).isEqualTo(131_072);
-        assertThat(de.kortty.ai.llama.LlamaModel.defaultContextSizeFor(262_144)).isEqualTo(131_072);
-        assertThat(de.kortty.ai.llama.LlamaModel.defaultContextSizeFor(40_960)).isEqualTo(40_960);
+    void newChatModelsStartWith32kUnlessTrainedForLess() {
+        assertThat(de.kortty.ai.llama.LlamaModel.DEFAULT_CONTEXT_SIZE).isEqualTo(32_768);
+        assertThat(de.kortty.ai.llama.LlamaModel.defaultContextSizeFor(-1)).isEqualTo(32_768);
+        assertThat(de.kortty.ai.llama.LlamaModel.defaultContextSizeFor(131_072)).isEqualTo(32_768);
+        assertThat(de.kortty.ai.llama.LlamaModel.defaultContextSizeFor(8_192)).isEqualTo(8_192);
     }
 
     @Test
