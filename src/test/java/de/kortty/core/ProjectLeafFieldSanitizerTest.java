@@ -135,6 +135,28 @@ class ProjectLeafFieldSanitizerTest {
     }
 
     @Test
+    void aProjectFileNeverChoosesTheCommandOfAnUnsavedLocalShell() {
+        Project shared = new Project("shared");
+        Project snapshot = new Project("session");
+        for (Project project : new Project[] {shared, snapshot}) {
+            WindowState window = new WindowState("window");
+            SessionState session = new SessionState("session", "transient-id");
+            session.setLocalShell(true);
+            session.setLocalShellCommand("calc.exe");
+            window.addTab(session);
+            project.addWindow(window);
+        }
+
+        ProjectLeafFieldSanitizer.sanitize(shared, ProjectLeafFieldSanitizer.Source.PROJECT_FILE);
+        ProjectLeafFieldSanitizer.sanitize(snapshot, ProjectLeafFieldSanitizer.Source.SESSION_SNAPSHOT);
+
+        SessionState sharedTab = shared.getWindows().get(0).getTabs().get(0);
+        assertThat(sharedTab.getLocalShell()).isTrue();
+        assertThat(sharedTab.getLocalShellCommand()).isNull();
+        assertThat(snapshot.getWindows().get(0).getTabs().get(0).getLocalShellCommand()).isEqualTo("calc.exe");
+    }
+
+    @Test
     void theTabsOwnScrollbackFileIsSessionOnlyToo() {
         Project shared = projectWithTabScrollback("3f2a9c4e-0d1b-4c8e");
         ProjectLeafFieldSanitizer.sanitize(shared, ProjectLeafFieldSanitizer.Source.PROJECT_FILE);

@@ -98,6 +98,8 @@ public final class ProjectLeafFieldSanitizer {
         if (source == Source.PROJECT_FILE) {
             session.setCurrentDirectory(null);
             session.setScrollbackRef(null);
+            // Opens the default local shell instead: a shared project must not choose what runs.
+            session.setLocalShellCommand(null);
             return;
         }
         session.setCurrentDirectory(SessionWorkingDirectory.forSnapshot(session.getCurrentDirectory()));
