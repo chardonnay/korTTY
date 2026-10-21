@@ -14,7 +14,7 @@ public class GlobalSettingsAsyncSaveTest {
     void legacyToolbarMigrationPersistsOnceAndLaterRemovalSurvivesReload() throws Exception {
         var directory = Files.createTempDirectory("kortty-toolbar-migration-test");
         Files.writeString(directory.resolve(GlobalSettingsManager.SETTINGS_FILE),
-            "<globalSettings><iconToolbar visible=\"false\">"
+            "<globalSettings><iconToolbar visible=\"false\" connectionManagerMigrated=\"true\">"
                 + "<entry id=\"video\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.videoManager\"/>"
                 + "<entry id=\"shell\" kind=\"ACTION\" section=\"TERMINAL\" target=\"toolbar.localShell\"/>"
                 + "</iconToolbar></globalSettings>");

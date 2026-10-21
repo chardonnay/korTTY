@@ -15,6 +15,7 @@ import java.util.UUID;
 public final class IconToolbarSettings {
     public enum Section { TERMINAL, TOOLS, SETTINGS, CONNECTIONS }
     public enum Kind { ACTION, CONNECTION, GROUP, SEPARATOR }
+    private static final String CONNECTION_MANAGER = "menu.connections.manage";
 
     @XmlAttribute
     private boolean visible = true;
@@ -22,6 +23,8 @@ public final class IconToolbarSettings {
     private Boolean connectionsVisible;
     @XmlAttribute
     private boolean logfileManagerMigrated = true;
+    @XmlAttribute
+    private boolean connectionManagerMigrated = true;
     @XmlElement(name = "entry")
     private List<Entry> entries = new ArrayList<>();
 
@@ -31,29 +34,47 @@ public final class IconToolbarSettings {
         visible = source.visible;
         connectionsVisible = source.isConnectionsVisible();
         logfileManagerMigrated = source.logfileManagerMigrated;
+        connectionManagerMigrated = source.connectionManagerMigrated;
         entries = new ArrayList<>(source.entries());
     }
 
-    /** A missing XML marker identifies layouts saved before the logfile-manager default. */
+    /** Missing XML markers identify layouts saved before the logfile- and connection-manager defaults. */
     private void beforeUnmarshal(Unmarshaller unmarshaller, Object parent) {
         logfileManagerMigrated = false;
+        connectionManagerMigrated = false;
     }
 
     private void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
-        if (logfileManagerMigrated) return;
-        logfileManagerMigrated = true;
-        entries = new ArrayList<>(entries());
-        if (entries.stream().anyMatch(entry -> entry.kind == Kind.ACTION
-                && "menu.tools.logfileManager".equals(entry.target))) return;
-
-        int insertionIndex = entries.size();
-        for (int index = 0; index < entries.size(); index++) {
-            Entry entry = entries.get(index);
-            if (entry.section != Section.TOOLS) continue;
-            insertionIndex = index + 1;
-            if (entry.kind == Kind.ACTION && "menu.tools.sessionJournals".equals(entry.target)) break;
+        if (!logfileManagerMigrated) {
+            logfileManagerMigrated = true;
+            entries = new ArrayList<>(entries());
+            if (!containsAction("menu.tools.logfileManager")) {
+                int insertionIndex = entries.size();
+                for (int index = 0; index < entries.size(); index++) {
+                    Entry entry = entries.get(index);
+                    if (entry.section != Section.TOOLS) continue;
+                    insertionIndex = index + 1;
+                    if (entry.kind == Kind.ACTION && "menu.tools.sessionJournals".equals(entry.target)) break;
+                }
+                entries.add(insertionIndex, Entry.action("menu.tools.logfileManager", Section.TOOLS));
+            }
         }
-        entries.add(insertionIndex, Entry.action("menu.tools.logfileManager", Section.TOOLS));
+        if (!connectionManagerMigrated) {
+            connectionManagerMigrated = true;
+            entries = new ArrayList<>(entries());
+            if (!containsAction(CONNECTION_MANAGER)) {
+                // Leads the Tools section, as in the default layout; without Tools it starts a new one.
+                int insertionIndex = entries.size();
+                for (int index = 0; index < entries.size(); index++) {
+                    if (entries.get(index).section == Section.TOOLS) { insertionIndex = index; break; }
+                }
+                entries.add(insertionIndex, Entry.action(CONNECTION_MANAGER, Section.TOOLS));
+            }
+        }
+    }
+
+    private boolean containsAction(String target) {
+        return entries.stream().anyMatch(entry -> entry.kind == Kind.ACTION && target.equals(entry.target));
     }
 
     public boolean isVisible() { return visible; }
@@ -80,7 +101,7 @@ public final class IconToolbarSettings {
         IconToolbarSettings settings = new IconToolbarSettings();
         settings.entries.add(Entry.action("menu.file.newTab", Section.TERMINAL));
         settings.entries.add(Entry.action("toolbar.localShell", Section.TERMINAL));
-        for (String id : List.of("menu.connections.sftpClient", "menu.tools.snippets",
+        for (String id : List.of(CONNECTION_MANAGER, "menu.connections.sftpClient", "menu.tools.snippets",
                 "menu.tools.sessionJournals", "menu.tools.logfileManager", "menu.tools.aiManager",
                 "menu.tools.jobScheduler", "menu.tools.videoManager")) {
             settings.entries.add(Entry.action(id, Section.TOOLS));
