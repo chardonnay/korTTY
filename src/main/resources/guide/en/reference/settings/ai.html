@@ -1102,8 +1102,8 @@
 <tr>
 <td>Context window</td>
 <td>number + slider</td>
-<td>512 tokens up to the context the selected GGUF model was trained for (read from the file); available when Connection is Integrated llama.cpp. Pre-set to that maximum whenever the profile or the model is selected. The value belongs to the model, so it applies to every profile that uses it and is the same as <strong>Context size</strong> under <strong>Local Models &gt; Configure</strong>; a larger context needs more RAM or VRAM. Saving stops a loaded model so its next request starts it with the new size; a model that is answering a request keeps its size and korTTY says so</td>
-<td>the model's trained context</td>
+<td>512 tokens up to the context the selected GGUF model was trained for (read from the file); available when Connection is Integrated llama.cpp. Pre-set to 32,768 tokens (or the trained context when that is less) whenever the profile or the model is selected; a file that does not declare its trained context gets a range up to 131,072 tokens. The value belongs to the model, so it applies to every profile that uses it and is the same as <strong>Context size</strong> under <strong>Local Models &gt; Configure</strong>; a larger context needs more RAM or VRAM. Saving stops a loaded model so its next request starts it with the new size; a model that is answering a request keeps its size and korTTY says so</td>
+<td>32,768</td>
 <td>(model <code>contextSize</code> in <code>llm/models.xml</code>)</td>
 </tr>
 <tr>
