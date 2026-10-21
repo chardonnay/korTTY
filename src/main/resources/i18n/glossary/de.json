@@ -2147,6 +2147,18 @@
       "to": "**Die letzte automatische Sicherung ist fehlgeschlagen**",
       "scope": "markdown",
       "note": "The LLM drops the auxiliary verb; matches settings.backup.auto.status.lastError."
+    },
+    {
+      "from": "Bestätigungsdialog vor dem Senden von KI-Anfragen anzeigen",
+      "to": "Bestätigungsdialog vor dem Senden an die KI anzeigen",
+      "scope": "markdown",
+      "note": "settings.ai.confirmBeforeSend is 'Bestätigungsdialog vor dem Senden an die KI anzeigen'; the settings page's heading is 'KI-Agent im Terminal'."
+    },
+    {
+      "from": "[Terminal-KI-Agent](#ki-agent-im-terminal)",
+      "to": "[KI-Agent im Terminal](#ki-agent-im-terminal)",
+      "scope": "markdown",
+      "note": "settings.ai.confirmBeforeSend is 'Bestätigungsdialog vor dem Senden an die KI anzeigen'; the settings page's heading is 'KI-Agent im Terminal'."
     }
   ]
 }

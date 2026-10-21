@@ -7,7 +7,6 @@ import de.kortty.model.GlobalSettings;
 import de.kortty.model.LlamaRuntimeUpdatePolicy;
 import de.kortty.security.EncryptionService;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -16,7 +15,6 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -126,10 +124,7 @@ final class AiLocalPreferencesPane extends VBox {
         ButtonIcons.apply(save, ButtonIcons.SAVE);
         status.setWrapText(true);
         status.setStyle(MutedTextStyle.HINT);
-        HBox actions = new HBox(10, save, status);
-        actions.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(status, Priority.ALWAYS);
-        getChildren().addAll(sections, actions);
+        getChildren().addAll(sections, AiManagerSections.saveRow(save, status));
         refresh(List.of());
     }
 

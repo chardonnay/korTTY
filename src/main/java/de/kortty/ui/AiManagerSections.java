@@ -1,7 +1,9 @@
 package de.kortty.ui;
 
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -9,9 +11,11 @@ import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextAlignment;
 
 /**
  * The secondary tab strip inside an AI Manager section (the Profiles editor, Local AI) and the
@@ -72,5 +76,19 @@ final class AiManagerSections {
 
     static void addSeparator(GridPane grid) {
         grid.add(new Separator(), 0, grid.getRowCount(), 2, 1);
+    }
+
+    /**
+     * The row under a section's pages: its status text, then {@code save} at the right edge, above the
+     * dialog's Close button, as the Profiles editor places its Save.
+     */
+    static HBox saveRow(Button save, Label status) {
+        status.setMaxWidth(Double.MAX_VALUE);
+        status.setAlignment(Pos.CENTER_RIGHT);
+        status.setTextAlignment(TextAlignment.RIGHT);
+        HBox.setHgrow(status, Priority.ALWAYS);
+        HBox row = new HBox(10, status, save);
+        row.setAlignment(Pos.CENTER_RIGHT);
+        return row;
     }
 }
