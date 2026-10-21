@@ -4,6 +4,18 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "*Ansehen → KI-Agent-Panel",
+      "to": "*Ansicht → KI-Agent-Panel",
+      "scope": "markdown",
+      "note": "Uses the menu.view and menu.view.aiAgentPanel UI labels."
+    },
+    {
+      "from": "Verbindungseeditor",
+      "to": "Verbindungseditor",
+      "scope": "markdown",
+      "note": "The translator doubles the e of the connection editor."
+    },
+    {
       "from": "**Ansehen → Icon-Aktionsleiste**",
       "to": "**Ansicht → Icon-Aktionsleiste**",
       "scope": "markdown",

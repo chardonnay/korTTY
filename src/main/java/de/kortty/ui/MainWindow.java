@@ -2310,10 +2310,13 @@ public class MainWindow {
         Menu pluginsMenu = new Menu(I18n.get("menu.plugins"));
         MenuItem terminalEffects = menuItem("menu.plugins.terminalEffects");
         terminalEffects.setOnAction(event -> showTerminalEffectPluginManager());
+        MenuItem aiAgentDesign = menuItem("menu.plugins.aiAgentDesign");
+        aiAgentDesign.setOnAction(event -> showAgentDesignManager());
         if (!de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
             lockByPolicy(terminalEffects);
+            lockByPolicy(aiAgentDesign);
         }
-        pluginsMenu.getItems().add(terminalEffects);
+        pluginsMenu.getItems().addAll(terminalEffects, aiAgentDesign);
         return pluginsMenu;
     }
 
@@ -2467,7 +2470,15 @@ public class MainWindow {
             systemShowAiAgentLeftMenuItem = aiAgentLeftItem;
             systemShowAiAgentRightMenuItem = aiAgentRightItem;
         }
-        aiAgentPanelMenu.getItems().addAll(aiAgentBottomItem, aiAgentLeftItem, aiAgentRightItem);
+        MenuItem aiAgentStatusBarItem = menuItem("menu.view.aiAgentPanel.statusBar");
+        aiAgentStatusBarItem.setOnAction(e -> toggleAgentStatusBar());
+        MenuItem aiAgentDesignItem = menuItem("menu.view.aiAgentPanel.design");
+        aiAgentDesignItem.setOnAction(e -> showAgentDesignManager());
+        if (!de.kortty.policy.PolicyManager.effective().pluginsAllowed()) {
+            lockByPolicy(aiAgentDesignItem);
+        }
+        aiAgentPanelMenu.getItems().addAll(aiAgentBottomItem, aiAgentLeftItem, aiAgentRightItem,
+            new SeparatorMenuItem(), aiAgentStatusBarItem, aiAgentDesignItem);
 
         // Live journal panel: hidden by default, dockable left/right beside the terminal tabs.
         Menu journalLivePanelMenu = new Menu(I18n.get("menu.view.journalPanel"));
@@ -12053,7 +12064,7 @@ public class MainWindow {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
             return;
         }
-        AiAgentActivityTabsPanel activityPanel = terminalTab.getTerminalView().getTerminalAgentActivityPanel(resolvedRunContext);
+        AgentDesignHost activityPanel = terminalTab.getTerminalView().getTerminalAgentActivityPanel(resolvedRunContext);
         if (activityPanel == null) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
             return;
@@ -12112,7 +12123,8 @@ public class MainWindow {
             localUser,
             sshUser,
             connectionName);
-        activityPanel.beginRun(runId, scopedRequest.userPrompt(), cancelRun, pauseToggle, reloadRun, runMetadata);
+        activityPanel.beginRun(runId, scopedRequest.userPrompt(), cancelRun, pauseToggle, reloadRun, runMetadata,
+            resolveAgentDesignFor(runConnection));
         java.util.concurrent.atomic.AtomicBoolean agentResultJournaled =
             new java.util.concurrent.atomic.AtomicBoolean();
         long agentRunStartedNanos = System.nanoTime();
@@ -12129,6 +12141,7 @@ public class MainWindow {
                 terminalAgentService.runAgent(terminalTab, agentRunnerFor(resolvedRunContext), profile, aiService, scopedRequest, runId, new TerminalAgentService.RunUi() {
                     @Override
                     public void updateState(TerminalAgentModels.RunState state) {
+                        activityPanel.updateState(runId, state);
                         if (state != null && isTerminalAgentFinalPhase(state.phase())) {
                             TerminalNotificationPolicy.AiRunEvent endEvent =
                                 TerminalAttentionNotifier.agentEndEvent(state.phase());
@@ -12146,7 +12159,9 @@ public class MainWindow {
                                         (System.nanoTime() - agentRunStartedNanos) / 1_000_000L,
                                         agentTokensTotal.get());
                                 }
-                                if (scopedRequest.mirrorFinalAnswerToTerminal()) {
+                                // A design that draws into the terminal shows the answer in its own block.
+                                boolean shownByDesign = activityPanel.showFinalMessage(runId, message, state.phase());
+                                if (!shownByDesign && scopedRequest.mirrorFinalAnswerToTerminal()) {
                                     terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, message);
                                 }
                             }
@@ -12232,7 +12247,10 @@ public class MainWindow {
                         0L,
                         false,
                         true));
-                    terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, I18n.get("ai.agent.activity.cancelled"));
+                    if (!activityPanel.showFinalMessage(runId, I18n.get("ai.agent.activity.cancelled"),
+                        TerminalAgentModels.Phase.CANCELLED)) {
+                        terminalTab.getTerminalView().showAgentMessage(resolvedRunContext, I18n.get("ai.agent.activity.cancelled"));
+                    }
                     if (agentResultJournaled.compareAndSet(false, true)) {
                         appendAgentJournalEntry(terminalTab, scopedRequest.userPrompt(),
                             I18n.get("ai.agent.activity.cancelled"),
@@ -12268,6 +12286,26 @@ public class MainWindow {
         workerRef.set(worker);
         worker.setDaemon(true);
         worker.start();
+    }
+
+    /**
+     * The KI-Agent design combination a run on {@code connection} is shown in: the saved connection's own
+     * choice, else the global default (Plugins → KI-Agent Design). Read from the saved connection, so a
+     * change in the Connection Manager applies from the next run on.
+     */
+    private de.kortty.agentdesign.AgentDesignCombination resolveAgentDesignFor(@Nullable ServerConnection connection) {
+        String connectionDesignId = null;
+        if (connection != null) {
+            ServerConnection stored = connection.getId() != null && app.getConfigManager() != null
+                ? app.getConfigManager().getConnectionById(connection.getId())
+                : null;
+            connectionDesignId = stored != null ? stored.getAiAgentDesignId() : connection.getAiAgentDesignId();
+        }
+        GlobalSettings settings = app.getGlobalSettingsManager() != null ? app.getGlobalSettingsManager().getSettings() : null;
+        return de.kortty.agentdesign.AgentDesignResolver.resolve(
+            connectionDesignId,
+            settings != null ? settings.getAiAgentDesignDefaultId() : null,
+            settings != null ? settings.getAiAgentDesignCombinations() : java.util.List.of()).combination();
     }
 
     private AgentCommandRunner agentRunnerFor(TerminalView.TerminalAgentRunContext runContext) {
@@ -13547,6 +13585,37 @@ public class MainWindow {
         } catch (Exception e) {
             logger.error("Failed to show teamwork settings", e);
             showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    /** Plugins → KI-Agent Design: how agent runs are shown in the terminal. */
+    private void showAgentDesignManager() {
+        Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "ai_agent_design"));
+        try {
+            de.kortty.core.GlobalSettingsManager settingsManager = app.getGlobalSettingsManager();
+            if (settingsManager == null) {
+                showError(I18n.get("error.title"), I18n.get("plugin.initError"));
+                return;
+            }
+            if (toolTabsEnabled()) {
+                if (findAndSelectToolTab("aiAgentDesign") == null) {
+                    hostToolTab("aiAgentDesign", new AgentDesignPluginManagerDialog(stage, settingsManager), () -> { });
+                }
+                return;
+            }
+            new AgentDesignPluginManagerDialog(stage, settingsManager).showAndWait();
+        } catch (Exception e) {
+            logger.error("Failed to show the KI-Agent design manager", e);
+            showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    /** View → AI Agent Panel → status bar: shows or hides the KI-Agent status bar of the focused pane. */
+    private void toggleAgentStatusBar() {
+        TerminalTab tab = getActiveTerminalTab();
+        AgentDesignHost host = tab != null ? tab.getTerminalView().getTerminalAgentActivityPanel(null) : null;
+        if (host != null) {
+            host.toggleStatusBar();
         }
     }
 

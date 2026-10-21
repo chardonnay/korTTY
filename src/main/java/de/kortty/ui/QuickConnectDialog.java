@@ -993,6 +993,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         applySelectedTerminalEmulation(modified, selected);
         modified.setEncoding(selected.getEncoding());
         modified.setHighlightRuleSetId(selected.getHighlightRuleSetId());
+        modified.setAiAgentDesignId(selected.getAiAgentDesignId());
         modified.setShellIntegrationAutoInject(selected.isShellIntegrationAutoInject());
         modified.setPasteWarningMode(selected.getPasteWarningMode());
         modified.setPasteLineDelayMs(selected.getPasteLineDelayMs());

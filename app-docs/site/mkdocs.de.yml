@@ -80,6 +80,7 @@ nav:
       - features/local-models.md
       - features/rag.md
       - features/ai-tools.md
+      - features/ai-agent-designs.md
       - features/ai-swarm.md
       - features/security.md
       - features/session-isolation.md

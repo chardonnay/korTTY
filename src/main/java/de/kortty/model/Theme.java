@@ -272,26 +272,71 @@ public class Theme {
         return s;
     }
 
+    // Agent accent when the theme's cursor is too grey or too close to the background to stand in for it:
+    // the blue the AI chat and swarm views use, and a darker one that keeps its contrast on light themes.
+    private static final Rgb AGENT_ACCENT_DARK_FALLBACK = new Rgb(79, 156, 240);
+    private static final Rgb AGENT_ACCENT_LIGHT_FALLBACK = new Rgb(11, 99, 206);
+
     private AgentPanelColors deriveAgentPanelColors() {
         Rgb background = parseHexColor(getBackgroundColor(), new Rgb(30, 30, 30));
         Rgb foreground = parseHexColor(getForegroundColor(), new Rgb(255, 255, 255));
-        Rgb accent = deriveAccentColor(parseHexColor(getCursorColor(), new Rgb(24, 194, 110)), background);
         boolean dark = luminance(background) < 0.55;
+        Rgb fallbackAccent = dark ? AGENT_ACCENT_DARK_FALLBACK : AGENT_ACCENT_LIGHT_FALLBACK;
+        Rgb accent = deriveAccentColor(parseHexColor(getCursorColor(), fallbackAccent), background, fallbackAccent);
+        // The panel keeps the terminal's own background, lifted a touch on dark themes and tinted only
+        // faintly with the accent, so it reads as part of the terminal; the border carries the accent.
+        Rgb surface = dark ? mix(background, foreground, 0.03) : background;
         Rgb error = dark ? new Rgb(227, 106, 77) : new Rgb(180, 35, 24);
         return new AgentPanelColors(
-            toHex(mix(background, accent, dark ? 0.18 : 0.08)),
-            toHex(mix(background, accent, dark ? 0.42 : 0.30)),
+            toHex(mix(surface, accent, dark ? 0.07 : 0.05)),
+            toHex(mix(surface, accent, dark ? 0.30 : 0.22)),
             toHex(foreground),
             toHex(mix(foreground, background, dark ? 0.35 : 0.45)),
             toHex(accent),
             toHex(error));
     }
 
-    private static Rgb deriveAccentColor(Rgb cursor, Rgb background) {
+    private static Rgb deriveAccentColor(Rgb cursor, Rgb background, Rgb fallback) {
         if (saturation(cursor) >= 0.12 && contrastDistance(cursor, background) >= 55) {
             return cursor;
         }
-        return luminance(background) < 0.55 ? new Rgb(24, 194, 110) : new Rgb(8, 127, 91);
+        return fallback;
+    }
+
+    /**
+     * Clears every agent-panel color that still holds what korTTY derived for this theme before the blue
+     * palette (green fallback accent, strong accent tint), so {@link #initializeAgentPanelColorsIfMissing}
+     * derives it anew; colors the user picked are kept. The old formulas are frozen here for that purpose.
+     *
+     * @return whether any color was cleared
+     */
+    public boolean clearLegacyDerivedAgentPanelColors() {
+        Rgb background = parseHexColor(getBackgroundColor(), new Rgb(30, 30, 30));
+        Rgb foreground = parseHexColor(getForegroundColor(), new Rgb(255, 255, 255));
+        boolean dark = luminance(background) < 0.55;
+        Rgb legacyFallback = dark ? new Rgb(24, 194, 110) : new Rgb(8, 127, 91);
+        Rgb accent = deriveAccentColor(parseHexColor(getCursorColor(), new Rgb(24, 194, 110)), background, legacyFallback);
+        String legacyBackground = toHex(mix(background, accent, dark ? 0.18 : 0.08));
+        String legacyBorder = toHex(mix(background, accent, dark ? 0.42 : 0.30));
+        String legacyAccent = toHex(accent);
+        boolean cleared = false;
+        if (sameColor(agentPanelBackgroundColor, legacyBackground)) {
+            agentPanelBackgroundColor = null;
+            cleared = true;
+        }
+        if (sameColor(agentPanelBorderColor, legacyBorder)) {
+            agentPanelBorderColor = null;
+            cleared = true;
+        }
+        if (sameColor(agentPanelAccentColor, legacyAccent)) {
+            agentPanelAccentColor = null;
+            cleared = true;
+        }
+        return cleared;
+    }
+
+    private static boolean sameColor(String stored, String derived) {
+        return stored != null && stored.trim().equalsIgnoreCase(derived);
     }
 
     private static Rgb parseHexColor(String color, Rgb fallback) {

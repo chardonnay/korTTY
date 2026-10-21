@@ -117,6 +117,8 @@ korTTY includes a set of built-in color themes (e.g., Default, Dark Mode, Solari
 !!! warning
     Built-in themes can be edited but not deleted, and korTTY does not restore their original colors on its own. To keep the original, duplicate the theme first and edit the custom copy.
 
+A theme's **Terminal AI agent panel** colors start out derived from its terminal colors: the panel keeps the terminal's background with a faint tint of an accent color, which is the theme's cursor color, or blue when the cursor is white or grey. The AI agent's [designs](../../features/ai-agent-designs.md#colours) use them.
+
 ### Theme preview
 
 To the right of the list, a mock terminal screen shows what a session looks like in the selected theme: a prompt and an `ls --color` listing (directories, an executable, a symlink and an archive in their usual colors), a `git status`, a compiler warning and error, a test summary, a row of all sixteen ANSI colors (normal, then bright) and a second prompt with the cursor in the theme's cursor color and shape (block, underline or bar). Background and text use the theme's colors; the font is the theme's own when **applying a theme also changes font family and size** is on, otherwise the Font tab's. The sixteen ANSI colors are taken from the Colors tab as it is set right now, unsaved changes included, so you can judge a theme and a palette together before saving. Below the mock, three swatches show the AI agent panel's background, run and error colors, which do not appear in a terminal session. The preview updates when you select, add, edit or duplicate a theme.

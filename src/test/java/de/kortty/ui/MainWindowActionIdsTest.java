@@ -229,7 +229,7 @@ class MainWindowActionIdsTest {
             "private Menu createToolsMenu() {", List.of("sessionJournals", "toggleSessionJournal", "journalScreenshot"),
             "private Menu createAiMenu() {", List.of("savedChats", "aiAgent", "aiPlanning", "aiSwarm"),
             "private Menu createTeamworkMenu() {", List.of("teamworkSettings"),
-            "private Menu createPluginsMenu() {", List.of("terminalEffects"));
+            "private Menu createPluginsMenu() {", List.of("terminalEffects", "aiAgentDesign"));
         for (Map.Entry<String, List<String>> entry : locked.entrySet()) {
             String body = methodBody(source, entry.getKey());
             assertThat(body).contains("PolicyManager.effective()");
