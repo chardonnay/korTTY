@@ -822,7 +822,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="ki-agent-designs">KI-Agent-Designs<a class="headerlink" href="#ki-agent-designs" title="Permanent link">&para;</a></h1>
-<p><em>Plugins → KI-Agent Design</em> bestimmt, wie die Ausführungen des Terminal-<a href="ai-tools.html">KI-Agent</a> angezeigt werden: als Block im Terminal selbst, in einer schmalen Leiste darunter oder darüber, auf einer Schiene daneben, im klassischen Aktivitäts-Panel oder in einer Kombination davon. Eine <strong>Kombination</strong> wählt für jede Rolle ein Design, und Sie können eine Kombination als Standard festlegen und einzelnen Verbindungen eine andere zuweisen.</p>
+<p><em>Plugins → KI-Agent Design</em> bestimmt, wie die Ausführungen des <a href="ai-tools.html">KI-Agent</a> im Terminal angezeigt werden: als Zeilen im Terminal selbst, in einer schmalen Leiste darunter oder darüber, auf einer Schiene oder in einer Spalte daneben, als Karte, die darüber schwebt, im klassischen Aktivitäts-Panel oder in einer Kombination davon. Eine <strong>Kombination</strong> wählt für jede Rolle ein Design aus, und Sie können eine Kombination als Standard festlegen und einzelnen Verbindungen eine andere zuweisen.</p>
 <p><img alt="AI Agent Design with the standard combination: the live preview shows a sample run as a block in the terminal, waiting for an approval, with the metro line and the approval row below" src="../../en/assets/screenshots/plugins/ai-agent-design.png" /></p>
 <p>Öffnen Sie es über <em>Plugins → KI-Agent Design</em> oder <em>Ansicht → KI-Agent-Panel → Design...</em>. Wenn <em>Tool-Fenster als Tabs öffnen</em> aktiviert ist, wird es als Tab des Hauptfensters geöffnet. Eine Organisationsrichtlinie, die Plugins nicht zulässt, sperrt beide Einträge.</p>
 <h2 id="rollen-und-designs">Rollen und Designs<a class="headerlink" href="#rollen-und-designs" title="Permanent link">&para;</a></h2>
@@ -838,27 +838,27 @@
 <tbody>
 <tr>
 <td>Verlauf</td>
-<td>Wo die Schritte eines Laufs aufgeführt sind</td>
-<td><strong>Blöcke im Terminal</strong> (03), <strong>Klassisches Panel</strong></td>
+<td>Hier werden die Schritte eines Laufs aufgelistet</td>
+<td><strong>Blöcke im Terminal</strong> (03), <strong>Zeitachse an der Seite</strong> (02), <strong>Plan und Ausführung</strong> (06), <strong>Kartenstapel</strong> (07), <strong>tmux-Bereich</strong> (09), <strong>Gesprächsverlauf</strong> (13), <strong>Protokoll-Tabelle</strong> (16), <strong>Fokus-Modus</strong> (17), <strong>Klassisches Panel</strong></td>
 </tr>
 <tr>
 <td>Status</td>
 <td>Eine kompakte Anzeige des aktuellen Standes der Ausführung, neben dem Verlauf</td>
-<td><strong>Linienplan</strong> (08), <strong>Powerline-Statuszeile</strong> (01), <strong>Minimap-Schiene</strong> (11), <strong>Kopfleiste mit Schublade</strong> (12), <strong>Neon-Laufschrift</strong> (18), <strong>Keine Statusanzeige</strong></td>
+<td><strong>Linienplan</strong> (08), <strong>Powerline-Statuszeile</strong> (01), <strong>Minimap-Schiene</strong> (11), <strong>Kopfleiste mit Schublade</strong> (12), <strong>Neon-Laufschrift</strong> (18), <strong>Milchglas-HUD</strong> (04), <strong>Spotlight und Pille</strong> (05), <strong>Meldungen am Rand</strong> (10), <strong>Orbit-Anzeige</strong> (15), <strong>Keine Statusanzeige</strong></td>
 </tr>
 <tr>
 <td>Freigabe</td>
-<td>Wo Freigaben und Passwortanfragen beantwortet werden</td>
-<td><strong>Im Verlauf</strong></td>
+<td>Wo Freigabe-Anfragen beantwortet werden</td>
+<td><strong>Im Verlauf</strong>, <strong>Vorschlag an der Cursorzeile</strong> (14)</td>
 </tr>
 <tr>
 <td>Anordnung</td>
 <td>Wo die Teile platziert werden</td>
-<td><strong>Fest</strong></td>
+<td><strong>Fest</strong>, <strong>Bild im Bild</strong> (19), <strong>Mitdenkendes Dock</strong> (20)</td>
 </tr>
 </tbody>
 </table>
-<p>Die anderen nummerierten Designs sind mit <em>(folgt)</em> aufgeführt und können noch nicht angekreuzt werden. Eine Kombination, die von einer neueren korTTY gespeichert wird und eines davon benennt, verwendet das Design der Standardkombination für diese Rolle.</p>
+<p>Eine von einer neueren korTTY-Version gespeicherte Kombination, die ein Design benennt, das diese Version nicht kennt, verwendet stattdessen das Design der Standardkombination für diese Rolle.</p>
 <h2 id="kombinationen">Kombinationen<a class="headerlink" href="#kombinationen" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -906,8 +906,40 @@
 <li><strong>Minimap-Schiene (11)</strong> — Eine schmale Schiene am rechten Rand des Terminals mit einem farbigen Segment pro Schritt: blau für Befehle, violett für Analysen, bernsteinfarben für Fragen, rot für Fehler. Der laufende Schritt leuchtet. Beim Zeigen auf ein Segment wird eine Linse mit dem Schritt, seinem Ergebnis und den ersten Zeilen seiner Details angezeigt. Die Schiene hat keine Schaltflächen; <span class="keys"><kbd class="key-escape">Esc</kbd></span> bricht die Ausführung ab.</li>
 <li><strong>Neon-Laufschrift (18)</strong> — Eine Leiste im Stil einer Fallblattanzeige unterhalb des Terminals im Neon-Look des korTTY-Logos: Jeder neue Schritt rollt in sein Fenster, eine offene Frage leuchtet bernsteinfarben mit ihren Tasten, und das Licht links pulsiert, während der Agent arbeitet. Bei einem hellen Theme verwendet die Leiste die Farben dieses Themes.</li>
 </ul>
+<h2 id="verlaufs-panels">Verlaufs-Panels<a class="headerlink" href="#verlaufs-panels" title="Permanent link">&para;</a></h2>
+<p>Statt Zeilen im Terminal listen diese Designs den Lauf in einem Panel unter oder neben dem Terminal auf. Ein Panel bleibt nach dem Ende des Laufs erhalten, sodass sein Ergebnis weiterhin gelesen werden kann; ✕ blendet es bis zum nächsten Lauf aus, und <em>Ansicht → KI-Agent-Panel → Statusleiste ein- oder ausblenden</em> blendet es wieder ein. Jedes Panel zeigt eine offene Genehmigung mit ihren Schaltflächen, und die Tasten <strong>1</strong>, <strong>2</strong> und <strong>3</strong> beantworten sie ebenfalls im Terminal. Die Antwort wird wie zuvor auch in das Terminal geschrieben.</p>
+<p><img alt="The six history panels, each waiting for an approval: the side timeline, plan and execution, the card stack, the tmux pane, the conversation and the log table" src="../../en/assets/screenshots/plugins/ai-agent-history-panels.png" /></p>
+<ul>
+<li><strong>Zeitachse an der Seite (02)</strong> — Eine Spalte rechts neben dem Terminal mit einer vertikalen Linie und einem Knoten pro Schritt: Befehle in Blau, Analysen in Violett, eine offene Genehmigung in Bernstein mit ihren Buttons direkt am Knoten, die Antwort am Ende. Die Linie zeichnet sich zu jedem neuen Knoten und der laufende Knoten pulsiert. Das Terminal behält seine volle Höhe bei.</li>
+<li><strong>Plan und Ausführung (06)</strong> — Zwei Spalten unter dem Terminal. Links die Schritte des Laufs als Checkliste, deren Häkchen sich selbst zeichnen; rechts nur das, was gerade läuft: der Befehl mit seinem Exit-Code und seinen letzten Ausgabezeilen, eine offene Genehmigung oder nach dem Lauf die Antwort. Eine dünne Leiste oben füllt sich mit dem Fortschritt.</li>
+<li><strong>Kartenstapel (07)</strong> — Unterhalb des Terminals befindet sich eine schmale Spalte mit der Frage, dem Fortschritt und den Schaltflächen, und daneben ein Kartenstapel: der aktuelle Schritt ganz vorne, die beiden vorherigen schauen von hinten hervor. Das Mausrad blättert durch die älteren Schritte; eine Genehmigung ist die vordere Karte mit ihren Schaltflächen.</li>
+<li><strong>tmux-Bereich (09)</strong> — Ein Bereich rechts neben dem Terminal in der Schriftart und den Farben des Terminals, von Linien gerahmt: eine Zeile pro Schritt mit dessen Art (<code>ssh</code>, <code>read</code>, <code>run</code>, <code>think</code>), die Antwort, die hinter einem Block-Cursor ausgegeben wird, und eine blaue Statuszeile am unteren Rand. Er nimmt etwa 40 % der Breite ein.</li>
+<li><strong>Gesprächsverlauf (13)</strong> — Ein Chat in einer Spalte rechts neben dem Terminal: Ihre Frage rechts, der Agent links mit seinen Gedanken als Text und seinen Befehlen als Codeblöcke mit deren Exit-Code, die sich mit einem Klick zu ihrer Ausgabe aufklappen. Drei Punkte hüpfen, während er arbeitet. Das Feld unten stellt eine Anschlussfrage, die einen neuen Lauf im selben Terminal startet, sobald der aktuelle beendet ist.</li>
+<li><strong>Protokoll-Tabelle (16)</strong> — Eine dichte Tabelle unter dem Terminal mit der Zeit, Art, Schritt, Ergebnis, Dauer und Tokenzahl jedes Schritts. Eine neue Zeile blinkt blau, die laufende Zeile hat einen kleinen Spinner, und eine offene Genehmigung verschiebt ihre Schaltflächen in die Kopfzeile. Ein Doppelklick auf eine Zeile zeigt deren Ausgabe, auf der letzten Zeile die Antwort.</li>
+</ul>
+<h2 id="im-terminal-fokus-modus-und-die-cursorzeile">Im Terminal: Fokus-Modus und die Cursorzeile<a class="headerlink" href="#im-terminal-fokus-modus-und-die-cursorzeile" title="Permanent link">&para;</a></h2>
+<p><img alt="On the left focus mode, the agent's lines marked by a glowing bar while the rest of the terminal is dimmed; on the right the suggestion at the cursor line with its keys and the waiting line at the bottom" src="../../en/assets/screenshots/plugins/ai-agent-terminal-designs.png" /></p>
+<ul>
+<li><strong>Fokus-Modus (17)</strong> — Ein Verlaufs-Design, das in das Terminal schreibt, was der Agent tut, als hätte er es selbst eingegeben: jeder Befehl als <code>$ command</code> mit seinen letzten Ausgabezeilen, seine Schlussfolgerungen, eine offene Genehmigung mit ihren Tasten und nach dem Lauf die Antwort. Ein leuchtender Balken markiert diese Zeilen, ein Licht läuft darunter entlang, während der Agent arbeitet, und der Rest des Terminals wird abgedunkelt; die Zeile, die Sie eingeben, bleibt hell. Wenn der Lauf endet, wird das Terminal wieder heller und die Zeilen bleiben im Scrollback.</li>
+<li><strong>Vorschlag an der Cursorzeile (14)</strong> — Ein Genehmigungsdesign: Der Befehl, den der Agent ausführen möchte, erscheint als Geister-Text genau dort, wo Sie tippen, mit einem Hinweis darunter, und eine Zeile am unteren Rand des Terminals zeigt an, dass der Agent wartet. <span class="keys"><kbd class="key-enter">Enter</kbd></span> führt ihn einmal aus; <span class="keys"><kbd class="key-tab">Tab</kbd></span> übernimmt: Die Ausführung endet und der Befehl wird am Prompt eingegeben, damit Sie ihn bearbeiten können; <span class="keys"><kbd class="key-escape">Esc</kbd></span> lehnt ab. Die Tasten <strong>1</strong>, <strong>2</strong> und <strong>3</strong> antworten wie überall. Eine Passwortanfrage verwendet weiterhin die Zeile unter dem Terminal.</li>
+</ul>
+<h2 id="schwebende-anzeigen">Schwebende Anzeigen<a class="headerlink" href="#schwebende-anzeigen" title="Permanent link">&para;</a></h2>
+<p>Diese Status-Designs schweben über dem Terminal, das seine volle Größe beibehält. Sie bleiben von den Zeilen unterhalb des Terminals fern und werden nach Beendigung der letzten Ausführung ausgeblendet, wie die Balken.</p>
+<p><img alt="The four floating displays: the frosted glass HUD, the status pill, the toasts with an approval and the orbit" src="../../en/assets/screenshots/plugins/ai-agent-floating-designs.png" /></p>
+<ul>
+<li><strong>Milchglas-HUD (04)</strong> — Eine halbtransparente Karte über der unteren rechten Ecke mit der Frage, dem gerade ausgeführten Schritt, dem Fortschritt in Segmenten und den Tokens. Während Sie im Terminal tippen, blendet sie sich auf 35 % ab, damit der Text darunter lesbar bleibt. ⤢ faltet die Schritte der Ausführung darüber auf.</li>
+<li><strong>Spotlight und Pille (05)</strong> — Eine kleine Pille in der oberen rechten Ecke mit dem aktuellen Schritt, wie weit der Lauf fortgeschritten ist und der Zeit; ein Klick faltet die Schritte darunter aus. <em>Ansicht → KI-Agent-Panel → In Spotlight fragen …</em> öffnet ein Feld in der Mitte des Terminals, in dem Sie den Agenten befragen, mit dem zu verwendenden Profil und Ihren früheren Fragen auf <span class="keys"><kbd class="key-arrow-up">Up</kbd></span> und <span class="keys"><kbd class="key-arrow-down">Down</kbd></span>. <span class="keys"><kbd class="key-enter">Enter</kbd></span> startet den Lauf so, wie <code>agent …</code> es in der Shell würde, und das Feld schrumpft zur Pille.</li>
+<li><strong>Meldungen am Rand (10)</strong> — Jeder abgeschlossene Schritt erscheint als kurze Benachrichtigung unten rechts und verschwindet nach wenigen Sekunden wieder; ein Balken in jedem zeigt an, wann. Eine Genehmigung bleibt bis sie beantwortet wurde, mit ihren Schaltflächen. Ein Abzeichen zählt die Schritte; ein Klick darauf zeigt sie alle an.</li>
+<li><strong>Orbit-Anzeige (15)</strong> — Ein 72-Pixel-Kreis in der unteren rechten Ecke: Sein Ring füllt sich mit dem Fortschritt des Laufs, Punkte kreisen darum, während der Agent arbeitet, und in der Mitte werden die Schrittzahl und die Zeit angezeigt; ein Label daneben benennt den aktuellen Befehl. Ein Klick lässt die Schritte aus dem Kreis herausblühen.</li>
+</ul>
+<h2 id="anordnungen">Anordnungen<a class="headerlink" href="#anordnungen" title="Permanent link">&para;</a></h2>
+<p><img alt="On the left picture in picture with the run's steps and an approval, on the right picture in picture holding the log table" src="../../en/assets/screenshots/plugins/ai-agent-arrangements.png" /></p>
+<ul>
+<li><strong>Bild im Bild (19)</strong> — Ein kleines Fenster, das über dem Terminal schwebt. Ziehen Sie es am Titel, und es zeigt die vier Ecken, in die es sich bewegen kann, und springt beim Loslassen in die nächstgelegene. ⧉ macht es zu einem eigenen Fenster, beispielsweise für einen zweiten Bildschirm, und dockt es zurück; – faltet es auf seinen Titel zusammen, × blendet es bis zum nächsten Lauf aus. Mit einem Verlaufs-Panel in der Kombination hält das Fenster dieses Panel; andernfalls listet es die Schritte des Laufs und eine offene Genehmigung mit ihren Schaltflächen. Mehrere Läufe im selben Terminal werden zu Tabs.</li>
+<li><strong>Mitdenkendes Dock (20)</strong> — Wählt die Statusanzeige anhand der Terminalgröße: ein breites und hohes Terminal (ab 150 Spalten und 30 Zeilen) erhält die Zeitachse an der Seite, ein kleines (unter 70 Spalten oder 16 Zeilen) die Statuspille, alles dazwischen die Powerline-Statuszeile. Eine einmal gewählte Anzeige bleibt bestehen, bis die Größe eindeutig auf der anderen Seite liegt, sodass das Ziehen einer Aufteilung nicht zum Flackern führt. Nach dem letzten Lauf zeigt ein Countdown-Ring an, wie lange das Ergebnis bleibt.</li>
+</ul>
 <h2 id="genehmigungen-und-passworter">Genehmigungen und Passwörter<a class="headerlink" href="#genehmigungen-und-passworter" title="Permanent link">&para;</a></h2>
-<p>Bei Blöcken im Terminal öffnet eine Genehmigung oder eine Passwortanfrage zusätzlich eine Zeile unter dem Terminal. Bei einer Genehmigung werden die Befehle und die Schaltflächen <strong>1 Einmal erlauben</strong>, <strong>2 Immer erlauben</strong> und <strong>3 Abbrechen</strong> angezeigt. Bei einem Passwort gibt es ein maskiertes Feld, <strong>Für diese SSH-Sitzung verwenden</strong> und <strong>OK</strong>; <span class="keys"><kbd class="key-enter">Enter</kbd></span> bestätigt und <span class="keys"><kbd class="key-escape">Esc</kbd></span> bricht ab. Das klassische Panel behält seine eigenen Prompts.</p>
+<p>Eine Genehmigung wird im Terminal mit den Tasten <strong>1</strong> (einmal erlauben), <strong>2</strong> (immer erlauben) und <strong>3</strong> (abbrechen) oder mit Buttons beantwortet. Designs mit eigenen Buttons zeigen diese an: die Verlaufs-Panels, die Meldungen am Rand und das Bild-im-Bild-Fenster. Bei Blöcken im Terminal, im Fokus-Modus oder im Verlauf des klassischen Panels öffnet eine Genehmigung eine Zeile unter dem Terminal mit den Befehlen und den Buttons <strong>1 Einmal erlauben</strong>, <strong>2 Immer erlauben</strong> und <strong>3 Abbrechen</strong>. Eine Passwortanfrage öffnet diese Zeile immer, mit einem maskierten Feld, <strong>Für diese SSH-Sitzung verwenden</strong> und <strong>OK</strong>; <span class="keys"><kbd class="key-enter">Enter</kbd></span> sendet ab und <span class="keys"><kbd class="key-escape">Esc</kbd></span> bricht ab. Das klassische Panel behält seine eigenen Prompts bei.</p>
 <h2 id="optionen">Optionen<a class="headerlink" href="#optionen" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -923,7 +955,7 @@
 </tr>
 <tr>
 <td>Animationen reduzieren</td>
-<td>Schaltet die pulsierende Station und das bewegte Licht des <strong>Linienplans</strong>, die Spinner, das Schimmern der <strong>Kopfleiste mit Schublade</strong>, das Rollen und Leuchten der <strong>Neon-Laufschrift</strong> und die Linsenanimation der <strong>Minimap-Schiene</strong> aus.</td>
+<td>Schaltet die bewegten Elemente aller Designs ab: das Pulsieren der Station und das bewegte Licht des <strong>Linienplans</strong>, die Ladeindikatoren, das Schimmern der <strong>Kopfleiste mit Schublade</strong>, das Rollen und Leuchten der <strong>Neon-Laufschrift</strong>, die Linsen-Animation der <strong>Minimap-Schiene</strong>, das Gleiten, Ploppen und Blühen der Verlaufs-Panel und schwebenden Anzeigen, das Tippen im <strong>tmux-Bereich</strong> und der Geistertext, das Glas des <strong>Milchglas-HUD</strong> und das Verblassen des <strong>Fokus-Modus</strong>.</td>
 </tr>
 </tbody>
 </table>
