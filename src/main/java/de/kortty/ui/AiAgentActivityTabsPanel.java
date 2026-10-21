@@ -664,15 +664,28 @@ public class AiAgentActivityTabsPanel extends VBox {
     }
 
     private double parentHeight() {
-        if (getParent() instanceof Region region) {
-            return region.getHeight();
+        return containerHeight(getParent());
+    }
+
+    /**
+     * The height the panel shares with the terminal: that of the pane's column holding both. The KI-Agent
+     * design host wraps the panel and is only as tall as the panel itself, so it is looked through.
+     */
+    static double containerHeight(javafx.scene.Parent parent) {
+        javafx.scene.Parent container = parent;
+        while (container != null && container.getStyleClass().contains(AgentDesignHost.STYLE_CLASS)) {
+            container = container.getParent();
         }
-        return 0.0;
+        return container instanceof Region region ? region.getHeight() : 0.0;
     }
 
     private void requestContainerLayout() {
-        if (getParent() != null) {
-            getParent().requestLayout();
+        // Up to the pane's column: the design host in between only follows its content.
+        for (javafx.scene.Parent container = getParent(); container != null; container = container.getParent()) {
+            container.requestLayout();
+            if (!container.getStyleClass().contains(AgentDesignHost.STYLE_CLASS)) {
+                break;
+            }
         }
         requestLayout();
     }

@@ -48,6 +48,8 @@ import java.util.function.Consumer;
  */
 public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.TerminalSplitPane.PaneSideSlots {
 
+    /** Style class of the host, so the classic panel inside can look past it to the pane's column. */
+    static final String STYLE_CLASS = "ai-agent-design-host";
     private static final Logger logger = LoggerFactory.getLogger(AgentDesignHost.class);
     private static final int KEPT_FINISHED_RUNS = 5;
 
@@ -94,7 +96,7 @@ public class AgentDesignHost extends VBox implements com.sithtermfx.ui.split.Ter
 
     public AgentDesignHost(@Nullable AgentTerminalSurface surface) {
         this.surface = surface;
-        getStyleClass().add("ai-agent-design-host");
+        getStyleClass().add(STYLE_CLASS);
         setFillWidth(true);
         statusActions = new AgentStatusPresenter.Actions() {
             @Override
