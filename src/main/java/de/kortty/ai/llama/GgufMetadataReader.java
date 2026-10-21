@@ -8,19 +8,49 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
 
-/** Minimal bounded GGUF metadata reader used to discover an embedding model vector size. */
+/**
+ * Minimal bounded GGUF metadata reader used to discover an embedding model vector size and the
+ * context length a model was trained for.
+ */
 public final class GgufMetadataReader {
     private static final long MAX_METADATA_ENTRIES = 100_000;
     private static final long MAX_ARRAY_ELEMENTS = 10_000_000;
     private static final int MAX_STRING_BYTES = 16 * 1024 * 1024;
+    /** The largest context llama.cpp is started with; {@code LlamaModel} rejects anything above. */
+    private static final int MAX_CONTEXT_LENGTH = 2_097_152;
 
     private GgufMetadataReader() {
     }
 
     public static OptionalInt embeddingDimensions(Path gguf) throws IOException {
-        if (gguf == null || !Files.isRegularFile(gguf)) {
+        OptionalLong value = firstInteger(gguf, ".embedding_length");
+        if (value.isEmpty()) {
             return OptionalInt.empty();
+        }
+        if (value.getAsLong() > 0 && value.getAsLong() <= 65_536) {
+            return OptionalInt.of((int) value.getAsLong());
+        }
+        throw new IOException("Invalid GGUF embedding dimension: " + value.getAsLong());
+    }
+
+    /**
+     * The context length the model was trained for ({@code <arch>.context_length}), capped at the
+     * largest context korTTY starts llama.cpp with. Empty when the file does not declare it.
+     */
+    public static OptionalInt contextLength(Path gguf) throws IOException {
+        OptionalLong value = firstInteger(gguf, ".context_length");
+        if (value.isEmpty() || value.getAsLong() <= 0) {
+            return OptionalInt.empty();
+        }
+        return OptionalInt.of((int) Math.min(value.getAsLong(), MAX_CONTEXT_LENGTH));
+    }
+
+    /** The first integer metadata value whose key ends with {@code keySuffix}. */
+    private static OptionalLong firstInteger(Path gguf, String keySuffix) throws IOException {
+        if (gguf == null || !Files.isRegularFile(gguf)) {
+            return OptionalLong.empty();
         }
         try (InputStream input = new BufferedInputStream(Files.newInputStream(gguf))) {
             if (input.read() != 'G' || input.read() != 'G' || input.read() != 'U' || input.read() != 'F') {
@@ -35,16 +65,12 @@ public final class GgufMetadataReader {
             for (long index = 0; index < entries; index++) {
                 String key = string(input);
                 int type = (int) uint32(input);
-                if (key.endsWith(".embedding_length") && isIntegerType(type)) {
-                    long value = readInteger(input, type);
-                    if (value > 0 && value <= 65_536) {
-                        return OptionalInt.of((int) value);
-                    }
-                    throw new IOException("Invalid GGUF embedding dimension: " + value);
+                if (key.endsWith(keySuffix) && isIntegerType(type)) {
+                    return OptionalLong.of(readInteger(input, type));
                 }
                 skipValue(input, type, 0);
             }
-            return OptionalInt.empty();
+            return OptionalLong.empty();
         }
     }
 

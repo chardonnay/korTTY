@@ -74,6 +74,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -139,6 +140,12 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     private final Spinner<Integer> profileRequestTimeoutSpinner;
     private final CheckBox profileMaxOutputTokensOverrideCheck;
     private final Spinner<Integer> profileMaxOutputTokensSpinner;
+    private final LocalModelContextControl contextSizeControl = new LocalModelContextControl();
+    /** The embedded llama.cpp model the context control shows, or null for any other profile. */
+    private String contextSizeModelId;
+    /** Context sizes chosen in the editor, by model id, written to the models on save. */
+    private final Map<String, Integer> pendingContextSizes = new LinkedHashMap<>();
+    private final Map<java.nio.file.Path, Integer> trainedContextByModelFile = new HashMap<>();
     private final ComboBox<AiTokenizerType> tokenizerCombo;
     private final Spinner<Integer> tokenLimitAmountSpinner;
     private final ComboBox<AiTokenLimitUnit> tokenLimitUnitCombo;
@@ -590,8 +597,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             updateInternetAccessUi();
             updateTrustedLocalEndpointUi();
         });
-        modelCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) ->
-            refreshReasoningOptions(reasoningCombo.getValue()));
+        modelCombo.getEditor().textProperty().addListener((obs, oldValue, newValue) -> {
+            refreshReasoningOptions(reasoningCombo.getValue());
+            refreshContextSizeControl();
+        });
 
         // The editor header stays visible on every section: the name and the default-profile switch.
         GridPane headerGrid = AiManagerSections.formGrid();
@@ -839,6 +848,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         AiManagerSections.addRow(modelGrid, "settings.ai.model", modelBox);
         if (selectedConnectionMode() == AiConnectionMode.LOCAL_CLI) {
             AiManagerSections.addRow(modelGrid, "settings.ai.cli.customModel", cliCustomModelField);
+        }
+        if (selectedConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+            AiManagerSections.addRow(modelGrid, "settings.ai.contextSize", contextSizeControl.node());
         }
         AiManagerSections.addRow(modelGrid, "settings.ai.reasoning", reasoningBox);
         AiManagerSections.addRow(modelGrid, "settings.ai.vision", visionCombo);
@@ -1769,7 +1781,92 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         return AiCliProviderRegistry.isKnownDefaultArgumentTemplate(previousProviderId, currentTemplate);
     }
 
+    /**
+     * Shows the context size for the selected embedded llama.cpp model, pre-set to the context the
+     * model was trained for. Done again only when the model changes, so typing elsewhere keeps an
+     * edited value.
+     */
+    private void refreshContextSizeControl() {
+        String modelId = selectedConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP
+            ? trimToNull(modelEditorText())
+            : null;
+        if (Objects.equals(modelId, contextSizeModelId)) {
+            return;
+        }
+        contextSizeModelId = null;
+        if (modelId == null) {
+            return;
+        }
+        try {
+            de.kortty.ai.llama.LlamaModelRegistry
+                .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
+                .find(modelId)
+                .ifPresent(model -> {
+                    contextSizeControl.showMaximum(trainedContextLength(model));
+                    contextSizeModelId = model.getId();
+                });
+        } catch (RuntimeException error) {
+            logger.debug("Could not read local model {} for its context size: {}", modelId, error.getMessage());
+        }
+    }
+
+    /** The context the model was trained for, or its configured size when the file does not say. */
+    private int trainedContextLength(de.kortty.ai.llama.LlamaModel model) {
+        int fallback = model.getContextSize() > 0 ? model.getContextSize() : de.kortty.ai.llama.LlamaModel.DEFAULT_CONTEXT_SIZE;
+        return trainedContextByModelFile.computeIfAbsent(model.getModelPath(), path -> {
+            try {
+                return de.kortty.ai.llama.GgufMetadataReader.contextLength(path).orElse(fallback);
+            } catch (java.io.IOException error) {
+                logger.debug("Could not read the context length of {}: {}", path, error.getMessage());
+                return fallback;
+            }
+        });
+    }
+
+    /**
+     * Writes the context sizes chosen in the editor to their models. A loaded model is stopped first
+     * so its next request starts it with the new size; one that is answering a request keeps its size.
+     */
+    private void applyPendingContextSizes(boolean quiet) {
+        if (pendingContextSizes.isEmpty()) {
+            return;
+        }
+        Map<String, Integer> pending = new LinkedHashMap<>(pendingContextSizes);
+        pendingContextSizes.clear();
+        de.kortty.ai.llama.LlamaModelRegistry registry = de.kortty.ai.llama.LlamaModelRegistry
+            .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"));
+        pending.forEach((modelId, contextSize) -> {
+            try {
+                de.kortty.ai.llama.LlamaModel model = registry.find(modelId).orElse(null);
+                if (model == null || model.getContextSize() == contextSize) {
+                    return;
+                }
+                if (!de.kortty.ai.llama.LlamaRuntimeManager.getDefault().stop(modelId)) {
+                    String message = I18n.get("settings.ai.contextSize.busy", model.getDisplayName());
+                    if (quiet) {
+                        logger.warn(message);
+                    } else {
+                        showSimpleAlert(Alert.AlertType.WARNING, message);
+                    }
+                    return;
+                }
+                registry.register(new de.kortty.ai.llama.LlamaModel(
+                    model.getId(), model.getDisplayName(), model.getModelPath(), model.getServerExecutable(),
+                    model.getBackend(), model.getPurpose(), contextSize, model.getThreadCount(),
+                    model.getGpuLayers(), model.getIdleTimeoutMinutes()));
+            } catch (RuntimeException error) {
+                String message = error.getMessage() != null ? error.getMessage() : error.getClass().getSimpleName();
+                if (quiet) {
+                    logger.warn("Could not change the context size of {}: {}", modelId, message);
+                } else {
+                    showSimpleAlert(Alert.AlertType.ERROR, message);
+                }
+            }
+        });
+    }
+
     private void updateConnectionModeUi() {
+        refreshContextSizeControl();
         rebuildConnectionSection();
         rebuildModelSection();
         boolean cliMode = isCliModeSelected();
@@ -1906,6 +2003,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             ? profileRequestTimeoutSpinner.getValue()
             : null);
         selectedProfile.setMaxOutputTokens(profileMaxOutputTokensOverrideCheck.isSelected() ? profileMaxOutputTokensSpinner.getValue() : null);
+        if (contextSizeModelId != null && selectedProfile.getConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP) {
+            pendingContextSizes.put(contextSizeModelId, contextSizeControl.value());
+        }
         selectedProfile.setTokenizerType(tokenizerCombo.getValue());
         selectedProfile.setTokenLimitAmount(tokenLimitAmountSpinner.getValue() != null ? tokenLimitAmountSpinner.getValue().longValue() : 0L);
         selectedProfile.setTokenLimitUnit(tokenLimitUnitCombo.getValue());
@@ -2146,6 +2246,7 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
             globalRequestTimeoutSpinner.getValue() != null ? globalRequestTimeoutSpinner.getValue() : 0);
         try {
             app.getGlobalSettingsManager().save();
+            applyPendingContextSizes(quiet);
             defaultProfileId = effectiveDefaultProfileId;
             if (!quiet) {
                 // The saved profile may differ from the one tested; the old verdict no longer applies.

@@ -105,7 +105,7 @@ Select an installed model and choose **Configure**. The available settings are d
 | Setting | Values | Default |
 | --- | --- | --- |
 | Backend | Auto, CPU, Metal, Vulkan | Auto |
-| Context size | 512–2,097,152 tokens | 4,096 |
+| Context size | 512–2,097,152 tokens; also set from an Integrated llama.cpp profile’s **Context window** in **AI Manager > Profiles** | 4,096 |
 | CPU threads | 0–1,024; `0` means automatic | Automatic |
 | GPU layers | -1–10,000; `-1` means automatic | Automatic |
 | Unload after | 1–1,440 minutes, or **Never** | 10 minutes |

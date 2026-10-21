@@ -69,7 +69,7 @@ The profile fields are edited in **AI > AI Manager > Profiles**. The editor keep
 | Section | Fields |
 | --- | --- |
 | **Connection** | Connection, API URL, Trusted local endpoint, API Key (with **Clear stored API key** beside it), CLI provider, CLI status, CLI executable, CLI arguments |
-| **Model & capabilities** | Model, Custom model, Reasoning, Image input (vision), Prompt optimization, Internet access |
+| **Model & capabilities** | Model, Custom model, Context window (Integrated llama.cpp only), Reasoning, Image input (vision), Prompt optimization, Internet access |
 | **Limits & timeouts** | AI request timeout (applies to every profile, shown first), Max characters, Timeout for this profile, Max output tokens |
 | **Budget & usage** | Tokenizer, Max tokens, Warning thresholds, Reset, Price per 1M tokens, Usage (the quota bar and the usage line) |
 
@@ -83,6 +83,7 @@ The profile fields are edited in **AI > AI Manager > Profiles**. The editor keep
 | CLI executable | text | — | — | (profile `cliExecutablePath` field) |
 | Model | dropdown/text | (editable; "Default", curated cloud-provider suggestions plus live-loaded models; "Auto" only for local LM Studio endpoints) | — | (profile `model` field) |
 | Local GGUF model | dropdown | Installed chat models; available when Connection is Integrated llama.cpp | — | (profile `embeddedModelId` field) |
+| Context window | number + slider | 512 tokens up to the context the selected GGUF model was trained for (read from the file); available when Connection is Integrated llama.cpp. Pre-set to that maximum whenever the profile or the model is selected. The value belongs to the model, so it applies to every profile that uses it and is the same as **Context size** under **Local Models > Configure**; a larger context needs more RAM or VRAM. Saving stops a loaded model so its next request starts it with the new size; a model that is answering a request keeps its size and korTTY says so | the model's trained context | (model `contextSize` in `llm/models.xml`) |
 | Local MLX model | dropdown | Installed MLX models; available when Connection is Integrated MLX (Apple Silicon) | — | (profile `embeddedModelId` field) |
 | Custom model | text | — | — | (profile `model` field, written when the Model dropdown is set to **Custom model** for a Local CLI profile) |
 | Prompt optimization | dropdown | Auto (model detection), Generic, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Auto | (profile `promptPreset` field) |

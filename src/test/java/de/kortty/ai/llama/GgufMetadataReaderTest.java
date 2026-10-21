@@ -35,6 +35,29 @@ class GgufMetadataReaderTest {
     }
 
     @Test
+    void readsTrainedContextLengthButNotTheRopeScalingOriginal() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        output.write("GGUF".getBytes(StandardCharsets.US_ASCII));
+        little(output, 3, 4);
+        little(output, 0, 8);
+        little(output, 2, 8);
+        string(output, "gpt-oss.rope.scaling.original_context_length");
+        little(output, 4, 4);
+        little(output, 4096, 4);
+        string(output, "gpt-oss.context_length");
+        little(output, 4, 4);
+        little(output, 131_072, 4);
+        Path file = Files.createTempFile("kortty-gguf-context", ".gguf");
+        try {
+            Files.write(file, output.toByteArray());
+            assertThat(GgufMetadataReader.contextLength(file)).hasValue(131_072);
+            assertThat(GgufMetadataReader.embeddingDimensions(file)).isEmpty();
+        } finally {
+            Files.deleteIfExists(file);
+        }
+    }
+
+    @Test
     void rejectsNonGgufInput() throws Exception {
         Path file = Files.createTempFile("kortty-not-gguf", ".gguf");
         try {
