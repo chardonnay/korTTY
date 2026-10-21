@@ -1634,7 +1634,9 @@ final class LocalModelManagerPane extends VBox {
             server,
             LlamaBackend.AUTO,
             expectedPurpose,
-            LlamaModel.DEFAULT_CONTEXT_SIZE,
+            expectedPurpose == LlamaModelPurpose.EMBEDDING
+                ? LlamaModel.DEFAULT_EMBEDDING_CONTEXT_SIZE
+                : LlamaModel.DEFAULT_CONTEXT_SIZE,
             LlamaModel.AUTO_THREADS,
             LlamaModel.AUTO_GPU_LAYERS,
             LlamaModel.DEFAULT_IDLE_TIMEOUT_MINUTES);

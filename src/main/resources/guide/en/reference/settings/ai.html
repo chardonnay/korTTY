@@ -1020,7 +1020,7 @@
 </tr>
 <tr>
 <td><strong>Model &amp; capabilities</strong></td>
-<td>Model, Custom model, Reasoning, Image input (vision), Prompt optimization, Internet access</td>
+<td>Model, Custom model, Context window (Integrated llama.cpp only), Reasoning, Image input (vision), Prompt optimization, Internet access</td>
 </tr>
 <tr>
 <td><strong>Limits &amp; timeouts</strong></td>
@@ -1098,6 +1098,13 @@
 <td>Installed chat models; available when Connection is Integrated llama.cpp</td>
 <td>—</td>
 <td>(profile <code>embeddedModelId</code> field)</td>
+</tr>
+<tr>
+<td>Context window</td>
+<td>number + slider</td>
+<td>512 tokens up to the context the selected GGUF model was trained for (read from the file); available when Connection is Integrated llama.cpp. Pre-set to that maximum whenever the profile or the model is selected. The value belongs to the model, so it applies to every profile that uses it and is the same as <strong>Context size</strong> under <strong>Local Models &gt; Configure</strong>; a larger context needs more RAM or VRAM. Saving stops a loaded model so its next request starts it with the new size; a model that is answering a request keeps its size and korTTY says so</td>
+<td>the model's trained context</td>
+<td>(model <code>contextSize</code> in <code>llm/models.xml</code>)</td>
 </tr>
 <tr>
 <td>Local MLX model</td>

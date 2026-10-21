@@ -49,7 +49,7 @@ Before **Install** becomes available, korTTY loads each selected repository at t
 
 Runtime installation, GGUF downloads, verification, registration, and function tests run asynchronously so the JavaFX dialog remains responsive. The progress view names the current model and phase; **Cancel installation** stops at a safe boundary and retains resumable `.part` files, while **Retry** restarts a failed or cancelled run from the verified selections.
 
-The Hub-reported context length remains visible for comparison, but a new local model starts with the conservative 4,096-token runtime context. Increase it later under **Configure** only after considering the additional RAM/VRAM use.
+A new local chat model starts with a 131,072-token runtime context, or with the Hub-reported context length when the model was trained for less; an embedding model starts with 4,096 tokens. A large context needs considerably more RAM/VRAM: if a model fails to load, lower its context under **Configure** or with the **Context window** of an Integrated llama.cpp profile.
 
 After every selected GGUF is downloaded and registered, the assistant sends a real local chat-completion request or, for an embedding-only model, a real embedding request through the installed runtime. Only after all tests pass does it atomically save the selected Text/Coding profile IDs and RAG embedding-model ID in `global-settings.xml`; it creates a reusable **Local: …** embedded profile when a selected chat model has none and makes the first such profile the default only when no default exists. A failed test does not produce a successful finish page or persist partially updated role assignments.
 
@@ -105,7 +105,7 @@ Select an installed model and choose **Configure**. The available settings are d
 | Setting | Values | Default |
 | --- | --- | --- |
 | Backend | Auto, CPU, Metal, Vulkan | Auto |
-| Context size | 512–2,097,152 tokens | 4,096 |
+| Context size | 512–2,097,152 tokens; also set from an Integrated llama.cpp profile’s **Context window** in **AI Manager > Profiles** | 131,072 for a chat model (less when it was trained for less), 4,096 for an embedding model |
 | CPU threads | 0–1,024; `0` means automatic | Automatic |
 | GPU layers | -1–10,000; `-1` means automatic | Automatic |
 | Unload after | 1–1,440 minutes, or **Never** | 10 minutes |

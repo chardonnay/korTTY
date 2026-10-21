@@ -83,9 +83,9 @@ class HuggingFaceModelInstallationServiceTest {
 
             assertThat(registry.find(installed.getId())).isPresent();
             assertThat(installed.getBackend()).isEqualTo(LlamaBackend.CPU);
-            // Hub metadata advertises the model's maximum, but the safe local start value stays
-            // conservative until the user explicitly raises it in the model settings.
-            assertThat(installed.getContextSize()).isEqualTo(LlamaModel.DEFAULT_CONTEXT_SIZE);
+            // The model starts with the default chat context, cut down to the 8,192 tokens the Hub
+            // says it was trained for: more would only cost memory.
+            assertThat(installed.getContextSize()).isEqualTo(8192);
             assertThat(Files.readAllBytes(installed.getModelPath())).isEqualTo(gguf);
             assertThat(installed.getServerExecutable()).isEqualTo(executable.toAbsolutePath().normalize());
         } finally {
