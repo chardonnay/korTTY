@@ -29,6 +29,8 @@ Die Tabellen unten listen jede Einstellung dieser Abschnitte mit ihrem gespeiche
 | Bestätigungsdialog vor Absendung von KI-Anfragen anzeigen | Schalter | — | Ein | `aiConfirmBeforeSend` |
 | KI-Chat-Codeblöcke im Terminal | Dropdown | Aus (nur kopieren und speichern), Nur Einfügen, Einfügen und Ausführen | Einfügen und Ausführen | `aiChatTerminalActions` |
 
+Wenn **Bestätigungsdialog vor dem Senden an die KI anzeigen** aktiviert ist, zeigen **Zusammenfassen**, **Letzte Ausgabe zusammenfassen** und **Problem lösen** im **KI**-Kontextmenü des Terminals an, was sie an die KI senden, und warten auf eine Bestätigung. **Fragen** öffnet immer seinen Dialog, da die Frage dort eingegeben wird. Der Terminal-Agent hat vor jedem Start einen eigenen Dialog; er wird über **Terminal-Agent-Abfrage vor jedem Start anzeigen** unter [KI-Agent im Terminal](#ki-agent-im-terminal) deaktiviert.
+
 **KI-Chat-Codeblöcke im Terminal** legt fest, welche Schaltflächen die Codeblöcke eines KI-Chats anbieten: **Einfügen** gibt einen Block an der Eingabeaufforderung eines Terminalbereichs ein, ohne Enter zu drücken, und **Ausführen** führt eine einzelne Shell-Befehlszeile nach einer Bestätigung aus. Die Unternehmensrichtlinie kann nur weitere Schaltflächen wegnehmen. Siehe [Codeblöcke im Terminal](../../features/ai-assistant.md#codeblocke-im-terminal).
 
 ## KI-Agent im Terminal

@@ -2333,6 +2333,18 @@
       "to": "der Minimap-Schiene, einer Meldung am Rand und",
       "scope": "markdown",
       "note": "AI Agent Design run menu: the menu and design names as the German UI labels them."
+    },
+    {
+      "from": "Bestätigungsdialog vor dem Senden von KI-Anfragen anzeigen",
+      "to": "Bestätigungsdialog vor dem Senden an die KI anzeigen",
+      "scope": "markdown",
+      "note": "settings.ai.confirmBeforeSend is 'Bestätigungsdialog vor dem Senden an die KI anzeigen'; the settings page's heading is 'KI-Agent im Terminal'."
+    },
+    {
+      "from": "[Terminal-KI-Agent](#ki-agent-im-terminal)",
+      "to": "[KI-Agent im Terminal](#ki-agent-im-terminal)",
+      "scope": "markdown",
+      "note": "settings.ai.confirmBeforeSend is 'Bestätigungsdialog vor dem Senden an die KI anzeigen'; the settings page's heading is 'KI-Agent im Terminal'."
     }
   ]
 }

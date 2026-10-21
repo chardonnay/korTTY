@@ -29,6 +29,8 @@ The tables below list every setting of these sections with its stored key.
 | Show confirmation dialog before sending AI requests | toggle | — | On | `aiConfirmBeforeSend` |
 | AI chat code blocks in the terminal | dropdown | Off (copy and save only), Insert only, Insert and Run | Insert and Run | `aiChatTerminalActions` |
 
+With **Show confirmation dialog before sending AI requests** on, **Summarize**, **Summarize Recent Output** and **Solve Problem** in the terminal's **AI** context menu show what they send to the AI and wait for a confirmation. **Ask** always opens its dialog, because the question is typed there. The terminal agent has a dialog of its own before each run; it is turned off with **Show terminal agent setup dialog before each run** under [Terminal AI Agent](#terminal-ai-agent).
+
 **AI chat code blocks in the terminal** decides which buttons the code blocks of an AI chat offer: **Insert** types a block at the prompt of a terminal pane without pressing Enter, and **Run** runs a single shell command line after a confirmation. The enterprise policy can only take more away. See [Code blocks in the terminal](../../features/ai-assistant.md#code-blocks-in-the-terminal).
 
 ## Terminal AI Agent

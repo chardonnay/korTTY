@@ -101,9 +101,7 @@ final class AiGeneralSettingsPane extends VBox {
         save.setOnAction(event -> save(false));
         status.setWrapText(true);
         status.setStyle(MutedTextStyle.HINT);
-        HBox actions = new HBox(10, save, status);
-        actions.setAlignment(Pos.CENTER_LEFT);
-        getChildren().addAll(sections, actions);
+        getChildren().addAll(sections, AiManagerSections.saveRow(save, status));
     }
 
     private GlobalSettings settings() {
@@ -144,6 +142,11 @@ final class AiGeneralSettingsPane extends VBox {
         AiManagerSections.addFieldRow(grid, hint("settings.ai.info"));
         AiManagerSections.addSeparator(grid);
         AiManagerSections.addFieldRow(grid, confirmBeforeSend);
+        // Which requests the confirmation covers, and where the terminal agent's own dialog is turned off.
+        AiManagerSections.addFieldRow(grid, hint("settings.ai.confirmBeforeSend.hint",
+            I18n.get("terminal.contextMenu.ai.summarize"), I18n.get("terminal.contextMenu.ai.summarizeRecent"),
+            I18n.get("terminal.contextMenu.ai.solve"), I18n.get("terminal.contextMenu.ai.ask"),
+            I18n.get("ai.manager.general.section.agent"), I18n.get("settings.ai.terminalAgentShowRunDialog")));
         AiManagerSections.addRow(grid, "settings.ai.chatTerminalActions", chatTerminalActions);
         AiManagerSections.addSeparator(grid);
         AiManagerSections.addFieldRow(grid, showDebugMessages);
@@ -294,8 +297,8 @@ final class AiGeneralSettingsPane extends VBox {
         return row;
     }
 
-    private static Label hint(String key) {
-        Label label = new Label(I18n.get(key));
+    private static Label hint(String key, Object... args) {
+        Label label = new Label(I18n.get(key, args));
         label.setWrapText(true);
         label.setMinHeight(Region.USE_PREF_SIZE);
         label.setMaxWidth(560);

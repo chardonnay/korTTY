@@ -398,9 +398,8 @@ final class AiSkillsPane extends VBox {
         saveButton.setOnAction(event -> save());
         statusLabel.setWrapText(true);
         statusLabel.setStyle("-fx-font-size: 0.8462em;");
-        HBox actionBar = new HBox(8, saveButton, statusLabel);
 
-        getChildren().addAll(aiSkillsContent, actionBar);
+        getChildren().addAll(aiSkillsContent, AiManagerSections.saveRow(saveButton, statusLabel));
 
         aiSkillListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
             snapshotSelectedAiSkillEditorState();
