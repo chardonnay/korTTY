@@ -822,7 +822,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="ki-agent-designs">KI-Agent-Designs<a class="headerlink" href="#ki-agent-designs" title="Permanent link">&para;</a></h1>
-<p><em>Plugins → KI-Agent Design</em> entscheidet, wie die Ausführungen des Terminals <a href="ai-tools.html">KI-Agent</a> angezeigt werden: als Block im Terminal selbst, in einer schlanken Leiste darunter, im klassischen Aktivitätsbereich oder in einer Kombination dieser. Eine <strong>Kombination</strong> wählt ein Design für jede Rolle, und Sie können eine Kombination als Standard festlegen und einzelnen Verbindungen ein anderes zuweisen.</p>
+<p><em>Plugins → KI-Agent Design</em> bestimmt, wie die Ausführungen des Terminal-<a href="ai-tools.html">KI-Agent</a> angezeigt werden: als Block im Terminal selbst, in einer schmalen Leiste darunter oder darüber, auf einer Schiene daneben, im klassischen Aktivitäts-Panel oder in einer Kombination davon. Eine <strong>Kombination</strong> wählt für jede Rolle ein Design, und Sie können eine Kombination als Standard festlegen und einzelnen Verbindungen eine andere zuweisen.</p>
 <p><img alt="AI Agent Design with the standard combination: the live preview shows a sample run as a block in the terminal, waiting for an approval, with the metro line and the approval row below" src="../../en/assets/screenshots/plugins/ai-agent-design.png" /></p>
 <p>Öffnen Sie es über <em>Plugins → KI-Agent Design</em> oder <em>Ansicht → KI-Agent-Panel → Design...</em>. Wenn <em>Tool-Fenster als Tabs öffnen</em> aktiviert ist, wird es als Tab des Hauptfensters geöffnet. Eine Organisationsrichtlinie, die Plugins nicht zulässt, sperrt beide Einträge.</p>
 <h2 id="rollen-und-designs">Rollen und Designs<a class="headerlink" href="#rollen-und-designs" title="Permanent link">&para;</a></h2>
@@ -843,8 +843,8 @@
 </tr>
 <tr>
 <td>Status</td>
-<td>Eine kompakte Anzeige des aktuellen Status der Ausführung neben dem Verlauf</td>
-<td><strong>Linienplan</strong> (08), <strong>Keine Statusanzeige</strong></td>
+<td>Eine kompakte Anzeige des aktuellen Standes der Ausführung, neben dem Verlauf</td>
+<td><strong>Linienplan</strong> (08), <strong>Powerline-Statuszeile</strong> (01), <strong>Minimap-Schiene</strong> (11), <strong>Kopfleiste mit Schublade</strong> (12), <strong>Neon-Laufschrift</strong> (18), <strong>Keine Statusanzeige</strong></td>
 </tr>
 <tr>
 <td>Freigabe</td>
@@ -897,6 +897,15 @@
 <h2 id="linienplan-08">Linienplan (08)<a class="headerlink" href="#linienplan-08" title="Permanent link">&para;</a></h2>
 <p>Eine schmale Leiste unter dem Terminal zeigt die Ausführung als Metro-Linie: eine Station pro Befehl, Analyse und Frage sowie eine <strong>Antwort</strong>-Station am Ende. Erreichte Stationen sind ausgefüllt, die aktuelle pulsiert, eine Station, die auf Ihre Eingabe wartet, leuchtet amberfarben und ein Licht bewegt sich entlang der Linie, während die Ausführung fortschreitet; wenn es mehr Stationen gibt als passen, werden die ältesten zusammengefasst als <em>+N</em>. Die Leiste zeigt außerdem die Frage, die Tokens und die Zeit an und verfügt über Schaltflächen zum Pausieren, Abbrechen und Ausblenden.</p>
 <p>Die Leiste blendet sich einige Sekunden nach dem Ende der letzten Ausführung aus; die Verzögerung wird im Dialog festgelegt. <em>Ansicht → KI-Agent-Panel → Statusleiste ein- oder ausblenden</em> blendet sie wieder ein oder aus.</p>
+<h2 id="weitere-statusanzeigen">Weitere Statusanzeigen<a class="headerlink" href="#weitere-statusanzeigen" title="Permanent link">&para;</a></h2>
+<p>Wie der <strong>Linienplan</strong> (08) folgt jede Anzeige hier der Terminal-Ausführung, die auf Eingabe wartet, oder andernfalls deren neuester noch laufender Ausführung, und blendet nach dem Ende der letzten Ausführung aus. <em>Ansicht → KI-Agent-Panel → Statusleiste ein- oder ausblenden</em> blendet eine davon wieder ein oder aus. Eine Anzeige oberhalb oder neben dem Terminal nimmt dem Terminal Platz weg, während sie angezeigt wird.</p>
+<p><img alt="The four status displays beside the blocks in the terminal, each waiting for an approval: the Powerline status line with its steps unfolded, the top bar with its drawer, the minimap rail with a lens and the neon ticker" src="../../en/assets/screenshots/plugins/ai-agent-status-designs.png" /></p>
+<ul>
+<li><strong>Powerline-Statuszeile (01)</strong> — Eine Zeile unter dem Terminal im Powerline-Stil: der Agent, der Schritt, an dem er arbeitet (mit Spinner), wie viele Befehle er ausgeführt hat, die Tokens und die Zeit. ▴ faltet die Schritte der Ausführung über die untersten Terminalzeilen auf und ▾ faltet sie wieder zusammen; eine offene Genehmigung faltet sie von selbst auf.</li>
+<li><strong>Kopfleiste mit Schublade (12)</strong> — Eine Leiste über dem Terminal, die nicht im Weg des Prompts und der neuesten Ausgabe steht. Eine schimmernde Linie zeigt an, dass der Agent arbeitet, und wird grün oder rot, wenn die Ausführung endet; darunter die Anzahl der Befehle und der aktuelle Schritt. ▾ klappt die Schritte über die ältere Ausgabe.</li>
+<li><strong>Minimap-Schiene (11)</strong> — Eine schmale Schiene am rechten Rand des Terminals mit einem farbigen Segment pro Schritt: blau für Befehle, violett für Analysen, bernsteinfarben für Fragen, rot für Fehler. Der laufende Schritt leuchtet. Beim Zeigen auf ein Segment wird eine Linse mit dem Schritt, seinem Ergebnis und den ersten Zeilen seiner Details angezeigt. Die Schiene hat keine Schaltflächen; <span class="keys"><kbd class="key-escape">Esc</kbd></span> bricht die Ausführung ab.</li>
+<li><strong>Neon-Laufschrift (18)</strong> — Eine Leiste im Stil einer Fallblattanzeige unterhalb des Terminals im Neon-Look des korTTY-Logos: Jeder neue Schritt rollt in sein Fenster, eine offene Frage leuchtet bernsteinfarben mit ihren Tasten, und das Licht links pulsiert, während der Agent arbeitet. Bei einem hellen Theme verwendet die Leiste die Farben dieses Themes.</li>
+</ul>
 <h2 id="genehmigungen-und-passworter">Genehmigungen und Passwörter<a class="headerlink" href="#genehmigungen-und-passworter" title="Permanent link">&para;</a></h2>
 <p>Bei Blöcken im Terminal öffnet eine Genehmigung oder eine Passwortanfrage zusätzlich eine Zeile unter dem Terminal. Bei einer Genehmigung werden die Befehle und die Schaltflächen <strong>1 Einmal erlauben</strong>, <strong>2 Immer erlauben</strong> und <strong>3 Abbrechen</strong> angezeigt. Bei einem Passwort gibt es ein maskiertes Feld, <strong>Für diese SSH-Sitzung verwenden</strong> und <strong>OK</strong>; <span class="keys"><kbd class="key-enter">Enter</kbd></span> bestätigt und <span class="keys"><kbd class="key-escape">Esc</kbd></span> bricht ab. Das klassische Panel behält seine eigenen Prompts.</p>
 <h2 id="optionen">Optionen<a class="headerlink" href="#optionen" title="Permanent link">&para;</a></h2>
@@ -909,12 +918,12 @@
 </thead>
 <tbody>
 <tr>
-<td>Statusleiste nach einem Lauf ausblenden (Sekunden, 0 = beibehalten)</td>
-<td>Wie lange die Metro-Zeile nach dem letzten Lauf verbleibt; 0 behält sie bei, bis Sie sie ausblenden. Standard: 6 Sekunden.</td>
+<td>Statusleiste nach einem Lauf ausblenden, nach (Sekunden, 0 = beibehalten)</td>
+<td>Wie lange die Statusanzeige nach dem letzten Lauf verbleibt; 0 behält sie bei, bis Sie sie ausblenden. Standard: 6 Sekunden.</td>
 </tr>
 <tr>
 <td>Animationen reduzieren</td>
-<td>Schaltet die pulsierende Station, das bewegte Licht und den Spinner im Block aus.</td>
+<td>Schaltet die pulsierende Station und das bewegte Licht des <strong>Linienplans</strong>, die Spinner, das Schimmern der <strong>Kopfleiste mit Schublade</strong>, das Rollen und Leuchten der <strong>Neon-Laufschrift</strong> und die Linsenanimation der <strong>Minimap-Schiene</strong> aus.</td>
 </tr>
 </tbody>
 </table>
