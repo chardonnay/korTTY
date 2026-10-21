@@ -126,6 +126,7 @@ public class AiAgentActivityPanel extends VBox {
     private boolean paused;
     private java.util.function.Consumer<Boolean> pauseHandler;
     private Runnable cancelCallback;
+    private Runnable inputPromptListener;
     private RunSnapshot activeRunSnapshot;
     private ActivityRow lastThinkingRow;
     private PasswordField pendingPasswordField;
@@ -360,6 +361,8 @@ public class AiAgentActivityPanel extends VBox {
         promptBox.getStyleClass().add("ai-agent-prompt-box");
         promptBox.setVisible(false);
         promptBox.setManaged(false);
+        // The prompt keeps its full height when space is short; the activity list shrinks instead.
+        promptBox.setMinHeight(Region.USE_PREF_SIZE);
 
         getChildren().addAll(resizeHandle, header, controls, scrollPane, promptBox);
         addEventFilter(KeyEvent.KEY_PRESSED, event -> {
@@ -531,6 +534,40 @@ public class AiAgentActivityPanel extends VBox {
 
     public void setPauseHandler(java.util.function.Consumer<Boolean> pauseHandler) {
         this.pauseHandler = pauseHandler;
+    }
+
+    /** Called on the FX thread once an approval/password prompt has been added and needs to be seen. */
+    public void setInputPromptListener(Runnable inputPromptListener) {
+        this.inputPromptListener = inputPromptListener;
+    }
+
+    /**
+     * Height this panel needs at {@code width} so the pending input prompt is fully visible while the
+     * activity list keeps only its minimum height. Returns 0 when no prompt is showing.
+     */
+    public double heightNeededForInputPrompt(double width) {
+        if (!promptBox.isManaged() || promptBox.getChildren().isEmpty()) {
+            return 0.0;
+        }
+        Insets insets = getInsets();
+        double contentWidth = Math.max(0.0, width - insets.getLeft() - insets.getRight());
+        double height = insets.getTop() + insets.getBottom();
+        int managedChildren = 0;
+        for (Node child : getChildren()) {
+            if (!child.isManaged()) {
+                continue;
+            }
+            managedChildren++;
+            height += child == scrollPane ? scrollPane.minHeight(contentWidth) : child.prefHeight(contentWidth);
+        }
+        return height + Math.max(0, managedChildren - 1) * getSpacing();
+    }
+
+    private void notifyInputPromptShown() {
+        Runnable listener = inputPromptListener;
+        if (listener != null) {
+            listener.run();
+        }
     }
 
     public boolean isPaused() {
@@ -1549,6 +1586,7 @@ public class AiAgentActivityPanel extends VBox {
         applyFontSizeRecursively(promptBox);
         requestFocus();
         scrollToBottom();
+        notifyInputPromptShown();
     }
 
     private void showPasswordPrompt(
@@ -1616,6 +1654,7 @@ public class AiAgentActivityPanel extends VBox {
         applyFontSizeRecursively(promptBox);
         Platform.runLater(passwordField::requestFocus);
         scrollToBottom();
+        notifyInputPromptShown();
     }
 
     private Node buildCommandPreview(List<TerminalAgentModels.PlannedCommand> commands) {

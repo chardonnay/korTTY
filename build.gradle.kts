@@ -3686,6 +3686,14 @@ tasks.register<JavaExec>("aiAgentSidePanelSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("aiAgentInputPromptSizeSmoke") {
+    group = "verification"
+    description = "Verifies a collapsed AI-agent panel grows to show the whole approval prompt."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.AiAgentInputPromptSizeSmoke")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("terminalSplitTransparencySmoke") {
     group = "verification"
     description = "Verifies terminal background transparency survives current and newly nested splits."
