@@ -601,7 +601,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         fontGrid.add(new Label(I18n.get("settings.font.preview")), 0, 2);
         fontGrid.add(previewLabel, 1, 2);
         
-        LazyTabContent.defer(fontTab, fontGrid);
+        LazyTabContent.defer(fontTab, scrollablePage(fontGrid));
         
         // Colors tab
         Tab colorsTab = sectionTab(SettingsSection.COLORS);
@@ -707,7 +707,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         colorsGrid.add(new Label(I18n.get("settings.colors.bright")), 0, 10);
         colorsGrid.add(brightColorsBox, 1, 10);
         
-        LazyTabContent.defer(colorsTab, colorsGrid);
+        LazyTabContent.defer(colorsTab, scrollablePage(colorsGrid));
         
         // Terminal tab
         terminalTab = sectionTab(SettingsSection.TERMINAL);
@@ -1227,7 +1227,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         mcpHintLabel.setPadding(new Insets(0, 0, 0, 20));
         terminalGrid.add(mcpHintLabel, 0, terminalRow++, 2, 1);
 
-        LazyTabContent.defer(terminalTab, terminalGrid);
+        LazyTabContent.defer(terminalTab, scrollablePage(terminalGrid));
         Tab messagingTab = createMessagingTab();
 
         // Video tab
@@ -1251,7 +1251,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
 
         videoGrid.add(terminalRecordingAlwaysEnabledCheck, 0, 0, 2, 1);
         videoGrid.add(terminalRecordingCaptureColorsCheck, 0, 1, 2, 1);
-        LazyTabContent.defer(videoTab, videoGrid);
+        LazyTabContent.defer(videoTab, scrollablePage(videoGrid));
         
         // Backup tab
         Tab backupTab = sectionTab(SettingsSection.BACKUP);
@@ -1401,7 +1401,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             backupGrid.add(lastBackupValue, 1, backupRow++);
         }
         
-        LazyTabContent.defer(backupTab, backupGrid);
+        LazyTabContent.defer(backupTab, scrollablePage(backupGrid));
 
         // Logging tab
         Tab loggingTab = sectionTab(SettingsSection.LOGGING);
@@ -1609,7 +1609,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         automationProfileHint.setStyle(MutedTextStyle.HINT);
         loggingGrid.add(automationProfileHint, 1, loggingRow++);
 
-        LazyTabContent.defer(loggingTab, loggingGrid);
+        LazyTabContent.defer(loggingTab, scrollablePage(loggingGrid));
 
         // Export tab: watermark and footer for exported documents (journals and AI chats)
         Tab exportTab = sectionTab(SettingsSection.EXPORT);
@@ -1676,7 +1676,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         footerInfo.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         exportGrid.add(footerInfo, 1, exportRow++);
 
-        LazyTabContent.defer(exportTab, exportGrid);
+        LazyTabContent.defer(exportTab, scrollablePage(exportGrid));
 
         // Updates tab
         Tab updatesTab = sectionTab(SettingsSection.UPDATES);
@@ -1729,7 +1729,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         updatesInfoLabel.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         updatesGrid.add(updatesInfoLabel, 0, updatesRow++, 2, 1);
 
-        LazyTabContent.defer(updatesTab, updatesGrid);
+        LazyTabContent.defer(updatesTab, scrollablePage(updatesGrid));
         
         // Window tab
         Tab windowTab = sectionTab(SettingsSection.WINDOW);
@@ -1963,7 +1963,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         fixedGeometryInfoLabel.setStyle("-fx-font-size: 0.7692em; -fx-text-fill: gray;");
         windowGrid.add(fixedGeometryInfoLabel, 0, windowRow++, 2, 1);
         
-        LazyTabContent.defer(windowTab, windowGrid);
+        LazyTabContent.defer(windowTab, scrollablePage(windowGrid));
         
         // Security tab
         Tab securityTab = sectionTab(SettingsSection.SECURITY);
@@ -2075,7 +2075,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         securityGrid.add(new Separator(), 0, securityRow++, 2, 1);
         securityRow = addIsolationSection(securityGrid, securityRow);
         
-        LazyTabContent.defer(securityTab, securityGrid);
+        LazyTabContent.defer(securityTab, scrollablePage(securityGrid));
 
         // Privacy tab (anonymous usage statistics: opt-in, EU servers, GDPR)
         Tab privacyTab = sectionTab(SettingsSection.PRIVACY);
@@ -2125,7 +2125,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             privacyGrid.add(telemetryDecisionLabel, 0, privacyRow++, 2, 1);
         }
 
-        LazyTabContent.defer(privacyTab, privacyGrid);
+        LazyTabContent.defer(privacyTab, scrollablePage(privacyGrid));
 
         // Language tab
         Tab languageTab = sectionTab(SettingsSection.LANGUAGE);
@@ -2190,7 +2190,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         languageInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
         languageGrid.add(languageInfo, 0, 1, 2, 1);
         
-        LazyTabContent.defer(languageTab, languageGrid);
+        LazyTabContent.defer(languageTab, scrollablePage(languageGrid));
         
         // Translation tab: translation profiles (one default), "Translate now…", generated files
         Tab translationTab = sectionTab(SettingsSection.TRANSLATION);
@@ -2495,7 +2495,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         rsyncInfo.setMaxWidth(400);
         sftpGrid.add(rsyncInfo, 0, sftpRow++, 2, 1);
         
-        LazyTabContent.defer(sftpTab, sftpGrid);
+        LazyTabContent.defer(sftpTab, scrollablePage(sftpGrid));
         
         // Editor tab
         Tab editorTab = sectionTab(SettingsSection.EDITOR);
@@ -2545,7 +2545,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         cursorInfo.setMaxWidth(400);
         editorGrid.add(cursorInfo, 0, editorRow++, 2, 1);
         
-        LazyTabContent.defer(editorTab, editorGrid);
+        LazyTabContent.defer(editorTab, scrollablePage(editorGrid));
         
         // Snippet Editor tab
         Tab snippetEditorTab = sectionTab(SettingsSection.SNIPPET_EDITOR);
@@ -2705,7 +2705,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         snippetRow = snippetAnalysisContentLimit.addTo(snippetEditorGrid,
             new Label(I18n.get("settings.snippetEditor.analysisContentLimit")), snippetRow);
 
-        LazyTabContent.defer(snippetEditorTab, snippetEditorGrid);
+        LazyTabContent.defer(snippetEditorTab, scrollablePage(snippetEditorGrid));
 
         // Themes tab
         Tab themesTab = createThemesTab(owner);
@@ -4122,7 +4122,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             notification.setMaxWidth(Double.MAX_VALUE);
             GridPane.setHgrow(notification, Priority.ALWAYS);
         }
-        LazyTabContent.defer(tab, grid);
+        LazyTabContent.defer(tab, scrollablePage(grid));
         return tab;
     }
 
@@ -4226,8 +4226,22 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         restartInfo.setStyle("-fx-font-size: 0.8462em; -fx-text-fill: gray;");
 
         vbox.getChildren().addAll(header, desc, profileRow, ramLabel, maxHeapLabel, profileDetail, warn, restartInfo);
-        LazyTabContent.defer(tab, vbox);
+        LazyTabContent.defer(tab, scrollablePage(vbox));
         return tab;
+    }
+
+    /**
+     * Wraps a form page in a vertical ScrollPane. The dialog's height is fixed by the window, not by
+     * its tallest page, so a long page — or any page at a large UI font size — would otherwise be cut
+     * off at the bottom with no way to reach its last controls. Pages whose content fills the height
+     * on purpose (Themes, Keyboard) stay unwrapped.
+     */
+    private static ScrollPane scrollablePage(javafx.scene.Node content) {
+        ScrollPane scroll = new ScrollPane(content);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        return scroll;
     }
 
     private static String formatGigabytes(long bytes) {
