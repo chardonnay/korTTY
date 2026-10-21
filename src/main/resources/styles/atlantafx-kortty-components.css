@@ -127,9 +127,9 @@
 }
 
 .ai-agent-header-busy-dot {
-    -fx-background-color: #18c26e;
+    -fx-background-color: #4f9cf0;
     -fx-background-radius: 5;
-    -fx-effect: dropshadow(gaussian, #18c26e, 10, 0.55, 0, 0);
+    -fx-effect: dropshadow(gaussian, #4f9cf0, 10, 0.55, 0, 0);
 }
 
 .ai-agent-header-busy-label {
@@ -191,7 +191,7 @@
 }
 
 .ai-agent-dot-action {
-    -fx-background-color: #18c26e;
+    -fx-background-color: #4f9cf0;
 }
 
 .ai-agent-dot-error {
@@ -203,7 +203,7 @@
 }
 
 .ai-agent-dot-running {
-    -fx-effect: dropshadow(gaussian, #18c26e, 8, 0.45, 0, 0);
+    -fx-effect: dropshadow(gaussian, #4f9cf0, 8, 0.45, 0, 0);
 }
 
 .ai-agent-spinner {
@@ -487,7 +487,7 @@
 }
 
 .ai-agent-option-check:selected .mark {
-    -fx-background-color: #18c26e;
+    -fx-background-color: #4f9cf0;
 }
 
 .ai-agent-close-button {
@@ -551,7 +551,7 @@
 }
 
 .terminal-agent-busy-robot {
-    -fx-text-fill: #18c26e;
+    -fx-text-fill: #4f9cf0;
     -fx-font-family: "Noto Sans Mono", "Monospaced";
     -fx-font-size: 0.9231em;
     -fx-font-weight: bold;

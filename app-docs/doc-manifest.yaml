@@ -237,7 +237,7 @@ pages:
     last_synced_ref: "f8e06604"
   # ---- Features --------------------------------------------------------------
   - path: app-docs/site/docs/en/features/connections.md
-    owns_i18n: [menu.connections., connEdit.tag, connEdit.terminalSettings., connEdit.encoding, connEdit.terminalBehavior, connEdit.tabColor, connEdit.paste., connManager.assignTag, connManager.removeTag, connManager.group.tabColor, connExport.selection, quickConnect.tag, dialog.passwordVaultLocked]
+    owns_i18n: [menu.connections., connEdit.tag, connEdit.aiAgentDesign, connEdit.terminalSettings., connEdit.encoding, connEdit.terminalBehavior, connEdit.tabColor, connEdit.paste., connManager.assignTag, connManager.removeTag, connManager.group.tabColor, connExport.selection, quickConnect.tag, dialog.passwordVaultLocked]
     owns_code: [src/main/java/de/kortty/ui/ConnectionManagerDialog.java, src/main/java/de/kortty/ui/ConnectionAuthResolver.java, src/main/java/de/kortty/core/ConnectionColorSupport.java, src/main/java/de/kortty/core/ConnectionGroupColors.java, src/main/java/de/kortty/model/ConnectionGroupColor.java, src/main/java/de/kortty/ui/ConnectionGroupColorDialog.java, src/main/java/de/kortty/ui/ConnectionManagerTreeView.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/persistence/ConnectionSchemaMigration.java, src/main/java/de/kortty/ui/PasteConnectionSupport.java, src/main/java/de/kortty/ui/QuickConnectDialog.java, src/main/java/de/kortty/core/RecentConnections.java, src/main/java/de/kortty/core/LocalShellTtyConnector.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/core/SshHostKeyTrustManager.java, src/main/java/de/kortty/core/TerminalEncodingSupport.java, src/main/java/de/kortty/ui/KnownHostsDialog.java, src/main/java/de/kortty/platform/FlatpakSupport.java]
     diagrams: [connection-flow.svg, jump-server-flow.svg]
     last_synced_ref: "f8e06604"
@@ -475,6 +475,11 @@ pages:
     diagrams: [terminal-effect-plugin-flow.svg]
     screenshots: [plugins/terminal-effects.png]
     last_synced_ref: "f8e06604"
+  - path: app-docs/site/docs/en/features/ai-agent-designs.md
+    owns_i18n: [aiAgentDesign.]
+    owns_code: [src/main/java/de/kortty/agentdesign, src/main/java/de/kortty/model/AgentDesignCombinationEntry.java, src/main/java/de/kortty/ui/AgentDesignPluginManagerDialog.java, src/main/java/de/kortty/ui/AgentDesignHost.java, src/main/java/de/kortty/ui/AgentDesignMetroBar.java, src/main/java/de/kortty/ui/AgentDesignInlineBlocks.java, src/main/java/de/kortty/ui/AgentInlineBlockLayout.java, src/main/java/de/kortty/ui/AgentTerminalBlockWriter.java, src/main/java/de/kortty/ui/AgentDesignApprovalStrip.java, src/main/java/de/kortty/ui/AgentDesignPreview.java, src/main/java/de/kortty/ui/AgentDesignUiSupport.java]
+    screenshots: [plugins/ai-agent-design.png, plugins/ai-agent-design-finished.png]
+    last_synced_ref: "733abbf4"
   - path: app-docs/site/docs/en/features/coding-agents.md
     owns_i18n: [settings.codingAgent., menu.codingAgent., codingAgent., dashboard.codingAgent.]
     owns_code:

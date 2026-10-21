@@ -280,14 +280,14 @@ final class ThemeCssSupport {
 
     static AgentActivityColors resolveAgentActivityColors(Theme theme) {
         if (theme == null) {
-            return new AgentActivityColors("#052f35", "#1f5961", "#e8f3f2", "#8fb0b4", "#18c26e", "#e36a4d");
+            return new AgentActivityColors("#0d1218", "#1d344e", "#e6edf5", "#8696ab", "#4f9cf0", "#e36a4d");
         }
         return new AgentActivityColors(
-            normalizeColorOrDefault(theme.getAgentPanelBackgroundColor(), "#052f35"),
-            normalizeColorOrDefault(theme.getAgentPanelBorderColor(), "#1f5961"),
-            normalizeColorOrDefault(theme.getAgentPanelTextColor(), "#e8f3f2"),
-            normalizeColorOrDefault(theme.getAgentPanelMutedTextColor(), "#8fb0b4"),
-            normalizeColorOrDefault(theme.getAgentPanelAccentColor(), "#18c26e"),
+            normalizeColorOrDefault(theme.getAgentPanelBackgroundColor(), "#0d1218"),
+            normalizeColorOrDefault(theme.getAgentPanelBorderColor(), "#1d344e"),
+            normalizeColorOrDefault(theme.getAgentPanelTextColor(), "#e6edf5"),
+            normalizeColorOrDefault(theme.getAgentPanelMutedTextColor(), "#8696ab"),
+            normalizeColorOrDefault(theme.getAgentPanelAccentColor(), "#4f9cf0"),
             normalizeColorOrDefault(theme.getAgentPanelErrorColor(), "#e36a4d"));
     }
 
@@ -308,6 +308,8 @@ final class ThemeCssSupport {
         String commandBackground = toHex(bgColor.interpolate(Color.BLACK, luminance < 0.5 ? 0.18 : 0.04));
         String textStrong = toHex(textColor.interpolate(blendTarget, luminance < 0.5 ? 0.16 : 0.10));
         String success = toHex(Color.web("#38a169").interpolate(bgColor, luminance < 0.5 ? 0.10 : 0.0));
+        String attention = luminance < 0.5 ? "#e5a84b" : "#b7791f";
+        String onAccent = Color.web(accent).getBrightness() > 0.6 && luminance < 0.5 ? "#06121f" : "#ffffff";
 
         return String.join("\n",
             ".ai-agent-activity-panel { -fx-background-color: " + bg + "; -fx-border-color: " + border + "; }",
@@ -348,6 +350,21 @@ final class ThemeCssSupport {
             ".ai-agent-prompt-label { -fx-text-fill: " + text + "; }",
             ".ai-agent-command-preview { -fx-background-color: " + commandBackground + "; -fx-border-color: " + border + "; }",
             ".ai-agent-command-line { -fx-text-fill: " + textStrong + "; }",
+            // KI-Agent designs: the status bar (08) and the approval row under the terminal.
+            ".ai-agent-design-bar, .ai-agent-design-strip { -fx-background-color: " + bg + "; -fx-border-color: " + border + "; -fx-border-width: 1 0 0 0; }",
+            ".ai-agent-design-title { -fx-text-fill: " + text + "; -fx-font-weight: bold; }",
+            ".ai-agent-design-prompt { -fx-text-fill: " + text + "; }",
+            ".ai-agent-design-meta, .ai-agent-design-station { -fx-text-fill: " + muted + "; -fx-font-size: 0.9em; }",
+            ".ai-agent-design-station-current { -fx-text-fill: " + text + "; }",
+            ".ai-agent-design-attention { -fx-text-fill: " + attention + "; -fx-font-weight: bold; }",
+            ".ai-agent-design-chip { -fx-text-fill: " + accent + "; -fx-border-color: " + border + "; -fx-border-radius: 8; -fx-padding: 0 5 0 5; -fx-font-size: 0.85em; }",
+            ".ai-agent-design-button { -fx-background-color: " + surface + "; -fx-border-color: " + border + "; -fx-text-fill: " + text + "; -fx-background-radius: 5; -fx-border-radius: 5; -fx-padding: 2 8 2 8; -fx-cursor: hand; }",
+            ".ai-agent-design-button:hover { -fx-background-color: " + hover + "; }",
+            ".ai-agent-design-button:disabled { -fx-opacity: 0.45; }",
+            ".ai-agent-design-icon-button { -fx-padding: 1 6 1 6; -fx-text-fill: " + muted + "; }",
+            ".ai-agent-design-primary { -fx-background-color: " + accent + "; -fx-border-color: " + accent + "; -fx-text-fill: " + onAccent + "; -fx-font-weight: bold; }",
+            ".ai-agent-design-primary:hover { -fx-background-color: " + accent + "; -fx-opacity: 0.9; }",
+            ".ai-agent-design-strip .ai-agent-password-field { -fx-background-color: " + surface + "; -fx-border-color: " + border + "; -fx-text-fill: " + text + "; }",
             ".terminal-agent-busy-overlay { -fx-background-color: " + surface + "; -fx-border-color: " + border + "; }",
             ".terminal-agent-busy-robot { -fx-text-fill: " + accent + "; -fx-effect: dropshadow(gaussian, " + accent + ", 8, 0.35, 0, 0); }",
             ".terminal-agent-busy-text { -fx-text-fill: " + text + "; }"

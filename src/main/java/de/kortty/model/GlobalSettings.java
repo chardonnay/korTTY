@@ -990,6 +990,25 @@ public class GlobalSettings {
     @XmlElement
     private Double aiAgentPanelSideWidth;
 
+    // Plugins → KI-Agent Design: the combination agent runs are shown in unless a connection picks its
+    // own. Null means the built-in standard combination, so a settings file without it gets the standard.
+    @XmlElement
+    private String aiAgentDesignDefaultId;
+
+    // The user's own KI-Agent design combinations; built-in ones are never stored. Null while there are
+    // none, so a settings file without them keeps its old form.
+    @XmlElementWrapper(name = "aiAgentDesignCombinations")
+    @XmlElement(name = "combination")
+    private java.util.List<AgentDesignCombinationEntry> aiAgentDesignCombinations;
+
+    // Seconds the KI-Agent status bar stays after a run ends before it fades out; null = default, 0 = never.
+    @XmlElement
+    private Integer aiAgentDesignAutoHideSeconds;
+
+    // Turns off the decorative motion of the KI-Agent designs (pulses, moving dots, fades).
+    @XmlElement
+    private boolean aiAgentDesignReducedAnimations = false;
+
     /** Where the live session-journal panel is docked: HIDDEN (default), LEFT or RIGHT. */
     @XmlElement
     private String journalLivePanelPlacement = "HIDDEN";
@@ -3840,6 +3859,71 @@ public class GlobalSettings {
 
     public void setAiAgentPanelSideWidth(double width) {
         this.aiAgentPanelSideWidth = Math.max(AI_AGENT_PANEL_MIN_WIDTH, Math.min(width, AI_AGENT_PANEL_MAX_WIDTH));
+    }
+
+    /** Id of the default KI-Agent design combination, or {@code null} for the built-in standard. */
+    public String getAiAgentDesignDefaultId() {
+        return aiAgentDesignDefaultId != null && !aiAgentDesignDefaultId.isBlank()
+            ? aiAgentDesignDefaultId.trim() : null;
+    }
+
+    public void setAiAgentDesignDefaultId(String aiAgentDesignDefaultId) {
+        String trimmed = aiAgentDesignDefaultId != null ? aiAgentDesignDefaultId.trim() : "";
+        this.aiAgentDesignDefaultId = trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * The user's own KI-Agent design combinations, as a copy in stored order. Entries without an id are
+     * skipped, and of two entries with the same id the first wins.
+     */
+    public java.util.List<de.kortty.agentdesign.AgentDesignCombination> getAiAgentDesignCombinations() {
+        java.util.List<de.kortty.agentdesign.AgentDesignCombination> result = new java.util.ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        if (aiAgentDesignCombinations != null) {
+            for (AgentDesignCombinationEntry entry : aiAgentDesignCombinations) {
+                de.kortty.agentdesign.AgentDesignCombination combination = entry != null ? entry.toCombination() : null;
+                if (combination != null && seen.add(combination.id())) {
+                    result.add(combination);
+                }
+            }
+        }
+        return result;
+    }
+
+    /** Replaces the user's own combinations; built-in ones in {@code combinations} are not stored. */
+    public void setAiAgentDesignCombinations(java.util.List<de.kortty.agentdesign.AgentDesignCombination> combinations) {
+        java.util.List<AgentDesignCombinationEntry> entries = new java.util.ArrayList<>();
+        if (combinations != null) {
+            for (de.kortty.agentdesign.AgentDesignCombination combination : combinations) {
+                if (combination != null && !combination.builtIn()) {
+                    entries.add(new AgentDesignCombinationEntry(combination));
+                }
+            }
+        }
+        aiAgentDesignCombinations = entries.isEmpty() ? null : entries;
+    }
+
+    public static final int AI_AGENT_DESIGN_AUTO_HIDE_DEFAULT_SECONDS = 6;
+    public static final int AI_AGENT_DESIGN_AUTO_HIDE_MAX_SECONDS = 60;
+
+    /** Seconds the KI-Agent status bar stays after a run ends; 0 keeps it until the next run. */
+    public int getAiAgentDesignAutoHideSeconds() {
+        int value = aiAgentDesignAutoHideSeconds != null
+            ? aiAgentDesignAutoHideSeconds : AI_AGENT_DESIGN_AUTO_HIDE_DEFAULT_SECONDS;
+        return Math.max(0, Math.min(value, AI_AGENT_DESIGN_AUTO_HIDE_MAX_SECONDS));
+    }
+
+    public void setAiAgentDesignAutoHideSeconds(int seconds) {
+        int clamped = Math.max(0, Math.min(seconds, AI_AGENT_DESIGN_AUTO_HIDE_MAX_SECONDS));
+        this.aiAgentDesignAutoHideSeconds = clamped == AI_AGENT_DESIGN_AUTO_HIDE_DEFAULT_SECONDS ? null : clamped;
+    }
+
+    public boolean isAiAgentDesignReducedAnimations() {
+        return aiAgentDesignReducedAnimations;
+    }
+
+    public void setAiAgentDesignReducedAnimations(boolean aiAgentDesignReducedAnimations) {
+        this.aiAgentDesignReducedAnimations = aiAgentDesignReducedAnimations;
     }
 
     /**

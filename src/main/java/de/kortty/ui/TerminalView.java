@@ -477,7 +477,7 @@ public class TerminalView extends BorderPane {
     private TerminalAgentAskHandler aiAgentAskHandler;
     private TerminalAgentContextHandler aiPlanningHandler;
     private TerminalAgentShortcutHandler terminalAgentShortcutHandler;
-    private final Map<SithTermFxWidget, AiAgentActivityTabsPanel> terminalAgentActivityPanels = new ConcurrentHashMap<>();
+    private final Map<SithTermFxWidget, AgentDesignHost> terminalAgentActivityPanels = new ConcurrentHashMap<>();
     // Fired when the set of terminal widgets changes (split opened/closed) so a side dock can rebuild.
     private Runnable onWidgetSetChanged;
     // Fired when the user requests closing the tab from within the terminal (e.g. Ctrl+D on a local cmd/PowerShell).
@@ -1256,7 +1256,7 @@ public class TerminalView extends BorderPane {
         return null;
     }
 
-    public @Nullable AiAgentActivityTabsPanel getTerminalAgentActivityPanel(@Nullable TerminalAgentRunContext runContext) {
+    public @Nullable AgentDesignHost getTerminalAgentActivityPanel(@Nullable TerminalAgentRunContext runContext) {
         TerminalAgentRunContext resolvedContext = runContext != null ? runContext : captureTerminalAgentRunContext();
         SithTermFxWidget widget = resolvedContext != null ? resolvedContext.widget() : null;
         return widget != null ? terminalAgentActivityPanels.get(widget) : null;
@@ -1331,7 +1331,7 @@ public class TerminalView extends BorderPane {
     }
 
     /** The agent activity panel hosted by the given widget, or null. */
-    public @Nullable AiAgentActivityTabsPanel getAgentPanelForWidget(@Nullable SithTermFxWidget widget) {
+    public @Nullable AgentDesignHost getAgentPanelForWidget(@Nullable SithTermFxWidget widget) {
         return widget != null ? terminalAgentActivityPanels.get(widget) : null;
     }
 
@@ -1352,7 +1352,7 @@ public class TerminalView extends BorderPane {
     /** Aggregated run-state counts [awaitingInput, working, paused, done] across all widgets' panels. */
     public int[] aggregateTerminalAgentRunCounts() {
         int[] total = new int[4];
-        for (AiAgentActivityTabsPanel panel : terminalAgentActivityPanels.values()) {
+        for (AgentDesignHost panel : terminalAgentActivityPanels.values()) {
             if (panel == null) {
                 continue;
             }
@@ -1452,7 +1452,7 @@ public class TerminalView extends BorderPane {
             terminalContainer.getStylesheets().add(stylesheetUrl);
             terminalAgentBusyStylesheetUrl = stylesheetUrl;
         }
-        for (AiAgentActivityTabsPanel panel : terminalAgentActivityPanels.values()) {
+        for (AgentDesignHost panel : terminalAgentActivityPanels.values()) {
             if (panel != null) {
                 panel.applyTheme(theme);
             }
@@ -1888,10 +1888,49 @@ public class TerminalView extends BorderPane {
     }
 
     private Region createTerminalAgentActivityPanel(SithTermFxWidget widget) {
-        AiAgentActivityTabsPanel panel = new AiAgentActivityTabsPanel();
+        AgentDesignHost panel = new AgentDesignHost(new PaneAgentSurface(widget));
         terminalAgentActivityPanels.put(widget, panel);
         fireWidgetSetChanged();
         return panel;
+    }
+
+    /** A pane's terminal as the KI-Agent designs that draw into it (design 03) see it. */
+    private final class PaneAgentSurface implements AgentTerminalSurface {
+        private final SithTermFxWidget widget;
+
+        private PaneAgentSurface(SithTermFxWidget widget) {
+            this.widget = widget;
+        }
+
+        @Override
+        public @Nullable AgentTerminalBlockWriter blockWriter() {
+            Terminal terminal = widget.getTerminal();
+            com.sithtermfx.core.model.TerminalTextBuffer buffer = widget.getTerminalTextBuffer();
+            if (terminal == null || buffer == null || cleanedUp) {
+                return null;
+            }
+            return new AgentTerminalBlockWriter(terminal, buffer, terminal.getStyleState());
+        }
+
+        @Override
+        public boolean darkBackground() {
+            try {
+                Color background = Color.web(effectiveBackground(widget));
+                return 0.299 * background.getRed() + 0.587 * background.getGreen() + 0.114 * background.getBlue() < 0.55;
+            } catch (RuntimeException e) {
+                return true;
+            }
+        }
+
+        @Override
+        public void localTextWritten() {
+            markHighlightBaseline(widget);
+        }
+
+        @Override
+        public void journalLocalOutput(String text) {
+            forwardLocalOutputToJournal(text);
+        }
     }
 
     /** Cancels and discards all agent runs (and the activity wrapper) hosted by the given widget. */
@@ -1909,7 +1948,7 @@ public class TerminalView extends BorderPane {
                 }
             }
         }
-        AiAgentActivityTabsPanel panel = terminalAgentActivityPanels.remove(widget);
+        AgentDesignHost panel = terminalAgentActivityPanels.remove(widget);
         if (panel != null) {
             panel.cancelAllRuns();
         }
@@ -5930,7 +5969,8 @@ public class TerminalView extends BorderPane {
                     }
                 } else if (keyEvent.getEventType() == KeyEvent.KEY_TYPED) {
                     if (isTerminalAgentInputLockedFor(widget)
-                        && isAgentRunControlCharacter(keyEvent.getCharacter())) {
+                        && (isAgentRunControlCharacter(keyEvent.getCharacter())
+                            || isAgentPromptCharacter(widget, keyEvent.getCharacter()))) {
                         // Swallow stray run-control characters (Ctrl+C / Ctrl+R / Esc) so they do not
                         // reach the shell; ordinary typed text is buffered and forwarded as usual.
                         keyEvent.consume();
@@ -6005,7 +6045,7 @@ public class TerminalView extends BorderPane {
         if (event == null || !(event.getTarget() instanceof Node targetNode)) {
             return false;
         }
-        for (AiAgentActivityTabsPanel panel : terminalAgentActivityPanels.values()) {
+        for (AgentDesignHost panel : terminalAgentActivityPanels.values()) {
             if (isNodeWithin(targetNode, panel)) {
                 return true;
             }
@@ -6022,6 +6062,12 @@ public class TerminalView extends BorderPane {
         }
         if (event.getEventType() != KeyEvent.KEY_PRESSED) {
             return false;
+        }
+        // A design that draws into the terminal takes an open approval's answer (1, 2, 3) from here.
+        AgentDesignHost designHost = widget != null ? terminalAgentActivityPanels.get(widget) : null;
+        if (designHost != null && designHost.handlePromptKey(event)) {
+            event.consume();
+            return true;
         }
         if (!isAgentRunControlKey(event.getCode(), event.isControlDown(), event.isAltDown(), event.isMetaDown())) {
             // A run is active, but the user may keep composing the next command. Only the run-control
@@ -6055,7 +6101,7 @@ public class TerminalView extends BorderPane {
         if (runs == null || runs.isEmpty()) {
             return null;
         }
-        AiAgentActivityTabsPanel panel = terminalAgentActivityPanels.get(widget);
+        AgentDesignHost panel = terminalAgentActivityPanels.get(widget);
         String selectedRunId = panel != null ? panel.selectedRunId() : null;
         if (selectedRunId != null) {
             TerminalAgentRunState selected = runs.get(selectedRunId);
@@ -6082,6 +6128,12 @@ public class TerminalView extends BorderPane {
     static boolean isAgentRunControlKey(KeyCode code, boolean controlDown, boolean altDown, boolean metaDown) {
         return isAgentInputCancelShortcut(code, controlDown, altDown, metaDown)
             || (code == KeyCode.R && controlDown && !altDown && !metaDown);
+    }
+
+    /** Whether {@code character} answered an open approval of the pane's agent run (see AgentDesignHost). */
+    private boolean isAgentPromptCharacter(@Nullable SithTermFxWidget widget, String character) {
+        AgentDesignHost host = widget != null ? terminalAgentActivityPanels.get(widget) : null;
+        return host != null && host.isPromptKeyCharacter(character);
     }
 
     /** Control characters used for run control that must not leak to the shell while a run is active. */
@@ -10763,7 +10815,7 @@ public class TerminalView extends BorderPane {
         return platform == com.sithtermfx.core.util.Platform.Linux;
     }
 
-    private static class KorTTYSettingsProvider extends DynamicFontSizeSettingsProvider {
+    static class KorTTYSettingsProvider extends DynamicFontSizeSettingsProvider {
 
         private final ConnectionSettings settings;
         // Single tab-wide font size. May be null during super() construction (guarded below).

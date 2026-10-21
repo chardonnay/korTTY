@@ -37,6 +37,24 @@ class AiAgentActivityTabsPanelTest {
     }
 
     @Test
+    void thePanelSharesTheHeightOfThePanesColumnNotOfTheDesignHostAroundIt() {
+        // The pane's column holds the terminal and, at the bottom, the KI-Agent design host with the panel.
+        javafx.scene.layout.VBox column = new javafx.scene.layout.VBox();
+        javafx.scene.layout.VBox host = new javafx.scene.layout.VBox();
+        host.getStyleClass().add(AgentDesignHost.STYLE_CLASS);
+        column.getChildren().add(host);
+        column.resize(900, 700);
+        host.resize(900, 230);
+
+        assertThat(AiAgentActivityTabsPanel.containerHeight(host)).isEqualTo(700.0);
+        assertThat(AiAgentActivityTabsPanel.clampPanelHeight(420.0, AiAgentActivityTabsPanel.containerHeight(host)))
+            .isEqualTo(420.0);
+        // Without the host in between, the column is the parent itself.
+        assertThat(AiAgentActivityTabsPanel.containerHeight(column)).isEqualTo(700.0);
+        assertThat(AiAgentActivityTabsPanel.containerHeight(null)).isEqualTo(0.0);
+    }
+
+    @Test
     void clampsPanelHeightWithinBounds() {
         // Below the minimum is raised to the minimum.
         assertThat(AiAgentActivityTabsPanel.clampPanelHeight(10.0, 0.0)).isEqualTo(130.0);

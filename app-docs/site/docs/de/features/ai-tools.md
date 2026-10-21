@@ -103,7 +103,7 @@ Das Modell beantwortet jede Runde mit einer Entscheidung, und korTTY führt auss
 
 ## Aktivitätspanel
 
-Auf Terminals ausgerichtete Agentenausführungen verwenden ein Inline-Aktivitätsfenster am unteren Rand der aktuellen Terminalaufteilung.
+Wie Terminal-orientierte Agent-Ausführungen angezeigt werden, wird unter [*Plugins → KI-Agent Design*](ai-agent-designs.md) gewählt: standardmäßig als Block im Terminal mit einem Metro-Linienbalken darunter und pro Verbindung auf dem **KI**-Tab des Verbindungseditors. Die **Klassisch**-Kombination zeigt sie im hier beschriebenen Inline-Aktivitäts-Panel am unteren Rand der aktuellen Terminal-Aufteilung.
 
 ### Panel-Funktionen
 
@@ -126,6 +126,8 @@ Verwenden Sie **Ansicht → AI Agent Panel**, um auszuwählen, wo das Aktivität
 
 - **At Bottom** (Standard) – Der Aktivitätsbereich wird unterhalb des Terminalsplits angezeigt, an dem der Lauf gestartet wurde.
 - **Links andocken / Rechts andocken** – Das Bedienfeld erscheint als größenveränderbares Seitenfeld, das am Hauptfenster angedockt ist (wie der Dateibrowser). Im Seitenmodus gibt es eine äußere Lasche pro Anschluss der aktiven Lasche, wobei die Läufe vertikal gestapelt sind. Durch Ziehen der Trennlinie wird die Größe des Docks geändert. Platzierung und Breite werden bei jedem Neustart gespeichert. Wenn Sie zu einer anderen Terminal-Registerkarte wechseln, wechselt das Dock zu den Terminals dieser Registerkarte.
+- **Statusleiste ein- oder ausblenden** — Zeigt die [Metro-Linienleiste](ai-agent-designs.md#linienplan-08) des fokussierten Terminals erneut an, nachdem sie ausgeblendet wurde, oder blendet sie aus.
+- **Design...** — Öffnet [*Plugins → KI-Agent Design*](ai-agent-designs.md).
 
 ### Statusanzeigen
 

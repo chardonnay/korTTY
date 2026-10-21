@@ -58,6 +58,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private boolean refreshingCredentialCombo;
     private ComboBox<SSHKey> savedSSHKeysCombo;
     private ComboBox<AiProfileOption> aiProfileCombo;
+    private ComboBox<AgentDesignUiSupport.Choice> aiAgentDesignCombo;
     private java.util.Map<String, javafx.beans.property.BooleanProperty> aiSkillChecksById;
     private java.util.List<String> unavailableAssignedAiSkillIds = java.util.List.of();
 
@@ -961,6 +962,17 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         profileHint.setWrapText(true);
         profileHint.setStyle(MutedTextStyle.HINT);
 
+        // How agent runs in this connection are shown (Plugins → KI-Agent Design); null = the default.
+        java.util.List<AgentDesignUiSupport.Choice> designChoices =
+            AgentDesignUiSupport.connectionChoices(globalSettings, connection.getAiAgentDesignId());
+        aiAgentDesignCombo = new ComboBox<>(javafx.collections.FXCollections.observableArrayList(designChoices));
+        aiAgentDesignCombo.setPrefWidth(340);
+        aiAgentDesignCombo.getSelectionModel().select(
+            AgentDesignUiSupport.selectedChoice(designChoices, connection.getAiAgentDesignId()));
+        Label designHint = new Label(I18n.get("connEdit.aiAgentDesign.hint"));
+        designHint.setWrapText(true);
+        designHint.setStyle(MutedTextStyle.HINT);
+
         java.util.Set<String> assignedSkillIds = new java.util.LinkedHashSet<>(connection.getAiSkillIds());
         java.util.List<AiSkill> connectionSkills = new java.util.ArrayList<>();
         if (globalSettings != null && globalSettings.getAiSkills() != null) {
@@ -995,6 +1007,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             new Label(I18n.get("connEdit.ai.profile")),
             aiProfileCombo,
             profileHint,
+            new Label(I18n.get("connEdit.aiAgentDesign")),
+            aiAgentDesignCombo,
+            designHint,
             new Label(I18n.get("connEdit.ai.skills")),
             skillsHint);
         if (connectionSkills.isEmpty()) {
@@ -1054,6 +1069,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private void applyAiSelections() {
         AiProfileOption selectedOption = aiProfileCombo != null ? aiProfileCombo.getValue() : null;
         connection.setAiProfileId(selectedOption != null ? selectedOption.profileId() : null);
+        if (aiAgentDesignCombo != null) {
+            AgentDesignUiSupport.Choice design = aiAgentDesignCombo.getValue();
+            connection.setAiAgentDesignId(design != null ? design.storedId() : null);
+        }
         if (aiSkillChecksById == null) {
             return;
         }

@@ -112,6 +112,7 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 | Artikel | Beschreibung |
 | --- | --- |
 | Terminal-Effekte… | Terminal-Effekt-Plugins aktivieren/deaktivieren, konfigurieren, importieren/exportieren |
+| KI-Agent Design | Wählen Sie aus, wie Terminal-KI-Agent-Läufe angezeigt werden: eine Kombination aus [Designs](../features/ai-agent-designs.md), dem Standard und Ihren eigenen Kombinationen |
 
 ## Ansicht
 
@@ -127,6 +128,8 @@ Die drei Einträge im Sitzungsjournal bleiben sichtbar, werden jedoch deaktivier
 | File Browser ▸ Show on Left | ++ctrl+shift+k++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) links vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
 | Dateibrowser ▸ Rechts anzeigen | ++ctrl+shift+r++ | Docken Sie das Lokal an [Dateibrowser](../features/file-browser.md) rechts vom Terminal; Wenn Sie die aktive Seite deaktivieren, wird sie ausgeblendet |
 | KI-Agent-Panel ▸ Unten / Links andocken / Rechts andocken | | Wählen Sie, wo sich das KI-Agent-Aktivitätspanel befindet |
+| KI-Agent-Panel ▸ Statusleiste ein- oder ausblenden | | Zeigen Sie die [Metro-Line-Leiste](../features/ai-agent-designs.md#linienplan-08) des fokussierten Terminals erneut an, oder verbergen Sie sie |
+| KI-Agent-Panel ▸ Design... | | Öffnen Sie [*Plugins → KI-Agent Design*](../features/ai-agent-designs.md) |
 | Live-Journal ▸ Links andocken / Rechts andocken | | Andocken des [Live-Journal-Panel](../features/session-journal.md#das-live-journal-panel) neben dem Terminal; Auswahl der aktiven Seite versteckt es |
 | Live-Journal ▸ Anzeigen/Ausblenden | ++ctrl+alt+l++ | Schalten Sie das Live-Journal-Panel auf seiner zuletzt verwendeten Seite (standardmäßig rechts) |
 | Coding-Agents ▸ Links andocken / Rechts andocken | | Andocken Sie das [Coding-Agents-Panel](../features/coding-agents.md#das-coding-agents-panel) neben dem Terminal; die Auswahl der aktiven Seite blendet es aus. |
