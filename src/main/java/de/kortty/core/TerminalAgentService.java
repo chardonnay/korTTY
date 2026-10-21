@@ -2907,8 +2907,11 @@ public class TerminalAgentService {
                 "You may suggest at most 3 commands.",
                 "All commands must be valid, non-interactive " + shellName + " commands that never wait for user input.",
                 "Each command runs in its own fresh non-interactive shell starting from the working directory in `probe.currentDir`; do not rely on `cd`/`Set-Location` persisting to later commands.",
+                cmd
+                    ? "Each command is already executed by cmd.exe; write the command itself, not `cmd /c ...`."
+                    : "Each command is already executed by PowerShell; write the PowerShell code itself. NEVER wrap it in `powershell -Command \"...\"` or `pwsh -Command \"...\"` — the outer shell would expand `$variables` inside the quotes and break the command.",
                 "When the user asks to create or save a file and does not specify an absolute path, create it in `probe.currentDir`.",
-                "To read, inspect, translate, convert, migrate, or otherwise use a file whose contents are NOT already in the probe or previous command results, FIRST plan a read-only command to read it (e.g. `cat 'path'` or `Get-Content 'path'`), risk `read_only`, in `commands` with status `run_commands`. The probe never contains file contents. Never answer `blocked` merely because a file's contents are not in the probe — read the file first.",
+                "To read, inspect, translate, convert, migrate, or otherwise use a file whose contents are NOT already in the probe or previous command results, FIRST plan a read-only command to read it (" + (cmd ? "e.g. `type \"path\"`" : "e.g. `Get-Content -Raw 'path'`") + "), risk `read_only`, in `commands` with status `run_commands`. The probe never contains file contents. Never answer `blocked` merely because a file's contents are not in the probe — read the file first. To extend or modify an existing file, read it first, then write its complete new contents in a later step.",
                 writeGuidance,
                 "NEVER claim that a file was created, written, saved, or modified unless you actually issued the command that does so in THIS response.",
                 "There is NO sudo/root/administrator elevation available. Never use `sudo`, `su`, or `runas`. If a task requires administrator rights, set `status` to `blocked` and explain why.",
