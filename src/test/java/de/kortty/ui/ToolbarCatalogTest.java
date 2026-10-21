@@ -63,5 +63,7 @@ public class ToolbarCatalogTest {
             .isEqualTo(1);
         assertThat(catalog.describe(Entry.action("menu.tools.logfileManager", Section.TOOLS)).icon())
             .isEqualTo("logfile");
+        assertThat(catalog.describe(Entry.action("menu.connections.manage", Section.TOOLS)).icon())
+            .isEqualTo("connectionManager");
     }
 }

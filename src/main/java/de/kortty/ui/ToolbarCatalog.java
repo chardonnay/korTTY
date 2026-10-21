@@ -94,6 +94,7 @@ final class ToolbarCatalog {
         return switch (action) {
             case "menu.file.newTab" -> "tab";
             case "toolbar.localShell" -> "shell";
+            case "menu.connections.manage" -> "connectionManager";
             case "menu.connections.sftpClient" -> "sftp";
             case "menu.tools.snippets" -> "snippetEditor";
             case "menu.tools.aiManager" -> "ai";

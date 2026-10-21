@@ -67,6 +67,8 @@ final class ToolbarIcons {
             case "journal", "logging" -> teal("M7 3 H20 V21 H7 Q4 21 4 18 V6 Q4 3 7 3 Z M8 3 V21 M2 7 H5 M2 12 H5 M2 17 H5", "M13 3 V11 L16 9 L19 11 V3");
             case "gear" -> blue("M9 3 H15 L16 6 L19 5 L22 10 L19 12 L22 14 L19 19 L16 18 L15 21 H9 L8 18 L5 19 L2 14 L5 12 L2 10 L5 5 L8 6 Z", "M12 8 A4 4 0 1 0 12.01 8");
             case "server" -> blue("M5 3 H19 Q21 3 21 5 V9 Q21 11 19 11 H5 Q3 11 3 9 V5 Q3 3 5 3 M5 13 H19 Q21 13 21 15 V19 Q21 21 19 21 H5 Q3 21 3 19 V15 Q3 13 5 13", "M16 7 H17 M16 17 H17");
+            // Two linked servers with a list of saved entries: the Connection Manager.
+            case "connectionManager" -> blue("M3 3 H13 V9 H3 Z M3 15 H13 V21 H3 Z M8 9 V15", "M6 6 H7 M6 18 H7 M16 5 H21 M16 12 H21 M16 19 H21");
             case "group" -> blue("M8 2 H19 V10 H8 Z M2 12 H12 V21 H2 Z M15 13 H23 V21 H15 Z", "M15 6 H16 M8 16 H9 M19 17 H20");
             case "font" -> blue("M3 17 L8 4 L13 17 M5 12 H11 M16 10 Q22 7 22 12 V17 M22 13 Q15 11 16 16 Q18 19 22 15", "M4 21 H20");
             case "colors" -> blue("M12 3 C1 3 0 17 8 20 C13 23 11 17 16 17 C24 18 24 3 12 3 Z M7 8 H7.1 M13 6 H13.1 M18 9 H18.1", "M7 14 A1 1 0 1 0 7.01 14");
