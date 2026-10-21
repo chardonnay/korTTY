@@ -553,6 +553,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="ai-agent-designs.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            AI agent designs
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="ai-swarm.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -705,7 +713,7 @@
                     </a>
                 </div>
                 <div class="col">
-                    <a href="ai-swarm.html"
+                    <a href="ai-agent-designs.html"
                         class="btn-preview drac-btn drac-btn-outline drac-text-white drac-text-cyan-green--hover" style="padding-left: 3%;">
                         Next <i class="fa fa-arrow-right"></i>
                     </a>
@@ -902,7 +910,7 @@
 <p>For local file review tasks, name the file in your prompt. The agent should then inspect it with shell commands such as <code>sed -n</code>, <code>cat</code>, <code>file</code>, or language-specific syntax checks. When an internet-enabled profile is active, KorTTY still keeps web tools away from local file planning unless your task clearly asks for current or external information.</p>
 </div>
 <h2 id="activity-panel">Activity panel<a class="headerlink" href="#activity-panel" title="Permanent link">&para;</a></h2>
-<p>Terminal-targeted agent runs use an inline activity panel at the bottom of the current terminal split.</p>
+<p>How terminal-targeted agent runs are shown is chosen under <a href="ai-agent-designs.html"><em>Plugins → AI Agent Design</em></a>: by default as a block in the terminal with a metro-line bar below it, and per connection on the connection editor's <strong>AI</strong> tab. The <strong>Classic</strong> combination shows them in the inline activity panel described here, at the bottom of the current terminal split.</p>
 <h3 id="panel-features">Panel features<a class="headerlink" href="#panel-features" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Run tabs</strong> — Multiple concurrent runs appear as closable tabs. Click a tab to select it; only the selected tab's run is controlled by run-control keys and buttons. Up to 5 concurrent runs per split.</li>
@@ -923,6 +931,8 @@
 <ul>
 <li><strong>At Bottom</strong> (default) — The activity panel appears below the terminal split where the run was started.</li>
 <li><strong>Dock Left / Dock Right</strong> — The panel appears as a resizable side panel docked to the main window (like the file browser). In side mode there is one outer tab per terminal of the active tab, with runs stacked vertically. Dragging the divider resizes the dock; placement and width are remembered across restarts. Switching to another terminal tab swaps the dock to that tab's terminals.</li>
+<li><strong>Show or Hide Status Bar</strong> — Shows the <a href="ai-agent-designs.html#metro-line-08">metro-line bar</a> of the focused terminal again after it faded out, or hides it.</li>
+<li><strong>Design...</strong> — Opens <a href="ai-agent-designs.html"><em>Plugins → AI Agent Design</em></a>.</li>
 </ul>
 <h3 id="status-indicators">Status indicators<a class="headerlink" href="#status-indicators" title="Permanent link">&para;</a></h3>
 <p>A per-terminal AI-agent status icon appears in the Dashboard and prefixed to the terminal tab title, aggregated across that terminal's runs and refreshed about once a second:</p>
