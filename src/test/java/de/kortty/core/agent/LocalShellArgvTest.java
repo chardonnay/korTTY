@@ -53,6 +53,32 @@ class LocalShellArgvTest {
     }
 
     @Test
+    void nestedPowerShellCommandIsUnwrappedSoVariablesSurvive() {
+        assertThat(LocalShellArgv.unwrapNestedPowerShell(
+            "powershell -Command \"$content = Get-Content 'Show-Patches.ps1' -Raw; $content.Length\""))
+            .isEqualTo("$content = Get-Content 'Show-Patches.ps1' -Raw; $content.Length");
+        assertThat(LocalShellArgv.unwrapNestedPowerShell(
+            "PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Write-Output \\\"a\\\" `$x\""))
+            .isEqualTo("Write-Output \"a\" $x");
+        assertThat(LocalShellArgv.unwrapNestedPowerShell("pwsh -c 'Write-Output ''hi'''"))
+            .isEqualTo("Write-Output 'hi'");
+        assertThat(LocalShellArgv.unwrapNestedPowerShell("pwsh -Command { Get-Date }"))
+            .isEqualTo("Get-Date");
+        assertThat(LocalShellArgv.unwrapNestedPowerShell("powershell -c Get-Date"))
+            .isEqualTo("Get-Date");
+    }
+
+    @Test
+    void ordinaryCommandsAreNotUnwrapped() {
+        assertThat(LocalShellArgv.unwrapNestedPowerShell("Get-Content -Raw 'Show-Patches.ps1'"))
+            .isEqualTo("Get-Content -Raw 'Show-Patches.ps1'");
+        assertThat(LocalShellArgv.unwrapNestedPowerShell("powershell -File script.ps1"))
+            .isEqualTo("powershell -File script.ps1");
+        assertThat(LocalShellArgv.unwrapNestedPowerShell("powershell -Command \"unbalanced"))
+            .isEqualTo("powershell -Command \"unbalanced");
+    }
+
+    @Test
     void returnedArgvIsUnmodifiable() {
         List<String> argv = LocalShellArgv.argv(ShellKind.POSIX, "true");
         try {

@@ -98,9 +98,14 @@ public final class LocalAgentCommandRunner implements AgentCommandRunner {
 
     /**
      * Builds the argv that runs {@code command} non-interactively in the agent shell (see
-     * {@link LocalShellArgv} for the per-shell quoting).
+     * {@link LocalShellArgv} for the per-shell quoting). A model-written
+     * {@code powershell -Command "..."} wrapper is dropped, since the command already runs in
+     * PowerShell and the wrapper would have its {@code $variables} expanded by the outer shell.
      */
     private List<String> wrap(String command) {
+        if (shellKind == ShellKind.WINDOWS_POWERSHELL) {
+            command = LocalShellArgv.unwrapNestedPowerShell(command);
+        }
         return LocalShellArgv.argv(shellKind, command);
     }
 
