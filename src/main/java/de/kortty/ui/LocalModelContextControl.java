@@ -73,16 +73,17 @@ final class LocalModelContextControl {
         return node;
     }
 
-    /** Sets the range to the model's maximum and puts that maximum into the field. */
-    void showMaximum(int maximum) {
+    /** Sets the range to the model's maximum and puts {@code value}, kept within it, into the field. */
+    void show(int maximum, int value) {
         int max = Math.max(MIN_CONTEXT, maximum);
+        int shown = clamp(value, max);
         syncing = true;
         factory.setMax(max);
         slider.setMax(max);
         slider.setMajorTickUnit(Math.max(STEP, max / 4.0));
         syncing = false;
-        factory.setValue(max);
-        slider.setValue(max);
+        factory.setValue(shown);
+        slider.setValue(shown);
         maxLabel.setText(I18n.get("settings.ai.contextSize.max", max));
     }
 

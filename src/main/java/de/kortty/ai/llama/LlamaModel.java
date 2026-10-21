@@ -21,8 +21,10 @@ public final class LlamaModel {
     /**
      * Context a new chat model starts with. 4,096 tokens left the terminal agent no room: its system
      * prompt alone takes about 1,900, so the second turn already ran out and the reply was cut off.
+     * 131,072 tokens did not load a dense 27B model on common hardware (its KV cache alone is about
+     * 30 GB), so the default sits at 32,768 and a larger context stays the user's choice.
      */
-    public static final int DEFAULT_CONTEXT_SIZE = 131_072;
+    public static final int DEFAULT_CONTEXT_SIZE = 32_768;
     /** Context a new embedding model starts with; embedding models are trained on short inputs. */
     public static final int DEFAULT_EMBEDDING_CONTEXT_SIZE = 4096;
 

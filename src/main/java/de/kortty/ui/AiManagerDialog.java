@@ -146,6 +146,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     /** Context sizes chosen in the editor, by model id, written to the models on save. */
     private final Map<String, Integer> pendingContextSizes = new LinkedHashMap<>();
     private final Map<java.nio.file.Path, Integer> trainedContextByModelFile = new HashMap<>();
+    /** The slider's upper end for a GGUF file that does not declare the context it was trained for. */
+    private static final int UNKNOWN_TRAINED_CONTEXT = 131_072;
     private final ComboBox<AiTokenizerType> tokenizerCombo;
     private final Spinner<Integer> tokenLimitAmountSpinner;
     private final ComboBox<AiTokenLimitUnit> tokenLimitUnitCombo;
@@ -1782,9 +1784,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     /**
-     * Shows the context size for the selected embedded llama.cpp model, pre-set to the context the
-     * model was trained for. Done again only when the model changes, so typing elsewhere keeps an
-     * edited value.
+     * Shows the context size for the selected embedded llama.cpp model, up to the context the model
+     * was trained for and pre-set to the default chat context (less when the model was trained for
+     * less). Done again only when the model changes, so typing elsewhere keeps an edited value.
      */
     private void refreshContextSizeControl() {
         String modelId = selectedConnectionMode() == AiConnectionMode.EMBEDDED_LLAMA_CPP
@@ -1802,7 +1804,8 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                 .inDirectory(KorTTYApplication.getConfigDirectory().resolve("llm"))
                 .find(modelId)
                 .ifPresent(model -> {
-                    contextSizeControl.showMaximum(trainedContextLength(model));
+                    int trained = trainedContextLength(model);
+                    contextSizeControl.show(trained, de.kortty.ai.llama.LlamaModel.defaultContextSizeFor(trained));
                     contextSizeModelId = model.getId();
                 });
         } catch (RuntimeException error) {
@@ -1811,11 +1814,11 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
     }
 
     /**
-     * The context the model was trained for, or the default chat context when the file does not say
-     * (and its configured size if that is larger).
+     * The context the model was trained for, or {@value #UNKNOWN_TRAINED_CONTEXT} tokens when the
+     * file does not say (and its configured size if that is larger).
      */
     private int trainedContextLength(de.kortty.ai.llama.LlamaModel model) {
-        int fallback = Math.max(model.getContextSize(), de.kortty.ai.llama.LlamaModel.DEFAULT_CONTEXT_SIZE);
+        int fallback = Math.max(model.getContextSize(), UNKNOWN_TRAINED_CONTEXT);
         return trainedContextByModelFile.computeIfAbsent(model.getModelPath(), path -> {
             try {
                 return de.kortty.ai.llama.GgufMetadataReader.contextLength(path).orElse(fallback);
