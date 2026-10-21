@@ -74,6 +74,9 @@ public class LocalShellTtyConnector implements ObservableTtyConnector, de.kortty
     // The configured command itself is a remote client (e.g. "ssh user@host"): the shell never
     // runs locally, so local path resolution is wrong for the tab's whole lifetime.
     private volatile boolean remoteClientShell;
+    // PowerShell or cmd.exe on Windows: their line editors clear the input line on Escape and
+    // know nothing of readline's Ctrl+U, which PSReadLine echoes as a literal "^U".
+    private volatile boolean windowsConsoleShell;
     // The directory a restored session saved for this pane (SessionWorkingDirectory): used by the
     // next connect() instead of the connection's start directory while it still exists.
     private volatile String restoredStartDirectory;
@@ -177,6 +180,8 @@ public class LocalShellTtyConnector implements ObservableTtyConnector, de.kortty
             directoryChangeTracker.reset();
             sessionChangeTracker.reset();
             remoteClientShell = launchesRemoteClient(shellCommand);
+            windowsConsoleShell = isWindows() && launchesWindowsConsoleShell(shellCommand);
+            directoryChangeTracker.setEscapeClearsLine(windowsConsoleShell);
             requestLocalHostName();
 
             // Do not log any part of the user-configured command line: it is free-form and may
@@ -796,8 +801,24 @@ public class LocalShellTtyConnector implements ObservableTtyConnector, de.kortty
      * of a local shell. Matches the basename of the first token with a {@code .exe} suffix stripped.
      */
     static boolean launchesRemoteClient(List<String> commandTokens) {
+        return switch (programName(commandTokens)) {
+            case "ssh", "slogin", "sshpass", "autossh", "mosh", "mosh-client", "telnet", "rlogin",
+                "plink" -> true;
+            default -> false;
+        };
+    }
+
+    /** True when the resolved command line starts PowerShell or cmd.exe (matched like {@link #launchesRemoteClient}). */
+    static boolean launchesWindowsConsoleShell(List<String> commandTokens) {
+        return switch (programName(commandTokens)) {
+            case "powershell", "pwsh", "cmd" -> true;
+            default -> false;
+        };
+    }
+
+    private static String programName(List<String> commandTokens) {
         if (commandTokens == null || commandTokens.isEmpty()) {
-            return false;
+            return "";
         }
         String name = commandTokens.get(0).trim().toLowerCase(Locale.ROOT);
         int slash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
@@ -807,11 +828,15 @@ public class LocalShellTtyConnector implements ObservableTtyConnector, de.kortty
         if (name.endsWith(".exe")) {
             name = name.substring(0, name.length() - ".exe".length());
         }
-        return switch (name) {
-            case "ssh", "slogin", "sshpass", "autossh", "mosh", "mosh-client", "telnet", "rlogin",
-                "plink" -> true;
-            default -> false;
-        };
+        return name;
+    }
+
+    /**
+     * The bytes that discard the shell's pending input line: Escape for PowerShell and cmd.exe on
+     * Windows, Ctrl+U (readline's unix-line-discard) for every other shell.
+     */
+    public byte[] clearInputLineSequence() {
+        return windowsConsoleShell ? new byte[] {0x1B} : new byte[] {0x15};
     }
 
     /** Resolves the local host name once, off the hot path; the getter returns the cached value. */

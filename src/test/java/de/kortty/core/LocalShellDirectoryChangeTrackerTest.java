@@ -57,6 +57,16 @@ class LocalShellDirectoryChangeTrackerTest {
     }
 
     @Test
+    void loneEscapeClearsTheLineWhereTheShellTreatsItSo() {
+        LocalShellDirectoryChangeTracker tracker = new LocalShellDirectoryChangeTracker();
+        tracker.setEscapeClearsLine(true);
+        assertThat(tracker.accept("echo abandoned".getBytes(StandardCharsets.UTF_8))).isFalse();
+        assertThat(tracker.accept(new byte[] {0x1B})).isFalse();
+        // The next keystroke is not swallowed as the second byte of an escape sequence.
+        assertThat(tracker.accept("cd /tmp\r".getBytes(StandardCharsets.UTF_8))).isTrue();
+    }
+
+    @Test
     void bracketedPasteIsInspectedOnlyWhenSubmitted() {
         LocalShellDirectoryChangeTracker tracker = new LocalShellDirectoryChangeTracker();
         assertThat(tracker.accept("\u001b[20".getBytes(StandardCharsets.UTF_8))).isFalse();
