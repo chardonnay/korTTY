@@ -383,7 +383,9 @@ public class KorTTYApplication extends Application {
             // selected and the global Window listener is installed before any password UI exists.
             AppDesignStyleSupport.initializeGlobalStyling(
                 globalSettingsManager.getSettings().getAppDesign());
-            
+            // Windows: native title bars turn dark while the system app mode is dark.
+            de.kortty.ui.WindowsDarkTitleBar.install();
+
             // Check if master password needs to be set up or verified
             // Always show dialog if password is not set (first time setup)
             // Otherwise, check the setting
