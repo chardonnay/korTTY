@@ -155,6 +155,27 @@ final class TabRestoreTriage {
         };
     }
 
+    /**
+     * The connection a terminal tab of the toolbar's Local Shell opens over again, or {@code null} for
+     * every other tab. That shell was never a saved connection, so its saved connection id names
+     * nothing; it keeps that id, so the tab's split panes on the same shell still find it. The command
+     * comes from the session snapshot only; a project file opens {@code defaultCommand}.
+     */
+    static @Nullable ServerConnection unsavedLocalShell(SessionState state, String defaultCommand, String name) {
+        if (tabType(state) != SessionState.TabType.TERMINAL || !Boolean.TRUE.equals(state.getLocalShell())) {
+            return null;
+        }
+        ServerConnection connection = new ServerConnection();
+        if (state.getConnectionId() != null && !state.getConnectionId().isBlank()) {
+            connection.setId(state.getConnectionId());
+        }
+        connection.setProtocol(de.kortty.model.ConnectionProtocol.LOCAL_SHELL);
+        String command = state.getLocalShellCommand();
+        connection.setLocalShellCommand(command != null && !command.isBlank() ? command : defaultCommand);
+        connection.setName(name);
+        return connection;
+    }
+
     /** The file of a file editor or image viewer tab, or {@code null} for other tabs and a tab without one. */
     static @Nullable String filePath(SessionState state) {
         return switch (tabType(state)) {

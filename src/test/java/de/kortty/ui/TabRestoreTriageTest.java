@@ -82,6 +82,41 @@ class TabRestoreTriageTest {
         assertThat(fake.policyChecks).isEqualTo(0);
     }
 
+    @Test
+    void theToolbarsUnsavedLocalShellComesBackAsALocalShellWithItsId() {
+        SessionState state = new SessionState("session-1", "transient-id");
+        state.setLocalShell(true);
+        state.setLocalShellCommand("pwsh.exe -NoLogo");
+
+        ServerConnection shell = TabRestoreTriage.unsavedLocalShell(state, "default", "Local Shell");
+
+        assertThat(shell).isNotNull();
+        assertThat(shell.isLocalShell()).isTrue();
+        assertThat(shell.getId()).isEqualTo("transient-id");
+        assertThat(shell.getLocalShellCommand()).isEqualTo("pwsh.exe -NoLogo");
+        assertThat(shell.getName()).isEqualTo("Local Shell");
+        Fake fake = new Fake();
+        Outcome outcome = TabRestoreTriage.classify(state, ignored -> shell, fake.resolver(), path -> false);
+        assertThat(outcome.isReady()).isTrue();
+    }
+
+    @Test
+    void anUnsavedLocalShellWithoutACommandOpensTheDefaultShell() {
+        SessionState state = new SessionState("session-1", "transient-id");
+        state.setLocalShell(true);
+
+        assertThat(TabRestoreTriage.unsavedLocalShell(state, "default", "Local Shell").getLocalShellCommand())
+            .isEqualTo("default");
+    }
+
+    @Test
+    void aTabThatIsNoUnsavedLocalShellIsLeftToItsSavedConnection() {
+        assertThat(TabRestoreTriage.unsavedLocalShell(new SessionState("s", "c"), "default", "Local Shell")).isNull();
+        SessionState editor = localEditor("/home/me/notes.txt");
+        editor.setLocalShell(true);
+        assertThat(TabRestoreTriage.unsavedLocalShell(editor, "default", "Local Shell")).isNull();
+    }
+
     // ---- waiting for the user ----------------------------------------------------------------
 
     @Test

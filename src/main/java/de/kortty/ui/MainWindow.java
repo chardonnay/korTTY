@@ -8356,6 +8356,14 @@ public class MainWindow {
                     connection.getId()
             );
             sessionState.setTabType(SessionState.TabType.TERMINAL);
+            if (connection.isLocalShell() && app.getConfigManager().getConnectionById(connection.getId()) == null) {
+                // The toolbar's Local Shell is no saved connection: the tab comes back as a local shell
+                // by itself, with its command only from the session snapshot (see ProjectLeafFieldSanitizer).
+                sessionState.setLocalShell(true);
+                if (options.includeWorkingDirectories()) {
+                    sessionState.setLocalShellCommand(connection.getLocalShellCommand());
+                }
+            }
             // A copy: the project must not share, and later write out, the tab's live settings.
             sessionState.setSettings(connection.getSettings() != null
                     ? new ConnectionSettings(connection.getSettings())
@@ -8613,6 +8621,13 @@ public class MainWindow {
      * {@link SftpSessionRestoreSupport#findConnection}).
      */
     private ServerConnection savedConnectionOf(SessionState sessionState) {
+        ServerConnection unsavedLocalShell = TabRestoreTriage.unsavedLocalShell(sessionState,
+                LocalShellPresetSupport.presetsForCurrentOs(null, null, null).getFirst(),
+                I18n.get("protocol.localShell"));
+        if (unsavedLocalShell != null) {
+            // The toolbar's Local Shell: its connection id names nothing saved.
+            return unsavedLocalShell;
+        }
         String connectionId = sessionState.getConnectionId();
         if (connectionId == null || connectionId.isBlank()) {
             return null;

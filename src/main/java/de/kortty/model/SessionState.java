@@ -40,6 +40,20 @@ public class SessionState {
     @XmlElement
     private String scrollbackRef;
 
+    /**
+     * Set for a terminal tab whose local shell is not a saved connection (the toolbar's Local Shell):
+     * its connection id names nothing when the tab comes back, so it is opened again as a local shell.
+     */
+    @XmlElement
+    private Boolean localShell;
+
+    /**
+     * Session-only: the shell command of such an unsaved local shell. Only korTTY's own session
+     * snapshot keeps it; a project file never does, so a shared project cannot choose what runs.
+     */
+    @XmlElement
+    private String localShellCommand;
+
     @XmlElement
     private String currentApplication;
     
@@ -154,6 +168,22 @@ public class SessionState {
 
     public void setScrollbackRef(String scrollbackRef) {
         this.scrollbackRef = scrollbackRef;
+    }
+
+    public Boolean getLocalShell() {
+        return localShell;
+    }
+
+    public void setLocalShell(Boolean localShell) {
+        this.localShell = localShell;
+    }
+
+    public String getLocalShellCommand() {
+        return localShellCommand;
+    }
+
+    public void setLocalShellCommand(String localShellCommand) {
+        this.localShellCommand = localShellCommand;
     }
 
     public String getCurrentApplication() {
