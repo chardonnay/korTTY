@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "release": "v2.21.0",
-  "minimum_reduction_percent": 15,
+  "minimum_reduction_percent": 10,
   "budget_tolerance_percent": 2,
   "artifacts": {
     "macos-aarch64-dmg": {

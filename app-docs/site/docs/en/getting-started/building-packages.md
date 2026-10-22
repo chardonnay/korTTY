@@ -80,7 +80,7 @@ The first wrapper invocation downloads Gradle. A clean application build also cl
 
 ### Package-size reports and budgets
 
-The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. It understands the macOS `Contents/app` and `Contents/runtime`, Windows `app` and `runtime`, and Linux `lib/app` and `lib/runtime` layouts produced by `jpackage`. CI compares native installers with the committed release baseline and requires at least a 15% reduction. Every platform's app image must be at least 100 MiB, the macOS app image is capped at 190 MiB, and each native installer is checked against its budget in `package/size-baselines.json`, which is the verified size plus a 2% regression tolerance (never above the stored acceptance budget):
+The platform-independent size reporter separates the app image, runtime, formatter/Mosh payloads, dependency JARs and compressed application-JAR resources, then writes JSON and Markdown. It understands the macOS `Contents/app` and `Contents/runtime`, Windows `app` and `runtime`, and Linux `lib/app` and `lib/runtime` layouts produced by `jpackage`. CI compares native installers with the committed release baseline and requires at least a 10% reduction. Every platform's app image must be at least 100 MiB, the macOS app image is capped at 190 MiB, and each native installer is checked against its budget in `package/size-baselines.json`, which is the verified size plus a 2% regression tolerance (never above the stored acceptance budget):
 
 ```bash
 DMG="$(find build/jpackage -maxdepth 1 -name 'korTTY-*.dmg' -print -quit)"

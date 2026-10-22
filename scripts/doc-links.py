@@ -16,6 +16,7 @@ This script guards the manifest itself:
   * every `diagrams:` entry exists under app-docs/diagrams/;
   * every `screenshots:` entry exists under app-docs/screenshots/;
   * every screenshot embedded in an English page is registered by some page;
+  * every screenshot is palette or greyscale, not truecolor (see TRUECOLOR_PNG_TYPES);
   * no two pages own the same `owns_i18n` prefix (ambiguous home);
   * every `owns_code` path exists on disk;
   * every `last_synced_ref` resolves to a commit in the current history;
@@ -60,6 +61,24 @@ SCREENSHOTS_DIR = REPO_ROOT / "app-docs" / "screenshots"
 DOCS_EN_DIR = REPO_ROOT / "app-docs" / "site" / "docs" / "en"
 # Matches the catalog-relative part of any `assets/screenshots/<area>/<name>.png` reference,
 # whatever the page's `../` depth. German pages are generated, so only English is scanned.
+# PNG IHDR colour types 2 (RGB) and 6 (RGBA). The Node.snapshot generators and screencapture
+# write these, and a truecolor UI capture is two to three times the size of the same image
+# quantized to a palette. The guide ships inside every package, PNGs do not compress any further
+# there, and v2.22.0's seven unquantized AI Agent Design captures (~1.9 MB) were enough to push
+# both .deb packages below their package-size reduction target.
+TRUECOLOR_PNG_TYPES = {2: "RGB", 6: "RGBA"}
+PNG_QUANTIZE_HINT = "pngquant --quality 80-95 --speed 1 --strip --skip-if-larger --force --ext .png"
+
+
+def _png_color_type(path: Path) -> int | None:
+    """IHDR colour type of a PNG, or None when the file is not a well-formed PNG."""
+    with path.open("rb") as fh:
+        head = fh.read(26)
+    if len(head) < 26 or head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
+        return None
+    return head[25]
+
+
 SCREENSHOT_REF = re.compile(r"assets/screenshots/([A-Za-z0-9][A-Za-z0-9._/-]*\.png)")
 
 
@@ -196,6 +215,19 @@ def main() -> int:
             rel = png.relative_to(SCREENSHOTS_DIR).as_posix()
             if rel not in registered_screenshots:
                 warnings.append(f"screenshot not registered by any manifest page: {rel}")
+
+    # Truecolor screenshots — an error, because every byte ships in each package (see
+    # TRUECOLOR_PNG_TYPES).
+    if SCREENSHOTS_DIR.is_dir():
+        for png in sorted(SCREENSHOTS_DIR.rglob("*.png")):
+            rel = png.relative_to(SCREENSHOTS_DIR).as_posix()
+            color_type = _png_color_type(png)
+            if color_type is None:
+                errors.append(f"screenshot is not a valid PNG: {rel}")
+            elif color_type in TRUECOLOR_PNG_TYPES:
+                errors.append(
+                    f"screenshot is truecolor ({TRUECOLOR_PNG_TYPES[color_type]}), not quantized: "
+                    f"{rel} — run `{PNG_QUANTIZE_HINT} app-docs/screenshots/{rel}`")
 
     if warnings:
         print(f"{len(warnings)} warning(s):")
