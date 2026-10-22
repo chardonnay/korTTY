@@ -176,7 +176,12 @@ public final class IconToolbarSmoke {
         ((javafx.scene.layout.Region) root).resize(380, 700);
         layout(root);
         snapshot(toolbar, output.resolve("narrow.png"));
-        check(toolbar.lookupAll(".tool-bar-overflow-button").stream().anyMatch(Node::isVisible), "Overflow remains accessible");
+        // Action groups wrap instead of hiding buttons behind a group's overflow menu.
+        Node tasks = toolbar.lookup(".toolbar-tasks");
+        check(tasks.lookupAll(".tool-bar-overflow-button").stream().noneMatch(Node::isVisible),
+            "Narrow window keeps every action button directly clickable");
+        check(tasks.lookupAll(".toolbar-task-group").stream().map(group -> group.getBoundsInParent().getMinY())
+            .distinct().count() > 1, "Narrow window wraps action groups onto another line");
 
         // Missing action/connection references remain visible but disabled.
         var missing = new IconToolbarSettings();
@@ -390,7 +395,7 @@ public final class IconToolbarSmoke {
         check(detachments.get() == 0, "Focusing a toolbar button must not detach it during the click: " + detachments.get());
         mouseEvent(shell, javafx.scene.input.MouseEvent.MOUSE_RELEASED, false);
         check(tabs.getTabs().size() == before + 1, "First click after focus change opens exactly one shell");
-        List<Node> groups = toolbar.lookup(".toolbar-tasks") instanceof javafx.scene.layout.HBox row
+        List<Node> groups = toolbar.lookup(".toolbar-tasks") instanceof javafx.scene.layout.Pane row
             ? row.getChildren() : List.of();
         check(groups.size() == 3, "Three task groups");
         Node tools = groups.get(1);

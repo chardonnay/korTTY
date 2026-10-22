@@ -179,6 +179,7 @@ Global application preferences and defaults.
 - Docked live session-journal panel: placement (hidden/left/right) and width
 - Coding Agents panel: `codingAgentPanelPlacement` (hidden, left or right), `codingAgentPanelSide` (the side it was last docked on, kept while it is hidden), `codingAgentPanelWidth`, and `codingAgentPanelAutoVisibility` (show and hide it with agent detection, on by default)
 - Icon toolbar: the `iconToolbar` element with the visibility of the action row (`visible` attribute) and of the connection row (`connectionsVisible`), and one `entry` per button with `id`, `kind` (`ACTION`, `CONNECTION`, `GROUP` or `SEPARATOR`), `section` (`TERMINAL`, `TOOLS`, `SETTINGS` or `CONNECTIONS`) and `target` (an action id, a connection id or a group path). Entries hold references only, never passwords or keys; without the element the default layout applies. The `logfileManagerMigrated` attribute records the one-time addition of the Logfile Manager to older layouts, preserving existing entries and allowing later customization to remove it; the `connectionManagerMigrated` attribute does the same for the Connection Manager button
+- `windowsShellsMigrated` (an attribute of `iconToolbar`): records the one-time addition of the PowerShell and Command Prompt buttons on Windows; on other systems it stays `false` until the layout is loaded on Windows.
 - `toolbarIconSize`: the icon size of both toolbar rows and the customization catalog, 16 to 64 pixels (24 when missing)
 - JobScheduler status display preference
 - Last ASCII Art dialog preview zoom level

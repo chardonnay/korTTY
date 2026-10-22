@@ -35,7 +35,7 @@ public class ToolbarEditorModelTest {
         assertThat(editor.entries().get(1).id()).isEqualTo(second.id());
         editor.step(first.id(), -1);
         editor.place(first, Section.TERMINAL, first.id());
-        assertThat(editor.entries()).hasSize(16);
+        assertThat(editor.entries()).hasSize(IconToolbarSettings.defaults().entries().size());
     }
 
     @Test
@@ -59,9 +59,9 @@ public class ToolbarEditorModelTest {
         var editor = new ToolbarEditorModel(original);
         List.copyOf(editor.entries()).forEach(entry -> editor.remove(entry.id()));
         assertThat(editor.finish(true).entries()).isEmpty();
-        assertThat(original.entries()).hasSize(16);
+        assertThat(original.entries()).hasSize(IconToolbarSettings.defaults().entries().size());
         editor.reset();
-        assertThat(editor.finish(true).entries()).hasSize(16);
+        assertThat(editor.finish(true).entries()).hasSize(IconToolbarSettings.defaults().entries().size());
     }
 
     @Test

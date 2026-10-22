@@ -31,6 +31,10 @@ final class ToolbarCatalog {
 
     List<Entry> actions() {
         List<Entry> result = new ArrayList<>(de.kortty.model.IconToolbarSettings.defaults().entries());
+        // Registered only on Windows with Git for Windows installed, so the catalog offers it only there.
+        if (actions.find("toolbar.gitBash").isPresent()) {
+            result.add(Entry.action("toolbar.gitBash", Section.TERMINAL));
+        }
         result.add(Entry.action("menu.settings.global", Section.SETTINGS));
         for (SettingsSection section : SettingsSection.values()) {
             if (result.stream().noneMatch(entry -> entry.target().equals(section.actionId()))) {
@@ -94,6 +98,9 @@ final class ToolbarCatalog {
         return switch (action) {
             case "menu.file.newTab" -> "tab";
             case "toolbar.localShell" -> "shell";
+            case "toolbar.gitBash" -> "gitBash";
+            case "toolbar.powershell" -> "powershell";
+            case "toolbar.cmd" -> "cmd";
             case "menu.connections.manage" -> "connectionManager";
             case "menu.connections.sftpClient" -> "sftp";
             case "menu.tools.snippets" -> "snippetEditor";

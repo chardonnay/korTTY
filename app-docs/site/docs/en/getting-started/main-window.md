@@ -29,6 +29,14 @@ The icon toolbar is visible by default, including when upgrading a configuration
 
 The first row groups **New Tab** and **New local shell** under Terminal; Connection Manager, SFTP, Snippet Manager, Session Journals, Logfile Manager, AI Manager, JobScheduler and Video Manager under Tools; and Font, Colors, Keyboard, Logs, Window, Terminal and AI shortcuts under Settings, in that order. The Global Settings button is available in the customization catalog but is not included in the default layout. **New Tab** opens Quick Connect. **New local shell** immediately starts a tab with the existing platform-default shell preset. Tooltips name each action and its current keyboard shortcut, where one exists. Buttons that do not fit remain reachable through the toolbar overflow menu. Set **Toolbar icon size (px)** from 16 to 64 in [Global Settings → Window](../reference/settings/window.md); the default is 24, and saving updates both rows and the customization catalog in every window.
 
+On Windows with Git for Windows installed, the catalog also offers **New Git Bash** in the Terminal section. Its icon is the terminal of **New local shell** with the prompt in orange, the colour of the Git logo, and the button immediately opens Git Bash in a new tab. Without Git Bash the button is not offered.
+
+When the window is too narrow for the action row, whole groups move to another line instead of being squeezed, so every button stays directly clickable. The overflow menu, shown as a double arrow (»), is only used by the connection row and by a group that is wider than the whole window.
+
+On Windows, the Terminal section of the default layout also has the buttons **New PowerShell** and **New Command Prompt**, right after the **New local shell** button. Both buttons have their own icon. PowerShell shows a blue prompt in a slanted frame. The Command Prompt shows `C:\` in a console window.
+
+A saved toolbar layout on Windows gets both buttons once, after **New local shell**, or at the start of the toolbar when Terminal has no buttons. Buttons you already placed stay where they are, and removing them later is remembered.
+
 When an older saved toolbar layout is loaded for the first time, korTTY automatically adds the Logfile Manager button after Session Journals in Tools, or at the end of Tools if Session Journals is absent. Existing buttons, separators, their order and the visibility of both rows are preserved. A Logfile Manager button you already placed stays where it is, without adding a duplicate. After this migration, removing the button through customization is remembered. In the same way, the Connection Manager button is added once at the start of Tools, or as a new Tools group at the end if the layout has none; a Connection Manager button you already placed stays where it is, and removing it afterwards is remembered as well.
 
 ![Icon toolbar with demo connection buttons](../assets/screenshots/main/icon-toolbar.png)

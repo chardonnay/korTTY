@@ -61,6 +61,12 @@ final class ToolbarIcons {
             case "clock" -> blue("M12 2 A10 10 0 1 0 12.01 2", "M12 6 V12 L16 15");
             case "tab" -> blue("M3 20 V6 Q3 3 6 3 H18 Q21 3 21 6 V20", "M8 12 H16 M12 8 V16");
             case "shell", "terminal" -> blue("M5 3 H19 Q21 3 21 5 V19 Q21 21 19 21 H5 Q3 21 3 19 V5 Q3 3 5 3", "M7 8 L11 12 L7 16 M13 16 H17");
+            // The local shell's terminal with its prompt in Git's orange: a Git Bash tab.
+            // PowerShell's slanted logo panel around its prompt.
+            case "powershell" -> new Glyph("M7 4 H22 L17 20 H2 Z", "M8 8.5 L12 12 L7 15.5 M11.5 15.5 H15", "#5391fe");
+            // A classic console window showing the C:\ drive prompt: the Command Prompt.
+            case "cmd" -> teal("M3 4 H21 V20 H3 Z M3 8 H21", "M10 11.5 Q6.5 11 6.5 14 Q6.5 17 10 16.5 M12.5 12.5 V12.6 M12.5 16 V16.1 M15 11 L18 17");
+            case "gitBash" -> new Glyph("M5 3 H19 Q21 3 21 5 V19 Q21 21 19 21 H5 Q3 21 3 19 V5 Q3 3 5 3", "M7 8 L11 12 L7 16 M13 16 H17", "#f05133");
             case "sftp" -> teal("M3 7 V5 Q3 3 5 3 H10 L13 6 H19 Q21 6 21 8 V19 Q21 21 19 21 H5 Q3 21 3 19 Z", "M7 11 H17 L14 8 M17 16 H7 L10 19");
             case "ai" -> new Glyph("M9 4 Q5 2 5 7 Q1 8 4 12 Q1 16 5 18 Q5 23 10 20 M15 4 Q19 2 19 7 Q23 8 20 12 Q23 16 19 18 Q19 23 14 20", "M12 3 V21 M8 8 H12 M12 15 H17 M8 17 V13 H12 M16 6 V10 H12", "#a56ae6");
             case "jobs" -> new Glyph("M12 21 H5 Q3 21 3 19 V6 Q3 4 5 4 H18 Q20 4 20 6 V10 M3 9 H20 M7 2 V6 M16 2 V6 M7 13 H9 M7 17 H9 M16 12 A5 5 0 1 0 16.01 12", "M17 15 V18 H20", "#dc9825");

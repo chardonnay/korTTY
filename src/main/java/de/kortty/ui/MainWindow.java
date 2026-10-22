@@ -353,6 +353,7 @@ public class MainWindow {
     private final List<CheckMenuItem> iconToolbarMenuItems = new ArrayList<>();
     private final List<CheckMenuItem> connectionToolbarMenuItems = new ArrayList<>();
     private static boolean iconToolbarSavePending;
+    private static volatile Optional<String> gitBashCommand;
     private static final java.util.ArrayDeque<Runnable> iconToolbarSaveQueue = new java.util.ArrayDeque<>();
     private CommandPalettePopup commandPalette;
     // The order this window's tabs were last selected in, the most recent first; the command
@@ -1269,6 +1270,29 @@ public class MainWindow {
         connection.setProtocol(ConnectionProtocol.LOCAL_SHELL);
         connection.setLocalShellCommand(LocalShellPresetSupport.presetsForCurrentOs(null, null, null).getFirst());
         connection.setName(I18n.get("protocol.localShell"));
+        openConnectionAndReturnTab(connection, null, null, null);
+    }
+
+    /** The Git Bash command, looked up once per run; {@code null} unless Git for Windows is installed. */
+    private static String gitBashCommand() {
+        if (gitBashCommand == null) {
+            String found = LocalShellTtyConnector.findWindowsGitBashCommand();
+            gitBashCommand = Optional.ofNullable(found);
+        }
+        return gitBashCommand.orElse(null);
+    }
+
+    private void openGitBashFromToolbar() {
+        String command = gitBashCommand();
+        if (command != null) openShellFromToolbar(command, I18n.get("connEdit.shell.gitbash"));
+    }
+
+    /** Opens an unsaved local shell tab running {@code command}, titled {@code name}. */
+    private void openShellFromToolbar(String command, String name) {
+        ServerConnection connection = new ServerConnection();
+        connection.setProtocol(ConnectionProtocol.LOCAL_SHELL);
+        connection.setLocalShellCommand(command);
+        connection.setName(name);
         openConnectionAndReturnTab(connection, null, null, null);
     }
 
@@ -3540,6 +3564,20 @@ public class MainWindow {
             registry.register(new AppAction("toolbar.localShell", I18n.get("toolbar.localShell"),
                 I18n.get("toolbar.section.terminal"), null, List.of(), () -> true, null,
                 this::openLocalShellFromToolbar, true, false));
+            if (LocalShellTtyConnector.isWindows()) {
+                registry.register(new AppAction("toolbar.powershell", I18n.get("toolbar.powershell"),
+                    I18n.get("toolbar.section.terminal"), null, List.of(), () -> true, null,
+                    () -> openShellFromToolbar(LocalShellPresetSupport.POWERSHELL,
+                        I18n.get("connEdit.shell.powershell")), true, false));
+                registry.register(new AppAction("toolbar.cmd", I18n.get("toolbar.cmd"),
+                    I18n.get("toolbar.section.terminal"), null, List.of(), () -> true, null,
+                    () -> openShellFromToolbar(LocalShellPresetSupport.CMD, "cmd.exe"), true, false));
+            }
+            if (gitBashCommand() != null) {
+                registry.register(new AppAction("toolbar.gitBash", I18n.get("toolbar.gitBash"),
+                    I18n.get("toolbar.section.terminal"), null, List.of(), () -> true, null,
+                    this::openGitBashFromToolbar, true, false));
+            }
             for (SettingsSection section : SettingsSection.values()) {
                 registry.register(new AppAction(section.actionId(), I18n.get(section.labelKey()),
                     I18n.get("toolbar.settings"), null, List.of(), () -> true, null,

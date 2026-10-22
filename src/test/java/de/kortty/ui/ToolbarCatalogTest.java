@@ -66,4 +66,19 @@ public class ToolbarCatalogTest {
         assertThat(catalog.describe(Entry.action("menu.connections.manage", Section.TOOLS)).icon())
             .isEqualTo("connectionManager");
     }
+
+    @Test
+    void gitBashIsOfferedOnlyWhenItsActionIsRegistered() {
+        var without = new ToolbarCatalog(new ActionRegistry(), List::of, id -> { }, group -> { }, () -> { });
+        assertThat(without.actions().stream().map(Entry::target).toList()).doesNotContain("toolbar.gitBash");
+        ActionRegistry registry = new ActionRegistry();
+        registry.register(new AppAction("toolbar.gitBash", "New Git Bash", "", null, List.of(), () -> true,
+            null, () -> { }, true, false));
+        var with = new ToolbarCatalog(registry, List::of, id -> { }, group -> { }, () -> { });
+        assertThat(with.actions().stream().filter(entry -> "toolbar.gitBash".equals(entry.target()))
+            .map(Entry::section).toList()).containsExactly(Section.TERMINAL);
+        assertThat(with.describe(Entry.action("toolbar.gitBash", Section.TERMINAL)).icon()).isEqualTo("gitBash");
+        assertThat(with.describe(Entry.action("toolbar.powershell", Section.TERMINAL)).icon()).isEqualTo("powershell");
+        assertThat(with.describe(Entry.action("toolbar.cmd", Section.TERMINAL)).icon()).isEqualTo("cmd");
+    }
 }
