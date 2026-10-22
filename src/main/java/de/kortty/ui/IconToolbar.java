@@ -148,7 +148,9 @@ final class IconToolbar extends VBox {
         stateUpdates.clear();
         rows.getChildren().clear();
         List<Entry> entries = editor == null ? settings.entries() : editor.entries();
-        HBox actions = new HBox(8);
+        // Groups keep their full width and wrap onto another line when the window is too narrow, so
+        // every button stays one click away instead of disappearing into a group's overflow menu.
+        FlowPane actions = new FlowPane(8, 4);
         actions.getStyleClass().add("toolbar-tasks");
         for (Section section : List.of(Section.TERMINAL, Section.TOOLS, Section.SETTINGS)) {
             List<Entry> members = entries.stream().filter(entry -> entry.section() == section).toList();
@@ -160,8 +162,9 @@ final class IconToolbar extends VBox {
             group.setAlignment(Pos.TOP_LEFT);
             group.getStyleClass().add("toolbar-task-group");
             group.setMinWidth(56);
-            group.setMaxWidth(Region.USE_PREF_SIZE);
-            HBox.setHgrow(group, Priority.NEVER);
+            // FlowPane lays groups out at their preferred width; only a group wider than the whole
+            // row is narrowed to it and falls back to the toolbar's overflow menu.
+            group.maxWidthProperty().bind(actions.widthProperty());
             actions.getChildren().add(group);
         }
         if (!actions.getChildren().isEmpty() && (settings.isVisible() || editor != null)) rows.getChildren().add(actions);

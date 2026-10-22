@@ -16,6 +16,11 @@ public final class IconToolbarSettings {
     public enum Section { TERMINAL, TOOLS, SETTINGS, CONNECTIONS }
     public enum Kind { ACTION, CONNECTION, GROUP, SEPARATOR }
     private static final String CONNECTION_MANAGER = "menu.connections.manage";
+    private static final String LOCAL_SHELL = "toolbar.localShell";
+    /** The Windows shells that get their own Terminal buttons, in toolbar order. */
+    static final List<String> WINDOWS_SHELLS = List.of("toolbar.powershell", "toolbar.cmd");
+    private static final boolean WINDOWS =
+        System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
 
     @XmlAttribute
     private boolean visible = true;
@@ -25,6 +30,8 @@ public final class IconToolbarSettings {
     private boolean logfileManagerMigrated = true;
     @XmlAttribute
     private boolean connectionManagerMigrated = true;
+    @XmlAttribute
+    private boolean windowsShellsMigrated = true;
     @XmlElement(name = "entry")
     private List<Entry> entries = new ArrayList<>();
 
@@ -35,13 +42,18 @@ public final class IconToolbarSettings {
         connectionsVisible = source.isConnectionsVisible();
         logfileManagerMigrated = source.logfileManagerMigrated;
         connectionManagerMigrated = source.connectionManagerMigrated;
+        windowsShellsMigrated = source.windowsShellsMigrated;
         entries = new ArrayList<>(source.entries());
     }
 
-    /** Missing XML markers identify layouts saved before the logfile- and connection-manager defaults. */
+    /**
+     * Missing XML markers identify layouts saved before the logfile-manager, connection-manager and
+     * Windows shell defaults.
+     */
     private void beforeUnmarshal(Unmarshaller unmarshaller, Object parent) {
         logfileManagerMigrated = false;
         connectionManagerMigrated = false;
+        windowsShellsMigrated = false;
     }
 
     private void afterUnmarshal(Unmarshaller unmarshaller, Object parent) {
@@ -71,6 +83,29 @@ public final class IconToolbarSettings {
                 entries.add(insertionIndex, Entry.action(CONNECTION_MANAGER, Section.TOOLS));
             }
         }
+        // Only a Windows host has these shells; elsewhere the marker stays unset until the layout reaches one.
+        if (!windowsShellsMigrated && WINDOWS) migrateWindowsShells();
+    }
+
+    /**
+     * Adds the PowerShell and Command Prompt buttons once: after New local shell, else at the end of
+     * Terminal, else as a new Terminal group at the start. A button already placed keeps its place.
+     */
+    void migrateWindowsShells() {
+        windowsShellsMigrated = true;
+        entries = new ArrayList<>(entries());
+        int insertionIndex = -1;
+        for (int index = 0; index < entries.size(); index++) {
+            Entry entry = entries.get(index);
+            if (entry.section != Section.TERMINAL) continue;
+            insertionIndex = index + 1;
+            if (entry.kind == Kind.ACTION && LOCAL_SHELL.equals(entry.target)) break;
+        }
+        if (insertionIndex < 0) insertionIndex = 0;
+        for (String shell : WINDOWS_SHELLS) {
+            if (containsAction(shell)) continue;
+            entries.add(insertionIndex++, Entry.action(shell, Section.TERMINAL));
+        }
     }
 
     private boolean containsAction(String target) {
@@ -97,10 +132,16 @@ public final class IconToolbarSettings {
             .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 
-    public static IconToolbarSettings defaults() {
+    /** The default layout for this host: on Windows it includes the PowerShell and Command Prompt buttons. */
+    public static IconToolbarSettings defaults() { return defaults(WINDOWS); }
+
+    public static IconToolbarSettings defaults(boolean windows) {
         IconToolbarSettings settings = new IconToolbarSettings();
         settings.entries.add(Entry.action("menu.file.newTab", Section.TERMINAL));
-        settings.entries.add(Entry.action("toolbar.localShell", Section.TERMINAL));
+        settings.entries.add(Entry.action(LOCAL_SHELL, Section.TERMINAL));
+        if (windows) {
+            for (String shell : WINDOWS_SHELLS) settings.entries.add(Entry.action(shell, Section.TERMINAL));
+        }
         for (String id : List.of(CONNECTION_MANAGER, "menu.connections.sftpClient", "menu.tools.snippets",
                 "menu.tools.sessionJournals", "menu.tools.logfileManager", "menu.tools.aiManager",
                 "menu.tools.jobScheduler", "menu.tools.videoManager")) {

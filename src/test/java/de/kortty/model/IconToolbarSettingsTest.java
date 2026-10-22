@@ -13,7 +13,7 @@ import static com.google.common.truth.Truth.assertThat;
 public class IconToolbarSettingsTest {
     @Test
     void defaultLayoutMatchesApprovedGroupsAndOrder() {
-        var entries = IconToolbarSettings.defaults().entries();
+        var entries = IconToolbarSettings.defaults(false).entries();
         assertThat(entries.stream().map(Entry::target).toList()).containsExactly(
             "menu.file.newTab", "toolbar.localShell",
             "menu.connections.manage", "menu.connections.sftpClient", "menu.tools.snippets", "menu.tools.sessionJournals",
@@ -36,7 +36,7 @@ public class IconToolbarSettingsTest {
         for (int size : List.of(16, 24, 32, 64)) {
             legacy.setToolbarIconSize(size);
             assertThat(roundTrip(legacy).getToolbarIconSize()).isEqualTo(size);
-            assertThat(legacy.getIconToolbar().entries()).hasSize(16);
+            assertThat(legacy.getIconToolbar().entries()).hasSize(IconToolbarSettings.defaults().entries().size());
         }
         legacy.setToolbarIconSize(0);
         assertThat(legacy.getToolbarIconSize()).isEqualTo(16);
@@ -53,7 +53,7 @@ public class IconToolbarSettingsTest {
         GlobalSettings old = (GlobalSettings) context.createUnmarshaller().unmarshal(new StringReader("<globalSettings/>"));
         assertThat(old.getIconToolbar().isVisible()).isTrue();
         assertThat(old.getIconToolbar().isConnectionsVisible()).isTrue();
-        assertThat(old.getIconToolbar().entries()).hasSize(16);
+        assertThat(old.getIconToolbar().entries()).hasSize(IconToolbarSettings.defaults().entries().size());
         assertThat(old.getIconToolbar().entries().stream().map(Entry::target).toList())
             .doesNotContain("menu.settings.global");
         old.setIconToolbar(new IconToolbarSettings());
@@ -119,7 +119,7 @@ public class IconToolbarSettingsTest {
         var editing = global.getIconToolbar();
         editing.setEntries(List.of());
         editing.setVisible(false);
-        assertThat(global.getIconToolbar().entries()).hasSize(16);
+        assertThat(global.getIconToolbar().entries()).hasSize(IconToolbarSettings.defaults().entries().size());
         assertThat(global.getIconToolbar().isVisible()).isTrue();
     }
 
@@ -151,7 +151,7 @@ public class IconToolbarSettingsTest {
 
     @Test
     void legacyCustomizedLayoutGainsLogfileManagerWithoutMovingExistingEntries() throws Exception {
-        String xml = "<globalSettings><iconToolbar visible=\"false\" connectionsVisible=\"true\" connectionManagerMigrated=\"true\">"
+        String xml = "<globalSettings><iconToolbar visible=\"false\" connectionsVisible=\"true\" connectionManagerMigrated=\"true\" windowsShellsMigrated=\"true\">"
             + "<entry id=\"font\" kind=\"ACTION\" section=\"SETTINGS\" target=\"toolbar.settings.font\"/>"
             + "<entry id=\"video\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.videoManager\"/>"
             + "<entry id=\"journal\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.sessionJournals\"/>"
@@ -179,7 +179,7 @@ public class IconToolbarSettingsTest {
 
     @Test
     void legacyLayoutWithLogfileManagerPreservesItsPositionWithoutDuplicates() throws Exception {
-        String xml = "<globalSettings><iconToolbar connectionManagerMigrated=\"true\">"
+        String xml = "<globalSettings><iconToolbar connectionManagerMigrated=\"true\" windowsShellsMigrated=\"true\">"
             + "<entry id=\"logfile\" kind=\"ACTION\" section=\"SETTINGS\" target=\"menu.tools.logfileManager\"/>"
             + "<entry id=\"journal\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.sessionJournals\"/>"
             + "</iconToolbar></globalSettings>";
@@ -193,7 +193,7 @@ public class IconToolbarSettingsTest {
     @Test
     void legacyLayoutWithoutJournalsAppendsToToolsAndWithoutToolsCreatesTheGroup() throws Exception {
         for (boolean withTools : List.of(false, true)) {
-            String xml = "<globalSettings><iconToolbar connectionManagerMigrated=\"true\">"
+            String xml = "<globalSettings><iconToolbar connectionManagerMigrated=\"true\" windowsShellsMigrated=\"true\">"
                 + "<entry id=\"shell\" kind=\"ACTION\" section=\"TERMINAL\" target=\"toolbar.localShell\"/>"
                 + (withTools ? "<entry id=\"video\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.videoManager\"/>" : "")
                 + "<entry id=\"font\" kind=\"ACTION\" section=\"SETTINGS\" target=\"toolbar.settings.font\"/>"
@@ -212,7 +212,7 @@ public class IconToolbarSettingsTest {
 
     @Test
     void legacyLayoutGainsConnectionManagerAtTheStartOfToolsOnceAndRemovalIsRemembered() throws Exception {
-        String xml = "<globalSettings><iconToolbar>"
+        String xml = "<globalSettings><iconToolbar windowsShellsMigrated=\"true\">"
             + "<entry id=\"shell\" kind=\"ACTION\" section=\"TERMINAL\" target=\"toolbar.localShell\"/>"
             + "<entry id=\"sftp\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.connections.sftpClient\"/>"
             + "<entry id=\"logfile\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.logfileManager\"/>"
@@ -237,7 +237,7 @@ public class IconToolbarSettingsTest {
 
     @Test
     void legacyLayoutWithConnectionManagerKeepsItsPositionAndWithoutToolsAppendsIt() throws Exception {
-        String placed = "<globalSettings><iconToolbar>"
+        String placed = "<globalSettings><iconToolbar windowsShellsMigrated=\"true\">"
             + "<entry id=\"manage\" kind=\"ACTION\" section=\"SETTINGS\" target=\"menu.connections.manage\"/>"
             + "<entry id=\"logfile\" kind=\"ACTION\" section=\"TOOLS\" target=\"menu.tools.logfileManager\"/>"
             + "</iconToolbar></globalSettings>";
@@ -246,7 +246,7 @@ public class IconToolbarSettingsTest {
         assertThat(settings.getIconToolbar().entries().stream().map(Entry::id).toList())
             .containsExactly("manage", "logfile").inOrder();
 
-        String withoutTools = "<globalSettings><iconToolbar logfileManagerMigrated=\"true\">"
+        String withoutTools = "<globalSettings><iconToolbar logfileManagerMigrated=\"true\" windowsShellsMigrated=\"true\">"
             + "<entry id=\"shell\" kind=\"ACTION\" section=\"TERMINAL\" target=\"toolbar.localShell\"/>"
             + "</iconToolbar></globalSettings>";
         var entries = ((GlobalSettings) JAXBContext.newInstance(GlobalSettings.class)
@@ -254,6 +254,58 @@ public class IconToolbarSettingsTest {
         assertThat(entries.stream().map(Entry::target).toList())
             .containsExactly("toolbar.localShell", "menu.connections.manage").inOrder();
         assertThat(entries.getLast().section()).isEqualTo(Section.TOOLS);
+    }
+
+    @Test
+    void windowsDefaultsPlacePowerShellAndCommandPromptAfterLocalShell() {
+        var entries = IconToolbarSettings.defaults(true).entries();
+        assertThat(entries.subList(0, 4).stream().map(Entry::target).toList()).containsExactly(
+            "menu.file.newTab", "toolbar.localShell", "toolbar.powershell", "toolbar.cmd").inOrder();
+        assertThat(entries.subList(0, 4).stream().map(Entry::section).distinct().toList())
+            .containsExactly(Section.TERMINAL);
+        assertThat(entries).hasSize(IconToolbarSettings.defaults(false).entries().size() + 2);
+    }
+
+    @Test
+    void windowsShellMigrationInsertsAfterLocalShellOnceAndRemovalIsRemembered() throws Exception {
+        String xml = "<globalSettings><iconToolbar logfileManagerMigrated=\"true\" connectionManagerMigrated=\"true\">"
+            + "<entry id=\"tab\" kind=\"ACTION\" section=\"TERMINAL\" target=\"menu.file.newTab\"/>"
+            + "<entry id=\"shell\" kind=\"ACTION\" section=\"TERMINAL\" target=\"toolbar.localShell\"/>"
+            + "<entry id=\"gap\" kind=\"SEPARATOR\" section=\"TERMINAL\" target=\"\"/>"
+            + "<entry id=\"font\" kind=\"ACTION\" section=\"SETTINGS\" target=\"toolbar.settings.font\"/>"
+            + "</iconToolbar></globalSettings>";
+        var settings = (GlobalSettings) JAXBContext.newInstance(GlobalSettings.class)
+            .createUnmarshaller().unmarshal(new StringReader(xml));
+        var toolbar = settings.getIconToolbar();
+        toolbar.migrateWindowsShells();
+        assertThat(toolbar.entries().stream().map(Entry::target).toList()).containsExactly("menu.file.newTab",
+            "toolbar.localShell", "toolbar.powershell", "toolbar.cmd", "", "toolbar.settings.font").inOrder();
+        settings.setIconToolbar(toolbar);
+        var restored = roundTrip(settings).getIconToolbar();
+        assertThat(restored.entries().stream().map(Entry::target).toList())
+            .containsExactlyElementsIn(toolbar.entries().stream().map(Entry::target).toList()).inOrder();
+
+        toolbar.setEntries(toolbar.entries().stream().filter(entry -> !"toolbar.cmd".equals(entry.target())).toList());
+        settings.setIconToolbar(toolbar);
+        assertThat(roundTrip(settings).getIconToolbar().entries().stream().map(Entry::target).toList())
+            .doesNotContain("toolbar.cmd");
+    }
+
+    @Test
+    void windowsShellMigrationKeepsPlacedButtonsAndWithoutTerminalStartsTheGroup() {
+        var placed = new IconToolbarSettings();
+        placed.setEntries(List.of(Entry.action("toolbar.localShell", Section.TERMINAL),
+            Entry.action("toolbar.cmd", Section.TOOLS)));
+        placed.migrateWindowsShells();
+        assertThat(placed.entries().stream().map(Entry::target).toList())
+            .containsExactly("toolbar.localShell", "toolbar.powershell", "toolbar.cmd").inOrder();
+        assertThat(placed.entries().getLast().section()).isEqualTo(Section.TOOLS);
+
+        var withoutTerminal = new IconToolbarSettings();
+        withoutTerminal.setEntries(List.of(Entry.action("toolbar.settings.font", Section.SETTINGS)));
+        withoutTerminal.migrateWindowsShells();
+        assertThat(withoutTerminal.entries().stream().map(Entry::target).toList())
+            .containsExactly("toolbar.powershell", "toolbar.cmd", "toolbar.settings.font").inOrder();
     }
 
     private static GlobalSettings roundTrip(GlobalSettings settings) throws Exception {
