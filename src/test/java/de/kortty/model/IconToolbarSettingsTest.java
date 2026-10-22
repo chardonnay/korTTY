@@ -138,7 +138,7 @@ public class IconToolbarSettingsTest {
 
     @Test
     void malformedEntriesAreDiscardedAndUnknownActionsPreservedForRepair() throws Exception {
-        String xml = "<globalSettings><iconToolbar visible=\"false\" connectionManagerMigrated=\"true\">"
+        String xml = "<globalSettings><iconToolbar visible=\"false\" connectionManagerMigrated=\"true\" windowsShellsMigrated=\"true\">"
             + "<entry id=\"bad\" kind=\"CONNECTION\" section=\"TOOLS\" target=\"host\"/>"
             + "<entry id=\"future\" kind=\"ACTION\" section=\"TOOLS\" target=\"unknown.action\"/>"
             + "<entry kind=\"GROUP\" section=\"CONNECTIONS\" target=\"Work\"/>"
