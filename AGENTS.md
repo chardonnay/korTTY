@@ -74,7 +74,10 @@ The same built site is **bundled into the app** (`/guide/**`, opened via
   `./scripts/validate-doc-svg.sh`. Reference as `![alt](../assets/diagrams/NAME.svg)`.
 - **Screenshots** live in `app-docs/screenshots/<area>/<name>.png`, captured from
   the app in the **Normal** design with a throwaway demo dataset (no real hosts,
-  keys, or passwords). Register each in `doc-manifest.yaml`.
+  keys, or passwords). Register each in `doc-manifest.yaml`. Quantize every new
+  capture before committing (`pngquant --quality 80-95 --speed 1 --strip --skip-if-larger
+  --force --ext .png <file>`): the guide ships in every package, and `doc-links.py` rejects
+  truecolor screenshots.
 - Every user-facing `settings.*` / `menu.*` key is documented on exactly one page,
   declared via that page's `owns_i18n` prefix in `doc-manifest.yaml`.
 
