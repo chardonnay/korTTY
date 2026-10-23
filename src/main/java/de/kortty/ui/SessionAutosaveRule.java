@@ -14,7 +14,10 @@ package de.kortty.ui;
  *       only part of them; it is written once the restore is done.</li>
  *   <li><b>Empty capture.</b> A capture without a tab never replaces a snapshot with tabs; the
  *       snapshot keeps its windows and only takes the new Recently Closed list. That is what remains
- *       when the last window closes on macOS, where korTTY keeps running.</li>
+ *       when the last window closes on macOS, where korTTY keeps running. Only when the user closed
+ *       the last tabs themselves (a close command, a tab's close button, or a shell they ended) does
+ *       the empty capture replace it: otherwise a session the user had closed, and dismissed at the
+ *       next start, came back at every start.</li>
  * </ul>
  *
  * <p>Pure: no file, no toolkit.
@@ -44,8 +47,11 @@ final class SessionAutosaveRule {
      * @param restoring    whether a project or session restore is opening tabs right now
      * @param capturedTabs the tabs the capture holds, over all windows
      * @param savedTabs    the tabs the snapshot on disk holds, over all windows
+     * @param userClosedTabs whether the user closed tabs since the last write, and no window with
+     *                     tabs closed since
      */
-    record State(boolean sealed, boolean writable, boolean restoring, int capturedTabs, int savedTabs) {
+    record State(boolean sealed, boolean writable, boolean restoring, int capturedTabs, int savedTabs,
+                 boolean userClosedTabs) {
     }
 
     static Decision decide(State state) {
@@ -55,7 +61,7 @@ final class SessionAutosaveRule {
         if (state.restoring()) {
             return Decision.LATER;
         }
-        if (state.capturedTabs() <= 0 && state.savedTabs() > 0) {
+        if (state.capturedTabs() <= 0 && state.savedTabs() > 0 && !state.userClosedTabs()) {
             return Decision.KEEP_SAVED_WINDOWS;
         }
         return Decision.WRITE;

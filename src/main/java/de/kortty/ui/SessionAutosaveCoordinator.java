@@ -36,7 +36,7 @@ import java.util.function.Supplier;
  *       written on a single background thread, in the order of the captures.</li>
  *   <li><b>What.</b> {@link SessionAutosaveRule} decides: nothing after the snapshot korTTY quits
  *       with, nothing while a restore is opening tabs, and never an empty capture over a snapshot
- *       with tabs.</li>
+ *       with tabs, unless the user closed those tabs themselves ({@link #tabsClosedByUser}).</li>
  *   <li><b>Quitting.</b> {@link #saveAndSeal} writes the snapshot korTTY quits with, marked as a
  *       clean exit, waits up to {@value #QUIT_SAVE_TIMEOUT_MILLIS} ms for it and seals: Quit calls it
  *       after every window agreed and before the first window closes, and closing the last window
@@ -140,6 +140,11 @@ public final class SessionAutosaveCoordinator {
     private volatile @Nullable SessionSnapshot saved;
     /** The previous session {@link #carryForward} put into {@link #saved}, while it is still there; FX thread. */
     private @Nullable SessionSnapshot carried;
+    /**
+     * The user closed tabs since the last write, and no window with tabs closed since: the next write
+     * may leave the snapshot without a tab. FX thread.
+     */
+    private boolean userClosedTabs;
     /** This run restored the previous session; written into every snapshot from then on. */
     private volatile boolean sessionRestored;
     /** korTTY kept running for {@value #STABLE_AFTER_MILLIS} ms after that restore. */
@@ -174,6 +179,30 @@ public final class SessionAutosaveCoordinator {
             timers.runSoon();
         } else {
             timers.restartDebounce();
+        }
+    }
+
+    /**
+     * The user closed tabs themselves: a close command, a tab's close button, or a shell they ended.
+     * When no tab is left, the snapshot follows and holds none, so the next start offers nothing.
+     * FX thread.
+     */
+    void tabsClosedByUser() {
+        if (sealed) {
+            return;
+        }
+        userClosedTabs = true;
+        markDirty();
+    }
+
+    /**
+     * A window is about to close while korTTY keeps running. When it had tabs, closing it is no
+     * reason to empty the snapshot, even right after the user closed tabs elsewhere: an empty
+     * capture keeps the windows on disk again. FX thread.
+     */
+    void windowClosing(boolean hadTabs) {
+        if (hadTabs) {
+            userClosedTabs = false;
         }
     }
 
@@ -414,7 +443,10 @@ public final class SessionAutosaveCoordinator {
         SessionAutosaveRule.Decision decision = SessionAutosaveRule.decide(new SessionAutosaveRule.State(
             false, true, restoring > 0,
             SessionSnapshotStore.restorableTabs(capture.project()),
-            SessionSnapshotStore.restorableTabs(onDisk)));
+            SessionSnapshotStore.restorableTabs(onDisk), userClosedTabs));
+        if (decision != SessionAutosaveRule.Decision.LATER) {
+            userClosedTabs = false;
+        }
         Project windows;
         switch (decision) {
             case DROP -> {

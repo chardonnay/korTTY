@@ -1,7 +1,9 @@
 package de.kortty.ui;
 
+import de.kortty.core.SessionRestoreDecision;
 import de.kortty.core.SessionSnapshotStore;
 import de.kortty.model.Project;
+import de.kortty.model.SessionRestoreMode;
 import de.kortty.model.SessionSnapshot;
 import de.kortty.model.SessionState;
 import de.kortty.model.WindowState;
@@ -30,7 +32,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
  * decision, then through {@link SessionAutosaveCoordinator} with a real store in a temporary
  * directory: an empty capture never overwrites a snapshot with tabs, nothing partial is written while
  * a restore opens tabs, and once Quit wrote its snapshot the windows that close one after another
- * cannot shrink it.
+ * cannot shrink it. Only tabs the user closed themselves may leave an empty snapshot.
  */
 class SessionAutosaveRuleTest {
 
@@ -75,6 +77,14 @@ class SessionAutosaveRuleTest {
     }
 
     @Test
+    void anEmptyCaptureReplacesTheSnapshotWhenTheUserClosedTheTabs() {
+        assertThat(decide(false, true, false, 0, 4, true)).isEqualTo(SessionAutosaveRule.Decision.WRITE);
+        assertWithMessage("a restore still puts it off")
+            .that(decide(false, true, true, 0, 4, true)).isEqualTo(SessionAutosaveRule.Decision.LATER);
+        assertThat(decide(true, true, false, 0, 4, true)).isEqualTo(SessionAutosaveRule.Decision.DROP);
+    }
+
+    @Test
     void aRestoreInProgressPutsTheWriteOffAndSealedOrForeignStoresDropIt() {
         assertThat(decide(false, true, true, 1, 4)).isEqualTo(SessionAutosaveRule.Decision.LATER);
         assertThat(decide(true, true, false, 3, 3)).isEqualTo(SessionAutosaveRule.Decision.DROP);
@@ -104,6 +114,90 @@ class SessionAutosaveRuleTest {
         assertThat(SessionSnapshotStore.restorableTabs(onDisk)).isEqualTo(4);
         assertThat(onDisk.getRecentlyClosed()).hasSize(2);
         assertThat(onDisk.isCleanExit()).isFalse();
+    }
+
+    @Test
+    void closingTheLastTabsLeavesNothingToOfferAtTheNextStart() throws Exception {
+        SessionAutosaveCoordinator coordinator = start();
+        capture.set(capture(1, 1));
+        coordinator.markDirty();
+        coordinator.saveIfDirty();
+
+        // The user closes the last tab, then quits with the window still open.
+        capture.set(capture(0, 0));
+        coordinator.tabsClosedByUser();
+        coordinator.saveIfDirty();
+        assertThat(coordinator.saveAndSeal()).isTrue();
+        assertThat(SessionSnapshotStore.restorableTabs(readLast())).isEqualTo(0);
+        stores.forEach(SessionSnapshotStore::close);
+
+        SessionSnapshotStore next = SessionSnapshotStore.open(configDir);
+        stores.add(next);
+        SessionRestoreDecision.Facts facts = SessionRestoreDecision.Facts.of(next.startUp());
+        assertThat(facts.tabs()).isEqualTo(0);
+        assertThat(SessionRestoreDecision.decide(SessionRestoreMode.ASK, facts).action())
+            .isEqualTo(SessionRestoreDecision.Action.NONE);
+    }
+
+    @Test
+    void aClosedTabEmptiesTheSnapshotOnlyUntilTheNextWrite() throws Exception {
+        SessionAutosaveCoordinator coordinator = start();
+        capture.set(capture(1, 2));
+        coordinator.markDirty();
+        coordinator.saveIfDirty();
+
+        // One of two tabs closed: written with the tab that is left.
+        capture.set(capture(1, 1));
+        coordinator.tabsClosedByUser();
+        coordinator.saveIfDirty();
+
+        // Then its window closes on macOS: no close of the user's, the snapshot keeps the tab.
+        capture.set(capture(0, 0));
+        coordinator.markDirty();
+        coordinator.saveIfDirty();
+        assertThat(coordinator.awaitWrites(5_000)).isTrue();
+        assertThat(SessionSnapshotStore.restorableTabs(readLast())).isEqualTo(1);
+    }
+
+    @Test
+    void aWindowWithTabsClosingRightAfterATabCloseKeepsTheSnapshot() throws Exception {
+        SessionAutosaveCoordinator coordinator = start();
+        capture.set(capture(2, 1));
+        coordinator.markDirty();
+        coordinator.saveIfDirty();
+
+        // A tab closed in one window, and before the quiet time ended the other window closed.
+        coordinator.tabsClosedByUser();
+        coordinator.windowClosing(true);
+        capture.set(capture(0, 0));
+        coordinator.markDirty();
+        coordinator.saveIfDirty();
+        assertThat(coordinator.awaitWrites(5_000)).isTrue();
+        assertThat(SessionSnapshotStore.restorableTabs(readLast())).isEqualTo(2);
+
+        // An empty window closing does not take the user's close back.
+        coordinator.tabsClosedByUser();
+        coordinator.windowClosing(false);
+        coordinator.saveIfDirty();
+        assertThat(coordinator.awaitWrites(5_000)).isTrue();
+        assertThat(SessionSnapshotStore.restorableTabs(readLast())).isEqualTo(0);
+    }
+
+    @Test
+    void aClosedTabWaitsForARunningRestore() throws Exception {
+        SessionAutosaveCoordinator coordinator = start();
+        capture.set(capture(1, 1));
+        coordinator.markDirty();
+        coordinator.saveIfDirty();
+
+        coordinator.beginRestore();
+        capture.set(capture(0, 0));
+        coordinator.tabsClosedByUser();
+        coordinator.saveIfDirty();
+        coordinator.endRestore();
+        coordinator.saveIfDirty();
+        assertThat(coordinator.awaitWrites(5_000)).isTrue();
+        assertThat(SessionSnapshotStore.restorableTabs(readLast())).isEqualTo(0);
     }
 
     @Test
@@ -251,7 +345,13 @@ class SessionAutosaveRuleTest {
 
     private static SessionAutosaveRule.Decision decide(boolean sealed, boolean writable, boolean restoring,
                                                        int captured, int saved) {
-        return SessionAutosaveRule.decide(new SessionAutosaveRule.State(sealed, writable, restoring, captured, saved));
+        return decide(sealed, writable, restoring, captured, saved, false);
+    }
+
+    private static SessionAutosaveRule.Decision decide(boolean sealed, boolean writable, boolean restoring,
+                                                       int captured, int saved, boolean userClosedTabs) {
+        return SessionAutosaveRule.decide(
+            new SessionAutosaveRule.State(sealed, writable, restoring, captured, saved, userClosedTabs));
     }
 
     private SessionAutosaveCoordinator start() {
