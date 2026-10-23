@@ -122,6 +122,8 @@ public class TerminalTab extends Tab {
     private Runnable journalStateListener;
     /** Told when the user closes the tab with its close button; see {@link #setOnUserCloseApproved}. */
     private java.util.function.Consumer<TerminalTab> onUserCloseApproved;
+    /** Told when the tab closes on its own; see {@link #setOnClosedOnItsOwn}. */
+    private java.util.function.Consumer<TerminalTab> onClosedOnItsOwn;
     
     /** Longest name the user can give a tab, in characters. */
     static final int MAX_CUSTOM_TITLE_LENGTH = 120;
@@ -280,6 +282,15 @@ public class TerminalTab extends Tab {
      */
     void setOnUserCloseApproved(java.util.function.Consumer<TerminalTab> callback) {
         this.onUserCloseApproved = callback;
+    }
+
+    /**
+     * Runs {@code callback} when the tab closes on its own because its session ended cleanly (the
+     * user typed {@code exit} or pressed Ctrl+D), while the tab is still in its tab pane. The main
+     * window lets the session snapshot follow there.
+     */
+    void setOnClosedOnItsOwn(java.util.function.Consumer<TerminalTab> callback) {
+        this.onClosedOnItsOwn = callback;
     }
 
     private void notifyUserCloseApproved() {
@@ -1594,6 +1605,10 @@ public class TerminalTab extends Tab {
     private void closeTabSilently() {
         TabPane tabPane = getTabPane();
         if (tabPane != null) {
+            java.util.function.Consumer<TerminalTab> closed = onClosedOnItsOwn;
+            if (closed != null) {
+                closed.accept(this);
+            }
             releaseResources();
             // Suppress QuickConnect if + tab might be selected after removal
             MainWindow.suppressNextQuickConnect();

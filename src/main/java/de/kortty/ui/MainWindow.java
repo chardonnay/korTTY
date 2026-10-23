@@ -1096,6 +1096,10 @@ public class MainWindow {
                 // Before the tabs are released: the window's terminal tabs become one Recently Closed
                 // entry, unless korTTY ends with this window (Quit, or the last window on Windows and Linux).
                 recordClosedWindow(willCloseApplication());
+                // Closing a window with tabs never empties the session snapshot.
+                if (sessionAutosave != null) {
+                    sessionAutosave.windowClosing(countTerminalTabsInWindow() > 0);
+                }
                 closeAllTabs();
                 // Its panes left multi-exec with the tabs; the other windows' chips have counted that.
                 releaseMultiExecListener();
@@ -3970,6 +3974,7 @@ public class MainWindow {
             
             // Its close button remembers it for Recently Closed (moves between windows keep this).
             terminalTab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
+            terminalTab.setOnClosedOnItsOwn(MainWindow::terminalTabEndedItsSession);
             applyConnectionColor(terminalTab);
             terminalTab.setOnClosed(e -> {
                 updateDashboard();
@@ -5187,6 +5192,9 @@ public class MainWindow {
             disposeTabContent(tab);
         }
         reorganizeTabs(() -> tabPane.getTabs().removeAll(targets));
+        if (targets.stream().anyMatch(TerminalTab.class::isInstance)) {
+            markSessionTabsClosedByUser();
+        }
         return true;
     }
 
@@ -5284,6 +5292,21 @@ public class MainWindow {
     /** A terminal tab's close button, after the user agreed to any question; the tab may be in any window. */
     private static void recordClosedByButton(TerminalTab tab) {
         recordClosedTabs(List.of(tab), CloseCause.CLOSE_BUTTON);
+        markSessionTabsClosedByUser();
+    }
+
+    /**
+     * A terminal tab closes because the user ended its shell ({@code exit}, Ctrl+D). Only while its
+     * window is open: a session that ends because its window is closing is no close by the user.
+     */
+    private static void terminalTabEndedItsSession(TerminalTab tab) {
+        TabPane pane = tab.getTabPane();
+        for (MainWindow window : openWindows) {
+            if (window.tabPane == pane) {
+                markSessionTabsClosedByUser();
+                return;
+            }
+        }
     }
 
     private static void recordClosedTabs(List<? extends Tab> tabs, CloseCause cause) {
@@ -5738,8 +5761,12 @@ public class MainWindow {
             return false;
         }
         // The user's Close All Tabs, unlike the other callers of closeAllTabs: one Recently Closed entry.
+        boolean terminalsClosed = countTerminalTabsInWindow() > 0;
         recordUserClosedTabs(new ArrayList<>(tabPane.getTabs()), CloseCause.CLOSE_ALL);
         closeAllTabs();
+        if (terminalsClosed) {
+            markSessionTabsClosedByUser();
+        }
         return true;
     }
 
@@ -8089,6 +8116,16 @@ public class MainWindow {
     private static void markSessionDirty() {
         if (sessionAutosave != null) {
             sessionAutosave.markDirty();
+        }
+    }
+
+    /**
+     * The user closed terminal tabs: once none is left, the session snapshot holds none either, so
+     * the next start offers nothing. FX thread.
+     */
+    private static void markSessionTabsClosedByUser() {
+        if (sessionAutosave != null) {
+            sessionAutosave.tabsClosedByUser();
         }
     }
 
@@ -13469,6 +13506,7 @@ public class MainWindow {
                 }
             }));
             tab.setOnUserCloseApproved(MainWindow::recordClosedByButton);
+            tab.setOnClosedOnItsOwn(MainWindow::terminalTabEndedItsSession);
             applyConnectionColor(tab);
             tab.setOnClosed(e -> {
                 updateDashboard();
