@@ -163,11 +163,14 @@ public class LocalShellTtyConnector implements ObservableTtyConnector, de.kortty
             isolationReport = isolated.report();
             sandboxSessionDirectory.set(isolated.sessionDirectory());
 
+            // Windows: ConPTY instead of pty4j's default winpty, whose agent drives a hidden console
+            // window with window messages; pty4j falls back to winpty if ConPTY cannot start.
             PtyProcessBuilder builder = new PtyProcessBuilder(command.toArray(new String[0]))
                 .setEnvironment(env)
                 .setInitialColumns(cols)
                 .setInitialRows(rows)
-                .setConsole(false);
+                .setConsole(false)
+                .setUseWinConPty(true);
 
             if (workingDirectory != null && !FlatpakSupport.isRunningInFlatpak()) {
                 builder.setDirectory(workingDirectory);
