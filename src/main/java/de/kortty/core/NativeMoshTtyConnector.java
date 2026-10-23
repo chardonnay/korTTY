@@ -254,11 +254,13 @@ public class NativeMoshTtyConnector implements TtyConnector, de.kortty.isolation
 
         logger.debug("Starting mosh-client via pty4j ({}x{}), {} command token(s)", cols, rows, command.length);
 
+        // ConPTY on Windows, like LocalShellTtyConnector; a no-op elsewhere.
         ptyProcess = new PtyProcessBuilder(command)
                 .setEnvironment(env)
                 .setInitialColumns(cols)
                 .setInitialRows(rows)
                 .setConsole(false)
+                .setUseWinConPty(true)
                 .start();
 
         inputStream = ptyProcess.getInputStream();
@@ -306,6 +308,9 @@ public class NativeMoshTtyConnector implements TtyConnector, de.kortty.isolation
         if (command == null || !command.matches("[a-zA-Z0-9._-]+")) {
             return null;
         }
+        if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) {
+            return findExeOnWindowsPath(command, System.getenv("PATH"));
+        }
         Process p = null;
         try {
             p = new ProcessBuilder("sh", "-lc", "command -v " + command).start();
@@ -325,6 +330,34 @@ public class NativeMoshTtyConnector implements TtyConnector, de.kortty.isolation
                 try { p.getOutputStream().close(); } catch (Exception ignored) {}
                 try { p.getErrorStream().close(); } catch (Exception ignored) {}
                 p.destroyForcibly();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Windows has no {@code sh} to ask: the first {@code command.exe} in a {@code PATH} directory, or
+     * {@code null}. Only {@code .exe}, which pty4j can start directly.
+     */
+    static String findExeOnWindowsPath(String command, String path) {
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+        for (String entry : path.split(";")) {
+            String directory = entry.strip();
+            if (directory.length() >= 2 && directory.startsWith("\"") && directory.endsWith("\"")) {
+                directory = directory.substring(1, directory.length() - 1).strip();
+            }
+            if (directory.isEmpty()) {
+                continue;
+            }
+            try {
+                java.nio.file.Path candidate = java.nio.file.Path.of(directory, command + ".exe");
+                if (java.nio.file.Files.isRegularFile(candidate)) {
+                    return candidate.toAbsolutePath().toString();
+                }
+            } catch (java.nio.file.InvalidPathException ignored) {
+                // a malformed PATH entry cannot hold the client
             }
         }
         return null;
