@@ -1,6 +1,6 @@
 = korTTY - SSH Client for macOS, Windows and Linux
 
-*v2.22.0* | link:https://github.com/chardonnay/korTTY/releases/latest[Download] | link:https://kortty.app[Website & user guide] | MIT license
+*v2.23.0* | link:https://github.com/chardonnay/korTTY/releases/latest[Download] | link:https://kortty.app[Website & user guide] | MIT license
 
 *korTTY is a free, open-source SSH client for macOS, Windows and Linux* with tabbed and split terminals, an SFTP manager, Mosh, and a local AI built on llama.cpp that works without a cloud account — a free alternative to MobaXterm and Termius that imports your MobaXterm, PuTTY Connection Manager and MTPuTTY connections.
 

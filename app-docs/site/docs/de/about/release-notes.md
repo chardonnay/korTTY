@@ -2,36 +2,32 @@
 
 Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.
 
-## v2.22.0
+## v2.23.0
 
-### KI-Agent-Designs
+### Unter Windows
 
-- **Wählen, wie Agent-Läufe aussehen** — *Plugins → KI-Agent Design* (auch *Ansicht → KI-Agent-Panel → Design...*) bestimmt, wie die Läufe des KI-Agenten im Terminal angezeigt werden: als Blöcke im Terminal oberhalb des Prompts, in einer schmalen Leiste darunter oder darüber, auf einer Schiene oder in einer Spalte daneben, als Karte, die darüber schwebt, oder im klassischen Aktivitäts-Panel. Eine Kombination wählt für jede Rolle (Verlauf, Status, Genehmigung, Anordnung) ein Design, mit Live-Vorschau; die neue Standardkombination zeigt den Lauf als Block im Terminal mit einer Linienplan-Statusleiste, und jede Verbindung kann im KI-Tab des Verbindungseditors eine eigene Kombination wählen. Siehe [KI-Agent-Designs](../features/ai-agent-designs.md).
-- **Weitere Statusanzeigen** — Powerline-, Minimap-, Kopfleisten- und Neon-Anzeigen sowie die übrigen Designs des Katalogs vervollständigen die Auswahl. Siehe [Weitere Statusanzeigen](../features/ai-agent-designs.md#weitere-statusanzeigen).
+- **PowerShell und Eingabeaufforderung in der Symbolleiste** — unter Windows werden in der Terminalgruppe der Symbolleiste **Neue PowerShell** und **Neue Eingabeaufforderung** direkt nach **Neue lokale Shell** eingefügt, jeweils mit eigenem Symbol; gespeicherte Layouts übernehmen beide ebenfalls. Bei installiertem Git for Windows bietet der Anpassungskatalog zudem **Neue Git Bash**. Siehe [Anpassen der Symbolleiste](../getting-started/main-window.md#anpassung-der-symbolleiste).
+- **Lokale Shells werden unter ConPTY ausgeführt** — lokale Shells und der native Mosh-Client starten nun unter der Windows-Pseudo-Konsole anstelle von winpty, was nicht mehr die Tastatureingaben in anderen Anwendungen stört, während korTTY läuft.
+- **Mosh-Client findet mosh-client.exe** — das Mosh-Client-Protokoll (nativ) sucht nun nach `mosh-client.exe` in den Ordnern der `PATH`. Siehe [Protokolle](../features/connections.md#protokolle).
 
-### Lokale KI-Modelle
+### Symbolleiste und Split-Fenster
 
-- **Kontextfenster im Profil** — ein Profil vom Typ Integriertes llama.cpp hat eine Zeile **Kontextfenster** mit Zahlenfeld und Schieberegler, von 512 Tokens bis zum Kontext, mit dem das Modell trainiert wurde; beim Speichern des Profils wird der Wert für das Modell übernommen. Neue lokale Chat-Modelle starten mit 32.768 Tokens, oder weniger, wenn das Modell für weniger trainiert wurde, sodass auch dichte Modelle auf üblicher Hardware laden. Siehe [Modelle konfigurieren und ausführen](../features/local-models.md#modelle-konfigurieren-und-ausfuhren).
-- **GPU-Backend und Runtime-Paket passen zusammen** — wird ein Modell mit Metal oder Vulkan gespeichert, während ein anderes Runtime-Paket aktiv ist, bietet korTTY jetzt an, das passende signierte Paket zu installieren und zu aktivieren, und die Spalte **Backend** zeigt eine Abweichung wie `VULKAN (runtime: CPU)`. Siehe [Modelle konfigurieren und ausführen](../features/local-models.md#modelle-konfigurieren-und-ausfuhren).
-- **Eigenständige Windows-Runtimes** — die llama.cpp-Pakete für Windows hängen nicht mehr von OpenSSL-Bibliotheken der Build-Maschine ab, sodass **Runtime installieren** auf einem frischen System funktioniert, und eine fehlgeschlagene Integritätsprüfung wird gemeldet, statt stillschweigend zurückgerollt zu werden.
-- **Abgeschnittene Agent-Antworten werden gemeldet** — schneidet ein Modell die Antwort des Agenten an seinem Token-Limit ab, hält der Lauf mit einer Meldung an, die die Token-Zahlen nennt und auf die Kontextgröße des Modells oder die maximalen Ausgabe-Tokens des Profils verweist, statt mit einer leeren Antwort zu enden.
-
-### Symbolleiste, Terminal und Windows
-
-- **Connection-Manager in der Symbolleiste** — die Gruppe Werkzeuge der Icon-Leiste beginnt jetzt mit einer Schaltfläche für den Connection-Manager; gespeicherte Layouts erhalten sie einmalig, und eine Entfernung wird gespeichert. Siehe [Anpassung der Symbolleiste](../getting-started/main-window.md#anpassung-der-symbolleiste).
-- **Strg+V fügt unter Windows im Terminal ein** — wie im Windows Terminal; unter Linux bleibt ++ctrl+v++ bei der Shell. Siehe [Text einfügen](../features/terminal.md#text-einfugen).
-- **Dunkle Titelleisten unter Windows** — im dunklen Modus erhalten das Hauptfenster und alle Dialoge eine dunkle native Titelleiste, und ein Wechsel des Systemdesigns erreicht auch geöffnete Fenster.
-- **Lokale Shells kommen zurück** — *Vorherige Sitzung wiederherstellen* öffnet lokale Shell-Tabs, die über die Symbolleiste gestartet wurden, wieder, statt sie als „Verbindung fehlt“ abzulegen. Siehe [Sitzungswiederherstellung](../reference/settings/window.md#sitzungswiederherstellung).
+- **Symbolleistengruppen werden umgebrochen, anstatt verkleinert zu werden** — wenn das Fenster zu schmal ist, werden ganze Symbolleistengruppen in eine neue Zeile verschoben, sodass jede Schaltfläche direkt anklickbar bleibt, anstatt sich hinter einem Überlauf-Pfeil zu verstecken. Siehe [Anpassen der Symbolleiste](../getting-started/main-window.md#anpassung-der-symbolleiste).
 - **Fokusring kann ausgeschaltet werden** — schalten Sie **Aktives Split-Terminal umrahmen** in den Fenstereinstellungen aus, um den Ring um das aktive Split-Terminal auszublenden. Sie erkennen dann das aktive Terminal durch seinen Cursor. Siehe [Tabs](../reference/settings/window.md#tabs).
-- **Terminal-Agent unter PowerShell und cmd** — eine abgefangene Zeile `agent ...` wird ohne ein verirrtes `^U` gelöscht, und verschachtelte `powershell -Command`-Skripte des Modells laufen korrekt.
 
 ### Snippets
 
 - **Ordneranalyse nach Datei** — der Tab „Ordneranalyse“ listet die Dateien des Ordners neben dem Bericht auf. Wählen Sie eine Datei oder navigieren Sie durch die Dateien mit ◀ ▶ und den Pfeiltasten, um nur deren Ergebnisse und eine kurze Beschreibung der Funktion der Datei anzuzeigen; jede Zeile zeigt, wie viele ihrer Ergebnisse markiert sind, und ihr Kontrollkästchen markiert oder entfernt sie alle. Die Ergebnisse bleiben auch dann einer Datei zugeordnet, wenn das Modell sie pro Datei durchnumeriert oder die Datei auf eine andere Weise benennt. Siehe [Analysieren eines Ordners als einzelnes Projekt](../features/snippets.md#ordner-als-ein-projekt-analysieren).
+- **Vertikales oder horizontales Flussdiagramm** — eine **Ausrichtung**-Steuerung in der Diagramm-Symbolleiste zeichnet das Flussdiagramm von oben nach unten oder von links nach rechts, im Analysebereich, dessen Zoom-Fenster sowie im Diagramm-Dialog. Das Umschalten zeichnet das gespeicherte Diagramm neu, ohne die KI erneut zu befragen. Siehe [Diagrammdarstellung](../features/snippets.md#diagrammdarstellung).
+
+### KI
+
+- **"Modell-Standard" statt "Deaktiviert"** — die Einstellung, die keinen Reasoning-Parameter sendet, heißt nun **Modell-Standard**, da dann der Standardwert des Modells gilt; nur **Keine** schaltet das Reasoning aus. Ein Tooltip im Dropdown-Menü erläutert den Unterschied. Siehe [Reasoning-Stufen](../reference/settings/ai.md#einstellungen-fur-das-denkverhalten).
+- **Verbindungstest akzeptiert reine Reasoning-Antworten** — **KI-Verbindung testen** und **Reasoning-Optionen aktualisieren** werden nun bestanden, wenn ein Modell, das standardmäßig mit Reasoning arbeitet, wie Qwen in LM Studio, die kurze Testantwort für das Reasoning nutzt, und ein fehlgeschlagener Aktualisierungsvorgang den Grund des Endpunkts selbst angibt.
 
 ### Korrekturen
 
-- **Agent-Abfragen passen ins Panel** — eine ausstehende Genehmigungs- oder Passwortabfrage vergrößert ein eingeklapptes Agent-Panel, bis die Abfrage vollständig sichtbar ist.
-- **KI-Bestätigung erklärt** — ein Hinweis unter **Bestätigungsdialog vor dem Senden an die KI anzeigen** nennt die Aktionen, für die er gilt, und die Schaltfläche **Speichern** der Tabs Allgemein, Lokale KI und KI-Skills sitzt unten rechts. Siehe [KI-Einstellungen](../reference/settings/ai.md).
-- **Aufnahme- und Journal-Symbole folgen dem Design** — sie werden in den AtlantaFX-Designs nicht mehr schwarz.
-
+- **Verworfene Sitzungen bleiben verworfen** — das absichtliche Schließen des letzten Tabs leert nun den Sitzungsschnappschuss, sodass die Wiederherstellungsaufforderung nach dem Verwerfen nicht mehr bei jedem Start wieder erscheint.
+- **Stabile Diagramm-Tooltips** — der Code-Referenz-Tooltip im vergrößerten Analyse-Diagramm bleibt geöffnet, solange sich die Maus über einem Knoten befindet, anstatt kurz aufzubleiben und zu schließen.
+- **Ordneranalysen bleiben bei einem fehlerhaften Schlüssel erhalten** — eine Analyse, bei der im JSON das öffnende Anführungszeichen eines Schlüssels fehlt, wird repariert, anstatt als „keine verwendbare Analyse“ verworfen zu werden.
+- **Deutsches Label für Reasoning** — die deutsche Benutzeroberfläche bezeichnet diese Einstellung der KI-Profile nun als „Reasoning“, wie es auch die Anleitung tut.
