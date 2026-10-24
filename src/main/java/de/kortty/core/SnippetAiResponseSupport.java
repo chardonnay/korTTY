@@ -2283,6 +2283,25 @@ public final class SnippetAiResponseSupport {
         return result;
     }
 
+    /**
+     * The raw objects of the improvements {@link #parseScriptAnalysis} keeps, in the same order, so
+     * the project analysis can read each finding's file by position (ids repeat across files).
+     */
+    static List<JsonObject> scriptImprovementObjects(JsonObject object) {
+        JsonArray array = firstArray(object, "improvements", "findings", "suggestions", "tips");
+        if (array == null) {
+            return List.of();
+        }
+        List<JsonObject> result = new ArrayList<>();
+        int fallbackIndex = 1;
+        for (JsonElement element : array) {
+            if (parseScriptImprovement(element, fallbackIndex++) != null) {
+                result.add(element.getAsJsonObject());
+            }
+        }
+        return result;
+    }
+
     private static ScriptImprovement parseScriptImprovement(JsonElement element, int fallbackIndex) {
         if (element == null || !element.isJsonObject()) {
             return null;

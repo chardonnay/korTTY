@@ -1,5 +1,6 @@
 package de.kortty.core;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import de.kortty.core.SnippetModularizationSupport.ModularizationPlan;
@@ -8,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -29,6 +30,11 @@ public final class SnippetProjectAiSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(SnippetProjectAiSupport.class);
     private static final Pattern FILE_TAG = Pattern.compile("^\\[([^\\]\\n]{1,240})\\]\\s+");
+    /** Where a model may put a finding's file, tried in this order. */
+    private static final List<String> FILE_KEYS = List.of("file", "path", "filePath", "file_path", "filename",
+        "fileName", "file_name", "location", "source");
+    private static final Pattern LINE_SUFFIX = Pattern.compile("(?::\\d+)+$");
+    private static final Pattern QUOTES = Pattern.compile("^[`'\"]+|[`'\"]+$");
     /** Rough characters per token for the context estimate (code is denser than prose). */
     private static final double CHARS_PER_TOKEN = 3.2;
 
@@ -172,8 +178,20 @@ public final class SnippetProjectAiSupport {
 
     // ---- Requests ----
 
+    /**
+     * A project analysis: the findings, each tagged with its file, and what each file does
+     * ({@code filePurposes}, by project path; empty when the AI did not describe the files).
+     */
+    public record ProjectAnalysis(SnippetAiResponseSupport.ScriptAnalysis analysis, Map<String, String> filePurposes) {
+        public ProjectAnalysis {
+            Objects.requireNonNull(analysis, "analysis");
+            filePurposes = filePurposes == null ? Map.of()
+                : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(filePurposes));
+        }
+    }
+
     /** Full code analysis of a folder as one project; findings carry their file in the title. */
-    public static SnippetAiResponseSupport.ScriptAnalysis analyzeProject(
+    public static ProjectAnalysis analyzeProject(
             AiService aiService, SnippetAiWorkflowSupport.UsageRecorder usageRecorder, ProjectContext context,
             String connectionDisplayName, String fallbackLanguageCode, String additionalInstructions) throws Exception {
         Objects.requireNonNull(context, "context");
@@ -197,37 +215,114 @@ public final class SnippetProjectAiSupport {
             logger.info("AI project analysis read from an answer whose JSON was repaired: {} finding(s) kept "
                 + "[answer chars={}, {}]", analysis.improvements().size(), answer.length(), failure);
         }
-        return tagFiles(analysis, filesById(answer), context);
+        SnippetAiResponseSupport.ScriptAnalysis tagged = tagFiles(analysis, improvementFiles(answer), context);
+        if (!tagged.improvements().isEmpty() && context.files().size() > 1
+                && tagged.improvements().stream().allMatch(improvement -> fileOf(improvement).isEmpty())) {
+            // Every finding counts as cross-file and applying one rewrites every file: keep the
+            // answer, so the key or path format the model used can be added above.
+            java.nio.file.Path archived = AiAnswerArchive.save(AiAction.ANALYZE_SNIPPET_PROJECT, "no-finding-files", answer);
+            logger.warn("AI project analysis named no known file for any of its {} finding(s). Full answer: {}",
+                tagged.improvements().size(), archived != null ? archived : "not archived");
+        }
+        return new ProjectAnalysis(tagged, filePurposes(answer, context));
     }
 
-    /** The {@code file} of each improvement in the raw answer, by id. */
-    static Map<String, String> filesById(String answer) {
-        Map<String, String> files = new HashMap<>();
-        JsonObject object = SnippetAiResponseSupport.scriptAnalysisObject(answer);
-        JsonElement improvements = object != null ? object.get("improvements") : null;
-        if (improvements == null || !improvements.isJsonArray()) {
-            return files;
-        }
-        for (JsonElement element : improvements.getAsJsonArray()) {
-            if (!element.isJsonObject()) {
-                continue;
-            }
-            JsonObject improvement = element.getAsJsonObject();
-            JsonElement id = improvement.get("id");
-            JsonElement file = improvement.has("file") ? improvement.get("file") : improvement.get("path");
-            if (id != null && id.isJsonPrimitive() && file != null && file.isJsonPrimitive()) {
-                files.putIfAbsent(id.getAsString().trim(), file.getAsString().trim());
-            }
+    /**
+     * The file each improvement of the answer names, in the order {@link SnippetAiResponseSupport#parseScriptAnalysis}
+     * keeps the improvements ({@code ""} = none). By position, not by id: a model that numbers the
+     * findings per file repeats ids.
+     */
+    static List<String> improvementFiles(String answer) {
+        List<String> files = new ArrayList<>();
+        for (JsonObject improvement : SnippetAiResponseSupport.scriptImprovementObjects(
+                SnippetAiResponseSupport.scriptAnalysisObject(answer))) {
+            files.add(rawFile(improvement));
         }
         return files;
     }
 
+    /** The file an answer object names under any of {@link #FILE_KEYS}; several files read as none. */
+    private static String rawFile(JsonObject object) {
+        for (String key : FILE_KEYS) {
+            JsonElement value = object.get(key);
+            if (value == null || value.isJsonNull()) {
+                continue;
+            }
+            if (value.isJsonObject()) {
+                // "location": {"file": "lib/a.sh", "line": 3}
+                String nested = rawFile(value.getAsJsonObject());
+                if (!nested.isEmpty()) {
+                    return nested;
+                }
+            } else if (value.isJsonArray()) {
+                JsonArray array = value.getAsJsonArray();
+                return array.size() == 1 && array.get(0).isJsonPrimitive() ? array.get(0).getAsString().trim() : "";
+            } else if (value.isJsonPrimitive() && !value.getAsString().isBlank()) {
+                return value.getAsString().trim();
+            }
+        }
+        return "";
+    }
+
+    /**
+     * What each file does, by project path, from the answer's {@code files} list
+     * ({@code [{"path": ..., "purpose": ...}]}, or an object of path to text).
+     */
+    static Map<String, String> filePurposes(String answer, ProjectContext context) {
+        Map<String, String> purposes = new LinkedHashMap<>();
+        JsonObject object = SnippetAiResponseSupport.scriptAnalysisObject(answer);
+        JsonElement files = null;
+        for (String key : List.of("files", "fileSummaries", "file_summaries")) {
+            if (object != null && object.has(key) && !object.get(key).isJsonNull()) {
+                files = object.get(key);
+                break;
+            }
+        }
+        if (files == null) {
+            return purposes;
+        }
+        if (files.isJsonArray()) {
+            for (JsonElement element : files.getAsJsonArray()) {
+                if (element.isJsonObject()) {
+                    JsonObject file = element.getAsJsonObject();
+                    putPurpose(purposes, normalizeKnownPath(rawFile(file), context), purposeText(file));
+                }
+            }
+        } else if (files.isJsonObject()) {
+            for (Map.Entry<String, JsonElement> entry : files.getAsJsonObject().entrySet()) {
+                JsonElement value = entry.getValue();
+                String text = value.isJsonPrimitive() ? value.getAsString()
+                    : value.isJsonObject() ? purposeText(value.getAsJsonObject()) : "";
+                putPurpose(purposes, normalizeKnownPath(entry.getKey(), context), text);
+            }
+        }
+        return purposes;
+    }
+
+    private static String purposeText(JsonObject file) {
+        for (String key : List.of("purpose", "summary", "description", "role")) {
+            JsonElement value = file.get(key);
+            if (value != null && value.isJsonPrimitive() && !value.getAsString().isBlank()) {
+                return value.getAsString();
+            }
+        }
+        return "";
+    }
+
+    private static void putPurpose(Map<String, String> purposes, String path, String text) {
+        if (!path.isEmpty() && text != null && !text.isBlank()) {
+            purposes.putIfAbsent(path, text.trim());
+        }
+    }
+
     /** Puts each improvement's file in front of its title; unknown paths count as cross-file. */
     static SnippetAiResponseSupport.ScriptAnalysis tagFiles(SnippetAiResponseSupport.ScriptAnalysis analysis,
-                                                            Map<String, String> filesById, ProjectContext context) {
+                                                            List<String> files, ProjectContext context) {
         List<SnippetAiResponseSupport.ScriptImprovement> tagged = new ArrayList<>();
-        for (SnippetAiResponseSupport.ScriptImprovement improvement : analysis.improvements()) {
-            String file = normalizeKnownPath(filesById.get(improvement.id()), context);
+        List<SnippetAiResponseSupport.ScriptImprovement> improvements = analysis.improvements();
+        for (int i = 0; i < improvements.size(); i++) {
+            SnippetAiResponseSupport.ScriptImprovement improvement = improvements.get(i);
+            String file = normalizeKnownPath(i < files.size() ? files.get(i) : null, context);
             String title = untagged(improvement.title());
             tagged.add(new SnippetAiResponseSupport.ScriptImprovement(improvement.id(), improvement.category(),
                 improvement.severity(), file.isEmpty() ? title : "[" + file + "] " + title, improvement.detail(),
@@ -236,25 +331,46 @@ public final class SnippetProjectAiSupport {
         return new SnippetAiResponseSupport.ScriptAnalysis(analysis.summary(), analysis.dependencies(), tagged);
     }
 
-    private static String normalizeKnownPath(String raw, ProjectContext context) {
+    /**
+     * The project path {@code raw} names, or {@code ""}: exact or case-insensitive, with a line
+     * suffix ({@code lib/a.sh:52}) or the folder in front ({@code getssl/lib/a.sh}) dropped, or a
+     * shorter name ({@code a.sh}) that only one file ends with.
+     */
+    static String normalizeKnownPath(String raw, ProjectContext context) {
         if (raw == null || raw.isBlank()) {
             return "";
         }
-        String path = raw.trim().replace('\\', '/');
+        String path = LINE_SUFFIX.matcher(QUOTES.matcher(raw.trim()).replaceAll("").replace('\\', '/')).replaceFirst("");
         while (path.startsWith("./") || path.startsWith("/")) {
             path = path.substring(path.startsWith("./") ? 2 : 1);
+        }
+        if (path.isEmpty()) {
+            return "";
         }
         if (context.file(path) != null) {
             return path;
         }
         String lower = path.toLowerCase(Locale.ROOT);
+        String longest = "";
         for (ProjectFile file : context.files()) {
-            if (file.path().toLowerCase(Locale.ROOT).equals(lower)
-                || file.path().toLowerCase(Locale.ROOT).endsWith("/" + lower)) {
-                return file.path();
+            String candidate = file.path().toLowerCase(Locale.ROOT);
+            if ((candidate.equals(lower) || lower.endsWith("/" + candidate)) && candidate.length() > longest.length()) {
+                longest = file.path();
             }
         }
-        return "";
+        if (!longest.isEmpty()) {
+            return longest;
+        }
+        String only = "";
+        for (ProjectFile file : context.files()) {
+            if (file.path().toLowerCase(Locale.ROOT).endsWith("/" + lower)) {
+                if (!only.isEmpty()) {
+                    return "";
+                }
+                only = file.path();
+            }
+        }
+        return only;
     }
 
     /**
