@@ -162,8 +162,10 @@ final class SnippetDiagramView extends VBox {
     private final Label noticeLabel = new Label();
     private final ColorPicker backgroundPicker;
     private final MenuButton darkModeButton = new MenuButton();
+    private final MenuButton layoutButton = new MenuButton();
 
     private SnippetDiagramSupport.DiagramColorMode colorMode;
+    private SnippetDiagramSupport.DiagramLayout layout;
     private long sourceGeneration;
     private long renderGeneration;
     private boolean disposed;
@@ -226,6 +228,7 @@ final class SnippetDiagramView extends VBox {
         this.codeNavigationHandler = codeNavigationHandler;
         this.backgroundColor = SnippetDiagramSupport.normalizeHexColor(loadConfiguredBackground(), DEFAULT_BACKGROUND);
         this.colorMode = SnippetDiagramSupport.DiagramColorMode.fromKey(loadConfiguredColorMode());
+        this.layout = SnippetDiagramSupport.DiagramLayout.fromKey(loadConfiguredLayout());
         this.lastResolvedDark = colorMode.isDarkActive();
         this.backgroundPicker = new ColorPicker(Color.web(backgroundColor));
         setSpacing(8);
@@ -441,7 +444,7 @@ final class SnippetDiagramView extends VBox {
             currentDiagramType,
             isDarkActive() ? MermaidRenderService.Theme.DARK : MermaidRenderService.Theme.LIGHT,
             effectiveBackgroundColor(),
-            includePng);
+            includePng).withLayout(layout);
     }
 
     private void onSourceReady(DiagramSource source, Throwable error) {
@@ -465,6 +468,7 @@ final class SnippetDiagramView extends VBox {
         currentSourceReferences = source.codeReferences() != null ? List.copyOf(source.codeReferences()) : List.of();
         setNotice(source.notice(), source.noticeDetail());
         currentSource = source;
+        updateLayoutButtonState();
         renderAsync(true);
     }
 
@@ -831,7 +835,8 @@ final class SnippetDiagramView extends VBox {
             toolbar.getChildren().add(regenerate);
         }
         buildDarkModeButton();
-        toolbar.getChildren().add(darkModeButton);
+        buildLayoutButton();
+        toolbar.getChildren().addAll(darkModeButton, layoutButton);
         backgroundPicker.setOnAction(event -> changeBackground(toHex(backgroundPicker.getValue())));
         toolbar.getChildren().addAll(new Label(I18n.get("snippets.ai.diagram.backgroundColor")), backgroundPicker);
         updateBackgroundPickerState();
@@ -1035,7 +1040,11 @@ final class SnippetDiagramView extends VBox {
         if (currentMermaid == null || currentMermaid.isBlank()) {
             return;
         }
-        de.kortty.core.KorttyClipboard.setText(currentMermaid);
+        // The source as it is drawn: pasted elsewhere, it keeps the direction the user chose.
+        de.kortty.core.KorttyClipboard.setText(
+            currentDiagramType == SnippetDiagramType.LOGICAL_STRUCTURE
+                ? SnippetDiagramSupport.withLayout(currentMermaid, layout)
+                : currentMermaid);
         statusLabel.setText(I18n.get("snippets.ai.diagram.copyMermaid.ready"));
     }
 
@@ -1142,6 +1151,56 @@ final class SnippetDiagramView extends VBox {
         reapplyAppearance();
     }
 
+    private void buildLayoutButton() {
+        layoutButton.setId("snippet-diagram-layout");
+        layoutButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diagram.layout.tooltip")));
+        ToggleGroup group = new ToggleGroup();
+        for (SnippetDiagramSupport.DiagramLayout option : SnippetDiagramSupport.DiagramLayout.values()) {
+            RadioMenuItem item = new RadioMenuItem(layoutLabel(option));
+            item.setToggleGroup(group);
+            item.setUserData(option);
+            item.setSelected(option == layout);
+            item.setOnAction(event -> changeLayout(option));
+            layoutButton.getItems().add(item);
+        }
+        updateLayoutButtonText();
+        updateLayoutButtonState();
+    }
+
+    private static String layoutLabel(SnippetDiagramSupport.DiagramLayout option) {
+        return switch (option) {
+            case VERTICAL -> I18n.get("snippets.ai.diagram.layout.vertical");
+            case HORIZONTAL -> I18n.get("snippets.ai.diagram.layout.horizontal");
+        };
+    }
+
+    private void updateLayoutButtonText() {
+        layoutButton.setText(I18n.get("snippets.ai.diagram.layout") + ": " + layoutLabel(layout));
+    }
+
+    /** Only the flowchart has a direction to choose; sequence, state, class and ER diagrams lay themselves out. */
+    private void updateLayoutButtonState() {
+        layoutButton.setDisable(currentDiagramType != SnippetDiagramType.LOGICAL_STRUCTURE);
+    }
+
+    /** Draws the flowchart in {@code option}'s direction, fitted anew: its proportions changed. */
+    void changeLayout(SnippetDiagramSupport.DiagramLayout option) {
+        if (option == null || option == layout) {
+            return;
+        }
+        layout = option;
+        saveConfiguredLayout(option.key());
+        updateLayoutButtonText();
+        for (javafx.scene.control.MenuItem item : layoutButton.getItems()) {
+            if (item instanceof RadioMenuItem radio) {
+                radio.setSelected(radio.getUserData() == option);
+            }
+        }
+        if (currentDiagramType == SnippetDiagramType.LOGICAL_STRUCTURE) {
+            renderAsync(true);
+        }
+    }
+
     private void reapplyAppearance() {
         lastResolvedDark = isDarkActive();
         updateBackgroundPickerState();
@@ -1200,6 +1259,22 @@ final class SnippetDiagramView extends VBox {
     private String loadConfiguredColorMode() {
         GlobalSettings settings = currentSettings();
         return settings != null ? settings.getSnippetDiagramColorMode() : "auto";
+    }
+
+    private String loadConfiguredLayout() {
+        GlobalSettings settings = currentSettings();
+        return settings != null ? settings.getSnippetDiagramLayout() : "vertical";
+    }
+
+    private void saveConfiguredLayout(String value) {
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            if (manager != null && manager.getSettings() != null) {
+                manager.getSettings().setSnippetDiagramLayout(value);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     private void saveConfiguredBackground(String color) {

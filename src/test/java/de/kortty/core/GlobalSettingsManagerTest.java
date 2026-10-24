@@ -51,6 +51,24 @@ class GlobalSettingsManagerTest {
     }
 
     @Test
+    void snippetDiagramLayoutRoundTrips() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-global-settings-diagram-layout");
+        try {
+            GlobalSettingsManager manager = new GlobalSettingsManager(dir);
+            assertThat(manager.getSettings().getSnippetDiagramLayout()).isEqualTo("vertical");
+            manager.getSettings().setSnippetDiagramLayout("horizontal");
+            manager.save();
+
+            GlobalSettingsManager reloaded = new GlobalSettingsManager(dir);
+            reloaded.load();
+            assertThat(reloaded.getSettings().getSnippetDiagramLayout()).isEqualTo("horizontal");
+        } finally {
+            Files.deleteIfExists(dir.resolve("global-settings.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void snippetAnalysisHistoryMaxSizeRoundTripsAndIsClamped() throws Exception {
         Path dir = Files.createTempDirectory("kortty-global-settings-analyses");
         try {

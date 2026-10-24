@@ -1274,6 +1274,10 @@ public class GlobalSettings {
     @XmlElement
     private String snippetDiagramColorMode = "auto";
 
+    /** Flowchart direction in the diagram viewer: "vertical" (top to bottom) or "horizontal" (left to right). */
+    @XmlElement
+    private String snippetDiagramLayout = "vertical";
+
     /** Persisted hardening-option selection (comma-separated enum names); null = never saved → use defaults. */
     @XmlElement
     private String snippetHardeningOptions;
@@ -4929,6 +4933,18 @@ public class GlobalSettings {
         this.snippetDiagramColorMode = snippetDiagramColorMode != null && !snippetDiagramColorMode.isBlank()
             ? snippetDiagramColorMode.trim().toLowerCase(java.util.Locale.ROOT)
             : "auto";
+    }
+
+    public String getSnippetDiagramLayout() {
+        return snippetDiagramLayout != null && !snippetDiagramLayout.isBlank()
+            ? snippetDiagramLayout
+            : "vertical";
+    }
+
+    public void setSnippetDiagramLayout(String snippetDiagramLayout) {
+        this.snippetDiagramLayout = snippetDiagramLayout != null && !snippetDiagramLayout.isBlank()
+            ? snippetDiagramLayout.trim().toLowerCase(java.util.Locale.ROOT)
+            : "vertical";
     }
 
     /** Raw persisted hardening selection (may be null = never saved, or "" = saved empty). */

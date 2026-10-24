@@ -72,6 +72,8 @@ public final class MermaidRenderService {
      *                    report exports ask for 2 so the diagram prints sharp. Clamped to
      *                    [{@value #MIN_RASTER_SCALE}, {@value #MAX_RASTER_SCALE}]; the host page
      *                    still caps the raster at 16 megapixels.
+     * @param layout      the direction a generated logical-structure flowchart is drawn in; its
+     *                    source keeps the {@code flowchart TD} header the restricted dialect requires
      */
     public record RenderRequest(
         String source,
@@ -79,7 +81,8 @@ public final class MermaidRenderService {
         String backgroundColor,
         boolean includePng,
         SnippetDiagramType generatedType,
-        double rasterScale) {
+        double rasterScale,
+        SnippetDiagramSupport.DiagramLayout layout) {
 
         public static final double MIN_RASTER_SCALE = 1.0;
         public static final double MAX_RASTER_SCALE = 3.0;
@@ -89,6 +92,20 @@ public final class MermaidRenderService {
             theme = theme != null ? theme : Theme.LIGHT;
             backgroundColor = normalizeBackground(backgroundColor, theme);
             rasterScale = normalizeRasterScale(rasterScale);
+            layout = layout != null ? layout : SnippetDiagramSupport.DiagramLayout.VERTICAL;
+        }
+
+        /** The pre-{@code layout} shape: draws a flowchart top to bottom. */
+        public RenderRequest(
+            String source,
+            Theme theme,
+            String backgroundColor,
+            boolean includePng,
+            SnippetDiagramType generatedType,
+            double rasterScale) {
+
+            this(source, theme, backgroundColor, includePng, generatedType, rasterScale,
+                SnippetDiagramSupport.DiagramLayout.VERTICAL);
         }
 
         /** The pre-{@code rasterScale} shape: renders the PNG at 1 canvas pixel per SVG unit. */
@@ -108,7 +125,11 @@ public final class MermaidRenderService {
         }
 
         public RenderRequest withRasterScale(double rasterScale) {
-            return new RenderRequest(source, theme, backgroundColor, includePng, generatedType, rasterScale);
+            return new RenderRequest(source, theme, backgroundColor, includePng, generatedType, rasterScale, layout);
+        }
+
+        public RenderRequest withLayout(SnippetDiagramSupport.DiagramLayout layout) {
+            return new RenderRequest(source, theme, backgroundColor, includePng, generatedType, rasterScale, layout);
         }
 
         /** NaN and non-positive values mean "unspecified" and fall back to 1. */
@@ -271,7 +292,8 @@ public final class MermaidRenderService {
         // Only the logical-structure flowchart uses korTTY's semantic classDefs; the other
         // generated families are themed by the host page exactly like chat diagrams.
         String source = request.generatedType() == SnippetDiagramType.LOGICAL_STRUCTURE
-            ? appendKorTTYThemeClasses(normalizedSource, request.theme())
+            ? appendKorTTYThemeClasses(
+                SnippetDiagramSupport.withLayout(normalizedSource, request.layout()), request.theme())
             : normalizedSource;
         RenderRequest styled = new RenderRequest(
             source,
@@ -279,7 +301,8 @@ public final class MermaidRenderService {
             request.backgroundColor(),
             request.includePng(),
             request.generatedType(),
-            request.rasterScale());
+            request.rasterScale(),
+            request.layout());
         return Holder.INSTANCE.enqueueRender(styled);
     }
 

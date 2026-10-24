@@ -1023,6 +1023,60 @@ public final class SnippetDiagramSupport {
         return Map.copyOf(labels);
     }
 
+    /** How a diagram viewer lays a flowchart out: top to bottom, or left to right. */
+    public enum DiagramLayout {
+        VERTICAL("TD"), HORIZONTAL("LR");
+
+        private final String direction;
+
+        DiagramLayout(String direction) {
+            this.direction = direction;
+        }
+
+        public String key() {
+            return name().toLowerCase(Locale.ROOT);
+        }
+
+        /** The Mermaid flowchart direction. */
+        public String direction() {
+            return direction;
+        }
+
+        public static DiagramLayout fromKey(String key) {
+            if (key != null) {
+                for (DiagramLayout layout : values()) {
+                    if (layout.key().equalsIgnoreCase(key.trim())) {
+                        return layout;
+                    }
+                }
+            }
+            return VERTICAL;
+        }
+    }
+
+    /**
+     * {@code source} drawn in {@code layout}'s direction. Only korTTY's {@code flowchart TD} header
+     * is turned; every other source comes back unchanged. The stored diagram keeps its {@code TD}
+     * header — the direction is a way of looking at it, not part of it.
+     */
+    public static String withLayout(String source, DiagramLayout layout) {
+        if (source == null || layout == null || layout == DiagramLayout.VERTICAL) {
+            return source;
+        }
+        String[] lines = source.split("\\R", -1);
+        for (int index = 0; index < lines.length; index++) {
+            if (lines[index].isBlank()) {
+                continue;
+            }
+            if (!HEADER_PATTERN.matcher(lines[index].trim()).matches()) {
+                return source;
+            }
+            lines[index] = "flowchart " + layout.direction();
+            return String.join("\n", lines);
+        }
+        return source;
+    }
+
     /** How a diagram viewer picks its light/dark appearance. */
     public enum DiagramColorMode {
         AUTO, LIGHT, DARK;
