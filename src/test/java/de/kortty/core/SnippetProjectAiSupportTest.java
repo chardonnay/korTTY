@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.testng.Assert.expectThrows;
 
 class SnippetProjectAiSupportTest {
 
@@ -94,6 +95,25 @@ class SnippetProjectAiSupportTest {
         assertThat(userPrompt).contains("=== File: run.sh ===");
         assertThat(userPrompt).doesNotContain("Script content for context only");
         assertThat(AiPromptBuilder.buildSystemPrompt(requests.get(2))).contains("fileLines");
+    }
+
+    @Test
+    void aFindingWithAKeyMissingItsQuoteKeepsTheWholeAnalysisAndItsFiles() throws Exception {
+        String answer = "{\"summary\":\"Two scripts.\",\"dependencies\":[{\"id\":\"D1\",\"name\":\"bash\",\"kind\":\"program\"}],"
+            + "\"improvements\":[{\"id\":\"SEC-1\",\"file\":\"lib/util.sh\",\"category\":\"security\",\"severity\":\"high\","
+            + "\"title\":\"Quote $1\",detail\":\"Unquoted.\",\"recommendation\":\"Quote it\",\"line\":1},"
+            + "{\"id\":\"DES-1\",\"file\":\"run.sh\",\"category\":\"design\",\"severity\":\"low\",\"title\":\"Shebang\","
+            + "\"detail\":\"\",\"recommendation\":\"x\",\"line\":1}]}";
+        SnippetAiResponseSupport.ScriptAnalysis analysis = SnippetProjectAiSupport.analyzeProject(
+            new StubService(request -> new AiExecutionResult(answer, null)), null, CONTEXT, null, "en", null);
+
+        assertThat(analysis.improvements().stream().map(SnippetAiResponseSupport.ScriptImprovement::title).toList())
+            .containsExactly("[lib/util.sh] Quote $1", "[run.sh] Shebang").inOrder();
+        assertThat(analysis.improvements().getFirst().detail()).isEqualTo("Unquoted.");
+
+        IllegalStateException cutOff = expectThrows(IllegalStateException.class, () -> SnippetProjectAiSupport.analyzeProject(
+            new StubService(request -> new AiExecutionResult("{\"summary\":\"Two", null)), null, CONTEXT, null, "en", null));
+        assertThat(cutOff).hasMessageThat().contains("no usable analysis");
     }
 
     @Test

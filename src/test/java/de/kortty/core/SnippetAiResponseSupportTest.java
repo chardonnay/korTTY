@@ -700,6 +700,55 @@ class SnippetAiResponseSupportTest {
     }
 
     @Test
+    void analysisWithAKeyMissingItsOpeningQuoteIsRepairedAndRead() {
+        // Shape of a live MiniMax-M3 project analysis: one finding wrote ,detail": and the strict
+        // payload scan handed back the first dependency instead, which holds no analysis at all.
+        String broken = """
+            {"summary":"getssl issues certificates.","dependencies":[{"id":"D1","name":"bash","kind":"program",
+              "purpose":"Interpreter.","suggestion":"Name the minimum version."}],
+             "improvements":[{"id":"SEC-1","file":"lib/transfers.sh","category":"security","severity":"high",
+              "title":"Password in the debug log","detail":"pass= is logged.","recommendation":"Redact it.","line":52},
+              {"id":"DESIGN-8","file":"lib/acme.sh","category":"design","severity":"medium",
+              "title":"Uses the global skey",detail":"sign_string ignores its key.","recommendation":"Use key.","line":855},
+              {"id":"DESIGN-18","file":"lib/certificates.sh","category":"design","severity":"low",
+              "title":"Domains as regex","detail":"grep ^${d}$ matches too much.","recommendation":"Compare exactly.","line":41}]}
+            """;
+        SnippetAiResponseSupport.ScriptAnalysis analysis = SnippetAiResponseSupport.parseScriptAnalysis(broken);
+
+        assertThat(analysis.summary()).isEqualTo("getssl issues certificates.");
+        assertThat(analysis.dependencies()).hasSize(1);
+        assertThat(analysis.improvements().stream().map(SnippetAiResponseSupport.ScriptImprovement::id).toList())
+            .containsExactly("SEC-1", "DESIGN-8", "DESIGN-18").inOrder();
+        assertThat(analysis.improvements().get(1).detail()).isEqualTo("sign_string ignores its key.");
+        // The log names the slip; a lenient read used to report this answer as fine.
+        String failure = SnippetAiResponseSupport.describeJsonFailure(broken);
+        assertThat(failure).contains("$.improvements[1]");
+        assertThat(failure).contains("near:");
+        assertThat(failure).contains("detail\":");
+        // Valid JSON and a quoted name inside a string are never touched.
+        assertThat(SnippetAiResponseSupport.repairKeysMissingOpeningQuote("{\"summary\":\"ok\",\"improvements\":[]}"))
+            .isNull();
+        assertThat(SnippetAiResponseSupport.repairKeysMissingOpeningQuote("{\"a\":\"x,b\\\":c\",\"d\":1}")).isNull();
+        assertThat(SnippetAiResponseSupport.repairKeysMissingOpeningQuote("<think>{,x\":</think>{\"a\":1,b\":2}"))
+            .isEqualTo("{\"a\":1,\"b\":2}");
+    }
+
+    @Test
+    void analysisWhoseRootOnlyParsesLenientlyIsNotReplacedByAnInnerObject() {
+        String singleQuoted = "{\"summary\":\"s\",\"dependencies\":[{\"id\":\"D1\",\"name\":\"curl\"}],"
+            + "\"improvements\":[{\"id\":\"I1\",\"title\":'Quote $1',\"detail\":\"d\",\"line\":2}]}\n```";
+        SnippetAiResponseSupport.ScriptAnalysis analysis = SnippetAiResponseSupport.parseScriptAnalysis(singleQuoted);
+
+        assertThat(analysis.summary()).isEqualTo("s");
+        assertThat(analysis.improvements().getFirst().title()).isEqualTo("Quote $1");
+        // A fence after a valid object is no JSON defect.
+        assertThat(SnippetAiResponseSupport.describeJsonFailure("```json\n{\"summary\":\"s\"}\n```")).isNull();
+        // A cut-off answer stays unusable rather than half read.
+        assertThat(SnippetAiResponseSupport.parseScriptAnalysis(
+            "{\"summary\":\"s\",\"improvements\":[{\"id\":\"I1\",\"title\":\"T").isUsable()).isFalse();
+    }
+
+    @Test
     void hollowEditsAreDroppedWithTheirReason() {
         String original = "a\nb\nc\nd\ne\nf\n";
         SnippetAiResponseSupport.AppliedEdits applied = SnippetAiResponseSupport.applySnippetEditsLeniently(original, List.of(

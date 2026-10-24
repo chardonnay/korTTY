@@ -183,9 +183,19 @@ public final class SnippetProjectAiSupport {
             "Natural language for the analysis: " + fallbackLanguageCode + "\n" + rendered);
         String answer = execute(aiService, usageRecorder, request);
         SnippetAiResponseSupport.ScriptAnalysis analysis = SnippetAiResponseSupport.parseScriptAnalysis(answer);
+        String failure = SnippetAiResponseSupport.describeJsonFailure(answer);
         if (!analysis.isUsable()) {
-            AiAnswerArchive.save(AiAction.ANALYZE_SNIPPET_PROJECT, "no-usable-analysis", answer);
+            java.nio.file.Path archived =
+                AiAnswerArchive.save(AiAction.ANALYZE_SNIPPET_PROJECT, "no-usable-analysis", answer);
+            logger.warn("AI project analysis returned no usable analysis [answer chars={}, {}] Full answer: {}",
+                answer.length(),
+                failure != null ? failure : "JSON parses but holds no analysis",
+                archived != null ? archived : "not archived");
             throw new IllegalStateException("AI project analysis returned no usable analysis.");
+        }
+        if (failure != null) {
+            logger.info("AI project analysis read from an answer whose JSON was repaired: {} finding(s) kept "
+                + "[answer chars={}, {}]", analysis.improvements().size(), answer.length(), failure);
         }
         return tagFiles(analysis, filesById(answer), context);
     }
@@ -193,7 +203,7 @@ public final class SnippetProjectAiSupport {
     /** The {@code file} of each improvement in the raw answer, by id. */
     static Map<String, String> filesById(String answer) {
         Map<String, String> files = new HashMap<>();
-        JsonObject object = SnippetAiResponseSupport.parseLenientJsonObject(answer);
+        JsonObject object = SnippetAiResponseSupport.scriptAnalysisObject(answer);
         JsonElement improvements = object != null ? object.get("improvements") : null;
         if (improvements == null || !improvements.isJsonArray()) {
             return files;
