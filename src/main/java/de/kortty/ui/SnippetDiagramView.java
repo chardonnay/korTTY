@@ -37,6 +37,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
+import javafx.stage.PopupWindow;
 import javafx.stage.Window;
 import javafx.util.Duration;
 
@@ -49,6 +50,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -196,6 +198,15 @@ final class SnippetDiagramView extends VBox {
     private Runnable expandHandler;
     private final Button expandButton = new Button("⤢ " + I18n.get("snippets.ai.diagram.zoomWindow.open"));
     private final Button actualSizeButton = new Button(I18n.get("snippets.ai.diagram.zoom.actualSize"));
+    /**
+     * The code-reference tooltip of the hotspot under the mouse. It is the view's own, not WebKit's
+     * {@code title} tooltip, whose placement the view cannot set and which goes with the loaded
+     * page on every reload of the diagram HTML.
+     */
+    private final Tooltip hotspotTooltip = new Tooltip();
+    private SvgHotspot tooltipHotspot;
+    /** The HTML the WebView shows, so a layout pass that changes nothing does not reload the page. */
+    private String loadedHtml;
     /** Where the last diagram HTML placed the image, for telling a hotspot click from a diagram click. */
     private double lastImageLeft;
     private double lastImageTop;
@@ -250,6 +261,12 @@ final class SnippetDiagramView extends VBox {
                 expandHandler.run();
             }
         });
+        // The window's top-left corner goes to the tooltip offset, not the bubble's: anchored by its
+        // content, the transparent shadow margin reached back under the pointer, which then
+        // "left" the diagram and closed the tooltip at once.
+        hotspotTooltip.setAnchorLocation(PopupWindow.AnchorLocation.WINDOW_TOP_LEFT);
+        diagramView.addEventHandler(MouseEvent.MOUSE_MOVED, event -> showHotspotTooltip(hotspotAt(event.getX(), event.getY())));
+        diagramView.addEventHandler(MouseEvent.MOUSE_EXITED, event -> showHotspotTooltip(null));
         zoomRenderTrailer.setOnFinished(event -> {
             if (!disposed) {
                 lastZoomRenderNanos = System.nanoTime();
@@ -324,6 +341,7 @@ final class SnippetDiagramView extends VBox {
         renderedPng = null;
         expandButton.setDisable(true);
         currentHotspots = List.of();
+        showHotspotTooltip(null);
         setNotice(null);
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
@@ -376,6 +394,7 @@ final class SnippetDiagramView extends VBox {
         renderedPng = null;
         expandButton.setDisable(true);
         currentHotspots = List.of();
+        showHotspotTooltip(null);
         setNotice(null);
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
@@ -392,6 +411,7 @@ final class SnippetDiagramView extends VBox {
         currentContent = "";
         currentSourceReferences = List.of();
         currentHotspots = List.of();
+        showHotspotTooltip(null);
         renderedSvg = null;
         renderedPng = null;
         expandButton.setDisable(true);
@@ -400,6 +420,7 @@ final class SnippetDiagramView extends VBox {
         diagramScroll.setManaged(false);
         spinnerBox.setVisible(false);
         spinnerBox.setManaged(false);
+        loadedHtml = null;
         diagramView.getEngine().loadContent("");
     }
 
@@ -531,15 +552,39 @@ final class SnippetDiagramView extends VBox {
 
     /** Whether the point (in the diagram view's own coordinates) lies on a code-reference hotspot. */
     private boolean isOnHotspot(double x, double y) {
+        return hotspotAt(x, y) != null;
+    }
+
+    /** The code-reference hotspot at the point (in the diagram view's own coordinates), or {@code null}. */
+    private SvgHotspot hotspotAt(double x, double y) {
         for (SvgHotspot hotspot : currentHotspots) {
             double left = lastImageLeft + hotspot.x() * lastScaleX;
             double top = lastImageTop + hotspot.y() * lastScaleY;
             if (x >= left && x <= left + hotspot.width() * lastScaleX
                 && y >= top && y <= top + hotspot.height() * lastScaleY) {
-                return true;
+                return hotspot;
             }
         }
-        return false;
+        return null;
+    }
+
+    /**
+     * Offers {@code hotspot}'s tooltip, or none for {@code null}. Another hotspot starts over with
+     * the usual delay, like a page tooltip; the same one (also after a re-render) keeps a shown
+     * tooltip where it is.
+     */
+    private void showHotspotTooltip(SvgHotspot hotspot) {
+        if (Objects.equals(hotspot, tooltipHotspot)) {
+            return;
+        }
+        if (tooltipHotspot != null) {
+            Tooltip.uninstall(diagramView, hotspotTooltip);
+        }
+        tooltipHotspot = hotspot;
+        if (hotspot != null) {
+            hotspotTooltip.setText(hotspot.tooltip());
+            Tooltip.install(diagramView, hotspotTooltip);
+        }
     }
 
     /** Runs on Stop in addition to dropping the view's own request; {@code null} removes it. */
@@ -696,8 +741,11 @@ final class SnippetDiagramView extends VBox {
         double canvasHeight = Math.max(viewportHeight, displayHeight);
         diagramView.setZoom(1.0);
         diagramView.setPrefSize(canvasWidth, canvasHeight);
-        diagramView.getEngine().loadContent(buildDiagramHtml(
-            renderedSvg, canvasWidth, canvasHeight, displayWidth, displayHeight));
+        String html = buildDiagramHtml(renderedSvg, canvasWidth, canvasHeight, displayWidth, displayHeight);
+        if (!html.equals(loadedHtml)) {
+            loadedHtml = html;
+            diagramView.getEngine().loadContent(html);
+        }
         updateZoomLabel();
     }
 
@@ -743,7 +791,7 @@ final class SnippetDiagramView extends VBox {
                 continue;
             }
             String tag = codeNavigationHandler != null ? "a" : "div";
-            html.append('<').append(tag).append(" class=\"diagram-hotspot\" title=\"")
+            html.append('<').append(tag).append(" class=\"diagram-hotspot\" aria-label=\"")
                 .append(escapeHtml(hotspot.tooltip())).append('"');
             if (codeNavigationHandler != null) {
                 html.append(" href=\"#kortty-code-reference-").append(hotspot.startLine())
@@ -768,6 +816,9 @@ final class SnippetDiagramView extends VBox {
         int startLine = Integer.parseInt(matcher.group(1));
         int endLine = Integer.parseInt(matcher.group(2));
         codeNavigationHandler.accept(new CodeNavigationTarget(startLine, endLine));
+        // Reload even though nothing changed: the page sits on the clicked link's anchor, and a
+        // second click on the same hotspot would not change the location again.
+        loadedHtml = null;
         Platform.runLater(this::renderDiagramToFitViewport);
     }
 
