@@ -199,6 +199,7 @@ class AiI18nCoverageTest {
         "settings.ai.reasoning.refresh.success",
         "settings.ai.reasoning.refresh.none",
         "settings.ai.reasoning.refresh.failed",
+        "settings.ai.reasoning.tooltip",
         "settings.ai.vision",
         "settings.ai.vision.auto",
         "settings.ai.vision.enabled",

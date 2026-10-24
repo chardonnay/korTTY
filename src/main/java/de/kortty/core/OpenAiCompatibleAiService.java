@@ -1714,12 +1714,20 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
             HttpClient testClient = HttpClient.newBuilder().connectTimeout(TEST_CONNECT_TIMEOUT).build();
             lastTestFailure = null;
             AiExecutionResult result = executeConnectionTestWithClient(testClient, TEST_REQUEST_TIMEOUT);
-            return result != null && result.content() != null && !result.content().isBlank();
+            return result != null
+                && ((result.content() != null && !result.content().isBlank()) || answeredInReasoningOnly(result));
         } catch (Exception e) {
             logger.warn("AI API test connection failed: {}", e.getMessage());
             lastTestFailure = truncateForUser(e.getMessage());
             return false;
         }
+    }
+
+    private static boolean answeredInReasoningOnly(AiExecutionResult result) {
+        return result != null
+            && (result.content() == null || result.content().isBlank())
+            && result.reasoning() != null
+            && !result.reasoning().isBlank();
     }
 
     @Override
@@ -2608,6 +2616,15 @@ public class OpenAiCompatibleAiService implements AiPromptService, AiSkillUsageT
         AiExecutionResult result = parseResponseBody(responseBody);
         String content = result != null ? result.content() : null;
         if (content == null || content.isBlank()) {
+            if (answeredInReasoningOnly(result)) {
+                // A model that reasons by default (Qwen on LM Studio, where a disabled profile sends
+                // no reasoning_effort) spends the test's 128 tokens in reasoning_content and is cut
+                // off before it writes "OK". The endpoint took the request and the model generated,
+                // which is all the test — and the reasoning discovery built on it — has to prove.
+                logger.debug("AI connection test answered in the reasoning channel only (finish_reason {}).",
+                    result.outputTruncated() ? "length" : "stop");
+                return result;
+            }
             logEmptyReply(result, false, response.statusCode(), contentTypeOf(response), responseBody);
             throw new EmptyResponseException();
         }

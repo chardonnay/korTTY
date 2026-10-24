@@ -86,7 +86,8 @@ public class TerminalSplitPaneZoomTest {
         String source = source();
         String decorations = methodBody(source, "private void refreshPaneDecorations(");
 
-        assertThat(decorations).contains("ring.setVisible(several && zoomedWidget == null);");
+        assertWithMessage("while a pane is zoomed no pane shows the ring, whatever the focus-ring setting")
+            .that(decorations).contains("ring.setVisible(focusRingEnabled && several && zoomedWidget == null);");
         assertThat(decorations).contains("refreshZoomBadge(badgeText, hiddenReceivers > 0);");
         assertWithMessage("the badge counts the hidden panes broadcast mode or the input mirror still reaches")
             .that(decorations).contains("hiddenMirrorReceivers(zoomedWidget, panes)");

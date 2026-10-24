@@ -157,7 +157,19 @@ public final class AiReasoningDiscoveryService {
             internetConfig,
             skillPromptSupport,
             effort);
-        return service != null && service.testConnection();
+        if (service == null) {
+            return false;
+        }
+        if (service.testConnection()) {
+            return true;
+        }
+        // The baseline probe's failure reaches the user as the refresh error, so it carries the
+        // endpoint's own reason; a rejected candidate level is swallowed by accepts() either way.
+        String detail = service.lastTestFailure();
+        if (detail != null && !detail.isBlank()) {
+            throw new IllegalStateException("AI connection test failed: " + detail);
+        }
+        return false;
     }
 
     private static boolean accepts(ReasoningProbe probe, AiReasoningEffort candidate) {

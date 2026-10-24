@@ -2749,6 +2749,70 @@ class OpenAiCompatibleAiServiceTest {
         }
     }
 
+    /** LM Studio's reply to the connection test from a Qwen model that reasons by default. */
+    private static final String REASONING_ONLY_TEST_REPLY = """
+        {
+          "id": "chatcmpl-tluudvw42lhszvaan0g03",
+          "object": "chat.completion",
+          "model": "qwen3.6-35b-a3b-splash",
+          "choices": [{
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "reasoning_content": "Here's a thinking process:\\n\\n1.  **Analyze User Input:**"
+            },
+            "finish_reason": "length"
+          }],
+          "usage": {"prompt_tokens": 22, "completion_tokens": 128, "total_tokens": 150}
+        }
+        """;
+
+    @Test
+    void connectionTestPassesWhenTheModelSpendsItsBudgetOnReasoning() throws Exception {
+        com.sun.net.httpserver.HttpServer server = jsonServer(REASONING_ONLY_TEST_REPLY);
+        try {
+            OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/v1/chat/completions",
+                "qwen3.6-35b-a3b-splash", "");
+
+            assertThat(service.testConnection()).isTrue();
+            assertThat(service.lastTestFailure()).isNull();
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void connectionTestStillFailsWhenTheReplyCarriesNeitherAnswerNorReasoning() throws Exception {
+        com.sun.net.httpserver.HttpServer server = jsonServer(
+            "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}]}");
+        try {
+            OpenAiCompatibleAiService service = new OpenAiCompatibleAiService(
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/v1/chat/completions",
+                "qwen3.6-35b-a3b-splash", "");
+
+            assertThat(service.testConnection()).isFalse();
+            assertThat(service.lastTestFailure()).isEqualTo("AI API returned an empty response.");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    private static com.sun.net.httpserver.HttpServer jsonServer(String reply) throws IOException {
+        com.sun.net.httpserver.HttpServer server =
+            com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            byte[] body = reply.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        return server;
+    }
+
     @Test
     void providerErrorDetectionAndMiniMaxEndpointRecognition() {
         assertThat(OpenAiCompatibleAiService.detectProviderError(
