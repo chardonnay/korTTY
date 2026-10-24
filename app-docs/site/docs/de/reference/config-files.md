@@ -169,6 +169,7 @@ Globale Anwendungseinstellungen und Standardeinstellungen.
 - Dashboard-Sichtbarkeitsstatus
 -  Flag „Toolfenster als Registerkarten öffnen“.
 - `connectionColorBorderEnabled`: ob das Terminal einer Verbindung mit einer [Tab-Farbe](../features/connections.md#tab-farbe) einen Rahmen in dieser Farbe erhält und ein geteilter Bereich einer Verbindung mit einer anderen Farbe einen eigenen Rahmen (standardmäßig eingeschaltet)
+- `splitPaneFocusRingEnabled`: ob das Pane, in dem die Tastatur ist, einen [Fokusring](../features/terminal.md#vorgange-aufteilen) erhält, während ein Tab zwei oder mehr geteilte Panes hat (standardmäßig eingeschaltet)
 - `connectionGroupColors`: die [Tab-Farben der Connection-Manager-Ordner](../features/connections.md#tab-farbe), ein Eintrag `<group path="Work/Production" color="#D32F2F"/>` pro Ordner mit eigener Farbe; ein Eintrag, dessen Farbe keine Hex-Farbe ist, wird ignoriert, und ohne das Element hat kein Ordner eine Farbe
 - `tabTitleFromShellEnabled`: ob ein Terminal-Tab statt des Verbindungsnamens den [Titel anzeigt, den seine Shell setzt](../features/terminal.md#titel-aus-der-shell) (standardmäßig aktiviert)
 - `tabSwitchMostRecentFirst`: ob ++ctrl+tab++ die Tabs in der Reihenfolge ihrer letzten Nutzung wechselt statt in ihrer [Reihenfolge in der Tab-Leiste](settings/window.md#tabs) (standardmäßig aus)

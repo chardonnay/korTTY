@@ -3760,7 +3760,7 @@ tasks.register<JavaExec>("paneKeyboardSmoke") {
 
 tasks.register<JavaExec>("paneConnectionFrameSmoke") {
     group = "verification"
-    description = "Splits a terminal with the base stylesheet, marks one pane as running another connection and checks that it shows a 3 px frame of that color at its edge with the focus ring inside it, names the connection for screen readers, resizes no terminal, keeps the frame through a further split and alone in the tab, and drops it when the marks are cleared; pass a PNG path via --args to save a snapshot (needs a display)."
+    description = "Splits a terminal with the base stylesheet, marks one pane as running another connection and checks that it shows a 3 px frame of that color at its edge with the focus ring inside it, names the connection for screen readers, resizes no terminal, keeps the frame through a further split and alone in the tab, hides every focus ring (also on a pane split meanwhile) but not the frame while the ring is switched off, and drops the frame when the marks are cleared; pass a PNG path via --args to save a snapshot (needs a display)."
     dependsOn("testClasses", "processResources")
     mainClass.set("com.sithtermfx.ui.split.PaneConnectionFrameSmoke")
     classpath = sourceSets.test.get().runtimeClasspath

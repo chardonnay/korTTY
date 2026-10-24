@@ -786,6 +786,7 @@ public class TerminalView extends BorderPane {
             MultiExecCoordinator.shared().refreshMarkers();
         });
         splitPane.setResetZoomCallback(this::resetZoom); // Reset zoom to connection or global default (not hardcoded 14)
+        refreshPaneFocusRing();
         
         // Register extra context menu items: Theme, Reconnect, Timestamp toggle
         splitPane.setExtraMenuItemsFactory(widget -> {
@@ -4930,6 +4931,28 @@ public class TerminalView extends BorderPane {
         ServerConnection shown = pane != null ? pane : tab;
         String label = shown != null ? shown.getDisplayName() : null;
         return label != null ? label : "";
+    }
+
+    /**
+     * Shows or hides the ring around the split pane the keyboard is in, as the Window settings say.
+     * FX thread.
+     */
+    void refreshPaneFocusRing() {
+        if (splitPane != null) {
+            splitPane.setFocusRingEnabled(paneFocusRingEnabled());
+        }
+    }
+
+    /** Whether split panes show the focus ring: on unless switched off in the Window settings. */
+    private static boolean paneFocusRingEnabled() {
+        try {
+            var app = KorTTYApplication.getInstance();
+            GlobalSettings settings = app != null && app.getGlobalSettingsManager() != null
+                    ? app.getGlobalSettingsManager().getSettings() : null;
+            return settings == null || settings.isSplitPaneFocusRingEnabled();
+        } catch (RuntimeException e) {
+            return true;
+        }
     }
 
     /**

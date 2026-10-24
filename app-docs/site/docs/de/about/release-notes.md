@@ -22,6 +22,7 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 - **Strg+V fügt unter Windows im Terminal ein** — wie im Windows Terminal; unter Linux bleibt ++ctrl+v++ bei der Shell. Siehe [Text einfügen](../features/terminal.md#text-einfugen).
 - **Dunkle Titelleisten unter Windows** — im dunklen Modus erhalten das Hauptfenster und alle Dialoge eine dunkle native Titelleiste, und ein Wechsel des Systemdesigns erreicht auch geöffnete Fenster.
 - **Lokale Shells kommen zurück** — *Vorherige Sitzung wiederherstellen* öffnet lokale Shell-Tabs, die über die Symbolleiste gestartet wurden, wieder, statt sie als „Verbindung fehlt“ abzulegen. Siehe [Sitzungswiederherstellung](../reference/settings/window.md#sitzungswiederherstellung).
+- **Fokusring kann ausgeschaltet werden** — schalten Sie **Aktives Split-Terminal umrahmen** in den Fenstereinstellungen aus, um den Ring um das aktive Split-Terminal auszublenden. Sie erkennen dann das aktive Terminal durch seinen Cursor. Siehe [Tabs](../reference/settings/window.md#tabs).
 - **Terminal-Agent unter PowerShell und cmd** — eine abgefangene Zeile `agent ...` wird ohne ein verirrtes `^U` gelöscht, und verschachtelte `powershell -Command`-Skripte des Modells laufen korrekt.
 
 ### Korrekturen

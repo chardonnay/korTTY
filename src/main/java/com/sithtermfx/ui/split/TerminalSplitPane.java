@@ -282,6 +282,9 @@ public class TerminalSplitPane extends StackPane {
     // The connection frame and screen-reader text of each pane that runs another connection than its
     // tab; set by the host app, drawn by refreshPaneDecorations.
     private final Map<SithTermFxWidget, PaneConnectionMark> paneConnectionMarks = new HashMap<>();
+    // Whether the focus ring shows at all; the host app switches it off from its settings, and the
+    // active pane is then told apart by its cursor alone.
+    private boolean focusRingEnabled = true;
     // JavaFX creates a new themed SplitPane for every split level. Remember see-through mode so both
     // existing and future nested controls stay transparent instead of restoring the opaque theme.
     private boolean backgroundTransparent = false;
@@ -1237,7 +1240,7 @@ public class TerminalSplitPane extends StackPane {
             Region ring = decoration == null ? null
                 : several ? focusRingOf(decoration) : findFocusRing(decoration);
             if (ring != null) {
-                ring.setVisible(several && zoomedWidget == null);
+                ring.setVisible(focusRingEnabled && several && zoomedWidget == null);
             }
             PaneConnectionMark connectionMark = paneConnectionMarks.get(pane);
             refreshConnectionFrame(pane, connectionMark != null ? connectionMark.frameColor() : null);
@@ -1256,6 +1259,23 @@ public class TerminalSplitPane extends StackPane {
         for (int i = 0; i < panes.size(); i++) {
             refreshMirrorMarker(panes.get(i), mirrorTexts.get(i));
         }
+    }
+
+    /**
+     * Shows or hides the focus ring around the pane the keyboard is in (and the dimmer one around the
+     * pane the menu commands act on) in every pane, current and future. On by default; with it off
+     * the active pane shows only by its cursor. FX thread.
+     */
+    public void setFocusRingEnabled(boolean enabled) {
+        if (focusRingEnabled == enabled) {
+            return;
+        }
+        focusRingEnabled = enabled;
+        refreshPaneDecorations();
+    }
+
+    public boolean isFocusRingEnabled() {
+        return focusRingEnabled;
     }
 
     /**

@@ -59,6 +59,8 @@ class TabBasicsI18nCoverageTest {
             "settings.window.connectionColorBorder",
             "settings.window.connectionColorBorder.tooltip",
             "settings.window.connectionColorBorder.info",
+            "settings.window.splitPaneFocusRing",
+            "settings.window.splitPaneFocusRing.tooltip",
             "tab.tooltip.environmentColor",
             "credential.environments.color",
             "credential.environments.color.enable",
