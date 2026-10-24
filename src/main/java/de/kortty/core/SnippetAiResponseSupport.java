@@ -1895,16 +1895,66 @@ public final class SnippetAiResponseSupport {
     }
 
     /**
-     * The answer's JSON object for the project and modularization flows: read as it is, else once
-     * more after escaping raw quotes inside prose strings; {@code null} when neither parses.
+     * The answer's JSON object for the modularization flows: the first object any step of
+     * {@link #parseLenientJsonObject(String, java.util.function.Predicate)} reads.
      */
     static JsonObject parseLenientJsonObject(String responseText) {
+        return parseLenientJsonObject(responseText, object -> true);
+    }
+
+    /**
+     * The answer's first JSON object that {@code usable} accepts, read ever more forgivingly: as it
+     * is; after escaping raw quotes inside prose strings; after restoring keys that lost their
+     * opening quote; and last as the root object read leniently. The payload scan reads strictly
+     * first and, once the root object fails, hands back the first inner object that parses — so a
+     * single slip anywhere turned a whole analysis into its first dependency. Seen live with
+     * MiniMax-M3: one raw quote pair in a suggestion broke a 24,000-character analysis, and one
+     * {@code ,detail":} in the 18th of 34 project findings discarded all of them.
+     *
+     * @return the accepted object, or {@code null} when no step yields one
+     */
+    static JsonObject parseLenientJsonObject(String responseText, java.util.function.Predicate<JsonObject> usable) {
         JsonObject object = parseJsonObject(responseText);
-        if (object != null) {
+        if (object != null && usable.test(object)) {
             return object;
         }
-        String repaired = repairRawQuotesInStrings(responseText);
-        return repaired != null ? parseJsonObject(repaired) : null;
+        String rawQuotesRepaired = repairRawQuotesInStrings(responseText);
+        if (rawQuotesRepaired != null) {
+            object = parseJsonObject(rawQuotesRepaired);
+            if (object != null && usable.test(object)) {
+                return object;
+            }
+        }
+        String keysRepaired = repairKeysMissingOpeningQuote(responseText);
+        if (keysRepaired != null) {
+            object = parseJsonObject(keysRepaired);
+            if (object != null && usable.test(object)) {
+                return object;
+            }
+        }
+        object = parseRootObjectLeniently(keysRepaired != null ? keysRepaired : responseText);
+        return object != null && usable.test(object) ? object : null;
+    }
+
+    /**
+     * The answer's first object read leniently as one value, whatever follows it: unquoted or
+     * single-quoted names and values and comments pass, and an inner object can no longer stand
+     * in for a root that fails the strict scan.
+     */
+    private static JsonObject parseRootObjectLeniently(String responseText) {
+        String text = AiResponseSanitizer.sanitizeForDisplay(responseText);
+        int brace = text.indexOf('{');
+        if (brace < 0) {
+            return null;
+        }
+        try (com.google.gson.stream.JsonReader reader =
+                 new com.google.gson.stream.JsonReader(new java.io.StringReader(text.substring(brace)))) {
+            reader.setStrictness(com.google.gson.Strictness.LENIENT);
+            JsonElement root = JsonParser.parseReader(reader);
+            return root.isJsonObject() ? root.getAsJsonObject() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static JsonObject parseJsonObject(String responseText) {
@@ -1974,7 +2024,7 @@ public final class SnippetAiResponseSupport {
     /**
      * Where and why an answer's JSON fails, for a log line: Gson's message carries the line,
      * column and path (e.g. {@code $.edits[3].replacementLines[7]}), and the text around that
-     * spot shows what the model wrote there. {@code null} when the JSON parses.
+     * spot shows what the model wrote there. {@code null} when the JSON parses strictly.
      */
     public static String describeJsonFailure(String responseText) {
         if (responseText == null || responseText.isBlank()) {
@@ -1982,20 +2032,25 @@ public final class SnippetAiResponseSupport {
         }
         // Judged from the answer's first brace to its end: the payload extraction would hand back
         // the first inner object that happens to parse, and the question here is why the root
-        // object did not.
+        // object did not. Strictly, as that extraction reads it first — a lenient read passed a
+        // key without its opening quote and reported the answer as fine. Text after the object
+        // (a closing fence) is no defect: the extraction stops at the object's end, too.
         String sanitized = AiResponseSanitizer.sanitizeForDisplay(responseText);
         int brace = sanitized.indexOf('{');
         if (brace < 0) {
             return "no JSON object in the answer";
         }
         String candidate = sanitized.substring(brace).strip();
-        try {
-            JsonParser.parseString(candidate);
+        try (com.google.gson.stream.JsonReader reader =
+                 new com.google.gson.stream.JsonReader(new java.io.StringReader(candidate))) {
+            reader.setStrictness(com.google.gson.Strictness.STRICT);
+            JsonParser.parseReader(reader);
             return null;
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException | java.io.IOException failure) {
             String message = failure.getMessage() != null ? failure.getMessage() : failure.toString();
             message = message
-                .replace("Use JsonReader.setStrictness(Strictness.LENIENT) to accept malformed JSON", "")
+                .replaceFirst("^[\\w.]+(Exception|Error):\\s*", "")
+                .replace("Use JsonReader.setStrictness(Strictness.LENIENT) to accept malformed JSON", "malformed JSON")
                 .replaceAll("\\s*See https://github\\.com/google/gson/\\S+", "")
                 .strip();
             Matcher position = JSON_FAILURE_POSITION.matcher(message);
@@ -2093,19 +2148,16 @@ public final class SnippetAiResponseSupport {
      * missing ids (fallback ids) and empty arrays, mirroring the other parsers here.
      */
     public static ScriptAnalysis parseScriptAnalysis(String responseText) {
-        ScriptAnalysis analysis = parseScriptAnalysisObject(parseJsonObject(responseText));
-        if (analysis.isUsable()) {
-            return analysis;
-        }
-        // Seen live: one raw quote pair in a prose field ("$TEMP_UPGRADE_FILE" inside a suggestion)
-        // broke a 24,000-character analysis. The fields here are prose, where a quote that is not
-        // followed by a JSON terminator is content — so it is escaped and the object read again.
-        String repaired = repairRawQuotesInStrings(responseText);
-        if (repaired == null) {
-            return analysis;
-        }
-        ScriptAnalysis repairedAnalysis = parseScriptAnalysisObject(parseJsonObject(repaired));
-        return repairedAnalysis.isUsable() ? repairedAnalysis : analysis;
+        return parseScriptAnalysisObject(scriptAnalysisObject(responseText));
+    }
+
+    /**
+     * The object {@link #parseScriptAnalysis} reads, so the project analysis takes each finding's
+     * file from the same one; {@code null} when no reading of the answer yields an analysis. The
+     * fields are prose, where the repairs of {@link #parseLenientJsonObject} are safe.
+     */
+    static JsonObject scriptAnalysisObject(String responseText) {
+        return parseLenientJsonObject(responseText, object -> parseScriptAnalysisObject(object).isUsable());
     }
 
     private static ScriptAnalysis parseScriptAnalysisObject(JsonObject object) {
@@ -2154,6 +2206,62 @@ public final class SnippetAiResponseSupport {
             } else {
                 out.append("\\\"");
                 repaired = true;
+            }
+        }
+        return repaired ? out.toString() : null;
+    }
+
+    /**
+     * Restores the opening quote of a key the model dropped ({@code ,detail":"…"} becomes
+     * {@code ,"detail":"…"}). Such a key flips the quote parity for the rest of the answer, so it
+     * is caught before its quote could open a string: outside strings, a name after {@code {} or
+     * {@code ,} that ends in a quote followed by {@code :}. Scans the reasoning-stripped answer
+     * from its first brace and returns {@code null} when there was nothing to repair.
+     */
+    static String repairKeysMissingOpeningQuote(String text) {
+        String sanitized = AiResponseSanitizer.sanitizeForDisplay(text);
+        int start = sanitized.indexOf('{');
+        if (start < 0) {
+            return null;
+        }
+        StringBuilder out = new StringBuilder(sanitized.length() + 8).append(sanitized, 0, start);
+        boolean inString = false;
+        boolean repaired = false;
+        char previous = 0;
+        for (int i = start; i < sanitized.length(); i++) {
+            char c = sanitized.charAt(i);
+            if (inString) {
+                out.append(c);
+                if (c == '\\' && i + 1 < sanitized.length()) {
+                    out.append(sanitized.charAt(++i));
+                } else if (c == '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if ((previous == '{' || previous == ',') && (Character.isLetter(c) || c == '_')) {
+                int end = i;
+                while (end < sanitized.length()
+                    && (Character.isLetterOrDigit(sanitized.charAt(end)) || sanitized.charAt(end) == '_'
+                        || sanitized.charAt(end) == '-')) {
+                    end++;
+                }
+                int colon = skipSpaces(sanitized, end + 1);
+                if (end < sanitized.length() && sanitized.charAt(end) == '"'
+                    && colon < sanitized.length() && sanitized.charAt(colon) == ':') {
+                    out.append('"').append(sanitized, i, end + 1);
+                    i = end;
+                    previous = '"';
+                    repaired = true;
+                    continue;
+                }
+            }
+            out.append(c);
+            if (c == '"') {
+                inString = true;
+            }
+            if (!Character.isWhitespace(c)) {
+                previous = c;
             }
         }
         return repaired ? out.toString() : null;
