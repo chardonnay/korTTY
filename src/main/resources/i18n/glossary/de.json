@@ -419,7 +419,7 @@
     },
     {
       "from": "**Begründung**",
-      "to": "**Argumentation**",
+      "to": "**Reasoning**",
       "scope": "markdown",
       "note": "UI label settings.ai.reasoning."
     },

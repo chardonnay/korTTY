@@ -57,6 +57,14 @@ PROTECTED_VALUES = {
     "Ruby (.rb)", "Info", "Options", "Options:", "Copy Mermaid",
 }
 
+# Values that stay English in one target language only. German AI tools use the loanword
+# "Reasoning"; Google Translate turns it into "Argumentation", under which users did not
+# recognise the AI profile's reasoning setting. The other locales have an established word
+# of their own ("Razonamiento", "Raisonnement", ...), so this is not a global entry.
+PROTECTED_VALUES_BY_LANG = {
+    "de": {"Reasoning:"},
+}
+
 
 def parse(path):
     out = {}
@@ -106,6 +114,7 @@ def main():
             k, v = line.split("=", 1)
             ev = en.get(k)
             if (ev is None or v != ev or not v.strip() or v in PROTECTED_VALUES
+                    or v in PROTECTED_VALUES_BY_LANG.get(target, ())
                     or (prefix is not None and not k.startswith(prefix))):
                 continue
             masked, ph = mask_placeholders(v)
