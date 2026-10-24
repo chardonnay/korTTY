@@ -60,7 +60,7 @@ class AiReasoningSupportTest {
         profile.setReasoningEffort(AiReasoningEffort.HIGH);
 
         assertThat(AiReasoningSupport.normalizeForProfile(profile)).isEqualTo(AiReasoningEffort.DISABLED);
-        assertThat(AiReasoningSupport.exportStatus(profile)).isEqualTo("Disabled");
+        assertThat(AiReasoningSupport.exportStatus(profile)).isEqualTo("Model default");
     }
 
     @Test

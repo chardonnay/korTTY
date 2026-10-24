@@ -89,7 +89,7 @@ The profile fields are edited in **AI > AI Manager > Profiles**. The editor keep
 | Local MLX model | dropdown | Installed MLX models; available when Connection is Integrated MLX (Apple Silicon) | — | (profile `embeddedModelId` field) |
 | Custom model | text | — | — | (profile `model` field, written when the Model dropdown is set to **Custom model** for a Local CLI profile) |
 | Prompt optimization | dropdown | Auto (model detection), Generic, Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, GPT-OSS | Auto | (profile `promptPreset` field) |
-| Reasoning | dropdown | Disabled, None, Minimal, Low, Medium, High, Extra high | Disabled | (profile `reasoningEffort` field) |
+| Reasoning | dropdown | Model default, None, Minimal, Low, Medium, High, Extra high | Model default | (profile `reasoningEffort` field) |
 | Image input (vision) | dropdown | Auto (detect), Enabled, Disabled | Auto (detect) | (profile `visionSupport` field) |
 | Internet access | dropdown | Disabled, KorTTY Tavily Tool, LM Studio Tavily MCP, Bright Data Web MCP, Brave Search MCP, SearXNG MCP, LM Studio Toolpack (locked to Disabled, with a hint, for a native Anthropic Messages API URL) | Disabled | (profile `internetAccessMode` field) |
 | API Key (optional) | text | (password field) | — | (profile `encryptedApiKey` field) |
@@ -170,21 +170,21 @@ Knowledge stores assigned to the Text/Coding roles add only bounded, cited excer
 
 Reasoning effort configures how deeply the AI thinks before responding. Available levels depend on the model and endpoint:
 
-- **Disabled**: No reasoning parameter sent; model uses its default behavior.
-- **None**: Explicitly disable reasoning with the transport's supported off value.
+- **Model default**: No reasoning parameter is sent, so the model's own default applies. A model that reasons by default, such as Qwen in LM Studio, keeps thinking.
+- **None**: Explicitly switches reasoning off with the transport's supported off value. Choose this, not **Model default**, to stop a reasoning model from thinking.
 - **Minimal**: Light reasoning; fastest execution.
 - **Low**: Low effort reasoning; balance between speed and depth.
 - **Medium**: Medium effort; reasonable depth.
 - **High**: High effort; more thorough reasoning.
 - **Extra high**: Maximum reasoning effort; slowest but most comprehensive.
 
-Not all models support all levels. When LM Studio publishes `capabilities.reasoning.allowed_options` through its native model metadata, korTTY uses that exact list instead of treating a silently converted value as supported, and it reads that list **automatically**: picking another model or endpoint in the profile editor re-reads the metadata for the model you just chose, so the dropdown follows the profile without any further action. The list is only read from the endpoint's model metadata here — a single request that sends no prompt. Use the **Refresh reasoning options** button when you want to force a re-check, or for an endpoint that publishes no such metadata: that button also runs active connection probes.
+Not all models support all levels. When LM Studio publishes `capabilities.reasoning.allowed_options` through its native model metadata, korTTY uses that exact list instead of treating a silently converted value as supported, and it reads that list **automatically**: picking another model or endpoint in the profile editor re-reads the metadata for the model you just chose, so the dropdown follows the profile without any further action. The list is only read from the endpoint's model metadata here — a single request that sends no prompt. Use the **Refresh reasoning options** button when you want to force a re-check, or for an endpoint that publishes no such metadata: that button also runs active connection probes. Those probes, like **Test AI Connection**, count a reply that arrives only as reasoning as a working connection, because a model that thinks by default can spend the test's short reply budget on reasoning before it writes an answer.
 
-For a binary `off`/`on` model, an explicit `none` request switches this feature off, while omitting the reasoning parameter uses the model's published default; the unsupported Minimal, Low, Medium, High, and Extra high levels are not offered. A model whose LM Studio metadata publishes no reasoning capability at all — including a virtual model that overrides its reasoning metadata to false — offers only **Disabled**: LM Studio skips an unsupported request-time reasoning value with a log warning instead of rejecting the request, so an active probe would mistake every level for supported.
+For a binary `off`/`on` model, an explicit `none` request switches this feature off, while omitting the reasoning parameter uses the model's published default; the unsupported **Minimal**, **Low**, **Medium**, **High**, and **Extra high** levels are not offered. A model whose LM Studio metadata publishes no reasoning capability at all — including a virtual model that overrides its reasoning metadata to false — offers only **Model default**: LM Studio skips an unsupported request-time reasoning value with a log warning instead of rejecting the request, so an active probe would mistake every level for supported.
 
 A detected list belongs to the endpoint and model it was read for. Changing either discards it, and where korTTY cannot read the new combination's metadata — a CLI profile, a cloud endpoint — the profile falls back to the conservative defaults for its model name until you press **Refresh reasoning options**. A level that is no longer offered is dropped from the request with a log line naming the level actually used. Fields that a profile's own connection mode does not use, such as the CLI provider of an HTTP profile, never invalidate a detected list. Profiles using an integrated model keep their detected levels.
 
-For MiniMax endpoints (directly or through an aggregator whose model name contains `minimax`), both **Disabled** and an explicit `none` are sent as MiniMax's own `thinking: disabled` parameter, because those models ignore `reasoning_effort` and otherwise think by default — billing the hidden reasoning as completion tokens and, for MiniMax-M3, opening the reply with an inline `<think>` block. An explicit effort level is passed through unchanged.
+For MiniMax endpoints (directly or through an aggregator whose model name contains `minimax`), both **Model default** and an explicit `none` are sent as MiniMax's own `thinking: disabled` parameter, because those models ignore `reasoning_effort` and otherwise think by default — billing the hidden reasoning as completion tokens and, for MiniMax-M3, opening the reply with an inline `<think>` block. An explicit effort level is passed through unchanged.
 
 For MiniMax, use the OpenAI-compatible URL `https://api.minimax.io/v1/chat/completions` rather than the native `/text/chatcompletion_v2` endpoint: the native one answers a wrong key, model or an empty balance with HTTP 200 and an error object, which korTTY now shows as the provider's own message but which the OpenAI-compatible endpoint reports with a proper HTTP status.
 

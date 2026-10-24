@@ -231,6 +231,10 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
         refreshModelsButton.setTooltip(new Tooltip(I18n.get("ai.model.refresh.tooltip")));
         refreshModelsButton.setAccessibleText(I18n.get("ai.model.refresh.accessible"));
         reasoningCombo = new ComboBox<>();
+        Tooltip reasoningTooltip = new Tooltip(I18n.get("settings.ai.reasoning.tooltip"));
+        reasoningTooltip.setWrapText(true);
+        reasoningTooltip.setMaxWidth(480);
+        reasoningCombo.setTooltip(reasoningTooltip);
         visionCombo = new ComboBox<>();
         promptPresetCombo = new ComboBox<>();
         refreshReasoningButton = new Button("↻");

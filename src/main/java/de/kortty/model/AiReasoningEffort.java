@@ -4,7 +4,9 @@ package de.kortty.model;
  * Optional reasoning effort for OpenAI-compatible chat completion requests.
  */
 public enum AiReasoningEffort {
-    DISABLED(null, "disabled", "Disabled"),
+    // No reasoning parameter is sent, so the model's own default applies: a model that reasons by
+    // default keeps reasoning. NONE is the value that switches reasoning off.
+    DISABLED(null, "disabled", "Model default"),
     NONE("none", "none", "None"),
     MINIMAL("minimal", "minimal", "Minimal"),
     LOW("low", "low", "Low"),
