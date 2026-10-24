@@ -25,6 +25,10 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 - **Fokusring kann ausgeschaltet werden** — schalten Sie **Aktives Split-Terminal umrahmen** in den Fenstereinstellungen aus, um den Ring um das aktive Split-Terminal auszublenden. Sie erkennen dann das aktive Terminal durch seinen Cursor. Siehe [Tabs](../reference/settings/window.md#tabs).
 - **Terminal-Agent unter PowerShell und cmd** — eine abgefangene Zeile `agent ...` wird ohne ein verirrtes `^U` gelöscht, und verschachtelte `powershell -Command`-Skripte des Modells laufen korrekt.
 
+### Snippets
+
+- **Ordneranalyse nach Datei** — der Tab „Ordneranalyse“ listet die Dateien des Ordners neben dem Bericht auf. Wählen Sie eine Datei oder navigieren Sie durch die Dateien mit ◀ ▶ und den Pfeiltasten, um nur deren Ergebnisse und eine kurze Beschreibung der Funktion der Datei anzuzeigen; jede Zeile zeigt, wie viele ihrer Ergebnisse markiert sind, und ihr Kontrollkästchen markiert oder entfernt sie alle. Die Ergebnisse bleiben auch dann einer Datei zugeordnet, wenn das Modell sie pro Datei durchnumeriert oder die Datei auf eine andere Weise benennt. Siehe [Analysieren eines Ordners als einzelnes Projekt](../features/snippets.md#ordner-als-ein-projekt-analysieren).
+
 ### Korrekturen
 
 - **Agent-Abfragen passen ins Panel** — eine ausstehende Genehmigungs- oder Passwortabfrage vergrößert ein eingeklapptes Agent-Panel, bis die Abfrage vollständig sichtbar ist.

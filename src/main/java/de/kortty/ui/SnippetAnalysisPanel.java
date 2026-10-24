@@ -8,6 +8,7 @@ import de.kortty.core.ScriptLanguageMixSupport.LanguageMix;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.core.SnippetAnalysisRecord;
+import de.kortty.core.SnippetProjectAiSupport;
 import de.kortty.core.WorkflowScriptSupport;
 import de.kortty.core.WorkflowScriptSupport.HardeningOption;
 import de.kortty.core.WorkflowScriptSupport.InputHardeningConfig;
@@ -178,6 +179,8 @@ public class SnippetAnalysisPanel extends VBox {
     /** The last applied marks, re-applied when the page is rebuilt. */
     private String lastAppliedCsv;
     private VerificationView verification;
+    /** The folder analysis's files ({@link #showProjectFiles}); {@code null} for a single snippet's report. */
+    private List<SnippetAnalysisRecord.ProjectFileNote> projectFiles;
     private int fontSize;
 
     private final SnippetDiagramView diagramView;
@@ -741,6 +744,26 @@ public class SnippetAnalysisPanel extends VBox {
             return;
         }
         verification = view;
+        reloadPage();
+    }
+
+    /**
+     * Turns the report into the folder analysis's view: a list of {@code files} on the left (with how
+     * many of each file's findings are ticked) shows one file's findings at a time, ◀ ▶ and the arrow
+     * keys step through the files, "All files" shows the project description and every finding, and
+     * each card names its file. Files that only findings name are listed after {@code files}. The page
+     * is rebuilt; ticked findings and applied marks carry over.
+     */
+    void showProjectFiles(List<SnippetAnalysisRecord.ProjectFileNote> files) {
+        if (disposed) {
+            return;
+        }
+        projectFiles = files != null ? List.copyOf(files) : List.of();
+        reloadPage();
+    }
+
+    /** Rebuilds the report page, keeping the ticked findings and the applied marks. */
+    private void reloadPage() {
         if (pageReady && pendingSelectedCsv == null) {
             pendingSelectedCsv = String.join(",", selectedFindingTokens());
         }
@@ -1187,9 +1210,15 @@ public class SnippetAnalysisPanel extends VBox {
         String foreground = colors != null ? colors.foregroundColor() : SnippetAiDialogSupport.FALLBACK_FG;
         String recommendationLabel = SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.review.recommendation"));
 
+        boolean project = projectFiles != null;
+        List<String> files = project ? projectFilePaths() : List.of();
         StringBuilder body = new StringBuilder();
         if (!analysis.summary().isBlank()) {
-            body.append("<div class=\"summary\">").append(SnippetAiDialogSupport.escapeHtml(analysis.summary())).append("</div>");
+            body.append("<div class=\"summary").append(project ? " all-only" : "").append("\">")
+                .append(SnippetAiDialogSupport.escapeHtml(analysis.summary())).append("</div>");
+        }
+        if (project) {
+            body.append(renderFileIntro(files));
         }
         if (verification != null) {
             body.append(renderResolvedSection(recommendationLabel));
@@ -1204,12 +1233,19 @@ public class SnippetAnalysisPanel extends VBox {
                 if (group.isEmpty()) {
                     continue;
                 }
+                if (project) {
+                    // A group of its own, so the file filter can hide a category without findings.
+                    body.append("<div class=\"cat\">");
+                }
                 body.append("<div class=\"section-title sec-").append(category).append("\">")
                     .append(sectionIcon(category))
                     .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.section." + category)))
                     .append(" <span class=\"cat-count\">(").append(group.size()).append(")</span></div>");
                 for (SnippetAiResponseSupport.ScriptImprovement item : group) {
                     body.append(renderImprovementCard(item, recommendationLabel));
+                }
+                if (project) {
+                    body.append("</div>");
                 }
             }
         } else {
@@ -1221,7 +1257,8 @@ public class SnippetAnalysisPanel extends VBox {
         if (!analysis.dependencies().isEmpty()) {
             String suggestionLabel = SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.dependency.suggestion"));
             String purposeLabel = SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.dependency.purpose"));
-            body.append("<details class=\"dep-group\"><summary class=\"section-title sec-dependencies\">")
+            body.append("<details class=\"dep-group").append(project ? " all-only" : "")
+                .append("\"><summary class=\"section-title sec-dependencies\">")
                 .append(sectionIcon("dependencies"))
                 .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.ai.analysis.section.dependencies")))
                 .append(" <span class=\"cat-count\">(").append(analysis.dependencies().size()).append(")</span></summary>");
@@ -1231,15 +1268,29 @@ public class SnippetAnalysisPanel extends VBox {
             body.append("</details>");
         }
 
+        if (!project) {
+            return "<!doctype html><html><head><meta charset=\"UTF-8\"><style>"
+                + SnippetAiDialogSupport.cardCss(background, foreground, fontSize) + extraCss()
+                + "</style></head><body>" + body + buildScript() + "</body></html>";
+        }
         return "<!doctype html><html><head><meta charset=\"UTF-8\"><style>"
-            + SnippetAiDialogSupport.cardCss(background, foreground, fontSize) + extraCss()
-            + "</style></head><body>" + body + buildScript() + "</body></html>";
+            + SnippetAiDialogSupport.cardCss(background, foreground, fontSize) + extraCss() + projectCss(background, foreground)
+            + "</style></head><body class=\"project view-all\"><div class=\"proj\">" + renderFileList(files)
+            + "<main class=\"report\">" + renderReportHead() + body + "</main></div>"
+            + buildScript() + projectScript() + "</body></html>";
     }
 
     private String renderImprovementCard(SnippetAiResponseSupport.ScriptImprovement item, String recommendationLabel) {
         String severityClass = SnippetAiDialogSupport.severityCssClass(item.severity());
+        boolean project = projectFiles != null;
+        String file = project ? SnippetProjectAiSupport.fileOf(item) : "";
+        boolean hasLine = item.line() != null && item.line() > 0;
         StringBuilder card = new StringBuilder();
-        card.append("<div class=\"card selectable\">");
+        card.append("<div class=\"card selectable\"");
+        if (project) {
+            card.append(" data-file=\"").append(SnippetAiDialogSupport.escapeHtml(file)).append('"');
+        }
+        card.append('>');
         card.append("<div class=\"card-head\">");
         card.append("<input type=\"checkbox\" class=\"analysis-check\" data-kind=\"imp\" data-id=\"")
             .append(SnippetAiDialogSupport.escapeHtml(item.id())).append("\">");
@@ -1247,12 +1298,16 @@ public class SnippetAnalysisPanel extends VBox {
             .append(SnippetAiDialogSupport.escapeHtml(item.severity())).append("</span>");
         card.append("<span class=\"title\"><span class=\"finding-id\">")
             .append(SnippetAiDialogSupport.escapeHtml(item.id())).append("</span>")
-            .append(SnippetAiDialogSupport.escapeHtml(item.title()));
-        if (item.line() != null && item.line() > 0) {
+            .append(SnippetAiDialogSupport.escapeHtml(project ? SnippetProjectAiSupport.untagged(item.title()) : item.title()));
+        if (hasLine && !project) {
             card.append("<span class=\"loc\">").append(SnippetAiDialogSupport.escapeHtml(I18n.get("common.line")))
                 .append(' ').append(item.line()).append("</span>");
         }
-        card.append("</span>").append(verifyChip(item.id())).append("</div>");
+        card.append("</span>").append(verifyChip(item.id()));
+        if (project) {
+            card.append(fileChips(file, hasLine ? item.line() : null));
+        }
+        card.append("</div>");
         if (!item.detail().isBlank()) {
             card.append("<p class=\"impact\">").append(SnippetAiDialogSupport.escapeHtml(item.detail())).append("</p>");
         }
@@ -1337,6 +1392,225 @@ public class SnippetAnalysisPanel extends VBox {
         }
         html.append("</details>");
         return html.toString();
+    }
+
+    // ---- Folder analysis: files ---------------------------------------------------------------
+
+    /** The listed files, then any file only a finding names, without duplicates. */
+    private List<String> projectFilePaths() {
+        java.util.LinkedHashSet<String> paths = new java.util.LinkedHashSet<>();
+        for (SnippetAnalysisRecord.ProjectFileNote note : projectFiles) {
+            if (!note.path().isEmpty()) {
+                paths.add(note.path());
+            }
+        }
+        for (SnippetAiResponseSupport.ScriptImprovement improvement : analysis.improvements()) {
+            String file = SnippetProjectAiSupport.fileOf(improvement);
+            if (!file.isEmpty()) {
+                paths.add(file);
+            }
+        }
+        return List.copyOf(paths);
+    }
+
+    private boolean hasCrossFileFindings() {
+        return analysis.improvements().stream().anyMatch(item -> SnippetProjectAiSupport.fileOf(item).isEmpty());
+    }
+
+    /** Where a finding is: "lib/a.sh:52" over all files, "Line 52" within its file, or "all files". */
+    private static String fileChips(String file, Integer line) {
+        if (file.isEmpty()) {
+            return "<span class=\"floc\">" + SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.project.files.crossChip"))
+                + "</span>";
+        }
+        String path = SnippetAiDialogSupport.escapeHtml(file);
+        String chips = "<span class=\"floc loc-all\">" + path + (line != null ? ":" + line : "") + "</span>";
+        if (line != null) {
+            chips += "<span class=\"floc loc-one\">" + SnippetAiDialogSupport.escapeHtml(I18n.get("common.line"))
+                + " " + line + "</span>";
+        }
+        return chips;
+    }
+
+    /**
+     * The file list. Rows are "All files", every file, then "Cross-file" when a finding has no file;
+     * each row's index is what the per-file blocks ({@code data-row}) refer to.
+     */
+    private String renderFileList(List<String> files) {
+        Map<String, Integer> worst = new LinkedHashMap<>();
+        for (SnippetAiResponseSupport.ScriptImprovement item : analysis.improvements()) {
+            worst.merge(SnippetProjectAiSupport.fileOf(item), SnippetAiDialogSupport.severityRank(item.severity()), Math::min);
+        }
+        StringBuilder html = new StringBuilder("<nav id=\"files\" tabindex=\"0\" title=\"")
+            .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.project.files.keys"))).append("\">");
+        html.append(fileRow("all", "", I18n.get("snippets.project.files.all"), null));
+        html.append("<div class=\"fsep\"></div>");
+        for (String file : files) {
+            html.append(fileRow("file", file, file, worst.get(file)));
+        }
+        if (hasCrossFileFindings()) {
+            html.append("<div class=\"fsep\"></div>");
+            html.append(fileRow("cross", "", I18n.get("snippets.project.files.cross"), worst.get("")));
+        }
+        return html.append("</nav>").toString();
+    }
+
+    private static String fileRow(String kind, String file, String label, Integer worstRank) {
+        String dot = worstRank == null ? ""
+            : "<span class=\"fdot " + SnippetAiDialogSupport.severityCssClass(severityOfRank(worstRank)) + "\"></span>";
+        String escapedLabel = SnippetAiDialogSupport.escapeHtml(label);
+        return "<div class=\"frow " + kind + "\" data-kind=\"" + kind + "\" data-file=\""
+            + SnippetAiDialogSupport.escapeHtml(file) + "\" data-label=\"" + escapedLabel + "\">"
+            + "<input type=\"checkbox\" class=\"fcheck\" tabindex=\"-1\">"
+            + "<span class=\"fname" + ("file".equals(kind) ? " path" : "") + "\" title=\"" + escapedLabel + "\">"
+            + escapedLabel + "</span>" + dot + "<span class=\"fcount\"></span></div>";
+    }
+
+    private static String severityOfRank(int rank) {
+        return switch (rank) {
+            case 0 -> "critical";
+            case 1 -> "high";
+            case 2 -> "medium";
+            case 3 -> "low";
+            default -> "info";
+        };
+    }
+
+    /** ◀ ▶, the file list as a drop-down for a narrow report, the file's name and its position. */
+    private static String renderReportHead() {
+        StringBuilder html = new StringBuilder("<div class=\"rhead\">");
+        html.append("<button id=\"fprev\" class=\"fbtn\" title=\"")
+            .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.project.files.previous"))).append("\">&#9664;</button>");
+        html.append("<button id=\"fnext\" class=\"fbtn\" title=\"")
+            .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.project.files.next"))).append("\">&#9654;</button>");
+        html.append("<select id=\"fselect\"></select>");
+        html.append("<span id=\"ftitle\"></span><span id=\"fpos\"></span></div>");
+        return html.toString();
+    }
+
+    /**
+     * What is shown above one file's findings: what the file does (when the AI said), the project
+     * description folded away, and the note for a file without findings.
+     */
+    private String renderFileIntro(List<String> files) {
+        Map<String, String> purposes = new LinkedHashMap<>();
+        for (SnippetAnalysisRecord.ProjectFileNote note : projectFiles) {
+            purposes.putIfAbsent(note.path(), note.purpose());
+        }
+        StringBuilder html = new StringBuilder();
+        for (int i = 0; i < files.size(); i++) {
+            String purpose = purposes.getOrDefault(files.get(i), "");
+            if (!purpose.isBlank()) {
+                html.append("<div class=\"fpurpose\" data-row=\"").append(i + 1).append("\">")
+                    .append(SnippetAiDialogSupport.escapeHtml(purpose)).append("</div>");
+            }
+        }
+        if (hasCrossFileFindings()) {
+            html.append("<div class=\"fpurpose\" data-row=\"").append(files.size() + 1).append("\">")
+                .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.project.files.cross.info"))).append("</div>");
+        }
+        if (!analysis.summary().isBlank()) {
+            html.append("<details class=\"projdesc one-only\"><summary>")
+                .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.project.files.description")))
+                .append("</summary><div class=\"pd\">").append(SnippetAiDialogSupport.escapeHtml(analysis.summary()))
+                .append("</div></details>");
+        }
+        html.append("<div id=\"fnone\" class=\"empty\">")
+            .append(SnippetAiDialogSupport.escapeHtml(I18n.get("snippets.project.files.none"))).append("</div>");
+        return html.toString();
+    }
+
+    private static String projectCss(String background, String foreground) {
+        String accent = SnippetAiDialogSupport.ACCENT;
+        return ".proj{display:flex;align-items:flex-start;gap:14px;}"
+            // The list stays in view while the findings scroll; it scrolls itself when it is long.
+            + "#files{position:sticky;top:0;flex:0 0 230px;max-height:calc(100vh - 28px);overflow-y:auto;outline:none;"
+            + "padding-right:10px;border-right:1px solid rgba(128,128,128,0.28);}"
+            + ".frow{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:6px;cursor:pointer;white-space:nowrap;}"
+            + ".frow:hover{background:rgba(127,127,127,0.12);}"
+            + ".frow.active{background:rgba(59,130,246,0.2);}"
+            + "#files:focus .frow.active{box-shadow:inset 0 0 0 1px " + accent + ";}"
+            + ".fsep{height:1px;background:rgba(128,128,128,0.25);margin:5px 2px;}"
+            + ".fcheck{accent-color:" + accent + ";margin:0;flex:0 0 auto;cursor:pointer;width:1.05em;height:1.05em;}"
+            // WebKit draws a partly ticked box like an empty one: show the dash itself.
+            + ".fcheck:indeterminate{-webkit-appearance:none;appearance:none;border-radius:4px;background:" + accent + ";"
+            + "background-image:linear-gradient(#fff,#fff);background-size:55% 2px;background-position:center;"
+            + "background-repeat:no-repeat;}"
+            + ".fname{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;}"
+            + ".fname.path{font-family:'SF Mono',Menlo,Consolas,monospace;font-size:0.9em;}"
+            + ".fdot{width:8px;height:8px;border-radius:50%;flex:0 0 auto;}"
+            + ".fdot.sev-critical,.fdot.sev-high{background:#c0392b;}.fdot.sev-medium{background:#e67e22;}"
+            + ".fdot.sev-low{background:#f1c40f;}.fdot.sev-info{background:#7f8c8d;}"
+            + ".fcount{flex:0 0 auto;opacity:.6;font-size:0.82em;min-width:2.6em;text-align:right;}"
+            + ".frow.none .fname{opacity:.5;}"
+            + ".report{flex:1 1 auto;min-width:0;}"
+            + ".rhead{position:sticky;top:0;z-index:2;background:" + background + ";display:flex;align-items:center;gap:8px;"
+            + "padding:2px 0 8px;margin-bottom:8px;border-bottom:1px solid rgba(128,128,128,0.28);}"
+            + ".fbtn{font:inherit;color:inherit;background:rgba(127,127,127,0.12);border:1px solid rgba(128,128,128,0.4);"
+            + "border-radius:6px;padding:1px 9px;cursor:pointer;}"
+            + ".fbtn:disabled{opacity:.35;cursor:default;}"
+            + "#ftitle{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}"
+            + "body.view-one #ftitle{font-family:'SF Mono',Menlo,Consolas,monospace;}"
+            + "#fpos{margin-left:auto;opacity:.6;white-space:nowrap;font-size:0.9em;}"
+            + "#fselect{display:none;font:inherit;max-width:60%;color:" + foreground + ";background:" + background + ";"
+            + "border:1px solid rgba(128,128,128,0.4);border-radius:6px;padding:1px 6px;}"
+            + ".floc{margin-left:auto;flex:0 0 auto;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:0.8em;"
+            + "padding:1px 7px;border-radius:5px;background:rgba(59,130,246,0.16);white-space:nowrap;}"
+            + ".fpurpose{background:rgba(127,127,127,0.09);padding:9px 12px;border-radius:6px;margin-bottom:6px;white-space:pre-wrap;}"
+            + "details.projdesc{margin:2px 0 6px;}"
+            + "details.projdesc>summary{cursor:pointer;opacity:.75;font-size:0.9em;}"
+            + "details.projdesc .pd{margin-top:6px;opacity:.85;white-space:pre-wrap;}"
+            + "body.view-all .loc-one,body.view-one .loc-all,body.view-one .all-only,body.view-all .one-only{display:none;}"
+            // Next to the diagram the report is narrow: the list gives way to a drop-down beside ◀ ▶.
+            + "@media (max-width:620px){#files{display:none;}#fselect{display:inline-block;}#ftitle{display:none;}}";
+    }
+
+    private static String projectScript() {
+        return "<script>(function(){"
+            + "var rows=[].slice.call(document.querySelectorAll('.frow')),cards=[].slice.call(document.querySelectorAll('.card[data-file]'));"
+            + "var nav=document.getElementById('files'),sel=document.getElementById('fselect'),cur=0;"
+            + "var allPos=" + jsString(I18n.get("snippets.project.files.count", "{0}")) + ",onePos="
+            + jsString(I18n.get("snippets.project.files.position", "{0}", "{1}")) + ";"
+            + "rows.forEach(function(r){var o=document.createElement('option');o.text=r.getAttribute('data-label');sel.add(o);});"
+            + "function match(r,c){var k=r.getAttribute('data-kind');return k==='all'||c.getAttribute('data-file')===(k==='cross'?'':r.getAttribute('data-file'));}"
+            + "function checks(r){return cards.filter(function(c){return match(r,c);}).map(function(c){return c.querySelector('input.analysis-check');}).filter(Boolean);}"
+            + "function refresh(){rows.forEach(function(r,i){var b=checks(r),n=b.length,s=b.filter(function(x){return x.checked;}).length;"
+            + "var f=r.querySelector('.fcheck');f.checked=n>0&&s===n;f.indeterminate=s>0&&s<n;f.disabled=n===0;"
+            + "r.classList.toggle('none',n===0);r.querySelector('.fcount').textContent=n?s+'/'+n:'\u2013';"
+            + "sel.options[i].text=r.getAttribute('data-label')+(n?' ('+s+'/'+n+')':'');});}"
+            + "function show(i,focusList){cur=Math.max(0,Math.min(rows.length-1,i));var r=rows[cur],all=r.getAttribute('data-kind')==='all',any=0;"
+            + "document.body.classList.toggle('view-all',all);document.body.classList.toggle('view-one',!all);"
+            + "rows.forEach(function(x,j){x.classList.toggle('active',j===cur);});"
+            + "cards.forEach(function(c){var v=match(r,c);c.style.display=v?'':'none';if(v)any++;});"
+            + "[].forEach.call(document.querySelectorAll('.cat'),function(g){var n=[].filter.call(g.querySelectorAll('.card[data-file]'),function(c){return match(r,c);}).length;"
+            + "g.style.display=n?'':'none';var cc=g.querySelector('.cat-count');if(cc)cc.textContent='('+n+')';});"
+            + "[].forEach.call(document.querySelectorAll('.fpurpose'),function(p){p.style.display=!all&&p.getAttribute('data-row')===String(cur)?'':'none';});"
+            + "document.getElementById('fnone').style.display=!all&&!any?'':'none';"
+            + "document.getElementById('ftitle').textContent=r.getAttribute('data-label');"
+            + "var fileRows=rows.filter(function(x){return x.getAttribute('data-kind')==='file';});"
+            + "document.getElementById('fpos').textContent=all?allPos.replace('{0}',fileRows.length)"
+            + ":r.getAttribute('data-kind')==='file'?onePos.replace('{0}',fileRows.indexOf(r)+1).replace('{1}',fileRows.length):'';"
+            + "document.getElementById('fprev').disabled=cur===0;document.getElementById('fnext').disabled=cur===rows.length-1;"
+            + "sel.selectedIndex=cur;window.scrollTo(0,0);if(focusList)nav.focus();"
+            + "var a=rows[cur];if(a.scrollIntoView&&nav.scrollHeight>nav.clientHeight)a.scrollIntoView({block:'nearest'});}"
+            + "function toggle(i){var b=checks(rows[i]);if(!b.length)return;var v=!b.every(function(x){return x.checked;});"
+            + "b.forEach(function(x){x.checked=v;mark(x);});notifySelection();}"
+            + "rows.forEach(function(r,i){r.addEventListener('click',function(){show(i,true);});"
+            + "r.querySelector('.fcheck').addEventListener('click',function(e){e.stopPropagation();toggle(i);});});"
+            + "document.getElementById('fprev').addEventListener('click',function(){show(cur-1);});"
+            + "document.getElementById('fnext').addEventListener('click',function(){show(cur+1);});"
+            + "sel.addEventListener('change',function(){show(sel.selectedIndex);});"
+            // Left/right step through the files anywhere in the report, up/down and space in the list.
+            + "document.addEventListener('keydown',function(e){var t=e.target,k=e.keyCode,inNav=nav.contains(t);"
+            + "if(e.altKey||e.ctrlKey||e.metaKey||(t&&(t.tagName==='SELECT'||t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&t.type!=='checkbox'))))return;"
+            + "if(k===37||(inNav&&k===38)){show(cur-1,inNav);e.preventDefault();}"
+            + "else if(k===39||(inNav&&k===40)){show(cur+1,inNav);e.preventDefault();}"
+            + "else if(inNav&&k===32){toggle(cur);e.preventDefault();}});"
+            // Every change of a finding checkbox (click, card click, select all, restore) updates the counts.
+            + "var notify=notifySelection;notifySelection=function(){refresh();notify();};"
+            + "var setSelected=window.korttyAnalysis.setSelected;window.korttyAnalysis.setSelected=function(c){setSelected(c);refresh();};"
+            + "refresh();show(0);"
+            + "})();</script>";
     }
 
     private static String extraCss() {

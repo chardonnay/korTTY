@@ -94,6 +94,8 @@ final class SnippetProjectAnalysisTab extends Tab {
         new javafx.scene.control.ToggleButton(I18n.get("snippets.project.diagram"));
     private final ProgressIndicator busy = new ProgressIndicator();
     private final Label statusLabel = new Label();
+    /** How many findings are ticked and how many files applying them rewrites. */
+    private final Label selectionLabel = new Label();
     private final StackPane reportHolder = new StackPane();
     private final VBox planBox = new VBox(6);
     private final Set<String> excludedPaths = new HashSet<>();
@@ -182,7 +184,8 @@ final class SnippetProjectAnalysisTab extends Tab {
         planBox.setManaged(false);
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox bottomBar = new HBox(10, spacer, applyButton);
+        selectionLabel.setStyle("-fx-opacity: 0.8;");
+        HBox bottomBar = new HBox(10, selectionLabel, spacer, applyButton);
         bottomBar.setPadding(new Insets(6, 10, 10, 10));
         bottomBar.setAlignment(Pos.CENTER_RIGHT);
         VBox bottom = new VBox(planBox, bottomBar);
@@ -285,7 +288,7 @@ final class SnippetProjectAnalysisTab extends Tab {
         Task<SnippetAnalysisRecord> task = new Task<>() {
             @Override
             protected SnippetAnalysisRecord call() throws Exception {
-                SnippetAiResponseSupport.ScriptAnalysis analysis = ai.analyzeProject(finalContext, profileId,
+                SnippetProjectAiSupport.ProjectAnalysis analysis = ai.analyzeProject(finalContext, profileId,
                     reportLanguage, null, provenance::set);
                 ModularizationPlan plan = null;
                 if (modularize && !isCancelled()) {
@@ -298,12 +301,16 @@ final class SnippetProjectAnalysisTab extends Tab {
                         SnippetAiDialogSupport.resolveProfileDisplayName(profileId), null, null, null, null, null);
                 reported = reported.withDurationMillis(System.currentTimeMillis() - started);
                 SnippetAnalysisRecord record = SnippetAnalysisRecord.fromAnalysis(UUID.randomUUID().toString(),
-                    storeKey, analysis,
+                    storeKey, analysis.analysis(),
                     SnippetAnalysisRecord.Source.of(finalContext.render(), "project", reportLanguage, reportLanguage,
                         snippetManager.folderPath(folderId)),
                     reported,
                     previous != null ? SnippetAnalysisRecord.Purpose.RERUN : SnippetAnalysisRecord.Purpose.ANALYSIS,
-                    previous != null ? previous.id() : null, System.currentTimeMillis());
+                    previous != null ? previous.id() : null, System.currentTimeMillis())
+                    .withProjectFiles(finalContext.files().stream()
+                        .map(file -> new SnippetAnalysisRecord.ProjectFileNote(file.path(),
+                            analysis.filePurposes().get(file.path())))
+                        .toList());
                 return plan != null ? record.withModularization(plan) : record;
             }
         };
@@ -383,6 +390,7 @@ final class SnippetProjectAnalysisTab extends Tab {
         }
         if (record == null) {
             renderedRecordId = null;
+            selectionLabel.setText("");
             showEmptyState();
             renderPlan(null);
             applyButton.setDisable(true);
@@ -396,6 +404,10 @@ final class SnippetProjectAnalysisTab extends Tab {
         panel = newPanel;
         renderedRecordId = recordId;
         newPanel.useWideLayout(diagramToggle.isSelected());
+        newPanel.showProjectFiles(record.projectFiles() != null ? record.projectFiles()
+            : context().files().stream().map(file -> new SnippetAnalysisRecord.ProjectFileNote(file.path(), "")).toList());
+        newPanel.addSelectionListener(this::refreshSelectionSummary);
+        refreshSelectionSummary();
         ScrollPane scroll = new ScrollPane(newPanel);
         scroll.setFitToWidth(true);
         scroll.setFitToHeight(true);
@@ -478,6 +490,23 @@ final class SnippetProjectAnalysisTab extends Tab {
         task.setOnCancelled(event -> future.cancel(true));
         AiTaskRunner.start(task, "snippet-project-diagram");
         return future;
+    }
+
+    /** "12 findings selected · 4 of 10 files will be rewritten", from what applying would send. */
+    private void refreshSelectionSummary() {
+        if (panel == null || !panel.isPageReady()) {
+            selectionLabel.setText("");
+            return;
+        }
+        SnippetAnalysisPanel.ApplySelection selection = panel.readSelection();
+        int findings = selection.improvements().size() + selection.dependencies().size();
+        if (findings == 0) {
+            selectionLabel.setText("");
+            return;
+        }
+        ProjectContext context = context();
+        int files = SnippetProjectAiSupport.affectedFiles(context, selection.improvements(), selection.dependencies()).size();
+        selectionLabel.setText(I18n.get("snippets.project.selection", findings, files, context.files().size()));
     }
 
     private void setStatus(String message) {

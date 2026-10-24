@@ -49,7 +49,12 @@ public record SnippetAnalysisRecord(
     Verification verification,
     List<ExportEntry> exports,
     /** The modularization the AI proposed with this analysis; {@code null} = not asked for. */
-    SnippetModularizationSupport.ModularizationPlan modularization) {
+    SnippetModularizationSupport.ModularizationPlan modularization,
+    /**
+     * The files of a project (folder) analysis in the order they went to the AI, with what each does;
+     * {@code null} for a snippet analysis and for a project analysis stored before files were recorded.
+     */
+    List<ProjectFileNote> projectFiles) {
 
     /** Only the newest runs of a record keep their content fields. */
     public static final int MAX_RUNS_WITH_CONTENT = 10;
@@ -82,9 +87,18 @@ public record SnippetAnalysisRecord(
         dependencies = copyWithoutNulls(dependencies);
         applyRuns = copyWithoutNulls(applyRuns);
         exports = copyWithoutNulls(exports);
+        projectFiles = projectFiles == null || projectFiles.isEmpty() ? null : copyWithoutNulls(projectFiles);
     }
 
     // ---- Nested types ----
+
+    /** A file of a project analysis and what it does ({@code purpose} is empty when the AI did not say). */
+    public record ProjectFileNote(String path, String purpose) {
+        public ProjectFileNote {
+            path = blankToEmpty(path);
+            purpose = blankToEmpty(purpose);
+        }
+    }
 
     /**
      * What was analysed. {@code sha256} is {@link SnippetDiagramSupport#contentHash} of the full
@@ -642,7 +656,7 @@ public record SnippetAnalysisRecord(
         UniqueIds unique = uniqueFindingIds(improvements, dependencies);
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, analyzedAt, false,
             source, provenance, analysis.summary(), unique.improvements(), unique.dependencies(), null, null,
-            List.of(), null, List.of(), null);
+            List.of(), null, List.of(), null, null);
     }
 
     public SnippetAiResponseSupport.ScriptAnalysis toScriptAnalysis() {
@@ -763,55 +777,55 @@ public record SnippetAnalysisRecord(
     public SnippetAnalysisRecord withSnippetId(String value) {
         return new SnippetAnalysisRecord(id, value, purpose, previousRecordId, analyzedAt, updatedAt, pinned,
             source, provenance, summary, improvements, dependencies, diagram, selection, applyRuns,
-            verification, exports, modularization);
+            verification, exports, modularization, projectFiles);
     }
 
     public SnippetAnalysisRecord withPinned(boolean value) {
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, updatedAt, value,
             source, provenance, summary, improvements, dependencies, diagram, selection, applyRuns,
-            verification, exports, modularization);
+            verification, exports, modularization, projectFiles);
     }
 
     public SnippetAnalysisRecord withUpdatedAt(long value) {
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, value, pinned,
             source, provenance, summary, improvements, dependencies, diagram, selection, applyRuns,
-            verification, exports, modularization);
+            verification, exports, modularization, projectFiles);
     }
 
     public SnippetAnalysisRecord withSource(Source value) {
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, updatedAt, pinned,
             value, provenance, summary, improvements, dependencies, diagram, selection, applyRuns,
-            verification, exports, modularization);
+            verification, exports, modularization, projectFiles);
     }
 
     public SnippetAnalysisRecord withProvenance(Provenance value) {
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, updatedAt, pinned,
             source, value, summary, improvements, dependencies, diagram, selection, applyRuns,
-            verification, exports, modularization);
+            verification, exports, modularization, projectFiles);
     }
 
     public SnippetAnalysisRecord withDiagram(AnalysisDiagram value) {
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, updatedAt, pinned,
             source, provenance, summary, improvements, dependencies, value, selection, applyRuns,
-            verification, exports, modularization);
+            verification, exports, modularization, projectFiles);
     }
 
     public SnippetAnalysisRecord withSelection(SelectionState value) {
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, updatedAt, pinned,
             source, provenance, summary, improvements, dependencies, diagram, value, applyRuns,
-            verification, exports, modularization);
+            verification, exports, modularization, projectFiles);
     }
 
     public SnippetAnalysisRecord withVerification(Verification value) {
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, updatedAt, pinned,
             source, provenance, summary, improvements, dependencies, diagram, selection, applyRuns,
-            value, exports, modularization);
+            value, exports, modularization, projectFiles);
     }
 
     public SnippetAnalysisRecord withApplyRuns(List<ApplyRun> value) {
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, updatedAt, pinned,
             source, provenance, summary, improvements, dependencies, diagram, selection, value,
-            verification, exports, modularization);
+            verification, exports, modularization, projectFiles);
     }
 
     /** Replaces the run with the same id, or appends it (runs are oldest first). */
@@ -834,7 +848,13 @@ public record SnippetAnalysisRecord(
     public SnippetAnalysisRecord withModularization(SnippetModularizationSupport.ModularizationPlan value) {
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, updatedAt, pinned,
             source, provenance, summary, improvements, dependencies, diagram, selection, applyRuns,
-            verification, exports, value);
+            verification, exports, value, projectFiles);
+    }
+
+    public SnippetAnalysisRecord withProjectFiles(List<ProjectFileNote> value) {
+        return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, updatedAt, pinned,
+            source, provenance, summary, improvements, dependencies, diagram, selection, applyRuns,
+            verification, exports, modularization, value);
     }
 
     public SnippetAnalysisRecord withExport(ExportEntry entry) {
@@ -842,7 +862,7 @@ public record SnippetAnalysisRecord(
         entries.add(entry);
         return new SnippetAnalysisRecord(id, snippetId, purpose, previousRecordId, analyzedAt, updatedAt, pinned,
             source, provenance, summary, improvements, dependencies, diagram, selection, applyRuns,
-            verification, entries, modularization);
+            verification, entries, modularization, projectFiles);
     }
 
     /** RUNNING runs cannot survive a restart: they become INTERRUPTED (their checkpoint is kept). */

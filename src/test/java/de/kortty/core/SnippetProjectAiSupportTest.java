@@ -40,7 +40,7 @@ class SnippetProjectAiSupportTest {
               {"id":"DES-2","file":"missing.sh","category":"design","severity":"low","title":"Ghost","detail":"","recommendation":"x","line":1}
              ]}""";
         SnippetAiResponseSupport.ScriptAnalysis tagged = SnippetProjectAiSupport.tagFiles(
-            SnippetAiResponseSupport.parseScriptAnalysis(answer), SnippetProjectAiSupport.filesById(answer), CONTEXT);
+            SnippetAiResponseSupport.parseScriptAnalysis(answer), SnippetProjectAiSupport.improvementFiles(answer), CONTEXT);
         List<String> titles = tagged.improvements().stream().map(SnippetAiResponseSupport.ScriptImprovement::title).toList();
         assertThat(titles).containsExactly("[lib/util.sh] Quote $1", "Shared logging", "Ghost").inOrder();
         assertThat(SnippetProjectAiSupport.fileOf(tagged.improvements().get(0))).isEqualTo("lib/util.sh");
@@ -76,7 +76,7 @@ class SnippetProjectAiSupportTest {
             };
         });
         SnippetAiResponseSupport.ScriptAnalysis analysis =
-            SnippetProjectAiSupport.analyzeProject(service, null, CONTEXT, null, "en", null);
+            SnippetProjectAiSupport.analyzeProject(service, null, CONTEXT, null, "en", null).analysis();
         assertThat(analysis.improvements().getFirst().title()).isEqualTo("[run.sh] T");
 
         ModularizationPlan plan = SnippetProjectAiSupport.planModularization(service, null,
@@ -105,7 +105,7 @@ class SnippetProjectAiSupportTest {
             + "{\"id\":\"DES-1\",\"file\":\"run.sh\",\"category\":\"design\",\"severity\":\"low\",\"title\":\"Shebang\","
             + "\"detail\":\"\",\"recommendation\":\"x\",\"line\":1}]}";
         SnippetAiResponseSupport.ScriptAnalysis analysis = SnippetProjectAiSupport.analyzeProject(
-            new StubService(request -> new AiExecutionResult(answer, null)), null, CONTEXT, null, "en", null);
+            new StubService(request -> new AiExecutionResult(answer, null)), null, CONTEXT, null, "en", null).analysis();
 
         assertThat(analysis.improvements().stream().map(SnippetAiResponseSupport.ScriptImprovement::title).toList())
             .containsExactly("[lib/util.sh] Quote $1", "[run.sh] Shebang").inOrder();
@@ -114,6 +114,82 @@ class SnippetProjectAiSupportTest {
         IllegalStateException cutOff = expectThrows(IllegalStateException.class, () -> SnippetProjectAiSupport.analyzeProject(
             new StubService(request -> new AiExecutionResult("{\"summary\":\"Two", null)), null, CONTEXT, null, "en", null));
         assertThat(cutOff).hasMessageThat().contains("no usable analysis");
+    }
+
+    @Test
+    void findingsKeepTheirOwnFileWhenTheModelNumbersThemPerFile() {
+        String answer = """
+            {"summary":"s","improvements":[
+              {"id":"SEC-1","file":"run.sh","category":"security","severity":"high","title":"A","detail":"","recommendation":"r","line":1},
+              {"id":"SEC-1","file":"lib/util.sh","category":"security","severity":"high","title":"B","detail":"","recommendation":"r","line":1}
+            ]}""";
+        SnippetAiResponseSupport.ScriptAnalysis tagged = SnippetProjectAiSupport.tagFiles(
+            SnippetAiResponseSupport.parseScriptAnalysis(answer), SnippetProjectAiSupport.improvementFiles(answer), CONTEXT);
+        assertThat(tagged.improvements().stream().map(SnippetAiResponseSupport.ScriptImprovement::title).toList())
+            .containsExactly("[run.sh] A", "[lib/util.sh] B").inOrder();
+    }
+
+    @Test
+    void theFileIsFoundUnderOtherKeysAndPathShapes() {
+        String answer = """
+            {"summary":"s","findings":[
+              {"id":"A","filePath":"tools/lib/util.sh","category":"design","severity":"low","title":"folder in front","recommendation":"r"},
+              {"id":"B","filename":"`run.sh:12`","category":"design","severity":"low","title":"line suffix","recommendation":"r"},
+              {"id":"C","location":{"file":"util.sh","line":3},"category":"design","severity":"low","title":"nested, short name","recommendation":"r"},
+              {"id":"D","file":["run.sh","lib/util.sh"],"category":"design","severity":"low","title":"several files","recommendation":"r"},
+              {"id":"E","category":"design","severity":"low","title":"no file","recommendation":"r"}
+            ]}""";
+        SnippetAiResponseSupport.ScriptAnalysis tagged = SnippetProjectAiSupport.tagFiles(
+            SnippetAiResponseSupport.parseScriptAnalysis(answer), SnippetProjectAiSupport.improvementFiles(answer), CONTEXT);
+        assertThat(tagged.improvements().stream().map(SnippetProjectAiSupport::fileOf).toList())
+            .containsExactly("lib/util.sh", "run.sh", "lib/util.sh", "", "").inOrder();
+    }
+
+    @Test
+    void aShortNameThatSeveralFilesEndWithNamesNoFile() {
+        ProjectContext twoUtils = new ProjectContext("p", List.of(
+            new ProjectFile("a/util.sh", "bash", false, "x\n", "s1"),
+            new ProjectFile("b/util.sh", "bash", false, "y\n", "s2")));
+        assertThat(SnippetProjectAiSupport.normalizeKnownPath("util.sh", twoUtils)).isEmpty();
+        assertThat(SnippetProjectAiSupport.normalizeKnownPath("B/UTIL.SH", twoUtils)).isEqualTo("b/util.sh");
+        assertThat(SnippetProjectAiSupport.normalizeKnownPath("p/a/util.sh:4", twoUtils)).isEqualTo("a/util.sh");
+    }
+
+    @Test
+    void theAnswerDescribesWhatEachFileDoes() throws Exception {
+        String answer = """
+            {"summary":"s","files":[{"path":"run.sh","purpose":"Entry point."},{"path":"./lib/util.sh","summary":"Helpers."},
+              {"path":"ghost.sh","purpose":"Not in the project."}],
+             "improvements":[{"id":"A","file":"run.sh","category":"design","severity":"low","title":"T","recommendation":"r"}]}""";
+        SnippetProjectAiSupport.ProjectAnalysis analysis = SnippetProjectAiSupport.analyzeProject(
+            new StubService(request -> new AiExecutionResult(answer, null)), null, CONTEXT, null, "en", null);
+        assertThat(analysis.filePurposes()).containsExactly("run.sh", "Entry point.", "lib/util.sh", "Helpers.").inOrder();
+
+        assertThat(SnippetProjectAiSupport.filePurposes(
+            "{\"summary\":\"s\",\"files\":{\"lib/util.sh\":\"Helpers.\"},\"improvements\":[]}", CONTEXT))
+            .containsExactly("lib/util.sh", "Helpers.");
+        assertThat(SnippetProjectAiSupport.filePurposes("{\"summary\":\"s\",\"improvements\":[]}", CONTEXT)).isEmpty();
+        assertThat(AiPromptBuilder.buildSystemPrompt(new AiRequest(AiAction.ANALYZE_SNIPPET_PROJECT, "ctx", null, "en",
+            null, "ctx"))).contains("files lists every file");
+    }
+
+    @Test
+    void anAnalysisRecordKeepsItsProjectFilesThroughJson() {
+        List<SnippetAnalysisRecord.ProjectFileNote> files = List.of(
+            new SnippetAnalysisRecord.ProjectFileNote("run.sh", "Entry point."),
+            new SnippetAnalysisRecord.ProjectFileNote("lib/util.sh", null));
+        SnippetAnalysisRecord record = SnippetAnalysisTestData.simpleRecord("r1", "s1", 1).withProjectFiles(files);
+        SnippetAnalysisHistory history = SnippetAnalysisHistory.empty("s1").withNewCurrent(record, 5);
+        String json = SnippetAnalysisStore.toJson(history);
+        assertThat(json).contains("\"projectFiles\"");
+        SnippetAnalysisRecord read = SnippetAnalysisStore.fromJson(json).current();
+        assertThat(read.projectFiles()).containsExactly(
+            new SnippetAnalysisRecord.ProjectFileNote("run.sh", "Entry point."),
+            new SnippetAnalysisRecord.ProjectFileNote("lib/util.sh", "")).inOrder();
+        // A snippet's analysis carries none, so its file stays as it was.
+        assertThat(SnippetAnalysisStore.toJson(SnippetAnalysisHistory.empty("s2")
+            .withNewCurrent(SnippetAnalysisTestData.simpleRecord("r2", "s2", 1), 5))).doesNotContain("projectFiles");
+        assertThat(record.withProjectFiles(List.of()).projectFiles()).isNull();
     }
 
     @Test

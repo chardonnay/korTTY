@@ -37,8 +37,9 @@ import java.util.concurrent.atomic.AtomicReference;
  *
  * <ul>
  *   <li>{@code project} (default) — the Snippet Manager with a demo folder selected in the library
- *       tree and its project-analysis tab open: findings tagged with their file, the options left,
- *       the flow diagram right and a modularization proposal below.</li>
+ *       tree and its project-analysis tab open on one file of its file list (its findings, two of
+ *       them ticked, and what the file does), the options left, the flow diagram right and a
+ *       modularization proposal below.</li>
  *   <li>{@code preview} — the multi-file review window of a modularization result: one diff tab
  *       per file and the directory tree.</li>
  * </ul>
@@ -147,10 +148,32 @@ public final class SnippetProjectAnalysisScreenshotStage {
             workspace.openFolderAnalysis(demo.folderId());
         });
         open.play();
+        PauseTransition pick = new PauseTransition(Duration.millis(6000));
+        pick.setOnFinished(e -> showFileWithTickedFindings(workspaceWindow));
+        pick.play();
         announceAndHold(workspaceWindow, doneFlag, done, () -> {
             workspaceWindow.hide();
             stage.hide();
         }, 9000);
+    }
+
+    /** Selects rotate_logs.sh in the report's file list and ticks two of its findings. */
+    private static void showFileWithTickedFindings(Window window) {
+        for (javafx.scene.Node node : window.getScene().getRoot().lookupAll(".web-view")) {
+            javafx.scene.web.WebEngine engine = ((javafx.scene.web.WebView) node).getEngine();
+            try {
+                Object found = engine.executeScript("!!document.getElementById('files')");
+                if (Boolean.TRUE.equals(found)) {
+                    engine.executeScript("[].forEach.call(document.querySelectorAll('.frow'),function(r){"
+                        + "if(r.getAttribute('data-file')==='rotate_logs.sh')r.click();});"
+                        + "window.korttyAnalysis.setSelected('imp:SEC-1,imp:DES-1');notifySelection();");
+                    return;
+                }
+            } catch (RuntimeException ignored) {
+                // Another page (the diagram) or not loaded yet.
+            }
+        }
+        System.err.println("could not find the project report");
     }
 
     // ---- Scene: the multi-file review window ----
@@ -312,11 +335,20 @@ public final class SnippetProjectAnalysisScreenshotStage {
                     "[rotate_logs.sh] Let find select the old files",
                     "One `find` call per file is slow for large directories.",
                     "Use `find \"$log_dir\" -name '*.log' -mtime +7 -exec gzip {} +`.", 6)));
+        List<SnippetAnalysisRecord.ProjectFileNote> files = context.files().stream()
+            .map(file -> new SnippetAnalysisRecord.ProjectFileNote(file.path(), switch (file.path()) {
+                case "server_report.sh" -> "Prints the load, disk and memory sections of the host.";
+                case "rotate_logs.sh" -> "Compresses log files older than seven days and reports each one.";
+                case "lib/format.sh" -> "Shared output helper: prints a section heading.";
+                default -> "";
+            }))
+            .toList();
         SnippetAnalysisRecord record = SnippetAnalysisRecord.fromAnalysis("demo-project",
             SnippetProjectAiSupport.folderKey(folderId), analysis,
             SnippetAnalysisRecord.Source.of(context.render(), "project", "en", "en", manager.folderPath(folderId)),
             new SnippetAnalysisRecord.Provenance(null, "Demo profile", null, List.of(), List.of(), "", null),
             SnippetAnalysisRecord.Purpose.ANALYSIS, null, System.currentTimeMillis())
+            .withProjectFiles(files)
             .withModularization(new ModularizationPlan(true,
                 "rotate_logs.sh mixes finding and compressing old files with the reporting; a small module "
                     + "makes the rotation reusable from other scripts.",

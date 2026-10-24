@@ -13,7 +13,7 @@ import java.util.Map;
  */
 interface SnippetProjectAi {
 
-    SnippetAiResponseSupport.ScriptAnalysis analyzeProject(SnippetProjectAiSupport.ProjectContext context,
+    SnippetProjectAiSupport.ProjectAnalysis analyzeProject(SnippetProjectAiSupport.ProjectContext context,
                                                            String aiProfileId, String fallbackLanguageCode,
                                                            String additionalInstructions,
                                                            SnippetEditDialog.AiProvenanceListener provenance)

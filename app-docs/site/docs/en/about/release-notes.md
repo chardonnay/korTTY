@@ -25,6 +25,10 @@ What changed in the current release. The version this guide was built for is sho
 - **Focus ring can be switched off** — switch off **Frame the split pane the keyboard is in** in the Window settings to hide the ring around the active split pane. You then recognize the active pane by its cursor. See [Tabs](../reference/settings/window.md#tabs).
 - **Terminal agent on PowerShell and cmd** — an intercepted `agent ...` line is cleared without a stray `^U`, and nested `powershell -Command` scripts from the model run correctly.
 
+### Snippets
+
+- **Folder analysis by file** — the folder analysis tab lists the folder's files beside the report. Pick a file, or step through the files with ◀ ▶ and the arrow keys, to see only its findings and a short description of what the file does; each row shows how many of its findings are ticked, and its checkbox ticks or clears them all. Findings keep their file even when the model numbers them per file or names the file another way. See [Analysing a folder as one project](../features/snippets.md#analysing-a-folder-as-one-project).
+
 ### Fixes
 
 - **Agent prompts fit the panel** — a pending approval or password prompt grows a collapsed agent panel until the prompt is fully visible.

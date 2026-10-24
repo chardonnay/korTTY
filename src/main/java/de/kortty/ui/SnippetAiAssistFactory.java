@@ -100,7 +100,7 @@ final class SnippetAiAssistFactory {
         SnippetAiRuntimeOptions options = new SnippetAiRuntimeOptions();
         return new SnippetProjectAi() {
             @Override
-            public SnippetAiResponseSupport.ScriptAnalysis analyzeProject(
+            public de.kortty.core.SnippetProjectAiSupport.ProjectAnalysis analyzeProject(
                     de.kortty.core.SnippetProjectAiSupport.ProjectContext context, String aiProfileId,
                     String fallbackLanguageCode, String additionalInstructions,
                     SnippetEditDialog.AiProvenanceListener provenanceListener) throws Exception {
