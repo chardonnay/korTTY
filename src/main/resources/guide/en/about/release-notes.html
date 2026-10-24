@@ -823,37 +823,34 @@
     <article>
         <p><h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
-<h2 id="v2220">v2.22.0<a class="headerlink" href="#v2220" title="Permanent link">&para;</a></h2>
-<h3 id="ai-agent-designs">AI agent designs<a class="headerlink" href="#ai-agent-designs" title="Permanent link">&para;</a></h3>
+<h2 id="v2230">v2.23.0<a class="headerlink" href="#v2230" title="Permanent link">&para;</a></h2>
+<h3 id="on-windows">On Windows<a class="headerlink" href="#on-windows" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Choose how agent runs look</strong> — <em>Plugins → AI Agent Design</em> (also <em>View → AI Agent Panel → Design...</em>) decides how runs of the terminal AI agent are shown: as blocks in the terminal above the prompt, in a slim bar below or above it, on a rail or in a column beside it, as a card floating over it, or in the classic activity panel. A combination picks one design for each role (history, status, approval, arrangement) with a live preview; the new default shows the run as a block in the terminal with a metro-line status bar, and each connection can pick its own combination on the connection editor's AI tab. See <a href="../features/ai-agent-designs.html">AI agent designs</a>.</li>
-<li><strong>More status displays</strong> — Powerline, minimap, top bar and neon displays, and the remaining designs of the catalogue, complete the choice. See <a href="../features/ai-agent-designs.html#more-status-displays">More status displays</a>.</li>
+<li><strong>PowerShell and Command Prompt in the toolbar</strong> — on Windows, the Terminal group of the icon toolbar gets <strong>New PowerShell</strong> and <strong>New Command Prompt</strong> right after <strong>New local shell</strong>, each with its own icon; saved layouts gain both once. With Git for Windows installed, the customization catalog also offers <strong>New Git Bash</strong>. See <a href="../getting-started/main-window.html#customizing-the-icon-toolbar">Customizing the icon toolbar</a>.</li>
+<li><strong>Local shells run under ConPTY</strong> — local shells and the native Mosh client now start under the Windows pseudo console instead of winpty, which no longer interferes with keys typed into other applications while korTTY runs.</li>
+<li><strong>Mosh Client finds mosh-client.exe</strong> — the Mosh Client (native) protocol now looks for <code>mosh-client.exe</code> in the folders of the <code>PATH</code>. See <a href="../features/connections.html#protocols">Protocols</a>.</li>
 </ul>
-<h3 id="local-ai-models">Local AI models<a class="headerlink" href="#local-ai-models" title="Permanent link">&para;</a></h3>
+<h3 id="toolbar-and-split-panes">Toolbar and split panes<a class="headerlink" href="#toolbar-and-split-panes" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Context window in the profile</strong> — an Integrated llama.cpp profile has a <strong>Context window</strong> row with a number field and a slider, from 512 tokens up to the context the model was trained for; saving the profile applies it to the model. New local chat models start with 32,768 tokens, or less when the model was trained for less, so dense models still load on common hardware. See <a href="../features/local-models.html#configure-and-run-models">Configure and run models</a>.</li>
-<li><strong>GPU backend and runtime package match</strong> — saving a model with Metal or Vulkan while another runtime package is active now offers to install and activate the matching signed package, and the <strong>Backend</strong> column shows a mismatch such as <code>VULKAN (runtime: CPU)</code>. See <a href="../features/local-models.html#configure-and-run-models">Configure and run models</a>.</li>
-<li><strong>Self-contained Windows runtimes</strong> — the llama.cpp packages for Windows no longer depend on OpenSSL libraries of the build machine, so <strong>Install runtime</strong> works on a clean system, and a failed health check is reported instead of rolling back silently.</li>
-<li><strong>Truncated agent replies are reported</strong> — when a model cuts the agent's reply off at its token limit, the run stops with a message that names the token counts and points to the model's context size or the profile's maximum output tokens, instead of ending with an empty response.</li>
-</ul>
-<h3 id="toolbar-terminal-and-windows">Toolbar, terminal and Windows<a class="headerlink" href="#toolbar-terminal-and-windows" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Connection Manager in the toolbar</strong> — the icon toolbar's Tools group now starts with a Connection Manager button; saved layouts gain it once, and removing it is remembered. See <a href="../getting-started/main-window.html#customizing-the-icon-toolbar">Customizing the icon toolbar</a>.</li>
-<li><strong>Ctrl+V pastes in the terminal on Windows</strong> — as in Windows Terminal; Linux keeps <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-v">V</kbd></span> for the shell. See <a href="../features/terminal.html#pasting-text">Pasting text</a>.</li>
-<li><strong>Dark title bars on Windows</strong> — in dark mode the main window and all dialogs get a dark native title bar, and a system theme switch reaches open windows.</li>
-<li><strong>Local shells come back</strong> — <em>Restore Previous Session</em> reopens local shell tabs started from the toolbar instead of parking them as "connection missing". See <a href="../reference/settings/window.html#session-restore">Session Restore</a>.</li>
+<li><strong>Toolbar groups wrap instead of shrinking</strong> — when the window is too narrow, whole toolbar groups move to another line, so every button stays directly clickable instead of hiding behind an overflow chevron. See <a href="../getting-started/main-window.html#customizing-the-icon-toolbar">Customizing the icon toolbar</a>.</li>
 <li><strong>Focus ring can be switched off</strong> — switch off <strong>Frame the split pane the keyboard is in</strong> in the Window settings to hide the ring around the active split pane. You then recognize the active pane by its cursor. See <a href="../reference/settings/window.html#tabs">Tabs</a>.</li>
-<li><strong>Terminal agent on PowerShell and cmd</strong> — an intercepted <code>agent ...</code> line is cleared without a stray <code>^U</code>, and nested <code>powershell -Command</code> scripts from the model run correctly.</li>
 </ul>
 <h3 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Folder analysis by file</strong> — the folder analysis tab lists the folder's files beside the report. Pick a file, or step through the files with ◀ ▶ and the arrow keys, to see only its findings and a short description of what the file does; each row shows how many of its findings are ticked, and its checkbox ticks or clears them all. Findings keep their file even when the model numbers them per file or names the file another way. See <a href="../features/snippets.html#analysing-a-folder-as-one-project">Analysing a folder as one project</a>.</li>
+<li><strong>Vertical or horizontal flow diagram</strong> — an <strong>Orientation</strong> control in the diagram toolbar draws the flowchart top to bottom or left to right, in the analysis panel, its zoom window and the Diagram dialog. Switching redraws the stored diagram without asking the AI again. See <a href="../features/snippets.html#diagram-appearance">Diagram appearance</a>.</li>
+</ul>
+<h3 id="ai">AI<a class="headerlink" href="#ai" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>"Model default" instead of "Disabled"</strong> — the reasoning setting that sends no reasoning parameter is now called <strong>Model default</strong>, because the model's own default then applies; only <strong>None</strong> switches reasoning off. A tooltip on the dropdown explains the difference. See <a href="../reference/settings/ai.html#reasoning-effort-levels">Reasoning Effort Levels</a>.</li>
+<li><strong>Connection test accepts reasoning-only replies</strong> — <strong>Test AI Connection</strong> and <strong>Refresh reasoning options</strong> now pass when a model that reasons by default, such as Qwen in LM Studio, spends the short test reply on reasoning, and a failed refresh names the endpoint's own reason.</li>
 </ul>
 <h3 id="fixes">Fixes<a class="headerlink" href="#fixes" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Agent prompts fit the panel</strong> — a pending approval or password prompt grows a collapsed agent panel until the prompt is fully visible.</li>
-<li><strong>AI confirmation explained</strong> — a hint under <strong>Show confirmation dialog before sending AI requests</strong> names the actions it covers, and the <strong>Save</strong> button of the General, Local AI and AI Skills tabs sits at the bottom right. See <a href="../reference/settings/ai.html">AI settings</a>.</li>
-<li><strong>Recording and journal icons follow the theme</strong> — they no longer turn black in the AtlantaFX designs.</li>
+<li><strong>Dismissed sessions stay dismissed</strong> — closing the last tab on purpose now empties the session snapshot, so the restore offer no longer comes back at every start after you discard it.</li>
+<li><strong>Steady diagram tooltips</strong> — the code-reference tooltip in the enlarged analysis diagram stays open while the mouse rests on a node instead of flashing and closing.</li>
+<li><strong>Folder analyses survive a malformed key</strong> — an analysis whose JSON lacks the opening quote of one key is repaired instead of being discarded as "no usable analysis".</li>
+<li><strong>German label for reasoning</strong> — the German user interface now labels this setting of AI profiles "Reasoning", as the guide does.</li>
 </ul></p>
     </article>
 </section>
@@ -862,7 +859,7 @@
             <!-- block footer -->
 <footer class="kt-footer">
   <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
-  <div class="kt-footer__line">korTTY <strong>v2.22.0</strong></div>
+  <div class="kt-footer__line">korTTY <strong>v2.23.0</strong></div>
 </footer>
 
             <!-- endblock -->

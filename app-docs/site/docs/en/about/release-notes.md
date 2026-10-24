@@ -2,36 +2,32 @@
 
 What changed in the current release. The version this guide was built for is shown in the footer.
 
-## v2.22.0
+## v2.23.0
 
-### AI agent designs
+### On Windows
 
-- **Choose how agent runs look** — *Plugins → AI Agent Design* (also *View → AI Agent Panel → Design...*) decides how runs of the terminal AI agent are shown: as blocks in the terminal above the prompt, in a slim bar below or above it, on a rail or in a column beside it, as a card floating over it, or in the classic activity panel. A combination picks one design for each role (history, status, approval, arrangement) with a live preview; the new default shows the run as a block in the terminal with a metro-line status bar, and each connection can pick its own combination on the connection editor's AI tab. See [AI agent designs](../features/ai-agent-designs.md).
-- **More status displays** — Powerline, minimap, top bar and neon displays, and the remaining designs of the catalogue, complete the choice. See [More status displays](../features/ai-agent-designs.md#more-status-displays).
+- **PowerShell and Command Prompt in the toolbar** — on Windows, the Terminal group of the icon toolbar gets **New PowerShell** and **New Command Prompt** right after **New local shell**, each with its own icon; saved layouts gain both once. With Git for Windows installed, the customization catalog also offers **New Git Bash**. See [Customizing the icon toolbar](../getting-started/main-window.md#customizing-the-icon-toolbar).
+- **Local shells run under ConPTY** — local shells and the native Mosh client now start under the Windows pseudo console instead of winpty, which no longer interferes with keys typed into other applications while korTTY runs.
+- **Mosh Client finds mosh-client.exe** — the Mosh Client (native) protocol now looks for `mosh-client.exe` in the folders of the `PATH`. See [Protocols](../features/connections.md#protocols).
 
-### Local AI models
+### Toolbar and split panes
 
-- **Context window in the profile** — an Integrated llama.cpp profile has a **Context window** row with a number field and a slider, from 512 tokens up to the context the model was trained for; saving the profile applies it to the model. New local chat models start with 32,768 tokens, or less when the model was trained for less, so dense models still load on common hardware. See [Configure and run models](../features/local-models.md#configure-and-run-models).
-- **GPU backend and runtime package match** — saving a model with Metal or Vulkan while another runtime package is active now offers to install and activate the matching signed package, and the **Backend** column shows a mismatch such as `VULKAN (runtime: CPU)`. See [Configure and run models](../features/local-models.md#configure-and-run-models).
-- **Self-contained Windows runtimes** — the llama.cpp packages for Windows no longer depend on OpenSSL libraries of the build machine, so **Install runtime** works on a clean system, and a failed health check is reported instead of rolling back silently.
-- **Truncated agent replies are reported** — when a model cuts the agent's reply off at its token limit, the run stops with a message that names the token counts and points to the model's context size or the profile's maximum output tokens, instead of ending with an empty response.
-
-### Toolbar, terminal and Windows
-
-- **Connection Manager in the toolbar** — the icon toolbar's Tools group now starts with a Connection Manager button; saved layouts gain it once, and removing it is remembered. See [Customizing the icon toolbar](../getting-started/main-window.md#customizing-the-icon-toolbar).
-- **Ctrl+V pastes in the terminal on Windows** — as in Windows Terminal; Linux keeps ++ctrl+v++ for the shell. See [Pasting text](../features/terminal.md#pasting-text).
-- **Dark title bars on Windows** — in dark mode the main window and all dialogs get a dark native title bar, and a system theme switch reaches open windows.
-- **Local shells come back** — *Restore Previous Session* reopens local shell tabs started from the toolbar instead of parking them as "connection missing". See [Session Restore](../reference/settings/window.md#session-restore).
+- **Toolbar groups wrap instead of shrinking** — when the window is too narrow, whole toolbar groups move to another line, so every button stays directly clickable instead of hiding behind an overflow chevron. See [Customizing the icon toolbar](../getting-started/main-window.md#customizing-the-icon-toolbar).
 - **Focus ring can be switched off** — switch off **Frame the split pane the keyboard is in** in the Window settings to hide the ring around the active split pane. You then recognize the active pane by its cursor. See [Tabs](../reference/settings/window.md#tabs).
-- **Terminal agent on PowerShell and cmd** — an intercepted `agent ...` line is cleared without a stray `^U`, and nested `powershell -Command` scripts from the model run correctly.
 
 ### Snippets
 
 - **Folder analysis by file** — the folder analysis tab lists the folder's files beside the report. Pick a file, or step through the files with ◀ ▶ and the arrow keys, to see only its findings and a short description of what the file does; each row shows how many of its findings are ticked, and its checkbox ticks or clears them all. Findings keep their file even when the model numbers them per file or names the file another way. See [Analysing a folder as one project](../features/snippets.md#analysing-a-folder-as-one-project).
+- **Vertical or horizontal flow diagram** — an **Orientation** control in the diagram toolbar draws the flowchart top to bottom or left to right, in the analysis panel, its zoom window and the Diagram dialog. Switching redraws the stored diagram without asking the AI again. See [Diagram appearance](../features/snippets.md#diagram-appearance).
+
+### AI
+
+- **"Model default" instead of "Disabled"** — the reasoning setting that sends no reasoning parameter is now called **Model default**, because the model's own default then applies; only **None** switches reasoning off. A tooltip on the dropdown explains the difference. See [Reasoning Effort Levels](../reference/settings/ai.md#reasoning-effort-levels).
+- **Connection test accepts reasoning-only replies** — **Test AI Connection** and **Refresh reasoning options** now pass when a model that reasons by default, such as Qwen in LM Studio, spends the short test reply on reasoning, and a failed refresh names the endpoint's own reason.
 
 ### Fixes
 
-- **Agent prompts fit the panel** — a pending approval or password prompt grows a collapsed agent panel until the prompt is fully visible.
-- **AI confirmation explained** — a hint under **Show confirmation dialog before sending AI requests** names the actions it covers, and the **Save** button of the General, Local AI and AI Skills tabs sits at the bottom right. See [AI settings](../reference/settings/ai.md).
-- **Recording and journal icons follow the theme** — they no longer turn black in the AtlantaFX designs.
-
+- **Dismissed sessions stay dismissed** — closing the last tab on purpose now empties the session snapshot, so the restore offer no longer comes back at every start after you discard it.
+- **Steady diagram tooltips** — the code-reference tooltip in the enlarged analysis diagram stays open while the mouse rests on a node instead of flashing and closing.
+- **Folder analyses survive a malformed key** — an analysis whose JSON lacks the opening quote of one key is repaired instead of being discarded as "no usable analysis".
+- **German label for reasoning** — the German user interface now labels this setting of AI profiles "Reasoning", as the guide does.
