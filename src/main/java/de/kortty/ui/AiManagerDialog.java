@@ -1622,7 +1622,9 @@ public class AiManagerDialog extends ThemeAwareDialog<Void> {
                         internetConfig,
                         skillPromptSupport);
                 } catch (Exception ex) {
-                    throw new RuntimeException(ex);
+                    // Not a RuntimeException: its message would be ex.toString(), and the alert
+                    // below would show "java.lang.IllegalStateException: ..." instead of the reason.
+                    throw new java.util.concurrent.CompletionException(ex);
                 }
             })
             .whenComplete((result, throwable) -> Platform.runLater(() -> {
