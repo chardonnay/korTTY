@@ -4,6 +4,7 @@ import de.kortty.core.AiExecutionResult;
 import de.kortty.core.AiRequest;
 import de.kortty.core.AiService;
 import de.kortty.core.LanguageManager;
+import de.kortty.core.MermaidRenderService;
 import de.kortty.core.SnippetAiResponseSupport;
 import de.kortty.core.SnippetAiWorkflowSupport;
 import de.kortty.core.SnippetDiagramArchivedAnswersTest;
@@ -35,7 +36,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * real archived model answer (accepted, not the fallback); a click on the rendered diagram opens the
  * zoom window with the same Mermaid source; the keyboard zoom works there; the "Enlarge" button
  * reopens it after it was closed and brings the open one to the front; the AI is asked for the
- * diagram exactly once; and closing the editor closes the window. Run via the
+ * diagram exactly once — also when the zoom window redraws it left to right instead of top to
+ * bottom; and closing the editor closes the window. Run via the
  * {@code snippetDiagramZoomSmoke} Gradle task. Exit 0 = OK.
  */
 public final class SnippetDiagramZoomWindowSmoke {
@@ -102,6 +104,8 @@ public final class SnippetDiagramZoomWindowSmoke {
 
         AtomicInteger phase = new AtomicInteger();
         AtomicReference<SnippetDiagramZoomWindow> firstWindow = new AtomicReference<>();
+        AtomicReference<String> verticalSvg = new AtomicReference<>();
+        AtomicReference<Double> verticalAspect = new AtomicReference<>();
         long started = System.nanoTime();
         Timeline poller = new Timeline();
         poller.getKeyFrames().add(new KeyFrame(Duration.millis(100), tick -> {
@@ -183,6 +187,39 @@ public final class SnippetDiagramZoomWindowSmoke {
                         phase.set(2);
                     }
                     case 2 -> {
+                        SnippetDiagramView zoomed = firstWindow.get().diagramView();
+                        if (zoomed.expandButton().isDisabled()) {
+                            return; // the reopened window is still rendering
+                        }
+                        verticalAspect.set(field(zoomed, "baseWidth", Double.class) / field(zoomed, "baseHeight", Double.class));
+                        verticalSvg.set(field(zoomed, "renderedSvg", String.class));
+                        zoomed.changeLayout(de.kortty.core.SnippetDiagramSupport.DiagramLayout.HORIZONTAL);
+                        phase.set(3);
+                    }
+                    case 3 -> {
+                        SnippetDiagramView zoomed = firstWindow.get().diagramView();
+                        String svg = field(zoomed, "renderedSvg", String.class);
+                        if (svg == null || svg.equals(verticalSvg.get())) {
+                            return; // still redrawing in the new direction
+                        }
+                        double aspect = field(zoomed, "baseWidth", Double.class) / field(zoomed, "baseHeight", Double.class);
+                        if (!(aspect > verticalAspect.get() * 1.1)) {
+                            throw new AssertionError("The left-to-right flowchart is not wider than the top-to-bottom one: "
+                                + aspect + " vs " + verticalAspect.get());
+                        }
+                        System.out.printf("width/height top-to-bottom %.2f, left-to-right %.2f%n", verticalAspect.get(), aspect);
+                        MermaidRenderService.RenderRequest shown = zoomed.currentRenderRequest(false);
+                        if (shown.layout() != de.kortty.core.SnippetDiagramSupport.DiagramLayout.HORIZONTAL
+                            || !shown.source().startsWith("flowchart TD")) {
+                            throw new AssertionError("The stored source changed with the layout: " + shown.layout());
+                        }
+                        List<?> hotspots = field(zoomed, "currentHotspots", List.class);
+                        if (hotspots.isEmpty()) {
+                            throw new AssertionError("The left-to-right flowchart lost its code-reference hotspots");
+                        }
+                        phase.set(4);
+                    }
+                    case 4 -> {
                         if (diagramCalls.get() != 1) {
                             throw new AssertionError("The zoom window asked the AI again: " + diagramCalls.get() + " calls");
                         }

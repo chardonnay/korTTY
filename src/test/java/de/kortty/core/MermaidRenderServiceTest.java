@@ -154,6 +154,20 @@ class MermaidRenderServiceTest {
     }
 
     @Test
+    void layoutDefaultsToVerticalAndTravelsWithTheRequest() {
+        MermaidRenderService.RenderRequest legacy = new MermaidRenderService.RenderRequest(
+            "flowchart TD\nA-->B", MermaidRenderService.Theme.LIGHT, "#FFFFFF", true, null, 2.0);
+        assertThat(legacy.layout()).isEqualTo(SnippetDiagramSupport.DiagramLayout.VERTICAL);
+
+        MermaidRenderService.RenderRequest horizontal = legacy.withLayout(SnippetDiagramSupport.DiagramLayout.HORIZONTAL);
+        assertThat(horizontal.layout()).isEqualTo(SnippetDiagramSupport.DiagramLayout.HORIZONTAL);
+        // The source keeps the TD header the restricted dialect validates; render() turns it.
+        assertThat(horizontal.source()).isEqualTo(legacy.source());
+        assertThat(horizontal.withRasterScale(3.0).layout()).isEqualTo(SnippetDiagramSupport.DiagramLayout.HORIZONTAL);
+        assertThat(legacy.withLayout(null).layout()).isEqualTo(SnippetDiagramSupport.DiagramLayout.VERTICAL);
+    }
+
+    @Test
     void renderResultDefensivelyCopiesPng() {
         byte[] png = {1, 2, 3};
         MermaidRenderService.RenderResult result = new MermaidRenderService.RenderResult(

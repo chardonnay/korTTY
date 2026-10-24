@@ -37,6 +37,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.web.WebView;
 import javafx.stage.FileChooser;
+import javafx.stage.PopupWindow;
 import javafx.stage.Window;
 import javafx.util.Duration;
 
@@ -49,6 +50,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -160,8 +162,10 @@ final class SnippetDiagramView extends VBox {
     private final Label noticeLabel = new Label();
     private final ColorPicker backgroundPicker;
     private final MenuButton darkModeButton = new MenuButton();
+    private final MenuButton layoutButton = new MenuButton();
 
     private SnippetDiagramSupport.DiagramColorMode colorMode;
+    private SnippetDiagramSupport.DiagramLayout layout;
     private long sourceGeneration;
     private long renderGeneration;
     private boolean disposed;
@@ -196,6 +200,15 @@ final class SnippetDiagramView extends VBox {
     private Runnable expandHandler;
     private final Button expandButton = new Button("⤢ " + I18n.get("snippets.ai.diagram.zoomWindow.open"));
     private final Button actualSizeButton = new Button(I18n.get("snippets.ai.diagram.zoom.actualSize"));
+    /**
+     * The code-reference tooltip of the hotspot under the mouse. It is the view's own, not WebKit's
+     * {@code title} tooltip, whose placement the view cannot set and which goes with the loaded
+     * page on every reload of the diagram HTML.
+     */
+    private final Tooltip hotspotTooltip = new Tooltip();
+    private SvgHotspot tooltipHotspot;
+    /** The HTML the WebView shows, so a layout pass that changes nothing does not reload the page. */
+    private String loadedHtml;
     /** Where the last diagram HTML placed the image, for telling a hotspot click from a diagram click. */
     private double lastImageLeft;
     private double lastImageTop;
@@ -215,6 +228,7 @@ final class SnippetDiagramView extends VBox {
         this.codeNavigationHandler = codeNavigationHandler;
         this.backgroundColor = SnippetDiagramSupport.normalizeHexColor(loadConfiguredBackground(), DEFAULT_BACKGROUND);
         this.colorMode = SnippetDiagramSupport.DiagramColorMode.fromKey(loadConfiguredColorMode());
+        this.layout = SnippetDiagramSupport.DiagramLayout.fromKey(loadConfiguredLayout());
         this.lastResolvedDark = colorMode.isDarkActive();
         this.backgroundPicker = new ColorPicker(Color.web(backgroundColor));
         setSpacing(8);
@@ -250,6 +264,12 @@ final class SnippetDiagramView extends VBox {
                 expandHandler.run();
             }
         });
+        // The window's top-left corner goes to the tooltip offset, not the bubble's: anchored by its
+        // content, the transparent shadow margin reached back under the pointer, which then
+        // "left" the diagram and closed the tooltip at once.
+        hotspotTooltip.setAnchorLocation(PopupWindow.AnchorLocation.WINDOW_TOP_LEFT);
+        diagramView.addEventHandler(MouseEvent.MOUSE_MOVED, event -> showHotspotTooltip(hotspotAt(event.getX(), event.getY())));
+        diagramView.addEventHandler(MouseEvent.MOUSE_EXITED, event -> showHotspotTooltip(null));
         zoomRenderTrailer.setOnFinished(event -> {
             if (!disposed) {
                 lastZoomRenderNanos = System.nanoTime();
@@ -324,6 +344,7 @@ final class SnippetDiagramView extends VBox {
         renderedPng = null;
         expandButton.setDisable(true);
         currentHotspots = List.of();
+        showHotspotTooltip(null);
         setNotice(null);
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
@@ -376,6 +397,7 @@ final class SnippetDiagramView extends VBox {
         renderedPng = null;
         expandButton.setDisable(true);
         currentHotspots = List.of();
+        showHotspotTooltip(null);
         setNotice(null);
         diagramScroll.setVisible(false);
         diagramScroll.setManaged(false);
@@ -392,6 +414,7 @@ final class SnippetDiagramView extends VBox {
         currentContent = "";
         currentSourceReferences = List.of();
         currentHotspots = List.of();
+        showHotspotTooltip(null);
         renderedSvg = null;
         renderedPng = null;
         expandButton.setDisable(true);
@@ -400,6 +423,7 @@ final class SnippetDiagramView extends VBox {
         diagramScroll.setManaged(false);
         spinnerBox.setVisible(false);
         spinnerBox.setManaged(false);
+        loadedHtml = null;
         diagramView.getEngine().loadContent("");
     }
 
@@ -420,7 +444,7 @@ final class SnippetDiagramView extends VBox {
             currentDiagramType,
             isDarkActive() ? MermaidRenderService.Theme.DARK : MermaidRenderService.Theme.LIGHT,
             effectiveBackgroundColor(),
-            includePng);
+            includePng).withLayout(layout);
     }
 
     private void onSourceReady(DiagramSource source, Throwable error) {
@@ -444,6 +468,7 @@ final class SnippetDiagramView extends VBox {
         currentSourceReferences = source.codeReferences() != null ? List.copyOf(source.codeReferences()) : List.of();
         setNotice(source.notice(), source.noticeDetail());
         currentSource = source;
+        updateLayoutButtonState();
         renderAsync(true);
     }
 
@@ -531,15 +556,39 @@ final class SnippetDiagramView extends VBox {
 
     /** Whether the point (in the diagram view's own coordinates) lies on a code-reference hotspot. */
     private boolean isOnHotspot(double x, double y) {
+        return hotspotAt(x, y) != null;
+    }
+
+    /** The code-reference hotspot at the point (in the diagram view's own coordinates), or {@code null}. */
+    private SvgHotspot hotspotAt(double x, double y) {
         for (SvgHotspot hotspot : currentHotspots) {
             double left = lastImageLeft + hotspot.x() * lastScaleX;
             double top = lastImageTop + hotspot.y() * lastScaleY;
             if (x >= left && x <= left + hotspot.width() * lastScaleX
                 && y >= top && y <= top + hotspot.height() * lastScaleY) {
-                return true;
+                return hotspot;
             }
         }
-        return false;
+        return null;
+    }
+
+    /**
+     * Offers {@code hotspot}'s tooltip, or none for {@code null}. Another hotspot starts over with
+     * the usual delay, like a page tooltip; the same one (also after a re-render) keeps a shown
+     * tooltip where it is.
+     */
+    private void showHotspotTooltip(SvgHotspot hotspot) {
+        if (Objects.equals(hotspot, tooltipHotspot)) {
+            return;
+        }
+        if (tooltipHotspot != null) {
+            Tooltip.uninstall(diagramView, hotspotTooltip);
+        }
+        tooltipHotspot = hotspot;
+        if (hotspot != null) {
+            hotspotTooltip.setText(hotspot.tooltip());
+            Tooltip.install(diagramView, hotspotTooltip);
+        }
     }
 
     /** Runs on Stop in addition to dropping the view's own request; {@code null} removes it. */
@@ -696,8 +745,11 @@ final class SnippetDiagramView extends VBox {
         double canvasHeight = Math.max(viewportHeight, displayHeight);
         diagramView.setZoom(1.0);
         diagramView.setPrefSize(canvasWidth, canvasHeight);
-        diagramView.getEngine().loadContent(buildDiagramHtml(
-            renderedSvg, canvasWidth, canvasHeight, displayWidth, displayHeight));
+        String html = buildDiagramHtml(renderedSvg, canvasWidth, canvasHeight, displayWidth, displayHeight);
+        if (!html.equals(loadedHtml)) {
+            loadedHtml = html;
+            diagramView.getEngine().loadContent(html);
+        }
         updateZoomLabel();
     }
 
@@ -743,7 +795,7 @@ final class SnippetDiagramView extends VBox {
                 continue;
             }
             String tag = codeNavigationHandler != null ? "a" : "div";
-            html.append('<').append(tag).append(" class=\"diagram-hotspot\" title=\"")
+            html.append('<').append(tag).append(" class=\"diagram-hotspot\" aria-label=\"")
                 .append(escapeHtml(hotspot.tooltip())).append('"');
             if (codeNavigationHandler != null) {
                 html.append(" href=\"#kortty-code-reference-").append(hotspot.startLine())
@@ -768,6 +820,9 @@ final class SnippetDiagramView extends VBox {
         int startLine = Integer.parseInt(matcher.group(1));
         int endLine = Integer.parseInt(matcher.group(2));
         codeNavigationHandler.accept(new CodeNavigationTarget(startLine, endLine));
+        // Reload even though nothing changed: the page sits on the clicked link's anchor, and a
+        // second click on the same hotspot would not change the location again.
+        loadedHtml = null;
         Platform.runLater(this::renderDiagramToFitViewport);
     }
 
@@ -780,7 +835,8 @@ final class SnippetDiagramView extends VBox {
             toolbar.getChildren().add(regenerate);
         }
         buildDarkModeButton();
-        toolbar.getChildren().add(darkModeButton);
+        buildLayoutButton();
+        toolbar.getChildren().addAll(darkModeButton, layoutButton);
         backgroundPicker.setOnAction(event -> changeBackground(toHex(backgroundPicker.getValue())));
         toolbar.getChildren().addAll(new Label(I18n.get("snippets.ai.diagram.backgroundColor")), backgroundPicker);
         updateBackgroundPickerState();
@@ -984,7 +1040,11 @@ final class SnippetDiagramView extends VBox {
         if (currentMermaid == null || currentMermaid.isBlank()) {
             return;
         }
-        de.kortty.core.KorttyClipboard.setText(currentMermaid);
+        // The source as it is drawn: pasted elsewhere, it keeps the direction the user chose.
+        de.kortty.core.KorttyClipboard.setText(
+            currentDiagramType == SnippetDiagramType.LOGICAL_STRUCTURE
+                ? SnippetDiagramSupport.withLayout(currentMermaid, layout)
+                : currentMermaid);
         statusLabel.setText(I18n.get("snippets.ai.diagram.copyMermaid.ready"));
     }
 
@@ -1091,6 +1151,56 @@ final class SnippetDiagramView extends VBox {
         reapplyAppearance();
     }
 
+    private void buildLayoutButton() {
+        layoutButton.setId("snippet-diagram-layout");
+        layoutButton.setTooltip(new Tooltip(I18n.get("snippets.ai.diagram.layout.tooltip")));
+        ToggleGroup group = new ToggleGroup();
+        for (SnippetDiagramSupport.DiagramLayout option : SnippetDiagramSupport.DiagramLayout.values()) {
+            RadioMenuItem item = new RadioMenuItem(layoutLabel(option));
+            item.setToggleGroup(group);
+            item.setUserData(option);
+            item.setSelected(option == layout);
+            item.setOnAction(event -> changeLayout(option));
+            layoutButton.getItems().add(item);
+        }
+        updateLayoutButtonText();
+        updateLayoutButtonState();
+    }
+
+    private static String layoutLabel(SnippetDiagramSupport.DiagramLayout option) {
+        return switch (option) {
+            case VERTICAL -> I18n.get("snippets.ai.diagram.layout.vertical");
+            case HORIZONTAL -> I18n.get("snippets.ai.diagram.layout.horizontal");
+        };
+    }
+
+    private void updateLayoutButtonText() {
+        layoutButton.setText(I18n.get("snippets.ai.diagram.layout") + ": " + layoutLabel(layout));
+    }
+
+    /** Only the flowchart has a direction to choose; sequence, state, class and ER diagrams lay themselves out. */
+    private void updateLayoutButtonState() {
+        layoutButton.setDisable(currentDiagramType != SnippetDiagramType.LOGICAL_STRUCTURE);
+    }
+
+    /** Draws the flowchart in {@code option}'s direction, fitted anew: its proportions changed. */
+    void changeLayout(SnippetDiagramSupport.DiagramLayout option) {
+        if (option == null || option == layout) {
+            return;
+        }
+        layout = option;
+        saveConfiguredLayout(option.key());
+        updateLayoutButtonText();
+        for (javafx.scene.control.MenuItem item : layoutButton.getItems()) {
+            if (item instanceof RadioMenuItem radio) {
+                radio.setSelected(radio.getUserData() == option);
+            }
+        }
+        if (currentDiagramType == SnippetDiagramType.LOGICAL_STRUCTURE) {
+            renderAsync(true);
+        }
+    }
+
     private void reapplyAppearance() {
         lastResolvedDark = isDarkActive();
         updateBackgroundPickerState();
@@ -1149,6 +1259,22 @@ final class SnippetDiagramView extends VBox {
     private String loadConfiguredColorMode() {
         GlobalSettings settings = currentSettings();
         return settings != null ? settings.getSnippetDiagramColorMode() : "auto";
+    }
+
+    private String loadConfiguredLayout() {
+        GlobalSettings settings = currentSettings();
+        return settings != null ? settings.getSnippetDiagramLayout() : "vertical";
+    }
+
+    private void saveConfiguredLayout(String value) {
+        try {
+            GlobalSettingsManager manager = KorTTYApplication.getInstance().getGlobalSettingsManager();
+            if (manager != null && manager.getSettings() != null) {
+                manager.getSettings().setSnippetDiagramLayout(value);
+                manager.save();
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     private void saveConfiguredBackground(String color) {

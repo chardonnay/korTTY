@@ -1147,6 +1147,43 @@ class SnippetDiagramSupportTest {
         assertThat(SnippetDiagramSupport.DiagramColorMode.LIGHT.isDarkActive()).isFalse();
     }
 
+    @Test
+    void theHorizontalLayoutTurnsOnlyTheFlowchartHeader() {
+        String horizontal = SnippetDiagramSupport.withLayout(
+            VALID_FLOWCHART, SnippetDiagramSupport.DiagramLayout.HORIZONTAL);
+
+        assertThat(horizontal).startsWith("flowchart LR\n");
+        assertThat(horizontal.substring(horizontal.indexOf('\n')))
+            .isEqualTo(VALID_FLOWCHART.substring(VALID_FLOWCHART.indexOf('\n')));
+        assertThat(SnippetDiagramSupport.withLayout(VALID_FLOWCHART, SnippetDiagramSupport.DiagramLayout.VERTICAL))
+            .isSameInstanceAs(VALID_FLOWCHART);
+        // A blank line before the header and a terminating semicolon still count as korTTY's header.
+        assertThat(SnippetDiagramSupport.withLayout("\nflowchart TD;\nA --> B", SnippetDiagramSupport.DiagramLayout.HORIZONTAL))
+            .isEqualTo("\nflowchart LR\nA --> B");
+    }
+
+    @Test
+    void theLayoutLeavesEveryOtherDiagramAsItIs() {
+        String sequence = "sequenceDiagram\n    A->>B: hello";
+        assertThat(SnippetDiagramSupport.withLayout(sequence, SnippetDiagramSupport.DiagramLayout.HORIZONTAL))
+            .isSameInstanceAs(sequence);
+        assertThat(SnippetDiagramSupport.withLayout(null, SnippetDiagramSupport.DiagramLayout.HORIZONTAL)).isNull();
+        assertThat(SnippetDiagramSupport.withLayout(VALID_FLOWCHART, null)).isSameInstanceAs(VALID_FLOWCHART);
+    }
+
+    @Test
+    void theLayoutKeyDefaultsToVertical() {
+        assertThat(SnippetDiagramSupport.DiagramLayout.fromKey("horizontal"))
+            .isEqualTo(SnippetDiagramSupport.DiagramLayout.HORIZONTAL);
+        assertThat(SnippetDiagramSupport.DiagramLayout.fromKey(" VERTICAL "))
+            .isEqualTo(SnippetDiagramSupport.DiagramLayout.VERTICAL);
+        assertThat(SnippetDiagramSupport.DiagramLayout.fromKey("bogus"))
+            .isEqualTo(SnippetDiagramSupport.DiagramLayout.VERTICAL);
+        assertThat(SnippetDiagramSupport.DiagramLayout.fromKey(null))
+            .isEqualTo(SnippetDiagramSupport.DiagramLayout.VERTICAL);
+        assertThat(new de.kortty.model.GlobalSettings().getSnippetDiagramLayout()).isEqualTo("vertical");
+    }
+
     private SnippetDiagramSupport.CodeReference findReference(
         List<SnippetDiagramSupport.CodeReference> references, String nodeId) {
 
