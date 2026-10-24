@@ -168,6 +168,11 @@ public class GlobalSettings {
     @XmlElement
     private boolean connectionColorBorderEnabled = true;
 
+    // A ring around the split pane the keyboard is in, while a tab has two or more panes. Off, the
+    // active pane shows only by its cursor. A settings file without it keeps it on.
+    @XmlElement
+    private boolean splitPaneFocusRingEnabled = true;
+
     // Tab colors of connection groups, set from a group's context menu in the Connection Manager: a
     // connection without a tab color of its own takes its group's, or that of the nearest group above
     // it with one (see ConnectionGroupColors). No group has a color until the user picks one; null
@@ -1891,6 +1896,15 @@ public class GlobalSettings {
 
     public void setConnectionColorBorderEnabled(boolean connectionColorBorderEnabled) {
         this.connectionColorBorderEnabled = connectionColorBorderEnabled;
+    }
+
+    /** Whether the split pane the keyboard is in is framed by the focus ring (Window settings). */
+    public boolean isSplitPaneFocusRingEnabled() {
+        return splitPaneFocusRingEnabled;
+    }
+
+    public void setSplitPaneFocusRingEnabled(boolean splitPaneFocusRingEnabled) {
+        this.splitPaneFocusRingEnabled = splitPaneFocusRingEnabled;
     }
 
     /**

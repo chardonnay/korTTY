@@ -116,6 +116,17 @@ public class TerminalSplitPaneConnectionFrameTest {
     }
 
     @Test
+    public void theFocusRingShowsOnlyWhileTheHostLeavesItOn() throws IOException {
+        assertThat(source()).contains("private boolean focusRingEnabled = true;");
+        String decorations = methodBody(source(), "private void refreshPaneDecorations(");
+        assertWithMessage("switched off, no pane shows the ring, however many panes the tab has")
+            .that(decorations).contains("ring.setVisible(focusRingEnabled && several && zoomedWidget == null);");
+        String set = methodBody(source(), "public void setFocusRingEnabled(");
+        assertWithMessage("switching it redraws the rings of the panes already open")
+            .that(set).contains("refreshPaneDecorations();");
+    }
+
+    @Test
     public void bothBaseStylesheetsMoveTheRingAndTheOutlineInsideTheFrame() throws IOException {
         for (String stylesheet : List.of("terminal.css", "atlantafx-kortty-components.css")) {
             String css = Files.readString(Path.of("src/main/resources/styles", stylesheet), StandardCharsets.UTF_8)

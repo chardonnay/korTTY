@@ -4589,6 +4589,18 @@ public class MainWindow {
     }
 
     /**
+     * Shows or hides the ring around the active split pane in every open terminal tab, in every
+     * window, after the Window setting for it was saved. FX thread only.
+     */
+    private static void refreshPaneFocusRingsInAllWindows() {
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            for (TerminalTab terminalTab : window.terminalTabs()) {
+                terminalTab.getTerminalView().refreshPaneFocusRing();
+            }
+        }
+    }
+
+    /**
      * Lets every open terminal tab, in every window, show or drop the title its shell set, after the
      * Window setting for it was saved. FX thread only.
      */
@@ -4645,6 +4657,7 @@ public class MainWindow {
                 refreshTerminalTabsUsingGlobalDefaults();
                 refreshConnectionColorsInAllWindows();
                 refreshShellTitlesInAllWindows();
+                refreshPaneFocusRingsInAllWindows();
                 applyRemoteSidebarToAllWindows();
                 refreshTerminalRecordingControlsVisibility();
                 refreshOpenChatColorProfiles();

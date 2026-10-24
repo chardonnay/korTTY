@@ -15,6 +15,7 @@ This tab configures toolbar icon size, window geometry behavior, dashboard state
 | Remember dashboard state | toggle | — | On | `rememberDashboardState` |
 | Open tool windows as tabs | toggle | — | Off | `openToolWindowsAsTabs` |
 | Frame the terminal in its connection's tab color | toggle | — | On | `connectionColorBorderEnabled` |
+| Frame the split pane the keyboard is in | toggle | — | On | `splitPaneFocusRingEnabled` |
 | Name terminal tabs after the title the shell sets | toggle | — | On | `tabTitleFromShellEnabled` |
 | Ctrl+Tab switches tabs in the order they were last used | toggle | — | Off | `tabSwitchMostRecentFirst` |
 | At startup: | choice | Offer to restore the previous session / Restore the previous session automatically / Do nothing | Offer to restore the previous session | `sessionRestoreMode` (`ask` / `auto` / `off`) |
@@ -47,6 +48,8 @@ With **Remember window geometry** enabled, KorTTY stores the position and size o
 
 !!! note
     The frame takes 3 pixels on each side of the terminal. Turning it on or off therefore resizes the open terminals of every colored connection, and giving a connection a tab color or removing it resizes that connection's terminals: the remote side receives the new size, and full-screen programs such as `vim`, `htop` or `less` redraw.
+
+**Frame the split pane the keyboard is in** shows the [focus ring](../../features/terminal.md#split-operations) in a tab with two or more split panes: a blue ring around the pane you type into and a dimmer one around the pane the menu commands act on while the keyboard is elsewhere. Switch it off to drop both rings; the active pane then shows only by its cursor. The ring never resizes a terminal, and switching it off leaves the frames in a connection's tab color in place. The change applies to the open tabs of every window as soon as you save.
 
 **Name terminal tabs after the title the shell sets** lets a terminal tab show the title that the shell or another program in it sets with the OSC 0 or OSC 2 escape sequence, such as `user@host: directory`, in place of the connection's name; a tab with split panes shows the title of its focused pane. A name you gave a tab with [Rename Tab](../../features/terminal.md#working-with-tabs) still comes first. The server decides this title, so it is cleaned of control and bidi characters, capped at 80 characters and never changes the tab color; pointing at such a tab shows the connection it belongs to. Switch it off to keep the connection's names on every tab. The change applies to the open tabs of every window as soon as you save. See [Title from the shell](../../features/terminal.md#title-from-the-shell).
 

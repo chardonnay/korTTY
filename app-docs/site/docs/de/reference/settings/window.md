@@ -15,6 +15,7 @@ Dieser Tab konfiguriert die Größe der Toolbar-Icons (px), das Verhalten der Fe
 | Dashboard-Status merken | umschalten | – | Ein | `rememberDashboardState` |
 | Toolfenster als Registerkarten öffnen | umschalten | – | Aus | `openToolWindowsAsTabs` |
 | Terminal in der Tab-Farbe seiner Verbindung umrahmen | umschalten | — | Ein | `connectionColorBorderEnabled` |
+| Aktives Split-Terminal umrahmen | Umschalten | — | Ein | `splitPaneFocusRingEnabled` |
 | Terminal-Tabs nach dem Titel benennen, den die Shell setzt | umschalten | — | Ein | `tabTitleFromShellEnabled` |
 | Strg+Tab wechselt die Tabs in der Reihenfolge ihrer letzten Nutzung | umschalten | — | Aus | `tabSwitchMostRecentFirst` |
 | Beim Start: | Auswahl | Wiederherstellen der vorherigen Sitzung anbieten / Vorherige Sitzung automatisch wiederherstellen / Nichts tun | Wiederherstellen der vorherigen Sitzung anbieten | `sessionRestoreMode` (`ask` / `auto` / `off`) |
@@ -47,6 +48,8 @@ Wenn **Fenstergeometrie merken** aktiviert ist, speichert korTTY die Position un
 
 !!! note
     Der Rahmen belegt auf jeder Seite des Terminals 3 Pixel. Das Ein- oder Ausschalten ändert daher die Größe der offenen Terminals jeder farbigen Verbindung, und das Zuweisen oder Entfernen einer Tab-Farbe ändert die Größe der Terminals dieser Verbindung: Die Gegenseite erhält die neue Größe, und Vollbildprogramme wie `vim`, `htop` oder `less` zeichnen sich neu.
+
+**Aktives Split-Terminal umrahmen** zeigt den [Fokusring](../../features/terminal.md#vorgange-aufteilen) in einem Tab mit zwei oder mehr Split-Panes: ein blauer Ring um das Pane, in das Sie tippen, und ein dunklerer Ring um das Pane, auf dem die Menübefehle wirken, während die Tastatur woanders ist. Schalten Sie es aus, um beide Ringe zu entfernen; das aktive Pane wird dann nur noch durch den Cursor angezeigt. Der Ring verändert nie die Größe eines Terminals, und das Abschalten lässt die Rahmen in der Tab-Farbe einer Verbindung unverändert. Die Änderung gilt für die offenen Tabs aller Fenster, sobald Sie speichern.
 
 **Terminal-Tabs nach dem Titel benennen, den die Shell setzt** lässt einen Terminal-Tab statt des Verbindungsnamens den Titel anzeigen, den die Shell oder ein anderes Programm darin mit der Escape-Sequenz OSC 0 oder OSC 2 setzt, etwa `user@host: directory`; ein Tab mit geteilten Bereichen zeigt den Titel seines fokussierten Bereichs. Ein Name, den Sie einem Tab mit [Tab umbenennen](../../features/terminal.md#arbeiten-mit-tabs) gegeben haben, hat weiterhin Vorrang. Diesen Titel bestimmt der Server, daher wird er von Steuer- und Bidi-Zeichen bereinigt, auf 80 Zeichen gekürzt und ändert nie die Tab-Farbe; wenn Sie auf einen solchen Tab zeigen, sehen Sie die Verbindung, zu der er gehört. Schalten Sie die Option aus, um auf jedem Tab die Verbindungsnamen zu behalten. Die Änderung gilt für die offenen Tabs aller Fenster, sobald Sie speichern. Siehe [Titel aus der Shell](../../features/terminal.md#titel-aus-der-shell).
 

@@ -22,6 +22,7 @@ What changed in the current release. The version this guide was built for is sho
 - **Ctrl+V pastes in the terminal on Windows** — as in Windows Terminal; Linux keeps ++ctrl+v++ for the shell. See [Pasting text](../features/terminal.md#pasting-text).
 - **Dark title bars on Windows** — in dark mode the main window and all dialogs get a dark native title bar, and a system theme switch reaches open windows.
 - **Local shells come back** — *Restore Previous Session* reopens local shell tabs started from the toolbar instead of parking them as "connection missing". See [Session Restore](../reference/settings/window.md#session-restore).
+- **Focus ring can be switched off** — switch off **Frame the split pane the keyboard is in** in the Window settings to hide the ring around the active split pane. You then recognize the active pane by its cursor. See [Tabs](../reference/settings/window.md#tabs).
 - **Terminal agent on PowerShell and cmd** — an intercepted `agent ...` line is cleared without a stray `^U`, and nested `powershell -Command` scripts from the model run correctly.
 
 ### Fixes

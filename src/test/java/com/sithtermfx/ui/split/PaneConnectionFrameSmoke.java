@@ -40,7 +40,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * tab: with the base stylesheet, the marked pane shows a 3 px frame of its color at its edge, the
  * focus ring moves inside it, the pane's screen-reader text names the connection, no terminal
  * resizes, the unmarked pane shows nothing, the frame stays with its pane through a further split
- * and alone in the tab, and clearing the marks removes it. Pass a file path to also save a snapshot
+ * and alone in the tab, switching the focus ring off hides it on every pane but leaves the frame, and
+ * clearing the marks removes it. Pass a file path to also save a snapshot
  * as PNG. Run via the {@code paneConnectionFrameSmoke} Gradle task. Exit 0 = OK.
  */
 public final class PaneConnectionFrameSmoke {
@@ -182,6 +183,37 @@ public final class PaneConnectionFrameSmoke {
                 check(other == null || !other.isVisible(), "the new pane shows a frame");
                 return null;
             });
+
+            // Switched off in the settings, no pane shows the focus ring, a pane split meanwhile neither,
+            // and the connection frame stays; switched on again, every pane has its ring back.
+            onFxThread(() -> {
+                splitPane.setFocusRingEnabled(false);
+                return null;
+            });
+            SithTermFxWidget d = onFxThread(() -> splitPane.splitWidget(c,
+                SplitRequest.SplitMode.SAME_SERVER_NEW_SHELL, Orientation.HORIZONTAL, new IdleTtyConnector()));
+            check(d != null, "the split with the ring off did not create a pane");
+            settle();
+            onFxThread(() -> {
+                for (SithTermFxWidget pane : splitPane.getAllWidgets()) {
+                    Region ring = TerminalSplitPane.findFocusRing(decorationOf(splitPane, pane));
+                    check(ring == null || !ring.isVisible(), "a pane shows the focus ring while it is switched off");
+                }
+                Region frame = frameOf(splitPane, b);
+                check(frame != null && frame.isVisible(), "the connection frame went with the focus ring");
+                splitPane.setFocusRingEnabled(true);
+                return null;
+            });
+            settle();
+            onFxThread(() -> {
+                for (SithTermFxWidget pane : splitPane.getAllWidgets()) {
+                    Region ring = TerminalSplitPane.findFocusRing(decorationOf(splitPane, pane));
+                    check(ring != null && ring.isVisible(), "a pane has no focus ring after it was switched on again");
+                }
+                return null;
+            });
+            check(onFxThread(() -> splitPane.closeSplitPane(d)), "closing the fourth pane was refused");
+            settle();
 
             // Alone in the tab, the pane still shows its frame and names its connection.
             check(onFxThread(() -> splitPane.closeSplitPane(a)), "closing the first pane was refused");

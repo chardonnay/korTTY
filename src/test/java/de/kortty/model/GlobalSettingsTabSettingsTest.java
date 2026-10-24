@@ -48,6 +48,28 @@ class GlobalSettingsTabSettingsTest {
     }
 
     @Test
+    void theSplitPaneFocusRingIsOnByDefaultAndSurvivesTheRoundTrip() throws Exception {
+        assertWithMessage("the active split pane is framed unless the user switches it off")
+                .that(new GlobalSettings().isSplitPaneFocusRingEnabled()).isTrue();
+
+        GlobalSettings off = new GlobalSettings();
+        off.setSplitPaneFocusRingEnabled(false);
+        assertThat(marshal(off)).contains("<splitPaneFocusRingEnabled>false</splitPaneFocusRingEnabled>");
+        assertThat(roundTrip(off).isSplitPaneFocusRingEnabled()).isFalse();
+
+        GlobalSettings on = new GlobalSettings();
+        on.setSplitPaneFocusRingEnabled(true);
+        assertThat(roundTrip(on).isSplitPaneFocusRingEnabled()).isTrue();
+    }
+
+    @Test
+    void aSettingsFileFromBeforeTheFocusRingSettingExistedKeepsItOn() throws Exception {
+        GlobalSettings settings = unmarshal("<globalSettings><showMenuBar>true</showMenuBar></globalSettings>");
+
+        assertThat(settings.isSplitPaneFocusRingEnabled()).isTrue();
+    }
+
+    @Test
     void theShellTitleIsOnByDefaultAndSurvivesTheRoundTrip() throws Exception {
         assertWithMessage("tabs follow the title the shell sets unless the user switches it off")
                 .that(new GlobalSettings().isTabTitleFromShellEnabled()).isTrue();
