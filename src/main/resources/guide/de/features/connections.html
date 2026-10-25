@@ -827,7 +827,7 @@
 <h2 id="schnellverbindung">Schnellverbindung<a class="headerlink" href="#schnellverbindung" title="Permanent link">&para;</a></h2>
 <p>Öffnen mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> (oder <strong>Verbindungen → Schnellverbindung…</strong>). Geben Sie Host, Port, Benutzernamen und Authentifizierung ein und stellen Sie eine Verbindung her, ohne zu speichern. Häufig verwendete Verbindungen werden als Schnellschaltflächen angezeigt. Eine Live-Suche filtert sie. Gespeicherte Verbindungen können aus einem Dropdown-Menü mit einem eigenen Suchfeld ausgewählt werden, das nach Name, Host oder <a href="#tags">Tag</a> filtert (<code>*</code> funktioniert als Platzhalter); Das Tag einer gespeicherten Verbindung wird neben ihrem Namen (🏷) im Dropdown-Menü und in den QuickInfos der Schnellschaltflächen angezeigt.</p>
 <h2 id="connection-manager">Connection-Manager<a class="headerlink" href="#connection-manager" title="Permanent link">&para;</a></h2>
-<p><strong>Verbindungen → Verbindungen verwalten…</strong> (oder die Connection-Manager-Schaltfläche der Symbolleiste) öffnet den Connection-Manager. Die <strong>Bibliothek</strong> links wählt aus, welche Verbindungen der mittlere Bereich anzeigt; der mittlere Bereich zeigt sie als <strong>Liste</strong> oder als <strong>Netzplan</strong>, und der <strong>Inspektor</strong> rechts zeigt alles zur ausgewählten Verbindung oder zum ausgewählten Ordner. Das Suchfeld oben rechts verengt die Auswahl der Bibliothek; es vergleicht Name, Host, IP-Adresse oder <a href="#tags">Tag</a>, wobei <code>*</code> als Wildcard dient. Die darüberliegende Symbolleiste gruppiert die Aktionen wie die Symbolleiste: <strong>Verbindung</strong> (neu, bearbeiten, duplizieren, löschen), <strong>Ordner</strong> (neuer Ordner, Ordner umbenennen, letzten Move rückgängig machen), <strong>Austausch</strong> und <strong>Teamarbeit</strong> (aktualisieren, gelöschte wiederherstellen). Jede Schaltfläche benennt sich in einem Tooltip. Das Kontextmenü eines Ordners setzt außerdem dessen <strong>Sitzungs-Isolation</strong>-Stufe für jede Verbindung darin, die keine eigene festlegt (siehe <a href="session-isolation.html#eine-stufe-wahlen">Stufe wählen</a>).</p>
+<p><strong>Verbindungen → Verbindungen verwalten…</strong> (oder die Connection-Manager-Schaltfläche der Symbolleiste) öffnet den Connection-Manager. Die <strong>Bibliothek</strong> links wählt aus, welche Verbindungen die Mitte anzeigt, die Mitte zeigt sie als <strong>Liste</strong> oder als <strong>Netzplan</strong>, und der <strong>Inspektor</strong> rechts zeigt alles zur ausgewählten Verbindung oder zum Ordner. Das Suchfeld oben rechts verengt die Auswahl der Bibliothek; es vergleicht Name, Host, IP-Adresse oder <a href="#tags">Tag</a>, wobei <code>*</code> als Platzhalter dient. Die Symbolleiste darüber gruppiert die Aktionen wie die Symbolleiste: <strong>Verbindung</strong> (neu, bearbeiten, duplizieren, löschen), <strong>Ordner</strong> (neuer Ordner, Ordner umbenennen, letzten Move rückgängig machen), <strong>Austausch</strong> (importieren, exportieren, <a href="#exportieren-einer-ubersicht">einen Überblick exportieren</a>) und <strong>Teamwork</strong> (aktualisieren, gelöschte wiederherstellen). Jeder Button benennt sich in einem Tooltip. Das Kontextmenü eines Ordners setzt außerdem dessen <strong>Sitzungs-Isolation</strong>-Stufe für jede Verbindung darin, die keine eigene festlegt (siehe <a href="session-isolation.html#eine-stufe-wahlen">Ein Niveau wählen</a>).</p>
 <p><img alt="The Connection Manager: library on the left, the list of connections in the middle, the inspector of the selected connection on the right" src="../../en/assets/screenshots/main/connection-manager.png" /></p>
 <h3 id="bibliothek">Bibliothek<a class="headerlink" href="#bibliothek" title="Permanent link">&para;</a></h3>
 <table>
@@ -840,7 +840,7 @@
 <tbody>
 <tr>
 <td><strong>Alle Verbindungen</strong></td>
-<td>Jede gespeicherte Verbindung, in ihren Ordnern.</td>
+<td>Jede gespeicherte Verbindung, in ihren Ordnern, und darunter die Verbindungen Ihrer <a href="teamwork.html">teamwork</a>-Quellen in einem <strong>Teamwork-Verbindungen</strong>-Zweig.</td>
 </tr>
 <tr>
 <td><strong>Favoriten</strong></td>
@@ -864,16 +864,74 @@
 </tr>
 <tr>
 <td><strong>Teamwork-Verbindungen</strong></td>
-<td>Die Verbindungen Ihrer <a href="teamwork.html">teamwork</a>-Quellen, nur lesend, mit der Authentifizierung für alle Team-Verbindungen oberhalb der Liste.</td>
+<td>Nur die Verbindungen Ihrer Teamwork-Quellen, mit der Authentifizierung für alle Teamwork-Verbindungen oberhalb der Liste.</td>
 </tr>
 </tbody>
 </table>
+<p><strong>Alle Verbindungen</strong>, <strong>Favoriten</strong>, <strong>Zuletzt verwendet</strong>, <strong>Gerade offen</strong> und die Tags zeigen lokale und Teamwork-Verbindungen gemeinsam an. Eine Teamwork-Verbindung trägt ein kleines Personen-Symbol nach ihrem Namen, in der Liste und im Netzplan, und bleibt an jeder Stelle, an der sie erscheint, schreibgeschützt: sie kann nicht bearbeitet, dupliziert, getaggt oder verschoben werden, und <strong>Löschen</strong> blendet sie lediglich auf diesem Computer aus. Ein Ordner der Bibliothek zeigt immer nur lokale Verbindungen an.</p>
 <h3 id="liste-und-netzplan">Liste und Netzplan<a class="headerlink" href="#liste-und-netzplan" title="Permanent link">&para;</a></h3>
-<p><strong>Liste</strong> zeigt die gewählten Verbindungen in ihren Ordnern. Jede Zeile zeigt das Protokoll (Server für SSH, Wellen für Mosh, ein Laptop für eine lokale Shell), den Namen, <code>user@host</code>, das Tag, einen Stern für einen Favoriten und kleine Markierungen für einen Jump-Server, Tunnel, eine eigene Isolationsebene, Inkognito und eine deaktivierte Host-Key-Prüfung; ein grüner Punkt und eine Zählung bedeuten, dass die Verbindung offene Tabs hat. Ziehen Sie eine Verbindung auf einen Ordner, um sie dort zu verschieben; <strong>Rückgängig</strong> in der Symbolleiste nimmt den letzten Vorgang zurück. Doppelklicken Sie auf eine Verbindung, um sie zu verbinden.</p>
-<p><strong>Netzplan</strong> zeigt dieselben Verbindungen auf einem Netzplan: eine gestrichelte Zone pro Ordner in der Tab-Farbe des Ordners, ein Knoten pro Verbindung und dieser Computer links. Orange gestrichelte Linien zeigen den Weg über einen Jump-Server, der die gespeicherte Verbindung mit diesem Host ist, wenn es eine gibt, andernfalls ein eigener Knoten; türkis gepunktete Linien zeigen Tunnel, die ebenfalls unter diesem Computer aufgeführt sind. Klicken Sie auf einen Knoten, um ihn auszuwählen, doppelklicken Sie, um die Verbindung herzustellen, und ziehen Sie ihn in eine andere Zone, um die Verbindung in diesen Ordner zu verschieben (<strong>Rückgängig</strong> nimmt es zurück). <strong>Jump-Wege</strong> und <strong>Tunnel</strong> zeigen oder verstecken die Linien, <strong>−</strong>, <strong>+</strong> und <strong>Anpassen</strong> zoomen, und <span class="keys"><kbd class="key-control">Ctrl</kbd></span> mit dem Mausrad zoomt ebenfalls. Der Netzplan wird automatisch angeordnet; es wird nichts darüber gespeichert.</p>
+<p><strong>Liste</strong> zeigt die gewählten Verbindungen in ihren Ordnern, mit Linien von jedem Ordner zu seinen Verbindungen und Unterordnern; ein leerer Ordner zeigt keine Einträge darunter. Jede Zeile zeigt das Protokoll (Server für SSH, Wellen für Mosh, ein Laptop für eine lokale Shell) mit dem <a href="#os-symbole">OS-Symbol</a> der Verbindung in ihrer Ecke, den Namen, <code>user@host</code>, das Tag, einen Stern für einen Favoriten und kleine Markierungen für einen Jump-Server, Tunnel, eine eigene Isolationsebene, Inkognito und eine ausgeschaltete Host-Key-Prüfung; ein grüner Punkt und eine Anzahl bedeuten, dass die Verbindung offene Tabs hat. Ziehen Sie eine Verbindung auf einen Ordner, um sie dort zu verschieben; <strong>Rückgängig</strong> in der Symbolleiste nimmt den letzten Vorgang zurück. Doppelklicken Sie eine Verbindung, um die Verbindung herzustellen.</p>
+<p><strong>Netzplan</strong> zeigt dieselben Verbindungen auf einem Netzplan: eine gestrichelte Zone pro Ordner in der Tab-Farbe des Ordners, ein Knoten pro Verbindung und dieser Computer links. Orange gestrichelte Linien zeigen den Weg über einen Jump-Server, der die gespeicherte Verbindung mit diesem Host ist, wenn es eine gibt, andernfalls ein eigener Knoten; türkis gepunktete Linien zeigen Tunnel, die ebenfalls unter diesem Computer aufgeführt sind. Klicken Sie auf einen Knoten, um ihn auszuwählen, doppelklicken Sie, um die Verbindung herzustellen, und ziehen Sie ihn in eine andere Zone, um die Verbindung in diesen Ordner zu verschieben (<strong>Rückgängig</strong> nimmt sie zurück). <strong>Jump-Wege</strong> und <strong>Tunnel</strong> zeigen oder verstecken die Linien, <strong>−</strong>, <strong>+</strong> und <strong>Anpassen</strong> zoomen, und <span class="keys"><kbd class="key-control">Ctrl</kbd></span> mit dem Mausrad zoomt ebenfalls. Teamwork-Verbindungen erhalten eigene Zonen und gestrichelte Knoten und können nicht verschoben werden. Der Netzplan wird automatisch angeordnet; nichts davon wird gespeichert.</p>
+<p><strong>PDF</strong> speichert den Netzplan als Vektor-PDF mit dem korTTY-Logo, einem Titel, der Legende und dem Datum. Wählen Sie <strong>Querformat</strong> oder <strong>Hochformat</strong> sowie einen Titel; korTTY ordnet die Zonen so an, dass die Seite in dieser Ausrichtung gefüllt wird, und setzt auf weiteren Seiten fort, wenn der Netzplan in einer lesbaren Größe nicht auf eine Seite passt.</p>
 <p><img alt="The map: Production with its jump server and tunnel, the other folders below" src="../../en/assets/screenshots/main/connection-manager-map.png" /></p>
 <h3 id="inspektor">Inspektor<a class="headerlink" href="#inspektor" title="Permanent link">&para;</a></h3>
-<p>Der Inspektor zeigt die ausgewählte Verbindung: deren Adresse, Protokoll und Anmeldung, den Jump-Server und die Tunnel, die Isolationsebene und deren Herkunft, die Host-Key-Prüfung, wann sie zuletzt verwendet wurde und wie oft. <strong>Verbinden</strong>, <strong>Bearbeiten</strong>, <strong>Duplizieren</strong> und der Stern wirken direkt darauf. Darunter ändern <strong>Name</strong> und <strong>Tag</strong> die Verbindung, ohne den Editor zu öffnen; <span class="keys"><kbd class="key-enter">Enter</kbd></span> wendet die Änderung an. Ein ausgewählter Ordner zeigt seine Tab-Farbe, Isolationsebene und Host-Key-Prüfung mit Schaltflächen zum Umbenennen, zum Setzen der Tab-Farbe oder zum Erstellen eines Unterordners. Eine Teamwork-Verbindung wird schreibgeschützt angezeigt, zusammen mit der Quelle, aus der sie stammt.</p>
+<p>Der Inspektor zeigt die ausgewählte Verbindung: deren Ordner und Tag, deren Adresse, Protokoll, Anmeldung und OS-Symbol, den Weg von diesem Computer über den Jump-Server zum Server mit seinen Tunneln darunter, die Isolationsebene und die Host-Key-Prüfung sowie wie oft sie in den letzten 14 Tagen verwendet wurde, ein Balken pro Tag. <strong>Verbinden</strong>, der SFTP-Manager, <strong>Bearbeiten</strong>, <strong>Duplizieren</strong> und der Stern wirken direkt darauf. Darunter ändern <strong>Name</strong>, <strong>Tag</strong> und <strong>OS-Symbol</strong> die Verbindung, ohne den Editor zu öffnen; <span class="keys"><kbd class="key-enter">Enter</kbd></span> wendet einen geänderten Namen oder Tag an. Ein ausgewählter Ordner zeigt seine Tab-Farbe, Isolationsebene und Host-Key-Prüfung mit Schaltflächen zum Umbenennen, zum Setzen der Tab-Farbe oder zum Erstellen eines Unterordners. Eine Teamwork-Verbindung wird nur-lesbar angezeigt, mit der Quelle, aus der sie stammt.</p>
+<h3 id="os-symbole">OS-Symbole<a class="headerlink" href="#os-symbole" title="Permanent link">&para;</a></h3>
+<p>Eine Verbindung kann das Symbol des Betriebssystems anzeigen, das auf ihrem Server läuft, in der Ecke ihrer Zeile, im Netzplan, im Inspektor und im PDF. korTTY zeichnet eigene Symbole für Windows XP, Windows 10, Windows 11, Windows Server, Linux, Red Hat, Rocky Linux, AlmaLinux, CentOS, Fedora, Debian, Ubuntu, Arch Linux, SUSE, Oracle Solaris, IBM AIX, HP-UX, DEC, FreeBSD und OpenBSD. Wählen Sie eines unter <strong>OS-Symbol</strong> im Inspektor oder auf dem <em>Verbindung</em>-Tab des Verbindungs-Editors aus, oder für mehrere Verbindungen gleichzeitig im Kontextmenü (<strong>OS-Symbol</strong>).</p>
+<p><strong>Eigene Symbole…</strong> (neben der Symbolauswahl und am Ende des Kontextmenüs) fügt eigene Symbole hinzu: Wählen Sie eine PNG-, JPG-, GIF- oder SVG-Datei aus und vergeben Sie einen Namen. korTTY speichert eine Kopie als 128-Pixel-PNG im <code>os-badges</code>-Ordner des Konfigurationsverzeichnisses, sodass die ursprüngliche Datei verschoben oder gelöscht werden kann. Benennen Sie ein Symbol dort um oder löschen Sie es; Verbindungen, deren Symbol gelöscht wurde, zeigen keins an.</p>
+<h3 id="exportieren-einer-ubersicht">Exportieren einer Übersicht<a class="headerlink" href="#exportieren-einer-ubersicht" title="Permanent link">&para;</a></h3>
+<p><strong>Übersicht exportieren</strong> in der <em>Austausch</em>-Gruppe der Symbolleiste erstellt eine Liste Ihrer Server als <strong>JSON</strong>, <strong>YAML</strong>, <strong>TOML</strong> oder <strong>XML</strong>, für Dokumentation oder Skripte. Wählen Sie die Verbindungen (die ausgewählten, die, die der Manager gerade anzeigt, oder alle, einschließlich Teamwork-Verbindungen), das Format und die Bestandteile jedes Eintrags:</p>
+<table>
+<thead>
+<tr>
+<th>Teil</th>
+<th>Inhalt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Grundlagen (immer)</td>
+<td>Name, Protokoll, Host, Port und Benutzer; bei einer lokalen Shell deren Befehl und Startverzeichnis</td>
+</tr>
+<tr>
+<td>Ordner, Tag, Tab-Farbe, Favorit</td>
+<td>Der Ordnerpfad, das Tag, die Tab-Farbe und ob die Verbindung ein Favorit ist</td>
+</tr>
+<tr>
+<td>Anmeldemethode</td>
+<td>Passwort, SSH-Schlüssel, keyboard-interactive, temporärer Schlüssel oder keine, mit dem Namen der gespeicherten Zugangsdaten oder des SSH-Schlüssels</td>
+</tr>
+<tr>
+<td>Jump-Server</td>
+<td>Host, Port, Benutzer und Anmeldeverfahren eines aktivierten Jump-Servers</td>
+</tr>
+<tr>
+<td>Tunnel</td>
+<td>Typ, lokale und entfernte Hosts und Ports sowie Beschreibung jedes aktivierten Tunnels</td>
+</tr>
+<tr>
+<td>Terminal-Einstellungen</td>
+<td>Terminal-Emulation, Zeichenkodierung, Hervorhebungsregelwerk, Terminal-Effekt, Timeout und Wiederholungen</td>
+</tr>
+<tr>
+<td>Isolation, Inkognito, Host-Key-Prüfung</td>
+<td>Die eigene Sitzungs-Isolation, Inkognito und Host-Key-Prüfung der Verbindung</td>
+</tr>
+<tr>
+<td>Nutzung</td>
+<td>Wann die Verbindung zuletzt verwendet wurde und wie oft</td>
+</tr>
+<tr>
+<td>Quelle</td>
+<td>Lokal oder Teamwork, mit der Teamwork-Quelle</td>
+</tr>
+<tr>
+<td>OS-Symbol</td>
+<td>Der Name des OS-Symbols der Verbindung</td>
+</tr>
+</tbody>
+</table>
+<p>Eine Vorschau zeigt die erste Verbindung so, wie sie in der Datei enthalten sein wird. Passwörter, Passphrasen und Schlüssel werden niemals geschrieben. Die Übersicht ist keine Importdatei; um Verbindungen in ein anderes korTTY zu verschieben, verwenden Sie <strong>Export</strong> und <strong>Import</strong>.</p>
 <h3 id="anmelden">Anmelden<a class="headerlink" href="#anmelden" title="Permanent link">&para;</a></h3>
 <p><strong>Verbinden</strong> im Connection-Manager meldet sich bei der ausgewählten Verbindung in dieser Reihenfolge an:</p>
 <ol>
@@ -896,7 +954,7 @@
 <tbody>
 <tr>
 <td>Verbindung</td>
-<td>Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ) oder Lokale Shell), Terminalemulation, <strong>Zeichenkodierung</strong> (Standard / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), <strong>Host-Key-Prüfung</strong> (Standard / prüfen / nicht prüfen), Gruppen-/Ordnerzuweisung und ein optionaler Freitext <a href="#tags">Tag</a>, <strong>Verbindungstimeout</strong> (1–300 Sekunden) und <strong>Wiederholungsversuche</strong> (1–20 Versuche, verwendet während <strong>Verbindungswiederholungen aktivieren</strong> in <em>Einstellungen → Terminal</em> eingeschaltet ist). Für <strong>Lokale Shell</strong> Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe <a href="#zeichenkodierung">Zeichenkodierung</a>.</td>
+<td>Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ) oder Lokale Shell), Terminalemulation, <strong>Zeichenkodierung</strong> (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), <strong>Host-Key-Prüfung</strong> (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuordnung, ein optionales Freitext-<a href="#tags">Tag</a> und das <a href="#os-symbole">OS-Symbol</a>, <strong>Verbindungstimeout</strong> (1–300 Sekunden) und <strong>Wiederholungsversuche</strong> (1–20 Versuche, verwendet, wenn <strong>Verbindungswiederholungen aktivieren</strong> in <em>Einstellungen → Terminal</em> aktiviert ist). Bei <strong>Lokale Shell</strong>-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe <a href="#zeichenkodierung">Zeichenkodierung</a>.</td>
 </tr>
 <tr>
 <td>Terminal-Einstellungen</td>
@@ -952,7 +1010,7 @@
 <p>Jede gespeicherte Verbindung kann ein optionales Freitext-<strong>Tag</strong> tragen – eine Bezeichnung wie <code>prod</code>, <code>staging</code> oder einen Kundennamen – unabhängig von der Gruppen-/Ordnerhierarchie. Legen Sie es auf der Registerkarte <em>Verbindung</em> des Verbindungseditors (neben der Gruppe) oder gesammelt im Connection-Manager fest. Tags werden mit der Verbindung in <code>connections.xml</code> gespeichert und überstehen das Duplizieren, Exportieren und Importieren.</p>
 <ul>
 <li><strong>Sichtbar</strong> — Getaggte Verbindungen zeigen ein Tag-Chip nach ihrem Namen in der Connection-Manager-Liste und ein 🏷-Abzeichen im Dropdown der gespeicherten Verbindungen in der Schnellverbindung; das Tag erscheint auch im Tooltip der häufig genutzten Schnellknöpfe. Die Bibliothek des Connection-Manager enthält ein Chip pro Tag, das nur die Verbindungen mit diesem Tag anzeigt.</li>
-<li><strong>Durchsuchbar</strong> — Die Suche im Connection-Manager (lokale und Team-Verbindungen) sowie die Suche nach gespeicherten Verbindungen in der Schnellverbindung berücksichtigen sowohl Tags als auch Namen und Hosts.</li>
+<li><strong>Durchsuchbar</strong> — Die Suche im Connection-Manager (lokale und Teamwork-Verbindungen) sowie die Suche nach gespeicherten Verbindungen in der Schnellverbindung berücksichtigen sowohl Tags als auch Namen und Hosts.</li>
 <li><strong>Massenzuweisung/-entfernung</strong> – Wählen Sie einen oder mehrere Server aus und wählen Sie <strong>Tag zuordnen</strong> aus dem Kontextmenü, um sie in einem Schritt zu taggen. Die Eingabeaufforderung ist vorab ausgefüllt, wenn alle ausgewählten Verbindungen bereits dasselbe Tag haben. Durch das Löschen dieses vorab ausgefüllten Werts wird das Tag entfernt. <strong>Tag entfernen</strong> löscht das Tag und ist nur aktiviert, solange die Auswahl mindestens eine markierte Verbindung enthält. Die gleichen zwei Einträge im Kontextmenü eines Ordners gelten für jede Verbindung in diesem Ordner, einschließlich Unterordnern.</li>
 <li><strong>Nach Tag exportieren</strong> – Sobald mindestens ein Tag vorhanden ist, bietet das Exportdialogfeld des Connection-Managers die Option <strong>Zu exportierende Verbindungen</strong>: Behalten Sie die vorab ausgewählten Verbindungen bei oder exportieren Sie <strong>alle Verbindungen mit diesen Tags</strong> – wählen Sie ein oder mehrere Tags aus der Liste aus, die Verbindungsanzahl des Headers folgt der Auswahl live und die Schaltfläche „Exportieren“ bleibt deaktiviert, solange nichts übereinstimmt.</li>
 </ul>

@@ -827,7 +827,7 @@
 <h2 id="quick-connect">Quick Connect<a class="headerlink" href="#quick-connect" title="Permanent link">&para;</a></h2>
 <p>Open with <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> (or <strong>Connections → Quick Connect…</strong>). Enter host, port, username and authentication, and connect without saving. Frequently used connections appear as quick buttons; a live search filters them. Saved connections can be picked from a dropdown with its own search field that matches name, host or <a href="#tags">tag</a> (<code>*</code> works as a wildcard); a saved connection's tag is shown next to its name (🏷) in the dropdown and in the quick buttons' tooltips.</p>
 <h2 id="connection-manager">Connection Manager<a class="headerlink" href="#connection-manager" title="Permanent link">&para;</a></h2>
-<p><strong>Connections → Manage Connections…</strong> (or the Connection Manager button of the icon toolbar) opens the Connection Manager. The <strong>library</strong> on the left chooses which connections the middle shows, the middle shows them as a <strong>list</strong> or as a <strong>map</strong>, and the <strong>inspector</strong> on the right shows everything about the selected connection or folder. The search field at the top right narrows what the library chose; it matches name, host, IP address or <a href="#tags">tag</a>, with <code>*</code> as a wildcard. The toolbar above groups the actions as the icon toolbar does: <strong>Connection</strong> (new, edit, duplicate, delete), <strong>Folder</strong> (new folder, rename folder, undo the last move), <strong>Import &amp; export</strong> and <strong>Teamwork</strong> (refresh, restore deleted). Every button names itself in a tooltip. The context menu of a folder also sets its <strong>Session Isolation</strong> level for every connection in it that sets none of its own (see <a href="session-isolation.html#choosing-a-level">Choosing a level</a>).</p>
+<p><strong>Connections → Manage Connections…</strong> (or the Connection Manager button of the icon toolbar) opens the Connection Manager. The <strong>library</strong> on the left chooses which connections the middle shows, the middle shows them as a <strong>list</strong> or as a <strong>map</strong>, and the <strong>inspector</strong> on the right shows everything about the selected connection or folder. The search field at the top right narrows what the library chose; it matches name, host, IP address or <a href="#tags">tag</a>, with <code>*</code> as a wildcard. The toolbar above groups the actions as the icon toolbar does: <strong>Connection</strong> (new, edit, duplicate, delete), <strong>Folder</strong> (new folder, rename folder, undo the last move), <strong>Import &amp; export</strong> (import, export, <a href="#exporting-an-overview">export an overview</a>) and <strong>Teamwork</strong> (refresh, restore deleted). Every button names itself in a tooltip. The context menu of a folder also sets its <strong>Session Isolation</strong> level for every connection in it that sets none of its own (see <a href="session-isolation.html#choosing-a-level">Choosing a level</a>).</p>
 <p><img alt="The Connection Manager: library on the left, the list of connections in the middle, the inspector of the selected connection on the right" src="../assets/screenshots/main/connection-manager.png" /></p>
 <h3 id="library">Library<a class="headerlink" href="#library" title="Permanent link">&para;</a></h3>
 <table>
@@ -840,7 +840,7 @@
 <tbody>
 <tr>
 <td><strong>All connections</strong></td>
-<td>Every saved connection, in its folders.</td>
+<td>Every saved connection, in its folders, and below them the connections of your <a href="teamwork.html">teamwork</a> sources in a <strong>Teamwork connections</strong> branch.</td>
 </tr>
 <tr>
 <td><strong>Favorites</strong></td>
@@ -864,16 +864,74 @@
 </tr>
 <tr>
 <td><strong>Teamwork connections</strong></td>
-<td>The connections of your <a href="teamwork.html">teamwork</a> sources, read-only, with the authentication for all team connections above the list.</td>
+<td>Only the connections of your teamwork sources, with the authentication for all team connections above the list.</td>
 </tr>
 </tbody>
 </table>
+<p><strong>All connections</strong>, <strong>Favorites</strong>, <strong>Recently used</strong>, <strong>Open now</strong> and the tags show local and teamwork connections together. A teamwork connection carries a small people mark after its name, in the list and on the map, and stays read-only wherever it appears: it cannot be edited, duplicated, tagged or moved, and <strong>Delete</strong> only hides it on this computer. A folder of the library always shows local connections only.</p>
 <h3 id="list-and-map">List and map<a class="headerlink" href="#list-and-map" title="Permanent link">&para;</a></h3>
-<p><strong>List</strong> shows the chosen connections in their folders. Each row shows the protocol (server for SSH, waves for Mosh, a laptop for a local shell), the name, <code>user@host</code>, the tag, a star for a favorite and small marks for a jump server, tunnels, an isolation level of its own, incognito and a switched-off host-key check; a green dot and a count mean the connection has tabs open. Drag a connection onto a folder to move it there; <strong>Undo</strong> in the toolbar takes the last move back. Double-click a connection to connect.</p>
-<p><strong>Map</strong> shows the same connections on a network plan: a dashed zone per folder in the folder's tab color, a node per connection, and this computer on the left. Orange dashed lines show the route through a jump server, which is the saved connection with that host when there is one and a node of its own otherwise; teal dotted lines show tunnels, which are also listed under this computer. Click a node to select it, double-click it to connect, and drag it into another zone to move the connection into that folder (<strong>Undo</strong> takes it back). <strong>Jump routes</strong> and <strong>Tunnels</strong> show or hide the lines, <strong>−</strong>, <strong>+</strong> and <strong>Fit</strong> zoom, and <span class="keys"><kbd class="key-control">Ctrl</kbd></span> with the mouse wheel zooms too. The map is arranged automatically; nothing about it is stored.</p>
+<p><strong>List</strong> shows the chosen connections in their folders, with lines from each folder to its connections and subfolders; an empty folder shows no entries below it. Each row shows the protocol (server for SSH, waves for Mosh, a laptop for a local shell) with the connection's <a href="#os-symbols">OS symbol</a> on its corner, the name, <code>user@host</code>, the tag, a star for a favorite and small marks for a jump server, tunnels, an isolation level of its own, incognito and a switched-off host-key check; a green dot and a count mean the connection has tabs open. Drag a connection onto a folder to move it there; <strong>Undo</strong> in the toolbar takes the last move back. Double-click a connection to connect.</p>
+<p><strong>Map</strong> shows the same connections on a network plan: a dashed zone per folder in the folder's tab color, a node per connection, and this computer on the left. Orange dashed lines show the route through a jump server, which is the saved connection with that host when there is one and a node of its own otherwise; teal dotted lines show tunnels, which are also listed under this computer. Click a node to select it, double-click it to connect, and drag it into another zone to move the connection into that folder (<strong>Undo</strong> takes it back). <strong>Jump routes</strong> and <strong>Tunnels</strong> show or hide the lines, <strong>−</strong>, <strong>+</strong> and <strong>Fit</strong> zoom, and <span class="keys"><kbd class="key-control">Ctrl</kbd></span> with the mouse wheel zooms too. Teamwork connections get zones of their own and dashed nodes and cannot be moved. The map is arranged automatically; nothing about it is stored.</p>
+<p><strong>PDF</strong> saves the map as a vector PDF with the korTTY logo, a title, the legend and the date. Choose <strong>Landscape</strong> or <strong>Portrait</strong> and a title; korTTY arranges the zones to fill the page in that orientation and continues on further pages when the map does not fit on one at a readable size.</p>
 <p><img alt="The map: Production with its jump server and tunnel, the other folders below" src="../assets/screenshots/main/connection-manager-map.png" /></p>
 <h3 id="inspector">Inspector<a class="headerlink" href="#inspector" title="Permanent link">&para;</a></h3>
-<p>The inspector shows the selected connection: its address, protocol and sign-in, the jump server and tunnels, the isolation level and where it comes from, the host-key check, when it was last used and how often. <strong>Connect</strong>, <strong>Edit</strong>, <strong>Duplicate</strong> and the star act on it directly. Below, <strong>Name</strong> and <strong>Tag</strong> change the connection without opening the editor; <span class="keys"><kbd class="key-enter">Enter</kbd></span> applies the change. A selected folder shows its tab color, isolation level and host-key check with buttons to rename it, set its tab color or create a subfolder. A teamwork connection is shown read-only, with the source it comes from.</p>
+<p>The inspector shows the selected connection: its folder and tag, its address, protocol, sign-in and OS symbol, the route from this computer through the jump server to the server with its tunnels below, the isolation level and the host-key check, and how often it was used in the last 14 days, one bar per day. <strong>Connect</strong>, the SFTP Manager, <strong>Edit</strong>, <strong>Duplicate</strong> and the star act on it directly. Below, <strong>Name</strong>, <strong>Tag</strong> and <strong>OS symbol</strong> change the connection without opening the editor; <span class="keys"><kbd class="key-enter">Enter</kbd></span> applies a changed name or tag. A selected folder shows its tab color, isolation level and host-key check with buttons to rename it, set its tab color or create a subfolder. A teamwork connection is shown read-only, with the source it comes from.</p>
+<h3 id="os-symbols">OS symbols<a class="headerlink" href="#os-symbols" title="Permanent link">&para;</a></h3>
+<p>A connection can show the symbol of the operating system its server runs, on the corner of its row, on the map, in the inspector and in the PDF. korTTY draws its own symbols for Windows XP, Windows 10, Windows 11, Windows Server, Linux, Red Hat, Rocky Linux, AlmaLinux, CentOS, Fedora, Debian, Ubuntu, Arch Linux, SUSE, Oracle Solaris, IBM AIX, HP-UX, DEC, FreeBSD and OpenBSD. Choose one under <strong>OS symbol</strong> in the inspector or on the connection editor's <em>Connection</em> tab, or for several connections at once in the context menu (<strong>OS symbol</strong>).</p>
+<p><strong>Your own symbols…</strong> (next to the picker and at the end of the context menu) adds symbols of your own: pick a PNG, JPG, GIF or SVG file and give it a name. korTTY keeps a copy as a 128-pixel PNG in the <code>os-badges</code> folder of its configuration directory, so the original file can move or go away. Rename or delete a symbol there; connections whose symbol was deleted show none.</p>
+<h3 id="exporting-an-overview">Exporting an overview<a class="headerlink" href="#exporting-an-overview" title="Permanent link">&para;</a></h3>
+<p><strong>Export overview</strong> in the toolbar's <em>Import &amp; export</em> group writes an inventory of your servers as <strong>JSON</strong>, <strong>YAML</strong>, <strong>TOML</strong> or <strong>XML</strong>, for documentation or scripts. Choose the connections (the selected ones, what the manager shows right now, or all of them including teamwork connections), the format and the parts of each entry:</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basics (always)</td>
+<td>Name, protocol, host, port and user; for a local shell its command and start directory</td>
+</tr>
+<tr>
+<td>Folder, tag, tab color, favorite</td>
+<td>The folder path, the tag, the tab color and whether the connection is a favorite</td>
+</tr>
+<tr>
+<td>Sign-in method</td>
+<td>Password, SSH key, keyboard-interactive, temporary key or none, with the name of the stored credential or SSH key</td>
+</tr>
+<tr>
+<td>Jump server</td>
+<td>Host, port, user and sign-in method of an enabled jump server</td>
+</tr>
+<tr>
+<td>Tunnels</td>
+<td>Type, local and remote host and port, and description of every enabled tunnel</td>
+</tr>
+<tr>
+<td>Terminal settings</td>
+<td>Terminal emulation, character encoding, highlighting rule set, terminal effect, timeout and retries</td>
+</tr>
+<tr>
+<td>Isolation, incognito, host key check</td>
+<td>The connection's own session isolation, incognito and host-key verification</td>
+</tr>
+<tr>
+<td>Usage</td>
+<td>When the connection was last used and how often</td>
+</tr>
+<tr>
+<td>Source</td>
+<td>Local or teamwork, with the teamwork source</td>
+</tr>
+<tr>
+<td>OS symbol</td>
+<td>The name of the connection's OS symbol</td>
+</tr>
+</tbody>
+</table>
+<p>A preview shows the first connection as the file will have it. Passwords, passphrases and keys are never written. The overview is not an import file; to move connections to another korTTY, use <strong>Export</strong> and <strong>Import</strong>.</p>
 <h3 id="signing-in">Signing in<a class="headerlink" href="#signing-in" title="Permanent link">&para;</a></h3>
 <p><strong>Connect</strong> in the Connection Manager signs in to the selected connection in this order:</p>
 <ol>
@@ -896,7 +954,7 @@
 <tbody>
 <tr>
 <td>Connection</td>
-<td>Host, port, username, protocol (SSH over TCP/IP, Mosh (mosh4j), Mosh Client (native) or Local Shell), terminal emulation, <strong>Character encoding</strong> (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), <strong>Host key verification</strong> (use default / verify / don't verify), group/folder assignment and an optional free-text <a href="#tags">tag</a>, <strong>Connection timeout</strong> (1–300 seconds) and <strong>Retries</strong> (1–20 attempts, used while <strong>Enable connection retries</strong> is on in <em>Settings → Terminal</em>). For <strong>Local Shell</strong> connections host, port, username and authentication are not required and are disabled. See <a href="#character-encoding">Character encoding</a>.</td>
+<td>Host, port, username, protocol (SSH over TCP/IP, Mosh (mosh4j), Mosh Client (native) or Local Shell), terminal emulation, <strong>Character encoding</strong> (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), <strong>Host key verification</strong> (use default / verify / don't verify), group/folder assignment an optional free-text <a href="#tags">tag</a> and the <a href="#os-symbols">OS symbol</a>, <strong>Connection timeout</strong> (1–300 seconds) and <strong>Retries</strong> (1–20 attempts, used while <strong>Enable connection retries</strong> is on in <em>Settings → Terminal</em>). For <strong>Local Shell</strong> connections host, port, username and authentication are not required and are disabled. See <a href="#character-encoding">Character encoding</a>.</td>
 </tr>
 <tr>
 <td>Terminal Settings</td>
