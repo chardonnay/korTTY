@@ -4,11 +4,6 @@
  * tokens, so neither set may be used here. Text colours come from the theme.
  */
 
-/* AtlantaFX caps every dialog pane at 600 px wide; a code setter cannot override a stylesheet. */
-.dialog-pane.cm-dialog {
-    -fx-max-width: 100000;
-}
-
 .cm-toolbar {
     -fx-padding: 6 10 7 10;
     -fx-spacing: 8;

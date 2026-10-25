@@ -413,9 +413,6 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             getClass().getResource("/styles/connection-manager.css")).toExternalForm());
         getDialogPane().setPrefSize(1240, 760);
         getDialogPane().setMinSize(940, 520);
-        // Lifts AtlantaFX's 600 px cap on dialog panes (see connection-manager.css), which would hold this
-        // window at its minimum width and ignore a remembered size.
-        getDialogPane().getStyleClass().add("cm-dialog");
         // A restored window size reaches the split only after the window is shown, so the columns are placed
         // again at each width it passes through until the window has settled. After the layout pass, because
         // the split pane hands a width change to its middle column during the pass itself.
