@@ -10,7 +10,62 @@ Open with ++ctrl+k++ (or **Connections → Quick Connect…**). Enter host, port
 
 ## Connection Manager
 
-**Connections → Manage Connections…** opens a searchable tree of saved connections (optionally grouped); the search field matches name, host, IP address or [tag](#tags), with `*` as a wildcard. From here you create, edit, duplicate, delete, tag, import and export connections. The context menu of a folder also sets its **Session Isolation** level for every connection in it that sets none of its own (see [Choosing a level](session-isolation.md#choosing-a-level)).
+**Connections → Manage Connections…** (or the Connection Manager button of the icon toolbar) opens the Connection Manager. The **library** on the left chooses which connections the middle shows, the middle shows them as a **list** or as a **map**, and the **inspector** on the right shows everything about the selected connection or folder. The search field at the top right narrows what the library chose; it matches name, host, IP address or [tag](#tags), with `*` as a wildcard. The toolbar above groups the actions as the icon toolbar does: **Connection** (new, edit, duplicate, delete), **Folder** (new folder, rename folder, undo the last move), **Import & export** (import, export, [export an overview](#exporting-an-overview)) and **Teamwork** (refresh, restore deleted). Every button names itself in a tooltip. The context menu of a folder also sets its **Session Isolation** level for every connection in it that sets none of its own (see [Choosing a level](session-isolation.md#choosing-a-level)).
+
+![The Connection Manager: library on the left, the list of connections in the middle, the inspector of the selected connection on the right](../assets/screenshots/main/connection-manager.png)
+
+### Library
+
+| Entry | Shows |
+| --- | --- |
+| **All connections** | Every saved connection, in its folders, and below them the connections of your [teamwork](teamwork.md) sources in a **Teamwork connections** branch. |
+| **Favorites** | The connections you marked with the star, in the inspector or in a connection's context menu (**Favorite on/off**). Favorites are kept on this computer and are never exported. |
+| **Recently used** | The 15 connections used most recently. |
+| **Open now** | The connections with a terminal tab open in any window. |
+| **Folders** | One entry per folder, subfolders indented below it, each with its tab color and how many connections it holds; choosing a folder shows it with its subfolders. |
+| **Tags** | One chip per tag; choosing a chip shows the connections with that tag, choosing it again shows all of them. |
+| **Teamwork connections** | Only the connections of your teamwork sources, with the authentication for all team connections above the list. |
+
+**All connections**, **Favorites**, **Recently used**, **Open now** and the tags show local and teamwork connections together. A teamwork connection carries a small people mark after its name, in the list and on the map, and stays read-only wherever it appears: it cannot be edited, duplicated, tagged or moved, and **Delete** only hides it on this computer. A folder of the library always shows local connections only.
+
+### List and map
+
+**List** shows the chosen connections in their folders, with lines from each folder to its connections and subfolders; an empty folder shows no entries below it. Each row shows the protocol (server for SSH, waves for Mosh, a laptop for a local shell) with the connection's [OS symbol](#os-symbols) on its corner, the name, `user@host`, the tag, a star for a favorite and small marks for a jump server, tunnels, an isolation level of its own, incognito and a switched-off host-key check; a green dot and a count mean the connection has tabs open. Drag a connection onto a folder to move it there; **Undo** in the toolbar takes the last move back. Double-click a connection to connect.
+
+**Map** shows the same connections on a network plan: a dashed zone per folder in the folder's tab color, a node per connection, and this computer on the left. Orange dashed lines show the route through a jump server, which is the saved connection with that host when there is one and a node of its own otherwise; teal dotted lines show tunnels, which are also listed under this computer. Click a node to select it, double-click it to connect, and drag it into another zone to move the connection into that folder (**Undo** takes it back). **Jump routes** and **Tunnels** show or hide the lines, **−**, **+** and **Fit** zoom, and ++ctrl++ with the mouse wheel zooms too. Teamwork connections get zones of their own and dashed nodes and cannot be moved. The map is arranged automatically; nothing about it is stored.
+
+**PDF** saves the map as a vector PDF with the korTTY logo, a title, the legend and the date. Choose **Landscape** or **Portrait** and a title; korTTY arranges the zones to fill the page in that orientation and continues on further pages when the map does not fit on one at a readable size.
+
+![The map: Production with its jump server and tunnel, the other folders below](../assets/screenshots/main/connection-manager-map.png)
+
+### Inspector
+
+The inspector shows the selected connection: its folder and tag, its address, protocol, sign-in and OS symbol, the route from this computer through the jump server to the server with its tunnels below, the isolation level and the host-key check, and how often it was used in the last 14 days, one bar per day. **Connect**, the SFTP Manager, **Edit**, **Duplicate** and the star act on it directly. Below, **Name**, **Tag** and **OS symbol** change the connection without opening the editor; ++enter++ applies a changed name or tag. A selected folder shows its tab color, isolation level and host-key check with buttons to rename it, set its tab color or create a subfolder. A teamwork connection is shown read-only, with the source it comes from.
+
+### OS symbols
+
+A connection can show the symbol of the operating system its server runs, on the corner of its row, on the map, in the inspector and in the PDF. korTTY draws its own symbols for Windows XP, Windows 10, Windows 11, Windows Server, macOS, Linux, Red Hat, Rocky Linux, AlmaLinux, CentOS, Fedora, Debian, Ubuntu, Linux Mint, Arch Linux, SUSE, ChromeOS, Oracle Solaris, IBM AIX, HP-UX, DEC, FreeBSD, OpenBSD and IBM z/OS. Choose one under **OS symbol** in the inspector or on the connection editor's *Connection* tab, or for several connections at once in the context menu (**OS symbol**).
+
+**Your own symbols…** (next to the picker and at the end of the context menu) adds symbols of your own: pick a PNG, JPG, GIF or SVG file and give it a name. korTTY keeps a copy as a 128-pixel PNG in the `os-badges` folder of its configuration directory, so the original file can move or go away. Rename or delete a symbol there; connections whose symbol was deleted show none.
+
+### Exporting an overview
+
+**Export overview** in the toolbar's *Import & export* group, or in the context menu of the selected connections or of a folder, writes an inventory of your servers as **JSON**, **YAML**, **TOML** or **XML**, for documentation or scripts. Choose the connections (the selected ones or the folder's, what the manager shows right now, or all of them including teamwork connections), the format and the parts of each entry:
+
+| Part | Contents |
+| --- | --- |
+| Basics (always) | Name, protocol, host, port and user; for a local shell its command and start directory |
+| Folder, tag, tab color, favorite | The folder path, the tag, the tab color and whether the connection is a favorite |
+| Sign-in method | Password, SSH key, keyboard-interactive, temporary key or none, with the name of the stored credential or SSH key |
+| Jump server | Host, port, user and sign-in method of an enabled jump server |
+| Tunnels | Type, local and remote host and port, and description of every enabled tunnel |
+| Terminal settings | Terminal emulation, character encoding, highlighting rule set, terminal effect, timeout and retries |
+| Isolation, incognito, host key check | The connection's own session isolation, incognito and host-key verification |
+| Usage | When the connection was last used and how often |
+| Source | Local or teamwork, with the teamwork source |
+| OS symbol | The name of the connection's OS symbol |
+
+A preview shows the first connection as the file will have it. Passwords, passphrases and keys are never written. The overview is not an import file; to move connections to another korTTY, use **Export** and **Import**.
 
 ### Signing in
 
@@ -30,7 +85,7 @@ The connection editor has these tabs:
 
 | Tab | Contents |
 | --- | --- |
-| Connection | Host, port, username, protocol (SSH over TCP/IP, Mosh (mosh4j), Mosh Client (native) or Local Shell), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment and an optional free-text [tag](#tags), **Connection timeout** (1–300 seconds) and **Retries** (1–20 attempts, used while **Enable connection retries** is on in *Settings → Terminal*). For **Local Shell** connections host, port, username and authentication are not required and are disabled. See [Character encoding](#character-encoding). |
+| Connection | Host, port, username, protocol (SSH over TCP/IP, Mosh (mosh4j), Mosh Client (native) or Local Shell), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment an optional free-text [tag](#tags) and the [OS symbol](#os-symbols), **Connection timeout** (1–300 seconds) and **Retries** (1–20 attempts, used while **Enable connection retries** is on in *Settings → Terminal*). For **Local Shell** connections host, port, username and authentication are not required and are disabled. See [Character encoding](#character-encoding). |
 | Terminal Settings | **Use the global terminal settings** or **Own settings for this connection** with per-connection colors, font and ANSI/TrueColor handling (see [Own terminal settings](#own-terminal-settings)), the **Terminal behavior** section with the [tab color](#tab-color), the [keyword highlighting](#keyword-highlighting) rule set and the [paste protection](#paste-protection), and below the paste protection the **Session isolation** rows with the [isolation level, strict terminal mode and incognito switch](session-isolation.md), terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
@@ -73,8 +128,8 @@ When your organization's [enterprise policy](../reference/enterprise-policy.md#r
 
 Every saved connection can carry one optional free-text **tag** — a label such as `prod`, `staging` or a customer name — independent of the group/folder hierarchy. Set it on the connection editor's *Connection* tab (next to the group), or in bulk in the Connection Manager. Tags are stored with the connection in `connections.xml` and survive duplicating, exporting and importing.
 
-- **Visible** — tagged connections show a 🏷 badge after their name in the Connection Manager tree and in Quick Connect's saved-connections dropdown; the tag also appears in the tooltip of the frequently-used quick buttons.
-- **Searchable** — the Connection Manager search (local and Teamwork tabs) and Quick Connect's saved-connections search match tags as well as names and hosts.
+- **Visible** — tagged connections show a tag chip after their name in the Connection Manager list and a 🏷 badge in Quick Connect's saved-connections dropdown; the tag also appears in the tooltip of the frequently-used quick buttons. The Connection Manager's library has a chip per tag that shows only the connections with that tag.
+- **Searchable** — the Connection Manager search (local and teamwork connections) and Quick Connect's saved-connections search match tags as well as names and hosts.
 - **Bulk assign / remove** — select one or more servers and choose **Assign Tag** from the context menu to tag them in one step. The prompt is pre-filled when all selected connections already share the same tag, and clearing that pre-filled value removes the tag. **Remove Tag** clears the tag and is enabled only while the selection contains at least one tagged connection. The same two entries on a folder's context menu apply to every connection in that folder, subfolders included.
 - **Export by tag** — once at least one tag exists, the Connection Manager's export dialog offers a **Connections to export** choice: keep the pre-selected connections, or export **all connections with these tags** — pick one or more tags from the list, the header's connection count follows the selection live, and the export button stays disabled while nothing matches.
 

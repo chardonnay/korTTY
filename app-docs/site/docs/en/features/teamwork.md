@@ -114,26 +114,28 @@ If inline secrets are found in the shared file, KorTTY strips them automatically
 Once a source is synced:
 
 1. Open **Manage Connections…** (or press ++ctrl+m++).
-2. Switch to the **Teamwork connections** tab.
+2. Choose **Teamwork connections** in the library on the left.
 3. Double-click a teamwork connection to connect.
-4. **Read-only** — Teamwork connections are read-only, and korTTY never writes changes back to a source: **Edit** is unavailable on this tab, a connection cannot be dragged into another folder, and right-clicking a folder or an empty area opens no menu, so there is no way to add, rename or delete folders or to relax their host-key verification. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.
+4. **Read-only** — Teamwork connections are read-only, and korTTY never writes changes back to a source: **Edit** is unavailable for them, a connection cannot be dragged into another folder, and right-clicking a folder or an empty area opens no menu, so there is no way to add, rename or delete folders or to relax their host-key verification. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.
+
+Teamwork connections also appear in the Connection Manager's general lists (**All connections**, **Favorites**, **Recently used**, **Open now** and the tags), marked with a small people symbol and just as read-only; see [Library](connections.md#library).
 
 The [command palette](command-palette.md#connecting) lists the teamwork connections as well, marked **Shared (Teamwork)**, so you can also connect by typing `@` and part of a name.
 
 A shared connection can also carry the terminal settings the file gives it, such as its [tab color](connections.md#tab-color) and [paste protection](connections.md#paste-protection). Its own session isolation can only make its sessions stricter than your folder or Settings, as described under [Choosing a level](session-isolation.md#choosing-a-level).
 
-Deleting a teamwork connection only hides it on this computer, also in the command palette; the source is not changed. In the Connection Manager's button column, **Restore deleted** brings hidden connections back and **Refresh** reloads the list from the last sync without fetching the source again.
+Deleting a teamwork connection only hides it on this computer, also in the command palette; the source is not changed. In the **Teamwork** group of the Connection Manager's toolbar, **Restore deleted** brings hidden connections back and **Refresh** reloads the list from the last sync without fetching the source again.
 
 ### Local overrides
 
 - The credential and SSH key references (`credentialId`, `sshKeyId`) of a shared connection are resolved from your local storage.
-- For shared connections that name neither, choose **Authentication for all team connections** on the **Teamwork connections** tab: a stored credential, an SSH key or **Temporary SSH key**. A stored credential that has a username uses it; for an SSH key or a temporary key, an optional **Default username (SSH key)** replaces the username from the source.
+- For shared connections that name neither, choose **Authentication for all team connections** above the list while **Teamwork connections** is chosen in the library: a stored credential, an SSH key or **Temporary SSH key**. A stored credential that has a username uses it; for an SSH key or a temporary key, an optional **Default username (SSH key)** replaces the username from the source.
 - If a credential or key is not found locally, you are prompted to provide it when connecting.
 - Only authentication, including the username, can be overridden locally. Host, port, group and the other connection settings always come from the source.
 
 ### Distinguish sources
 
-Connections from every enabled source appear together on the **Teamwork connections** tab, arranged by the groups defined in the shared files. The tab does not show which source a connection came from; give each source its own group names if your team needs to tell them apart.
+Connections from every enabled source appear together under **Teamwork connections**, arranged by the groups defined in the shared files. The list does not show which source a connection came from, only the inspector names it for the selected connection; give each source its own group names if your team needs to tell them apart.
 
 ## Git repository setup
 

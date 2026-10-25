@@ -114,26 +114,28 @@ Wenn in der freigegebenen Datei Inline-Geheimnisse gefunden werden, entfernt Kor
 Sobald eine Quelle synchronisiert ist:
 
 1. Öffnen Sie **Verbindungen verwalten…** (oder drücken Sie ++ctrl+m++).
-2. Wechseln Sie zum Tab **Teamwork-Verbindungen**.
+2. Wählen Sie **Teamwork-Verbindungen** in der Bibliothek links aus.
 3. Doppelklicken Sie auf eine Teamwork-Verbindung, um sich zu verbinden.
-4. **Nur lesen** — Teamwork-Verbindungen sind nur lesbar, und korTTY schreibt niemals Änderungen zurück in eine Quelle: **Bearbeiten** ist auf diesem Tab nicht verfügbar, eine Verbindung kann nicht in einen anderen Ordner gezogen werden, und ein Rechtsklick auf einen Ordner oder einen leeren Bereich öffnet kein Menü, sodass sich Ordner weder hinzufügen, umbenennen oder löschen noch ihre Host-Key-Prüfung lockern lässt. Um eine geteilte Verbindung zu ändern, bearbeiten Sie sie im Repository oder in der gemeinsamen Datei; die Änderung wird mit dem nächsten Sync übernommen.
+4. **Nur lesen** — Teamwork-Verbindungen sind nur lesbar, und korTTY schreibt Änderungen niemals an eine Quelle zurück: **Bearbeiten** steht für sie nicht zur Verfügung, eine Verbindung kann nicht in einen anderen Ordner gezogen werden, und ein Rechtsklick auf einen Ordner oder eine leere Fläche öffnet kein Menü, sodass es keine Möglichkeit gibt, Ordner hinzuzufügen, umzubenennen oder zu löschen oder deren Host-Key-Verifizierung zu lockern. Um eine geteilte Verbindung zu ändern, bearbeiten Sie sie im Repository oder in der gemeinsamen Datei; die Änderung wird mit der nächsten Synchronisierung übernommen.
+
+Teamwork-Verbindungen erscheinen auch in den allgemeinen Listen des Connection-Manager (**Alle Verbindungen**, **Favoriten**, **Zuletzt verwendet**, **Gerade offen** und die Tags), mit einem kleinen Personensymbol markiert und ebenfalls nur lesbar; siehe [Bibliothek](connections.md#bibliothek).
 
 Die [Befehlspalette](command-palette.md#verbinden) listet die Teamwork-Verbindungen ebenfalls auf, gekennzeichnet mit **Geteilt (Teamwork)**, sodass Sie sich auch verbinden können, indem Sie `@` und einen Teil eines Namens eingeben.
 
 Eine gemeinsame Verbindung kann auch die Terminaleinstellungen tragen, die die Datei ihr gibt, wie z. B. ihre [Tabfarbe](connections.md#tab-farbe) und [Einfüge-Schutz](connections.md#einfugeschutz). Ihre eigene Sitzungsisolierung kann ihre Sitzungen nur strenger machen als Ihr Ordner oder die Einstellungen, wie unter [Auswahl eines Levels](session-isolation.md#eine-stufe-wahlen) beschrieben.
 
-Das Löschen einer Teamwork-Verbindung versteckt sie nur auf diesem Computer, auch in der Befehlspalette; die Quelle wird nicht geändert. In der Schaltflächenspalte des Connection-Managers holt **Gelöschte wiederherstellen** versteckte Verbindungen zurück, und **Aktualisieren** lädt die Liste aus der letzten Synchronisierung neu, ohne die Quelle erneut abzurufen.
+Das Löschen einer Teamarbeit-Verbindung blendet sie nur auf diesem Computer aus, auch in der Befehlspalette; die Quelle wird nicht verändert. In der Gruppe **Teamarbeit** in der Symbolleiste des Connection-Manager stellt **Gelöschte wiederherstellen** ausgeblendete Verbindungen wieder her und **Aktualisieren** lädt die Liste aus der letzten Synchronisierung neu, ohne die Quelle erneut abzurufen.
 
 ### Lokale Überschreibungen
 
 - Die Referenzen für Anmeldeinformationen und SSH-Schlüssel (`credentialId`, `sshKeyId`) einer geteilten Verbindung werden aus Ihrem lokalen Speicher aufgelöst.
-- Für geteilte Verbindungen, die keines von beiden angeben, wählen Sie **Anmeldung für alle Teamwork-Verbindungen** auf dem Tab **Teamwork-Verbindungen**: eine gespeicherte Anmeldeinformation, einen SSH-Key oder **Temporärer SSH-Key**. Eine gespeicherte Anmeldeinformation, die einen Benutzernamen enthält, verwendet diesen; für einen SSH-Key oder einen temporären Key ersetzt ein optionaler **Standard-Benutzername (SSH-Schlüssel)** den Benutzernamen aus der Quelle.
+- Für geteilte Verbindungen, die keine der beiden angeben, wählen Sie **Anmeldung für alle Teamwork-Verbindungen** oberhalb der Liste, während in der Bibliothek **Teamwork-Verbindungen** ausgewählt ist: ein gespeichertes Anmeldezeichen, ein SSH-Schlüssel oder ein **Temporärer SSH-Key**. Ein gespeichertes Anmeldezeichen mit einem Benutzernamen verwendet diesen; bei einem SSH-Schlüssel oder einem temporären Schlüssel ersetzt ein optionaler **Standard-Benutzername (SSH-Schlüssel)** den Benutzernamen aus der Quelle.
 - Wenn lokal keine Anmeldeinformationen oder Schlüssel gefunden werden, werden Sie beim Herstellen der Verbindung aufgefordert, diese anzugeben.
 - Nur die Authentifizierung, einschließlich des Benutzernamens, kann lokal überschrieben werden. Host, Port, Gruppe und die übrigen Verbindungsparameter stammen immer aus der Quelle.
 
 ### Quellen unterscheiden
 
-Verbindungen von jeder aktivierten Quelle erscheinen zusammen auf dem Tab **Teamwork-Verbindungen**, sortiert nach den in den gemeinsamen Dateien definierten Gruppen. Der Tab zeigt nicht an, aus welcher Quelle eine Verbindung stammt; geben Sie jeder Quelle eigene Gruppennamen, wenn Ihr Team sie unterscheiden muss.
+Verbindungen aus jeder aktivierten Quelle werden gemeinsam unter **Teamwork-Verbindungen** angezeigt, angeordnet nach den in den gemeinsamen Dateien definierten Gruppen. Die Liste zeigt nicht an, aus welcher Quelle eine Verbindung stammt – nur der Inspektor benennt sie für die ausgewählte Verbindung. Weisen Sie jeder Quelle eigene Gruppennamen zu, wenn Ihr Team sie voneinander unterscheiden muss.
 
 ## Git-Repository-Setup
 

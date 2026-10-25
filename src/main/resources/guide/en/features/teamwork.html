@@ -928,22 +928,23 @@
 <p>Once a source is synced:</p>
 <ol>
 <li>Open <strong>Manage Connections…</strong> (or press <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-m">M</kbd></span>).</li>
-<li>Switch to the <strong>Teamwork connections</strong> tab.</li>
+<li>Choose <strong>Teamwork connections</strong> in the library on the left.</li>
 <li>Double-click a teamwork connection to connect.</li>
-<li><strong>Read-only</strong> — Teamwork connections are read-only, and korTTY never writes changes back to a source: <strong>Edit</strong> is unavailable on this tab, a connection cannot be dragged into another folder, and right-clicking a folder or an empty area opens no menu, so there is no way to add, rename or delete folders or to relax their host-key verification. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.</li>
+<li><strong>Read-only</strong> — Teamwork connections are read-only, and korTTY never writes changes back to a source: <strong>Edit</strong> is unavailable for them, a connection cannot be dragged into another folder, and right-clicking a folder or an empty area opens no menu, so there is no way to add, rename or delete folders or to relax their host-key verification. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.</li>
 </ol>
+<p>Teamwork connections also appear in the Connection Manager's general lists (<strong>All connections</strong>, <strong>Favorites</strong>, <strong>Recently used</strong>, <strong>Open now</strong> and the tags), marked with a small people symbol and just as read-only; see <a href="connections.html#library">Library</a>.</p>
 <p>The <a href="command-palette.html#connecting">command palette</a> lists the teamwork connections as well, marked <strong>Shared (Teamwork)</strong>, so you can also connect by typing <code>@</code> and part of a name.</p>
 <p>A shared connection can also carry the terminal settings the file gives it, such as its <a href="connections.html#tab-color">tab color</a> and <a href="connections.html#paste-protection">paste protection</a>. Its own session isolation can only make its sessions stricter than your folder or Settings, as described under <a href="session-isolation.html#choosing-a-level">Choosing a level</a>.</p>
-<p>Deleting a teamwork connection only hides it on this computer, also in the command palette; the source is not changed. In the Connection Manager's button column, <strong>Restore deleted</strong> brings hidden connections back and <strong>Refresh</strong> reloads the list from the last sync without fetching the source again.</p>
+<p>Deleting a teamwork connection only hides it on this computer, also in the command palette; the source is not changed. In the <strong>Teamwork</strong> group of the Connection Manager's toolbar, <strong>Restore deleted</strong> brings hidden connections back and <strong>Refresh</strong> reloads the list from the last sync without fetching the source again.</p>
 <h3 id="local-overrides">Local overrides<a class="headerlink" href="#local-overrides" title="Permanent link">&para;</a></h3>
 <ul>
 <li>The credential and SSH key references (<code>credentialId</code>, <code>sshKeyId</code>) of a shared connection are resolved from your local storage.</li>
-<li>For shared connections that name neither, choose <strong>Authentication for all team connections</strong> on the <strong>Teamwork connections</strong> tab: a stored credential, an SSH key or <strong>Temporary SSH key</strong>. A stored credential that has a username uses it; for an SSH key or a temporary key, an optional <strong>Default username (SSH key)</strong> replaces the username from the source.</li>
+<li>For shared connections that name neither, choose <strong>Authentication for all team connections</strong> above the list while <strong>Teamwork connections</strong> is chosen in the library: a stored credential, an SSH key or <strong>Temporary SSH key</strong>. A stored credential that has a username uses it; for an SSH key or a temporary key, an optional <strong>Default username (SSH key)</strong> replaces the username from the source.</li>
 <li>If a credential or key is not found locally, you are prompted to provide it when connecting.</li>
 <li>Only authentication, including the username, can be overridden locally. Host, port, group and the other connection settings always come from the source.</li>
 </ul>
 <h3 id="distinguish-sources">Distinguish sources<a class="headerlink" href="#distinguish-sources" title="Permanent link">&para;</a></h3>
-<p>Connections from every enabled source appear together on the <strong>Teamwork connections</strong> tab, arranged by the groups defined in the shared files. The tab does not show which source a connection came from; give each source its own group names if your team needs to tell them apart.</p>
+<p>Connections from every enabled source appear together under <strong>Teamwork connections</strong>, arranged by the groups defined in the shared files. The list does not show which source a connection came from, only the inspector names it for the selected connection; give each source its own group names if your team needs to tell them apart.</p>
 <h2 id="git-repository-setup">Git repository setup<a class="headerlink" href="#git-repository-setup" title="Permanent link">&para;</a></h2>
 <p>To share connections via Git:</p>
 <ol>

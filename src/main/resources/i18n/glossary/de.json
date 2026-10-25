@@ -2345,6 +2345,114 @@
       "to": "[KI-Agent im Terminal](#ki-agent-im-terminal)",
       "scope": "markdown",
       "note": "settings.ai.confirmBeforeSend is 'Bestätigungsdialog vor dem Senden an die KI anzeigen'; the settings page's heading is 'KI-Agent im Terminal'."
+    },
+    {
+      "from": "als **Karte**",
+      "to": "als **Netzplan**",
+      "scope": "markdown",
+      "note": "connections.md: the Connection Manager's map view is labelled Netzplan (connectionManager.view.map)."
+    },
+    {
+      "from": "Listen und Karten",
+      "to": "Liste und Netzplan",
+      "scope": "markdown",
+      "note": "connections.md heading: the view labels are Liste and Netzplan (connectionManager.view.*)."
+    },
+    {
+      "from": "#listen-und-karten",
+      "to": "#liste-und-netzplan",
+      "scope": "markdown",
+      "note": "Links to the renamed Liste und Netzplan heading."
+    },
+    {
+      "from": "im Inspector",
+      "to": "im Inspektor",
+      "scope": "markdown",
+      "note": "Connection Manager: one German spelling for the inspector pane."
+    },
+    {
+      "from": "einen Inspector",
+      "to": "einen Inspektor",
+      "scope": "markdown",
+      "note": "Connection Manager: one German spelling for the inspector pane."
+    },
+    {
+      "from": "auf der Karte",
+      "to": "im Netzplan",
+      "scope": "markdown",
+      "note": "connections.md: the Connection Manager's map view is labelled Netzplan."
+    },
+    {
+      "from": "Karte als PDF",
+      "to": "Netzplan als PDF",
+      "scope": "markdown",
+      "note": "Release notes: the map's PDF export (connectionManager.map.pdf.tooltip)."
+    },
+    {
+      "from": "speichert die Karte",
+      "to": "speichert den Netzplan",
+      "scope": "markdown",
+      "note": "connections.md/release notes: the map is Netzplan."
+    },
+    {
+      "from": "wenn die Karte",
+      "to": "wenn der Netzplan",
+      "scope": "markdown",
+      "note": "connections.md: the map is Netzplan."
+    },
+    {
+      "from": "**Inspector**",
+      "to": "**Inspektor**",
+      "scope": "markdown",
+      "note": "Release notes: one German spelling for the inspector pane."
+    },
+    {
+      "from": "Importierendatei",
+      "to": "Importdatei",
+      "scope": "markdown",
+      "note": "The translator coins a wrong compound for 'import file'."
+    },
+    {
+      "from": "Host-Schlüssel-Prüfung",
+      "to": "Host-Key-Prüfung",
+      "scope": "markdown",
+      "note": "UI label of connectionManager.inspector.hostKey."
+    },
+    {
+      "from": "Team-Verbindungen",
+      "to": "Teamwork-Verbindungen",
+      "scope": "markdown",
+      "note": "UI label of connectionManager.tab.teamwork and teamwork.auth.forAll."
+    },
+    {
+      "from": "Teamverbindungen",
+      "to": "Teamwork-Verbindungen",
+      "scope": "markdown",
+      "note": "UI label of connectionManager.tab.teamwork."
+    },
+    {
+      "from": "Team-Verbindung ",
+      "to": "Teamwork-Verbindung ",
+      "scope": "markdown",
+      "note": "Singular of the teamwork connection label."
+    },
+    {
+      "from": "**Teamarbeit neben lokalen Verbindungen**",
+      "to": "**Teamwork neben lokalen Verbindungen**",
+      "scope": "markdown",
+      "note": "Release notes heading names the feature as the UI does."
+    },
+    {
+      "from": "Lokal oder Teamarbeit, mit der Teamarbeitsquelle",
+      "to": "Lokal oder Teamwork, mit der Teamwork-Quelle",
+      "scope": "markdown",
+      "note": "Overview export part SOURCE uses the UI's Teamwork wording."
+    },
+    {
+      "from": "und **Teamarbeit** (aktualisieren",
+      "to": "und **Teamwork** (aktualisieren",
+      "scope": "markdown",
+      "note": "connections.md: the toolbar group is labelled Teamwork (connectionManager.section.teamwork)."
     }
   ]
 }

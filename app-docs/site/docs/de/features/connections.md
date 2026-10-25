@@ -10,7 +10,62 @@ korTTY verwaltet SSH-, Mosh- und **Local-Shell**-Verbindungen über drei Einstie
 
 ## Connection-Manager
 
-**Verbindungen → Verbindungen verwalten…** öffnet einen durchsuchbaren Baum gespeicherter Verbindungen (optional gruppiert); das Suchfeld entspricht Namen, Host, IP-Adresse oder [Tag](#tags), wobei `*` als Platzhalter dient. Von hier aus erstellen, bearbeiten, duplizieren, löschen, taggen, importieren und exportieren Sie Verbindungen. Das Kontextmenü eines Ordners legt zudem dessen **Sitzungs-Isolation**-Level für jede Verbindung darin fest, die selbst keine Isolationsebene definiert (siehe [Level auswählen](session-isolation.md#eine-stufe-wahlen)).
+**Verbindungen → Verbindungen verwalten…** (oder die Connection-Manager-Schaltfläche der Symbolleiste) öffnet den Connection-Manager. Die **Bibliothek** links wählt aus, welche Verbindungen die Mitte anzeigt, die Mitte zeigt sie als **Liste** oder als **Netzplan**, und der **Inspektor** rechts zeigt alles zur ausgewählten Verbindung oder zum Ordner. Das Suchfeld oben rechts verengt die Auswahl der Bibliothek; es vergleicht Name, Host, IP-Adresse oder [Tag](#tags), wobei `*` als Platzhalter dient. Die Symbolleiste darüber gruppiert die Aktionen wie die Symbolleiste: **Verbindung** (neu, bearbeiten, duplizieren, löschen), **Ordner** (neuer Ordner, Ordner umbenennen, letzten Move rückgängig machen), **Austausch** (importieren, exportieren, [einen Überblick exportieren](#exportieren-einer-ubersicht)) und **Teamwork** (aktualisieren, gelöschte wiederherstellen). Jeder Button benennt sich in einem Tooltip. Das Kontextmenü eines Ordners setzt außerdem dessen **Sitzungs-Isolation**-Stufe für jede Verbindung darin, die keine eigene festlegt (siehe [Ein Niveau wählen](session-isolation.md#eine-stufe-wahlen)).
+
+![The Connection Manager: library on the left, the list of connections in the middle, the inspector of the selected connection on the right](../assets/screenshots/main/connection-manager.png)
+
+### Bibliothek
+
+| Eintrag | Zeigt |
+| --- | --- |
+| **Alle Verbindungen** | Jede gespeicherte Verbindung, in ihren Ordnern, und darunter die Verbindungen Ihrer [teamwork](teamwork.md)-Quellen in einem **Teamwork-Verbindungen**-Zweig. |
+| **Favoriten** | Die Verbindungen, die Sie mit dem Stern markiert haben, im Inspektor oder im Kontextmenü einer Verbindung (**Favorit an/aus**). Favoriten werden auf diesem Computer gespeichert und niemals exportiert. |
+| **Zuletzt verwendet** | Die 15 zuletzt verwendeten Verbindungen. |
+| **Gerade offen** | Die Verbindungen mit einem geöffneten Terminal-Tab in einem beliebigen Fenster. |
+| **Ordner** | Ein Eintrag pro Ordner, Unterordner eingerückt darunter, jeweils mit seiner Tab-Farbe und der Anzahl der enthaltenen Verbindungen; die Auswahl eines Ordners zeigt ihn mit seinen Unterordnern. |
+| **Tags** | Ein Chip pro Tag; die Auswahl eines Chips zeigt die Verbindungen mit diesem Tag, eine erneute Auswahl zeigt alle. |
+| **Teamwork-Verbindungen** | Nur die Verbindungen Ihrer Teamwork-Quellen, mit der Authentifizierung für alle Teamwork-Verbindungen oberhalb der Liste. |
+
+**Alle Verbindungen**, **Favoriten**, **Zuletzt verwendet**, **Gerade offen** und die Tags zeigen lokale und Teamwork-Verbindungen gemeinsam an. Eine Teamwork-Verbindung trägt ein kleines Personen-Symbol nach ihrem Namen, in der Liste und im Netzplan, und bleibt an jeder Stelle, an der sie erscheint, schreibgeschützt: sie kann nicht bearbeitet, dupliziert, getaggt oder verschoben werden, und **Löschen** blendet sie lediglich auf diesem Computer aus. Ein Ordner der Bibliothek zeigt immer nur lokale Verbindungen an.
+
+### Liste und Netzplan
+
+**Liste** zeigt die gewählten Verbindungen in ihren Ordnern, mit Linien von jedem Ordner zu seinen Verbindungen und Unterordnern; ein leerer Ordner zeigt keine Einträge darunter. Jede Zeile zeigt das Protokoll (Server für SSH, Wellen für Mosh, ein Laptop für eine lokale Shell) mit dem [OS-Symbol](#os-symbole) der Verbindung in ihrer Ecke, den Namen, `user@host`, das Tag, einen Stern für einen Favoriten und kleine Markierungen für einen Jump-Server, Tunnel, eine eigene Isolationsebene, Inkognito und eine ausgeschaltete Host-Key-Prüfung; ein grüner Punkt und eine Anzahl bedeuten, dass die Verbindung offene Tabs hat. Ziehen Sie eine Verbindung auf einen Ordner, um sie dort zu verschieben; **Rückgängig** in der Symbolleiste nimmt den letzten Vorgang zurück. Doppelklicken Sie eine Verbindung, um die Verbindung herzustellen.
+
+**Netzplan** zeigt dieselben Verbindungen auf einem Netzplan: eine gestrichelte Zone pro Ordner in der Tab-Farbe des Ordners, ein Knoten pro Verbindung und dieser Computer links. Orange gestrichelte Linien zeigen den Weg über einen Jump-Server, der die gespeicherte Verbindung mit diesem Host ist, wenn es eine gibt, andernfalls ein eigener Knoten; türkis gepunktete Linien zeigen Tunnel, die ebenfalls unter diesem Computer aufgeführt sind. Klicken Sie auf einen Knoten, um ihn auszuwählen, doppelklicken Sie, um die Verbindung herzustellen, und ziehen Sie ihn in eine andere Zone, um die Verbindung in diesen Ordner zu verschieben (**Rückgängig** nimmt sie zurück). **Jump-Wege** und **Tunnel** zeigen oder verstecken die Linien, **−**, **+** und **Anpassen** zoomen, und ++ctrl++ mit dem Mausrad zoomt ebenfalls. Teamwork-Verbindungen erhalten eigene Zonen und gestrichelte Knoten und können nicht verschoben werden. Der Netzplan wird automatisch angeordnet; nichts davon wird gespeichert.
+
+**PDF** speichert den Netzplan als Vektor-PDF mit dem korTTY-Logo, einem Titel, der Legende und dem Datum. Wählen Sie **Querformat** oder **Hochformat** sowie einen Titel; korTTY ordnet die Zonen so an, dass die Seite in dieser Ausrichtung gefüllt wird, und setzt auf weiteren Seiten fort, wenn der Netzplan in einer lesbaren Größe nicht auf eine Seite passt.
+
+![The map: Production with its jump server and tunnel, the other folders below](../assets/screenshots/main/connection-manager-map.png)
+
+### Inspektor
+
+Der Inspektor zeigt die ausgewählte Verbindung: deren Ordner und Tag, deren Adresse, Protokoll, Anmeldung und OS-Symbol, den Weg von diesem Computer über den Jump-Server zum Server mit seinen Tunneln darunter, die Isolationsebene und die Host-Key-Prüfung sowie wie oft sie in den letzten 14 Tagen verwendet wurde, ein Balken pro Tag. **Verbinden**, der SFTP-Manager, **Bearbeiten**, **Duplizieren** und der Stern wirken direkt darauf. Darunter ändern **Name**, **Tag** und **OS-Symbol** die Verbindung, ohne den Editor zu öffnen; ++enter++ wendet einen geänderten Namen oder Tag an. Ein ausgewählter Ordner zeigt seine Tab-Farbe, Isolationsebene und Host-Key-Prüfung mit Schaltflächen zum Umbenennen, zum Setzen der Tab-Farbe oder zum Erstellen eines Unterordners. Eine Teamwork-Verbindung wird nur-lesbar angezeigt, mit der Quelle, aus der sie stammt.
+
+### OS-Symbole
+
+Eine Verbindung kann das Symbol des Betriebssystems anzeigen, das auf ihrem Server läuft, in der Ecke ihrer Zeile, im Netzplan, im Inspektor und im PDF. korTTY zeichnet eigene Symbole für Windows XP, Windows 10, Windows 11, Windows Server, macOS, Linux, Red Hat, Rocky Linux, AlmaLinux, CentOS, Fedora, Debian, Ubuntu, Linux Mint, Arch Linux, SUSE, ChromeOS, Oracle Solaris, IBM AIX, HP-UX, DEC, FreeBSD, OpenBSD und IBM z/OS. Wählen Sie eines unter **OS-Symbol** im Inspektor oder auf dem *Verbindung*-Tab des Verbindungs-Editors aus, oder für mehrere Verbindungen gleichzeitig im Kontextmenü (**OS-Symbol**).
+
+**Eigene Symbole…** (neben der Symbolauswahl und am Ende des Kontextmenüs) fügt eigene Symbole hinzu: Wählen Sie eine PNG-, JPG-, GIF- oder SVG-Datei aus und vergeben Sie einen Namen. korTTY speichert eine Kopie als 128-Pixel-PNG im `os-badges`-Ordner des Konfigurationsverzeichnisses, sodass die ursprüngliche Datei verschoben oder gelöscht werden kann. Benennen Sie ein Symbol dort um oder löschen Sie es; Verbindungen, deren Symbol gelöscht wurde, zeigen keins an.
+
+### Exportieren einer Übersicht
+
+**Übersicht exportieren** in der *Austausch*-Gruppe der Symbolleiste oder im Kontextmenü der ausgewählten Verbindungen oder eines Ordners erstellt eine Übersicht Ihrer Server als **JSON**, **YAML**, **TOML** oder **XML**, für Dokumentation oder Skripte. Wählen Sie die Verbindungen (die ausgewählten oder die des Ordners, die der Manager gerade anzeigt, oder alle einschließlich Teamwork-Verbindungen), das Format und die Teile jedes Eintrags:
+
+| Teil | Inhalt |
+| --- | --- |
+| Grundlagen (immer) | Name, Protokoll, Host, Port und Benutzer; bei einer lokalen Shell deren Befehl und Startverzeichnis |
+| Ordner, Tag, Tab-Farbe, Favorit | Der Ordnerpfad, das Tag, die Tab-Farbe und ob die Verbindung ein Favorit ist |
+| Anmeldemethode | Passwort, SSH-Schlüssel, keyboard-interactive, temporärer Schlüssel oder keine, mit dem Namen der gespeicherten Zugangsdaten oder des SSH-Schlüssels |
+| Jump-Server | Host, Port, Benutzer und Anmeldeverfahren eines aktivierten Jump-Servers |
+| Tunnel | Typ, lokale und entfernte Hosts und Ports sowie Beschreibung jedes aktivierten Tunnels |
+| Terminal-Einstellungen | Terminal-Emulation, Zeichenkodierung, Hervorhebungsregelwerk, Terminal-Effekt, Timeout und Wiederholungen |
+| Isolation, Inkognito, Host-Key-Prüfung | Die eigene Sitzungs-Isolation, Inkognito und Host-Key-Prüfung der Verbindung |
+| Nutzung | Wann die Verbindung zuletzt verwendet wurde und wie oft |
+| Quelle | Lokal oder Teamwork, mit der Teamwork-Quelle |
+| OS-Symbol | Der Name des OS-Symbols der Verbindung |
+
+Eine Vorschau zeigt die erste Verbindung so, wie sie in der Datei enthalten sein wird. Passwörter, Passphrasen und Schlüssel werden niemals geschrieben. Die Übersicht ist keine Importdatei; um Verbindungen in ein anderes korTTY zu verschieben, verwenden Sie **Export** und **Import**.
 
 ### Anmelden
 
@@ -30,7 +85,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 
 | Registerkarte | Inhalt |
 | --- | --- |
-| Verbindung | Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ) oder Lokale Shell), Terminalemulation, **Zeichenkodierung** (Standard / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), **Host-Key-Prüfung** (Standard / prüfen / nicht prüfen), Gruppen-/Ordnerzuweisung und ein optionaler Freitext [Tag](#tags), **Verbindungstimeout** (1–300 Sekunden) und **Wiederholungsversuche** (1–20 Versuche, verwendet während **Verbindungswiederholungen aktivieren** in *Einstellungen → Terminal* eingeschaltet ist). Für **Lokale Shell** Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe [Zeichenkodierung](#zeichenkodierung). |
+| Verbindung | Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ) oder Lokale Shell), Terminalemulation, **Zeichenkodierung** (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), **Host-Key-Prüfung** (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuordnung, ein optionales Freitext-[Tag](#tags) und das [OS-Symbol](#os-symbole), **Verbindungstimeout** (1–300 Sekunden) und **Wiederholungsversuche** (1–20 Versuche, verwendet, wenn **Verbindungswiederholungen aktivieren** in *Einstellungen → Terminal* aktiviert ist). Bei **Lokale Shell**-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe [Zeichenkodierung](#zeichenkodierung). |
 | Terminal-Einstellungen | **Globale Terminal-Einstellungen verwenden** oder **Eigene Einstellungen für diese Verbindung** mit verbindungsabhängigen Farben, Schriftart und ANSI/TrueColor-Handhabung (siehe [Eigene Terminaleinstellungen](#eigene-terminaleinstellungen)), dem **Terminal-Verhalten** Abschnitt mit dem [Tab-Farbe](#tab-farbe), der [Schlüsselworthervorhebung](#hervorhebung-von-schlusselwortern) Regelset und das [Einfüge-Schutz](#einfugeschutz), und darunter die Zeilen zur Sitzungs-Isolation mit dem [Isolationsebene, strikter Terminalmodus und Incognito-Schalter](session-isolation.md), Terminal-Effekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
@@ -73,8 +128,8 @@ Wenn die [Unternehmensrichtlinie](../reference/enterprise-policy.md#ruleterminal
 
 Jede gespeicherte Verbindung kann ein optionales Freitext-**Tag** tragen – eine Bezeichnung wie `prod`, `staging` oder einen Kundennamen – unabhängig von der Gruppen-/Ordnerhierarchie. Legen Sie es auf der Registerkarte *Verbindung* des Verbindungseditors (neben der Gruppe) oder gesammelt im Connection-Manager fest. Tags werden mit der Verbindung in `connections.xml` gespeichert und überstehen das Duplizieren, Exportieren und Importieren.
 
-- **Sichtbar** – markierte Verbindungen zeigen ein 🏷-Symbol nach ihrem Namen im Connection-Manager-Baum und im Dropdown-Menü „Gespeicherte Verbindungen“ der Schnellverbindung; Das Tag erscheint auch im Tooltip der häufig verwendeten Schnellschaltflächen.
-- **Durchsuchbar** – Die Connection-Manager-Suche (Registerkarten „Lokal“ und „Teamwork“) und die Suche nach gespeicherten Verbindungen der Schnellverbindung berücksichtigen Tags ebenso wie Namen und Hosts.
+- **Sichtbar** — Getaggte Verbindungen zeigen ein Tag-Chip nach ihrem Namen in der Connection-Manager-Liste und ein 🏷-Abzeichen im Dropdown der gespeicherten Verbindungen in der Schnellverbindung; das Tag erscheint auch im Tooltip der häufig genutzten Schnellknöpfe. Die Bibliothek des Connection-Manager enthält ein Chip pro Tag, das nur die Verbindungen mit diesem Tag anzeigt.
+- **Durchsuchbar** — Die Suche im Connection-Manager (lokale und Teamwork-Verbindungen) sowie die Suche nach gespeicherten Verbindungen in der Schnellverbindung berücksichtigen sowohl Tags als auch Namen und Hosts.
 - **Massenzuweisung/-entfernung** – Wählen Sie einen oder mehrere Server aus und wählen Sie **Tag zuordnen** aus dem Kontextmenü, um sie in einem Schritt zu taggen. Die Eingabeaufforderung ist vorab ausgefüllt, wenn alle ausgewählten Verbindungen bereits dasselbe Tag haben. Durch das Löschen dieses vorab ausgefüllten Werts wird das Tag entfernt. **Tag entfernen** löscht das Tag und ist nur aktiviert, solange die Auswahl mindestens eine markierte Verbindung enthält. Die gleichen zwei Einträge im Kontextmenü eines Ordners gelten für jede Verbindung in diesem Ordner, einschließlich Unterordnern.
 - **Nach Tag exportieren** – Sobald mindestens ein Tag vorhanden ist, bietet das Exportdialogfeld des Connection-Managers die Option **Zu exportierende Verbindungen**: Behalten Sie die vorab ausgewählten Verbindungen bei oder exportieren Sie **alle Verbindungen mit diesen Tags** – wählen Sie ein oder mehrere Tags aus der Liste aus, die Verbindungsanzahl des Headers folgt der Auswahl live und die Schaltfläche „Exportieren“ bleibt deaktiviert, solange nichts übereinstimmt.
 

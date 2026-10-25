@@ -1115,6 +1115,16 @@ public class GlobalSettings {
     @XmlElement
     private boolean hostKeyCheckDisabledForAllConnections = false;
 
+    /** The OS badges the user added to the Connection Manager's built-in ones. */
+    @XmlElementWrapper(name = "customOsBadges")
+    @XmlElement(name = "badge")
+    private java.util.List<CustomOsBadge> customOsBadges;
+
+    /** Ids of the saved and teamwork connections marked as favorites in the Connection Manager. */
+    @XmlElementWrapper(name = "favoriteConnections")
+    @XmlElement(name = "connection")
+    private java.util.List<String> favoriteConnectionIds;
+
     /** Names of connection groups whose SSH host-key verification is relaxed to accept-new. */
     @XmlElementWrapper(name = "hostKeyCheckDisabledGroups")
     @XmlElement(name = "group")
@@ -4336,6 +4346,33 @@ public class GlobalSettings {
 
     public void setHostKeyCheckDisabledForAllConnections(boolean value) {
         this.hostKeyCheckDisabledForAllConnections = value;
+    }
+
+    public java.util.List<CustomOsBadge> getCustomOsBadges() {
+        if (customOsBadges == null) {
+            customOsBadges = new java.util.ArrayList<>();
+        }
+        return customOsBadges;
+    }
+
+    public void setCustomOsBadges(java.util.List<CustomOsBadge> badges) {
+        this.customOsBadges = badges;
+    }
+
+    public java.util.List<String> getFavoriteConnectionIds() {
+        if (favoriteConnectionIds == null) {
+            favoriteConnectionIds = new java.util.ArrayList<>();
+        }
+        return favoriteConnectionIds;
+    }
+
+    public void setFavoriteConnectionIds(java.util.List<String> ids) {
+        this.favoriteConnectionIds = ids;
+    }
+
+    /** Whether the connection with {@code id} is a favorite. */
+    public boolean isFavoriteConnection(String id) {
+        return id != null && favoriteConnectionIds != null && favoriteConnectionIds.contains(id);
     }
 
     public java.util.List<String> getHostKeyCheckDisabledGroups() {

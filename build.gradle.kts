@@ -4228,6 +4228,14 @@ tasks.register<JavaExec>("generateSessionJournalManagerScreenshot") {
     classpath = sourceSets.test.get().runtimeClasspath
 }
 
+tasks.register<JavaExec>("generateConnectionManagerScreenshots") {
+    group = "build"
+    description = "Renders the Connection Manager list and map screenshots for the manual via Node.snapshot."
+    dependsOn("testClasses", "processResources")
+    mainClass.set("de.kortty.ui.ConnectionManagerScreenshotGenerator")
+    classpath = sourceSets.test.get().runtimeClasspath
+}
+
 tasks.register<JavaExec>("generateLocalModelsTabScreenshot") {
     group = "build"
     description = "Renders the AI Manager > Local Models screenshot (local-models.png) for the manual via Node.snapshot."
