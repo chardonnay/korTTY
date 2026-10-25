@@ -1115,6 +1115,11 @@ public class GlobalSettings {
     @XmlElement
     private boolean hostKeyCheckDisabledForAllConnections = false;
 
+    /** Ids of the saved and teamwork connections marked as favorites in the Connection Manager. */
+    @XmlElementWrapper(name = "favoriteConnections")
+    @XmlElement(name = "connection")
+    private java.util.List<String> favoriteConnectionIds;
+
     /** Names of connection groups whose SSH host-key verification is relaxed to accept-new. */
     @XmlElementWrapper(name = "hostKeyCheckDisabledGroups")
     @XmlElement(name = "group")
@@ -4336,6 +4341,22 @@ public class GlobalSettings {
 
     public void setHostKeyCheckDisabledForAllConnections(boolean value) {
         this.hostKeyCheckDisabledForAllConnections = value;
+    }
+
+    public java.util.List<String> getFavoriteConnectionIds() {
+        if (favoriteConnectionIds == null) {
+            favoriteConnectionIds = new java.util.ArrayList<>();
+        }
+        return favoriteConnectionIds;
+    }
+
+    public void setFavoriteConnectionIds(java.util.List<String> ids) {
+        this.favoriteConnectionIds = ids;
+    }
+
+    /** Whether the connection with {@code id} is a favorite. */
+    public boolean isFavoriteConnection(String id) {
+        return id != null && favoriteConnectionIds != null && favoriteConnectionIds.contains(id);
     }
 
     public java.util.List<String> getHostKeyCheckDisabledGroups() {

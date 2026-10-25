@@ -63,6 +63,12 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     /** Runs after a connection was dragged into another group or such a move was undone. */
     private Runnable onConnectionsMoved;
     private Runnable onAddConnection;
+    /** How many tabs a connection has open in every window; drawn as a green dot and a count. */
+    private java.util.function.ToIntFunction<ServerConnection> openTabsProbe;
+    /** Whether a connection is a favorite; drawn as a star after its name. */
+    private java.util.function.Predicate<ServerConnection> favoriteProbe;
+    /** Marks the selected connections as favorites or unmarks them; without it the menu has no entry. */
+    private Consumer<List<ServerConnection>> onToggleFavorite;
     
     public ConnectionManagerTreeView(List<ServerConnection> connections) {
         this.connections = connections;
@@ -298,8 +304,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             || de.kortty.policy.ServerAccessPolicy.isAllowed(connection)) {
             return;
         }
-        cell.setText("🚫 " + item.getDisplayName()
-            + (connection.getTag() != null ? "  🏷 " + connection.getTag() : ""));
+        if (cell.getGraphic() instanceof javafx.scene.layout.HBox row) {
+            row.getChildren().add(ToolbarIcons.create("blocked", cell.textFillProperty(), 15));
+        }
         cell.setStyle(BLOCKED_STYLE);
         cell.setTooltip(new Tooltip(I18n.get("policy.server.blocked.title") + " — "
             + de.kortty.policy.PolicyUiSupport.managedByOrganizationText()));
@@ -413,6 +420,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                     setContextMenu(null);
                     setTooltip(null);
                     setAccessibleText(null);
+                    setContentDisplay(ContentDisplay.LEFT);
                     // Text colour comes from the theme (light on dark designs); only the size is set.
                     setStyle(ENTRY_STYLE);
                     
@@ -421,7 +429,12 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                     }
                     
                     if (item.isGroup()) {
-                        setText("📁 " + item.getDisplayName());
+                        // The name stays the cell's text for screen readers; the row draws it with the glyph.
+                        setText(item.getDisplayName());
+                        setGraphic(ConnectionRowGraphics.groupRow(item.getGroupPath(), item.getDisplayName(),
+                            inheritedGroupColor(item.getGroupPath()), connectionCount(item.getGroupPath()),
+                            textFillProperty()));
+                        setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
                         showGroupColor(this, item.getGroupPath());
                         if (!selectionOnly) {
                             setContextMenu(createGroupContextMenu(item.getGroupPath()));
@@ -431,9 +444,14 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                             setText("└─ " + item.getDisplayName());
                             setStyle(PLACEHOLDER_STYLE);
                         } else {
-                            String tag = item.getConnection().getTag();
-                            setText("🔌 " + item.getDisplayName()
-                                + (tag != null ? "  🏷 " + tag : ""));
+                            ServerConnection connection = item.getConnection();
+                            int openTabs = openTabsProbe != null ? openTabsProbe.applyAsInt(connection) : 0;
+                            setText(item.getDisplayName());
+                            setGraphic(ConnectionRowGraphics.connectionRow(connection, textFillProperty(),
+                                favoriteProbe != null && favoriteProbe.test(connection), openTabs));
+                            setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+                            setAccessibleText(item.getDisplayName() + ", " + ConnectionRowGraphics.address(connection)
+                                + (connection.getTag() != null ? ", " + connection.getTag() : ""));
                             if (!selectionOnly) {
                                 setContextMenu(createConnectionContextMenu());
                             }
@@ -550,13 +568,42 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         }
         String text = I18n.get("connManager.group.tabColor.swatch", I18n.get(TabColorPresentation.familyKey(
             de.kortty.core.ConnectionColorSupport.family(color))), color);
-        cell.setGraphic(TabColorPresentation.swatch(color, text));
-        cell.setContentDisplay(ContentDisplay.RIGHT);
-        cell.setGraphicTextGap(8);
+        javafx.scene.Node swatch = TabColorPresentation.swatch(color, text);
+        if (cell.getGraphic() instanceof javafx.scene.layout.HBox row) {
+            row.getChildren().add(swatch);
+        } else {
+            cell.setGraphic(swatch);
+            cell.setContentDisplay(ContentDisplay.RIGHT);
+            cell.setGraphicTextGap(8);
+        }
         cell.setTooltip(new Tooltip(text));
         cell.setAccessibleText(cell.getText() + ", " + text);
     }
     
+    /** The tab color the folder shows: its own, else that of the nearest folder above with one; null without. */
+    private String inheritedGroupColor(GroupPath groupPath) {
+        if (groupColorProbe == null || groupPath == null) {
+            return null;
+        }
+        var inherited = de.kortty.core.ConnectionGroupColors.inherited(groupPath.getPath(),
+            path -> groupColorProbe.apply(new GroupPath(path)));
+        return inherited != null ? inherited.hex() : null;
+    }
+
+    /** How many connections (no folder placeholders) the folder and its subfolders hold. */
+    private int connectionCount(GroupPath groupPath) {
+        int count = 0;
+        for (ServerConnection connection : connections) {
+            if (!connection.isPlaceholder() && connection.getGroup() != null && !connection.getGroup().isBlank()) {
+                GroupPath path = new GroupPath(connection.getGroup());
+                if (path.equals(groupPath) || path.isChildOf(groupPath)) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
     /**
      * Creates the context menu for a group, or null when it would have no entry. Every entry needs its
      * handler, and a read-only tree offers nothing that changes its folders (rename, subfolder, host-key
@@ -764,8 +811,17 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         });
 
+        MenuItem favoriteItem = new MenuItem(I18n.get("connectionManager.favorite.toggle"));
+        favoriteItem.setOnAction(e -> {
+            List<ServerConnection> selected = getSelectedConnections();
+            if (!selected.isEmpty() && onToggleFavorite != null) {
+                onToggleFavorite.accept(selected);
+            }
+        });
+
         // Enable/disable edit based on selection
         menu.setOnShowing(e -> {
+            favoriteItem.setDisable(getSelectedConnections().isEmpty());
             List<ServerConnection> selected = getSelectedConnections();
             editItem.setDisable(selected.size() != 1);
             exportItem.setDisable(selected.isEmpty());
@@ -776,6 +832,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
 
         if (onEditConnection != null && !readOnlyConnections) {
             menu.getItems().add(editItem);
+        }
+        if (onToggleFavorite != null) {
+            menu.getItems().add(favoriteItem);
         }
         menu.getItems().add(exportItem);
         if (onAssignTag != null || onRemoveTag != null) {
@@ -899,6 +958,87 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
 
     public void setOnRemoveTagFromGroup(Consumer<GroupPath> callback) {
         this.onRemoveTagFromGroup = callback;
+    }
+
+    /** Draws a green dot and the tab count for connections {@code probe} reports open tabs for. */
+    public void setOpenTabsProbe(java.util.function.ToIntFunction<ServerConnection> probe) {
+        this.openTabsProbe = probe;
+    }
+
+    /** Draws a star after the connections {@code probe} reports as favorites. */
+    public void setFavoriteProbe(java.util.function.Predicate<ServerConnection> probe) {
+        this.favoriteProbe = probe;
+    }
+
+    /** Adds a "Favorite" entry to the connection menu that hands the selected connections to {@code handler}. */
+    public void setOnToggleFavorite(Consumer<List<ServerConnection>> handler) {
+        this.onToggleFavorite = handler;
+    }
+
+    /** The filter currently applied with {@link #filterTree}, or null for the whole tree. */
+    public Predicate<ServerConnection> getFilter() {
+        return currentSearchPredicate;
+    }
+
+    /** Selects {@code connection}'s row (only that one) and scrolls to it; false when it is not shown. */
+    public boolean selectConnection(ServerConnection connection) {
+        TreeItem<ConnectionTreeItem.ItemData> item = findItem(getRoot(), connection);
+        if (item == null) {
+            return false;
+        }
+        getSelectionModel().clearSelection();
+        getSelectionModel().select(item);
+        int row = getRow(item);
+        if (row >= 0) {
+            scrollTo(Math.max(0, row - 3));
+        }
+        return true;
+    }
+
+    private static TreeItem<ConnectionTreeItem.ItemData> findItem(TreeItem<ConnectionTreeItem.ItemData> item,
+                                                                  ServerConnection connection) {
+        if (item == null || connection == null) {
+            return null;
+        }
+        if (item.getValue() != null && item.getValue().getConnection() == connection) {
+            return item;
+        }
+        for (TreeItem<ConnectionTreeItem.ItemData> child : item.getChildren()) {
+            TreeItem<ConnectionTreeItem.ItemData> found = findItem(child, connection);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Moves {@code connection} into the folder {@code newGroup} as a drop onto that folder does, so
+     * Undo takes it back; nothing happens in a read-only or selection-only tree or for the same folder.
+     *
+     * @return whether the connection moved
+     */
+    public boolean moveConnection(ServerConnection connection, String newGroup) {
+        if (selectionOnly || readOnlyConnections || connection == null || connection.isPlaceholder()
+                || !connections.contains(connection)) {
+            return false;
+        }
+        String oldGroup = connection.getGroup();
+        String normalizedOld = oldGroup != null ? oldGroup : "";
+        String normalizedNew = newGroup != null ? newGroup : "";
+        if (normalizedOld.equals(normalizedNew)) {
+            return false;
+        }
+        connection.setGroup(newGroup);
+        moveHistory.push(new MoveOperation(connection, oldGroup, newGroup));
+        if (undoButton != null) {
+            undoButton.setDisable(false);
+        }
+        refreshPreservingFilter();
+        if (onConnectionsMoved != null) {
+            onConnectionsMoved.run();
+        }
+        return true;
     }
 
     /**

@@ -12,13 +12,33 @@ final class ToolbarIcons {
 
     static Node create(String name, javafx.beans.value.ObservableValue<? extends javafx.scene.paint.Paint> contourColor,
                        javafx.beans.value.ObservableDoubleValue size) {
+        return create(name, contourColor, size, null);
+    }
+
+    /** A glyph of a fixed size, for rows and buttons whose icon does not follow the toolbar icon size. */
+    static Node create(String name, javafx.beans.value.ObservableValue<? extends javafx.scene.paint.Paint> contourColor,
+                       double size) {
+        return create(name, contourColor, new javafx.beans.property.SimpleDoubleProperty(size), null);
+    }
+
+    /**
+     * A glyph whose core takes {@code coreColor} ({@code #RRGGBB}) instead of its own, as a folder's
+     * core shows the folder's tab color; null keeps the glyph's colour.
+     */
+    static Node create(String name, javafx.beans.value.ObservableValue<? extends javafx.scene.paint.Paint> contourColor,
+                       double size, String coreColor) {
+        return create(name, contourColor, new javafx.beans.property.SimpleDoubleProperty(size), coreColor);
+    }
+
+    private static Node create(String name, javafx.beans.value.ObservableValue<? extends javafx.scene.paint.Paint> contourColor,
+                               javafx.beans.value.ObservableDoubleValue size, String coreColor) {
         Glyph glyph = glyph(name);
         SVGPath outline = path(glyph.contour());
         outline.getStyleClass().add("toolbar-icon-contour");
         // ToolBar overflow moves buttons into a popup, outside the toolbar CSS ancestor chain.
         outline.strokeProperty().bind(contourColor);
         SVGPath core = path(glyph.core());
-        core.setStyle("-fx-stroke: " + glyph.color() + ";");
+        core.setStyle("-fx-stroke: " + (coreColor != null ? coreColor : glyph.color()) + ";");
         Group drawing = new Group(outline, core);
         // Invisible fixed bounds keep every glyph optically aligned without stretching its paths.
         javafx.scene.shape.Rectangle bounds = new javafx.scene.shape.Rectangle(24, 24);
@@ -97,9 +117,47 @@ final class ToolbarIcons {
             case "snippetEditor" -> teal("M6 2 H20 V18 M3 6 H16 V22 H3 Z", "M8 10 L5 14 L8 18 M11 10 L14 14 L11 18");
             case "separator" -> blue("M12 3 V21", "M12 10 V14");
             case "add" -> blue("M12 3 A9 9 0 1 0 12.01 3", "M7 12 H17 M12 7 V17");
+            // Connection Manager: a plug with its cable, to connect.
+            case "connect" -> blue("M9 2 V7 M15 2 V7 M6 7 H18 V11 Q18 16 12 16 Q6 16 6 11 Z", "M12 16 V18.5 Q12 21.5 15 21.5 H19");
+            // A server with a plus at its lower half: a new connection.
+            case "addServer" -> teal("M5 3 H19 Q21 3 21 5 V9 Q21 11 19 11 H5 Q3 11 3 9 V5 Q3 3 5 3 M12 21 H5 Q3 21 3 19 V15 Q3 13 5 13 H12 M16 7 H17", "M18 14 V22 M14 18 H22");
+            case "edit" -> blue("M4 20 L5 15 L15.5 4.5 Q17 3 18.5 4.5 L19.5 5.5 Q21 7 19.5 8.5 L9 19 Z", "M13.5 6.5 L17.5 10.5 M14 20.5 H20");
+            case "duplicate" -> teal("M8 8 H20 V20 H8 Z M16 8 V4 H4 V16 H8", "M14 11 V17 M11 14 H17");
+            case "delete" -> new Glyph("M4 6 H20 M9 6 V3.5 H15 V6 M6 6 L7 21 H17 L18 6", "M10 10 V17 M14 10 V17", "#e5534b");
+            // A bin with an arrow coming out: the teamwork recycle bin.
+            case "restore" -> teal("M4 6 H20 M9 6 V3.5 H15 V6 M6 6 L7 21 H17 L18 6", "M9 14.5 L12 11.5 L15 14.5 M12 11.5 V18");
+            case "folder" -> new Glyph(FOLDER, "M3 10 H21", "#dc9825");
+            case "folderAdd" -> teal(FOLDER, "M12 10.5 V17.5 M8.5 14 H15.5");
+            // A text field split by a text cursor.
+            case "rename" -> blue("M14 7 H20 Q21 7 21 8 V16 Q21 17 20 17 H14 M10 17 H4 Q3 17 3 16 V8 Q3 7 4 7 H10", "M12 3 V21 M9.5 3 H14.5 M9.5 21 H14.5");
+            case "importData" -> teal(TRAY, "M12 3 V15 M7.5 10.5 L12 15 L16.5 10.5");
+            case "exportData" -> teal(TRAY, "M12 15 V3 M7.5 7.5 L12 3 L16.5 7.5");
+            case "undo" -> blue("M5 9 H15 A5.5 5.5 0 0 1 15 20 H9", "M9 4.5 L4.5 9 L9 13.5");
+            case "teamwork" -> teal("M9 4 A3.5 3.5 0 1 0 9.01 4 M2.5 20 Q2.5 14 9 14 Q15.5 14 15.5 20", "M15.5 4.5 A3 3 0 0 1 15.5 10.5 M18 14.3 Q21.5 15.5 21.5 20");
+            case "sync" -> teal("M20 9 A8 8 0 0 0 6 5 L3 8 M3 15 A8 8 0 0 0 17 19 L21 16", "M3 3 V8 H8 M16 16 H21 V21");
+            case "tag" -> new Glyph("M3 4 Q3 3 4 3 H11 L21 13 L13 21 L3 11 Z", "M7.5 6 A1.5 1.5 0 1 0 7.51 6", "#dc9825");
+            // A server below roaming waves: Mosh.
+            case "mosh" -> new Glyph("M5 12 H19 Q21 12 21 14 V19 Q21 21 19 21 H5 Q3 21 3 19 V14 Q3 12 5 12 M16 16.5 H17", "M6.5 6.5 Q12 1.5 17.5 6.5 M9 9 Q12 6.5 15 9", "#a56ae6");
+            // A laptop showing a prompt: a shell on this computer.
+            case "localShell" -> teal("M5 5 Q5 4 6 4 H18 Q19 4 19 5 V16 H5 Z M2.5 19.5 H21.5", "M8.5 8 L11 10 L8.5 12 M12.5 12 H15.5");
+            // Two hosts bridged over a third: the hop through a jump server.
+            case "jump" -> new Glyph("M2 16 H7 V21 H2 Z M17 16 H22 V21 H17 Z M9.5 3 H14.5 V8 H9.5 Z", "M4.5 16 Q4.5 5.5 9.5 5.5 M14.5 5.5 Q19.5 5.5 19.5 13.5 M18 12 L19.5 14 L21 12", "#dc9825");
+            case "tunnel" -> teal("M2 21 H22 M3.5 21 V12 A8.5 8.5 0 0 1 20.5 12 V21", "M8 21 V15 A4 4 0 0 1 16 15 V21");
+            // A shield around a sealed box: session isolation.
+            case "isolation" -> new Glyph("M12 2 L20 5.5 V12 Q20 18 12 22 Q4 18 4 12 V5.5 Z", "M8.5 9.5 H15.5 V15.5 H8.5 Z", "#a56ae6");
+            case "incognito" -> new Glyph("M3 11 H21 M6 11 L8.5 4 H15.5 L18 11", "M4.5 16.5 A2.75 2.75 0 1 0 10 16.5 A2.75 2.75 0 1 0 4.5 16.5 M14 16.5 A2.75 2.75 0 1 0 19.5 16.5 A2.75 2.75 0 1 0 14 16.5 M10 16.5 Q12 15 14 16.5", "#a56ae6");
+            case "hostKey" -> new Glyph("M7 10 A5 5 0 1 0 7.01 10 M10.5 11.5 L20 2", "M17 5 L19.5 7.5 M14 8 L16 10", "#dc9825");
+            // A crossed-out circle: a connection the organization's server policy blocks.
+            case "blocked" -> new Glyph("M12 3 A9 9 0 1 0 12.01 3", "M5.6 5.6 L18.4 18.4", "#e5534b");
+            case "viewList" -> blue("M8.5 6 H21 M8.5 12 H21 M8.5 18 H21", "M3.5 6 H4.5 M3.5 12 H4.5 M3.5 18 H4.5");
+            // Three linked nodes: the connection map.
+            case "viewMap" -> blue("M6 3.5 A2.5 2.5 0 1 0 6.01 3.5 M18 9.5 A2.5 2.5 0 1 0 18.01 9.5 M7 15.5 A2.5 2.5 0 1 0 7.01 15.5", "M8.3 7.1 L15.7 10.9 M15.8 13.1 L9.3 16.9 M6.2 8.5 L6.8 15.5");
             default -> blue("M4 4 H20 V20 H4 Z", "M8 12 H16 M12 8 V16");
         };
     }
+
+    private static final String FOLDER = "M3 7 V5 Q3 3 5 3 H10 L13 6 H19 Q21 6 21 8 V19 Q21 21 19 21 H5 Q3 21 3 19 Z";
+    private static final String TRAY = "M4 14 V19 Q4 20 5 20 H19 Q20 20 20 19 V14";
 
     private static Glyph blue(String outline, String core) { return new Glyph(outline, core, "#368af5"); }
     private static Glyph teal(String outline, String core) { return new Glyph(outline, core, "#13a8ad"); }

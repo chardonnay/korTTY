@@ -4,6 +4,12 @@ What changed in the current release. The version this guide was built for is sho
 
 ## v2.23.0
 
+### Connection Manager
+
+- **New layout** — the Connection Manager shows a library on the left (all connections, favorites, recently used, open now, folders, tags, teamwork), the chosen connections in the middle and an inspector on the right, with every detail of the selected connection and quick edits of its name and tag. The toolbar uses icons in the style of the icon toolbar, and the list shows each connection's address, tag and marks for jump server, tunnels, isolation and incognito instead of emoji. See [Connection Manager](../features/connections.md#connection-manager).
+- **Map** — **Map** shows the connections as a network plan: a zone per folder in its tab color, jump-server routes and tunnels as lines, double-click connects and dragging a node into another zone moves the connection into that folder. See [List and map](../features/connections.md#list-and-map).
+- **Favorites** — mark connections with the star to find them under **Favorites**; teamwork connections can be favorites too.
+
 ### On Windows
 
 - **PowerShell and Command Prompt in the toolbar** — on Windows, the Terminal group of the icon toolbar gets **New PowerShell** and **New Command Prompt** right after **New local shell**, each with its own icon; saved layouts gain both once. With Git for Windows installed, the customization catalog also offers **New Git Bash**. See [Customizing the icon toolbar](../getting-started/main-window.md#customizing-the-icon-toolbar).

@@ -10,7 +10,33 @@ korTTY verwaltet SSH-, Mosh- und **Local-Shell**-Verbindungen über drei Einstie
 
 ## Connection-Manager
 
-**Verbindungen → Verbindungen verwalten…** öffnet einen durchsuchbaren Baum gespeicherter Verbindungen (optional gruppiert); das Suchfeld entspricht Namen, Host, IP-Adresse oder [Tag](#tags), wobei `*` als Platzhalter dient. Von hier aus erstellen, bearbeiten, duplizieren, löschen, taggen, importieren und exportieren Sie Verbindungen. Das Kontextmenü eines Ordners legt zudem dessen **Sitzungs-Isolation**-Level für jede Verbindung darin fest, die selbst keine Isolationsebene definiert (siehe [Level auswählen](session-isolation.md#eine-stufe-wahlen)).
+**Verbindungen → Verbindungen verwalten…** (oder die Connection-Manager-Schaltfläche der Symbolleiste) öffnet den Connection-Manager. Die **Bibliothek** links wählt aus, welche Verbindungen der mittlere Bereich anzeigt; der mittlere Bereich zeigt sie als **Liste** oder als **Netzplan**, und der **Inspektor** rechts zeigt alles zur ausgewählten Verbindung oder zum ausgewählten Ordner. Das Suchfeld oben rechts verengt die Auswahl der Bibliothek; es vergleicht Name, Host, IP-Adresse oder [Tag](#tags), wobei `*` als Wildcard dient. Die darüberliegende Symbolleiste gruppiert die Aktionen wie die Symbolleiste: **Verbindung** (neu, bearbeiten, duplizieren, löschen), **Ordner** (neuer Ordner, Ordner umbenennen, letzten Move rückgängig machen), **Austausch** und **Teamarbeit** (aktualisieren, gelöschte wiederherstellen). Jede Schaltfläche benennt sich in einem Tooltip. Das Kontextmenü eines Ordners setzt außerdem dessen **Sitzungs-Isolation**-Stufe für jede Verbindung darin, die keine eigene festlegt (siehe [Stufe wählen](session-isolation.md#eine-stufe-wahlen)).
+
+![The Connection Manager: library on the left, the list of connections in the middle, the inspector of the selected connection on the right](../assets/screenshots/main/connection-manager.png)
+
+### Bibliothek
+
+| Eintrag | Zeigt |
+| --- | --- |
+| **Alle Verbindungen** | Jede gespeicherte Verbindung, in ihren Ordnern. |
+| **Favoriten** | Die Verbindungen, die Sie mit dem Stern markiert haben, im Inspektor oder im Kontextmenü einer Verbindung (**Favorit an/aus**). Favoriten werden auf diesem Computer gespeichert und niemals exportiert. |
+| **Zuletzt verwendet** | Die 15 zuletzt verwendeten Verbindungen. |
+| **Gerade offen** | Die Verbindungen mit einem geöffneten Terminal-Tab in einem beliebigen Fenster. |
+| **Ordner** | Ein Eintrag pro Ordner, Unterordner eingerückt darunter, jeweils mit seiner Tab-Farbe und der Anzahl der enthaltenen Verbindungen; die Auswahl eines Ordners zeigt ihn mit seinen Unterordnern. |
+| **Tags** | Ein Chip pro Tag; die Auswahl eines Chips zeigt die Verbindungen mit diesem Tag, eine erneute Auswahl zeigt alle. |
+| **Teamwork-Verbindungen** | Die Verbindungen Ihrer [teamwork](teamwork.md)-Quellen, nur lesend, mit der Authentifizierung für alle Team-Verbindungen oberhalb der Liste. |
+
+### Liste und Netzplan
+
+**Liste** zeigt die gewählten Verbindungen in ihren Ordnern. Jede Zeile zeigt das Protokoll (Server für SSH, Wellen für Mosh, ein Laptop für eine lokale Shell), den Namen, `user@host`, das Tag, einen Stern für einen Favoriten und kleine Markierungen für einen Jump-Server, Tunnel, eine eigene Isolationsebene, Inkognito und eine deaktivierte Host-Key-Prüfung; ein grüner Punkt und eine Zählung bedeuten, dass die Verbindung offene Tabs hat. Ziehen Sie eine Verbindung auf einen Ordner, um sie dort zu verschieben; **Rückgängig** in der Symbolleiste nimmt den letzten Vorgang zurück. Doppelklicken Sie auf eine Verbindung, um sie zu verbinden.
+
+**Netzplan** zeigt dieselben Verbindungen auf einem Netzplan: eine gestrichelte Zone pro Ordner in der Tab-Farbe des Ordners, ein Knoten pro Verbindung und dieser Computer links. Orange gestrichelte Linien zeigen den Weg über einen Jump-Server, der die gespeicherte Verbindung mit diesem Host ist, wenn es eine gibt, andernfalls ein eigener Knoten; türkis gepunktete Linien zeigen Tunnel, die ebenfalls unter diesem Computer aufgeführt sind. Klicken Sie auf einen Knoten, um ihn auszuwählen, doppelklicken Sie, um die Verbindung herzustellen, und ziehen Sie ihn in eine andere Zone, um die Verbindung in diesen Ordner zu verschieben (**Rückgängig** nimmt es zurück). **Jump-Wege** und **Tunnel** zeigen oder verstecken die Linien, **−**, **+** und **Anpassen** zoomen, und ++ctrl++ mit dem Mausrad zoomt ebenfalls. Der Netzplan wird automatisch angeordnet; es wird nichts darüber gespeichert.
+
+![The map: Production with its jump server and tunnel, the other folders below](../assets/screenshots/main/connection-manager-map.png)
+
+### Inspektor
+
+Der Inspektor zeigt die ausgewählte Verbindung: deren Adresse, Protokoll und Anmeldung, den Jump-Server und die Tunnel, die Isolationsebene und deren Herkunft, die Host-Key-Prüfung, wann sie zuletzt verwendet wurde und wie oft. **Verbinden**, **Bearbeiten**, **Duplizieren** und der Stern wirken direkt darauf. Darunter ändern **Name** und **Tag** die Verbindung, ohne den Editor zu öffnen; ++enter++ wendet die Änderung an. Ein ausgewählter Ordner zeigt seine Tab-Farbe, Isolationsebene und Host-Key-Prüfung mit Schaltflächen zum Umbenennen, zum Setzen der Tab-Farbe oder zum Erstellen eines Unterordners. Eine Teamwork-Verbindung wird schreibgeschützt angezeigt, zusammen mit der Quelle, aus der sie stammt.
 
 ### Anmelden
 
@@ -73,8 +99,8 @@ Wenn die [Unternehmensrichtlinie](../reference/enterprise-policy.md#ruleterminal
 
 Jede gespeicherte Verbindung kann ein optionales Freitext-**Tag** tragen – eine Bezeichnung wie `prod`, `staging` oder einen Kundennamen – unabhängig von der Gruppen-/Ordnerhierarchie. Legen Sie es auf der Registerkarte *Verbindung* des Verbindungseditors (neben der Gruppe) oder gesammelt im Connection-Manager fest. Tags werden mit der Verbindung in `connections.xml` gespeichert und überstehen das Duplizieren, Exportieren und Importieren.
 
-- **Sichtbar** – markierte Verbindungen zeigen ein 🏷-Symbol nach ihrem Namen im Connection-Manager-Baum und im Dropdown-Menü „Gespeicherte Verbindungen“ der Schnellverbindung; Das Tag erscheint auch im Tooltip der häufig verwendeten Schnellschaltflächen.
-- **Durchsuchbar** – Die Connection-Manager-Suche (Registerkarten „Lokal“ und „Teamwork“) und die Suche nach gespeicherten Verbindungen der Schnellverbindung berücksichtigen Tags ebenso wie Namen und Hosts.
+- **Sichtbar** — Getaggte Verbindungen zeigen ein Tag-Chip nach ihrem Namen in der Connection-Manager-Liste und ein 🏷-Abzeichen im Dropdown der gespeicherten Verbindungen in der Schnellverbindung; das Tag erscheint auch im Tooltip der häufig genutzten Schnellknöpfe. Die Bibliothek des Connection-Manager enthält ein Chip pro Tag, das nur die Verbindungen mit diesem Tag anzeigt.
+- **Durchsuchbar** — Die Suche im Connection-Manager (lokale und Team-Verbindungen) sowie die Suche nach gespeicherten Verbindungen in der Schnellverbindung berücksichtigen sowohl Tags als auch Namen und Hosts.
 - **Massenzuweisung/-entfernung** – Wählen Sie einen oder mehrere Server aus und wählen Sie **Tag zuordnen** aus dem Kontextmenü, um sie in einem Schritt zu taggen. Die Eingabeaufforderung ist vorab ausgefüllt, wenn alle ausgewählten Verbindungen bereits dasselbe Tag haben. Durch das Löschen dieses vorab ausgefüllten Werts wird das Tag entfernt. **Tag entfernen** löscht das Tag und ist nur aktiviert, solange die Auswahl mindestens eine markierte Verbindung enthält. Die gleichen zwei Einträge im Kontextmenü eines Ordners gelten für jede Verbindung in diesem Ordner, einschließlich Unterordnern.
 - **Nach Tag exportieren** – Sobald mindestens ein Tag vorhanden ist, bietet das Exportdialogfeld des Connection-Managers die Option **Zu exportierende Verbindungen**: Behalten Sie die vorab ausgewählten Verbindungen bei oder exportieren Sie **alle Verbindungen mit diesen Tags** – wählen Sie ein oder mehrere Tags aus der Liste aus, die Verbindungsanzahl des Headers folgt der Auswahl live und die Schaltfläche „Exportieren“ bleibt deaktiviert, solange nichts übereinstimmt.
 

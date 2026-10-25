@@ -19,6 +19,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
@@ -32,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Predicate;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -53,12 +55,27 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
     private final ObservableList<ServerConnection> connections;
     private final ObservableList<ServerConnection> teamworkConnections;
     private final TextField searchField;
-    private final TextField teamworkSearchField;
     private final Stage owner;
     private ConnectionManagerTreeView treeView;
     private ConnectionManagerTreeView teamworkTreeView;
-    private Tab connectionViewTab;
-    private Tab teamworkViewTab;
+    /** What the library on the left shows in the middle. */
+    private Scope scope = Scope.ALL;
+    /** Whether the middle shows the map instead of the list. */
+    private boolean mapMode;
+    private final ToggleGroup scopeToggles = new ToggleGroup();
+    private final VBox sidebarItems = new VBox(1);
+    private final Label scopeTitle = new Label();
+    private final Label scopeCount = new Label();
+    /** The theme's text colour, which the toolbar's glyph contours follow. */
+    private final Label themeText = new Label();
+    private final ConnectionMapView mapView = new ConnectionMapView();
+    private final ConnectionInspectorPane inspector = new ConnectionInspectorPane();
+    private HBox teamworkAuthBar;
+    private ToggleButton listViewButton;
+    private ToggleButton mapViewButton;
+    private VBox teamworkToolGroup;
+    /** Open tabs of every window by connection id. */
+    private Map<String, Integer> openTabCounts = Map.of();
     private Button undoButton;
     private Button createFolderButton;
     private Button renameGroupButton;
@@ -88,133 +105,32 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         this.credentialManager = app.getCredentialManager();
         this.masterPassword = app.getMasterPasswordManager().getMasterPassword();
         this.owner = owner;
-        
+
         setTitle(I18n.get("connectionManager.title"));
         setHeaderText(null);
         initOwner(owner);
         initModality(Modality.WINDOW_MODAL);
         setResizable(true);
-        
+
         // Initialize connections list (local only)
         connections = FXCollections.observableArrayList(configManager.getConnections());
         teamworkConnections = FXCollections.observableArrayList();
-        
+
         // Create hidden table for compatibility
         table = new TableView<>();
         table.setVisible(false);
         table.setManaged(false);
-        
-        // Create TreeView for local connections
+
+        refreshOpenTabCounts();
+        // The list in the middle: the local tree, or the teamwork tree while Teamwork is chosen on the left
         treeView = new ConnectionManagerTreeView(connections);
-        treeView.setPrefSize(600, 400);
-        
-        // Create TreeView for teamwork connections
         teamworkTreeView = new ConnectionManagerTreeView(teamworkConnections);
-        teamworkTreeView.setPrefSize(600, 400);
-        
-        // Create search field for local
+
+        // One search for both trees; it narrows what the library on the left chose.
         searchField = new TextField();
         searchField.setPromptText(I18n.get("connManager.searchPrompt"));
-        searchField.setPrefWidth(300);
-        
-        // Create search field for teamwork
-        teamworkSearchField = new TextField();
-        teamworkSearchField.setPromptText(I18n.get("connManager.searchPrompt"));
-        teamworkSearchField.setPrefWidth(300);
-        
-        // Add listener to filter tree based on search text
-        searchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == null || newVal.trim().isEmpty()) {
-                treeView.filterTree(null);
-            } else {
-                String searchText = newVal.trim();
-                boolean useGlobPattern = searchText.contains("*");
-                
-                // Convert glob pattern to regex if "*" is present
-                Pattern pattern = null;
-                if (useGlobPattern) {
-                    String regexPattern = searchText
-                        .replace("\\", "\\\\")
-                        .replace(".", "\\.")
-                        .replace("+", "\\+")
-                        .replace("?", "\\?")
-                        .replace("^", "\\^")
-                        .replace("$", "\\$")
-                        .replace("|", "\\|")
-                        .replace("(", "\\(")
-                        .replace(")", "\\)")
-                        .replace("[", "\\[")
-                        .replace("]", "\\]")
-                        .replace("{", "\\{")
-                        .replace("}", "\\}")
-                        .replace("*", ".*");
-                    
-                    try {
-                        pattern = Pattern.compile(regexPattern, Pattern.CASE_INSENSITIVE);
-                    } catch (java.util.regex.PatternSyntaxException e) {
-                        pattern = null;
-                    }
-                }
-                
-                final Pattern finalPattern = pattern;
-                final boolean usePattern = useGlobPattern && pattern != null;
-                final String lowerSearchText = searchText.toLowerCase();
-                
-                treeView.filterTree(connection -> {
-                    if (connection.getName() != null) {
-                        String name = connection.getName();
-                        if (usePattern) {
-                            if (finalPattern.matcher(name).matches()) {
-                                return true;
-                            }
-                        } else {
-                            if (name.toLowerCase().contains(lowerSearchText)) {
-                                return true;
-                            }
-                        }
-                    }
-                    if (connection.getHost() != null) {
-                        String host = connection.getHost();
-                        if (usePattern) {
-                            if (finalPattern.matcher(host).matches()) {
-                                return true;
-                            }
-                        } else {
-                            if (host.toLowerCase().contains(lowerSearchText)) {
-                                return true;
-                            }
-                        }
-                    }
-                    if (connection.getTag() != null) {
-                        String tag = connection.getTag();
-                        if (usePattern) {
-                            if (finalPattern.matcher(tag).matches()) {
-                                return true;
-                            }
-                        } else {
-                            if (tag.toLowerCase().contains(lowerSearchText)) {
-                                return true;
-                            }
-                        }
-                    }
-                    return false;
-                });
-            }
-        });
-        
-        // Teamwork search filter
-        teamworkSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == null || newVal.trim().isEmpty()) {
-                teamworkTreeView.filterTree(null);
-            } else {
-                String searchText = newVal.trim().toLowerCase();
-                teamworkTreeView.filterTree(conn ->
-                    (conn.getName() != null && conn.getName().toLowerCase().contains(searchText)) ||
-                    (conn.getHost() != null && conn.getHost().toLowerCase().contains(searchText)) ||
-                    (conn.getTag() != null && conn.getTag().toLowerCase().contains(searchText)));
-            }
-        });
-        
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> applyFilters());
+
         // Register TreeView callbacks for local tree
         treeView.setOnCreateGroup(this::createNewGroup);
         treeView.setOnRenameGroup(this::renameGroup);
@@ -247,7 +163,10 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         treeView.setGroupColorProbe(this::groupColorOf);
         // A connection dragged into another folder takes that folder's color in its open tabs.
         treeView.setOnConnectionsMoved(MainWindow::refreshConnectionColorsInAllWindows);
-        
+        treeView.setOpenTabsProbe(this::openTabs);
+        treeView.setFavoriteProbe(this::isFavorite);
+        treeView.setOnToggleFavorite(this::toggleFavorites);
+
         // Teamwork tree: connect, export and delete (hide) only. Teamwork connections are read-only, as
         // korTTY never writes back to a source: no edit, no group ops, no dragging into another folder.
         teamworkTreeView.setReadOnlyConnections(true);
@@ -260,8 +179,10 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         });
         teamworkTreeView.setOnExportConnections(this::exportConnections);
         teamworkTreeView.setOnDeleteConnections(this::deleteConnections);
-        
-        // Buttons - set uniform width for all buttons
+        teamworkTreeView.setOpenTabsProbe(this::openTabs);
+        teamworkTreeView.setFavoriteProbe(this::isFavorite);
+        teamworkTreeView.setOnToggleFavorite(this::toggleFavorites);
+
         addButton = new Button(I18n.get("connectionManager.add"));
         editButton = new Button(I18n.get("connectionManager.edit"));
         deleteButton = new Button(I18n.get("connectionManager.delete"));
@@ -273,31 +194,20 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         renameGroupButton = new Button(I18n.get("connectionManager.renameFolder"));
         refreshTeamworkButton = new Button(I18n.get("connectionManager.teamwork.refresh"));
         restoreTeamworkButton = new Button(I18n.get("connectionManager.teamwork.restore"));
-        
-        // Uniform width for all buttons: at least 140px, otherwise as wide as the widest label needs.
-        // The button column (a VBox) fills every button to its own width, which is the widest
-        // button's preferred width — a fixed 140px cut the longer German labels short.
-        double buttonWidth = 140;
-        for (Button button : List.of(addButton, editButton, deleteButton, duplicateButton, exportButton,
-                importButton, undoButton, createFolderButton, renameGroupButton, refreshTeamworkButton,
-                restoreTeamworkButton)) {
-            button.setMinWidth(buttonWidth);
-            button.setMaxWidth(Double.MAX_VALUE);
-        }
-        
-        // Set icons for buttons (Folder and Refresh are fine at 14px; others use 18px)
-        addButton.setGraphic(iconLabel("\u2795", 18));
-        editButton.setGraphic(iconLabel("\u270E", 18));
-        deleteButton.setGraphic(iconLabel("\u2715", 18));
-        duplicateButton.setGraphic(iconLabel("\u29C9", 18));
-        exportButton.setGraphic(iconLabel("\u2B07", 18));
-        importButton.setGraphic(iconLabel("\u2B06", 18));
-        undoButton.setGraphic(iconLabel("\u21A9", 18));
-        createFolderButton.setGraphic(iconLabel("\uD83D\uDCC1"));
-        renameGroupButton.setGraphic(iconLabel("\u270F", 18));
-        refreshTeamworkButton.setGraphic(iconLabel("\u21BB"));
-        restoreTeamworkButton.setGraphic(iconLabel("\u21BA", 18));
-        
+
+        // Icon buttons in the style of the icon toolbar; the label stays as tooltip and for screen readers.
+        toolButton(addButton, "addServer");
+        toolButton(editButton, "edit");
+        toolButton(duplicateButton, "duplicate");
+        toolButton(deleteButton, "delete");
+        toolButton(createFolderButton, "folderAdd");
+        toolButton(renameGroupButton, "rename");
+        toolButton(undoButton, "undo");
+        toolButton(importButton, "importData");
+        toolButton(exportButton, "exportData");
+        toolButton(refreshTeamworkButton, "sync");
+        toolButton(restoreTeamworkButton, "restore");
+
         editButton.setDisable(true);
         deleteButton.setDisable(true);
         duplicateButton.setDisable(true);
@@ -306,17 +216,20 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         renameGroupButton.setDisable(true);
         refreshTeamworkButton.setDisable(false);
         restoreTeamworkButton.setDisable(false);
-        
+
         // Set undo button for treeView
         treeView.setUndoButton(undoButton);
-        
-        // Selection listener for local tree
-        treeView.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> updateButtonState());
-        teamworkTreeView.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> updateButtonState());
-        
+
+        // Selection: buttons, inspector and the map follow the active tree.
+        treeView.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> selectionChanged());
+        teamworkTreeView.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> selectionChanged());
+        // A rebuilt tree (filter, edit, move, import) changes the counts on the left and the map.
+        treeView.rootProperty().addListener((obs, old, root) -> contentChanged());
+        teamworkTreeView.rootProperty().addListener((obs, old, root) -> contentChanged());
+
         refreshTeamworkButton.setOnAction(e -> refreshTeamworkConnections());
         restoreTeamworkButton.setOnAction(e -> showRestoreTeamworkDialog());
-        
+
         addButton.setOnAction(e -> addConnection());
         editButton.setOnAction(e -> editConnection(null));
         deleteButton.setOnAction(e -> {
@@ -353,24 +266,27 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 renameGroup(selected.get(0));
             }
         });
-        
-        VBox buttonBox = new VBox(10, addButton, editButton, deleteButton, duplicateButton,
-                              new Separator(), exportButton, importButton,
-                              new Separator(), undoButton, createFolderButton, renameGroupButton,
-                              new Separator(), refreshTeamworkButton, restoreTeamworkButton);
-        buttonBox.setAlignment(Pos.TOP_CENTER);
-        buttonBox.setPadding(new Insets(0, 0, 0, 10));
-        
-        // Local tab content
-        HBox localSearchBox = new HBox(10);
-        localSearchBox.setPadding(new Insets(0, 0, 10, 0));
-        localSearchBox.getChildren().addAll(new Label(I18n.get("ssh.search")), searchField);
+
+        // Toolbar: grouped icon buttons as in the icon toolbar, the search on the right.
+        teamworkToolGroup = toolGroup("connectionManager.section.teamwork", refreshTeamworkButton, restoreTeamworkButton);
+        Label searchIcon = new Label(null, ToolbarIcons.create("search", themeText.textFillProperty(), 16));
+        HBox searchBox = new HBox(6, searchIcon, searchField);
+        searchBox.setAlignment(Pos.CENTER_LEFT);
+        searchBox.setPrefWidth(320);
         HBox.setHgrow(searchField, Priority.ALWAYS);
-        VBox localTabContent = new VBox(10);
-        localTabContent.getChildren().addAll(localSearchBox, treeView);
-        VBox.setVgrow(treeView, Priority.ALWAYS);
-        
-        // Teamwork tab content: auth dropdown (passwords/keys must not be in teamwork file)
+        Region toolbarSpacer = new Region();
+        HBox.setHgrow(toolbarSpacer, Priority.ALWAYS);
+        themeText.setManaged(false);
+        themeText.setVisible(false);
+        HBox toolbar = new HBox(8,
+            toolGroup("connectionManager.section.connection", addButton, editButton, duplicateButton, deleteButton),
+            toolGroup("connectionManager.section.folder", createFolderButton, renameGroupButton, undoButton),
+            toolGroup("connectionManager.section.exchange", importButton, exportButton),
+            teamworkToolGroup, toolbarSpacer, searchBox, themeText);
+        toolbar.setAlignment(Pos.BOTTOM_LEFT);
+        toolbar.getStyleClass().add("cm-toolbar");
+
+        // Teamwork bar: auth dropdown (passwords/keys must not be in teamwork file)
         ComboBox<Object> teamworkAuthCombo = new ComboBox<>();
         teamworkAuthCombo.setPromptText(I18n.get("teamwork.auth.prompt"));
         teamworkAuthCombo.setMaxWidth(Double.MAX_VALUE);
@@ -382,9 +298,10 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         teamworkUsernameField.setVisible(false);
         teamworkUsernameField.setManaged(false);
         Label teamworkAuthLabel = new Label(I18n.get("teamwork.auth.forAll"));
-        HBox teamworkAuthBox = new HBox(10);
-        teamworkAuthBox.setPadding(new Insets(0, 0, 8, 0));
-        teamworkAuthBox.getChildren().addAll(teamworkAuthLabel, teamworkAuthCombo, teamworkUsernameField);
+        teamworkAuthBar = new HBox(10);
+        teamworkAuthBar.setAlignment(Pos.CENTER_LEFT);
+        teamworkAuthBar.setPadding(new Insets(4, 10, 8, 10));
+        teamworkAuthBar.getChildren().addAll(teamworkAuthLabel, teamworkAuthCombo, teamworkUsernameField);
         teamworkAuthCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (suppressTeamworkAuthSave) return;
             boolean needsUsername = newVal instanceof SSHKey || newVal == TEAMWORK_AUTH_TEMPORARY_KEY;
@@ -396,42 +313,102 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             if (suppressTeamworkAuthSave) return;
             saveTeamworkAuthSelection(teamworkAuthCombo.getValue(), n);
         });
-        VBox teamworkTabContent = new VBox(10);
-        HBox teamworkSearchBox = new HBox(10);
-        teamworkSearchBox.setPadding(new Insets(0, 0, 10, 0));
-        teamworkSearchBox.getChildren().addAll(new Label(I18n.get("ssh.search")), teamworkSearchField);
-        HBox.setHgrow(teamworkSearchField, Priority.ALWAYS);
-        teamworkTabContent.getChildren().addAll(teamworkAuthBox, teamworkSearchBox, teamworkTreeView);
-        VBox.setVgrow(teamworkTreeView, Priority.ALWAYS);
-        
-        connectionViewTab = new Tab(I18n.get("connectionManager.tab.local"), localTabContent);
-        teamworkViewTab = new Tab(I18n.get("connectionManager.tab.teamwork"), teamworkTabContent);
-        TabPane tabPane = new TabPane(connectionViewTab, teamworkViewTab);
-        tabPane.getSelectionModel().selectedItemProperty().addListener((obs, old, tab) -> updateButtonState());
-        
+
+        // Middle: what the library chose, as list or map.
+        listViewButton = new ToggleButton(I18n.get("connectionManager.view.list"),
+            ToolbarIcons.create("viewList", themeText.textFillProperty(), 16));
+        mapViewButton = new ToggleButton(I18n.get("connectionManager.view.map"),
+            ToolbarIcons.create("viewMap", themeText.textFillProperty(), 16));
+        ToggleGroup viewToggles = new ToggleGroup();
+        listViewButton.setToggleGroup(viewToggles);
+        mapViewButton.setToggleGroup(viewToggles);
+        listViewButton.setSelected(true);
+        listViewButton.setOnAction(e -> setMapMode(false));
+        mapViewButton.setOnAction(e -> setMapMode(true));
+        listViewButton.getStyleClass().addAll("cm-view", "left-pill");
+        mapViewButton.getStyleClass().addAll("cm-view", "right-pill");
+        scopeTitle.getStyleClass().add("cm-scope-title");
+        scopeCount.setStyle("-fx-opacity: 0.7;");
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        HBox centerHeader = new HBox(10, scopeTitle, scopeCount, headerSpacer, new HBox(listViewButton, mapViewButton));
+        centerHeader.setAlignment(Pos.CENTER_LEFT);
+        centerHeader.getStyleClass().add("cm-center-header");
+        mapView.setOnSelect(this::selectFromMap);
+        mapView.setOnOpen(connection -> {
+            setResult(connection);
+            close();
+        });
+        mapView.setOnMove((connection, group) -> {
+            if (treeView.moveConnection(connection, group)) {
+                treeView.selectConnection(connection);
+            }
+        });
+        StackPane centerStack = new StackPane(treeView, teamworkTreeView, mapView);
+        VBox.setVgrow(centerStack, Priority.ALWAYS);
+        VBox centerPane = new VBox(centerHeader, teamworkAuthBar, centerStack);
+
+        // Left: the library; right: the inspector.
+        sidebarItems.getStyleClass().add("cm-sidebar-items");
+        sidebarItems.setPadding(new Insets(6, 6, 10, 6));
+        ScrollPane sidebar = new ScrollPane(sidebarItems);
+        sidebar.setFitToWidth(true);
+        sidebar.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        sidebar.getStyleClass().add("cm-sidebar");
+        sidebar.setMinWidth(170);
+        inspector.setMinWidth(250);
+        inspector.setOnConnect(connection -> {
+            setResult(connection);
+            close();
+        });
+        inspector.setOnEdit(this::editConnection);
+        inspector.setOnDuplicate(connection -> duplicateConnection());
+        inspector.setOnToggleFavorite(connection -> toggleFavorites(List.of(connection)));
+        inspector.setOnRename(this::renameConnection);
+        inspector.setOnRetag((connection, tag) -> {
+            applyTag(List.of(connection), tag);
+            treeView.selectConnection(connection);
+        });
+        inspector.setOnRenameGroup(this::renameGroup);
+        inspector.setOnEditGroupColor(this::editGroupColor);
+        inspector.setOnCreateSubgroup(this::createNewGroup);
+
+        SplitPane split = new SplitPane(sidebar, centerPane, inspector);
+        split.setDividerPositions(0.19, 0.71);
+        SplitPane.setResizableWithParent(sidebar, false);
+        SplitPane.setResizableWithParent(inspector, false);
+        split.getStyleClass().add("cm-split");
+
         BorderPane content = new BorderPane();
-        content.setCenter(tabPane);
-        content.setRight(buttonBox);
-        content.setPadding(new Insets(10));
-        
+        content.setTop(toolbar);
+        content.setCenter(split);
+        content.getStyleClass().add("cm-root");
+
         getDialogPane().setContent(content);
-        
-        updateButtonState();
-        
+        getDialogPane().getStylesheets().add(java.util.Objects.requireNonNull(
+            getClass().getResource("/styles/connection-manager.css")).toExternalForm());
+        getDialogPane().setPrefSize(1180, 740);
+        getDialogPane().setMinSize(860, 520);
+
+        rebuildSidebar();
+        applyFilters();
+
         // Dialog buttons
         connectButtonType = new ButtonType(I18n.get("quickConnect.connect"), ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(connectButtonType, ButtonType.CLOSE);
-        
+
         Button connectButton = (Button) getDialogPane().lookupButton(connectButtonType);
         connectButton.setDisable(true);
-        
+        updateButtonState();
+
         setOnShown(e -> {
             refreshTeamworkConnections();
             buildTeamworkAuthCombo(teamworkAuthCombo);
             applyTeamworkAuthFromSettings(teamworkAuthCombo, teamworkUsernameField);
             updateButtonState();
+            searchField.requestFocus();
         });
-        
+
         TeamworkSyncService syncService = app.getTeamworkSyncService();
         if (syncService != null) {
             teamworkCacheUpdateListener = () -> javafx.application.Platform.runLater(this::refreshTeamworkConnections);
@@ -446,7 +423,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         };
         setOnHidden(e -> cleanupListener.run());
         setOnCloseRequest(e -> cleanupListener.run());
-        
+
         setResultConverter(dialogButton -> {
             try {
                 if (dialogButton == connectButtonType) {
@@ -461,22 +438,515 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             }
         });
     }
-    
+
     private ConnectionManagerTreeView getActiveTreeView() {
-        Object content = getDialogPane().getContent();
-        if (!(content instanceof BorderPane bp)) return treeView;
-        if (!(bp.getCenter() instanceof TabPane tabPane)) return treeView;
-        Tab selected = tabPane.getSelectionModel().getSelectedItem();
-        return (selected == teamworkViewTab) ? teamworkTreeView : treeView;
+        return isLocalTabActive() ? treeView : teamworkTreeView;
     }
-    
+
+    /** Whether the local connections are shown, i.e. anything but Teamwork is chosen on the left. */
     private boolean isLocalTabActive() {
-        Object content = getDialogPane().getContent();
-        if (!(content instanceof BorderPane bp)) return true;
-        if (!(bp.getCenter() instanceof TabPane tabPane)) return true;
-        return tabPane.getSelectionModel().getSelectedItem() != teamworkViewTab;
+        return scope.kind() != ScopeKind.TEAMWORK;
     }
-    
+
+    // ----- Layout helpers -----
+
+    /** Turns {@code button} into an icon button of the toolbar; its label stays as tooltip and accessible text. */
+    private void toolButton(Button button, String glyph) {
+        button.setGraphic(ToolbarIcons.create(glyph, themeText.textFillProperty(), 20));
+        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        button.setTooltip(new Tooltip(button.getText()));
+        button.setAccessibleText(button.getText());
+        button.getStyleClass().add("cm-tool");
+    }
+
+    /** A titled group of toolbar buttons, as the icon toolbar groups its actions. */
+    private static VBox toolGroup(String headingKey, Button... buttons) {
+        Label heading = new Label(I18n.get(headingKey));
+        heading.getStyleClass().add("cm-tool-heading");
+        HBox row = new HBox(2, buttons);
+        VBox group = new VBox(1, heading, row);
+        group.getStyleClass().add("cm-tool-group");
+        return group;
+    }
+
+    // ----- Library (left), list or map (middle), inspector (right) -----
+
+    private enum ScopeKind { ALL, FAVORITES, RECENT, OPEN, GROUP, TAG, TEAMWORK }
+
+    /** What the library on the left chose: a smart list, a folder or tag ({@code value}), or the teamwork connections. */
+    private record Scope(ScopeKind kind, String value) {
+        static final Scope ALL = new Scope(ScopeKind.ALL, null);
+    }
+
+    /** How many connections the "Recently used" list shows. */
+    private static final int RECENT_LIMIT = 15;
+
+    private void setScope(Scope newScope) {
+        scope = newScope;
+        applyFilters();
+        rebuildSidebar();
+    }
+
+    private void setMapMode(boolean map) {
+        mapMode = map;
+        listViewButton.setSelected(!map);
+        mapViewButton.setSelected(map);
+        refreshView();
+    }
+
+    /** Applies the library's choice and the search to the tree in the middle. */
+    private void applyFilters() {
+        Predicate<ServerConnection> search = searchPredicate(searchField.getText());
+        if (isLocalTabActive()) {
+            Predicate<ServerConnection> chosen = scopePredicate();
+            treeView.filterTree(chosen == null ? search : search == null ? chosen : chosen.and(search));
+        } else {
+            teamworkTreeView.filterTree(search);
+        }
+        refreshView();
+    }
+
+    /**
+     * The connections whose name, host or tag contain {@code text}, ignoring case; with {@code *} the
+     * whole name, host or tag must match the pattern. Null for no text.
+     */
+    static Predicate<ServerConnection> searchPredicate(String text) {
+        if (text == null || text.trim().isEmpty()) {
+            return null;
+        }
+        String searchText = text.trim();
+        Pattern pattern = null;
+        if (searchText.contains("*")) {
+            StringBuilder regex = new StringBuilder();
+            for (String part : searchText.split("\\*", -1)) {
+                if (regex.length() > 0) {
+                    regex.append(".*");
+                }
+                regex.append(Pattern.quote(part));
+            }
+            pattern = Pattern.compile(regex.toString(), Pattern.CASE_INSENSITIVE);
+        }
+        final Pattern finalPattern = pattern;
+        final String lower = searchText.toLowerCase();
+        return connection -> {
+            for (String value : new String[] {connection.getName(), connection.getHost(), connection.getTag()}) {
+                if (value == null) {
+                    continue;
+                }
+                if (finalPattern != null ? finalPattern.matcher(value).matches() : value.toLowerCase().contains(lower)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+    }
+
+    /** The local connections the library's choice shows, or null for all of them. */
+    private Predicate<ServerConnection> scopePredicate() {
+        return switch (scope.kind()) {
+            case FAVORITES -> this::isFavorite;
+            case RECENT -> {
+                java.util.Set<ServerConnection> recent = new java.util.HashSet<>(recentConnections());
+                yield recent::contains;
+            }
+            case OPEN -> connection -> openTabs(connection) > 0;
+            case GROUP -> {
+                GroupPath folder = new GroupPath(scope.value());
+                yield connection -> connection.getGroup() != null
+                    && (new GroupPath(connection.getGroup()).equals(folder) || new GroupPath(connection.getGroup()).isChildOf(folder));
+            }
+            case TAG -> connection -> scope.value().equalsIgnoreCase(connection.getTag());
+            default -> null;
+        };
+    }
+
+    /** The local connections used most recently, newest first. */
+    private List<ServerConnection> recentConnections() {
+        return connections.stream()
+            .filter(connection -> !connection.isPlaceholder() && connection.getLastUsed() > 0)
+            .sorted(java.util.Comparator.comparingLong(ServerConnection::getLastUsed).reversed())
+            .limit(RECENT_LIMIT)
+            .toList();
+    }
+
+    /** Shows the active tree or the map, the scope's title and count, and the teamwork bar. */
+    private void refreshView() {
+        boolean local = isLocalTabActive();
+        treeView.setVisible(local && !mapMode);
+        teamworkTreeView.setVisible(!local && !mapMode);
+        mapView.setVisible(mapMode);
+        teamworkAuthBar.setVisible(!local);
+        teamworkAuthBar.setManaged(!local);
+        scopeTitle.setText(scopeTitle());
+        scopeCount.setText(I18n.get("connectionManager.count", shownConnections().size()));
+        if (mapMode) {
+            refreshMap();
+        }
+        updateButtonState();
+        updateInspector();
+    }
+
+    private String scopeTitle() {
+        return switch (scope.kind()) {
+            case FAVORITES -> I18n.get("connectionManager.library.favorites");
+            case RECENT -> I18n.get("connectionManager.library.recent");
+            case OPEN -> I18n.get("connectionManager.library.open");
+            case GROUP -> scope.value().replace(GroupPath.SEPARATOR, " / ");
+            case TAG -> I18n.get("connectionManager.tagTitle", scope.value());
+            case TEAMWORK -> I18n.get("connectionManager.tab.teamwork");
+            default -> I18n.get("connectionManager.library.all");
+        };
+    }
+
+    /** The connections the middle shows: those of the active tree that pass its filter, without folder placeholders. */
+    private List<ServerConnection> shownConnections() {
+        ConnectionManagerTreeView tree = getActiveTreeView();
+        Predicate<ServerConnection> filter = tree.getFilter();
+        return (isLocalTabActive() ? connections : teamworkConnections).stream()
+            .filter(connection -> !connection.isPlaceholder() && (filter == null || filter.test(connection)))
+            .toList();
+    }
+
+    private void refreshMap() {
+        boolean local = isLocalTabActive();
+        mapView.show(shownConnections(), local ? this::inheritedGroupColor : group -> null, this::openTabs, !local);
+        mapView.setSelection(getActiveTreeView().getSelectedConnections());
+    }
+
+    /** After a tree was rebuilt: new counts on the left, and the map and inspector again. */
+    private void contentChanged() {
+        if (teamworkAuthBar == null) {
+            return; // still being built
+        }
+        rebuildSidebar();
+        scopeCount.setText(I18n.get("connectionManager.count", shownConnections().size()));
+        if (mapMode) {
+            refreshMap();
+        }
+        updateInspector();
+    }
+
+    private void selectionChanged() {
+        updateButtonState();
+        updateInspector();
+        if (mapMode) {
+            mapView.setSelection(getActiveTreeView().getSelectedConnections());
+        }
+    }
+
+    /** Selects a connection clicked on the map in the list, so the buttons and the inspector follow. */
+    private void selectFromMap(ServerConnection connection) {
+        if (!getActiveTreeView().selectConnection(connection)) {
+            inspector.showConnection(connection, factsFor(connection, !isLocalTabActive()));
+            mapView.setSelection(List.of(connection));
+        }
+    }
+
+    private void updateInspector() {
+        ConnectionManagerTreeView tree = getActiveTreeView();
+        List<ServerConnection> selected = tree.getSelectedConnections();
+        List<GroupPath> groups = isLocalTabActive() ? treeView.getSelectedGroups() : List.of();
+        if (selected.size() == 1) {
+            inspector.showConnection(selected.get(0), factsFor(selected.get(0), !isLocalTabActive()));
+        } else if (selected.isEmpty() && groups.size() == 1) {
+            GroupPath group = groups.get(0);
+            GlobalSettings settings = globalSettings();
+            de.kortty.isolation.IsolationLevel level = settings != null
+                ? settings.getConnectionGroupIsolationLevel(group.getPath()) : null;
+            inspector.showGroup(group, new ConnectionInspectorPane.FolderFacts(connectionsInGroup(group).size(),
+                inheritedGroupColor(group.getPath()),
+                level != null ? IsolationConnectionSupport.levelName(level) : I18n.get("connectionManager.inspector.isolation.inherit"),
+                isGroupHostKeyCheckDisabled(group)), false);
+        } else {
+            inspector.showEmpty();
+        }
+    }
+
+    /** What the inspector says about {@code connection} beyond the connection itself. */
+    private ConnectionInspectorPane.Facts factsFor(ServerConnection connection, boolean readOnly) {
+        GlobalSettings settings = globalSettings();
+        String lastUsed = connection.getLastUsed() > 0
+            ? java.time.format.DateTimeFormatter.ofLocalizedDateTime(java.time.format.FormatStyle.MEDIUM,
+                java.time.format.FormatStyle.SHORT).format(java.time.LocalDateTime.ofInstant(
+                    java.time.Instant.ofEpochMilli(connection.getLastUsed()), java.time.ZoneId.systemDefault()))
+            : I18n.get("connectionManager.inspector.never");
+        return new ConnectionInspectorPane.Facts(isFavorite(connection), openTabs(connection), readOnly,
+            readOnly ? null : inheritedGroupColor(connection.getGroup()), authDescription(connection),
+            isolationDescription(connection, settings), hostKeyDescription(connection, settings),
+            jumpDescription(connection), lastUsed, teamworkSourceName(connection, settings));
+    }
+
+    /** Where a teamwork connection comes from: its source's location, else the teamwork tab's name. */
+    private static String teamworkSourceName(ServerConnection connection, GlobalSettings settings) {
+        if (settings != null && connection.getTeamworkSourceId() != null) {
+            for (de.kortty.model.TeamworkSourceConfig source : settings.getTeamworkSources()) {
+                if (connection.getTeamworkSourceId().equals(source.getId()) && source.getLocation() != null) {
+                    return source.getLocation();
+                }
+            }
+        }
+        return I18n.get("connectionManager.tab.teamwork");
+    }
+
+    private String authDescription(ServerConnection connection) {
+        if (connection.getProtocol() == de.kortty.model.ConnectionProtocol.LOCAL_SHELL) {
+            return I18n.get("connectionManager.inspector.auth.none");
+        }
+        if (connection.getTemporaryKeyContent() != null || connection.isTemporaryKeyPermanent()) {
+            return I18n.get("connEdit.authTempKey");
+        }
+        if (connection.getCredentialId() != null && credentialManager != null) {
+            var credential = credentialManager.findCredentialById(connection.getCredentialId());
+            if (credential.isPresent()) {
+                return I18n.get("connectionManager.inspector.auth.credential", credential.get().getName());
+            }
+        }
+        if (connection.getSshKeyId() != null && app.getSSHKeyManager() != null) {
+            var key = app.getSSHKeyManager().findKeyById(connection.getSshKeyId());
+            if (key.isPresent()) {
+                return I18n.get("connectionManager.inspector.auth.key", key.get().getName());
+            }
+        }
+        if (connection.isTeamworkConnection() && connection.getCredentialId() == null && connection.getSshKeyId() == null) {
+            return I18n.get("connectionManager.inspector.auth.team");
+        }
+        if (connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
+            return I18n.get("connEdit.authKey");
+        }
+        if (connection.getAuthMethod() == de.kortty.model.AuthMethod.KEYBOARD_INTERACTIVE) {
+            return I18n.get("connectionManager.inspector.auth.keyboard");
+        }
+        return I18n.get(connection.getEncryptedPassword() != null
+            ? "connectionManager.inspector.auth.savedPassword" : "connectionManager.inspector.auth.askPassword");
+    }
+
+    private static String isolationDescription(ServerConnection connection, GlobalSettings settings) {
+        if (connection.getIsolationLevel() != null) {
+            return IsolationConnectionSupport.levelName(connection.getIsolationLevel());
+        }
+        if (settings == null) {
+            return I18n.get("connectionManager.inspector.isolation.inherit");
+        }
+        if (connection.getGroup() != null) {
+            GroupPath path = new GroupPath(connection.getGroup());
+            while (path != null && !path.isRoot()) {
+                de.kortty.isolation.IsolationLevel level = settings.getConnectionGroupIsolationLevel(path.getPath());
+                if (level != null) {
+                    return I18n.get("connectionManager.inspector.isolation.folder", IsolationConnectionSupport.levelName(level));
+                }
+                path = path.getParent();
+            }
+        }
+        de.kortty.isolation.IsolationLevel global = settings.getConnectionIsolationDefault();
+        return global != null
+            ? I18n.get("connectionManager.inspector.isolation.global", IsolationConnectionSupport.levelName(global))
+            : I18n.get("connectionManager.inspector.isolation.inherit");
+    }
+
+    private static String hostKeyDescription(ServerConnection connection, GlobalSettings settings) {
+        Boolean own = connection.getDisableHostKeyCheck();
+        if (own != null) {
+            return I18n.get(own ? "connectionManager.inspector.hostKey.off" : "connectionManager.inspector.hostKey.on");
+        }
+        if (settings != null && connection.getGroup() != null && settings.isHostKeyCheckDisabledForGroup(connection.getGroup())) {
+            return I18n.get("connectionManager.inspector.hostKey.offFolder");
+        }
+        if (settings != null && settings.isHostKeyCheckDisabledForAllConnections()) {
+            return I18n.get("connectionManager.inspector.hostKey.offGlobal");
+        }
+        return I18n.get("connectionManager.inspector.hostKey.on");
+    }
+
+    /** The jump server, named after its saved connection when there is one. */
+    private String jumpDescription(ServerConnection connection) {
+        String target = ConnectionRowGraphics.jumpTarget(connection);
+        if (target == null) {
+            return null;
+        }
+        String host = connection.getJumpServer().getHost().trim();
+        for (ServerConnection candidate : isLocalTabActive() ? connections : teamworkConnections) {
+            if (candidate != connection && !candidate.isPlaceholder() && candidate.getHost() != null
+                    && candidate.getHost().trim().equalsIgnoreCase(host)) {
+                return candidate.getName() + " (" + target + ")";
+            }
+        }
+        return target;
+    }
+
+    /** The tab color a connection in {@code group} shows: the folder's own, else the nearest one above; null without. */
+    private String inheritedGroupColor(String group) {
+        if (group == null || group.isBlank()) {
+            return null;
+        }
+        var inherited = ConnectionGroupColors.inherited(group, path -> groupColorOf(new GroupPath(path)));
+        return inherited != null ? inherited.hex() : null;
+    }
+
+    /** Rebuilds the library on the left: smart lists, folders, tags and the teamwork entry, with their counts. */
+    private void rebuildSidebar() {
+        refreshOpenTabCounts();
+        List<javafx.scene.Node> items = new ArrayList<>();
+        items.add(sideHeading("connectionManager.library"));
+        long local = connections.stream().filter(connection -> !connection.isPlaceholder()).count();
+        items.add(sideItem(Scope.ALL, "connectionManager.library.all", "viewList", null, local));
+        items.add(sideItem(new Scope(ScopeKind.FAVORITES, null), "connectionManager.library.favorites", "star", null,
+            connections.stream().filter(connection -> !connection.isPlaceholder() && isFavorite(connection)).count()));
+        items.add(sideItem(new Scope(ScopeKind.RECENT, null), "connectionManager.library.recent", "clock", null,
+            recentConnections().size()));
+        items.add(sideItem(new Scope(ScopeKind.OPEN, null), "connectionManager.library.open", "tab", null,
+            connections.stream().filter(connection -> !connection.isPlaceholder() && openTabs(connection) > 0).count()));
+
+        java.util.TreeSet<String> folders = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        java.util.TreeSet<String> tags = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        for (ServerConnection connection : connections) {
+            if (connection.getGroup() != null && !connection.getGroup().isBlank()) {
+                GroupPath path = new GroupPath(connection.getGroup());
+                while (path != null && !path.isRoot()) {
+                    folders.add(path.getPath());
+                    path = path.getParent();
+                }
+            }
+            if (!connection.isPlaceholder() && connection.getTag() != null && !connection.getTag().isBlank()) {
+                tags.add(connection.getTag().trim());
+            }
+        }
+        if (!folders.isEmpty()) {
+            items.add(sideHeading("connectionManager.folders"));
+            for (String folder : folders) {
+                GroupPath path = new GroupPath(folder);
+                ToggleButton item = sideItem(new Scope(ScopeKind.GROUP, folder), null, "folder",
+                    inheritedGroupColor(folder), connectionsInGroup(path).size());
+                ((Label) ((HBox) item.getGraphic()).getChildren().get(1)).setText(path.getName());
+                // Inline, as the stylesheet's padding would win over a value set in code.
+                item.setStyle("-fx-padding: 4 8 4 " + (8 + 16 * (path.getDepth() - 1)) + ";");
+                items.add(item);
+            }
+        }
+        if (!tags.isEmpty()) {
+            items.add(sideHeading("connectionManager.tags"));
+            javafx.scene.layout.FlowPane chips = new javafx.scene.layout.FlowPane(6, 6);
+            chips.setPadding(new Insets(2, 6, 4, 6));
+            for (String tag : tags) {
+                // The text is a label in the graphic, which follows the theme like the other library entries;
+                // a toggle button's own text takes a colour from its (here transparent) background.
+                Label text = new Label(tag);
+                HBox graphic = new HBox(5, ToolbarIcons.create("tag", text.textFillProperty(), 12), text);
+                graphic.setAlignment(Pos.CENTER_LEFT);
+                ToggleButton chip = new ToggleButton(null, graphic);
+                chip.setAccessibleText(tag);
+                chip.getStyleClass().add("cm-tag");
+                Scope tagScope = new Scope(ScopeKind.TAG, tag);
+                chip.setSelected(tagScope.equals(scope));
+                chip.setOnAction(e -> setScope(chip.isSelected() ? tagScope : Scope.ALL));
+                chips.getChildren().add(chip);
+            }
+            items.add(chips);
+        }
+        items.add(sideHeading("connectionManager.section.teamwork"));
+        items.add(sideItem(new Scope(ScopeKind.TEAMWORK, null), "connectionManager.tab.teamwork", "teamwork", null,
+            teamworkConnections.size()));
+        sidebarItems.getChildren().setAll(items);
+    }
+
+    private static Label sideHeading(String key) {
+        Label heading = new Label(I18n.get(key));
+        heading.getStyleClass().add("cm-side-heading");
+        return heading;
+    }
+
+    /** One entry of the library; choosing it again keeps it chosen. */
+    private ToggleButton sideItem(Scope itemScope, String key, String glyph, String coreColor, long count) {
+        Label name = new Label(key != null ? I18n.get(key) : "");
+        name.setMaxWidth(Double.MAX_VALUE);
+        name.setMinWidth(0);
+        HBox.setHgrow(name, Priority.ALWAYS);
+        Label number = new Label(String.valueOf(count));
+        number.setStyle("-fx-opacity: 0.65; -fx-font-size: 0.9em;");
+        number.setMinWidth(Region.USE_PREF_SIZE);
+        HBox graphic = new HBox(8, ToolbarIcons.create(glyph, name.textFillProperty(), 17, coreColor), name, number);
+        graphic.setAlignment(Pos.CENTER_LEFT);
+        ToggleButton item = new ToggleButton(null, graphic);
+        item.getStyleClass().add("cm-side-item");
+        item.setMaxWidth(Double.MAX_VALUE);
+        item.setToggleGroup(scopeToggles);
+        item.setSelected(itemScope.equals(scope));
+        item.setAccessibleText((key != null ? I18n.get(key) : itemScope.value()) + ", " + count);
+        graphic.prefWidthProperty().bind(javafx.beans.binding.Bindings.createDoubleBinding(
+            () -> item.getWidth() - item.getPadding().getLeft() - item.getPadding().getRight() - 2,
+            item.widthProperty(), item.paddingProperty()));
+        item.setOnAction(e -> {
+            if (itemScope.equals(scope)) {
+                item.setSelected(true);
+                return;
+            }
+            setScope(itemScope);
+        });
+        return item;
+    }
+
+    // ----- Favorites, open tabs, quick edits -----
+
+    private boolean isFavorite(ServerConnection connection) {
+        GlobalSettings settings = globalSettings();
+        return connection != null && settings != null && settings.isFavoriteConnection(connection.getId());
+    }
+
+    /**
+     * Marks {@code targets} as favorites, or unmarks them when all of them already are, and saves the
+     * global settings; a failed save puts the previous favorites back.
+     */
+    private void toggleFavorites(List<ServerConnection> targets) {
+        var gsm = app.getGlobalSettingsManager();
+        GlobalSettings settings = gsm != null ? gsm.getSettings() : null;
+        if (settings == null || targets.isEmpty()) {
+            return;
+        }
+        List<String> previous = new ArrayList<>(settings.getFavoriteConnectionIds());
+        List<String> ids = new ArrayList<>(previous);
+        boolean unmark = targets.stream().allMatch(this::isFavorite);
+        for (ServerConnection connection : targets) {
+            if (unmark) {
+                ids.remove(connection.getId());
+            } else if (!ids.contains(connection.getId())) {
+                ids.add(connection.getId());
+            }
+        }
+        settings.setFavoriteConnectionIds(ids);
+        try {
+            gsm.save();
+        } catch (Exception e) {
+            settings.setFavoriteConnectionIds(previous);
+            logger.error("Could not save the favorite connections", e);
+            return;
+        }
+        ServerConnection only = targets.size() == 1 ? targets.get(0) : null;
+        getActiveTreeView().refreshPreservingFilter();
+        if (only != null) {
+            getActiveTreeView().selectConnection(only);
+        }
+    }
+
+    /** Renames a local connection from the inspector and saves. */
+    private void renameConnection(ServerConnection connection, String name) {
+        if (localEditIndex(connections, connection) < 0 || name == null || name.isBlank()) {
+            return;
+        }
+        connection.setName(name);
+        configManager.updateConnection(connection);
+        treeView.refreshPreservingFilter();
+        saveConnections();
+        treeView.selectConnection(connection);
+    }
+
+    /** Counts the open tabs of every window by connection id, for the dots and the "Open" list. */
+    private void refreshOpenTabCounts() {
+        openTabCounts = MainWindow.openTabCountsByConnectionId();
+    }
+
+    private int openTabs(ServerConnection connection) {
+        return connection != null && connection.getId() != null ? openTabCounts.getOrDefault(connection.getId(), 0) : 0;
+    }
+
     private void updateButtonState() {
         boolean local = isLocalTabActive();
         List<ServerConnection> selectedConnections = getActiveTreeView().getSelectedConnections();
@@ -513,7 +983,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         syncService.getTeamworkConnections().stream()
             .filter(c -> !deletedIds.contains(c.getId()))
             .forEach(teamworkConnections::add);
-        teamworkTreeView.refreshTree();
+        teamworkTreeView.refreshPreservingFilter();
     }
     
     private void buildTeamworkAuthCombo(ComboBox<Object> combo) {
@@ -685,7 +1155,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             }
             connections.add(connection);
             configManager.addConnection(connection);
-            treeView.refreshTree();
+            treeView.refreshPreservingFilter();
             saveConnections();
         });
     }
@@ -706,7 +1176,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             }
             connections.set(index, editedConnection);
             configManager.updateConnection(editedConnection);
-            treeView.refreshTree();
+            treeView.refreshPreservingFilter();
             saveConnections();
         });
     }
@@ -762,7 +1232,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                         app.getTeamworkRecycleBinService().addDeleted(conn);
                         teamworkConnections.remove(conn);
                     }
-                    teamworkTreeView.refreshTree();
+                    teamworkTreeView.refreshPreservingFilter();
                 }
             });
             return;
@@ -779,7 +1249,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                     connections.remove(conn);
                     configManager.removeConnection(conn);
                 }
-                treeView.refreshTree();
+                treeView.refreshPreservingFilter();
                 saveConnections();
             }
         });
@@ -793,7 +1263,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
 
             connections.add(copy);
             configManager.addConnection(copy);
-            treeView.refreshTree();
+            treeView.refreshPreservingFilter();
             saveConnections();
         }
     }
@@ -904,7 +1374,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 
                 connections.add(placeholder);
                 configManager.addConnection(placeholder);
-                treeView.refreshTree();
+                treeView.refreshPreservingFilter();
                 saveConnections();
             }
         });
@@ -1143,9 +1613,13 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                         settings.getConnectionGroupIsolation(), oldPath.getPath(), newPath.getPath()));
                 }
                 
-                treeView.refreshTree();
+                treeView.refreshPreservingFilter();
                 saveConnections();
                 storeHostKeyCheckExemptions(exemptionsAfter);
+                if (scope.kind() == ScopeKind.GROUP && (scope.value().equals(oldPath.getPath())
+                        || new GroupPath(scope.value()).isChildOf(oldPath))) {
+                    setScope(new Scope(ScopeKind.GROUP, newPath.getPath() + scope.value().substring(oldPath.getPath().length())));
+                }
             }
         });
     }
@@ -1190,11 +1664,15 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                         settings.getConnectionGroupIsolation(), groupPath.getPath()));
                 }
                 
-                treeView.refreshTree();
+                treeView.refreshPreservingFilter();
                 saveConnections();
                 // A new folder of the same name starts with host-key verification on.
                 storeHostKeyCheckExemptions(hostKeyCheckExemptionsAfter(
                     exempt -> HostKeyCheckGroupExemptions.deleted(exempt, groupPath.getPath())));
+                if (scope.kind() == ScopeKind.GROUP && (scope.value().equals(groupPath.getPath())
+                        || new GroupPath(scope.value()).isChildOf(groupPath))) {
+                    setScope(Scope.ALL);
+                }
             }
         });
     }
@@ -1333,7 +1811,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 }
                 
                 // Refresh tree and save
-                treeView.refreshTree();
+                treeView.refreshPreservingFilter();
                 saveConnections();
                 
                 Alert success = new Alert(Alert.AlertType.INFORMATION);
@@ -1657,15 +2135,4 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         }
     }
     
-    /** Creates a small label with a Unicode symbol for use as button graphic. */
-    private static Label iconLabel(String symbol) {
-        return iconLabel(symbol, 14);
-    }
-    
-    private static Label iconLabel(String symbol, int fontSizePx) {
-        Label l = new Label(symbol);
-        l.setStyle("-fx-font-size: " + fontSizePx + "px;");
-        l.setMinWidth(Region.USE_PREF_SIZE);
-        return l;
-    }
 }

@@ -4580,6 +4580,20 @@ public class MainWindow {
      * connection moved to another group, a credential moved to another environment, and the frame
      * switched on or off in the Window settings, show at once. FX thread only.
      */
+    /** How many terminal tabs each saved connection has open, in every window, by connection id. FX thread only. */
+    static Map<String, Integer> openTabCountsByConnectionId() {
+        Map<String, Integer> counts = new HashMap<>();
+        for (MainWindow window : new ArrayList<>(openWindows)) {
+            for (TerminalTab terminalTab : window.terminalTabs()) {
+                ServerConnection connection = terminalTab.getConnection();
+                if (connection != null && connection.getId() != null) {
+                    counts.merge(connection.getId(), 1, Integer::sum);
+                }
+            }
+        }
+        return counts;
+    }
+
     static void refreshConnectionColorsInAllWindows() {
         for (MainWindow window : new ArrayList<>(openWindows)) {
             for (TerminalTab terminalTab : window.terminalTabs()) {

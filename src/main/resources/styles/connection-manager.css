@@ -1,0 +1,125 @@
+/*
+ * Connection Manager (Werkbank): toolbar, library, list/map and inspector.
+ * Only literal colours: the Normal design (Modena) and the AtlantaFX designs define different colour
+ * tokens, so neither set may be used here. Text colours come from the theme.
+ */
+
+.cm-toolbar {
+    -fx-padding: 6 10 7 10;
+    -fx-spacing: 8;
+    -fx-border-color: transparent transparent rgba(128, 128, 128, 0.30) transparent;
+}
+
+.cm-tool-group {
+    -fx-padding: 0 8 0 0;
+    -fx-border-color: transparent rgba(128, 128, 128, 0.30) transparent transparent;
+}
+
+.cm-tool-heading {
+    -fx-font-size: 0.82em;
+    -fx-opacity: 0.75;
+    -fx-padding: 0 0 0 6;
+}
+
+.button.cm-tool {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-border-color: transparent;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-padding: 5 7 5 7;
+    -fx-cursor: hand;
+}
+
+.button.cm-tool:hover {
+    -fx-background-color: rgba(128, 128, 128, 0.18);
+}
+
+.button.cm-tool:focused {
+    -fx-border-color: #368af5;
+}
+
+.cm-sidebar,
+.cm-sidebar > .viewport {
+    -fx-background-color: rgba(128, 128, 128, 0.06);
+}
+
+.cm-side-heading {
+    -fx-font-size: 0.8em;
+    -fx-font-weight: bold;
+    -fx-opacity: 0.65;
+    -fx-padding: 10 8 3 8;
+}
+
+.toggle-button.cm-side-item {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-border-color: transparent;
+    -fx-padding: 4 8 4 8;
+    -fx-alignment: center-left;
+    -fx-cursor: hand;
+}
+
+.toggle-button.cm-side-item:hover {
+    -fx-background-color: rgba(128, 128, 128, 0.16);
+}
+
+.toggle-button.cm-side-item:selected,
+.toggle-button.cm-side-item:selected:hover {
+    -fx-background-color: rgba(54, 138, 245, 0.24);
+}
+
+.toggle-button.cm-tag {
+    -fx-background-color: transparent;
+    -fx-border-color: rgba(128, 128, 128, 0.45);
+    -fx-border-radius: 999;
+    -fx-background-radius: 999;
+    -fx-padding: 2 9 2 7;
+    -fx-font-size: 0.9em;
+    -fx-cursor: hand;
+}
+
+.toggle-button.cm-tag:selected {
+    -fx-background-color: rgba(54, 138, 245, 0.24);
+    -fx-border-color: #368af5;
+}
+
+.cm-center-header {
+    -fx-padding: 8 10 8 12;
+}
+
+.cm-scope-title {
+    -fx-font-size: 1.15em;
+    -fx-font-weight: bold;
+}
+
+.cm-tile {
+    -fx-background-color: rgba(128, 128, 128, 0.14);
+    -fx-background-radius: 8;
+}
+
+.button.cm-primary {
+    -fx-background-color: #1769d2;
+    -fx-background-radius: 7;
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: bold;
+    -fx-padding: 6 12 6 12;
+}
+
+.button.cm-primary:hover {
+    -fx-background-color: #1f78e6;
+}
+
+.cm-inspector,
+.cm-inspector > .viewport {
+    -fx-background-color: transparent;
+}
+
+.cm-map-bar {
+    -fx-border-color: transparent transparent rgba(128, 128, 128, 0.30) transparent;
+}
+
+.cm-map-scroller,
+.cm-map-scroller > .viewport {
+    -fx-background-color: transparent;
+}
