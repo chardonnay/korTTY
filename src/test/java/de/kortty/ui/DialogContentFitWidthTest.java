@@ -2,6 +2,7 @@ package de.kortty.ui;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import javafx.css.StyleOrigin;
@@ -44,7 +45,9 @@ class DialogContentFitWidthTest {
 
     @Test
     void theCapIsLiftedBeforeAndAfterTheFitAndTheFitStartsAtTheOpeningWidth() throws Exception {
-        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/DialogContentFit.java"));
+        // A Windows checkout has CRLF line endings.
+        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/DialogContentFit.java"),
+                StandardCharsets.UTF_8).replace("\r\n", "\n");
         int before = source.indexOf("honorRequestedWidth(pane);\n            Rectangle2D screen = screenFor(dialog.getOwner());");
         int fit = source.indexOf("fit(pane, screen.getWidth() * SCREEN_SHARE, screen.getHeight() * SCREEN_SHARE);", before);
         int after = source.indexOf("honorRequestedWidth(pane);", fit);
