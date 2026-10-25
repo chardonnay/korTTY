@@ -115,9 +115,11 @@ final class OsBadgeSupport {
         }
         return switch (badge.builtIn().family()) {
             case WINDOWS -> "Windows";
+            case APPLE -> "Apple";
             case LINUX -> "Linux";
             case UNIX -> "Unix";
             case BSD -> "BSD";
+            case MAINFRAME -> "Mainframe";
         };
     }
 

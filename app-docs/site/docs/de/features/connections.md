@@ -44,7 +44,7 @@ Der Inspektor zeigt die ausgewählte Verbindung: deren Ordner und Tag, deren Adr
 
 ### OS-Symbole
 
-Eine Verbindung kann das Symbol des Betriebssystems anzeigen, das auf ihrem Server läuft, in der Ecke ihrer Zeile, im Netzplan, im Inspektor und im PDF. korTTY zeichnet eigene Symbole für Windows XP, Windows 10, Windows 11, Windows Server, Linux, Red Hat, Rocky Linux, AlmaLinux, CentOS, Fedora, Debian, Ubuntu, Arch Linux, SUSE, Oracle Solaris, IBM AIX, HP-UX, DEC, FreeBSD und OpenBSD. Wählen Sie eines unter **OS-Symbol** im Inspektor oder auf dem *Verbindung*-Tab des Verbindungs-Editors aus, oder für mehrere Verbindungen gleichzeitig im Kontextmenü (**OS-Symbol**).
+Eine Verbindung kann das Symbol des Betriebssystems anzeigen, das auf ihrem Server läuft, in der Ecke ihrer Zeile, im Netzplan, im Inspektor und im PDF. korTTY zeichnet eigene Symbole für Windows XP, Windows 10, Windows 11, Windows Server, macOS, Linux, Red Hat, Rocky Linux, AlmaLinux, CentOS, Fedora, Debian, Ubuntu, Linux Mint, Arch Linux, SUSE, ChromeOS, Oracle Solaris, IBM AIX, HP-UX, DEC, FreeBSD, OpenBSD und IBM z/OS. Wählen Sie eines unter **OS-Symbol** im Inspektor oder auf dem *Verbindung*-Tab des Verbindungs-Editors aus, oder für mehrere Verbindungen gleichzeitig im Kontextmenü (**OS-Symbol**).
 
 **Eigene Symbole…** (neben der Symbolauswahl und am Ende des Kontextmenüs) fügt eigene Symbole hinzu: Wählen Sie eine PNG-, JPG-, GIF- oder SVG-Datei aus und vergeben Sie einen Namen. korTTY speichert eine Kopie als 128-Pixel-PNG im `os-badges`-Ordner des Konfigurationsverzeichnisses, sodass die ursprüngliche Datei verschoben oder gelöscht werden kann. Benennen Sie ein Symbol dort um oder löschen Sie es; Verbindungen, deren Symbol gelöscht wurde, zeigen keins an.
 

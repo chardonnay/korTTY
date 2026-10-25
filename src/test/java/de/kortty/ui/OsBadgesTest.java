@@ -15,8 +15,8 @@ import org.testng.annotations.Test;
 /**
  * The built-in OS badges: ids are unique, kebab-case and stable; every badge has art whose paths are SVG path
  * data with the right argument counts and whose fills are hex colours; {@link OsBadges#builtIn(String)} finds
- * each badge and nothing else; and the families list as Windows, Linux, Unix, BSD. The JavaFX node is built on
- * the FX thread and is not exercised here.
+ * each badge and nothing else; and the families list as Windows, Apple, Linux, Unix, BSD, mainframe. The JavaFX
+ * node is built on the FX thread and is not exercised here.
  */
 class OsBadgesTest {
 
@@ -39,9 +39,9 @@ class OsBadgesTest {
     void theDocumentedBadgesArePresent() {
         List<String> ids = OsBadges.builtIn().stream().map(Badge::id).toList();
 
-        assertThat(ids).containsAtLeast("windows-xp", "windows-10", "windows-11", "windows-server",
-                "linux", "redhat", "rocky", "almalinux", "centos", "fedora", "debian", "ubuntu", "arch", "suse",
-                "solaris", "aix", "hp-ux", "dec", "freebsd", "openbsd");
+        assertThat(ids).containsAtLeast("windows-xp", "windows-10", "windows-11", "windows-server", "macos",
+                "linux", "redhat", "rocky", "almalinux", "centos", "fedora", "debian", "ubuntu", "linux-mint", "arch",
+                "suse", "chromeos", "solaris", "aix", "hp-ux", "dec", "freebsd", "openbsd", "zos");
     }
 
     @Test
@@ -76,7 +76,8 @@ class OsBadgesTest {
 
         assertThat(families).isInOrder(Comparator.comparing(Family::ordinal));
         assertThat(families.stream().distinct().toList())
-                .containsExactly(Family.WINDOWS, Family.LINUX, Family.UNIX, Family.BSD).inOrder();
+                .containsExactly(Family.WINDOWS, Family.APPLE, Family.LINUX, Family.UNIX, Family.BSD, Family.MAINFRAME)
+                .inOrder();
     }
 
     /** Each command takes a fixed number of arguments, and a path may repeat them only in whole groups. */

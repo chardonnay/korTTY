@@ -10,7 +10,7 @@ What changed in the current release. The version this guide was built for is sho
 - **Map** — **Map** shows the connections as a network plan: a zone per folder in its tab color, jump-server routes and tunnels as lines, double-click connects and dragging a node into another zone moves the connection into that folder. See [List and map](../features/connections.md#list-and-map).
 - **Favorites** — mark connections with the star to find them under **Favorites**; teamwork connections can be favorites too.
 - **Teamwork beside local connections** — the general lists show teamwork connections too, marked with a small people symbol and read-only. See [Library](../features/connections.md#library).
-- **OS symbols** — give each server the symbol of its operating system (Windows, Linux distributions, Unix, BSD) or one of your own images, shown in the list, on the map and in the inspector. See [OS symbols](../features/connections.md#os-symbols).
+- **OS symbols** — give each server the symbol of its operating system (Windows, macOS, Linux distributions, ChromeOS, Unix, BSD, z/OS) or one of your own images, shown in the list, on the map and in the inspector. See [OS symbols](../features/connections.md#os-symbols).
 - **Map as PDF** — **PDF** on the map saves it as a vector PDF with the korTTY logo, in landscape or portrait.
 - **Overview export** — **Export overview** writes your servers as JSON, YAML, TOML or XML, with the parts you choose and never a password or key. See [Exporting an overview](../features/connections.md#exporting-an-overview).
 - **Inspector** — the route from this computer through the jump server, security as chips, usage bars for the last 14 days and an SFTP button.

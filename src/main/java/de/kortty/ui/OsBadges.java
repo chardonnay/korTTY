@@ -21,7 +21,7 @@ import javafx.scene.transform.Scale;
  */
 final class OsBadges {
 
-    enum Family { WINDOWS, LINUX, UNIX, BSD }
+    enum Family { WINDOWS, APPLE, LINUX, UNIX, BSD, MAINFRAME }
 
     /** One filled shape: SVG path data in a 24x24 box, filled with fill (#RRGGBB or #RRGGBBAA). */
     record Layer(String path, String fill) { }
@@ -54,6 +54,13 @@ final class OsBadges {
                     layer("M17.45 5.6 A0.95 0.95 0 1 0 19.35 5.6 A0.95 0.95 0 1 0 17.45 5.6 Z"
                             + " M17.45 12 A0.95 0.95 0 1 0 19.35 12 A0.95 0.95 0 1 0 17.45 12 Z"
                             + " M17.45 18.4 A0.95 0.95 0 1 0 19.35 18.4 A0.95 0.95 0 1 0 17.45 18.4 Z", "#22C55E")),
+            // macOS: the bitten apple with its leaf.
+            badge("macos", "macOS", Family.APPLE, chip("#FFFFFF"),
+                    layer("M12 7.9 C13.1 7 14.5 6.6 15.9 6.7 C17.3 6.8 18.6 7.5 19.4 8.7 A3.9 3.9 0 0 0 20.5 15.7"
+                            + " C19.9 17.5 18.9 19.3 17.6 20.5 C16.8 21.2 15.9 21.5 15 21.2 C14 20.9 13.1 20.6 12 20.6"
+                            + " C10.9 20.6 10 20.9 9 21.2 C8.1 21.5 7.2 21.2 6.4 20.5 C4.6 18.9 3.6 16 3.6 13.3"
+                            + " C3.6 9.7 5.8 6.8 8.6 6.7 C9.9 6.6 11 7.2 12 7.9 Z"
+                            + " M12.2 6 C12.1 4.1 13.5 2.4 15.6 2.2 C15.8 4.2 14.3 5.9 12.2 6 Z", "#1D1D1F")),
             // Linux: Tux, the penguin, black with a white belly, yellow beak and feet.
             badge("linux", "Linux", Family.LINUX, chip("#FFFFFF"),
                     layer("M12 3 C8.6 3 7.6 5.9 7.6 8.8 C7.6 10.9 6.4 12.9 5.6 15.2 C4.6 18.1 6.4 21 12 21"
@@ -114,6 +121,12 @@ final class OsBadges {
                     layer("M9.6 5.4 A2.4 2.4 0 1 0 14.4 5.4 A2.4 2.4 0 1 0 9.6 5.4 Z"
                             + " M15.32 15.3 A2.4 2.4 0 1 0 20.12 15.3 A2.4 2.4 0 1 0 15.32 15.3 Z"
                             + " M3.88 15.3 A2.4 2.4 0 1 0 8.68 15.3 A2.4 2.4 0 1 0 3.88 15.3 Z", "#FFFFFF")),
+            // Linux Mint: the white lm on the mint-green chip, the l bending into the line the m stands on.
+            badge("linux-mint", "Linux Mint", Family.LINUX, chip("#87CF3E"),
+                    layer("M4.5 4.5 H6.5 V16 A1.5 1.5 0 0 0 8 17.5 H8.7 V11.7 A3.2 3.2 0 0 1 14.1 9.38"
+                            + " A3.2 3.2 0 0 1 19.5 11.7 V17.5 A2 2 0 0 1 17.5 19.5 H8 A3.5 3.5 0 0 1 4.5 16 Z"
+                            + " M10.7 17.5 V11.7 A1.2 1.2 0 0 1 13.1 11.7 V17.5 Z"
+                            + " M15.1 17.5 V11.7 A1.2 1.2 0 0 1 17.5 11.7 V17.5 Z", "#FFFFFF")),
             // Arch Linux: the blue arch-shaped A.
             badge("arch", "Arch Linux", Family.LINUX, chip("#FFFFFF"),
                     layer("M12 2.8 L21.2 21.2 H16.6 L12 11.8 L7.4 21.2 H2.8 Z", "#1793D1")),
@@ -124,6 +137,12 @@ final class OsBadges {
                             + " Q9.8 14.4 6.2 13.4 Q3.6 12.6 3 10 Z", "#73BA25"),
                     layer("M6.3 8.4 A1.3 1.3 0 1 0 8.9 8.4 A1.3 1.3 0 1 0 6.3 8.4 Z", "#FFFFFF"),
                     layer("M6.85 8.4 A0.55 0.55 0 1 0 7.95 8.4 A0.55 0.55 0 1 0 6.85 8.4 Z", "#111111")),
+            // ChromeOS: the Chrome wheel, red, yellow and green around the blue centre.
+            badge("chromeos", "ChromeOS", Family.LINUX, chip("#FFFFFF"),
+                    layer("M4.38 7.21 A9 9 0 0 1 19.96 7.8 L12 7.8 A4.2 4.2 0 0 0 8.36 14.1 Z", "#EA4335"),
+                    layer("M19.96 7.8 A9 9 0 0 1 11.66 20.99 L15.64 14.1 A4.2 4.2 0 0 0 12 7.8 Z", "#FBBC04"),
+                    layer("M11.66 20.99 A9 9 0 0 1 4.38 7.21 L8.36 14.1 A4.2 4.2 0 0 0 15.64 14.1 Z", "#34A853"),
+                    layer("M8.7 12 A3.3 3.3 0 1 0 15.3 12 A3.3 3.3 0 1 0 8.7 12 Z", "#1A73E8")),
             // Oracle Solaris: the orange sun with its rays.
             badge("solaris", "Oracle Solaris", Family.UNIX, chip("#FFFFFF"),
                     layer("M7.4 12 A4.6 4.6 0 1 0 16.6 12 A4.6 4.6 0 1 0 7.4 12 Z", "#F26E21"),
@@ -161,7 +180,18 @@ final class OsBadges {
                             + " C7.4 18.4 4.2 15.8 4.2 12 Z M18.6 12 L22.2 8.4 V15.6 Z M10.2 6.2 L12.2 2.8 L13.8 6.4 Z"
                             + " M10.4 17.6 L12 20.8 L13.6 17.6 Z", "#F4CB1F"),
                     layer("M7.2 10.2 A1.8 1.8 0 1 0 10.8 10.2 A1.8 1.8 0 1 0 7.2 10.2 Z", "#FFFFFF"),
-                    layer("M7.9 10.2 A1 1 0 1 0 9.9 10.2 A1 1 0 1 0 7.9 10.2 Z", "#1F1A0A")));
+                    layer("M7.9 10.2 A1 1 0 1 0 9.9 10.2 A1 1 0 1 0 7.9 10.2 Z", "#1F1A0A")),
+            // IBM z/OS: white z/OS lettering on the IBM blue chip.
+            badge("zos", "IBM z/OS", Family.MAINFRAME, chip("#0F62FE"),
+                    layer("M3.1 10.6 H7 V11.9 L4.85 14.3 H7 V15.6 H3.1 V14.3 L5.25 11.9 H3.1 Z"
+                            + " M7.5 15.6 L9.25 8.4 H10.6 L8.85 15.6 Z"
+                            + " M13.2 8.4 H13.7 A2.2 2.2 0 0 1 15.9 10.6 V13.4 A2.2 2.2 0 0 1 13.7 15.6 H13.2"
+                            + " A2.2 2.2 0 0 1 11 13.4 V10.6 A2.2 2.2 0 0 1 13.2 8.4 Z"
+                            + " M13.2 9.8 H13.7 A0.8 0.8 0 0 1 14.5 10.6 V13.4 A0.8 0.8 0 0 1 13.7 14.2 H13.2"
+                            + " A0.8 0.8 0 0 1 12.4 13.4 V10.6 A0.8 0.8 0 0 1 13.2 9.8 Z"
+                            + " M18.1 8.4 H20.9 V9.8 H17.9 V11.3 H19.3 A1.6 1.6 0 0 1 20.9 12.9 V14 A1.6 1.6 0 0 1 19.3 15.6"
+                            + " H16.5 V14.2 H19.5 V12.7 H18.1 A1.6 1.6 0 0 1 16.5 11.1 V10 A1.6 1.6 0 0 1 18.1 8.4 Z",
+                            "#FFFFFF")));
 
     private OsBadges() { }
 
@@ -177,7 +207,7 @@ final class OsBadges {
         return new Layer(path, fill);
     }
 
-    /** Every built-in badge in the order the Connection Manager lists them: Windows, Linux, Unix, BSD. */
+    /** Every built-in badge in listing order: Windows, Apple, Linux, Unix, BSD, mainframe. */
     static List<Badge> builtIn() {
         return BADGES;
     }

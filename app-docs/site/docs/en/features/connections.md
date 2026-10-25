@@ -44,7 +44,7 @@ The inspector shows the selected connection: its folder and tag, its address, pr
 
 ### OS symbols
 
-A connection can show the symbol of the operating system its server runs, on the corner of its row, on the map, in the inspector and in the PDF. korTTY draws its own symbols for Windows XP, Windows 10, Windows 11, Windows Server, Linux, Red Hat, Rocky Linux, AlmaLinux, CentOS, Fedora, Debian, Ubuntu, Arch Linux, SUSE, Oracle Solaris, IBM AIX, HP-UX, DEC, FreeBSD and OpenBSD. Choose one under **OS symbol** in the inspector or on the connection editor's *Connection* tab, or for several connections at once in the context menu (**OS symbol**).
+A connection can show the symbol of the operating system its server runs, on the corner of its row, on the map, in the inspector and in the PDF. korTTY draws its own symbols for Windows XP, Windows 10, Windows 11, Windows Server, macOS, Linux, Red Hat, Rocky Linux, AlmaLinux, CentOS, Fedora, Debian, Ubuntu, Linux Mint, Arch Linux, SUSE, ChromeOS, Oracle Solaris, IBM AIX, HP-UX, DEC, FreeBSD, OpenBSD and IBM z/OS. Choose one under **OS symbol** in the inspector or on the connection editor's *Connection* tab, or for several connections at once in the context menu (**OS symbol**).
 
 **Your own symbols…** (next to the picker and at the end of the context menu) adds symbols of your own: pick a PNG, JPG, GIF or SVG file and give it a name. korTTY keeps a copy as a 128-pixel PNG in the `os-badges` folder of its configuration directory, so the original file can move or go away. Rename or delete a symbol there; connections whose symbol was deleted show none.
 
