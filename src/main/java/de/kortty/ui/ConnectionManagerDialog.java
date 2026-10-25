@@ -45,6 +45,12 @@ import java.util.stream.Collectors;
 public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> {
     
     private static final Logger logger = LoggerFactory.getLogger(ConnectionManagerDialog.class);
+
+    /** Opening widths of the library and the inspector; the list or map in the middle takes the rest. */
+    private static final double SIDEBAR_WIDTH = 210;
+    private static final double INSPECTOR_WIDTH = 370;
+    /** The inspector never gets narrower than its action row with Connect and the four icon buttons. */
+    private static final double INSPECTOR_MIN_WIDTH = 330;
     
     /** Sentinel value for "use temporary SSH key for all teamwork" in the auth combo. */
     public static final Object TEAMWORK_AUTH_TEMPORARY_KEY = new Object();
@@ -148,6 +154,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         treeView.setOnExportConnections(this::exportConnections);
         treeView.setOnDeleteConnections(this::deleteConnections);
         treeView.setOnExportGroup(this::exportGroup);
+        treeView.setOnExportOverview(this::exportOverview);
+        treeView.setOnExportGroupOverview(this::exportGroupOverview);
         treeView.setOnAddConnection(this::addConnection);
         treeView.setOnAssignTag(this::assignTagToConnections);
         treeView.setOnRemoveTag(this::removeTagFromConnections);
@@ -182,6 +190,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             }
         });
         teamworkTreeView.setOnExportConnections(this::exportConnections);
+        teamworkTreeView.setOnExportOverview(this::exportOverview);
         teamworkTreeView.setOnDeleteConnections(this::deleteConnections);
         teamworkTreeView.setOpenTabsProbe(this::openTabs);
         teamworkTreeView.setFavoriteProbe(this::isFavorite);
@@ -258,7 +267,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
             }
         });
         importButton.setOnAction(e -> importConnections());
-        overviewButton.setOnAction(e -> exportOverview());
+        overviewButton.setOnAction(e -> exportOverview(getActiveTreeView().getSelectedConnections()));
         undoButton.setOnAction(e -> treeView.undoLastMove());
         createFolderButton.setOnAction(e -> {
             List<GroupPath> selected = treeView.getSelectedGroups();
@@ -365,7 +374,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         sidebar.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         sidebar.getStyleClass().add("cm-sidebar");
         sidebar.setMinWidth(170);
-        inspector.setMinWidth(250);
+        inspector.setMinWidth(INSPECTOR_MIN_WIDTH);
         inspector.setOnConnect(connection -> {
             setResult(connection);
             close();
@@ -402,8 +411,19 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         getDialogPane().setContent(content);
         getDialogPane().getStylesheets().add(java.util.Objects.requireNonNull(
             getClass().getResource("/styles/connection-manager.css")).toExternalForm());
-        getDialogPane().setPrefSize(1180, 740);
-        getDialogPane().setMinSize(860, 520);
+        getDialogPane().setPrefSize(1240, 760);
+        getDialogPane().setMinSize(940, 520);
+        // Lifts AtlantaFX's 600 px cap on dialog panes (see connection-manager.css), which would hold this
+        // window at its minimum width and ignore a remembered size.
+        getDialogPane().getStyleClass().add("cm-dialog");
+        // A restored window size reaches the split only after the window is shown, so the columns are placed
+        // again at each width it passes through until the window has settled. After the layout pass, because
+        // the split pane hands a width change to its middle column during the pass itself.
+        javafx.beans.value.ChangeListener<Number> placing =
+            (obs, old, width) -> javafx.application.Platform.runLater(() -> placeColumns(split));
+        split.widthProperty().addListener(placing);
+        javafx.animation.PauseTransition settled = new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1));
+        settled.setOnFinished(e -> split.widthProperty().removeListener(placing));
 
         rebuildSidebar();
         applyFilters();
@@ -417,6 +437,8 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         updateButtonState();
 
         setOnShown(e -> {
+            placeColumns(split);
+            settled.play();
             refreshTeamworkConnections();
             buildTeamworkAuthCombo(teamworkAuthCombo);
             applyTeamworkAuthFromSettings(teamworkAuthCombo, teamworkUsernameField);
@@ -472,6 +494,19 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
         button.setTooltip(new Tooltip(button.getText()));
         button.setAccessibleText(button.getText());
         button.getStyleClass().add("cm-tool");
+    }
+
+    /**
+     * Gives the library and the inspector their widths in pixels once the window has its size. Divider positions
+     * are fractions, so set before the first layout they would follow whatever width the window had at that moment;
+     * both columns then keep their width when the window is resized, only the list or map grows.
+     */
+    private static void placeColumns(SplitPane split) {
+        double width = split.getWidth();
+        if (width <= 0) {
+            return;
+        }
+        split.setDividerPositions(SIDEBAR_WIDTH / width, 1 - INSPECTOR_WIDTH / width);
     }
 
     /** A titled group of toolbar buttons, as the icon toolbar groups its actions. */
@@ -983,8 +1018,18 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
 
     // ----- Overview export -----
 
-    /** Opens the overview export for the selection, the shown connections or all of them. */
-    private void exportOverview() {
+    /** The overview export for a folder: its connections, those of its subfolders included, come preselected. */
+    private void exportGroupOverview(GroupPath groupPath) {
+        List<ServerConnection> inFolder = connectionsInGroup(groupPath);
+        if (inFolder.isEmpty()) {
+            showEmptyFolderAlert(groupPath);
+        } else {
+            exportOverview(inFolder);
+        }
+    }
+
+    /** Opens the overview export for {@code selected}, the shown connections or all of them. */
+    private void exportOverview(List<ServerConnection> selected) {
         GlobalSettings settings = globalSettings();
         List<ServerConnection> all = java.util.stream.Stream.concat(connections.stream(), teamworkConnections.stream())
             .filter(connection -> !connection.isPlaceholder()).toList();
@@ -1000,8 +1045,7 @@ public class ConnectionManagerDialog extends ThemeAwareDialog<ServerConnection> 
                 return badge != null ? badge.name() : null;
             },
             connection -> isSharedConnection(connection) ? teamworkSourceName(connection, settings) : null);
-        new ConnectionOverviewExportDialog(childOwner(), getActiveTreeView().getSelectedConnections(),
-            shownConnections(), all, context).showAndWait();
+        new ConnectionOverviewExportDialog(childOwner(), selected, shownConnections(), all, context).showAndWait();
     }
 
     // ----- OS badges -----

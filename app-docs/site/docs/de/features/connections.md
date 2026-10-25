@@ -50,7 +50,7 @@ Eine Verbindung kann das Symbol des Betriebssystems anzeigen, das auf ihrem Serv
 
 ### Exportieren einer Übersicht
 
-**Übersicht exportieren** in der *Austausch*-Gruppe der Symbolleiste erstellt eine Liste Ihrer Server als **JSON**, **YAML**, **TOML** oder **XML**, für Dokumentation oder Skripte. Wählen Sie die Verbindungen (die ausgewählten, die, die der Manager gerade anzeigt, oder alle, einschließlich Teamwork-Verbindungen), das Format und die Bestandteile jedes Eintrags:
+**Übersicht exportieren** in der *Austausch*-Gruppe der Symbolleiste oder im Kontextmenü der ausgewählten Verbindungen oder eines Ordners erstellt eine Übersicht Ihrer Server als **JSON**, **YAML**, **TOML** oder **XML**, für Dokumentation oder Skripte. Wählen Sie die Verbindungen (die ausgewählten oder die des Ordners, die der Manager gerade anzeigt, oder alle einschließlich Teamwork-Verbindungen), das Format und die Teile jedes Eintrags:
 
 | Teil | Inhalt |
 | --- | --- |

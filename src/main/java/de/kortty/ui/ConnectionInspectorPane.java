@@ -205,6 +205,8 @@ final class ConnectionInspectorPane extends ScrollPane {
         Button connect = new Button(I18n.get("quickConnect.connect"),
             ToolbarIcons.create("connect", new javafx.beans.property.SimpleObjectProperty<>(javafx.scene.paint.Color.WHITE), 16));
         connect.getStyleClass().add("cm-primary");
+        // Its label stays readable; the inspector's minimum width leaves room for the icon buttons beside it.
+        connect.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         connect.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(connect, Priority.ALWAYS);
         connect.setOnAction(e -> run(onConnect, connection));
@@ -287,6 +289,12 @@ final class ConnectionInspectorPane extends ScrollPane {
         chips.getChildren().add(iconChip("hostKey", I18n.get("connectionManager.inspector.hostKeyChip", facts.hostKey())));
         if (connection.isIncognito()) {
             chips.getChildren().add(iconChip("incognito", I18n.get("connectionManager.row.incognito")));
+        }
+        // A chip wider than the column is shortened with an ellipsis instead of being cut off at the edge.
+        for (Node chip : chips.getChildren()) {
+            Label label = (Label) chip;
+            label.maxWidthProperty().bind(chips.widthProperty());
+            label.setTooltip(new Tooltip(label.getText()));
         }
         return chips;
     }

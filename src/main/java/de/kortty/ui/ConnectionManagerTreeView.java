@@ -49,6 +49,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private Consumer<List<ServerConnection>> onExportConnections;
     private Consumer<List<ServerConnection>> onDeleteConnections;
     private Consumer<GroupPath> onExportGroup;
+    /** Opens the overview export (JSON, YAML, TOML, XML) for the selection or a folder's connections. */
+    private Consumer<List<ServerConnection>> onExportOverview;
+    private Consumer<GroupPath> onExportGroupOverview;
     private Consumer<List<ServerConnection>> onAssignTag;
     private Consumer<List<ServerConnection>> onRemoveTag;
     private Consumer<GroupPath> onAssignTagToGroup;
@@ -726,6 +729,13 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         });
         
+        MenuItem overviewGroupItem = new MenuItem(I18n.get("connectionManager.overview.button"));
+        overviewGroupItem.setOnAction(e -> {
+            if (onExportGroupOverview != null) {
+                onExportGroupOverview.accept(groupPath);
+            }
+        });
+
         MenuItem deleteGroupItem = new MenuItem(I18n.get("connManager.deleteFolder"));
         deleteGroupItem.setOnAction(e -> {
             if (onDeleteGroup != null) {
@@ -783,6 +793,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         List<MenuItem> folder = new ArrayList<>();
         if (onExportGroup != null) {
             folder.add(exportGroupItem);
+        }
+        if (onExportGroupOverview != null) {
+            folder.add(overviewGroupItem);
         }
         if (onDeleteGroup != null) {
             folder.add(deleteGroupItem);
@@ -882,6 +895,14 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         });
         
+        MenuItem overviewItem = new MenuItem(I18n.get("connectionManager.overview.button"));
+        overviewItem.setOnAction(e -> {
+            List<ServerConnection> selected = getSelectedConnections();
+            if (!selected.isEmpty() && onExportOverview != null) {
+                onExportOverview.accept(selected);
+            }
+        });
+
         MenuItem deleteItem = new MenuItem(I18n.get("sftp.delete"));
         deleteItem.setOnAction(e -> {
             List<ServerConnection> selected = getSelectedConnections();
@@ -925,6 +946,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             List<ServerConnection> selected = getSelectedConnections();
             editItem.setDisable(selected.size() != 1);
             exportItem.setDisable(selected.isEmpty());
+            overviewItem.setDisable(selected.isEmpty());
             deleteItem.setDisable(selected.isEmpty());
             assignTagItem.setDisable(selected.isEmpty());
             removeTagItem.setDisable(selected.stream().allMatch(conn -> conn.getTag() == null));
@@ -948,6 +970,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             menu.getItems().add(badges);
         }
         menu.getItems().add(exportItem);
+        if (onExportOverview != null) {
+            menu.getItems().add(overviewItem);
+        }
         if (onAssignTag != null || onRemoveTag != null) {
             menu.getItems().addAll(new SeparatorMenuItem(), assignTagItem, removeTagItem, new SeparatorMenuItem());
         }
@@ -1046,6 +1071,14 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         this.onDeleteConnections = callback;
     }
     
+    public void setOnExportOverview(Consumer<List<ServerConnection>> callback) {
+        this.onExportOverview = callback;
+    }
+
+    public void setOnExportGroupOverview(Consumer<GroupPath> callback) {
+        this.onExportGroupOverview = callback;
+    }
+
     public void setOnExportGroup(Consumer<GroupPath> callback) {
         this.onExportGroup = callback;
     }

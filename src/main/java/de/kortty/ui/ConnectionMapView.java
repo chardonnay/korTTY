@@ -124,9 +124,13 @@ final class ConnectionMapView extends BorderPane {
         pdf.setTooltip(new Tooltip(I18n.get("connectionManager.map.pdf.tooltip")));
         pdf.setOnAction(e -> exportPdf());
         zoomLabel.setMinWidth(Region.USE_PREF_SIZE);
-        for (javafx.scene.control.Control control : List.of(jumpLayer, tunnelLayer, zoomOut, zoomIn, fit, pdf)) {
-            control.setMinWidth(Region.USE_PREF_SIZE);
-        }
+        zoomOut.setMinWidth(Region.USE_PREF_SIZE);
+        zoomIn.setMinWidth(Region.USE_PREF_SIZE);
+        // In a narrow middle column the layer toggles, Fit and PDF shorten to their icon and an ellipsis instead
+        // of widening the whole Connection Manager; their tooltips keep the full name.
+        jumpLayer.setTooltip(new Tooltip(jumpLayer.getText()));
+        tunnelLayer.setTooltip(new Tooltip(tunnelLayer.getText()));
+        fit.setTooltip(new Tooltip(fit.getText()));
         Label hint = new Label(I18n.get("connectionManager.map.hint"));
         hint.setStyle("-fx-opacity: 0.7; -fx-font-size: 0.9em;");
         hint.setMinWidth(0);

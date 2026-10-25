@@ -50,7 +50,7 @@ A connection can show the symbol of the operating system its server runs, on the
 
 ### Exporting an overview
 
-**Export overview** in the toolbar's *Import & export* group writes an inventory of your servers as **JSON**, **YAML**, **TOML** or **XML**, for documentation or scripts. Choose the connections (the selected ones, what the manager shows right now, or all of them including teamwork connections), the format and the parts of each entry:
+**Export overview** in the toolbar's *Import & export* group, or in the context menu of the selected connections or of a folder, writes an inventory of your servers as **JSON**, **YAML**, **TOML** or **XML**, for documentation or scripts. Choose the connections (the selected ones or the folder's, what the manager shows right now, or all of them including teamwork connections), the format and the parts of each entry:
 
 | Part | Contents |
 | --- | --- |
