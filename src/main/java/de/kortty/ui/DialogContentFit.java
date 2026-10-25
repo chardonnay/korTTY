@@ -1,6 +1,8 @@
 package de.kortty.ui;
 
 import javafx.animation.PauseTransition;
+import javafx.css.StyleOrigin;
+import javafx.css.StyleableProperty;
 import de.kortty.model.WindowGeometry;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Node;
@@ -43,6 +45,13 @@ import java.util.List;
  * buttons stay reachable. A remembered geometry that cuts labels short is widened once when the
  * window opens (the same measurement, on the showing window); otherwise it is restored as the user
  * left it.</p>
+ *
+ * <p>The AtlantaFX designs cap every dialog pane at 600 px ({@code .dialog-pane { -fx-max-width: 600px; }}),
+ * and a window opens at its pane's preferred width bounded by that cap. A width the dialog asks for (its own
+ * {@code setPrefWidth}, or what the fit above found its labels need) therefore lifts the cap, so a dialog
+ * opens as wide as under the Normal design. A dialog that leaves its width to its content keeps the cap,
+ * so a long message still wraps at 600 px; the fit measures it at that capped width, so it opens wide
+ * enough for its labels instead of being widened after it appears.</p>
  */
 final class DialogContentFit {
 
@@ -99,10 +108,14 @@ final class DialogContentFit {
                 || (dialog instanceof ThemeAwareDialog<?> themed && themed.isHostedInTab())) {
                 return;
             }
+            // Before the fit, so it measures a dialog that asks for its width at that width; after it, for
+            // the width the fit itself asked for.
+            honorRequestedWidth(pane);
             Rectangle2D screen = screenFor(dialog.getOwner());
             if (screen != null) {
                 fit(pane, screen.getWidth() * SCREEN_SHARE, screen.getHeight() * SCREEN_SHARE);
             }
+            honorRequestedWidth(pane);
         });
         // A remembered size is restored as stored, but a window stored narrower than its labels
         // need (often from a release whose dialog was laid out differently) is widened once on
@@ -122,6 +135,32 @@ final class DialogContentFit {
                 });
             }
         });
+    }
+
+    /**
+     * Lifts a theme's cap on the pane's width when the pane asks for a width of its own. A maximum the
+     * dialog's code set itself is left alone; only one from a stylesheet (AtlantaFX's 600 px) gives way,
+     * and a value set from code outranks the theme, which korTTY installs as the user-agent stylesheet.
+     */
+    static void honorRequestedWidth(DialogPane pane) {
+        @SuppressWarnings("unchecked")
+        StyleableProperty<Number> max = (StyleableProperty<Number>) (StyleableProperty<?>) pane.maxWidthProperty();
+        if (liftsThemeCap(pane.getPrefWidth(), max.getStyleOrigin())) {
+            pane.setMaxWidth(Double.MAX_VALUE);
+        }
+    }
+
+    /**
+     * Whether a pane that asks for {@code requestedWidth} (its own preferred width; zero or less is
+     * USE_COMPUTED_SIZE, the content decides) gets its maximum lifted, given where the maximum came from.
+     */
+    static boolean liftsThemeCap(double requestedWidth, StyleOrigin maxOrigin) {
+        return requestedWidth > 0 && maxOrigin != StyleOrigin.USER;
+    }
+
+    /** The width a window opens at: the preferred width within the minimum and the maximum, the minimum winning. */
+    static double openingWidth(double min, double pref, double max) {
+        return Math.max(min, Math.min(pref, max));
     }
 
     /**
@@ -181,7 +220,9 @@ final class DialogContentFit {
             return;
         }
         pane.applyCss();
-        double startWidth = pane.prefWidth(-1);
+        // The width the window will open at: the preferred width within the pane's own bounds (a theme
+        // may cap it), so labels the cap would cut are found before the window appears.
+        double startWidth = openingWidth(pane.minWidth(-1), pane.prefWidth(-1), pane.maxWidth(-1));
         double startHeight = pane.prefHeight(startWidth);
         double width = grow(pane, startWidth, startHeight, maxWidth, true);
         double height = grow(pane, width, startHeight, maxHeight, false);
