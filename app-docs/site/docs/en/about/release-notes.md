@@ -31,3 +31,4 @@ What changed in the current release. The version this guide was built for is sho
 - **Steady diagram tooltips** — the code-reference tooltip in the enlarged analysis diagram stays open while the mouse rests on a node instead of flashing and closing.
 - **Folder analyses survive a malformed key** — an analysis whose JSON lacks the opening quote of one key is repaired instead of being discarded as "no usable analysis".
 - **German label for reasoning** — the German user interface now labels this setting of AI profiles "Reasoning", as the guide does.
+- **Wide dialogs open at their size in the AtlantaFX designs** — under an AtlantaFX design, a dialog laid out wider than 600 px (such as the settings, **Compare folders** in the SFTP manager or the **Logfile Manager**) opened squeezed or grew after it appeared; it now opens as wide as in the Normal design, and a long message still wraps.
