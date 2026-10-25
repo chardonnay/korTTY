@@ -172,6 +172,17 @@ public class ServerConnection {
     
     @XmlElement
     private long lastUsed = 0;
+
+    /**
+     * Connections per day of the last {@value #USAGE_HISTORY_DAYS} days, {@code yyyy-MM-dd=count} entries
+     * joined by {@code ;}: the Connection Manager's usage bars. Usage statistics: never duplicated or exported.
+     */
+    @XmlElement
+    private String usageHistory;
+
+    /** The OS badge shown with this connection: a built-in badge id or {@code custom:<id>}; null for none. */
+    @XmlElement
+    private String osBadge;
     
     @XmlElement
     private java.util.List<SSHTunnel> sshTunnels = new java.util.ArrayList<>();
@@ -292,6 +303,8 @@ public class ServerConnection {
         c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.usageCount = source.usageCount;
         c.lastUsed = source.lastUsed;
+        c.usageHistory = source.usageHistory;
+        c.osBadge = source.osBadge;
         c.sshTunnels = source.sshTunnels;
         c.jumpServer = source.jumpServer;
         c.credentialId = source.credentialId;
@@ -345,6 +358,7 @@ public class ServerConnection {
         c.group = source.group;
         c.tag = source.tag;
         c.tabColor = source.tabColor;
+        c.osBadge = source.osBadge;
         c.disableHostKeyCheck = source.disableHostKeyCheck;
         c.aiProfileId = source.aiProfileId;
         c.aiAgentDesignId = source.aiAgentDesignId;
@@ -372,6 +386,7 @@ public class ServerConnection {
         c.group = source.group;
         c.tag = source.tag;
         c.tabColor = source.tabColor;
+        c.osBadge = source.osBadge;
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
@@ -423,6 +438,7 @@ public class ServerConnection {
         c.group = source.group;
         c.tag = source.tag;
         c.tabColor = source.tabColor;
+        c.osBadge = source.osBadge;
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
@@ -911,6 +927,71 @@ public class ServerConnection {
     public void incrementUsageCount() {
         this.usageCount++;
         this.lastUsed = System.currentTimeMillis();
+        this.usageHistory = withUsageOn(usageHistory, java.time.LocalDate.now(), USAGE_HISTORY_DAYS);
+    }
+
+    /** How many days {@link #usageHistory} keeps. */
+    public static final int USAGE_HISTORY_DAYS = 30;
+
+    /** Connections on each of the {@code days} days up to and including {@code today}, oldest first. */
+    public int[] getUsageByDay(java.time.LocalDate today, int days) {
+        java.util.Map<java.time.LocalDate, Integer> counts = parseUsageHistory(usageHistory);
+        int[] result = new int[Math.max(0, days)];
+        for (int i = 0; i < result.length; i++) {
+            result[i] = counts.getOrDefault(today.minusDays(result.length - 1 - i), 0);
+        }
+        return result;
+    }
+
+    public String getUsageHistory() {
+        return usageHistory;
+    }
+
+    public void setUsageHistory(String usageHistory) {
+        this.usageHistory = usageHistory;
+    }
+
+    /** {@code history} with one more connection on {@code day}, without the days older than {@code keepDays}. */
+    static String withUsageOn(String history, java.time.LocalDate day, int keepDays) {
+        java.util.Map<java.time.LocalDate, Integer> counts = parseUsageHistory(history);
+        counts.merge(day, 1, Integer::sum);
+        java.time.LocalDate oldest = day.minusDays(keepDays - 1L);
+        StringBuilder out = new StringBuilder();
+        for (java.util.Map.Entry<java.time.LocalDate, Integer> entry : counts.entrySet()) {
+            if (!entry.getKey().isBefore(oldest)) {
+                out.append(out.length() > 0 ? ";" : "").append(entry.getKey()).append('=').append(entry.getValue());
+            }
+        }
+        return out.toString();
+    }
+
+    /** The day counts of a stored history; entries this version cannot read are skipped. */
+    static java.util.SortedMap<java.time.LocalDate, Integer> parseUsageHistory(String history) {
+        java.util.SortedMap<java.time.LocalDate, Integer> counts = new java.util.TreeMap<>();
+        if (history == null || history.isBlank()) {
+            return counts;
+        }
+        for (String part : history.split(";")) {
+            int equals = part.indexOf('=');
+            if (equals <= 0) {
+                continue;
+            }
+            try {
+                counts.merge(java.time.LocalDate.parse(part.substring(0, equals).trim()),
+                    Math.max(0, Integer.parseInt(part.substring(equals + 1).trim())), Integer::sum);
+            } catch (RuntimeException e) {
+                // a damaged entry costs only its own day
+            }
+        }
+        return counts;
+    }
+
+    public String getOsBadge() {
+        return osBadge;
+    }
+
+    public void setOsBadge(String osBadge) {
+        this.osBadge = osBadge != null && !osBadge.isBlank() ? osBadge : null;
     }
     
     public long getLastUsed() {

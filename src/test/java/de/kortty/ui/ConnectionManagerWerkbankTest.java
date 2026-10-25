@@ -32,7 +32,8 @@ class ConnectionManagerWerkbankTest {
         "messages_pt.properties", "messages_fr.properties", "messages_hr.properties", "messages_nl.properties");
 
     private static final List<String> SOURCES = List.of("ConnectionManagerDialog.java", "ConnectionMapView.java",
-        "ConnectionInspectorPane.java", "ConnectionRowGraphics.java", "ConnectionManagerTreeView.java");
+        "ConnectionInspectorPane.java", "ConnectionRowGraphics.java", "ConnectionManagerTreeView.java",
+        "OsBadgeSupport.java", "OsBadgeManagerDialog.java", "ConnectionOverviewExportDialog.java");
 
     private static ServerConnection connection(String name, String host, String tag) {
         ServerConnection connection = new ServerConnection();
@@ -123,8 +124,17 @@ class ConnectionManagerWerkbankTest {
         }
     }
 
-    /** The {@code connectionManager.*} keys the redesign's sources ask I18n for. */
+    /** The {@code connectionManager.*} keys the redesign's sources ask I18n for, and the ones built from names. */
     private static List<String> usedKeys() throws IOException {
+        List<String> keys = sourceKeys();
+        for (de.kortty.core.ConnectionOverviewExport.Part part : de.kortty.core.ConnectionOverviewExport.Part.values()) {
+            keys.add("connectionManager.overview.part." + part.name());
+        }
+        keys.add("connEdit.osBadge");
+        return keys;
+    }
+
+    private static List<String> sourceKeys() throws IOException {
         Pattern call = Pattern.compile("\"(connectionManager\\.[A-Za-z.]+)\"");
         List<String> keys = new ArrayList<>();
         for (String source : SOURCES) {

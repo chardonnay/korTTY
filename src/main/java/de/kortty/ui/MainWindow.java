@@ -4293,6 +4293,10 @@ public class MainWindow {
         ConnectionManagerDialog dialog = new ConnectionManagerDialog(stage, app);
         dialog.setOnConnectionsSavedCallback(this::refreshAllTerminalTabsConnectionSettings);
         dialog.showAndWait().ifPresent(connection -> connectSavedConnection(connection, false, tab -> { }));
+        ServerConnection sftp = dialog.getSftpRequest();
+        if (sftp != null) {
+            openSFTPManagerForConnection(sftp, null);
+        }
     }
 
     /**

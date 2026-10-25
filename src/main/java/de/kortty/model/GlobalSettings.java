@@ -1115,6 +1115,11 @@ public class GlobalSettings {
     @XmlElement
     private boolean hostKeyCheckDisabledForAllConnections = false;
 
+    /** The OS badges the user added to the Connection Manager's built-in ones. */
+    @XmlElementWrapper(name = "customOsBadges")
+    @XmlElement(name = "badge")
+    private java.util.List<CustomOsBadge> customOsBadges;
+
     /** Ids of the saved and teamwork connections marked as favorites in the Connection Manager. */
     @XmlElementWrapper(name = "favoriteConnections")
     @XmlElement(name = "connection")
@@ -4341,6 +4346,17 @@ public class GlobalSettings {
 
     public void setHostKeyCheckDisabledForAllConnections(boolean value) {
         this.hostKeyCheckDisabledForAllConnections = value;
+    }
+
+    public java.util.List<CustomOsBadge> getCustomOsBadges() {
+        if (customOsBadges == null) {
+            customOsBadges = new java.util.ArrayList<>();
+        }
+        return customOsBadges;
+    }
+
+    public void setCustomOsBadges(java.util.List<CustomOsBadge> badges) {
+        this.customOsBadges = badges;
     }
 
     public java.util.List<String> getFavoriteConnectionIds() {

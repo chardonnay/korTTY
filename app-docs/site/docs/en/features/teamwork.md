@@ -118,6 +118,8 @@ Once a source is synced:
 3. Double-click a teamwork connection to connect.
 4. **Read-only** — Teamwork connections are read-only, and korTTY never writes changes back to a source: **Edit** is unavailable for them, a connection cannot be dragged into another folder, and right-clicking a folder or an empty area opens no menu, so there is no way to add, rename or delete folders or to relax their host-key verification. To change a shared connection, edit it in the repository or shared file; the change arrives with the next sync.
 
+Teamwork connections also appear in the Connection Manager's general lists (**All connections**, **Favorites**, **Recently used**, **Open now** and the tags), marked with a small people symbol and just as read-only; see [Library](connections.md#library).
+
 The [command palette](command-palette.md#connecting) lists the teamwork connections as well, marked **Shared (Teamwork)**, so you can also connect by typing `@` and part of a name.
 
 A shared connection can also carry the terminal settings the file gives it, such as its [tab color](connections.md#tab-color) and [paste protection](connections.md#paste-protection). Its own session isolation can only make its sessions stricter than your folder or Settings, as described under [Choosing a level](session-isolation.md#choosing-a-level).

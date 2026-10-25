@@ -118,6 +118,8 @@ Sobald eine Quelle synchronisiert ist:
 3. Doppelklicken Sie auf eine Teamwork-Verbindung, um sich zu verbinden.
 4. **Nur lesen** — Teamwork-Verbindungen sind nur lesbar, und korTTY schreibt Änderungen niemals an eine Quelle zurück: **Bearbeiten** steht für sie nicht zur Verfügung, eine Verbindung kann nicht in einen anderen Ordner gezogen werden, und ein Rechtsklick auf einen Ordner oder eine leere Fläche öffnet kein Menü, sodass es keine Möglichkeit gibt, Ordner hinzuzufügen, umzubenennen oder zu löschen oder deren Host-Key-Verifizierung zu lockern. Um eine geteilte Verbindung zu ändern, bearbeiten Sie sie im Repository oder in der gemeinsamen Datei; die Änderung wird mit der nächsten Synchronisierung übernommen.
 
+Teamwork-Verbindungen erscheinen auch in den allgemeinen Listen des Connection-Manager (**Alle Verbindungen**, **Favoriten**, **Zuletzt verwendet**, **Gerade offen** und die Tags), mit einem kleinen Personensymbol markiert und ebenfalls nur lesbar; siehe [Bibliothek](connections.md#bibliothek).
+
 Die [Befehlspalette](command-palette.md#verbinden) listet die Teamwork-Verbindungen ebenfalls auf, gekennzeichnet mit **Geteilt (Teamwork)**, sodass Sie sich auch verbinden können, indem Sie `@` und einen Teil eines Namens eingeben.
 
 Eine gemeinsame Verbindung kann auch die Terminaleinstellungen tragen, die die Datei ihr gibt, wie z. B. ihre [Tabfarbe](connections.md#tab-farbe) und [Einfüge-Schutz](connections.md#einfugeschutz). Ihre eigene Sitzungsisolierung kann ihre Sitzungen nur strenger machen als Ihr Ordner oder die Einstellungen, wie unter [Auswahl eines Levels](session-isolation.md#eine-stufe-wahlen) beschrieben.

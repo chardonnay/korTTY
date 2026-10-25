@@ -101,6 +101,17 @@ class ConnectionMapLayoutTest {
     }
 
     @Test
+    void aTeamworkZoneKeepsTheKeyThatMarksIt() {
+        String teamworkOps = ConnectionMapView.TEAMWORK_ZONE + "/Ops";
+        var result = ConnectionMapLayout.layout(List.of(
+            entry("mon", teamworkOps, "mon.team.example", 22), entry("ops", "Ops", "ops.example", 22)), 1400);
+
+        assertWithMessage("a teamwork folder never merges with the local folder of the same name")
+            .that(result.zones().stream().map(ConnectionMapLayout.Zone::key).toList())
+            .containsExactly("Ops", teamworkOps);
+    }
+
+    @Test
     void zonesWrapIntoTheNextRowWhenTheWidthRunsOut() {
         var wide = ConnectionMapLayout.layout(List.of(
             entry("a", "A", "a.example", 22), entry("b", "B", "b.example", 22), entry("c", "C", "c.example", 22)), 3000);

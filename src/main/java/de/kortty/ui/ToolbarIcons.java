@@ -147,6 +147,10 @@ final class ToolbarIcons {
             case "isolation" -> new Glyph("M12 2 L20 5.5 V12 Q20 18 12 22 Q4 18 4 12 V5.5 Z", "M8.5 9.5 H15.5 V15.5 H8.5 Z", "#a56ae6");
             case "incognito" -> new Glyph("M3 11 H21 M6 11 L8.5 4 H15.5 L18 11", "M4.5 16.5 A2.75 2.75 0 1 0 10 16.5 A2.75 2.75 0 1 0 4.5 16.5 M14 16.5 A2.75 2.75 0 1 0 19.5 16.5 A2.75 2.75 0 1 0 14 16.5 M10 16.5 Q12 15 14 16.5", "#a56ae6");
             case "hostKey" -> new Glyph("M7 10 A5 5 0 1 0 7.01 10 M10.5 11.5 L20 2", "M17 5 L19.5 7.5 M14 8 L16 10", "#dc9825");
+            // A document with curly braces: the structured overview export (JSON, YAML, TOML, XML).
+            case "exportOverview" -> teal(DOCUMENT, "M10.5 11 Q9 11 9 12.5 V13.2 Q9 14 8 14 Q9 14 9 14.8 V15.5 Q9 17 10.5 17 M14.5 11 Q16 11 16 12.5 V13.2 Q16 14 17 14 Q16 14 16 14.8 V15.5 Q16 17 14.5 17");
+            // A document with a red arrow into it: export as PDF.
+            case "exportPdf" -> new Glyph(DOCUMENT, "M12.5 10.5 V17.5 M9.5 14.5 L12.5 17.5 L15.5 14.5", "#e5534b");
             // A crossed-out circle: a connection the organization's server policy blocks.
             case "blocked" -> new Glyph("M12 3 A9 9 0 1 0 12.01 3", "M5.6 5.6 L18.4 18.4", "#e5534b");
             case "viewList" -> blue("M8.5 6 H21 M8.5 12 H21 M8.5 18 H21", "M3.5 6 H4.5 M3.5 12 H4.5 M3.5 18 H4.5");
@@ -158,6 +162,7 @@ final class ToolbarIcons {
 
     private static final String FOLDER = "M3 7 V5 Q3 3 5 3 H10 L13 6 H19 Q21 6 21 8 V19 Q21 21 19 21 H5 Q3 21 3 19 Z";
     private static final String TRAY = "M4 14 V19 Q4 20 5 20 H19 Q20 20 20 19 V14";
+    private static final String DOCUMENT = "M6 3 H14 L19 8 V21 H6 Z M14 3 V8 H19";
 
     private static Glyph blue(String outline, String core) { return new Glyph(outline, core, "#368af5"); }
     private static Glyph teal(String outline, String core) { return new Glyph(outline, core, "#13a8ad"); }

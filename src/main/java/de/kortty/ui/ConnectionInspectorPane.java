@@ -34,12 +34,13 @@ final class ConnectionInspectorPane extends ScrollPane {
 
     /** What the dialog knows about a connection beyond the connection itself. */
     record Facts(boolean favorite, int openTabs, boolean readOnly, String groupColor, String auth,
-                 String isolation, String hostKey, String jumpName, String lastUsed, String source) { }
+                 String isolation, String hostKey, String jumpName, String lastUsed, String source,
+                 int[] usageDays, String lastUsedRelative, Node badge, String badgeName) { }
 
     /** What the dialog knows about a folder. */
     record FolderFacts(int connections, String color, String isolation, boolean hostKeyOff) { }
 
-    private final VBox body = new VBox(14);
+    private final VBox body = new VBox(18);
     /** The theme's text colour, which the glyph contours follow. */
     private final Label themeText = new Label();
 
@@ -47,6 +48,7 @@ final class ConnectionInspectorPane extends ScrollPane {
     private Consumer<ServerConnection> onEdit;
     private Consumer<ServerConnection> onDuplicate;
     private Consumer<ServerConnection> onToggleFavorite;
+    private Consumer<ServerConnection> onSftp;
     private BiConsumer<ServerConnection, String> onRename;
     private BiConsumer<ServerConnection, String> onRetag;
     private Consumer<GroupPath> onRenameGroup;
@@ -61,6 +63,7 @@ final class ConnectionInspectorPane extends ScrollPane {
         themeText.setManaged(false);
         themeText.setVisible(false);
         setContent(new StackPane(themeText, body));
+        body.setMinWidth(0);
         showEmpty();
     }
 
@@ -68,6 +71,7 @@ final class ConnectionInspectorPane extends ScrollPane {
     void setOnEdit(Consumer<ServerConnection> handler) { onEdit = handler; }
     void setOnDuplicate(Consumer<ServerConnection> handler) { onDuplicate = handler; }
     void setOnToggleFavorite(Consumer<ServerConnection> handler) { onToggleFavorite = handler; }
+    void setOnSftp(Consumer<ServerConnection> handler) { onSftp = handler; }
     void setOnRename(BiConsumer<ServerConnection, String> handler) { onRename = handler; }
     void setOnRetag(BiConsumer<ServerConnection, String> handler) { onRetag = handler; }
     void setOnRenameGroup(Consumer<GroupPath> handler) { onRenameGroup = handler; }
@@ -84,48 +88,7 @@ final class ConnectionInspectorPane extends ScrollPane {
 
     /** Shows {@code connection}. */
     void showConnection(ServerConnection connection, Facts facts) {
-        Label name = new Label(connection.getName());
-        name.setStyle("-fx-font-size: 1.35em; -fx-font-weight: bold;");
-        name.setWrapText(true);
-        Label address = new Label(ConnectionRowGraphics.address(connection));
-        address.setStyle("-fx-opacity: 0.72;");
-        address.setWrapText(true);
-        StackPane tile = ConnectionRowGraphics.protocolTile(connection, themeText.textFillProperty(), 26, facts.openTabs());
-        HBox header = new HBox(12, tile, new VBox(3, name, address));
-        header.setAlignment(Pos.CENTER_LEFT);
-
-        HBox chips = new HBox(6);
-        chips.setAlignment(Pos.CENTER_LEFT);
-        String group = connection.getGroup();
-        chips.getChildren().add(chip("folder", group != null && !group.isBlank()
-            ? group.replace(GroupPath.SEPARATOR, " / ") : I18n.get("connectionManager.noFolder"), facts.groupColor()));
-        if (connection.getTag() != null && !connection.getTag().isBlank()) {
-            chips.getChildren().add(ConnectionRowGraphics.tagChip(connection.getTag(), themeText.textFillProperty()));
-        }
-
-        Button connect = new Button(I18n.get("quickConnect.connect"),
-            ToolbarIcons.create("connect", new javafx.beans.property.SimpleObjectProperty<>(javafx.scene.paint.Color.WHITE), 16));
-        connect.getStyleClass().add("cm-primary");
-        connect.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(connect, Priority.ALWAYS);
-        connect.setOnAction(e -> run(onConnect, connection));
-        HBox actions = new HBox(6, connect);
-        actions.setAlignment(Pos.CENTER_LEFT);
-        if (!facts.readOnly()) {
-            actions.getChildren().addAll(
-                iconButton("edit", I18n.get("connectionManager.edit"), () -> run(onEdit, connection)),
-                iconButton("duplicate", I18n.get("connectionManager.duplicate"), () -> run(onDuplicate, connection)));
-        }
-        ToggleButton favorite = new ToggleButton(I18n.get("connectionManager.favorite"),
-            ToolbarIcons.create("star", themeText.textFillProperty(), 16));
-        favorite.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
-        favorite.setSelected(facts.favorite());
-        favorite.setTooltip(new Tooltip(I18n.get("connectionManager.favorite.toggle")));
-        favorite.getStyleClass().add("cm-icon-button");
-        favorite.setOnAction(e -> run(onToggleFavorite, connection));
-        actions.getChildren().add(favorite);
-
-        body.getChildren().setAll(header, chips, actions);
+        body.getChildren().setAll(header(connection, facts), actions(connection, facts));
         if (facts.readOnly()) {
             Label note = new Label(I18n.get("connectionManager.inspector.readOnly", facts.source()),
                 ToolbarIcons.create("teamwork", themeText.textFillProperty(), 15));
@@ -134,40 +97,24 @@ final class ConnectionInspectorPane extends ScrollPane {
             body.getChildren().add(note);
         }
 
+        boolean local = connection.getProtocol() == de.kortty.model.ConnectionProtocol.LOCAL_SHELL;
         GridPane connectionFacts = facts();
-        row(connectionFacts, "connectionManager.inspector.host",
-            connection.getHost() != null && connection.getProtocol() != de.kortty.model.ConnectionProtocol.LOCAL_SHELL
-                ? connection.getHost() : "–");
+        Label host = row(connectionFacts, "connectionManager.inspector.host",
+            connection.getHost() != null && !local ? connection.getHost() : "–");
+        host.setStyle("-fx-font-family: '" + monoFamily() + "';");
         row(connectionFacts, "connectionManager.inspector.user",
             connection.getUsername() != null && !connection.getUsername().isBlank() ? connection.getUsername() : "–");
-        row(connectionFacts, "connectionManager.inspector.port",
-            connection.getProtocol() == de.kortty.model.ConnectionProtocol.LOCAL_SHELL ? "–" : String.valueOf(connection.getPort()));
+        row(connectionFacts, "connectionManager.inspector.port", local ? "–" : String.valueOf(connection.getPort()));
         row(connectionFacts, "connectionManager.inspector.protocol", protocolName(connection));
         row(connectionFacts, "connectionManager.inspector.auth", facts.auth());
+        if (facts.badgeName() != null) {
+            row(connectionFacts, "connectionManager.inspector.os", facts.badgeName());
+        }
         body.getChildren().add(section("connectionManager.inspector.section.connection", connectionFacts));
 
-        GridPane route = facts();
-        row(route, "connectionManager.inspector.jump", facts.jumpName() != null
-            ? facts.jumpName() : I18n.get("connectionManager.inspector.direct"));
-        List<SSHTunnel> tunnels = ConnectionRowGraphics.enabledTunnels(connection);
-        row(route, "connectionManager.inspector.tunnels", tunnels.isEmpty() ? "–"
-            : String.join("\n", tunnels.stream().map(ConnectionRowGraphics::describeTunnel).toList()));
-        body.getChildren().add(section("connectionManager.inspector.section.route", route));
-
-        GridPane security = facts();
-        row(security, "connectionManager.inspector.isolation", facts.isolation());
-        row(security, "connectionManager.inspector.incognito", I18n.get(connection.isIncognito()
-            ? "connectionManager.inspector.yes" : "connectionManager.inspector.no"));
-        row(security, "connectionManager.inspector.hostKey", facts.hostKey());
-        body.getChildren().add(section("connectionManager.inspector.section.security", security));
-
-        GridPane usage = facts();
-        row(usage, "connectionManager.inspector.lastUsed", facts.lastUsed());
-        row(usage, "connectionManager.inspector.uses", String.valueOf(connection.getUsageCount()));
-        if (facts.openTabs() > 0) {
-            row(usage, "connectionManager.inspector.openTabs", String.valueOf(facts.openTabs()));
-        }
-        body.getChildren().add(section("connectionManager.inspector.section.usage", usage));
+        body.getChildren().add(section("connectionManager.inspector.section.route", route(connection, facts)));
+        body.getChildren().add(section("connectionManager.inspector.section.security", security(connection, facts)));
+        body.getChildren().add(section("connectionManager.inspector.section.usage", usage(connection, facts)));
 
         if (!facts.readOnly()) {
             TextField nameField = new TextField(connection.getName());
@@ -190,9 +137,224 @@ final class ConnectionInspectorPane extends ScrollPane {
             quick.add(tagField, 1, 1);
             GridPane.setHgrow(nameField, Priority.ALWAYS);
             GridPane.setHgrow(tagField, Priority.ALWAYS);
+            if (badgePicker != null) {
+                Node picker = badgePicker.apply(connection);
+                if (picker != null) {
+                    quick.add(caption("connectionManager.inspector.os"), 0, 2);
+                    quick.add(picker, 1, 2);
+                }
+            }
             body.getChildren().add(section("connectionManager.inspector.section.quickEdit", quick));
         }
         setVvalue(0);
+    }
+
+    private static String monoFamily;
+
+    /** The bundled Noto Sans Mono for addresses, loaded once; the platform's monospace font if it cannot load. */
+    private static String monoFamily() {
+        if (monoFamily == null) {
+            try (var in = ConnectionInspectorPane.class.getResourceAsStream("/fonts/noto/NotoSansMono-Regular.ttf")) {
+                javafx.scene.text.Font font = in != null ? javafx.scene.text.Font.loadFont(in, 12) : null;
+                monoFamily = font != null ? font.getFamily() : "Monospaced";
+            } catch (java.io.IOException e) {
+                monoFamily = "Monospaced";
+            }
+        }
+        return monoFamily;
+    }
+
+    /** Builds the OS badge picker of the quick edits for a connection; null leaves it out. */
+    private java.util.function.Function<ServerConnection, Node> badgePicker;
+
+    void setBadgePicker(java.util.function.Function<ServerConnection, Node> picker) { badgePicker = picker; }
+
+    /** Tile with the protocol (and OS badge), the name and the folder, tag and teamwork chips. */
+    private Node header(ServerConnection connection, Facts facts) {
+        StackPane tile = ConnectionRowGraphics.protocolTile(connection, themeText.textFillProperty(), 30, facts.openTabs());
+        tile.setMinSize(58, 58);
+        tile.setPrefSize(58, 58);
+        tile.setMaxSize(58, 58);
+        if (facts.badge() != null) {
+            StackPane.setAlignment(facts.badge(), Pos.BOTTOM_LEFT);
+            StackPane.setMargin(facts.badge(), new Insets(0, 0, -4, -4));
+            tile.getChildren().add(facts.badge());
+        }
+        Label name = new Label(connection.getName());
+        name.setStyle("-fx-font-size: 1.4em; -fx-font-weight: bold;");
+        name.setWrapText(true);
+        javafx.scene.layout.FlowPane chips = new javafx.scene.layout.FlowPane(6, 6);
+        String group = connection.getGroup();
+        chips.getChildren().add(dotChip(group != null && !group.isBlank()
+            ? group.replace(GroupPath.SEPARATOR, " / ") : I18n.get("connectionManager.noFolder"), facts.groupColor(), "folder"));
+        if (connection.getTag() != null && !connection.getTag().isBlank()) {
+            chips.getChildren().add(ConnectionRowGraphics.tagChip(connection.getTag(), themeText.textFillProperty()));
+        }
+        if (facts.readOnly()) {
+            chips.getChildren().add(dotChip(I18n.get("connectionManager.tab.teamwork"), null, "teamwork"));
+        }
+        VBox text = new VBox(6, name, chips);
+        HBox.setHgrow(text, Priority.ALWAYS);
+        HBox header = new HBox(14, tile, text);
+        header.setAlignment(Pos.CENTER_LEFT);
+        return header;
+    }
+
+    /** Connect, then SFTP, edit, duplicate and the favorite star as icon buttons. */
+    private Node actions(ServerConnection connection, Facts facts) {
+        Button connect = new Button(I18n.get("quickConnect.connect"),
+            ToolbarIcons.create("connect", new javafx.beans.property.SimpleObjectProperty<>(javafx.scene.paint.Color.WHITE), 16));
+        connect.getStyleClass().add("cm-primary");
+        connect.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(connect, Priority.ALWAYS);
+        connect.setOnAction(e -> run(onConnect, connection));
+        HBox actions = new HBox(6, connect);
+        actions.setAlignment(Pos.CENTER_LEFT);
+        if (onSftp != null && connection.getProtocol() != de.kortty.model.ConnectionProtocol.LOCAL_SHELL) {
+            actions.getChildren().add(iconButton("sftp", I18n.get("connectionManager.inspector.sftp"), () -> run(onSftp, connection)));
+        }
+        if (!facts.readOnly()) {
+            actions.getChildren().addAll(
+                iconButton("edit", I18n.get("connectionManager.edit"), () -> run(onEdit, connection)),
+                iconButton("duplicate", I18n.get("connectionManager.duplicate"), () -> run(onDuplicate, connection)));
+        }
+        ToggleButton favorite = new ToggleButton(I18n.get("connectionManager.favorite"),
+            ToolbarIcons.create("star", themeText.textFillProperty(), 16));
+        favorite.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+        favorite.setSelected(facts.favorite());
+        favorite.setTooltip(new Tooltip(I18n.get("connectionManager.favorite.toggle")));
+        favorite.getStyleClass().add("cm-icon-button");
+        favorite.setOnAction(e -> run(onToggleFavorite, connection));
+        actions.getChildren().add(favorite);
+        return actions;
+    }
+
+    /** This computer, the jump server and the connection as a chain, the tunnels below it. */
+    private Node route(ServerConnection connection, Facts facts) {
+        HBox chain = new HBox(8);
+        chain.setAlignment(Pos.CENTER_LEFT);
+        chain.getChildren().add(hop("localShell", I18n.get("connectionManager.map.you")));
+        boolean viaJump = facts.jumpName() != null;
+        chain.getChildren().add(link(viaJump));
+        if (viaJump) {
+            // The chain names the jump server short; its address is in the tooltip.
+            int bracket = facts.jumpName().indexOf(" (");
+            Label jump = hop("jump", bracket > 0 ? facts.jumpName().substring(0, bracket) : facts.jumpName());
+            jump.setTooltip(new Tooltip(facts.jumpName()));
+            chain.getChildren().addAll(jump, link(true));
+        }
+        Label target = hop(ConnectionRowGraphics.glyphFor(connection), connection.getName());
+        target.setStyle("-fx-font-weight: bold;");
+        chain.getChildren().add(target);
+        VBox route = new VBox(6, chain);
+        for (SSHTunnel tunnel : ConnectionRowGraphics.enabledTunnels(connection)) {
+            Label line = new Label(ConnectionRowGraphics.describeTunnel(tunnel),
+                ToolbarIcons.create("tunnel", themeText.textFillProperty(), 14));
+            line.setStyle("-fx-opacity: 0.85;");
+            route.getChildren().add(line);
+        }
+        return route;
+    }
+
+    private Label hop(String glyph, String text) {
+        Label hop = new Label(text, ToolbarIcons.create(glyph, themeText.textFillProperty(), 16));
+        // A narrow inspector shortens the names instead of growing wider than its column.
+        hop.setMinWidth(40);
+        hop.setTextOverrun(javafx.scene.control.OverrunStyle.ELLIPSIS);
+        hop.setGraphicTextGap(6);
+        return hop;
+    }
+
+    /** A dashed orange line for a hop through a jump server, a quiet solid one for a direct connection. */
+    private static javafx.scene.layout.Region link(boolean jump) {
+        javafx.scene.layout.Region link = new javafx.scene.layout.Region();
+        link.setMinWidth(16);
+        link.setPrefHeight(2);
+        link.setMaxHeight(2);
+        HBox.setHgrow(link, Priority.ALWAYS);
+        link.setStyle(jump
+            ? "-fx-border-color: #dc9825 transparent transparent transparent; -fx-border-width: 2 0 0 0;"
+                + " -fx-border-style: segments(5, 4);"
+            : "-fx-border-color: rgba(128, 128, 128, 0.55) transparent transparent transparent; -fx-border-width: 1.5 0 0 0;");
+        return link;
+    }
+
+    /** Isolation, host-key check and incognito as chips. */
+    private Node security(ServerConnection connection, Facts facts) {
+        javafx.scene.layout.FlowPane chips = new javafx.scene.layout.FlowPane(6, 6);
+        chips.getChildren().add(iconChip("isolation",
+            I18n.get("connectionManager.inspector.isolationChip", facts.isolation())));
+        chips.getChildren().add(iconChip("hostKey", I18n.get("connectionManager.inspector.hostKeyChip", facts.hostKey())));
+        if (connection.isIncognito()) {
+            chips.getChildren().add(iconChip("incognito", I18n.get("connectionManager.row.incognito")));
+        }
+        return chips;
+    }
+
+    /** Bars for the connections of each of the last days, then how often and how recently. */
+    private Node usage(ServerConnection connection, Facts facts) {
+        HBox bars = new HBox(4);
+        bars.setAlignment(Pos.BOTTOM_LEFT);
+        bars.setMinHeight(42);
+        bars.setPrefHeight(42);
+        int[] days = facts.usageDays() != null ? facts.usageDays() : new int[0];
+        int max = 1;
+        for (int day : days) {
+            max = Math.max(max, day);
+        }
+        for (int i = 0; i < days.length; i++) {
+            javafx.scene.layout.Region bar = new javafx.scene.layout.Region();
+            double height = days[i] == 0 ? 3 : 6 + 36.0 * days[i] / max;
+            bar.setMinHeight(height);
+            bar.setPrefHeight(height);
+            bar.setMaxHeight(height);
+            bar.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(bar, Priority.ALWAYS);
+            bar.setStyle(days[i] == 0
+                ? "-fx-background-color: rgba(128, 128, 128, 0.28); -fx-background-radius: 2;"
+                : "-fx-background-color: rgba(54, 138, 245, 0.8); -fx-background-radius: 2;");
+            Tooltip.install(bar, new Tooltip(I18n.get("connectionManager.inspector.dayBar",
+                java.time.LocalDate.now().minusDays(days.length - 1L - i)
+                    .format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM)),
+                days[i])));
+            bars.getChildren().add(bar);
+        }
+        String summary = connection.getUsageCount() == 0 && connection.getLastUsed() <= 0
+            ? I18n.get("connectionManager.inspector.usageNever")
+            : I18n.get("connectionManager.inspector.usageSummary", connection.getUsageCount(), facts.lastUsedRelative());
+        Label text = new Label(facts.openTabs() > 0
+            ? summary + " · " + I18n.get("connectionManager.row.open", facts.openTabs()) : summary);
+        text.setWrapText(true);
+        text.setStyle("-fx-opacity: 0.85;");
+        if (facts.lastUsed() != null) {
+            text.setTooltip(new Tooltip(facts.lastUsed()));
+        }
+        return days.length > 0 ? new VBox(8, bars, text) : text;
+    }
+
+    /** A chip with a coloured dot (grey without a colour) or a glyph, as in the header. */
+    private Node dotChip(String text, String color, String glyph) {
+        Node lead;
+        if (color != null) {
+            javafx.scene.shape.Circle dot = new javafx.scene.shape.Circle(4, javafx.scene.paint.Color.web(color));
+            lead = dot;
+        } else {
+            lead = ToolbarIcons.create(glyph, themeText.textFillProperty(), 13);
+        }
+        Label label = new Label(text, lead);
+        label.setGraphicTextGap(6);
+        label.setStyle("-fx-border-color: rgba(128, 128, 128, 0.45); -fx-border-radius: 6; -fx-padding: 2 8 2 7;"
+            + " -fx-font-size: 0.92em;");
+        label.setMinWidth(0);
+        return label;
+    }
+
+    private Node iconChip(String glyph, String text) {
+        Label label = new Label(text, ToolbarIcons.create(glyph, themeText.textFillProperty(), 15));
+        label.setGraphicTextGap(7);
+        label.setStyle("-fx-border-color: rgba(128, 128, 128, 0.45); -fx-border-radius: 7; -fx-padding: 4 9 4 7;");
+        label.setMinWidth(0);
+        return label;
     }
 
     /** Shows the folder {@code group}. */
@@ -270,19 +432,20 @@ final class ConnectionInspectorPane extends ScrollPane {
         return caption;
     }
 
-    private static void row(GridPane grid, String key, String value) {
+    private static Label row(GridPane grid, String key, String value) {
         int row = grid.getRowCount();
         Label text = new Label(value != null ? value : "–");
         text.setWrapText(true);
         grid.add(caption(key), 0, row);
         grid.add(text, 1, row);
         GridPane.setHgrow(text, Priority.ALWAYS);
+        return text;
     }
 
     private static Node section(String key, Node content) {
-        Label title = new Label(I18n.get(key));
-        title.setStyle("-fx-font-size: 0.82em; -fx-font-weight: bold; -fx-opacity: 0.7;");
-        return new VBox(6, title, content);
+        Label title = new Label(I18n.get(key).toUpperCase(java.util.Locale.ROOT));
+        title.setStyle("-fx-font-size: 0.8em; -fx-font-weight: bold; -fx-opacity: 0.6;");
+        return new VBox(8, title, content);
     }
 
     private static void commitOnEnterOrBlur(TextField field, String original, Consumer<String> commit) {

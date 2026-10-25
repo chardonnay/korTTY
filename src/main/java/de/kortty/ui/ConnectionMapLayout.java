@@ -189,7 +189,8 @@ final class ConnectionMapLayout {
         return ZONE_PADDING * 2 + columns * NODE_WIDTH + (columns - 1) * NODE_GAP_X;
     }
 
+    /** strip, not trim: trim would also drop the control character that marks a teamwork zone's key. */
     private static String groupKey(String group) {
-        return group != null ? group.trim() : "";
+        return group != null ? group.strip() : "";
     }
 }

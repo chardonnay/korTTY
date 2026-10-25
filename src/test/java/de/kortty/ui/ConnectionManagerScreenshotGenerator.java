@@ -121,6 +121,7 @@ public final class ConnectionManagerScreenshotGenerator {
         settle.setOnFinished(event -> {
             try {
                 ConnectionManagerTreeView tree = (ConnectionManagerTreeView) field(dialog, "treeView");
+                addTeamwork(dialog);
                 ServerConnection web = local(dialog, "web-01");
                 tree.selectConnection(web);
                 settleThen(pane, () -> {
@@ -128,6 +129,13 @@ public final class ConnectionManagerScreenshotGenerator {
                     invoke(dialog, "setMapMode", true);
                     settleThen(pane, () -> {
                         capture(pane, new File(out, "connection-manager-map.png"));
+                        String pdf = System.getProperty("kortty.screenshot.pdf");
+                        if (pdf != null) {
+                            // The map's PDF export exactly as its button writes it, for a look at the paper version.
+                            ConnectionMapView map = (ConnectionMapView) field(dialog, "mapView");
+                            ConnectionMapPdfWriter.write(java.nio.file.Path.of(pdf), map.pdfRequest("Connection map", true));
+                            System.out.println("Generated " + pdf);
+                        }
                         dialog.close();
                         done.countDown();
                     }, failure, done);
@@ -210,6 +218,21 @@ public final class ConnectionManagerScreenshotGenerator {
         shell.setProtocol(ConnectionProtocol.LOCAL_SHELL);
         shell.setLocalShellCommand("/bin/zsh");
 
+        // OS symbols on most servers, as a user would set them.
+        String[][] badges = {{"bastion", "rocky"}, {"web-01", "redhat"}, {"web-02", "redhat"}, {"db-primary", "redhat"},
+            {"api-staging", "ubuntu"}, {"worker-staging", "debian"}, {"devbox", "arch"}, {"build-runner", "suse"},
+            {"acme-app-01", "windows-server"}, {"acme-files", "windows-11"}};
+        for (String[] pair : badges) {
+            list.stream().filter(c -> pair[0].equals(c.getName())).forEach(c -> c.setOsBadge(pair[1]));
+        }
+        for (ServerConnection connection : list) {
+            for (int day = 0; day < 14; day += 1 + (connection.getName().length() % 3)) {
+                for (int n = 0; n < 1 + (day + connection.getName().length()) % 4; n++) {
+                    connection.setUsageHistory(ServerConnection_withUsage(connection.getUsageHistory(),
+                        java.time.LocalDate.now().minusDays(day)));
+                }
+            }
+        }
         Map<String, String> colors = new LinkedHashMap<>();
         colors.put("Production", "#e5534b");
         colors.put("Staging", "#dc9825");
@@ -219,6 +242,44 @@ public final class ConnectionManagerScreenshotGenerator {
         settings.setConnectionGroupColors(colors);
         settings.setFavoriteConnectionIds(new ArrayList<>(List.of(bastion.getId(), web.getId(), devbox.getId())));
         return list;
+    }
+
+    /** The history with one more connection on {@code day} (ServerConnection keeps its helper package-private). */
+    private static String ServerConnection_withUsage(String history, java.time.LocalDate day) {
+        java.util.TreeMap<java.time.LocalDate, Integer> counts = new java.util.TreeMap<>();
+        if (history != null && !history.isBlank()) {
+            for (String part : history.split(";")) {
+                String[] kv = part.split("=");
+                counts.put(java.time.LocalDate.parse(kv[0]), Integer.parseInt(kv[1]));
+            }
+        }
+        counts.merge(day, 1, Integer::sum);
+        StringBuilder out = new StringBuilder();
+        counts.forEach((d, n) -> out.append(out.length() > 0 ? ";" : "").append(d).append('=').append(n));
+        return out.toString();
+    }
+
+    /** Two shared connections, as a teamwork source would bring them. */
+    @SuppressWarnings("unchecked")
+    private static void addTeamwork(ConnectionManagerDialog dialog) throws Exception {
+        List<ServerConnection> shared = (List<ServerConnection>) field(dialog, "teamworkConnections");
+        ServerConnection monitoring = new ServerConnection();
+        monitoring.setName("monitoring");
+        monitoring.setHost("mon.team.example");
+        monitoring.setUsername("ops");
+        monitoring.setGroup("Ops");
+        monitoring.setTag("infra");
+        monitoring.setOsBadge("debian");
+        ServerConnection logs = new ServerConnection();
+        logs.setName("log-collector");
+        logs.setHost("logs.team.example");
+        logs.setUsername("ops");
+        logs.setGroup("Ops");
+        logs.setOsBadge("ubuntu");
+        shared.addAll(List.of(monitoring, logs));
+        Method apply = ConnectionManagerDialog.class.getDeclaredMethod("applyFilters");
+        apply.setAccessible(true);
+        apply.invoke(dialog);
     }
 
     private static ServerConnection ssh(List<ServerConnection> list, String name, String host, int port, String user,

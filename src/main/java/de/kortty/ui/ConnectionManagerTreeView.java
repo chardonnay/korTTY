@@ -26,10 +26,15 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     /** Connections the enterprise policy blocks: dimmed, in any theme. */
     static final String BLOCKED_STYLE = ENTRY_STYLE + " -fx-opacity: 0.55;";
     
+    /** The folder indent the tree's stylesheet sets; the connector lines are drawn from it. */
+    static final double INDENT = 32;
+
     private final List<ServerConnection> connections;
+    /** Teamwork connections shown read-only in a branch of their own below the local ones; empty for none. */
+    private List<ServerConnection> sharedConnections = List.of();
+    private String sharedBranchTitle = "";
     private Button undoButton;
     private final Deque<MoveOperation> moveHistory = new ArrayDeque<>();
-    private TreeItem<ConnectionTreeItem.ItemData> originalRoot;
     private Predicate<ServerConnection> currentSearchPredicate = null;
     private boolean selectionOnly;
     /** The connections come from a shared (teamwork) source and are never changed in this tree. */
@@ -69,12 +74,19 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
     private java.util.function.Predicate<ServerConnection> favoriteProbe;
     /** Marks the selected connections as favorites or unmarks them; without it the menu has no entry. */
     private Consumer<List<ServerConnection>> onToggleFavorite;
+    /** The OS badge drawn on a connection's tile, or null. */
+    private java.util.function.Function<ServerConnection, javafx.scene.Node> badgeProbe;
+    /** Builds the "OS symbol" submenu for the selected connections; without it the menu has no entry. */
+    private java.util.function.Function<List<ServerConnection>, Menu> osBadgeMenu;
     
     public ConnectionManagerTreeView(List<ServerConnection> connections) {
         this.connections = connections;
         
         getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         setShowRoot(false);
+        getStyleClass().add("cm-tree");
+        getStylesheets().add(Objects.requireNonNull(
+            getClass().getResource("/styles/connection-tree.css")).toExternalForm());
         
         refreshTree();
         setupDragAndDrop();
@@ -174,18 +186,8 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         
         for (ServerConnection conn : sortedConnections) {
             if (conn.isPlaceholder()) {
-                // Add placeholder with special styling indicator
-                TreeItem<ConnectionTreeItem.ItemData> placeholderItem = ConnectionTreeItem.forConnection(conn);
-                
-                String group = conn.getGroup();
-                if (group == null || group.trim().isEmpty()) {
-                    root.getChildren().add(placeholderItem);
-                } else {
-                    TreeItem<ConnectionTreeItem.ItemData> groupItem = groupItems.get(group);
-                    if (groupItem != null) {
-                        groupItem.getChildren().add(placeholderItem);
-                    }
-                }
+                // A placeholder only keeps an empty folder alive; the folder above it is all the tree shows.
+                continue;
             } else {
                 TreeItem<ConnectionTreeItem.ItemData> connItem = ConnectionTreeItem.forConnection(conn);
                 
@@ -201,11 +203,72 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         }
         
+        appendSharedBranch(root, sharedConnections);
         root.setExpanded(true);
         expandAll(root);
         
-        this.originalRoot = root;
         setRoot(root);
+    }
+
+    /**
+     * Shows {@code shared} (teamwork) connections read-only in a branch titled {@code branchTitle} below the
+     * local folders, in the folders of their shared files; an empty list removes the branch. Takes effect
+     * with the next {@link #refreshTree} or {@link #filterTree}.
+     */
+    public void setSharedConnections(List<ServerConnection> shared, String branchTitle) {
+        this.sharedConnections = shared != null ? shared : List.of();
+        this.sharedBranchTitle = branchTitle != null ? branchTitle : "";
+    }
+
+    /** Whether {@code connection} is one of the shared connections of this tree's teamwork branch. */
+    public boolean isShared(ServerConnection connection) {
+        for (ServerConnection shared : sharedConnections) {
+            if (shared == connection) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Adds the teamwork branch with {@code shared} in their folders; nothing for an empty list. */
+    private void appendSharedBranch(TreeItem<ConnectionTreeItem.ItemData> root, List<ServerConnection> shared) {
+        List<ServerConnection> visible = shared.stream().filter(conn -> !conn.isPlaceholder())
+            .sorted(Comparator.comparing(ServerConnection::getName, String.CASE_INSENSITIVE_ORDER))
+            .collect(Collectors.toList());
+        if (visible.isEmpty()) {
+            return;
+        }
+        TreeItem<ConnectionTreeItem.ItemData> branch = ConnectionTreeItem.forSharedGroup(null, sharedBranchTitle);
+        Map<String, TreeItem<ConnectionTreeItem.ItemData>> folders = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (ServerConnection conn : visible) {
+            TreeItem<ConnectionTreeItem.ItemData> parent = branch;
+            if (conn.getGroup() != null && !conn.getGroup().isBlank()) {
+                GroupPath path = new GroupPath(conn.getGroup());
+                StringBuilder key = new StringBuilder();
+                for (String segment : path.getSegments()) {
+                    key.append(key.length() > 0 ? GroupPath.SEPARATOR : "").append(segment);
+                    TreeItem<ConnectionTreeItem.ItemData> folderParent = parent;
+                    parent = folders.computeIfAbsent(key.toString(), k -> {
+                        TreeItem<ConnectionTreeItem.ItemData> folder =
+                            ConnectionTreeItem.forSharedGroup(new GroupPath(k), segment);
+                        folderParent.getChildren().add(folder);
+                        return folder;
+                    });
+                }
+            }
+            parent.getChildren().add(ConnectionTreeItem.forSharedConnection(conn));
+        }
+        // Folders before connections inside every shared folder, as in the local part of the tree.
+        sortFoldersFirst(branch);
+        root.getChildren().add(branch);
+    }
+
+    private static void sortFoldersFirst(TreeItem<ConnectionTreeItem.ItemData> item) {
+        item.getChildren().sort(Comparator.comparing((TreeItem<ConnectionTreeItem.ItemData> child) ->
+            !child.getValue().isGroup()));
+        for (TreeItem<ConnectionTreeItem.ItemData> child : item.getChildren()) {
+            sortFoldersFirst(child);
+        }
     }
     
     /**
@@ -216,9 +279,8 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         this.currentSearchPredicate = searchPredicate;
         
         if (searchPredicate == null) {
-            // Restore original tree
-            setRoot(originalRoot);
-            expandAll(originalRoot);
+            // Rebuilt rather than restored: the teamwork branch may have changed since the last build.
+            refreshTree();
             return;
         }
         
@@ -278,6 +340,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
             }
         }
         
+        appendSharedBranch(filteredRoot, sharedConnections.stream().filter(searchPredicate).collect(Collectors.toList()));
         filteredRoot.setExpanded(true);
         expandAll(filteredRoot);
         setRoot(filteredRoot);
@@ -428,12 +491,25 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                         return;
                     }
                     
-                    if (item.isGroup()) {
+                    if (item.isGroup() && item.isShared()) {
+                        // A folder of the teamwork branch: no colour, no folder actions.
+                        setText(item.getDisplayName());
+                        javafx.scene.layout.HBox row = ConnectionRowGraphics.groupRow(item.getGroupPath(),
+                            item.getDisplayName(), null, sharedCount(getTreeItem()), textFillProperty(),
+                            item.getGroupPath() == null ? "teamwork" : "folder");
+                        ConnectionRowGraphics.addConnector(row, getTreeItem(), getTreeView().getRoot(), INDENT,
+                            paddingProperty(), textFillProperty());
+                        setGraphic(row);
+                        setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+                    } else if (item.isGroup()) {
                         // The name stays the cell's text for screen readers; the row draws it with the glyph.
                         setText(item.getDisplayName());
-                        setGraphic(ConnectionRowGraphics.groupRow(item.getGroupPath(), item.getDisplayName(),
-                            inheritedGroupColor(item.getGroupPath()), connectionCount(item.getGroupPath()),
-                            textFillProperty()));
+                        javafx.scene.layout.HBox row = ConnectionRowGraphics.groupRow(item.getGroupPath(),
+                            item.getDisplayName(), inheritedGroupColor(item.getGroupPath()),
+                            connectionCount(item.getGroupPath()), textFillProperty(), "folder");
+                        ConnectionRowGraphics.addConnector(row, getTreeItem(), getTreeView().getRoot(), INDENT,
+                            paddingProperty(), textFillProperty());
+                        setGraphic(row);
                         setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
                         showGroupColor(this, item.getGroupPath());
                         if (!selectionOnly) {
@@ -447,8 +523,13 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                             ServerConnection connection = item.getConnection();
                             int openTabs = openTabsProbe != null ? openTabsProbe.applyAsInt(connection) : 0;
                             setText(item.getDisplayName());
-                            setGraphic(ConnectionRowGraphics.connectionRow(connection, textFillProperty(),
-                                favoriteProbe != null && favoriteProbe.test(connection), openTabs));
+                            javafx.scene.layout.HBox row = ConnectionRowGraphics.connectionRow(connection,
+                                textFillProperty(), favoriteProbe != null && favoriteProbe.test(connection), openTabs,
+                                item.isShared() || readOnlyConnections,
+                                badgeProbe != null ? badgeProbe.apply(connection) : null);
+                            ConnectionRowGraphics.addConnector(row, getTreeItem(), getTreeView().getRoot(), INDENT,
+                                paddingProperty(), textFillProperty());
+                            setGraphic(row);
                             setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
                             setAccessibleText(item.getDisplayName() + ", " + ConnectionRowGraphics.address(connection)
                                 + (connection.getTag() != null ? ", " + connection.getTag() : ""));
@@ -482,6 +563,9 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                 if (selectionOnly || readOnlyConnections) {
                     return;
                 }
+                if (cell.getItem() != null && cell.getItem().isShared()) {
+                    return; // a teamwork connection never moves into another folder
+                }
                 if (!cell.isEmpty() && cell.getItem() != null && 
                     !cell.getItem().isGroup() && 
                     cell.getItem().getConnection() != null &&
@@ -503,7 +587,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                 if (event.getGestureSource() != cell && 
                     event.getDragboard().hasString() &&
                     cell.getItem() != null && 
-                    cell.getItem().isGroup()) {
+                    cell.getItem().isGroup() && !cell.getItem().isShared()) {
                     event.acceptTransferModes(TransferMode.MOVE);
                 }
                 event.consume();
@@ -517,7 +601,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
                 Dragboard db = event.getDragboard();
                 boolean success = false;
                 
-                if (db.hasString() && cell.getItem() != null && cell.getItem().isGroup()) {
+                if (db.hasString() && cell.getItem() != null && cell.getItem().isGroup() && !cell.getItem().isShared()) {
                     String connectionId = db.getString();
                     ServerConnection conn = connections.stream()
                             .filter(c -> c.getId().equals(connectionId))
@@ -588,6 +672,17 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         var inherited = de.kortty.core.ConnectionGroupColors.inherited(groupPath.getPath(),
             path -> groupColorProbe.apply(new GroupPath(path)));
         return inherited != null ? inherited.hex() : null;
+    }
+
+    /** How many connections a folder of the teamwork branch holds, subfolders included. */
+    private static int sharedCount(TreeItem<ConnectionTreeItem.ItemData> item) {
+        int count = 0;
+        if (item != null) {
+            for (TreeItem<ConnectionTreeItem.ItemData> child : item.getChildren()) {
+                count += child.getValue().isGroup() ? sharedCount(child) : 1;
+            }
+        }
+        return count;
     }
 
     /** How many connections (no folder placeholders) the folder and its subfolders hold. */
@@ -822,6 +917,11 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         // Enable/disable edit based on selection
         menu.setOnShowing(e -> {
             favoriteItem.setDisable(getSelectedConnections().isEmpty());
+            // Teamwork connections shown beside the local ones are read-only: no edit, no tags.
+            boolean anyShared = getSelectedConnections().stream().anyMatch(this::isShared);
+            editItem.setVisible(!anyShared);
+            assignTagItem.setVisible(!anyShared);
+            removeTagItem.setVisible(!anyShared);
             List<ServerConnection> selected = getSelectedConnections();
             editItem.setDisable(selected.size() != 1);
             exportItem.setDisable(selected.isEmpty());
@@ -835,6 +935,17 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         }
         if (onToggleFavorite != null) {
             menu.getItems().add(favoriteItem);
+        }
+        if (osBadgeMenu != null && !readOnlyConnections) {
+            Menu badges = new Menu(I18n.get("connectionManager.os.menu"));
+            // Filled when the menu opens, for the selection of that moment.
+            badges.getItems().add(new MenuItem());
+            badges.setOnShowing(e -> {
+                List<ServerConnection> selected = getSelectedConnections().stream()
+                    .filter(conn -> !isShared(conn)).collect(Collectors.toList());
+                badges.getItems().setAll(osBadgeMenu.apply(selected).getItems());
+            });
+            menu.getItems().add(badges);
         }
         menu.getItems().add(exportItem);
         if (onAssignTag != null || onRemoveTag != null) {
@@ -864,7 +975,7 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
         return getSelectionModel().getSelectedItems().stream()
                 .filter(Objects::nonNull)
                 .map(TreeItem::getValue)
-                .filter(data -> data != null && data.isGroup())
+                .filter(data -> data != null && data.isGroup() && !data.isShared())
                 .map(ConnectionTreeItem.ItemData::getGroupPath)
                 .collect(Collectors.toList());
     }
@@ -958,6 +1069,16 @@ public class ConnectionManagerTreeView extends TreeView<ConnectionTreeItem.ItemD
 
     public void setOnRemoveTagFromGroup(Consumer<GroupPath> callback) {
         this.onRemoveTagFromGroup = callback;
+    }
+
+    /** Draws the OS badge {@code probe} gives a connection (null for none) on its tile. */
+    public void setBadgeProbe(java.util.function.Function<ServerConnection, javafx.scene.Node> probe) {
+        this.badgeProbe = probe;
+    }
+
+    /** Adds an "OS symbol" submenu whose entries {@code builder} makes for the selected local connections. */
+    public void setOsBadgeMenu(java.util.function.Function<List<ServerConnection>, Menu> builder) {
+        this.osBadgeMenu = builder;
     }
 
     /** Draws a green dot and the tab count for connections {@code probe} reports open tabs for. */

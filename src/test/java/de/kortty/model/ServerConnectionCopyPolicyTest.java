@@ -35,13 +35,14 @@ public class ServerConnectionCopyPolicyTest {
             "terminalEffectPluginId", "terminalEffectAnimationSpeed", "terminalEmulationType",
             "encoding", "group", "tag", "tabColor", "disableHostKeyCheck", "aiProfileId", "aiSkillIds",
             "aiAgentDesignId",                                             // KI-Agent design combination
+            "osBadge",                                                     // a duplicate runs the same OS
             "settings");
 
     /** Duplicate deliberately leaves these behind; moving one to carried is a product decision. */
     private static final Set<String> DUPLICATE_EXCLUDED = Set.of(
             "id", "name",                                                  // fresh identity; the dialog names the copy
             "encryptedPassword", "privateKeyPassphrase", "credentialId", "sshKeyId",
-            "usageCount", "lastUsed",                                      // usage statistics start over
+            "usageCount", "lastUsed", "usageHistory",                      // usage statistics start over
             "sshTunnels", "jumpServer", "windowGeometry",
             "logConfig", "sessionJournalConfig",
             "connectionTimeoutSeconds", "retryCount",
@@ -53,7 +54,7 @@ public class ServerConnectionCopyPolicyTest {
             "localShellWorkingDirectory", "authMethod", "privateKeyPath", "sshKeyId",
             "disableHostKeyCheck", "terminalEffectPluginId", "terminalEffectAnimationSpeed",
             "terminalEmulationType", "encoding", "highlightRuleSetId", "pasteWarningMode", "pasteLineDelayMs",
-            "isolationMode", "incognito", "strictTerminalMode",
+            "isolationMode", "incognito", "strictTerminalMode", "osBadge",
             "settings");
 
     /** Exported only when the matching export-dialog checkbox is set. */
@@ -62,7 +63,7 @@ public class ServerConnectionCopyPolicyTest {
 
     /** Machine-local state that never leaves via export. */
     private static final Set<String> EXPORT_EXCLUDED = Set.of(
-            "id", "privateKeyPassphrase", "usageCount", "lastUsed", "windowGeometry",
+            "id", "privateKeyPassphrase", "usageCount", "lastUsed", "usageHistory", "windowGeometry",
             "logConfig", "sessionJournalConfig", "connectionTimeoutSeconds", "retryCount",
             "temporaryKeyContent", "temporaryKeyExpirationMinutes", "temporaryKeyPermanent",
             "connectionSource", "teamworkSourceId", "teamworkVersionToken", "teamworkRole",

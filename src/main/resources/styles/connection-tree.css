@@ -1,0 +1,7 @@
+/*
+ * Connection trees (Connection Manager, target pickers): a fixed folder indent, which the connector
+ * lines between a folder and its entries are drawn from (ConnectionManagerTreeView.INDENT).
+ */
+.cm-tree .tree-cell {
+    -fx-indent: 32;
+}

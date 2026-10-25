@@ -75,6 +75,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private final PasswordField passwordField;
     private final TextField groupField;
     private final TextField tagField;
+    /** The OS symbol shown with the connection in the Connection Manager. */
+    private final ComboBox<OsBadgeSupport.Resolved> osBadgePicker;
     private final ToggleGroup authMethodGroup;
     private final RadioButton passwordAuthRadio;
     private final RadioButton keyAuthRadio;
@@ -322,6 +324,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         tagField = new TextField(connection.getTag());
         tagField.setPromptText(I18n.get("connEdit.tagPrompt"));
+        var globalSettingsManager = de.kortty.KorTTYApplication.getInstance() != null
+            ? de.kortty.KorTTYApplication.getInstance().getGlobalSettingsManager() : null;
+        osBadgePicker = OsBadgeSupport.picker(connection.getOsBadge(),
+            globalSettingsManager != null ? globalSettingsManager.getSettings() : null);
 
         // Connection timeout and retry
         timeoutSpinner = new Spinner<>(1, 300, connection.getConnectionTimeoutSeconds());
@@ -482,6 +488,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         connectionGrid.add(new Label(I18n.get("connEdit.tag")), 0, row);
         connectionGrid.add(tagField, 1, row++);
+        connectionGrid.add(new Label(I18n.get("connEdit.osBadge")), 0, row);
+        connectionGrid.add(osBadgePicker, 1, row++);
 
         connectionGrid.add(new Separator(), 0, row++, 2, 1);
         
@@ -652,6 +660,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                 connection.setEncoding(encodingCombo.getValue() != null ? encodingCombo.getValue().value() : null);
                 connection.setGroup(getGroupText.isEmpty() ? null : getGroupText);
                 connection.setTag(getTagText.isEmpty() ? null : getTagText);
+                connection.setOsBadge(osBadgePicker.getValue() != null ? osBadgePicker.getValue().id() : null);
                 connection.setTabColor(tabColorCheck != null && tabColorCheck.isSelected() && tabColorPicker.getValue() != null
                     ? TabColorPresentation.hexOf(tabColorPicker.getValue()) : null);
                 connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());

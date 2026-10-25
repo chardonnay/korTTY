@@ -109,6 +109,37 @@ final class ConnectionRowGraphics {
         return port > 0 && port != 22 ? host.trim() + ":" + port : host.trim();
     }
 
+    /**
+     * When something happened, said the way people say it: just now, so many minutes or hours ago,
+     * yesterday, so many days ago, else the date. {@code never} for 0.
+     */
+    static String relativeTime(long millis, long now) {
+        if (millis <= 0) {
+            return I18n.get("connectionManager.inspector.never");
+        }
+        long minutes = Math.max(0, (now - millis) / 60_000L);
+        if (minutes < 1) {
+            return I18n.get("connectionManager.time.now");
+        }
+        if (minutes < 60) {
+            return I18n.get("connectionManager.time.minutes", minutes);
+        }
+        java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+        java.time.LocalDate day = java.time.Instant.ofEpochMilli(millis).atZone(zone).toLocalDate();
+        java.time.LocalDate today = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate();
+        long days = java.time.temporal.ChronoUnit.DAYS.between(day, today);
+        if (days == 0) {
+            return I18n.get("connectionManager.time.hours", Math.max(1, minutes / 60));
+        }
+        if (days == 1) {
+            return I18n.get("connectionManager.time.yesterday");
+        }
+        if (days < 7) {
+            return I18n.get("connectionManager.time.days", days);
+        }
+        return day.format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM));
+    }
+
     /** The colour {@code fill} at {@code opacity}, for muted text and glyph contours. */
     static ObservableValue<Paint> muted(ObservableValue<? extends Paint> fill, double opacity) {
         return Bindings.createObjectBinding(() -> {
@@ -138,6 +169,12 @@ final class ConnectionRowGraphics {
     /** The protocol glyph on a small tile, with a green dot while the connection has an open tab. */
     static StackPane protocolTile(ServerConnection connection, ObservableValue<? extends Paint> fill,
                                   double size, int openTabs) {
+        return protocolTile(connection, fill, size, openTabs, null);
+    }
+
+    /** The protocol tile with the connection's OS badge on its lower left corner; null for none. */
+    static StackPane protocolTile(ServerConnection connection, ObservableValue<? extends Paint> fill,
+                                  double size, int openTabs, Node badge) {
         Node glyph = ToolbarIcons.create(glyphFor(connection), fill, size);
         StackPane tile = new StackPane(glyph);
         tile.getStyleClass().add("cm-tile");
@@ -151,6 +188,11 @@ final class ConnectionRowGraphics {
             StackPane.setAlignment(dot, Pos.BOTTOM_RIGHT);
             StackPane.setMargin(dot, new Insets(0, -2, -2, 0));
             tile.getChildren().add(dot);
+        }
+        if (badge != null) {
+            StackPane.setAlignment(badge, Pos.BOTTOM_LEFT);
+            StackPane.setMargin(badge, new Insets(0, 0, -3, -3));
+            tile.getChildren().add(badge);
         }
         return tile;
     }
@@ -171,13 +213,13 @@ final class ConnectionRowGraphics {
      * @param openTabs the connection's open tabs in every window
      */
     static HBox connectionRow(ServerConnection connection, ObservableValue<? extends Paint> fill,
-                              boolean favorite, int openTabs) {
+                              boolean favorite, int openTabs, boolean teamwork, Node badge) {
         ObservableValue<Paint> dim = muted(fill, 0.62);
         Label name = label(connection.getName(), fill, "-fx-font-weight: bold;");
         Label address = label(address(connection), dim, "-fx-font-size: 0.85em;");
         VBox text = new VBox(1, name, address);
         text.setAlignment(Pos.CENTER_LEFT);
-        HBox row = new HBox(9, protocolTile(connection, fill, 16, openTabs), text);
+        HBox row = new HBox(9, protocolTile(connection, fill, 16, openTabs, badge), text);
         row.setAlignment(Pos.CENTER_LEFT);
         // Chips and marks keep their own height instead of stretching to the two lines of text.
         row.setFillHeight(false);
@@ -188,6 +230,12 @@ final class ConnectionRowGraphics {
         row.getChildren().addAll(marks(connection, dim));
         if (favorite) {
             row.getChildren().add(mark("star", fill, I18n.get("connectionManager.favorite")));
+        }
+        if (teamwork) {
+            // Subtle on purpose: a dimmed people glyph tells a shared entry from a local one.
+            Node shared = mark("teamwork", muted(fill, 0.55), I18n.get("connectionManager.row.teamwork"));
+            shared.setOpacity(0.8);
+            row.getChildren().add(shared);
         }
         if (openTabs > 0) {
             row.getChildren().add(label(I18n.get("connectionManager.row.open", openTabs), dim, "-fx-font-size: 0.85em;"));
@@ -221,8 +269,8 @@ final class ConnectionRowGraphics {
 
     /** A folder's row: the folder glyph with its tab color as core, its name and how many connections it holds. */
     static HBox groupRow(GroupPath group, String displayName, String color, int connections,
-                         ObservableValue<? extends Paint> fill) {
-        HBox row = new HBox(8, ToolbarIcons.create("folder", fill, 17, color),
+                         ObservableValue<? extends Paint> fill, String glyph) {
+        HBox row = new HBox(8, ToolbarIcons.create(glyph, fill, 17, color),
             label(displayName, fill, "-fx-font-weight: bold;"),
             label(String.valueOf(connections), muted(fill, 0.55), "-fx-font-size: 0.85em;"));
         row.setAlignment(Pos.CENTER_LEFT);
@@ -230,5 +278,65 @@ final class ConnectionRowGraphics {
         row.getStyleClass().add("cm-row");
         row.setAccessibleText(group != null ? group.getPath() : displayName);
         return row;
+    }
+
+    /** Where a parent folder's glyph is centred in its row: the 17-unit folder glyph comes first. */
+    private static final double PARENT_GLYPH_CENTER = 8.5;
+
+    /**
+     * Draws the tree's connector lines into {@code row}: an elbow from the parent folder's glyph to this
+     * entry, straight down past the entry when siblings follow, and the through lines of the folders
+     * further up that still have entries below. The lines sit left of the row, in the tree's indent;
+     * they reach over the cell's padding so the lines of neighbouring rows meet. Top-level entries get none.
+     *
+     * @param indent the tree's folder indent ({@code -fx-indent}), which the parent's glyph is offset by
+     */
+    static void addConnector(HBox row, javafx.scene.control.TreeItem<?> item, javafx.scene.control.TreeItem<?> root,
+                             double indent, ObservableValue<Insets> padding, ObservableValue<? extends Paint> fill) {
+        javafx.scene.control.TreeItem<?> parent = item != null ? item.getParent() : null;
+        if (parent == null || parent == root) {
+            return;
+        }
+        ObservableValue<Paint> stroke = muted(fill, 0.32);
+        javafx.beans.binding.DoubleBinding top = javafx.beans.binding.Bindings.createDoubleBinding(
+            () -> padding.getValue() != null ? -padding.getValue().getTop() : 0, padding);
+        javafx.beans.binding.DoubleBinding bottom = javafx.beans.binding.Bindings.createDoubleBinding(
+            () -> row.getHeight() + (padding.getValue() != null ? padding.getValue().getBottom() : 0),
+            row.heightProperty(), padding);
+        javafx.beans.binding.DoubleBinding middle = row.heightProperty().divide(2.0);
+        javafx.scene.layout.Pane lines = new javafx.scene.layout.Pane();
+        lines.setManaged(false);
+        lines.setMouseTransparent(true);
+
+        boolean last = parent.getChildren().indexOf(item) == parent.getChildren().size() - 1;
+        double x = -indent + PARENT_GLYPH_CENTER;
+        lines.getChildren().add(line(x, top, x, last ? middle : bottom, stroke));
+        // A folder's elbow stops before its disclosure arrow, an entry's reaches its tile.
+        lines.getChildren().add(line(x, middle, item.isLeaf() ? -3 : -indent + 10, middle, stroke));
+        javafx.scene.control.TreeItem<?> ancestor = parent;
+        for (int level = 2; ancestor.getParent() != null && ancestor.getParent() != root; level++) {
+            javafx.scene.control.TreeItem<?> up = ancestor.getParent();
+            if (up.getChildren().indexOf(ancestor) < up.getChildren().size() - 1) {
+                double through = -level * indent + PARENT_GLYPH_CENTER;
+                lines.getChildren().add(line(through, top, through, bottom, stroke));
+            }
+            ancestor = up;
+        }
+        row.getChildren().add(0, lines);
+    }
+
+    private static javafx.scene.shape.Line line(double startX, ObservableValue<? extends Number> startY,
+                                                double endX, ObservableValue<? extends Number> endY,
+                                                ObservableValue<Paint> stroke) {
+        javafx.scene.shape.Line line = new javafx.scene.shape.Line();
+        line.setStartX(startX);
+        line.setEndX(endX);
+        line.startYProperty().bind(javafx.beans.binding.Bindings.createDoubleBinding(
+            () -> startY.getValue().doubleValue(), startY));
+        line.endYProperty().bind(javafx.beans.binding.Bindings.createDoubleBinding(
+            () -> endY.getValue().doubleValue(), endY));
+        line.strokeProperty().bind(stroke);
+        line.setStrokeWidth(1);
+        return line;
     }
 }

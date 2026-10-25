@@ -9,6 +9,11 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 - **Neues Layout** — der Connection-Manager zeigt eine Bibliothek auf der linken Seite (alle Verbindungen, Favoriten, kürzlich verwendet, aktuell geöffnet, Ordner, Tags, Teamarbeit), die gewählten Verbindungen in der Mitte und einen Inspektor auf der rechten Seite, mit allen Details der ausgewählten Verbindung und schneller Bearbeitung ihres Namens und Tags. Die Symbolleiste verwendet Symbole im Stil der Symbolleiste, und die Liste zeigt die Adresse, das Tag und Markierungen für Jump-Server, Tunnel, Isolation und Inkognito anstelle von Emojis. Siehe [Connection-Manager](../features/connections.md#connection-manager).
 - **Netzplan** — **Netzplan** zeigt die Verbindungen als Netzplan: eine Zone pro Ordner in dessen Tab-Farbe, Jump-Server-Routen und Tunnel als Linien, Doppelklick verbindet und das Ziehen eines Knotens in eine andere Zone verschiebt die Verbindung in diesen Ordner. Siehe [Liste und Netzplan](../features/connections.md#liste-und-netzplan).
 - **Favoriten** — Markieren Sie Verbindungen mit dem Stern, um sie unter **Favoriten** zu finden; auch Teamwork-Verbindungen können Favoriten sein.
+- **Teamwork neben lokalen Verbindungen** — die allgemeinen Listen zeigen auch Teamwork-Verbindungen, mit einem kleinen Personensymbol gekennzeichnet und schreibgeschützt. Siehe [Bibliothek](../features/connections.md#bibliothek).
+- **OS-Symbole** — vergeben Sie jedem Server das Symbol seines Betriebssystems (Windows, Linux-Distributionen, Unix, BSD) oder eines Ihrer eigenen Bilder, dargestellt in der Liste, im Netzplan und im Inspektor. Siehe [OS-Symbole](../features/connections.md#os-symbole).
+- **Netzplan als PDF** — **PDF** im Netzplan speichert den Netzplan als Vektor-PDF mit dem korTTY-Logo, im Quer- oder Hochformat.
+- **Übersichtsexport** — **Übersicht exportieren** schreibt Ihre Server als JSON, YAML, TOML oder XML, mit den Teilen, die Sie auswählen, und niemals ein Passwort oder einen Schlüssel. Siehe [Übersicht exportieren](../features/connections.md#exportieren-einer-ubersicht).
+- **Inspektor** — der Pfad von diesem Computer über den Jump-Server, Sicherheit als Chips, Nutzungsbalken für die letzten 14 Tage und eine SFTP-Schaltfläche.
 
 ### Unter Windows
 
