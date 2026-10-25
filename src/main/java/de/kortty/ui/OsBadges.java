@@ -45,15 +45,14 @@ final class OsBadges {
             badge("windows-11", "Windows 11", Family.WINDOWS, chip("#FFFFFF"),
                     layer("M3.2 3.2 H11.2 V11.2 H3.2 Z M12.8 3.2 H20.8 V11.2 H12.8 Z"
                             + " M3.2 12.8 H11.2 V20.8 H3.2 Z M12.8 12.8 H20.8 V20.8 H12.8 Z", "#0078D4")),
-            // Windows Server: the Windows tile beside a three-bay server rack with status lights.
+            // Windows Server: a light-blue server tower, the dark-blue Windows window standing in front of it.
             badge("windows-server", "Windows Server", Family.WINDOWS, chip("#FFFFFF"),
-                    layer("M2.8 2.8 H7.3 V7.3 H2.8 Z M7.7 2.8 H12.2 V7.3 H7.7 Z"
-                            + " M2.8 7.7 H7.3 V12.2 H2.8 Z M7.7 7.7 H12.2 V12.2 H7.7 Z", "#0078D4"),
-                    layer("M13.6 2.8 H21.2 V8.4 H13.6 Z M13.6 9.2 H21.2 V14.8 H13.6 Z M13.6 15.6 H21.2 V21.2 H13.6 Z",
-                            "#334155"),
-                    layer("M17.45 5.6 A0.95 0.95 0 1 0 19.35 5.6 A0.95 0.95 0 1 0 17.45 5.6 Z"
-                            + " M17.45 12 A0.95 0.95 0 1 0 19.35 12 A0.95 0.95 0 1 0 17.45 12 Z"
-                            + " M17.45 18.4 A0.95 0.95 0 1 0 19.35 18.4 A0.95 0.95 0 1 0 17.45 18.4 Z", "#22C55E")),
+                    layer("M5.5 2.2 H12.7 A1.2 1.2 0 0 1 13.9 3.4 V21.4 A0.4 0.4 0 0 1 13.5 21.8 H4.7"
+                            + " A0.4 0.4 0 0 1 4.3 21.4 V3.4 A1.2 1.2 0 0 1 5.5 2.2 Z", "#00AEEF"),
+                    layer("M5.7 4.8 H12.5 V5.8 H5.7 Z M5.7 17.2 H8.7 V18.1 H5.7 Z M5.7 19.1 H8.7 V20 H5.7 Z"
+                            + " M8.7 12.12 L20.7 10.53 V23.03 L8.7 21.27 Z", "#FFFFFF"),
+                    layer("M9.6 12.9 L13.36 12.4 V16.45 H9.6 Z M14.16 12.3 L19.8 11.55 V16.45 H14.16 Z"
+                            + " M9.6 17.25 H13.36 V21.05 L9.6 20.5 Z M14.16 17.25 H19.8 V22 L14.16 21.17 Z", "#1D3594")),
             // macOS: the bitten apple with its leaf.
             badge("macos", "macOS", Family.APPLE, chip("#FFFFFF"),
                     layer("M12 7.9 C13.1 7 14.5 6.6 15.9 6.7 C17.3 6.8 18.6 7.5 19.4 8.7 A3.9 3.9 0 0 0 20.5 15.7"
