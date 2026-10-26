@@ -61,6 +61,8 @@ final class ChatMarkdownView extends TextFlow {
                     anchor = caret;
                 }
                 updateSelection();
+                // The chat ScrollPane takes the focus on MOUSE_PRESSED; without this, Cmd/Ctrl+C never reaches us.
+                event.consume();
             }
         });
         setOnMouseDragged(event -> {

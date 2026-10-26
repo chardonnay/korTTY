@@ -412,6 +412,7 @@ final class ThemeCssSupport {
         double luminance = 0.299 * bgColor.getRed() + 0.587 * bgColor.getGreen() + 0.114 * bgColor.getBlue();
         Color blendTarget = luminance < 0.5 ? Color.WHITE : Color.BLACK;
         String surfaceHover = toHex(Color.web(surface).interpolate(blendTarget, 0.10));
+        String scrollThumb = toHex(Color.web(surface).interpolate(Color.web(muted), 0.55));
         String onAccent = luminance < 0.5 ? "#0a1420" : "#ffffff";
         // Current search hit: a stronger wash of the accent so it stands out from other matches.
         String hitFill = toHex(bgColor.interpolate(Color.web(accent), 0.30));
@@ -420,8 +421,10 @@ final class ThemeCssSupport {
             ".ai-chat-scroll { -fx-background-color: " + bg + "; -fx-background: " + bg + "; }",
             ".ai-chat-scroll > .viewport { -fx-background-color: " + bg + "; }",
             ".ai-chat-scroll .scroll-bar { -fx-background-color: " + surface + "; }",
-            ".ai-chat-scroll .scroll-bar .thumb { -fx-background-color: " + border + "; }",
-            ".ai-chat-scroll .scroll-bar .thumb:hover { -fx-background-color: " + surfaceHover + "; }",
+            ".ai-chat-scroll .scroll-bar .thumb { -fx-background-color: " + scrollThumb + "; -fx-background-insets: 2; -fx-background-radius: 6; }",
+            ".ai-chat-scroll .scroll-bar .thumb:hover, .ai-chat-scroll .scroll-bar .thumb:pressed { -fx-background-color: " + muted + "; }",
+            // A wide, opaque bar: AtlantaFX's default (8 px at 50 % opacity until hovered) is hard to grab.
+            ".ai-chat-scroll .scroll-bar:vertical { -fx-pref-width: 16; -fx-min-width: 16; -fx-opacity: 1; }",
             ".ai-chat-messages { -fx-background-color: " + bg + "; }",
             ".ai-chat-role { -fx-text-fill: " + muted + "; }",
             ".ai-chat-role-assistant { -fx-text-fill: " + accent + "; }",
