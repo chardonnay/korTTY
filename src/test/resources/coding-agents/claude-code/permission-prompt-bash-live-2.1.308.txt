@@ -1,0 +1,29 @@
+#! expect state=BLOCKED rule=permission-prompt
+#! alt=true
+
+ ▐▛███▛█   Claude Code v2.1.308
+▝▜██████▀  qwen/qwen3.8-27b · API Usage Billing
+ ▝▝   ▝▝                                                                             
+
+⚠ Model "qwen/qwen3.8-27b" isn't recognized · context assumed to be 200k tokens · update Claude Code, or see
+  https://code.claude.com/docs/en/model-config
+
+❯ Use your Bash tool to run exactly: curl -sI https://example.com
+
+⏺ Sending HTTP HEAD request to example.com
+  ⎿  $ curl -sI https://example.com
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Bash command
+ Send HTTP HEAD request to example.com
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ curl -sI https://example.com
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ This command requires approval
+
+ Do you want to proceed?
+ ❯ 1. Yes
+   2. Yes, and don’t ask again for: curl *
+   3. No
+
+ Esc to cancel · Tab to amend

@@ -4,19 +4,19 @@ title: Coding agents
 
 # Coding agents
 
-KorTTY recognises when a terminal-based coding agent — **Claude Code**, **Codex**, **Gemini CLI**, **MiniMax Code**, **Qwen Code**, **OpenCode**, **Cursor Agent**, **Aider**, **Amp**, **Goose**, **Crush**, **Kiro CLI**, **Continue**, **Grok CLI**, **Jules**, **GitHub Copilot CLI** or **Grok Build** — is running inside one of your [local shell tabs](terminal.md#local-shell-tabs) and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable **Coding Agents** panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.
+KorTTY recognises when a terminal-based coding agent — **Claude Code**, **Codex**, **Gemini CLI**, **MiniMax Code**, **Qwen Code**, **OpenCode**, **Cursor Agent**, **Aider**, **Amp**, **Goose**, **Crush**, **Kiro CLI**, **Continue**, **Grok CLI**, **Jules**, **GitHub Copilot CLI**, **Grok Build** or **Antigravity CLI** — is running inside one of your [local shell tabs](terminal.md#local-shell-tabs) and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable **Coding Agents** panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.
 
 ![Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier](../assets/diagrams/coding-agents.svg)
 
 ## What it detects
 
-Detection covers the seventeen agents below, started from a **Local Shell** tab — directly, through a package-manager wrapper such as `npx`, or as a `node`, `bun`, `deno` or `python` script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process; an agent on a server can still tell you that it waits for you with a terminal notification, see [Notifications from programs](terminal-notifications.md#notifications-from-programs).
+Detection covers the eighteen agents below, started from a **Local Shell** tab — directly, through a package-manager wrapper such as `npx`, or as a `node`, `bun`, `deno` or `python` script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process; an agent on a server can still tell you that it waits for you with a terminal notification, see [Notifications from programs](terminal-notifications.md#notifications-from-programs).
 
 | Agent | Recognised executables |
 |-------|------------------------|
 | Claude Code | `claude`, `claude-code` |
 | Codex | `codex` |
-| Gemini CLI | `gemini` |
+| Gemini CLI | `gemini` (Google no longer lets personal Google accounts sign in to Gemini CLI; it keeps working with a paid Gemini API key or a Gemini Code Assist Standard or Enterprise licence — personal accounts move to Antigravity CLI) |
 | MiniMax Code | `mcode` (the running agent renames its process to `minimax-code`; korTTY reads that process title when `node` reports no script) |
 | Qwen Code | `qwen`, `qwen-code` |
 | OpenCode | `opencode` |
@@ -31,6 +31,7 @@ Detection covers the seventeen agents below, started from a **Local Shell** tab 
 | Jules | `jules` (Google's asynchronous agent: its sessions run in the cloud, so korTTY watches the local `jules` dashboard that lists them; the screen rules are not yet verified against live sessions) |
 | GitHub Copilot CLI | `copilot` |
 | Grok Build | `grok` as a native program (xAI's Grok Build, installed as `~/.grok/bin/grok`, or the `grok-<os>-<arch>` binary it points to; the installer's `agent` alias is not recognised; its permission dialog preselects *always-approve*, so **Enter** alone approves every later tool call — reject with **↓**, **↓**, **↓**, **Enter**) |
+| Antigravity CLI | `agy` (Google's successor to Gemini CLI; Homebrew's `antigravity-cli` links its `antigravity` binary as `agy`, and that name is recognised too) |
 
 Every split pane is tracked on its own, so a tab with two panes can show one agent working while the other waits for a permission decision. A pane that runs no agent, or whose agent has exited, simply has no detection result.
 
@@ -122,7 +123,7 @@ Detection is on by default. Detection, automatic sidebar visibility and the app 
 
 | Setting | Type | Values | Default | Stored as |
 | --- | --- | --- | --- | --- |
-| Detect coding agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI, Grok Build) in local shell tabs | toggle | — | On | `codingAgentDetectionEnabled` |
+| Detect coding agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI, Grok Build, Antigravity CLI) in local shell tabs | toggle | — | On | `codingAgentDetectionEnabled` |
 | Automatically show and hide the coding-agent sidebar | toggle | — | On | `codingAgentPanelAutoVisibility` |
 | Show the number of agents waiting for a decision on the app icon | toggle | — | On | `codingAgentAppBadgeEnabled` |
 
@@ -152,6 +153,7 @@ Each agent's screen rules live in a small JSON file. KorTTY ships one bundled fi
 ~/.kortty/coding-agents/jules.json
 ~/.kortty/coding-agents/copilot.json
 ~/.kortty/coding-agents/grok-build.json
+~/.kortty/coding-agents/antigravity.json
 ```
 
 An override replaces the bundled file for that agent **as a whole** — there is no merging, so start from the bundled file and edit it. The file must be a regular file (symbolic links are not followed), and its `kind` must match the file name. An invalid file — malformed JSON, an unknown key, a bad regular expression, a duplicate rule id, or a rule without any condition — is ignored with a warning in the log and the bundled rules stay in effect, so a typo can never silently disable detection. Rule files are read at startup; restart korTTY after editing one.
@@ -162,7 +164,7 @@ The schema is strict: every key not listed here is an error, so misspelt keys ar
 
 ```json
 {
-  "kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE | CURSOR_AGENT | AIDER | AMP | GOOSE | CRUSH | KIRO | CONTINUE | GROK | JULES | COPILOT | GROK_BUILD",
+  "kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE | CURSOR_AGENT | AIDER | AMP | GOOSE | CRUSH | KIRO | CONTINUE | GROK | JULES | COPILOT | GROK_BUILD | ANTIGRAVITY",
   "version": 1,
   "comment": "optional free text, e.g. the agent version the rules were written against",
   "fallbackState": "IDLE | WORKING | BLOCKED | DONE | UNKNOWN (optional, default IDLE)",
@@ -185,7 +187,7 @@ The schema is strict: every key not listed here is an error, so misspelt keys ar
 
 | Field | Required | Meaning |
 |-------|----------|---------|
-| `kind` | yes | The agent this file describes; must match the file name (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`, `jules`, `copilot`, `grok-build`). |
+| `kind` | yes | The agent this file describes; must match the file name (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`, `jules`, `copilot`, `grok-build`, `antigravity`). |
 | `version` | yes | Schema version; currently always `1`. |
 | `comment` | no | Free text for your own notes, for example which agent version the rules were verified against. |
 | `fallbackState` | no | State reported while the agent process is present but no rule matches. Defaults to `IDLE`; `UNKNOWN` makes detection stricter. |

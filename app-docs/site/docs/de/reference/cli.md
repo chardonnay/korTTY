@@ -119,7 +119,7 @@ Jede Option, die der Client akzeptiert, ist entweder eine der unten aufgeführte
 | `mcp` | MCP über stdio | Bietet die in [MCP-Clients bedienen](#mcp-clients-bedienen) beschriebenen Tools an. |
 | `raw <method> [<json>]` oder `raw <method> --stdin` | beliebige | Ruft jede Methode auf. Das optionale JSON-Objekt sind seine Parameter; mit `--stdin` ist die Standardeingabe. |
 
-Die `--kind`-Werte von `agent list` und `agent start` sind `claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`, `jules`, `copilot` und `grok-build`. Die `--state`-Werte von `agent list` sind `blocked`, `working`, `done`, `idle` und `unknown`.
+Die `--kind`-Werte von `agent list` und `agent start` sind `claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`, `jules`, `copilot`, `grok-build` und `antigravity`. Die `--state`-Werte von `agent list` sind `blocked`, `working`, `done`, `idle` und `unknown`.
 
 `tab close` und `tab rename` werden von der API als reserviert aufgeführt; `kortty-cli` verweigert sie selbst, sodass sie nie korTTY erreichen.
 

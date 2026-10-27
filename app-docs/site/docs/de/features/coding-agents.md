@@ -4,19 +4,19 @@ title: Coding-Agents
 
 # Coding-Agents
 
-korTTY erkennt, wenn ein terminalbasierter Coding-Agent – **Claude Code**, **Codex**, **Gemini CLI**, **MiniMax Code**, **Qwen Code**, **OpenCode**, **Cursor Agent**, **Aider**, **Amp**, **Goose**, **Crush**, **Kiro CLI**, **Continue**, **Grok CLI**, **Jules**, **GitHub Copilot CLI** oder **Grok Build** – innerhalb eines Ihrer [lokalen Shell-Tabs](terminal.md#lokale-shell-registerkarten) läuft und verfolgt, was er derzeit tut: Arbeitet, wartet auf Ihre Antwort, ist abgeschlossen oder sitzt untätig an seinem Prompt. Die Analyse erfolgt vollständig innerhalb von korTTY auf Ihrem eigenen Gerät. Was gefunden wird, wird überall angezeigt: als Symbol im Tab-Titel, als Chips und Akzente im Dashboard, in einem anziehbaren **Coding-Agents**-Panel mit schnellen Antworten und einem Prompt-Feld, als Balken in der Statusleiste, als Zähler auf der App-Icon und, wenn Sie den Pane nicht betrachten, als Desktop-Benachrichtigung. Diese Seite erklärt, was erkannt wird, wie jede dieser Oberflächen funktioniert, wie die Funktionen deaktiviert werden können und wie die Bildschirmregeln angepasst oder erweitert werden können, wenn ein Agent seine Benutzeroberfläche ändert.
+korTTY erkennt, wenn ein terminalbasierter Coding-Agent – **Claude Code**, **Codex**, **Gemini CLI**, **MiniMax Code**, **Qwen Code**, **OpenCode**, **Cursor Agent**, **Aider**, **Amp**, **Goose**, **Crush**, **Kiro CLI**, **Continue**, **Grok CLI**, **Jules**, **GitHub Copilot CLI**, **Grok Build** oder **Antigravity CLI** – innerhalb eines Ihrer [lokalen Shell-Tabs](terminal.md#lokale-shell-registerkarten) läuft und verfolgt, was er derzeit tut: Arbeitet, wartet auf Ihre Antwort, ist abgeschlossen oder sitzt untätig an seinem Prompt. Die Analyse erfolgt vollständig innerhalb von korTTY auf Ihrem eigenen Gerät. Was gefunden wird, wird überall angezeigt: als Symbol im Tab-Titel, als Chips und Akzente im Dashboard, in einem anziehbaren **Coding-Agents**-Panel mit schnellen Antworten und einem Prompt-Feld, als Balken in der Statusleiste, als Zähler auf der App-Icon und, wenn Sie den Pane nicht betrachten, als Desktop-Benachrichtigung. Diese Seite erklärt, was erkannt wird, wie jede dieser Oberflächen funktioniert, wie die Funktionen deaktiviert werden können und wie die Bildschirmregeln angepasst oder erweitert werden können, wenn ein Agent seine Benutzeroberfläche ändert.
 
 ![Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier](../assets/diagrams/coding-agents.svg)
 
 ## Was erkannt wird
 
-Die Erkennung umfasst die siebzehn unten aufgeführten Agents, gestartet aus einer **Lokale Shell**-Registerkarte – direkt, über einen Paketmanager-Wrapper wie `npx` oder als `node`-, `bun`-, `deno`- oder `python`-Skript. SSH- und Mosh-Registerkarten werden nicht analysiert, weil der Agent dort auf dem entfernten Rechner läuft und korTTY seinen Prozess nicht sehen kann; ein Agent auf einem Server kann Ihnen trotzdem mit einer Terminal-Benachrichtigung mitteilen, dass er auf Sie wartet, siehe [Benachrichtigungen von Programmen](terminal-notifications.md#benachrichtigungen-von-programmen).
+Die Erkennung umfasst die achtzehn unten aufgeführten Agents, gestartet aus einer **Lokale Shell**-Registerkarte – direkt, über einen Paketmanager-Wrapper wie `npx` oder als `node`-, `bun`-, `deno`- oder `python`-Skript. SSH- und Mosh-Registerkarten werden nicht analysiert, weil der Agent dort auf dem entfernten Rechner läuft und korTTY seinen Prozess nicht sehen kann; ein Agent auf einem Server kann Ihnen trotzdem mit einer Terminal-Benachrichtigung mitteilen, dass er auf Sie wartet, siehe [Benachrichtigungen von Programmen](terminal-notifications.md#benachrichtigungen-von-programmen).
 
 | Agent | Erkannte ausführbare Dateien |
 |-------|------------------------|
 | Claude Code | `claude`, `claude-code` |
 | Codex | `codex` |
-| Gemini CLI | `gemini` |
+| Gemini CLI | `gemini` (Google erlaubt es persönlichen Google-Konten nicht mehr, sich bei Gemini CLI anzumelden; es funktioniert weiterhin mit einem kostenpflichtigen Gemini-API-Schlüssel oder einer Gemini Code Assist Standard- oder Enterprise-Lizenz — persönliche Konten wechseln zu Antigravity CLI) |
 | MiniMax Code | `mcode` (der laufende Agent benennt seinen Prozess in `minimax-code` um; korTTY liest diesen Prozessnamen, wenn `node` kein Skript meldet) |
 | Qwen-Code | `qwen`, `qwen-code` |
 | OpenCode | `opencode` |
@@ -31,6 +31,7 @@ Die Erkennung umfasst die siebzehn unten aufgeführten Agents, gestartet aus ein
 | Jules | `jules` (asynchroner Agent von Google: seine Sitzungen laufen in der Cloud, sodass korTTY das lokale `jules`-Dashboard überwacht, das sie auflistet; die Bildschirmregeln wurden noch nicht gegen Live-Sitzungen verifiziert) |
 | GitHub-Copilot-CLI | `copilot` |
 | Grok Build | `grok` als natives Programm (Grok Build von xAI, installiert als `~/.grok/bin/grok` oder als die `grok-<os>-<arch>`-Binärdatei, auf die es verweist; der `agent`-Alias des Installers wird nicht erkannt; sein Berechtigungsdialog wählt *always-approve* voraus, sodass **Enter** allein jeden späteren Tool-Aufruf genehmigt — ablehnen mit **↓**, **↓**, **↓**, **Enter**) |
+| Antigravity CLI | `agy` (Googles Nachfolger von Gemini CLI; Homebrews `antigravity-cli` verlinkt sein `antigravity`-Binary als `agy`, und dieser Name wird ebenfalls erkannt) |
 
 Jeder geteilte Bereich wird einzeln verfolgt, sodass eine Registerkarte mit zwei Bereichen einen arbeitenden Agent zeigen kann, während der andere auf eine Berechtigungsentscheidung wartet. Ein Bereich, in dem kein Agent läuft oder dessen Agent beendet wurde, hat einfach kein Erkennungsergebnis.
 
@@ -122,7 +123,7 @@ Detection ist standardmäßig aktiviert. Die Erkennung, die automatische Sichtba
 
 | Einstellung | Typ | Werte | Standard | Gespeichert als |
 | --- | --- | --- | --- | --- |
-| Coding-Agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI, Grok Build) in lokalen Shell-Tabs erkennen | Schalter | — | Ein | `codingAgentDetectionEnabled` |
+| Coding-Agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI, Grok Build, Antigravity CLI) in lokalen Shell-Tabs erkennen | Schalter | — | Ein | `codingAgentDetectionEnabled` |
 | Automatisch anzeigen und verbergen der Coding-Agent-Seitenleiste | toggle | — | On | `codingAgentPanelAutoVisibility` |
 | Anzahl der auf eine Entscheidung wartenden Agents am App-Symbol anzeigen | Schalter | — | Ein | `codingAgentAppBadgeEnabled` |
 
@@ -152,6 +153,7 @@ Die Bildschirmregeln jedes Agents liegen in einer kleinen JSON-Datei. KorTTY lie
 ~/.kortty/coding-agents/jules.json
 ~/.kortty/coding-agents/copilot.json
 ~/.kortty/coding-agents/grok-build.json
+~/.kortty/coding-agents/antigravity.json
 ```
 
 Eine Überschreibung ersetzt die mitgelieferte Datei für diesen Agent **als Ganzes** – es gibt kein Zusammenführen, beginnen Sie also mit der mitgelieferten Datei und bearbeiten Sie sie. Die Datei muss eine reguläre Datei sein (symbolischen Links wird nicht gefolgt), und ihr `kind` muss zum Dateinamen passen. Eine ungültige Datei – fehlerhaftes JSON, ein unbekannter Schlüssel, ein fehlerhafter regulärer Ausdruck, eine doppelte Regel-ID oder eine Regel ohne jede Bedingung – wird mit einer Warnung im Protokoll ignoriert, und die mitgelieferten Regeln bleiben in Kraft, sodass ein Tippfehler die Erkennung nie stillschweigend abschalten kann. Regeldateien werden beim Start gelesen; starten Sie korTTY nach dem Bearbeiten einer Datei neu.
@@ -162,7 +164,7 @@ Das Schema ist strikt: Jeder hier nicht aufgeführte Schlüssel ist ein Fehler, 
 
 ```json
 {
-"kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE | CURSOR_AGENT | AIDER | AMP | GOOSE | CRUSH | KIRO | CONTINUE | GROK | JULES | COPILOT | GROK_BUILD",
+"kind": "CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE | CURSOR_AGENT | AIDER | AMP | GOOSE | CRUSH | KIRO | CONTINUE | GROK | JULES | COPILOT | GROK_BUILD | ANTIGRAVITY",
   "version": 1,
   "comment": "optional free text, e.g. the agent version the rules were written against",
   "fallbackState": "IDLE | WORKING | BLOCKED | DONE | UNKNOWN (optional, default IDLE)",
@@ -185,7 +187,7 @@ Das Schema ist strikt: Jeder hier nicht aufgeführte Schlüssel ist ein Fehler, 
 
 | Feld | Erforderlich | Bedeutung |
 |-------|----------|---------|
-| `kind` | ja | Der Agent, den diese Datei beschreibt; muss zum Dateinamen passen (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`, `jules`, `copilot`, `grok-build`). |
+| `kind` | ja | Der Agent, den diese Datei beschreibt; muss zum Dateinamen passen (`claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`, `jules`, `copilot`, `grok-build`, `antigravity`). |
 | `version` | ja | Schemaversion; derzeit immer `1`. |
 | `comment` | nein | Freitext für eigene Notizen, zum Beispiel gegen welche Agent-Version die Regeln geprüft wurden. |
 | `fallbackState` | nein | Zustand, der gemeldet wird, solange der Agent-Prozess vorhanden ist, aber keine Regel passt. Standard ist `IDLE`; `UNKNOWN` macht die Erkennung strenger. |

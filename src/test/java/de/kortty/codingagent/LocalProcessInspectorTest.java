@@ -340,6 +340,19 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesAntigravityCli() {
+        // Homebrew's antigravity-cli cask links its antigravity binary as agy; macOS reports the link.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/agy", List.of(), null))
+            .hasValue(CodingAgentKind.ANTIGRAVITY);
+        // Linux reports the resolved binary.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/Caskroom/antigravity-cli/1.4.8/antigravity",
+            List.of(), null)).hasValue(CodingAgentKind.ANTIGRAVITY);
+        // A Windows build is matched by its base name without .exe.
+        assertThat(LocalProcessInspector.classify("C:\\Users\\dev\\AppData\\Local\\agy\\agy.exe", List.of(), null))
+            .hasValue(CodingAgentKind.ANTIGRAVITY);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,

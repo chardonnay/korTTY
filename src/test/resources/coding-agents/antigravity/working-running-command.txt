@@ -1,0 +1,39 @@
+#! expect state=WORKING rule=working
+#! alt=false
+Accessing workspace:
+
+                                                                                                           
+                                                                 
+
+Do you trust the contents of this project?
+
+Antigravity CLI requires permission to read, edit, and execute files here.
+
+> Yes, I trust this folder
+  No, exit
+
+  ↑/↓ Navigate · enter Confirm
+                                                                                                 Gemini 4 Argon · medium
+1u
+
+      ▄▀▀▄
+     ▀▀▀▀▀▀
+    ▀▀▀▀▀▀▀▀
+   ▄▀▀    ▀▀▄
+  ▄▀▀      ▀▀▄
+
+  Antigravity CLI 1.4.8
+                          (Google AI Pro)
+  Gemini 4 Argon (Medium)
+                                                                                                                        
+
+────────────────────────────────────────────────────────────
+> Use your shell tool to run exactly: curl -sI https://example.com
+
+● Running (curl -sI https://example.com) (ctrl+o to expand)
+⣽  Running command...
+└ Tip: Use /skills to browse and manage agent skills.
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+esc to cancel                                                                                    Gemini 4 Argon · medium
