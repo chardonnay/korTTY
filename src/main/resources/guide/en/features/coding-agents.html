@@ -822,10 +822,10 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="coding-agents">Coding agents<a class="headerlink" href="#coding-agents" title="Permanent link">&para;</a></h1>
-<p>KorTTY recognises when a terminal-based coding agent — <strong>Claude Code</strong>, <strong>Codex</strong>, <strong>Gemini CLI</strong>, <strong>MiniMax Code</strong>, <strong>Qwen Code</strong>, <strong>OpenCode</strong>, <strong>Cursor Agent</strong>, <strong>Aider</strong>, <strong>Amp</strong>, <strong>Goose</strong>, <strong>Crush</strong>, <strong>Kiro CLI</strong>, <strong>Continue</strong>, <strong>Grok CLI</strong>, <strong>Jules</strong>, <strong>GitHub Copilot CLI</strong> or <strong>Grok Build</strong> — is running inside one of your <a href="terminal.html#local-shell-tabs">local shell tabs</a> and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable <strong>Coding Agents</strong> panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.</p>
+<p>KorTTY recognises when a terminal-based coding agent — <strong>Claude Code</strong>, <strong>Codex</strong>, <strong>Gemini CLI</strong>, <strong>MiniMax Code</strong>, <strong>Qwen Code</strong>, <strong>OpenCode</strong>, <strong>Cursor Agent</strong>, <strong>Aider</strong>, <strong>Amp</strong>, <strong>Goose</strong>, <strong>Crush</strong>, <strong>Kiro CLI</strong>, <strong>Continue</strong>, <strong>Grok CLI</strong>, <strong>Jules</strong>, <strong>GitHub Copilot CLI</strong>, <strong>Grok Build</strong> or <strong>Antigravity CLI</strong> — is running inside one of your <a href="terminal.html#local-shell-tabs">local shell tabs</a> and keeps track of what it is currently doing: working, waiting for your answer, finished, or sitting idle at its prompt. The analysis happens entirely inside korTTY on your own machine. What it finds is shown wherever you look: as a glyph in the tab title, as chips and accents in the dashboard, in a dockable <strong>Coding Agents</strong> panel with quick answers and a prompt box, as a strip in the status bar, as a count on the app icon and, when you are not looking at the pane, as a desktop notification. This page explains what is detected, how each of these surfaces works, how to switch things off, and how to adjust or extend the screen rules when an agent changes its user interface.</p>
 <p><img alt="Coding agents — from the pane's screen to dashboard, panel, status strip, app badge and notifier" src="../assets/diagrams/coding-agents.svg" /></p>
 <h2 id="what-it-detects">What it detects<a class="headerlink" href="#what-it-detects" title="Permanent link">&para;</a></h2>
-<p>Detection covers the seventeen agents below, started from a <strong>Local Shell</strong> tab — directly, through a package-manager wrapper such as <code>npx</code>, or as a <code>node</code>, <code>bun</code>, <code>deno</code> or <code>python</code> script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process; an agent on a server can still tell you that it waits for you with a terminal notification, see <a href="terminal-notifications.html#notifications-from-programs">Notifications from programs</a>.</p>
+<p>Detection covers the eighteen agents below, started from a <strong>Local Shell</strong> tab — directly, through a package-manager wrapper such as <code>npx</code>, or as a <code>node</code>, <code>bun</code>, <code>deno</code> or <code>python</code> script. SSH and Mosh tabs are not analysed, because the agent runs on the remote machine and korTTY cannot see its process; an agent on a server can still tell you that it waits for you with a terminal notification, see <a href="terminal-notifications.html#notifications-from-programs">Notifications from programs</a>.</p>
 <table>
 <thead>
 <tr>
@@ -844,7 +844,7 @@
 </tr>
 <tr>
 <td>Gemini CLI</td>
-<td><code>gemini</code></td>
+<td><code>gemini</code> (Google no longer lets personal Google accounts sign in to Gemini CLI; it keeps working with a paid Gemini API key or a Gemini Code Assist Standard or Enterprise licence — personal accounts move to Antigravity CLI)</td>
 </tr>
 <tr>
 <td>MiniMax Code</td>
@@ -901,6 +901,10 @@
 <tr>
 <td>Grok Build</td>
 <td><code>grok</code> as a native program (xAI's Grok Build, installed as <code>~/.grok/bin/grok</code>, or the <code>grok-&lt;os&gt;-&lt;arch&gt;</code> binary it points to; the installer's <code>agent</code> alias is not recognised; its permission dialog preselects <em>always-approve</em>, so <strong>Enter</strong> alone approves every later tool call — reject with <strong>↓</strong>, <strong>↓</strong>, <strong>↓</strong>, <strong>Enter</strong>)</td>
+</tr>
+<tr>
+<td>Antigravity CLI</td>
+<td><code>agy</code> (Google's successor to Gemini CLI; Homebrew's <code>antigravity-cli</code> links its <code>antigravity</code> binary as <code>agy</code>, and that name is recognised too)</td>
 </tr>
 </tbody>
 </table>
@@ -1044,7 +1048,7 @@ The number of agents waiting for a decision — across all windows — is shown 
 </thead>
 <tbody>
 <tr>
-<td>Detect coding agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI, Grok Build) in local shell tabs</td>
+<td>Detect coding agents (Claude Code, Codex, Gemini CLI, MiniMax Code, Qwen Code, OpenCode, Cursor Agent, Aider, Amp, Goose, Crush, Kiro CLI, Continue, Grok CLI, Jules, GitHub Copilot CLI, Grok Build, Antigravity CLI) in local shell tabs</td>
 <td>toggle</td>
 <td>—</td>
 <td>On</td>
@@ -1087,12 +1091,13 @@ The number of agents waiting for a decision — across all windows — is shown 
 </span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>~/.kortty/coding-agents/jules.json
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>~/.kortty/coding-agents/copilot.json
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>~/.kortty/coding-agents/grok-build.json
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>~/.kortty/coding-agents/antigravity.json
 </span></code></pre></div>
 <p>An override replaces the bundled file for that agent <strong>as a whole</strong> — there is no merging, so start from the bundled file and edit it. The file must be a regular file (symbolic links are not followed), and its <code>kind</code> must match the file name. An invalid file — malformed JSON, an unknown key, a bad regular expression, a duplicate rule id, or a rule without any condition — is ignored with a warning in the log and the bundled rules stay in effect, so a typo can never silently disable detection. Rule files are read at startup; restart korTTY after editing one.</p>
 <h3 id="rule-file-schema">Rule file schema<a class="headerlink" href="#rule-file-schema" title="Permanent link">&para;</a></h3>
 <p>The schema is strict: every key not listed here is an error, so misspelt keys are reported instead of being ignored.</p>
 <div class="language-json highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE | CURSOR_AGENT | AIDER | AMP | GOOSE | CRUSH | KIRO | CONTINUE | GROK | JULES | COPILOT | GROK_BUILD"</span><span class="p">,</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CLAUDE_CODE | CODEX | GEMINI_CLI | MINIMAX_CODE | QWEN_CODE | OPENCODE | CURSOR_AGENT | AIDER | AMP | GOOSE | CRUSH | KIRO | CONTINUE | GROK | JULES | COPILOT | GROK_BUILD | ANTIGRAVITY"</span><span class="p">,</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">"comment"</span><span class="p">:</span><span class="w"> </span><span class="s2">"optional free text, e.g. the agent version the rules were written against"</span><span class="p">,</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">"fallbackState"</span><span class="p">:</span><span class="w"> </span><span class="s2">"IDLE | WORKING | BLOCKED | DONE | UNKNOWN (optional, default IDLE)"</span><span class="p">,</span>
@@ -1124,7 +1129,7 @@ The number of agents waiting for a decision — across all windows — is shown 
 <tr>
 <td><code>kind</code></td>
 <td>yes</td>
-<td>The agent this file describes; must match the file name (<code>claude-code</code>, <code>codex</code>, <code>gemini-cli</code>, <code>minimax-code</code>, <code>qwen-code</code>, <code>opencode</code>, <code>cursor-agent</code>, <code>aider</code>, <code>amp</code>, <code>goose</code>, <code>crush</code>, <code>kiro</code>, <code>continue</code>, <code>grok</code>, <code>jules</code>, <code>copilot</code>, <code>grok-build</code>).</td>
+<td>The agent this file describes; must match the file name (<code>claude-code</code>, <code>codex</code>, <code>gemini-cli</code>, <code>minimax-code</code>, <code>qwen-code</code>, <code>opencode</code>, <code>cursor-agent</code>, <code>aider</code>, <code>amp</code>, <code>goose</code>, <code>crush</code>, <code>kiro</code>, <code>continue</code>, <code>grok</code>, <code>jules</code>, <code>copilot</code>, <code>grok-build</code>, <code>antigravity</code>).</td>
 </tr>
 <tr>
 <td><code>version</code></td>
