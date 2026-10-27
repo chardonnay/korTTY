@@ -66,6 +66,13 @@ public enum CodingAgentKind {
      */
     GROK_BUILD("Grok Build", "grok-build", Set.of("grok", "grok-macos-aarch64", "grok-macos-x86_64",
         "grok-linux-aarch64", "grok-linux-x86_64", "grok-windows-aarch64", "grok-windows-x86_64")),
+    /**
+     * Google's Antigravity CLI, a native binary called {@code antigravity} that Homebrew's antigravity-cli cask
+     * links as {@code agy}, the command its docs use. It replaces Gemini CLI for personal Google accounts. The
+     * Antigravity IDE's launcher is also called {@code antigravity}; it never matches an Antigravity CLI screen
+     * rule, so it is never reported.
+     */
+    ANTIGRAVITY("Antigravity CLI", "antigravity", Set.of("agy", "antigravity")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

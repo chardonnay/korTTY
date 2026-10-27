@@ -9,7 +9,7 @@
     "codex",
     "--version"
    ],
-   "verified_version": "codex-cli 0.162.0",
+   "verified_version": "codex-cli 0.164.0",
    "mode": "live",
    "files": {
     "config.toml": "model = \"{model}\"\nmodel_provider = \"lan-lmstudio\"\napproval_policy = \"on-request\"\nsandbox_mode = \"read-only\"\n\n[model_providers.lan-lmstudio]\nname = \"LM Studio (LAN)\"\nbase_url = \"{base_url}\"\nwire_api = \"responses\"\nrequires_openai_auth = false\n\n[analytics]\nenabled = false\n"
@@ -32,7 +32,7 @@
     "qwen",
     "--version"
    ],
-   "verified_version": "0.25.0",
+   "verified_version": "0.26.1",
    "mode": "live",
    "files": {
     ".qwen/settings.json": "{\"ui\":{\"autoModeAcknowledged\":true},\"security\":{\"auth\":{\"selectedType\":\"openai\"}},\"$version\":4}\n"
@@ -63,7 +63,7 @@
     "opencode",
     "--version"
    ],
-   "verified_version": "opencode v2.0.25",
+   "verified_version": "opencode v2.2.0",
    "mode": "live",
    "files": {
     ".config/opencode/opencode.json": "{\"$schema\":\"https://opencode.ai/config.json\",\"autoupdate\":false,\"share\":\"disabled\",\"provider\":{\"lmstudio\":{\"npm\":\"@ai-sdk/openai-compatible\",\"name\":\"LM Studio (LAN)\",\"options\":{\"baseURL\":\"{base_url}\"},\"models\":{\"{model}\":{\"name\":\"{model}\"}}}},\"model\":\"lmstudio/{model}\",\"permission\":{\"edit\":\"ask\",\"bash\":\"ask\",\"webfetch\":\"ask\"}}\n"
@@ -127,7 +127,7 @@
     "goose",
     "--version"
    ],
-   "verified_version": "1.53.0",
+   "verified_version": "1.56.0",
    "mode": "live",
    "env": {
     "HOME": "{home}",
@@ -158,7 +158,7 @@
     "crush",
     "--version"
    ],
-   "verified_version": "crush version v0.97.1",
+   "verified_version": "crush version v0.98.2",
    "mode": "live",
    "files": {
     ".config/crush/crush.json": "{\"$schema\":\"https://charm.land/crush.json\",\"providers\":{\"lmstudio\":{\"name\":\"LM Studio (LAN)\",\"type\":\"openai-compat\",\"base_url\":\"{base_url}/\",\"api_key\":\"lm-studio\",\"models\":[{\"id\":\"{model}\",\"name\":\"{model}\",\"context_window\":131072,\"default_max_tokens\":8192}]}},\"models\":{\"large\":{\"model\":\"{model}\",\"provider\":\"lmstudio\"},\"small\":{\"model\":\"{model}\",\"provider\":\"lmstudio\"}},\"options\":{\"disable_metrics\":true,\"disable_provider_auto_update\":true}}\n"
@@ -235,7 +235,7 @@
     "copilot",
     "--version"
    ],
-   "verified_version": "GitHub Copilot CLI 1.0.94.",
+   "verified_version": "GitHub Copilot CLI 1.0.104.",
    "mode": "live",
    "env": {
     "COPILOT_HOME": "{home}",
@@ -263,9 +263,29 @@
     "claude",
     "--version"
    ],
-   "verified_version": null,
-   "mode": "smoke",
-   "account": true
+   "verified_version": "2.1.308 (Claude Code)",
+   "mode": "live",
+   "files": {
+    ".claude/.claude.json": "{\"hasCompletedOnboarding\":true,\"theme\":\"dark\",\"projects\":{\"{work}\":{\"hasTrustDialogAccepted\":true}}}\n",
+    ".claude/settings.json": "{\"permissions\":{\"defaultMode\":\"default\",\"disableAutoMode\":\"disable\"}}\n"
+   },
+   "env": {
+    "HOME": "{home}",
+    "CLAUDE_CONFIG_DIR": "{home}/.claude",
+    "ANTHROPIC_BASE_URL": "{base_host}",
+    "ANTHROPIC_AUTH_TOKEN": "lm-studio",
+    "ANTHROPIC_MODEL": "{model}",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "{model}",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "{model}",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "{model}",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "DISABLE_AUTOUPDATER": "1"
+   },
+   "args": [],
+   "prompt": "Use your Bash tool to run exactly: curl -sI https://example.com",
+   "deny_keys": [
+    "\\x1b"
+   ]
   },
   {
    "kind": "GEMINI_CLI",
@@ -275,9 +295,15 @@
     "gemini",
     "--version"
    ],
-   "verified_version": null,
+   "verified_version": "0.65.0",
    "mode": "smoke",
-   "account": true
+   "account": true,
+   "env": {
+    "HOME": "{home}"
+   },
+   "startup_blocked_keys": [
+    "\\r"
+   ]
   },
   {
    "kind": "MINIMAX_CODE",
@@ -287,7 +313,7 @@
     "mcode",
     "--version"
    ],
-   "verified_version": "0.6.3",
+   "verified_version": "0.7.0",
    "mode": "smoke",
    "account": true
   },
@@ -299,7 +325,7 @@
     "~/.local/bin/cursor-agent",
     "--version"
    ],
-   "verified_version": "2026.10.01-e373342",
+   "verified_version": "2026.10.22-27dcf5f",
    "mode": "smoke",
    "account": true
   },
@@ -356,7 +382,7 @@
     "~/.grok/bin/grok",
     "--version"
    ],
-   "verified_version": "grok 1.0.46 (2765805b9442) [stable]",
+   "verified_version": "grok 1.0.70 (f50904eaee6c) [stable]",
    "mode": "live",
    "files": {
     ".grok/config.toml": "[endpoints]\nmodels_base_url = \"{base_url}\"\n\n[model.lan-lmstudio]\nmodel = \"{model}\"\nbase_url = \"{base_url}\"\napi_key = \"lm-studio\"\n"
@@ -376,6 +402,21 @@
     "\\x1b[B",
     "\\r"
    ]
+  },
+  {
+   "kind": "ANTIGRAVITY",
+   "id": "antigravity",
+   "bin": "agy",
+   "version_cmd": [
+    "agy",
+    "--version"
+   ],
+   "verified_version": "1.4.8",
+   "mode": "smoke",
+   "account": true,
+   "env": {
+    "HOME": "{home}"
+   }
   }
  ]
 }

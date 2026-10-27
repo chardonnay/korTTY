@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=working-spinner
+#! alt=true
+
+ ▐▛███▛█   Claude Code v2.1.308
+▝▜██████▀  qwen/qwen3.8-27b · API Usage Billing
+ ▝▝   ▝▝                                                                             
+
+⚠ Model "qwen/qwen3.8-27b" isn't recognized · context assumed to be 200k tokens · update Claude Code, or see
+  https://code.claude.com/docs/en/model-config
+
+❯ Use your Bash tool to run exactly: curl -sI https://example.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+✻ Waiting for API response · will retry in 4m 34s · check your network
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏸ manual mode on · esc to interrupt

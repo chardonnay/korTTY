@@ -1,0 +1,53 @@
+{
+  "kind": "ANTIGRAVITY",
+  "version": 1,
+  "comment": "Written against Antigravity CLI 1.4.8 (Homebrew cask antigravity-cli, linked as agy; full-screen TUI on the alternate screen) from live sessions recorded in a pty with a signed-in Google AI Pro account, the sign-in menu from a signed-out one; must be re-verified when Antigravity CLI changes its TUI. The sign-in menu ('Select login method:', '> 1. Google OAuth'), the workspace-trust question ('Do you trust the contents of this project?', '> Yes, I trust this folder', 'No, exit') and the tool approval ('Requesting permission for:', 'Run this command?' — or 'Allow access to this file?' / 'URL?', 'Allow calling this tool?' — with '> 1. Yes, run command' … '4. No, cancel' and the '↑/↓ Navigate · tab Amend' hint) are BLOCKED; Esc cancels the approval and leaves 'Interrupted · What should Antigravity CLI do instead?'. The Braille spinner line ('⡿  Generating...', '⣽  Running command...') and the footer 'esc to cancel' shown while a turn runs are WORKING; the footer '? for shortcuts' is IDLE. The approval dialog also shows the 'esc to cancel' footer, so the approval rule has the higher priority. The first-run setup (colour scheme, 'Terms of Service & Data Use') intentionally matches no rule. agy can also report its state to the terminal over OSC 7501, which korTTY does not read.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "login-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": { "bottomNonEmptyLines": 6 },
+      "anyLineRegex": ["^\\s*Select login method:\\s*$"],
+      "regex": "^\\s*[>❯›]?\\s*1\\.\\s*Google OAuth\\b"
+    },
+    {
+      "id": "trust-prompt",
+      "state": "BLOCKED",
+      "priority": 995,
+      "region": { "bottomNonEmptyLines": 8 },
+      "anyLineRegex": ["^\\s*Do you trust the contents of this project\\?\\s*$"],
+      "regex": "^\\s*[>❯›]?\\s*Yes, I trust this folder\\b"
+    },
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 990,
+      "region": { "bottomNonEmptyLines": 14 },
+      "anyLineRegex": [
+        "^\\s*(?:Run this command|Allow access to this \\w+|Allow calling this tool|Do you want to proceed)\\?\\s*$"
+      ],
+      "regex": "^\\s*[>❯›]?\\s*\\d+\\.\\s*(?:Yes, (?:run|allow|accept|and always allow)|No, (?:cancel|deny))\\b"
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": { "bottomNonEmptyLines": 8 },
+      "anyLineRegex": [
+        "^\\s*[⠁-⣿]\\s+\\S.*\\.\\.\\.",
+        "^\\s*esc to cancel\\b",
+        "(?i)\\besc to interrupt\\b",
+        "\\bretrying in \\d+s\\b"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": { "bottomNonEmptyLines": 3 },
+      "anyLineRegex": ["^\\s*\\?\\s+for shortcuts\\b"]
+    }
+  ]
+}

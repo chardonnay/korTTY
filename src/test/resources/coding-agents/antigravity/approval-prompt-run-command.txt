@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=false
+
+Antigravity CLI requires permission to read, edit, and execute files here.
+
+> Yes, I trust this folder
+  No, exit
+
+  ↑/↓ Navigate · enter Confirm
+                                                                                                 Gemini 4 Argon · medium
+1u
+
+      ▄▀▀▄
+     ▀▀▀▀▀▀
+    ▀▀▀▀▀▀▀▀
+   ▄▀▀    ▀▀▄
+  ▄▀▀      ▀▀▄
+
+  Antigravity CLI 1.4.8
+                          (Google AI Pro)
+  Gemini 4 Argon (Medium)
+                                                                                                                        
+
+────────────────────────────────────────────────────────────
+> Use your shell tool to run exactly: curl -sI https://example.com
+
+● Ran (curl -sI https://example.com) (ctrl+o to expand)
+
+Command
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+Requesting permission for:
+   curl -sI https://example.com
+
+Run this command?
+> 1. Yes, run command
+  2. Yes, and always allow in this conversation for commands that start with 'curl -sI https://example.com'
+  3. Yes, and always allow for commands that start with 'curl -sI https://example.com' (Persist to settings.json)
+  4. No, cancel
+
+  ↑/↓ Navigate · tab Amend · ctrl+g edit/expand command
+esc to cancel                                                                                    Gemini 4 Argon · medium

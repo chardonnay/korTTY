@@ -1,0 +1,38 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=false
+Accessing workspace:
+
+                                                                                                           
+                                                                 
+
+Do you trust the contents of this project?
+
+Antigravity CLI requires permission to read, edit, and execute files here.
+
+> Yes, I trust this folder
+  No, exit
+
+  ↑/↓ Navigate · enter Confirm
+                                                                                                 Gemini 4 Argon · medium
+1u
+
+      ▄▀▀▄
+     ▀▀▀▀▀▀
+    ▀▀▀▀▀▀▀▀
+   ▄▀▀    ▀▀▄
+  ▄▀▀      ▀▀▄
+
+  Antigravity CLI 1.4.8
+                          (Google AI Pro)
+  Gemini 4 Argon (Medium)
+                                                                                                                        
+
+
+ ┃ Verbosity now defaults to medium
+ ┃ Verbosity is now medium by default, so tool calls and thoughts roll up into summaries. You can change your
+ ┃ preferred verbosity anytime in /config > Verbosity.
+ ┃ esc to dismiss
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+>
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+? for shortcuts                                                                                  Gemini 4 Argon · medium

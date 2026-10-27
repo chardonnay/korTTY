@@ -1,9 +1,25 @@
 {
   "kind": "GEMINI_CLI",
   "version": 1,
-  "comment": "Written against Gemini CLI 2026 (Ink TUI). Gemini CLI was not available in the sandbox: screens were transcribed from documented UI text and must be re-verified against live sessions. The tool confirmation dialog ('Allow execution of: …?', 'Apply this change?', '● 1. Yes, allow once') is BLOCKED; the Braille spinner line ending in '(esc to cancel, <n>s)' is WORKING; the rounded input box with the 'Type your message or @path/to/file' placeholder is IDLE. The input box stays visible while Gemini works, so the idle rule vetoes on 'esc to cancel,' and has the lowest priority; the approval rule vetoes on it too and anchors its question patterns, because a tool-result box that echoes 'Do you want to proceed? n' must not read as a confirmation dialog. No rule depends on the alternate-screen flag.",
+  "comment": "Written against Gemini CLI 2026 (Ink TUI). Gemini CLI was not available in the sandbox: screens were transcribed from documented UI text and must be re-verified against live sessions; on 2026-10-27 only the start of an unauthenticated Gemini CLI 0.65.0 (Homebrew) could be recorded. Its folder-trust dialog ('Do you trust the files in this folder?' with '● 1. Trust folder (<dir>)' … '3. Don't trust') waits for an answer and is BLOCKED, like the trust prompts of Codex, Copilot and Cursor Agent; the sign-in menu that follows it ('How would you like to authenticate for this project?', '● 1. Sign in with Google', '(Use Enter to select)') is BLOCKED too, like the login prompts of Amp, Kiro and Jules. The tool confirmation dialog ('Allow execution of: …?', 'Apply this change?', '● 1. Yes, allow once') is BLOCKED; the Braille spinner line ending in '(esc to cancel, <n>s)' is WORKING; the rounded input box with the 'Type your message or @path/to/file' placeholder is IDLE. The input box stays visible while Gemini works, so the idle rule vetoes on 'esc to cancel,' and has the lowest priority; the approval rule vetoes on it too and anchors its question patterns, because a tool-result box that echoes 'Do you want to proceed? n' must not read as a confirmation dialog. No rule depends on the alternate-screen flag.",
   "fallbackState": "IDLE",
   "rules": [
+    {
+      "id": "folder-trust-prompt",
+      "state": "BLOCKED",
+      "priority": 950,
+      "region": { "bottomNonEmptyLines": 16 },
+      "anyLineRegex": ["^\\s*[│┃]\\s*Do you trust the files in this folder\\?\\s*[│┃]?\\s*$"],
+      "regex": "^\\s*[│┃]\\s*[●○]?\\s*1\\.\\s*Trust folder\\b"
+    },
+    {
+      "id": "auth-prompt",
+      "state": "BLOCKED",
+      "priority": 940,
+      "region": { "bottomNonEmptyLines": 20 },
+      "anyLineRegex": ["^\\s*[│┃]\\s*How would you like to authenticate for this project\\?\\s*[│┃]?\\s*$"],
+      "regex": "^\\s*[│┃]\\s*\\(Use Enter to select\\)"
+    },
     {
       "id": "approval-prompt",
       "state": "BLOCKED",

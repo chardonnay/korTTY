@@ -55,6 +55,9 @@ COLS, ROWS = 120, 40
 BRACKETED_ON = re.compile(rb"\x1b\[\?2004h")
 ALT_ON = re.compile(rb"\x1b\[\?(?:1049|1047|47)h")
 ALT_OFF = re.compile(rb"\x1b\[\?(?:1049|1047|47)l")
+# Set by the Claude Code session that usually runs this check; a korTTY tab has none of them, and
+# they steer agents (ANTHROPIC_BASE_URL, Claude Code's child-session markers) away from their real UI.
+HOST_AGENT_ENV = re.compile(r"^(CLAUDE|ANTHROPIC_|AI_AGENT$|MCP_)")
 
 
 def ensure_pyte(out: Path) -> None:
@@ -212,6 +215,12 @@ class Session:
                 except (ProcessLookupError, PermissionError):
                     pass
             time.sleep(1)
+        # A dying process blocks in exit until its pending tty output is drained; closing the
+        # master side releases it (a blocking waitpid on an unread pty hangs forever on macOS).
+        try:
+            os.close(self.fd)
+        except OSError:
+            pass
         try:
             os.waitpid(self.pid, 0)
         except ChildProcessError:
@@ -290,7 +299,8 @@ def run_agent(agent: dict, ctx: dict, classpath: str, out: Path, endpoint_ok: bo
         target = home / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(fill(content, actx))
-    env = dict(os.environ, TERM="xterm-256color")
+    env = {k: v for k, v in os.environ.items() if not HOST_AGENT_ENV.match(k)}
+    env["TERM"] = "xterm-256color"
     env.update({k: fill(v, actx) for k, v in agent.get("env", {}).items()})
     argv = [binary] + [fill(a, actx) for a in agent.get("args", [])]
 
