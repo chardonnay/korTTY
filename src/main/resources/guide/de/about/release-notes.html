@@ -868,6 +868,11 @@
 <li><strong>"Modell-Standard" statt "Deaktiviert"</strong> — die Einstellung, die keinen Reasoning-Parameter sendet, heißt nun <strong>Modell-Standard</strong>, da dann der Standardwert des Modells gilt; nur <strong>Keine</strong> schaltet das Reasoning aus. Ein Tooltip im Dropdown-Menü erläutert den Unterschied. Siehe <a href="../reference/settings/ai.html#einstellungen-fur-das-denkverhalten">Reasoning-Stufen</a>.</li>
 <li><strong>Verbindungstest akzeptiert reine Reasoning-Antworten</strong> — <strong>KI-Verbindung testen</strong> und <strong>Reasoning-Optionen aktualisieren</strong> werden nun bestanden, wenn ein Modell, das standardmäßig mit Reasoning arbeitet, wie Qwen in LM Studio, die kurze Testantwort für das Reasoning nutzt, und ein fehlgeschlagener Aktualisierungsvorgang den Grund des Endpunkts selbst angibt.</li>
 </ul>
+<h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Scrollback-Speicherlimit</strong> — der neue <strong>Scrollback-Speicher</strong>-Regler in den Terminal-Einstellungen legt fest, wie viel Speicher der Scrollback eines einzelnen Fensters maximal verwenden darf, von 1 bis 50 MB (Standard: 10 MB), neben der Zeilenanzahl; welches Limit zuerst erreicht wird, entfernt die ältesten Zeilen. Eine gespeicherte Änderung wird sofort auf offene Terminals angewendet. Siehe <a href="../reference/settings/terminal.html">Terminal-Einstellungen</a>.</li>
+<li><strong>Scrollback-Komprimierung</strong> — während ein Terminal keine Ausgabe hat, komprimiert korTTY die Scrollback-Zeilen, die nicht auf dem Bildschirm sind, im Hintergrund, damit derselbe Speicher mehrere Male so viele Zeilen fasst. Eine Zeile wird entpackt, sobald Sie dazu scrollen. Deaktivieren Sie es über <strong>Scrollback im Leerlauf im Hintergrund komprimieren</strong>. Siehe <a href="../reference/settings/terminal.html">Terminal-Einstellungen</a>.</li>
+</ul>
 <h3 id="korrekturen">Korrekturen<a class="headerlink" href="#korrekturen" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Verworfene Sitzungen bleiben verworfen</strong> — das absichtliche Schließen des letzten Tabs leert nun den Sitzungsschnappschuss, sodass die Wiederherstellungsaufforderung nach dem Verwerfen nicht mehr bei jedem Start wieder erscheint.</li>

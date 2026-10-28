@@ -7,6 +7,7 @@ import com.sithtermfx.core.TextStyle;
 import com.sithtermfx.core.model.SithTerminal;
 import com.sithtermfx.core.model.TerminalApplicationTitleListener;
 import com.sithtermfx.core.model.TerminalModelListener;
+import com.sithtermfx.core.model.TerminalTextBuffer;
 import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.ui.SithTermFxWidget;
 import com.sithtermfx.ui.settings.DynamicFontSizeSettingsProvider;
@@ -10142,6 +10143,9 @@ public class TerminalView extends BorderPane {
         settings.copyTerminalPaletteFrom(effective);
         refreshPanePalettes();
         sharedFontSource.setFontSize(size);
+        settings.setScrollbackMemoryMb(effective.getScrollbackMemoryMb());
+        settings.setScrollbackCompression(effective.isScrollbackCompression());
+        applyScrollbackMemory();
 
         if (splitPane != null) {
             for (SithTermFxWidget w : splitPane.getAllWidgets()) {
@@ -10172,6 +10176,28 @@ public class TerminalView extends BorderPane {
         logger.debug("Applied connection settings: {} {}pt", family, size);
         // Effect panes keep their per-pane override (resolved in applyStyleStateColors / getTerminalFont),
         // so applying connection settings tab-wide never overwrites a pane that is running an effect.
+    }
+
+    /**
+     * Gives every open pane the scrollback memory limit and compression setting from
+     * {@link #settings}. Unlike the line limit, both apply to running terminals: lowering the limit
+     * drops the oldest lines at once.
+     */
+    void applyScrollbackMemory() {
+        for (SithTermFxWidget widget : getOrderedWidgets()) {
+            applyScrollbackMemory(widget.getTerminalTextBuffer(), settings);
+        }
+    }
+
+    /** Gives one pane's buffer the scrollback memory limit and compression setting of {@code settings}. */
+    static void applyScrollbackMemory(TerminalTextBuffer buffer, ConnectionSettings settings) {
+        long limit = settings.getScrollbackMemoryBytes();
+        if (buffer.getHistoryMemoryLimit() != limit) {
+            buffer.setHistoryMemoryLimit(limit);
+        }
+        if (buffer.isScrollbackCompressionEnabled() != settings.isScrollbackCompression()) {
+            buffer.setScrollbackCompressionEnabled(settings.isScrollbackCompression());
+        }
     }
 
     /** Lets every pane re-read the ANSI palette and selection colour from {@link #settings}. */
@@ -11247,6 +11273,22 @@ public class TerminalView extends BorderPane {
             }
             // Mirror the settings spinner's range so the buffer stays within sane bounds.
             return Math.max(100, Math.min(100_000, lines));
+        }
+
+        /**
+         * Settings → Terminal → Scrollback memory. Read when the pane is created;
+         * {@link TerminalView#applyScrollbackMemory} changes it for open panes.
+         */
+        @Override
+        public long getBufferMaxMemoryBytes() {
+            return settings != null ? settings.getScrollbackMemoryBytes()
+                : ConnectionSettings.DEFAULT_SCROLLBACK_MEMORY_MB * 1024L * 1024L;
+        }
+
+        /** Settings → Terminal → Compress scrollback while idle; as {@link #getBufferMaxMemoryBytes()}. */
+        @Override
+        public boolean isScrollbackCompressionEnabled() {
+            return settings == null || settings.isScrollbackCompression();
         }
     }
 }

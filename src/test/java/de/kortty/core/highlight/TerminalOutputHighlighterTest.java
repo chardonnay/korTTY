@@ -647,4 +647,38 @@ class TerminalOutputHighlighterTest {
         assertThat(HeadlessTerminalSession.isHighlighted(line, 10)).isTrue();
         assertThat(line.getStyleAt(10).hasOption(TextStyle.Option.UNDERLINED)).isTrue();
     }
+
+    @Test
+    void highlightsSurviveTheScrollbackCompression() {
+        HeadlessTerminalSession session = new HeadlessTerminalSession(80, 5);
+        attach(session, errors());
+        for (int i = 0; i < 400; i++) {
+            session.println((i % 4 == 0 ? "ERROR " : "ok ") + i);
+        }
+        settle(highlighter);
+        int highlighted = session.highlightedCells();
+        assertThat(highlighted).isGreaterThan(0);
+        TerminalLine old = lineStartingWith(session, "ERROR 0");
+        session.buffer.setScrollbackCompressionEnabled(true);
+        try {
+            assertThat(session.buffer.compressHistoryNow()).isGreaterThan(300);
+
+            // Packing kept the line object and its HighlightTextStyle; a pass finds nothing to redo.
+            assertThat(lineStartingWith(session, "ERROR 0")).isSameInstanceAs(old);
+            assertThat(highlighter.runPassNow().rowsWritten()).isEqualTo(0);
+            assertThat(HeadlessTerminalSession.isHighlighted(old, 0)).isTrue();
+            assertThat(session.highlightedCells()).isEqualTo(highlighted);
+
+            // A new set sweeps the packed history like any other, and the result packs again.
+            HighlightRule ok = red("ok");
+            highlighter.setRuleSet(set(ok));
+            settle(highlighter);
+            assertThat(HeadlessTerminalSession.isHighlighted(lineStartingWith(session, "ok 1"), 0)).isTrue();
+            assertThat(HeadlessTerminalSession.isHighlighted(old, 0)).isFalse();
+            assertThat(session.buffer.compressHistoryNow()).isGreaterThan(300);
+            assertThat(HeadlessTerminalSession.isHighlighted(lineStartingWith(session, "ok 1"), 0)).isTrue();
+        } finally {
+            session.buffer.setScrollbackCompressionEnabled(false);
+        }
+    }
 }

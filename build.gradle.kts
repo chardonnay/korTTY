@@ -377,8 +377,8 @@ dependencies {
     // with an unfixed signature-malleability flaw (CVE-2020-36843, no patched release exists).
 
     // SithTermFX - Terminal emulator for JavaFX (built from source by installSithtermfxLocal)
-    implementation("com.sithtermfx:sithtermfx-core:1.2.5")
-    implementation("com.sithtermfx:sithtermfx-ui:1.2.5")
+    implementation("com.sithtermfx:sithtermfx-core:1.2.6")
+    implementation("com.sithtermfx:sithtermfx-ui:1.2.6")
     
     // Lanterna - Text-based terminal emulator with better zoom support
     implementation("com.googlecode.lanterna:lanterna:3.1.5")
@@ -541,7 +541,7 @@ tasks.named<JavaExec>("run") {
 
 // ==================== SithTermFX from source (no GitHub token required) ====================
 
-val sithtermfxVersion = "1.2.5"
+val sithtermfxVersion = "1.2.6"
 val sithtermfxDir = layout.projectDirectory.dir("vendor/sithtermfx")
 
 tasks.register("cloneSithtermfx") {

@@ -4,6 +4,24 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "| umschalten | — | Aktiv |",
+      "to": "| umschalten | — | Ein |",
+      "scope": "markdown",
+      "note": "A toggle that defaults to On reads 'Ein' in the settings tables, as in every other row."
+    },
+    {
+      "from": "Scrollback im Hintergrund komprimieren, wenn inaktiv",
+      "to": "Scrollback im Leerlauf im Hintergrund komprimieren",
+      "scope": "markdown",
+      "note": "The UI label of settings.terminal.scrollbackCompression; the translator rephrases it."
+    },
+    {
+      "from": "Scrollback im Hintergrund bei Inaktivität komprimieren",
+      "to": "Scrollback im Leerlauf im Hintergrund komprimieren",
+      "scope": "markdown",
+      "note": "The UI label of settings.terminal.scrollbackCompression; the translator rephrases it."
+    },
+    {
       "from": "Serienport-Verbindungen",
       "to": "Verbindungen über serielle Schnittstellen",
       "scope": "markdown",

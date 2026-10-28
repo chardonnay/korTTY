@@ -40,6 +40,11 @@ What changed in the current release. The version this guide was built for is sho
 - **"Model default" instead of "Disabled"** — the reasoning setting that sends no reasoning parameter is now called **Model default**, because the model's own default then applies; only **None** switches reasoning off. A tooltip on the dropdown explains the difference. See [Reasoning Effort Levels](../reference/settings/ai.md#reasoning-effort-levels).
 - **Connection test accepts reasoning-only replies** — **Test AI Connection** and **Refresh reasoning options** now pass when a model that reasons by default, such as Qwen in LM Studio, spends the short test reply on reasoning, and a failed refresh names the endpoint's own reason.
 
+### Terminal
+
+- **Scrollback memory limit** — the new **Scrollback memory** slider in the Terminal settings sets the most memory the scrollback of one pane may use, from 1 to 50 MB (10 MB by default), next to the line count; whichever limit is reached first drops the oldest lines. A saved change applies to open terminals at once. See [Terminal settings](../reference/settings/terminal.md).
+- **Scrollback compression** — while a terminal has no output, korTTY compresses the scrollback lines that are not on screen in the background, so the same memory holds several times as many lines. A line is unpacked as soon as you scroll to it. Switch it off with **Compress the scrollback in the background while idle**. See [Terminal settings](../reference/settings/terminal.md).
+
 ### Fixes
 
 - **Dismissed sessions stay dismissed** — closing the last tab on purpose now empties the session snapshot, so the restore offer no longer comes back at every start after you discard it.

@@ -166,6 +166,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final Spinner<Integer> columnsSpinner;
     private final Spinner<Integer> rowsSpinner;
     private final Spinner<Integer> scrollbackSpinner;
+    private final Slider scrollbackMemorySlider;
+    private final CheckBox scrollbackCompressionCheck;
     
     // Other settings
     private final ComboBox<com.sithtermfx.ui.settings.BoldTextMode> boldTextModeCombo;
@@ -728,6 +730,27 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         scrollbackSpinner = new Spinner<>(100, 100000, settings.getScrollbackLines(), 1000);
         scrollbackSpinner.setEditable(true);
         scrollbackSpinner.setPrefWidth(100);
+
+        // Memory bound of each pane's scrollback, in whole MB; the line count above still applies.
+        scrollbackMemorySlider = new Slider(ConnectionSettings.MIN_SCROLLBACK_MEMORY_MB,
+            ConnectionSettings.MAX_SCROLLBACK_MEMORY_MB, settings.getScrollbackMemoryMb());
+        scrollbackMemorySlider.setBlockIncrement(1);
+        scrollbackMemorySlider.setPrefWidth(260);
+        scrollbackMemorySlider.setTooltip(new Tooltip(I18n.get("settings.terminal.scrollbackMemory.tooltip")));
+        Label scrollbackMemoryValue = new Label();
+        scrollbackMemoryValue.setMinWidth(60);
+        scrollbackMemoryValue.textProperty().bind(javafx.beans.binding.Bindings.createStringBinding(
+            () -> I18n.get("settings.terminal.scrollbackMemory.value",
+                Math.round(scrollbackMemorySlider.getValue())),
+            scrollbackMemorySlider.valueProperty()));
+        scrollbackMemorySlider.valueProperty().addListener((obs, oldValue, newValue) ->
+            scrollbackMemorySlider.setValue(Math.round(newValue.doubleValue())));
+        HBox scrollbackMemoryBox = new HBox(12, scrollbackMemorySlider, scrollbackMemoryValue);
+        scrollbackMemoryBox.setAlignment(Pos.CENTER_LEFT);
+
+        scrollbackCompressionCheck = new CheckBox(I18n.get("settings.terminal.scrollbackCompression"));
+        scrollbackCompressionCheck.setSelected(settings.isScrollbackCompression());
+        scrollbackCompressionCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.scrollbackCompression.tooltip")));
         
         boldTextModeCombo = new ComboBox<>();
         boldTextModeCombo.getItems().setAll(com.sithtermfx.ui.settings.BoldTextMode.values());
@@ -1064,6 +1087,11 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(rowsSpinner, 1, terminalRow++);
         terminalGrid.add(new Label(I18n.get("settings.terminal.scrollback")), 0, terminalRow);
         terminalGrid.add(scrollbackSpinner, 1, terminalRow++);
+        Label scrollbackMemoryLabel = new Label(I18n.get("settings.terminal.scrollbackMemory"));
+        scrollbackMemoryLabel.setLabelFor(scrollbackMemorySlider);
+        terminalGrid.add(scrollbackMemoryLabel, 0, terminalRow);
+        terminalGrid.add(scrollbackMemoryBox, 1, terminalRow++);
+        terminalGrid.add(scrollbackCompressionCheck, 0, terminalRow++, 2, 1);
         Label encodingLabel = new Label(I18n.get("settings.terminal.encoding"));
         // Line the label up with the dropdown, not with the middle of dropdown and hint.
         GridPane.setValignment(encodingLabel, VPos.BASELINE);
@@ -2998,6 +3026,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         settings.setTerminalColumns(columnsSpinner.getValue());
         settings.setTerminalRows(rowsSpinner.getValue());
         settings.setScrollbackLines(scrollbackSpinner.getValue());
+        settings.setScrollbackMemoryMb((int) Math.round(scrollbackMemorySlider.getValue()));
+        settings.setScrollbackCompression(scrollbackCompressionCheck.isSelected());
         com.sithtermfx.ui.settings.BoldTextMode boldTextMode = boldTextModeCombo.getValue();
         settings.setBoldTextMode((boldTextMode != null ? boldTextMode
                 : com.sithtermfx.ui.settings.BoldTextMode.BOLD_FONT).name());
@@ -3302,6 +3332,8 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         tracked.add(new TrackedSetting("terminal", "columns", settings::getTerminalColumns, true));
         tracked.add(new TrackedSetting("terminal", "rows", settings::getTerminalRows, true));
         tracked.add(new TrackedSetting("terminal", "scrollback_lines", settings::getScrollbackLines, true));
+        tracked.add(new TrackedSetting("terminal", "scrollback_memory_mb", settings::getScrollbackMemoryMb, true));
+        tracked.add(new TrackedSetting("terminal", "scrollback_compression", settings::isScrollbackCompression, true));
         tracked.add(new TrackedSetting("terminal", "encoding", settings::getEncoding, true));
         tracked.add(new TrackedSetting("terminal", "command_timestamps", settings::isCommandTimestampsEnabled, true));
         tracked.add(new TrackedSetting("terminal", "cursor_style", settings::getCursorStyle, true));
