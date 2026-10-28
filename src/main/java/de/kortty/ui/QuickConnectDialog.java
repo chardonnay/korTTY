@@ -86,6 +86,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
     private ComboBox<String> shellPresetCombo;
     private TextField customShellCommandField;
     private TextField shellWorkingDirField;
+    /** Port and line settings (SERIAL protocol only). */
+    private SerialSettingsEditor serialEditor;
     private ComboBox<StoredCredential> savedCredentialsCombo;
     private ToggleGroup authMethodGroup;
     private RadioButton passwordAuthRadio;
@@ -230,13 +232,20 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         openGroupButton.setVisible(false);
         openGroupButton.setManaged(false);
         
-        // Enable/disable connect button: needs a host, EXCEPT for local shells which have none.
+        // Enable/disable connect button: needs a host, EXCEPT for local shells which have none and
+        // serial connections, which need a port and a valid speed instead.
         connectButton.setDisable(true);
         Runnable updateConnectButton = () -> {
-            boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+            ConnectionProtocol protocol = protocolCombo.getValue();
+            if (protocol == ConnectionProtocol.SERIAL) {
+                connectButton.setDisable(serialEditor.validationErrorKey() != null);
+                return;
+            }
+            boolean local = protocol == ConnectionProtocol.LOCAL_SHELL;
             connectButton.setDisable(!local && hostField.getText().trim().isEmpty());
         };
         hostField.textProperty().addListener((obs, old, newVal) -> updateConnectButton.run());
+        serialEditor.setOnChange(updateConnectButton);
         protocolCombo.valueProperty().addListener((obs, old, newVal) -> {
             updateLocalShellFields();
             updateConnectButton.run();
@@ -370,6 +379,10 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
 
         protocolCombo = new ComboBox<>();
         protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT, ConnectionProtocol.LOCAL_SHELL);
+        // serial-connections = "deny": not offered; a saved serial connection picked here still refuses to connect.
+        if (de.kortty.policy.PolicyManager.effective().serialConnectionsAllowed()) {
+            protocolCombo.getItems().add(ConnectionProtocol.SERIAL);
+        }
         protocolCombo.setValue(ConnectionProtocol.SSH_TCP);
         protocolCombo.setPrefWidth(180);
         protocolCombo.setCellFactory(lv -> new ListCell<>() {
@@ -403,6 +416,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         shellWorkingDirField = new TextField();
         shellWorkingDirField.setPromptText(I18n.get("connEdit.shellWorkingDirPrompt"));
         shellPresetCombo.valueProperty().addListener((obs, oldVal, newVal) -> updateLocalShellFields());
+        serialEditor = new SerialSettingsEditor(null);
 
         terminalEmulationCombo = new ComboBox<>();
         TerminalEmulationComboBoxSupport.configureComboBox(terminalEmulationCombo);
@@ -712,6 +726,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         grid.add(customShellCommandField, 1, row++);
         grid.add(new Label(I18n.get("connEdit.shellWorkingDir")), 0, row);
         grid.add(shellWorkingDirField, 1, row++);
+        row = serialEditor.addTo(grid, row);
 
         grid.add(saveConnectionCheck, 1, row++);
         
@@ -990,6 +1005,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         modified.setProtocol(protocolCombo.getValue() != null ? protocolCombo.getValue() : selected.getProtocol());
         applyLocalShellSelection(modified, selected, shownLocalShellSelection(),
             gitBashCommand, cygwinCommand, wslCommand);
+        modified.setSerialSettings(modified.isSerial() ? serialEditor.toSettings() : selected.serialSettingsOrNull());
         applySelectedTerminalEmulation(modified, selected);
         modified.setEncoding(selected.getEncoding());
         modified.setHighlightRuleSetId(selected.getHighlightRuleSetId());
@@ -1409,6 +1425,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         usernameField.setText(Objects.requireNonNullElse(conn.getUsername(), ""));
         protocolCombo.setValue(conn.getProtocol());
         loadLocalShellSelection(conn);
+        serialEditor.load(conn.serialSettingsOrNull());
         TerminalEmulationComboBoxSupport.select(terminalEmulationCombo, conn.getTerminalEmulationType());
         showTerminalLogSettings(conn);
         updateCredentialCombo(conn.getHost());
@@ -1708,6 +1725,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
             connection.setLocalShellCommand(shown.command(gitBashCommand, cygwinCommand, wslCommand));
             connection.setLocalShellWorkingDirectory(shown.workingDirectoryOrNull());
         }
+        if (connection.isSerial()) {
+            connection.setSerialSettings(serialEditor.toSettings());
+        }
         applySelectedTerminalEmulation(connection, null);
         connection.setConnectionTimeoutSeconds(timeoutSpinner.getValue());
         connection.setRetryCount(retrySpinner.getValue());
@@ -1753,6 +1773,8 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
                 connection.setName(name);
             } else if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
                 connection.setName(connection.localShellDisplayLabel());
+            } else if (connection.isSerial()) {
+                connection.setName(connection.serialDisplayLabel());
             } else {
                 connection.setName(connection.getUsername() + "@" + connection.getHost());
             }
@@ -1803,6 +1825,9 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         }
         if (protocol == ConnectionProtocol.LOCAL_SHELL) {
             return I18n.get("protocol.localShell");
+        }
+        if (protocol == ConnectionProtocol.SERIAL) {
+            return I18n.get("protocol.serial");
         }
         return I18n.get("protocol.sshTcp");
     }
@@ -1889,13 +1914,20 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         }
     }
 
-    /** Enables shell fields and disables SSH fields for LOCAL_SHELL, and vice-versa. */
+    /**
+     * Enables shell fields for LOCAL_SHELL and the serial rows for SERIAL, and disables the SSH
+     * fields for both, and vice-versa.
+     */
     private void updateLocalShellFields() {
-        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+        boolean shell = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+        boolean serial = protocolCombo.getValue() == ConnectionProtocol.SERIAL;
+        // "local" from here on: no host, no user, no credentials.
+        boolean local = shell || serial;
+        serialEditor.setActive(serial);
 
-        shellPresetCombo.setDisable(!local);
-        shellWorkingDirField.setDisable(!local);
-        customShellCommandField.setDisable(!local || !LocalShellPresetSupport.CUSTOM.equals(shellPresetCombo.getValue()));
+        shellPresetCombo.setDisable(!shell);
+        shellWorkingDirField.setDisable(!shell);
+        customShellCommandField.setDisable(!shell || !LocalShellPresetSupport.CUSTOM.equals(shellPresetCombo.getValue()));
 
         hostField.setDisable(local);
         portSpinner.setDisable(local);

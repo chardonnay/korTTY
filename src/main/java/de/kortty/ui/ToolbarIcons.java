@@ -139,6 +139,9 @@ final class ToolbarIcons {
             // A server below roaming waves: Mosh.
             case "mosh" -> new Glyph("M5 12 H19 Q21 12 21 14 V19 Q21 21 19 21 H5 Q3 21 3 19 V14 Q3 12 5 12 M16 16.5 H17", "M6.5 6.5 Q12 1.5 17.5 6.5 M9 9 Q12 6.5 15 9", "#a56ae6");
             // A laptop showing a prompt: a shell on this computer.
+            // The face of a DE-9 plug, five pins over four: a serial-port connection.
+            case "serial" -> new Glyph("M2.5 8 Q2.5 6.5 4 6.5 H20 Q21.5 6.5 21.5 8 L19.5 16.5 Q19.2 17.5 18 17.5 H6 Q4.8 17.5 4.5 16.5 Z",
+                "M6.6 10.5 H7.4 M9.1 10.5 H9.9 M11.6 10.5 H12.4 M14.1 10.5 H14.9 M16.6 10.5 H17.4 M7.85 13.5 H8.65 M10.35 13.5 H11.15 M12.85 13.5 H13.65 M15.35 13.5 H16.15", "#dc9825");
             case "localShell" -> teal("M5 5 Q5 4 6 4 H18 Q19 4 19 5 V16 H5 Z M2.5 19.5 H21.5", "M8.5 8 L11 10 L8.5 12 M12.5 12 H15.5");
             // Two hosts bridged over a third: the hop through a jump server.
             case "jump" -> new Glyph("M2 16 H7 V21 H2 Z M17 16 H22 V21 H17 Z M9.5 3 H14.5 V8 H9.5 Z", "M4.5 16 Q4.5 5.5 9.5 5.5 M14.5 5.5 Q19.5 5.5 19.5 13.5 M18 12 L19.5 14 L21 12", "#dc9825");

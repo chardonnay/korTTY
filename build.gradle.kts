@@ -440,6 +440,12 @@ dependencies {
     // fails Apple notarization (same story as the pty4j pin above).
     implementation("com.github.luben:zstd-jni:1.5.7-24")
 
+    // Serial-port connections (ConnectionProtocol.SERIAL). Ships one native per OS/arch inside the
+    // jar (Windows/Linux/OSX plus BSD, Solaris and Android); prepareSlimRuntimeJars keeps only the
+    // target's, and the retained macOS .jnilib is re-signed by signMacBundledNativeLibraries. The
+    // library extracts it to ~/.jSerialComm at runtime — the embedded signature travels with it.
+    implementation("com.fazecast:jSerialComm:2.11.4")
+
     // Native desktop power-management integration. pty4j already brings these transitively, but
     // korTTY uses their APIs directly, so keep the compile/runtime contract explicit and pinned.
     implementation("net.java.dev.jna:jna:5.19.1")
@@ -1654,6 +1660,15 @@ fun slimJarSpecs(arch: String): List<SlimJarSpec> {
         isWindows && arch == "x64" -> "win/amd64/"
         else -> throw GradleException("No zstd-jni native mapping for $osName/$arch")
     }
+    val serialPrefix = when {
+        isMac && arch == "arm64" -> "OSX/aarch64/"
+        isMac && arch == "x64" -> "OSX/x86_64/"
+        isLinux && arch == "arm64" -> "Linux/armv8_64/"
+        isLinux && arch == "x64" -> "Linux/x86_64/"
+        isWindows && arch == "arm64" -> "Windows/aarch64/"
+        isWindows && arch == "x64" -> "Windows/x86_64/"
+        else -> throw GradleException("No jSerialComm native mapping for $osName/$arch")
+    }
     return listOf(
         SlimJarSpec(
             "JNA",
@@ -1675,13 +1690,20 @@ fun slimJarSpecs(arch: String): List<SlimJarSpec> {
             zstdPrefix
             // zstd-jni ships single-arch dylibs — no lipo needed; the Developer-ID signature is
             // applied later by signMacBundledNativeLibraries via macNativeJarPatterns.
+        ),
+        SlimJarSpec(
+            "jSerialComm",
+            Regex("jSerialComm-[0-9].*\\.jar"),
+            { path -> path.matches(Regex("[A-Za-z]+/[^/]+/(?:lib)?jSerialComm\\.(?:dll|so|jnilib)")) },
+            serialPrefix
+            // Single-arch natives as well; signed later through macNativeJarPatterns like zstd-jni.
         )
     )
 }
 
 tasks.register("prepareSlimRuntimeJars") {
     group = "build"
-    description = "Repackages JNA, pty4j and zstd-jni with only the native binaries for the target OS/architecture."
+    description = "Repackages JNA, pty4j, zstd-jni and jSerialComm with only the native binaries for the target OS/architecture."
     inputs.files(configurations.runtimeClasspath)
     inputs.property("targetOs", osName)
     inputs.property("targetArch", formatterArch())
@@ -1775,7 +1797,8 @@ tasks.register<Sync>("prepareJpackage") {
         exclude { details ->
             details.file.name.matches(Regex("jna-[0-9].*\\.jar")) ||
                 details.file.name.matches(Regex("pty4j-[0-9].*\\.jar")) ||
-                details.file.name.matches(Regex("zstd-jni-[0-9].*\\.jar"))
+                details.file.name.matches(Regex("zstd-jni-[0-9].*\\.jar")) ||
+                details.file.name.matches(Regex("jSerialComm-[0-9].*\\.jar"))
         }
     }
     from(tasks.jar.map { it.archiveFile })
@@ -2382,7 +2405,9 @@ if (isMac) {
         Regex("""^pty4j-[\w.\-]+\.jar$"""),
         // zstd-jni bundles libzstd-jni-<ver>.dylib; without a Developer-ID signature the
         // notarization of the DMG fails on the jar-internal dylib (same story as pty4j).
-        Regex("""^zstd-jni-[\w.\-]+\.jar$""")
+        Regex("""^zstd-jni-[\w.\-]+\.jar$"""),
+        // jSerialComm bundles libjSerialComm.jnilib, unsigned upstream — same treatment.
+        Regex("""^jSerialComm-[\w.\-]+\.jar$""")
         // Do NOT add javafx-*.jar here: this task signs with `--options runtime`, and the resulting
         // hardened-runtime flag on libjfxwebkit.dylib kills JavaScriptCore's JIT (WebView dies the
         // instant JS executes, no crash report). The answer to a JavaFX patch whose dylibs the notary
@@ -3417,12 +3442,13 @@ tasks.named("check") {
 
 tasks.register<JavaExec>("slimNativeRuntimeSmoke") {
     group = "verification"
-    description = "Loads JNA and starts a real PTY using only the target-specific repacked native JARs."
+    description = "Loads JNA, starts a real PTY and loads jSerialComm using only the target-specific repacked native JARs."
     dependsOn("testClasses", "prepareSlimRuntimeJars")
     mainClass.set("de.kortty.core.SlimNativeRuntimeSmoke")
     val withoutOriginalNativeJars = sourceSets.test.get().runtimeClasspath.filter { file ->
         !file.name.matches(Regex("jna-[0-9].*\\.jar")) &&
-            !file.name.matches(Regex("pty4j-[0-9].*\\.jar"))
+            !file.name.matches(Regex("pty4j-[0-9].*\\.jar")) &&
+            !file.name.matches(Regex("jSerialComm-[0-9].*\\.jar"))
     }
     classpath = fileTree(slimRuntimeJarDir) { include("*.jar") } + withoutOriginalNativeJars
     jvmArgs("--enable-native-access=ALL-UNNAMED")

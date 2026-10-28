@@ -2058,9 +2058,22 @@ public class MainWindow {
         });
         ClosedWindowMenuRouter.ownWindowOnly(sftpHere);
 
+        // The focused pane's serial line; no default key, Settings › Keyboard can give it one.
+        MenuItem sendBreak = menuItem("menu.connections.sendBreak");
+        sendBreak.setOnAction(e -> {
+            boolean serialPane = tabPane.getSelectionModel().getSelectedItem() instanceof TerminalTab terminalTab
+                && terminalTab.getTerminalView().sendSerialBreak(null, sent ->
+                    updateStatus(I18n.get(sent ? "serial.break.sent" : "serial.break.failed")));
+            if (!serialPane) {
+                updateStatus(I18n.get("serial.break.noSerialPane"));
+            }
+        });
+        ClosedWindowMenuRouter.ownWindowOnly(sendBreak);
+
         connectionsMenu.getItems().addAll(quickConnect, manageConnections,
             new SeparatorMenuItem(), importConnections, exportConnections,
-            new SeparatorMenuItem(), sftpClient, sftpHere);
+            new SeparatorMenuItem(), sftpClient, sftpHere,
+            new SeparatorMenuItem(), sendBreak);
         return connectionsMenu;
     }
 
@@ -4105,7 +4118,7 @@ public class MainWindow {
 
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
-            if (!result.connection().isLocalShell()
+            if (result.connection().isNetworkConnection()
                     && result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
                     && (finalPassword == null || finalPassword.isBlank())) {
                 return; // User cancelled password prompt or no valid password available
@@ -4201,7 +4214,7 @@ public class MainWindow {
 
             String password = result.password();
             String finalPassword = ensurePasswordForConnection(result.connection(), password);
-            if (!result.connection().isLocalShell()
+            if (result.connection().isNetworkConnection()
                     && result.connection().getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY
                     && (finalPassword == null || finalPassword.isBlank())) {
                 return null;
@@ -4244,8 +4257,8 @@ public class MainWindow {
     }
 
     private String ensurePasswordForConnection(ServerConnection connection, String candidatePassword) {
-        // Local shells run a local process with no authentication; never prompt for a password.
-        if (connection == null || connection.isLocalShell()
+        // Local shells and serial ports have no authentication; never prompt for a password.
+        if (connection == null || !connection.isNetworkConnection()
                 || connection.getAuthMethod() == de.kortty.model.AuthMethod.PUBLIC_KEY) {
             return candidatePassword;
         }
@@ -12927,7 +12940,7 @@ public class MainWindow {
         java.util.List<ServerConnection> toOpen = new java.util.ArrayList<>();
         if (connections != null) {
             for (ServerConnection connection : connections) {
-                if (connection != null && (includeLocalShell || !connection.isLocalShell())) {
+                if (connection != null && !connection.isSerial() && (includeLocalShell || !connection.isLocalShell())) {
                     toOpen.add(connection);
                 }
             }
@@ -12953,7 +12966,7 @@ public class MainWindow {
         TerminalTab tab;
         try {
             String password = ensurePasswordForConnection(connection, null);
-            boolean requiresPassword = !connection.isLocalShell()
+            boolean requiresPassword = connection.isNetworkConnection()
                 && connection.getAuthMethod() != de.kortty.model.AuthMethod.PUBLIC_KEY;
             if (requiresPassword && (password == null || password.isBlank())) {
                 logger.warn("Swarm skipping connection {}: no password provided", logLabel);
@@ -13300,6 +13313,7 @@ public class MainWindow {
             case MOSH -> I18n.get("protocol.mosh");
             case MOSH_CLIENT -> I18n.get("protocol.moshClient");
             case LOCAL_SHELL -> I18n.get("protocol.localShell");
+            case SERIAL -> I18n.get("protocol.serial");
             case SSH_TCP -> I18n.get("protocol.sshTcp");
         };
     }

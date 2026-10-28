@@ -9,7 +9,8 @@ finish-args:
   - --share=network
   - --socket=x11
   - --socket=pulseaudio
-  - --device=dri
+  # all, not just dri: serial connections open /dev/ttyUSB*, /dev/ttyACM* and /dev/ttyS* (dri is included).
+  - --device=all
   - --filesystem=host
   - --talk-name=org.freedesktop.Flatpak
   # Desktop notifications straight to the notification server, so a click on one reaches korTTY

@@ -72,7 +72,7 @@ Der erste Wrapper-Aufruf lädt Gradle herunter. Ein sauberer Anwendungsbuild klo
 
 ### Sauberes, zielspezifisches Paket-Staging
 
-`prepareJpackage` setzt `build/jpackage-input/libs` mit einem letzten Gradle `Sync` zusammen. Es entfernt veraltete Abhängigkeitsversionen und Formatierungsbäume, behält nur die aktuelle mosh4j-Architektur und Protobuf bei, verwendet das übergeordnet geladene Bouncy Castle der Anwendung wieder, schließt die Testabhängigkeit von SithTermFX aus und ersetzt JNA/pty4j durch JARs, die alle Java-Klassen, Dienste, Manifeste und Lizenzen, aber nur den nativen Zielpfad und die binäre Architektur beibehalten. Die Verifizierungsaufgabe setzt absichtlich veraltete Dateien vor der Synchronisierung und führt einen echten JNA/PTY-Smoke gegen die schlanken JARs durch:
+`prepareJpackage` stellt `build/jpackage-input/libs` mit einem abschließenden Gradle-`Sync` zusammen. Es entfernt veraltete Abhängigkeitsversionen und Formatter-Bäume, behält nur die aktuelle mosh4j-Architektur und protobuf bei, wiederverwendet die vom übergeordneten Projekt geladene Bouncy Castle, schließt die Testabhängigkeit von SithTermFX aus und ersetzt JNA, pty4j, zstd-jni und jSerialComm durch JARs, die alle Java-Klassen, Dienste, Manifeste und Lizenzen beibehalten, aber nur den Ziel-Nativpfad und die binäre Architektur. Die Verifikationstask legt vor dem Sync gezielt veraltete Dateien an und führt einen echten Smoke-Test der JNA/PTY/Seriell-Bibliothek gegen die schlanken JARs aus:
 
 ```bash
 ./gradlew verifyJpackageStaging slimNativeRuntimeSmoke

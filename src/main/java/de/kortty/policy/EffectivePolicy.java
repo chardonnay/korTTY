@@ -198,6 +198,7 @@ public final class EffectivePolicy {
                     case JOB_WEBHOOKS -> ManagedSetting.JOB_WEBHOOKS;
                     case INCOGNITO_SESSIONS -> ManagedSetting.INCOGNITO_SESSIONS;
                     case DESKTOP_NOTIFICATIONS -> ManagedSetting.DESKTOP_NOTIFICATIONS;
+                    case SERIAL_CONNECTIONS -> ManagedSetting.SERIAL_CONNECTIONS;
                 });
             }
         }
@@ -468,6 +469,14 @@ public final class EffectivePolicy {
      */
     public boolean incognitoSessionsAllowed() {
         return decision(PolicyFeature.INCOGNITO_SESSIONS) != PolicyDecision.DENY;
+    }
+
+    /**
+     * Whether korTTY may open serial ports ({@link PolicyFeature#SERIAL_CONNECTIONS}): allowed unless the
+     * policy denies {@code serial-connections}, and denied in lockdown like every feature.
+     */
+    public boolean serialConnectionsAllowed() {
+        return decision(PolicyFeature.SERIAL_CONNECTIONS) != PolicyDecision.DENY;
     }
 
     /**

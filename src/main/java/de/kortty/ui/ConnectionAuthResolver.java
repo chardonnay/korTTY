@@ -300,8 +300,8 @@ final class ConnectionAuthResolver {
                 && connection.getSshKeyId() == null && teamwork.useTemporaryKey()) {
             return Resolution.needs(Status.NEEDS_TEMP_KEY, connection);
         }
-        // A local shell runs a local process with no authentication; SSH key auth needs no password.
-        if (connection.isLocalShell() || connection.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
+        // A local shell or serial port authenticates nothing here; SSH key auth needs no password.
+        if (!connection.isNetworkConnection() || connection.getAuthMethod() == AuthMethod.PUBLIC_KEY) {
             return Resolution.ready(connection, null, null);
         }
         if (hasStoredPassword(connection)) {

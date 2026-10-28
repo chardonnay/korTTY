@@ -8,5 +8,7 @@ public enum ConnectionProtocol {
     MOSH,
     MOSH_CLIENT,
     /** Local shell (no network): spawns a PTY-backed cmd.exe/PowerShell or $SHELL. */
-    LOCAL_SHELL
+    LOCAL_SHELL,
+    /** Serial port (COM3, /dev/ttyUSB0): no network, line settings in {@link SerialSettings}. */
+    SERIAL
 }

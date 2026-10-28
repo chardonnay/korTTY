@@ -162,6 +162,42 @@ class XMLConnectionRepositoryTest {
     }
 
     @Test
+    void saveAndLoadPreservesSerialSettings() throws Exception {
+        Path dir = Files.createTempDirectory("kortty-xml-repo-serial");
+        try {
+            XMLConnectionRepository repository = new XMLConnectionRepository(dir);
+            ServerConnection connection = new ServerConnection();
+            connection.setName("Switch console");
+            connection.setProtocol(ConnectionProtocol.SERIAL);
+            de.kortty.model.SerialSettings serial = new de.kortty.model.SerialSettings();
+            serial.setPortName("/dev/ttyUSB0");
+            serial.setBaudRate(115200);
+            serial.setDataBits(7);
+            serial.setParity(de.kortty.model.SerialSettings.Parity.EVEN);
+            serial.setStopBits(de.kortty.model.SerialSettings.StopBits.TWO);
+            serial.setFlowControl(de.kortty.model.SerialSettings.FlowControl.RTS_CTS);
+            serial.setAssertDtr(false);
+            serial.setLocalEcho(true);
+            serial.setLineEnding(de.kortty.model.SerialSettings.LineEnding.CRLF);
+            connection.setSerialSettings(serial);
+
+            repository.saveConnections(List.of(connection), null);
+
+            String persistedXml = Files.readString(dir.resolve("connections.xml"));
+            assertThat(persistedXml).contains("<protocol>SERIAL</protocol>");
+            assertThat(persistedXml).contains("<portName>/dev/ttyUSB0</portName>");
+
+            List<ServerConnection> reloaded = repository.loadConnections(null);
+            assertThat(reloaded).hasSize(1);
+            assertThat(reloaded.get(0).getProtocol()).isEqualTo(ConnectionProtocol.SERIAL);
+            assertThat(reloaded.get(0).getSerialSettings()).isEqualTo(serial);
+        } finally {
+            Files.deleteIfExists(dir.resolve("connections.xml"));
+            Files.deleteIfExists(dir);
+        }
+    }
+
+    @Test
     void exportedLocalShellAndMoshConnectionsComeBackFromAnImport() throws Exception {
         // The Connection Manager's export and import, minus the dialogs: the import used to build a
         // fresh connection without the protocol, so both of these came back as SSH.

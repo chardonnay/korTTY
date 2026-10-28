@@ -15,6 +15,10 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 - **Übersichtsexport** — **Übersicht exportieren** schreibt Ihre Server als JSON, YAML, TOML oder XML, mit den Teilen, die Sie auswählen, und niemals ein Passwort oder einen Schlüssel. Siehe [Übersicht exportieren](../features/connections.md#exportieren-einer-ubersicht).
 - **Inspektor** — der Pfad von diesem Computer über den Jump-Server, Sicherheit als Chips, Nutzungsbalken für die letzten 14 Tage und eine SFTP-Schaltfläche.
 
+### Serielle Verbindungen
+
+- **Serielle Ports** — das neue **Seriell**-Protokoll öffnet ein Terminal auf einem seriellen Port, wie die seriellen Sitzungen von PuTTY: eine Router- oder Switch-Konsole, ein Mikrocontroller-Board oder ein USB-zu-Seriell-Adapter, unter Windows, macOS und Linux. Wählen Sie den Port aus der Liste aus oder geben Sie ihn ein, und legen Sie Geschwindigkeit, Datenbits, Parität, Stop-Bits, Flusssteuerung, was Enter sendet, DTR/RTS und lokales Echo fest. **Break senden** findet sich im Kontextmenü des Terminals und im Menü Verbindungen und kann in den Tastatureinstellungen eine Taste zugewiesen werden. Serielle Sitzungen aus MobaXterm- und PuTTY Connection-Manager-Dateien werden ebenfalls importiert. Siehe [Serielle Verbindungen](../features/serial.md).
+
 ### Unter Windows
 
 - **PowerShell und Eingabeaufforderung in der Symbolleiste** — unter Windows werden in der Terminalgruppe der Symbolleiste **Neue PowerShell** und **Neue Eingabeaufforderung** direkt nach **Neue lokale Shell** eingefügt, jeweils mit eigenem Symbol; gespeicherte Layouts übernehmen beide ebenfalls. Bei installiertem Git for Windows bietet der Anpassungskatalog zudem **Neue Git Bash**. Siehe [Anpassen der Symbolleiste](../getting-started/main-window.md#anpassung-der-symbolleiste).

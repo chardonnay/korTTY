@@ -473,6 +473,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/serial.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Serielle Verbindungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/sftp.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -883,6 +891,7 @@
 <h2 id="server-zugriffskontrolle">Server-Zugriffskontrolle<a class="headerlink" href="#server-zugriffskontrolle" title="Permanent link">&para;</a></h2>
 <p>Die <code>[rule.servers]</code>-Tabelle schränkt ein, zu welchen Servern ein Benutzer eine Verbindung herstellen darf – als Zulassungsliste (<code>mode = "allow"</code>: nur aufgelistete Server sind erreichbar) oder als Sperrliste (<code>mode = "deny"</code>: aufgelistete Server sind blockiert). Die Einschränkung wird zentral für jeden Verbindungspfad durchgesetzt: gespeicherte Verbindungen, QuickConnect, geteilte Panes (mit neuer Verbindung oder zum selben Server), Sitzungswiederherstellung, SFTP, von Teamwork freigegebene Verbindungen, KI-Schwarmziele und geplante Jobs, einschließlich des Jump-Hosts einer Verbindung. Blockierte Verbindungen bleiben im Connection-Manager sichtbar, werden jedoch mit einer Sperrmarkierung ausgegraut und bei jedem Verbindungsversuch wird eine eindeutige Richtlinienmeldung angezeigt.</p>
 <p><strong>Gruppe öffnen</strong> in der Schnellverbindung überspringt jede Verbindung der Gruppe, deren Server oder Jump-Server gesperrt ist, und nennt sie alle in einer Richtlinienmeldung; die übrigen Verbindungen der Gruppe öffnen sich weiterhin. <strong>Verbinden</strong> im Connection-Manager, <strong>Duplizieren</strong> an einem Tab und <strong>Geschlossenen Tab wieder öffnen</strong> prüfen die Richtlinie, bevor sie nach einem Passwort, einem temporären SSH-Schlüssel oder dem Master-Passwort fragen, und ein offener Tab prüft sie bei jedem Verbindungs- und Neuverbindungsversuch erneut, weil das Bearbeiten einer gespeicherten Verbindung auch die bereits daraus geöffneten Tabs ändert. Zeigt ein Tab nach einer solchen Änderung auf einen gesperrten Server oder Jump-Server, zeigt sein Terminal die Richtlinienmeldung, und korTTY versucht es nicht weiter, auch nicht per automatischer Neuverbindung.</p>
+<p>Lokale Shells und <a href="../features/serial.html">serielle Verbindungen</a> haben keinen Server und werden nicht gegen <code>[rule.servers]</code> geprüft; serielle Ports werden stattdessen durch <code>serial-connections</code> unter <a href="#rulefeatures"><code>[rule.features]</code></a> geregelt.</p>
 <p>Muster stimmen genau mit der Hostzeichenfolge überein, wie sie in der Verbindung konfiguriert ist – korTTY löst DNS nie für Richtlinienprüfungen auf, daher sind Hostnamen und IP-Adressen separate Namespaces: Wenn ein Server in beide Richtungen erreichbar ist, listen Sie beide auf.</p>
 <table>
 <thead>
@@ -1139,6 +1148,12 @@
 <td>string</td>
 <td><code>allow</code>, <code>deny</code></td>
 <td><a href="../features/session-isolation.html#inkognito-sitzungen">Inkognito-Sitzungen</a>, bei denen korTTY Log, Journal, Aufzeichnung, den Eintrag unter „Zuletzt geschlossen“ und die Wiederherstellung auslässt. <code>deny</code> graut <strong>Inkognito-Sitzung</strong> im Verbindungseditor und <strong>Datei → Neue Inkognito-Sitzung…</strong> aus, und jede Sitzung, auch die einer als inkognito markierten Verbindung, ist eine normale. Ein Session-Journal, das die Richtlinie erzwingt, wird auch für Inkognito-Sitzungen geschrieben. Es gibt keine Einstellung dafür, daher ändert <code>allow</code> nichts</td>
+</tr>
+<tr>
+<td><code>serial-connections</code></td>
+<td>String</td>
+<td><code>allow</code>, <code>deny</code></td>
+<td><a href="../features/serial.html">Serielle Verbindungen</a> zu einem seriellen Port des Computers. Ein serieller Port hat keinen Host, daher kann <code>[rule.servers]</code> ihn nicht abdecken; <code>deny</code> blockiert sie als Ganzes: Der Connection-Editor und die Schnellverbindung bieten für neue Verbindungen nicht mehr <strong>Seriell</strong> an, und jeder Versuch, einen seriellen Port zu öffnen — eine gespeicherte oder importierte serielle Verbindung, ein wiederhergestelltes Tab, ein erneutes Verbinden — wird mit <em>Die Richtlinie Ihrer Organisation erlaubt keine seriellen Verbindungen.</em> abgewiesen. Gespeicherte serielle Verbindungen bleiben gespeichert. Lockdown verweigert es ebenfalls. Es gibt keine Option in den Einstellungen, daher ändert <code>allow</code> nichts</td>
 </tr>
 <tr>
 <td><code>desktop-notifications</code></td>

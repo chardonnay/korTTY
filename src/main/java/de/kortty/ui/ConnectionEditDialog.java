@@ -99,6 +99,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     /** Add shell integration automatically; see {@link LocalShellIntegrationOption}. */
     private CheckBox shellIntegrationAutoInjectCheck;
     private Label shellIntegrationAutoInjectHint;
+    /** Port and line settings (SERIAL protocol only). */
+    private SerialSettingsEditor serialEditor;
     
     // Connection-specific settings
     /** "Use the global terminal settings" vs "Own settings for this connection"; one is always selected. */
@@ -248,6 +250,11 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
         protocolCombo = new ComboBox<>();
         protocolCombo.getItems().addAll(ConnectionProtocol.SSH_TCP, ConnectionProtocol.MOSH, ConnectionProtocol.MOSH_CLIENT, ConnectionProtocol.LOCAL_SHELL);
+        // serial-connections = "deny": not offered for new connections; a saved serial one keeps showing
+        // what it is, and refuses to connect.
+        if (de.kortty.policy.PolicyManager.effective().serialConnectionsAllowed() || connection.isSerial()) {
+            protocolCombo.getItems().add(ConnectionProtocol.SERIAL);
+        }
         protocolCombo.setValue(connection.getProtocol());
         protocolCombo.setCellFactory(lv -> new ListCell<>() {
             @Override
@@ -475,6 +482,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         connectionGrid.add(shellIntegrationLabel, 0, row);
         connectionGrid.add(new VBox(4, shellIntegrationAutoInjectCheck, shellIntegrationAutoInjectHint), 1, row++);
 
+        serialEditor = new SerialSettingsEditor(connection.serialSettingsOrNull());
+        row = serialEditor.addTo(connectionGrid, row);
+
         connectionGrid.add(new Label(I18n.get("connEdit.terminalEmulation")), 0, row);
         connectionGrid.add(terminalEmulationCombo, 1, row++);
 
@@ -622,6 +632,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         if (keyAuthRadio != null) keyAuthRadio.selectedProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
         if (temporaryKeyAuthRadio != null) temporaryKeyAuthRadio.selectedProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
         if (temporaryKeyArea != null) temporaryKeyArea.textProperty().addListener((obs, oldVal, newVal) -> validateForm(saveButton));
+        serialEditor.setOnChange(() -> validateForm(saveButton));
         protocolCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
             updateLocalShellFields();
             updateEncodingField();
@@ -654,6 +665,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     String workingDir = shellWorkingDirField.getText() != null ? shellWorkingDirField.getText().trim() : "";
                     connection.setLocalShellWorkingDirectory(workingDir.isEmpty() ? null : workingDir);
                     connection.setShellIntegrationAutoInject(shellIntegrationAutoInjectCheck.isSelected());
+                }
+                if (connection.getProtocol() == ConnectionProtocol.SERIAL) {
+                    connection.setSerialSettings(serialEditor.toSettings());
                 }
                 connection.setTerminalEmulationType(TerminalEmulationSupport.storedValue(
                     TerminalEmulationComboBoxSupport.selectedEmulation(terminalEmulationCombo)));
@@ -1213,7 +1227,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
 
     /** The password field is editable only for SSH password auth with no credential lookup running. */
     private void updatePasswordFieldEnablement() {
-        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL
+            || protocolCombo.getValue() == ConnectionProtocol.SERIAL;
         boolean useKey = keyAuthRadio.isSelected();
         boolean useTemporaryKey = temporaryKeyAuthRadio != null && temporaryKeyAuthRadio.isSelected();
         passwordField.setDisable(local || useKey || useTemporaryKey || credentialPasswordResolver.isPending());
@@ -1239,10 +1254,13 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     
     private void validateForm(Button saveButton) {
         boolean localShell = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+        boolean serial = protocolCombo.getValue() == ConnectionProtocol.SERIAL;
         String hostText = hostField.getText();
-        // Local shells have no host; everything else requires a non-empty host.
-        boolean valid = localShell || (hostText != null && !hostText.trim().isEmpty());
-        if (valid && !localShell && connection.isTeamworkConnection()) {
+        // Local shells have no host and serial connections need a port instead; everything else
+        // requires a non-empty host.
+        boolean valid = serial ? serialEditor.validationErrorKey() == null
+            : localShell || (hostText != null && !hostText.trim().isEmpty());
+        if (valid && !localShell && !serial && connection.isTeamworkConnection()) {
             boolean hasCred = passwordAuthRadio != null && passwordAuthRadio.isSelected()
                 && savedCredentialsCombo != null && savedCredentialsCombo.getValue() != null;
             boolean hasKey = keyAuthRadio != null && keyAuthRadio.isSelected() && savedSSHKeysCombo != null && savedSSHKeysCombo.getValue() != null;
@@ -1251,7 +1269,10 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             valid = hasCred || hasKey || hasTempKey;
         }
         saveButton.setDisable(!valid);
-        if (saveButton.isDisabled() && connection.isTeamworkConnection()) {
+        String serialError = serial ? serialEditor.validationErrorKey() : null;
+        if (serialError != null) {
+            saveButton.setTooltip(new Tooltip(I18n.get(serialError)));
+        } else if (saveButton.isDisabled() && connection.isTeamworkConnection()) {
             saveButton.setTooltip(new Tooltip(I18n.get("connEdit.teamworkAuthRequired")));
         } else {
             saveButton.setTooltip(null);
@@ -2310,6 +2331,9 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         if (protocol == ConnectionProtocol.LOCAL_SHELL) {
             return I18n.get("protocol.localShell");
         }
+        if (protocol == ConnectionProtocol.SERIAL) {
+            return I18n.get("protocol.serial");
+        }
         return I18n.get("protocol.sshTcp");
     }
 
@@ -2341,13 +2365,20 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         encodingMoshHint.setVisible(utf8Only);
     }
 
-    /** Enables shell fields and disables SSH fields for LOCAL_SHELL, and vice-versa. */
+    /**
+     * Enables shell fields for LOCAL_SHELL and the serial rows for SERIAL, and disables the SSH
+     * fields for both, and vice-versa.
+     */
     private void updateLocalShellFields() {
-        boolean local = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+        boolean shell = protocolCombo.getValue() == ConnectionProtocol.LOCAL_SHELL;
+        boolean serial = protocolCombo.getValue() == ConnectionProtocol.SERIAL;
+        // "local" from here on: no host, no user, no credentials.
+        boolean local = shell || serial;
+        serialEditor.setActive(serial);
 
-        shellPresetCombo.setDisable(!local);
-        shellWorkingDirField.setDisable(!local);
-        customShellCommandField.setDisable(!local || !LocalShellPresetSupport.CUSTOM.equals(shellPresetCombo.getValue()));
+        shellPresetCombo.setDisable(!shell);
+        shellWorkingDirField.setDisable(!shell);
+        customShellCommandField.setDisable(!shell || !LocalShellPresetSupport.CUSTOM.equals(shellPresetCombo.getValue()));
 
         updateShellIntegrationOption();
 

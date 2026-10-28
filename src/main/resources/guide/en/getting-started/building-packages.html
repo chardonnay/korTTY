@@ -473,6 +473,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/serial.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Serial Connections
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/sftp.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -952,7 +960,7 @@
 </div>
 <p>The first wrapper invocation downloads Gradle. A clean application build also clones SithTermFX when necessary, installs it through Maven, downloads the pinned build inputs, compiles korTTY and runs the tests.</p>
 <h3 id="clean-target-specific-package-staging">Clean, target-specific package staging<a class="headerlink" href="#clean-target-specific-package-staging" title="Permanent link">&para;</a></h3>
-<p><code>prepareJpackage</code> assembles <code>build/jpackage-input/libs</code> with one final Gradle <code>Sync</code>. It removes stale dependency versions and formatter trees, keeps only the current mosh4j architecture and protobuf, reuses the application's parent-loaded Bouncy Castle, excludes SithTermFX's test dependency, and replaces JNA/pty4j with JARs that retain all Java classes, services, manifests and licences but only the target native path and binary architecture. The verification task deliberately seeds obsolete files before Sync and runs a real JNA/PTY smoke against the slim JARs:</p>
+<p><code>prepareJpackage</code> assembles <code>build/jpackage-input/libs</code> with one final Gradle <code>Sync</code>. It removes stale dependency versions and formatter trees, keeps only the current mosh4j architecture and protobuf, reuses the application's parent-loaded Bouncy Castle, excludes SithTermFX's test dependency, and replaces JNA, pty4j, zstd-jni and jSerialComm with JARs that retain all Java classes, services, manifests and licences but only the target native path and binary architecture. The verification task deliberately seeds obsolete files before Sync and runs a real JNA/PTY/serial-library smoke against the slim JARs:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./gradlew<span class="w"> </span>verifyJpackageStaging<span class="w"> </span>slimNativeRuntimeSmoke
 </span></code></pre></div>
 <h3 id="package-size-reports-and-budgets">Package-size reports and budgets<a class="headerlink" href="#package-size-reports-and-budgets" title="Permanent link">&para;</a></h3>

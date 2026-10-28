@@ -8,7 +8,7 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-/** Exercises JNA and a real local PTY using the target-only JARs staged for jpackage. */
+/** Exercises JNA, a real local PTY and jSerialComm's native using the target-only JARs staged for jpackage. */
 public final class SlimNativeRuntimeSmoke {
 
     private SlimNativeRuntimeSmoke() {
@@ -47,6 +47,12 @@ public final class SlimNativeRuntimeSmoke {
         if (process.exitValue() != 0 || !output.contains("kortty-pty-smoke")) {
             throw new AssertionError("Target-only pty4j process failed: exit=" + process.exitValue() + ", output=" + output);
         }
-        System.out.println("Slim JNA/pty4j native runtime smoke passed for " + jnaArch + ".");
+        // Enumerating ports loads jSerialComm's native; an empty list is fine (CI runners have no ports).
+        Class<?> serialPortClass = Class.forName("com.fazecast.jSerialComm.SerialPort");
+        Object ports = serialPortClass.getMethod("getCommPorts").invoke(null);
+        if (ports == null) {
+            throw new AssertionError("jSerialComm did not load its target native library");
+        }
+        System.out.println("Slim JNA/pty4j/jSerialComm native runtime smoke passed for " + jnaArch + ".");
     }
 }

@@ -1,6 +1,6 @@
 # Connections
 
-korTTY manages SSH, Mosh and **local-shell** connections through three entry points: **Quick Connect**, the **Connection Manager**, and saved **Projects**.
+korTTY manages SSH, Mosh, **local-shell** and [serial](serial.md) connections through three entry points: **Quick Connect**, the **Connection Manager**, and saved **Projects**.
 
 ![Connection flow](../assets/diagrams/connection-flow.svg)
 
@@ -30,7 +30,7 @@ Open with ++ctrl+k++ (or **Connections → Quick Connect…**). Enter host, port
 
 ### List and map
 
-**List** shows the chosen connections in their folders, with lines from each folder to its connections and subfolders; an empty folder shows no entries below it. Each row shows the protocol (server for SSH, waves for Mosh, a laptop for a local shell) with the connection's [OS symbol](#os-symbols) on its corner, the name, `user@host`, the tag, a star for a favorite and small marks for a jump server, tunnels, an isolation level of its own, incognito and a switched-off host-key check; a green dot and a count mean the connection has tabs open. Drag a connection onto a folder to move it there; **Undo** in the toolbar takes the last move back. Double-click a connection to connect.
+**List** shows the chosen connections in their folders, with lines from each folder to its connections and subfolders; an empty folder shows no entries below it. Each row shows the protocol (server for SSH, waves for Mosh, a laptop for a local shell, a plug for a serial port) with the connection's [OS symbol](#os-symbols) on its corner, the name, `user@host`, the tag, a star for a favorite and small marks for a jump server, tunnels, an isolation level of its own, incognito and a switched-off host-key check; a green dot and a count mean the connection has tabs open. Drag a connection onto a folder to move it there; **Undo** in the toolbar takes the last move back. Double-click a connection to connect.
 
 **Map** shows the same connections on a network plan: a dashed zone per folder in the folder's tab color, a node per connection, and this computer on the left. Orange dashed lines show the route through a jump server, which is the saved connection with that host when there is one and a node of its own otherwise; teal dotted lines show tunnels, which are also listed under this computer. Click a node to select it, double-click it to connect, and drag it into another zone to move the connection into that folder (**Undo** takes it back). **Jump routes** and **Tunnels** show or hide the lines, **−**, **+** and **Fit** zoom, and ++ctrl++ with the mouse wheel zooms too. Teamwork connections get zones of their own and dashed nodes and cannot be moved. The map is arranged automatically; nothing about it is stored.
 
@@ -54,7 +54,7 @@ A connection can show the symbol of the operating system its server runs, on the
 
 | Part | Contents |
 | --- | --- |
-| Basics (always) | Name, protocol, host, port and user; for a local shell its command and start directory |
+| Basics (always) | Name, protocol, host, port and user; for a local shell its command and start directory; for a serial connection its port and line settings instead of host, port and user |
 | Folder, tag, tab color, favorite | The folder path, the tag, the tab color and whether the connection is a favorite |
 | Sign-in method | Password, SSH key, keyboard-interactive, temporary key or none, with the name of the stored credential or SSH key |
 | Jump server | Host, port, user and sign-in method of an enabled jump server |
@@ -74,7 +74,7 @@ A preview shows the first connection as the file will have it. Passwords, passph
 1. korTTY checks your organization's [server access policy](../reference/enterprise-policy.md#server-access-control) first. A blocked server or jump server shows the policy message before korTTY asks you for anything.
 2. A shared [teamwork](teamwork.md) connection that names neither a credential nor an SSH key uses the team's default authentication.
 3. A connection with a temporary SSH key reuses that key while it is still valid and asks for a new one once it has expired. It also asks for a new one while the vault is locked and korTTY could not decrypt the key it stored, rather than trying SSH key authentication without a key.
-4. A local shell and SSH key authentication connect without a password.
+4. A local shell, a serial connection and SSH key authentication connect without a password.
 5. Otherwise korTTY uses the saved password, from the connection's stored credential first and then from the connection itself, and asks for the password when none is saved; **OK** stays greyed out until you type one. When the saved password is in the locked vault, korTTY first offers **Unlock Vault…** (see [Unlocking the vault later](security.md#unlocking-the-vault-later)); if you do not unlock it, korTTY asks you to type the password instead.
 
 Cancelling any of these questions opens no tab. **Duplicate** in a terminal tab's context menu signs in the same way, so it also asks for a new temporary SSH key when the tab's key has expired. A saved or teamwork connection chosen in the [command palette](command-palette.md#connecting) (++ctrl+shift+p++, ++cmd+shift+p++ on macOS, then `@` and part of its name) signs in the same way, and so does a connection chosen in [*File → Open Recent*](projects.md#open-recent). **Reopen Closed Tab** and *File → Recently Closed* sign in the same way too, with the saved connection as it is now (see [Working with tabs](terminal.md#working-with-tabs)). Opening a [project](projects.md#tabs-that-wait-for-you) signs in to every tab in the same order but asks nothing on its own: a tab that needs a password, a new temporary SSH key or the locked vault waits in a bar with **Connect…** and **Unlock Vault…**, and a blocked server or a deleted connection is listed there instead of showing a dialog.
@@ -85,7 +85,7 @@ The connection editor has these tabs:
 
 | Tab | Contents |
 | --- | --- |
-| Connection | Host, port, username, protocol (SSH over TCP/IP, Mosh (mosh4j), Mosh Client (native) or Local Shell), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment an optional free-text [tag](#tags) and the [OS symbol](#os-symbols), **Connection timeout** (1–300 seconds) and **Retries** (1–20 attempts, used while **Enable connection retries** is on in *Settings → Terminal*). For **Local Shell** connections host, port, username and authentication are not required and are disabled. See [Character encoding](#character-encoding). |
+| Connection | Host, port, username, protocol (SSH over TCP/IP, Mosh (mosh4j), Mosh Client (native), Local Shell or Serial), terminal emulation, **Character encoding** (use default / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), authentication (password / key / keyboard-interactive), **Host key verification** (use default / verify / don't verify), group/folder assignment an optional free-text [tag](#tags) and the [OS symbol](#os-symbols), **Connection timeout** (1–300 seconds) and **Retries** (1–20 attempts, used while **Enable connection retries** is on in *Settings → Terminal*). For **Local Shell** and **Serial** connections host, port, username and authentication are not required and are disabled; a serial connection has its own rows for the port and line settings (see [Serial connections](serial.md#settings)). See [Character encoding](#character-encoding). |
 | Terminal Settings | **Use the global terminal settings** or **Own settings for this connection** with per-connection colors, font and ANSI/TrueColor handling (see [Own terminal settings](#own-terminal-settings)), the **Terminal behavior** section with the [tab color](#tab-color), the [keyword highlighting](#keyword-highlighting) rule set and the [paste protection](#paste-protection), and below the paste protection the **Session isolation** rows with the [isolation level, strict terminal mode and incognito switch](session-isolation.md), terminal effect |
 | SSH Tunnels | Local / remote / dynamic port forwarding |
 | Jump Server | Bastion-host chaining |
@@ -164,6 +164,9 @@ A **tab color** marks every terminal tab of a connection with a small colored do
 
 === "Local Shell"
     Opens the **local machine's** shell in a terminal tab (no network) via a pty4j-backed pseudo-terminal. Host, port, username and authentication are not required. See [Local Shell](#local-shell) below.
+
+=== "Serial"
+    Opens a terminal on a **serial port** of this computer (COM port, `/dev/ttyUSB0`, a USB-to-serial adapter), with speed, data format, flow control and what ++enter++ sends set per connection. Host, port, username and authentication are not used. See [Serial connections](serial.md).
 
 ## SSH host-key verification
 

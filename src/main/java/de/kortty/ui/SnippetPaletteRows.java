@@ -76,7 +76,7 @@ final class SnippetPaletteRows {
     static String targetName(TerminalTab tab, SithTermFxWidget pane) {
         ServerConnection paneConnection = pane != null ? tab.getTerminalView().connectionOfPane(pane) : null;
         ServerConnection connection = paneConnection != null ? paneConnection : tab.getConnection();
-        String host = connection == null || connection.isLocalShell() ? null : connection.getHost();
+        String host = connection == null || !connection.isNetworkConnection() ? null : connection.getHost();
         String username = connection == null ? null : connection.getUsername();
         return SnippetPaletteSource.targetName(tab.getEffectiveTitle(), username, host, tab.getConnectionTitle());
     }

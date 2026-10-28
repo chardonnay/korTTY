@@ -43,7 +43,7 @@ final class TabPaletteRows {
         if (tab instanceof TerminalTab terminalTab) {
             String title = terminalTab.getEffectiveTitle();
             ServerConnection connection = terminalTab.getConnection();
-            String host = connection == null || connection.isLocalShell() ? null : connection.getHost();
+            String host = connection == null || !connection.isNetworkConnection() ? null : connection.getHost();
             String username = connection == null ? null : connection.getUsername();
             return new TabPaletteSource.TabRow(tabId(tab), title,
                 TabPaletteSource.connectionDetail(title, username, host, terminalTab.getConnectionTitle(),

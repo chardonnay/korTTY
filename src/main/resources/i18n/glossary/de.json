@@ -4,6 +4,30 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "Serienport-Verbindungen",
+      "to": "Verbindungen über serielle Schnittstellen",
+      "scope": "markdown",
+      "note": "The translator coins 'Serienport' for serial port; the UI says 'serielle Schnittstelle' (connEdit.serial.port)."
+    },
+    {
+      "from": "**Serielle Schnittstelle** und **Zeile** im Inspektor",
+      "to": "**Serielle Schnittstelle** und **Leitung** im Inspektor",
+      "scope": "markdown",
+      "note": "Uses the connectionManager.inspector.serialLine UI label."
+    },
+    {
+      "from": "Port- und Zeileneinstellungen",
+      "to": "Port- und Leitungseinstellungen",
+      "scope": "markdown",
+      "note": "A serial connection's line settings, as in the connEdit.serial.options label."
+    },
+    {
+      "from": "*Sie können den seriellen Port … nicht öffnen.*",
+      "to": "*Sie dürfen die serielle Schnittstelle … nicht öffnen.*",
+      "scope": "markdown",
+      "note": "Quotes the serial.error.permissionDenied message."
+    },
+    {
       "from": "*Ansehen → KI-Agent-Panel",
       "to": "*Ansicht → KI-Agent-Panel",
       "scope": "markdown",
