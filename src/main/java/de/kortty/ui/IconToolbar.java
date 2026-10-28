@@ -135,6 +135,11 @@ final class IconToolbar extends VBox {
         search.requestFocus();
     }
 
+    private void beginEditingConnections() {
+        beginEditing();
+        categories.getSelectionModel().select(2);
+    }
+
     private void updateEditorVisibility() {
         editorPane.setVisible(editor != null);
         editorPane.setManaged(editor != null);
@@ -169,10 +174,16 @@ final class IconToolbar extends VBox {
         }
         if (!actions.getChildren().isEmpty() && (settings.isVisible() || editor != null)) rows.getChildren().add(actions);
         List<Entry> connections = entries.stream().filter(entry -> entry.section() == Section.CONNECTIONS).toList();
-        if ((!connections.isEmpty() && settings.isConnectionsVisible()) || editor != null) {
+        if (settings.isConnectionsVisible() || editor != null) {
             Label label = new Label(sectionLabel(Section.CONNECTIONS));
             label.getStyleClass().add("toolbar-heading");
             ToolBar bar = sectionBar(Section.CONNECTIONS, connections);
+            // A switched-on but empty row would otherwise vanish, so the menu toggle seemed to do nothing.
+            if (connections.isEmpty() && editor == null) {
+                Button add = new Button(I18n.get("toolbar.addConnection"), ToolbarIcons.create("add", contourColor, iconSize));
+                add.setOnAction(event -> beginEditingConnections());
+                bar.getItems().add(add);
+            }
             HBox row = new HBox(12, label, bar);
             row.setAlignment(Pos.CENTER_LEFT);
             HBox.setHgrow(bar, Priority.ALWAYS);
