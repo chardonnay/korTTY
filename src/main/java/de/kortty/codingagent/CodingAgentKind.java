@@ -73,6 +73,14 @@ public enum CodingAgentKind {
      * rule, so it is never reported.
      */
     ANTIGRAVITY("Antigravity CLI", "antigravity", Set.of("agy", "antigravity")),
+    /**
+     * Cline's CLI (npm {@code cline}), a node launcher ({@code node <prefix>/bin/cline}) that waits for the
+     * native binary it spawns: the copy its postinstall caches as {@code bin/.cline}, otherwise
+     * {@code @cline/cli-<os>-<arch>/bin/cline}. The launcher's script names the agent for as long as the
+     * session runs. Its hub daemon ({@code .cline --cline-hub-daemon}) detaches from the shell, so it is never
+     * found below one.
+     */
+    CLINE("Cline", "cline", Set.of("cline")),
     UNKNOWN("Unknown", null, Set.of());
 
     private final String displayName;

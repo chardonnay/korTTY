@@ -417,6 +417,31 @@
    "env": {
     "HOME": "{home}"
    }
+  },
+  {
+   "kind": "CLINE",
+   "id": "cline",
+   "bin": "cline",
+   "version_cmd": [
+    "cline",
+    "--version"
+   ],
+   "verified_version": "3.0.74",
+   "mode": "live",
+   "files": {
+    ".cline/data/settings/providers.json": "{\"version\":1,\"lastUsedProvider\":\"openai-compatible\",\"modes\":{},\"providers\":{\"openai-compatible\":{\"settings\":{\"provider\":\"openai-compatible\",\"apiKey\":\"lm-studio\",\"model\":\"{model}\",\"baseUrl\":\"{base_url}\"},\"updatedAt\":\"2026-10-28T00:00:00.000Z\",\"tokenSource\":\"manual\"}}}\n",
+    ".cline/data/settings/global-settings.json": "{\"autoUpdateEnabled\":false,\"telemetryOptOut\":true,\"toolAutoApprove\":false}\n",
+    ".cline/data/settings/cli-notices.json": "{\"shown\":{\"cline-cli-cline-pass-intro\":true,\"cline-cli-desktop-launch\":true}}\n"
+   },
+   "env": {
+    "HOME": "{home}"
+   },
+   "args": [],
+   "cleanup_pkill": "cline-hub-daemon",
+   "prompt": "Use your bash tool to run exactly: curl -sI https://example.com",
+   "deny_keys": [
+    "n"
+   ]
   }
  ]
 }

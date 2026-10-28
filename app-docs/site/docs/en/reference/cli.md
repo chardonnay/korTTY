@@ -119,7 +119,7 @@ Every flag the client accepts is one of the global flags below or belongs to one
 | `mcp` | MCP over stdio | Serves the tools described in [Serving MCP clients](#serving-mcp-clients). |
 | `raw <method> [<json>]` or `raw <method> --stdin` | any | Calls any method. The optional JSON object is its parameters; with `--stdin` the standard input is. |
 
-The `--kind` values of `agent list` and `agent start` are `claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`, `jules`, `copilot`, `grok-build` and `antigravity`. The `--state` values of `agent list` are `blocked`, `working`, `done`, `idle` and `unknown`.
+The `--kind` values of `agent list` and `agent start` are `claude-code`, `codex`, `gemini-cli`, `minimax-code`, `qwen-code`, `opencode`, `cursor-agent`, `aider`, `amp`, `goose`, `crush`, `kiro`, `continue`, `grok`, `jules`, `copilot`, `grok-build`, `antigravity` and `cline`. The `--state` values of `agent list` are `blocked`, `working`, `done`, `idle` and `unknown`.
 
 `tab close` and `tab rename` are listed by the API as reserved; `kortty-cli` refuses them itself, so they never reach korTTY.
 

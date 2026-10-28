@@ -353,6 +353,21 @@ class LocalProcessInspectorTest {
     }
 
     @Test
+    void classifyRecognisesCline() {
+        // npm's cline package: the node launcher waits for the native binary it spawns.
+        assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of("/opt/homebrew/bin/cline"), null))
+            .hasValue(CodingAgentKind.CLINE);
+        // Without the postinstall cache the launcher spawns the platform package's binary.
+        assertThat(LocalProcessInspector.classify(
+            "/opt/homebrew/lib/node_modules/cline/node_modules/@cline/cli-darwin-arm64/bin/cline", List.of(), null))
+            .hasValue(CodingAgentKind.CLINE);
+        // npm's Windows shim runs node on the package's bin/cline script.
+        assertThat(LocalProcessInspector.classify("C:\\Program Files\\nodejs\\node.exe",
+            List.of("C:\\Users\\dev\\AppData\\Roaming\\npm\\node_modules\\cline\\bin\\cline"), null))
+            .hasValue(CodingAgentKind.CLINE);
+    }
+
+    @Test
     void classifyFallsBackToTheProcessTitleWhenAScriptHostReportsNoScript() {
         // MiniMax Code sets process.title = "minimax-code"; on macOS ProcessHandle then reports only node.
         assertThat(LocalProcessInspector.classify("/opt/homebrew/bin/node", List.of(), null,
