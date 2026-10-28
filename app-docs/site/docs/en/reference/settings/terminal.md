@@ -13,6 +13,8 @@ Configure terminal display and behavior settings, including dimensions, scrollba
 | Columns: | number | 40–500 | 80 | `terminalColumns` |
 | Rows: | number | 10–200 | 24 | `terminalRows` |
 | Scrollback: | number | 100–100,000 | 10,000 | `scrollbackLines` |
+| Scrollback memory: | slider | 1–50 MB | 10 MB | `scrollbackMemoryMb` |
+| Compress the scrollback in the background while idle | toggle | — | On | `scrollbackCompression` |
 | Encoding: | dropdown | UTF-8, ISO-8859-1, ISO-8859-15, Windows-1252 | UTF-8 | `encoding` |
 | Bold text: | dropdown | Bold font, Bright colors, Bold font and bright colors | Bold font | `boldTextMode` |
 | Show scrollbar in terminal | toggle | — | On | `showTerminalScrollbar` |
@@ -60,7 +62,13 @@ Desktop notification preferences, including coding-agent messages, are on the se
     Sets how text that a program prints in bold is drawn. **Bold font** (the default) draws it in a bold font in its own color. **Bright colors** draws bold text in one of the 8 basic ANSI colors in the matching bright color of the palette instead, in the normal font weight, the way xterm does: bold red becomes bright red. **Bold font and bright colors** does both. Only the 8 basic colors are brightened, including colors 0–7 that a program selects from the 256-color table; the default text color, the bright colors, the other 256 colors and true colors stay as they are. The bright colors come from the palette on the [Colors](colors.md) tab, so a customized palette applies. Inverse bold text gets a bright background, while the selection, search-match and link highlight colors never change. A saved change applies to every open terminal at once, and terminal recordings with [Capture terminal colors in recordings](video.md) use the same colors as the screen. Settings files from before this option load as **Bold font**; the earlier **Bold as bright color** switch affected recordings only and is no longer used.
 
 !!! note "Scrollback"
-    Controls how many lines of output each terminal pane keeps in its scrollback buffer. The value is read when a terminal is created, so a change applies to newly opened tabs and split panes — already-open terminals keep their current buffer size. Larger values use more memory per pane.
+    **Scrollback** sets how many lines of output each terminal pane keeps in its scrollback buffer. The value is read when a terminal is created, so a change applies to newly opened tabs and split panes — already-open terminals keep their current line count.
+
+    **Scrollback memory** sets the most memory the scrollback of one pane may use, from 1 to 50 MB. Whichever limit a pane reaches first, the line count or the memory, drops its oldest lines. The memory is an estimate of what the lines take up in korTTY's Java heap. A saved change also applies to open terminals: lowering the limit drops the oldest lines of every open pane at once.
+
+    With **Compress the scrollback in the background while idle**, korTTY packs the scrollback lines that are not on screen into compressed blocks once a terminal has had no output for about one and a half seconds. It works in the background, a few milliseconds at a time, so the same memory holds several times as many lines: in our measurements, 100,000 lines of `ls -l` or log output took 7 to 9 MB instead of 59 to 67 MB. The lines on screen, a screenful around them and the newest screenful of the scrollback stay unpacked, and nothing is packed while the find bar shows results. A packed line is unpacked as soon as you scroll to it or search the scrollback. When the scrollback of a terminal reaches its memory limit, older lines are packed first and only then dropped. A saved change also applies to open terminals; switching compression off leaves packed lines packed until they are shown.
+
+    Settings files from before these two options load with 10 MB and compression on.
 
 !!! note "Copy selection to clipboard automatically"
     When enabled, text you select in a terminal is copied to the clipboard as soon as you select it. On Linux it also becomes the X11 primary selection, so a middle-click pastes it in other applications such as xterm or gedit. With the enterprise policy's [internal clipboard mode](../enterprise-policy.md#internal-clipboard-mode) the selection stays inside korTTY on every platform.

@@ -19,6 +19,11 @@ public class ConnectionSettings {
     /** The bold text mode a fresh settings object carries: a bold font in the text's own colour. */
     public static final String DEFAULT_BOLD_TEXT_MODE = "BOLD_FONT";
 
+    /** Range and default of {@link #getScrollbackMemoryMb()}, in MB. */
+    public static final int MIN_SCROLLBACK_MEMORY_MB = 1;
+    public static final int MAX_SCROLLBACK_MEMORY_MB = 50;
+    public static final int DEFAULT_SCROLLBACK_MEMORY_MB = 10;
+
     @XmlElement
     private boolean useGlobalSettings = true;
     
@@ -54,6 +59,22 @@ public class ConnectionSettings {
     
     @XmlElement
     private int scrollbackLines = 10000;
+
+    /**
+     * The most memory, in MB, the scrollback of one terminal pane may hold, besides
+     * {@link #scrollbackLines}: whichever limit is reached first drops the oldest lines. Files from
+     * before this setting load the default; a value outside 1 to 50 is clamped when read.
+     */
+    @XmlElement
+    private int scrollbackMemoryMb = DEFAULT_SCROLLBACK_MEMORY_MB;
+
+    /**
+     * Whether scrollback lines that are not on screen are compressed in the background while the
+     * terminal is idle, so the same memory holds several times more lines. On for files from before
+     * this setting.
+     */
+    @XmlElement
+    private boolean scrollbackCompression = true;
     
     /**
      * How the terminal draws bold text: the name of a {@code com.sithtermfx.ui.settings.BoldTextMode}
@@ -147,6 +168,8 @@ public class ConnectionSettings {
         this.terminalColumns = other.terminalColumns;
         this.terminalRows = other.terminalRows;
         this.scrollbackLines = other.scrollbackLines;
+        this.scrollbackMemoryMb = other.scrollbackMemoryMb;
+        this.scrollbackCompression = other.scrollbackCompression;
         this.boldTextMode = other.boldTextMode;
         this.terminalColorsEnabled = other.terminalColorsEnabled;
         this.encoding = other.encoding;
@@ -287,6 +310,35 @@ public class ConnectionSettings {
     
     public void setScrollbackLines(int scrollbackLines) {
         this.scrollbackLines = scrollbackLines;
+    }
+
+    /** The scrollback memory limit in MB, clamped to 1 to 50; 0 or less (a corrupt file) reads as the default. */
+    public int getScrollbackMemoryMb() {
+        return clampScrollbackMemoryMb(scrollbackMemoryMb);
+    }
+
+    public void setScrollbackMemoryMb(int scrollbackMemoryMb) {
+        this.scrollbackMemoryMb = clampScrollbackMemoryMb(scrollbackMemoryMb);
+    }
+
+    public static int clampScrollbackMemoryMb(int mb) {
+        if (mb <= 0) {
+            return DEFAULT_SCROLLBACK_MEMORY_MB;
+        }
+        return Math.max(MIN_SCROLLBACK_MEMORY_MB, Math.min(MAX_SCROLLBACK_MEMORY_MB, mb));
+    }
+
+    /** {@link #getScrollbackMemoryMb()} in bytes, as the terminal's history limit. */
+    public long getScrollbackMemoryBytes() {
+        return getScrollbackMemoryMb() * 1024L * 1024L;
+    }
+
+    public boolean isScrollbackCompression() {
+        return scrollbackCompression;
+    }
+
+    public void setScrollbackCompression(boolean scrollbackCompression) {
+        this.scrollbackCompression = scrollbackCompression;
     }
     
     /** The stored bold text mode name as it is; see {@code TerminalPaletteSupport.boldTextMode} for the parsed mode. */

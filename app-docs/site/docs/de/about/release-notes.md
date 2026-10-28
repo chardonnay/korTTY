@@ -40,6 +40,11 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 - **"Modell-Standard" statt "Deaktiviert"** — die Einstellung, die keinen Reasoning-Parameter sendet, heißt nun **Modell-Standard**, da dann der Standardwert des Modells gilt; nur **Keine** schaltet das Reasoning aus. Ein Tooltip im Dropdown-Menü erläutert den Unterschied. Siehe [Reasoning-Stufen](../reference/settings/ai.md#einstellungen-fur-das-denkverhalten).
 - **Verbindungstest akzeptiert reine Reasoning-Antworten** — **KI-Verbindung testen** und **Reasoning-Optionen aktualisieren** werden nun bestanden, wenn ein Modell, das standardmäßig mit Reasoning arbeitet, wie Qwen in LM Studio, die kurze Testantwort für das Reasoning nutzt, und ein fehlgeschlagener Aktualisierungsvorgang den Grund des Endpunkts selbst angibt.
 
+### Terminal
+
+- **Scrollback-Speicherlimit** — der neue **Scrollback-Speicher**-Regler in den Terminal-Einstellungen legt fest, wie viel Speicher der Scrollback eines einzelnen Fensters maximal verwenden darf, von 1 bis 50 MB (Standard: 10 MB), neben der Zeilenanzahl; welches Limit zuerst erreicht wird, entfernt die ältesten Zeilen. Eine gespeicherte Änderung wird sofort auf offene Terminals angewendet. Siehe [Terminal-Einstellungen](../reference/settings/terminal.md).
+- **Scrollback-Komprimierung** — während ein Terminal keine Ausgabe hat, komprimiert korTTY die Scrollback-Zeilen, die nicht auf dem Bildschirm sind, im Hintergrund, damit derselbe Speicher mehrere Male so viele Zeilen fasst. Eine Zeile wird entpackt, sobald Sie dazu scrollen. Deaktivieren Sie es über **Scrollback im Leerlauf im Hintergrund komprimieren**. Siehe [Terminal-Einstellungen](../reference/settings/terminal.md).
+
 ### Korrekturen
 
 - **Verworfene Sitzungen bleiben verworfen** — das absichtliche Schließen des letzten Tabs leert nun den Sitzungsschnappschuss, sodass die Wiederherstellungsaufforderung nach dem Verwerfen nicht mehr bei jedem Start wieder erscheint.
