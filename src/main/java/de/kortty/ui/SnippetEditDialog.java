@@ -2385,6 +2385,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
 
         if (getDialogPane().getScene() != null) {
             alert.initOwner(getDialogPane().getScene().getWindow());
+            alert.initModality(Modality.WINDOW_MODAL);
         }
         if (externalFileActionConfig == null) {
             alert.getDialogPane().lookupButton(saveButtonType).setDisable(!isSnippetFormValid());
@@ -4095,6 +4096,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     private void promptForCustomCodeLanguage() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.initOwner(getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null);
+        dialog.initModality(Modality.WINDOW_MODAL);
         dialog.setTitle(I18n.get("snippets.codeLanguage.add.title"));
         dialog.setHeaderText(null);
         dialog.setContentText(I18n.get("snippets.codeLanguage.add.prompt"));
@@ -4255,6 +4257,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
     private void initAlertOwner(Alert alert) {
         if (alert != null && getDialogPane().getScene() != null) {
             alert.initOwner(getDialogPane().getScene().getWindow());
+            alert.initModality(Modality.WINDOW_MODAL);
         }
     }
 
@@ -5342,6 +5345,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         }
         if (getDialogPane().getScene() != null) {
             dialog.initOwner(getDialogPane().getScene().getWindow());
+            dialog.initModality(Modality.WINDOW_MODAL);
         }
         DialogPane pane = dialog.getDialogPane();
         pane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -5574,6 +5578,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         dialog.setResizable(true);
         if (getDialogPane().getScene() != null) {
             dialog.initOwner(getDialogPane().getScene().getWindow());
+            dialog.initModality(Modality.WINDOW_MODAL);
         }
         DialogPane pane = dialog.getDialogPane();
         pane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
@@ -5825,6 +5830,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         DialogGeometrySupport.installAutomatic(dialog, "snippets.codeAssistantInstruction");
         if (getDialogPane().getScene() != null) {
             dialog.initOwner(getDialogPane().getScene().getWindow());
+            dialog.initModality(Modality.WINDOW_MODAL);
         }
 
         TextArea instructionArea = new TextArea();
@@ -6590,6 +6596,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         dialog.setTitle(I18n.get("snippets.ai.translate.dialog.title"));
         if (getDialogPane().getScene() != null) {
             dialog.initOwner(getDialogPane().getScene().getWindow());
+            dialog.initModality(Modality.WINDOW_MODAL);
         }
         ComboBox<AiLanguageSupport.LanguageOption> comboBox = new ComboBox<>();
         comboBox.setId("snippet-ai-translate-language");
@@ -7665,6 +7672,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
             ? formatterInfo.unavailableReason()
             : I18n.get("editor.format.installHint", formatterInfo.installHint()));
         alert.initOwner(resolveAlertOwner());
+        alert.initModality(Modality.WINDOW_MODAL);
         alert.showAndWait();
         setStatus(I18n.get("editor.format.unavailable", formatterInfo.displayName()));
     }
@@ -7761,6 +7769,7 @@ public class SnippetEditDialog extends ThemeAwareDialog<Snippet> implements Host
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.initOwner(resolveAlertOwner());
+        alert.initModality(Modality.WINDOW_MODAL);
         alert.showAndWait();
     }
 

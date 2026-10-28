@@ -79,6 +79,7 @@ Für jede einzelne Einstellung siehe die [Settings-Referenz ](settings/index.md)
 | Artikel | Beschreibung |
 | --- | --- |
 | Snippet-Manager… | Erstellen, bearbeiten, organisieren, senden und exportieren Sie Befehls-Snippets in einem Arbeitsbereich: die Bibliothek und die Snippets, die Sie als Tabs bearbeiten, jeweils mit ihrer gespeicherten Vollständigen Code-Analyse (++ctrl+shift+s++) |
+| Neues Snippet-Manager-Fenster | Öffnet einen weiteren Snippet-Manager als eigenes Fenster, ebenfalls im Tab-Modus, um beispielsweise eine Vollständige Code-Analyse auf einem zweiten Bildschirm anzuzeigen, während die Terminals weiterhin nutzbar bleiben |
 | JobScheduler… | Planen Sie Hintergrundbefehle / Snippets / KI-Agenten / KI-Swarm / SFTP / Rsync-Jobs (++ctrl+shift+j++) |
 | Videoverwaltung… | Verwalten Sie Terminalaufzeichnungen und exportieren Sie sie als WebM/MKV über `ffmpeg` (++ctrl+shift+v++) |
 | Terminalaufzeichnung starten/stoppen | Aufzeichnung des aktiven Terminals umschalten (++ctrl+shift+e++) |

@@ -522,7 +522,51 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
         closeAll.setOnAction(e -> closeTabs(null));
         MenuItem reveal = new MenuItem(I18n.get("snippets.workspace.tab.revealInList"));
         reveal.setOnAction(e -> library.selectWithoutPreview(tab.snippetId()));
-        return new ContextMenu(close, closeOthers, closeAll, new SeparatorMenuItem(), reveal);
+        MenuItem moveToWindow = new MenuItem(I18n.get("snippets.workspace.tab.moveToNewWindow"));
+        moveToWindow.setOnAction(e -> moveEditorToNewWindow(tab));
+        ContextMenu menu = new ContextMenu(close, closeOthers, closeAll, new SeparatorMenuItem(), reveal, moveToWindow);
+        // A snippet that was never saved has no id to reopen it by in the other window.
+        menu.setOnShowing(e -> moveToWindow.setDisable(ownerWindow == null || tab.snippetId() == null));
+        return menu;
+    }
+
+    private ContextMenu buildProjectTabContextMenu(SnippetProjectAnalysisTab tab) {
+        MenuItem moveToWindow = new MenuItem(I18n.get("snippets.workspace.tab.moveToNewWindow"));
+        moveToWindow.setOnAction(e -> moveFolderAnalysisToNewWindow(tab));
+        ContextMenu menu = new ContextMenu(moveToWindow);
+        // A running analysis would be cancelled by the move: it stays where it runs.
+        menu.setOnShowing(e -> moveToWindow.setDisable(ownerWindow == null || tab.isRunning()));
+        return menu;
+    }
+
+    /**
+     * Reopens a snippet editor in a new Snippet Manager window, e.g. to keep its Full code analysis
+     * on a second screen. The editor closes here first through its own guard (unsaved changes,
+     * running AI work); nothing moves when the user cancels that.
+     */
+    private void moveEditorToNewWindow(SnippetEditorTab tab) {
+        String snippetId = tab.snippetId();
+        if (ownerWindow == null || snippetId == null || !tab.requestClose()) {
+            return;
+        }
+        SnippetWorkspaceDialog target = ownerWindow.openSnippetWorkspaceWindow();
+        if (target != null) {
+            target.openSnippetById(snippetId, true);
+        }
+    }
+
+    /** Reopens a folder's project analysis in a new Snippet Manager window (its report is stored). */
+    private void moveFolderAnalysisToNewWindow(SnippetProjectAnalysisTab tab) {
+        if (ownerWindow == null || tab.isRunning()) {
+            return;
+        }
+        String folderId = tab.folderId();
+        tab.dispose();
+        editorTabPane.getTabs().remove(tab);
+        SnippetWorkspaceDialog target = ownerWindow.openSnippetWorkspaceWindow();
+        if (target != null) {
+            target.openFolderAnalysis(folderId);
+        }
     }
 
     /** Closes every inner tab except {@code keep}, asking per editor; stops at the first Cancel. */
@@ -579,6 +623,7 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
                 library.refresh(false);
                 library.refreshCategoryFilter();
             });
+        tab.setContextMenu(buildProjectTabContextMenu(tab));
         editorTabPane.getTabs().add(tab);
         editorTabPane.getSelectionModel().select(tab);
     }
@@ -1281,13 +1326,13 @@ public final class SnippetWorkspaceDialog extends ThemeAwareDialog<Void> impleme
     }
 
     /** The window currently showing the workspace: its own stage, or the main window hosting its tab. */
-    private Window hostWindow() {
+    Window hostWindow() {
         return getDialogPane().getScene() != null ? getDialogPane().getScene().getWindow() : null;
     }
 
     /**
      * The main window the workspace belongs to right now: the one hosting its tab (tabs can be
-     * dragged between windows), the owner of its own window, or the one it was opened from.
+     * dragged between windows), or the one it was opened from (its own window has no owner).
      */
     private MainWindow resolveMainWindow() {
         Window window = hostWindow();

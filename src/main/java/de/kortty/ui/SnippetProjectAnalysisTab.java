@@ -232,6 +232,7 @@ final class SnippetProjectAnalysisTab extends Tab {
         hint.setWrapText(true);
         ThemeAwareDialog<ButtonType> dialog = new ThemeAwareDialog<>();
         dialog.initOwner(owner.get());
+        dialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
         dialog.setTitle(I18n.get("snippets.project.files"));
         dialog.getDialogPane().setContent(new VBox(8, hint, list));
         dialog.getDialogPane().getButtonTypes().setAll(ButtonType.OK, ButtonType.CANCEL);
@@ -664,11 +665,17 @@ final class SnippetProjectAnalysisTab extends Tab {
             Alert alert = new Alert(Alert.AlertType.ERROR, I18n.get("snippets.workspace.saveFailed",
                 e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()), ButtonType.OK);
             alert.initOwner(owner.get());
+            alert.initModality(javafx.stage.Modality.WINDOW_MODAL);
             alert.setHeaderText(null);
             alert.showAndWait();
         }
         refreshHeader();
         onSnippetsChanged.run();
+    }
+
+    /** An analysis, diagram or apply run of this tab is in progress. */
+    boolean isRunning() {
+        return running != null;
     }
 
     void dispose() {

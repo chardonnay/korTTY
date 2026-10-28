@@ -56,6 +56,7 @@ final class SnippetModularizationRunner {
         content.setPadding(new Insets(14));
         ThemeAwareDialog<Void> dialog = new ThemeAwareDialog<>();
         dialog.initOwner(owner);
+        dialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
         dialog.setTitle(I18n.get("snippets.modularize.title"));
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().setAll(ButtonType.CANCEL);
@@ -132,6 +133,7 @@ final class SnippetModularizationRunner {
                 I18n.get("snippets.modularize.failed", failure != null && failure.getMessage() != null
                     ? failure.getMessage() : String.valueOf(failure)), ButtonType.OK);
             alert.initOwner(owner);
+            alert.initModality(javafx.stage.Modality.WINDOW_MODAL);
             alert.setHeaderText(null);
             alert.showAndWait();
         });
