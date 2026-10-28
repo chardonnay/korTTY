@@ -1,0 +1,42 @@
+#! expect state=IDLE rule=idle-prompt
+#! alt=true
+
+ ❯ Use your bash tool to run exactly: curl -sI https://example.com
+
+ * run_commands(curl -sI https://example.com)
+   ⎿ HTTP/2 200
+
+      ... 10 more lines
+
+ * I've run the curl command to check the headers of https://example.com. The response shows:
+
+   - HTTP/2 200 status code (successful response)
+   - Date: Wed, 28 Oct 2026 13:27:48 GMT
+   - Content-Type: text/html; charset=utf-8
+   - Server: cloudflare (indicating the site is using Cloudflare CDN)
+   - Last-Modified: Sat, 24 Oct 2026 20:05:47 GMT
+   - Allow: GET, HEAD (allowed HTTP methods)
+   - Accept-Ranges: bytes
+   - Age: 4 (cached for 4 seconds)
+   - CF-Cache-Status: HIT (cache hit on Cloudflare)
+   - CF-Ray: a51a47aefa6adc74-FRA (Cloudflare ray ID for this request)
+
+   The server is responding with a 200 OK status, indicating the website is accessible and functioning properly. The
+   response also shows that Cloudflare's CDN is being used to serve the content, and it's cached with a 4-second age.
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ Ask anything...
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ qwen3-coder-30b (6,124) $0.00                                                                       ○ Plan ● Act (Tab)
+ clwork
+ ⏵⏵ Auto-approve all enabled (Shift+Tab)

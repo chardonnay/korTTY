@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=working
+#! alt=true
+
+ ❯ Use your bash tool to run exactly: curl -sI https://example.com
+
+ * run_commands(curl -sI https://example.com)
+   ⎿ HTTP/2 200
+
+      ... 10 more lines
+
+ ⠋ I've run the curl command to check the headers of https://example.com. The response shows:
+
+   - HTTP/2 200 status code (successful response)
+   - Date: Wed, 28 Oct 2026 13:27:48 GMT
+   - Content-Type: text/html; charset
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ Ask anything...
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ qwen3-coder-30b (5,907) $0.00                                                                       ○ Plan ● Act (Tab)
+ clwork
+ ⏵⏵ Auto-approve all enabled (Shift+Tab)

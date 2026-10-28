@@ -1,0 +1,55 @@
+{
+  "kind": "CLINE",
+  "version": 1,
+  "comment": "Written against Cline CLI 3.0.74 (npm cline; full-screen TUI on the alternate screen) from live sessions recorded in a pty against an OpenAI-compatible LM Studio provider, the welcome screen from an unconfigured one; must be re-verified when Cline changes its TUI. The provider choice ('Welcome to Cline', 'Connect a model provider to get started.', 'Sign in with Cline' … 'Bring your own provider'), the device-code sign-in that follows ('Signing in with Cline', 'Visit this URL and enter the code above:', '⠋ Waiting for sign-in...'), the tool approval ('Cline needs permission', 'Approve tool call?', the tool and its input, '[y] Approve   [n] Deny') and the ask_question tool ('Cline is asking a question', the question, 2-5 options, 'Type a response...') are BLOCKED; n denies, Esc dismisses the question. The Braille spinner in front of the running turn's line ('⠋ Thinking... (esc to cancel)', '⠙ run_commands(…)', '⠸ <streamed answer>') is WORKING; a finished line starts with '*' instead. The spinner sits at the top of the answer being streamed, so a reply taller than the screen scrolls it away: the screen then equals the idle one, which korTTY cannot tell apart. The footer '○ Plan ● Act (Tab)' (also '● Plan ○ Act') is IDLE. The ClinePass offer on start ('Press Enter to open, any other key to close') intentionally matches no rule. Cline keeps the auto-approve toggle (Shift+Tab, 'Auto-approve all enabled') across runs and starts with it on, so a run may never show the approval.",
+  "fallbackState": "IDLE",
+  "rules": [
+    {
+      "id": "login-prompt",
+      "state": "BLOCKED",
+      "priority": 1000,
+      "region": { "bottomNonEmptyLines": 24 },
+      "anyLineRegex": ["^\\s*Connect a model provider to get started\\.\\s*$"],
+      "regex": "\\bBring your own provider\\b"
+    },
+    {
+      "id": "sign-in-wait",
+      "state": "BLOCKED",
+      "priority": 995,
+      "region": { "bottomNonEmptyLines": 12 },
+      "anyLineRegex": ["^\\s*[⠁-⣿]?\\s*Waiting for sign-in\\.\\.\\.\\s*$"],
+      "regex": "Visit this URL and enter the code above:"
+    },
+    {
+      "id": "approval-prompt",
+      "state": "BLOCKED",
+      "priority": 990,
+      "region": { "bottomNonEmptyLines": 5 },
+      "anyLineRegex": ["^\\s*\\[y\\] Approve\\s+\\[n\\] Deny\\s*$"]
+    },
+    {
+      "id": "question-prompt",
+      "state": "BLOCKED",
+      "priority": 985,
+      "region": { "bottomNonEmptyLines": 16 },
+      "anyLineRegex": ["^\\s*Cline is asking a question\\s*$"]
+    },
+    {
+      "id": "working",
+      "state": "WORKING",
+      "priority": 900,
+      "region": { "bottomNonEmptyLines": 0 },
+      "anyLineRegex": [
+        "^\\s*[⠁-⣿]\\s+\\S",
+        "\\(esc to cancel\\)\\s*$"
+      ]
+    },
+    {
+      "id": "idle-prompt",
+      "state": "IDLE",
+      "priority": 100,
+      "region": { "bottomNonEmptyLines": 3 },
+      "anyLineRegex": ["[○●] Plan [○●] Act \\(Tab\\)\\s*$"]
+    }
+  ]
+}

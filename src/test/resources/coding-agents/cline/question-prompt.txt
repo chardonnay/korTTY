@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=question-prompt
+#! alt=true
+
+ ❯ Use your ask_question tool to ask me whether I prefer tea or coffee, then stop.
+
+ ⠼ ask_question(Do you prefer tea or coffee?)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Cline is asking a question
+
+ Do you prefer tea or coffee?
+
+  > I prefer tea
+    I prefer coffee
+    I don't drink either
+    Type a response...
+
+
+ qwen3-coder-30b (5,909) $0.00                                                                       ○ Plan ● Act (Tab)
+ clwork
+ Auto-approve all disabled (Shift+Tab)

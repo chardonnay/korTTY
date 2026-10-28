@@ -1,0 +1,42 @@
+#! expect state=WORKING rule=working
+#! alt=true
+
+ ❯ Use your bash tool to run exactly: curl -sI https://example.com
+
+ ⠦ Thinking... (esc to cancel)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ Ask anything...
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ qwen3-coder-30b (0) $0.00                                                                           ○ Plan ● Act (Tab)
+ clwork
+ Auto-approve all disabled (Shift+Tab)

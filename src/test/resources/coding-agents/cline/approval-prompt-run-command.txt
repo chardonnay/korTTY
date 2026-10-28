@@ -1,0 +1,42 @@
+#! expect state=BLOCKED rule=approval-prompt
+#! alt=true
+
+ ❯ Use your bash tool to run exactly: curl -sI https://example.com
+
+ * I'll use the bash tool to run the curl command as requested.
+
+ ⠏ run_commands(curl -sI https://example.com)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Cline needs permission
+
+ Approve tool call?
+
+ run_commands
+
+   $ curl -sI https://example.com
+
+  [y] Approve   [n] Deny
+
+
+ qwen3-coder-30b (5,907) $0.00                                                                       ○ Plan ● Act (Tab)
+ clwork
+ Auto-approve all disabled (Shift+Tab)

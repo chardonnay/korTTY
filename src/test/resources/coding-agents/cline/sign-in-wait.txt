@@ -1,0 +1,38 @@
+#! expect state=BLOCKED rule=sign-in-wait
+#! alt=true
+
+
+
+
+
+                                                           @@
+                                                         @@@@@@
+                                                    @@@@@@@@@@@@@@@@
+                                                  @@@@@@@@@@@@@@@@@@@@
+                                                 @@@@@@@@@@@@@@@@@@@@@@
+                                                 @@@@@    @@@@    @@@@@
+                                               @@@@@@     *@@@     @@@@@@
+                                               @@@@@@     *@@@     @@@@@@
+                                                 @@@@@    @@@@.   @@@@@
+                                                 @@@@@@@@@@@@@@@@@@@@@@
+                                                  @@@@@@@@@@@@@@@@@@@@
+                                                    @@@@@@@@@@@@@@@@.
+
+                                                 Signing in with Cline
+
+                          ╭──────────────────────────────────────────────────────────────────╮
+                          │                                                                  │
+                          │                            Your code:                            │
+                          │                                                                  │
+                          │                            XXXX-XXXX                             │
+                          │                                                                  │
+                          │                                                                  │
+                          │             Visit this URL and enter the code above:             │
+                          │                                                                  │
+                          │       https://authkit.cline.bot/device?user_code=XXXX-XXXX       │
+                          │                                                                  │
+                          ╰──────────────────────────────────────────────────────────────────╯
+
+                                                ⠋ Waiting for sign-in...
+
+                                             Esc to cancel, Ctrl+C to exit
