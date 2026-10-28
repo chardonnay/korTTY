@@ -516,6 +516,7 @@ final class SnippetLibraryPane extends BorderPane {
             if (varManager != null) {
                 SnippetVariableManagementDialog varDialog = new SnippetVariableManagementDialog(varManager);
                 varDialog.initOwner(ownerWindow());
+                varDialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
                 varDialog.showAndWait();
             }
         });
@@ -1137,6 +1138,7 @@ final class SnippetLibraryPane extends BorderPane {
             alert.setHeaderText(I18n.get("snippets.diff.unavailable.header"));
             alert.setContentText(I18n.get("snippets.diff.unavailable.content"));
             alert.initOwner(ownerWindow());
+            alert.initModality(javafx.stage.Modality.WINDOW_MODAL);
             alert.showAndWait();
             return;
         }
@@ -1170,6 +1172,7 @@ final class SnippetLibraryPane extends BorderPane {
         confirm.setTitle(I18n.get("snippets.deleteConfirm.title"));
         confirm.setHeaderText(I18n.get("snippets.deleteConfirm.header"));
         confirm.initOwner(ownerWindow());
+        confirm.initModality(javafx.stage.Modality.WINDOW_MODAL);
         
         if (selected.size() == 1) {
             confirm.setContentText(I18n.get("snippets.deleteConfirm.content", selected.getFirst().getName()));
@@ -1418,6 +1421,7 @@ final class SnippetLibraryPane extends BorderPane {
                 )
         );
         dialog.initOwner(ownerWindow());
+        dialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
         dialog.setTitle(I18n.get("snippets.export"));
         dialog.setHeaderText(I18n.get("snippets.export.format.header"));
         dialog.setContentText(I18n.get("snippets.export.format.content"));
@@ -1506,6 +1510,7 @@ final class SnippetLibraryPane extends BorderPane {
         dialog.setTitle(I18n.get("snippets.export.zip.title"));
         dialog.setHeaderText(I18n.get("snippets.export.zip.header"));
         dialog.initOwner(ownerWindow());
+        dialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
 
         ComboBox<SnippetZipScriptFormat> scriptFormatCombo = new ComboBox<>();
         scriptFormatCombo.getItems().addAll(SnippetZipScriptFormat.values());
@@ -1692,6 +1697,7 @@ final class SnippetLibraryPane extends BorderPane {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.initOwner(dialog.getDialogPane().getScene().getWindow());
+        alert.initModality(javafx.stage.Modality.WINDOW_MODAL);
         alert.showAndWait();
     }
 
@@ -1887,6 +1893,7 @@ final class SnippetLibraryPane extends BorderPane {
     private void showManageOperatingSystemsDialog() {
         Dialog<Void> dialog = new ThemeAwareDialog<>();
         dialog.initOwner(ownerWindow());
+        dialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
         dialog.setTitle(I18n.get("snippets.os.manage.title"));
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
 
@@ -1953,6 +1960,7 @@ final class SnippetLibraryPane extends BorderPane {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.initOwner(ownerWindow());
+        alert.initModality(javafx.stage.Modality.WINDOW_MODAL);
         alert.showAndWait();
     }
     
@@ -1962,6 +1970,7 @@ final class SnippetLibraryPane extends BorderPane {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.initOwner(ownerWindow());
+        alert.initModality(javafx.stage.Modality.WINDOW_MODAL);
         alert.showAndWait();
     }
 
@@ -2065,6 +2074,7 @@ final class SnippetLibraryPane extends BorderPane {
                 .orElse(choices.getFirst());
         ChoiceDialog<Choice> dialog = new ChoiceDialog<>(preselected, choices);
         dialog.initOwner(ownerWindow());
+        dialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
         dialog.setTitle(I18n.get("snippets.folder.moveTo"));
         dialog.setHeaderText(null);
         dialog.setContentText(I18n.get("snippets.folder.moveTo.content", selected.size()));
@@ -2139,6 +2149,7 @@ final class SnippetLibraryPane extends BorderPane {
                 List.of(SnippetExportFormat.ZIP, SnippetExportFormat.PLAIN_TEXT, SnippetExportFormat.JSON,
                         SnippetExportFormat.XML, SnippetExportFormat.YAML));
         formatDialog.initOwner(ownerWindow());
+        formatDialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
         formatDialog.setTitle(I18n.get("snippets.folder.export"));
         formatDialog.setHeaderText(I18n.get("snippets.folder.export.header",
                 folderId != null ? snippetManager.folderPath(folderId) : I18n.get("snippets.folder.all")));

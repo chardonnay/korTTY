@@ -335,6 +335,7 @@ final class SnippetFolderTreePane extends VBox {
         confirm.setTitle(I18n.get("snippets.folder.delete"));
         confirm.setHeaderText(null);
         confirm.initOwner(actions.ownerWindow());
+        confirm.initModality(javafx.stage.Modality.WINDOW_MODAL);
         Optional<javafx.scene.control.ButtonType> answer = confirm.showAndWait();
         if (answer.isEmpty() || answer.get() == javafx.scene.control.ButtonType.CANCEL) {
             return;
@@ -345,6 +346,7 @@ final class SnippetFolderTreePane extends VBox {
                 javafx.scene.control.ButtonType.OK, javafx.scene.control.ButtonType.CANCEL);
             sure.setHeaderText(null);
             sure.initOwner(actions.ownerWindow());
+            sure.initModality(javafx.stage.Modality.WINDOW_MODAL);
             if (sure.showAndWait().orElse(javafx.scene.control.ButtonType.CANCEL) != javafx.scene.control.ButtonType.OK) {
                 return;
             }
@@ -365,6 +367,7 @@ final class SnippetFolderTreePane extends VBox {
         dialog.setHeaderText(null);
         dialog.setContentText(I18n.get("snippets.folder.name"));
         dialog.initOwner(actions.ownerWindow());
+        dialog.initModality(javafx.stage.Modality.WINDOW_MODAL);
         return dialog.showAndWait().map(String::trim).filter(value -> !value.isEmpty());
     }
 
@@ -372,6 +375,7 @@ final class SnippetFolderTreePane extends VBox {
         javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR, message);
         alert.setHeaderText(null);
         alert.initOwner(actions.ownerWindow());
+        alert.initModality(javafx.stage.Modality.WINDOW_MODAL);
         alert.showAndWait();
     }
 

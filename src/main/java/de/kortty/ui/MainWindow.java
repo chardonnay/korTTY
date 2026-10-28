@@ -2220,6 +2220,9 @@ public class MainWindow {
         snippetManager.setAccelerator(new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN));
         snippetManager.setOnAction(e -> showSnippetManager());
 
+        MenuItem snippetManagerNewWindow = menuItem("menu.tools.snippets.newWindow");
+        snippetManagerNewWindow.setOnAction(e -> openSnippetWorkspaceWindow());
+
         MenuItem jobScheduler = menuItem("menu.tools.jobScheduler");
         jobScheduler.setAccelerator(JOB_SCHEDULER_ACCELERATOR);
         jobScheduler.setOnAction(e -> showJobScheduler());
@@ -2263,6 +2266,7 @@ public class MainWindow {
 
         toolsMenu.getItems().addAll(
             snippetManager,
+            snippetManagerNewWindow,
             new SeparatorMenuItem(),
             jobScheduler,
             new SeparatorMenuItem(),
@@ -5070,7 +5074,8 @@ public class MainWindow {
             applicationQuitConfirmationInProgress = false;
         }
         // Last: snippet editors no window owns (asked once, after every window agreed).
-        List<Window> windowStages = windowsToClose.stream().map(window -> (Window) window.stage).toList();
+        List<Window> windowStages = windowsToClose.stream()
+            .flatMap(window -> window.snippetEditorOwnerRoots().stream()).toList();
         if (!HostedCloseGuards.confirmEditors(HostedCloseGuards.standaloneEditorsOutside(windowStages))) {
             clearApplicationQuitState();
             return;
@@ -5831,28 +5836,53 @@ public class MainWindow {
         if (!confirmHostedTabsClose()) {
             return false;
         }
-        SnippetWorkspaceDialog workspace = snippetWorkspace;
-        if (workspace != null && workspace.needsCloseConfirmation()) {
-            bringDialogToFront(workspace);
-            if (!workspace.confirmHostedClose()) {
-                return false;
+        for (SnippetWorkspaceDialog workspace : new ArrayList<>(snippetWorkspaces)) {
+            if (workspace.needsCloseConfirmation()) {
+                bringDialogToFront(workspace);
+                if (!workspace.confirmHostedClose()) {
+                    return false;
+                }
             }
         }
         List<SnippetEditorRegistry.OpenEditor> editors = includeUnownedEditors
             ? HostedCloseGuards.standaloneEditorsOutside(List.of())
-            : HostedCloseGuards.standaloneEditorsOwnedBy(stage);
+            : standaloneSnippetEditorsOwnedHere();
         return HostedCloseGuards.confirmEditors(editors);
     }
 
     /** After an approved window close: closes the snippet windows that belong to this window. */
     private void closeSnippetEditorsWithoutPrompt() {
-        SnippetWorkspaceDialog workspace = snippetWorkspace;
-        if (workspace != null) {
-            workspace.closeWithoutPrompt();
-        }
-        for (SnippetEditorRegistry.OpenEditor editor : HostedCloseGuards.standaloneEditorsOwnedBy(stage)) {
+        // The editors first: an editor opened from a workspace window is owned by that window.
+        for (SnippetEditorRegistry.OpenEditor editor : standaloneSnippetEditorsOwnedHere()) {
             editor.closeWithoutPrompt();
         }
+        for (SnippetWorkspaceDialog workspace : new ArrayList<>(snippetWorkspaces)) {
+            workspace.closeWithoutPrompt();
+        }
+    }
+
+    /**
+     * The windows whose standalone snippet editors this main window answers for: its own stage and
+     * its workspace windows (which have no owner, so the owner chain alone misses them).
+     */
+    private List<Window> snippetEditorOwnerRoots() {
+        List<Window> roots = new ArrayList<>();
+        roots.add(stage);
+        for (SnippetWorkspaceDialog workspace : snippetWorkspaces) {
+            Window window = workspace.hostWindow();
+            if (window != null) {
+                roots.add(window);
+            }
+        }
+        return roots;
+    }
+
+    private List<SnippetEditorRegistry.OpenEditor> standaloneSnippetEditorsOwnedHere() {
+        java.util.LinkedHashSet<SnippetEditorRegistry.OpenEditor> editors = new java.util.LinkedHashSet<>();
+        for (Window root : snippetEditorOwnerRoots()) {
+            editors.addAll(HostedCloseGuards.standaloneEditorsOwnedBy(root));
+        }
+        return new ArrayList<>(editors);
     }
 
     private void closeAllTabs() {
@@ -5953,8 +5983,11 @@ public class MainWindow {
     private static boolean guideTranslationUpdatePrompted;
     /** The "your snippets file was moved aside" notice is shown once per run, not once per window. */
     private static boolean snippetLoadFailureNoticeShown;
-    /** This window's snippet workspace while it is open as a window (window mode). */
-    private SnippetWorkspaceDialog snippetWorkspace;
+    /**
+     * This window's snippet workspaces open as windows of their own, the most recently focused
+     * last. They have no owner, so each can sit on another screen or in its own full-screen space.
+     */
+    private final List<SnippetWorkspaceDialog> snippetWorkspaces = new ArrayList<>();
     /** Last selected terminal/file-editor tab still in this window: the snippet insert target. */
     private TerminalTab lastSelectedTerminalTab;
     private FileEditorTab lastSelectedFileEditorTab;
@@ -14010,8 +14043,9 @@ public class MainWindow {
 
     /**
      * Opens the snippet workspace (Snippet Manager) of this window, or brings the open one forward
-     * and focuses its search. One workspace per main window: a tool tab in tab mode, a window
-     * otherwise. An open instance of either kind is reused, even after the tab setting changed.
+     * and focuses its search: a tool tab in tab mode, a window otherwise. An open instance of either
+     * kind is reused (the most recently focused window first), even after the tab setting changed;
+     * {@link #openSnippetWorkspaceWindow()} opens a further one.
      *
      * @param snippetIdOrNull a snippet to open pinned in the workspace, or {@code null}
      */
@@ -14023,7 +14057,7 @@ public class MainWindow {
                 showError(I18n.get("error.title"), "Snippet Manager not initialized");
                 return;
             }
-            SnippetWorkspaceDialog workspace = snippetWorkspace;
+            SnippetWorkspaceDialog workspace = snippetWorkspaces.isEmpty() ? null : snippetWorkspaces.getLast();
             // "tab" or "window": how the workspace is shown (an open one keeps its form).
             String mode;
             if (workspace != null) {
@@ -14040,16 +14074,7 @@ public class MainWindow {
                     hostToolTab(SnippetWorkspaceDialog.TOOL_ID, workspace, null);
                 } else {
                     mode = "window";
-                    SnippetWorkspaceDialog windowed = new SnippetWorkspaceDialog(mgr, this);
-                    windowed.initOwner(stage);
-                    windowed.setOnTornDown(() -> {
-                        if (snippetWorkspace == windowed) {
-                            snippetWorkspace = null;
-                        }
-                    });
-                    snippetWorkspace = windowed;
-                    windowed.show();
-                    workspace = windowed;
+                    workspace = showSnippetWorkspaceWindow(mgr);
                 }
             }
             Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "snippet_manager", "mode", mode));
@@ -14062,6 +14087,68 @@ public class MainWindow {
         } catch (Exception e) {
             logger.error("Failed to open Snippet Manager", e);
             showError(I18n.get("error.title"), e.getMessage());
+        }
+    }
+
+    /**
+     * Opens one more Snippet Manager of this window, always as a window of its own (also in tab
+     * mode), so several can be spread over the screens next to the terminals.
+     *
+     * @return the new workspace, or {@code null} when it could not be opened (the user was told)
+     */
+    SnippetWorkspaceDialog openSnippetWorkspaceWindow() {
+        try {
+            de.kortty.core.SnippetManager mgr = app.getSnippetManager();
+            if (mgr == null) {
+                showError(I18n.get("error.title"), "Snippet Manager not initialized");
+                return null;
+            }
+            SnippetWorkspaceDialog workspace = showSnippetWorkspaceWindow(mgr);
+            Telemetry.track(TelemetryEvents.TOOL_OPENED, Map.of("tool", "snippet_manager", "mode", "window"));
+            showSnippetLoadFailureNoticeOnce(mgr);
+            return workspace;
+        } catch (Exception e) {
+            logger.error("Failed to open a new Snippet Manager window", e);
+            showError(I18n.get("error.title"), e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Shows a new workspace window. Deliberately without an owner: an owned window stays above the
+     * main window, follows it into its full-screen space on macOS and cannot be placed on another
+     * screen on its own. The workspace is non-modal, so the terminals stay usable meanwhile.
+     */
+    private SnippetWorkspaceDialog showSnippetWorkspaceWindow(de.kortty.core.SnippetManager mgr) {
+        SnippetWorkspaceDialog windowed = new SnippetWorkspaceDialog(mgr, this);
+        windowed.setOnTornDown(() -> snippetWorkspaces.remove(windowed));
+        List<Window> others = snippetWorkspaces.stream()
+            .map(SnippetWorkspaceDialog::hostWindow).filter(java.util.Objects::nonNull).toList();
+        snippetWorkspaces.add(windowed);
+        windowed.show();
+        if (windowed.hostWindow() instanceof Stage workspaceStage) {
+            workspaceStage.getIcons().setAll(stage.getIcons());
+            workspaceStage.focusedProperty().addListener((obs, was, focused) -> {
+                if (focused && snippetWorkspaces.remove(windowed)) {
+                    snippetWorkspaces.add(windowed);
+                }
+            });
+            cascadeOverOpenWindows(workspaceStage, others);
+        }
+        return windowed;
+    }
+
+    /** Moves {@code window} down and right while it sits exactly on one of {@code others}. */
+    private static void cascadeOverOpenWindows(Stage window, List<Window> others) {
+        final double step = 32;
+        for (int i = 0; i < others.size(); i++) {
+            boolean covered = others.stream().anyMatch(other ->
+                Math.abs(other.getX() - window.getX()) < 1 && Math.abs(other.getY() - window.getY()) < 1);
+            if (!covered) {
+                return;
+            }
+            window.setX(window.getX() + step);
+            window.setY(window.getY() + step);
         }
     }
 
