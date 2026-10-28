@@ -36,6 +36,7 @@ import de.kortty.core.ObservableTtyConnector;
 import de.kortty.core.RemoteDirectoryChange;
 import de.kortty.core.KorttyClipboard;
 import de.kortty.core.LocalShellTtyConnector;
+import de.kortty.core.SerialTtyConnector;
 import de.kortty.core.QuickSelectSettings;
 import de.kortty.core.agent.AgentCommandRunner;
 import de.kortty.core.agent.AgentCommandRunners;
@@ -826,6 +827,15 @@ public class TerminalView extends BorderPane {
                 java.util.function.Consumer<SithTermFxWidget> handler = sftpHereHandler;
                 sftpHereItem.setOnAction(e -> handler.accept(widget));
                 items.add(sftpHereItem);
+                items.add(new javafx.scene.control.SeparatorMenuItem());
+            }
+            // A serial pane's line break condition (Cisco ROMMON, Linux SysRq).
+            if (unwrapTerminalEffectConnector(widget.getTtyConnector()) instanceof SerialTtyConnector serial
+                    && serial.isConnected()) {
+                javafx.scene.control.MenuItem sendBreakItem =
+                    new javafx.scene.control.MenuItem(I18n.get("terminal.contextMenu.sendBreak"));
+                sendBreakItem.setOnAction(e -> sendSerialBreak(widget, null));
+                items.add(sendBreakItem);
                 items.add(new javafx.scene.control.SeparatorMenuItem());
             }
             // Without a selection the menu offers the pane's recent output instead.
@@ -3551,6 +3561,8 @@ public class TerminalView extends BorderPane {
             targetConnection = moshConnector.getConnection();
         } else if (connector instanceof NativeMoshTtyConnector nativeMoshConnector) {
             targetConnection = nativeMoshConnector.getConnection();
+        } else if (connector instanceof SerialTtyConnector serialConnector) {
+            targetConnection = serialConnector.getConnection();
         }
         widget.setEmulationType(TerminalEmulationSupport.fromConnection(targetConnection));
     }
@@ -3933,6 +3945,11 @@ public class TerminalView extends BorderPane {
             LocalShellTtyConnector localShell = new LocalShellTtyConnector(targetConnection);
             localShell.setIsolationRequest(isolationRequestForPane(targetConnection));
             connector = localShell;
+        } else if (targetConnection.getProtocol() == ConnectionProtocol.SERIAL) {
+            // Runs in korTTY's own process: the isolation check still refuses the session when the
+            // organization demands more than that (IsolationSettings caps SERIAL at NONE).
+            isolationRequestForPane(targetConnection);
+            connector = new SerialTtyConnector(targetConnection);
         } else {
             de.kortty.isolation.IsolationRequest sshIsolation = isolationRequestForPane(targetConnection);
             de.kortty.KorTTYApplication app = de.kortty.KorTTYApplication.getInstance();
@@ -4039,6 +4056,8 @@ public class TerminalView extends BorderPane {
             connected = nativeMoshConnector.connect();
         } else if (connector instanceof LocalShellTtyConnector localShellConnector) {
             connected = localShellConnector.connect();
+        } else if (connector instanceof SerialTtyConnector serialConnector) {
+            connected = serialConnector.connect();
         } else if (connector instanceof SshTtyConnector sshConnector) {
             connected = sshConnector.connect();
         } else {
@@ -4074,6 +4093,10 @@ public class TerminalView extends BorderPane {
         }
         if (connector instanceof LocalShellTtyConnector localShellConnector) {
             localShellConnector.setDisconnectListener(powerAwareListener);
+            return;
+        }
+        if (connector instanceof SerialTtyConnector serialConnector) {
+            serialConnector.setDisconnectListener(powerAwareListener);
             return;
         }
         if (connector instanceof SshTtyConnector sshConnector) {
@@ -5083,6 +5106,9 @@ public class TerminalView extends BorderPane {
         if (connector instanceof LocalShellTtyConnector localShell) {
             return localShell.getConnection();
         }
+        if (connector instanceof SerialTtyConnector serial) {
+            return serial.getConnection();
+        }
         return null;
     }
 
@@ -5177,6 +5203,35 @@ public class TerminalView extends BorderPane {
      * The pane that currently has (or most recently had) keyboard focus in this tab: the last widget
      * whose canvas gained focus while it is still open, otherwise the split pane's focused widget.
      */
+    /**
+     * Sends a break on {@code widget}'s serial port ({@code null}: the focused pane). The break holds
+     * the line for a quarter second, so it runs off the JavaFX thread; {@code onDone} then gets
+     * whether the driver sent it, on the JavaFX thread.
+     *
+     * @return false, without calling {@code onDone}, when the pane is no connected serial pane
+     */
+    public boolean sendSerialBreak(@Nullable SithTermFxWidget widget,
+                                   java.util.function.@Nullable Consumer<Boolean> onDone) {
+        SithTermFxWidget target = widget != null ? widget : getFocusedWidget();
+        if (target == null
+                || !(unwrapTerminalEffectConnector(target.getTtyConnector()) instanceof SerialTtyConnector serial)
+                || !serial.isConnected()) {
+            return false;
+        }
+        Thread sender = new Thread(() -> {
+            boolean sent = serial.sendBreak();
+            if (!sent) {
+                logger.info("Serial break was not sent: the port or its driver refused it");
+            }
+            if (onDone != null) {
+                Platform.runLater(() -> onDone.accept(sent));
+            }
+        }, "kortty-serial-break");
+        sender.setDaemon(true);
+        sender.start();
+        return true;
+    }
+
     public SithTermFxWidget getFocusedWidget() {
         SithTermFxWidget last = lastFocusedWidget;
         if (last != null) {
@@ -5819,6 +5874,8 @@ public class TerminalView extends BorderPane {
             paneConnection = nativeMosh.getConnection();
         } else if (connector instanceof LocalShellTtyConnector local) {
             paneConnection = local.getConnection();
+        } else if (connector instanceof SerialTtyConnector serial) {
+            paneConnection = serial.getConnection();
         }
         return paneConnection != null ? paneConnection : connection;
     }

@@ -39,6 +39,16 @@ public class MobaXTermImporter implements ConnectionImporter {
             "([^=]+)=#109#\\d+%([^%]+)%(\\d+)%([^%]*)%.*"
     );
     
+    // Serial bookmark entries (icon 131, session type 8): name=#131#8%port%speed%...
+    // The port is shown as "COM3  (USB Serial Port (COM3))" or a device path; only port and speed
+    // are read, the remaining fields are not documented and keep korTTY's defaults (8N1, no flow control).
+    private static final Pattern SERIAL_PATTERN = Pattern.compile(
+            "([^=]+)=#\\d+#8%([^%]+)%([^%]*)(?:%.*)?"
+    );
+
+    /** The {@code COMn} inside a Windows port label such as {@code COM3  (USB Serial Port (COM3))}. */
+    private static final Pattern COM_PORT = Pattern.compile("\\b(COM\\d+)\\b", Pattern.CASE_INSENSITIVE);
+
     // Alternative format: name= user@host #port #flag ...
     private static final Pattern ALT_PATTERN = Pattern.compile(
             "([^=]+)=\\s*([^@]+)@([^\\s#]+)\\s*#(\\d+).*"
@@ -135,6 +145,11 @@ public class MobaXTermImporter implements ConnectionImporter {
     }
     
     private ServerConnection parseConnection(String line, String group) {
+        Matcher serialMatcher = SERIAL_PATTERN.matcher(line);
+        if (serialMatcher.matches()) {
+            return serialConnection(serialMatcher.group(1).trim(), serialMatcher.group(2), serialMatcher.group(3), group);
+        }
+
         // Try SSH pattern first (#109 is SSH type)
         Matcher sshMatcher = SSH_PATTERN.matcher(line);
         if (sshMatcher.matches()) {
@@ -176,5 +191,40 @@ public class MobaXTermImporter implements ConnectionImporter {
         }
         
         return null;
+    }
+
+    private ServerConnection serialConnection(String name, String portField, String speedField, String group) {
+        String port = serialPortName(portField);
+        if (port == null) {
+            return null;
+        }
+        de.kortty.model.SerialSettings serial = new de.kortty.model.SerialSettings();
+        serial.setPortName(port);
+        try {
+            int speed = Integer.parseInt(speedField.trim());
+            if (speed > 0) {
+                serial.setBaudRate(speed);
+            }
+        } catch (NumberFormatException e) {
+            // Keeps the default speed.
+        }
+        ServerConnection connection = new ServerConnection();
+        connection.setName(name);
+        connection.setProtocol(de.kortty.model.ConnectionProtocol.SERIAL);
+        connection.setSerialSettings(serial);
+        connection.setGroup(group);
+        return connection;
+    }
+
+    /** {@code COM3} from MobaXterm's port label; a device path or other name as it is; null when blank. */
+    static String serialPortName(String portField) {
+        if (portField == null || portField.isBlank()) {
+            return null;
+        }
+        Matcher com = COM_PORT.matcher(portField);
+        if (com.find()) {
+            return com.group(1).toUpperCase(java.util.Locale.ROOT);
+        }
+        return portField.trim();
     }
 }

@@ -118,17 +118,26 @@ public final class ConnectionOverviewExport {
         Set<Part> wanted = parts != null ? parts : EnumSet.noneOf(Part.class);
         Map<String, Object> out = new LinkedHashMap<>();
 
-        // BASICS: always written. A local shell has no host or port, only its command and directory.
+        // BASICS: always written. A local shell has no host or port, only its command and directory;
+        // a serial connection has its port and line settings instead.
         out.put("name", connection.getDisplayName());
         out.put("protocol", protocolId(connection.getProtocol()));
-        if (!connection.isLocalShell()) {
+        if (connection.isNetworkConnection()) {
             putText(out, "host", connection.getHost());
             out.put("port", connection.getPort());
         }
-        putText(out, "username", connection.getUsername());
+        if (!connection.isSerial()) {
+            putText(out, "username", connection.getUsername());
+        }
         if (connection.isLocalShell()) {
             putText(out, "localShellCommand", connection.getLocalShellCommand());
             putText(out, "localShellWorkingDirectory", connection.getLocalShellWorkingDirectory());
+        }
+        if (connection.isSerial()) {
+            de.kortty.model.SerialSettings serial = connection.getSerialSettings();
+            putText(out, "serialPort", serial.getPortName());
+            out.put("serialLine", serial.frameSummary());
+            out.put("serialFlowControl", serial.getFlowControl().name());
         }
 
         if (wanted.contains(Part.FOLDER)) {
@@ -266,12 +275,13 @@ public final class ConnectionOverviewExport {
             case MOSH -> "mosh";
             case MOSH_CLIENT -> "moshClient";
             case LOCAL_SHELL -> "localShell";
+            case SERIAL -> "serial";
         };
     }
 
-    /** The auth method of a connection; a local shell authenticates nothing and a temporary key wins. */
+    /** The auth method of a connection; a local shell or serial port authenticates nothing and a temporary key wins. */
     private static String authMethodId(ServerConnection connection) {
-        if (connection.isLocalShell()) {
+        if (!connection.isNetworkConnection()) {
             return "none";
         }
         if (hasText(connection.getTemporaryKeyContent()) || isTemporaryKeyPath(connection.getPrivateKeyPath())) {

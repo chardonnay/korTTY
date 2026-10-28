@@ -22,6 +22,7 @@ Was jede Verbindungsart in dieser Version bekommen kann:
 | Mosh (nativer `mosh-client`) | ja | ja | ja: `mosh-client` läuft in der Sandbox; der kurze SSH-Start von `mosh-server` bleibt in korTTY |
 | SSH | ja | ja, in einem Session-Worker (siehe unten) | ja |
 | Mosh (eingebauter Client) | ja | ja, in einem Session-Worker | ja |
+| [Seriell](serial.md) | ja | nein (der Port wird innerhalb von korTTY selbst geöffnet) | nein |
 
 Eine isolierte Sitzung des eingebauten Mosh-Clients läuft ebenfalls in einem Session-Worker: Der SSH-Login, der `mosh-server` startet, und die Mosh-Sitzung selbst (UDP, ihre Verschlüsselung und die Bildschirm-Aktualisierungen) laufen in eigenen Worker-Prozessen, und in der Sandbox darf der Mosh-Worker nur an den UDP-Port senden, den `mosh-server` gemeldet hat (unter Linux nur an diesen Port dieses Servers). Nur wenn diese Installation keine Session-Worker starten kann, läuft eine Verbindung mit dem eingebauten Mosh-Client, die Isolation verlangt, stattdessen mit dem nativen `mosh-client`, falls er installiert ist. Eine Verbindung, die mehr verlangt, als ihre Verbindungsart bekommen kann, läuft mit der stärksten Stufe, die möglich ist, und der Verbindungseditor sagt das unter **Isolation:**. Verlangt Ihre Organisation eine Stufe, die die Verbindungsart nicht bekommen kann, wird die Sitzung gar nicht erst geöffnet.
 

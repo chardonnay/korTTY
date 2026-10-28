@@ -70,7 +70,14 @@ public enum PolicyFeature {
      * the notification switches in Settings are forced off and locked. {@code allow} leaves every
      * switch with the user. The tab's attention mark is not a desktop notification and stays.
      */
-    DESKTOP_NOTIFICATIONS("desktop-notifications");
+    DESKTOP_NOTIFICATIONS("desktop-notifications"),
+    /**
+     * Serial-port connections ({@link de.kortty.model.ConnectionProtocol#SERIAL}). Allowed unless denied;
+     * denied, no serial port is opened (the server allowlist cannot cover them, as they have no host),
+     * the editors no longer offer the protocol for new connections, and saved serial connections stay
+     * stored but refuse to connect.
+     */
+    SERIAL_CONNECTIONS("serial-connections");
 
     private final String tomlKey;
 

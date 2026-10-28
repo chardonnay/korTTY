@@ -36,6 +36,7 @@ public class ServerConnectionCopyPolicyTest {
             "encoding", "group", "tag", "tabColor", "disableHostKeyCheck", "aiProfileId", "aiSkillIds",
             "aiAgentDesignId",                                             // KI-Agent design combination
             "osBadge",                                                     // a duplicate runs the same OS
+            "serialSettings",                                              // same port and line settings
             "settings");
 
     /** Duplicate deliberately leaves these behind; moving one to carried is a product decision. */
@@ -54,7 +55,7 @@ public class ServerConnectionCopyPolicyTest {
             "localShellWorkingDirectory", "authMethod", "privateKeyPath", "sshKeyId",
             "disableHostKeyCheck", "terminalEffectPluginId", "terminalEffectAnimationSpeed",
             "terminalEmulationType", "encoding", "highlightRuleSetId", "pasteWarningMode", "pasteLineDelayMs",
-            "isolationMode", "incognito", "strictTerminalMode", "osBadge",
+            "isolationMode", "incognito", "strictTerminalMode", "osBadge", "serialSettings",
             "settings");
 
     /** Exported only when the matching export-dialog checkbox is set. */

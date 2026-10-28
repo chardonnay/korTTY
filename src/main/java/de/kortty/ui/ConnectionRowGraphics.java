@@ -34,11 +34,17 @@ final class ConnectionRowGraphics {
 
     private ConnectionRowGraphics() { }
 
-    /** The toolbar glyph for the connection's protocol: a server for SSH, waves for Mosh, a laptop for a local shell. */
+    /**
+     * The toolbar glyph for the connection's protocol: a server for SSH, waves for Mosh, a laptop for a
+     * local shell, a DE-9 plug for a serial port.
+     */
     static String glyphFor(ServerConnection connection) {
         ConnectionProtocol protocol = connection != null ? connection.getProtocol() : null;
         if (protocol == ConnectionProtocol.LOCAL_SHELL) {
             return "localShell";
+        }
+        if (protocol == ConnectionProtocol.SERIAL) {
+            return "serial";
         }
         if (protocol == ConnectionProtocol.MOSH || protocol == ConnectionProtocol.MOSH_CLIENT) {
             return "mosh";
@@ -46,7 +52,7 @@ final class ConnectionRowGraphics {
         return "server";
     }
 
-    /** {@code user@host}, with {@code :port} when it is not 22, or a local shell's command. */
+    /** {@code user@host}, with {@code :port} when it is not 22, a local shell's command, or {@code COM3 · 9600 8N1}. */
     static String address(ServerConnection connection) {
         if (connection == null) {
             return "";
@@ -54,6 +60,11 @@ final class ConnectionRowGraphics {
         if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
             String command = connection.getLocalShellCommand();
             return command != null && !command.isBlank() ? command : I18n.get("protocol.localShell");
+        }
+        if (connection.isSerial()) {
+            de.kortty.model.SerialSettings serial = connection.getSerialSettings();
+            String port = serial.getPortName() != null ? serial.getPortName() : I18n.get("protocol.serial");
+            return port + " · " + serial.frameSummary();
         }
         String host = connection.getHost() != null ? connection.getHost() : "";
         String user = connection.getUsername();

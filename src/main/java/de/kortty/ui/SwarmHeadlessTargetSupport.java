@@ -17,14 +17,14 @@ final class SwarmHeadlessTargetSupport {
     private SwarmHeadlessTargetSupport() {
     }
 
-    /** Connections that can run headless: non-null, SSH-reachable (no local shell), with an id. */
+    /** Connections that can run headless: non-null, SSH-reachable (no local shell or serial port), with an id. */
     static List<ServerConnection> schedulableConnections(List<ServerConnection> missing) {
         List<ServerConnection> schedulable = new ArrayList<>();
         if (missing == null) {
             return schedulable;
         }
         for (ServerConnection connection : missing) {
-            if (connection != null && !connection.isLocalShell() && connection.getId() != null) {
+            if (connection != null && connection.isNetworkConnection() && connection.getId() != null) {
                 schedulable.add(connection);
             }
         }

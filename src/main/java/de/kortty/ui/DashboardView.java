@@ -1323,6 +1323,7 @@ public class DashboardView extends VBox {
             case SSH_TCP -> "ssh";
             case MOSH, MOSH_CLIENT -> "mosh";
             case LOCAL_SHELL -> "local";
+            case SERIAL -> "serial";
         };
     }
 

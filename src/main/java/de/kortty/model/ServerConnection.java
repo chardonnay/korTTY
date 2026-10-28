@@ -64,6 +64,10 @@ public class ServerConnection {
     @XmlElement
     private Boolean shellIntegrationAutoInject;
 
+    /** For SERIAL connections: port and line settings. Null on every other protocol. */
+    @XmlElement(name = "serial")
+    private SerialSettings serialSettings;
+
     @XmlElement
     private ConnectionSettings settings;
     
@@ -284,6 +288,7 @@ public class ServerConnection {
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.serialSettings = source.serialSettings != null ? new SerialSettings(source.serialSettings) : null;
         c.shellIntegrationAutoInject = source.shellIntegrationAutoInject;
         c.settings = source.settings;
         c.windowGeometry = source.windowGeometry;
@@ -342,6 +347,7 @@ public class ServerConnection {
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.serialSettings = source.serialSettings != null ? new SerialSettings(source.serialSettings) : null;
         c.shellIntegrationAutoInject = source.shellIntegrationAutoInject;
         c.authMethod = source.authMethod;
         c.privateKeyPath = source.privateKeyPath;
@@ -390,6 +396,7 @@ public class ServerConnection {
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.serialSettings = source.serialSettings != null ? new SerialSettings(source.serialSettings) : null;
         c.authMethod = source.authMethod;
         c.privateKeyPath = source.privateKeyPath;
         c.sshKeyId = source.sshKeyId;
@@ -442,6 +449,7 @@ public class ServerConnection {
         c.protocol = source.protocol;
         c.localShellCommand = source.localShellCommand;
         c.localShellWorkingDirectory = source.localShellWorkingDirectory;
+        c.serialSettings = source.serialSettings != null ? new SerialSettings(source.serialSettings) : null;
         c.authMethod = source.authMethod;
         c.privateKeyPath = source.privateKeyPath;
         c.sshKeyId = source.sshKeyId;
@@ -585,6 +593,37 @@ public class ServerConnection {
     /** True when this connection runs a local shell (no network) instead of SSH/Mosh. */
     public boolean isLocalShell() {
         return getProtocol() == ConnectionProtocol.LOCAL_SHELL;
+    }
+
+    /** True when this connection talks to a serial port instead of a host. */
+    public boolean isSerial() {
+        return getProtocol() == ConnectionProtocol.SERIAL;
+    }
+
+    /**
+     * True for SSH and Mosh: the protocols with a host, a user and credentials. Local shells and
+     * serial ports have none of these, so host-based features (SFTP, tunnels, swarm targets, the
+     * password prompt) skip them.
+     */
+    public boolean isNetworkConnection() {
+        return !isLocalShell() && !isSerial();
+    }
+
+    /** The serial line settings; created on first access so editors can bind to it. */
+    public SerialSettings getSerialSettings() {
+        if (serialSettings == null) {
+            serialSettings = new SerialSettings();
+        }
+        return serialSettings;
+    }
+
+    /** The stored serial settings, or {@code null} when none were ever set (no lazy creation). */
+    public SerialSettings serialSettingsOrNull() {
+        return serialSettings;
+    }
+
+    public void setSerialSettings(SerialSettings serialSettings) {
+        this.serialSettings = serialSettings;
     }
 
     public String getLocalShellCommand() {
@@ -784,7 +823,17 @@ public class ServerConnection {
         if (isLocalShell()) {
             return localShellDisplayLabel();
         }
+        if (isSerial()) {
+            return serialDisplayLabel();
+        }
         return username + "@" + host;
+    }
+
+    /** {@code COM3 @ 115200} for a serial connection without a name; the bare rate when no port is set. */
+    public String serialDisplayLabel() {
+        SerialSettings serial = serialSettings != null ? serialSettings : new SerialSettings();
+        String port = serial.getPortName();
+        return (port != null ? port : "Serial") + " @ " + serial.getBaudRate();
     }
 
     /**

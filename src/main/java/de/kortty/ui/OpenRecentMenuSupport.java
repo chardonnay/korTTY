@@ -123,7 +123,7 @@ final class OpenRecentMenuSupport {
         String displayName = connection.getDisplayName();
         String name = connection.getName();
         String host = connection.getHost();
-        if (connection.isLocalShell() || name == null || name.isBlank() || host == null || host.isBlank()) {
+        if (!connection.isNetworkConnection() || name == null || name.isBlank() || host == null || host.isBlank()) {
             return displayName;
         }
         String user = connection.getUsername();

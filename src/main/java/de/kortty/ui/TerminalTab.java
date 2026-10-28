@@ -346,16 +346,15 @@ public class TerminalTab extends Tab {
         if (!needsCloseConfirmation()) {
             return true;
         }
-        // Local shells are not network connections, so use dedicated wording instead of the
-        // SSH-flavored message.
-        boolean localShell = connection.isLocalShell();
+        // Local shells and serial ports are not network connections, so use dedicated wording
+        // instead of the SSH-flavored message.
+        String prefix = connection.isLocalShell() ? "dialog.closeLocalShell"
+            : connection.isSerial() ? "dialog.closeSerial" : "dialog.closeConnection";
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         DialogThemeHelper.applyTheme(alert);
-        alert.setTitle(I18n.get(localShell ? "dialog.closeLocalShell" : "dialog.closeConnection"));
-        alert.setHeaderText(I18n.get(localShell ? "dialog.closeLocalShellQuestion" : "dialog.closeConnectionQuestion"));
-        alert.setContentText(I18n.get(
-            localShell ? "dialog.closeLocalShellMessage" : "dialog.closeConnectionMessage",
-            connection.getDisplayName()));
+        alert.setTitle(I18n.get(prefix));
+        alert.setHeaderText(I18n.get(prefix + "Question"));
+        alert.setContentText(I18n.get(prefix + "Message", connection.getDisplayName()));
         return alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK;
     }
 
@@ -2207,10 +2206,16 @@ public class TerminalTab extends Tab {
         return second == null || second.isBlank() ? first : first + "\n" + second;
     }
 
-    /** {@code user@host} of the tab's connection; the connection's name for a local shell or without either. */
+    /**
+     * {@code user@host} of the tab's connection; {@code COM3 @ 115200} for a serial port; the
+     * connection's name for a local shell or without either.
+     */
     private String connectionEndpoint() {
         if (connection.getProtocol() == ConnectionProtocol.LOCAL_SHELL) {
             return getConnectionTitle();
+        }
+        if (connection.isSerial()) {
+            return connection.serialDisplayLabel();
         }
         String endpoint = effectiveTitle(null, null, null, connection.getUsername(), connection.getHost());
         return endpoint.isEmpty() ? getConnectionTitle() : endpoint;

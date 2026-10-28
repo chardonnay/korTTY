@@ -15,6 +15,10 @@ What changed in the current release. The version this guide was built for is sho
 - **Overview export** — **Export overview** writes your servers as JSON, YAML, TOML or XML, with the parts you choose and never a password or key. See [Exporting an overview](../features/connections.md#exporting-an-overview).
 - **Inspector** — the route from this computer through the jump server, security as chips, usage bars for the last 14 days and an SFTP button.
 
+### Serial connections
+
+- **Serial ports** — the new **Serial** protocol opens a terminal on a serial port, like PuTTY's serial sessions: a router or switch console, a microcontroller board or a USB-to-serial adapter, on Windows, macOS and Linux. Pick the port from the list or type it, and set the speed, data bits, parity, stop bits, flow control, what Enter sends, DTR/RTS and local echo. **Send Break** is in the terminal's context menu and in the Connections menu, and can get a key in the keyboard settings. Serial sessions from MobaXterm and PuTTY Connection Manager files are imported too. See [Serial connections](../features/serial.md).
+
 ### On Windows
 
 - **PowerShell and Command Prompt in the toolbar** — on Windows, the Terminal group of the icon toolbar gets **New PowerShell** and **New Command Prompt** right after **New local shell**, each with its own icon; saved layouts gain both once. With Git for Windows installed, the customization catalog also offers **New Git Bash**. See [Customizing the icon toolbar](../getting-started/main-window.md#customizing-the-icon-toolbar).

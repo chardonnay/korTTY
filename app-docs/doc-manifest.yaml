@@ -277,6 +277,10 @@ pages:
     owns_code: [src/main/java/de/kortty/model/JumpServer.java, src/main/java/de/kortty/core/JumpHostSupport.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/ui/ConnectionEditDialog.java, src/main/java/de/kortty/ui/SwarmWorkflowScriptDialog.java]
     diagrams: [jump-server-flow.svg]
     last_synced_ref: "f8e06604"
+  - path: app-docs/site/docs/en/features/serial.md
+    owns_i18n: [protocol.serial, connEdit.serial., serial., terminal.contextMenu.sendBreak, menu.connections.sendBreak, dialog.closeSerial, connectionManager.inspector.serial]
+    owns_code: [src/main/java/de/kortty/model/SerialSettings.java, src/main/java/de/kortty/core/SerialTtyConnector.java, src/main/java/de/kortty/core/SerialLink.java, src/main/java/de/kortty/core/JSerialCommLink.java, src/main/java/de/kortty/core/SerialOpenException.java, src/main/java/de/kortty/core/SerialPortCatalog.java, src/main/java/de/kortty/ui/SerialSettingsEditor.java, src/main/java/de/kortty/persistence/importer/MobaXTermImporter.java, src/main/java/de/kortty/persistence/importer/PuTTYCMImporter.java, package/flatpak/io.github.chardonnay.korTTY.yml]
+    last_synced_ref: "5e48eec4"
   - path: app-docs/site/docs/en/features/sftp.md
     owns_i18n: []
     owns_code: [src/main/java/de/kortty/ui/sftp, src/main/java/de/kortty/ui/SFTPManagerTab.java, src/main/java/de/kortty/ui/SftpFileDiffDialog.java, src/main/java/de/kortty/ui/SftpFolderCompareDialog.java, src/main/java/de/kortty/ui/SftpSaveNewFileDialog.java, src/main/java/de/kortty/ui/SftpRemoteSaveChooser.java, src/main/java/de/kortty/core/TextDiff.java, src/main/java/de/kortty/core/AiFileComparison.java, src/main/java/de/kortty/core/SftpFileTransferService.java, src/main/java/de/kortty/core/sftp, src/main/java/de/kortty/core/SFTPSession.java, src/main/java/de/kortty/ui/PaneSessionSupplier.java, src/main/java/de/kortty/core/SshTtyConnector.java, src/main/java/de/kortty/ui/TerminalView.java, src/main/java/de/kortty/core/remote]

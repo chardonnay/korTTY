@@ -157,6 +157,10 @@ public final class ConnectionPaletteSource implements PaletteSource {
      * {@code title} already is exactly that.
      */
     private String detail(ServerConnection connection, String title) {
+        if (connection.isSerial()) {
+            return TabPaletteSource.connectionDetail(title, null, null, connection.serialDisplayLabel(),
+                connection.getGroup());
+        }
         boolean localShell = connection.isLocalShell();
         return TabPaletteSource.connectionDetail(title, connection.getUsername(),
             localShell ? null : connection.getHost(), localShell ? texts.localShell() : "", connection.getGroup());

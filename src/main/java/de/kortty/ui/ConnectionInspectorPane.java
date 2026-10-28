@@ -97,14 +97,22 @@ final class ConnectionInspectorPane extends ScrollPane {
             body.getChildren().add(note);
         }
 
-        boolean local = connection.getProtocol() == de.kortty.model.ConnectionProtocol.LOCAL_SHELL;
+        boolean local = !connection.isNetworkConnection();
         GridPane connectionFacts = facts();
         Label host = row(connectionFacts, "connectionManager.inspector.host",
             connection.getHost() != null && !local ? connection.getHost() : "–");
         host.setStyle("-fx-font-family: '" + monoFamily() + "';");
         row(connectionFacts, "connectionManager.inspector.user",
-            connection.getUsername() != null && !connection.getUsername().isBlank() ? connection.getUsername() : "–");
+            !connection.isSerial() && connection.getUsername() != null && !connection.getUsername().isBlank()
+                ? connection.getUsername() : "–");
         row(connectionFacts, "connectionManager.inspector.port", local ? "–" : String.valueOf(connection.getPort()));
+        if (connection.isSerial()) {
+            de.kortty.model.SerialSettings serial = connection.getSerialSettings();
+            Label serialPort = row(connectionFacts, "connectionManager.inspector.serialPort",
+                serial.getPortName() != null ? serial.getPortName() : "–");
+            serialPort.setStyle("-fx-font-family: '" + monoFamily() + "';");
+            row(connectionFacts, "connectionManager.inspector.serialLine", serial.frameSummary());
+        }
         row(connectionFacts, "connectionManager.inspector.protocol", protocolName(connection));
         row(connectionFacts, "connectionManager.inspector.auth", facts.auth());
         if (facts.badgeName() != null) {
@@ -212,7 +220,7 @@ final class ConnectionInspectorPane extends ScrollPane {
         connect.setOnAction(e -> run(onConnect, connection));
         HBox actions = new HBox(6, connect);
         actions.setAlignment(Pos.CENTER_LEFT);
-        if (onSftp != null && connection.getProtocol() != de.kortty.model.ConnectionProtocol.LOCAL_SHELL) {
+        if (onSftp != null && connection.isNetworkConnection()) {
             actions.getChildren().add(iconButton("sftp", I18n.get("connectionManager.inspector.sftp"), () -> run(onSftp, connection)));
         }
         if (!facts.readOnly()) {
@@ -404,6 +412,7 @@ final class ConnectionInspectorPane extends ScrollPane {
             case MOSH -> I18n.get("protocol.mosh");
             case MOSH_CLIENT -> I18n.get("protocol.moshClient");
             case LOCAL_SHELL -> I18n.get("protocol.localShell");
+            case SERIAL -> I18n.get("protocol.serial");
             default -> I18n.get("protocol.sshTcp");
         };
     }

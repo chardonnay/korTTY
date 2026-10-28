@@ -22,6 +22,7 @@ What each connection type can get in this version:
 | Mosh (native `mosh-client`) | yes | yes | yes: `mosh-client` runs in the sandbox; the short SSH start of `mosh-server` stays in korTTY |
 | SSH | yes | yes, in a session worker (see below) | yes |
 | Mosh (built-in client) | yes | yes, in a session worker | yes |
+| [Serial](serial.md) | yes | no (the port is opened inside korTTY itself) | no |
 
 An isolated session of the built-in Mosh client runs in a session worker too: the SSH login that starts `mosh-server` and the Mosh session itself (UDP, its encryption and the screen updates) run in worker processes of their own, and in the sandbox the Mosh worker may send only to the UDP port `mosh-server` reported (on Linux only to that port of that server). Only when this installation cannot start session workers does a built-in Mosh connection that asks for isolation run with the native `mosh-client` instead, if it is installed. A connection that asks for more than its type can get runs with the strongest level it can get, and the connection editor says so under **Isolation:**. If your organization demands a level that the connection type cannot get, the session is not opened at all.
 

@@ -147,6 +147,11 @@ public class PuTTYCMImporter implements ConnectionImporter {
             logger.warn("Invalid port number at line {}, using default 22", lineNumber);
         }
         
+        // PuTTY keeps a serial session's line in the host field and its speed in the port field.
+        if (protocol.equalsIgnoreCase("Serial")) {
+            return serialConnection(name, host, port, fields);
+        }
+
         // Only import SSH connections
         if (!protocol.equalsIgnoreCase("SSH")) {
             logger.debug("Skipping non-SSH connection: {} (protocol: {})", name, protocol);
@@ -197,6 +202,29 @@ public class PuTTYCMImporter implements ConnectionImporter {
         return conn;
     }
     
+    /**
+     * A PuTTY serial session: the line ({@code COM3}) from the host field, the speed from the port
+     * field (PuTTY's default 9600 when it is missing, which the parser above turns into 22), the folder as for SSH. Data bits,
+     * parity, stop bits and flow control are not in the CSV, so they keep korTTY's defaults (8N1, none).
+     */
+    private ServerConnection serialConnection(String name, String line, int speed, List<String> fields) {
+        if (line == null || line.isBlank()) {
+            logger.debug("Skipping serial connection without a line: {}", name);
+            return null;
+        }
+        ServerConnection conn = new ServerConnection();
+        conn.setName(name);
+        conn.setProtocol(de.kortty.model.ConnectionProtocol.SERIAL);
+        de.kortty.model.SerialSettings serial = new de.kortty.model.SerialSettings();
+        serial.setPortName(line);
+        serial.setBaudRate(speed > 0 && speed != 22 ? speed : de.kortty.model.SerialSettings.DEFAULT_BAUD_RATE);
+        conn.setSerialSettings(serial);
+        if (fields.size() > 5 && !fields.get(5).isEmpty()) {
+            conn.setGroup(fields.get(5).replace("\\", "/"));
+        }
+        return conn;
+    }
+
     /**
      * Parses local tunnels from the format: localport:remotehost:remoteport
      */

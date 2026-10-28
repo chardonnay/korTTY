@@ -72,7 +72,7 @@ The first wrapper invocation downloads Gradle. A clean application build also cl
 
 ### Clean, target-specific package staging
 
-`prepareJpackage` assembles `build/jpackage-input/libs` with one final Gradle `Sync`. It removes stale dependency versions and formatter trees, keeps only the current mosh4j architecture and protobuf, reuses the application's parent-loaded Bouncy Castle, excludes SithTermFX's test dependency, and replaces JNA/pty4j with JARs that retain all Java classes, services, manifests and licences but only the target native path and binary architecture. The verification task deliberately seeds obsolete files before Sync and runs a real JNA/PTY smoke against the slim JARs:
+`prepareJpackage` assembles `build/jpackage-input/libs` with one final Gradle `Sync`. It removes stale dependency versions and formatter trees, keeps only the current mosh4j architecture and protobuf, reuses the application's parent-loaded Bouncy Castle, excludes SithTermFX's test dependency, and replaces JNA, pty4j, zstd-jni and jSerialComm with JARs that retain all Java classes, services, manifests and licences but only the target native path and binary architecture. The verification task deliberately seeds obsolete files before Sync and runs a real JNA/PTY/serial-library smoke against the slim JARs:
 
 ```bash
 ./gradlew verifyJpackageStaging slimNativeRuntimeSmoke

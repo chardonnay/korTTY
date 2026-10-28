@@ -1,6 +1,6 @@
 # Verbindungen
 
-korTTY verwaltet SSH-, Mosh- und **Local-Shell**-Verbindungen über drei Einstiegspunkte: die **Schnellverbindung**, den **Connection-Manager** und gespeicherte **Projekte**.
+korTTY verwaltet SSH-, Mosh-, **lokale-Shell-** und [serielle](serial.md)-Verbindungen über drei Einstiegspunkte: die **Schnellverbindung**, den **Connection-Manager** und gespeicherte **Projekte**.
 
 ![Connection flow](../assets/diagrams/connection-flow.svg)
 
@@ -30,7 +30,7 @@ korTTY verwaltet SSH-, Mosh- und **Local-Shell**-Verbindungen über drei Einstie
 
 ### Liste und Netzplan
 
-**Liste** zeigt die gewählten Verbindungen in ihren Ordnern, mit Linien von jedem Ordner zu seinen Verbindungen und Unterordnern; ein leerer Ordner zeigt keine Einträge darunter. Jede Zeile zeigt das Protokoll (Server für SSH, Wellen für Mosh, ein Laptop für eine lokale Shell) mit dem [OS-Symbol](#os-symbole) der Verbindung in ihrer Ecke, den Namen, `user@host`, das Tag, einen Stern für einen Favoriten und kleine Markierungen für einen Jump-Server, Tunnel, eine eigene Isolationsebene, Inkognito und eine ausgeschaltete Host-Key-Prüfung; ein grüner Punkt und eine Anzahl bedeuten, dass die Verbindung offene Tabs hat. Ziehen Sie eine Verbindung auf einen Ordner, um sie dort zu verschieben; **Rückgängig** in der Symbolleiste nimmt den letzten Vorgang zurück. Doppelklicken Sie eine Verbindung, um die Verbindung herzustellen.
+**Liste** zeigt die ausgewählten Verbindungen in ihren Ordnern, mit Linien von jedem Ordner zu seinen Verbindungen und Unterordnern; ein leerer Ordner zeigt keine Einträge darunter. Jede Zeile zeigt das Protokoll (Server für SSH, Wellen für Mosh, ein Laptop für eine lokale Shell, ein Stecker für einen seriellen Port) mit dem [OS-Symbol](#os-symbole) der Verbindung in ihrer Ecke, den Namen, `user@host`, das Tag, einen Stern für einen Favoriten und kleine Markierungen für einen Jump-Server, Tunnel, eine eigene Isolationsebene, Inkognito und eine ausgeschaltete Host-Key-Prüfung; ein grüner Punkt und eine Anzahl bedeuten, dass die Verbindung offene Tabs hat. Ziehen Sie eine Verbindung auf einen Ordner, um sie dort zu verschieben; **Rückgängig** in der Symbolleiste nimmt den letzten Vorgang zurück. Doppelklicken Sie eine Verbindung, um die Verbindung herzustellen.
 
 **Netzplan** zeigt dieselben Verbindungen auf einem Netzplan: eine gestrichelte Zone pro Ordner in der Tab-Farbe des Ordners, ein Knoten pro Verbindung und dieser Computer links. Orange gestrichelte Linien zeigen den Weg über einen Jump-Server, der die gespeicherte Verbindung mit diesem Host ist, wenn es eine gibt, andernfalls ein eigener Knoten; türkis gepunktete Linien zeigen Tunnel, die ebenfalls unter diesem Computer aufgeführt sind. Klicken Sie auf einen Knoten, um ihn auszuwählen, doppelklicken Sie, um die Verbindung herzustellen, und ziehen Sie ihn in eine andere Zone, um die Verbindung in diesen Ordner zu verschieben (**Rückgängig** nimmt sie zurück). **Jump-Wege** und **Tunnel** zeigen oder verstecken die Linien, **−**, **+** und **Anpassen** zoomen, und ++ctrl++ mit dem Mausrad zoomt ebenfalls. Teamwork-Verbindungen erhalten eigene Zonen und gestrichelte Knoten und können nicht verschoben werden. Der Netzplan wird automatisch angeordnet; nichts davon wird gespeichert.
 
@@ -54,7 +54,7 @@ Eine Verbindung kann das Symbol des Betriebssystems anzeigen, das auf ihrem Serv
 
 | Teil | Inhalt |
 | --- | --- |
-| Grundlagen (immer) | Name, Protokoll, Host, Port und Benutzer; bei einer lokalen Shell deren Befehl und Startverzeichnis |
+| Grundlagen (immer) | Name, Protokoll, Host, Port und Benutzer; für eine lokale Shell deren Befehl und Startverzeichnis; für eine serielle Verbindung deren Port und Leitungseinstellungen anstelle von Host, Port und Benutzer |
 | Ordner, Tag, Tab-Farbe, Favorit | Der Ordnerpfad, das Tag, die Tab-Farbe und ob die Verbindung ein Favorit ist |
 | Anmeldemethode | Passwort, SSH-Schlüssel, keyboard-interactive, temporärer Schlüssel oder keine, mit dem Namen der gespeicherten Zugangsdaten oder des SSH-Schlüssels |
 | Jump-Server | Host, Port, Benutzer und Anmeldeverfahren eines aktivierten Jump-Servers |
@@ -74,7 +74,7 @@ Eine Vorschau zeigt die erste Verbindung so, wie sie in der Datei enthalten sein
 1. korTTY prüft zuerst die [Serverzugriffsrichtlinie](../reference/enterprise-policy.md#server-zugriffskontrolle) Ihrer Organisation. Bei einem gesperrten Server oder Jump-Server erscheint die Richtlinienmeldung, bevor korTTY Sie nach irgendetwas fragt.
 2. Eine gemeinsam genutzte [Teamarbeit](teamwork.md)-Verbindung, die weder Anmeldeinformationen noch einen SSH-Schlüssel angibt, verwendet die Standardauthentifizierung des Teams.
 3. Eine Verbindung mit einem temporären SSH-Schlüssel verwendet diesen Schlüssel wieder, solange er noch gültig ist, und fragt nach einem neuen, sobald er abgelaufen ist. Sie fragt auch dann nach einem neuen, wenn der Tresor gesperrt ist und korTTY den gespeicherten Schlüssel nicht entschlüsseln konnte, statt eine SSH-Schlüssel-Authentifizierung ohne Schlüssel zu versuchen.
-4. Lokale Shells und Verbindungen mit SSH-Schlüssel-Authentifizierung verbinden sich ohne Passwort.
+4. Eine lokale Shell, eine serielle Verbindung und die SSH-Schlüssel-Authentifizierung verbinden sich ohne Passwort.
 5. Andernfalls verwendet korTTY das gespeicherte Passwort, zuerst aus den hinterlegten Anmeldeinformationen der Verbindung und dann aus der Verbindung selbst, und fragt nach dem Passwort, wenn keines gespeichert ist; **OK** bleibt ausgegraut, bis Sie eines eingeben. Liegt das gespeicherte Passwort im gesperrten Tresor, bietet korTTY zuerst **Tresor entsperren…** an (siehe [Später den Tresor entsperren](security.md#spater-den-tresor-entsperren)); wenn Sie ihn nicht entsperren, bittet korTTY Sie stattdessen, das Passwort einzugeben.
 
 Wenn Sie eine dieser Fragen abbrechen, wird kein Tab geöffnet. **Duplizieren** im Kontextmenü eines Terminal-Tabs meldet sich auf dieselbe Weise an und fragt daher ebenfalls nach einem neuen temporären SSH-Schlüssel, wenn der Schlüssel des Tabs abgelaufen ist. Eine gespeicherte oder Teamwork-Verbindung, die Sie in der [Befehlspalette](command-palette.md#verbinden) auswählen (++ctrl+shift+p++, ++cmd+shift+p++ unter macOS, dann `@` und ein Teil ihres Namens), meldet sich auf dieselbe Weise an, ebenso eine Verbindung, die Sie unter [*Datei → Zuletzt verwendet*](projects.md#zuletzt-verwendet) auswählen. **Geschlossenen Tab wieder öffnen** und *Datei → Zuletzt geschlossen* melden sich ebenfalls so an, mit der gespeicherten Verbindung in ihrem aktuellen Stand (siehe [Arbeiten mit Tabs](terminal.md#arbeiten-mit-tabs)). Das Öffnen eines [Projekts](projects.md#tabs-die-auf-sie-warten) meldet jeden Tab in derselben Reihenfolge an, fragt aber von sich aus nichts: Ein Tab, der ein Passwort, einen neuen temporären SSH-Schlüssel oder den gesperrten Tresor braucht, wartet in einer Leiste mit **Verbinden…** und **Tresor entsperren…**, und ein blockierter Server oder eine gelöschte Verbindung wird dort aufgeführt, statt einen Dialog anzuzeigen.
@@ -85,7 +85,7 @@ Der Verbindungseditor verfügt über folgende Registerkarten:
 
 | Registerkarte | Inhalt |
 | --- | --- |
-| Verbindung | Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ) oder Lokale Shell), Terminalemulation, **Zeichenkodierung** (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), **Host-Key-Prüfung** (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuordnung, ein optionales Freitext-[Tag](#tags) und das [OS-Symbol](#os-symbole), **Verbindungstimeout** (1–300 Sekunden) und **Wiederholungsversuche** (1–20 Versuche, verwendet, wenn **Verbindungswiederholungen aktivieren** in *Einstellungen → Terminal* aktiviert ist). Bei **Lokale Shell**-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe [Zeichenkodierung](#zeichenkodierung). |
+| Verbindung | Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ), Lokale Shell oder Seriell), Terminalemulation, **Zeichenkodierung** (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), **Host-Key-Prüfung** (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuordnung, ein optionales Freitext-[Tag](#tags) sowie das [OS-Symbol](#os-symbole), **Verbindungstimeout** (1–300 Sekunden) und **Wiederholungsversuche** (1–20 Versuche, verwendet, wenn **Verbindungswiederholungen aktivieren** in *Einstellungen → Terminal* aktiviert ist). Bei **Lokale Shell**- und **Seriell**-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert; eine serielle Verbindung hat eigene Zeilen für die Port- und Leitungseinstellungen (siehe [Serielle Verbindungen](serial.md#einstellungen)). Siehe [Zeichenkodierung](#zeichenkodierung). |
 | Terminal-Einstellungen | **Globale Terminal-Einstellungen verwenden** oder **Eigene Einstellungen für diese Verbindung** mit verbindungsabhängigen Farben, Schriftart und ANSI/TrueColor-Handhabung (siehe [Eigene Terminaleinstellungen](#eigene-terminaleinstellungen)), dem **Terminal-Verhalten** Abschnitt mit dem [Tab-Farbe](#tab-farbe), der [Schlüsselworthervorhebung](#hervorhebung-von-schlusselwortern) Regelset und das [Einfüge-Schutz](#einfugeschutz), und darunter die Zeilen zur Sitzungs-Isolation mit dem [Isolationsebene, strikter Terminalmodus und Incognito-Schalter](session-isolation.md), Terminal-Effekt |
 | SSH-Tunnel | Lokale / Remote- / dynamische Portweiterleitung |
 | Jump Server | Bastion-Host-Verkettung |
@@ -164,6 +164,9 @@ Eine **Tab-Farbe** markiert jeden Terminal-Tab einer Verbindung mit einem kleine
 
 === "Lokale Shell"
     Öffnet die **lokale Maschine**-Shell in einem Terminal-Tab (ohne Netzwerk) über einen pty4j-gebackenen Pseudoterminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe unten [Lokale Shell](#lokale-shell).
+
+=== "Seriell"
+    Öffnet ein Terminal auf einem **seriellen Port** dieses Computers (COM-Port, `/dev/ttyUSB0`, ein USB-zu-Seriell-Adapter), mit pro Verbindung einstellbarer Geschwindigkeit, Datenformat, Flusssteuerung und dem, was ++enter++ sendet. Host, Port, Benutzername und Authentifizierung werden nicht verwendet. Siehe [Serielle Verbindungen](serial.md).
 
 ## SSH-Hostschlüsselüberprüfung
 

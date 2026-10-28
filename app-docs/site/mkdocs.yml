@@ -164,6 +164,7 @@ nav:
       - features/command-palette.md
       - features/tunnels.md
       - features/jump-server.md
+      - features/serial.md
       - features/sftp.md
       - features/file-browser.md
       - features/snippets.md

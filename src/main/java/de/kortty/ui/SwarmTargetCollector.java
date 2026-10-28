@@ -60,6 +60,10 @@ public final class SwarmTargetCollector {
             if (connection.isLocalShell() && !includeLocalShell) {
                 continue;
             }
+            if (connection.isSerial()) {
+                // A device console has no shell prompt to read results back from.
+                continue;
+            }
             SwarmModels.SwarmTargetKey key = SwarmModels.SwarmTargetKey.of(connection);
             if (!seen.add(key)) {
                 continue;
@@ -98,6 +102,9 @@ public final class SwarmTargetCollector {
                 }
                 if (connection.isLocalShell() && !includeLocalShell) {
                     local++;
+                    continue;
+                }
+                if (connection.isSerial()) {
                     continue;
                 }
                 SwarmModels.SwarmTargetKey key = SwarmModels.SwarmTargetKey.of(connection);

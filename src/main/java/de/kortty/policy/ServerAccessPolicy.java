@@ -27,7 +27,7 @@ public final class ServerAccessPolicy {
 
     /** {@link #firstBlockedTarget(ServerConnection)} against an explicit {@code policy}. */
     public static Optional<String> firstBlockedTarget(ServerConnection connection, EffectivePolicy policy) {
-        if (connection == null || connection.getProtocol() == de.kortty.model.ConnectionProtocol.LOCAL_SHELL) {
+        if (connection == null || !connection.isNetworkConnection()) {
             return Optional.empty();
         }
         // Only an actually-used jump host is checked: a connection routes through its jump server

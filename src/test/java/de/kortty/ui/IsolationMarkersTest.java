@@ -181,6 +181,24 @@ class IsolationMarkersTest {
     }
 
     @Test
+    void aSerialPortRunsUnisolatedAndAPolicyMinimumRefusesIt() {
+        ServerConnection serial = new ServerConnection();
+        serial.setProtocol(ConnectionProtocol.SERIAL);
+        serial.setIsolationLevel(IsolationLevel.SANDBOX);
+        // Asked for by the user: runs with what a serial port can get, which is none.
+        assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), serial, null).level())
+            .isEqualTo(IsolationLevel.NONE);
+        // Demanded by the organization: the port is not opened at all.
+        for (IsolationLevel floor : List.of(IsolationLevel.PROCESS, IsolationLevel.SANDBOX)) {
+            IllegalStateException e = org.testng.Assert.expectThrows(IllegalStateException.class,
+                () -> TerminalView.isolationRequestFor(new GlobalSettings(), serial, floor));
+            assertThat(e).hasMessageThat().isNotEmpty();
+        }
+        assertThat(TerminalView.isolationRequestFor(new GlobalSettings(), serial, IsolationLevel.NONE).level())
+            .isEqualTo(IsolationLevel.NONE);
+    }
+
+    @Test
     void aTabOpenedWithAnIsolationLevelUsesItInPlaceOfTheConnections() {
         GlobalSettings global = new GlobalSettings();
         assertThat(TerminalView.isolationRequestFor(global, local(null), null, IsolationLevel.SANDBOX).level())
