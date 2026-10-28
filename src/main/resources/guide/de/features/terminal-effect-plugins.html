@@ -1144,6 +1144,7 @@
 <ul>
 <li>Bewahren Sie den <code>TtyConnector</code>-Vertrag auf</li>
 <li>Delegieren Sie <code>write</code>, <code>resize</code>, <code>waitFor</code>, <code>ready</code>, <code>getName</code>, <code>isConnected</code> und <code>close</code>, es sei denn, der Effekt hat einen bestimmten Grund, sie zu ändern</li>
+<li>Delegieren Sie beide <code>resize</code>-Overloads: <code>resize(TermSize, PixelSize)</code> übergibt die Größe des Textbereichs in Pixeln, die Bildwerkzeuge benötigen. Ohne Override verwirft die Standardimplementierung die Pixel.</li>
 <li>Behandeln Sie <code>InterruptedException</code>, indem Sie das Interrupt-Flag wiederherstellen und in eine entsprechende geprüfte Ausnahme konvertieren, wenn die Methode <code>TtyConnector</code> dies erfordert</li>
 <li>Vermeiden Sie unbegrenztes Puffern, da die Terminalausgabe groß sein kann</li>
 <li>Vermeiden Sie die Verzögerung von Steuersequenzen wie ANSI CSI/OSC-Befehlen, es sei denn, der Effekt ändert absichtlich das Verhalten des Terminalprotokolls</li>
