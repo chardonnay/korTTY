@@ -868,6 +868,11 @@
 <li><strong>"Model default" instead of "Disabled"</strong> — the reasoning setting that sends no reasoning parameter is now called <strong>Model default</strong>, because the model's own default then applies; only <strong>None</strong> switches reasoning off. A tooltip on the dropdown explains the difference. See <a href="../reference/settings/ai.html#reasoning-effort-levels">Reasoning Effort Levels</a>.</li>
 <li><strong>Connection test accepts reasoning-only replies</strong> — <strong>Test AI Connection</strong> and <strong>Refresh reasoning options</strong> now pass when a model that reasons by default, such as Qwen in LM Studio, spends the short test reply on reasoning, and a failed refresh names the endpoint's own reason.</li>
 </ul>
+<h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Scrollback memory limit</strong> — the new <strong>Scrollback memory</strong> slider in the Terminal settings sets the most memory the scrollback of one pane may use, from 1 to 50 MB (10 MB by default), next to the line count; whichever limit is reached first drops the oldest lines. A saved change applies to open terminals at once. See <a href="../reference/settings/terminal.html">Terminal settings</a>.</li>
+<li><strong>Scrollback compression</strong> — while a terminal has no output, korTTY compresses the scrollback lines that are not on screen in the background, so the same memory holds several times as many lines. A line is unpacked as soon as you scroll to it. Switch it off with <strong>Compress the scrollback in the background while idle</strong>. See <a href="../reference/settings/terminal.html">Terminal settings</a>.</li>
+</ul>
 <h3 id="fixes">Fixes<a class="headerlink" href="#fixes" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Dismissed sessions stay dismissed</strong> — closing the last tab on purpose now empties the session snapshot, so the restore offer no longer comes back at every start after you discard it.</li>

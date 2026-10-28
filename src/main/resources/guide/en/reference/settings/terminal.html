@@ -865,6 +865,20 @@
 <td><code>scrollbackLines</code></td>
 </tr>
 <tr>
+<td>Scrollback memory:</td>
+<td>slider</td>
+<td>1–50 MB</td>
+<td>10 MB</td>
+<td><code>scrollbackMemoryMb</code></td>
+</tr>
+<tr>
+<td>Compress the scrollback in the background while idle</td>
+<td>toggle</td>
+<td>—</td>
+<td>On</td>
+<td><code>scrollbackCompression</code></td>
+</tr>
+<tr>
 <td>Encoding:</td>
 <td>dropdown</td>
 <td>UTF-8, ISO-8859-1, ISO-8859-15, Windows-1252</td>
@@ -1110,7 +1124,10 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Scrollback</p>
-<p>Controls how many lines of output each terminal pane keeps in its scrollback buffer. The value is read when a terminal is created, so a change applies to newly opened tabs and split panes — already-open terminals keep their current buffer size. Larger values use more memory per pane.</p>
+<p><strong>Scrollback</strong> sets how many lines of output each terminal pane keeps in its scrollback buffer. The value is read when a terminal is created, so a change applies to newly opened tabs and split panes — already-open terminals keep their current line count.</p>
+<p><strong>Scrollback memory</strong> sets the most memory the scrollback of one pane may use, from 1 to 50 MB. Whichever limit a pane reaches first, the line count or the memory, drops its oldest lines. The memory is an estimate of what the lines take up in korTTY's Java heap. A saved change also applies to open terminals: lowering the limit drops the oldest lines of every open pane at once.</p>
+<p>With <strong>Compress the scrollback in the background while idle</strong>, korTTY packs the scrollback lines that are not on screen into compressed blocks once a terminal has had no output for about one and a half seconds. It works in the background, a few milliseconds at a time, so the same memory holds several times as many lines: in our measurements, 100,000 lines of <code>ls -l</code> or log output took 7 to 9 MB instead of 59 to 67 MB. The lines on screen, a screenful around them and the newest screenful of the scrollback stay unpacked, and nothing is packed while the find bar shows results. A packed line is unpacked as soon as you scroll to it or search the scrollback. When the scrollback of a terminal reaches its memory limit, older lines are packed first and only then dropped. A saved change also applies to open terminals; switching compression off leaves packed lines packed until they are shown.</p>
+<p>Settings files from before these two options load with 10 MB and compression on.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Copy selection to clipboard automatically</p>

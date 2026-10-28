@@ -865,6 +865,20 @@
 <td><code>scrollbackLines</code></td>
 </tr>
 <tr>
+<td>Scrollback-Speicher:</td>
+<td>Regler</td>
+<td>1–50 MB</td>
+<td>10 MB</td>
+<td><code>scrollbackMemoryMb</code></td>
+</tr>
+<tr>
+<td>Scrollback im Leerlauf im Hintergrund komprimieren</td>
+<td>umschalten</td>
+<td>—</td>
+<td>Ein</td>
+<td><code>scrollbackCompression</code></td>
+</tr>
+<tr>
 <td>Kodierung:</td>
 <td>Dropdown</td>
 <td>UTF-8, ISO-8859-1, ISO-8859-15, Windows-1252</td>
@@ -1110,7 +1124,10 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Zurückscrollen</p>
-<p>Steuert, wie viele Ausgabezeilen jeder Terminalbereich in seinem Scrollback-Puffer behält. Der Wert wird beim Erstellen eines Terminals gelesen, daher gilt eine Änderung für neu geöffnete Registerkarten und geteilte Bereiche – bereits geöffnete Terminals behalten ihre aktuelle Puffergröße. Größere Werte verbrauchen mehr Speicher pro Bereich.</p>
+<p><strong>Zurückscrollen</strong> legt fest, wie viele Zeilen der Ausgabe jedes Terminalfenster in seinem Puffer für das Zurückscrollen aufbewahrt. Der Wert wird beim Erstellen eines Terminals gelesen, daher gilt eine Änderung für neu geöffnete Tabs und geteilte Fenster — bereits geöffnete Terminals behalten ihre aktuelle Zeilenzahl.</p>
+<p><strong>Scrollback-Speicher</strong> legt fest, wie viel Speicher der Scrollback eines einzelnen Fensters maximal verwenden darf, von 1 bis 50 MB. Welches Limit ein Fenster zuerst erreicht – die Zeilenanzahl oder der Speicher – führt dazu, dass die ältesten Zeilen entfernt werden. Der Speicher ist eine Schätzung dafür, wie viel Platz die Zeilen im Java-Heap von korTTY belegen. Eine gespeicherte Änderung gilt auch für geöffnete Terminals: Senken Sie das Limit, werden die ältesten Zeilen aller geöffneten Fenster auf einmal entfernt.</p>
+<p>Mit <strong>Scrollback im Leerlauf im Hintergrund komprimieren</strong> packt korTTY die Scrollback-Zeilen, die nicht auf dem Bildschirm angezeigt werden, in komprimierte Blöcke, sobald ein Terminal etwa eineinhalb Sekunden lang keine Ausgabe mehr hatte. Es arbeitet im Hintergrund, jeweils nur wenige Millisekunden lang, sodass derselbe Speicher mehrere Male so viele Zeilen fasst: In unseren Messungen benötigten 100.000 Zeilen <code>ls -l</code> oder Logausgabe 7 bis 9 MB statt 59 bis 67 MB. Die Zeilen auf dem Bildschirm, ein Bildschirm um sie herum und der neueste Bildschirm des Scrollbacks bleiben entpackt, und nichts wird gepackt, solange die Suchleiste Ergebnisse anzeigt. Eine gepackte Zeile wird entpackt, sobald Sie zu ihr scrollen oder im Scrollback suchen. Wenn der Scrollback eines Terminals sein Speicherlimit erreicht, werden ältere Zeilen zuerst gepackt und erst dann verworfen. Eine gespeicherte Änderung gilt auch für offene Terminals; Deaktivieren der Komprimierung lässt gepackte Zeilen gepackt, bis sie angezeigt werden.</p>
+<p>Einstellungsdateien aus der Zeit vor diesen beiden Optionen werden mit 10 MB und aktivierter Komprimierung geladen.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Markierung automatisch in Zwischenablage kopieren</p>
