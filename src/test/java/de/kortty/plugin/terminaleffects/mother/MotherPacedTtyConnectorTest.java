@@ -1,5 +1,8 @@
 package de.kortty.plugin.terminaleffects.mother;
 
+import com.sithtermfx.core.util.PixelSize;
+import com.sithtermfx.core.util.TermSize;
+import de.kortty.core.SizeRecordingTtyConnector;
 import org.testng.annotations.Test;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -56,5 +59,16 @@ public class MotherPacedTtyConnectorTest {
     void containsVisibleOutputIgnoresTerminalControls() {
         assertThat(MotherPacedTtyConnector.containsVisibleOutput("\u001B[32m", 5)).isFalse();
         assertThat(MotherPacedTtyConnector.containsVisibleOutput("\r\n\t", 3)).isFalse();
+    }
+
+    @Test
+    void resizeForwardsThePixelSize() {
+        SizeRecordingTtyConnector base = new SizeRecordingTtyConnector();
+        MotherPacedTtyConnector connector = new MotherPacedTtyConnector(base, () -> 1.0);
+
+        connector.resize(new TermSize(100, 30), new PixelSize(900, 540));
+        connector.resize(new TermSize(80, 24));
+
+        assertThat(base.resizes()).containsExactly("100x30@900x540px", "80x24").inOrder();
     }
 }

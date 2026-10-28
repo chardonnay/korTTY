@@ -1,6 +1,7 @@
 package de.kortty.core;
 
 import com.sithtermfx.core.TtyConnector;
+import com.sithtermfx.core.util.PixelSize;
 import com.sithtermfx.core.util.TermSize;
 import de.kortty.model.ConnectionSettings;
 import de.kortty.model.ServerConnection;
@@ -274,6 +275,10 @@ public class SshTtyConnector implements ObservableTtyConnector, de.kortty.isolat
             channel.setPtyType(TerminalEmulationSupport.termName(connection));
             channel.setPtyColumns(connection.getSettings().getTerminalColumns());
             channel.setPtyLines(connection.getSettings().getTerminalRows());
+            // The text area's pixels are not known before the terminal is laid out; the first
+            // resize(TermSize, PixelSize) sends them. 0x0 tells image tools "unknown" instead of
+            // Apache SSHD's 640x480 default.
+            SshPtyPixels.setPtyPixels(channel, 0, 0);
             
             // Configure PTY modes
             Map<PtyMode, Integer> ptyModes = new EnumMap<>(PtyMode.class);
@@ -1378,11 +1383,31 @@ public class SshTtyConnector implements ObservableTtyConnector, de.kortty.isolat
         return connected.get() && inputStream != null && inputStream.available() > 0;
     }
     
+    /**
+     * Sends the window change without a pixel size. 0x0 means "unknown"; Apache SSHD's two-argument
+     * window change would repeat the last pixel size, which no longer matches the new cell count.
+     */
     @Override
     public void resize(TermSize termSize) {
         if (channel != null && channel.isOpen()) {
             try {
-                channel.sendWindowChange(termSize.getColumns(), termSize.getRows());
+                SshPtyPixels.sendWindowChange(channel, termSize.getColumns(), termSize.getRows(), 0, 0);
+            } catch (Exception e) {
+                logger.warn("Failed to resize terminal: {}", e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Sends the window change with the text area's size in pixels, which image tools (kitty graphics
+     * protocol) read through {@code TIOCGWINSZ} to size their images.
+     */
+    @Override
+    public void resize(TermSize termSize, PixelSize pixelSize) {
+        if (channel != null && channel.isOpen()) {
+            try {
+                SshPtyPixels.sendWindowChange(channel, termSize.getColumns(), termSize.getRows(),
+                    pixelSize.getWidth(), pixelSize.getHeight());
             } catch (Exception e) {
                 logger.warn("Failed to resize terminal: {}", e.getMessage());
             }

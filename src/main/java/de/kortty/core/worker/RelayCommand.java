@@ -1,5 +1,6 @@
 package de.kortty.core.worker;
 
+import de.kortty.core.SshPtyPixels;
 import org.apache.sshd.client.channel.ChannelExec;
 import org.apache.sshd.client.channel.ChannelShell;
 import org.apache.sshd.client.channel.ClientChannel;
@@ -25,9 +26,9 @@ import java.util.Map;
 /**
  * A session channel of the worker's loopback endpoint that is really a channel on the upstream
  * server: korTTY's shell, an {@code exec} (the AI agent's commands) or a subsystem (SFTP) is opened
- * upstream with the same terminal type, size, modes and environment, and the bytes are copied both
- * ways. Window changes go upstream. When the upstream channel ends with an exit status, korTTY's
- * channel ends with the same; when it ends without one (the upstream transport died), korTTY's
+ * upstream with the same terminal type, size (in cells and, through {@link PixelSizeChannelSession},
+ * in pixels), modes and environment, and the bytes are copied both ways. Window changes go
+ * upstream. When the upstream channel ends with an exit status, korTTY's channel ends with the same; when it ends without one (the upstream transport died), korTTY's
  * channel is closed without one too, so korTTY reports "Connection lost" exactly as it does for a
  * direct session.
  */
@@ -83,13 +84,13 @@ final class RelayCommand implements Command {
         ClientChannel ch = switch (kind) {
             case SHELL -> {
                 ChannelShell shell = upstream.createShellChannel();
-                configurePty(shell, env, term);
+                configurePty(shell, channel, env, term);
                 yield shell;
             }
             case EXEC -> {
                 ChannelExec exec = upstream.createExecChannel(argument);
                 if (term != null) {
-                    configurePty(exec, env, term);
+                    configurePty(exec, channel, env, term);
                 } else {
                     exec.setUsePty(false);
                 }
@@ -116,7 +117,11 @@ final class RelayCommand implements Command {
                 try {
                     int columns = Integer.parseInt(env.getEnv().getOrDefault(Environment.ENV_COLUMNS, "80"));
                     int lines = Integer.parseInt(env.getEnv().getOrDefault(Environment.ENV_LINES, "24"));
-                    pty.sendWindowChange(columns, lines);
+                    if (channel instanceof PixelSizeChannelSession pixels) {
+                        SshPtyPixels.sendWindowChange(pty, columns, lines, pixels.pixelWidth(), pixels.pixelHeight());
+                    } else {
+                        pty.sendWindowChange(columns, lines);
+                    }
                 } catch (IOException | RuntimeException e) {
                     logger.debug("Window change could not be relayed: {}", e.getMessage());
                 }
@@ -127,13 +132,17 @@ final class RelayCommand implements Command {
         waiter.start();
     }
 
-    private static void configurePty(PtyCapableChannelSession channel, Environment env, String term) {
+    private static void configurePty(PtyCapableChannelSession channel, ChannelSession downstream, Environment env,
+            String term) {
         Map<String, String> vars = env.getEnv();
         if (term != null) {
             channel.setPtyType(term);
         }
         channel.setPtyColumns(parse(vars.get(Environment.ENV_COLUMNS), 80));
         channel.setPtyLines(parse(vars.get(Environment.ENV_LINES), 24));
+        if (downstream instanceof PixelSizeChannelSession pixels) {
+            SshPtyPixels.setPtyPixels(channel, pixels.pixelWidth(), pixels.pixelHeight());
+        }
         Map<PtyMode, Integer> modes = env.getPtyModes();
         if (modes != null && !modes.isEmpty()) {
             channel.setPtyModes(modes);

@@ -3,6 +3,7 @@ package de.kortty.ui;
 import com.sithtermfx.core.Questioner;
 import com.sithtermfx.core.TtyConnector;
 import com.sithtermfx.core.emulator.EmulationType;
+import com.sithtermfx.core.util.PixelSize;
 import com.sithtermfx.core.util.TermSize;
 import de.kortty.shellintegration.OscEventSplitter;
 import de.kortty.shellintegration.ShellIntegrationEvent;
@@ -152,6 +153,11 @@ public final class ShellIntegrationTtyConnector implements TtyConnector {
     @Override
     public void resize(@NotNull TermSize termSize) {
         delegate.resize(termSize);
+    }
+
+    @Override
+    public void resize(@NotNull TermSize termSize, @NotNull PixelSize pixelSize) {
+        delegate.resize(termSize, pixelSize);
     }
 
     @Override
