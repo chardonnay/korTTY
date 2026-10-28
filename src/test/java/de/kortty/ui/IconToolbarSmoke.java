@@ -222,7 +222,7 @@ public final class IconToolbarSmoke {
     /** Every combination is saved, read back from disk, and applied to both real windows. */
     private static void exerciseVisibility(Stage first, Stage second, IconToolbarSettings configuration,
                                           int combination, Runnable finished) {
-        if (combination == 4) { finished.run(); return; }
+        if (combination == 4) { exerciseEmptyConnectionRow(first, configuration, finished); return; }
         boolean actions = (combination & 1) != 0;
         boolean connections = (combination & 2) != 0;
         configuration.setVisible(actions);
@@ -256,6 +256,35 @@ public final class IconToolbarSmoke {
                 throw new IllegalStateException("Read back toolbar settings", error);
             }
             exerciseVisibility(first, second, configuration, combination + 1, finished);
+        });
+    }
+
+    /** A switched-on row without connections still shows, offering to add one, instead of vanishing. */
+    private static void exerciseEmptyConnectionRow(Stage window, IconToolbarSettings configuration, Runnable finished) {
+        IconToolbarSettings empty = new IconToolbarSettings(configuration);
+        empty.setEntries(configuration.entries().stream().filter(entry -> entry.section() != Section.CONNECTIONS).toList());
+        empty.setVisible(false);
+        empty.setConnectionsVisible(true);
+        MainWindow.saveIconToolbarSettings(empty, saved -> {
+            check(saved, "Save empty connection row");
+            IconToolbar toolbar = (IconToolbar) window.getScene().getRoot().lookup(".icon-toolbar");
+            check(toolbar.isVisible() && toolbar.lookup(".toolbar-connections") != null, "Empty connection row stays visible");
+            layout(window.getScene().getRoot());
+            try {
+                snapshot(toolbar, Path.of("build/smoke/icon-toolbar").resolve("connections-empty.png"));
+            } catch (Exception error) {
+                throw new IllegalStateException("Snapshot empty connection row", error);
+            }
+            button((Parent) toolbar.lookup(".toolbar-connections"), I18n.get("toolbar.addConnection")).fire();
+            layout(window.getScene().getRoot());
+            check(toolbar.lookup(".toolbar-editor").isVisible(), "Add connection opens the editor");
+            var categories = (javafx.scene.control.ListView<?>) toolbar.lookup(".list-view");
+            check(categories.getSelectionModel().getSelectedIndex() == 2, "Editor opens on the connections category");
+            button(toolbar, I18n.get("toolbar.cancel")).fire();
+            MainWindow.saveIconToolbarSettings(configuration, restored -> {
+                check(restored, "Restore toolbar after empty connection row");
+                finished.run();
+            });
         });
     }
 
