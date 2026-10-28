@@ -473,6 +473,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="../features/serial.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Serielle Verbindungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="../features/sftp.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -952,7 +960,7 @@
 </div>
 <p>Der erste Wrapper-Aufruf lädt Gradle herunter. Ein sauberer Anwendungsbuild klont bei Bedarf auch SithTermFX, installiert es über Maven, lädt die angehefteten Build-Eingaben herunter, kompiliert korTTY und führt die Tests aus.</p>
 <h3 id="sauberes-zielspezifisches-paket-staging">Sauberes, zielspezifisches Paket-Staging<a class="headerlink" href="#sauberes-zielspezifisches-paket-staging" title="Permanent link">&para;</a></h3>
-<p><code>prepareJpackage</code> setzt <code>build/jpackage-input/libs</code> mit einem letzten Gradle <code>Sync</code> zusammen. Es entfernt veraltete Abhängigkeitsversionen und Formatierungsbäume, behält nur die aktuelle mosh4j-Architektur und Protobuf bei, verwendet das übergeordnet geladene Bouncy Castle der Anwendung wieder, schließt die Testabhängigkeit von SithTermFX aus und ersetzt JNA/pty4j durch JARs, die alle Java-Klassen, Dienste, Manifeste und Lizenzen, aber nur den nativen Zielpfad und die binäre Architektur beibehalten. Die Verifizierungsaufgabe setzt absichtlich veraltete Dateien vor der Synchronisierung und führt einen echten JNA/PTY-Smoke gegen die schlanken JARs durch:</p>
+<p><code>prepareJpackage</code> stellt <code>build/jpackage-input/libs</code> mit einem abschließenden Gradle-<code>Sync</code> zusammen. Es entfernt veraltete Abhängigkeitsversionen und Formatter-Bäume, behält nur die aktuelle mosh4j-Architektur und protobuf bei, wiederverwendet die vom übergeordneten Projekt geladene Bouncy Castle, schließt die Testabhängigkeit von SithTermFX aus und ersetzt JNA, pty4j, zstd-jni und jSerialComm durch JARs, die alle Java-Klassen, Dienste, Manifeste und Lizenzen beibehalten, aber nur den Ziel-Nativpfad und die binäre Architektur. Die Verifikationstask legt vor dem Sync gezielt veraltete Dateien an und führt einen echten Smoke-Test der JNA/PTY/Seriell-Bibliothek gegen die schlanken JARs aus:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./gradlew<span class="w"> </span>verifyJpackageStaging<span class="w"> </span>slimNativeRuntimeSmoke
 </span></code></pre></div>
 <h3 id="berichte-und-budgets-in-paketgroe">Berichte und Budgets in Paketgröße<a class="headerlink" href="#berichte-und-budgets-in-paketgroe" title="Permanent link">&para;</a></h3>

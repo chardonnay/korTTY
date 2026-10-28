@@ -473,6 +473,14 @@
     </li>
                             
     <li class="drac-box-ternary">
+        <a href="serial.html"
+            class="
+            drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
+            Serielle Verbindungen
+        </a>
+    </li>
+                            
+    <li class="drac-box-ternary">
         <a href="sftp.html"
             class="
             drac-anchor d-inline-flex align-items-center border-0 drac-text-purple--hover">
@@ -822,7 +830,7 @@
                 <section class="p-md-5 section-content">
     <article>
         <p><h1 id="verbindungen">Verbindungen<a class="headerlink" href="#verbindungen" title="Permanent link">&para;</a></h1>
-<p>korTTY verwaltet SSH-, Mosh- und <strong>Local-Shell</strong>-Verbindungen über drei Einstiegspunkte: die <strong>Schnellverbindung</strong>, den <strong>Connection-Manager</strong> und gespeicherte <strong>Projekte</strong>.</p>
+<p>korTTY verwaltet SSH-, Mosh-, <strong>lokale-Shell-</strong> und <a href="serial.html">serielle</a>-Verbindungen über drei Einstiegspunkte: die <strong>Schnellverbindung</strong>, den <strong>Connection-Manager</strong> und gespeicherte <strong>Projekte</strong>.</p>
 <p><img alt="Connection flow" src="../assets/diagrams/connection-flow.svg" /></p>
 <h2 id="schnellverbindung">Schnellverbindung<a class="headerlink" href="#schnellverbindung" title="Permanent link">&para;</a></h2>
 <p>Öffnen mit <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-k">K</kbd></span> (oder <strong>Verbindungen → Schnellverbindung…</strong>). Geben Sie Host, Port, Benutzernamen und Authentifizierung ein und stellen Sie eine Verbindung her, ohne zu speichern. Häufig verwendete Verbindungen werden als Schnellschaltflächen angezeigt. Eine Live-Suche filtert sie. Gespeicherte Verbindungen können aus einem Dropdown-Menü mit einem eigenen Suchfeld ausgewählt werden, das nach Name, Host oder <a href="#tags">Tag</a> filtert (<code>*</code> funktioniert als Platzhalter); Das Tag einer gespeicherten Verbindung wird neben ihrem Namen (🏷) im Dropdown-Menü und in den QuickInfos der Schnellschaltflächen angezeigt.</p>
@@ -870,7 +878,7 @@
 </table>
 <p><strong>Alle Verbindungen</strong>, <strong>Favoriten</strong>, <strong>Zuletzt verwendet</strong>, <strong>Gerade offen</strong> und die Tags zeigen lokale und Teamwork-Verbindungen gemeinsam an. Eine Teamwork-Verbindung trägt ein kleines Personen-Symbol nach ihrem Namen, in der Liste und im Netzplan, und bleibt an jeder Stelle, an der sie erscheint, schreibgeschützt: sie kann nicht bearbeitet, dupliziert, getaggt oder verschoben werden, und <strong>Löschen</strong> blendet sie lediglich auf diesem Computer aus. Ein Ordner der Bibliothek zeigt immer nur lokale Verbindungen an.</p>
 <h3 id="liste-und-netzplan">Liste und Netzplan<a class="headerlink" href="#liste-und-netzplan" title="Permanent link">&para;</a></h3>
-<p><strong>Liste</strong> zeigt die gewählten Verbindungen in ihren Ordnern, mit Linien von jedem Ordner zu seinen Verbindungen und Unterordnern; ein leerer Ordner zeigt keine Einträge darunter. Jede Zeile zeigt das Protokoll (Server für SSH, Wellen für Mosh, ein Laptop für eine lokale Shell) mit dem <a href="#os-symbole">OS-Symbol</a> der Verbindung in ihrer Ecke, den Namen, <code>user@host</code>, das Tag, einen Stern für einen Favoriten und kleine Markierungen für einen Jump-Server, Tunnel, eine eigene Isolationsebene, Inkognito und eine ausgeschaltete Host-Key-Prüfung; ein grüner Punkt und eine Anzahl bedeuten, dass die Verbindung offene Tabs hat. Ziehen Sie eine Verbindung auf einen Ordner, um sie dort zu verschieben; <strong>Rückgängig</strong> in der Symbolleiste nimmt den letzten Vorgang zurück. Doppelklicken Sie eine Verbindung, um die Verbindung herzustellen.</p>
+<p><strong>Liste</strong> zeigt die ausgewählten Verbindungen in ihren Ordnern, mit Linien von jedem Ordner zu seinen Verbindungen und Unterordnern; ein leerer Ordner zeigt keine Einträge darunter. Jede Zeile zeigt das Protokoll (Server für SSH, Wellen für Mosh, ein Laptop für eine lokale Shell, ein Stecker für einen seriellen Port) mit dem <a href="#os-symbole">OS-Symbol</a> der Verbindung in ihrer Ecke, den Namen, <code>user@host</code>, das Tag, einen Stern für einen Favoriten und kleine Markierungen für einen Jump-Server, Tunnel, eine eigene Isolationsebene, Inkognito und eine ausgeschaltete Host-Key-Prüfung; ein grüner Punkt und eine Anzahl bedeuten, dass die Verbindung offene Tabs hat. Ziehen Sie eine Verbindung auf einen Ordner, um sie dort zu verschieben; <strong>Rückgängig</strong> in der Symbolleiste nimmt den letzten Vorgang zurück. Doppelklicken Sie eine Verbindung, um die Verbindung herzustellen.</p>
 <p><strong>Netzplan</strong> zeigt dieselben Verbindungen auf einem Netzplan: eine gestrichelte Zone pro Ordner in der Tab-Farbe des Ordners, ein Knoten pro Verbindung und dieser Computer links. Orange gestrichelte Linien zeigen den Weg über einen Jump-Server, der die gespeicherte Verbindung mit diesem Host ist, wenn es eine gibt, andernfalls ein eigener Knoten; türkis gepunktete Linien zeigen Tunnel, die ebenfalls unter diesem Computer aufgeführt sind. Klicken Sie auf einen Knoten, um ihn auszuwählen, doppelklicken Sie, um die Verbindung herzustellen, und ziehen Sie ihn in eine andere Zone, um die Verbindung in diesen Ordner zu verschieben (<strong>Rückgängig</strong> nimmt sie zurück). <strong>Jump-Wege</strong> und <strong>Tunnel</strong> zeigen oder verstecken die Linien, <strong>−</strong>, <strong>+</strong> und <strong>Anpassen</strong> zoomen, und <span class="keys"><kbd class="key-control">Ctrl</kbd></span> mit dem Mausrad zoomt ebenfalls. Teamwork-Verbindungen erhalten eigene Zonen und gestrichelte Knoten und können nicht verschoben werden. Der Netzplan wird automatisch angeordnet; nichts davon wird gespeichert.</p>
 <p><strong>PDF</strong> speichert den Netzplan als Vektor-PDF mit dem korTTY-Logo, einem Titel, der Legende und dem Datum. Wählen Sie <strong>Querformat</strong> oder <strong>Hochformat</strong> sowie einen Titel; korTTY ordnet die Zonen so an, dass die Seite in dieser Ausrichtung gefüllt wird, und setzt auf weiteren Seiten fort, wenn der Netzplan in einer lesbaren Größe nicht auf eine Seite passt.</p>
 <p><img alt="The map: Production with its jump server and tunnel, the other folders below" src="../../en/assets/screenshots/main/connection-manager-map.png" /></p>
@@ -891,7 +899,7 @@
 <tbody>
 <tr>
 <td>Grundlagen (immer)</td>
-<td>Name, Protokoll, Host, Port und Benutzer; bei einer lokalen Shell deren Befehl und Startverzeichnis</td>
+<td>Name, Protokoll, Host, Port und Benutzer; für eine lokale Shell deren Befehl und Startverzeichnis; für eine serielle Verbindung deren Port und Leitungseinstellungen anstelle von Host, Port und Benutzer</td>
 </tr>
 <tr>
 <td>Ordner, Tag, Tab-Farbe, Favorit</td>
@@ -938,7 +946,7 @@
 <li>korTTY prüft zuerst die <a href="../reference/enterprise-policy.html#server-zugriffskontrolle">Serverzugriffsrichtlinie</a> Ihrer Organisation. Bei einem gesperrten Server oder Jump-Server erscheint die Richtlinienmeldung, bevor korTTY Sie nach irgendetwas fragt.</li>
 <li>Eine gemeinsam genutzte <a href="teamwork.html">Teamarbeit</a>-Verbindung, die weder Anmeldeinformationen noch einen SSH-Schlüssel angibt, verwendet die Standardauthentifizierung des Teams.</li>
 <li>Eine Verbindung mit einem temporären SSH-Schlüssel verwendet diesen Schlüssel wieder, solange er noch gültig ist, und fragt nach einem neuen, sobald er abgelaufen ist. Sie fragt auch dann nach einem neuen, wenn der Tresor gesperrt ist und korTTY den gespeicherten Schlüssel nicht entschlüsseln konnte, statt eine SSH-Schlüssel-Authentifizierung ohne Schlüssel zu versuchen.</li>
-<li>Lokale Shells und Verbindungen mit SSH-Schlüssel-Authentifizierung verbinden sich ohne Passwort.</li>
+<li>Eine lokale Shell, eine serielle Verbindung und die SSH-Schlüssel-Authentifizierung verbinden sich ohne Passwort.</li>
 <li>Andernfalls verwendet korTTY das gespeicherte Passwort, zuerst aus den hinterlegten Anmeldeinformationen der Verbindung und dann aus der Verbindung selbst, und fragt nach dem Passwort, wenn keines gespeichert ist; <strong>OK</strong> bleibt ausgegraut, bis Sie eines eingeben. Liegt das gespeicherte Passwort im gesperrten Tresor, bietet korTTY zuerst <strong>Tresor entsperren…</strong> an (siehe <a href="security.html#spater-den-tresor-entsperren">Später den Tresor entsperren</a>); wenn Sie ihn nicht entsperren, bittet korTTY Sie stattdessen, das Passwort einzugeben.</li>
 </ol>
 <p>Wenn Sie eine dieser Fragen abbrechen, wird kein Tab geöffnet. <strong>Duplizieren</strong> im Kontextmenü eines Terminal-Tabs meldet sich auf dieselbe Weise an und fragt daher ebenfalls nach einem neuen temporären SSH-Schlüssel, wenn der Schlüssel des Tabs abgelaufen ist. Eine gespeicherte oder Teamwork-Verbindung, die Sie in der <a href="command-palette.html#verbinden">Befehlspalette</a> auswählen (<span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span>, <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-shift">Shift</kbd><span>+</span><kbd class="key-p">P</kbd></span> unter macOS, dann <code>@</code> und ein Teil ihres Namens), meldet sich auf dieselbe Weise an, ebenso eine Verbindung, die Sie unter <a href="projects.html#zuletzt-verwendet"><em>Datei → Zuletzt verwendet</em></a> auswählen. <strong>Geschlossenen Tab wieder öffnen</strong> und <em>Datei → Zuletzt geschlossen</em> melden sich ebenfalls so an, mit der gespeicherten Verbindung in ihrem aktuellen Stand (siehe <a href="terminal.html#arbeiten-mit-tabs">Arbeiten mit Tabs</a>). Das Öffnen eines <a href="projects.html#tabs-die-auf-sie-warten">Projekts</a> meldet jeden Tab in derselben Reihenfolge an, fragt aber von sich aus nichts: Ein Tab, der ein Passwort, einen neuen temporären SSH-Schlüssel oder den gesperrten Tresor braucht, wartet in einer Leiste mit <strong>Verbinden…</strong> und <strong>Tresor entsperren…</strong>, und ein blockierter Server oder eine gelöschte Verbindung wird dort aufgeführt, statt einen Dialog anzuzeigen.</p>
@@ -954,7 +962,7 @@
 <tbody>
 <tr>
 <td>Verbindung</td>
-<td>Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ) oder Lokale Shell), Terminalemulation, <strong>Zeichenkodierung</strong> (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), <strong>Host-Key-Prüfung</strong> (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuordnung, ein optionales Freitext-<a href="#tags">Tag</a> und das <a href="#os-symbole">OS-Symbol</a>, <strong>Verbindungstimeout</strong> (1–300 Sekunden) und <strong>Wiederholungsversuche</strong> (1–20 Versuche, verwendet, wenn <strong>Verbindungswiederholungen aktivieren</strong> in <em>Einstellungen → Terminal</em> aktiviert ist). Bei <strong>Lokale Shell</strong>-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert. Siehe <a href="#zeichenkodierung">Zeichenkodierung</a>.</td>
+<td>Host, Port, Benutzername, Protokoll (SSH über TCP/IP, Mosh (mosh4j), Mosh-Client (nativ), Lokale Shell oder Seriell), Terminalemulation, <strong>Zeichenkodierung</strong> (Standard verwenden / UTF-8 / ISO-8859-1 / ISO-8859-15 / Windows-1252), Authentifizierung (Passwort / Schlüssel / keyboard-interactive), <strong>Host-Key-Prüfung</strong> (Standard verwenden / prüfen / nicht prüfen), Gruppen-/Ordnerzuordnung, ein optionales Freitext-<a href="#tags">Tag</a> sowie das <a href="#os-symbole">OS-Symbol</a>, <strong>Verbindungstimeout</strong> (1–300 Sekunden) und <strong>Wiederholungsversuche</strong> (1–20 Versuche, verwendet, wenn <strong>Verbindungswiederholungen aktivieren</strong> in <em>Einstellungen → Terminal</em> aktiviert ist). Bei <strong>Lokale Shell</strong>- und <strong>Seriell</strong>-Verbindungen sind Host, Port, Benutzername und Authentifizierung nicht erforderlich und deaktiviert; eine serielle Verbindung hat eigene Zeilen für die Port- und Leitungseinstellungen (siehe <a href="serial.html#einstellungen">Serielle Verbindungen</a>). Siehe <a href="#zeichenkodierung">Zeichenkodierung</a>.</td>
 </tr>
 <tr>
 <td>Terminal-Einstellungen</td>
@@ -1033,7 +1041,7 @@
 <p>Eine <a href="teamwork.html">Teamarbeit</a>-Verbindung zeigt die Farbe, die in der gemeinsamen Datei steht, sodass derjenige, der diese Datei pflegt, entscheidet, wie ihre Tabs markiert werden. Diese Farbe hat auch Vorrang vor der Farbe Ihrer eigenen Zugangsdaten-Umgebung. Ihre Ordnerfarben gelten nie für Teamwork-Verbindungen, weil die gemeinsame Datei bestimmt, in welchem Ordner sie liegen. Betrachten Sie die Farbe als Hinweis, nicht als Beweis dafür, auf welchem Server Sie sich befinden: Der Tooltip nennt weiterhin die Verbindung, ebenso der Tab-Titel, es sei denn, Sie haben den Tab umbenannt oder seine <a href="terminal.html#titel-aus-der-shell">Shell hat einen Titel gesetzt</a>.</p>
 </div>
 <h2 id="protokolle">Protokolle<a class="headerlink" href="#protokolle" title="Permanent link">&para;</a></h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">SSH</label><label for="__tabbed_1_2">Mosh</label><label for="__tabbed_1_3">Mosh-Client (nativ)</label><label for="__tabbed_1_4">Lokale Shell</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:5"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><input id="__tabbed_1_5" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">SSH</label><label for="__tabbed_1_2">Mosh</label><label for="__tabbed_1_3">Mosh-Client (nativ)</label><label for="__tabbed_1_4">Lokale Shell</label><label for="__tabbed_1_5">Seriell</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>Standard-SSH über Apache MINA SSHD. Unterstützt Passwort-, Public-Key- und keyboard-interactive-Authentifizierung, Keep-Alive und OSC-8-Hyperlinks für Web- und Mailadressen, die sich mit <span class="keys"><kbd class="key-command">Cmd</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd></span> + Klick öffnen (siehe <a href="terminal.html#links-in-der-terminalausgabe">Links in der Terminalausgabe</a>).</p>
@@ -1046,6 +1054,9 @@
 </div>
 <div class="tabbed-block">
 <p>Öffnet die <strong>lokale Maschine</strong>-Shell in einem Terminal-Tab (ohne Netzwerk) über einen pty4j-gebackenen Pseudoterminal. Host, Port, Benutzername und Authentifizierung sind nicht erforderlich. Siehe unten <a href="#lokale-shell">Lokale Shell</a>.</p>
+</div>
+<div class="tabbed-block">
+<p>Öffnet ein Terminal auf einem <strong>seriellen Port</strong> dieses Computers (COM-Port, <code>/dev/ttyUSB0</code>, ein USB-zu-Seriell-Adapter), mit pro Verbindung einstellbarer Geschwindigkeit, Datenformat, Flusssteuerung und dem, was <span class="keys"><kbd class="key-enter">Enter</kbd></span> sendet. Host, Port, Benutzername und Authentifizierung werden nicht verwendet. Siehe <a href="serial.html">Serielle Verbindungen</a>.</p>
 </div>
 </div>
 </div>
