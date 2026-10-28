@@ -14,7 +14,7 @@ Choose **Serial** as the protocol, then fill in the serial rows below it.
 
 | Setting | Description |
 | --- | --- |
-| **Serial port:** | The port to open: `COM3` on Windows, `/dev/ttyUSB0` or `/dev/ttyACM0` on Linux, `/dev/cu.usbserial-…` on macOS. The list shows the ports present when the dialog opened, each with its driver's description; **Refresh** looks again after you plug in an adapter. You can also type a port that is not plugged in yet. On macOS each port appears once, as its `cu.` device, which opens without waiting for a carrier signal. |
+| **Serial port:** | The port to open: `COM3` on Windows, `/dev/ttyUSB0` or `/dev/ttyACM0` on Linux, `/dev/cu.usbserial-…` on macOS. Pick it from the list or type it; a port that is not plugged in yet can be typed too. See [Finding the right port](#finding-the-right-port). |
 | **Speed (baud):** | 300 to 921600 from the list, or any other rate typed in (up to 20000000). Default 9600. |
 | **Data bits / parity / stop bits:** | 5–8 data bits; **No parity**, **Odd**, **Even**, **Mark** or **Space**; **1 stop bit**, **1.5 stop bits** or **2 stop bits**. Default 8 data bits, no parity, 1 stop bit (8N1). |
 | **Flow control:** | **None** (default), **RTS/CTS (hardware)**, **XON/XOFF (software)** or **DSR/DTR**. |
@@ -24,6 +24,12 @@ Choose **Serial** as the protocol, then fill in the serial rows below it.
 The settings are stored with the connection and survive duplicating, exporting and importing; picking a saved serial connection in Quick Connect shows them in the form. A connection without a name is called after its port and speed, for example `COM3 @ 115200`.
 
 **Character encoding** in the connection editor also applies to serial connections: **Use default** follows *Settings → Terminal → Encoding*; many devices send plain ASCII or ISO-8859-1.
+
+## Finding the right port
+
+The list under **Serial port:** shows every port of this computer with its driver's description, for example `FT232R USB UART (/dev/cu.usbserial-A50285BI)`, and below it what the USB adapter reports about itself: its manufacturer, its serial number (**S/N**) and its USB vendor and product id (**USB 0403:6001**); pointing at a port shows the USB location it is plugged into. The serial number tells two adapters of the same kind apart. On macOS each port appears once, as its `cu.` device, which opens without waiting for a carrier signal.
+
+While the dialog is open and **Serial** is selected, korTTY looks for ports again every two seconds. A port that appears after the dialog opened is marked **New**, and when no port is entered yet it is picked right away, so the simplest way to find an adapter is to plug it in with the dialog open. **Refresh** looks again at once.
 
 ## Working in a serial tab
 
@@ -43,7 +49,7 @@ Serial sessions in a **MobaXterm** session file (`.mxtsessions`, `MobaXterm.ini`
 
 | Message | What to do |
 | --- | --- |
-| *Serial port … was not found.* | Plug in the adapter, press **Refresh** and pick the port again; USB adapters can get a different name after re-plugging. On Windows the Device Manager lists the port under *Ports (COM & LPT)*. |
+| *Serial port … was not found.* | Plug in the adapter with the dialog open and pick the port marked **New**; USB adapters can get a different name after re-plugging. On Windows the Device Manager lists the port under *Ports (COM & LPT)*. |
 | *Serial port … is in use by another program.* | Close the other terminal program or tab that has the port open. korTTY opens a port exclusively. |
 | *You may not open serial port ….* | On Linux, add your user to the `dialout` group (`uucp` on Arch Linux) and log in again. |
 | *… rejected the line settings.* | The adapter does not support the speed; pick a standard rate. |

@@ -16,9 +16,13 @@ import javafx.scene.layout.Priority;
 import javafx.util.StringConverter;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 /**
@@ -26,6 +30,12 @@ import java.util.function.Function;
  * present or typed), speed, data format, flow control, what Enter sends, and the DTR/RTS/echo
  * options. Both dialogs add the rows to their connection grid and enable them for
  * {@link de.kortty.model.ConnectionProtocol#SERIAL} only.
+ *
+ * <p>The port list shows each port's driver description, its USB manufacturer, serial number and
+ * vendor:product id, so two identical adapters can be told apart. While the rows are active the
+ * list is rescanned every {@link #RESCAN_SECONDS} seconds, and a port that appeared after the first
+ * scan is marked <i>New</i> (and picked when no port is entered yet): plug the adapter in with the
+ * dialog open and its port is the marked one.</p>
  */
 final class SerialSettingsEditor {
 
@@ -41,9 +51,18 @@ final class SerialSettingsEditor {
     private final CheckBox assertRtsCheck = new CheckBox(I18n.get("connEdit.serial.assertRts"));
     private final CheckBox localEchoCheck = new CheckBox(I18n.get("connEdit.serial.localEcho"));
     private final List<Label> labels = new ArrayList<>();
-    /** Port name to its description label, from the last scan; typed names have no entry. */
-    private final Map<String, String> portLabels = new LinkedHashMap<>();
+    /** Port name to what the last scan knew about it; typed names have no entry. */
+    private final Map<String, SerialPortCatalog.PortInfo> ports = new LinkedHashMap<>();
+    /** The ports of the first scan; null until it finished. A port missing from it is new. */
+    private Set<String> baselinePorts;
+    private final Set<String> newPorts = new HashSet<>();
+    private final AtomicBoolean scanning = new AtomicBoolean();
+    private final javafx.animation.Timeline rescan = new javafx.animation.Timeline(
+        new javafx.animation.KeyFrame(javafx.util.Duration.seconds(RESCAN_SECONDS), e -> rescanIfShowing()));
     private Runnable onChange = () -> { };
+
+    /** How often the port list is rescanned while the serial rows are active. */
+    static final int RESCAN_SECONDS = 2;
 
     SerialSettingsEditor(SerialSettings initial) {
         SerialSettings settings = initial != null ? initial : new SerialSettings();
@@ -51,13 +70,9 @@ final class SerialSettingsEditor {
         portCombo.setEditable(true);
         portCombo.setPromptText(I18n.get("connEdit.serial.portPrompt"));
         portCombo.setMaxWidth(Double.MAX_VALUE);
-        portCombo.setCellFactory(list -> new ListCell<>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : portLabels.getOrDefault(item, item));
-            }
-        });
+        portCombo.setCellFactory(list -> new PortCell());
+        portCombo.setOnShown(e -> fitPopupToCells());
+        rescan.setCycleCount(javafx.animation.Animation.INDEFINITE);
         portCombo.setValue(settings.getPortName());
         portCombo.getEditor().textProperty().addListener((obs, old, value) -> onChange.run());
         portCombo.valueProperty().addListener((obs, old, value) -> onChange.run());
@@ -157,8 +172,13 @@ final class SerialSettingsEditor {
         lineEndingCombo.setDisable(!active);
         localEchoCheck.setDisable(!active);
         updateHandshakeChecks();
-        if (active && portLabels.isEmpty()) {
-            refreshPorts();
+        if (active) {
+            if (baselinePorts == null) {
+                refreshPorts();
+            }
+            rescan.play();
+        } else {
+            rescan.stop();
         }
     }
 
@@ -223,31 +243,176 @@ final class SerialSettingsEditor {
 
     /** Scans the ports off the JavaFX thread and offers them in the picker; the typed name stays. */
     private void refreshPorts() {
+        if (!scanning.compareAndSet(false, true)) {
+            return;
+        }
         refreshButton.setDisable(true);
         Thread scan = new Thread(() -> {
-            List<SerialPortCatalog.PortInfo> ports = SerialPortCatalog.list();
-            Platform.runLater(() -> showPorts(ports));
+            List<SerialPortCatalog.PortInfo> found;
+            try {
+                found = SerialPortCatalog.list();
+            } finally {
+                scanning.set(false);
+            }
+            List<SerialPortCatalog.PortInfo> result = found;
+            Platform.runLater(() -> showPorts(result));
         }, "kortty-serial-port-scan");
         scan.setDaemon(true);
         scan.start();
     }
 
-    private void showPorts(List<SerialPortCatalog.PortInfo> ports) {
-        String typed = portText();
-        portLabels.clear();
+    /** The periodic rescan; stops by itself once the dialog is closed. */
+    private void rescanIfShowing() {
+        javafx.stage.Window window = portCombo.getScene() != null ? portCombo.getScene().getWindow() : null;
+        if (window == null || !window.isShowing() || portCombo.isDisabled()) {
+            rescan.stop();
+            return;
+        }
+        // An open list would jump under the pointer; the next tick catches up.
+        if (!portCombo.isShowing()) {
+            refreshPorts();
+        }
+    }
+
+    private void showPorts(List<SerialPortCatalog.PortInfo> found) {
+        refreshButton.setDisable(portCombo.isDisabled());
         List<String> names = new ArrayList<>();
-        for (SerialPortCatalog.PortInfo port : ports) {
-            portLabels.put(port.name(), port.label());
+        for (SerialPortCatalog.PortInfo port : found) {
             names.add(port.name());
         }
+        boolean firstScan = baselinePorts == null;
+        if (firstScan) {
+            baselinePorts = new LinkedHashSet<>(names);
+        }
+        Set<String> fresh = newPorts(baselinePorts, names);
+        if (!firstScan && new ArrayList<>(ports.values()).equals(found) && fresh.equals(newPorts)) {
+            return;
+        }
+        Set<String> appeared = new LinkedHashSet<>(fresh);
+        appeared.removeAll(newPorts);
+        newPorts.clear();
+        newPorts.addAll(fresh);
+        ports.clear();
+        for (SerialPortCatalog.PortInfo port : found) {
+            ports.put(port.name(), port);
+        }
+
+        String typed = portText();
         portCombo.getItems().setAll(names);
         portCombo.setValue(typed);
         portCombo.getEditor().setText(typed != null ? typed : "");
         portCombo.setPlaceholder(new Label(I18n.get("connEdit.serial.noPortsFound")));
-        if (typed == null && names.size() == 1) {
+        if (typed == null && firstScan && names.size() == 1) {
             portCombo.setValue(names.get(0));
+        } else if (typed == null && appeared.size() == 1) {
+            // The adapter just plugged in is almost certainly the one wanted.
+            portCombo.setValue(appeared.iterator().next());
         }
-        refreshButton.setDisable(portCombo.isDisabled());
+    }
+
+    /**
+     * Gives every row of the open list the height of the tallest one. The popup estimates its height
+     * before the two-line rows are laid out, which cut the last row off in the AtlantaFX designs.
+     */
+    private void fitPopupToCells() {
+        if (!(portCombo.getSkin() instanceof javafx.scene.control.skin.ComboBoxListViewSkin<?> skin)
+                || !(skin.getPopupContent() instanceof javafx.scene.control.ListView<?> list)) {
+            return;
+        }
+        Platform.runLater(() -> {
+            double tallest = 0;
+            for (javafx.scene.Node cell : list.lookupAll(".list-cell")) {
+                if (cell instanceof PortCell portCell && portCell.getItem() != null) {
+                    tallest = Math.max(tallest, portCell.prefHeight(list.getWidth()));
+                }
+            }
+            if (tallest > 0 && Math.abs(list.getFixedCellSize() - tallest) > 0.5) {
+                list.setFixedCellSize(tallest);
+                int rows = Math.min(portCombo.getItems().size(), portCombo.getVisibleRowCount());
+                javafx.geometry.Insets insets = list.getInsets();
+                list.setPrefHeight(rows * tallest + insets.getTop() + insets.getBottom());
+                // The open popup keeps the size it was shown with; reopening sizes it to the rows. The
+                // fixed size now matches, so the reopened list does not come back here.
+                portCombo.hide();
+                portCombo.show();
+            }
+        });
+    }
+
+    /** The ports in {@code current} that the first scan did not have, in list order. */
+    static Set<String> newPorts(Set<String> baseline, List<String> current) {
+        Set<String> fresh = new LinkedHashSet<>();
+        for (String name : current) {
+            if (baseline != null && !baseline.contains(name)) {
+                fresh.add(name);
+            }
+        }
+        return fresh;
+    }
+
+    /**
+     * The second line of a port in the list: manufacturer (unless the description already names it),
+     * serial number and USB vendor:product id, separated by middle dots; empty when none is known.
+     */
+    static String detailLine(SerialPortCatalog.PortInfo port) {
+        List<String> parts = new ArrayList<>();
+        String manufacturer = port.manufacturerBeyondDescription();
+        if (manufacturer != null) {
+            parts.add(manufacturer);
+        }
+        if (port.serialNumber() != null) {
+            parts.add(I18n.get("connEdit.serial.portSerialNumber", port.serialNumber()));
+        }
+        if (port.usbId() != null) {
+            parts.add(I18n.get("connEdit.serial.portUsbId", port.usbId()));
+        }
+        return String.join(" · ", parts);
+    }
+
+    /** A port in the list: its label, a New badge for a port plugged in after the first scan, details below. */
+    private final class PortCell extends ListCell<String> {
+        private final Label title = new Label();
+        private final Label badge = new Label(I18n.get("connEdit.serial.portNew"));
+        private final Label detail = new Label();
+        private final HBox titleRow = new HBox(6, title, badge);
+        private final javafx.scene.layout.VBox box = new javafx.scene.layout.VBox(1, titleRow, detail);
+
+        PortCell() {
+            titleRow.setAlignment(Pos.CENTER_LEFT);
+            // Literal colours: the badge must read the same in the Normal design and every AtlantaFX theme.
+            badge.setStyle("-fx-background-color: #2da44e; -fx-text-fill: white; -fx-background-radius: 3;"
+                + " -fx-padding: 0 5 0 5; -fx-font-size: 0.85em; -fx-font-weight: bold;");
+            detail.setStyle("-fx-font-size: 0.9em;");
+            detail.setOpacity(0.75);
+            // Follow the cell's own text colour, so a selected row stays readable.
+            title.textFillProperty().bind(textFillProperty());
+            detail.textFillProperty().bind(textFillProperty());
+            setContentDisplay(javafx.scene.control.ContentDisplay.GRAPHIC_ONLY);
+        }
+
+        @Override
+        protected void updateItem(String item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty || item == null) {
+                setText(null);
+                setGraphic(null);
+                setTooltip(null);
+                return;
+            }
+            SerialPortCatalog.PortInfo port = ports.get(item);
+            setText(item);
+            title.setText(port != null ? port.label() : item);
+            boolean fresh = newPorts.contains(item);
+            badge.setVisible(fresh);
+            badge.setManaged(fresh);
+            // Every row keeps its second line, empty or not: the list sizes its popup from the first
+            // rows, and rows of mixed height cut the last one off.
+            String details = port != null ? detailLine(port) : "";
+            detail.setText(details.isEmpty() ? " " : details);
+            setGraphic(box);
+            setTooltip(port != null && port.location() != null
+                ? new Tooltip(I18n.get("connEdit.serial.portLocation", port.location())) : null);
+        }
     }
 
     private static <T> void configure(ComboBox<T> combo, T[] values, T selected, Function<T, String> label) {

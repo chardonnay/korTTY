@@ -25,8 +25,18 @@ public final class SerialPortCatalog {
      *
      * @param name what a connection stores and opens: {@code COM3} on Windows, the device path elsewhere
      * @param description the driver's description, e.g. {@code USB-Serial CH340}; may equal the name
+     * @param manufacturer the USB device's manufacturer string, or {@code null} when it names none
+     * @param serialNumber the USB device's serial number, or {@code null}; tells two identical adapters apart
+     * @param vendorId the USB vendor id, or -1 when unknown (not a USB device)
+     * @param productId the USB product id, or -1 when unknown
+     * @param location where the device is plugged in (USB bus and port path), or {@code null}
      */
-    public record PortInfo(String name, String description) {
+    public record PortInfo(String name, String description, String manufacturer, String serialNumber,
+                           int vendorId, int productId, String location) {
+
+        public PortInfo(String name, String description) {
+            this(name, description, null, null, -1, -1, null);
+        }
 
         /** {@code USB-Serial CH340 (COM5)}, or just the name when there is no better description. */
         public String label() {
@@ -34,6 +44,24 @@ public final class SerialPortCatalog {
                 return name;
             }
             return description + " (" + name + ")";
+        }
+
+        /** {@code 1A86:7523}, or {@code null} when the vendor or product id is unknown. */
+        public String usbId() {
+            if (vendorId < 0 || productId < 0) {
+                return null;
+            }
+            return String.format(Locale.ROOT, "%04X:%04X", vendorId & 0xFFFF, productId & 0xFFFF);
+        }
+
+        /** The manufacturer when it adds something the description does not already say. */
+        public String manufacturerBeyondDescription() {
+            if (manufacturer == null) {
+                return null;
+            }
+            boolean repeated = description != null
+                && description.toLowerCase(Locale.ROOT).contains(manufacturer.toLowerCase(Locale.ROOT));
+            return repeated ? null : manufacturer;
         }
     }
 
@@ -56,9 +84,23 @@ public final class SerialPortCatalog {
             if (name == null || name.isBlank()) {
                 continue;
             }
-            infos.add(new PortInfo(name, port.getPortDescription()));
+            infos.add(new PortInfo(name, port.getPortDescription(), known(port.getManufacturer()),
+                known(port.getSerialNumber()), port.getVendorID(), port.getProductID(), known(port.getPortLocation())));
         }
         return preferCalloutDevices(infos);
+    }
+
+    /** {@code null} for blank values and for the placeholders jSerialComm reports when a driver names nothing. */
+    static String known(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (trimmed.isEmpty() || lower.startsWith("unknown") || lower.equals("0-0") || lower.equals("n/a")) {
+            return null;
+        }
+        return trimmed;
     }
 
     /**

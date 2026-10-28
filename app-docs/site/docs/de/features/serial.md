@@ -14,7 +14,7 @@ Wählen Sie **Seriell** als Protokoll und füllen Sie anschließend die serielle
 
 | Einstellung | Beschreibung |
 | --- | --- |
-| **Serielle Schnittstelle:** | Der zu öffnende Port: `COM3` unter Windows, `/dev/ttyUSB0` oder `/dev/ttyACM0` unter Linux, `/dev/cu.usbserial-…` unter macOS. Die Liste zeigt die Ports, die beim Öffnen des Dialogs vorhanden waren, jeweils mit der Beschreibung des Treibers; mit **Aktualisieren** wird erneut gesucht, nachdem Sie einen Adapter angeschlossen haben. Sie können auch einen Port eingeben, der noch nicht angeschlossen ist. Unter macOS erscheint jeder Port einmal, als sein `cu.`-Gerät, das geöffnet wird, ohne auf ein Trägersignal zu warten. |
+| **Serielle Schnittstelle:** | Der zu öffnende Port: `COM3` unter Windows, `/dev/ttyUSB0` oder `/dev/ttyACM0` unter Linux, `/dev/cu.usbserial-…` unter macOS. Wählen Sie ihn aus der Liste aus oder geben Sie ihn ein; auch ein Port, der noch nicht angeschlossen ist, kann eingegeben werden. Siehe [Den richtigen Port finden](#den-richtigen-port-finden). |
 | **Geschwindigkeit (Baud):** | 300 bis 921600 aus der Liste oder eine andere, eingegebene Rate (bis zu 20000000). Standard: 9600. |
 | **Datenbits / Parität / Stoppbits:** | 5–8 Datenbits; **Keine Parität**, **Ungerade**, **Gerade**, **Mark** oder **Space**; **1 Stoppbit**, **1,5 Stoppbits** oder **2 Stoppbits**. Standard: 8 Datenbits, keine Parität, 1 Stoppbit (8N1). |
 | **Flusskontrolle:** | **Keine** (Standard), **RTS/CTS (Hardware)**, **XON/XOFF (Software)** oder **DSR/DTR**. |
@@ -24,6 +24,12 @@ Wählen Sie **Seriell** als Protokoll und füllen Sie anschließend die serielle
 Die Einstellungen werden mit der Verbindung gespeichert und bleiben beim Duplizieren, Exportieren und Importieren erhalten; wählen Sie eine gespeicherte serielle Verbindung in der Schnellverbindung aus, werden sie im Formular angezeigt. Eine Verbindung ohne Namen wird nach ihrem Port und ihrer Geschwindigkeit benannt, beispielsweise `COM3 @ 115200`.
 
 **Zeichenkodierung** im Verbindungseditor gilt auch für serielle Verbindungen: **Standard verwenden** folgt *Einstellungen → Terminal → Kodierung*; viele Geräte senden reines ASCII oder ISO-8859-1.
+
+## Den richtigen Port finden
+
+Die Liste unter **Serielle Schnittstelle:** zeigt jeden Port dieses Computers mit der Beschreibung seines Treibers, beispielsweise `FT232R USB UART (/dev/cu.usbserial-A50285BI)`, und darunter, was der USB-Adapter über sich selbst meldet: seinen Hersteller, seine Seriennummer (**S/N**) sowie seine USB-Hersteller- und Produkt-ID (**USB 0403:6001**); zeigt man auf einen Port, wird die USB-Position angezeigt, an der er angeschlossen ist. Die Seriennummer unterscheidet zwei Adapter desselben Typs voneinander. Unter macOS erscheint jeder Port einmal, als sein `cu.`-Gerät, das sich öffnet, ohne auf ein Trägersignal zu warten.
+
+Solange der Dialog geöffnet ist und **Seriell** ausgewählt ist, sucht korTTY alle zwei Sekunden erneut nach Ports. Ein Port, der nach dem Öffnen des Dialogs erscheint, wird als **Neu** markiert, und wenn noch kein Port eingegeben wurde, wird er sofort ausgewählt – der einfachste Weg, einen Adapter zu finden, besteht also darin, ihn bei geöffnetem Dialog einzustecken. **Aktualisieren** sucht sofort erneut.
 
 ## Arbeiten in einem seriellen Tab
 
@@ -43,7 +49,7 @@ Serielle Sitzungen in einer **MobaXterm**-Sitzungsdatei (`.mxtsessions`, `MobaXt
 
 | Meldung | Empfohlene Maßnahmen |
 | --- | --- |
-| *Serielle Schnittstelle … wurde nicht gefunden.* | Schließen Sie den Adapter ein, drücken Sie **Aktualisieren** und wählen Sie den Port erneut aus; USB-Adapter können nach dem erneuten Einstecken einen anderen Namen erhalten. Unter Windows listet der Geräte-Manager den Port unter *Ports (COM & LPT)*. |
+| *Serielle Schnittstelle … wurde nicht gefunden.* | Stecken Sie den Adapter ein, während der Dialog geöffnet ist, und wählen Sie den als **Neu** markierten Port aus; USB-Adapter können nach dem erneuten Einstecken einen anderen Namen erhalten. Unter Windows listet der Geräte-Manager den Port unter *Ports (COM & LPT)* auf. |
 | *Serielle Schnittstelle … wird von einem anderen Programm verwendet.* | Schließen Sie das andere Terminalprogramm oder den Tab, der den Port geöffnet hat. korTTY öffnet einen Port exklusiv. |
 | *Sie dürfen die serielle Schnittstelle … nicht öffnen.* | Fügen Sie unter Linux Ihren Benutzer der `dialout`-Gruppe (`uucp` unter Arch Linux) hinzu und melden Sie sich erneut an. |
 | *… hat die Leitungseinstellungen abgelehnt.* | Der Adapter unterstützt diese Geschwindigkeit nicht; wählen Sie eine Standardrate. |

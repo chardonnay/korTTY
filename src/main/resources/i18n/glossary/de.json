@@ -4,6 +4,18 @@
   "note": "Post-translation corrections shared by scripts/translate_docs.py (build-time Markdown) and de.kortty.core.TranslationGlossary (runtime HTML). ORDER IS LOAD-BEARING: longer terms must precede the shorter terms they contain, or 'Benutzerhandbuch' turns into 'BenutzerAnleitung'. scope: any (default) | markdown | html. match: substring (default) | exact (the whole segment, ignoring surrounding whitespace).",
   "replacements": [
     {
+      "from": "#das-richtige-port-finden",
+      "to": "#den-richtigen-port-finden",
+      "scope": "markdown",
+      "note": "Anchor of the heading fixed by the next row."
+    },
+    {
+      "from": "Das richtige Port finden",
+      "to": "Den richtigen Port finden",
+      "scope": "markdown",
+      "note": "Port is masculine (der Port); the translator makes it neuter in the serial guide's heading."
+    },
+    {
       "from": "Serienport-Verbindungen",
       "to": "Verbindungen über serielle Schnittstellen",
       "scope": "markdown",
