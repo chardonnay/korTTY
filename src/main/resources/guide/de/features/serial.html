@@ -844,7 +844,7 @@
 <tbody>
 <tr>
 <td><strong>Serielle Schnittstelle:</strong></td>
-<td>Der zu öffnende Port: <code>COM3</code> unter Windows, <code>/dev/ttyUSB0</code> oder <code>/dev/ttyACM0</code> unter Linux, <code>/dev/cu.usbserial-…</code> unter macOS. Die Liste zeigt die Ports, die beim Öffnen des Dialogs vorhanden waren, jeweils mit der Beschreibung des Treibers; mit <strong>Aktualisieren</strong> wird erneut gesucht, nachdem Sie einen Adapter angeschlossen haben. Sie können auch einen Port eingeben, der noch nicht angeschlossen ist. Unter macOS erscheint jeder Port einmal, als sein <code>cu.</code>-Gerät, das geöffnet wird, ohne auf ein Trägersignal zu warten.</td>
+<td>Der zu öffnende Port: <code>COM3</code> unter Windows, <code>/dev/ttyUSB0</code> oder <code>/dev/ttyACM0</code> unter Linux, <code>/dev/cu.usbserial-…</code> unter macOS. Wählen Sie ihn aus der Liste aus oder geben Sie ihn ein; auch ein Port, der noch nicht angeschlossen ist, kann eingegeben werden. Siehe <a href="#den-richtigen-port-finden">Den richtigen Port finden</a>.</td>
 </tr>
 <tr>
 <td><strong>Geschwindigkeit (Baud):</strong></td>
@@ -870,6 +870,9 @@
 </table>
 <p>Die Einstellungen werden mit der Verbindung gespeichert und bleiben beim Duplizieren, Exportieren und Importieren erhalten; wählen Sie eine gespeicherte serielle Verbindung in der Schnellverbindung aus, werden sie im Formular angezeigt. Eine Verbindung ohne Namen wird nach ihrem Port und ihrer Geschwindigkeit benannt, beispielsweise <code>COM3 @ 115200</code>.</p>
 <p><strong>Zeichenkodierung</strong> im Verbindungseditor gilt auch für serielle Verbindungen: <strong>Standard verwenden</strong> folgt <em>Einstellungen → Terminal → Kodierung</em>; viele Geräte senden reines ASCII oder ISO-8859-1.</p>
+<h2 id="den-richtigen-port-finden">Den richtigen Port finden<a class="headerlink" href="#den-richtigen-port-finden" title="Permanent link">&para;</a></h2>
+<p>Die Liste unter <strong>Serielle Schnittstelle:</strong> zeigt jeden Port dieses Computers mit der Beschreibung seines Treibers, beispielsweise <code>FT232R USB UART (/dev/cu.usbserial-A50285BI)</code>, und darunter, was der USB-Adapter über sich selbst meldet: seinen Hersteller, seine Seriennummer (<strong>S/N</strong>) sowie seine USB-Hersteller- und Produkt-ID (<strong>USB 0403:6001</strong>); zeigt man auf einen Port, wird die USB-Position angezeigt, an der er angeschlossen ist. Die Seriennummer unterscheidet zwei Adapter desselben Typs voneinander. Unter macOS erscheint jeder Port einmal, als sein <code>cu.</code>-Gerät, das sich öffnet, ohne auf ein Trägersignal zu warten.</p>
+<p>Solange der Dialog geöffnet ist und <strong>Seriell</strong> ausgewählt ist, sucht korTTY alle zwei Sekunden erneut nach Ports. Ein Port, der nach dem Öffnen des Dialogs erscheint, wird als <strong>Neu</strong> markiert, und wenn noch kein Port eingegeben wurde, wird er sofort ausgewählt – der einfachste Weg, einen Adapter zu finden, besteht also darin, ihn bei geöffnetem Dialog einzustecken. <strong>Aktualisieren</strong> sucht sofort erneut.</p>
 <h2 id="arbeiten-in-einem-seriellen-tab">Arbeiten in einem seriellen Tab<a class="headerlink" href="#arbeiten-in-einem-seriellen-tab" title="Permanent link">&para;</a></h2>
 <p><strong>Break senden</strong> hält die Leitung für ein Viertel einer Sekunde im Break-Zustand, wodurch ein Cisco-Gerät in den ROMMON übergeht oder ein SysRq an eine Linux-Konsole gesendet wird. Sie finden es im Kontextmenü des Terminals eines seriellen Panels sowie in <strong>Verbindungen → Break senden</strong> für das fokussierte Panel. Der Menüpunkt hat standardmäßig keine Taste; weisen Sie ihm eine in <em>Einstellungen → Tastatur</em> zu.</p>
 <p>Eine serielle Leitung hat keine Fenstergröße, daher informiert das Ändern der Tab-Größe das Gerät nicht. Wenn der Adapter abgezogen wird oder sein Treiber aufgibt, bleibt der Tab geöffnet und zeigt die Meldung <em>Serielle Schnittstelle … getrennt</em> sowie das Angebot zum erneuten Verbinden an, wie bei einer abgebrochenen Netzwerkverbindung.</p>
@@ -888,7 +891,7 @@
 <tbody>
 <tr>
 <td><em>Serielle Schnittstelle … wurde nicht gefunden.</em></td>
-<td>Schließen Sie den Adapter ein, drücken Sie <strong>Aktualisieren</strong> und wählen Sie den Port erneut aus; USB-Adapter können nach dem erneuten Einstecken einen anderen Namen erhalten. Unter Windows listet der Geräte-Manager den Port unter <em>Ports (COM &amp; LPT)</em>.</td>
+<td>Stecken Sie den Adapter ein, während der Dialog geöffnet ist, und wählen Sie den als <strong>Neu</strong> markierten Port aus; USB-Adapter können nach dem erneuten Einstecken einen anderen Namen erhalten. Unter Windows listet der Geräte-Manager den Port unter <em>Ports (COM &amp; LPT)</em> auf.</td>
 </tr>
 <tr>
 <td><em>Serielle Schnittstelle … wird von einem anderen Programm verwendet.</em></td>

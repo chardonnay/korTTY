@@ -844,7 +844,7 @@
 <tbody>
 <tr>
 <td><strong>Serial port:</strong></td>
-<td>The port to open: <code>COM3</code> on Windows, <code>/dev/ttyUSB0</code> or <code>/dev/ttyACM0</code> on Linux, <code>/dev/cu.usbserial-…</code> on macOS. The list shows the ports present when the dialog opened, each with its driver's description; <strong>Refresh</strong> looks again after you plug in an adapter. You can also type a port that is not plugged in yet. On macOS each port appears once, as its <code>cu.</code> device, which opens without waiting for a carrier signal.</td>
+<td>The port to open: <code>COM3</code> on Windows, <code>/dev/ttyUSB0</code> or <code>/dev/ttyACM0</code> on Linux, <code>/dev/cu.usbserial-…</code> on macOS. Pick it from the list or type it; a port that is not plugged in yet can be typed too. See <a href="#finding-the-right-port">Finding the right port</a>.</td>
 </tr>
 <tr>
 <td><strong>Speed (baud):</strong></td>
@@ -870,6 +870,9 @@
 </table>
 <p>The settings are stored with the connection and survive duplicating, exporting and importing; picking a saved serial connection in Quick Connect shows them in the form. A connection without a name is called after its port and speed, for example <code>COM3 @ 115200</code>.</p>
 <p><strong>Character encoding</strong> in the connection editor also applies to serial connections: <strong>Use default</strong> follows <em>Settings → Terminal → Encoding</em>; many devices send plain ASCII or ISO-8859-1.</p>
+<h2 id="finding-the-right-port">Finding the right port<a class="headerlink" href="#finding-the-right-port" title="Permanent link">&para;</a></h2>
+<p>The list under <strong>Serial port:</strong> shows every port of this computer with its driver's description, for example <code>FT232R USB UART (/dev/cu.usbserial-A50285BI)</code>, and below it what the USB adapter reports about itself: its manufacturer, its serial number (<strong>S/N</strong>) and its USB vendor and product id (<strong>USB 0403:6001</strong>); pointing at a port shows the USB location it is plugged into. The serial number tells two adapters of the same kind apart. On macOS each port appears once, as its <code>cu.</code> device, which opens without waiting for a carrier signal.</p>
+<p>While the dialog is open and <strong>Serial</strong> is selected, korTTY looks for ports again every two seconds. A port that appears after the dialog opened is marked <strong>New</strong>, and when no port is entered yet it is picked right away, so the simplest way to find an adapter is to plug it in with the dialog open. <strong>Refresh</strong> looks again at once.</p>
 <h2 id="working-in-a-serial-tab">Working in a serial tab<a class="headerlink" href="#working-in-a-serial-tab" title="Permanent link">&para;</a></h2>
 <p><strong>Send Break</strong> holds the line in the break condition for a quarter second, which drops a Cisco device into ROMMON or sends a Linux console's SysRq. It is in the terminal's context menu of a serial pane and in <strong>Connections → Send Break</strong> for the focused pane. The menu item has no key by default; give it one in <em>Settings → Keyboard</em>.</p>
 <p>A serial line has no window size, so resizing the tab tells the device nothing. When the adapter is unplugged or its driver gives up, the tab stays open with the message <em>Serial port … disconnected</em> and the reconnect offer, as for a dropped network connection.</p>
@@ -888,7 +891,7 @@
 <tbody>
 <tr>
 <td><em>Serial port … was not found.</em></td>
-<td>Plug in the adapter, press <strong>Refresh</strong> and pick the port again; USB adapters can get a different name after re-plugging. On Windows the Device Manager lists the port under <em>Ports (COM &amp; LPT)</em>.</td>
+<td>Plug in the adapter with the dialog open and pick the port marked <strong>New</strong>; USB adapters can get a different name after re-plugging. On Windows the Device Manager lists the port under <em>Ports (COM &amp; LPT)</em>.</td>
 </tr>
 <tr>
 <td><em>Serial port … is in use by another program.</em></td>
