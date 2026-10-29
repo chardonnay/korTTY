@@ -1018,6 +1018,8 @@
 <p>Red styling is reserved for error and failed states.</p>
 <h2 id="safety-and-failure-handling">Safety and failure handling<a class="headerlink" href="#safety-and-failure-handling" title="Permanent link">&para;</a></h2>
 <p>KorTTY enforces multiple guardrails around agent execution:</p>
+<h3 id="connections-without-the-agent">Connections without the agent<a class="headerlink" href="#connections-without-the-agent" title="Permanent link">&para;</a></h3>
+<p>For a connection where the agent must never run commands, such as a production system, turn on <strong>Disable AI agent for this connection</strong> on the <strong>AI</strong> tab of the <a href="connections.html#creating-editing-a-connection">connection editor</a>. korTTY then refuses every agent run on that connection with a message naming it: from the menu, the terminal context menu (which leaves out the agent entry), the <code>agent ...</code> shortcut, an accepted plan, an <a href="ai-swarm.html">AI swarm</a> member and a scheduled <strong>AI Agent</strong> job. <strong>Ask Agent</strong>, <strong>AI Planning</strong> and the other AI features, such as explanations and AI command completion, stay available. The switch is read from the saved connection, so it applies to tabs that are already open, and it is kept when the connection is duplicated, exported or imported.</p>
 <h3 id="command-limits">Command limits<a class="headerlink" href="#command-limits" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Per-turn limit</strong> — A maximum of 3 commands per turn prevents runaway automation.</li>
