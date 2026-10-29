@@ -72,6 +72,13 @@ class OscSplitterDifferentialTest {
             ESC + "[" + "\0".repeat(1_021) + C1_OSC + "m" + ESC + "]133;A" + BEL + "after\r\nmore",
             ESC + "[?" + "\0".repeat(1_019) + C1_OSC + "h" + ESC + "]133;A" + BEL + "after\r\nmore",
             ESC + "[?" + "\0".repeat(1_020) + C1_OSC + "h" + ESC + "]133;A" + BEL + "after\r\nmore",
+            // SithTermFX 1.2.7 keeps the intermediate $ in the CSI: it takes no room among the stray chars,
+            // so the U+009D after 1_020 of them still fits into the push-back and opens a foreign OSC.
+            ESC + "[$" + "\0".repeat(1_020) + C1_OSC + "m" + ESC + "]133;A" + BEL + "after\r\nmore",
+            ESC + "[?5522$" + "\0".repeat(1_019) + C1_OSC + "p" + ESC + "]133;A" + BEL + "after\r\nmore",
+            // DECRQM and DECCARA, with and without a stray char before the $.
+            ESC + "[?5522$p" + ESC + "]133;A" + BEL + "a" + ESC + "[2;3$r" + "b" + ESC + "[1" + C1_OSC + "$r"
+                + ESC + "]133;B" + BEL + "c",
             // tmux passthrough: the DCS ends at the first BEL.
             "x" + ESC + "Ptmux;" + ESC + ESC + "]133;A" + BEL + ESC + "\\y",
             // A bare ESC ] inside a title is part of the title.
@@ -164,7 +171,7 @@ class OscSplitterDifferentialTest {
                 case 4 -> out.append(ESC).append('[').append(pick(random,
                     "0m", "1m", "31m", "38;5;196m", "48;2;1;2;3m", "0;1;4m", "7m", "3A", "2C", "H", "5;10H", "K", "2K",
                     "J", "?25l", "?25h", "?2004h", "?2004l", "1;6A", "2 q", ">4;1m", "!p", "S", "T", "3L", "2M", "4P",
-                    "2@", "6n", "?1049h", "?1049l", "r", "2;5r"));
+                    "2@", "6n", "?1049h", "?1049l", "r", "2;5r", "?5522$p", "?2004$p", "2;3$r", "1$", "$q"));
                 case 5 -> out.append(ESC).append(pick(random, "7", "8", "(B", "(0", ")0", "=", ">", "M", "D", "E",
                     "#8", " F", "%G", "H"));
                 case 6 -> out.append(osc(random, "0;" + text(random, random.nextInt(12))));
@@ -194,7 +201,7 @@ class OscSplitterDifferentialTest {
                 case 20 -> out.append(osc(random, "1337;SetMark"));
                 case 21 -> {
                     // A CSI with chars SithTermFX cannot place: they are read again after it.
-                    out.append(ESC).append('[').append(pick(random, "1", "", "?", "38:5"))
+                    out.append(ESC).append('[').append(pick(random, "1", "", "?", "38:5", "1$", "?5522$"))
                         .append(pick(random, String.valueOf(C1_OSC), BEL, ESC, " ", "\r", ESC + "(", "x" + C1_OSC))
                         .append(pick(random, "m", "A", "]", "\\", "q"));
                 }

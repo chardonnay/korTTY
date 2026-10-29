@@ -126,6 +126,31 @@ public class TerminalWidgetReflectionGuardTest {
             .isEqualTo(korttyPanel);
     }
 
+    /**
+     * SithTermFX 1.2.7's {@code handlePaste()} sends a paste as an OSC 5522 paste event first, through the
+     * protected {@code sendClipboardPasteEvent()}. korTTY's panel overrides both: it sends the event first
+     * too, but only while its clipboard access allows reads ({@link TerminalClipboardAccess#pasteEventsAllowed()}),
+     * and pastes as before otherwise.
+     */
+    @Test
+    void theClipboardPasteEventComesFirstAndIsGatedByKorttysAccess() throws Exception {
+        Method send = com.sithtermfx.ui.TerminalPanel.class.getDeclaredMethod("sendClipboardPasteEvent");
+        assertThat(Modifier.isProtected(send.getModifiers())).isTrue();
+        assertThat(Modifier.isFinal(send.getModifiers())).isFalse();
+        assertThat(send.getReturnType()).isEqualTo(boolean.class);
+        Class<?> korttyPanel = KorttyTermWidget.KorttyTerminalPanel.class;
+        assertThat(korttyPanel.getDeclaredMethod("sendClipboardPasteEvent").getDeclaringClass()).isEqualTo(korttyPanel);
+
+        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/KorttyTermWidget.java"), StandardCharsets.UTF_8);
+        String handlePaste = source.substring(source.indexOf("public void handlePaste() {"));
+        handlePaste = handlePaste.substring(0, handlePaste.indexOf("\n        }\n") + 1);
+        assertThat(handlePaste.indexOf("if (sendClipboardPasteEvent()) {")).isAtLeast(0);
+        assertThat(handlePaste.indexOf("if (sendClipboardPasteEvent()) {"))
+            .isLessThan(handlePaste.indexOf("PasteHandler handler = pasteHandler;"));
+        assertThat(source).contains(
+            "return access != null && access.pasteEventsAllowed() && super.sendClipboardPasteEvent();");
+    }
+
     private static List<String> findings(Pattern pattern) throws IOException {
         List<String> findings = new ArrayList<>();
         for (Path source : SOURCES) {

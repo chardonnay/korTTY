@@ -273,6 +273,8 @@ public final class EffectivePolicy {
         }
         Boolean allowOsc52ClipboardWrite = resolver.resolveAllow(PolicyRule::allowOsc52ClipboardWrite);
         markManaged(managed, ManagedSetting.CLIPBOARD, allowOsc52ClipboardWrite);
+        Boolean allowOsc5522ClipboardRead = resolver.resolveAllow(PolicyRule::allowOsc5522ClipboardRead);
+        markManaged(managed, ManagedSetting.CLIPBOARD, allowOsc5522ClipboardRead);
         de.kortty.model.SessionRestoreMode sessionRestoreMode = resolver.resolve(
             PolicyRule::sessionRestoreMode, de.kortty.model.SessionRestoreMode::leastAutomatic);
         if (sessionRestoreMode != null) {
@@ -287,7 +289,7 @@ public final class EffectivePolicy {
             managed.add(ManagedSetting.CONNECTION_ISOLATION);
         }
         TerminalPolicy terminal = new TerminalPolicy(pasteWarningFloor,
-            orDefault(allowOsc52ClipboardWrite, true), sessionRestoreMode, sessionRestoreOutput, isolationFloor);
+            orDefault(allowOsc52ClipboardWrite, true), orDefault(allowOsc5522ClipboardRead, true), sessionRestoreMode, sessionRestoreOutput, isolationFloor);
 
         List<ServerRestriction> serverRestrictions = resolver.resolveServerRestrictions();
         if (!serverRestrictions.isEmpty()) {
@@ -734,6 +736,15 @@ public final class EffectivePolicy {
         return terminal.osc52ClipboardWriteAllowed();
     }
 
+    /**
+     * False when the policy forbids programs in a terminal to read the clipboard with OSC 5522, kitty's
+     * clipboard protocol, even after the user agreed. True leaves the choice (off by default, and a
+     * prompt before every read) to the user.
+     */
+    public boolean osc5522ClipboardReadAllowed() {
+        return terminal.osc5522ClipboardReadAllowed();
+    }
+
     /** The startup session restore mode the policy sets and locks, or null when it leaves it to the user. */
     public de.kortty.model.SessionRestoreMode sessionRestoreMode() {
         return terminal.sessionRestoreMode();
@@ -814,7 +825,8 @@ public final class EffectivePolicy {
      * every positional constructor call of {@link EffectivePolicy}.
      *
      * @param pasteWarningFloor          the least a paste warning may ask; null = left to the user
-     * @param osc52ClipboardWriteAllowed false forbids OSC 52 clipboard writes
+     * @param osc52ClipboardWriteAllowed false forbids OSC 52 (and OSC 5522) clipboard writes
+     * @param osc5522ClipboardReadAllowed false forbids OSC 5522 clipboard reads
      * @param sessionRestoreMode         the forced startup session restore mode; null = left to the user
      * @param sessionRestoreOutput       the forced "restore the output of each pane" switch; null = left
      *                                   to the user
@@ -823,19 +835,20 @@ public final class EffectivePolicy {
      */
     public record TerminalPolicy(de.kortty.paste.PasteWarningMode pasteWarningFloor,
                                  boolean osc52ClipboardWriteAllowed,
+                                 boolean osc5522ClipboardReadAllowed,
                                  de.kortty.model.SessionRestoreMode sessionRestoreMode,
                                  Boolean sessionRestoreOutput,
                                  de.kortty.isolation.IsolationLevel isolationFloor) {
 
         /** Nothing set: the user decides everything. */
-        static final TerminalPolicy NONE = new TerminalPolicy(null, true, null, null, null);
+        static final TerminalPolicy NONE = new TerminalPolicy(null, true, true, null, null, null);
 
         /**
-         * The fail-safe: every paste with a line break asks, no OSC 52 writes, nothing reopens by itself
+         * The fail-safe: every paste with a line break asks, no OSC 52 or OSC 5522 clipboard access, nothing reopens by itself
          * and no terminal output is written to disk.
          */
         static final TerminalPolicy LOCKDOWN = new TerminalPolicy(
-            de.kortty.paste.PasteWarningMode.ALWAYS, false, de.kortty.model.SessionRestoreMode.OFF, false, null);
+            de.kortty.paste.PasteWarningMode.ALWAYS, false, false, de.kortty.model.SessionRestoreMode.OFF, false, null);
     }
 
     /**

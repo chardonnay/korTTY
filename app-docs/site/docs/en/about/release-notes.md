@@ -42,6 +42,8 @@ What changed in the current release. The version this guide was built for is sho
 
 ### Terminal
 
+- **Clipboard protocol of kitty (OSC 5522)** — programs that speak kitty's clipboard protocol, such as Neovim and `kitten clipboard`, can copy to the clipboard under the OSC 52 setting, and with the new **Let programs in the terminal ask to read the clipboard (OSC 5522)** setting they can ask to read it. Every read asks you first, **Deny** is the default, and a paste into a program that asked for paste events counts as your consent. Only text is exchanged; the strict terminal mode drops the protocol, and the policy key `allow-osc5522-clipboard-read = false` forbids reading. See [Programs reading the clipboard](../features/terminal-notifications.md#programs-reading-the-clipboard-osc-5522).
+
 - **Scrollback memory limit** — the new **Scrollback memory** slider in the Terminal settings sets the most memory the scrollback of one pane may use, from 1 to 50 MB (10 MB by default), next to the line count; whichever limit is reached first drops the oldest lines. A saved change applies to open terminals at once. See [Terminal settings](../reference/settings/terminal.md).
 - **Scrollback compression** — while a terminal has no output, korTTY compresses the scrollback lines that are not on screen in the background, so the same memory holds several times as many lines. A line is unpacked as soon as you scroll to it. Switch it off with **Compress the scrollback in the background while idle**. See [Terminal settings](../reference/settings/terminal.md).
 

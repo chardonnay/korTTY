@@ -149,7 +149,8 @@ Patterns match the host string exactly as configured in the connection — korTT
 | `allow-terminal-recording` | boolean | `false` | Forbids terminal session recording, including the session-level toggle |
 | `allow-port-forwarding` | boolean | `false` | Never opens the [SSH tunnels](../features/tunnels.md) configured on connections (local, remote and dynamic port forwarding); the tab's status bar says they are disabled by your organization. A jump server hop is not affected |
 | `clipboard-mode` | string | `system`, `internal` | `internal` confines korTTY to its own in-memory clipboard — see below |
-| `allow-osc52-clipboard-write` | boolean | `false` | Programs in a terminal can never put text on the clipboard with OSC 52, whatever *Settings → Terminal* says: the setting is forced off and **Let programs in the terminal copy text to the clipboard (OSC 52)** is locked with the "Managed by your organization" hint, and korTTY checks the policy again on every write. `true` leaves the choice, which is off by default, to the user and locks nothing |
+| `allow-osc52-clipboard-write` | boolean | `false` | Programs in a terminal can never put text on the clipboard with OSC 52, whatever *Settings → Terminal* says: the setting is forced off and **Let programs in the terminal copy text to the clipboard (OSC 52)** is locked with the "Managed by your organization" hint, and korTTY checks the policy again on every write. It also governs writes with OSC 5522. `true` leaves the choice, which is off by default, to the user and locks nothing |
+| `allow-osc5522-clipboard-read` | boolean | `false` | Programs in a terminal can never read the clipboard with OSC 5522, kitty's clipboard protocol, even with the user's consent: **Let programs in the terminal ask to read the clipboard (OSC 5522)** is forced off and locked, no prompt opens and pastes never go out as paste events. `true` leaves the choice, which is off by default and asks before every read, to the user |
 
 ### `[rule.teamwork]`, `[rule.snippets]`, `[rule.ai-profiles]`
 
@@ -250,6 +251,7 @@ Sets and locks the [automatic backup](settings/backup.md#automatic-backup) in *S
 
   [rule.security]
   allow-osc52-clipboard-write = false
+  allow-osc5522-clipboard-read = false
 
   [rule.terminal]
   paste-warning = "always"
@@ -442,7 +444,7 @@ These top-level tables define objects that appear read-only for every user, mark
 
 With `clipboard-mode = "internal"` korTTY detaches from the operating system clipboard entirely and uses its own in-memory clipboard instead: text copied in another application cannot be pasted anywhere in korTTY, and text copied in korTTY never reaches the OS clipboard — while copy, cut and paste *within* korTTY keep working everywhere, because terminals, SFTP views, the snippet editor and all dialogs share the same internal buffer. Because this is pure application logic and no OS clipboard isolation API is involved, it behaves identically on macOS, Windows and Linux, including the X11 primary selection (middle-click paste): pasting middle-click content from other applications is blocked, middle-click paste of korTTY-internal copies keeps working.
 
-The mode covers the terminal (shortcuts, context menu, middle-click, text dropped onto it from another application, which is refused, and text that a program in the terminal copies with OSC 52 where *Settings → Terminal* allows it, which lands in the internal clipboard only), the code editor, all copy buttons, the `${clipboard}` snippet variable, and the copy/cut/paste shortcuts of plain input fields. Copying images (AI-generated pictures, diagram exports) is unavailable in internal mode, since an image can only be shared via the OS clipboard.
+The mode covers the terminal (shortcuts, context menu, middle-click, text dropped onto it from another application, which is refused, and text that a program in the terminal copies with OSC 52 or OSC 5522 where *Settings → Terminal* allows it, which lands in the internal clipboard only; a program that reads with OSC 5522 gets the internal clipboard), the code editor, all copy buttons, the `${clipboard}` snippet variable, and the copy/cut/paste shortcuts of plain input fields. Copying images (AI-generated pictures, diagram exports) is unavailable in internal mode, since an image can only be shared via the OS clipboard.
 
 !!! note "Scope"
     The internal clipboard is a policy tool against casual data transfer through the clipboard, not a hard air gap: a user can still read text on screen. The right-click *Paste* entry of plain text fields is provided by the UI toolkit and may still access the OS clipboard — the keyboard shortcut and every korTTY-provided menu are covered.

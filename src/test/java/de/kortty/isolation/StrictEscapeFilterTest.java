@@ -1,6 +1,7 @@
 package de.kortty.isolation;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import org.testng.annotations.Test;
 
@@ -104,5 +105,73 @@ class StrictEscapeFilterTest {
         StrictEscapeFilter filter = new StrictEscapeFilter();
         filter.filter(ESC + "]52;c;Zg==" + BEL + ESC + "Pq" + ST + ESC + "]0;ok" + BEL);
         assertThat(filter.droppedCount()).isEqualTo(2);
+    }
+
+    // ---- OSC 5522, kitty's clipboard protocol ------------------------------------------------------
+
+    @Test
+    void clipboardProtocolCommandsAreDropped() {
+        String in = "a" + ESC + "]5522;type=write" + ST + "b" + ESC + "]5522;type=read;dGV4dC9wbGFpbg==" + BEL
+            + "c" + '\u009D' + "5522;type=wdata" + '\u009C' + "d";
+        assertThat(filter(in)).isEqualTo("abcd");
+        assertThat(filterByteByByte(in)).isEqualTo("abcd");
+    }
+
+    @Test
+    void theClipboardModeIsTakenOutOfModeChangesAndTheOtherModesStay() {
+        assertThat(filter(ESC + "[?5522h" + "x" + ESC + "[?5522l")).isEqualTo("x");
+        assertThat(filter(ESC + "[?1049;5522;2004h")).isEqualTo(ESC + "[?1049;2004h");
+        assertThat(filterByteByByte(ESC + "[?5522;25l")).isEqualTo(ESC + "[?25l");
+        assertWithMessage("a leading zero still names mode 5522")
+            .that(filter(ESC + "[?05522h")).isEmpty();
+    }
+
+    @Test
+    void theQueryForTheClipboardProtocolIsDroppedAndOtherQueriesPass() {
+        assertThat(filter("a" + ESC + "[?5522$p" + "b")).isEqualTo("ab");
+        String other = ESC + "[?2004$p";
+        assertThat(filter(other)).isEqualTo(other);
+        assertThat(filterByteByByte(other)).isEqualTo(other);
+    }
+
+    @Test
+    void ordinaryPrivateModesPassUnchanged() {
+        String in = ESC + "[?25l" + ESC + "[?1049h" + ESC + "[?2004h" + ESC + "[?1;2;3$p" + ESC + "[?u" + ESC + "[?" + "h"
+            + ESC + "[?55223h" + ESC + "[?552h";
+        assertThat(filter(in)).isEqualTo(in);
+        assertThat(filterByteByByte(in)).isEqualTo(in);
+    }
+
+    /**
+     * SithTermFX reads chars it cannot place in a CSI again before the sequence, which keeps its digits: so
+     * {@code CSI ? 55:22 h} is mode 5522. The filter reads such a sequence the same way.
+     */
+    @Test
+    void theClipboardModeCannotHideBehindStrayChars() {
+        assertThat(filter(ESC + "[?55:22h")).isEqualTo(":");
+        assertThat(filter(ESC + "[?55\r22;1h")).isEqualTo("\r" + ESC + "[?1h");
+        assertWithMessage("a stray char drops the $, as in SithTermFX: no DECRQM, and nothing names mode 5522")
+            .that(filter(ESC + "[?5522 $p")).isEqualTo(" ");
+        String strayOsc = filter(ESC + "[?\u009Dh" + "52;c;eA==" + BEL + ESC + "[?\u009D5522h" + "52;c;eA==" + BEL);
+        assertWithMessage("a stray OSC introducer is read again through the filter: no OSC 52 comes out of it")
+            .that(strayOsc).doesNotContain("\u009D52");
+        assertThat(strayOsc).doesNotContain(ESC + "]52");
+        assertThat(strayOsc).doesNotContain("5522");
+    }
+
+    @Test
+    void anOverlongPrivateModeSequenceIsDropped() {
+        String in = "a" + ESC + "[?" + "1;".repeat(StrictEscapeFilter.MAX_CSI_LENGTH) + "5522h" + "b";
+        assertThat(filter(in)).isEqualTo("ab");
+        assertThat(filterByteByByte(in)).isEqualTo("ab");
+    }
+
+    @Test
+    void aCsiCutAtTheEndOfTheStreamIsFlushed() {
+        StrictEscapeFilter filter = new StrictEscapeFilter();
+        StringBuilder out = new StringBuilder();
+        filter.filter((ESC + "[").toCharArray(), 0, 2, out);
+        filter.flush(out);
+        assertThat(out.toString()).isEqualTo(ESC + "[");
     }
 }

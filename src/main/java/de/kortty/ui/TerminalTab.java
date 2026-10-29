@@ -223,6 +223,8 @@ public class TerminalTab extends Tab {
         // A program that asks to put text on the clipboard (OSC 52) needs the setting to do so.
         this.terminalView.setClipboardWriteListener(
             (widget, write) -> TerminalClipboardWriter.shared().onClipboardWrite(this, write));
+        // So does one that writes or reads it with OSC 5522; a read also asks the user first.
+        this.terminalView.setClipboardAccess(TerminalClipboardAccess.forTab(this));
 
         // Create status bar (connection duration / key validity)
         createStatusBar();

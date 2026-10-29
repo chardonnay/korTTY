@@ -580,6 +580,11 @@ public class TerminalView extends BorderPane {
      */
     private volatile BiConsumer<SithTermFxWidget, ShellIntegrationEvent.ClipboardWrite> clipboardWriteListener;
     /**
+     * What the programs in this tab's panes may do with the clipboard through OSC 5522, set on every pane
+     * that does not run in the strict terminal mode; set by the tab, null once the tab is cleaned up.
+     */
+    private volatile TerminalClipboardAccess clipboardAccess;
+    /**
      * Told on the FX thread which pane's highlight rules with an action matched new output (one pass's
      * worth, at most one per rule); set by the tab, null once the tab is cleaned up.
      */
@@ -3352,10 +3357,14 @@ public class TerminalView extends BorderPane {
         PaneEffect effect = paneEffects.get(widget);
         TtyConnector decorated = baseConnector;
         ServerConnection paneConnection = connectionOf(baseConnector);
-        if (strictTerminalModeFor(paneConnection != null ? paneConnection : connection, baseConnector)) {
+        boolean strict = strictTerminalModeFor(paneConnection != null ? paneConnection : connection, baseConnector);
+        if (strict) {
             // Innermost, so the shell integration, effects and emulator all see only the filtered stream.
             decorated = new de.kortty.isolation.StrictEscapeFilterTtyConnector(baseConnector);
         }
+        // OSC 5522 per session: the strict mode drops its sequences and, as a second line, sets no handler, so
+        // SithTermFX ignores them and reports the protocol as unsupported.
+        applyClipboardAccess(widget, strict ? null : clipboardAccess);
         if (effect != null && effect.session != null) {
             try {
                 decorated = effect.session.wrapConnector(widget, baseConnector);
@@ -4863,6 +4872,23 @@ public class TerminalView extends BorderPane {
      */
     public void setClipboardWriteListener(BiConsumer<SithTermFxWidget, ShellIntegrationEvent.ClipboardWrite> listener) {
         clipboardWriteListener = listener;
+    }
+
+    /**
+     * Sets what the programs in this tab's panes may do with the clipboard through OSC 5522 (kitty's clipboard
+     * protocol). Applied to each pane when its session starts, unless it runs in the strict terminal mode.
+     */
+    void setClipboardAccess(TerminalClipboardAccess access) {
+        clipboardAccess = access;
+    }
+
+    /** Gives {@code widget}'s session OSC 5522 through {@code access}, or takes it away with {@code null}. */
+    static void applyClipboardAccess(@Nullable SithTermFxWidget widget, @Nullable TerminalClipboardAccess access) {
+        if (widget instanceof KorttyTermWidget kortty) {
+            kortty.setClipboardAccess(access);
+        } else if (widget != null) {
+            widget.setClipboardHandler(access);
+        }
     }
 
     /**
@@ -9299,6 +9325,11 @@ public class TerminalView extends BorderPane {
         commandFinishedListener = null;
         remoteNotificationListener = null;
         clipboardWriteListener = null;
+        TerminalClipboardAccess access = clipboardAccess;
+        clipboardAccess = null;
+        if (access != null) {
+            access.close();
+        }
         highlightTriggerListener = null;
         pastePacer.cancelAll();
         releaseAllShellTitleListeners();

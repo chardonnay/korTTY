@@ -135,6 +135,9 @@ public final class PolicyClamp {
         if (!policy.osc52ClipboardWriteAllowed()) {
             settings.setOsc52ClipboardWriteEnabled(false);
         }
+        if (!policy.osc5522ClipboardReadAllowed()) {
+            settings.setOsc5522ClipboardReadEnabled(false);
+        }
         if (policy.sessionRestoreMode() != null) {
             settings.setSessionRestoreMode(policy.sessionRestoreMode());
         }

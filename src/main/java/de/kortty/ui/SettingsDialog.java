@@ -179,6 +179,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
     private final CheckBox terminalDragDropCheck;
     private final CheckBox terminalCopyOnSelectCheck;
     private final CheckBox osc52ClipboardWriteCheck;
+    private final CheckBox osc5522ClipboardReadCheck;
     private final CheckBox terminalLinkDetectionCheck;
     /** Quick select's label letters and the user's own patterns (Links section); see QuickSelectSettingsSupport. */
     private final TextField quickSelectAlphabetField;
@@ -809,6 +810,13 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         de.kortty.policy.PolicyUiSupport.lockIf(osc52ClipboardWriteCheck,
             !de.kortty.policy.PolicyManager.effective().osc52ClipboardWriteAllowed());
 
+        // Programs reading the clipboard with OSC 5522: off unless allowed, and even then each read asks.
+        osc5522ClipboardReadCheck = new CheckBox(I18n.get("settings.terminal.osc5522.read"));
+        osc5522ClipboardReadCheck.setSelected(globalSettings != null && globalSettings.isOsc5522ClipboardReadEnabled());
+        osc5522ClipboardReadCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.osc5522.read.tooltip")));
+        de.kortty.policy.PolicyUiSupport.lockIf(osc5522ClipboardReadCheck,
+            !de.kortty.policy.PolicyManager.effective().osc5522ClipboardReadAllowed());
+
         terminalLinkDetectionCheck = new CheckBox(I18n.get("settings.terminal.linkDetection"));
         terminalLinkDetectionCheck.setSelected(globalSettings == null || globalSettings.isTerminalLinkDetectionEnabled());
         terminalLinkDetectionCheck.setTooltip(new Tooltip(I18n.get("settings.terminal.linkDetection.tooltip")));
@@ -1105,6 +1113,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
         terminalGrid.add(terminalDragDropCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(terminalCopyOnSelectCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(osc52ClipboardWriteCheck, 0, terminalRow++, 2, 1);
+        terminalGrid.add(osc5522ClipboardReadCheck, 0, terminalRow++, 2, 1);
         terminalGrid.add(closeActiveTerminalWindowsWithoutConfirmationCheck, 0, terminalRow++, 2, 1);
 
         // Keyword highlighting section
@@ -3064,6 +3073,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             globalSettings.setTerminalDragDropEnabled(terminalDragDropCheck.isSelected());
             globalSettings.setTerminalCopyOnSelectEnabled(terminalCopyOnSelectCheck.isSelected());
             globalSettings.setOsc52ClipboardWriteEnabled(osc52ClipboardWriteCheck.isSelected());
+            globalSettings.setOsc5522ClipboardReadEnabled(osc5522ClipboardReadCheck.isSelected());
             globalSettings.setTerminalLinkDetectionEnabled(terminalLinkDetectionCheck.isSelected());
             // Save only gets here with both fields valid (the Save button's filter checks them).
             globalSettings.setTerminalQuickSelectAlphabet(
@@ -3352,6 +3362,7 @@ public class SettingsDialog extends ThemeAwareDialog<ConnectionSettings> {
             tracked.add(new TrackedSetting("terminal", "drag_drop_enabled", gs::isTerminalDragDropEnabled, true));
             tracked.add(new TrackedSetting("terminal", "copy_on_select", gs::isTerminalCopyOnSelectEnabled, true));
             tracked.add(new TrackedSetting("terminal", "osc52_clipboard_write", gs::isOsc52ClipboardWriteEnabled, true));
+            tracked.add(new TrackedSetting("terminal", "osc5522_clipboard_read", gs::isOsc5522ClipboardReadEnabled, true));
             tracked.add(new TrackedSetting("terminal", "link_detection", gs::isTerminalLinkDetectionEnabled, true));
             // Whether the user set label letters or patterns of their own, never the letters or patterns.
             tracked.add(new TrackedSetting("terminal", "quick_select_alphabet_customized",

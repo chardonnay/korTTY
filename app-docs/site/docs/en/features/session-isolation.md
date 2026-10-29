@@ -70,7 +70,7 @@ With split panes the shield shows the least isolated pane, except that a missing
 
 ## Strict terminal mode
 
-**Strict terminal mode:** in the same section drops escape sequences a hostile server could misuse before the terminal sees them: clipboard access (OSC 52), links that are not `http` or `https` links (OSC 8), window titles over 256 characters or with control characters, any OSC sequence over 4 KiB, and device control strings, application program commands, privacy messages and start-of-string sequences. Everything else, including colours, shell-integration marks and the working directory a shell reports, passes unchanged. **Automatic (on in a sandbox)** is the default; **On** and **Off** set it for the connection. A teamwork connection can switch it on but not off.
+**Strict terminal mode:** in the same section drops escape sequences a hostile server could misuse before the terminal sees them: clipboard access (OSC 52 and kitty's OSC 5522, with its paste-event mode and its support query), links that are not `http` or `https` links (OSC 8), window titles over 256 characters or with control characters, any OSC sequence over 4 KiB, and device control strings, application program commands, privacy messages and start-of-string sequences. Everything else, including colours, shell-integration marks and the working directory a shell reports, passes unchanged. **Automatic (on in a sandbox)** is the default; **On** and **Off** set it for the connection. A teamwork connection can switch it on but not off.
 
 ## Incognito sessions
 

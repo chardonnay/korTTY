@@ -46,7 +46,12 @@ import java.util.Set;
  *                                   mode and a teamwork connection's mode, null leaves it to the user
  * @param allowOsc52ClipboardWrite   false forbids programs in a terminal to put text on the clipboard
  *                                   with OSC 52 ({@code [rule.security] allow-osc52-clipboard-write});
- *                                   true or null leaves the (default-off) choice to the user
+ *                                   true or null leaves the (default-off) choice to the user; it also
+ *                                   governs writes with OSC 5522, kitty's clipboard protocol
+ * @param allowOsc5522ClipboardRead  false forbids programs in a terminal to read the clipboard with
+ *                                   OSC 5522 ({@code [rule.security] allow-osc5522-clipboard-read}),
+ *                                   even after the user agreed; true or null leaves the (default-off)
+ *                                   choice to the user, who is asked before every read
  * @param sessionRestoreMode         the startup session restore mode the policy sets and locks
  *                                   ({@code [rule.terminal] session-restore}), or null
  * @param sessionRestoreOutput       whether the output of each terminal pane is restored with the
@@ -86,6 +91,7 @@ public record PolicyRule(
     Long snippetAnalysisMaxStoredContentBytes,
     de.kortty.paste.PasteWarningMode pasteWarningFloor,
     Boolean allowOsc52ClipboardWrite,
+    Boolean allowOsc5522ClipboardRead,
     de.kortty.model.SessionRestoreMode sessionRestoreMode,
     Boolean sessionRestoreOutput,
     SftpRule sftp,
@@ -295,6 +301,7 @@ public record PolicyRule(
         private Long snippetAnalysisMaxStoredContentBytes;
         private de.kortty.paste.PasteWarningMode pasteWarningFloor;
         private Boolean allowOsc52ClipboardWrite;
+        private Boolean allowOsc5522ClipboardRead;
         private de.kortty.model.SessionRestoreMode sessionRestoreMode;
         private Boolean sessionRestoreOutput;
         private SftpRule sftp;
@@ -336,6 +343,7 @@ public record PolicyRule(
             return this;
         }
         public Builder allowOsc52ClipboardWrite(Boolean value) { this.allowOsc52ClipboardWrite = value; return this; }
+        public Builder allowOsc5522ClipboardRead(Boolean value) { this.allowOsc5522ClipboardRead = value; return this; }
         public Builder sessionRestoreMode(de.kortty.model.SessionRestoreMode value) {
             this.sessionRestoreMode = value;
             return this;
@@ -353,7 +361,7 @@ public record PolicyRule(
                 aiProfileAllowEdit, aiProfileAllowInternet, allowRuntimeDownloads, allowModelDownloads, allowUserModels,
                 updatesEnabled, updateFeedUrl, loadIntoSnippetEditor, logging, sessionJournal,
                 snippetAnalysisMaxStoredContentBytes, pasteWarningFloor, allowOsc52ClipboardWrite,
-                sessionRestoreMode, sessionRestoreOutput, sftp, webhookHostAllowlist, isolationFloor, backup);
+                allowOsc5522ClipboardRead, sessionRestoreMode, sessionRestoreOutput, sftp, webhookHostAllowlist, isolationFloor, backup);
         }
     }
 }

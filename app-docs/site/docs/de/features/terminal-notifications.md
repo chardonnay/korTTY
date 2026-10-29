@@ -10,7 +10,7 @@ Sie können korTTY auch bitten, einen Tab für Sie zu beobachten: Es meldet Ihne
 
 Eine eigene Regel der [Hervorhebung von Schlüsselwörtern](highlighting.md) kann dasselbe für ein Wort oder Muster tun: Sie markiert den Tab und benachrichtigt, wenn das Muster in neuer Ausgabe erscheint; siehe [Benachrichtigungen bei passender Ausgabe](highlighting.md#benachrichtigungen-bei-passender-ausgabe).
 
-Ein Programm kann auch darum bitten, Text in Ihre Zwischenablage zu legen. korTTY erlaubt das nur, wenn Sie es einschalten, und die Statusleiste meldet es jedes Mal; siehe [Programme, die in die Zwischenablage kopieren](#programme-die-in-die-zwischenablage-kopieren-osc-52).
+Ein Programm kann auch darum bitten, Text in die Zwischenablage zu legen oder sie auszulesen. korTTY erlaubt dies nur, wenn Sie es aktivieren, fragt Sie vor jedem Auslesen ab und die Statusleiste informiert Sie jedes Mal; siehe [Programme, die in die Zwischenablage kopieren](#programme-die-in-die-zwischenablage-kopieren-osc-52) und [Programme, die die Zwischenablage auslesen](#programme-zum-auslesen-der-zwischenablage-osc-5522).
 
 ## Wann ein Tab als angesehen gilt
 
@@ -114,7 +114,7 @@ printf '\e]52;c;%s\a' "$(printf 'copied from the server' | base64)"
 ```
 
 - Jedes Mal, wenn ein Programm kopiert, meldet die Statusleiste seines Fensters das und nennt den Tab, zum Beispiel *Ein Programm im Tab „web-01“ hat 22 Zeichen in die Zwischenablage kopiert (OSC 52).* Solange die Einstellung ausgeschaltet ist, meldet die Statusleiste, dass ein Programm es versucht hat, und die Zwischenablage bleibt, wie sie war.
-- Programme können die Zwischenablage nur beschreiben, nie lesen: korTTY beantwortet die OSC-52-Abfrage nie, sodass nichts, was Sie anderswo kopiert haben, ein Programm im Terminal erreicht. Der eigene Einfügebefehl eines Programms, der die Zwischenablage auf diesem Weg liest, etwa das OSC-52-Einfügen von Neovim, erhält daher nichts; fügen Sie stattdessen mit dem Einfügen-Tastenkürzel von korTTY ein, das den [Einfügeschutz](terminal.md#einfugeschutz) durchläuft.
+- Mit OSC 52 können Programme nur in die Zwischenablage schreiben, aber niemals daraus lesen: korTTY beantwortet OSC-52-Abfragen nie, sodass nichts, das Sie woanders kopiert haben, ein Programm im Terminal erreicht. Ein eigenes Einfügekommando eines Programms, das die Zwischenablage auf diese Weise liest, wie das OSC-52-Einfügen von Neovim, erhält daher nichts; fügen Sie stattdessen mit dem Einfüge-Tastenkürzel von korTTY ein, das über [den Einfügeschutz](terminal.md#einfugeschutz) läuft. Programme, die das Zwischenablage-Protokoll von kitty sprechen, können das Lesen anfordern, siehe [Programme, die die Zwischenablage lesen](#programme-zum-auslesen-der-zwischenablage-osc-5522).
 - Ein Schreibvorgang kann bis zu 256 KiB Text übertragen. Ein größerer Schreibvorgang, einer, der kein gültiges Base64 ist, oder einer, dessen Text kein UTF-8 ist, ändert nichts, und die Statusleiste meldet das. Zeilenumbrüche im Base64, wie `base64` ohne `-w0` sie schreibt, sind kein Problem.
 - Jede Auswahl, die ein Programm nennt (`c`, `p`, `q`, `s`, die Cut-Buffer `0` bis `7` oder keine), landet in derselben Zwischenablage; unter Linux ist das die Zwischenablage, nicht die primäre Auswahl. Kopiert ein Programm mehrmals kurz hintereinander, enthält die Zwischenablage am Ende den letzten Text.
 - Mit dem [internen Zwischenablagemodus](../reference/enterprise-policy.md#interner-zwischenablagemodus) der Unternehmensrichtlinie landet, was Programme kopieren, in der internen Zwischenablage von korTTY und erreicht nie die Zwischenablage des Betriebssystems.
@@ -124,3 +124,26 @@ printf '\e]52;c;%s\a' "$(printf 'copied from the server' | base64)"
 - Das eigene Log von korTTY zeichnet nur auf, wie viele Bytes ein Programm kopiert hat, nie den Text. Ein [Terminalprotokoll](terminal.md#terminal-logging) oder [Sitzungsjournal](session-journal.md) des Bereichs lässt Escape-Sequenzen weg, sodass der kopierte Text auch dort nicht ankommt, außer wenn ein Programm die seltene 8-Bit-Form der Sequenz verwendet: Dann enthält die Datei den Text Base64-kodiert.
 
 Die Einstellung wird bei jedem Schreibvorgang gelesen, sodass eine Änderung für offene Tabs gilt, sobald Sie speichern. Siehe [Terminal-Einstellungen](../reference/settings/terminal.md#hinweise).
+
+## Programme zum Auslesen der Zwischenablage (OSC 5522)
+
+Das Zwischenablage-Protokoll von kitty, OSC 5522, ermöglicht Programmen, die Zwischenablage zu lesen und zu schreiben, und sie zu fragen, ob das Terminal dies unterstützt (`CSI ? 5522 $ p`). Editoren wie Neovim und das `kitten clipboard`-Tool nutzen es, auch auf einem Server über SSH. korTTY unterstützt es nach denselben Regeln wie OSC 52, und das Lesen erfordert einen zweiten Schalter sowie Ihre Antwort jedes Mal.
+
+- **Schreiben** folgt **Programmen im Terminal erlauben, Text in die Zwischenablage zu kopieren (OSC 52)** und `allow-osc52-clipboard-write`: Wenn es deaktiviert ist, wird das Schreiben eines Programms abgelehnt und die Statusleiste meldet, dass ein Programm es versucht hat. Wenn es aktiviert ist, wird der Text in die Zwischenablage übernommen, maximal 256 KiB, und die Statusleiste nennt den Tab, zum Beispiel *Ein Programm im Tab „web-01“ hat 22 Zeichen in die Zwischenablage kopiert (OSC 5522).*
+- **Lesen** erfordert **Programmen im Terminal erlauben, das Lesen der Zwischenablage anzufragen (OSC 5522)** in *Einstellungen → Terminal*, die standardmäßig deaktiviert ist. Bei aktivierter Option öffnet jeder Lesevorgang einen Prompt, der den Tab, den Namen, den das Programm sich selbst gibt, und die angefragten Typen angibt. **Ablehnen** ist der Standardbutton, und auch das Schließen des Prompts lehnt ab. **Einmal erlauben** gibt den Text nur dieses eine Mal heraus.
+- **Für dieses Programm erlauben** wird nur angezeigt, wenn das Programm bei seiner Anfrage einen Namen und ein Passwort mitsendet. KorTTY übergibt den Text dann an spätere Anfragen mit demselben Namen und demselben Passwort im selben Tab, ohne nachzufragen, bis das Tab geschlossen wird. Dabei wird nichts gespeichert.
+- Wenn Sie einen Lesezugriff verweigern, verweigert der Tab weitere Lesezugriffe 10 Sekunden lang ohne Nachfragen, damit ein Programm Sie nicht mit Prompts überflutet.
+- **Einfüge-Ereignisse:** Ein Programm kann verlangen, dass Ihre Einfügungen als Ereignis an es gelangen, statt als eingegebener Text (`CSI ? 5522 h`). Wenn Sie dann mit dem Einfüge-Tastenkürzel von korTTY hineinfügen, liest das Programm die Zwischenablage selbst, ohne ein Prompt, weil die Einfügung Ihre Zustimmung darstellt. KorTTY tut dies nur, während das Lesen aktiviert ist; andernfalls erfolgt die Einfügung auf dem üblichen Weg, über [Einfügeschutz](terminal.md#einfugeschutz). Ein Programm, das über ein Einfüge-Ereignis liest, erhält den Text so, wie er ist, sodass die Einfüge-Warnung von korTTY sie nicht sieht. Wenn Ihre Organisation eine Mindestschwelle für Einfüge-Warnungen festlegt, erfolgt jede Einfügung auf dem üblichen Weg.
+- korTTY tauscht nur Text aus (`text/plain`). Ein Schreiben ohne Text wird abgelehnt, und ein Lesen erhält den Text und nichts anderes. Das Auflisten des Inhalts der Zwischenablage erfordert keine Berechtigung und meldet `text/plain` oder nichts. Die Primärauswahl von Linux steht Programmen nicht zur Verfügung.
+- Mit dem [internen Zwischenablage-Modus](../reference/enterprise-policy.md#interner-zwischenablagemodus) der Unternehmensrichtlinie werden Schreibvorgänge in die interne Zwischenablage von korTTY geleitet und Lesevorgänge liefern die interne Zwischenablage, niemals die des Betriebssystems.
+- Ihre Organisation kann das Lesen mit `allow-osc5522-clipboard-read = false` in ihrer [Unternehmensrichtlinie](../reference/enterprise-policy.md#rulesecurity) verbieten: Der Schalter ist dann ausgeschaltet und gesperrt, es öffnet sich kein Prompt und Einfügeereignisse sind deaktiviert.
+- Der [strikte Terminalmodus](session-isolation.md#strenger-terminal-modus) unterdrückt OSC 5522, den Paste-Event-Modus und die Unterstützungsabfrage, sodass ein Programm in einer solchen Sitzung ein Terminal ohne das Protokoll sieht.
+- Das korTTY-Protokoll erfasst, wie viele Bytes ein Programm geschrieben oder gelesen hat, nie den Text.
+
+Um es auszuprobieren, schalten Sie beide Einstellungen ein und führen Sie `kitten clipboard --get-clipboard` auf einem Computer aus, auf dem die kitty-Tools installiert sind, oder fragen Sie, ob das Terminal das Protokoll unterstützt:
+
+```bash
+printf '\e[?5522$p'; read -rs -t 1 -d y reply; printf '%q\n' "$reply"
+```
+
+Eine Antwort, die mit `5522;2$` endet, bedeutet, dass korTTY dies unterstützt und Einfügeereignisse deaktiviert sind.

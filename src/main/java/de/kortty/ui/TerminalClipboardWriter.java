@@ -181,7 +181,7 @@ public final class TerminalClipboardWriter {
         };
     }
 
-    private static void showInWindow(TerminalTab tab, String message) {
+    static void showInWindow(TerminalTab tab, String message) {
         TabPane tabPane = tab.getTabPane();
         Window window = tabPane != null && tabPane.getScene() != null ? tabPane.getScene().getWindow() : null;
         MainWindow mainWindow = MainWindow.findByStage(window);

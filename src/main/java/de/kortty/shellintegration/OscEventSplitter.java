@@ -33,7 +33,8 @@ import org.jetbrains.annotations.Nullable;
  *   <li>A CSI ({@code ESC [}) runs to its first char in {@code 0x40..0x7E}; nothing inside it
  *       starts an OSC. The chars SithTermFX cannot place in a CSI are pushed back and read again
  *       afterwards, as many as fit, followed by the sequence itself; the splitter replays them the
- *       same way.</li>
+ *       same way. Since 1.2.7 the intermediate {@code $} (DECRQM and the other DEC {@code $}
+ *       sequences) belongs to the sequence and is no such char.</li>
  *   <li>{@code ESC} plus one of {@code # ( ) * + $ @ % . / space} takes one more char; any other
  *       char after ESC ends the escape, ESC and C1 included.</li>
  * </ul>
@@ -296,7 +297,8 @@ public final class OscEventSplitter {
             csiMarker = true;
             return PASS;
         }
-        if (c == ';' || (c >= '0' && c <= '9')) {
+        if (c == ';' || (c >= '0' && c <= '9') || c == '$') {
+            // SithTermFX 1.2.7 keeps the intermediate $ in the sequence instead of pushing it back.
             return PASS;
         }
         if (c >= 0x40 && c <= 0x7E) {
@@ -317,7 +319,8 @@ public final class OscEventSplitter {
      * SithTermFX's {@code ControlSequence.pushBackReordered}: the chars it could not place in the CSI
      * are read again as ordinary output, followed by {@code ESC [ <parameters> <final>}. These chars
      * have already been passed on, so only the state moves. The parameters are left out: they are
-     * digits, {@code ;} and {@code !?>}, which cannot change the state wherever they land, and no
+     * digits, {@code ;} and {@code !?>}, which cannot change the state wherever they land (nor does
+     * the {@code $}, which SithTermFX leaves out of the pushed-back sequence altogether), and no
      * replayed sequence can be owned (an owned body starts with a digit, which is never stray).
      */
     private void replayStrayChars(char finalChar) {
