@@ -831,7 +831,7 @@
     <article>
         <p><h1 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h1>
 <p>What changed in the current release. The version this guide was built for is shown in the footer.</p>
-<h2 id="v2230">v2.23.0<a class="headerlink" href="#v2230" title="Permanent link">&para;</a></h2>
+<h2 id="v2240">v2.24.0<a class="headerlink" href="#v2240" title="Permanent link">&para;</a></h2>
 <h3 id="connection-manager">Connection Manager<a class="headerlink" href="#connection-manager" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>New layout</strong> — the Connection Manager shows a library on the left (all connections, favorites, recently used, open now, folders, tags, teamwork), the chosen connections in the middle and an inspector on the right, with every detail of the selected connection and quick edits of its name and tag. The toolbar uses icons in the style of the icon toolbar, and the list shows each connection's address, tag and marks for jump server, tunnels, isolation and incognito instead of emoji. See <a href="../features/connections.html#connection-manager">Connection Manager</a>.</li>
@@ -842,48 +842,35 @@
 <li><strong>Map as PDF</strong> — <strong>PDF</strong> on the map saves it as a vector PDF with the korTTY logo, in landscape or portrait.</li>
 <li><strong>Overview export</strong> — <strong>Export overview</strong> writes your servers as JSON, YAML, TOML or XML, with the parts you choose and never a password or key. See <a href="../features/connections.html#exporting-an-overview">Exporting an overview</a>.</li>
 <li><strong>Inspector</strong> — the route from this computer through the jump server, security as chips, usage bars for the last 14 days and an SFTP button.</li>
+<li><strong>Toolbar for an empty connection row</strong> — while <strong>View → Connection toolbar</strong> is switched on but holds no servers or groups yet, the row stays visible and offers <strong>Add connection</strong>, which opens customizing on the connections catalog. See <a href="../getting-started/main-window.html#customizing-the-icon-toolbar">Customizing the icon toolbar</a>.</li>
 </ul>
 <h3 id="serial-connections">Serial connections<a class="headerlink" href="#serial-connections" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Serial ports</strong> — the new <strong>Serial</strong> protocol opens a terminal on a serial port, like PuTTY's serial sessions: a router or switch console, a microcontroller board or a USB-to-serial adapter, on Windows, macOS and Linux. Pick the port from the list or type it, and set the speed, data bits, parity, stop bits, flow control, what Enter sends, DTR/RTS and local echo. <strong>Send Break</strong> is in the terminal's context menu and in the Connections menu, and can get a key in the keyboard settings. Serial sessions from MobaXterm and PuTTY Connection Manager files are imported too. See <a href="../features/serial.html">Serial connections</a>.</li>
 </ul>
-<h3 id="on-windows">On Windows<a class="headerlink" href="#on-windows" title="Permanent link">&para;</a></h3>
+<h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>PowerShell and Command Prompt in the toolbar</strong> — on Windows, the Terminal group of the icon toolbar gets <strong>New PowerShell</strong> and <strong>New Command Prompt</strong> right after <strong>New local shell</strong>, each with its own icon; saved layouts gain both once. With Git for Windows installed, the customization catalog also offers <strong>New Git Bash</strong>. See <a href="../getting-started/main-window.html#customizing-the-icon-toolbar">Customizing the icon toolbar</a>.</li>
-<li><strong>Local shells run under ConPTY</strong> — local shells and the native Mosh client now start under the Windows pseudo console instead of winpty, which no longer interferes with keys typed into other applications while korTTY runs.</li>
-<li><strong>Mosh Client finds mosh-client.exe</strong> — the Mosh Client (native) protocol now looks for <code>mosh-client.exe</code> in the folders of the <code>PATH</code>. See <a href="../features/connections.html#protocols">Protocols</a>.</li>
-</ul>
-<h3 id="toolbar-and-split-panes">Toolbar and split panes<a class="headerlink" href="#toolbar-and-split-panes" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Toolbar groups wrap instead of shrinking</strong> — when the window is too narrow, whole toolbar groups move to another line, so every button stays directly clickable instead of hiding behind an overflow chevron. See <a href="../getting-started/main-window.html#customizing-the-icon-toolbar">Customizing the icon toolbar</a>.</li>
-<li><strong>Focus ring can be switched off</strong> — switch off <strong>Frame the split pane the keyboard is in</strong> in the Window settings to hide the ring around the active split pane. You then recognize the active pane by its cursor. See <a href="../reference/settings/window.html#tabs">Tabs</a>.</li>
-</ul>
-<h3 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h3>
-<ul>
-<li><strong>Folder analysis by file</strong> — the folder analysis tab lists the folder's files beside the report. Pick a file, or step through the files with ◀ ▶ and the arrow keys, to see only its findings and a short description of what the file does; each row shows how many of its findings are ticked, and its checkbox ticks or clears them all. Findings keep their file even when the model numbers them per file or names the file another way. See <a href="../features/snippets.html#analysing-a-folder-as-one-project">Analysing a folder as one project</a>.</li>
-<li><strong>Vertical or horizontal flow diagram</strong> — an <strong>Orientation</strong> control in the diagram toolbar draws the flowchart top to bottom or left to right, in the analysis panel, its zoom window and the Diagram dialog. Switching redraws the stored diagram without asking the AI again. See <a href="../features/snippets.html#diagram-appearance">Diagram appearance</a>.</li>
+<li><strong>Clipboard protocol of kitty (OSC 5522)</strong> — programs that speak kitty's clipboard protocol, such as Neovim and <code>kitten clipboard</code>, can copy to the clipboard under the OSC 52 setting, and with the new <strong>Let programs in the terminal ask to read the clipboard (OSC 5522)</strong> setting they can ask to read it. Every read asks you first, <strong>Deny</strong> is the default, and a paste into a program that asked for paste events counts as your consent. Only text is exchanged; the strict terminal mode drops the protocol, and the policy key <code>allow-osc5522-clipboard-read = false</code> forbids reading. See <a href="../features/terminal-notifications.html#programs-reading-the-clipboard-osc-5522">Programs reading the clipboard</a>.</li>
+<li><strong>Scrollback memory limit</strong> — the new <strong>Scrollback memory</strong> slider in the Terminal settings sets the most memory the scrollback of one pane may use, from 1 to 50 MB (10 MB by default), next to the line count; whichever limit is reached first drops the oldest lines. A saved change applies to open terminals at once. See <a href="../reference/settings/terminal.html">Terminal settings</a>.</li>
+<li><strong>Scrollback compression</strong> — while a terminal has no output, korTTY compresses the scrollback lines that are not on screen in the background, so the same memory holds several times as many lines. A line is unpacked as soon as you scroll to it. Switch it off with <strong>Compress the scrollback in the background while idle</strong>. See <a href="../reference/settings/terminal.html">Terminal settings</a>.</li>
+<li><strong>Pixel size for image tools over SSH</strong> — SSH sessions, isolated ones included, now tell the server the size of the terminal in pixels, so image tools that use the kitty graphics protocol size their images correctly instead of seeing 0×0.</li>
 </ul>
 <h3 id="ai">AI<a class="headerlink" href="#ai" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>"Model default" instead of "Disabled"</strong> — the reasoning setting that sends no reasoning parameter is now called <strong>Model default</strong>, because the model's own default then applies; only <strong>None</strong> switches reasoning off. A tooltip on the dropdown explains the difference. See <a href="../reference/settings/ai.html#reasoning-effort-levels">Reasoning Effort Levels</a>.</li>
-<li><strong>Connection test accepts reasoning-only replies</strong> — <strong>Test AI Connection</strong> and <strong>Refresh reasoning options</strong> now pass when a model that reasons by default, such as Qwen in LM Studio, spends the short test reply on reasoning, and a failed refresh names the endpoint's own reason.</li>
+<li><strong>Disable the AI agent per connection</strong> — for systems such as production servers, switch on <strong>Disable AI agent for this connection</strong> on the <strong>AI</strong> tab of the connection editor. Every agent run on that connection is then refused, from the menu, the <code>agent ...</code> shortcut, accepted plans, swarm members and scheduled AI Agent jobs; <strong>Ask Agent</strong>, <strong>AI Planning</strong> and the other AI features stay available. See <a href="../features/ai-tools.html#connections-without-the-agent">Connections without the agent</a>.</li>
+<li><strong>Search the connection skills</strong> — a search field above the AI Skills list in the connection editor filters them by name, description and tags.</li>
 </ul>
-<h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
+<h3 id="snippets">Snippets<a class="headerlink" href="#snippets" title="Permanent link">&para;</a></h3>
 <ul>
-<li>
-<p><strong>Clipboard protocol of kitty (OSC 5522)</strong> — programs that speak kitty's clipboard protocol, such as Neovim and <code>kitten clipboard</code>, can copy to the clipboard under the OSC 52 setting, and with the new <strong>Let programs in the terminal ask to read the clipboard (OSC 5522)</strong> setting they can ask to read it. Every read asks you first, <strong>Deny</strong> is the default, and a paste into a program that asked for paste events counts as your consent. Only text is exchanged; the strict terminal mode drops the protocol, and the policy key <code>allow-osc5522-clipboard-read = false</code> forbids reading. See <a href="../features/terminal-notifications.html#programs-reading-the-clipboard-osc-5522">Programs reading the clipboard</a>.</p>
-</li>
-<li>
-<p><strong>Scrollback memory limit</strong> — the new <strong>Scrollback memory</strong> slider in the Terminal settings sets the most memory the scrollback of one pane may use, from 1 to 50 MB (10 MB by default), next to the line count; whichever limit is reached first drops the oldest lines. A saved change applies to open terminals at once. See <a href="../reference/settings/terminal.html">Terminal settings</a>.</p>
-</li>
-<li><strong>Scrollback compression</strong> — while a terminal has no output, korTTY compresses the scrollback lines that are not on screen in the background, so the same memory holds several times as many lines. A line is unpacked as soon as you scroll to it. Switch it off with <strong>Compress the scrollback in the background while idle</strong>. See <a href="../reference/settings/terminal.html">Terminal settings</a>.</li>
+<li><strong>Snippet Manager windows no longer block the main window</strong> — the terminals stay usable while a Snippet Manager window is open, also while it asks a question or runs a Full code analysis. <strong>Tools → New Snippet Manager Window</strong> opens a further one, and <strong>Move to new window</strong> on a tab moves a snippet or a folder analysis into a window of its own, for example on a second screen. See <a href="../features/snippets.html#opening-the-snippet-manager">Opening the Snippet Manager</a>.</li>
+</ul>
+<h3 id="coding-agents">Coding agents<a class="headerlink" href="#coding-agents" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Cline and Antigravity CLI</strong> — the Coding Agents panel now recognises <strong>Cline</strong> and Google's <strong>Antigravity CLI</strong> (<code>agy</code>), the successor to Gemini CLI; the rules of every other agent were re-checked against its latest version, and Gemini CLI's folder-trust and sign-in dialogs now count as waiting for you. See <a href="../features/coding-agents.html#what-it-detects">What it detects</a>.</li>
 </ul>
 <h3 id="fixes">Fixes<a class="headerlink" href="#fixes" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Dismissed sessions stay dismissed</strong> — closing the last tab on purpose now empties the session snapshot, so the restore offer no longer comes back at every start after you discard it.</li>
-<li><strong>Steady diagram tooltips</strong> — the code-reference tooltip in the enlarged analysis diagram stays open while the mouse rests on a node instead of flashing and closing.</li>
-<li><strong>Folder analyses survive a malformed key</strong> — an analysis whose JSON lacks the opening quote of one key is repaired instead of being discarded as "no usable analysis".</li>
-<li><strong>German label for reasoning</strong> — the German user interface now labels this setting of AI profiles "Reasoning", as the guide does.</li>
+<li><strong>Copying from the AI chat</strong> — <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-c">C</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-c">C</kbd></span> and <span class="keys"><kbd class="key-command">Cmd</kbd><span>+</span><kbd class="key-a">A</kbd></span> / <span class="keys"><kbd class="key-control">Ctrl</kbd><span>+</span><kbd class="key-a">A</kbd></span> now work after clicking into a chat message, and the chat's scrollbar is wider and easier to see.</li>
 <li><strong>Wide dialogs open at their size in the AtlantaFX designs</strong> — under an AtlantaFX design, a dialog laid out wider than 600 px (such as the settings, <strong>Compare folders</strong> in the SFTP manager or the <strong>Logfile Manager</strong>) opened squeezed or grew after it appeared; it now opens as wide as in the Normal design, and a long message still wraps.</li>
 </ul></p>
     </article>
@@ -893,7 +880,7 @@
             <!-- block footer -->
 <footer class="kt-footer">
   <div class="kt-footer__line">MIT-licensed &middot; Developed by Daniel Mengel</div>
-  <div class="kt-footer__line">korTTY <strong>v2.23.0</strong></div>
+  <div class="kt-footer__line">korTTY <strong>v2.24.0</strong></div>
 </footer>
 
             <!-- endblock -->
