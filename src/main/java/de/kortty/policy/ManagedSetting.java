@@ -23,9 +23,10 @@ public enum ManagedSetting {
     LOAD_INTO_SNIPPET_EDITOR,
     SERVER_ACCESS,
     /**
-     * The clipboard group: {@code clipboard-mode} and {@code allow-osc52-clipboard-write}. The OSC 52
-     * switch in Settings → Terminal is locked only while the policy forbids it
-     * ({@link EffectivePolicy#osc52ClipboardWriteAllowed()}).
+     * The clipboard group: {@code clipboard-mode}, {@code allow-osc52-clipboard-write} and
+     * {@code allow-osc5522-clipboard-read}. The OSC 52 and OSC 5522 switches in Settings → Terminal are
+     * locked only while the policy forbids them ({@link EffectivePolicy#osc52ClipboardWriteAllowed()},
+     * {@link EffectivePolicy#osc5522ClipboardReadAllowed()}).
      */
     CLIPBOARD,
     LOGGING,

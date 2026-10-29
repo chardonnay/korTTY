@@ -60,6 +60,8 @@ class SessionWorkerIntegrationTest {
     private Path tmp;
     private SshTtyConnector connector;
     private ServerSocket echoServer;
+    /** The shell the server runs; the echo shell unless a test sets another before {@link #startServer}. */
+    private java.util.function.Supplier<Command> shell = EchoShell::new;
 
     @AfterMethod(alwaysRun = true)
     void cleanup() throws IOException {
@@ -75,6 +77,7 @@ class SessionWorkerIntegrationTest {
             echoServer.close();
             echoServer = null;
         }
+        shell = EchoShell::new;
         if (tmp != null) {
             try (Stream<Path> entries = Files.walk(tmp)) {
                 for (Path entry : entries.sorted(Comparator.reverseOrder()).toList()) {
@@ -99,7 +102,8 @@ class SessionWorkerIntegrationTest {
         server.setKeyboardInteractiveAuthenticator(null);
         server.setPublickeyAuthenticator((user, key, session) ->
             acceptedKey != null && KeyUtils.compareKeys(acceptedKey.getPublic(), key));
-        server.setShellFactory(channel -> new EchoShell());
+        java.util.function.Supplier<Command> serverShell = shell;
+        server.setShellFactory(channel -> serverShell.get());
         server.setCommandFactory((channel, command) -> new ExecCommand(command));
         server.setSubsystemFactories(java.util.List.of(new SftpSubsystemFactory()));
         server.setFileSystemFactory(new VirtualFileSystemFactory(tmp.resolve("sftp-root")));
@@ -127,6 +131,86 @@ class SessionWorkerIntegrationTest {
 
         connector.write("ping\r");
         assertThat(readUntil(connector, "ping")).contains("ping");
+    }
+
+    /**
+     * OSC 5522 crosses the worker both ways unchanged: the server's clipboard commands reach the emulator
+     * in korTTY's process, where the handler runs, and the emulator's answers reach the server.
+     */
+    @Test
+    void theClipboardProtocolRoundTripsThroughAWorkerProcess() throws Exception {
+        ClipboardShell clipboardShell = new ClipboardShell();
+        shell = () -> clipboardShell;
+        startServer(null);
+        connector = isolatedConnector(new ServerConnection("w", "127.0.0.1", server.getPort(), "tester"), PASSWORD);
+        assertThat(connector.connect()).isTrue();
+        assertThat(connector.isolationReport().state()).isEqualTo(IsolationState.PROCESS);
+
+        com.sithtermfx.core.model.StyleState style = new com.sithtermfx.core.model.StyleState();
+        com.sithtermfx.core.model.TerminalTextBuffer buffer =
+            new com.sithtermfx.core.model.TerminalTextBuffer(40, 4, style);
+        com.sithtermfx.core.model.SithTerminal terminal = new com.sithtermfx.core.model.SithTerminal(
+            silentDisplay(), buffer, style);
+        java.util.List<String> written = new java.util.concurrent.CopyOnWriteArrayList<>();
+        terminal.setClipboardHandler(new com.sithtermfx.core.clipboard.TerminalClipboardHandler() {
+            @Override
+            public java.util.concurrent.CompletionStage<java.util.List<String>> getMimeTypes(
+                    com.sithtermfx.core.clipboard.ClipboardLocation location) {
+                return java.util.concurrent.CompletableFuture.completedFuture(java.util.List.of("text/plain"));
+            }
+
+            @Override
+            public java.util.concurrent.CompletionStage<java.util.Map<String, byte[]>> read(
+                    com.sithtermfx.core.clipboard.ClipboardReadRequest request) {
+                return java.util.concurrent.CompletableFuture.completedFuture(
+                    java.util.Map.of("text/plain", "from korTTY".getBytes(StandardCharsets.UTF_8)));
+            }
+
+            @Override
+            public java.util.concurrent.CompletionStage<Void> write(
+                    com.sithtermfx.core.clipboard.ClipboardWriteRequest request) {
+                written.add(new String(request.getData().get("text/plain"), StandardCharsets.UTF_8));
+                return java.util.concurrent.CompletableFuture.completedFuture(null);
+            }
+        });
+        terminal.setTerminalOutput(new com.sithtermfx.core.TerminalOutputStream() {
+            @Override
+            public void sendBytes(byte[] response, boolean userInput) {
+                sendString(new String(response, StandardCharsets.UTF_8), userInput);
+            }
+
+            @Override
+            public void sendString(String string, boolean userInput) {
+                try {
+                    connector.write(string);
+                } catch (IOException e) {
+                    throw new java.io.UncheckedIOException(e);
+                }
+            }
+        });
+        SshTtyConnector pane = connector;
+        Thread emulatorThread = new Thread(() -> {
+            com.sithtermfx.core.emulator.SithEmulator emulator = new com.sithtermfx.core.emulator.SithEmulator(
+                new com.sithtermfx.core.TtyBasedArrayDataStream(pane), terminal);
+            try {
+                while (emulator.hasNext()) {
+                    emulator.next();
+                }
+            } catch (IOException ended) {
+                // the server closed the channel
+            }
+        }, "emulator");
+        emulatorThread.setDaemon(true);
+        emulatorThread.start();
+
+        assertThat(clipboardShell.answered.await(TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)).isTrue();
+        String received = clipboardShell.received.toString();
+        assertThat(received).contains(ClipboardShell.ESC + "[?5522;2$y");
+        assertThat(received).contains("]5522;type=write:status=DONE");
+        assertThat(received).contains("]5522;type=read:status=DATA:mime="
+            + ClipboardShell.b64("text/plain") + ";" + ClipboardShell.b64("from korTTY"));
+        assertThat(received).contains("]5522;type=read:status=DONE");
+        assertThat(written).containsExactly("from the server");
     }
 
     @Test
@@ -346,6 +430,94 @@ class SessionWorkerIntegrationTest {
                     exit.onExit(1);
                 }
             }, "echo-shell");
+            thread.setDaemon(true);
+            thread.start();
+        }
+
+        @Override
+        public void destroy(ChannelSession channel) {
+        }
+    }
+
+    /** A display that shows nothing: the emulator only needs one to talk to. */
+    private static com.sithtermfx.core.TerminalDisplay silentDisplay() {
+        return (com.sithtermfx.core.TerminalDisplay) java.lang.reflect.Proxy.newProxyInstance(
+            SessionWorkerIntegrationTest.class.getClassLoader(), new Class<?>[] {com.sithtermfx.core.TerminalDisplay.class},
+            (proxy, method, args) -> {
+                if (method.isDefault()) {
+                    return java.lang.reflect.InvocationHandler.invokeDefault(proxy, method, args);
+                }
+                Class<?> type = method.getReturnType();
+                if (type == boolean.class) {
+                    return false;
+                }
+                if (type == int.class || type == long.class || type == float.class || type == double.class) {
+                    return java.lang.reflect.Array.get(java.lang.reflect.Array.newInstance(type, 1), 0);
+                }
+                return null;
+            });
+    }
+
+    /**
+     * Sends a program's OSC 5522 session (DECRQM, a write, a read), then records what comes back until the
+     * read's last answer, and exits.
+     */
+    private static final class ClipboardShell implements Command {
+        static final String ESC = "\u001B";
+        final StringBuffer received = new StringBuffer();
+        final java.util.concurrent.CountDownLatch answered = new java.util.concurrent.CountDownLatch(1);
+        private InputStream in;
+        private OutputStream out;
+        private ExitCallback exit;
+
+        static String b64(String text) {
+            return java.util.Base64.getEncoder().encodeToString(text.getBytes(StandardCharsets.UTF_8));
+        }
+
+        private static String osc(String metadata, String payload) {
+            return ESC + "]5522;" + metadata + (payload.isEmpty() ? "" : ";" + payload) + ESC + "\\";
+        }
+
+        @Override
+        public void setInputStream(InputStream in) {
+            this.in = in;
+        }
+
+        @Override
+        public void setOutputStream(OutputStream out) {
+            this.out = out;
+        }
+
+        @Override
+        public void setErrorStream(OutputStream err) {
+        }
+
+        @Override
+        public void setExitCallback(ExitCallback callback) {
+            this.exit = callback;
+        }
+
+        @Override
+        public void start(ChannelSession channel, Environment env) {
+            Thread thread = new Thread(() -> {
+                try {
+                    String session = ESC + "[?5522$p"
+                        + osc("type=write", "") + osc("type=wdata:mime=" + b64("text/plain"), b64("from the server"))
+                        + osc("type=wdata", "")
+                        + osc("type=read", b64("text/plain"));
+                    out.write(session.getBytes(StandardCharsets.UTF_8));
+                    out.flush();
+                    byte[] buffer = new byte[256];
+                    int count;
+                    while (!received.toString().contains("]5522;type=read:status=DONE") && (count = in.read(buffer)) >= 0) {
+                        received.append(new String(buffer, 0, count, StandardCharsets.UTF_8));
+                    }
+                    answered.countDown();
+                    exit.onExit(0);
+                } catch (IOException e) {
+                    exit.onExit(1);
+                }
+            }, "clipboard-shell");
             thread.setDaemon(true);
             thread.start();
         }

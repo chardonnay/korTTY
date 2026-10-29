@@ -928,6 +928,13 @@
 <td><code>osc52ClipboardWriteEnabled</code></td>
 </tr>
 <tr>
+<td>Programmen im Terminal erlauben, das Lesen der Zwischenablage anzufragen (OSC 5522)</td>
+<td>umschalten</td>
+<td>—</td>
+<td>Aus</td>
+<td><code>osc5522ClipboardReadEnabled</code></td>
+</tr>
+<tr>
 <td>Aktive Terminalfenster ohne Bestätigung schließen</td>
 <td>umschalten</td>
 <td>–</td>
@@ -1135,7 +1142,11 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Programme, die in die Zwischenablage kopieren (OSC 52)</p>
-<p>Ist <strong>Programmen im Terminal erlauben, Text in die Zwischenablage zu kopieren (OSC 52)</strong> eingeschaltet, können Programme wie vim, Neovim und tmux, auch auf einem Server über SSH, mit der Escape-Sequenz OSC 52 bis zu 256 KiB Text auf einmal in Ihre Zwischenablage legen, und die Statusleiste nennt jedes Mal den Tab. Sie können die Zwischenablage nie lesen, weil korTTY die OSC-52-Abfrage nie beantwortet. Die Einstellung ist standardmäßig ausgeschaltet, weil jedes Programm, dessen Ausgabe das Terminal erreicht, ersetzen könnte, was Sie kopiert haben; solange sie ausgeschaltet ist, meldet die Statusleiste, wenn ein Programm es versucht hat. Mit dem <a href="../enterprise-policy.html#interner-zwischenablagemodus">internen Zwischenablagemodus</a> der Unternehmensrichtlinie bleibt, was Programme kopieren, innerhalb von korTTY. Die Einstellung wird bei jedem Schreibvorgang gelesen, sodass eine Änderung für offene Tabs gilt, sobald Sie speichern. Siehe <a href="../../features/terminal-notifications.html#programme-die-in-die-zwischenablage-kopieren-osc-52">Programme, die in die Zwischenablage kopieren</a>.</p>
+<p>Ist <strong>Programmen im Terminal erlauben, Text in die Zwischenablage zu kopieren (OSC 52)</strong> aktiviert, können Programme wie vim, Neovim und tmux – auch auf einem Server über SSH – mit der OSC-52-Escape-Sequenz jeweils bis zu 256 KiB Text in Ihre Zwischenablage legen, und die Statusleiste benennt jedes Mal den Tab. Sie können die Zwischenablage mit OSC 52 niemals lesen, da korTTY OSC-52-Abfragen nie beantwortet. Derselbe Schalter steuert auch Schreibvorgänge mit OSC 5522, dem Zwischenablage-Protokoll von kitty. Er ist standardmäßig deaktiviert, da jedes Programm, dessen Ausgabe das Terminal erreicht, das ersetzen könnte, was Sie kopiert haben; während er deaktiviert ist, zeigt die Statusleiste an, wenn ein Programm es versucht hat. Mit dem <a href="../enterprise-policy.html#interner-zwischenablagemodus">internen Zwischenablage-Modus</a> der Unternehmensrichtlinie bleibt das, was Programme kopieren, innerhalb von korTTY. Die Einstellung wird bei jedem Schreibvorgang gelesen, sodass eine Änderung auf offene Tabs sofort angewendet wird, sobald Sie speichern. Siehe <a href="../../features/terminal-notifications.html#programme-die-in-die-zwischenablage-kopieren-osc-52">Programme, die in die Zwischenablage kopieren</a>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Programme, die die Zwischenablage auslesen (OSC 5522)</p>
+<p>Wenn <strong>Programmen im Terminal erlauben, das Lesen der Zwischenablage anzufragen (OSC 5522)</strong> aktiviert ist, können Programme, die das Zwischenablage-Protokoll von kitty unterstützen, um den Text in Ihrer Zwischenablage bitten. korTTY fragt vor jedem Lesen nach, mit <strong>Ablehnen</strong> als Standardtaste, und benennt den Tab und das Programm; ein Einfügen in ein Programm, das um Einfüge-Ereignisse gebeten hat, gilt als Ihre Zustimmung. Es wird nur Text ausgegeben, und der interne Zwischenablage-Modus gibt die eigene Zwischenablage von korTTY heraus. Standardmäßig ist es deaktiviert. Siehe <a href="../../features/terminal-notifications.html#programme-zum-auslesen-der-zwischenablage-osc-5522">Programme, die die Zwischenablage lesen</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Hervorhebung von Schlüsselwörtern</p>

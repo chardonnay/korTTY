@@ -42,8 +42,28 @@ class ControlSequenceBoundsPatchTest {
     void aSequenceThatFitsIsPushedBackUnchanged() throws IOException {
         // vttest's control characters inside a sequence: the backspace is read first, then the CSI.
         assertThat(pushedBack("2\bC")).isEqualTo("\b" + ESC + "[2C");
-        assertThat(pushedBack("?25$p")).isEqualTo("$" + ESC + "[?25p");
+        assertThat(pushedBack("?25\"p")).isEqualTo("\"" + ESC + "[?25p");
         assertThat(pushedBack("1;22;333 q")).isEqualTo(" " + ESC + "[1;22;333q");
+    }
+
+    /**
+     * Since SithTermFX 1.2.7 the intermediate {@code $} (DECRQM, DECCARA and the other DEC {@code $}
+     * sequences) belongs to the sequence: it is no stray char and is not printed. Up to 1.2.6 it was pushed
+     * back as text and the sequence ran without it, so {@code CSI 2;3 $ r} (DECCARA) set the scrolling
+     * region like DECSTBM. The push-back of a sequence that also has a stray char still leaves the
+     * {@code $} out, as before.
+     */
+    @Test
+    void theDollarIntermediateBelongsToTheSequence() throws IOException {
+        ArrayTerminalDataStream stream = new ArrayTerminalDataStream("?25$p".toCharArray());
+        ControlSequence sequence = new ControlSequence(stream);
+
+        assertThat(sequence.hasDollarIntermediate()).isTrue();
+        assertThat(sequence.getFinalChar()).isEqualTo('p');
+        assertThat(sequence.pushBackReordered(stream)).isFalse();
+        assertThat(stream.isEmpty()).isTrue();
+
+        assertThat(pushedBack("?25 $p")).isEqualTo(" " + ESC + "[?25p");
     }
 
     @Test

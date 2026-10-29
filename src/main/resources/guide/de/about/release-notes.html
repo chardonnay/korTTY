@@ -870,7 +870,12 @@
 </ul>
 <h3 id="terminal">Terminal<a class="headerlink" href="#terminal" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Scrollback-Speicherlimit</strong> — der neue <strong>Scrollback-Speicher</strong>-Regler in den Terminal-Einstellungen legt fest, wie viel Speicher der Scrollback eines einzelnen Fensters maximal verwenden darf, von 1 bis 50 MB (Standard: 10 MB), neben der Zeilenanzahl; welches Limit zuerst erreicht wird, entfernt die ältesten Zeilen. Eine gespeicherte Änderung wird sofort auf offene Terminals angewendet. Siehe <a href="../reference/settings/terminal.html">Terminal-Einstellungen</a>.</li>
+<li>
+<p><strong>Zwischenablage-Protokoll von kitty (OSC 5522)</strong> — Programme, die das Zwischenablage-Protokoll von kitty verwenden, wie Neovim und <code>kitten clipboard</code>, können unter der Einstellung OSC 52 in die Zwischenablage kopieren, und mit der neuen Einstellung <strong>Programmen im Terminal erlauben, das Lesen der Zwischenablage anzufragen (OSC 5522)</strong> können sie das Lesen anfragen. Bei jedem Lesezugriff werden Sie zuerst gefragt, <strong>Ablehnen</strong> ist die Standardeinstellung, und ein Einfügen in ein Programm, das Einfüge-Ereignisse angefragt hat, gilt als Ihre Zustimmung. Es wird nur Text ausgetauscht; der strikte Terminalmodus entfernt das Protokoll, und der Policy-Schlüssel <code>allow-osc5522-clipboard-read = false</code> verbietet das Lesen. Siehe <a href="../features/terminal-notifications.html#programme-zum-auslesen-der-zwischenablage-osc-5522">Programme, die die Zwischenablage lesen</a>.</p>
+</li>
+<li>
+<p><strong>Scrollback-Speicherlimit</strong> — der neue <strong>Scrollback-Speicher</strong>-Regler in den Terminal-Einstellungen legt fest, wie viel Speicher der Scrollback eines einzelnen Fensters maximal verwenden darf, von 1 bis 50 MB (Standard: 10 MB), neben der Zeilenanzahl; welches Limit zuerst erreicht wird, entfernt die ältesten Zeilen. Eine gespeicherte Änderung wird sofort auf offene Terminals angewendet. Siehe <a href="../reference/settings/terminal.html">Terminal-Einstellungen</a>.</p>
+</li>
 <li><strong>Scrollback-Komprimierung</strong> — während ein Terminal keine Ausgabe hat, komprimiert korTTY die Scrollback-Zeilen, die nicht auf dem Bildschirm sind, im Hintergrund, damit derselbe Speicher mehrere Male so viele Zeilen fasst. Eine Zeile wird entpackt, sobald Sie dazu scrollen. Deaktivieren Sie es über <strong>Scrollback im Leerlauf im Hintergrund komprimieren</strong>. Siehe <a href="../reference/settings/terminal.html">Terminal-Einstellungen</a>.</li>
 </ul>
 <h3 id="korrekturen">Korrekturen<a class="headerlink" href="#korrekturen" title="Permanent link">&para;</a></h3>

@@ -10,7 +10,7 @@ You can also ask korTTY to watch a tab for you: to tell you when output appears 
 
 A [keyword highlighting](highlighting.md) rule of your own can do the same for a word or pattern: it marks the tab and notifies when the pattern appears in new output; see [Notifications for matching output](highlighting.md#notifications-for-matching-output).
 
-A program can also ask to put text on your clipboard. KorTTY allows that only when you switch it on, and the status bar tells you each time; see [Programs copying to the clipboard](#programs-copying-to-the-clipboard-osc-52).
+A program can also ask to put text on your clipboard, or to read it. KorTTY allows that only when you switch it on, asks you before every read, and the status bar tells you each time; see [Programs copying to the clipboard](#programs-copying-to-the-clipboard-osc-52) and [Programs reading the clipboard](#programs-reading-the-clipboard-osc-5522).
 
 ## When you are looking at a tab
 
@@ -114,7 +114,7 @@ printf '\e]52;c;%s\a' "$(printf 'copied from the server' | base64)"
 ```
 
 - Each time a program copies, the status bar of its window says so and names the tab, for example *A program in the tab “web-01” copied 22 characters to the clipboard (OSC 52).* While the setting is off, the status bar says that a program tried, and the clipboard stays as it was.
-- Programs can only write the clipboard, never read it: korTTY never answers the OSC 52 query, so nothing you copied elsewhere reaches a program in the terminal. A program's own paste command that reads the clipboard this way, such as Neovim's OSC 52 paste, therefore gets nothing; paste with korTTY's paste shortcut instead, which goes through [paste protection](terminal.md#paste-protection).
+- With OSC 52 programs can only write the clipboard, never read it: korTTY never answers the OSC 52 query, so nothing you copied elsewhere reaches a program in the terminal. A program's own paste command that reads the clipboard this way, such as Neovim's OSC 52 paste, therefore gets nothing; paste with korTTY's paste shortcut instead, which goes through [paste protection](terminal.md#paste-protection). Programs that speak kitty's clipboard protocol can ask to read it, see [Programs reading the clipboard](#programs-reading-the-clipboard-osc-5522).
 - One write can carry up to 256 KiB of text. A write that is larger, that is not valid base64 or whose text is not UTF-8 changes nothing, and the status bar says so. Line breaks in the base64, as `base64` without `-w0` writes it, are fine.
 - Every selection a program names (`c`, `p`, `q`, `s`, the cut buffers `0` to `7`, or none) goes to the same clipboard; on Linux that is the clipboard, not the primary selection. When a program copies several times in quick succession, the clipboard ends up with the last text.
 - With the enterprise policy's [internal clipboard mode](../reference/enterprise-policy.md#internal-clipboard-mode), what programs copy lands in korTTY's internal clipboard and never reaches the operating system's clipboard.
@@ -124,3 +124,26 @@ printf '\e]52;c;%s\a' "$(printf 'copied from the server' | base64)"
 - korTTY's own log records only how many bytes a program copied, never the text. A [terminal log](terminal.md#terminal-logging) or [session journal](session-journal.md) of the pane leaves escape sequences out, so the copied text does not reach them either, except when a program uses the rare 8-bit form of the sequence: then the file holds the text base64-encoded.
 
 The setting is read on every write, so a change applies to open tabs as soon as you save. See [Terminal settings](../reference/settings/terminal.md#notes).
+
+## Programs reading the clipboard (OSC 5522)
+
+kitty's clipboard protocol, OSC 5522, lets programs read the clipboard as well as write it, and lets them ask whether the terminal supports it (`CSI ? 5522 $ p`). Editors such as Neovim and the `kitten clipboard` tool use it, also on a server over SSH. KorTTY speaks it under the same rules as OSC 52, and reading needs a second switch and your answer each time.
+
+- **Writing** follows **Let programs in the terminal copy text to the clipboard (OSC 52)** and `allow-osc52-clipboard-write`: with it off, a program's write is refused and the status bar says that a program tried. With it on, the text goes on the clipboard, at most 256 KiB, and the status bar names the tab, for example *A program in the tab “web-01” copied 22 characters to the clipboard (OSC 5522).*
+- **Reading** needs **Let programs in the terminal ask to read the clipboard (OSC 5522)** in *Settings → Terminal*, which is off by default. With it on, every read opens a prompt that names the tab, the name the program gives itself and the types it asks for. **Deny** is the default button, and closing the prompt denies too. **Allow Once** hands out the text this one time.
+- **Allow for This Program** appears only when the program sends a name and a password with its request. KorTTY then hands the text to later requests with the same name and password in the same tab without asking, until the tab is closed. Nothing of it is saved.
+- After you deny a read, the tab refuses further reads without asking for 10 seconds, so a program cannot bury you in prompts.
+- **Paste events:** a program can ask for your pastes to reach it as an event instead of as typed text (`CSI ? 5522 h`). When you then paste into it with korTTY's paste shortcut, the program reads the clipboard itself, without a prompt, because the paste is your consent. KorTTY only does this while reading is switched on; otherwise the paste goes the usual way, through [paste protection](terminal.md#paste-protection). A program reading through a paste event gets the text as it is, so korTTY's paste warning does not see it. When your organization sets a paste-warning floor, every paste goes the usual way.
+- KorTTY exchanges text only (`text/plain`). A write without text is refused, and a read gets the text and nothing else. Listing what is on the clipboard needs no permission and reports `text/plain` or nothing. The primary selection of Linux is not available to programs.
+- With the enterprise policy's [internal clipboard mode](../reference/enterprise-policy.md#internal-clipboard-mode), writes land in korTTY's internal clipboard and reads get the internal clipboard, never the operating system's.
+- Your organization can forbid reading with `allow-osc5522-clipboard-read = false` in its [enterprise policy](../reference/enterprise-policy.md#rulesecurity): the switch is then off and locked, no prompt opens, and paste events are off.
+- The [strict terminal mode](session-isolation.md#strict-terminal-mode) drops OSC 5522, the paste-event mode and the support query, so a program in such a session sees a terminal without the protocol.
+- KorTTY's log records how many bytes a program wrote or read, never the text.
+
+To try it, switch both settings on and run `kitten clipboard --get-clipboard` on a computer with kitty's tools installed, or ask whether the terminal supports the protocol:
+
+```bash
+printf '\e[?5522$p'; read -rs -t 1 -d y reply; printf '%q\n' "$reply"
+```
+
+A reply ending in `5522;2$` means that korTTY supports it and paste events are off.

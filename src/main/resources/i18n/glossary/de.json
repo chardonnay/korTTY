@@ -2495,6 +2495,42 @@
       "to": "und **Teamwork** (aktualisieren",
       "scope": "markdown",
       "note": "connections.md: the toolbar group is labelled Teamwork (connectionManager.section.teamwork)."
+    },
+    {
+      "from": "Erlauben Sie Programmen im Terminal, das Lesen der Zwischenablage anzufordern (OSC 5522)",
+      "to": "Programmen im Terminal erlauben, das Lesen der Zwischenablage anzufragen (OSC 5522)",
+      "scope": "markdown",
+      "note": "The UI label of settings.terminal.osc5522.read; the translator rephrases it."
+    },
+    {
+      "from": "Programme im Terminal dürfen um das Lesen der Zwischenablage bitten (OSC 5522)",
+      "to": "Programmen im Terminal erlauben, das Lesen der Zwischenablage anzufragen (OSC 5522)",
+      "scope": "markdown",
+      "note": "The UI label of settings.terminal.osc5522.read; the translator rephrases it."
+    },
+    {
+      "from": "Programmen im Terminal erlauben, die Zwischenablage zu lesen (OSC 5522)",
+      "to": "Programmen im Terminal erlauben, das Lesen der Zwischenablage anzufragen (OSC 5522)",
+      "scope": "markdown",
+      "note": "The UI label of settings.terminal.osc5522.read; the translator rephrases it."
+    },
+    {
+      "from": "Programme im Terminal dürfen die Zwischenablage lesen (OSC 5522)",
+      "to": "Programmen im Terminal erlauben, das Lesen der Zwischenablage anzufragen (OSC 5522)",
+      "scope": "markdown",
+      "note": "The UI label of settings.terminal.osc5522.read; the translator rephrases it."
+    },
+    {
+      "from": "Programme im Terminal dürfen Text in die Zwischenablage kopieren (OSC 52)",
+      "to": "Programmen im Terminal erlauben, Text in die Zwischenablage zu kopieren (OSC 52)",
+      "scope": "markdown",
+      "note": "The UI label of settings.terminal.osc52.enabled; the translator rephrases it."
+    },
+    {
+      "from": "„web-01\"",
+      "to": "„web-01“",
+      "scope": "markdown",
+      "note": "German quotes close with “, not a straight quote."
     }
   ]
 }

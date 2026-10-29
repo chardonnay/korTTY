@@ -359,6 +359,48 @@ class TerminalUxPolicyTest {
         assertThat(settings.isSessionRestoreScrollback()).isFalse();
     }
 
+    // ---- OSC 5522 clipboard reads ----------------------------------------------------------------
+
+    @Test
+    void theClipboardReadKeyIsParsedAndForbidsReads() throws IOException {
+        PolicyLoadResult result = load("""
+            [rule.security]
+            allow-osc5522-clipboard-read = false
+            """);
+        assertThat(result.errors()).isEmpty();
+        assertThat(result.warnings()).isEmpty();
+        assertThat(result.file().rules().get(0).allowOsc5522ClipboardRead()).isFalse();
+
+        EffectivePolicy policy = resolve(PolicyRule.builder().allowOsc5522ClipboardRead(false).build());
+        assertThat(policy.osc5522ClipboardReadAllowed()).isFalse();
+        assertWithMessage("forbidding reads leaves OSC 52 writes alone")
+            .that(policy.osc52ClipboardWriteAllowed()).isTrue();
+        assertThat(policy.isManaged(ManagedSetting.CLIPBOARD)).isTrue();
+    }
+
+    @Test
+    void clipboardReadsAreLeftToTheUserUnlessForbiddenAndLockdownForbidsThem() {
+        assertThat(EffectivePolicy.unrestricted().osc5522ClipboardReadAllowed()).isTrue();
+        assertThat(resolve(PolicyRule.builder().updatesEnabled(false).build()).osc5522ClipboardReadAllowed()).isTrue();
+        assertThat(EffectivePolicy.lockdown().osc5522ClipboardReadAllowed()).isFalse();
+        assertWithMessage("a rule that forbids reads wins over one that allows them")
+            .that(resolve(PolicyRule.builder().allowOsc5522ClipboardRead(true).build(),
+                PolicyRule.builder().allowOsc5522ClipboardRead(false).build()).osc5522ClipboardReadAllowed())
+            .isFalse();
+    }
+
+    @Test
+    void theClampSwitchesClipboardReadsOffButAllowingThemDoesNotSwitchThemOn() {
+        GlobalSettings on = new GlobalSettings();
+        on.setOsc5522ClipboardReadEnabled(true);
+        new PolicyClamp(resolve(PolicyRule.builder().allowOsc5522ClipboardRead(false).build())).apply(on);
+        assertThat(on.isOsc5522ClipboardReadEnabled()).isFalse();
+
+        GlobalSettings off = new GlobalSettings();
+        new PolicyClamp(resolve(PolicyRule.builder().allowOsc5522ClipboardRead(true).build())).apply(off);
+        assertWithMessage("off by default").that(off.isOsc5522ClipboardReadEnabled()).isFalse();
+    }
+
     // ---- SessionRestoreMode helpers ---------------------------------------------------------------
 
     @Test

@@ -118,6 +118,9 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
 
     private BooleanSupplier pasteTargetMultiExec = () -> false;
 
+    /** What the program in the pane may do with the clipboard through OSC 5522, or null for nothing. */
+    private volatile @Nullable TerminalClipboardAccess clipboardAccess;
+
     public KorttyTermWidget(int columns, int lines, SettingsProvider settingsProvider) {
         super(columns, lines, settingsProvider);
         // Replace SithTermFX's default OSC 8 provider before the pane is started: it opens file:
@@ -232,6 +235,15 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
         if (text != null) {
             handler.paste(pasteTarget, text, source);
         }
+    }
+
+    /**
+     * Gives the program in the pane clipboard access through OSC 5522, kitty's clipboard protocol, or takes
+     * it away with {@code null}; a paste then goes out as a paste event only while {@code access} allows it.
+     */
+    public void setClipboardAccess(@Nullable TerminalClipboardAccess access) {
+        clipboardAccess = access;
+        setClipboardHandler(access);
     }
 
     @Override
@@ -588,12 +600,26 @@ public class KorttyTermWidget extends SithTermFxWidget implements TerminalPaneAc
          */
         @Override
         public void handlePaste() {
+            // A program that asked for paste events (OSC 5522) reads the clipboard itself.
+            if (sendClipboardPasteEvent()) {
+                return;
+            }
             PasteHandler handler = pasteHandler;
             if (handler == null) {
                 super.handlePaste();
                 return;
             }
             KorttyTermWidget.this.paste(handler, PasteSource.CLIPBOARD);
+        }
+
+        /**
+         * Sends the paste as an OSC 5522 paste event, when the program asked for them and korTTY's settings
+         * and policy let it read the clipboard ({@link TerminalClipboardAccess#pasteEventsAllowed()}).
+         */
+        @Override
+        protected boolean sendClipboardPasteEvent() {
+            TerminalClipboardAccess access = clipboardAccess;
+            return access != null && access.pasteEventsAllowed() && super.sendClipboardPasteEvent();
         }
 
         /**

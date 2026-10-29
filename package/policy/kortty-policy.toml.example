@@ -93,6 +93,11 @@
 #   # clipboard with OSC 52, and the Settings switch is locked off. true or unset leaves
 #   # the choice (off by default) to the user.
 #   allow-osc52-clipboard-write = false
+#   # false: programs in a terminal can never read the clipboard with OSC 5522
+#   # (kitty's clipboard protocol), even when the user would agree; the Settings switch
+#   # is locked off. true or unset leaves the choice (off by default, and a prompt before
+#   # every read) to the user. Writes with OSC 5522 follow allow-osc52-clipboard-write.
+#   allow-osc5522-clipboard-read = false
 #
 #   [rule.teamwork]
 #   allow-custom-sources = false      # only the [[teamwork-source]] entries below

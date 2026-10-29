@@ -928,6 +928,13 @@
 <td><code>osc52ClipboardWriteEnabled</code></td>
 </tr>
 <tr>
+<td>Let programs in the terminal ask to read the clipboard (OSC 5522)</td>
+<td>toggle</td>
+<td>—</td>
+<td>Off</td>
+<td><code>osc5522ClipboardReadEnabled</code></td>
+</tr>
+<tr>
 <td>Close active terminal windows without confirmation</td>
 <td>toggle</td>
 <td>—</td>
@@ -1135,7 +1142,11 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Programs copying to the clipboard (OSC 52)</p>
-<p>With <strong>Let programs in the terminal copy text to the clipboard (OSC 52)</strong> on, programs such as vim, Neovim and tmux, also on a server over SSH, can put up to 256 KiB of text at a time on your clipboard with the OSC 52 escape sequence, and the status bar names the tab each time. They can never read the clipboard, because korTTY never answers the OSC 52 query. It is off by default, because any program whose output reaches the terminal could replace what you copied; while it is off, the status bar says when a program tried. With the enterprise policy's <a href="../enterprise-policy.html#internal-clipboard-mode">internal clipboard mode</a> what programs copy stays inside korTTY. The setting is read on every write, so a change applies to open tabs as soon as you save. See <a href="../../features/terminal-notifications.html#programs-copying-to-the-clipboard-osc-52">Programs copying to the clipboard</a>.</p>
+<p>With <strong>Let programs in the terminal copy text to the clipboard (OSC 52)</strong> on, programs such as vim, Neovim and tmux, also on a server over SSH, can put up to 256 KiB of text at a time on your clipboard with the OSC 52 escape sequence, and the status bar names the tab each time. They can never read the clipboard with OSC 52, because korTTY never answers the OSC 52 query. The same switch governs writes with OSC 5522, kitty's clipboard protocol. It is off by default, because any program whose output reaches the terminal could replace what you copied; while it is off, the status bar says when a program tried. With the enterprise policy's <a href="../enterprise-policy.html#internal-clipboard-mode">internal clipboard mode</a> what programs copy stays inside korTTY. The setting is read on every write, so a change applies to open tabs as soon as you save. See <a href="../../features/terminal-notifications.html#programs-copying-to-the-clipboard-osc-52">Programs copying to the clipboard</a>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Programs reading the clipboard (OSC 5522)</p>
+<p>With <strong>Let programs in the terminal ask to read the clipboard (OSC 5522)</strong> on, programs that speak kitty's clipboard protocol can ask for the text on your clipboard. KorTTY asks before every read, with <strong>Deny</strong> as the default button, and names the tab and the program; a paste into a program that asked for paste events counts as your consent. Only text is handed out, and the internal clipboard mode hands out korTTY's own clipboard. It is off by default. See <a href="../../features/terminal-notifications.html#programs-reading-the-clipboard-osc-5522">Programs reading the clipboard</a>.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Keyword highlighting</p>

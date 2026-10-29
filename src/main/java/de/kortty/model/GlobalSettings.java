@@ -468,6 +468,14 @@ public class GlobalSettings {
     @XmlElement
     private boolean osc52ClipboardWriteEnabled = false;
 
+    /**
+     * Whether a program in a terminal may ask to read the clipboard with OSC 5522, kitty's clipboard
+     * protocol. Off by default; even when on, korTTY asks before every read that does not come from a
+     * paste. Writes with OSC 5522 follow {@link #osc52ClipboardWriteEnabled}.
+     */
+    @XmlElement
+    private boolean osc5522ClipboardReadEnabled = false;
+
     @XmlElement
     private boolean terminalLinkDetectionEnabled = true; // Cmd/Ctrl+click opens web/e-mail addresses and file paths in plain text
 
@@ -2734,6 +2742,18 @@ public class GlobalSettings {
 
     public void setOsc52ClipboardWriteEnabled(boolean osc52ClipboardWriteEnabled) {
         this.osc52ClipboardWriteEnabled = osc52ClipboardWriteEnabled;
+    }
+
+    /**
+     * Whether programs in a terminal may ask to read the clipboard with OSC 5522; each read is asked
+     * for first unless it follows a paste. Read on every request, so a change applies at once.
+     */
+    public boolean isOsc5522ClipboardReadEnabled() {
+        return osc5522ClipboardReadEnabled;
+    }
+
+    public void setOsc5522ClipboardReadEnabled(boolean osc5522ClipboardReadEnabled) {
+        this.osc5522ClipboardReadEnabled = osc5522ClipboardReadEnabled;
     }
 
     /**
