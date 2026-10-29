@@ -35,6 +35,7 @@ public class ServerConnectionCopyPolicyTest {
             "terminalEffectPluginId", "terminalEffectAnimationSpeed", "terminalEmulationType",
             "encoding", "group", "tag", "tabColor", "disableHostKeyCheck", "aiProfileId", "aiSkillIds",
             "aiAgentDesignId",                                             // KI-Agent design combination
+            "aiAgentDisabled",                                             // agent lock (production system)
             "osBadge",                                                     // a duplicate runs the same OS
             "serialSettings",                                              // same port and line settings
             "settings");
@@ -56,6 +57,7 @@ public class ServerConnectionCopyPolicyTest {
             "disableHostKeyCheck", "terminalEffectPluginId", "terminalEffectAnimationSpeed",
             "terminalEmulationType", "encoding", "highlightRuleSetId", "pasteWarningMode", "pasteLineDelayMs",
             "isolationMode", "incognito", "strictTerminalMode", "osBadge", "serialSettings",
+            "aiAgentDisabled",                                             // a shared production system stays locked
             "settings");
 
     /** Exported only when the matching export-dialog checkbox is set. */

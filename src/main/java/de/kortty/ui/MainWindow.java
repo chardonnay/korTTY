@@ -1470,6 +1470,19 @@ public class MainWindow {
         }
     }
 
+    /** Shows why the agent does not start when it is switched off for the connection; true if so. */
+    private boolean rejectTerminalAgentForDisabledConnection(@Nullable ServerConnection connection) {
+        boolean disabled = connection != null && (app.getConfigManager() != null
+            ? app.getConfigManager().isAiAgentDisabled(connection)
+            : connection.isAiAgentDisabled());
+        if (!disabled) {
+            return false;
+        }
+        showError(I18n.get("ai.agent.title"),
+            I18n.get("ai.agent.error.connectionDisabled", connection.getDisplayName()));
+        return true;
+    }
+
     private boolean shouldConfirmTerminalAgentMutatingCommandSets() {
         try {
             var gs = app.getGlobalSettingsManager().getSettings();
@@ -11813,6 +11826,9 @@ public class MainWindow {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.noTerminal"));
             return;
         }
+        if (rejectTerminalAgentForDisabledConnection(terminalTab.getConnection())) {
+            return;
+        }
         requestAiAgentForTab(terminalTab, false, null, null, false, false);
     }
 
@@ -11878,6 +11894,9 @@ public class MainWindow {
         }
         if (!queryOnly && !isTerminalAgentExecutionEnabled()) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.executionDisabled"));
+            return;
+        }
+        if (!queryOnly && rejectTerminalAgentForDisabledConnection(terminalTab.getConnection())) {
             return;
         }
         List<AiProfile> profiles = getAvailableAiProfiles();
@@ -12046,6 +12065,14 @@ public class MainWindow {
             targetRunContext = terminalTab != null
                 ? resolveTerminalAgentRunContext(terminalTab, runContext)
                 : runContext;
+            ServerConnection targetConnection = targetRunContext != null && targetRunContext.connector() != null
+                ? targetRunContext.connector().getConnection()
+                : null;
+            if (rejectTerminalAgentForDisabledConnection(targetConnection != null
+                    ? targetConnection
+                    : terminalTab != null ? terminalTab.getConnection() : null)) {
+                return false;
+            }
             AgentTargetConfirmation confirmation =
                 confirmAgentTargetInForeignSession(terminalTab, targetRunContext, acknowledgedConnector);
             if (!confirmation.proceed()) {
@@ -12740,6 +12767,9 @@ public class MainWindow {
         @Nullable ObservableTtyConnector foreignSessionAcknowledgedFor) {
         if (!isTerminalAgentExecutionEnabled()) {
             showError(I18n.get("ai.agent.title"), I18n.get("ai.agent.error.executionDisabled"));
+            return false;
+        }
+        if (rejectTerminalAgentForDisabledConnection(terminalTab.getConnection())) {
             return false;
         }
         TerminalAgentModels.Request request = new TerminalAgentModels.Request(

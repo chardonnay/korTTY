@@ -165,6 +165,10 @@ Der rote Stil ist für Fehler- und Fehlerzustände reserviert.
 
 KorTTY erzwingt mehrere Leitplanken rund um die Agentenausführung:
 
+### Verbindungen ohne Agent
+
+Für eine Verbindung, bei der der Agent niemals Befehle ausführen darf, etwa ein Produktionssystem, aktivieren Sie **KI-Agent für diese Verbindung deaktivieren** auf dem **KI**-Tab des [Verbindungs-Editors](connections.md#verbindung-erstellenbearbeiten). korTTY verweigert daraufhin jede Agent-Ausführung auf dieser Verbindung mit einer Nachricht, die sie benennt: aus dem Menü, dem Terminal-Kontextmenü (das den Agent-Eintrag auslässt), dem `agent ...` Tastenkürzel, einem akzeptierten Plan, einem [KI-Schwarm](ai-swarm.md)-Mitglied und einem geplanten **KI-Agent**-Job. **Agent fragen**, **KI-Planung** und die anderen KI-Funktionen, wie Erklärungen und KI-Befehlsvervollständigung, bleiben verfügbar. Der Schalter wird aus der gespeicherten Verbindung gelesen, gilt daher auch für bereits geöffnete Tabs und bleibt erhalten, wenn die Verbindung dupliziert, exportiert oder importiert wird.
+
 ### Befehlsgrenzen
 
 - **Limit pro Runde** – Maximal 3 Befehle pro Runde verhindern eine außer Kontrolle geratene Automatisierung.

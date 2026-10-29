@@ -59,6 +59,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
     private ComboBox<SSHKey> savedSSHKeysCombo;
     private ComboBox<AiProfileOption> aiProfileCombo;
     private ComboBox<AgentDesignUiSupport.Choice> aiAgentDesignCombo;
+    private CheckBox aiAgentDisabledCheck;
     private java.util.Map<String, javafx.beans.property.BooleanProperty> aiSkillChecksById;
     private java.util.List<String> unavailableAssignedAiSkillIds = java.util.List.of();
 
@@ -996,6 +997,14 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         designHint.setWrapText(true);
         designHint.setStyle(MutedTextStyle.HINT);
 
+        // Production systems: the agent may not run commands here, whatever the global settings allow.
+        aiAgentDisabledCheck = new CheckBox(I18n.get("connEdit.ai.agentDisabled"));
+        aiAgentDisabledCheck.setSelected(connection.isAiAgentDisabled());
+        Label agentDisabledHint = new Label(I18n.get("connEdit.ai.agentDisabled.hint"));
+        agentDisabledHint.setWrapText(true);
+        agentDisabledHint.setStyle(MutedTextStyle.HINT);
+        aiAgentDesignCombo.disableProperty().bind(aiAgentDisabledCheck.selectedProperty());
+
         java.util.Set<String> assignedSkillIds = new java.util.LinkedHashSet<>(connection.getAiSkillIds());
         java.util.List<AiSkill> connectionSkills = new java.util.ArrayList<>();
         if (globalSettings != null && globalSettings.getAiSkills() != null) {
@@ -1030,6 +1039,8 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             new Label(I18n.get("connEdit.ai.profile")),
             aiProfileCombo,
             profileHint,
+            aiAgentDisabledCheck,
+            agentDisabledHint,
             new Label(I18n.get("connEdit.aiAgentDesign")),
             aiAgentDesignCombo,
             designHint,
@@ -1040,8 +1051,15 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
             noSkillsLabel.setWrapText(true);
             content.getChildren().add(noSkillsLabel);
         } else {
-            ListView<AiSkill> skillsListView = new ListView<>(
-                javafx.collections.FXCollections.observableArrayList(connectionSkills));
+            javafx.collections.transformation.FilteredList<AiSkill> filteredSkills =
+                new javafx.collections.transformation.FilteredList<>(
+                    javafx.collections.FXCollections.observableArrayList(connectionSkills));
+            TextField skillSearchField = new TextField();
+            skillSearchField.setPromptText(I18n.get("connEdit.ai.skills.search"));
+            skillSearchField.textProperty().addListener((obs, oldValue, query) ->
+                filteredSkills.setPredicate(skill -> aiSkillMatchesSearch(skill, query)));
+            ListView<AiSkill> skillsListView = new ListView<>(filteredSkills);
+            skillsListView.setPlaceholder(new Label(I18n.get("connEdit.ai.skills.searchEmpty")));
             skillsListView.setPrefHeight(200);
             skillsListView.setCellFactory(javafx.scene.control.cell.CheckBoxListCell.forListView(
                 skill -> aiSkillChecksById.get(skill.getId()),
@@ -1057,7 +1075,7 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
                     }
                 }));
             VBox.setVgrow(skillsListView, Priority.ALWAYS);
-            content.getChildren().add(skillsListView);
+            content.getChildren().addAll(skillSearchField, skillsListView);
         }
 
         tab.setContent(content);
@@ -1089,9 +1107,25 @@ public class ConnectionEditDialog extends ThemeAwareDialog<ServerConnection> {
         return aiSkillLabel(skill) + " (" + targetLabel + ")";
     }
 
+    /** Search over the skill's name, description, tags and target label; blank matches every skill. */
+    static boolean aiSkillMatchesSearch(AiSkill skill, String query) {
+        if (query == null || query.isBlank()) {
+            return true;
+        }
+        if (skill == null) {
+            return false;
+        }
+        String needle = query.trim().toLowerCase(java.util.Locale.ROOT);
+        return java.util.stream.Stream.of(aiSkillListLabel(skill), skill.getDescription(), skill.getTagsAsString())
+            .anyMatch(value -> value != null && value.toLowerCase(java.util.Locale.ROOT).contains(needle));
+    }
+
     private void applyAiSelections() {
         AiProfileOption selectedOption = aiProfileCombo != null ? aiProfileCombo.getValue() : null;
         connection.setAiProfileId(selectedOption != null ? selectedOption.profileId() : null);
+        if (aiAgentDisabledCheck != null) {
+            connection.setAiAgentDisabled(aiAgentDisabledCheck.isSelected());
+        }
         if (aiAgentDesignCombo != null) {
             AgentDesignUiSupport.Choice design = aiAgentDesignCombo.getValue();
             connection.setAiAgentDesignId(design != null ? design.storedId() : null);

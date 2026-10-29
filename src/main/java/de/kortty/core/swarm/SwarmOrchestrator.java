@@ -337,6 +337,12 @@ public final class SwarmOrchestrator {
                 ui.markCancelled();
                 return ui.snapshot();
             }
+            // A connection switched off for the KI-Agent (e.g. production) never runs swarm commands.
+            if (target.connection() != null && target.connection().isAiAgentDisabled()) {
+                ui.markFailed(de.kortty.ui.I18n.get("ai.agent.error.connectionDisabled",
+                    target.connection().getDisplayName()));
+                return ui.snapshot();
+            }
             AiPromptService aiService = context.aiServiceFactory().get();
             if (aiService == null) {
                 ui.markFailed("AI service unavailable");

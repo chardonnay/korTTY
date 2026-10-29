@@ -1018,6 +1018,8 @@
 <p>Der rote Stil ist für Fehler- und Fehlerzustände reserviert.</p>
 <h2 id="sicherheit-und-fehlerbehandlung">Sicherheit und Fehlerbehandlung<a class="headerlink" href="#sicherheit-und-fehlerbehandlung" title="Permanent link">&para;</a></h2>
 <p>KorTTY erzwingt mehrere Leitplanken rund um die Agentenausführung:</p>
+<h3 id="verbindungen-ohne-agent">Verbindungen ohne Agent<a class="headerlink" href="#verbindungen-ohne-agent" title="Permanent link">&para;</a></h3>
+<p>Für eine Verbindung, bei der der Agent niemals Befehle ausführen darf, etwa ein Produktionssystem, aktivieren Sie <strong>KI-Agent für diese Verbindung deaktivieren</strong> auf dem <strong>KI</strong>-Tab des <a href="connections.html#verbindung-erstellenbearbeiten">Verbindungs-Editors</a>. korTTY verweigert daraufhin jede Agent-Ausführung auf dieser Verbindung mit einer Nachricht, die sie benennt: aus dem Menü, dem Terminal-Kontextmenü (das den Agent-Eintrag auslässt), dem <code>agent ...</code> Tastenkürzel, einem akzeptierten Plan, einem <a href="ai-swarm.html">KI-Schwarm</a>-Mitglied und einem geplanten <strong>KI-Agent</strong>-Job. <strong>Agent fragen</strong>, <strong>KI-Planung</strong> und die anderen KI-Funktionen, wie Erklärungen und KI-Befehlsvervollständigung, bleiben verfügbar. Der Schalter wird aus der gespeicherten Verbindung gelesen, gilt daher auch für bereits geöffnete Tabs und bleibt erhalten, wenn die Verbindung dupliziert, exportiert oder importiert wird.</p>
 <h3 id="befehlsgrenzen">Befehlsgrenzen<a class="headerlink" href="#befehlsgrenzen" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Limit pro Runde</strong> – Maximal 3 Befehle pro Runde verhindern eine außer Kontrolle geratene Automatisierung.</li>

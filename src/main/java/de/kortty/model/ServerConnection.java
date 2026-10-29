@@ -248,6 +248,14 @@ public class ServerConnection {
     @XmlElement
     private String aiAgentDesignId;
 
+    /**
+     * Whether the KI-Agent may not execute commands on this connection (e.g. a production system).
+     * {@code null} or false leaves the agent available as the global settings allow. Travels with an
+     * export, so a shared production connection stays locked on the receiving machine.
+     */
+    @XmlElement
+    private Boolean aiAgentDisabled;
+
     /** Connection-scoped AI skills (target CONNECTION) assigned to this connection. */
     @XmlElementWrapper(name = "aiSkillIds")
     @XmlElement(name = "skillId")
@@ -299,6 +307,7 @@ public class ServerConnection {
         c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.isolationMode = source.isolationMode;
         c.incognito = source.incognito;
+        c.aiAgentDisabled = source.aiAgentDisabled;
         c.strictTerminalMode = source.strictTerminalMode;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
@@ -358,6 +367,7 @@ public class ServerConnection {
         c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.isolationMode = source.isolationMode;
         c.incognito = source.incognito;
+        c.aiAgentDisabled = source.aiAgentDisabled;
         c.strictTerminalMode = source.strictTerminalMode;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
@@ -408,6 +418,7 @@ public class ServerConnection {
         c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.isolationMode = source.isolationMode;
         c.incognito = source.incognito;
+        c.aiAgentDisabled = source.aiAgentDisabled;
         c.strictTerminalMode = source.strictTerminalMode;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
@@ -460,6 +471,7 @@ public class ServerConnection {
         c.pasteLineDelayMs = source.pasteLineDelayMs;
         c.isolationMode = source.isolationMode;
         c.incognito = source.incognito;
+        c.aiAgentDisabled = source.aiAgentDisabled;
         c.strictTerminalMode = source.strictTerminalMode;
         c.terminalEmulationType = source.getTerminalEmulationType();
         c.encoding = source.encoding;
@@ -501,6 +513,16 @@ public class ServerConnection {
 
     public void setAiAgentDesignId(String aiAgentDesignId) {
         this.aiAgentDesignId = aiAgentDesignId != null && !aiAgentDesignId.isBlank() ? aiAgentDesignId.trim() : null;
+    }
+
+    /** Whether the KI-Agent is switched off for this connection; see {@link #aiAgentDisabled}. */
+    public boolean isAiAgentDisabled() {
+        return Boolean.TRUE.equals(aiAgentDisabled);
+    }
+
+    /** Switches the KI-Agent off for this connection; false stores nothing, so the file keeps its old form. */
+    public void setAiAgentDisabled(boolean aiAgentDisabled) {
+        this.aiAgentDisabled = aiAgentDisabled ? Boolean.TRUE : null;
     }
 
     public java.util.List<String> getAiSkillIds() {

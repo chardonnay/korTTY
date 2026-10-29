@@ -92,7 +92,7 @@ The connection editor has these tabs:
 | Terminal Logging | Writes this connection's terminal output to a file — folder, format, daily rotation, compression and retention. See [Terminal logging](terminal.md#terminal-logging). |
 | Journal | Per-connection [session journal](session-journal.md): enable journaling for this connection and configure its capture log and AI summarization |
 | Window Geometry | Saved size/position for this connection |
-| AI | Per-connection AI defaults: the [AI profile](ai-assistant.md), the [AI agent design](ai-agent-designs.md#a-design-per-connection) agent runs are shown in, and the AI Skills used by terminal AI features on this connection |
+| AI | Per-connection AI defaults: the [AI profile](ai-assistant.md), **Disable AI agent for this connection** for systems such as production servers where the agent must not run commands (see [Connections without the agent](ai-tools.md#connections-without-the-agent)), the [AI agent design](ai-agent-designs.md#a-design-per-connection) agent runs are shown in, and the AI Skills used by terminal AI features on this connection, with a search field above the list that filters by name, description and tags |
 
 Eight tabs no longer fit in one row in a narrow window. Besides the menu at the right end of the tab bar, which jumps to a tab by name, the row above the tabs has two arrow buttons that step to the previous and the next tab, with a counter such as *3 / 8* showing where you are; an arrow is greyed out on the first and the last tab. ++ctrl+tab++ and ++ctrl+shift+tab++ (or ++ctrl+page-down++ and ++ctrl+page-up++) do the same from the keyboard, also while the cursor is in a field.
 
