@@ -230,7 +230,7 @@ public final class SessionWorkerMain {
         server.setShellFactory(channel -> new RelayCommand(upstream.session, RelayCommand.Kind.SHELL, null));
         server.setCommandFactory((channel, command) -> new RelayCommand(upstream.session, RelayCommand.Kind.EXEC, command));
         server.setSubsystemFactories(List.of(relaySubsystem(upstream, "sftp")));
-        server.setChannelFactories(List.of(ChannelSessionFactory.INSTANCE,
+        server.setChannelFactories(List.of(PixelSizeChannelSession.FACTORY,
             TcpipRelayChannel.directFactory(() -> upstream.session)));
         // korTTY's remote tunnels are passed on to the server instead of binding a port here.
         List<RequestHandler<ConnectionService>> globalRequests = new ArrayList<>();

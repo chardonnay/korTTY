@@ -1045,6 +1045,12 @@ public class LocalShellTtyConnector implements ObservableTtyConnector, de.kortty
         return connected.get() && localIn != null && localIn.available() > 0;
     }
 
+    /**
+     * Sets the pty's size in cells only. There is no {@code resize(TermSize, PixelSize)}: pty4j
+     * 0.12.25 (pinned for notarization) cannot set the pixel size, as its four-argument
+     * {@code WinSize} constructor ignores the pixels and the native window-size struct copies only
+     * columns and rows.
+     */
     @Override
     public void resize(TermSize termSize) {
         PtyProcess localPty = ptyProcess;

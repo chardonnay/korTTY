@@ -1144,6 +1144,7 @@
 <ul>
 <li>Preserve the <code>TtyConnector</code> contract</li>
 <li>Delegate <code>write</code>, <code>resize</code>, <code>waitFor</code>, <code>ready</code>, <code>getName</code>, <code>isConnected</code>, and <code>close</code> unless the effect has a specific reason to change them</li>
+<li>Delegate both <code>resize</code> overloads: <code>resize(TermSize, PixelSize)</code> passes the size of the text area in pixels, which image tools need. Without an override, the default implementation discards the pixels.</li>
 <li>Handle <code>InterruptedException</code> by restoring the interrupt flag and converting to an appropriate checked exception where the <code>TtyConnector</code> method requires it</li>
 <li>Avoid unbounded buffering because terminal output can be large</li>
 <li>Avoid delaying control sequences such as ANSI CSI/OSC commands unless the effect intentionally changes terminal protocol behavior</li>

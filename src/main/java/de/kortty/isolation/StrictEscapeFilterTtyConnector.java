@@ -85,6 +85,11 @@ public final class StrictEscapeFilterTtyConnector implements TtyConnector {
     }
 
     @Override
+    public void resize(@NotNull com.sithtermfx.core.util.TermSize termSize, @NotNull com.sithtermfx.core.util.PixelSize pixelSize) {
+        delegate.resize(termSize, pixelSize);
+    }
+
+    @Override
     public int waitFor() throws InterruptedException {
         return delegate.waitFor();
     }

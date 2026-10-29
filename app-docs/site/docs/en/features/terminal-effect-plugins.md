@@ -305,6 +305,7 @@ When wrapping:
 
 - Preserve the `TtyConnector` contract
 - Delegate `write`, `resize`, `waitFor`, `ready`, `getName`, `isConnected`, and `close` unless the effect has a specific reason to change them
+- Delegate both `resize` overloads: `resize(TermSize, PixelSize)` passes the size of the text area in pixels, which image tools need. Without an override, the default implementation discards the pixels.
 - Handle `InterruptedException` by restoring the interrupt flag and converting to an appropriate checked exception where the `TtyConnector` method requires it
 - Avoid unbounded buffering because terminal output can be large
 - Avoid delaying control sequences such as ANSI CSI/OSC commands unless the effect intentionally changes terminal protocol behavior

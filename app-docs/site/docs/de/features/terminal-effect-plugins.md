@@ -305,6 +305,7 @@ Beim Einpacken:
 
 - Bewahren Sie den `TtyConnector`-Vertrag auf
 - Delegieren Sie `write`, `resize`, `waitFor`, `ready`, `getName`, `isConnected` und `close`, es sei denn, der Effekt hat einen bestimmten Grund, sie zu ändern
+- Delegieren Sie beide `resize`-Overloads: `resize(TermSize, PixelSize)` übergibt die Größe des Textbereichs in Pixeln, die Bildwerkzeuge benötigen. Ohne Override verwirft die Standardimplementierung die Pixel.
 - Behandeln Sie `InterruptedException`, indem Sie das Interrupt-Flag wiederherstellen und in eine entsprechende geprüfte Ausnahme konvertieren, wenn die Methode `TtyConnector` dies erfordert
 - Vermeiden Sie unbegrenztes Puffern, da die Terminalausgabe groß sein kann
 - Vermeiden Sie die Verzögerung von Steuersequenzen wie ANSI CSI/OSC-Befehlen, es sei denn, der Effekt ändert absichtlich das Verhalten des Terminalprotokolls

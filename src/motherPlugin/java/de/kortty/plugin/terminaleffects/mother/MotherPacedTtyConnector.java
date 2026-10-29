@@ -1,6 +1,7 @@
 package de.kortty.plugin.terminaleffects.mother;
 
 import com.sithtermfx.core.TtyConnector;
+import com.sithtermfx.core.util.PixelSize;
 import com.sithtermfx.core.util.TermSize;
 import de.kortty.plugin.terminaleffects.TerminalEffectAnimationSpeed;
 import de.kortty.plugin.terminaleffects.TerminalEffectConnectorWrapper;
@@ -179,6 +180,11 @@ final class MotherPacedTtyConnector implements TerminalEffectConnectorWrapper {
     @Override
     public void resize(@NotNull TermSize termSize) {
         delegate.resize(termSize);
+    }
+
+    @Override
+    public void resize(@NotNull TermSize termSize, @NotNull PixelSize pixelSize) {
+        delegate.resize(termSize, pixelSize);
     }
 
     @Override
