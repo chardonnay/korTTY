@@ -288,6 +288,18 @@ public class ConfigurationManager {
                 .orElse(null);
     }
     
+    /**
+     * Whether the KI-Agent is switched off for {@code connection} (Connection Manager → AI). Read from the
+     * saved connection when there is one, so a change applies to sessions that are already open.
+     */
+    public boolean isAiAgentDisabled(ServerConnection connection) {
+        if (connection == null) {
+            return false;
+        }
+        ServerConnection stored = connection.getId() != null ? getConnectionById(connection.getId()) : null;
+        return stored != null ? stored.isAiAgentDisabled() : connection.isAiAgentDisabled();
+    }
+    
     // Global settings
     
     public ConnectionSettings getGlobalSettings() {

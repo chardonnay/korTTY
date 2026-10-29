@@ -1010,6 +1010,7 @@ public class QuickConnectDialog extends ThemeAwareDialog<QuickConnectDialog.Conn
         modified.setEncoding(selected.getEncoding());
         modified.setHighlightRuleSetId(selected.getHighlightRuleSetId());
         modified.setAiAgentDesignId(selected.getAiAgentDesignId());
+        modified.setAiAgentDisabled(selected.isAiAgentDisabled());
         modified.setShellIntegrationAutoInject(selected.isShellIntegrationAutoInject());
         modified.setPasteWarningMode(selected.getPasteWarningMode());
         modified.setPasteLineDelayMs(selected.getPasteLineDelayMs());

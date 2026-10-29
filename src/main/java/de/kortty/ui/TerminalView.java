@@ -808,7 +808,8 @@ public class TerminalView extends BorderPane {
             String selectedText = getSelectedText(widget);
             List<AiProfile> aiProfiles = getConfiguredAiProfiles();
             boolean hasSelectedText = selectedText != null && !selectedText.isBlank();
-            boolean hasExecutableAgentAction = aiAgentHandler != null && isTerminalAgentExecutionEnabled();
+            boolean hasExecutableAgentAction = aiAgentHandler != null && isTerminalAgentExecutionEnabled()
+                && !isAiAgentDisabledForConnection();
             boolean hasAgentActions = hasExecutableAgentAction || aiAgentAskHandler != null || aiPlanningHandler != null;
             if (shouldShowLoadAsTextFileContextItem(selectedText, terminalTextFileLoadHandler != null)) {
                 javafx.scene.control.MenuItem loadTextFileItem =
@@ -6825,6 +6826,17 @@ public class TerminalView extends BorderPane {
             return gs == null || gs.isAiFeaturesEnabled();
         } catch (Exception e) {
             return true;
+        }
+    }
+
+    /** Whether the KI-Agent is switched off for this view's connection (Connection Manager → AI). */
+    private boolean isAiAgentDisabledForConnection() {
+        try {
+            var configManager = KorTTYApplication.getInstance().getConfigManager();
+            return configManager != null ? configManager.isAiAgentDisabled(connection)
+                : connection != null && connection.isAiAgentDisabled();
+        } catch (Exception e) {
+            return connection != null && connection.isAiAgentDisabled();
         }
     }
 

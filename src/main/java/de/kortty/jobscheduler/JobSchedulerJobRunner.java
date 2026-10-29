@@ -318,6 +318,12 @@ public class JobSchedulerJobRunner {
         int targetCount,
         AutomationJournalRecorder recorder) throws Exception {
 
+        // Connection Manager → AI can switch the agent off for a connection (e.g. production).
+        if (job.getAction() != null && job.getAction().getType() == JobActionType.AI_AGENT
+            && connection.isAiAgentDisabled()) {
+            throw new JobBlockedException(
+                de.kortty.ui.I18n.get("ai.agent.error.connectionDisabled", connection.getDisplayName()));
+        }
         PinnedHostKey hostKey = resolvePinnedHostKeyForJob(job, connection);
         char[] masterPassword = app.getMasterPasswordManager() != null
             ? app.getMasterPasswordManager().getMasterPassword()
