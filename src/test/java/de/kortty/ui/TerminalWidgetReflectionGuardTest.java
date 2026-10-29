@@ -141,7 +141,7 @@ public class TerminalWidgetReflectionGuardTest {
         Class<?> korttyPanel = KorttyTermWidget.KorttyTerminalPanel.class;
         assertThat(korttyPanel.getDeclaredMethod("sendClipboardPasteEvent").getDeclaringClass()).isEqualTo(korttyPanel);
 
-        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/KorttyTermWidget.java"), StandardCharsets.UTF_8);
+        String source = Files.readString(Path.of("src/main/java/de/kortty/ui/KorttyTermWidget.java"), StandardCharsets.UTF_8).replace("\r\n", "\n");
         String handlePaste = source.substring(source.indexOf("public void handlePaste() {"));
         handlePaste = handlePaste.substring(0, handlePaste.indexOf("\n        }\n") + 1);
         assertThat(handlePaste.indexOf("if (sendClipboardPasteEvent()) {")).isAtLeast(0);

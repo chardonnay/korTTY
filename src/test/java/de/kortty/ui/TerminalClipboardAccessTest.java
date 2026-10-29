@@ -439,7 +439,7 @@ class TerminalClipboardAccessTest {
     void theInternalClipboardModeKeepsWritesAndReadsInKortty() throws Exception {
         // The real clipboard of the handler is KorttyClipboard, which keeps both inside korTTY in that mode.
         String source = java.nio.file.Files.readString(java.nio.file.Path.of(
-            "src/main/java/de/kortty/ui/TerminalClipboardAccess.java"), StandardCharsets.UTF_8);
+            "src/main/java/de/kortty/ui/TerminalClipboardAccess.java"), StandardCharsets.UTF_8).replace("\r\n", "\n");
         assertThat(source).contains("return KorttyClipboard.getText();");
         assertThat(source).contains("KorttyClipboard.setText(text);");
         assertThat(source).contains("return KorttyClipboard.hasText();");

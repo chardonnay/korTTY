@@ -239,7 +239,7 @@ class ClipboardProtocolFlowTest {
     /** Source-level wiring: every pane's session gets the tab's handler, except in the strict mode. */
     @Test
     void everyPaneGetsTheTabsHandlerUnlessItIsStrict() throws IOException {
-        String view = Files.readString(Path.of("src/main/java/de/kortty/ui/TerminalView.java"), StandardCharsets.UTF_8);
+        String view = Files.readString(Path.of("src/main/java/de/kortty/ui/TerminalView.java"), StandardCharsets.UTF_8).replace("\r\n", "\n");
         String decorate = view.substring(view.indexOf("private TtyConnector decorateTerminalConnector("),
             view.indexOf("public void setIsolationRequested("));
         assertThat(decorate).contains("applyClipboardAccess(widget, strict ? null : clipboardAccess);");
@@ -247,7 +247,7 @@ class ClipboardProtocolFlowTest {
         assertWithMessage("the tab's cleanup refuses every later request").that(view)
             .contains("clipboardAccess = null;\n        if (access != null) {\n            access.close();");
 
-        String tab = Files.readString(Path.of("src/main/java/de/kortty/ui/TerminalTab.java"), StandardCharsets.UTF_8);
+        String tab = Files.readString(Path.of("src/main/java/de/kortty/ui/TerminalTab.java"), StandardCharsets.UTF_8).replace("\r\n", "\n");
         assertThat(tab).contains("this.terminalView.setClipboardAccess(TerminalClipboardAccess.forTab(this));");
     }
 }
