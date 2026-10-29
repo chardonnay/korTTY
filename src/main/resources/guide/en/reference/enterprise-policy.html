@@ -1224,7 +1224,13 @@
 <td><code>allow-osc52-clipboard-write</code></td>
 <td>boolean</td>
 <td><code>false</code></td>
-<td>Programs in a terminal can never put text on the clipboard with OSC 52, whatever <em>Settings → Terminal</em> says: the setting is forced off and <strong>Let programs in the terminal copy text to the clipboard (OSC 52)</strong> is locked with the "Managed by your organization" hint, and korTTY checks the policy again on every write. <code>true</code> leaves the choice, which is off by default, to the user and locks nothing</td>
+<td>Programs in a terminal can never put text on the clipboard with OSC 52, whatever <em>Settings → Terminal</em> says: the setting is forced off and <strong>Let programs in the terminal copy text to the clipboard (OSC 52)</strong> is locked with the "Managed by your organization" hint, and korTTY checks the policy again on every write. It also governs writes with OSC 5522. <code>true</code> leaves the choice, which is off by default, to the user and locks nothing</td>
+</tr>
+<tr>
+<td><code>allow-osc5522-clipboard-read</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Programs in a terminal can never read the clipboard with OSC 5522, kitty's clipboard protocol, even with the user's consent: <strong>Let programs in the terminal ask to read the clipboard (OSC 5522)</strong> is forced off and locked, no prompt opens and pastes never go out as paste events. <code>true</code> leaves the choice, which is off by default and asks before every read, to the user</td>
 </tr>
 </tbody>
 </table>
@@ -1446,11 +1452,12 @@ at an internal endpoint.</p>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="k">[rule.security]</span>
 </span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="n">allow-osc52-clipboard-write</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="k">[rule.terminal]</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="n">paste-warning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"always"</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span><span class="n">session-restore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ask"</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">  </span><span class="n">session-restore-output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span><span class="n">allow-osc5522-clipboard-read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="k">[rule.terminal]</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span><span class="n">paste-warning</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"always"</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">  </span><span class="n">session-restore</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ask"</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="n">session-restore-output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
 </span></code></pre></div>
 <h3 id="rulesftp"><code>[rule.sftp]</code><a class="headerlink" href="#rulesftp" title="Permanent link">&para;</a></h3>
 <table>
@@ -1852,7 +1859,7 @@ at an internal endpoint.</p>
 </table>
 <h2 id="internal-clipboard-mode">Internal clipboard mode<a class="headerlink" href="#internal-clipboard-mode" title="Permanent link">&para;</a></h2>
 <p>With <code>clipboard-mode = "internal"</code> korTTY detaches from the operating system clipboard entirely and uses its own in-memory clipboard instead: text copied in another application cannot be pasted anywhere in korTTY, and text copied in korTTY never reaches the OS clipboard — while copy, cut and paste <em>within</em> korTTY keep working everywhere, because terminals, SFTP views, the snippet editor and all dialogs share the same internal buffer. Because this is pure application logic and no OS clipboard isolation API is involved, it behaves identically on macOS, Windows and Linux, including the X11 primary selection (middle-click paste): pasting middle-click content from other applications is blocked, middle-click paste of korTTY-internal copies keeps working.</p>
-<p>The mode covers the terminal (shortcuts, context menu, middle-click, text dropped onto it from another application, which is refused, and text that a program in the terminal copies with OSC 52 where <em>Settings → Terminal</em> allows it, which lands in the internal clipboard only), the code editor, all copy buttons, the <code>${clipboard}</code> snippet variable, and the copy/cut/paste shortcuts of plain input fields. Copying images (AI-generated pictures, diagram exports) is unavailable in internal mode, since an image can only be shared via the OS clipboard.</p>
+<p>The mode covers the terminal (shortcuts, context menu, middle-click, text dropped onto it from another application, which is refused, and text that a program in the terminal copies with OSC 52 or OSC 5522 where <em>Settings → Terminal</em> allows it, which lands in the internal clipboard only; a program that reads with OSC 5522 gets the internal clipboard), the code editor, all copy buttons, the <code>${clipboard}</code> snippet variable, and the copy/cut/paste shortcuts of plain input fields. Copying images (AI-generated pictures, diagram exports) is unavailable in internal mode, since an image can only be shared via the OS clipboard.</p>
 <div class="admonition note">
 <p class="admonition-title">Scope</p>
 <p>The internal clipboard is a policy tool against casual data transfer through the clipboard, not a hard air gap: a user can still read text on screen. The right-click <em>Paste</em> entry of plain text fields is provided by the UI toolkit and may still access the OS clipboard — the keyboard shortcut and every korTTY-provided menu are covered.</p>
