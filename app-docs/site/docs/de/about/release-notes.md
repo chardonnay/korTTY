@@ -2,7 +2,7 @@
 
 Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anleitung erstellt wurde, wird in der Fußzeile angezeigt.
 
-## v2.23.0
+## v2.24.0
 
 ### Connection-Manager
 
@@ -14,43 +14,33 @@ Was hat sich in der aktuellen Version geändert? Die Version, für die diese Anl
 - **Netzplan als PDF** — **PDF** im Netzplan speichert den Netzplan als Vektor-PDF mit dem korTTY-Logo, im Quer- oder Hochformat.
 - **Übersichtsexport** — **Übersicht exportieren** schreibt Ihre Server als JSON, YAML, TOML oder XML, mit den Teilen, die Sie auswählen, und niemals ein Passwort oder einen Schlüssel. Siehe [Übersicht exportieren](../features/connections.md#exportieren-einer-ubersicht).
 - **Inspektor** — der Pfad von diesem Computer über den Jump-Server, Sicherheit als Chips, Nutzungsbalken für die letzten 14 Tage und eine SFTP-Schaltfläche.
+- **Symbolleiste für eine leere Verbindungszeile** — während **Ansicht → Verbindungsleiste** aktiviert ist, aber noch keine Server oder Gruppen enthält, bleibt die Zeile sichtbar und bietet **Verbindung hinzufügen**, das die Anpassung im Verbindungskatalog öffnet. Siehe [Anpassung der Symbolleiste](../getting-started/main-window.md#anpassung-der-symbolleiste).
 
 ### Serielle Verbindungen
 
 - **Serielle Ports** — das neue **Seriell**-Protokoll öffnet ein Terminal auf einem seriellen Port, wie die seriellen Sitzungen von PuTTY: eine Router- oder Switch-Konsole, ein Mikrocontroller-Board oder ein USB-zu-Seriell-Adapter, unter Windows, macOS und Linux. Wählen Sie den Port aus der Liste aus oder geben Sie ihn ein, und legen Sie Geschwindigkeit, Datenbits, Parität, Stop-Bits, Flusssteuerung, was Enter sendet, DTR/RTS und lokales Echo fest. **Break senden** findet sich im Kontextmenü des Terminals und im Menü Verbindungen und kann in den Tastatureinstellungen eine Taste zugewiesen werden. Serielle Sitzungen aus MobaXterm- und PuTTY Connection-Manager-Dateien werden ebenfalls importiert. Siehe [Serielle Verbindungen](../features/serial.md).
 
-### Unter Windows
-
-- **PowerShell und Eingabeaufforderung in der Symbolleiste** — unter Windows werden in der Terminalgruppe der Symbolleiste **Neue PowerShell** und **Neue Eingabeaufforderung** direkt nach **Neue lokale Shell** eingefügt, jeweils mit eigenem Symbol; gespeicherte Layouts übernehmen beide ebenfalls. Bei installiertem Git for Windows bietet der Anpassungskatalog zudem **Neue Git Bash**. Siehe [Anpassen der Symbolleiste](../getting-started/main-window.md#anpassung-der-symbolleiste).
-- **Lokale Shells werden unter ConPTY ausgeführt** — lokale Shells und der native Mosh-Client starten nun unter der Windows-Pseudo-Konsole anstelle von winpty, was nicht mehr die Tastatureingaben in anderen Anwendungen stört, während korTTY läuft.
-- **Mosh-Client findet mosh-client.exe** — das Mosh-Client-Protokoll (nativ) sucht nun nach `mosh-client.exe` in den Ordnern der `PATH`. Siehe [Protokolle](../features/connections.md#protokolle).
-
-### Symbolleiste und Split-Fenster
-
-- **Symbolleistengruppen werden umgebrochen, anstatt verkleinert zu werden** — wenn das Fenster zu schmal ist, werden ganze Symbolleistengruppen in eine neue Zeile verschoben, sodass jede Schaltfläche direkt anklickbar bleibt, anstatt sich hinter einem Überlauf-Pfeil zu verstecken. Siehe [Anpassen der Symbolleiste](../getting-started/main-window.md#anpassung-der-symbolleiste).
-- **Fokusring kann ausgeschaltet werden** — schalten Sie **Aktives Split-Terminal umrahmen** in den Fenstereinstellungen aus, um den Ring um das aktive Split-Terminal auszublenden. Sie erkennen dann das aktive Terminal durch seinen Cursor. Siehe [Tabs](../reference/settings/window.md#tabs).
-
-### Snippets
-
-- **Ordneranalyse nach Datei** — der Tab „Ordneranalyse“ listet die Dateien des Ordners neben dem Bericht auf. Wählen Sie eine Datei oder navigieren Sie durch die Dateien mit ◀ ▶ und den Pfeiltasten, um nur deren Ergebnisse und eine kurze Beschreibung der Funktion der Datei anzuzeigen; jede Zeile zeigt, wie viele ihrer Ergebnisse markiert sind, und ihr Kontrollkästchen markiert oder entfernt sie alle. Die Ergebnisse bleiben auch dann einer Datei zugeordnet, wenn das Modell sie pro Datei durchnumeriert oder die Datei auf eine andere Weise benennt. Siehe [Analysieren eines Ordners als einzelnes Projekt](../features/snippets.md#ordner-als-ein-projekt-analysieren).
-- **Vertikales oder horizontales Flussdiagramm** — eine **Ausrichtung**-Steuerung in der Diagramm-Symbolleiste zeichnet das Flussdiagramm von oben nach unten oder von links nach rechts, im Analysebereich, dessen Zoom-Fenster sowie im Diagramm-Dialog. Das Umschalten zeichnet das gespeicherte Diagramm neu, ohne die KI erneut zu befragen. Siehe [Diagrammdarstellung](../features/snippets.md#diagrammdarstellung).
-
-### KI
-
-- **"Modell-Standard" statt "Deaktiviert"** — die Einstellung, die keinen Reasoning-Parameter sendet, heißt nun **Modell-Standard**, da dann der Standardwert des Modells gilt; nur **Keine** schaltet das Reasoning aus. Ein Tooltip im Dropdown-Menü erläutert den Unterschied. Siehe [Reasoning-Stufen](../reference/settings/ai.md#einstellungen-fur-das-denkverhalten).
-- **Verbindungstest akzeptiert reine Reasoning-Antworten** — **KI-Verbindung testen** und **Reasoning-Optionen aktualisieren** werden nun bestanden, wenn ein Modell, das standardmäßig mit Reasoning arbeitet, wie Qwen in LM Studio, die kurze Testantwort für das Reasoning nutzt, und ein fehlgeschlagener Aktualisierungsvorgang den Grund des Endpunkts selbst angibt.
-
 ### Terminal
 
 - **Zwischenablage-Protokoll von kitty (OSC 5522)** — Programme, die das Zwischenablage-Protokoll von kitty verwenden, wie Neovim und `kitten clipboard`, können unter der Einstellung OSC 52 in die Zwischenablage kopieren, und mit der neuen Einstellung **Programmen im Terminal erlauben, das Lesen der Zwischenablage anzufragen (OSC 5522)** können sie das Lesen anfragen. Bei jedem Lesezugriff werden Sie zuerst gefragt, **Ablehnen** ist die Standardeinstellung, und ein Einfügen in ein Programm, das Einfüge-Ereignisse angefragt hat, gilt als Ihre Zustimmung. Es wird nur Text ausgetauscht; der strikte Terminalmodus entfernt das Protokoll, und der Policy-Schlüssel `allow-osc5522-clipboard-read = false` verbietet das Lesen. Siehe [Programme, die die Zwischenablage lesen](../features/terminal-notifications.md#programme-zum-auslesen-der-zwischenablage-osc-5522).
-
 - **Scrollback-Speicherlimit** — der neue **Scrollback-Speicher**-Regler in den Terminal-Einstellungen legt fest, wie viel Speicher der Scrollback eines einzelnen Fensters maximal verwenden darf, von 1 bis 50 MB (Standard: 10 MB), neben der Zeilenanzahl; welches Limit zuerst erreicht wird, entfernt die ältesten Zeilen. Eine gespeicherte Änderung wird sofort auf offene Terminals angewendet. Siehe [Terminal-Einstellungen](../reference/settings/terminal.md).
 - **Scrollback-Komprimierung** — während ein Terminal keine Ausgabe hat, komprimiert korTTY die Scrollback-Zeilen, die nicht auf dem Bildschirm sind, im Hintergrund, damit derselbe Speicher mehrere Male so viele Zeilen fasst. Eine Zeile wird entpackt, sobald Sie dazu scrollen. Deaktivieren Sie es über **Scrollback im Leerlauf im Hintergrund komprimieren**. Siehe [Terminal-Einstellungen](../reference/settings/terminal.md).
+- **Pixelgröße für Bildwerkzeuge über SSH** — SSH-Sitzungen, einschließlich isolierter, teilen dem Server nun die Größe des Terminals in Pixeln mit, damit Bildwerkzeuge, die das kitty-Grafikprotokoll verwenden, ihre Bilder korrekt dimensionieren, anstatt 0×0 zu sehen.
+
+### KI
+
+- **KI-Agent pro Verbindung deaktivieren** — für Systeme wie Produktionsserver, schalten Sie **KI-Agent für diese Verbindung deaktivieren** auf dem **KI**-Tab des Verbindungseditors ein. Jeder Agent-Lauf auf dieser Verbindung wird dann abgelehnt, aus dem Menü, dem `agent ...`-Shortcut, akzeptierten Plänen, Swarm-Mitgliedern und geplanten KI-Agent-Jobs; **Agent fragen**, **KI-Planung** und die anderen KI-Funktionen bleiben verfügbar. Siehe [Verbindungen ohne Agent](../features/ai-tools.md#verbindungen-ohne-agent).
+- **Verbindungs-Skills durchsuchen** — Ein Suchfeld über der Liste der KI-Skills im Verbindungs-Editor filtert diese nach Name, Beschreibung und Tags.
+
+### Snippets
+
+- **Snippet-Manager-Fenster blockieren das Hauptfenster nicht mehr** — die Terminals bleiben nutzbar, während ein Snippet-Manager-Fenster geöffnet ist, auch während es eine Frage stellt oder eine Vollständige Code-Analyse ausführt. **Werkzeuge → Neues Snippet-Manager-Fenster** öffnet ein weiteres, und **In neues Fenster verschieben** auf einem Tab verschiebt ein Snippet oder eine Ordneranalyse in ein eigenes Fenster, beispielsweise auf einen zweiten Bildschirm. Siehe [Öffnen des Snippet-Managers](../features/snippets.md#offnen-des-snippet-managers).
+
+### Coding-Agents
+
+- **Cline und Antigravity CLI** — Das Coding-Agents-Panel erkennt jetzt **Cline** und Googles **Antigravity CLI** (`agy`), den Nachfolger von Gemini CLI; die Regeln aller anderen Agents wurden gegen deren jeweils neueste Version überprüft, und die Ordnervertrauens- und Anmelde-Dialoge von Gemini CLI gelten jetzt als „wartet auf Sie“. Siehe [Was erkannt wird](../features/coding-agents.md#was-erkannt-wird).
 
 ### Korrekturen
 
-- **Verworfene Sitzungen bleiben verworfen** — das absichtliche Schließen des letzten Tabs leert nun den Sitzungsschnappschuss, sodass die Wiederherstellungsaufforderung nach dem Verwerfen nicht mehr bei jedem Start wieder erscheint.
-- **Stabile Diagramm-Tooltips** — der Code-Referenz-Tooltip im vergrößerten Analyse-Diagramm bleibt geöffnet, solange sich die Maus über einem Knoten befindet, anstatt kurz aufzubleiben und zu schließen.
-- **Ordneranalysen bleiben bei einem fehlerhaften Schlüssel erhalten** — eine Analyse, bei der im JSON das öffnende Anführungszeichen eines Schlüssels fehlt, wird repariert, anstatt als „keine verwendbare Analyse“ verworfen zu werden.
-- **Deutsches Label für Reasoning** — die deutsche Benutzeroberfläche bezeichnet diese Einstellung der KI-Profile nun als „Reasoning“, wie es auch die Anleitung tut.
+- **Kopieren aus dem KI-Chat** — ++cmd+c++ / ++ctrl+c++ und ++cmd+a++ / ++ctrl+a++ funktionieren nun nach dem Klicken in eine Chatnachricht, und die Scrollleiste des Chats ist breiter und besser sichtbar.
 - **Breite Dialoge öffnen sich in AtlantaFX-Designs in ihrer Größe** — unter einem AtlantaFX-Design wurde ein Dialog, der breiter als 600 px aufgebaut ist (wie die Einstellungen, **Ordner vergleichen** im SFTP-Manager oder der **Logdatei-Manager**), gestaucht geöffnet oder wuchs nach dem Erscheinen; er öffnet sich nun so breit wie im Normal-Design, und eine lange Meldung wird weiterhin umgebrochen.
